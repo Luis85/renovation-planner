@@ -83,6 +83,10 @@ async function onCreateProject(): Promise<void> {
 		props: {
 			dispatch: (input: CreateProjectInput) => context.commands.createProject.execute(input),
 			busy: newProjectBusy,
+			// The form's own door for a dispatch that THROWS, which `createProject` being a
+			// guarded command means it cannot — but the guard is the ROOT's property, not this
+			// call site's, and `useFormCommit` requires the door rather than assuming the caller.
+			logger: context.commands.logger,
 		},
 		busy: newProjectBusy,
 	});

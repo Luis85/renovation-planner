@@ -11,6 +11,15 @@ import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { AppError } from '../../../src/core/errors/AppError';
 import type { CreateProjectInput } from '../../../src/application/commands/project/CreateProject';
+import type { Logger } from '../../../src/application/ports/Logger';
+
+/**
+ * `NewProjectForm` requires a logger for the one failure `useFormCommit` owns both halves of
+ * (a dispatch that THROWS). Only the fault case below asserts on it; everywhere else it is a
+ * stand-in.
+ */
+const logger: Logger = { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined };
+
 
 type CreatedProject = { readonly project: { readonly entity: { readonly id: string } } };
 type Dispatch = (input: CreateProjectInput) => Promise<Result<CreatedProject, AppError>>;
@@ -22,7 +31,7 @@ function projectError(code: string): AppError {
 describe('NewProjectForm', () => {
 	it('sends exactly the typed values to the command, once', async () => {
 		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
-		const wrapper = mount(NewProjectForm, { props: { dispatch } });
+		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
 		await wrapper.get('form').trigger('submit');
@@ -34,7 +43,7 @@ describe('NewProjectForm', () => {
 
 	it('emits submit only after the write succeeded', async () => {
 		const wrapper = mount(NewProjectForm, {
-			props: { dispatch: () => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })) },
+			props: { dispatch: () => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })), logger },
 		});
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
@@ -46,7 +55,7 @@ describe('NewProjectForm', () => {
 
 	it('keeps the typed value, renders the error under its own field, and does NOT emit submit', async () => {
 		const wrapper = mount(NewProjectForm, {
-			props: { dispatch: () => Promise.resolve(err(projectError('project.empty-name'))) },
+			props: { dispatch: () => Promise.resolve(err(projectError('project.empty-name'))), logger },
 		});
 
 		await wrapper.get('input[data-field="name"]').setValue('   ');
@@ -63,7 +72,7 @@ describe('NewProjectForm', () => {
 
 	it('puts a two-field error under BOTH of its fields', async () => {
 		const wrapper = mount(NewProjectForm, {
-			props: { dispatch: () => Promise.resolve(err(projectError('project.target-before-start'))) },
+			props: { dispatch: () => Promise.resolve(err(projectError('project.target-before-start'))), logger },
 		});
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
@@ -81,6 +90,7 @@ describe('NewProjectForm', () => {
 					Promise.resolve(
 						err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'dev' } as AppError),
 					),
+				logger,
 			},
 		});
 
@@ -111,7 +121,7 @@ describe('NewProjectForm', () => {
 	 */
 	it('moves focus to the first errored control on a rejected submit', async () => {
 		const wrapper = mount(NewProjectForm, {
-			props: { dispatch: () => Promise.resolve(err(projectError('project.empty-name'))) },
+			props: { dispatch: () => Promise.resolve(err(projectError('project.empty-name'))), logger },
 			attachTo: document.body,
 		});
 
@@ -132,7 +142,7 @@ describe('NewProjectForm', () => {
 	 */
 	it('lands on the earlier of a cross-field pair, not the later', async () => {
 		const wrapper = mount(NewProjectForm, {
-			props: { dispatch: () => Promise.resolve(err(projectError('project.target-before-start'))) },
+			props: { dispatch: () => Promise.resolve(err(projectError('project.target-before-start'))), logger },
 			attachTo: document.body,
 		});
 
@@ -155,6 +165,7 @@ describe('NewProjectForm', () => {
 					Promise.resolve(
 						err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'dev' } as AppError),
 					),
+				logger,
 			},
 			attachTo: document.body,
 		});
@@ -176,7 +187,7 @@ describe('NewProjectForm', () => {
 	 */
 	it('shows a translated label for every status option, never the raw enum code', () => {
 		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
-		const wrapper = mount(NewProjectForm, { props: { dispatch } });
+		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
 
 		const options = wrapper.findAll('select[data-field="status"] option');
 
@@ -194,7 +205,7 @@ describe('NewProjectForm', () => {
 
 	it('sends every field the user filled in, not just name', async () => {
 		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
-		const wrapper = mount(NewProjectForm, { props: { dispatch } });
+		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
 		await wrapper.get('select[data-field="status"]').setValue('DESIGN');
@@ -220,7 +231,7 @@ describe('NewProjectForm', () => {
 
 	it('clears a date back to null when the field is emptied', async () => {
 		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
-		const wrapper = mount(NewProjectForm, { props: { dispatch } });
+		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
 		await wrapper.get('input[data-field="start"]').setValue('2026-01-01');
@@ -231,14 +242,13 @@ describe('NewProjectForm', () => {
 		expect(dispatch.mock.calls[0][0].start).toBeNull();
 	});
 
-	/**
-	 * The disable-during-submit rule, asserted on what `dispatch` RECEIVED rather than merely
-	 * on a control's attribute — a form that disabled its inputs but still read a live
-	 * `values` ref at dispatch time would pass a weaker version of this case. `submit` reads
-	 * `values.value` ONCE; `setField` replaces the whole ref, so an edit landing during the
-	 * slow write must not be visible in what was already sent.
-	 */
-	it('disables every control while a write is in flight, and ignores a setField racing it', async () => {
+	it('refuses a second submit while the first is still in flight, and moves focus nowhere', async () => {
+		// The submit button stays FOCUSABLE while busy (`aria-disabled`, never `:disabled` — see
+		// the component's docblock for what disabling the focused control costs the dialog), so a
+		// second press is an ordinary thing to reach. `useFormCommit.submit` drops it on its own,
+		// which is what keeps one form from creating two projects; the guard in `onSubmit` is what
+		// keeps the dropped press from ALSO running the focus move and dragging the keyboard onto
+		// a field carrying an error from the submit still in flight.
 		let resolveDispatch: (() => void) | null = null;
 		const dispatch = vi.fn<Dispatch>(
 			() =>
@@ -248,24 +258,135 @@ describe('NewProjectForm', () => {
 					};
 				}),
 		);
-		const wrapper = mount(NewProjectForm, { props: { dispatch } });
+		const wrapper = mount(NewProjectForm, { props: { dispatch, logger }, attachTo: document.body });
+		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
+		const submit = wrapper.get('button[type="submit"]');
+		(submit.element as HTMLButtonElement).focus();
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(dispatch).toHaveBeenCalledTimes(1);
+		// Still on the button the user pressed, which is the whole point of it never becoming
+		// `:disabled` — inside `.rp-dialog`, where the dialog's own key handling lives.
+		expect(document.activeElement).toBe(submit.element);
+		expect(wrapper.emitted('submit')).toBeUndefined();
+
+		expect(resolveDispatch).not.toBeNull();
+		(resolveDispatch as (() => void) | null)?.();
+		await flushPromises();
+
+		expect(wrapper.emitted('submit')).toHaveLength(1);
+		wrapper.unmount();
+	});
+
+	it('refuses an edit to EVERY control while a write is in flight, restoring what it holds', async () => {
+		// A category over all five fields rather than the one the previous case happens to
+		// touch: `readonly` is what a real browser enforces for four of them, but Chromium still
+		// operates the date picker on a readonly input and `<select>` has no `readonly` at all,
+		// so each handler refuses for itself. It RESTORES the control's own DOM value on the way
+		// out — a refused write leaves `values` unchanged, so nothing re-renders, and the
+		// character the browser already placed would otherwise sit in the field as a value the
+		// form does not hold.
+		let resolveDispatch: (() => void) | null = null;
+		const dispatch = vi.fn<Dispatch>(
+			() =>
+				new Promise((resolve) => {
+					resolveDispatch = () => {
+						resolve(ok({ project: { entity: { id: 'p1' } } }));
+					};
+				}),
+		);
+		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
+		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		// `setValue` writes the DOM value and fires the event, which is exactly how a date
+		// picker or a script reaches a readonly control — the guard, not the attribute, is
+		// what this drives.
+		await wrapper.get('input[data-field="name"]').setValue('Bathroom');
+		await wrapper.get('select[data-field="status"]').setValue('PLANNING');
+		await wrapper.get('textarea[data-field="description"]').setValue('later');
+		await wrapper.get('input[data-field="start"]').setValue('2026-01-01');
+		await wrapper.get('input[data-field="targetCompletion"]').setValue('2026-02-01');
+
+		for (const [selector, held] of [
+			['input[data-field="name"]', 'Kitchen'],
+			['select[data-field="status"]', 'IDEA'],
+			['textarea[data-field="description"]', ''],
+			['input[data-field="start"]', ''],
+			['input[data-field="targetCompletion"]', ''],
+		] as const) {
+			expect((wrapper.get(selector).element as HTMLInputElement).value).toBe(held);
+		}
+
+		expect(resolveDispatch).not.toBeNull();
+		(resolveDispatch as (() => void) | null)?.();
+		await flushPromises();
+
+		expect(dispatch).toHaveBeenCalledTimes(1);
+		expect(dispatch.mock.calls[0][0]).toMatchObject({ name: 'Kitchen', status: 'IDEA' });
+	});
+
+	/**
+	 * The inoperative-during-submit rule, asserted on what `dispatch` RECEIVED rather than
+	 * merely on a control's attribute — a form that froze its inputs but still read a live
+	 * `values` ref at dispatch time would pass a weaker version of this case. `submit` reads
+	 * `values.value` ONCE; `setField` replaces the whole ref, so an edit landing during the
+	 * slow write must not be visible in what was already sent.
+	 *
+	 * **`readonly` and `aria-disabled`, never `:disabled`**, and the attribute half of this case
+	 * is what pins that. A `:disabled` control is removed from the focus order, so Chromium
+	 * blurs the focused one to `<body>` — outside `.rp-dialog`, where `DialogHost` binds its
+	 * `keydown` listener — and `Escape` and the Tab trap go with it for the whole write window.
+	 * `formBusy.test.ts` holds the trap end of that; the component's own docblock carries the
+	 * full account.
+	 */
+	it('freezes every control while a write is in flight, and ignores a setField racing it', async () => {
+		let resolveDispatch: (() => void) | null = null;
+		const dispatch = vi.fn<Dispatch>(
+			() =>
+				new Promise((resolve) => {
+					resolveDispatch = () => {
+						resolve(ok({ project: { entity: { id: 'p1' } } }));
+					};
+				}),
+		);
+		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
 		await wrapper.get('form').trigger('submit');
 		await flushPromises();
 
-		expect(wrapper.get('input[data-field="name"]').attributes('disabled')).toBeDefined();
-		expect(wrapper.get('select[data-field="status"]').attributes('disabled')).toBeDefined();
-		expect(wrapper.get('textarea[data-field="description"]').attributes('disabled')).toBeDefined();
-		expect(wrapper.get('input[data-field="start"]').attributes('disabled')).toBeDefined();
-		expect(wrapper.get('input[data-field="targetCompletion"]').attributes('disabled')).toBeDefined();
-		expect(wrapper.get('button[type="submit"]').attributes('disabled')).toBeDefined();
+		// Frozen by the mechanism each control actually has: `readonly` where the platform
+		// offers it, `aria-disabled` where it does not.
+		for (const selector of [
+			'input[data-field="name"]',
+			'textarea[data-field="description"]',
+			'input[data-field="start"]',
+			'input[data-field="targetCompletion"]',
+		]) {
+			expect(wrapper.get(selector).attributes('readonly')).toBeDefined();
+		}
+		expect(wrapper.get('select[data-field="status"]').attributes('aria-disabled')).toBe('true');
+		expect(wrapper.get('button[type="submit"]').attributes('aria-disabled')).toBe('true');
 
-		// A racing edit while the write is still pending — a real browser refuses this on a
-		// disabled control, so what this drives is the underlying guarantee rather than the
-		// browser's own enforcement: `submit` already read `values.value` once, before this
-		// call, so a later `setField` must not reach the in-flight dispatch either way.
+		// And NOT by the mechanism that costs the dialog its keyboard. Asserted as a category
+		// over the whole form rather than control by control, so a sixth field added later
+		// cannot reintroduce it in the one place nobody listed.
+		expect(wrapper.findAll('[disabled]')).toHaveLength(0);
+
+		// A racing edit while the write is still pending. `readonly` is what a real browser
+		// refuses this on; the component refuses it a second time in its own handler, because
+		// Chromium still operates the date picker on a readonly input. What this case drives is
+		// the guarantee under both: `submit` already read `values.value` once, before this call,
+		// so a later `setField` must not reach the in-flight dispatch either way.
 		await wrapper.get('input[data-field="name"]').setValue('Bathroom');
+		// The refused keystroke does not sit in the field as a value the form does not hold.
+		expect((wrapper.get('input[data-field="name"]').element as HTMLInputElement).value).toBe('Kitchen');
 
 		expect(resolveDispatch).not.toBeNull();
 		(resolveDispatch as (() => void) | null)?.();

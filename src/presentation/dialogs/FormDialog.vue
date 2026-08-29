@@ -27,15 +27,23 @@ function onSubmit(values: unknown): void {
 }
 
 /**
- * `aria-disabled`, never `:disabled` — an invariant of the framework, not a preference.
+ * `aria-disabled`, never `:disabled` — an invariant of the framework, not a preference, and
+ * it binds the mounted FORM as much as this button.
+ *
  * `DialogHost`'s own comment states that every kind renders at least one focusable control
- * unconditionally, and `focusableWithin()` is what its Tab trap walks: a `:disabled` button
- * matches no focusable selector, so with every form control ALSO disabled while busy
- * (`NewProjectForm` and its siblings), the dialog would contain zero focusable elements —
- * Tab would walk straight out of it, and the `Escape` listener bound to `.rp-dialog` would
- * then stop receiving keys at all, defeating the very handler that refuses Escape while
- * busy. Staying focusable and announced, with the click refused here instead, is what keeps
- * the trap intact.
+ * unconditionally, and `focusableWithin()` is what its Tab trap walks: a `:disabled` control
+ * matches no focusable selector. Two things follow, and the second is the one that cost a
+ * defect. If every control in the dialog were disabled at once the trap would hold NOTHING,
+ * so Tab would walk straight out. And disabling the control that currently HOLDS focus is
+ * worse than thinning the trap, because Chromium then blurs it to `<body>` — which
+ * `.rp-dialog` does not contain, so the `Escape` listener bound there stops receiving keys
+ * altogether, defeating the very handler that refuses Escape while busy. `NewProjectForm`
+ * disabled its whole field set including its own submit button, so that happened on every
+ * ordinary submit; its docblock carries the full account and the mechanisms that replaced it.
+ *
+ * Staying focusable and announced, with the press refused in the handler instead, is what
+ * keeps both properties. `aria-disabled` needs no style of its own: Obsidian's sheet already
+ * dims `button[aria-disabled="true"]` exactly as it dims `button[disabled]`.
  */
 function onCancel(): void {
 	if (props.descriptor.busy?.value === true) return;

@@ -25,4 +25,20 @@ describe('unavailableRenovationProjectCommands', () => {
 		// A refusal, never a rejection: the whole point of the boundary.
 		await expect(commands.createProject.execute({ name: '' })).resolves.toBeDefined();
 	});
+
+	it('carries a logger that records nothing and refuses nothing', () => {
+		// The bundle is TOTAL — `NewProjectForm` requires a logger, so a member missing here
+		// would make the form unmountable in exactly the session that has no persistence, which
+		// is the one state nothing else in the app can recover from either. It records nothing
+		// because this bundle's only failure is the resolved refusal above, never a fault; that
+		// it is safe to CALL is the property, and a no-op that throws would be neither.
+		const { logger } = unavailableRenovationProjectCommands();
+
+		expect(() => {
+			logger.debug('e');
+			logger.info('e');
+			logger.warn('e');
+			logger.error('e', { cause: new Error('ignored') });
+		}).not.toThrow();
+	});
 });

@@ -12,6 +12,7 @@ import { flushPromises } from '@vue/test-utils';
 import { mountDialogHost, type DialogHarness } from '../../helpers/dialogs';
 import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
 import type { Result } from '../../../src/core/result/Result';
+import type { Logger } from '../../../src/application/ports/Logger';
 
 let harness: DialogHarness | null = null;
 
@@ -20,6 +21,13 @@ function pressKey(element: Element, key: string): void {
 }
 
 /** A dispatch that never settles — every case here is about the write still being open. */
+/**
+ * `NewProjectForm` requires a logger for the one failure `useFormCommit` owns both halves of
+ * (a dispatch that THROWS). No case here reaches that path, so this is a stand-in with
+ * nothing asserted on it — `useFormCommit.test.ts` is where that door is driven.
+ */
+const logger: Logger = { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined };
+
 function neverSettles(): Promise<Result<{ project: { entity: { id: string } } }, never>> {
 	return new Promise(() => {
 		// Deliberately never resolves or rejects.
@@ -34,7 +42,7 @@ describe('a form dialog with a write in flight', () => {
 			kind: 'form',
 			title: 'New project',
 			component: NewProjectForm,
-			props: { dispatch: neverSettles },
+			props: { dispatch: neverSettles, logger },
 			busy,
 		});
 		let settled = false;
@@ -80,7 +88,7 @@ describe('a form dialog with a write in flight', () => {
 			kind: 'form',
 			title: 'New project',
 			component: NewProjectForm,
-			props: { dispatch: neverSettles },
+			props: { dispatch: neverSettles, logger },
 			busy,
 		});
 		let settled = false;
@@ -108,7 +116,7 @@ describe('a form dialog with a write in flight', () => {
 			kind: 'form',
 			title: 'New project',
 			component: NewProjectForm,
-			props: { dispatch: neverSettles },
+			props: { dispatch: neverSettles, logger },
 			busy,
 		});
 		await nextTick();
@@ -124,21 +132,32 @@ describe('a form dialog with a write in flight', () => {
 	});
 
 	/**
-	 * `dialogKinds.test.ts` proves every kind renders at least one focusable control, but
-	 * never in the busy state — which is exactly where this slice could break the invariant:
-	 * every `NewProjectForm` control (including its OWN submit button) is `:disabled` while
-	 * submitting, so the cancel button staying merely `aria-disabled` is what keeps the
-	 * trap from going empty. `focusableWithin()` itself is module-private; this drives the
-	 * same selector `DialogHost.vue` declares, over the real mounted tree.
+	 * NOTHING THE USER COULD BE STANDING ON BECOMES `:disabled` WHILE THE WRITE IS IN FLIGHT,
+	 * and that is a focus rule rather than a styling one.
+	 *
+	 * Chromium moves focus to `<body>` when the element holding it is disabled — and `<body>`
+	 * is not inside `.rp-dialog`, which is where `DialogHost` binds its `keydown` listener. So
+	 * disabling the focused control (the submit button on a click, or the text field the user
+	 * pressed Enter in) took `Escape` and the whole Tab trap out for the duration of the write:
+	 * the very window `busy` was added to make `Escape` refuse deliberately, refusing it by
+	 * accident instead, and handing the key to Obsidian's own keymap. After a banner-routed
+	 * rejection, focus then stayed on `<body>`, which is also what `focusFirstInvalidControl`
+	 * and `FormDialog`'s own docblock each promise it does not.
+	 *
+	 * **jsdom cannot see the browser's half of that** — it implements no focus-loss-on-disable
+	 * at all, so `document.activeElement` here is unmoved either way. What it CAN see is the
+	 * condition the browser behaviour hangs off, which is the one asserted: every control in
+	 * the dialog still matches `DialogHost`'s own focusable selector while busy. The inoperative
+	 * half is `newProjectForm.test.ts`'s subject; this file's is the trap.
 	 */
-	it('leaves the focus trap non-empty while the form is busy', async () => {
+	it('keeps every control focusable while the form is busy', async () => {
 		harness = mountDialogHost();
 		const busy = ref(false);
 		void harness.store.openDialog({
 			kind: 'form',
 			title: 'New project',
 			component: NewProjectForm,
-			props: { dispatch: neverSettles },
+			props: { dispatch: neverSettles, logger },
 			busy,
 		});
 		await nextTick();
@@ -154,7 +173,13 @@ describe('a form dialog with a write in flight', () => {
 			),
 		];
 
-		expect(focusable).toEqual([harness.wrapper.get('[data-rp-action="cancel"]').element]);
+		// The submit button first, because it is the one the user is standing on in the common
+		// case, and Cancel last, because `DialogHost`'s Tab trap wraps between the two ends.
+		expect(focusable).toContain(harness.wrapper.get('button[type="submit"]').element);
+		expect(focusable).toContain(harness.wrapper.get('[data-rp-action="cancel"]').element);
+		for (const field of ['name', 'status', 'description', 'start', 'targetCompletion']) {
+			expect(focusable).toContain(harness.wrapper.get(`[data-field="${field}"]`).element);
+		}
 
 		harness.unmount();
 		harness = null;
@@ -176,7 +201,7 @@ describe('a form dialog with a write in flight', () => {
 			kind: 'form',
 			title: 'New project',
 			component: NewProjectForm,
-			props: { dispatch: neverSettles, busy },
+			props: { dispatch: neverSettles, busy, logger },
 			busy,
 		});
 		let settled = false;

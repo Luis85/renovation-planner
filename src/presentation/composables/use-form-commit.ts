@@ -1,7 +1,16 @@
 import { readonly, ref, type DeepReadonly, type Ref } from 'vue';
-import { isErr, type Result } from '../../core/result/Result';
+import { err, isErr, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
+import type { Logger } from '../../application/ports/Logger';
+import { faultError } from '../notices/notify';
 import { routeError, type FieldErrorMap } from '../errors/route-error';
+
+/**
+ * The event name a thrown dispatch is logged under — FIXED here rather than taken as an
+ * option, for the reason `useFieldCommit`'s own continuation event is: the event says which
+ * DOOR faulted, and the door is this composable's submit, not the caller wired behind it.
+ */
+const SUBMIT_FAULT_EVENT = 'form.commit.submit.faulted';
 
 /**
  * A creation dialog's commit boundary: every field at once, on one explicit submit.
@@ -44,6 +53,21 @@ export function useFormCommit<TInput extends object, TResult>(options: {
 	readonly dispatch: (input: TInput) => Promise<Result<TResult, AppError>>;
 	readonly errorMap: FieldErrorMap<TInput>;
 	readonly toUserMessage: (error: AppError) => string;
+	/**
+	 * Where the DEVELOPER-facing half of a THROWN dispatch goes — the original cause, at
+	 * `error`, under this module's own event name.
+	 *
+	 * **Required, exactly as `useFieldCommit`'s is, and for the same reason.** SDD §66 asks
+	 * that the two representations of one failure come from ONE step; `submit` below stands
+	 * where no guard did, so the unmapped cause is the only detail that exists. Optional with
+	 * a default, the forgetting call site is silent and nothing anywhere errors.
+	 *
+	 * The USER-facing half needs no option beside it, and that is the one asymmetry with the
+	 * field composable: a form HAS a banner, which is where a failure that belongs to no field
+	 * goes. `useFieldCommit` needs its `notify` precisely because the Inspector has no banner
+	 * region to put one in.
+	 */
+	readonly logger: Logger;
 }): UseFormCommit<TInput> {
 	const values = ref({ ...options.initial }) as Ref<TInput>;
 	const fieldErrors = ref<ReadonlyMap<keyof TInput, string>>(new Map());
@@ -68,6 +92,29 @@ export function useFormCommit<TInput extends object, TResult>(options: {
 		fieldErrors.value = next;
 	}
 
+	/**
+	 * The dispatch, with the one thing its type does not promise handled: a REJECTION.
+	 *
+	 * `submit` is bound to a `<form>`'s `@submit.prevent`, which discards the promise it
+	 * returns — so a throw from below was an unhandled rejection with the dialog still open and
+	 * nothing said to anyone, the exact shape `runtime.ts`'s `reportFault` and
+	 * `useFieldCommit`'s `reportContinuationFault` each exist to close at their own door.
+	 *
+	 * Every dispatch wired today is a `guardCommand` wrapper that cannot throw, which is what
+	 * made this invisible rather than harmless: the hole opens for whoever wires the first
+	 * unguarded one, and it opens silently. `faultError` maps the cause to the same coded
+	 * `PersistenceError` a guard would have produced and logs it with that cause — one step for
+	 * both representations — and the mapped error is then routed like any other failure, which
+	 * lands it in the banner, since no field map has an entry for a vault code.
+	 */
+	async function dispatchOrFault(input: TInput): Promise<Result<TResult, AppError>> {
+		try {
+			return await options.dispatch(input);
+		} catch (cause) {
+			return err(faultError(cause, options.logger, SUBMIT_FAULT_EVENT));
+		}
+	}
+
 	async function submit(): Promise<boolean> {
 		// Two quick Enter presses produce two submit events. `CreateProjectCommand` mints a
 		// fresh id per call, so without this guard one form creates two projects — and
@@ -81,7 +128,7 @@ export function useFormCommit<TInput extends object, TResult>(options: {
 		banner.value = null;
 		submitting.value = true;
 		try {
-			const result = await options.dispatch(values.value);
+			const result = await dispatchOrFault(values.value);
 			if (!isErr(result)) return true;
 
 			const routed = routeError(result.error, options.errorMap, options.toUserMessage);

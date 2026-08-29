@@ -10,6 +10,20 @@ import { useFormCommit } from '../../../src/presentation/composables/use-form-co
 import type { FieldErrorMap } from '../../../src/presentation/errors/route-error';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { AppError } from '../../../src/core/errors/AppError';
+import type { Logger } from '../../../src/application/ports/Logger';
+
+/**
+ * A spy for every level, so a case can assert WHICH one a fault took as well as that one was
+ * taken at all — the mirror of `useFieldCommit.test.ts`'s, for the mirror reason.
+ */
+type LogAt = (event: string, context?: Record<string, unknown>) => void;
+
+const spyLogger = (): Logger & { error: ReturnType<typeof vi.fn<LogAt>> } => ({
+	debug: vi.fn<LogAt>(),
+	info: vi.fn<LogAt>(),
+	warn: vi.fn<LogAt>(),
+	error: vi.fn<LogAt>(),
+});
 
 interface NewProject {
 	readonly name: string;
@@ -26,16 +40,44 @@ function validation(code: string): AppError {
 	return { category: 'Validation', code, message: 'developer english' };
 }
 
-function harness(dispatch: Dispatch) {
+function harness(dispatch: Dispatch, logger: Logger = spyLogger()) {
 	return useFormCommit<NewProject, { id: string }>({
 		initial: { name: '', status: 'IDEA' },
 		dispatch,
 		errorMap: MAP,
 		toUserMessage: say,
+		logger,
 	});
 }
 
 describe('useFormCommit', () => {
+	it('turns a THROWN dispatch into a banner rather than an unhandled rejection', async () => {
+		// `submit()` is bound to `@submit.prevent`, which discards the promise it returns — so a
+		// dispatch that REJECTS rather than resolving a failed `Result` was an unhandled rejection
+		// with the dialog still open, `submitting` back to false, and not one word anywhere. Every
+		// dispatch this slice wires is a guarded command that cannot throw, which is exactly what
+		// makes the hole invisible: it opens for whoever wires the first unguarded one.
+		//
+		// The guard lives HERE rather than at the call site for the reason `useFieldCommit.validate`
+		// states about itself: a guard at a call site is a second copy of a rule every future
+		// caller has to remember, and the one that forgets fails silently.
+		const cause = new Error('the vault exploded');
+		const logger = spyLogger();
+		const form = harness(() => Promise.reject(cause), logger);
+
+		const closed = await form.submit();
+
+		expect(closed).toBe(false);
+		// BOTH representations, from one step (SDD §66): the user gets the same mapped copy a
+		// guarded service would have produced, and the developer gets the original cause.
+		expect(form.banner.value).toBe('copy for vault.unexpected-failure');
+		expect(logger.error).toHaveBeenCalledTimes(1);
+		expect(logger.error.mock.calls[0][1]).toMatchObject({ cause });
+		// Not wedged: a second attempt is still possible, which is the whole reason the dialog
+		// stays open on a failure.
+		expect(form.submitting.value).toBe(false);
+	});
+
 	it('keeps every typed value on a rejection, routes the error to its field, and writes nothing', async () => {
 		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(err(validation('project.empty-name'))));
 		const form = harness(dispatch);

@@ -25,6 +25,7 @@ import type { Loaded } from '../../application/ports/versioning';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { Project } from '../../domain/project/Project';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
+import type { Logger } from '../../application/ports/Logger';
 import { PROJECT_STATUSES, type ProjectStatus } from '../../domain/project/ProjectStatus';
 import { PROJECT_STATUS_LABELS } from './projectStatusLabels';
 import { trError } from '../i18n/toUserMessage';
@@ -45,6 +46,17 @@ const props = defineProps<{
 	 * read here, so there is no second flag for the two ends to drift out of step with.
 	 */
 	busy?: Ref<boolean>;
+	/**
+	 * This view's logger, required by `useFormCommit` for the one failure it owns both halves
+	 * of: a dispatch that THROWS rather than resolving a failed `Result`. The banner is the
+	 * user-facing half; this is the developer-facing one, and SDD §66 asks that they come from
+	 * one step rather than two. `RequirementRow` takes its own for the identical reason.
+	 *
+	 * Required, unlike `busy` above: `busy` is optional so this component mounts standalone,
+	 * where a caller that never wired it simply gets no busy signalling. A missing logger is
+	 * not that shape — it is a fault that reaches nobody.
+	 */
+	logger: Logger;
 }>();
 
 const emit = defineEmits<{ submit: [values: CreateProjectInput] }>();
@@ -80,6 +92,7 @@ const form = useFormCommit<CreateProjectInput, { project: Loaded<Project> }>({
 	dispatch: props.dispatch,
 	errorMap: NEW_PROJECT_ERRORS,
 	toUserMessage: trError,
+	logger: props.logger,
 });
 
 /**
@@ -117,15 +130,57 @@ function fromDateInputValue(value: string): Date | null {
 }
 
 /**
+ * WHILE A WRITE IS IN FLIGHT NO CONTROL IS `:disabled`, and that is a FOCUS rule rather than
+ * a styling preference — `FormDialog.vue`'s own docblock already states it as an invariant of
+ * the framework, and this form is where it has to hold for the fields too.
+ *
+ * Chromium moves focus to `<body>` when the element holding it is disabled, and `<body>` is
+ * not inside `.rp-dialog`, which is where `DialogHost` binds its `keydown` listener. So
+ * disabling the focused control — the submit button on a click, or the text field the user
+ * pressed Enter in — took `Escape` and the entire Tab trap out for exactly the duration of
+ * the write: the very window `busy` exists to make `Escape` refuse DELIBERATELY, refusing it
+ * by accident instead and handing the key to Obsidian's own keymap. It also left focus on
+ * `<body>` after a banner-routed rejection, which is precisely what `focusFirstInvalidControl`
+ * below promises does not happen.
+ *
+ * So the controls stay focusable and are made INOPERATIVE instead, by whichever mechanism
+ * that control actually has: `readonly` where the platform offers it (the text, textarea and
+ * date inputs), announced as read-only and enforced by the browser; `aria-disabled` where it
+ * does not (`<select>` has no `readonly`, and a `<button>` has nothing but `disabled`), with
+ * the refusal made real by this function. Obsidian's own sheet already dims
+ * `button[aria-disabled="true"]` exactly as it dims `button[disabled]`; `styles/dialogs.css`
+ * supplies the same affordance for the other two.
+ *
+ * It RESTORES the control's own DOM value on the way out rather than merely returning. A
+ * refused write leaves `values` unchanged, so nothing re-renders — and the character the
+ * browser has already put in the field would then sit there as a value the form does not
+ * hold, which is a lie about state rather than a refusal of it. `readonly` means this arm is
+ * unreachable for most of them; the date picker is the one Chromium still operates on a
+ * readonly input, which is why the guard is not left to `readonly` alone.
+ */
+function refuseWhileSubmitting(control: HTMLElement & { value: string }, rendered: string): boolean {
+	if (!form.submitting.value) return false;
+	control.value = rendered;
+	return true;
+}
+
+/**
  * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight
  * past it and make the sole-write-path rule this composable exists for unenforceable.
  */
 function onNameInput(event: Event): void {
-	form.setField('name', (event.target as HTMLInputElement).value);
+	const control = event.target as HTMLInputElement;
+	if (refuseWhileSubmitting(control, form.values.value.name)) return;
+	form.setField('name', control.value);
 }
 
 function onStatusInput(event: Event): void {
-	form.setField('status', (event.target as HTMLSelectElement).value as ProjectStatus);
+	const control = event.target as HTMLSelectElement;
+	// `?? ''` mirrors what the `:value` binding renders for an absent status — `status` is
+	// optional on `CreateProjectInput`, though `INITIAL` always supplies one — so the restore
+	// puts back exactly what the template would have drawn rather than a second answer to it.
+	if (refuseWhileSubmitting(control, form.values.value.status ?? '')) return;
+	form.setField('status', control.value as ProjectStatus);
 }
 
 /** `PROJECT_STATUS_LABELS`'s own doc comment carries the "no status ships unlabelled" rule. */
@@ -134,15 +189,21 @@ function statusLabel(status: ProjectStatus): string {
 }
 
 function onDescriptionInput(event: Event): void {
-	form.setField('description', (event.target as HTMLTextAreaElement).value);
+	const control = event.target as HTMLTextAreaElement;
+	if (refuseWhileSubmitting(control, form.values.value.description ?? '')) return;
+	form.setField('description', control.value);
 }
 
 function onStartInput(event: Event): void {
-	form.setField('start', fromDateInputValue((event.target as HTMLInputElement).value));
+	const control = event.target as HTMLInputElement;
+	if (refuseWhileSubmitting(control, toDateInputValue(form.values.value.start))) return;
+	form.setField('start', fromDateInputValue(control.value));
 }
 
 function onTargetCompletionInput(event: Event): void {
-	form.setField('targetCompletion', fromDateInputValue((event.target as HTMLInputElement).value));
+	const control = event.target as HTMLInputElement;
+	if (refuseWhileSubmitting(control, toDateInputValue(form.values.value.targetCompletion))) return;
+	form.setField('targetCompletion', fromDateInputValue(control.value));
 }
 
 /** The rendered `<form>`, for the focus move below. Nothing else reads it. */
@@ -190,6 +251,12 @@ async function focusFirstInvalidControl(): Promise<void> {
  * nothing, focus stays where the user left it, and `role="alert"` is what announces.
  */
 async function onSubmit(): Promise<void> {
+	// The press the `aria-disabled` submit button below announces as refused, actually refused.
+	// `form.submit()` drops a second concurrent submit on its own, so this is not what keeps
+	// one form from creating two projects — it is what keeps a refused press from ALSO running
+	// the focus move, which would drag the keyboard to whichever control still carries an error
+	// from the submit that is currently in flight.
+	if (form.submitting.value) return;
 	if (await form.submit()) {
 		emit('submit', form.values.value);
 		return;
@@ -220,7 +287,7 @@ async function onSubmit(): Promise<void> {
 					type="text"
 					data-field="name"
 					:value="form.values.value.name"
-					:disabled="form.submitting.value"
+					:readonly="form.submitting.value"
 					@input="onNameInput"
 				>
 			</label>
@@ -239,7 +306,7 @@ async function onSubmit(): Promise<void> {
 					v-bind="aria"
 					data-field="status"
 					:value="form.values.value.status"
-					:disabled="form.submitting.value"
+					:aria-disabled="form.submitting.value"
 					@change="onStatusInput"
 				>
 					<option
@@ -266,7 +333,7 @@ async function onSubmit(): Promise<void> {
 					v-bind="aria"
 					data-field="description"
 					:value="form.values.value.description ?? ''"
-					:disabled="form.submitting.value"
+					:readonly="form.submitting.value"
 					@input="onDescriptionInput"
 				/>
 			</label>
@@ -286,7 +353,7 @@ async function onSubmit(): Promise<void> {
 					type="date"
 					data-field="start"
 					:value="toDateInputValue(form.values.value.start)"
-					:disabled="form.submitting.value"
+					:readonly="form.submitting.value"
 					@input="onStartInput"
 				>
 			</label>
@@ -306,7 +373,7 @@ async function onSubmit(): Promise<void> {
 					type="date"
 					data-field="targetCompletion"
 					:value="toDateInputValue(form.values.value.targetCompletion)"
-					:disabled="form.submitting.value"
+					:readonly="form.submitting.value"
 					@input="onTargetCompletionInput"
 				>
 			</label>
@@ -315,7 +382,7 @@ async function onSubmit(): Promise<void> {
 			<button
 				type="submit"
 				class="rp-dialog-button"
-				:disabled="form.submitting.value"
+				:aria-disabled="form.submitting.value"
 			>
 				{{ tr('dialog.form.submit') }}
 			</button>

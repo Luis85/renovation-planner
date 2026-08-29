@@ -593,7 +593,7 @@ export function renovationProjectDeps(
 			? createRenovationProjectQueries(persistence.listProjects)
 			: unavailableRenovationProjectQueries(),
 		commands: persistence
-			? { createProject: persistence.createProject }
+			? { createProject: persistence.createProject, logger: root.logger }
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
 			? (projectId) =>

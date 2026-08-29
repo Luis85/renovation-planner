@@ -234,6 +234,21 @@ async function resetCost(): Promise<void> {
 			</dd>
 		</dl>
 
+		<!-- Each input commits on blur AND on Enter: "blur/enter" is the boundary
+		     `useFieldCommit` states, and Enter was bound nowhere at all, so a user who typed a
+		     value and pressed Enter watched it sit there unsaved — with this slice's removal of
+		     the Apply buttons leaving no way to commit without leaving the field.
+
+		     `@mousedown.prevent` on each Reset button is what stops that same blur commit from
+		     firing on the way to the reset. A browser blurs the focused input on the button's
+		     `mousedown`, BEFORE the `click` that runs the handler, so one Reset gesture on a
+		     dirty field wrote twice: first persisting the value the user was discarding, then
+		     clearing it — and Undo then restored that transient value rather than the override
+		     that preceded it. `preventDefault` on `mousedown` preserves the current focus and
+		     cancels nothing else, so the click still fires; `DialogHost.onMousedown` uses the
+		     same mechanism for the same reason. It covers the POINTER path only: reaching Reset
+		     by Tab still blurs and still commits, which is correct, because tabbing away is
+		     itself the commit gesture the contract names. -->
 		<div class="rp-editor-requirement-overrides">
 			<FieldError
 				v-slot="{ inputId, aria }"
@@ -251,12 +266,14 @@ async function resetCost(): Promise<void> {
 					:value="quantity.draft.value"
 					@input="onQuantityInput(($event.target as HTMLInputElement).value)"
 					@blur="quantity.onCommit()"
+					@keydown.enter="quantity.onCommit()"
 					@keydown.esc.stop="quantity.onCancel()"
 				>
 			</FieldError>
 			<button
 				type="button"
 				class="rp-requirement-reset-quantity"
+				@mousedown.prevent
 				@click="resetQuantity"
 			>
 				{{ tr('editor.inspector.override.reset') }}
@@ -278,12 +295,14 @@ async function resetCost(): Promise<void> {
 					:value="cost.draft.value"
 					@input="onCostInput(($event.target as HTMLInputElement).value)"
 					@blur="cost.onCommit()"
+					@keydown.enter="cost.onCommit()"
 					@keydown.esc.stop="cost.onCancel()"
 				>
 			</FieldError>
 			<button
 				type="button"
 				class="rp-requirement-reset-cost"
+				@mousedown.prevent
 				@click="resetCost"
 			>
 				{{ tr('editor.inspector.override.reset') }}

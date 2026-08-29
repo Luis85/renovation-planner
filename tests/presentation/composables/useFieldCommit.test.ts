@@ -53,15 +53,23 @@ function harness(outcome: Result<void, AppError> | Run, canonical = ref(10)) {
 	const run = vi.fn<Run>(dispatch);
 	const notify = vi.fn<Notify>();
 	const logger = spyLogger();
+	// WHICH value each dispatch carried, in order. `history.run` is typed to take no arguments,
+	// so the spy cannot answer this — and every coalescing case written before this one
+	// asserted only how MANY dispatches happened. That is exactly the gap a coalesced round
+	// sending a draft nobody had committed lived in: the count was right and the value was not.
+	const built: number[] = [];
 	const field = useFieldCommit<number, QuantityInput>({
 		canonicalValue: () => canonical.value,
-		buildCommand: (value) => ({
-			// Never actually invoked: the composable hands the command to `history.run`, which is
-			// the spy above. Present because `RunnableCommand` requires it.
-			execute: dispatch,
-			undo: () => Promise.resolve(ok(undefined)),
-			value,
-		}),
+		buildCommand: (value) => {
+			built.push(value);
+			return {
+				// Never actually invoked: the composable hands the command to `history.run`, which
+				// is the spy above. Present because `RunnableCommand` requires it.
+				execute: dispatch,
+				undo: () => Promise.resolve(ok(undefined)),
+				value,
+			};
+		},
 		history: { run },
 		errorMap: MAP,
 		field: 'quantity',
@@ -69,7 +77,7 @@ function harness(outcome: Result<void, AppError> | Run, canonical = ref(10)) {
 		notify,
 		logger,
 	});
-	return { field, run, canonical, notify, logger };
+	return { field, run, canonical, notify, logger, built };
 }
 
 describe('useFieldCommit', () => {
@@ -156,21 +164,11 @@ describe('useFieldCommit', () => {
 		// clearing unconditionally replaced the newer text with the canonical value mid-word,
 		// with nothing erroring and no way for the user to tell it had happened.
 		let settle: () => void = noop;
-		const run = vi.fn<Run>(
+		const { field } = harness(
 			() => new Promise<Result<void, AppError>>((resolve) => {
 				settle = () => { resolve(ok(undefined)); };
 			}),
 		);
-		const field = useFieldCommit<number, QuantityInput>({
-			canonicalValue: () => 10,
-			buildCommand: () => ({ execute: () => Promise.resolve(ok(undefined)), undo: () => Promise.resolve(ok(undefined)) }),
-			history: { run },
-			errorMap: MAP,
-			field: 'quantity',
-			toUserMessage: say,
-			notify: vi.fn<Notify>(),
-			logger: spyLogger(),
-		});
 
 		field.onInput(-5);
 		const inFlight = field.onCommit();
@@ -188,25 +186,11 @@ describe('useFieldCommit', () => {
 		// ordinary. `CommandHistory` serializes them but still executes and RECORDS each, so
 		// without coalescing one edit leaves three undo entries.
 		const settles: (() => void)[] = [];
-		const run = vi.fn<Run>(
+		const { field, run } = harness(
 			() => new Promise<Result<void, AppError>>((resolve) => {
 				settles.push(() => { resolve(ok(undefined)); });
 			}),
 		);
-		const field = useFieldCommit<number, QuantityInput>({
-			canonicalValue: () => 10,
-			buildCommand: (value) => ({
-				execute: () => Promise.resolve(ok(undefined)),
-				undo: () => Promise.resolve(ok(undefined)),
-				value,
-			}),
-			history: { run },
-			errorMap: MAP,
-			field: 'quantity',
-			toUserMessage: say,
-			notify: vi.fn<Notify>(),
-			logger: spyLogger(),
-		});
 
 		field.onInput(-5);
 		const first = field.onCommit();
@@ -228,21 +212,11 @@ describe('useFieldCommit', () => {
 		// Two blurs with no edit between them are one edit. A second identical dispatch would
 		// buy an undo entry that undoes nothing visible.
 		let settle: () => void = noop;
-		const run = vi.fn<Run>(
+		const { field, run } = harness(
 			() => new Promise<Result<void, AppError>>((resolve) => {
 				settle = () => { resolve(ok(undefined)); };
 			}),
 		);
-		const field = useFieldCommit<number, QuantityInput>({
-			canonicalValue: () => 10,
-			buildCommand: () => ({ execute: () => Promise.resolve(ok(undefined)), undo: () => Promise.resolve(ok(undefined)) }),
-			history: { run },
-			errorMap: MAP,
-			field: 'quantity',
-			toUserMessage: say,
-			notify: vi.fn<Notify>(),
-			logger: spyLogger(),
-		});
 
 		field.onInput(-5);
 		const inFlight = field.onCommit();
@@ -350,23 +324,9 @@ describe('useFieldCommit', () => {
 		// non-null while `recommit` is the one thing left standing between "nothing queued"
 		// and "the abandoned request fires after all", makes the two implementations disagree.
 		let settle: (result: Result<void, AppError>) => void = noop;
-		const run = vi.fn<Run>(
+		const { field, run } = harness(
 			() => new Promise<Result<void, AppError>>((resolve) => { settle = resolve; }),
 		);
-		const field = useFieldCommit<number, QuantityInput>({
-			canonicalValue: () => 10,
-			buildCommand: (value) => ({
-				execute: () => Promise.resolve(ok(undefined)),
-				undo: () => Promise.resolve(ok(undefined)),
-				value,
-			}),
-			history: { run },
-			errorMap: MAP,
-			field: 'quantity',
-			toUserMessage: say,
-			notify: vi.fn<Notify>(),
-			logger: spyLogger(),
-		});
 
 		field.onInput(-5);
 		const inFlight = field.onCommit();
@@ -384,25 +344,45 @@ describe('useFieldCommit', () => {
 		expect(field.pending.value).toBe(false);
 	});
 
+	it('dispatches the draft the QUEUED gesture carried, not text typed after it', async () => {
+		// The rule is this composable's own: a keystroke never dispatches. A blur during a slow
+		// write queues a commit for the value on screen AT THAT MOMENT; if the user then clicks
+		// back in and types WITHOUT blurring, the settling write's continuation must still carry
+		// the queued value. Sending the newer text persists a draft nobody committed, and it does
+		// so only because an invisible background write happened to be in flight — not a
+		// distinction the user can make, so the field would behave differently for a reason it
+		// never shows them.
+		//
+		// `onCancel`'s own comment already records this exact class — "the settling write's loop
+		// dispatched keystrokes the user had never committed" — and closed it for the ESCAPE path
+		// alone. This is the same defect with no Escape in it.
+		let settle: (result: Result<void, AppError>) => void = noop;
+		const { field, run, built } = harness(
+			() => new Promise<Result<void, AppError>>((resolve) => { settle = resolve; }),
+		);
+
+		field.onInput(-5);
+		const inFlight = field.onCommit();
+		field.onInput(-6);
+		void field.onCommit();
+		// Typed, never committed — no blur, no Enter, no Escape.
+		field.onInput(-7);
+		settle(ok(undefined));
+		await inFlight;
+		await flushPromises();
+
+		expect(run).toHaveBeenCalledTimes(2);
+		// The queued gesture's value, not the one typed after it.
+		expect(built).toEqual([-5, -6]);
+		// And the uncommitted text stays the user's to finish.
+		expect(field.draft.value).toBe(-7);
+	});
+
 	it('dispatches nothing when a commit gesture lands with no draft to commit', async () => {
 		// Task 9 binds `@blur="onCommit"` unconditionally — every blur, not just a dirty one.
 		// Tabbing through an untouched Inspector field must not write the canonical value back
 		// to itself on every pass.
-		const run = vi.fn<Run>(() => Promise.resolve(ok(undefined)));
-		const field = useFieldCommit<number, QuantityInput>({
-			canonicalValue: () => 10,
-			buildCommand: (value) => ({
-				execute: () => Promise.resolve(ok(undefined)),
-				undo: () => Promise.resolve(ok(undefined)),
-				value,
-			}),
-			history: { run },
-			errorMap: MAP,
-			field: 'quantity',
-			toUserMessage: say,
-			notify: vi.fn<Notify>(),
-			logger: spyLogger(),
-		});
+		const { field, run } = harness(() => Promise.resolve(ok(undefined)));
 
 		field.onInput(20);
 		await field.onCommit();
@@ -506,23 +486,9 @@ describe('useFieldCommit', () => {
 		// throw is an unexpected technical fault, and this composable must not wedge on one.
 		const fault = new Error('vault fault');
 		let calls = 0;
-		const run = vi.fn<Run>(() => {
+		const { field, run } = harness(() => {
 			calls += 1;
 			return calls === 1 ? Promise.reject(fault) : Promise.resolve(ok(undefined));
-		});
-		const field = useFieldCommit<number, QuantityInput>({
-			canonicalValue: () => 10,
-			buildCommand: (value) => ({
-				execute: () => Promise.resolve(ok(undefined)),
-				undo: () => Promise.resolve(ok(undefined)),
-				value,
-			}),
-			history: { run },
-			errorMap: MAP,
-			field: 'quantity',
-			toUserMessage: say,
-			notify: vi.fn<Notify>(),
-			logger: spyLogger(),
 		});
 
 		field.onInput(-5);
@@ -540,31 +506,15 @@ describe('useFieldCommit', () => {
 
 	it('notifies AND logs the mapped fault from a coalesced round rejection, once each', async () => {
 		const fault = new Error('vault fault in continuation');
-		const notify = vi.fn<Notify>();
-		const logger = spyLogger();
 		let settleFirst: (result: Result<void, AppError>) => void = noop;
 		let calls = 0;
-		const run = vi.fn<Run>(() => {
+		const { field, run, notify, logger } = harness(() => {
 			calls += 1;
 			if (calls === 1) {
 				return new Promise<Result<void, AppError>>((resolve) => { settleFirst = resolve; });
 			}
 			if (calls === 2) return Promise.reject(fault);
 			return Promise.resolve(ok(undefined));
-		});
-		const field = useFieldCommit<number, QuantityInput>({
-			canonicalValue: () => 10,
-			buildCommand: (value) => ({
-				execute: () => Promise.resolve(ok(undefined)),
-				undo: () => Promise.resolve(ok(undefined)),
-				value,
-			}),
-			history: { run },
-			errorMap: MAP,
-			field: 'quantity',
-			toUserMessage: say,
-			notify,
-			logger,
 		});
 
 		// A bare `void commitOnce()` on the continuation path gives a throw here no handler at

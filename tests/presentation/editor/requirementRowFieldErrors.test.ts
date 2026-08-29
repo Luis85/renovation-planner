@@ -267,6 +267,50 @@ describe('RequirementRow', () => {
 		expect(commit).toHaveBeenCalledTimes(1);
 	});
 
+	it.each([
+		['quantity', { kind: 'quantity-override', requirementId: 'r1', quantity: 7 }],
+		['cost', { kind: 'cost-override', requirementId: 'r1' }],
+	])('commits the %s override on Enter, which the contract names beside blur', async (fieldName, edit) => {
+		// "A field commits on blur/enter" is stated in five places — `useFieldCommit`'s own
+		// docblock, its `onCommit` member comment, and three lines of the slice's task document —
+		// and the word Enter appeared nowhere in `src/` or `tests/` at all. Only blur and Escape
+		// were ever bound, so the draft stayed visible and unsaved with the input still focused,
+		// and this slice removing the Apply buttons left no other way to commit without leaving
+		// the field.
+		const { wrapper, commit } = mountRow();
+		const input = wrapper.get(`input[data-field="${fieldName}"]`);
+		await input.setValue(fieldName === 'quantity' ? '7' : '12.50');
+
+		await input.trigger('keydown.enter');
+		await flushPromises();
+
+		expect(commit).toHaveBeenCalledTimes(1);
+		expect(commit.mock.calls[0][0]).toMatchObject(edit);
+	});
+
+	it.each([['quantity'], ['cost']])(
+		'does not commit a dirty %s draft on the way to its own Reset button',
+		(fieldName) => {
+			// A browser fires `mousedown` on the button, which blurs the focused input, BEFORE the
+			// `click` that runs the reset. So one Reset gesture on a dirty field became two writes
+			// and two undo entries — the first persisting the very value the user was discarding,
+			// which is then what Undo restores.
+			//
+			// `preventDefault` on `mousedown` preserves the current focus and cancels nothing else,
+			// so the click still fires and the reset still runs; `DialogHost.onMousedown` uses the
+			// same mechanism for the same reason. jsdom moves no focus on mousedown and so fires no
+			// blur, which means `defaultPrevented` is the only honest thing to assert here — the
+			// two-write sequence itself is only visible in a real browser.
+			const { wrapper } = mountRow();
+			const button = wrapper.get(`.rp-requirement-reset-${fieldName}`);
+
+			const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+			button.element.dispatchEvent(event);
+
+			expect(event.defaultPrevented).toBe(true);
+		},
+	);
+
 	it('still offers an explicit reset to calculated', async () => {
 		// `Escape` inside the editor is spoken for by tool-gesture cancellation, so the way
 		// back to "calculated" stays a visible control rather than a key.

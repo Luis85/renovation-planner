@@ -39,8 +39,12 @@ export interface UseFieldCommit<T> {
 	onInput(value: T): void;
 	/**
 	 * blur/enter. Dispatches the draft — but a gesture that lands while another is still
-	 * in flight coalesces into ONE follow-up dispatch of the latest draft rather than
-	 * stacking its own; see `useFieldCommit`'s own commitOnce for why.
+	 * in flight coalesces into ONE follow-up dispatch rather than stacking its own; see
+	 * `useFieldCommit`'s own commitOnce for why.
+	 *
+	 * That follow-up carries the draft the latest QUEUED GESTURE was about, which is not the
+	 * same as the latest draft: text typed after the last blur has been committed by nobody,
+	 * and sending it would break this interface's own rule one member up.
 	 */
 	onCommit(): Promise<void>;
 	/** Escape — discard the draft, clear the error, resync to canonical. Dispatches nothing. */
@@ -110,7 +114,19 @@ export function useFieldCommit<T, TInput>(options: {
 	// The coalescing state. Deliberately plain `let`s and not refs: nothing renders them,
 	// and `pending` is the one piece of this a template may read.
 	let inFlight = false;
-	let recommit = false;
+	/**
+	 * The draft a queued gesture ASKED to commit, or `null` for "nothing queued" — a snapshot,
+	 * not a flag, and the difference is the whole of it.
+	 *
+	 * As a boolean it meant "commit again when this settles", and the continuation then had to
+	 * ask WHAT to send; the only answer available was `drafted.value`, whatever it had become
+	 * by then. So a blur during a slow write, then more typing and no second blur, dispatched
+	 * the typed text — breaking `onInput`'s rule that a keystroke never dispatches, and
+	 * breaking it only while a background write happened to be in flight, which is a condition
+	 * the field never shows the user. `onCancel` below had already closed one member of this
+	 * same class, the Escape path, and named it exactly.
+	 */
+	let queued: { readonly value: T } | null = null;
 	let lastCommitted: { readonly value: T } | null = null;
 
 	// NOT `drafted.value?.value ?? toValue(...)`: optional chaining plus nullish coalescing
@@ -136,11 +152,12 @@ export function useFieldCommit<T, TInput>(options: {
 		drafted.value = null;
 		error.value = null;
 		// The queued gesture goes with the draft that asked for it. Without this, a blur
-		// during a pending write, then Escape, then fresh typing, left `recommit` set with a
+		// during a pending write, then Escape, then fresh typing, left a request queued with a
 		// NEWER draft under it — so the settling write's loop dispatched keystrokes the user
-		// had never committed and had, moments earlier, explicitly abandoned. `recommit` is a
-		// request about a value, not a standing intent.
-		recommit = false;
+		// had never committed and had, moments earlier, explicitly abandoned. A queued commit is
+		// a request about a value, not a standing intent — which is why `queued` now holds that
+		// value, and why this line reads `null` rather than `false`.
+		queued = null;
 	}
 
 	/**
@@ -148,14 +165,15 @@ export function useFieldCommit<T, TInput>(options: {
 	 * below reads as the one thing it is; every rule here is unchanged from the
 	 * single-dispatch version.
 	 */
-	async function dispatchOnce(): Promise<void> {
-		// The exact draft this dispatch is about. `onInput` mints a FRESH wrapper object per
-		// keystroke, so reference identity answers "is the field still showing what I sent"
-		// with no value comparison and no equality rule per `T` — which is the second reason
-		// the clean sentinel is a wrapper rather than a bare value.
-		const submitted = drafted.value;
+	async function dispatchOnce(submitted: { readonly value: T }): Promise<void> {
+		// The exact draft this dispatch is about, taken as a PARAMETER rather than read out of
+		// `drafted` here. `onInput` mints a FRESH wrapper object per keystroke, so reference
+		// identity answers "is the field still showing what I sent" with no value comparison
+		// and no equality rule per `T` — which is the second reason the clean sentinel is a
+		// wrapper rather than a bare value. Reading the CURRENT draft instead is what let a
+		// coalesced round send a value its gesture had never asked for.
 		lastCommitted = submitted;
-		const result = await options.history.run(options.buildCommand(draft.value));
+		const result = await options.history.run(options.buildCommand(submitted.value));
 		if (!isErr(result)) {
 			// Accepted: drop the draft so the field tracks the refreshed canonical value —
 			// but ONLY the draft that was actually submitted. A slow vault write with the
@@ -238,10 +256,10 @@ export function useFieldCommit<T, TInput>(options: {
 	 * firing the next round, so a throw anywhere above that point still finds it `false` and
 	 * still gets the reset.
 	 */
-	async function commitOnce(): Promise<void> {
+	async function commitOnce(submitted: { readonly value: T } | null): Promise<void> {
 		let continuing = false;
 		try {
-			recommit = false;
+			queued = null;
 			// A gesture with nothing to commit: the field is already clean and showing
 			// canonical. Without this, a commit gesture that fires unconditionally on every
 			// blur (Task 9 binds `@blur="onCommit"`, not "only when dirty") dispatched the
@@ -249,36 +267,37 @@ export function useFieldCommit<T, TInput>(options: {
 			// entry per tab-through, undoing nothing visible each time. Same argument as
 			// `validate` below: the guard lives HERE, inside the one round every caller
 			// funnels through, rather than at each call site where a caller could forget it.
-			if (drafted.value === null) return;
+			if (submitted === null) return;
 			// Validated INSIDE this round, not once at the top of `onCommit`, because a
 			// queued gesture carries a draft nobody has checked. A version of this validated
 			// once at the top and returned early on an invalid draft WITHOUT clearing
-			// `recommit` — so a valid commit, then malformed text, then a blur, left the flag
+			// `queued` — so a valid commit, then malformed text, then a blur, left the request
 			// set and the next round dispatched the malformed draft the moment the first
 			// write settled, straight into the throwing `moneyOf` this seam exists to keep it
 			// away from. One rule, one place, every round.
-			const invalid = options.validate?.(draft.value) ?? null;
+			const invalid = options.validate?.(submitted.value) ?? null;
 			if (invalid !== null) {
 				// This field's own refusal: no command to produce it, and no `AppError` for
 				// `routeError` to place.
 				error.value = invalid;
 				return;
 			}
-			await dispatchOnce();
-			// Only if the draft actually MOVED, and `!== null` is half of that test rather
-			// than a defensive extra: a SUCCESSFUL dispatch clears `drafted` to null, and
-			// `null !== lastCommitted` is true — so without it, two blurs with no edit
-			// between them re-dispatched the canonical value, bought a second undo entry,
-			// and could overwrite the edit just accepted if the refresh had not landed. Null
-			// here means the field is clean and showing canonical, which is precisely
-			// nothing to re-send.
-			if (recommit && drafted.value !== null && drafted.value !== lastCommitted) {
+			await dispatchOnce(submitted);
+			// Only if the queued gesture asked for a DIFFERENT value than the one just sent.
+			// Two blurs with no edit between them queue the very wrapper that was dispatched,
+			// so without `!== lastCommitted` they would re-send it, buy a second undo entry,
+			// and could overwrite the edit just accepted if the refresh had not landed. The
+			// null test covers the clean case the old spelling needed a separate
+			// `drafted.value !== null` conjunct for: a gesture on a clean field queues `null`,
+			// which is precisely nothing to re-send.
+			const next = queued;
+			if (next !== null && next !== lastCommitted) {
 				continuing = true;
 				// Not `void`: no caller holds this specific promise, so a bare `void` gives a
 				// throw here no handler at all. `reportContinuationFault` is that handler — it
 				// notifies the SAME mapped fault a guarded service would have produced, rather
 				// than merely observing the rejection and discarding it.
-				commitOnce().catch(reportContinuationFault);
+				commitOnce(next).catch(reportContinuationFault);
 				return;
 			}
 		} finally {
@@ -305,12 +324,14 @@ export function useFieldCommit<T, TInput>(options: {
 		// FIELD commit carries a value the user has since changed, so dropping it discards
 		// the edit. Remember that it was asked for, and honour it once the write settles.
 		if (inFlight) {
-			recommit = true;
+			// The DRAFT, not a flag. This gesture is about the value on screen at this moment;
+			// whatever the user types after it is still theirs to commit or to abandon.
+			queued = drafted.value;
 			return;
 		}
 		inFlight = true;
 		pending.value = true;
-		await commitOnce();
+		await commitOnce(drafted.value);
 	}
 
 	return {

@@ -583,6 +583,44 @@ export default defineConfig({
 			// undefined` arm was added): the same four files above name the only uncovered
 			// arms, matching the four bullets below one for one, and the other eight files in
 			// the list report zero uncovered lines, functions or branches.
+			//
+			// Measured 2026-08-28 at the end of design slice 13 — the notice queue (dedup, the
+			// three-slot cap, promotion, every timer and the hover/focus pause), the four
+			// severities and their copy, the `notify` doors and the `Notice`-backed host, the
+			// notice stylesheet, the plugin's activate/dispose pair, and the whole save-state
+			// half: `SaveStateStore`'s three settlement outcomes, `affectsSaveState`,
+			// `withSaveStateTracking` over `run`/`undo`/`redo`, and `SaveStateIndicator` in
+			// §60's third status-bar region: 4533/4561 statements, 2189/2228 branches,
+			// 1162/1169 functions, 4062/4078 lines — 99.38 / 98.24 / 99.40 / 99.60. NOTHING
+			// RATCHETS: rounded down these are the 99 / 98 / 99 / 99 already in force, which is
+			// what slices 5, 11 and 15 also measured.
+			//
+			// Branches held rather than gained: 98.25 on the slice-18 tree, 98.24 here — a
+			// hundredth DOWN, and the count of covered branches of headroom is 5.6 at 0.0449pp
+			// each, against slice 18's 5.4 and slice 14's 1.3. Both readings are true because
+			// the denominator grew by 49; the unit figure is the one to act on. Statements have
+			// 17.6 of headroom, lines 24.8, and FUNCTIONS are the tightest at 4.7 — the same
+			// metric that has been tightest at every measurement since slice 4.
+			//
+			// Slice 13 adds exactly ONE arm to the uncovered set, and every other file it
+			// introduced measures 100% of all four (`severity.ts`, `notify.ts`,
+			// `save-state.ts`, `save-state-store.ts`, `affects-save-state.ts`,
+			// `with-save-state-tracking.ts`, `SaveStateIndicator.vue`, and `versioning.ts`'s
+			// new `WRITE_BOUNDARY_CODES`):
+			// - `createNoticeQueue`'s `release` guard, the false arm of `if (at >= 0)` before
+			//   the splice. `release` is reached from `sweep` — which iterates a SNAPSHOT, so
+			//   each entry is still present when its own turn comes — and from `arm`'s timeout,
+			//   which `release` itself cancels. The entry is in `entries` by construction at
+			//   every call; the guard is kept because `indexOf` cannot be told that.
+			// Verified against `coverage/coverage-final.json` rather than assumed — every
+			// uncovered position in the other three files this slice edited under `src/` was
+			// read out and looked at: `runtime.ts`'s `viewportAdapter.setPan`/`setZoom`, its
+			// inspector-cycle `?? Promise.resolve()`, its `registerEditorTools` rejection
+			// arrows and the two selection/asset guards; `composition-root.ts`'s
+			// `cascadeNotices.cascadeAborted` (this slice changed its BODY from `notify` to
+			// `notifyWarning` and it is still never invoked in the suite); and the plugin's
+			// `persistence.markers` and `file instanceof TFile` false arms. Every one is
+			// already enumerated by the slice-8 or slice-18 paragraphs above.
 			thresholds: {
 				statements: 99,
 				functions: 99,

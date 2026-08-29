@@ -139,10 +139,13 @@ const obsidianHost: NoticeHost = {
 
 		notice.messageEl.textContent = '';
 		// The flex container is THIS element, not `containerEl` — the three children below are
-		// its children, and flex only reaches direct ones. The stylesheet that lays them out is
-		// owed by this slice and does not exist yet, so these five classes name nothing a
-		// browser draws today; the markup is correct and unstyled rather than correct and
-		// finished.
+		// its children, and flex only reaches direct ones. `styles/notices.css` declares all
+		// five of these classes and puts the `display: flex` here rather than on
+		// `containerEl`, where it would have made `messageEl` the only flex item and left the
+		// three children below unseparated. Nothing here can show what they LOOK like: the
+		// vendored `tests/harness/obsidian.css` carries no `.notice` rule at all, so a notice
+		// drawn in the browser harness would have no position, no stacking and no chrome. The
+		// manual case under `docs/tests/cases/` is the only instrument.
 		notice.messageEl.classList.add('rp-notice-body');
 		notice.messageEl.append(label, body, dismiss);
 
@@ -170,9 +173,9 @@ const obsidianHost: NoticeHost = {
 let queue: NoticeQueue | null = null;
 
 /**
- * To be called once from `onload`, before anything can notify — that wiring is a later task in
- * this slice and no caller exists yet. Starting inert rather than active is deliberate: a notice raised before the plugin is loaded would be a sequencing bug, and a
- * module that quietly worked anyway would hide it.
+ * Called once from `RenovationPlannerPlugin.onload`, before anything can notify. Starting
+ * inert rather than active is deliberate: a notice raised before the plugin is loaded would be
+ * a sequencing bug, and a module that quietly worked anyway would hide it.
  */
 export function activateNotices(): void {
 	queue?.dispose();
@@ -180,10 +183,10 @@ export function activateNotices(): void {
 }
 
 /**
- * Hide everything on screen and stay off. To be registered as one disposer on the plugin's
- * existing `disposers` list, by the same later task that calls `activateNotices` from
- * `onload`. A later `activateNotices()` is what brings it back — this function does
- * not, and that asymmetry is the whole point.
+ * Hide everything on screen and stay off. Registered as one disposer on the plugin's existing
+ * `disposers` list, beside the Konva global that got there first. A later
+ * `activateNotices()` is what brings it back — this function does not, and that asymmetry is
+ * the whole point.
  */
 export function disposeNotices(): void {
 	queue?.dispose();
@@ -220,11 +223,11 @@ export function notify(message: string): void {
  * owned. `npm run analyze` does not catch an export with only test callers, so this comment
  * is the record rather than the gate.
  *
- * The consequence for manual testing is OWED rather than already written: no case under
- * `docs/tests/cases/` mentions a notice yet (checked, not assumed), and this slice's manual
- * case is the last task's. A tester in a vault cannot raise a success notice, so the
- * auto-dismiss and hover-pause steps there have to be driven through the reachable INFO
- * notice instead — which is the thing that case must say.
+ * The consequence for manual testing is written down rather than owed:
+ * `docs/tests/cases/Notices and save state.md` names this door under "Deliberately NOT
+ * checked", because a tester in a vault cannot raise a success notice at all. Its
+ * auto-dismiss and hover-pause steps are driven through the reachable INFO notice instead,
+ * and the 4000 ms policy is covered by `tests/presentation/notices/queue.test.ts` alone.
  */
 export function notifySuccess(message: string): void {
 	queue?.push('success', message);

@@ -95,6 +95,13 @@ into an automated check will find the same thing again next release.
   backgroundless plan with five zones, and the browser harness refuses a background outright.
   A replacement would draw an empty state where the scene belongs with every test still
   green.
+- [[Notices and save state]] — design slice 13's notice queue and save-state indicator. The
+  only rendered surface in this repository with NO capture to read by eye: the vendored
+  `tests/harness/obsidian.css` carries no `.notice` rule at all, so neither `npm run harness`
+  nor `npm run harness-shot` can draw one. Its step 3 asks the console a question
+  `obsidian.d.ts` does not answer — whether `Notice.containerEl` is the per-notice element or
+  the shared stack container — and the queue's slot accounting is wrong in a way that wedges
+  it at three notices if the answer is the second one.
 - [[A Project Owns Its Folder]] — design slice 18's ADR-0013: a project's folder is now
   derived from where its own note sits, rather than cached from a shared plugin setting. Its
   step 7 is the property no gate here can reach at all — dragging a project's folder

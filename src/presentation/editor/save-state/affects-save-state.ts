@@ -29,9 +29,16 @@ import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
  * AFFECTING the indicator, because "we might not have written your data" is the safe answer
  * to give while nobody has thought about it. The unsafe default is silence.
  *
- * Slice 17 owns the mapping from an error to a surface, and this indicator is one of its
- * surfaces — so this predicate is DERIVED from that table rather than authored beside it,
- * and slice 17's no-double-reporting test is what keeps the two in agreement.
+ * **Where this DOES derive from, and where it will have to agree later.** It derives from
+ * `WRITE_BOUNDARY_CODES` in `versioning.ts` — the one place those two codes are spelled —
+ * and from nothing else. An earlier draft of this docblock said in the present tense that it
+ * was "DERIVED from [slice 17's] table" and that "slice 17's no-double-reporting test is what
+ * keeps the two in agreement": slice 17 does not exist, so there was no table to derive from
+ * and no test to keep anything in agreement. `grep -rn "no-double-reporting" src tests`
+ * printed exactly one line, and it was that sentence. Written to the check, in the future
+ * tense: when slice 17 authors its error-to-surface table, this predicate is one of the
+ * things that table has to agree with, and the agreement will need a check of its own,
+ * because nothing today can notice the two disagreeing.
  */
 export function affectsSaveState(error: AppError): boolean {
 	if (error.category !== 'Validation') return true;

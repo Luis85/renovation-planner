@@ -24,8 +24,10 @@ cost engine behind them, the reference-integrity engine that guards deleting eit
 a link, and the recalculation cascade that keeps a figure honest when its inputs move.
 Everything past this point is feature work on a proven template. Slice 11 has since closed
 the first half of the cross-cutting pair — the Error Boundary, the logging policy,
-diagnostics and the data-safety rules. What is NOT done is slice 12 (the fixture vaults and
-the architecture-enforcement harness) and every surface slices 13–17 name.
+diagnostics and the data-safety rules, and slice 13 has closed the second half — the notice
+queue and the save-state indicator, the shared vocabulary any view or command reports
+through. What is NOT done is slice 12 (the fixture vaults and the architecture-enforcement
+harness) and every surface slices 16 and 17 name.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
@@ -146,10 +148,13 @@ own first draft included:
   existence was the entire reason for the refusal. Nine reachable codes have copy in both
   locales now, bound to their raise sites by a table in `toUserMessage.test.ts` that is
   copied from the RAISE SITES rather than from `en.ts`, because a table derived from the
-  locale file would agree with a typo. `NOTICE_TEXT_BAN` puts the rule at the two notice
-  doors as this repository SPELLS them — a bare `notify(...)` or `new Notice(...)`, matched
-  on `callee.name`, so the same two functions reached through an object (`o.notify(...)`)
-  are invisible to it; the long-form paragraph further down carries the rest of that list.
+  locale file would agree with a typo. `NOTICE_TEXT_BAN` puts the rule at the notice
+  doors as this repository SPELLS them — bare `notify(...)`/`notifySuccess(...)`/
+  `notifyWarning(...)` calls and `new Notice(...)`, matched on `callee.name`, so the same
+  functions reached through an object (`o.notify(...)`) are invisible to it. It was TWO doors
+  when slice 11 wrote this and is four since slice 13 added two severities — a door added
+  without widening this rule is a door no gate can see; the long-form paragraph further down
+  carries the rest of that list.
   Neither reaches the second locale's VOCABULARY: the German copy called
   an Asset "Material" where the German UI says "Objekt", found by reading, because nothing
   rendered `de.ts` in any gate. **Slice 14 then reintroduced the exact word, forty lines
@@ -613,6 +618,117 @@ own recurring shape:
 
   A no-op assertion and a correct one look identical until something is broken underneath them.
 
+**Design slice 13 has landed: there is ONE notice door and ONE save-state indicator.**
+`createNoticeQueue` is a plain module-level queue over an injected `NoticeHost` port — dedup
+on the `(severity, message)` pair into a `(×N)` suffix, a three-slot visible cap with
+promotion into a freed slot, per-severity auto-dismiss, and hover/focus pause — and
+`notify.ts` is the only module that binds that port to Obsidian's own `Notice`, which is what
+keeps "one notice door" a fact about the import graph rather than a sentence —
+`grep -rn "new Notice" src/` prints two lines, both in `notify.ts`, and one of them is a
+comment. `NOTICE_TEXT_BAN` also watches the constructor and not only the wrappers, so
+bypassing them is not an escape from the TEXT rule either. Four severities
+with a translated label beside the colour (`AUTO_DISMISS_MS`: 4000 for `success`, 6000 for
+`info`, `null` for `warning` and `error`, so the two that exist to be noticed cannot expire).
+`activateNotices()` runs once from `onload` and `disposeNotices` is one more entry on the
+`disposers` list Konva's global got to first. On the other half, `SaveStateStore` is one per
+Plan Editor — `CommandHistory` is per-Plan, so the save state it produces is a fact about
+that Plan — and `withSaveStateTracking` wraps `run`, `undo` and `redo` inside
+`wrapDispatcher` and outside the refresh decorator, so `Saved` never appears while the canvas
+still shows the pre-command state. **The plugin-global Vue app SDD §12 would have needed an
+exception for was never built**: `Notice` is a container that hands back a `containerEl` and a
+`messageEl`, so severity, dedup and a dismiss control are markup and policy inside it, and the
+only thing it owns that this slice needed differently is the timer. The rules that came out of
+it:
+
+- **`duration: 0` is load-bearing, not incidental.** Obsidian's own timer is internal and
+  cannot be paused, so a design that let Obsidian time the notice could not implement the
+  accessibility rule that a timed message must not vanish while somebody is reading it or
+  tabbing to its dismiss control. Owning the timer is what buys hover-pause and the promotion
+  of a held notice into a freed slot. Hover and focus are two conditions and one `held` flag
+  that is their OR: passing `pause`/`resume` straight to the four listeners let `pointerleave`
+  resume a timer while the dismiss button still had focus.
+- **A severity door added without widening `NOTICE_DOOR` is a door no gate can see**, and
+  that is why the four doors are bare functions rather than `notify.success(...)`. The rule
+  matches on `callee.name`, which a member-expression callee does not have, so every call
+  site in that spelling would have been invisible to the one rule keeping a raw
+  `Error.message` and bare English literals out of a notice. `notifySuccess` and
+  `notifyWarning` are named in `NOTICE_DOOR` now, driven through real fixture paths in
+  `tests/build/notice-text-boundary.test.ts` — blind spots included, and through BOTH blocks
+  that carry the rule.
+- **`handle.live` rather than a dismissal callback is the authority on a free slot.**
+  Obsidian dismisses a notice when the user clicks it and does not tell us; the typings expose
+  no callback either way. A queue counting only its own dismissals leaks one slot per user
+  dismissal until it can never show anything again — a failure that arrives slowly, in a real
+  vault, and in no test. Reading `containerEl.isConnected` means a dismissal by any mechanism
+  frees the slot, and a changed gesture in a future Obsidian degrades to "the slot frees on
+  the next push" rather than to a wedged queue. The `click` listener is a PROMPT to sweep, not
+  the mechanism.
+- **A module-scope timer alias escapes `vi.useFakeTimers()`.** `const scheduleTimeout =
+  setTimeout` captures the function at module-evaluation time, before any `beforeEach`
+  installs fakes — measured, not reasoned: `vi.getTimerCount()` answered 0 and a handle stayed
+  live after 60s of advanced fake time, while a bare `setTimeout` control in the same file
+  registered and fired. A default parameter is evaluated at CALL time, which fixes it. **And
+  the six tests over that queue were green throughout**, because every push in them used a
+  severity whose `AUTO_DISMISS_MS` is `null`, so no timer was ever armed — a
+  `beforeEach(vi.useFakeTimers())` that controlled nothing and read as timer coverage.
+- **A test named "exhaustive" that constructs its subject outside the walk is a sample.** The
+  transition test hoisted `const store` above the recursion, so 340 invocations arrived as one
+  continuous stream rather than as 340 sequences from the initial state: only 10 of 12
+  (state, action) pairs were ever visited and `pendingCount` ran to -170. The proof that it
+  was a sample, rather than an argument that it might be: a store whose `resolveOk` literally
+  assigned the forbidden `'unsaved-changes'` through a public action passed all 13 of its
+  tests. Repaired, it visits 12/12 with `pendingCount` bounded -4..4.
+- **100% branch coverage and a surviving mutation in the same file.** Making `beginSaving`'s
+  batch-open guard unconditional left all 13 tests green at 100% branches and shipped a
+  permanently stuck indicator: two concurrent Inspector commits both refused for validation
+  would capture `beforeBatch = 'saving'`, and the indicator rests there until some later
+  dispatch happens to resolve it. Coverage says a line ran, never that anything would notice
+  it running differently.
+- **Only a write that actually succeeded may clear a save error**, which is why
+  `SaveStateStore` settles three ways and not two. A validation refusal reaches no repository,
+  so settling it as `saved` would let a refused field edit clear a `save-error` left by a real
+  persistence failure and tell the user unsaved data is safe. `resolveNeutral` reverts to
+  whatever the indicator read before the batch opened. And `'Validation'` is not a synonym for
+  "wrote nothing": `versioning.ts` raises `revisionConflict` and `externalModification` as
+  `ValidationError`s and both mean the command reached the repository and the edit was
+  refused, so `affectsSaveState` carves them back out from `WRITE_BOUNDARY_CODES` — the one
+  place those two codes are spelled — rather than from a second copy.
+- **Toast appearance is verifiable in a real vault and NOWHERE else.**
+  `tests/harness/obsidian.css` carries no `.notice` and no `.notice-container` rule at all, so
+  neither `npm run harness` nor `npm run harness-shot` can show what one looks like: a notice
+  drawn there would have no position, no stacking and no chrome. Everything the harness has
+  already caught by eye is live here and unwatched: the severity label and the message are
+  adjacent inline elements separated only by a flex `gap` (`ZonePanelprototype` again), and
+  the dismiss control's reset removes both of Obsidian's focus channels, so its
+  `:focus-visible` ring is the harness index's own shipped defect a second time.
+  `docs/tests/cases/Notices and save state.md` is the whole instrument.
+- **The `Notice` fake widening turned ZERO existing tests red**, against a plan that predicted
+  many on the 65-test and 86-test precedents. Verified by grep rather than by the run alone:
+  no existing suite read `containerEl`, `messageEl`, `duration`, `setMessage` or `hide`. The
+  old fake concealed nothing because nothing had ever reached the surface it lacked. Recorded
+  precisely BECAUSE it contradicts the expectation — the rule ("a fake must not be thinner
+  than the real thing") still holds and the widening was still right; the blast radius simply
+  is not a function of how thin the fake was.
+- **Four contract requirements are knowingly unmet, and where they are written down matters
+  more than that they exist.** `docs/components/Toast.md` and
+  `docs/components/Save-state indicator.md` both name this slice in their frontmatter and
+  neither was opened until review round eleven. No mark beside the word on either surface
+  (both contracts say "Both, always, never one"; a word plus colour satisfies SDD §85 and not
+  them, and a CSS-drawn glyph would close it without introducing `setIcon`); no moving
+  indicator for `Saving`; no retry emit on `Save error`, which is UNDESIGNED rather than
+  merely unbuilt, since the tracker sees a dispatch outcome and not a re-runnable command, and
+  re-running a failed `undo` is not idempotent; and the Toast live region is attributed on a
+  container that APPEARS, which is the shape `Toast.md` explicitly refuses and calls "the one
+  that decides whether this component works at all for the users it exists for". All four are
+  in the manual case and in `docs/tasks/13`, because no jsdom test can observe an announcement
+  either way and a gap nobody inherits is a gap rediscovered from scratch.
+- **`runtime.ts` is at EXACTLY its 400-line `max-lines` cap**, which is why one object literal
+  in it is collapsed onto a single line under a comment saying so. Measured rather than
+  asserted: expanding that literal back to its four natural lines makes `npx eslint` report
+  "File has too many lines (403)". The rule skips blank lines and comments, so the next change
+  adding a line of CODE there — of any size — trips it, and the answer then is an extraction
+  or a split rather than a second collapsed literal.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
@@ -695,16 +811,18 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)` — and passes a call to `t`/`tr`
   untouched, since that is a `CallExpression`, not a `Literal`, at the position it checks.
   **`NOTICE_TEXT_BAN` is the notice door, and it is a SECOND rule rather than a widening of
-  that one**: it refuses a `.message`/`.stack` read anywhere inside a `notify(...)` or
-  `new Notice(...)` call, and a bare string literal as a direct argument to either — slice
+  that one**: it refuses a `.message`/`.stack` read anywhere inside a `notify(...)`,
+  `notifySuccess(...)`, `notifyWarning(...)` or `new Notice(...)` call, and a bare string
+  literal as a direct argument to any of them — slice
   11's Definition of Done item 3 ("never a raw exception message, stack trace or internal
   file path; produced by `t()` rather than by a literal or by `AppError.message`") put at
   the forbidden call, because that door was the one user-facing surface no gate could see.
   It cannot see a value one hop away (`const text = e.message; notify(text)`), a template
   literal carrying raw English with no member access in it, a notice raised under a third
-  name, or either door reached through a MEMBER EXPRESSION (`o.notify(e.message)`,
-  `new n.Notice(e.message)`) — both selectors key on `callee.name`, which a member-expression
-  callee has none of; `tests/build/notice-text-boundary.test.ts` drives all of that through real fixture
+  name, or any door reached through a MEMBER EXPRESSION (`o.notify(e.message)`,
+  `new n.Notice(e.message)`) — every selector keys on `callee.name`, which a member-expression
+  callee has none of, and that is exactly why the four doors are bare functions rather than
+  `notify.success(...)`; `tests/build/notice-text-boundary.test.ts` drives all of that through real fixture
   paths, blind spots included, and drives BOTH blocks that carry the rule — dropping the
   repeat in the `infrastructure/obsidian/` block turns exactly two of its cases red,
   measured.
@@ -772,15 +890,18 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
-  99/99/99/98 (statements/functions/lines/branches), against 99.34/99.25/99.58/98.11 as of
-  slice 11. **Read branches again: 98.11 against a floor of 98, which is about two covered
-  branches of headroom, one branch costing 0.047.** So an untested new arm does not "reduce
+  99/99/99/98 (statements/functions/lines/branches), against 99.38/99.40/99.60/98.24
+  measured at the end of slice 13. **Read branches again: 98.24 against a floor of 98, which
+  is about five and a half covered branches of headroom, one branch costing 0.045 — and
+  FUNCTIONS are tighter still, at about four and a half, one function costing 0.086.** So an
+  untested new arm does not "reduce
   coverage", it fails the gate — plan the test with the code rather than after it. Do not
   read a figure from this line as current; run `npm run test:coverage`. The exact numbers,
   which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
-  equal the floors already in force ratchets NOTHING, which is what slices 5, 15 and 11 did.
+  equal the floors already in force ratchets NOTHING, which is what slices 5, 15, 11 and 13
+  did.
   The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
   real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
@@ -823,7 +944,13 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   `tests/harness/harness.test.ts` rather than assumed. Not faithful about a themed vault's
   colours, its accent, or any element default the vendored sheet's reduction dropped — it
   was reduced against another plugin's driven states. Say so honestly rather than letting
-  "faithful" read wider than it is.
+  "faithful" read wider than it is. **The sharpest instance of that reduction: it declares no
+  `.notice` and no `.notice-container` rule at all** — that plugin never raised one, and all
+  that survives is a `--layer-notice` variable used on an unrelated selector, measured rather
+  than assumed. So a notice here would have no position, no stacking and no chrome: this tool
+  cannot show what one LOOKS like, which puts slice 13's whole toast surface outside it and
+  outside every gate. `docs/tests/cases/Notices and save state.md` is the only instrument
+  for it.
 
   **`?index`** draws an index of every prototype and every real component, discovered from the
   tree with `import.meta.glob` so a saved file needs no registration. `?entry=<id>` opens one

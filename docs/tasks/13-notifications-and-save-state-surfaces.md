@@ -124,6 +124,14 @@ The slice 8 review pass changed two things save-state tracking depends on.
   It exists so a fault in a click handler is not a silent unhandled rejection; the text is
   a placeholder, and this slice's toast vocabulary is what belongs there.
 
+  > **ALREADY FIXED, by design slice 11, before this slice started.** `reportFault` calls
+  > `notifyFault(cause, logger, event)`, which maps the thrown cause through the vault's
+  > `ExceptionMapper` into the same coded `PersistenceError` a guarded service would have
+  > produced, logs it with its original cause at that one step, and prints the locale
+  > table's sentence. A raw `Error.message` in a notice is now refused by `NOTICE_TEXT_BAN`
+  > in `eslint.config.mjs` as well, so this could not come back quietly. Nothing in slice 13
+  > was owed here; what slice 13 added is the SEVERITY the resulting notice carries.
+
 ## Design
 
 ### 1. Notification model
@@ -206,6 +214,33 @@ an entry early just because its severity would otherwise auto-dismiss or persist
 
 ### 4. `NotificationHost` — one per plugin instance, not per view
 
+> **SUPERSEDED, and NOT BUILT.** There is no `NotificationHost`, no `NotificationStore`, no
+> plugin-global Pinia instance and no plugin-global Vue app. What shipped is
+> `src/presentation/notices/queue.ts` — a plain module-level queue over an injected
+> `NoticeHost` port — with `notify.ts` binding that port to Obsidian's own `Notice`. The
+> reasoning is in
+> [`docs/superpowers/specs/2026-08-28-slice-13-notifications-and-save-state-design.md`](../superpowers/specs/2026-08-28-slice-13-notifications-and-save-state-design.md):
+> the parenthesis below dismisses `Notice` on the grounds that "severities, dedup, and manual
+> dismiss need a richer contract than `Notice` offers", and that is true of three of those
+> four words and false of the one that mattered. `Notice` is a CONTAINER — it owns position,
+> stacking, theming and animation, and hands back a `containerEl` and a `messageEl` this
+> plugin fills with whatever markup it likes. Severity, dedup and a dismiss control are all
+> markup and policy INSIDE that container; the only thing `Notice` genuinely owns that this
+> slice needed differently is the timer, and `duration: 0` hands that back.
+>
+> So the departure from SDD §12 bought nothing and cost a plugin-global Vue app, a second
+> Pinia instance, an explicit binding step, and the ambient-active-instance hazard §5 below
+> spends four paragraphs on. Everything from "`src/plugin/RenovationPlannerPlugin.ts` today
+> has no `onunload`" onward is stale for a second reason as well: the plugin gained one in
+> the fix pass after design slice 5's vault walkthrough (`7fe3293`), to release the
+> `window.Konva` a reload was leaking, and slice 13's queue is one more entry on its
+> `disposers` list rather than the first thing on it.
+>
+> **The reasoning below is kept rather than deleted because the QUESTION it answers is still
+> live** — a toast has to render above every leaf and report things no open view owns, and
+> that is exactly why the queue is module-scoped rather than per-view. Only the mechanism
+> changed.
+
 Every other Pinia store this codebase has (slice 5's three, slice 6's `SelectionStore`/
 `InspectorStore`, and this slice's own `SaveStateStore`) is scoped to one `ItemView`'s
 own Vue app and Pinia instance (ADR-004, SDD §12: "each Obsidian view receives an
@@ -241,6 +276,29 @@ plugin-lifetime Vue app and a DOM node the base class does not know about, so th
 slice is what gives the plugin its first real `onunload` body.
 
 ### 5. `notify` — the public push API
+
+> **SUPERSEDED in its MECHANISM, upheld in its conclusion.** `initNotifications(store)` does
+> not exist and there is no binding step: with `Notice` as the container there is no store to
+> bind, so the whole "explicit binding versus ambient Pinia resolution" question below has no
+> subject. `activateNotices()` and `disposeNotices()` exist instead, and they are a LIFECYCLE
+> rather than a binding — the queue is inert before `onload` calls the first and inert again
+> after `onunload` drains the second. Disposal is terminal on purpose: a fire-and-forget
+> promise resolving after unload (the cascade and the recovery pass both run that way) must
+> drop its push rather than attach a notice to a vault with no plugin left to remove it.
+> With no binding step there is nothing for a premature call to precede, so the "throws
+> rather than silently no-op-ing" clause below is withdrawn — see the amended
+> Definition-of-Done item 6.
+>
+> The four doors are `notify` (info), `notifySuccess`, `notifyWarning` and `notifyError`,
+> plus `notifyFault` for a thrown cause — **bare functions, not `notify.success(...)`**, and
+> that is a gate rather than a taste: `NOTICE_DOOR` in `eslint.config.mjs` matches on
+> `callee.name`, which a member expression does not have, so every `notify.success('…')`
+> call site would have been invisible to the one rule keeping raw `Error.message` and bare
+> literals out of a notice.
+>
+> **The module-global paragraph below survives unchanged and is the part worth keeping.** The
+> trade it names is exactly the trade that was taken, and its stated trigger for revisiting —
+> a second push surface arriving — is still the trigger.
 
 Bound once, explicitly, at plugin startup — not resolved through Vue/Pinia's ambient
 "active instance" mechanism, because this plugin runs a global Pinia instance
@@ -359,6 +417,17 @@ withSaveStateTracking(history, saveStateStore).<op>(...)   for op in run | undo 
   → return result unchanged to the caller
 ```
 
+> **CORRECTED in one line: the non-affecting arm is `resolveNeutral()`, not `resolveOk()`.**
+> The store settles a batch three ways, not two — failed, wrote-something, and wrote-nothing
+> — and the third is the one the pseudocode above collapses. It is a lie with a real victim:
+> after a persistence failure has settled the store to `save-error`, a later field edit
+> refused for validation writes nothing, and reporting `saved` for it tells the user the
+> earlier failed write is now safe. Only a write that actually succeeded may clear a save
+> error, so `resolveNeutral` reverts to whatever the indicator read before the batch opened.
+> A fourth path the diagram has no arm for at all: a THROWN technical fault settles the batch
+> as an error and re-throws unchanged — decrementing only on resolution would leave
+> `pendingCount` permanently above zero and the indicator dead on `saving` forever.
+
 **Not every failed `Result` is a save error, and the decorator filters rather than
 flipping on anything.** A field commit that fails a domain rule resolves a
 `ValidationError` and **writes nothing** — the repository was never reached. Flipping the
@@ -387,6 +456,14 @@ Slice 17's own no-double-reporting test is the check that keeps the two in agree
 its scope widens to cover this case — the autosave `PersistenceError` (already covered)
 plus the `ValidationError`, which must produce an inline error and **no** indicator
 transition.
+
+> **CORRECTED.** Neither of those last two sentences is true of what shipped, and neither
+> could be: slice 17 has no table to derive from and no such test — `grep -rn
+> "no-double-reporting" src tests` finds one line, and it is a comment. The predicate derives
+> from `WRITE_BOUNDARY_CODES` in `src/application/ports/versioning.ts` instead, and the
+> `!== 'Validation'` inequality below is not sufficient on its own: two write-boundary
+> refusals are `Validation` by CATEGORY and have to be carved back out. See "One claim in
+> Design §7 that shipped narrower than it reads", below the Definition of Done.
 
 Stated as an inequality against one category rather than a list of the ones that do count,
 deliberately: a new `AppError` category added by a later slice should default to
@@ -754,16 +831,32 @@ split slice 5 already established for that layer's own stores:
    timer pauses on hover/focus and resumes on pointer-leave/blur.
 3. `NotificationHost` renders at most `MAX_VISIBLE_NOTIFICATIONS` (3) entries at once;
    an entry beyond that limit is promoted into a freed slot, not dropped.
-4. `NotificationHost` is mounted exactly once for the lifetime of the plugin, into a
-   DOM node outside any workspace leaf — verified by a test that opens and closes
-   multiple Plan Editor leaves and asserts no second `NotificationHost` app is created
-   and no notification is lost when a Plan Editor closes.
-5. `RenovationPlannerPlugin` gains an `onunload()` that unmounts the notification Vue
-   app and removes its DOM node — the plugin's first, since nothing before this slice
-   needed one.
-6. `notify.success/info/warning/error` each push exactly one entry of the matching
-   severity to the bound `NotificationStore`; calling any of them before
-   `initNotifications` throws rather than silently no-op-ing.
+
+   > Items 1–3 are met, under different NAMES: there is no `NotificationStore` and no
+   > `NotificationHost`, so the subject of all three is the queue `createNoticeQueue`
+   > returns, and the constant is `MAX_VISIBLE_NOTICES`. One clause of item 2 shipped
+   > STRICTER than it reads: the timer resumes when hover and focus are BOTH clear, not on
+   > either event alone — resuming on `pointerleave` while the dismiss control still held
+   > focus was one of this slice's review findings. Only the three items below needed their
+   > substance amended.
+4. **AMENDED** (was: "`NotificationHost` is mounted exactly once for the lifetime of the
+   plugin, into a DOM node outside any workspace leaf" — there is no host component and no
+   plugin-global Vue app; see the note at Design §4). The notice queue is ONE module-level
+   queue, and opening and closing multiple Plan Editor leaves neither creates a second one
+   nor loses a queued entry.
+5. **AMENDED** (was: "`RenovationPlannerPlugin` gains an `onunload()` … the plugin's first").
+   The queue registers **one disposer** on the plugin's existing `disposers` list.
+   `onunload` is neither created nor modified by this slice, and the queue is not the first
+   thing on that list — `claimKonvaGlobal` got there first, in the fix pass after design
+   slice 5's vault walkthrough (`7fe3293`), which is what gave the plugin its `onunload` in
+   the first place.
+6. **AMENDED** (was: "`notify.success/info/warning/error` … calling any of them before
+   `initNotifications` throws"). `notify` / `notifySuccess` / `notifyWarning` each push
+   exactly one entry of the matching severity, and `notifyError` / `notifyFault` push at
+   `error`. The "throws before `initNotifications`" clause is DROPPED: there is no binding
+   step to precede. A push while the queue is inert — before `activateNotices()` or after
+   `disposeNotices()` — is dropped, because a toast reports something that already happened
+   and there is no surface left to report it to.
 7. `SaveStateStore` is scoped one-per-Plan-Editor (its own Pinia instance, per slice 5's
    pattern), transitions `saved → saving → saved` on a successful command and
    `saved → saving → save-error` on a failed one, driven through
@@ -790,6 +883,76 @@ split slice 5 already established for that layer's own stores:
     `npm run lint`).
 12. `npm run check` (build, lint, coverage-thresholded tests, fallow) passes with this
     slice's code included.
+13. **NEW.** `NOTICE_DOOR` in `eslint.config.mjs` names every notice door this slice adds —
+    `notify`, `notifySuccess` and `notifyWarning` beside `new Notice(...)` — driven through
+    real fixture paths in `tests/build/notice-text-boundary.test.ts`, including the blind
+    spots the selector structurally cannot see. A severity door added without widening that
+    rule is a door no gate can see: `NOTICE_TEXT_BAN` is the only thing keeping a raw
+    `Error.message` or a bare English literal out of a notice, and it matches on
+    `callee.name`.
+
+## What this slice did NOT satisfy, and knew it
+
+`docs/components/Toast.md` and `docs/components/Save-state indicator.md` are component
+contracts naming this slice in their own frontmatter, and **this document was written without
+opening either** — found by review on 2026-08-28, eleven rounds in, after the design and the
+plan were both written. Four of their requirements are knowingly unmet. They are recorded
+here, and in [[Notices and save state]]'s own "Four contract gaps" section, because the
+workspace holding this reasoning is deleted when the slice closes and a gap nobody inherits
+is a gap rediscovered from scratch.
+
+1. **No mark beside the word, on either surface.** Both contracts ask for a mark AND a word
+   ("Both, always, never one"). This slice ships the translated word plus colour, which
+   satisfies SDD §85's "status not colour-only" and does not satisfy the contracts. The icon
+   was refused on `setIcon` grounds — this plugin has never called it and the harness has no
+   icon renderer — but a CSS-drawn glyph would discharge both contracts without introducing
+   `setIcon`, and is the likely answer. It changes markup, stylesheet and accessibility
+   assertions in three separate places.
+2. **No moving indicator for *Saving*.** `Save-state indicator.md` cites the Design System's
+   *Loading* row: a moving indicator **and** text.
+3. **No retry emit on *Save error*.** The contract says the component "Emits, in the Save
+   Error case only, a retry request." **Undesigned rather than merely unbuilt**, which is the
+   distinction worth keeping: `SaveStateStore` retains no re-runnable operation — the tracker
+   sees a dispatch OUTCOME, not a command — and re-running a failed `undo` is not idempotent,
+   so a naive retry could corrupt the history stack.
+4. **The Toast live-region insertion order.** `Toast.md` requires `role="status"` /
+   `role="alert"` on a live region **already in the DOM**, and explicitly *not* "on a
+   container that appears", because a live region inserted along with its content often does
+   not announce. `notify.ts` constructs `new Notice(text, 0)` — a populated element — and
+   sets the attributes afterwards, which is exactly the shape the contract refuses; the
+   contract calls this "the one that decides whether this component works at all for the
+   users it exists for". The likely fix (construct, clear `messageEl`, set the attributes
+   while empty, populate on a microtask) changes timing that several of this slice's tests
+   assert synchronously, and no jsdom test can observe an announcement either way, so it was
+   not changed blind.
+
+Two smaller divergences, recorded as questions rather than as gaps. `Toast.md` says the
+component "has **no focus state** and takes no focus"; the dismiss control SDD §85 requires
+carries a `:focus-visible` ring, and the contract's own reasoning is about not STEALING
+focus, which this does not do — but the sentence says what it says, and reconciling it
+belongs to whoever owns the Design System. And `Toast.md`'s optional "one action — undo,
+retry, reveal" has no slot here; optional, so not a conflict, but a later slice adding one
+would be widening a shipped contract rather than filling a hole.
+
+## One claim in Design §7 that shipped narrower than it reads
+
+Design §7 says `affectsSaveState` is "derived from slice 17's table rather than authored
+beside it", and that "slice 17's own no-double-reporting test is the check that keeps the two
+in agreement". **Neither is true of what shipped, and neither could be**: slice 17 does not
+exist, so there is no table to derive from and no test to keep anything in agreement.
+`grep -rn "no-double-reporting" src tests` finds one hit, and it is a comment.
+
+What the predicate actually derives from is `WRITE_BOUNDARY_CODES`, exported by
+`src/application/ports/versioning.ts` — the two codes the version check itself raises. That
+is a real derivation with a real single source, and it exists because the first draft's
+`error.category !== 'Validation'` was wrong in a way the category alone cannot express:
+`revisionConflict` and `externalModification` are `Validation` by category and write-boundary
+by meaning — the command reached the repository and the user's edit was refused — so
+reporting `saved` for one of them is the false assurance the predicate exists to prevent.
+
+The forward-looking half stands: when slice 17 authors its error-to-surface table, this
+predicate is one of the things that table has to agree with, and the agreement will need a
+check. `affects-save-state.ts` says that in the future tense now.
 
 ## References
 

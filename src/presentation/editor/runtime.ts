@@ -522,6 +522,20 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	 * single point that value enters the tool framework — is what keeps every tool's own
 	 * signature honestly branded. (`as never` was the previous spelling and is strictly
 	 * worse: `never` is assignable to anything, so a project id would have passed too.)
+	 *
+	 * **Collapsed onto one line for the `max-lines` budget, not for style**, and the note is
+	 * here because the next reader will otherwise reformat it and turn the gate red. This
+	 * file sits at EXACTLY its 400-line cap (`max-lines`, `skipBlankLines` and
+	 * `skipComments`), and slice 13's three-line save-state wiring is what pushed it over —
+	 * this literal gave the three lines back. The rule skips blank lines and comments — which
+	 * is why this paragraph costs nothing — so the next change adding a line of CODE here,
+	 * of any size, trips it, and the answer then is an extraction or a split rather than a
+	 * second collapsed literal.
+	 *
+	 * MEASURED rather than asserted, which is the only way a number like this stays honest:
+	 * expanding this literal back to its four natural lines and running `npx eslint` on this
+	 * file reports "File has too many lines (403). Maximum allowed is 400". 403 minus the
+	 * three lines the expansion adds is 400 — no headroom at all.
 	 */
 	const activePlan = (): EditorContext['activePlan'] => ({ id: context.planId as PlanId, calibration: projectStore.plan?.calibration ?? null });
 

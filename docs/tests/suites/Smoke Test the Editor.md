@@ -88,6 +88,11 @@ into an automated check will find the same thing again next release.
   requirement row's LAYOUT (jsdom lays nothing out, and the browser harness draws this
   panel empty), the §64 decision panel over a pane that is entirely canvas, and the
   round trip through a real reload.
+- [[Canvas Navigation]] — the camera gestures a user reaches for while doing something
+  else: space-drag, middle-drag, shift+wheel and the two zoom-to-fit shortcuts. Four of its
+  twelve steps are the only place anything can see them — a cursor keyword (jsdom resolves no
+  styles and a headless capture hovers over nothing), what Obsidian's own keymap does with
+  the space bar and `Shift+1`, and what a real desktop does with a middle press.
 - [[Empty States Walkthrough]] — design slice 14's two central-view empty states. Its step 4
   is the sharpest example in this suite of a claim only a vault can settle: the Plan Editor's
   empty states are OVERLAYS over a canvas that stays mounted, and the two things that

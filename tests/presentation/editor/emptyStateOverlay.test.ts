@@ -30,6 +30,27 @@ const WITH_BACKGROUND = {
 
 const overlay = (mounted: EditorHarness) => mounted.wrapper.find('.rp-empty-state');
 
+/** One pointer event, spelled out so a press and its release are visibly the same gesture. */
+/**
+ * One primary-button event, with `buttons` derived the way a device sets it: the primary bit
+ * while the button is down, nothing once it is released. A move that reports no button held
+ * is a released button, and the canvas reads exactly that to end a drag whose `pointerup`
+ * went to another element or arrived inside a chord — so a helper leaving `buttons` at
+ * jsdom's zero would end every drag it tried to make.
+ */
+function press(element: HTMLElement, type: string, x: number, y: number): void {
+	element.dispatchEvent(
+		new PointerEvent(type, {
+			button: 0,
+			buttons: type === 'pointerup' ? 0 : 1,
+			pointerId: 1,
+			clientX: x,
+			clientY: y,
+			bubbles: true,
+		}),
+	);
+}
+
 describe('the plan editor empty states', () => {
 	it('keeps the canvas mounted while an empty state is showing', async () => {
 		harness = await mountPlanEditor({ plan: FIXTURE_PLAN, zones: [] });
@@ -88,6 +109,64 @@ describe('the plan editor empty states', () => {
 		await settle();
 
 		expect(useEditorStore(harness.pinia).activeToolId).toBe('draw-polygon');
+	});
+
+	it('leaves the Space key to the noZones action button, rather than arming the camera', async () => {
+		// The canvas listens for keys on itself, and the empty state is an OVERLAY INSIDE it —
+		// so a `keydown` from the focused button bubbles straight to that handler. It called
+		// `preventDefault()` to stop the pane paging down under a space-held pan, which also
+		// suppresses a button's own native Space activation: the canvas's only keyboard-
+		// reachable control stopped working under the standard gesture for pressing it.
+		harness = await mountPlanEditor({ plan: WITH_BACKGROUND, zones: [] });
+		const button = overlay(harness).find('button.rp-empty-state__action').element as HTMLButtonElement;
+		button.focus();
+
+		const pressed = new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true });
+		button.dispatchEvent(pressed);
+		await settle();
+
+		expect(pressed.defaultPrevented).toBe(false);
+		// And the camera did not arm behind it, which is the other half of the same mistake.
+		expect(harness.wrapper.find('.rp-plan-canvas').classes()).not.toContain('rp-plan-canvas-armed');
+	});
+
+	it('leaves a PRESS on the noZones action to the button, rather than panning the camera', async () => {
+		// The pointer twin of the case above, and it outlived it by a round: the keyboard half
+		// was fixed with `isCanvasKey` while presses went on bubbling. `.rp-empty-state__action`
+		// re-enables `pointer-events` against the overlay's own `none`, so it is a real pointer
+		// target sitting over the stage — a press on it reached the canvas and began a camera
+		// pan under a user who was only clicking the button. Measured before the fix: the drag
+		// below moved `pan` from -480 to -1280.
+		harness = await mountPlanEditor({ plan: WITH_BACKGROUND, zones: [] });
+		const camera = useEditorStore(harness.pinia);
+		const button = overlay(harness).find('button.rp-empty-state__action').element as HTMLButtonElement;
+		const before = { ...camera.viewport.pan };
+
+		press(button, 'pointerdown', 100, 100);
+		press(button, 'pointermove', 180, 180);
+		press(button, 'pointerup', 180, 180);
+		await settle();
+
+		expect(camera.viewport.pan).toEqual(before);
+	});
+
+	it('still ends a gesture the STAGE started, so swallowing the press costs no release', async () => {
+		// The other half of "a swallowed press owes a swallowed release", from the opposite
+		// direction: the overlay must not swallow the end of a gesture it never began. A real
+		// browser retargets a captured pointer to the stage, so this cannot arise there — which
+		// is a reason for the routing to be right anyway, not a reason to leave it untested.
+		harness = await mountPlanEditor({ plan: WITH_BACKGROUND, zones: [] });
+		const camera = useEditorStore(harness.pinia);
+		const canvas = harness.wrapper.find('.rp-plan-canvas').element as HTMLElement;
+
+		press(canvas, 'pointerdown', 100, 100);
+		press(canvas, 'pointermove', 140, 140);
+		press(canvas, 'pointerup', 140, 140);
+		await settle();
+
+		// The drag committed and nothing is still holding the camera.
+		expect(camera.dragState).toBeNull();
+		expect(camera.viewport.pan).not.toEqual({ x: -480, y: -480 });
 	});
 
 	/**

@@ -3,13 +3,16 @@ import { computed, ref } from 'vue';
 import type { Point } from '../../core/geometry/Point';
 import {
 	DEFAULT_VIEWPORT,
+	fitViewport,
 	panBy,
 	screenToWorld,
 	STAGE_PIXELS,
 	zoomAbout,
 	type ScreenPoint,
+	type StageSize,
 	type Viewport,
 } from '../editor/viewport/Viewport';
+import type { BoundingBox } from '../../core/geometry/BoundingBox';
 /**
  * The vocabulary for `activeToolId` below — the typed SLOT for whichever `EditorTool` is
  * active, so that adding tools does not change this store's shape. Always `null` today:
@@ -44,6 +47,19 @@ type DragState = {
 	readonly kind: 'pan';
 	readonly originScreen: ScreenPoint;
 	readonly originViewport: Viewport;
+	/**
+	 * WHICH pointer is doing the dragging.
+	 *
+	 * Invisible on a mouse — one `pointerId` is shared across every button — and load-bearing
+	 * on touch, where the manifest promises support (`isDesktopOnly: false`) and camera mode
+	 * is the DEFAULT state. A second finger's moves were read as continuations of the first
+	 * one's drag, so the camera jumped by the distance BETWEEN two fingers rather than by how
+	 * far either had travelled.
+	 *
+	 * It lives on the drag rather than beside it because it is a fact ABOUT this gesture, and
+	 * a second field elsewhere would be a second thing to forget to clear.
+	 */
+	readonly pointerId: number;
 };
 
 /**
@@ -56,6 +72,13 @@ type DragState = {
  * (`EditorTool`, `ToolManager`, `CommandHistory`, `EditorContext`) and no tool, and wired
  * none of it into the composition root, so nothing here gained a writer.
  */
+/**
+ * Clear space left around a fitted extent, in stage pixels, so a zone's caption and its
+ * selection handles are not flush against the pane edge — the same reason
+ * `DEFAULT_VIEWPORT` carries a margin rather than starting at the world origin.
+ */
+const FIT_PADDING_PX = 48;
+
 export const useEditorStore = defineStore('editor', () => {
 	const viewport = ref<Viewport>(DEFAULT_VIEWPORT);
 	const activeToolId = ref<ToolId | null>(null);
@@ -107,24 +130,90 @@ export const useEditorStore = defineStore('editor', () => {
 		viewport.value = zoomAbout(viewport.value, anchor, viewport.value.zoom * factor);
 	}
 
-	function beginPan(at: ScreenPoint): void {
-		dragState.value = { kind: 'pan', originScreen: at, originViewport: viewport.value };
+	/**
+	 * A drag already running is KEPT, not replaced. A second pointer pressing in camera mode
+	 * would otherwise hand the gesture to the newcomer — the first finger's moves then ignored
+	 * as a foreign pointer's, so the pan dies under the hand still making it. One gesture at a
+	 * time, decided here rather than at each call site.
+	 */
+	function beginPan(at: ScreenPoint, pointerId: number): void {
+		if (dragState.value !== null) return;
+		dragState.value = { kind: 'pan', originScreen: at, originViewport: viewport.value, pointerId };
 	}
 
 	/**
 	 * Answers whether the move was consumed, so the caller does not have to re-inspect
 	 * `dragState` to find out — the store is the one place that knows whether a gesture is
-	 * running.
+	 * running, and now also which pointer is running it.
+	 *
+	 * A move from any OTHER pointer is refused rather than applied: see `DragState.pointerId`.
 	 */
-	function continuePan(at: ScreenPoint): boolean {
+	function continuePan(at: ScreenPoint, pointerId: number): boolean {
 		const drag = dragState.value;
-		if (drag === null) return false;
+		if (drag === null || drag.pointerId !== pointerId) return false;
 		viewport.value = panBy(drag.originViewport, at.x - drag.originScreen.x, at.y - drag.originScreen.y);
 		return true;
 	}
 
-	function endPan(): void {
+	/**
+	 * The drag's own pointer letting go. Answers whether it consumed the release, and refuses
+	 * one from any other pointer — the second half of `DragState.pointerId`'s rule, and the
+	 * half a first pass misses: a second finger LIFTING ended the first finger's drag, so the
+	 * pan stopped dead while the hand making it was still moving.
+	 */
+	function endPan(pointerId: number): boolean {
+		if (dragState.value?.pointerId !== pointerId) return false;
 		dragState.value = null;
+		return true;
+	}
+
+	/**
+	 * The drag is over whoever owned it — `pointercancel` and focus loss, neither of which
+	 * names a pointer worth trusting.
+	 *
+	 * **`pointerleave` is deliberately NOT a caller**, and this used to list it. That handler
+	 * calls `endPan(event.pointerId)` instead: a leave DOES carry an identity, so it can
+	 * refuse one from a pointer that owns nothing rather than abandoning a drag the owner's
+	 * finger is still making. The comment there says so, and the two contradicted each other
+	 * about the same path until this one was corrected.
+	 *
+	 * Separate from `endPan` rather than reached by omitting its argument, so that no caller
+	 * can get "end whatever is running" by ACCIDENT, which is precisely what `endPan` was just
+	 * narrowed to refuse. `PanOverride` splits the same pair for the same reason.
+	 */
+	function abandonPan(): void {
+		dragState.value = null;
+	}
+
+	/**
+	 * A one-shot camera nudge in SCREEN pixels, with no gesture behind it — what a wheel
+	 * notch is. Shift+wheel pans horizontally in Obsidian's own Canvas, and this is where
+	 * that reaches the camera.
+	 *
+	 * Distinct from `continuePan` rather than a spelling of it: that one is relative to the
+	 * viewport a gesture STARTED from, which is what keeps a long drag free of accumulated
+	 * drift. A wheel notch has no start to be relative to, so it composes on the current
+	 * camera — and its drift is bounded by the fact that each notch is a fresh, exact
+	 * quantity rather than a running total of pointer positions.
+	 */
+	function panByScreen(dx: number, dy: number): void {
+		viewport.value = panBy(viewport.value, dx, dy);
+	}
+
+	/**
+	 * Zoom-to-fit: the camera that shows all of `bounds` at once, centred.
+	 *
+	 * A pane with no area answers `null` and is IGNORED rather than adopted. The stage is
+	 * measured from a container that is `0 x 0` until layout runs, so a fit asked in that
+	 * window is an ordinary early call and not an error — keeping the camera the editor
+	 * already has is the honest outcome, where writing `null` through would blank the view.
+	 */
+	function fitTo(bounds: BoundingBox, stage: StageSize, paddingPx = FIT_PADDING_PX): void {
+		// The current zoom goes IN because a doubly-degenerate extent — a zone reduced to a
+		// point — has nothing to fit and keeps the camera the user has, centring on it. The
+		// store is what knows that zoom; a fit computed without it can only invent one.
+		const fitted = fitViewport(bounds, stage, paddingPx, viewport.value.zoom);
+		if (fitted !== null) viewport.value = fitted;
 	}
 
 	/** `null` when the pointer leaves the stage, so the readout blanks rather than lying. */
@@ -185,6 +274,9 @@ export const useEditorStore = defineStore('editor', () => {
 		beginPan,
 		continuePan,
 		endPan,
+		abandonPan,
+		panByScreen,
+		fitTo,
 		setPointer,
 		reset,
 	};

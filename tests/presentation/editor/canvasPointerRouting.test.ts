@@ -13,16 +13,22 @@
  */
 import { describe, expect, it } from 'vitest';
 import { settle, settleUntil as until } from '../../helpers/editor';
-import { click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { chord, click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
 describe('the Plan Canvas pointer routing', () => {
 
-	it('a SECONDARY release mid-drag does not commit the move; the primary release still does', async () => {
+	it('a reflexive right-click mid-drag does not commit the move; the primary release still does', async () => {
 		// The canvas filtered `pointerdown` to button 0 and forwarded EVERY `pointerup`, so a
 		// reflexive right-click during a drag reached `SelectTool` as a release with no
 		// matching press — and it obligingly wrote the zone at the half-finished position,
 		// leaving the real release a silent no-op. Both ends are filtered now.
+		//
+		// **The right-click is spelled as two CHORDS**, which is the only shape it can have
+		// while the primary button is down: Pointer Events fires no `pointerdown` for a second
+		// button and no `pointerup` until the last one comes up. This case used to send a bare
+		// `pointerup` naming button 2 with the primary still held — a stream no mouse produces,
+		// and one that made the case a proof about an input rather than about this canvas.
 		const { harness, zonesRepo } = await rig();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -35,7 +41,8 @@ describe('the Plan Canvas pointer routing', () => {
 
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 400, 300);
-		pointer(canvas, 'pointerup', 400, 300, 2); // the right button, mid-drag
+		chord(canvas, 400, 300, 2, 3); // the right button pressed mid-drag…
+		chord(canvas, 400, 300, 2, 1); // …and released, the primary still down
 		await settle();
 
 		const midDrag = expectOk(await zonesRepo.listByPlan('plan-e2e' as never))[0];
@@ -70,7 +77,14 @@ describe('the Plan Canvas pointer routing', () => {
 
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 400, 300);
-		canvas.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true }));
+		// **The id is named, and has to be.** This event carried none until the cancel door
+		// learned to ask whose pointer was taken — `PointerEvent`'s default is `0`, while the
+		// press above is the rig's default `1`, so the stream said "some OTHER pointer was
+		// cancelled" and no device sends that. The case is about the gesture's OWN pointer
+		// being taken away; identity simply did not matter when it was written, and a default
+		// stood in for a fact. Same shape as the `buttons` correction this suite already paid
+		// for: a fake thinner than the real thing is evidence about a different program.
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
 		await settle();
 
 		// A later, unrelated click far away moves nothing.

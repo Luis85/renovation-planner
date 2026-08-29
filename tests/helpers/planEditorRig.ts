@@ -11,6 +11,7 @@
  * per axis at the default camera. The fixture zone's world rect (1500..4400)² therefore
  * has the screen footprint (198,198)-(488,388), inside the 800×600 stage.
  */
+import type Konva from 'konva';
 import { mountPlanEditor, type EditorHarness } from './editor';
 import { expectOk } from './domain';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
@@ -163,10 +164,59 @@ export async function rig(seed?: (repos: {
 	return { harness, zonesRepo, assetsRepo, requirementsRepo };
 }
 
-export function pointer(element: HTMLElement, type: string, x: number, y: number, button = 0): void {
+/**
+ * The `PointerEvent.buttons` bit each `button` number stands for, per the DOM's own table —
+ * including the three beyond the familiar ones, because a mouse's Back and Forward buttons
+ * and a pen's eraser are real inputs a canvas has to decline rather than mishandle.
+ */
+const BUTTONS_BIT: Record<number, number> = { 0: 1, 1: 4, 2: 2, 3: 8, 4: 16, 5: 32 };
+
+/**
+ * One pointer event, with `buttons` DERIVED rather than left at jsdom's zero.
+ *
+ * A real device never sends a move with no bit set while a button is held, and the canvas
+ * now reads exactly that bitmask to notice a button released inside a chord — so a rig that
+ * left `buttons` at its default would be a fake kinder than the real thing at the one field
+ * the routing depends on. The default is what the named button implies: the bit for a press
+ * or a move, nothing for a release, which is what the spec says a `pointerup` reports.
+ *
+ * `buttons` is a parameter as well, because a CHORD is exactly the case the default cannot
+ * express: pressing a second button while the first is held arrives as a `pointermove`
+ * naming the button that CHANGED and carrying every bit still down.
+ */
+export function pointer(
+	element: HTMLElement,
+	type: string,
+	x: number,
+	y: number,
+	button = 0,
+	pointerId = 1,
+	buttons = type === 'pointerup' || type === 'pointercancel' ? 0 : (BUTTONS_BIT[button] ?? 0),
+): void {
 	element.dispatchEvent(
-		new PointerEvent(type, { button, clientX: x, clientY: y, bubbles: true }),
+		new PointerEvent(type, { button, buttons, pointerId, clientX: x, clientY: y, bubbles: true }),
 	);
+}
+
+/**
+ * A CHORDED button change, which on a mouse is the only shape one can have.
+ *
+ * W3C Pointer Events, "chorded button interactions": `pointerdown` fires only on the
+ * transition from no buttons to some, and `pointerup` only when the LAST button comes up.
+ * Every button change in between is a `pointermove` whose `button` names what changed and
+ * whose `buttons` carries what is still held. Several cases in this suite used to synthesize
+ * a second `pointerdown` and an early `pointerup` instead — an event stream no mouse can
+ * produce, and one that hid the defect this helper exists to reach.
+ */
+export function chord(
+	element: HTMLElement,
+	x: number,
+	y: number,
+	changed: number,
+	held: number,
+	pointerId = 1,
+): void {
+	pointer(element, 'pointermove', x, y, changed, pointerId, held);
 }
 
 /**
@@ -188,3 +238,22 @@ export function toolbarButton(harness: EditorHarness, label: string): HTMLButton
 	return found.element as HTMLButtonElement;
 }
 
+
+/**
+ * Everything the interaction layer is drawing, as one comparable snapshot.
+ *
+ * Deliberately not "find the preview line": during a body drag that layer holds the
+ * translated ghost AND the selection outline, and picking one out by template order is a
+ * dependency on the order of a `<template>` rather than on behaviour. Comparing the whole
+ * set is both simpler and a stronger claim — an interruption changes NOTHING that is drawn,
+ * not merely nothing about the one node a case thought to name.
+ *
+ * Shared rather than copied: it was written for `canvasGestureOwnership.test.ts` and wanted
+ * verbatim by `canvasKeyboardGestures.test.ts` the moment a second door replayed a stale
+ * move, which is a second derivation of one question about one layer.
+ */
+export function drawnLines(stage: Konva.Stage | null): readonly (readonly number[])[] {
+	const layer = stage?.findOne<Konva.Layer>('.interaction');
+	if (layer === undefined) throw new Error('expected an interaction layer');
+	return layer.find('Line').map((line) => (line as Konva.Line).points());
+}

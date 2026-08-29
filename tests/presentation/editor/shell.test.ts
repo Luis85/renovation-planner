@@ -245,7 +245,9 @@ describe('the camera', () => {
 			new PointerEvent('pointerdown', { button: 0, clientX: 100, clientY: 100, bubbles: true }),
 		);
 		harness.canvasEl.dispatchEvent(
-			new PointerEvent('pointermove', { clientX: 180, clientY: 140, bubbles: true }),
+			// `buttons: 1` because the button is still down: a move reporting none is how a
+			// device says the primary button came up, and the canvas ends the drag on it.
+			new PointerEvent('pointermove', { buttons: 1, clientX: 180, clientY: 140, bubbles: true }),
 		);
 		await settle();
 
@@ -253,16 +255,23 @@ describe('the camera', () => {
 	});
 
 	/**
-	 * The middle button is paste-on-Linux and the right one is the context menu. Claiming
-	 * either takes a gesture the host owns, and the user finds out by losing it.
+	 * The RIGHT button is the context menu, and claiming it takes a gesture the host owns —
+	 * the user finds out by losing it.
+	 *
+	 * This case used to cover the middle button too, under a comment calling it
+	 * "paste-on-Linux". That reading was wrong and the claim is now narrowed to the button it
+	 * is actually true of: X11's primary-selection paste is a TEXT INPUT gesture, and a
+	 * canvas is not one — while Obsidian's own Canvas documents middle-drag as its pan. The
+	 * middle button pans here now (`canvasNavigation.test.ts` covers it), so a case that
+	 * still asserted otherwise would be pinning a decision this project has reversed.
 	 */
-	it('ignores a drag started with a non-primary button', async () => {
+	it('ignores a drag started with the secondary button', async () => {
 		harness = await mountPlanEditor();
 		const positionOf = () => harness?.stage.findOne('.zone')?.x();
 		const before = positionOf();
 
 		harness.canvasEl.dispatchEvent(
-			new PointerEvent('pointerdown', { button: 1, clientX: 100, clientY: 100, bubbles: true }),
+			new PointerEvent('pointerdown', { button: 2, clientX: 100, clientY: 100, bubbles: true }),
 		);
 		harness.canvasEl.dispatchEvent(
 			new PointerEvent('pointermove', { clientX: 400, clientY: 400, bubbles: true }),

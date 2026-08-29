@@ -443,3 +443,66 @@ describe('the recalibration gate', () => {
 		expect(distancePrompts()).toBe(0);
 	});
 });
+
+describe('an interrupted second press', () => {
+	/**
+	 * `abandonGesture()` is what focus loss reaches, and it must undo exactly the press that
+	 * will never be released — no more. The first click is COMPLETE (down and up both
+	 * happened), so its anchor is the user's, not transient state.
+	 *
+	 * The trap is that `pointerDown` does not leave that anchor where it found it: placing the
+	 * second point MOVES `pointA` into `pendingCompletion` and nulls it. So clearing the
+	 * pending completion alone — which is what the first version did, under a comment claiming
+	 * the opposite — loses both points, and the user's next click starts a fresh calibration
+	 * from scratch with the abandoned segment still drawn over it.
+	 */
+	it('restores the first point, so the next click retries the SECOND one', async () => {
+		const h = harness();
+		const tool = newTool(h);
+		click(tool, at(100, 100)); // the first point, a complete click
+		tool.pointerDown(at(900, 100)); // the second point placed…
+
+		tool.abandonGesture(); // …and focus lost before the release
+
+		// The next click is the second point again, not a new first one: one dispatch, and it
+		// measures from the ORIGINAL anchor.
+		h.supplyNextDistance(1000);
+		click(tool, at(500, 100));
+		await flush();
+
+		expect(h.supplierMeasurements).toEqual([400]);
+		expect(h.dispatched).toHaveLength(1);
+	});
+
+	it('redraws the anchor alone, rather than leaving the abandoned segment on screen', () => {
+		const h = harness();
+		const tool = newTool(h);
+		click(tool, at(100, 100));
+		tool.pointerDown(at(900, 100));
+
+		tool.abandonGesture();
+
+		// The zero-length marker the first click leaves — the same thing the user saw while
+		// they were choosing where to put the second point.
+		expect(h.context.renderState.measurement).toEqual({
+			start: { x: 100, y: 100 },
+			end: { x: 100, y: 100 },
+		});
+	});
+
+	it('does nothing at all when no second press is pending', async () => {
+		// Between clicks there is no interrupted press, so the anchor and its marker are
+		// untouched — the same rule the drawing tool's no-op states.
+		const h = harness();
+		const tool = newTool(h);
+		click(tool, at(100, 100));
+
+		tool.abandonGesture();
+
+		h.supplyNextDistance(1000);
+		click(tool, at(500, 100));
+		await flush();
+
+		expect(h.dispatched).toHaveLength(1);
+	});
+});

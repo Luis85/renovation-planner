@@ -1,0 +1,44 @@
+/*
+ * The Plan Canvas's CURSORS, split out of `editor.css` — which the block below pushed over
+ * `scripts/styles-assemble.mjs`'s 400-line cap, the same forcing function that produced
+ * `editor-requirements.css`.
+ *
+ * **Its POSITION in `index.css` is not load-bearing**, unlike that earlier split's, and this
+ * says so rather than repeating a caution that does not apply here: nothing else in the
+ * assembled sheet declares `cursor` on `.rp-plan-canvas` or on any of these three classes,
+ * so there is no equal-specificity pair for ordering to decide. If a second declaration ever
+ * appears, this paragraph is what has to change first.
+ */
+
+/*
+ * WHAT THE POINTER IS ABOUT TO DO, as the one thing on this canvas that says so.
+ *
+ * `PlanCanvas.vue` binds exactly ONE of these at a time, from a computed that resolves the
+ * precedence itself — see `cursorClass` there. That is deliberate rather than incidental:
+ * expressing "the camera outranks the active tool" as source order in this file would make
+ * a correct rule depend on where it was pasted, and nothing in any gate reads CSS ordering.
+ * Decided in TypeScript, it is a plain assertion in `canvasNavigation.test.ts` instead.
+ *
+ * `grab`/`grabbing` rather than a hand icon of our own: they are the CSS keywords every
+ * canvas editor in the research uses for this exact pair, so the affordance is one the user
+ * has already learnt elsewhere. A drawing tool gets `crosshair` because its click places a
+ * point at an exact spot, and an arrow's hotspot is its tip rather than its centre.
+ *
+ * No colour is involved, so SDD §84's check has nothing to say about this block.
+ *
+ * **No automated gate here can see any of it.** jsdom resolves no styles, so the cursor is
+ * invisible to the suite; a headless capture cannot show one either, since nothing in it is
+ * hovering. The classes ARE asserted in the suite — what cannot be is that they resolve to
+ * these keywords. `docs/tests/cases/Canvas Navigation.md` is the only instrument for that.
+ */
+.rp-plan-canvas-armed {
+	cursor: grab;
+}
+
+.rp-plan-canvas-panning {
+	cursor: grabbing;
+}
+
+.rp-plan-canvas-precise {
+	cursor: crosshair;
+}

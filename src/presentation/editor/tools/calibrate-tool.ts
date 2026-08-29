@@ -251,6 +251,41 @@ export class CalibrateTool implements EditorTool {
 		if (context !== null) this.clearMeasurement(context);
 	}
 
+	/**
+	 * Undoes exactly the press that will never be released: the SECOND point goes, and the
+	 * first — a complete click, down and up both — is put back where the user left it.
+	 *
+	 * **`pointA` has to be RESTORED rather than merely left alone, and the first version of
+	 * this method got that wrong under a comment asserting the opposite.** Placing the second
+	 * point MOVES the anchor: `pointerDown` reads `pointA`, nulls it, and carries the value
+	 * inside `pendingCompletion`. So clearing the pending completion alone loses both points
+	 * — measured, the next click placed a fresh first point and no calibration was taken at
+	 * all — with the abandoned segment still drawn over whatever the user did next. A claim
+	 * about which state survives is worth nothing until it is asked of the state machine that
+	 * actually moves it.
+	 *
+	 * Dropping the buffered SECOND point rather than keeping it is the safer of the two, and
+	 * the asymmetry is deliberate. If the release does arrive after all, the cost is one
+	 * point the user re-picks. If it never does, a kept buffer sits until some unrelated later
+	 * click's release completes it — and a calibration taken from a segment the user abandoned
+	 * is a scale error that every area on the plan inherits, silently.
+	 *
+	 * The measurement is redrawn as the zero-length anchor marker, which is exactly what the
+	 * first click leaves and therefore what the user was looking at while they chose where to
+	 * put the second point. `generation` is NOT bumped and `prompting` is untouched: no prompt
+	 * is open at this point in the gesture, and bumping would kill an unrelated in-flight one.
+	 */
+	abandonGesture(): void {
+		const pending = this.pendingCompletion;
+		if (pending === null) return; // between clicks: no press is in flight to interrupt
+		this.pendingCompletion = null;
+		this.pointA = pending.pointA;
+		const context = this.context;
+		if (context !== null) {
+			context.renderState.measurement = { start: pending.pointA, end: pending.pointA };
+		}
+	}
+
 	private clearMeasurement(context: EditorContext): void {
 		context.renderState.measurement = null;
 	}

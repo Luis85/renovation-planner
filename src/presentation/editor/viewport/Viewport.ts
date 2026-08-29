@@ -1,3 +1,4 @@
+import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { Point } from '../../../core/geometry/Point';
 
 /**
@@ -185,5 +186,65 @@ export function panBy(viewport: Viewport, dx: number, dy: number): Viewport {
 	return {
 		zoom: viewport.zoom,
 		pan: { x: viewport.pan.x - dx / viewport.zoom, y: viewport.pan.y - dy / viewport.zoom },
+	};
+}
+
+/** The pane the camera is fitting INTO, in stage pixels. */
+export interface StageSize {
+	readonly width: number;
+	readonly height: number;
+}
+
+/**
+ * The camera that shows all of `bounds` at once, centred, with `paddingPx` of clear space
+ * reserved on every side — Obsidian Canvas's own `Shift+1`/`Shift+2`, in this plugin's
+ * transform.
+ *
+ * It lives here beside `zoomAbout` and `panBy` because it is the same statement of the
+ * camera those two make, and its position is read straight back out of `worldToScreen`'s
+ * definition rather than derived again: `pan` is the world point sitting under the stage
+ * origin, so centring the extent is "the extent's own centre, less half a pane converted to
+ * world units". A fit computed anywhere else would be a fourth copy of the transform, which
+ * is the defect `worldPerScreenPixel` already exists to have fixed once.
+ *
+ * **`null` rather than a camera nothing can draw**, for two cases that are both ordinary
+ * rather than programming errors. The stage is measured from a container that is `0 x 0`
+ * until layout runs, so a fit asked during that window has no pane to fit into; and padding
+ * larger than the pane leaves a negative width, which would fold the camera inside out and
+ * answer a negative zoom. The caller keeps the camera it has, which is the honest outcome
+ * of "there is nowhere to put this".
+ */
+export function fitViewport(
+	bounds: BoundingBox,
+	stage: StageSize,
+	paddingPx: number,
+	currentZoom: number,
+): Viewport | null {
+	const available = { width: stage.width - paddingPx * 2, height: stage.height - paddingPx * 2 };
+	if (available.width <= 0 || available.height <= 0) return null;
+
+	const extent = { width: bounds.max.x - bounds.min.x, height: bounds.max.y - bounds.min.y };
+	// A degenerate extent is a real one — a single zone reduced to a point, or a perfectly
+	// axis-aligned line — and the naive ratio answers `Infinity` for it, which clamps to
+	// MAX_ZOOM and puts the user at a millimetre-fills-the-pane camera they did not ask for.
+	// An axis with no size constrains nothing, so it is dropped from the ratio rather than
+	// divided by; with BOTH axes degenerate there is nothing to fit at all and the camera
+	// keeps its CURRENT zoom, merely centring on the point.
+	//
+	// That last clause is why `currentZoom` is a parameter. It read `DEFAULT_ZOOM` for a
+	// while under this same sentence, and `DEFAULT_ZOOM` is `0.1` — the camera a freshly
+	// opened editor starts at, which has nothing to do with a fit. So framing a single
+	// point-sized zone at 5x threw the user's zoom away and dropped them to a tenth, which
+	// is not "there is nothing to fit" but a jump they never asked for.
+	const ratios = [
+		extent.width > 0 ? available.width / extent.width : null,
+		extent.height > 0 ? available.height / extent.height : null,
+	].filter((ratio): ratio is number => ratio !== null);
+	const zoom = clampZoom(ratios.length === 0 ? currentZoom : Math.min(...ratios));
+
+	const centre = { x: (bounds.min.x + bounds.max.x) / 2, y: (bounds.min.y + bounds.max.y) / 2 };
+	return {
+		zoom,
+		pan: { x: centre.x - stage.width / 2 / zoom, y: centre.y - stage.height / 2 / zoom },
 	};
 }

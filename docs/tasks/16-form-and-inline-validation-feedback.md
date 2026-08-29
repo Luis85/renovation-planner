@@ -700,7 +700,33 @@ The mechanism is complete and in use: `routeError`, `<FieldError>`, `<FormBanner
 `useFieldCommit` and `useFormCommit`, both hosting contexts (`NewProjectForm` as the
 creation dialog, the Inspector's `quantity`/`cost` override rows as the per-field
 context), and the manual case (`docs/tests/cases/Create a Project.md`) that walks what no
-gate reaches. Definition of Done items 3, 4, 5, 6, 7, 9, 10 and 11 are met as written.
+gate reaches. Definition of Done items 3, 5, 6, 7, 9, 10 and 11 are met as written.
+
+**Item 4 is NOT met as written, and the honest split is between the rule and its worked
+example.** The item asks that `ReversibleCalibratePlanCommand`'s
+`calibration.coincident-points` "renders as a form-level banner, never as an inline error
+under `pointA` or `pointB` individually — proven by a `routeError` unit test". What IS proven
+is the RULE: `tests/presentation/errors/routeError.test.ts` drives an unmapped code to the
+banner and a mapped one to its field, and `newProjectForm.test.ts` renders the banner end to
+end from a `vault.unexpected-failure`. What is NOT proven, and is not true of this build, is
+the INSTANCE: that test never names `calibration.coincident-points`, its banner case uses
+`project.save-failed`, nothing in the plugin routes a calibration error through `routeError`
+at all, and `KnownDistanceForm.vue` renders no `FormBanner`. So the code is a worked example
+in prose — it is what the rule WOULD do to it — and converting `KnownDistanceForm` onto this
+vocabulary is the work that would make the item true. That is slice 7/15's component and
+outside this slice's scope, per its own scope notes, so the item is recorded as unmet rather
+than ticked over an unrouted example.
+
+**Item 10 is met, and was not until the final pass.** Its first clause — `useFormCommit`'s
+`values`, both spellings — had a fixture in `tests/presentation/editor/type-safety.test-d.ts`
+from Task 3. Its second — "the same holds for `useFieldCommit`'s `draft` against `onInput`.
+Both spellings are checked on each" — had none: that file imported `UseFormCommit` alone and
+asked the compiler nothing about `draft`. The type was correct and the required PROOF was
+absent, which is the same defect as an unchecked comment. The fixture exists now, with `T`
+instantiated as an object so that the property-write spelling can be expressed at all, and it
+was watched failing the way the item asks: widening `draft` back to `Ref<T>` turns both
+`@ts-expect-error` directives into `TS2578: Unused '@ts-expect-error' directive`, which is
+itself a build error.
 
 **Item 1 is met, but by `CreateProjectCommand` rather than `CreateAssetCommand`.** The
 item's own text names an Asset creation form submitting `{ unitCost: -5, ... }` — this slice

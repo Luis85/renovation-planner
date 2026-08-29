@@ -35,6 +35,9 @@ function fakeTool(id: ToolId, calls: string[]): EditorTool {
 		cancel: vi.fn<() => void>(() => {
 			calls.push(`${id}:cancel`);
 		}),
+		abandonGesture: vi.fn<() => void>(() => {
+			calls.push(`${id}:abandonGesture`);
+		}),
 	};
 }
 
@@ -458,5 +461,55 @@ describe('gestureInFlight', () => {
 		manager.cancelGesture();
 
 		expect(manager.gestureInFlight).toBe(false);
+	});
+});
+
+describe('cancelInterruptedGesture', () => {
+	/**
+	 * Focus left the canvas with a button still down, so the release is never coming. The
+	 * distinction from `cancelGesture` is the whole reason this exists, and it is not a
+	 * nicety: a multi-click tool commits its work on `pointerdown`, so it is between down and
+	 * up — `gestureInFlight` TRUE — for the whole of every click, and reaching for `cancel()`
+	 * there destroys every click before the one in flight.
+	 */
+	function armed(): { manager: ToolManager; calls: string[] } {
+		const calls: string[] = [];
+		const manager = new ToolManager(fakeContext);
+		manager.register(fakeTool('select', calls));
+		manager.setActiveTool('select');
+		return { manager, calls };
+	}
+
+	it('asks the tool to ABANDON its gesture, never to cancel', () => {
+		const { manager, calls } = armed();
+		manager.pointerDown(pointerEvent());
+
+		manager.cancelInterruptedGesture();
+
+		expect(calls).toContain('select:abandonGesture');
+		expect(calls).not.toContain('select:cancel');
+	});
+
+	it('clears the in-flight flag, which is what unlocks the camera again', () => {
+		const { manager } = armed();
+		manager.pointerDown(pointerEvent());
+
+		manager.cancelInterruptedGesture();
+
+		expect(manager.gestureInFlight).toBe(false);
+	});
+
+	it('does nothing BETWEEN clicks, where no press is in flight to interrupt', () => {
+		// Where `cancelGesture` deliberately still reaches the tool: Escape is intentional and
+		// a buffer is exactly what the user means it to clear.
+		const { manager, calls } = armed();
+
+		manager.cancelInterruptedGesture();
+
+		expect(calls).not.toContain('select:abandonGesture');
+	});
+
+	it('is a no-op with no tool active at all', () => {
+		expect(() => new ToolManager(fakeContext).cancelInterruptedGesture()).not.toThrow();
 	});
 });

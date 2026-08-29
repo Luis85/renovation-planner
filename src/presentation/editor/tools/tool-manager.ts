@@ -93,7 +93,10 @@ export class ToolManager {
 		}
 		const outgoing = this.activeTool;
 		if (outgoing) {
-			this.cancelInterruptedGesture();
+			if (this.#gestureInFlight) {
+				outgoing.cancel();
+				this.#gestureInFlight = false;
+			}
 			outgoing.deactivate();
 		}
 		this.activeTool = next;
@@ -109,7 +112,10 @@ export class ToolManager {
 	clearActiveTool(): void {
 		const outgoing = this.activeTool;
 		if (!outgoing) return;
-		this.cancelInterruptedGesture();
+		if (this.#gestureInFlight) {
+			outgoing.cancel();
+			this.#gestureInFlight = false;
+		}
 		outgoing.deactivate();
 		this.activeTool = null;
 	}
@@ -170,22 +176,36 @@ export class ToolManager {
 	 * left the element or the tool was switched out from under it. A no-op when nothing is in
 	 * flight, and that guard is the entire difference from `cancelGesture` above.
 	 *
-	 * **It is one question asked at three doors, and it was written out longhand at two of
-	 * them before this existed** (both switch paths above, which call it now). The third is
-	 * `PlanCanvas`'s `onBlur`, which asked it at NONE: an Alt+Tab mid-drag delivers no
-	 * `pointerup` at all — the user releases the button in another application — so the
-	 * gesture outlived the hand. `gestureInFlight` then refused every wheel and both fit
-	 * shortcuts through `cameraIsLocked()` for the rest of the session, and `SelectTool` kept
-	 * a translated preview whose delta the user's next click anywhere committed.
+	 * `PlanCanvas`'s `onBlur` is its one caller, and it had no cleanup at all for two slices:
+	 * an Alt+Tab mid-drag delivers no `pointerup` — the user releases the button in another
+	 * application — so the gesture outlived the hand. `gestureInFlight` then refused every
+	 * wheel and both fit shortcuts through `cameraIsLocked()` for the rest of the session, and
+	 * `SelectTool` kept a translated preview whose delta the user's next click anywhere
+	 * committed.
+	 *
+	 * **The switch paths above deliberately do NOT call this**, though they carry a guard that
+	 * looks identical. A first attempt routed them through here on exactly that reading, and
+	 * the two questions only look alike: switching tools is DELIBERATE, like `Escape`, and a
+	 * user leaving a tool wants what they accumulated in it gone — which is `cancel()`, and
+	 * `deactivate()` immediately after would do it anyway. Two similar guards asking different
+	 * questions is not duplication to consolidate.
 	 *
 	 * A press-to-RELEASE gesture is the whole of what it abandons, which is why `Escape` may
 	 * not be routed through it: a multi-click tool — the polygon tool's vertex buffer, the
 	 * calibration tool's pending first point — sits BETWEEN clicks with the flag false, and
 	 * a completed click is not an interruption. Escape is deliberate and always reaches the
 	 * tool; a window losing focus says nothing about a buffer the user is still filling.
+	 *
+	 * **And the flag is not enough on its own**, which the first version of this got wrong.
+	 * A multi-click tool commits its work on `pointerdown`, so it is between down and up —
+	 * flag TRUE — for the whole of every click, and calling `cancel()` there destroyed every
+	 * vertex placed before the one in flight. So this asks the tool for `abandonGesture()`,
+	 * the narrower door each tool answers for itself, rather than for the deliberate
+	 * `cancel()` that `Escape` and a tool switch take.
 	 */
 	cancelInterruptedGesture(): void {
 		if (!this.#gestureInFlight) return;
-		this.cancelGesture();
+		this.#gestureInFlight = false;
+		this.activeTool?.abandonGesture();
 	}
 }

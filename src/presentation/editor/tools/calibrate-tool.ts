@@ -251,6 +251,25 @@ export class CalibrateTool implements EditorTool {
 		if (context !== null) this.clearMeasurement(context);
 	}
 
+	/**
+	 * **Only `pendingCompletion`, which is the one thing here a `pointerUp` completes.**
+	 * `pointA` is a placed click and survives: a user who is interrupted between the two
+	 * halves of the SECOND click must come back to the first point still set, exactly as a
+	 * drawing tool's earlier vertices survive.
+	 *
+	 * Dropping the buffered completion rather than keeping it is the safer of the two, and
+	 * the asymmetry is deliberate. If the release does arrive after all, the cost is one
+	 * calibration the user has to take again. If it never does, a kept buffer sits until some
+	 * unrelated later click's release completes it — and a calibration taken from a segment
+	 * the user abandoned is a scale error that every area on the plan inherits, silently.
+	 *
+	 * `generation` is NOT bumped and `prompting` is untouched: no prompt is open at this
+	 * point in the gesture, and bumping would kill an unrelated in-flight one.
+	 */
+	abandonGesture(): void {
+		this.pendingCompletion = null;
+	}
+
 	private clearMeasurement(context: EditorContext): void {
 		context.renderState.measurement = null;
 	}

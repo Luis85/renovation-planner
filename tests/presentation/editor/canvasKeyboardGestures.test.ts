@@ -387,6 +387,34 @@ describe('a tool gesture the window took the focus away from', () => {
 		harness.unmount();
 	});
 
+	it('leaves a half-drawn polygon alone even MID-CLICK, where a gesture really is in flight', async () => {
+		// The narrow half the first version of this fix got wrong, and it is reachable: a
+		// drawing tool places its vertex on `pointerdown`, so a user who holds the button —
+		// a long press, a notification stealing focus, an Alt+Tab without letting go — is
+		// between down and up with `gestureInFlight` TRUE. `cancel()` there clears the whole
+		// buffer, so an interruption during one click destroyed every vertex before it.
+		//
+		// `abandonGesture()` is what the interruption calls instead: each tool answers for its
+		// own press-to-release transient, and a placed vertex is not one.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+		pointer(canvas, 'pointerdown', 600, 200); // the third vertex placed…
+		blur(canvas); // …and focus lost before the button came up
+		pointer(canvas, 'pointerup', 600, 200);
+		await settle();
+
+		click(canvas, 500, 100);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+
 	it('leaves a half-drawn polygon alone, because no gesture was interrupted', async () => {
 		// The over-correction this file exists to refuse, and the reason the cleanup is gated
 		// rather than unconditional: between two complete clicks nothing is in flight, and a

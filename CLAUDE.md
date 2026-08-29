@@ -531,10 +531,30 @@ check. Rules that came out of it:
   `gestureInFlight` and it is NOT the same as `Escape`'s: a multi-click tool sits BETWEEN
   clicks with the flag false, so an unconditional cancel here empties a polygon buffer the
   user alt-tabbed away from, which is the over-correction the third case pins.
-  `cancelInterruptedGesture` states that once — the two tool-SWITCH paths had written it out
-  longhand and the blur door asked it at neither, which is this file's recurring shape from
-  its third side: not "state the rule again more carefully" but "notice one question is being
-  answered in three places and two of them are copies".
+  `cancelInterruptedGesture` states that once, and `onBlur` is its only caller.
+
+  **The first version of that fix was wrong in the narrow half, and the correction is the more
+  useful lesson.** `gestureInFlight` is not a sufficient gate on its own: a multi-click tool
+  commits its work on `pointerdown`, so it is between down and up — flag TRUE — for the whole
+  of EVERY click, and an interruption there (a long press, a notification stealing focus, an
+  Alt+Tab without letting go) called `cancel()` and destroyed every vertex placed before it.
+  So `EditorTool` gained `abandonGesture()` beside `cancel()`, REQUIRED rather than optional
+  so a tool that grows a drag has to say so, and the two are a real pair rather than a
+  synonym: `cancel()` is DELIBERATE (Escape, a tool switch) and a user pressing it wants the
+  accumulation gone, while `abandonGesture()` is an INTERRUPTION and must abandon only what
+  the missing release would have completed. `SelectTool`'s is its whole `cancel()`,
+  `DrawPolygonTool`'s is a documented no-op, and `CalibrateTool`'s drops the buffered second
+  point while keeping the placed first one — the asymmetry there being deliberate, since a
+  kept buffer completed by some unrelated later click is a scale error every area on the plan
+  inherits, silently.
+
+  **And the same edit had to be UNDONE at the tool-switch paths**, which is the second half of
+  the lesson. Their guard reads identically, so the first attempt routed them through the new
+  method as "one question written out longhand in three places" — and they are not the same
+  question: switching tools is deliberate, like Escape. Two ToolManager cases caught it
+  immediately. **Similar guards are not automatically duplication, and consolidating two
+  questions that merely look alike is how a narrow correct behaviour gets replaced by a
+  uniform wrong one.**
 - **A chorded mouse button fires NO `pointerdown` and NO `pointerup`, and eight rounds of
   review on this handler hardened it against inputs no mouse can produce.** W3C Pointer
   Events, "chorded button interactions": `pointerdown` fires only on the transition from no

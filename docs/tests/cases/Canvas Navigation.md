@@ -101,7 +101,9 @@ and they are the reason this file exists:
     gesture outlived the hand — the camera refused to zoom for the rest of the session and
     the next click anywhere committed the abandoned move. Then repeat with the **Draw zone**
     tool, alt-tabbing away BETWEEN two vertices: the vertices must still be there, because
-    nothing was interrupted.
+    nothing was interrupted. Then a third time, alt-tabbing away **while still holding the
+    button that placed a vertex** — the vertices must survive that too, since a drawing tool
+    places its point on the press and has nothing the release would have completed.
 11a. **On a plan with a background and NO zones**, the canvas shows an empty state with a
     "Draw a zone" button. **Tab to that button and press Space.** Expected: the button
     activates and the Draw zone tool becomes active — the canvas must NOT arm the camera or

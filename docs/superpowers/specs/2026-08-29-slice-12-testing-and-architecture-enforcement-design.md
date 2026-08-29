@@ -194,12 +194,22 @@ import in every layer would pass.
 
 **Watched failing, per SPELLING.** Per this repository's standing rule, each assertion is
 watched red by mutating the config and restored. The first draft said "removing a group from
-one `forbidden(...)` call", which is the coarse mutation: it reddens every spelling of that
-group at once and so cannot tell a suite that probes one spelling from a suite that probes
-three. The mutations are the narrow ones — drop `**/${g}` alone, drop `**/${g}/**/*` alone,
-drop the `${name}/*` patterns line while leaving `paths` intact — because a mutation coarser
-than the defect it stands for is the vacuity this file exists to refuse. A green assertion
-over a rule that cannot fail is the thing being replaced.
+one `forbidden(...)` call", which is the coarse mutation: it reddens everything that group bans
+at once and so cannot tell a suite that probes one import shape from a suite that probes three.
+The mutations are the narrow ones — drop `**/${g}`, drop the `${name}/*` patterns line while
+leaving `paths` intact — because a mutation coarser than the defect it stands for is the vacuity
+this file exists to refuse.
+
+**What is NOT required, because it is impossible: a mutation per config PATTERN.** The table
+above shows `**/${g}/*` and `**/${g}/**/*` are redundant against the barrel form, so deleting
+either alone changes no observable behaviour, and demanding a test catch it is demanding a test
+detect a no-op. An earlier draft required exactly that, and its per-spelling mutation list
+silently omitted the one-level case — because no such mutation exists. Probes and mutations are
+defined over **semantically distinct import shapes** (barrel `../domain`, one level
+`../domain/X`, nested `../domain/a/b`), never over config entries.
+
+A green assertion over a rule that cannot fail is the thing being replaced; so is a red
+requirement no rule can satisfy.
 
 ## 2. The four remaining meta-tests
 
@@ -385,15 +395,30 @@ recurring failure in its smallest form.
 Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
 
 - **The §92 phase gate** (15 criteria) — open. Its own text defers it until every slice exists.
-- **The vitest two-project split** — *withdrawn*, not outstanding, with the argument written
-  down. `environment: 'node'` is already the default with jsdom opted in per file, which
-  delivers the enforcement the split was for: domain and core tests run in node, so a DOM
-  global reached through any depth of import fails. Forgetting a docblock **fails loudly** —
-  the DOM test dies under strict node. A two-project split would introduce a hazard the
-  current design does not have, a file matched by neither project silently never running,
-  which is why the Definition of Done pairs it with a union check. That is a guard invented
-  to cover a risk the split itself creates. Narrowing the item is this repository's own rule:
-  *write the guarantee to the check, never ahead of it*.
+- **The vitest two-project split** — *withdrawn*, but the withdrawal argument had a hole and the
+  corrected version costs one extra check. `environment: 'node'` is already the default with
+  jsdom opted in per file, and forgetting a docblock **fails loudly** — the DOM test dies under
+  strict node. A two-project split would introduce a hazard the current design does not have, a
+  file matched by neither project silently never running, which is why the Definition of Done
+  pairs it with a union check: a guard invented to cover a risk the split itself creates.
+
+  **What the first two drafts argued wrongly**, raised by a review bot: they defended the
+  default against *forgetting* a docblock, which is the safe direction, and said nothing about
+  *adding* one where it does not belong. Any test under `tests/domain/` or `tests/core/` can
+  write `@vitest-environment jsdom` and silently switch off the very indirect-DOM enforcement
+  the node default is credited with — the transitive case the per-file lint rule cannot see, and
+  the whole reason the environment counts as a mechanism in §8. "The default delivers the
+  enforcement" was therefore true of the failure mode I was picturing and false of the one that
+  matters. Measured: **zero** inner-layer tests use jsdom today, so the hole is latent rather
+  than live.
+
+  The remedy is neither the split nor the bare default: **a check rejecting `@vitest-environment
+  jsdom` outside the approved locations** (presentation, plugin, harness). It is cheap, it
+  structurally guarantees what the split was wanted for, and it introduces no
+  uncollected-file hazard. The withdrawal stands *paired with that check* — without it, the
+  honest status of this item is "outstanding", not "withdrawn". Narrowing the item to what is
+  actually checked is this repository's own rule: *write the guarantee to the check, never ahead
+  of it* — a rule the first version of this very entry broke.
 - **The contract-arm repoint** onto the fixture vault — open, blocked on PR 25, with §7's
   sentence narrowed meanwhile.
 - **The indirect package-import gap** — open, as slice 1 already records. The node-environment

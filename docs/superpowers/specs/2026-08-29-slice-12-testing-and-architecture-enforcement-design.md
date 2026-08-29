@@ -422,10 +422,29 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
   passes in both worlds when neither world can produce the thing". The case therefore asserts an
   **observable rejection** — the expected refusal for the planted record, by count and code —
   *and* that a healthy record in the same fixture still loads. Neither half alone discriminates.
+
+  **And the bootstrap cannot produce that rejection, which took a third round to see.** The index
+  scan does not validate references: `collectNotes` copies `project` and `plan` through
+  `stringField(...)` with no referential check, so a note pointing at a missing entity is indexed
+  exactly like its neighbours. That is deliberate — `negatives.test.ts` has a describe block
+  titled "the index scan does not run the fail-closed gate", recording it as §92 item 13's "not
+  the whole plugin" half: a poisoned note "refuses only when something OPENS it". So a test that
+  bootstraps and asserts a refusal count asserts something bootstrapping never produces, and
+  could not tell this fixture from a valid one.
+
+  The case therefore does three things, and the first is the one criterion 13 is actually about:
+  bootstrap succeeds and the index is **fully built**, nothing dropped or thrown; a
+  repository/query **read of the planted record** refuses with the expected code; and a healthy
+  record in the same fixture still loads. The middle step is what the earlier drafts were missing
+  — an assertion about a refusal, with nothing in the test that asks for one.
 - **CI actually invokes the checks.** A test over the workflow definition confirming
-  `npm run check` runs on every PR on both Ubuntu and Windows. Catches the case where the
-  scripts pass locally but were never wired in, and the case where the two platforms drift
-  by invoking different commands.
+- **CI actually invokes the checks.** A test over the workflow definition confirming
+  `npm run check` runs on both Ubuntu and Windows, on **both** of `.github/workflows/ci.yml`'s
+  triggers — `pull_request` *and* `push: branches: [main]`. An earlier draft said "on every PR",
+  which leaves the push trigger free to be removed or narrowed with the test still green, and
+  direct commits to `main` then bypass every architecture gate this slice builds. §8's wording is
+  "every push/PR"; the check now matches it. Catches the case where the scripts pass locally but
+  were never wired in, and the case where the two platforms drift by invoking different commands.
 
 ## 3. The Integration Test Vault
 

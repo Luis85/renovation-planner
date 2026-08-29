@@ -32,7 +32,22 @@ factory. Transcribed from those calls, the forbidden matrix is **35 cells**:
 | `presentation` | infrastructure, plugin (2) | none declared |
 | `plugin` | none | none |
 
-The `prototypes` group is deliberately **excluded** from that count: measured, not assumed —
+**A cell is not a probe: 35 cells are 86 SPELLINGS**, raised by a review bot on the second
+round and verified by reading `forbidden()`. Each banned entry expands to several independent
+glob/path forms, and a probe of one says nothing about the others:
+
+- a layer **group** `g` becomes three globs — `**/${g}` (the barrel spelling),
+  `**/${g}/*` (one level) and `**/${g}/**/*` (any depth). 16 cells × 3 = **48**.
+- a **package** `name` becomes two entries — a `paths` entry for the bare specifier and a
+  `patterns` entry `${name}/*` for its subpaths. 19 cells × 2 = **38**.
+
+The failure this closes is concrete: delete `...packages.map((name) => \`${name}/*\`)` and a
+bare `import { ref } from 'vue'` probe still reports, while `import x from 'vue/dist/y'`
+becomes allowed in `core/`, `domain/` and `application/` with the suite green. Same for a
+group whose barrel form is dropped while its deep form survives. So the probes enumerate
+spellings, not cells, and the mutation is per SPELLING rather than per group.
+
+The `prototypes` group is deliberately **excluded** from those counts: measured, not assumed —
 `tests/build/prototypes-one-way-door.test.ts` already drives it across all six layers with
 `it.each(LAYERS)`.
 
@@ -108,10 +123,12 @@ the config is the subject, not the source.
 `tests/build/` files timing out under Windows file-parallelism, each booting a type-aware
 ESLint, and states that "a test file's CPU cost is part of its correctness when anything in
 the suite waits in ticks". So the file makes **one `lintText` call per layer**, its code
-carrying every forbidden import for that layer at once, asserting each is reported — about
-12 calls rather than 35. The cost is to be **measured before the file is committed**; if it
-is still heavy, the fallback is folding the cases into an existing ESLint-booting file
-rather than adding a seventh.
+carrying every forbidden import for that layer *in every spelling* at once, asserting each is
+reported — about 12 calls rather than 86. The spelling expansion costs import LINES, not
+calls, which is why it does not change this shape: one synthetic module per layer simply
+carries a dozen or so import statements instead of a handful. The cost is to be **measured
+before the file is committed**; if it is still heavy, the fallback is folding the cases into an
+existing ESLint-booting file rather than adding a seventh.
 
 **Both directions, always.** Each layer also gets an allowed-imports call asserting *no*
 finding — `domain` reaching `core`, `infrastructure` naming `obsidian`, `presentation`
@@ -119,9 +136,14 @@ naming `vue`, `plugin` reaching everything. The negative half is what proves the
 keyed on the layer rather than firing everywhere; without it a rule that banned every
 import in every layer would pass.
 
-**Watched failing.** Per this repository's standing rule, each assertion is watched red by
-mutating the config — removing a group from one `forbidden(...)` call — and restored. A
-green assertion over a rule that cannot fail is the thing being replaced.
+**Watched failing, per SPELLING.** Per this repository's standing rule, each assertion is
+watched red by mutating the config and restored. The first draft said "removing a group from
+one `forbidden(...)` call", which is the coarse mutation: it reddens every spelling of that
+group at once and so cannot tell a suite that probes one spelling from a suite that probes
+three. The mutations are the narrow ones — drop `**/${g}` alone, drop `**/${g}/**/*` alone,
+drop the `${name}/*` patterns line while leaving `paths` intact — because a mutation coarser
+than the defect it stands for is the vacuity this file exists to refuse. A green assertion
+over a rule that cannot fail is the thing being replaced.
 
 ## 2. The four remaining meta-tests
 
@@ -150,11 +172,35 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
   runner, and timing out a sibling file's cold Vite transform. This is **one** child, not one
   per case, and it is budgeted explicitly — the whole point of that record is that a spawn per
   case is what turns a green suite red on the busiest machine.
-- **`broken-references/` degrades gracefully.** Loaded through the real bootstrap path,
-  asserted to leave the rest of the plugin usable. This is a real test rather than a gate
-  meta-test, so it sits at `tests/plugin/` — its mirrored home — not under `tests/build/`.
-  It simultaneously proves the fixture exercises the failure mode it claims to, rather than
-  accidentally being a valid project file.
+
+  **And the fixture must be unreachable by the PARENT run, which the child-process fix created
+  and did not solve.** Raised by a review bot on the next round, and it is a genuine
+  interaction with §4 rather than a detail: a deliberately failing spec checked in as
+  `*.test.ts` under `tests/` is collected by the outer `npm run check`, which then fails before
+  the meta-test can interpret the child's exit code — the fixture would break the very gate it
+  is part of. `.spec.ts` is not the escape either, since §4 bans that name outright. So the
+  fixture is `tests/build/fixtures/brokenFake.fixture.ts`, outside `vitest.config.ts`'s
+  `include` (`tests/**/*.test.ts`), and the child is invoked with a dedicated minimal config
+  whose `include` names `*.fixture.ts`. That keeps repo-relative imports of the contract working,
+  which an out-of-tree temporary directory would not.
+
+  **§4's check is written to this deliberately**: it requires every `*.test.ts` on disk to be
+  collected and bans `*.spec.ts`. A `.fixture.ts` is neither, so the two rules do not collide —
+  and stating that here is what stops a later reader "tidying" the fixture into a `.test.ts` and
+  rediscovering this by breaking the build.
+- **`broken-references/` degrades gracefully — asserted on BOTH halves.** Loaded through the
+  real bootstrap path, asserted to leave the rest of the plugin usable. This is a real test
+  rather than a gate meta-test, so it sits at `tests/plugin/` — its mirrored home — not under
+  `tests/build/`.
+
+  The first draft claimed it "simultaneously proves the fixture exercises the failure mode it
+  claims to". A review bot pointed out that it does not, and the bot is right: *the rest of the
+  plugin still works* is equally true of a fixture that has quietly become **valid** — a schema
+  edit, a fixture typo — so Architecture Completion Criterion 13 could sit untested behind a
+  green suite. That is this repository's own recorded lesson that "a test asserting an ABSENCE
+  passes in both worlds when neither world can produce the thing". The case therefore asserts an
+  **observable rejection** — the expected refusal for the planted record, by count and code —
+  *and* that a healthy record in the same fixture still loads. Neither half alone discriminates.
 - **CI actually invokes the checks.** A test over the workflow definition confirming
   `npm run check` runs on every PR on both Ubuntu and Windows. Catches the case where the
   scripts pass locally but were never wired in, and the case where the two platforms drift

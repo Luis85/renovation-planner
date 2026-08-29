@@ -300,17 +300,40 @@ watch(
 );
 
 /**
- * A leaf closed with a dialog open would otherwise leave the view's own regions inert
- * forever — and Obsidian REUSES a view, so the next open would inherit a pane nothing can
- * be clicked in, with nothing erroring anywhere.
+ * An unmount has TWO things to undo, and this hook did one of them.
  *
- * This deliberately does NOT call `store.resolve`: a leaf's own `openDialog(...)` caller is
- * gone with the leaf, so its `await` is left pending forever rather than settled with a
- * value nobody reads. That is the intended behaviour — the view is gone, so there is
- * nothing left to dispatch anything on its behalf — not an oversight this comment is
- * silently working around.
+ * The background first: a leaf closed with a dialog open would otherwise leave the view's
+ * own regions inert forever — and Obsidian REUSES a view, so the next open would inherit a
+ * pane nothing can be clicked in, with nothing erroring anywhere.
+ *
+ * And then the awaiting caller. This used to settle nothing, under a comment calling that
+ * deliberate: "a leaf's own `openDialog(...)` caller is gone with the leaf, so its `await`
+ * is left pending forever rather than settled with a value nobody reads". A leaf close is no
+ * longer the only unmount. `RenovationProjectView.rebind` tears this whole tree down and
+ * rebuilds it on every `saveSettings`, with the leaf still OPEN — so a settings change while
+ * the New Project form was up took the form away and left `ViewRoot.onCreateProject()`
+ * suspended on a promise nothing would ever settle, holding the retired root's context alive
+ * behind it. Reported in review.
+ *
+ * CANCEL rather than preserving the form across the swap, and the reason is not that
+ * cancelling was the easier of the two. The descriptor's `dispatch` prop closes over the
+ * root being replaced, so a form carried through would write through the very root `rebind`
+ * exists to retire — under the PREVIOUS default project folder, which is one of the four
+ * defects that made `deps` non-readonly in the first place. There is nothing to preserve
+ * that would still point anywhere valid.
+ *
+ * Settling is safe on the leaf-close path this hook was written against too, which is why
+ * one hook covers both: every caller of `openDialog` returns on `cancel`, so nothing
+ * dispatches and nothing opens a second dialog into a tree that is unmounting. The one thing
+ * it cannot stop is a form whose write is already in flight — the framework never started
+ * that write — exactly as `onKeydown`'s `busy` branch says of `Escape`; its result is
+ * dropped rather than acted on.
  */
-onBeforeUnmount(releaseBackground);
+onBeforeUnmount(() => {
+	releaseBackground();
+	const descriptor = current.value;
+	if (descriptor !== null) store.resolve(cancelResultFor(descriptor.kind));
+});
 </script>
 
 <template>

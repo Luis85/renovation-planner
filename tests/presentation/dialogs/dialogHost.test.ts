@@ -111,6 +111,35 @@ describe('opening', () => {
 	});
 
 	/**
+	 * The other half of an unmount, and the half this hook used to leave undone under a
+	 * comment calling that deliberate: 'a leaf's own `openDialog(...)` caller is gone with the
+	 * leaf, so its `await` is left pending forever rather than settled with a value nobody
+	 * reads.'
+	 *
+	 * A leaf close is not the only unmount any more. `RenovationProjectView.rebind` unmounts
+	 * and remounts this whole tree on every `saveSettings`, with the LEAF still open — so a
+	 * user who had the New Project form up lost it to a settings change, and `ViewRoot`'s
+	 * `onCreateProject()` stayed suspended on a promise nothing would ever settle, holding
+	 * the replaced root's context alive behind it. Reported in review.
+	 *
+	 * Cancel is the RIGHT settlement here and not merely the available one: the descriptor's
+	 * `dispatch` prop closes over the root being replaced, so a form carried across the swap
+	 * would write through the very root `rebind` exists to retire — under the previous
+	 * default project folder, which is one of the four defects that made `deps` non-readonly
+	 * in the first place. Every caller returns on `cancel`, so nothing re-opens a dialog into
+	 * a tree that is unmounting.
+	 */
+	it('settles a pending dialog when the view unmounts, rather than stranding its caller', async () => {
+		harness = mountDialogHost();
+		const pending = harness.store.openDialog(CONFIRM);
+		await nextTick();
+
+		harness.wrapper.unmount();
+
+		await expect(pending).resolves.toBe('cancel');
+	});
+
+	/**
 	 * The other three kinds are exercised elsewhere in this file; this is what proves the
 	 * FOURTH — `form` — renders through the same host too, rather than falling through to
 	 * a blank panel. (What actually fails a fifth kind to build is `vue-tsc` rejecting the

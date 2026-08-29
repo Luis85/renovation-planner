@@ -479,6 +479,73 @@ describe('a tool gesture the window took the focus away from', () => {
 		harness.unmount();
 	});
 
+	it('replays the OWNER’s position on a Shift press, not a foreign pointer’s', async () => {
+		// The replay path the direct foreign-move guard cannot reach. `lastStagePoint` was
+		// recorded at the very top of `onPointerMove`, above every ownership check — so a pen
+		// hovering during pointer A's drag was refused as a tool move one line later and
+		// remembered anyway. The next Shift press then built a synthetic move out of it and
+		// handed the tool exactly the coordinates the guard had just declined.
+		//
+		// Same shape as its predecessor, one door along: a guard on the direct path says
+		// nothing about the value the direct path left behind.
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+		pointer(canvas, 'pointermove', 340, 300, 0, 11);
+		await settle();
+		const drawnBefore = drawnLines(harness.stage);
+		// The control: the drag really is previewing something, so an unchanged snapshot below
+		// is a preview that held still rather than a layer that never drew.
+		expect(drawnBefore.length).toBeGreaterThan(0);
+
+		// `buttons: 0` — a pen crossing the canvas, not a drag. Declined as a tool move by the
+		// ownership guard, which is `canvasGestureOwnership.test.ts`'s case, not this one.
+		pointer(canvas, 'pointermove', 900, 500, 0, 12, 0);
+		await settle();
+
+		key(canvas, 'keydown', { key: 'Shift', shiftKey: true });
+		await settle();
+
+		expect(drawnLines(harness.stage)).toEqual(drawnBefore);
+		harness.unmount();
+	});
+
+	it('does not replay a hover the CAMERA’s gesture swallowed, once that pan has ended', async () => {
+		// The half a tool-only guard leaves live, and it needed its own case: gate the record
+		// on the tool's gesture alone and the whole suite still passes, because every other
+		// case reaches the record through a tool. A pan swallows a foreign pointer's move —
+		// so nothing jumps WHILE it runs, and the re-issue is refused outright then anyway —
+		// but the swallowed position is still written down, and a pan ends on its release with
+		// no move after it to correct the record. The first Shift press afterwards replays it.
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		pointer(canvas, 'pointermove', 700, 300, 0, 1, 0); // the loose end, and where the hand is
+		await settle();
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 700, 300, 0, 1);
+		pointer(canvas, 'pointermove', 700, 300, 0, 1); // a pan that moves the camera nowhere
+		// A pen crossing the canvas mid-pan. Swallowed by the pan, and recorded anyway.
+		pointer(canvas, 'pointermove', 900, 500, 0, 2, 0);
+		pointer(canvas, 'pointerup', 700, 300, 0, 1);
+		await settle();
+		const drawnBefore = drawnLines(harness.stage);
+		expect(drawnBefore.length).toBeGreaterThan(0);
+
+		// The pan owner never left (700, 300), so an honest re-issue is a no-op here and any
+		// change is the pen's coordinates arriving.
+		key(canvas, 'keydown', { key: 'Shift', shiftKey: true });
+		await settle();
+
+		expect(drawnLines(harness.stage)).toEqual(drawnBefore);
+		harness.unmount();
+	});
+
 	it('hands the active tool nothing when the focus is lost mid-PAN', async () => {
 		// The same replay reaching the same door from the camera's side. `reissuePointerMove`
 		// refuses to run while a pan does — `lastStagePoint` is then the PAN's own pointer, and

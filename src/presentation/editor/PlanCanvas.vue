@@ -35,6 +35,7 @@ import type { ThemeTokens } from './theme/themeTokens';
 import { screenPoint, screenToWorld, viewportTransform, STAGE_PIXELS, type ScreenPoint } from './viewport/Viewport';
 import { PanOverride } from './viewport/pan-override';
 import { MIDDLE_MOUSE_BUTTON, PRIMARY_BUTTON_BIT, panButtonOf } from './pointerButtons';
+import { wheelPixels } from './wheelDelta';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
 import { boundsOfZones } from './viewport/zoneExtent';
@@ -250,34 +251,6 @@ function stagePoint(event: { clientX: number; clientY: number }) {
 }
 
 /**
- * One wheel notch as SCREEN PIXELS, whatever unit the browser chose to report it in.
- *
- * `WheelEvent.deltaMode` says what the numbers mean — pixels (0), lines (1) or pages (2) —
- * and a line-mode notch reports `3`. Read as pixels that pans three of them, which looks
- * like a broken gesture rather than an absent one.
- *
- * **Where this actually bites, stated narrowly because the general claim would be wider than
- * the truth:** Obsidian is Electron and Chromium reports pixel mode, so the plugin is
- * unlikely ever to see anything else. `npm run harness` is the surface that can — it runs in
- * whatever browser a designer opens, and line mode is Firefox's historical default. Cheap
- * and tested beats resting the gesture on a host not changing its mind.
- *
- * The two constants are the conventional approximations rather than measurements: there is
- * no API for a line's height, and the browsers that report line mode use a comparable
- * figure. The ZOOM path deliberately does NOT go through here — its exponential sensitivity
- * was tuned against raw `deltaY` and shipped that way, and re-scaling it would change how
- * zoom feels for a case Obsidian does not produce.
- */
-const WHEEL_LINE_PX = 16;
-const WHEEL_PAGE_PX = 800;
-
-function wheelPixels(amount: number, deltaMode: number): number {
-	if (deltaMode === 1) return amount * WHEEL_LINE_PX;
-	if (deltaMode === 2) return amount * WHEEL_PAGE_PX;
-	return amount;
-}
-
-/**
  * Whether the camera must hold still, because something is mid-gesture that moving it would
  * corrupt.
  *
@@ -311,6 +284,32 @@ function wheelPixels(amount: number, deltaMode: number): number {
  */
 function gestureInFlight(): boolean {
 	return runtime.toolManager.gestureInFlight || editor.dragState !== null;
+}
+
+/**
+ * Whether this pointer speaks for the canvas: it owns the running gesture, or none is running
+ * and every pointer does.
+ *
+ * The companion to `gestureInFlight()`, and the same argument for existing at all: the two
+ * gestures a pointer can own record their owner in different places — `toolGesturePointer`
+ * beside the tool manager's flag, `dragState.pointerId` inside the store, which the
+ * override's pan and camera mode's own drag both go through — so a caller would otherwise
+ * spell a two-armed question out longhand, and this file has been corrected three times for
+ * restating one rule and having it drift.
+ *
+ * The "or none is running" arm is load-bearing rather than a convenience: a hover with
+ * nothing in flight is how a drawing tool's rubber band follows the pointer at all, so a
+ * predicate that answered `false` there would freeze the loose end of every sketch.
+ *
+ * Both gestures cannot run at once: `onPointerDown` either claims a pan or forwards the press
+ * to the tool, and `PanOverride.pointerDown` refuses a claim while any gesture is in flight.
+ * `toolGesturePointer` is read ONLY under the manager's flag, which is what makes it safe for
+ * it to be deliberately never cleared.
+ */
+function isGestureOwner(pointerId: number): boolean {
+	if (runtime.toolManager.gestureInFlight) return toolGesturePointer === pointerId;
+	const drag = editor.dragState;
+	return drag === null || drag.pointerId === pointerId;
 }
 
 function onWheel(event: WheelEvent): void {
@@ -500,8 +499,26 @@ function onPointerDown(event: PointerEvent): void {
 
 function onPointerMove(event: PointerEvent): void {
 	const at = stagePoint(event);
-	lastStagePoint.value = at;
-	editor.setPointer(at);
+	// **Where the pointer is, is a question about the OWNER's pointer while a gesture runs.**
+	// This recorded every pointer's position, above every ownership check below — so a pen
+	// hovering during a drag was declined as a tool move one line later and remembered
+	// anyway, and the next Shift press rebuilt a synthetic move out of exactly the
+	// coordinates that guard had just refused, jumping `SelectTool`'s ghost to the pen. A
+	// guard on the direct path says nothing about the value the direct path leaves behind.
+	//
+	// Both writes, not just the replay's: `pointerWorld` is the status bar's readout of where
+	// the pointer is, and a readout that follows a hovering pen away from the drag the user
+	// is making is the same claim being false in the other surface. One question, asked once,
+	// rather than a rule kept at whichever door a review happened to name.
+	//
+	// It covers the camera's gestures too, and not only the tool's, because `gestureOwner`
+	// does: the re-issue is refused outright WHILE a pan runs, but a foreign point recorded
+	// during one outlives it — a pan ends on its release, with no move after it to correct
+	// the record, so the first Shift press afterwards would replay the hover.
+	if (isGestureOwner(event.pointerId)) {
+		lastStagePoint.value = at;
+		editor.setPointer(at);
+	}
 	// While a pan is running the canvas belongs to the CAMERA, and that is one rule rather
 	// than two: the owning pointer drives it, and every other pointer is swallowed rather
 	// than handed to the active tool. A tool interrupted by a pan hears nothing at all, which

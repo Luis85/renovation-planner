@@ -176,11 +176,18 @@ export function useFieldCommit<T, TInput>(options: {
 		const mine = routed.kind === 'field' && routed.fields.includes(options.field);
 		// Same staleness rule on the failure arm, for the mirror reason: a message about a
 		// value the user has already replaced is telling them their current text is wrong
-		// when it has never been dispatched. The NOTICE still fires either way — the write
-		// really did fail, and that is true of the vault regardless of what the input now
-		// holds.
-		if (drafted.value === submitted) error.value = mine ? routed.message : null;
-		if (!mine) options.notify(result.error);
+		// when it has never been dispatched.
+		const current = drafted.value === submitted;
+		if (current) error.value = mine ? routed.message : null;
+		// **The notice covers whatever the field did not DISPLAY — not whatever was not
+		// `mine`.** Those two read alike and differ on exactly one path: a refusal that IS this
+		// field's own, arriving after the user has typed on. The inline half is suppressed as
+		// stale, and a `!mine` test then skips the notice too, so a write that really did fail
+		// was reported through neither door — the same shape as the first draft this composable
+		// already fixed once, one condition further in. `displayed` is the question the notice
+		// actually turns on, so there is no arm left where both halves stay silent.
+		const displayed = mine && current;
+		if (!displayed) options.notify(result.error);
 	}
 
 	/**

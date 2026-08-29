@@ -42,14 +42,23 @@ function validation(code: string): AppError {
 	return { category: 'Validation', code, message: 'developer english' };
 }
 
-function harness(result: Result<void, AppError>, canonical = ref(10)) {
-	const run = vi.fn<Run>(() => Promise.resolve(result));
+/**
+ * `outcome` is either the `Result` every dispatch settles with, or the whole `run` — the
+ * second form is what a case needs when it has to hold a write OPEN and act while it is in
+ * flight, and taking both here is what keeps such a case from hand-building a twelfth copy
+ * of this options object just to swap one member.
+ */
+function harness(outcome: Result<void, AppError> | Run, canonical = ref(10)) {
+	const dispatch: Run = typeof outcome === 'function' ? outcome : () => Promise.resolve(outcome);
+	const run = vi.fn<Run>(dispatch);
 	const notify = vi.fn<Notify>();
 	const logger = spyLogger();
 	const field = useFieldCommit<number, QuantityInput>({
 		canonicalValue: () => canonical.value,
 		buildCommand: (value) => ({
-			execute: () => Promise.resolve(result),
+			// Never actually invoked: the composable hands the command to `history.run`, which is
+			// the spy above. Present because `RunnableCommand` requires it.
+			execute: dispatch,
 			undo: () => Promise.resolve(ok(undefined)),
 			value,
 		}),
@@ -267,6 +276,35 @@ describe('useFieldCommit', () => {
 		await field.onCommit();
 
 		expect(field.error.value).toBeNull();
+	});
+
+	it('announces a field refusal it cannot display, when the draft moved under the write', async () => {
+		// THE ONE PATH THAT REPORTED A FAILED WRITE NOWHERE. Two rules meet here and the first
+		// draft let them cancel out: a message about a value the user has since replaced is not
+		// shown inline, and a refusal that IS this field's own is not notified because the inline
+		// message already says it. When the draft has moved, the inline half is suppressed — and
+		// a `!mine` test then skipped the notice too, so the write failed and neither door spoke.
+		// The notice covers whatever the field did not DISPLAY, not whatever was not `mine`.
+		let settle: (result: Result<void, AppError>) => void = noop;
+		const refusal = validation('requirement.negative-quantity');
+		const { field, notify } = harness(
+			() => new Promise<Result<void, AppError>>((resolve) => {
+				settle = resolve;
+			}),
+		);
+
+		field.onInput(-5);
+		const inFlight = field.onCommit();
+		// The user types on while the write is in flight, so the refusal is about a value the
+		// field no longer holds.
+		field.onInput(7);
+		settle(err(refusal));
+		await inFlight;
+
+		expect(field.error.value).toBeNull();
+		expect(field.draft.value).toBe(7);
+		expect(notify).toHaveBeenCalledTimes(1);
+		expect(notify).toHaveBeenCalledWith(refusal);
 	});
 
 	it('refuses a draft it cannot even turn into a command, dispatching nothing', async () => {

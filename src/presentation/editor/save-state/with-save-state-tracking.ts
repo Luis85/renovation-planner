@@ -1,10 +1,11 @@
 import type { AppError } from '../../../core/errors/AppError';
+import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
 import { isErr, type Result } from '../../../core/result/Result';
 import type { RefreshedHistory } from '../tools/with-editor-state-refresh';
 import type { useSaveStateStore } from './save-state-store';
 import { affectsSaveState } from './affects-save-state';
 
-type VoidResult = Result<void, AppError>;
+type DispatchResult = Result<DispatchOutcome, AppError>;
 
 export type SaveStateTracker = Pick<
 	ReturnType<typeof useSaveStateStore>,
@@ -35,15 +36,25 @@ export function withSaveStateTracking(
 	history: RefreshedHistory,
 	saveState: SaveStateTracker,
 ): RefreshedHistory {
-	const track = async (operation: () => Promise<VoidResult>): Promise<VoidResult> => {
+	const track = async (operation: () => Promise<DispatchResult>): Promise<DispatchResult> => {
 		saveState.beginSaving();
 		try {
 			const result = await operation();
-			if (!isErr(result)) saveState.resolveOk();
-			else if (affectsSaveState(result.error)) saveState.resolveErr();
+			// **Three outcomes, and `ok` decides only two of them.** A success that wrote nothing
+			// is neutral, exactly like a pre-write refusal: the store's rule is that only a write
+			// which actually succeeded may clear a `save-error`, and inferring one from a resolved
+			// `Result` is what broke it. Assigning an asset already assigned to the selected zone
+			// is `ok` from a read, and it used to settle the indicator to `Saved` over data a real
+			// persistence failure had left unwritten. The command reports which it was now
+			// (`DispatchOutcome`); nothing here infers it.
+			if (!isErr(result)) {
+				if (result.value === 'no-write') saveState.resolveNeutral();
+				else saveState.resolveOk();
+			}
 			// A refusal that never reached the repository wrote NOTHING, so it is neither a
 			// failure to report nor evidence that anything was saved. Resolving it as `ok` would
 			// let a validation refusal clear a `save-error` left by a real persistence failure.
+			else if (affectsSaveState(result.error)) saveState.resolveErr();
 			else saveState.resolveNeutral();
 			return result;
 		} catch (cause) {

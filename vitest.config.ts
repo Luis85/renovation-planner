@@ -672,6 +672,26 @@ export default defineConfig({
 			// `presentation/editor/save-state/` and `application/ports/versioning.ts` the set is
 			// still the single slice-13 arm named above.
 			//
+			// Re-measured 2026-08-29 after the review bot's two findings on PR #26 —
+			// `affectsSaveState` widened a third time (`Calculation`, twenty-two pre-write raise
+			// sites left out on the strength of one misleading docblock sentence), and the
+			// dispatch seam widened so a command REPORTS whether it wrote rather than having the
+			// save tracker infer it from `ok`: 4674/4704 statements, 2251/2294 branches,
+			// 1196/1202 functions, 4189/4204 lines — 99.36 / 98.12 / 99.50 / 99.64. NOTHING
+			// RATCHETS: rounded down these are the 99 / 98 / 99 / 99 already in force.
+			//
+			// **Every one of the four percentages is unchanged from the merged figure above**,
+			// which is the interesting part rather than an absence of news. The seam widening
+			// touched fifteen source files and seventeen `ok(...)` return sites, extracted
+			// `presentation/editor/inspector-wiring.ts` out of `runtime.ts`, and added a
+			// `DispatchOutcome` module — and it moved the branch denominator by FOUR (2290 →
+			// 2294), every one of them covered. Replacing `ok(undefined)` with `ok('wrote')` is
+			// a different value at the same statement and adds no arm at all; what the four are
+			// is the decision the tracker now makes (`result.value === 'no-write'`) and the arms
+			// around it. A change can be large in files and nearly invisible here: file count is
+			// not a proxy for anything this page measures, and neither is the seventeen-site
+			// figure the commit message quotes.
+			//
 			// One resolution in this merge moved CSS rather than code and is worth naming here
 			// because a stylesheet is invisible to every figure on this page: main split the §60
 			// status-bar block out of `editor.css` into `styles/editor-status.css` while this

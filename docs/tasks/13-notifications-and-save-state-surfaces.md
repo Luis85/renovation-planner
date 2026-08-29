@@ -974,10 +974,64 @@ written", and left a sticky "Save error" badge standing behind it. Found by revi
 click from the Inspector's Delete button.
 
 The generalisable half is about the instrument rather than the category: a grep written to
-confirm a widening already decided on measures that widening and nothing else. The predicate's
-docblock now enumerates all three members with their raise sites, and
-`withSaveStateTracking.test.ts` pins six reachable `Reference` codes transcribed from those
-sites rather than from the predicate.
+confirm a widening already decided on measures that widening and nothing else.
+
+**And it happened a THIRD time, found by the review bot on the pull request.** That pass
+enumerated `Reference` exhaustively and left `Calculation` in the affecting set, on the
+strength of one sentence in `calculationError`'s own docblock — "raised on the path where the
+stale marker has already been persisted" — which turns out to describe its CALLER's state (the
+cascade persists a stale marker and THEN asks for a recalculation) rather than a write by the
+command raising it. All twenty-two `Calculation` raise sites are a derivation refusing its own
+inputs: `deriveCalibration` before `geometry.write`, `deriveRequirementFigures` before
+`requirements.save`, and the eleven pure-function codes in `costPipeline.ts`,
+`quantityEngine.ts` and `Money.ts` that write nothing by construction. Calibrating with two
+clicks at the same point left the same sticky badge. The one place a `Calculation` error could
+escape a half-written sequence is `deleteResolution.ts`'s inline recalculation, and it cannot:
+a failure there is LOGGED, because `DeleteResolutionErrors` has no room for one.
+
+The pre-write set is `Validation`, `Domain`, `Reference` and `Calculation` — half the
+vocabulary — enumerated one category at a time in the predicate's docblock with their raise
+sites, and `withSaveStateTracking.test.ts` pins the reachable codes of the last two,
+transcribed from those sites rather than from the predicate. **A fifth widening should
+probably be refused**: at that point the CATEGORY is the wrong axis, which is exactly the
+conclusion the next section reaches from the other end.
+
+## The seam that made `ok` mean two things
+
+The same review found the sharper half, and it is a slice 6 contract rather than a slice 13
+predicate. `UndoableCommand` resolved `Result<void, AppError>` under a docblock arguing that
+`CommandHistory` "only ever needs to know whether a write succeeded, not what it returned" —
+true of the two stacks, which is all that existed when it was written, and false of this
+slice's indicator, whose whole subject is whether the Plan's data is safely written.
+`SaveStateStore` states the rule categorically; `withSaveStateTracking` broke it by inferring
+a write from a resolved `Result`.
+
+FOUR dispatch paths succeed having written nothing: `ReversibleAssignAssetCommand.execute`
+when the asset is already linked to the zone (`AssignAssetCommand` answers
+`ok({ created: false })` from a read), that adapter's `undo` when its recorded outcome is
+`'found'`, and `CommandHistory`'s own `undo`/`redo` on an empty stack. Each of them cleared a
+`save-error` raised by a real persistence failure. The first is one click in the Inspector,
+which is what made it a P1.
+
+**Neither blanket default is safe**, which is why this could not be fixed in the tracker:
+reading every `ok` as a write is the defect, and reading every `ok` as a no-write leaves a
+genuine save unable to clear the badge for the rest of the session. So the commands report it.
+`application/commands/DispatchOutcome.ts` declares `'wrote' | 'no-write'`, REQUIRED — every
+`ok(...)` in every reversible adapter became a build error until somebody decided, seventeen of
+them, which is the same shape slice 15 records for adding a dialog kind. A `void | 'no-write'`
+widening would have changed two call sites and left every other `ok(undefined)` compiling; that
+is the SELF-DECLARED shape this repository already refuses elsewhere, and the next command that
+wrote nothing and forgot to say so would have reintroduced the defect silently.
+
+A fifth erasing seam turned up in the conversion that nobody had counted: `runtime.ts`'s
+`asVoidCommand` reduced every adapter success to `ok(undefined)` under the SAME falsified
+sentence. It takes an explicit `outcomeOf` reader now, because the adapters answer differently
+shaped payloads and there is nothing to default to.
+
+The change pushed `runtime.ts` to 411 lines against its 400-line cap, which its own note had
+predicted — and the note said the answer would be an extraction rather than another collapsed
+literal. `presentation/editor/inspector-wiring.ts` is that extraction, and the literal that had
+been collapsed to buy three lines is back in its natural shape.
 
 ## References
 

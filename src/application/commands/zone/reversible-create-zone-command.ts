@@ -1,4 +1,5 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
+import type { DispatchOutcome } from '../DispatchOutcome';
 import type {
 	AppError,
 	GeometryError,
@@ -88,23 +89,23 @@ export class ReversibleCreateZoneCommand {
 		private readonly input: CreateZoneInput,
 	) {}
 
-	async execute(): Promise<Result<void, AppError>> {
+	async execute(): Promise<Result<DispatchOutcome, AppError>> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) {
 			const result = await this.createCommand.execute(this.input);
 			if (isErr(result)) return result;
 			this.snapshot = result.value.zone;
 			this.ledger.record(result.value.zone.entity.id, result.value.zone.version);
-			return ok(undefined);
+			return ok('wrote');
 		}
 		const written = await restoreZone(this.zones, this.ledger, snapshot);
 		if (isErr(written)) return written;
 		// The next undo must delete what THIS redo wrote, not what the original create did.
 		this.snapshot = written.value;
-		return ok(undefined);
+		return ok('wrote');
 	}
 
-	async undo(): Promise<Result<void, AppError>> {
+	async undo(): Promise<Result<DispatchOutcome, AppError>> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) return err(nothingToUndo());
 		const expected = this.ledger.lastWritten(snapshot.entity.id) ?? snapshot.version;
@@ -114,7 +115,7 @@ export class ReversibleCreateZoneCommand {
 		// The note is gone, so the ledger must stop answering a revision for it — see
 		// `WriteLedger`'s own account of why a delete forgets rather than records.
 		this.ledger.forget(snapshot.entity.id);
-		return ok(undefined);
+		return ok('wrote');
 	}
 
 	/** Set once `execute()` has succeeded; how the drawing tool selects what it drew. */

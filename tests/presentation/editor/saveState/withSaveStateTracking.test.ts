@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { err, ok, type Result } from '../../../../src/core/result/Result';
 import type { AppError, ErrorCategory } from '../../../../src/core/errors/AppError';
+import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
 import { affectsSaveState } from '../../../../src/presentation/editor/save-state/affects-save-state';
 import { withSaveStateTracking } from '../../../../src/presentation/editor/save-state/with-save-state-tracking';
@@ -21,7 +22,7 @@ import type { UndoableCommand } from '../../../../src/presentation/editor/tools/
 const errorOf = (category: ErrorCategory, code = 'x'): AppError =>
 	({ category, code: `zone.${code}`, message: 'developer text' }) as AppError;
 
-type VoidResult = Result<void, AppError>;
+type DispatchResult = Result<DispatchOutcome, AppError>;
 
 const tracker = () => ({
 	beginSaving: vi.fn<() => void>(),
@@ -32,10 +33,10 @@ const tracker = () => ({
 
 const command = {} as UndoableCommand;
 
-const historyResolving = (result: VoidResult) => ({
-	run: vi.fn<() => Promise<VoidResult>>(() => Promise.resolve(result)),
-	undo: vi.fn<() => Promise<VoidResult>>(() => Promise.resolve(result)),
-	redo: vi.fn<() => Promise<VoidResult>>(() => Promise.resolve(result)),
+const historyResolving = (result: DispatchResult) => ({
+	run: vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(result)),
+	undo: vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(result)),
+	redo: vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(result)),
 });
 
 const OPERATIONS = ['run', 'undo', 'redo'] as const;
@@ -99,7 +100,32 @@ describe('affectsSaveState', () => {
 		})).toBe(false);
 	});
 
-	it.each(['Persistence', 'Geometry', 'Migration', 'Calculation', 'Import'] as const)(
+	/**
+	 * **The case that would fail if `Calculation` left the pre-write set.** The third draft kept
+	 * it OUT on the strength of one sentence in `calculationError`'s own docblock — "raised on
+	 * the path where the stale marker has already been persisted" — which describes the caller's
+	 * state and not a write by the command raising it. All twenty-two raise sites are a
+	 * derivation refusing its own inputs before anything was written. The two reachable through
+	 * the editor's dispatcher are here: `ReversibleCalibratePlan` refuses before `geometry.write`
+	 * (two clicks at the same point), and `AssignAsset` before `requirements.save` (a zone whose
+	 * polygon cannot be measured). Transcribed from `Calibration.ts` and `AssignAsset.ts`.
+	 */
+	it.each([
+		'calibration.coincident-points',
+		'calibration.invalid-distance',
+		'calibration.degenerate-scale',
+		'requirement.area-failed',
+		'quantity.negative',
+		'money.currency-mismatch',
+	])('ignores the pre-write Calculation refusal %s', (code) => {
+		expect(affectsSaveState({
+			category: 'Calculation',
+			code,
+			message: 'a derivation that refused its own inputs',
+		})).toBe(false);
+	});
+
+	it.each(['Persistence', 'Geometry', 'Migration', 'Import'] as const)(
 		'counts a %s failure, because the safe answer is "we might not have written your data"',
 		(category) => {
 			expect(affectsSaveState(errorOf(category))).toBe(true);
@@ -123,6 +149,10 @@ describe('affectsSaveState', () => {
 		expect(affectsSaveState(errorOf('Reference', suffix))).toBe(true);
 	});
 
+	it.each(WRITE_BOUNDARY_CODES)('counts a %s under Calculation too, failing toward reporting', (suffix) => {
+		expect(affectsSaveState(errorOf('Calculation', suffix))).toBe(true);
+	});
+
 	it('reads the codes from versioning.ts rather than a copy', () => {
 		expect([...WRITE_BOUNDARY_CODES]).toEqual(['revision-conflict', 'external-modification']);
 		expect(revisionConflict('zone', 'z1').code).toBe('zone.revision-conflict');
@@ -132,7 +162,7 @@ describe('affectsSaveState', () => {
 
 describe('withSaveStateTracking', () => {
 	it.each(OPERATIONS)('reports %s beginning and succeeding', async (operation) => {
-		const history = historyResolving(ok(undefined));
+		const history = historyResolving(ok('wrote'));
 		const save = tracker();
 		const wrapped = withSaveStateTracking(history, save);
 
@@ -152,6 +182,29 @@ describe('withSaveStateTracking', () => {
 
 		expect(save.resolveErr).toHaveBeenCalledTimes(1);
 		expect(save.resolveOk).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * **The case the whole `DispatchOutcome` widening exists for**, and the one a reviewer
+	 * found: a SUCCESS that wrote nothing. `AssignAssetCommand` answers `ok({ created: false })`
+	 * from a read when the asset is already linked to the zone, and `CommandHistory` answers
+	 * `ok` for an undo with an empty stack. Both used to resolve a bare success, which this
+	 * tracker read as evidence of a write and settled to `Saved` — clearing a `save-error` a
+	 * real persistence failure had raised, over data still unwritten. That is the exact false
+	 * assurance `SaveStateStore`'s own header forbids ("only a write that actually succeeded
+	 * may clear a save error"), and no amount of reading the `Result` could have told the two
+	 * apart, which is why the command reports it.
+	 */
+	it.each(OPERATIONS)('settles %s NEUTRALLY for a SUCCESS that wrote nothing', async (operation) => {
+		const history = historyResolving(ok('no-write'));
+		const save = tracker();
+		const wrapped = withSaveStateTracking(history, save);
+
+		await (operation === 'run' ? wrapped.run(command) : wrapped[operation]());
+
+		expect(save.resolveNeutral).toHaveBeenCalledTimes(1);
+		expect(save.resolveOk).not.toHaveBeenCalled();
+		expect(save.resolveErr).not.toHaveBeenCalled();
 	});
 
 	it.each(OPERATIONS)('settles %s NEUTRALLY for a domain refusal that wrote nothing', async (operation) => {

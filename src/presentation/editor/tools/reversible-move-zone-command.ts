@@ -7,6 +7,7 @@ import type {
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import type { Polygon } from '../../../core/geometry/Polygon';
 import type { Command } from '../../../application/commands/Command';
+import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
 import type { MoveSpatialObjectInput } from '../../../application/commands/zone/MoveSpatialObject';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
@@ -51,15 +52,15 @@ export class ReversibleMoveZoneCommand implements UndoableCommand {
 		private readonly inverse: Polygon,
 	) {}
 
-	execute(): Promise<Result<void, AppError>> {
+	execute(): Promise<Result<DispatchOutcome, AppError>> {
 		return this.dispatch(this.forward);
 	}
 
-	undo(): Promise<Result<void, AppError>> {
+	undo(): Promise<Result<DispatchOutcome, AppError>> {
 		return this.dispatch(this.inverse);
 	}
 
-	private async dispatch(geometry: Polygon): Promise<Result<void, MoveError>> {
+	private async dispatch(geometry: Polygon): Promise<Result<DispatchOutcome, MoveError>> {
 		const expected = this.hasWritten ? this.ledger.lastWritten(this.zoneId) : undefined;
 		const input: MoveSpatialObjectInput =
 			expected === undefined || expected === null
@@ -69,6 +70,6 @@ export class ReversibleMoveZoneCommand implements UndoableCommand {
 		if (isErr(result)) return result;
 		this.hasWritten = true;
 		this.ledger.record(this.zoneId, result.value.zone.version);
-		return ok(undefined);
+		return ok('wrote');
 	}
 }

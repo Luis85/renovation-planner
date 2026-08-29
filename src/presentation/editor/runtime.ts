@@ -2,26 +2,18 @@ import { inject, provide, reactive, ref, watch, type InjectionKey, type Ref } fr
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
-import { ReversibleDeleteZoneCommand } from '../../application/commands/zone/reversible-delete-zone-command';
-import { ReversibleAssignAssetCommand } from '../../application/commands/requirement/reversible-assign-asset-command';
-import {
-	ReversibleSetRequirementCostOverrideCommand,
-	ReversibleSetRequirementQuantityOverrideCommand,
-} from '../../application/commands/requirement/reversible-override-commands';
+import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
+import { createInspector } from './inspector-wiring';
 import type { AppError } from '../../core/errors/AppError';
 import type { Logger } from '../../application/ports/Logger';
-import { ok, type Result } from '../../core/result/Result';
+import type { Result } from '../../core/result/Result';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
 import { useEditorStore } from '../stores/EditorStore';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
-import {
-	createInspectorStoreDefinition,
-	type InspectorDto,
-	type InspectorEdit,
-} from './inspector/inspector-store';
+import type { InspectorDto, InspectorEdit } from './inspector/inspector-store';
 import type { RequirementInspectorDTO } from '../../application/queries/GetRequirementsForZone';
 import { CommandHistory } from './tools/command-history';
 import { createEditorContext, type EditorContext } from './tools/editor-context';
@@ -109,111 +101,6 @@ export interface EditorRuntime {
 	readonly assetOptions: Readonly<Ref<readonly { readonly id: string; readonly name: string }[]>>;
 }
 
-/**
- * Binds a per-transaction adapter to one edit and discards its success payload, so it is
- * structurally an `UndoableCommand` at `CommandHistory`'s door — which reads only whether
- * the write succeeded, never what it wrote.
- */
-function asVoidCommand<TInput>(
-	adapter: {
-		execute(input?: TInput): Promise<Result<unknown, AppError>>;
-		undo(): Promise<Result<void, AppError>>;
-	},
-	input?: TInput,
-): { execute(): Promise<Result<void, AppError>>; undo(): Promise<Result<void, AppError>> } {
-	const execute = input === undefined
-		? (): Promise<Result<unknown, AppError>> => adapter.execute()
-		: (): Promise<Result<unknown, AppError>> => adapter.execute(input);
-	return {
-		execute: async () => {
-			const ran = await execute();
-			return ran.ok ? ok(undefined) : ran;
-		},
-		undo: () => adapter.undo(),
-	};
-}
-
-/**
- * The Inspector store, pointed at the query and at a dispatcher slot filled in later —
- * the store needs the dispatcher and the dispatcher needs the store, so the cycle is
- * broken with one indirection here rather than by reordering an impossible construction.
- */
-function createInspector(
-	context: PlanEditorContext,
-	dispatcher: Pick<EditorRuntime['dispatcher'], 'run'>,
-	ledger: SessionWriteLedger,
-) {
-	return createInspectorStoreDefinition({
-		query: { execute: ({ zoneId }) => context.commands.zoneInspector.execute({ zoneId }) },
-		requirementsQuery: {
-			execute: ({ zoneId }) => context.queries.getRequirementsForZone(String(zoneId)),
-		},
-		dispatcher,
-		// Edit → Command (SDD §59's last arrow). The delete is routed here — the Inspector's
-		// ONE dispatch path — so its refresh and history entry are the shared ones.
-		//
-		// A `switch` over `InspectorEdit`'s discriminant and no fallback: the union has one
-		// member, so the compiler already knows this is total, and the second member added
-		// to it fails to build HERE rather than throwing out of a click handler at runtime,
-		// which is what the previous shape-testing version did.
-		toCommand: (edit: InspectorEdit) => {
-			switch (edit.kind) {
-				case 'delete':
-					return new ReversibleDeleteZoneCommand(
-						context.commands.deleteZone,
-						context.commands.zones,
-						ledger,
-						{
-							zoneId: edit.zoneId,
-							resolution: edit.resolution,
-							reassignTo: edit.reassignTo,
-							resolvedReferents: edit.resolvedReferents,
-						},
-						// Slice 10's undo half: the resolution may have deleted or repointed
-						// Requirements, and restoring the Zone alone would not be an inverse of that.
-						{
-							requirements: context.commands.requirementEdits.requirements,
-							locks: context.commands.requirementEdits.locks,
-							logger: context.commands.logger,
-						},
-					);
-				case 'assign': {
-					// One adapter PER EDIT — it remembers whether its own execute created the
-					// link, which is exactly the per-transaction state history requires. The
-					// adapters answer their own richer payloads; `asVoidCommand` is what makes
-					// them structurally an `UndoableCommand` at the history's door.
-					const adapter = new ReversibleAssignAssetCommand(
-						context.commands.requirementEdits.assignAsset,
-						{
-							requirements: context.commands.requirementEdits.requirements,
-							zones: context.commands.zones,
-							assets: context.commands.requirementEdits.assets,
-							locks: context.commands.requirementEdits.locks,
-						},
-						{ zoneId: edit.zoneId, assetId: edit.assetId },
-					);
-					return asVoidCommand(adapter);
-				}
-				case 'quantity-override': {
-					// The override adapters take their input on execute(); history calls it
-					// with none, so the edit is bound here — one adapter per edit, like assign.
-					const adapter = new ReversibleSetRequirementQuantityOverrideCommand(
-						context.commands.requirementEdits.setQuantityOverride,
-						context.commands.requirementEdits.requirements,
-					);
-					return asVoidCommand(adapter, { requirementId: edit.requirementId, quantity: edit.quantity });
-				}
-				case 'cost-override': {
-					const adapter = new ReversibleSetRequirementCostOverrideCommand(
-						context.commands.requirementEdits.setCostOverride,
-						context.commands.requirementEdits.requirements,
-					);
-					return asVoidCommand(adapter, { requirementId: edit.requirementId, cost: edit.cost });
-				}
-			}
-		},
-	})();
-}
 
 /** The concrete tools of this slice, registered against one shared context factory. */
 function registerEditorTools(
@@ -281,7 +168,7 @@ function registerEditorTools(
 	);
 }
 
-type VoidResult = Result<void, AppError>;
+type DispatchResult = Result<DispatchOutcome, AppError>;
 
 /**
  * The last stop for an UNEXPECTED technical fault on a dispatch (SDD §65 reserves throws
@@ -295,7 +182,7 @@ type VoidResult = Result<void, AppError>;
  * and the UI simply stopped responding to that button, which is the one failure mode worse
  * than an error message.
  */
-async function reportFault(logger: Logger, operation: Promise<VoidResult>): Promise<VoidResult | null> {
+async function reportFault(logger: Logger, operation: Promise<DispatchResult>): Promise<DispatchResult | null> {
 	try {
 		return await operation;
 	} catch (cause) {
@@ -321,7 +208,7 @@ async function reportFault(logger: Logger, operation: Promise<VoidResult>): Prom
  * nothing, and says nothing about why. A caller chains `notifyIfRefused(reportFault(op))`
  * to cover both halves — throw and resolved refusal — in one line.
  */
-async function notifyIfRefused(operation: Promise<VoidResult | null>): Promise<void> {
+async function notifyIfRefused(operation: Promise<DispatchResult | null>): Promise<void> {
 	const result = await operation;
 	if (result !== null && !result.ok) notifyError(result.error);
 }
@@ -350,7 +237,7 @@ function wrapDispatcher(
 } {
 	const canUndo = ref(history.canUndo);
 	const canRedo = ref(history.canRedo);
-	async function stepping(operation: () => Promise<VoidResult>): Promise<VoidResult> {
+	async function stepping(operation: () => Promise<DispatchResult>): Promise<DispatchResult> {
 		try {
 			return await operation();
 		} finally {
@@ -409,7 +296,7 @@ function watchAssetOptions(
 function createDeleteZoneAction(
 	context: PlanEditorContext,
 	dialogs: ReturnType<typeof useDialogStore>,
-	inspector: { commit(edit: InspectorEdit): Promise<Result<void, AppError>> },
+	inspector: { commit(edit: InspectorEdit): Promise<Result<DispatchOutcome, AppError>> },
 	selection: ReturnType<typeof useSelectionStore>,
 ): (zoneId: ZoneId, zoneName: string) => Promise<void> {
 	const deps: DeleteZoneFlowDeps = {
@@ -523,21 +410,20 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	 * signature honestly branded. (`as never` was the previous spelling and is strictly
 	 * worse: `never` is assignable to anything, so a project id would have passed too.)
 	 *
-	 * **Collapsed onto one line for the `max-lines` budget, not for style**, and the note is
-	 * here because the next reader will otherwise reformat it and turn the gate red. This
-	 * file sits at EXACTLY its 400-line cap (`max-lines`, `skipBlankLines` and
-	 * `skipComments`), and slice 13's three-line save-state wiring is what pushed it over —
-	 * this literal gave the three lines back. The rule skips blank lines and comments — which
-	 * is why this paragraph costs nothing — so the next change adding a line of CODE here,
-	 * of any size, trips it, and the answer then is an extraction or a split rather than a
-	 * second collapsed literal.
-	 *
-	 * MEASURED rather than asserted, which is the only way a number like this stays honest:
-	 * expanding this literal back to its four natural lines and running `npx eslint` on this
-	 * file reports "File has too many lines (403). Maximum allowed is 400". 403 minus the
-	 * three lines the expansion adds is 400 — no headroom at all.
+	 * **This was collapsed onto one line for the `max-lines` budget and no longer needs to be.**
+	 * The file sat at EXACTLY its 400-line cap (`max-lines`, `skipBlankLines` and
+	 * `skipComments`) after slice 13's save-state wiring, and this literal gave three lines
+	 * back — under a note predicting that the next change adding a line of CODE would trip the
+	 * rule and that the answer would then be an extraction rather than a second collapsed
+	 * literal. That is exactly what happened: the review pass giving every dispatch a
+	 * `DispatchOutcome` to report pushed the file to 411, and `./inspector-wiring.ts` is the
+	 * extraction. So the literal is back in its natural shape, which is the point of taking
+	 * the extraction rather than shaving another line.
 	 */
-	const activePlan = (): EditorContext['activePlan'] => ({ id: context.planId as PlanId, calibration: projectStore.plan?.calibration ?? null });
+	const activePlan = (): EditorContext['activePlan'] => ({
+		id: context.planId as PlanId,
+		calibration: projectStore.plan?.calibration ?? null,
+	});
 
 	// A FRESH context per activation, assembled through the same one assembler — which is
 	// the guarantee `ToolManager`'s header states its factory exists for, and which a

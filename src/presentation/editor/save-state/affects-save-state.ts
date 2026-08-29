@@ -6,7 +6,12 @@ import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
  * wrote nothing. Named rather than spelled inline at the comparison, because the docblock
  * below is an account of how each one got here and a `!==` chain gives it nothing to point at.
  */
-const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = ['Validation', 'Domain', 'Reference'];
+const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
+	'Validation',
+	'Domain',
+	'Reference',
+	'Calculation',
+];
 
 /**
  * Is this failure one the save indicator should report?
@@ -17,15 +22,19 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = ['Validation', 'Domain', 
  * need PLUS a "save error" badge about data exactly as safe as it was before they typed —
  * and per `save-state-store.ts` only a successful write clears that badge again.
  *
- * **Which categories those are is MEASURED, and this predicate has now measured wrong
- * twice.** The first draft compared against `'Validation'` alone, under a sentence asserting
- * that "a field commit that fails a domain rule resolves a `ValidationError`", which is false
- * here. The second added `'Domain'` and grepped for `'Domain'` — so `Reference`, the category
- * the delete flow and both reversible adapters refuse through, was never looked at, and every
- * one of its refusals settled a sticky `save-error` over data nothing had touched. The
- * generalisable half: a grep written to confirm the widening you already decided on measures
- * that widening and nothing else. The greps that should have run are `grep -rn "'Reference'"
- * src/` and `grep -rn "referenceError(" src/`, and what they print is below.
+ * **Which categories those are is MEASURED, and this predicate has now measured wrong three
+ * times — each time by looking only where it had already decided to look.** The first draft
+ * compared against `'Validation'` alone, under a sentence asserting that "a field commit that
+ * fails a domain rule resolves a `ValidationError`", which is false here. The second added
+ * `'Domain'` and grepped for `'Domain'`, so `Reference` — the category the delete flow and both
+ * reversible adapters refuse through — was never looked at, and every one of its refusals
+ * settled a sticky `save-error` over data nothing had touched. The third enumerated
+ * `Reference` exhaustively and left `Calculation` in the affecting set on the strength of one
+ * sentence in `calculationError`'s own docblock, which turns out to describe its CALLER rather
+ * than itself (see below); a calibration refused for coincident points left the same sticky
+ * badge. Each pass measured the widening it had already chosen and nothing else. The set is
+ * enumerated one category at a time now, which is the only form of this claim a later reader
+ * can check.
  *
  * **`Validation`** — the entity's own rules, refused before any `save`.
  *
@@ -54,12 +63,51 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = ['Validation', 'Domain', 
  *   the step that takes the locks and reads the pre-state, before `deleteEntity` or any
  *   Requirement write. `reference.set-changed`'s own message says "nothing was written".
  *
+ * **`Calculation`**, twenty-two raise sites spelling twenty distinct codes — twelve as object
+ * literals, six through `calculationError()` and four through `calibrationError()` — and
+ * every one of them is a derivation refusing its own inputs, before whatever command asked
+ * for the figures had written anything:
+ *
+ * - the eleven pure-function codes in `costPipeline.ts`, `quantityEngine.ts` and `Money.ts`.
+ *   These write nothing by construction and surface through their caller, and both callers
+ *   that can be dispatched (`AssignAsset.createAndSave` and
+ *   `RecalculateRequirement.execute`) return them before their own `requirements.save`;
+ * - `requirement.area-failed` in `AssignAsset.createAndSave`, and the six
+ *   `calculationError()` codes in `RecalculateRequirement.execute` — every one of the six
+ *   precedes that command's `requirements.save`, and nothing after that save can produce a
+ *   `Calculation` error;
+ * - `plan.degenerate-points` in `validateCalibration`, which is the sidecar READ path;
+ * - the three `calibration.*` codes `deriveCalibration` mints plus `nonFiniteRescaleError`,
+ *   all four raised in `ReversibleCalibratePlan.execute` before `geometry.write` — and
+ *   nothing after that write can produce one either.
+ *
+ * **The trap in that category, which its own factory's docblock walks straight into.**
+ * `calculationError` in `application/errors.ts` describes itself as "raised on the path
+ * where the stale marker has already been persisted", which reads as post-write and is not:
+ * it describes the CALLER's state — the cascade persists a stale marker and THEN asks for a
+ * recalculation — not a write by the command raising it. The one place a `Calculation` error
+ * could genuinely escape a half-written sequence is `deleteResolution.ts`'s inline
+ * recalculation, and it cannot: a failure there is LOGGED and the sequence continues, because
+ * `DeleteResolutionErrors` is `ReferenceError | RepositoryError` and has no room for one. So
+ * the category is pre-write by the resolution's error union rather than by anything here, and
+ * a later widening of that union is the change that would falsify this paragraph.
+ *
  * That set is REACHABLE, not theoretical, and each widening was one keystroke or one click
  * away. The Inspector's two override fields are `type="text"` (`RequirementRow.vue`), so
  * typing `-5` into one raises the first `Domain` site. The Inspector's Delete button opens
  * `deleteZoneFlow.ts`, and confirming a dialog whose referent set moved underneath it raises
  * `reference.set-changed` — a refusal that states its own innocence in its message and still
- * left a persistent "Save error" badge standing behind it.
+ * left a persistent "Save error" badge standing behind it. Calibrating a plan with two clicks
+ * at the same point raises `calibration.coincident-points`, and a zone whose polygon cannot be
+ * measured raises `requirement.area-failed` on the next assignment.
+ *
+ * **A note on the INSTRUMENT, because measuring this category caught the repository's own
+ * rule again.** The first sweep for the codes above used
+ * `grep -rhoE "calculationError\(\s*'[^']*'"` and printed four of the six, silently missing
+ * `requirement.unsupported-origin` and `requirement.unit-not-area` — both written with the
+ * code on the line AFTER the call. "A grep for `foo(` misses `foo<T>(`" is in `CLAUDE.md`, and
+ * it was broken here while measuring for the fix that quotes it. The counts above come from a
+ * sweep that reads two lines past each call.
  *
  * **No category here is a synonym for "wrote nothing", which is why the carve-out exists.**
  * `versioning.ts` raises `revisionConflict` and `externalModification` as `ValidationError`s,
@@ -68,8 +116,9 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = ['Validation', 'Domain', 
  * assurance this whole predicate exists to prevent. So the category is the first cut and the
  * write-boundary codes are carved back out of it, from the table `versioning.ts` exports
  * rather than from a copy. The carve-out applies to the whole pre-write set rather than to
- * `Validation` alone: nothing raises those two codes under `Domain` or `Reference` today, and
- * a future site that did would fail toward reporting rather than away.
+ * `Validation` alone: nothing raises those two codes under `Domain`, `Reference` or
+ * `Calculation` today, and a future site that did would fail toward reporting rather than
+ * away.
  *
  * **The category comparison is TITLE case**, because `ErrorCategory` is
  * `'Domain' | 'Validation' | 'Persistence' | 'Geometry' | 'Import' | 'Migration' |
@@ -81,21 +130,26 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = ['Validation', 'Domain', 
  * **Still an inequality against a named set rather than a list of the categories that count,
  * deliberately.** A new `AppError` category added by a later slice defaults to AFFECTING the
  * indicator, because "we might not have written your data" is the safe answer to give while
- * nobody has thought about it. The unsafe default is silence. Three of the eight are in the
- * pre-write set now and five are not (`Persistence`, `Geometry`, `Import`, `Migration`,
- * `Calculation`), which is worth noticing rather than letting grow quietly: the further this
- * set widens, the more the indicator depends on every one of those raise sites STAYING
- * pre-write, and the next widening should be argued against that rather than against the
- * nuisance of a badge.
+ * nobody has thought about it. The unsafe default is silence. **Four of the eight are in the
+ * pre-write set now and four are not** (`Persistence`, `Geometry`, `Import`, `Migration`), and
+ * a set that has grown to half the vocabulary is worth stopping at rather than letting grow
+ * quietly. What remains outside it is the four categories whose whole subject IS the write —
+ * two of them, `Import` and `Migration`, having no dispatched raise site at all today. The
+ * further this widens the more the indicator depends on every enumerated raise site STAYING
+ * pre-write, with nothing checking that; the next widening should be argued against that
+ * rather than against the nuisance of a badge, and if a fifth is ever proposed the honest
+ * answer is probably that the CATEGORY is the wrong axis and the command should report
+ * whether it wrote.
  *
  * **The residual exposure this creates, stated because it is the unsafe direction.** A
- * `Domain`, `Validation` or `Reference` error raised AFTER a write had already landed would
- * be under-reported: the indicator would settle `saved`, or revert to what it read before the
- * batch, over data whose write half-completed. The greps above found NO such site today —
- * which is "found none", not "none exists", and nothing in the suite or in either linter would
- * notice one being added. `deleteResolution.ts` is where one is likeliest to appear, being the
- * only member of the pre-write set that writes several entities in sequence; today every
- * `Reference` refusal in it is inside `prepare` and every failure after that point is a
+ * `Domain`, `Validation`, `Reference` or `Calculation` error raised AFTER a write had already
+ * landed would be under-reported: the indicator would settle `saved`, or revert to what it read
+ * before the batch, over data whose write half-completed. The sweeps above found NO such site
+ * today — which is "found none", not "none exists", and nothing in the suite or in either
+ * linter would notice one being added. `deleteResolution.ts` is where one is likeliest to
+ * appear, being the only member of the pre-write set that writes several entities in sequence;
+ * today every `Reference` refusal in it is inside `prepare`, its inline recalculation LOGS a
+ * `Calculation` failure rather than returning one, and every failure after that point is a
  * `RepositoryError`. The two write-boundary codes are the nearest thing to a post-write member
  * and they are carved back out above.
  *

@@ -1,4 +1,5 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
+import type { DispatchOutcome } from '../DispatchOutcome';
 import type { ReferenceError } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { Command } from '../Command';
@@ -102,7 +103,7 @@ export class ReversibleDeleteZoneCommand {
 	// that resolves members through declared annotations — the same mark
 	// `ReversibleCalibratePlanCommand` carries for the identical reason. (Slice 8's
 	// review pass made `execute` visible to it again; only undo still needs this.)
-	async execute(): Promise<Result<void, ReferenceError | RepositoryError>> {
+	async execute(): Promise<Result<DispatchOutcome, ReferenceError | RepositoryError>> {
 		const found = await this.zones.getById(this.input.zoneId);
 		if (isErr(found)) return found;
 		if (found.value === null) {
@@ -125,11 +126,11 @@ export class ReversibleDeleteZoneCommand {
 		// keeping the pre-delete one — see `WriteLedger` for why that distinction matters
 		// to whatever touches the id next.
 		this.ledger.forget(this.input.zoneId);
-		return ok(undefined);
+		return ok('wrote');
 	}
 
 	// fallow-ignore-next-line unused-class-member
-	async undo(): Promise<Result<void, RepositoryError | ReferenceError>> {
+	async undo(): Promise<Result<DispatchOutcome, RepositoryError | ReferenceError>> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) return err(nothingToUndo());
 		// A box rather than a local, because the assignment happens inside the callback the
@@ -159,7 +160,7 @@ export class ReversibleDeleteZoneCommand {
 		// only on SUCCESS: a rolled-back undo deleted the note again, so the pre-delete
 		// snapshot is still what a retry has to restore.
 		if (restored.value !== null) this.snapshot = restored.value;
-		return ok(undefined);
+		return ok('wrote');
 	}
 
 	/** The inverse of the zone half of `undo()`, handed to the sequence by the write itself. */

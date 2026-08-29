@@ -128,11 +128,11 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 		const before = await w.snapshotAll();
 		const command = w.makeCommand('remove-references');
 
-		expect(expectOk(await command.execute())).toBeUndefined();
+		expect(expectOk(await command.execute())).toBe('wrote');
 		expect(expectOk(await w.zones.getById(w.zone.entity.id))).toBeNull();
 		expect(await w.snapshotAll()).toEqual({ [w.referents[0]]: null, [w.referents[1]]: null });
 
-		expect(expectOk(await command.undo())).toBeUndefined();
+		expect(expectOk(await command.undo())).toBe('wrote');
 
 		// The whole pre-delete state, not just the zone's own fields.
 		expect(await w.snapshotAll()).toEqual(before);
@@ -148,8 +148,8 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 		const before = await w.snapshotAll();
 		const command = w.makeCommand('delete-anyway');
 
-		expect(expectOk(await command.execute())).toBeUndefined();
-		expect(expectOk(await command.undo())).toBeUndefined();
+		expect(expectOk(await command.execute())).toBe('wrote');
+		expect(expectOk(await command.undo())).toBe('wrote');
 
 		expect(await w.snapshotAll()).toEqual(before);
 		expect(expectOk(await w.zones.getById(w.zone.entity.id))?.entity.geometry.points)
@@ -160,7 +160,7 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 		const w = await wired(2);
 		const history = new CommandHistory();
 
-		expect(expectOk(await history.run(w.makeCommand('remove-references')))).toBeUndefined();
+		expect(expectOk(await history.run(w.makeCommand('remove-references')))).toBe('wrote');
 		const afterDelete = { zone: expectOk(await w.zones.getById(w.zone.entity.id)), requirements: await w.snapshotAll() };
 		expect(afterDelete.zone).toBeNull();
 
@@ -195,7 +195,7 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 	it('a rollback whose ZONE delete also fails returns the original failure', async () => {
 		const w = await wired(2);
 		const command = w.makeCommand('remove-references');
-		expect(expectOk(await command.execute())).toBeUndefined();
+		expect(expectOk(await command.execute())).toBe('wrote');
 
 		// The second requirement restore fails, and so does the compensating zone delete —
 		// the vault is left half-restored and the caller is told about the FIRST fault.
@@ -213,7 +213,7 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 	it('undo refuses rather than clobbers a requirement that moved underneath it', async () => {
 		const w = await wired(1);
 		const command = w.makeCommand('delete-anyway');
-		expect(expectOk(await command.execute())).toBeUndefined();
+		expect(expectOk(await command.execute())).toBe('wrote');
 
 		// Another writer lands an edit on the stranded requirement.
 		const live = expectOk(await w.requirements.getById(w.referents[0]));

@@ -855,22 +855,32 @@ it:
   entity's own `Validation` errors as `Domain` too, all of it before `requirements.save`. The
   Inspector's override fields are `type="text"`, so `-5` was one keystroke from a persistent
   "Save error" badge about data nothing had touched — the exact failure the predicate exists to
-  prevent, shipped by the predicate. **Then it measured wrong a SECOND time, and that
-  measurement is the more useful one:** the grep looked for `'Domain'` and found what it was
-  written to find, so `Reference` — nineteen raise sites over fourteen codes, the category the
-  delete flow and both reversible adapters refuse through, every one of them a referent lookup
-  that came back empty — was never looked at at all. Confirming a delete dialog whose referent
+  prevent, shipped by the predicate. **It then measured wrong twice more, and the pattern is
+  the useful part:** each pass grepped for the category it had already decided to add. The
+  second looked for `'Domain'`, so `Reference` — nineteen raise sites over fourteen codes, the
+  category the delete flow and both reversible adapters refuse through, every one a referent
+  lookup that came back empty — was never looked at; confirming a delete dialog whose referent
   set had moved raised `reference.set-changed`, whose developer message reads "nothing was
-  written", and left the sticky badge standing behind it. **A grep written to confirm a
-  widening already decided on measures that widening and nothing else**, which is a sharper
-  version of this file's own "measure a set with an instrument that can see all of it". The
-  pre-write set is `Validation`, `Domain` and `Reference` now, all three enumerated in the
-  docblock with their raise sites, and the write-boundary carve-out applies to all three. Two
-  things stay written to the check rather than past it. The widening UNDER-reports any of the
-  three raised after a successful write, which is the unsafe direction, and the greps found no
-  such site — "found none", not "none exists". And the deeper fix is at the raise sites, which
-  LOSE information by re-labelling `Validation` as `Domain`: that is slice 17's territory,
-  because changing a category there also changes the sentence `toUserMessage` resolves for it.
+  written", and left the sticky badge behind it. The third enumerated `Reference` exhaustively
+  and left `Calculation` out on the strength of one sentence in `calculationError`'s own
+  docblock — "raised on the path where the stale marker has already been persisted" — which
+  describes its CALLER's state, not a write by the command raising it; all twenty-two of its
+  raise sites are a derivation refusing its own inputs, and calibrating with two clicks at the
+  same point left the same badge. **A grep written to confirm a widening already decided on
+  measures that widening and nothing else**, which is a sharper version of this file's own
+  "measure a set with an instrument that can see all of it" — and that rule was broken again
+  while measuring the last one, since `grep -rhoE "calculationError\(\s*'[^']*'"` misses the
+  two calls written with the code on the following line. The pre-write set is `Validation`,
+  `Domain`, `Reference` and `Calculation` now — half the vocabulary, enumerated one category
+  at a time in the docblock with their raise sites, with the write-boundary carve-out applied
+  to all four. Two things stay written to the check rather than past it. The widening
+  UNDER-reports any of the four raised after a successful write, which is the unsafe
+  direction, and the sweeps found no such site — "found none", not "none exists". And the
+  deeper fix is at the raise sites, which LOSE information by re-labelling `Validation` as
+  `Domain`: that is slice 17's territory, because changing a category there also changes the
+  sentence `toUserMessage` resolves for it. **If a fifth is ever proposed, the honest answer
+  is probably that the CATEGORY is the wrong axis** — the same conclusion the sibling bullet
+  above reaches from the other end, where the fix was to have the command report.
 - **A slot released by INFERENCE is a slot released on an assumption about Obsidian, and there
   are TWO gestures that know, not one.** The dismiss button called `notice.hide()` and then
   swept, and the sweep asks `isConnected` — still true for as long as an animated `Notice`
@@ -911,6 +921,26 @@ it:
   rather than left standing against code that had already decided it. Widening the scan is not
   the fix: whole-document scope pulls in the landmark rules that test's header records as out
   of reach.
+- **`ok` is not evidence that anything was WRITTEN, and the whole save indicator rested on
+  reading it that way.** `UndoableCommand` resolved `Result<void, AppError>` under a docblock
+  arguing that `CommandHistory` "only ever needs to know whether a write succeeded, not what
+  it returned" — true of the two stacks, which is all that existed when it was written, and
+  false of an indicator whose subject is whether this Plan's data is safely written.
+  `SaveStateStore` states the rule categorically ("only a write that actually succeeded may
+  clear a save error") and `withSaveStateTracking` broke it by inferring one from the other.
+  FOUR dispatch paths succeed having written nothing: `ReversibleAssignAssetCommand.execute`
+  when the asset is already linked (`AssignAssetCommand` answers `ok({ created: false })` from
+  a read), that adapter's `undo` when its outcome was `'found'`, and `CommandHistory`'s own
+  undo and redo on an empty stack. Each cleared a `save-error` raised by a real persistence
+  failure; the first is one click in the Inspector. **There is no safe default for that
+  inference in either direction** — every `ok` a write is the defect, every `ok` a no-write
+  leaves the badge stuck for the session — so the commands report it: `DispatchOutcome` is
+  `'wrote' | 'no-write'`, REQUIRED, so every `ok(...)` in every adapter was a build error
+  until somebody decided. Seventeen of them, plus a fifth erasing seam nobody had counted —
+  `runtime.ts`'s `asVoidCommand`, which reduced every success to `ok(undefined)` under the
+  same falsified sentence, and is `asDispatchCommand` taking an explicit reader now. An
+  optional `void | 'no-write'` widening would have changed two call sites and left the rest
+  compiling, which is the SELF-DECLARED shape this file already has a bullet against.
 - **Terminality that lives in the CALLER is terminality the object does not have.**
   `disposeNotices` drops its reference to the queue, and `createNoticeQueue`'s own `dispose`
   spliced `entries` and hid the handles — which reads as terminal and is not, because the
@@ -962,12 +992,19 @@ it:
   synchronously had to move — which is what the prediction had priced the fix at. The lesson is
   about the prediction rather than the gap: a recorded remedy is one route, and re-reading what
   the contract actually asks for can be cheaper than the route already written down.
-- **`runtime.ts` is at EXACTLY its 400-line `max-lines` cap**, which is why one object literal
-  in it is collapsed onto a single line under a comment saying so. Measured rather than
-  asserted: expanding that literal back to its four natural lines makes `npx eslint` report
-  "File has too many lines (403)". The rule skips blank lines and comments, so the next change
-  adding a line of CODE there — of any size — trips it, and the answer then is an extraction
-  or a split rather than a second collapsed literal.
+- **`runtime.ts` sat at EXACTLY its 400-line `max-lines` cap, and the note predicting what
+  would happen next was right.** One object literal in it was collapsed onto a single line to
+  buy three lines, under a comment saying the rule skips blanks and comments, that the next
+  change adding a line of CODE — of any size — would trip it, and that the answer would then
+  be an extraction rather than a second collapsed literal. The review pass giving every
+  dispatch a `DispatchOutcome` to report took it to 411. `presentation/editor/inspector-wiring.ts`
+  is the extraction — SDD §59's Edit-to-Command arrow plus the binder that fits a
+  per-transaction adapter to `CommandHistory`'s door, which is a coherent seam rather than a
+  convenient one — and the literal is back in its natural shape, which is the point of taking
+  the extraction rather than shaving another line. The general shape worth keeping: a budget
+  bought back by reformatting is a budget that has already been spent, and writing down what
+  the next author must do is what makes the second author's job a decision rather than a
+  discovery.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

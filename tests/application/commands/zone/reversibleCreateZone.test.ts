@@ -48,7 +48,7 @@ describe('ReversibleCreateZoneCommand', () => {
 		const { zones, makeCommand } = await wired();
 
 		const command = makeCommand();
-		expect(expectOk(await command.execute())).toBeUndefined();
+		expect(expectOk(await command.execute())).toBe('wrote');
 		const zoneId = expectId(command.createdZoneId);
 		expect(expectOk(await zones.getById(zoneId))?.entity.name).toBe('Living room');
 	});
@@ -59,7 +59,7 @@ describe('ReversibleCreateZoneCommand', () => {
 		const command = makeCommand();
 		await command.execute();
 		const createdId = expectId(command.createdZoneId);
-		expect(expectOk(await command.undo())).toBeUndefined();
+		expect(expectOk(await command.undo())).toBe('wrote');
 		expect(expectOk(await zones.getById(createdId))).toBeNull();
 
 		await command.execute(); // the redo path
@@ -92,13 +92,13 @@ describe('ReversibleCreateZoneCommand', () => {
 		);
 
 		// undo #1 backs out the move; undo #2 un-creates.
-		expect(expectOk(await history.undo())).toBeUndefined();
-		expect(expectOk(await history.undo())).toBeUndefined();
+		expect(expectOk(await history.undo())).toBe('wrote');
+		expect(expectOk(await history.undo())).toBe('wrote');
 		expect(expectOk(await zones.getById(zoneId))).toBeNull();
 
 		// redo #1 re-creates THE SAME entity; redo #2 replays the move against its ID.
-		expect(expectOk(await history.redo())).toBeUndefined();
-		expect(expectOk(await history.redo())).toBeUndefined();
+		expect(expectOk(await history.redo())).toBe('wrote');
+		expect(expectOk(await history.redo())).toBe('wrote');
 		const restored = expectOk(await zones.getById(zoneId));
 		expect(restored?.entity.id).toBe(zoneId);
 		expect(restored?.entity.geometry.points).toEqual(moved.points);
@@ -132,7 +132,7 @@ describe('ReversibleCreateZoneCommand', () => {
 		);
 
 		await command.execute();
-		expect(expectOk(await command.undo())).toBeUndefined();
+		expect(expectOk(await command.undo())).toBe('wrote');
 		expect(await zones.getById(command.createdZoneId as never)).toMatchObject({ value: null });
 	});
 

@@ -64,6 +64,7 @@ describe('ReversibleAssignAssetCommand', () => {
 
 		const first = await adapter.execute();
 		if (!first.ok) throw new Error(String(first.error));
+		expect(first.value.outcome).toBe('wrote');
 		const createdId = first.value.requirementId;
 		expect(expectOk(await w.requirements.getById(createdId))).not.toBeNull();
 
@@ -93,7 +94,14 @@ describe('ReversibleAssignAssetCommand', () => {
 		const adapter = makeAdapter(w);
 		const found = await adapter.execute();
 		if (!found.ok) throw new Error(String(found.error));
-		expectOk(await adapter.undo());
+		// **Both halves of the idempotent path report writing NOTHING, and a reviewer found
+		// them reporting the opposite.** The id is present either way, so nothing downstream
+		// can derive this from the payload: `execute` answers from a read having saved nothing,
+		// and `undo` deletes only what execute created, so it has nothing to delete. Design
+		// slice 13's save indicator read both as successful writes and cleared a `save-error`
+		// raised by a real persistence failure — one click in the Inspector.
+		expect(found.value.outcome).toBe('no-write');
+		expect(expectOk(await adapter.undo())).toBe('no-write');
 
 		const stillThere = expectOk(await w.requirements.getById(preExisting.value.requirement.id));
 		expect(stillThere?.entity.estimatedCost.override?.amount).toBe(moneyOf('400.00', 'EUR').amount);

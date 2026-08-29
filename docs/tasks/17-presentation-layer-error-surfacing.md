@@ -138,6 +138,40 @@ depends on.
   `inspector-store.ts`'s own header as a known gap left for whichever slice adds error
   signalling — this one, if the union is to widen.
 
+### Carried forward from the slice 13 review pass (2026-08-29)
+
+Three exposures the slice 13 branch left standing deliberately. Each is written where the
+code is; each is repeated here because it is a decision **this** table owns rather than a
+defect that slice could have closed on its own. All three are open.
+
+- **A `Reference` refusal raised AFTER a partial write is reported by nothing, and the
+  decision procedure above is half the reason.** `affectsSaveState` treats every `Reference`
+  error as pre-write, so the tracker calls `resolveNeutral()` and the indicator settles
+  **Saved**; the procedure then routes an autosave-path persistence failure to that indicator
+  and deliberately raises no toast beside it. Both halves are defensible alone. Together they
+  leave a half-written vault announced nowhere: `requirementResolutionSteps` raises
+  `requirement.not-found` after `markStalePersisted` has already written through
+  `requirements.markStale`, and `repointAndMarkStale` can refuse for referent N after
+  `applyAll` saved 1..N−1 — the failed compensation logged, and nothing else. The
+  `ReferenceError` row's (a)/(b)/(c) split has no entry for this: it is not the sync delete
+  flow, not a background cascade, and not the persisted aftermath of `delete-anyway`. Left as
+  an exposure rather than repaired in slice 13, because carving `requirement.not-found` out
+  of the pre-write set buys a false **Save error** at the several sites where it genuinely IS
+  pre-write, and re-labelling inside `runDeleteResolution` changes what `toUserMessage`
+  prints — both of which are this slice's call, not that one's.
+- **This table routes a dozen categories to "slice 13 toast", and a toast is not always
+  seen.** `warning` and `error` never auto-dismiss and the queue caps at three, so three
+  distinct persistent warnings — `background.unsupported` plus the two `cascade.*`, none of
+  which dedup into each other — hide every later ERROR notice, and hide its announcement too:
+  `announce` rides `render`, and `render` runs only for a notice actually shown. Whether an
+  error preempts a standing warning is queue policy, and the table above is what makes that
+  policy load-bearing.
+- **`SaveStateIndicator` sits in a `role="status"` region and `beginSaving()` fires on every
+  dispatch**, so a screen reader hears "Saving" then "Saved" twice per zone drag — the same
+  noise the measurements region in that same `StatusBar.vue` explicitly refuses a live region
+  for. Whether the transient `saving` step is announced at all is a surfacing decision, which
+  is this slice's subject rather than slice 13's.
+
 ## Design
 
 ### The decision procedure

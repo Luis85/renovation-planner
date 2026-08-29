@@ -68,9 +68,12 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
  * against `ViewRoot` mounted directly, with its own hand-built `deps` rather than this
  * factory's, because that file needs to observe the shared `busy` ref and a controlled,
  * deferred dispatch — this file's job is the harness path, not that one.
- * `RecordingEventBus` is a fine stand-in for the real bus here: nothing in this tree
- * subscribes to `ProjectCreated`, so there is no cascade for a dispatching bus to run that a
- * recording one would miss.
+ * `RecordingEventBus` is a fine stand-in for the real bus here, and the reason is now about
+ * THIS tree rather than about the event: `createProjectListChangeSource` does subscribe to
+ * `ProjectCreated` (added in review — the sample-seed path published one that nothing heard),
+ * but these defaults hand the view a no-op `onProjectsChanged` and never that source, so no
+ * subscription is bound to this bus at all and a dispatching one would run no cascade a
+ * recording one misses. Wire the real source here and this sentence stops being true.
  *
  * `commands.logger` is `recorder`, the same recording port `planEditorRig` hands the editor's
  * own bundle — a real `Logger`, not a noop, so `useFormCommit`'s fault door has somewhere to

@@ -273,9 +273,16 @@ leaving to be rediscovered.** `tests/helpers/eslint.ts` records the shape of thi
 the first call in a worker is ~3s idle and was seen at 17.8s under full-suite load, while *every
 call after it is 7–30ms*. The first type-aware `.ts` path additionally builds the project-service
 program, ~1.4s locally and ~5.1s under coverage instrumentation. Both are **once**, and
-`warmUpEslint` already exists to pay them in `beforeAll`. Seventy cached calls at 30ms is about
-two seconds — so the dominant cost is the boot this file would pay at any call count, and going
-from 12 calls to 70 changes the total far less than the count suggests.
+`warmUpEslint` already exists to pay them in `beforeAll`. **About 130 cached calls at the 30 ms
+upper bound is roughly 3.9 seconds**, and about 0.9 at the 7 ms lower bound — so the boot still
+dominates, but not as overwhelmingly as the earlier figure implied.
+
+**That figure was stale for a round**, budgeting seventy calls and describing the change as
+12→70, after the instruction above had already widened to eleven blocks. Two seconds and 3.9
+seconds are different answers to the question this paragraph exists to settle — whether a seventh
+ESLint-booting file is acceptable under Windows full-suite contention — so the stale number was a
+wrong input to a live decision rather than a rounding error. Third time this section has had a
+figure or a scope fall behind a widening made a few paragraphs above it.
 
 It is still **measured before the file is committed** rather than trusted to that arithmetic; if
 it does prove heavy, the fallback is unchanged — fold the cases into an existing ESLint-booting
@@ -690,6 +697,23 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   **any environment directive whose value is not `node`, under EITHER supported spelling** — in
   `tests/core/`, `tests/domain/` and `tests/application/`, plus **any file importing from
   `tests/contracts/`**, and saying nothing about anywhere else.
+
+  **A directive scan is not the guarantee, which is the sixth correction to this one check.** The
+  property is *these suites execute in node*; a docblock is one way to break it and Vitest
+  configuration is another — an `environmentMatchGlobs` entry or an inline project covering
+  `tests/domain/**` selects `jsdom` with no docblock anywhere, the collection-union check still
+  finds the files, and the guard stays green while the inner-layer DOM backstop is off. So the
+  check **resolves the EFFECTIVE environment** for every protected file — what Vitest would
+  actually run it in, configuration and directives together — rather than scanning text for one
+  of the two ways to change it.
+
+  Six corrections to one predicate: allowlist too far, denylist too short, `jsdom` named instead
+  of "not node", one directive spelling of two, a directory wider than its invariant, and now
+  directives instead of the effective environment. Every one narrowed a paraphrase back toward the
+  property, and only this version asks the property directly. **That record is itself an argument
+  for taking the Definition of Done's structural split instead** — it assigns suites to
+  environments by construction and leaves nothing to paraphrase — and it is the strongest reason
+  yet for my user to answer question 2 rather than inherit my answer to it.
 
   That last clause replaces a directory-wide ban on `tests/infrastructure/`, which reached past
   its own justification: the source-level DOM ban is scoped to `core`/`domain`, `infrastructure/`

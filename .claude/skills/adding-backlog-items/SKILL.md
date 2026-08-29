@@ -102,7 +102,7 @@ your recommendation — and resolved by the user's pick before you raise the nex
 that fights a step of the main flow, an extension labelled against a step that does not
 exist, a parent illegal for the type.
 
-**External** — a note in `docs/` that already owns this, an ADR under `docs/adrs/` that
+**External** — a note in `docs/` that already owns this, an ADR under `docs/development/adrs/` that
 refused it, an Epic whose definition of done this would break.
 
 Do not resolve these yourself. Finding them is baseline behaviour; handing them back is

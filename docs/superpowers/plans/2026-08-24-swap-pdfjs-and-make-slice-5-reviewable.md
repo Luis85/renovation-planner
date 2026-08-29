@@ -7,7 +7,7 @@ HEAD = `9f92e9a` "feat: design slice 5 — canvas rendering and the editor shell
 ## Read first, in this order
 
 1. `CLAUDE.md` — the agent guide. Non-negotiable; it OVERRIDES default behaviour.
-2. `docs/sdds/obsidian-renovation-planner-SDD.md` — the authority. Where it and CLAUDE.md
+2. `docs/development/sdds/obsidian-renovation-planner-SDD.md` — the authority. Where it and CLAUDE.md
    disagree, the SDD wins and CLAUDE.md is the bug.
 3. `docs/tasks/05-canvas-rendering-and-editor-shell.md` — slice 5, `status: Done`. Its
    **Implementation Notes** section (near the end) records every place the built thing

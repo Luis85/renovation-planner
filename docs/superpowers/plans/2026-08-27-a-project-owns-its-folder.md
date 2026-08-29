@@ -48,7 +48,7 @@ under, and nothing else. No entity, no command, no rendering, no schema change, 
 
 | File | Responsibility |
 |---|---|
-| `docs/adrs/0013-a-project-folder-is-derived-from-its-note.md` | The decision, and why `Identity is the id…` does not forbid it |
+| `docs/development/adrs/0013-a-project-folder-is-derived-from-its-note.md` | The decision, and why `Identity is the id…` does not forbid it |
 | `tests/infrastructure/persistence/index/entityRef.test.ts` | `entityRefOf`'s arms, and its exact caller set |
 | `tests/infrastructure/obsidian/repositories/perProjectFolders.test.ts` | Two projects in different folders; every entity at its own project's path |
 
@@ -81,7 +81,7 @@ belong to slice 19, where they have callers. See the spec's *No migration* secti
 ### Task 1: ADR-0013 — a project's folder is derived
 
 **Files:**
-- Create: `docs/adrs/0013-a-project-folder-is-derived-from-its-note.md`
+- Create: `docs/development/adrs/0013-a-project-folder-is-derived-from-its-note.md`
 - Modify: `docs/tasks/18-a-project-owns-its-folder.md`
 
 **Interfaces:**
@@ -93,13 +93,13 @@ the ADR is the artefact that survives the choice.
 
 - [ ] **Step 1: Read the precedent**
 
-Read `docs/adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md` in full,
+Read `docs/development/adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md` in full,
 and copy its front-matter shape (status, date, context/decision/consequences headings) exactly
 — the new ADR must look like its siblings.
 
 - [ ] **Step 2: Write the ADR**
 
-Create `docs/adrs/0013-a-project-folder-is-derived-from-its-note.md`. **The number is 0013, not
+Create `docs/development/adrs/0013-a-project-folder-is-derived-from-its-note.md`. **The number is 0013, not
 0012** — `0012-price-component-placement-in-the-cost-pipeline.md` already exists.
 
 It must contain, in the repository's voice:
@@ -160,7 +160,7 @@ CI once (a new `docs/` stylesheet fallow could not reach), so run it.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docs/adrs/0013-a-project-folder-is-derived-from-its-note.md docs/tasks/18-a-project-owns-its-folder.md
+git add docs/development/adrs/0013-a-project-folder-is-derived-from-its-note.md docs/tasks/18-a-project-owns-its-folder.md
 git commit -m "$(cat <<'EOF'
 docs: ADR-0013 derives a project's folder from its note
 

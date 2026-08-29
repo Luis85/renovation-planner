@@ -32,4 +32,4 @@ material catalog supplies lot sizes until slice 10.
 **Checked by.** Not yet. Slice 09 names both the lot-size case and the `undefined` pass-through.
 
 **Sources.** PRD §24 · SDD §50 · slice 09
-([`docs/tasks/09-quantity-and-cost-engine.md`](../tasks/09-quantity-and-cost-engine.md)).
+([`docs/tasks/09-quantity-and-cost-engine.md`](../../tasks/09-quantity-and-cost-engine.md)).

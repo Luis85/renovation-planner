@@ -23,11 +23,11 @@ component exists because slice 17 needed a fourth answer and the other three wer
 
 ## Specimen
 
-![Status badge, and the states it owes, in Obsidian's default light and dark](status-badge.png)
+![Status badge, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/status-badge.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -97,5 +97,5 @@ most obviously about.
 ## Sources
 
 PRD §30 · PRD §44 · SDD §64 · SDD §66, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

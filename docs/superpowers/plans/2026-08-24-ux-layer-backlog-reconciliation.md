@@ -14,7 +14,7 @@
 
 Copied verbatim from the spec. Every task's requirements implicitly include this section.
 
-- **No derived note is edited.** The ledger is the whole deliverable. `git status` must show no change under `docs/requirements/`, `docs/entities/`, `docs/business-rules/`, `docs/components/`, `docs/actors/`, `docs/deliverables/`, `docs/adrs/`, `docs/issues/` at every commit.
+- **No derived note is edited.** The ledger is the whole deliverable. `git status` must show no change under `docs/requirements/`, `docs/entities/`, `docs/product/business-rules/`, `docs/components/`, `docs/actors/`, `docs/deliverables/`, `docs/development/adrs/`, `docs/issues/` at every commit.
 - **Eight evidence bodies, not eight files** — the workspace PRD; the prototype's own §§1–16; the UXD §§1–34; the wireframe appendix; the JTBD backlog; the canvas concept's own §§1–783; the user research synthesis; `component-gallery.html`. Each read **once**, at one location, whichever files repeat it.
 - **Derived scope: 227 notes, 11,342 lines** across the eight note types.
 - **Evidence: 5,719 distinct lines** = 1451 + 285 + 682 + 459 + 424 + 783 + 1635.
@@ -908,7 +908,7 @@ Implements spec order step 8. Separate task because it is derived from a differe
 - Create: `$SP/convention.tsv`
 
 **Interfaces:**
-- Consumes: `docs/README.md` and `docs/templates/`.
+- Consumes: `docs/README.md` and `docs/_templates/`.
 - Produces: `convention.tsv` with `id	claim	evidence	proposed`.
 
 - [ ] **Step 1: Check every folder that exists against the register's folder table**

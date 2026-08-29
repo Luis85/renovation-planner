@@ -33,4 +33,4 @@ persistence side of the same rule.
 test rather than by a screen — the *Calibration and measurement* epic's own definition of done.
 
 **Sources.** PRD §70 · SDD §22–23 · ADR-009
-([`docs/adrs/0009-world-coordinates-in-millimeters.md`](../adrs/0009-world-coordinates-in-millimeters.md)).
+([`docs/development/adrs/0009-world-coordinates-in-millimeters.md`](../../development/adrs/0009-world-coordinates-in-millimeters.md)).

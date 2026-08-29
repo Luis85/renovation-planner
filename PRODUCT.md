@@ -117,7 +117,7 @@ collaboration. 3D and automated architectural design are out.
 
 **Technical constraints future work must respect.** TypeScript, Vue 3, Pinia and Konva on
 Vite, tested with Vitest; Obsidian 1.13.0 is the floor. The layered architecture in
-`docs/sdds/obsidian-renovation-planner-SDD.md` §8 is enforced by lint, not convention, and
+`docs/development/sdds/obsidian-renovation-planner-SDD.md` §8 is enforced by lint, not convention, and
 the SDD is the authority over any guide that disagrees with it. Nothing writes to the
 vault outside `infrastructure/`. Settings are declarative. Marketplace rules apply:
 sentence-case UI text, no inline styles, no global `app`, `normalizePath` on user paths.
@@ -164,7 +164,7 @@ users, benchmarks or adoption numbers — there are none.
 The PRD's §95 example project does not exist; it would have to be authored, and that is an
 undecided product fact rather than an available asset.
 
-What *does* exist to design against: the PRD (`docs/prds/`), the SDD (`docs/sdds/`), 109
+What *does* exist to design against: the PRD (`docs/product/prds/`), the SDD (`docs/development/sdds/`), 109
 requirement notes in `docs/requirements/`, and a working scaffold whose one view renders an
 empty mount point. `npm run harness` draws the real view against Obsidian's default
 app.css in a browser — faithful about markup, spacing, hierarchy and Obsidian's default

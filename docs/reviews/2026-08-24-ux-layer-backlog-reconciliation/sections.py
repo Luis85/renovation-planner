@@ -37,21 +37,29 @@ _CORPUS = os.environ.get("RP_CORPUS_ROOT")
 ROOT = (_CORPUS if _CORPUS and os.path.isabs(_CORPUS)
         else os.path.normpath(os.path.join(_TOP, _CORPUS)) if _CORPUS
         else _TOP)
-UX = os.path.join(ROOT, "docs/user-experience")
-PR = os.path.join(ROOT, "docs/prds")
-PD = os.path.join(ROOT, "docs/product")
+# `corpus_path` is IMPORTED, not restated. Where a corpus folder lives is ONE rule — the
+# 2026-08-28 reorganisation moved `prds` under `docs/product/` while `MATRIX_BASE` still pins
+# a tree holding it at `docs/prds`, so the answer depends on the tree being read and both
+# scripts read the same tree. `verify-dod.sh` already imports this module for the back-link
+# contract for the same reason: a consumer holding its own copy is a copy that drifts, and a
+# drifted corpus path fails by reading nothing rather than by erroring.
+#
+# `lookup` recomputes ROOT from the same `RP_CORPUS_ROOT` on import, so the two agree by
+# construction; `--selftest`'s `pinned` literals are what would catch them not agreeing.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from lookup import body_path                                         # noqa: E402
 
 # name -> (path, first line, last line or None for "to the end"). Same ranges as corpus.sh:
 # the bodies NEST, so each is read once over its own range and never through its container.
 BODIES = [
-    ("prd",        os.path.join(PR, "renovation-project-workspace.md"), 1, 1451),
-    ("prototype",  os.path.join(UX, "renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md"), 1, 285),
-    ("uxd",        os.path.join(UX, "renovation-project-workspace-UXD.md"), 1, 682),
-    ("wireframes", os.path.join(UX, "renovation-project-workspace-wireframes.md"), 685, 1143),
-    ("canvas",     os.path.join(UX, "renovation-canvas-concept-interaction-design.md"), 1, 783),
-    ("research",   os.path.join(PD, "renovation-planner-user-research-synthesis.md"), 1, 1635),
-    ("jtbd",       os.path.join(UX, "renovation-planner-JTBD-research-backlog.md"), 1, 424),
-    ("gallery",    os.path.join(UX, "concepts/component-gallery.html"), 1, None),
+    ("prd",        body_path("renovation-project-workspace.md"), 1, 1451),
+    ("prototype",  body_path("renovation-project-workspace-PROTOTYPE-DESIGN-SPEC.md"), 1, 285),
+    ("uxd",        body_path("renovation-project-workspace-UXD.md"), 1, 682),
+    ("wireframes", body_path("renovation-project-workspace-wireframes.md"), 685, 1143),
+    ("canvas",     body_path("renovation-canvas-concept-interaction-design.md"), 1, 783),
+    ("research",   body_path("renovation-planner-user-research-synthesis.md"), 1, 1635),
+    ("jtbd",       body_path("renovation-planner-JTBD-research-backlog.md"), 1, 424),
+    ("gallery",    body_path("concepts/component-gallery.html"), 1, None),
 ]
 
 # The CORPUS is pinnable; the MATRIX is not. `ROOT` moves with `RP_CORPUS_ROOT` so the evidence
@@ -123,10 +131,18 @@ if "--selftest" in sys.argv:
             continue                      # HTML: no numbered sections to count
         mine = len(contained(name))
         rng = "%d,%dp" % (a, b) if b else "%d,$p" % a
+        # The path is passed as an ARGUMENT, never interpolated into the script. It was
+        # interpolated and unquoted, which held only while a path contained no character the
+        # shell reads: on Windows `os.path.join` returns `C:/repo\\docs/prds\\body.md`, `sh`
+        # ate both backslashes as escapes, `sed` opened nothing, and every body reported
+        # `shell=0`. The second implementation this check exists to BE was therefore not
+        # running at all, and it failed loudly only by luck — a path with a space would have
+        # made it disagree quietly instead.
         shell = subprocess.run(["sh", "-c",
-            "sed -n '%s' %s | grep -ohE '^#+ +(A\\.[0-9]+|[0-9]+)([.][0-9]+)*[. ]' "
+            "sed -n '%s' \"$1\" | grep -ohE '^#+ +(A\\.[0-9]+|[0-9]+)([.][0-9]+)*[. ]' "
             "| sed -E 's/^#+ +//; s/^(A\\.[0-9]+|[0-9]+).*/\\1/' | sort -u | wc -l"
-            % (rng, path)], capture_output=True, text=True).stdout.strip()
+            % rng, "sections.py", path.replace(os.sep, "/")],
+            capture_output=True, text=True).stdout.strip()
         pin = PINNED.get(name)
         good = (str(mine) == shell) and (pin is None or pin == mine)
         print("  selftest %-11s instrument=%-4d shell=%-4s%s  %s" % (

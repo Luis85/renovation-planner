@@ -53,5 +53,5 @@ percentage" for both would need a sign convention nobody states.
 **Checked by.** Not yet. Slice 09 states the pipeline and carries the worked example.
 
 **Sources.** SDD §51 · PRD §74 · ADR-012
-([`docs/adrs/0012-price-component-placement-in-the-cost-pipeline.md`](../adrs/0012-price-component-placement-in-the-cost-pipeline.md)) ·
-slice 09 ([`docs/tasks/09-quantity-and-cost-engine.md`](../tasks/09-quantity-and-cost-engine.md)).
+([`docs/development/adrs/0012-price-component-placement-in-the-cost-pipeline.md`](../../development/adrs/0012-price-component-placement-in-the-cost-pipeline.md)) ·
+slice 09 ([`docs/tasks/09-quantity-and-cost-engine.md`](../../tasks/09-quantity-and-cost-engine.md)).

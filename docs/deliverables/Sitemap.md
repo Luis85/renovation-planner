@@ -18,7 +18,7 @@ iteration: ""
 
 The artifact, **derived**, citing its sources, expected to change as the design is refined —
 and a refinement that contradicts a source names the section it refines and lands here rather
-than in `docs/prds/` or `docs/sdds/`.
+than in `docs/product/prds/` or `docs/development/sdds/`.
 
 It answers **which surfaces exist and how someone gets between them**. What each is called
 and where a fact belongs is [[Information Architecture]]'s; what a control is made of is

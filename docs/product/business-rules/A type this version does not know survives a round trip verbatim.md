@@ -21,7 +21,7 @@ later version, or by a user who typed their own zone type, has to survive being 
 
 **The one place it inverts.** `data.json` — the plugin's own settings — takes the opposite rule: a
 value outside the vocabulary falls back to the default and an unknown key is dropped, on the way in
-*and* on the way out (`settingsFrom`, see [`CLAUDE.md`](../../CLAUDE.md)). The difference is
+*and* on the way out (`settingsFrom`, see [`CLAUDE.md`](../../../CLAUDE.md)). The difference is
 whose data it is. Settings are the plugin's own state and a bad value there is a bug to contain;
 a zone type is the user's content and an unknown value there is information to preserve.
 

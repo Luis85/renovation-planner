@@ -409,7 +409,7 @@ Precision), PRD §82 (calibration model), PRD §83 (Configuration Model); SDD §
 System), SDD §24 (Viewport Transform), SDD §25 (Calibration), SDD §57 (Initial Editor Tools),
 SDD §60 (UI Layout), SDD §61 (Responsive Strategy — the toolbar's width problem).
 
-ADR-009 ([`docs/adrs/0009-world-coordinates-in-millimeters.md`](../adrs/0009-world-coordinates-in-millimeters.md))
+ADR-009 ([`docs/development/adrs/0009-world-coordinates-in-millimeters.md`](../development/adrs/0009-world-coordinates-in-millimeters.md))
 — read for what it refuses (a per-plan choice of the *persisted* unit) and for its *Revisit when*.
 This note does not trigger it: the sidecar's `unit` field stays `"mm"` and the preference itself
 is never written there, which is the choice the ADR forbids. It does **influence** one persisted

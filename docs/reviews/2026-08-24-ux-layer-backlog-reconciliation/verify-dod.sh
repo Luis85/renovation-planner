@@ -21,11 +21,23 @@ not_allowed() {  # reads NUL-safe paths on stdin, prints the ones outside the al
     printf '%s\n' "$ALLOWED_DERIVED" | grep -qxF "$f" || printf '%s\n' "$f"
   done
 }
+
+# THE DERIVED PATHSPEC, DEFINED ABOVE ITS FIRST USE — the same ordering rule `$PINNED` carries
+# below, and for the same reason: this list had a second hand-written copy further down, so the
+# echo above and the assertion below could disagree about what the corpus even is.
+#
+# Asked of `lookup.py` rather than spelled, and asked for EVERY candidate container rather than
+# the resolved one. This gate watches for a CHANGE, and the 2026-08-28 reorganisation is a change
+# that shows up at two paths at once: the departing `docs/business-rules/...` and the arriving
+# `docs/product/business-rules/...`. A pathspec naming only where the folder is NOW sees the
+# arrivals and is blind to the departures, which is half a reorganisation reported as a whole
+# one. git accepts a pathspec that matches nothing, so naming all of them costs nothing.
+DERIVED="$(python3 "$SP/lookup.py" --corpus-pathspecs | tr '\n' ' ')"
 echo "1  rows with no state:      $(awk -F'\t' 'NR>1 && $9==""' "$SP/rows.tsv" | wc -l | tr -d ' ')  (must be 0)"
 echo "1  rows and findings both printed: $(grep -cE 'rows|findings' "$L")  (must be >0)"
 echo "1b notes reached:           $(awk -F'\t' 'NR>1 && $2=="reverse"{split($5,a,"::");print a[1]}' "$SP/rows.tsv" | sort -u | wc -l | tr -d ' ')  / 227"
 echo "1a note types covered:      $(grep -cE 'requirements/|entities/|business-rules/|components/|actors/|deliverables/|adrs/|issues/' "$L")  (all 8 must appear)"
-echo "6  derived notes edited outside the allowlist: $(git status --porcelain -z docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues | tr '\0' '\n' | sed 's/^...//' | not_allowed | wc -l | tr -d ' ')  (must be 0)"
+echo "6  derived notes edited outside the allowlist: $(git status --porcelain -z $DERIVED | tr '\0' '\n' | sed 's/^...//' | not_allowed | wc -l | tr -d ' ')  (must be 0)"
 
 # ASSERT, do not merely print. A verifier that reports its own violations and still exits 0
 # is the same defect as a check whose mechanism cannot fail: a worker runs the advertised
@@ -117,7 +129,6 @@ for base in origin/main main ${REVIEW_BASE:-}; do
   MB=""
 done
 [ -n "$MB" ] || { echo "  FAIL cannot resolve the branch base (tried origin/main, main, \$REVIEW_BASE); the derived-note gate did not run"; fail=1; }
-DERIVED="docs/requirements docs/entities docs/business-rules docs/components docs/actors docs/deliverables docs/adrs docs/issues"
 chk "derived notes edited outside the allowlist (uncommitted)" 0 "$(git status --porcelain -z $DERIVED | tr '\0' '\n' | sed 's/^...//' | not_allowed | wc -l | tr -d ' ')"
 if [ -n "$MB" ]; then
   chk "derived notes edited outside the allowlist (vs merge base $MB)" 0 "$(git diff --name-only -z "$MB"...HEAD -- $DERIVED | tr '\0' '\n' | not_allowed | wc -l | tr -d ' ')"
@@ -141,7 +152,16 @@ for r in dis: pairs[r[9]].append(r)
 rec = {(("Orphan" if any(x[8] == "superseded" for x in rs) else "Contradiction"),)
        + tuple(k.split(">>", 1)) for k, rs in pairs.items()}
 gr = collections.Counter(("Gap", r[4], r[0]) for r in rows if r[1] == "forward" and r[8] == "absent")
-f = list(csv.DictReader(open(d + "/findings.tsv"), delimiter="\t"))
+# Explicit utf-8, because the OTHER side of this comparison is read as utf-8 and a bare
+# open() takes the LOCALE encoding: cp1252 on a German Windows, where every citation
+# carrying a § decodes to a different string than the same bytes read as utf-8. That
+# reported 45 of 45 contradictions and 759 of 759 gaps as present on one side only — a
+# total set mismatch, printed as though the committed matrix and the committed finding set
+# disagreed about every single finding. Equal counts on both sides is the tell: a real
+# divergence moves a few, an encoding one moves all of them. `newline=""` is what the csv
+# module asks for.
+f = list(csv.DictReader(io.open(d + "/findings.tsv", encoding="utf-8", newline=""),
+                        delimiter="\t"))
 have = {(r["kind"], r["evidence_cite"], r["derived_cite"]) for r in f if r["kind"] != "Gap"}
 hg = collections.Counter((r["kind"], r["evidence_cite"], r["rows"]) for r in f if r["kind"] == "Gap")
 bad = 0

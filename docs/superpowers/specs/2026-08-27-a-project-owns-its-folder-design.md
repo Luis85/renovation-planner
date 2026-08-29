@@ -90,7 +90,7 @@ two disagree **this document is the later measurement**.
 **Accepted. Derived from the note's location.**
 
 **The number is 0013, not 0012.** The slice document says "ADR-012 is owed by this slice" and
-`docs/adrs/0012-price-component-placement-in-the-cost-pipeline.md` already exists — slice 9 took
+`docs/development/adrs/0012-price-component-placement-in-the-cost-pipeline.md` already exists — slice 9 took
 that number. Every reference to "ADR-012" in
 [`docs/tasks/18-a-project-owns-its-folder.md`](../../tasks/18-a-project-owns-its-folder.md)
 means this document's ADR-0013, and the slice document is corrected in the same commit that
@@ -474,10 +474,10 @@ Four commits, ordered so `npm run check` passes at each:
 **PRD**: §36 Vault Data Model (as amended 2026-08-26); §83 Configuration Model — the folder
 split and the overlap rule; §102 Performance Budgets, for the scan cost named above.
 
-**ADRs**: [ADR-011](../../adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md)
+**ADRs**: [ADR-011](../../development/adrs/0011-project-scoped-geometry-sidecar-folder-and-file-extension.md)
 — its rejected alternative is this slice's argument in miniature. **ADR-0013 is owed by this
 slice**; the slice document's "ADR-012" names
-[ADR-0012](../../adrs/0012-price-component-placement-in-the-cost-pipeline.md), which slice 9
+[ADR-0012](../../development/adrs/0012-price-component-placement-in-the-cost-pipeline.md), which slice 9
 already wrote.
 
 **Slices**: [04](../../tasks/04-persistence-and-repository-layer.md) — owns the index and records

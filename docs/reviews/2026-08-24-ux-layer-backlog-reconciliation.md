@@ -297,7 +297,7 @@ up rather than the least important. Counted directly against `findings.tsv`, not
 earlier version of this ledger narrated 40 of them and said nothing about the rest.
 
 Standing is stated because it decides what may change: the workspace PRD is **received**
-(`docs/prds/` is received evidence per `docs/README.md`); the other seven bodies are
+(`docs/product/prds/` is received evidence per `docs/README.md`); the other seven bodies are
 **undetermined**, because the register classifies neither `docs/user-experience/` nor
 `docs/product/` — see the Convention section. A finding whose evidence side is `undetermined`
 **proposes no edit**.
@@ -823,7 +823,7 @@ Note that `PRODUCT.md`'s own standing is unrecorded; see Convention finding v4.
 ## Convention audit
 
 **Reported apart from the matrix counts, and derived from a different corpus.** These come from
-reading the register's own documents — `docs/README.md` and `docs/templates/` — against the
+reading the register's own documents — `docs/README.md` and `docs/_templates/` — against the
 folders and note types that actually exist. `docs/README.md` is neither in-scope evidence nor one
 of the 227 notes, so **no row in either direction can produce a finding of this kind**; listing
 it beside the matrix kinds would imply a mechanism it does not have.
@@ -832,7 +832,7 @@ it beside the matrix kinds would imply a mechanism it does not have.
 | --- | --- |
 | **v1** | `docs/user-experience/` holds 30 files, including six of the eight in-scope evidence bodies, and the folder table names no such folder. |
 | **v2** | `docs/product/` holds the user research synthesis and the competitive market landscape, and the table names no such folder. It arrived during the review of the spec that inventories it. |
-| **v3** | `docs/templates/` holds `jobs-to-be-done.md`, and the table names no such folder — the register omits a folder that is itself register machinery. `docs/README.md` contains no occurrence of the word "template". |
+| **v3** | `docs/_templates/` holds `jobs-to-be-done.md`, and the table names no such folder — the register omits a folder that is itself register machinery. `docs/README.md` contains no occurrence of the word "template". |
 | **v4** | **`PRODUCT.md` is cited as settled authority by six derived notes and `docs/README.md` mentions it zero times.** |
 
 The register's claim is that its table names every folder "so the first note of that kind has
@@ -1720,7 +1720,7 @@ and states the rule the episode actually established: **pinning is not a fix for
 **A forty-fifth correction, and it is the cost of the variable that fixed the last one.**
 `lookup.py`'s docstring promises *"Run from anywhere in the repository"*, and adding
 `RP_CORPUS_ROOT` made that false: a **relative** override was resolved against the caller's
-directory, so `RP_CORPUS_ROOT=. lookup.py` run from `docs/` looked for `docs/docs/prds/…` and
+directory, so `RP_CORPUS_ROOT=. lookup.py` run from `docs/` looked for `docs/docs/product/prds/…` and
 traced back. `sections.py` had the identical code, having been given the variable in the same
 commit.
 

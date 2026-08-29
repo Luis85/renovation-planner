@@ -126,7 +126,7 @@ in their vault. The deliverables record how to defer at least as often as they i
 Each holds the artifact itself rather than a promise of one — derived, citing the PRD and
 SDD sections it was read from, and expected to change as the design is refined. A
 refinement that contradicts its source names the section it refines and lands in the
-deliverable or an ADR, never in `docs/prds/` or `docs/sdds/`. That is the contract the
+deliverable or an ADR, never in `docs/product/prds/` or `docs/development/sdds/`. That is the contract the
 seventeen slices already carry, and `docs/README.md` now records it for this type too.
 
 ## What holds this, and what does not

@@ -63,5 +63,5 @@ body, where prose belongs. It carries **no project id**
 ## Sources
 
 PRD §10 · PRD §22 · PRD §36 · PRD §59 · PRD §60 · PRD §103, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -30,6 +30,6 @@ reason it lives in a derived note rather than as an edit to the received PRD.
 rollup lands; the forecast case belongs in its Money/aggregation tests.
 
 **Sources.** PRD §33 · PRD §28, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md).
 Both are cited by section number rather than feature number because Epic 17 lists its features
 as an unnumbered bullet list — no `F17.x` identifier exists to check against the source.

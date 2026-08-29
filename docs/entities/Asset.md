@@ -82,5 +82,5 @@ kept rather than a field somebody forgot — see
 ## Sources
 
 PRD §8 · PRD §17 · PRD §32 · PRD §36 · PRD §59 · PRD §60 · PRD §84 · SDD §55, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

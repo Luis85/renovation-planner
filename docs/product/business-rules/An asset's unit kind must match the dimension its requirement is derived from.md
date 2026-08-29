@@ -35,4 +35,4 @@ an asset nothing references yet.
 (`calculatedFrom.assetUnit`) that covers the paths a command cannot police.
 
 **Sources.** PRD §32 · SDD §48 · slice 10
-([`docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md`](../tasks/10-assets-requirements-and-the-end-to-end-loop.md)).
+([`docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md`](../../tasks/10-assets-requirements-and-the-end-to-end-loop.md)).

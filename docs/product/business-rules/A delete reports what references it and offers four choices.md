@@ -43,4 +43,4 @@ wrong.
 handlers and the lock ordering.
 
 **Sources.** PRD §64 · PRD §63 · slice 10
-([`docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md`](../tasks/10-assets-requirements-and-the-end-to-end-loop.md)).
+([`docs/tasks/10-assets-requirements-and-the-end-to-end-loop.md`](../../tasks/10-assets-requirements-and-the-end-to-end-loop.md)).

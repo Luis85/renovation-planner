@@ -49,5 +49,5 @@ plugin owes each of them something different.
 ## Sources
 
 PRD §3.6 · PRD §45 · SDD §4 · SDD §9 · SDD §11 · SDD §84, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -2,8 +2,8 @@
 
 An Obsidian plugin for planning a renovation: plans and zones, assets and quantities, costs,
 trades, work packages and a schedule. The target architecture is
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](docs/sdds/obsidian-renovation-planner-SDD.md)
-and the product intent is in `docs/prds/`. **Read the SDD before proposing structure**: it
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](./docs/development/sdds/obsidian-renovation-planner-SDD.md)
+and the product intent is in `docs/product/prds/`. **Read the SDD before proposing structure**: it
 has already refused things that look obvious from the code alone, and where this guide and
 the SDD disagree, the SDD is the authority and this file is the bug.
 

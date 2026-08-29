@@ -46,5 +46,5 @@ actually go down. Collapsing those would be wrong for everyone but *visibly* wro
 ## Sources
 
 PRD §4 · PRD §24 · PRD §32 · PRD §75 · PRD §76 · PRD §88, in
-[`docs/prds/obsidian-renovation-planner.md`](../prds/obsidian-renovation-planner.md) and
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/product/prds/obsidian-renovation-planner.md`](../product/prds/obsidian-renovation-planner.md) and
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

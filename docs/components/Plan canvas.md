@@ -28,11 +28,11 @@ note and a viewport.
 
 ## Specimen
 
-![Plan canvas, and the states it owes, in Obsidian's default light and dark](plan-canvas.png)
+![Plan canvas, and the states it owes, in Obsidian's default light and dark](../user-experience/concepts/shots/plan-canvas.png)
 
 A drawing of the proposal, not a screenshot of anything built — `src/` is a scaffold.
 Obsidian's **default** light and dark, so a themed vault differs; shot from
-[`component-gallery.html`](component-gallery.html) by `npm run concept-shots`.
+[`component-gallery.html`](../user-experience/concepts/component-gallery.html) by `npm run concept-shots`.
 
 ## Anatomy
 
@@ -104,4 +104,4 @@ consequences, none of them optional:
 ## Sources
 
 SDD §16 · SDD §17 · SDD §18 · SDD §19 · SDD §60, in
-[`docs/sdds/obsidian-renovation-planner-SDD.md`](../sdds/obsidian-renovation-planner-SDD.md).
+[`docs/development/sdds/obsidian-renovation-planner-SDD.md`](../development/sdds/obsidian-renovation-planner-SDD.md).

@@ -127,6 +127,20 @@ its script in `sfc()` at a nonexistent `.vue` path across all six layers.
 fires for a shape that will never occur there, while a `.ts` proves it for the shape that
 actually lives there. Every layer has a real `.ts` to point at.
 
+**A third dimension: the EXTENSION, because `files` is a matcher too.** Raised on the sixth
+round. `srcFiles(layer)` is `SRC_EXTENSIONS.map((ext) => \`**/src/${layer}/**/*.${ext}\`)`, and
+`SRC_EXTENSIONS` is nine entries — `ts, tsx, mts, cts, vue, js, jsx, mjs, cjs`. Every ban is
+therefore matched per extension, so probing `.ts` alone leaves the file-matcher half of the
+boundary untested: drop `mjs`, `cjs` or `jsx` from that constant and a shippable file in any
+layer bypasses every package and sibling-layer ban with this matrix green. `.vue` and `.js` are
+already driven by `prototypes-one-way-door.test.ts`; the rest are nobody's.
+
+So the probes cover each *parseable* shippable extension, and the ones that cannot be probed are
+**recorded rather than silently skipped** — the same treatment the fixture-path finding got.
+`.tsx`, `.mts` and `.cts` have no real file anywhere in `src/`, and a type-aware path with no
+file behind it is exactly the `PARSE_ERROR` case measured above, so those three are written down
+as a known limitation of the harness with the reason, not left as an unexplained gap.
+
 **`PARSE_ERROR` is asserted absent, and it matters most where it looks least urgent.** On a
 positive case a parse error fails the assertion anyway, the rule id simply being absent. On a
 **negative** case — the allowed-import half, asserting `not.toContain('no-restricted-imports')`
@@ -312,6 +326,16 @@ anything about them: `getFiles` and `getMarkdownFiles` on the vault, and `getFil
 metadata cache. The last is the load-bearing one — enumeration happens once per rebuild, so it
 is the PER-ENTITY lookup whose count distinguishes linear from quadratic, and a rebuild that
 re-enumerates or re-reads per entity is exactly what shows up there.
+
+**The recorder belongs to BOTH adapters, and the previous draft put it on the wrong one.** This
+is the third appearance of "the instrument does not reach the subject" in this document, and the
+first two are directly above — which is what makes it worth writing down rather than quietly
+correcting. The round-three fix widened `FakeVault.operations` and measured `FakeVault`'s
+consumer; but §3 has `large-project/` running through the disk-backed `FixtureVaultAdapter`, and
+calls made by that adapter never enter `FakeVault`'s array. The instrument was widened correctly,
+on the object the subject does not use. So the recorder is **shared** — one recording seam both
+adapters take — and the `large-project/` assertion consumes it from whichever adapter the case
+actually runs on.
 
 **The widening is measured as safe rather than assumed**: `.operations` has exactly one consumer
 outside the helper (`tests/infrastructure/obsidian/repositories/contract.test.ts`), and it

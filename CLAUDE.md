@@ -645,6 +645,21 @@ check. Rules that came out of it:
   same way: `endPan(pointerId)`/`abandonPan()` beside `pointerUp(button, pointerId)`/
   `abandonGesture()`, because `pointercancel`, `pointerleave` and focus loss name no owner and
   an optional parameter would have re-opened the hole under a different spelling.
+
+  **And the THIRD place with that hole was the one nobody looked at, because it is not the
+  camera at all.** The override refuses a press while another gesture runs and `beginPan`
+  keeps the drag it already has — but the TOOL branch of `onPointerDown` simply reassigned
+  `toolGesturePointer` and forwarded the press, so a second finger landing mid-drag handed
+  `SelectTool` a gesture at ITS coordinates and the owner stopped being the owner. Measured:
+  a zone dragged 1000 world units committed 6000. The gate is `gestureInFlight &&
+  toolGesturePointer !== event.pointerId`, and both halves are load-bearing — the identity
+  test ALONE would be wrong, since `toolGesturePointer` is deliberately never cleared, which
+  is safe only because it is read exclusively WITH that flag. Widening the flag to "a tool is
+  active" reddens ten cases, which is the over-correction measured rather than argued: a
+  multi-click tool sits between clicks with nothing in flight, and two fingers placing
+  vertices in turn is a legitimate way to draw a polygon. Reported by a review bot, four
+  rounds after the two camera halves were fixed — the same question asked at a door that was
+  never about the camera.
 - **Two expressions of one question, three lines apart, drift immediately.** The camera lock
   and the override-start guard both asked "is a gesture already running", and the lock was
   written without `editor.dragState` — so a camera-mode drag, which is the DEFAULT state and is

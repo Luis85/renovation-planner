@@ -447,6 +447,26 @@ function onPointerDown(event: PointerEvent): void {
 		swallowedPointers.add(event.pointerId);
 		return;
 	}
+	// A press from a SECOND POINTER while a tool gesture is running belongs to nobody either,
+	// and this was the one door with no ownership rule at all. The override refuses a press
+	// while another gesture runs, and `EditorStore.beginPan` keeps the drag it already has —
+	// the tool branch below simply reassigned `toolGesturePointer` and forwarded the press, so
+	// a second finger landing mid-drag handed `SelectTool` a gesture at ITS coordinates and the
+	// owner stopped being recognised as the owner. Measured: a zone dragged 1000 world units
+	// committed 6000.
+	//
+	// TOUCH and pen only, like the pan case above and for the same reason — a mouse shares one
+	// `pointerId` across every button, so it cannot deliver a second press mid-drag at all.
+	//
+	// `gestureInFlight` rather than "a tool is active": a multi-click tool sits BETWEEN clicks
+	// with nothing in flight, and two fingers placing vertices in turn is a legitimate way to
+	// draw a polygon. Swallowed rather than ignored, because a swallowed press owes a
+	// swallowed release.
+	if (runtime.toolManager.gestureInFlight && toolGesturePointer !== event.pointerId) {
+		event.preventDefault();
+		swallowedPointers.add(event.pointerId);
+		return;
+	}
 	if (!isPrimary(event)) return;
 	// Capture, so a drag that leaves the pane still ends when the button does — without it
 	// the camera keeps panning after the pointer comes back, which reads as the view being

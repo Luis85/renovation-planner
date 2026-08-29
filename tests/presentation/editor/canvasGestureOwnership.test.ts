@@ -316,6 +316,55 @@ describe('a pointer taken away mid-pan', () => {
 	});
 });
 
+describe('a second pointer arriving during a TOOL gesture', () => {
+	/**
+	 * The pan override refuses a press while another gesture runs, camera mode's `beginPan`
+	 * keeps the drag it already has — and the TOOL branch had neither, so it was the one door
+	 * left where a newcomer could take a gesture away from its owner.
+	 *
+	 * Touch and pen only, for the reason this file's header gives: a second finger has its own
+	 * `pointerId` and fires its own press, while a mouse cannot produce one at all mid-drag —
+	 * a chorded button arrives as a `pointermove`. The manifest promises mobile, so this is a
+	 * device the plugin claims to support rather than a hypothetical.
+	 *
+	 * `gestureInFlight` and not "a tool is active" is the gate, deliberately: a multi-click
+	 * tool sits BETWEEN clicks with nothing in flight, and two fingers tapping vertices in
+	 * turn is a legitimate way to draw a polygon.
+	 */
+	async function dragWithZoneSelected(interloper: boolean): Promise<number> {
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+
+		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+		pointer(canvas, 'pointermove', 400, 300, 0, 11);
+		if (interloper) {
+			// A second finger lands far away on empty canvas and lifts again.
+			pointer(canvas, 'pointerdown', 900, 500, 0, 12);
+			pointer(canvas, 'pointerup', 900, 500, 0, 12);
+		}
+		pointer(canvas, 'pointerup', 400, 300, 0, 11);
+		await settle();
+
+		const after = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+		harness.unmount();
+		return after - before;
+	}
+
+	it('commits the owner’s drag, not the newcomer’s coordinates', async () => {
+		// Measured against an undisturbed drag rather than a spelled-out world delta, so the
+		// case says what it means — the interloper changes nothing — without pinning the
+		// fixture's zoom. The control is asserted to be a REAL move first: two drags that both
+		// went nowhere would agree perfectly and prove nothing, which is the vacuous-absence
+		// trap this suite has already paid for once.
+		const undisturbed = await dragWithZoneSelected(false);
+		expect(undisturbed).not.toBe(0);
+
+		expect(await dragWithZoneSelected(true)).toBe(undisturbed);
+	});
+});
+
 describe('the camera during a tool drag', () => {
 	/**
 	 * `SelectTool` records where a drag STARTED in world coordinates and computes the commit

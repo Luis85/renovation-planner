@@ -206,7 +206,35 @@ positive case a parse error fails the assertion anyway, the rule id simply being
 defect wearing a different hat. `lintText` already returns a `PARSE_ERROR` sentinel for exactly
 this, and the negative cases assert against it explicitly.
 
-**The matrix is transcribed from the SDD's layering statement, not read out of
+**WHICH blocks exist is read from the config; WHAT each must forbid comes from an independent
+oracle. Conflating those two is what the next paragraph refuses, and splitting them is what makes
+the enumeration honest.**
+
+The block list was hand-written twice and was wrong both times — first naming only layers, then
+layers plus root, catch-all and `presentation/dialogs`, while `eslint.config.mjs` also carries
+`networkFree('application/queries', …)` and `networkFree('infrastructure/logging', …)` as
+independently resolved blocks. The existing network suite exercises those two at real `.ts` paths
+only, so an extension-specific matcher or later override touching `.js`, `.jsx`, `.mjs`, `.cjs`
+or `.vue` in either subtree would be invisible to it *and* to the layer probes, silently dropping
+both the network ban and the restated parent-layer ban. Raised by a review bot; it is the third
+hand-derived block list in this document to be short.
+
+So the set of blocks declaring `no-restricted-imports` is **discovered from the config and pinned
+by exact membership**, the way `guardCategory.test.ts` and `entityRef.test.ts` already pin their
+own sets here: a block appearing or disappearing fails at the assertion instead of quietly
+changing the probe set. Discovery cannot be self-declaration, because the expectations do not
+come from there.
+
+**And the oracle is not one document.** `presentation/dialogs` forbids more than the SDD's
+layering statement does — application commands, queries, repositories and `core/events`, per
+slice 15's Definition of Done — so transcribing from the SDD alone cannot produce those cases,
+and deriving them from the config under test would mean deleting a restriction deletes its own
+expectation. Each block names its source: the SDD's §8 layering for the six layers, slice 15's
+Definition of Done for `presentation/dialogs`, slice 11's Definition of Done item 7 for the two
+`networkFree` subtrees, and `src/prototypes/README.md`'s one-way-door rule for the prototypes
+group.
+
+**The matrix is transcribed from those sources, not read out of
 `eslint.config.mjs`.** Deriving the expectations from the configuration under test would be
 the self-declared-list defect CLAUDE.md already names — "a category check that compares a
 SELF-DECLARED list is the shape it was written to replace". The test states the SDD's rule;
@@ -617,8 +645,18 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   every time a legitimate DOM-touching helper is added somewhere new. The rule's actual subject
   is narrower: **the inner layers' node enforcement**. So it is a DENYLIST — reject
   **any environment directive whose value is not `node`, under EITHER supported spelling** — in
-  `tests/core/`, `tests/domain/`, `tests/application/` and `tests/infrastructure/`, and saying
-  nothing about anywhere else. The check matches what Vitest itself matches, read out of vitest
+  `tests/core/`, `tests/domain/` and `tests/application/`, plus **any file importing from
+  `tests/contracts/`**, and saying nothing about anywhere else.
+
+  That last clause replaces a directory-wide ban on `tests/infrastructure/`, which reached past
+  its own justification: the source-level DOM ban is scoped to `core`/`domain`, `infrastructure/`
+  is the host-adapter layer and may legitimately touch the DOM, and the *reason* that directory
+  was added was the six repository-contract call sites — so the wide rule would have failed
+  `npm run check` for an unrelated Obsidian adapter test without protecting any invariant. Naming
+  those six files instead would be a list that goes stale, which is the allowlist defect again.
+  **The rule is structural: a file that invokes a repository contract runs in node.** Measured:
+  all six callers import from `tests/contracts/`, so the predicate finds them without naming
+  them, and finds the seventh the day it is written. The check matches what Vitest itself matches, read out of vitest
   4.1.11 rather than assumed: `` /@(?:vitest|jest)-environment\s+([\w-]+)\b/ ``. So
   `@jest-environment jsdom`, honoured for Jest compatibility, is refused exactly like the Vitest
   spelling. The `-options` variants carry no environment name and are not a door. Measured: zero

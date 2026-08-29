@@ -163,6 +163,22 @@ export async function rig(seed?: (repos: {
 	return { harness, zonesRepo, assetsRepo, requirementsRepo };
 }
 
+/** The `PointerEvent.buttons` bit each `button` number stands for, per the DOM's own table. */
+const BUTTONS_BIT: Record<number, number> = { 0: 1, 1: 4, 2: 2 };
+
+/**
+ * One pointer event, with `buttons` DERIVED rather than left at jsdom's zero.
+ *
+ * A real device never sends a move with no bit set while a button is held, and the canvas
+ * now reads exactly that bitmask to notice a button released inside a chord — so a rig that
+ * left `buttons` at its default would be a fake kinder than the real thing at the one field
+ * the routing depends on. The default is what the named button implies: the bit for a press
+ * or a move, nothing for a release, which is what the spec says a `pointerup` reports.
+ *
+ * `buttons` is a parameter as well, because a CHORD is exactly the case the default cannot
+ * express: pressing a second button while the first is held arrives as a `pointermove`
+ * naming the button that CHANGED and carrying every bit still down.
+ */
 export function pointer(
 	element: HTMLElement,
 	type: string,
@@ -170,10 +186,32 @@ export function pointer(
 	y: number,
 	button = 0,
 	pointerId = 1,
+	buttons = type === 'pointerup' || type === 'pointercancel' ? 0 : (BUTTONS_BIT[button] ?? 0),
 ): void {
 	element.dispatchEvent(
-		new PointerEvent(type, { button, pointerId, clientX: x, clientY: y, bubbles: true }),
+		new PointerEvent(type, { button, buttons, pointerId, clientX: x, clientY: y, bubbles: true }),
 	);
+}
+
+/**
+ * A CHORDED button change, which on a mouse is the only shape one can have.
+ *
+ * W3C Pointer Events, "chorded button interactions": `pointerdown` fires only on the
+ * transition from no buttons to some, and `pointerup` only when the LAST button comes up.
+ * Every button change in between is a `pointermove` whose `button` names what changed and
+ * whose `buttons` carries what is still held. Several cases in this suite used to synthesize
+ * a second `pointerdown` and an early `pointerup` instead — an event stream no mouse can
+ * produce, and one that hid the defect this helper exists to reach.
+ */
+export function chord(
+	element: HTMLElement,
+	x: number,
+	y: number,
+	changed: number,
+	held: number,
+	pointerId = 1,
+): void {
+	pointer(element, 'pointermove', x, y, changed, pointerId, held);
 }
 
 /**

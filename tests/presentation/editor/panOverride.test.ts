@@ -208,6 +208,66 @@ describe('the pan override', () => {
 		});
 	});
 
+	describe('a chorded release, which no `pointerup` reports', () => {
+		/**
+		 * **W3C Pointer Events, "chorded button interactions."** `pointerdown` fires only on
+		 * the transition from no buttons to some, and `pointerup` only when the LAST button
+		 * comes up. Every button change in between is a `pointermove` carrying the bitmask of
+		 * what is still held — which makes a move the only door a partial release can arrive
+		 * through, and the reason `pointerUp`'s button match is correct but not sufficient.
+		 *
+		 * `buttons` is a different numbering from `button`: primary 1, secondary 2, auxiliary
+		 * 4. The pairs below are what a real device sends, not what reads tidily.
+		 */
+		it('ends the pan when the owning button is no longer among those held', () => {
+			// Middle-drag pan, primary pressed on top of it, middle released: the only bit
+			// left is the primary's, and the pan's own button is up.
+			const override = new PanOverride();
+			override.pointerDown('auxiliary', 1, IDLE_TOOL);
+
+			expect(override.pointerMove(1, 5)).toBe(false); // both held
+			expect(override.pointerMove(1, 1)).toBe(true); // middle released
+			expect(override.phase).toBe('idle');
+		});
+
+		it('keeps the pan while the owning button is still held', () => {
+			// The mirror: the CHORDED button was the one released, and the pan's own is down.
+			const override = new PanOverride();
+			override.armSpace();
+			override.pointerDown('primary', 1, IDLE_TOOL);
+
+			expect(override.pointerMove(1, 5)).toBe(false); // middle pressed on top
+			expect(override.pointerMove(1, 1)).toBe(false); // middle released again
+			expect(override.phase).toBe('panning');
+		});
+
+		it('goes back to ARMED, so a held space bar survives the chord', () => {
+			const override = new PanOverride();
+			override.armSpace();
+			override.pointerDown('primary', 1, IDLE_TOOL);
+
+			expect(override.pointerMove(1, 4)).toBe(true); // primary released, middle held
+
+			expect(override.phase).toBe('armed');
+		});
+
+		it('ignores a move from a pointer that does not own the pan', () => {
+			// A second finger reporting no buttons says nothing about the first one's gesture,
+			// and reading it as a release would end a pan whose own finger is still down.
+			const override = new PanOverride();
+			override.armSpace();
+			override.pointerDown('primary', 11, IDLE_TOOL);
+
+			expect(override.pointerMove(12, 0)).toBe(false);
+			expect(override.phase).toBe('panning');
+		});
+
+		it('answers false when no pan is running at all', () => {
+			// Every hover move takes this path, so it has to be the cheap no.
+			expect(new PanOverride().pointerMove(1, 0)).toBe(false);
+		});
+	});
+
 	describe('which POINTER owns the gesture', () => {
 		/**
 		 * A mouse shares one `pointerId` across its buttons, so on a mouse this can never

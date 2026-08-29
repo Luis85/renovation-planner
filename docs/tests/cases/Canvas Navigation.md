@@ -39,6 +39,13 @@ and they are the reason this file exists:
 4. **Focus.** Keys are listened for on the canvas element rather than on `document`, so
    every keyboard gesture below needs the canvas focused first. Step 2 is where that is
    confirmed to happen on its own.
+5. **A chord on a real mouse.** The suite spells chorded button changes by hand
+   (`chord()` in `tests/helpers/planEditorRig.ts`) from the W3C grammar — a second button
+   pressed or released while another is held arrives as a `pointermove`, never as its own
+   `pointerdown`/`pointerup`. That the browser under Obsidian really sends them that way is a
+   claim the tests take on faith, because they synthesize the events themselves. The suite
+   drove the WRONG grammar for eight review rounds and every case passed; step 13 is what
+   would have caught it.
 
 ## Procedure
 
@@ -96,6 +103,23 @@ and they are the reason this file exists:
 12. **Right-click the canvas.** Expected: whatever Obsidian normally does. The right button is
     deliberately not claimed by the camera — see below.
     *Record what appeared.*
+13. **Chorded buttons, which need a real mouse and cannot be done on a trackpad.** Three
+    sequences, each ending with the canvas back under control — no stuck camera, no gesture
+    still following the cursor after every button is up:
+    a. **Middle-drag to pan. With the middle button still down, press and hold the left
+       button. Release the MIDDLE button. Then release the left.** Expected: the pan ends
+       when the middle button comes up, and the plan sits still while the left button is
+       still held. The reported defect: the pan never ended and the canvas was stuck
+       panning for the rest of the session, swallowing every later click.
+    b. **Hold space and left-drag to pan. Press and release the middle button mid-drag.**
+       Expected: nothing changes — the pan keeps following the left button, which is still
+       held.
+    c. **With the Select tool, drag a zone. Press and hold the middle button, release the
+       LEFT button, then release the middle.** Expected: the zone stays where you dragged it.
+       The defect: the move was silently lost and the zone snapped back, because the only
+       release named the middle button and every tool refuses one.
+    *This is the step the whole of `npm run check` cannot stand in for*: the suite writes its
+    own chord events, so it can only prove the canvas handles the grammar it was told about.
 
 ## What is deliberately absent, so a tester does not file it
 
@@ -115,6 +139,9 @@ candidate geometry.
 Record anything the steps above turned up here, then treat it as a defect of the slice that
 owns the surface. A manual case whose findings are not converted into an automated check will
 find the same thing again next release — and for steps 3, 9 and 12 the conversion may be a
-sentence in the case rather than a test, since no gate here can reach a host keymap.
+sentence in the case rather than a test, since no gate here can reach a host keymap. Step 13 is the exception in the other
+direction: its findings ARE convertible, because the canvas's half of a chord is ordinary
+node-testable routing — what a human is needed for is confirming the browser sends what the
+suite assumes.
 
 _No run recorded yet._

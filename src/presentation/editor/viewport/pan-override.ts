@@ -28,6 +28,15 @@
 export type PanButton = 'primary' | 'auxiliary' | 'secondary';
 
 /**
+ * The `PointerEvent.buttons` bit each of those names stands for, which is a DIFFERENT
+ * numbering from `PointerEvent.button` and the reason this table exists at all: `button`
+ * counts 0/1/2 for primary/auxiliary/secondary, while `buttons` is a bitmask where auxiliary
+ * is 4 and secondary is 2. Reading one as the other silently swaps the two non-primary
+ * buttons.
+ */
+const BUTTONS_BIT: Record<PanButton, number> = { primary: 1, auxiliary: 4, secondary: 2 };
+
+/**
  * What the camera is doing, as the ONE value the cursor and the routing both read.
  *
  * `armed` is a real state and not an implementation detail: it is the moment the user has
@@ -127,17 +136,50 @@ export class PanOverride {
 	}
 
 	/**
+	 * A move arrived for the owning pointer: answers whether it ENDED the pan, because the
+	 * button that started it is no longer among the ones still held.
+	 *
+	 * **This is the only door a chorded release can come through, and for a mouse it is the
+	 * door most releases come through at all.** W3C Pointer Events, "chorded button
+	 * interactions": `pointerdown` fires only on the transition from no buttons to some, and
+	 * `pointerup` only when the LAST button is released. Every button change in between is a
+	 * `pointermove` — `button` naming what changed, `buttons` carrying what is still down. So
+	 * middle-drag, press primary, release middle, release primary produces exactly one
+	 * `pointerup` and it reports the PRIMARY button: `pointerUp` below correctly refuses it,
+	 * and without this the machine sat in `panning` for the rest of the session, swallowing
+	 * every later press as foreign.
+	 *
+	 * Asked of the BITMASK rather than of `button`, which is what makes it one rule instead of
+	 * a list of transitions: "the owner is no longer held" is true of a chorded release, of a
+	 * `pointerup` this element never received, and of any path not yet written. That is also
+	 * why it is safe on an ordinary move — a real device reports the held button in `buttons`
+	 * on every move of a drag, so the bit is present and this answers `false`.
+	 */
+	pointerMove(pointerId: number, buttons: number): boolean {
+		if (this.panningWith === null || this.panningPointer !== pointerId) return false;
+		if ((buttons & BUTTONS_BIT[this.panningWith]) !== 0) return false;
+		this.panningWith = null;
+		this.panningPointer = null;
+		return true;
+	}
+
+	/**
 	 * Answers whether the release ended a pan, so a release the camera did not consume still
 	 * reaches the active tool.
 	 *
 	 * **The button has to MATCH the one that started the gesture**, and that is the whole
-	 * reason this takes a parameter. A mouse shares one `pointerId` across its buttons, so a
-	 * second button pressed and released during a pan is an ordinary input — and an
-	 * unconditional release would end the pan while its OWN button is still held, leaving the
-	 * user dragging a camera that stopped moving. Worse, the eventual real release would then
-	 * reach the active tool as a release with no matching press: the exact event-grammar
-	 * defect this project has already recorded twice, once as a test-rig fake and once in the
-	 * canvas's own filters.
+	 * reason this takes a parameter. On a mouse the last button released is the one a
+	 * `pointerup` reports, and it need not be the one that began the pan — space+primary pan,
+	 * press middle, release primary, and the release names the middle button. Ending the pan
+	 * there would stop the camera under a hand still holding the button that drives it, and
+	 * the eventual real release would reach the active tool as a release with no matching
+	 * press: the exact event-grammar defect this project has already recorded twice, once as a
+	 * test-rig fake and once in the canvas's own filters.
+	 *
+	 * The mirror case — the OWNER released first, while another button is still down — never
+	 * reaches this door at all, because Pointer Events sends it as a move. `pointerMove` above
+	 * is where that half lives, and the two together are what make "the pan ends exactly when
+	 * its own button comes up" true rather than merely intended.
 	 *
 	 * The POINTER has to match too, for the reason `panningPointer` gives: on touch, the same
 	 * button arrives from every finger, so the button test alone let a second finger end the

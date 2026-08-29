@@ -245,7 +245,9 @@ describe('the camera', () => {
 			new PointerEvent('pointerdown', { button: 0, clientX: 100, clientY: 100, bubbles: true }),
 		);
 		harness.canvasEl.dispatchEvent(
-			new PointerEvent('pointermove', { clientX: 180, clientY: 140, bubbles: true }),
+			// `buttons: 1` because the button is still down: a move reporting none is how a
+			// device says the primary button came up, and the canvas ends the drag on it.
+			new PointerEvent('pointermove', { buttons: 1, clientX: 180, clientY: 140, bubbles: true }),
 		);
 		await settle();
 

@@ -31,9 +31,23 @@ const WITH_BACKGROUND = {
 const overlay = (mounted: EditorHarness) => mounted.wrapper.find('.rp-empty-state');
 
 /** One pointer event, spelled out so a press and its release are visibly the same gesture. */
+/**
+ * One primary-button event, with `buttons` derived the way a device sets it: the primary bit
+ * while the button is down, nothing once it is released. A move that reports no button held
+ * is a released button, and the canvas reads exactly that to end a drag whose `pointerup`
+ * went to another element or arrived inside a chord — so a helper leaving `buttons` at
+ * jsdom's zero would end every drag it tried to make.
+ */
 function press(element: HTMLElement, type: string, x: number, y: number): void {
 	element.dispatchEvent(
-		new PointerEvent(type, { button: 0, pointerId: 1, clientX: x, clientY: y, bubbles: true }),
+		new PointerEvent(type, {
+			button: 0,
+			buttons: type === 'pointerup' ? 0 : 1,
+			pointerId: 1,
+			clientX: x,
+			clientY: y,
+			bubbles: true,
+		}),
 	);
 }
 

@@ -173,6 +173,12 @@ function pointerEventAt(
  * below and the pan override's own claim. It was spelled twice for a while, which is two
  * chances for `auxiliary` to mean different buttons in the two halves of one press.
  */
+/**
+ * The `PointerEvent.buttons` bit the primary button sets — camera mode's own drag is the one
+ * gesture whose owning button is fixed, since the filter above `beginPan` admits no other.
+ */
+const PRIMARY_BUTTON_BIT = 1;
+
 function panButtonOf(event: PointerEvent): PanButton {
 	return event.button === 1 ? 'auxiliary' : event.button === 2 ? 'secondary' : 'primary';
 }
@@ -402,9 +408,11 @@ function onPointerDown(event: PointerEvent): void {
 	// world that is moving under the user: `DrawPolygonTool` places a vertex, `SelectTool`
 	// begins a drag.
 	//
-	// Not a touch-only concern, which is the part worth stating: a mouse shares ONE
-	// `pointerId` across all its buttons, so a plain left click during a middle-button pan
-	// takes this same path. That is an everyday desktop input, not an exotic one.
+	// A TOUCH or pen concern, and only that: a second finger has its own `pointerId` and so
+	// fires its own press. A mouse cannot reach this line at all while a pan is running, since
+	// one pointer shares every button and a chorded press arrives as a `pointermove` — which
+	// `onPointerMove` swallows a few lines below. This comment claimed the opposite for
+	// several rounds and the cases under it drove a stream no mouse produces.
 	if (panOverride.phase === 'panning') {
 		event.preventDefault();
 		swallowedPointers.add(event.pointerId);
@@ -431,25 +439,64 @@ function onPointerMove(event: PointerEvent): void {
 	// than handed to the active tool. A tool interrupted by a pan hears nothing at all, which
 	// is what leaves its half-drawn polygon intact.
 	if (panOverride.phase === 'panning') {
-		if (panOverride.owns(event.pointerId)) editor.continuePan(at, event.pointerId);
+		if (!panOverride.owns(event.pointerId)) return;
+		// **A move is where a chorded release arrives**, so the owner's own move is asked
+		// whether its button is still held before it is allowed to drive the camera. Pointer
+		// Events fires `pointerup` only when the LAST button comes up, so middle-drag, press
+		// primary, release middle, release primary sends exactly one release and it names the
+		// primary button — nothing the override can match, and the canvas stayed `panning`
+		// for the rest of the session.
+		if (panOverride.pointerMove(event.pointerId, event.buttons)) {
+			editor.endPan(event.pointerId);
+			syncPanPhase();
+			return;
+		}
+		editor.continuePan(at, event.pointerId);
 		return;
 	}
 	if (runtime.activeToolId.value !== null) {
+		// **The third path the chord grammar reaches, and the only one where the cost is a lost
+		// edit rather than a stuck camera.** A tool drag is primary by construction, and every
+		// tool refuses a release that is not — rightly, since a middle release must not commit
+		// a drag. So with a second button held the eventual `pointerup` names that button, the
+		// tool declines it, and the gesture outlives the hand: `SelectTool`'s move is never
+		// committed and the zone snaps back with no error anywhere.
+		//
+		// The release is spelled at the point the button actually came up, which is what this
+		// move reports — a translation of the DOM event like every other one this file makes,
+		// not a synthetic gesture. `gestureInFlight` is what keeps a bare hover out of it: with
+		// no drag running there is no button to have been released.
+		if (runtime.toolManager.gestureInFlight && (event.buttons & PRIMARY_BUTTON_BIT) === 0) {
+			runtime.toolManager.pointerUp(pointerEventAt(event, at, 'primary'));
+			return;
+		}
 		runtime.toolManager.pointerMove(editorPointerEvent(event, at));
 		return;
 	}
 	// Camera mode's own drag — the DEFAULT state, and therefore where a second finger on a
 	// tablet actually lands. The store refuses a move from a pointer that did not begin the
 	// drag; this call site does not have to ask.
+	//
+	// **The same chorded release, in the half that is more reachable rather than less.** A
+	// camera-mode drag can only have begun on the primary button, so its owner's bit is 1:
+	// press the middle button mid-drag, release the primary, and the drag's own button is up
+	// while the only `pointerup` still to come will name the middle one. `endPan` refuses a
+	// pointer that began no drag, so the ordinary hover — no buttons, no drag — costs nothing
+	// here.
+	if ((event.buttons & PRIMARY_BUTTON_BIT) === 0) {
+		editor.endPan(event.pointerId);
+		return;
+	}
 	editor.continuePan(at, event.pointerId);
 }
 
 function onPointerUp(event: PointerEvent): void {
-	// The OWNER's release is tested first, and that ordering is the whole guard against the one
-	// device where an id is not enough: a mouse shares one `pointerId` across every button, so
-	// a primary press swallowed during a middle-button pan records the pan owner's own id.
-	// Consulting the set first consumed the owner's release and left the canvas panning with
-	// nothing held.
+	// The OWNER's release is tested first. That ordering was written as a guard — a mouse
+	// shares one `pointerId` across every button, so a primary press swallowed during a
+	// middle-button pan would record the pan owner's own id — and under the real event grammar
+	// the collision it guards has no producer: a chorded press fires no `pointerdown`, so
+	// nothing reaches `swallowedPointers` under an id that already owns a pan. Kept because
+	// owner-first is the order that reads correctly, not because it is holding anything up.
 	if (panOverride.pointerUp(panButtonOf(event), event.pointerId)) {
 		editor.endPan(event.pointerId);
 		syncPanPhase();
@@ -492,9 +539,8 @@ function onPointerUp(event: PointerEvent): void {
  * prevent. The last of the five pointer doors to take the ownership rule.
  */
 function onPointerCancel(event: PointerEvent): void {
-	// The OWNER first here too, for the same reason as `onPointerUp`: on a mouse the swallowed
-	// press carries the pan owner's own id, so consulting the set first would abandon nothing
-	// and leave the canvas panning.
+	// The OWNER first here too, and with the same standing as in `onPointerUp`: written for a
+	// swallowed press sharing the pan owner's id, which the real chord grammar cannot produce.
 	if (panOverride.phase === 'panning') {
 		// A foreign pointer's cancellation says nothing about the running pan — but if this
 		// canvas swallowed that pointer's press, its cancellation is spent here rather than
@@ -510,8 +556,10 @@ function onPointerCancel(event: PointerEvent): void {
 		syncPanPhase();
 		editor.abandonPan();
 		editor.setPointer(null);
-		// On a mouse the swallowed press shares this id, so the entry it left behind goes with
-		// the gesture it belonged to rather than outliving it.
+		// Nothing can have been swallowed under the owner's own id — a chorded press fires no
+		// `pointerdown` — so this is housekeeping rather than a repair, and it costs a set
+		// lookup to keep "a pointer that ends leaves no entry" true of every id without
+		// exception.
 		swallowedPointers.delete(event.pointerId);
 		return;
 	}

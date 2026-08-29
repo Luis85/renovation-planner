@@ -199,17 +199,32 @@ describe('the middle button', () => {
 		// The primary button is down and `SelectTool` is mid-drag. Panning under it would
 		// move the world beneath a drag the tool still believes in, and the eventual primary
 		// release would commit at a position the user never chose.
+		//
+		// **A SECOND FINGER is what drives it, and that is a correction rather than a
+		// preference.** This case used to press the middle button mid-drag, which cannot
+		// produce a `pointerdown` at all: one mouse shares a `pointerId` across every button,
+		// and Pointer Events sends a chorded press as a `pointermove`. So the override was
+		// never asked and the refusal under test was never reached — the camera stayed put for
+		// a reason the case did not name. A finger has its own pointer id and its own press,
+		// which is the one input that reaches `pointerDown` while a gesture is in flight.
 		const { harness, canvas, camera } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
 		click(canvas, 300, 300);
 		await settle();
 
-		pointer(canvas, 'pointerdown', 300, 300);
-		pointer(canvas, 'pointermove', 340, 300);
-		const before = camera.viewport.pan;
-		pointer(canvas, 'pointerdown', 340, 300, 1);
-		pointer(canvas, 'pointermove', 500, 300, 1);
+		// Finger A drags the zone; space is pressed mid-drag, which ARMS the override without
+		// claiming anything; finger B then presses, and that press is the one the guard has to
+		// refuse. Space comes after A's press deliberately: armed first, and A's own press
+		// would have claimed the pan instead of starting the tool gesture under test.
+		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+		pointer(canvas, 'pointermove', 340, 300, 0, 11);
+		key(canvas, 'keydown', { key: ' ' });
+		await settle();
+		const before = { ...camera.viewport.pan };
+
+		pointer(canvas, 'pointerdown', 340, 300, 0, 12);
+		pointer(canvas, 'pointermove', 500, 300, 0, 12);
 		await settle();
 
 		expect(camera.viewport.pan).toEqual(before);

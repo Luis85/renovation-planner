@@ -520,6 +520,38 @@ check. Rules that came out of it:
   guard, so a test asserting the zone did not move passes with the defect present and was
   dropped rather than kept. Which is the invariant-at-the-forbidden-thing rule paying out:
   the guard belongs to the tool, and the routing needs its own case.
+- **A chorded mouse button fires NO `pointerdown` and NO `pointerup`, and eight rounds of
+  review on this handler hardened it against inputs no mouse can produce.** W3C Pointer
+  Events, "chorded button interactions": `pointerdown` fires only on the transition from no
+  buttons to some, `pointerup` only when the LAST button comes up, and every button change in
+  between is a `pointermove` whose `button` names what changed and whose `buttons` carries
+  what is still held. So a pan waiting for a release that MATCHES its own button never gets
+  one when a second button outlives it — middle-drag, press primary, release middle, release
+  primary sends exactly one release and it names the primary. Measured: the canvas sat in
+  `panning` for the rest of the session, swallowing every later click. The fix is the
+  BITMASK, at every door a gesture can survive: `PanOverride.pointerMove` ends a pan whose
+  owning bit has left `event.buttons`, and camera mode and the tool path each take the same
+  test — camera mode because it is the DEFAULT and therefore the more reachable half, the
+  tool path because a tool refuses a release that is not primary and so lost the drag
+  outright rather than merely freezing (the zone snapped back with no error anywhere). Three
+  paths, one grammar; fixing only the one in the report would have been the partial fix this
+  file has already paid for twice.
+- **Seventh instance of the fake-too-thin rule, and the most expensive by REACH rather than
+  by count.** `tests/helpers/planEditorRig.ts` never set `buttons` at all, so every
+  synthesized move reported none held — and the cases that meant to describe a chord invented
+  a second `pointerdown` and an early `pointerup` instead. Every one passed, in both worlds:
+  the routing they certified could not be exercised by a real device, while the real chord
+  went unhandled underneath them. Five cases had to be rewritten to the grammar a mouse
+  actually sends, two deleted outright (they guarded a `swallowedPointers` collision that has
+  no producer — a chorded press reaches `onPointerDown` at no point, so nothing is ever
+  swallowed under an id that already owns a pan). One of the five, 'is refused while a tool
+  gesture is already running', turned out to be reaching its guard through the middle button,
+  which cannot get there: rewritten to a second FINGER, the one input that does, and mutation-checked
+  by nulling the guard and watching it go red. **The shape to remember is not the count. A
+  test that drives an impossible input is not weak evidence, it is evidence about a different
+  program**, and it stays green through every fix and every regression alike. Where a fake
+  invents the input rather than merely accepting one, ask what the SPEC says the device sends
+  before asking what the code does with it.
 - **A gesture belongs to a POINTER, not just to a button — and camera mode had the same hole
   the override did.** On a mouse this is invisible: one `pointerId` is shared across every
   button. On touch it is not, and the manifest promises mobile — so a second finger's moves

@@ -17,6 +17,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { settle } from '../../helpers/editor';
+import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { click, drawnLines, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
@@ -33,7 +34,7 @@ async function editor() {
 	const built = await rig();
 	const canvas = built.harness.canvasEl;
 	if (canvas === null) throw new Error('expected a mounted canvas');
-	return { ...built, canvas };
+	return { ...built, canvas, camera: useEditorStore(built.harness.pinia) };
 }
 
 it('keeps a swallowed pointer out of the tool after the gesture that swallowed it ends', async () => {
@@ -181,3 +182,58 @@ describe('a pointer the canvas swallowed, cancelled after the pan ended', () => 
  * `onPointerCancel` is still spelled owner-first, and a reader who finds it unguarded should
  * find out here that the collision it was written for is unreachable rather than untested.
  */
+
+it('does not strand its id when the pointer LEAVES before it is released', async () => {
+	// The one escape from "held until that pointer ends". A swallowed press returns before
+	// `setPointerCapture`, so that pointer is uncaptured — and if it crosses the pane edge its
+	// release lands on some other element and the entry is never removed. The id then outlives
+	// the hand: a pen's is stable and a touch id is recycled, so the NEXT legitimate press
+	// under it is forwarded (the press door keeps no such test) while its moves and its release
+	// are both swallowed by the stale entry, leaving the tool gesture in flight for good — the
+	// camera locked, and the preview live for whatever the user clicks next.
+	const { harness, canvas, zonesRepo } = await editor();
+	toolbarButton(harness, 'Select').click();
+	await settle();
+
+	// Pointer 11 drags the zone; finger 12 lands mid-drag and is swallowed…
+	pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+	pointer(canvas, 'pointermove', 400, 300, 0, 11);
+	pointer(canvas, 'pointerdown', 900, 500, 0, 12);
+	// …and leaves the pane still down, so its release will land somewhere else entirely.
+	canvas.dispatchEvent(new PointerEvent('pointerleave', { pointerId: 12, bubbles: true }));
+	pointer(canvas, 'pointerup', 400, 300, 0, 11);
+	await settle();
+	const afterFirst = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+
+	// The id comes back, and this drag is nobody's business but its own.
+	pointer(canvas, 'pointerdown', 300, 300, 0, 12);
+	pointer(canvas, 'pointermove', 500, 300, 0, 12);
+	pointer(canvas, 'pointerup', 500, 300, 0, 12);
+	await settle();
+
+	expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x).not.toBe(afterFirst);
+	harness.unmount();
+});
+
+it('says nothing about a TOOL gesture it does not own either, not just a pan', async () => {
+	// The leave door's own comment states the general rule — "a leave from anything but the
+	// owner says nothing about the gesture, so it does nothing at all, `lastStagePoint`
+	// included" — and its guard implemented that for the pan alone. During a TOOL gesture a
+	// foreign pointer crossing the edge fell straight through and forgot where the drawing
+	// hand was, blanking the status bar with it.
+	const { harness, canvas, camera } = await editor();
+	toolbarButton(harness, 'Select').click();
+	await settle();
+
+	pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+	pointer(canvas, 'pointermove', 340, 300, 0, 11);
+	await settle();
+	const readout = camera.pointerWorld;
+	expect(readout).not.toBeNull();
+
+	canvas.dispatchEvent(new PointerEvent('pointerleave', { pointerId: 12, bubbles: true }));
+	await settle();
+
+	expect(camera.pointerWorld).toEqual(readout);
+	harness.unmount();
+});

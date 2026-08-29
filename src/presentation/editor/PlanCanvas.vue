@@ -809,12 +809,34 @@ function onBlur(): void {
 }
 
 function onPointerLeave(event: PointerEvent): void {
-	// A pan is owned by ONE pointer, and `pointerleave` carries an identity this handler used
-	// to discard — so a second touch or pen crossing the pane edge stopped a drag the owner's
-	// finger was still making. A leave from anything but the owner says nothing about the
-	// gesture, so it does nothing at all — `lastStagePoint` included, since the owner's
+	// **The one escape from "held until that pointer ends", and it stranded the id for good.**
+	// A swallowed press returns before `setPointerCapture`, so that pointer is uncaptured — and
+	// if it crosses the pane edge its release lands on some other element, where nothing
+	// removes the entry. The id then outlives the hand: a pen's is stable and a touch id is
+	// recycled, so the NEXT legitimate press under it is forwarded (the press door keeps no
+	// such test) while its moves and its release are both swallowed by the stale entry, leaving
+	// the tool gesture in flight for good — the camera locked, and the preview live for
+	// whatever the user clicks next. Measured: that second drag committed nothing at all.
+	//
+	// Forgetting it is the honest answer rather than capturing it. Capture would make the
+	// contract structural, and it is also a mechanism no gate here can see — jsdom implements
+	// none — so it would be an untestable second answer to a question one line closes. What
+	// remains is written down rather than fixed: a swallowed pointer that leaves and comes back
+	// still down is treated as an ordinary pointer from then on, which its own ownership guard
+	// bounds to a hover with no gesture running.
+	if (swallowedPointers.delete(event.pointerId)) return;
+	// A gesture is owned by ONE pointer, and `pointerleave` carries an identity this handler
+	// used to discard — so a second touch or pen crossing the pane edge stopped a drag the
+	// owner's finger was still making. A leave from anything but the owner says nothing about
+	// the gesture, so it does nothing at all — `lastStagePoint` included, since the owner's
 	// pointer is still in the pane and its remembered position is still true.
-	if (panOverride.phase === 'panning' && !panOverride.owns(event.pointerId)) return;
+	//
+	// That sentence is the general rule, and this guard asked it of the PAN alone for three
+	// rounds while the comment claimed all of it. During a TOOL gesture a foreign pointer
+	// crossing the edge fell straight through and forgot where the drawing hand was, blanking
+	// the status bar with it. `isGestureOwner` is the same question asked of both, and of
+	// camera mode's own drag, which neither of the other two spellings reached.
+	if (!isGestureOwner(event.pointerId)) return;
 	// The override is released too, not merely the store's drag. Ending one and not the other
 	// leaves two values modelling one gesture and disagreeing about it.
 	//

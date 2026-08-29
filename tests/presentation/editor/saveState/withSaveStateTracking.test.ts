@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { err, ok, type Result } from '../../../../src/core/result/Result';
 import type { AppError, ErrorCategory } from '../../../../src/core/errors/AppError';
-import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
+import {
+	markUncompensated,
+	type DispatchOutcome,
+} from '../../../../src/application/commands/DispatchOutcome';
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
 import { affectsSaveState } from '../../../../src/presentation/editor/save-state/affects-save-state';
 import { withSaveStateTracking } from '../../../../src/presentation/editor/save-state/with-save-state-tracking';
@@ -150,6 +153,26 @@ describe('affectsSaveState', () => {
 			message: 'a derivation that refused its own inputs',
 		})).toBe(false);
 	});
+
+	/**
+	 * **The one refusal in a pre-write category that DID write, and the stamp that says so.**
+	 * `deleteResolution.ts`'s `applyAll` saves a Requirement per referent, so a refusal on the
+	 * third has already written the first two; when compensation then fails to restore them,
+	 * `compensate` stamps the refusal it returns. The category is still `Reference` — nothing
+	 * a message or a mapping reads has moved, which is what keeps this out of slice 17's
+	 * territory — and the predicate answers from the stamp instead of from the category.
+	 *
+	 * Read against the case above it: a BARE `requirement.not-found` still answers `false`,
+	 * because it is genuinely pre-write at its other raise sites. That pair is the whole reason
+	 * this is a stamp rather than a carve-out by code — carving the code out would have put a
+	 * sticky badge on an override of a Requirement somebody else deleted, which wrote nothing.
+	 */
+	it.each(['Reference', 'Domain', 'Validation', 'Calculation'] as const)(
+		'counts a stamped %s refusal, which left writes standing despite its pre-write category',
+		(category) => {
+			expect(affectsSaveState(markUncompensated(errorOf(category)))).toBe(true);
+		},
+	);
 
 	it.each(['Persistence', 'Geometry', 'Migration', 'Import'] as const)(
 		'counts a %s failure, because the safe answer is "we might not have written your data"',

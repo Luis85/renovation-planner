@@ -884,19 +884,31 @@ it:
   `loadRequirement`, which raises `requirement.not-found` — a `Reference` code, strictly
   post-write, no loop needed — and `repointAndMarkStale` can refuse for any referent after
   `applyAll`'s earlier iterations have already saved. So a delete resolution over three
-  referents that writes two and refuses the third settles the indicator at `Saved` over a
-  half-written vault, and a FAILING compensation is only logged. It is written down in the
-  predicate's own docblock rather than patched, because both candidate fixes trade this false
-  silence for a false badge or for copy that belongs to slice 17. **The general shape, and it
+  referents that writes two and refuses the third settled the indicator at `Saved` over a
+  half-written vault, and a FAILING compensation is only logged. **The general shape, and it
   is the fourth instance in one predicate: a sweep that stops at a FILE stops wherever the
   reader's attention did — "every refusal in `deleteResolution.ts` is in `prepare`" was
   measured over the function somebody was looking at, not over the file the sentence names.**
-  The deeper fix is at the raise sites, which LOSE information by re-labelling `Validation` as
-  `Domain`: that is slice 17's territory, because changing a category there also changes the
-  sentence `toUserMessage` resolves for it. **If a fifth is ever proposed, the honest answer
-  is probably that the CATEGORY is the wrong axis** — the same conclusion the sibling bullet
-  above reaches from the other end, where the fix was to have the command report, and the
-  post-write hole above is that conclusion demonstrated rather than predicted.
+  It was written down rather than patched for one round, on the grounds that both candidate
+  fixes traded this false silence for a false badge or for copy belonging to slice 17 —
+  carving `requirement.not-found` out by CODE would badge an override of a Requirement
+  somebody else deleted, and re-labelling the CATEGORY moves the sentence `toUserMessage`
+  resolves. **A review bot then proposed the third fix, which is the one the docblock had
+  already predicted and never evaluated: have the code that WROTE report it.** `compensate`
+  stamps its returned refusal with `markUncompensated` when a restore refuses, and
+  `markStalePersisted` stamps its own re-read refusal — the write that no `progress` entry
+  holds, because `applyAll` appends only after the step returns, so the loop-level stamp alone
+  would have closed the multi-referent case and left the single-call one open. `leftWritesBehind`
+  is the FIRST question `affectsSaveState` asks. It costs neither rejected price: no code is
+  carved out, and `category`, `code` and `message` are untouched, so slice 17's territory is
+  untouched with them. **A compensation that SUCCEEDS is deliberately not stamped** — the vault
+  is back at its pre-state and neutral is the true answer, which is the assertion that stops
+  this from being an unconditional badge. What it does NOT do is close the class: a post-write
+  refusal in a pre-write category anywhere else is still under-reported, and neither linter nor
+  the suite can see one, because **the category axis cannot see a write** — which is why the
+  general fix is still the sibling bullet's, a command reporting on BOTH channels.
+  `DispatchOutcome` does it for successes and this stamp for the failures that were measured;
+  the rest is unbuilt and the docblock says so.
 - **A slot released by INFERENCE is a slot released on an assumption about Obsidian, and there
   are TWO gestures that know, not one.** The dismiss button called `notice.hide()` and then
   swept, and the sweep asks `isConnected` — still true for as long as an animated `Notice`

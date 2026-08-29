@@ -1,3 +1,5 @@
+import type { AppError } from '../../core/errors/AppError';
+
 /**
  * What a dispatched reversible gesture DID, beside whether it succeeded.
  *
@@ -49,3 +51,59 @@
  * and satisfies this structurally.
  */
 export type DispatchOutcome = 'wrote' | 'no-write';
+
+/**
+ * The same question on the OTHER channel of the same `Result`: a refusal that left writes
+ * standing in the vault.
+ *
+ * **`DispatchOutcome` answers "did this dispatch write" for successes only, and the failure
+ * channel needed the same answer for the same reason.** A `Result` carries an `AppError` and
+ * nothing else when it fails, so slice 13's save indicator had to INFER the answer from the
+ * error's category — pre-write categories neutral, everything else reported. That inference
+ * is sound exactly while every raise site in those categories really is pre-write, and
+ * `deleteResolution.ts` holds one that is not: `applyAll` writes a Requirement per referent,
+ * and a refusal on the third has already saved the first two. A failing compensation then
+ * leaves them standing, and the category axis reports the whole thing as `Reference` — which
+ * `affectsSaveState` reads as "wrote nothing" and settles the indicator to `Saved` over a
+ * half-written plan. The category cannot see a write; only the code that performed one can.
+ *
+ * **Additive, and that is the whole reason this shape was chosen over the two that were
+ * rejected before it.** `affects-save-state.ts` turned down carving `requirement.not-found`
+ * out by CODE (it is genuinely pre-write at its other raise sites, so the carve-out would
+ * trade a false silence for a false badge on an override of a Requirement somebody else
+ * deleted) and turned down re-labelling the refusal's CATEGORY (which changes the sentence
+ * `toUserMessage` resolves for it, and error-to-surface mapping is slice 17's territory).
+ * A flag beside the error changes neither: `category`, `code` and `message` are untouched, so
+ * every consumer that reads them reads exactly what it read before, and the one consumer that
+ * asks about persistence gets an answer nothing had to infer.
+ *
+ * **Its only producer today is `compensate` in `application/reference/deleteResolution.ts`**,
+ * at the one moment the vault is KNOWN to be half-written — a restore that refused, or a
+ * completed forward write compensation could not find a snapshot for. A compensation that
+ * succeeds leaves the vault at its pre-state and is deliberately NOT marked: neutral is the
+ * true answer there, and marking it would be the false badge this shape exists to avoid.
+ */
+export interface UncompensatedWrite {
+	readonly uncompensatedWrite: true;
+}
+
+/**
+ * Stamp a refusal as having left writes behind. Returns a copy: the errors these sequences
+ * carry are plain data (`AppError` is deliberately not a class), and mutating a caller's
+ * value to record something about the caller's own failure is a second surprise on top of
+ * the first.
+ */
+export function markUncompensated<TError extends AppError>(
+	error: TError,
+): TError & UncompensatedWrite {
+	return { ...error, uncompensatedWrite: true };
+}
+
+/**
+ * Did this refusal leave writes standing? Asked rather than spelled inline at the two call
+ * sites, so `uncompensatedWrite` is a string in ONE place and a consumer cannot half-spell it
+ * into a predicate that silently answers `false` forever.
+ */
+export function leftWritesBehind(error: AppError): boolean {
+	return (error as Partial<UncompensatedWrite>).uncompensatedWrite === true;
+}

@@ -1,5 +1,6 @@
 import type { AppError, ErrorCategory } from '../../../core/errors/AppError';
 import { WRITE_BOUNDARY_CODES } from '../../../application/ports/versioning';
+import { leftWritesBehind } from '../../../application/commands/DispatchOutcome';
 
 /**
  * The categories whose refusals are raised BEFORE the repository is reached, and therefore
@@ -142,51 +143,66 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * pre-write, with nothing checking that; the next widening should be argued against that
  * rather than against the nuisance of a badge, and if a fifth is ever proposed the honest
  * answer is probably that the CATEGORY is the wrong axis and the command should report
- * whether it wrote.
+ * whether it wrote. **That last sentence has since come true and is no longer a prediction**
+ * — see the stamp below, which is the category axis being overruled by a report at the one
+ * place a report was available.
  *
- * **The residual exposure this creates, stated because it is the unsafe direction — and it is
- * NOT hypothetical, which is what an earlier draft of this paragraph got wrong.** A `Domain`,
- * `Validation`, `Reference` or `Calculation` error raised AFTER a write had already landed is
+ * **The exposure this creates is the unsafe direction, and the part of it that was REACHABLE
+ * is now closed by a report rather than by this predicate.** A `Domain`, `Validation`,
+ * `Reference` or `Calculation` error raised AFTER a write had already landed would be
  * under-reported: the indicator settles `saved`, or reverts to what it read before the batch,
- * over data whose write half-completed. That draft said "the sweeps above found NO such site
- * today" and named `deleteResolution.ts` as where one was "likeliest to appear" on the strength
- * of "today every `Reference` refusal in it is inside `prepare`". **Both halves are false, and
- * the second is false in the file the first pointed at** — the sweep looked at
+ * over data whose write half-completed. An earlier draft said "the sweeps above found NO such
+ * site today" and named `deleteResolution.ts` as where one was "likeliest to appear" on the
+ * strength of "today every `Reference` refusal in it is inside `prepare`". **Both halves were
+ * false, and the second was false in the file the first pointed at** — the sweep looked at
  * `deleteResolution.ts` and stopped before `requirementResolutionSteps`, which is in the same
- * file and is the half that writes:
+ * file and is the half that writes. The two shapes it holds:
  *
  * - `markStalePersisted` calls `requirements.markStale` — a WRITE — and then re-reads through
  *   `loadRequirement`, which raises `requirement.not-found` (`Reference`) if the note is gone
- *   by then. Strictly post-write, in one call, with no loop needed.
+ *   by then. Strictly post-write, in one call, with no loop needed — and, because `applyAll`
+ *   appends to `marker.progress` only after the step RETURNS, a write that no progress record
+ *   holds and no compensation restores.
  * - `repointAndMarkStale` opens with `loadRequirement` and can refuse with the same code, or
  *   with the entity's own `repointedTo` refusal — pre-write for ITS requirement and post-write
- *   for every earlier iteration of `applyAll`'s loop, each of which has already saved.
+ *   for every earlier iteration of `applyAll`'s loop, each of which has already saved. Those
+ *   earlier writes ARE in `progress`, so `compensate` tries to restore them; when it cannot,
+ *   the vault is left half-written.
  *
- * So a delete resolution over three referents that writes two and then refuses the third
- * resolves a `Reference` error, and this predicate answers `false` for it. `compensate` then
- * tries to restore the two, and a FAILING compensation is only logged (see its header) — so
- * the worst case is a badge-free `Saved` over a vault left half-written. `reference.set-changed`
- * and the three other `prepare` codes stay genuinely pre-write; the code that is not is
- * `requirement.not-found`, and it is pre-write at its other raise sites, which is exactly why
- * carving it out by CODE here would trade this false silence for a false badge.
+ * **Both are answered by `markUncompensated`, at the two places that actually know.**
+ * `compensate` stamps when a restore refused (or when a completed write has no snapshot to
+ * restore from), and `markStalePersisted` stamps its own re-read refusal, whose write is
+ * invisible to that loop. `leftWritesBehind` is then the FIRST question this predicate asks,
+ * ahead of the category cut, because it is the only input here that is a report rather than
+ * an inference. A compensation that SUCCEEDS is deliberately not stamped: the vault is back at
+ * its pre-state and neutral is the true answer there.
  *
- * **Left standing rather than patched, deliberately, and this is the fifth measurement of a
- * predicate that has now measured wrong four times.** The two candidate fixes both cost
- * something this slice cannot pay: carving out `requirement.not-found` puts a sticky "Save
- * error" on an override of a requirement somebody else deleted, which wrote nothing; and
- * having `runDeleteResolution` re-label a post-write refusal changes the sentence
- * `toUserMessage` resolves for it, which is slice 17's declared territory by the same argument
- * the paragraph below makes about the override commands. What this file CAN do is stop
- * claiming the hole is not there. Nothing in the suite or in either linter would notice a
- * further one being added — the category axis cannot see a write, which is the conclusion the
- * paragraph above already reaches from the other end.
+ * **Why a stamp and not either of the two fixes this file previously rejected**, both of which
+ * are still rightly rejected. Carving `requirement.not-found` out by CODE would put a sticky
+ * "Save error" on an override of a Requirement somebody else deleted, which wrote nothing —
+ * the code is genuinely pre-write at its other raise sites, so the code cannot be the axis.
+ * Re-labelling the refusal's CATEGORY would change the sentence `toUserMessage` resolves for
+ * it, which is slice 17's declared territory. The stamp does neither: `category`, `code` and
+ * `message` are untouched, so every consumer that reads them reads what it read before.
+ *
+ * **What is still NOT covered, because a fix that reads wider than its check is this file's
+ * own recurring defect.** The stamp closes the sites named above and nothing else. A
+ * post-write refusal in a pre-write category ANYWHERE ELSE remains under-reported, and neither
+ * linter nor the suite can notice a new one being added — the category axis cannot see a
+ * write, which is the conclusion the paragraph above reaches from the other end, and the stamp
+ * narrows that hole rather than closing the class. `recoverInterruptedSequences` runs its own
+ * restore loop and stamps nothing; it is fire-and-forget at load and reaches no indicator, so
+ * it is out of scope here rather than covered. The honest general fix is still the one the
+ * paragraph above names: a dispatched command reporting whether it wrote, on both channels.
+ * `DispatchOutcome` now does that for successes and this stamp does it for the failures that
+ * were measured; the rest is unbuilt.
  *
  * **The deeper fix is at the raise sites and is not this slice's to make.** The override
  * commands LOSE information by re-labelling the domain entity's `Validation` errors as
  * `Domain`, and nothing downstream can recover what the label discarded. Changing a category
  * there also changes the sentence `toUserMessage` resolves for it, and error-to-surface
- * mapping is slice 17's declared territory — so slice 13 narrowed the predicate and left the
- * commands alone.
+ * mapping is slice 17's declared territory — so slice 13 narrowed the predicate, added the
+ * stamp above where a write was actually knowable, and left the commands alone.
  *
  * **Where this DOES derive from, and where it will have to agree later.** It derives from
  * `WRITE_BOUNDARY_CODES` in `versioning.ts` — the one place those two codes are spelled —
@@ -200,6 +216,10 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * because nothing today can notice the two disagreeing — the pre-write set above included.
  */
 export function affectsSaveState(error: AppError): boolean {
+	// Asked FIRST, because it is the only input here that is a report rather than an
+	// inference: the code that performed the writes said they are still standing, and no
+	// reading of the category can overturn that.
+	if (leftWritesBehind(error)) return true;
 	if (!PRE_WRITE_CATEGORIES.includes(error.category)) return true;
 	return WRITE_BOUNDARY_CODES.some((suffix) => error.code.endsWith(`.${suffix}`));
 }

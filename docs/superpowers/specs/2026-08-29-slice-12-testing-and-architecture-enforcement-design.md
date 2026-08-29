@@ -669,6 +669,45 @@ Done asks for exactly this ("no `.spec.ts` file exists anywhere under `src/`", l
 Raised by a review bot. Measuring a set and then guarding a subset of it is this document's
 recurring failure in its smallest form.
 
+## 4a. Open decisions — the four questions this document defers
+
+Several sections above defer to "question 2" or "question 4". Those were put to the slice's owner
+in conversation and were **not written down here**, which makes this document non-self-contained
+for anyone reading the PR — raised by a review bot, and correct. They are recorded now, with the
+evidence each has accumulated. **None is answered; the design states a recommendation and the
+reasons against it, and implementation should not begin until they are settled.**
+
+**Question 1 — how large is the §1 matrix?** The probe set has gained a dimension in nearly every
+review round: cells, then import shapes, then extensions, then block kinds, then the block ×
+extension cross-product. It is now on the order of 130 `lintText` calls across eleven blocks.
+*Recommendation:* keep it, with the enumeration in code. *Against:* the instrument is now
+considerably larger than the "one call per layer" first proposed, and its size was reached by
+accumulation rather than by a decision.
+
+**Question 2 — withdraw the vitest two-project split, or take it?** *Recommendation as first
+made:* withdraw it, since the node default plus a guard delivers the same enforcement. *Against,
+and this has strengthened:* the replacement predicate has been corrected **six times** (allowlist
+too far, denylist too short, `jsdom` instead of "not node", one directive spelling of two, a
+directory wider than its invariant, directives instead of the effective environment). Six
+paraphrases before reaching the property is evidence the property is hard to state; the
+Definition of Done's structural split assigns environments by construction and has nothing to
+paraphrase.
+
+**Question 3 — is the fixture vault additive, or does the contract arm repoint now?**
+*Recommendation:* additive, deferring the repoint past PR 25. *Against:* the repoint turned out to
+be **a second composition root for tests** — `NoteVaultDeps` has eight members and
+`ObsidianZoneRepository` takes a `PlanGeometryStore` beside them — not the one adapter this
+document first described. Choosing additive also ships `valid-project/` with no consumer, which
+§3 records as open rather than delivered.
+
+**Question 4 — does `large-project/` earn its place this round?** *Recommendation: drop it.* Its
+assertion has been revised four times (a wall clock, a count, a count on the wrong object, a
+shared recorder, a narrowed claim), it now proves only single enumeration and linear
+metadata-cache I/O, and the shared recorder it needs is blocked behind PR 25's edits to
+`tests/helpers/vault.ts`. It has cost more design attention than any other item here and proves
+the least.
+
+
 ## 5. What is recorded as NOT met
 
 Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
@@ -705,8 +744,8 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   every time a legitimate DOM-touching helper is added somewhere new. The rule's actual subject
   is narrower: **the inner layers' node enforcement**. So it is a DENYLIST — reject
   **any environment directive whose value is not `node`, under EITHER supported spelling** — in
-  `tests/core/`, `tests/domain/` and `tests/application/`, plus **any file importing from
-  `tests/contracts/`**, and saying nothing about anywhere else.
+  `tests/core/`, `tests/domain/` and `tests/application/`, plus **any collected file that reaches
+  `tests/contracts/` through the import graph**, and saying nothing about anywhere else.
 
   **A directive scan is not the guarantee, which is the sixth correction to this one check.** The
   property is *these suites execute in node*; a docblock is one way to break it and Vitest
@@ -733,7 +772,17 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   those six files instead would be a list that goes stale, which is the allowlist defect again.
   **The rule is structural: a file that invokes a repository contract runs in node.** Measured:
   all six callers import from `tests/contracts/`, so the predicate finds them without naming
-  them, and finds the seventh the day it is written. The check matches what Vitest itself matches, read out of vitest
+  them, and finds the seventh the day it is written.
+
+  **The reach has to be TRANSITIVE, though, which a direct-import test is not.** Vitest selects an
+  environment for the *collected* file; if a collected test imports a helper that registers or
+  invokes a contract, that collected file has no direct import from `tests/contracts/` and the
+  predicate never classifies the file whose environment actually decides. The contract would run
+  under jsdom with the guard green. Today all six callers import directly — measured — so a
+  one-hop test happens to hold, which is exactly the kind of accident that stops holding without
+  telling anyone. The protected set is derived through the **import graph** from each collected
+  entry, so a helper layer between the test and the contract changes nothing. Raised by a review
+  bot. The check matches what Vitest itself matches, read out of vitest
   4.1.11 rather than assumed: `` /@(?:vitest|jest)-environment\s+([\w-]+)\b/ ``. So
   `@jest-environment jsdom`, honoured for Jest compatibility, is refused exactly like the Vitest
   spelling. The `-options` variants carry no environment name and are not a door. Measured: zero

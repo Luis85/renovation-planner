@@ -60,6 +60,53 @@ describe('RequirementRow', () => {
 		expect(input.attributes('aria-invalid')).toBe('true');
 	});
 
+	it('lets a quantity be typed one character at a time, leading decimal point included', async () => {
+		// A KEYSTROKE-BY-KEYSTROKE stream, not `setValue`, and that is the whole case: the
+		// draft was a parsed `number` rendered back through `:value`, so a keystroke whose text
+		// does not survive `String(Number(text))` had the field rewritten under the user.
+		//
+		// MEASURED, because the shape is narrower than it first looks: `14.` and `1.50` survive,
+		// since the parsed draft does not change on that keystroke and Vue's computed caching
+		// then patches nothing. What does not survive is any prefix that parses to `NaN` —
+		// `.5` renders as `NaN5`, `1e3` as `NaN3`, `abc` as `NaNbc`. A leading decimal point is
+		// ordinary input, so this is not an edge case: `.5` cannot be entered at all today, and
+		// the field answers with copy nobody wrote.
+		const { wrapper, commit } = mountRow();
+		const input = wrapper.get('input[data-field="quantity"]');
+		const element = input.element as HTMLInputElement;
+
+		// Appended rather than assigned, because that is what a browser does to the value the
+		// field already holds — an assignment per step would hide exactly the rewrite at issue.
+		for (const key of ['.', '5']) {
+			element.value += key;
+			await input.trigger('input');
+		}
+
+		expect(element.value).toBe('.5');
+
+		await input.trigger('blur');
+		await flushPromises();
+
+		expect(commit).toHaveBeenCalledWith({
+			kind: 'quantity-override',
+			requirementId: 'r1',
+			quantity: 0.5,
+		});
+	});
+
+	it('leaves an unparseable quantity on screen as the user typed it', async () => {
+		// The same rewrite at its most visible: the field showed `NaN` — copy nobody wrote —
+		// while its own error message was already saying the value cannot be read.
+		const { wrapper } = mountRow();
+		const input = wrapper.get('input[data-field="quantity"]');
+		const element = input.element as HTMLInputElement;
+
+		element.value = 'abc';
+		await input.trigger('input');
+
+		expect(element.value).toBe('abc');
+	});
+
 	it('commits the parsed figure exactly once for a value it can read', async () => {
 		const { wrapper, commit } = mountRow();
 

@@ -73,16 +73,27 @@ const COST_ERRORS: FieldErrorMap<{ cost: Money | null }> = {};
  * composable as `validate` rather than guarded here, so it clears on the same keystroke as
  * a refusal does and the user cannot tell the two apart — which is right, since to them
  * both are "this field is wrong".
+ *
+ * **The draft is the raw STRING, exactly as the cost field's is, and for the reason that
+ * field's own docblock gives one paragraph down.** A parsed `number` draft is rendered back
+ * into the input through `:value`, so the field is rewritten with `String(Number(text))` on
+ * any keystroke that MOVES the parsed value — which corrupted every prefix that parses to
+ * `NaN`: `.5` showed `NaN5`, `1e3` showed `NaN3`, `abc` showed `NaN`. A leading decimal
+ * point is ordinary input, so `.5` could not be entered at all, and the field answered with
+ * copy nobody wrote. `Number` is applied at `buildCommand` alone, where the value is leaving
+ * for the command that wants a number, and never between two keystrokes.
  */
-const quantity = useFieldCommit<number | null, { quantity: number | null }>({
-	// The DTO's `Decimal | null` converted to the plain number this seam and
-	// `InspectorEdit`'s `quantity-override` variant both carry.
-	canonicalValue: () => props.row.quantity.override?.toNumber() ?? null,
-	buildCommand: (value) => ({
+const quantity = useFieldCommit<string, { quantity: number | null }>({
+	// The canonical value RENDERED, not parsed — a draft is text until it is committed. The
+	// DTO's `Decimal | null` becomes the text a `Decimal` prints itself as, and `null` (no
+	// override) becomes the empty field that means "reset to calculated".
+	canonicalValue: () => props.row.quantity.override?.toString() ?? '',
+	buildCommand: (raw) => ({
+		// Reached only once `validate` below has passed, so this parse cannot yield `NaN`.
 		execute: () => props.commit({
 			kind: 'quantity-override',
 			requirementId: props.row.requirementId,
-			quantity: value,
+			quantity: raw.trim() === '' ? null : Number(raw.trim()),
 		}),
 		undo: () => Promise.resolve(ok(undefined)),
 	}),
@@ -96,25 +107,30 @@ const quantity = useFieldCommit<number | null, { quantity: number | null }>({
 	// The half `commitEdit` keeps: a refusal with no field to sit under is still announced.
 	notify: notifyError,
 	logger: props.logger,
-	validate: (value) =>
-		value === null || Number.isFinite(value) ? null : tr('error.requirement.quantity.unparseable'),
+	// The empty field is the RESET, not a parse failure — `Number('')` is `0`, which is why
+	// the empty case is answered before `Number` is consulted at all rather than after.
+	validate: (raw) =>
+		raw.trim() === '' || Number.isFinite(Number(raw.trim()))
+			? null
+			: tr('error.requirement.quantity.unparseable'),
 });
 
 function onQuantityInput(raw: string): void {
 	// A keystroke never dispatches (slice 6). `onInput` clears the error too, for the same
 	// reason `setField` does: a message about a value the user has since corrected is
 	// telling them something untrue.
-	quantity.onInput(raw.trim() === '' ? null : Number(raw));
+	quantity.onInput(raw);
 }
 
 /**
- * `null` is a VALUE in this seam — "reset to calculated" — so it commits like any other,
+ * The EMPTY field is the "reset to calculated" value in this seam — `buildCommand` turns it
+ * into the `quantity: null` the command reads that way — so it commits like any other draft,
  * which is also what clears the draft and the error on success. Routed THROUGH the
  * composable rather than around it: after a refused override the composable still holds a
- * non-null drafted value and its error, and neither is its own to clear.
+ * drafted value and its error, and neither is its own to clear.
  */
 async function resetQuantity(): Promise<void> {
-	quantity.onInput(null);
+	quantity.onInput('');
 	await quantity.onCommit();
 }
 
@@ -232,7 +248,7 @@ async function resetCost(): Promise<void> {
 					type="text"
 					data-field="quantity"
 					:aria-busy="quantity.pending.value"
-					:value="quantity.draft.value ?? ''"
+					:value="quantity.draft.value"
 					@input="onQuantityInput(($event.target as HTMLInputElement).value)"
 					@blur="quantity.onCommit()"
 					@keydown.esc.stop="quantity.onCancel()"

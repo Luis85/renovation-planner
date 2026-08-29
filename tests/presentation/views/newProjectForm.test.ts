@@ -92,6 +92,30 @@ describe('NewProjectForm', () => {
 		expect(wrapper.get('input[data-field="name"]').attributes('aria-invalid')).toBeUndefined();
 	});
 
+	/**
+	 * The control-level half of the raw-enum defect: `PROJECT_STATUS_LABELS`'s own
+	 * completeness test (`projectStatusLabels.test.ts`) never renders this component, so
+	 * reverting the template's interpolation back to the raw `status` loop variable would
+	 * leave that test green while the shipped form showed `IDEA`/`AS_BUILT` to every user.
+	 */
+	it('shows a translated label for every status option, never the raw enum code', () => {
+		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
+		const wrapper = mount(NewProjectForm, { props: { dispatch } });
+
+		const options = wrapper.findAll('select[data-field="status"] option');
+
+		expect(options.length).toBeGreaterThan(0);
+		for (const option of options) {
+			const code = option.attributes('value') as string;
+			expect(option.text()).not.toBe(code);
+			expect(option.text().length).toBeGreaterThan(0);
+		}
+		// One case pinned by value rather than only by shape, so a wholesale renderer swap
+		// (all options reading the same placeholder, say) cannot pass the loop above.
+		const design = options.find((option) => option.attributes('value') === 'DESIGN');
+		expect(design?.text()).toBe('Design');
+	});
+
 	it('sends every field the user filled in, not just name', async () => {
 		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
 		const wrapper = mount(NewProjectForm, { props: { dispatch } });

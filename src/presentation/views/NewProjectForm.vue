@@ -26,17 +26,18 @@ import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { Project } from '../../domain/project/Project';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 import { PROJECT_STATUSES, type ProjectStatus } from '../../domain/project/ProjectStatus';
+import { PROJECT_STATUS_LABELS } from './projectStatusLabels';
 import { trError } from '../i18n/toUserMessage';
 import { tr } from '../i18n/strings';
 import FieldError from '../components/FieldError.vue';
 import FormBanner from '../components/FormBanner.vue';
 
 const props = defineProps<{
-	// The leading underscore is not a convention choice: core `no-unused-vars` (the plain
-	// JS rule, not the TypeScript-aware one — `.vue` files never get the latter, unlike
-	// `src/**/*.ts`) does not understand a `FunctionType` node and reads this parameter's
-	// NAME as an unused binding. This is a type position; nothing is ever unused here.
-	dispatch: (_input: CreateProjectInput) => Promise<Result<{ project: Loaded<Project> }, RepositoryError>>;
+	// A plain `input` needs no underscore: `eslint.config.mjs`'s `VUE_FILES`-scoped block
+	// registers `@typescript-eslint/no-unused-vars` in place of core `no-unused-vars` for
+	// exactly this reason — the TypeScript-aware rule knows a function-TYPE's parameter name
+	// is not a binding anything could leave unused, where core's rule did not.
+	dispatch: (input: CreateProjectInput) => Promise<Result<{ project: Loaded<Project> }, RepositoryError>>;
 	/**
 	 * `FormDescriptor.busy`'s other end (design slice 16). Optional so this component mounts
 	 * on its own with nothing wired to it at all — every case in `newProjectForm.test.ts`
@@ -127,6 +128,11 @@ function onStatusInput(event: Event): void {
 	form.setField('status', (event.target as HTMLSelectElement).value as ProjectStatus);
 }
 
+/** `PROJECT_STATUS_LABELS`'s own doc comment carries the "no status ships unlabelled" rule. */
+function statusLabel(status: ProjectStatus): string {
+	return tr(PROJECT_STATUS_LABELS[status]);
+}
+
 function onDescriptionInput(event: Event): void {
 	form.setField('description', (event.target as HTMLTextAreaElement).value);
 }
@@ -193,7 +199,7 @@ async function onSubmit(): Promise<void> {
 						:key="status"
 						:value="status"
 					>
-						{{ status }}
+						{{ statusLabel(status) }}
 					</option>
 				</select>
 			</label>

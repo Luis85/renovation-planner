@@ -6,9 +6,11 @@
  *
  * The form component owns its own fields, its own validation and its own submit control,
  * and lives with whoever owns the form — `presentation/editor/shell/KnownDistanceForm.vue`
- * is this slice's own caller, and slice 16's creation forms will be others. A resolved
- * `'submit'` means the form validated, NOT that anything was written: dispatching the
- * command is still the caller's job.
+ * is this slice's own caller, and slice 16's creation forms will be others. What a resolved
+ * `'submit'` means is `FormDialogResult`'s own docblock to state (`dialog-store.ts`), not
+ * repeated here — a caller-dispatches form and a form that owns its dispatch answer that
+ * question differently, and this file once repeated the FIRST answer after slice 16 made
+ * the second one real, which is exactly how the two came to disagree.
  *
  * The mounted component's `submit` payload is passed through untyped, deliberately — it is
  * typed by that component, for the same reason `FormDescriptor` carries a component and

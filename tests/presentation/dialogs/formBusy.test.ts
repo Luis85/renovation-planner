@@ -65,6 +65,42 @@ describe('a form dialog with a write in flight', () => {
 		harness = null;
 	});
 
+	/**
+	 * The gesture more users reach for than `Escape`. `aria-disabled` is advisory only — it
+	 * blocks nothing in the DOM, so `FormDialog.onCancel`'s early return
+	 * (`if (props.descriptor.busy?.value === true) return;`) is the ONLY thing standing
+	 * between a mid-write click and an abandoned write. Every other case in this file drives
+	 * `Escape`; none of them calls `trigger('click')` on the button at all, so this is the
+	 * one place that line is exercised.
+	 */
+	it('refuses a Cancel click while the form has a write in flight', async () => {
+		harness = mountDialogHost();
+		const busy = ref(true);
+		const pending = harness.store.openDialog({
+			kind: 'form',
+			title: 'New project',
+			component: NewProjectForm,
+			props: { dispatch: neverSettles },
+			busy,
+		});
+		let settled = false;
+		void pending.then(() => {
+			settled = true;
+			return undefined;
+		});
+		await nextTick();
+
+		await harness.wrapper.get('.rp-dialog-cancel').trigger('click');
+		// See the Escape case's comment: `settled` flips inside a plain `.then()` outside
+		// Vue's own scheduler, so a real microtask-queue drain is what this needs.
+		await flushPromises();
+
+		expect(settled).toBe(false);
+
+		harness.unmount();
+		harness = null;
+	});
+
 	it('accepts Escape again once the write has settled', async () => {
 		harness = mountDialogHost();
 		const busy = ref(true);

@@ -91,6 +91,53 @@ describe('the six named rules flat/recommended does not enable', () => {
 });
 
 /**
+ * The TypeScript-aware `no-unused-vars`, registered for `.vue` files because core
+ * `no-unused-vars` does not understand a `FunctionType` node: a parameter name that exists
+ * only to document a TYPE (`(input: string) => void`) reads as an unused binding under the
+ * base rule, which is what `NewProjectForm.vue`'s `dispatch` prop found — the first `.vue`
+ * file in this repository to declare a named function-type parameter. Proven by fixture
+ * rather than by reading the config, for the reason this whole file states: a rule scoped
+ * to files it never reaches reports nothing and looks correct either way.
+ */
+describe('the TypeScript-aware no-unused-vars a typed function parameter needs', () => {
+	it('reports nothing for a named parameter in a function TYPE', async () => {
+		const reported = await lintText(
+			conforming('type Dispatch = (input: string) => void;\ndeclare const dispatch: Dispatch;\nvoid dispatch;'),
+			COMPONENT,
+		);
+
+		expect(reported).not.toContain('no-unused-vars');
+		expect(reported).not.toContain('@typescript-eslint/no-unused-vars');
+	});
+
+	/**
+	 * The other half: turning `no-unused-vars` off in favour of the TypeScript-aware rule
+	 * must not turn unused-variable checking off altogether — that would be trading one gap
+	 * for a bigger one under a config comment that reads as though nothing was lost.
+	 */
+	it('still refuses an actually unused BINDING, through the TypeScript-aware rule rather than core', async () => {
+		const reported = await lintText(
+			conforming('function build(unused: string): number {\n\treturn 1;\n}\nvoid build;'),
+			COMPONENT,
+		);
+
+		expect(reported).toContain('@typescript-eslint/no-unused-vars');
+		expect(reported).not.toContain('no-unused-vars');
+	});
+
+	// The same `argsIgnorePattern`/`varsIgnorePattern` the `.ts` block already carries —
+	// asserted here rather than assumed to have travelled with the rule registration.
+	it('still ignores an underscore-prefixed unused parameter', async () => {
+		const reported = await lintText(
+			conforming('function build(_unused: string): number {\n\treturn 1;\n}\nvoid build;'),
+			COMPONENT,
+		);
+
+		expect(reported).not.toContain('@typescript-eslint/no-unused-vars');
+	});
+});
+
+/**
  * `flat/recommended`'s `vue/html-indent` defaults to two spaces and this repository indents
  * with tabs, so the rule is configured rather than obeyed. That is a configuration change,
  * which means it needs a check of its own — otherwise "we told it tabs" and "we turned it

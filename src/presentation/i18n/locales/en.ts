@@ -161,6 +161,22 @@ export const en = {
 	'form.new-project.description': 'Description',
 	'form.new-project.start': 'Start',
 	'form.new-project.target-completion': 'Target completion',
+	// One label per `ProjectStatus` (PRD §35's Renovation Lifecycle), so the status control
+	// shows real copy rather than the raw enum member — `PROJECT_STATUS_LABELS`
+	// (`src/presentation/views/projectStatusLabels.ts`) is the binding, and
+	// `projectStatusLabels.test.ts` requires every member of `PROJECT_STATUSES` to resolve
+	// one of these. Ordinary UI labels, not `AppError` codes — the "a key must equal a
+	// minted code" rule below applies to the error block alone.
+	'form.new-project.status.idea': 'Idea',
+	'form.new-project.status.survey': 'Survey',
+	'form.new-project.status.design': 'Design',
+	'form.new-project.status.estimate': 'Estimate',
+	'form.new-project.status.procurement': 'Procurement',
+	'form.new-project.status.ready': 'Ready',
+	'form.new-project.status.execution': 'Execution',
+	'form.new-project.status.inspection': 'Inspection',
+	'form.new-project.status.complete': 'Complete',
+	'form.new-project.status.as-built': 'As built',
 	'empty.project.no-projects.action': 'Create a project',
 	'view.project.list-title': 'Renovation projects',
 	'view.project.create': 'New project',

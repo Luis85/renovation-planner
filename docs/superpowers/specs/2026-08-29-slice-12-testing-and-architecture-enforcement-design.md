@@ -135,11 +135,26 @@ boundary untested: drop `mjs`, `cjs` or `jsx` from that constant and a shippable
 layer bypasses every package and sibling-layer ban with this matrix green. `.vue` and `.js` are
 already driven by `prototypes-one-way-door.test.ts`; the rest are nobody's.
 
-So the probes cover each *parseable* shippable extension, and the ones that cannot be probed are
-**recorded rather than silently skipped** — the same treatment the fixture-path finding got.
-`.tsx`, `.mts` and `.cts` have no real file anywhere in `src/`, and a type-aware path with no
-file behind it is exactly the `PARSE_ERROR` case measured above, so those three are written down
-as a known limitation of the harness with the reason, not left as an unexplained gap.
+So the probes cover each *parseable* shippable extension — `.ts` (at a real path), `.vue`, `.js`,
+`.jsx`, `.mjs` and `.cjs`, all measured to report `no-restricted-imports` — and the ones that
+cannot be probed are **recorded rather than silently skipped**.
+
+**`.tsx`, `.mts` and `.cts` are the gap, and the first draft attributed it to the wrong cause.**
+It said they have no real file in `src/`, implying a future fixture would close it. That is
+false, and `eslint.config.mjs` had already measured and written down why — in a comment this
+document's author had not read far enough to find. `eslint-plugin-obsidianmd` applies
+`recommendedTypeChecked` to `**/*.{ts,cts,mts,tsx}`, while the only block granting
+`parserOptions.projectService` is scoped to `files: ['**/*.ts']`; the other three get no parser
+services and throw `@typescript-eslint/await-thenable`. That config comment records the decisive
+measurement: **a nonexistent path and a REAL file written to `src/` and then removed throw the
+identical error**, which is what proves the gap is the missing `parserOptions` rather than a
+project-service "file not found" — the mechanism that *did* explain the absent `.ts` path
+earlier in this section.
+
+So the prerequisite for probing those three is widening the parser-options scope, "a bigger,
+unrelated fix" in that comment's words — not adding a fixture. Attributing a limitation to the
+wrong cause is worse than leaving it undescribed: it tells the next reader to do work that will
+not help. The claim is written to the measurement that exists.
 
 **`PARSE_ERROR` is asserted absent, and it matters most where it looks least urgent.** On a
 positive case a parse error fails the assertion anyway, the rule id simply being absent. On a

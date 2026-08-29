@@ -70,6 +70,24 @@ const obsidianHost: NoticeHost = {
 		let hovered = false;
 		let focused = false;
 		let held = false;
+		/**
+		 * **Set by OUR dismiss control, and read by `live` below.** The queue frees a slot by
+		 * asking `handle.live`, which asks `containerEl.isConnected` — correct for a dismissal we
+		 * did not perform, and an assumption about Obsidian for one we did. This repository's fake
+		 * detaches synchronously inside `hide()`; Obsidian's real `Notice` is animated, and if it
+		 * fades out and detaches after a transition then `isConnected` is still `true` when the
+		 * sweep that follows our own click runs, the slot is not freed, and a held fourth notice
+		 * waits for some later push. Nothing in this repository can settle which it is — hide
+		 * timing is a vault-only measurement, recorded as such in
+		 * `docs/tests/cases/Notices and save state.md`.
+		 *
+		 * So the one path that KNOWS the notice is going does not infer it: the latch makes the
+		 * release deterministic and independent of hide timing, the same unconditional release the
+		 * auto-dismiss timer already performs. `isConnected` stays the authority for every
+		 * dismissal we did not perform, which is the design's whole point and is what step 11 of
+		 * the manual case exercises.
+		 */
+		let dismissedHere = false;
 		const sync = (): void => {
 			const next = hovered || focused;
 			if (next === held) return;
@@ -127,6 +145,7 @@ const obsidianHost: NoticeHost = {
 			sync();
 		});
 		dismiss.addEventListener('click', () => {
+			dismissedHere = true;
 			notice.hide();
 			callbacks.dismissed();
 		});
@@ -139,8 +158,13 @@ const obsidianHost: NoticeHost = {
 
 		notice.messageEl.textContent = '';
 		// The flex container is THIS element, not `containerEl` — the three children below are
-		// its children, and flex only reaches direct ones. `styles/notices.css` declares all
-		// five of these classes and puts the `display: flex` here rather than on
+		// its children, and flex only reaches direct ones. This host applies SIX class names —
+		// `rp-notice`, `rp-notice-<severity>`, `rp-notice-body`, `rp-notice-severity`,
+		// `rp-notice-message`, `rp-notice-dismiss` — and `styles/notices.css` names all six:
+		// four of them (`-body`, `-severity`, `-message`, `-dismiss`) as the element a rule
+		// declares on, and two only as ANCESTORS — `.rp-notice`, which scopes the dismiss
+		// button past Obsidian's `button:not(.clickable-icon)`, and `.rp-notice-<severity>`,
+		// which picks the label's colour. The `display: flex` goes here rather than on
 		// `containerEl`, where it would have made `messageEl` the only flex item and left the
 		// three children below unseparated. Nothing here can show what they LOOK like: the
 		// vendored `tests/harness/obsidian.css` carries no `.notice` rule at all, so a notice
@@ -155,7 +179,7 @@ const obsidianHost: NoticeHost = {
 				notice.hide();
 			},
 			get live() {
-				return notice.containerEl.isConnected;
+				return !dismissedHere && notice.containerEl.isConnected;
 			},
 		};
 	},
@@ -227,7 +251,10 @@ export function notify(message: string): void {
  * `docs/tests/cases/Notices and save state.md` names this door under "Deliberately NOT
  * checked", because a tester in a vault cannot raise a success notice at all. Its
  * auto-dismiss and hover-pause steps are driven through the reachable INFO notice instead,
- * and the 4000 ms policy is covered by `tests/presentation/notices/queue.test.ts` alone.
+ * and the 4000 ms policy is covered by node tests. Two files rather than one, measured:
+ * `grep -n 4000 tests/presentation/notices/*.test.ts` prints four lines in `queue.test.ts`
+ * and two in `notify.test.ts`, the latter pushing through THIS door and advancing the clock
+ * — so the door itself is exercised at that timing, not only the queue beneath it.
  */
 export function notifySuccess(message: string): void {
 	queue?.push('success', message);

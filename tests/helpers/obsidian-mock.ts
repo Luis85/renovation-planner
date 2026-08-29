@@ -124,7 +124,7 @@ export interface WorkspaceLeaf {
  *
  * What is modelled: the `.notice-container > .notice` nesting Obsidian builds, the two
  * element handles it exposes, the duration it was constructed with, in-place replacement,
- * and a `hide()` that DISCONNECTS — the queue reads `isConnected` to decide whether a
+ * and a `hide()` that disconnects — the queue reads `isConnected` to decide whether a
  * visible slot is free, so a `hide()` that left the element attached would make that
  * mechanism untestable.
  *
@@ -132,6 +132,16 @@ export interface WorkspaceLeaf {
  * auto-dismiss timer (this plugin always passes `duration: 0` and owns the timer), its
  * click-to-dismiss gesture, and every visual rule — `tests/harness/obsidian.css` carries no
  * `.notice` rules at all, so appearance is verified in a real vault and nowhere else.
+ *
+ * **And HIDE TIMING, which is an assumption about the real thing rather than a testability
+ * requirement.** `hide()` here detaches SYNCHRONOUSLY. Obsidian's `Notice` is animated, and
+ * whether its element leaves the document inside the call or after a transition is
+ * undocumented; if it is the latter, this fake is kinder than the real thing at exactly the
+ * point the queue's slot accounting rests on. `notify.ts` no longer depends on the answer for
+ * its OWN dismiss control — that path latches `live` to false rather than asking
+ * `isConnected` — but Obsidian's own click-to-dismiss gesture still does, and no instrument
+ * here can measure it. `docs/tests/cases/Notices and save state.md` is where it gets looked
+ * at.
  */
 export class Notice {
 	static readonly shown: string[] = [];

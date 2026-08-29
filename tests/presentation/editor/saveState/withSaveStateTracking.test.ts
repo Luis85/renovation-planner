@@ -45,7 +45,34 @@ describe('affectsSaveState', () => {
 		expect(affectsSaveState(errorOf('Validation', 'name-required'))).toBe(false);
 	});
 
-	it.each(['Persistence', 'Domain', 'Geometry', 'Migration', 'Reference', 'Calculation', 'Import'] as const)(
+	/**
+	 * **The case that would fail if `Domain` left the pre-write set**, and the reason it is here:
+	 * this predicate's first draft counted a `Domain` failure, on a docblock claiming a field
+	 * commit that fails a domain rule resolves a `ValidationError`. It does not.
+	 * `SetRequirementQuantityOverride` refuses a negative quantity as `Domain` and re-wraps the
+	 * entity's own `Validation` errors as `Domain` too, all of it BEFORE `requirements.save` —
+	 * and the Inspector's override fields are `type="text"`, so `-5` is one keystroke away.
+	 * Spelled out rather than built through `errorOf`, which prefixes `zone.`: the code here is
+	 * transcribed from that raise site. Nothing checks the two still agree — the predicate's own
+	 * header says so rather than implying a mechanism.
+	 */
+	it('ignores a pre-write Domain refusal, the one a user can type into an override field', () => {
+		expect(affectsSaveState({
+			category: 'Domain',
+			code: 'requirement.negative-quantity',
+			message: 'A requirement quantity cannot be negative; got -5.',
+		})).toBe(false);
+	});
+
+	it('ignores the Domain refusal both reversible adapters raise with nothing to undo', () => {
+		expect(affectsSaveState({
+			category: 'Domain',
+			code: 'undo.before-execute',
+			message: 'Nothing to undo yet.',
+		})).toBe(false);
+	});
+
+	it.each(['Persistence', 'Geometry', 'Migration', 'Reference', 'Calculation', 'Import'] as const)(
 		'counts a %s failure, because the safe answer is "we might not have written your data"',
 		(category) => {
 			expect(affectsSaveState(errorOf(category))).toBe(true);
@@ -56,6 +83,13 @@ describe('affectsSaveState', () => {
 	// reached the repository, the version had moved, and the user's edit was refused.
 	it.each(WRITE_BOUNDARY_CODES)('counts a %s, despite its Validation category', (suffix) => {
 		expect(affectsSaveState(errorOf('Validation', suffix))).toBe(true);
+	});
+
+	// The carve-out is applied to the whole pre-write set, not to `Validation` alone. Nothing
+	// raises these two codes under `Domain` today — this pins the direction a future site that
+	// did would fail in, which is toward reporting rather than away from it.
+	it.each(WRITE_BOUNDARY_CODES)('counts a %s under Domain too, failing toward reporting', (suffix) => {
+		expect(affectsSaveState(errorOf('Domain', suffix))).toBe(true);
 	});
 
 	it('reads the codes from versioning.ts rather than a copy', () => {
@@ -87,6 +121,20 @@ describe('withSaveStateTracking', () => {
 
 		expect(save.resolveErr).toHaveBeenCalledTimes(1);
 		expect(save.resolveOk).not.toHaveBeenCalled();
+	});
+
+	it.each(OPERATIONS)('settles %s NEUTRALLY for a domain refusal that wrote nothing', async (operation) => {
+		const history = historyResolving(err(errorOf('Domain', 'negative-quantity')));
+		const save = tracker();
+		const wrapped = withSaveStateTracking(history, save);
+
+		await (operation === 'run' ? wrapped.run(command) : wrapped[operation]());
+
+		// The user-reachable one: an override field refused for a negative quantity. Before
+		// `Domain` joined the pre-write set this settled `resolveErr` and raised a persistent
+		// "Save error" badge about data nothing had touched.
+		expect(save.resolveNeutral).toHaveBeenCalledTimes(1);
+		expect(save.resolveErr).not.toHaveBeenCalled();
 	});
 
 	it.each(OPERATIONS)('settles %s NEUTRALLY for a validation refusal that wrote nothing', async (operation) => {

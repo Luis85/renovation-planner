@@ -94,7 +94,16 @@ describe('the save-state store', () => {
 		expect(store.state).toBe('saved');
 	});
 
-	it('does not let an overlapping batch of refusals clear a real save error', () => {
+	/**
+	 * Named for what it PROVES, which is not what an earlier name claimed. It establishes no
+	 * save error at all — the case below it does that — so it cannot be about clearing one. What
+	 * it holds is that `beforeBatch` is captured when the batch OPENS and not on every
+	 * `beginSaving`: the second `beginSaving` arrives with the store already reading
+	 * `'saving'`, so an unconditional capture would settle this batch on `'saving'` and leave
+	 * the indicator stuck there. That mutation survives 100% branch coverage and is killed here
+	 * and nowhere else.
+	 */
+	it('settles an overlapping batch of refusals back to what it opened on, never to saving', () => {
 		const store = useSaveStateStore();
 		store.beginSaving();
 		store.beginSaving();

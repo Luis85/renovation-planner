@@ -21,7 +21,13 @@ export interface NoticeCallbacks {
 export interface NoticeHandle {
 	update(view: NoticeView): void;
 	hide(): void;
-	/** False once the host's element has gone — a dismissal we did not perform included. */
+	/**
+	 * False once this notice's slot is free. The case it exists for is a dismissal we did NOT
+	 * perform — Obsidian's own click gesture, which tells us nothing — and there the host reads
+	 * its element's connectedness. A host that dismissed the notice ITSELF may answer `false`
+	 * before the element has finished leaving, rather than waiting on an animation the queue must
+	 * not depend on either way; `notify.ts` does exactly that and says why.
+	 */
 	readonly live: boolean;
 }
 

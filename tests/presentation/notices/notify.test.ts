@@ -86,6 +86,28 @@ describe('the notice door', () => {
 		expect(noticeEls()).toHaveLength(0);
 	});
 
+	/**
+	 * **The fake detaches inside `hide()`; Obsidian's animated `Notice` may not.** If its element
+	 * leaves after a transition, `containerEl.isConnected` is still true when the sweep our own
+	 * click triggers runs, the slot is never freed, and the held fourth notice waits for some
+	 * later push — the manual case's "dismiss one with its ×, the fourth appears" step failing
+	 * for a reason unrelated to anything else it tests. Driven here by making `hide()` a no-op on
+	 * every constructed notice, which is the WORST case of that timing: without the latch in
+	 * `notify.ts` this case leaves 'd' unshown.
+	 */
+	it('frees the slot on OUR dismiss even where hide() leaves the element attached', () => {
+		notifyWarning('a');
+		notifyWarning('b');
+		notifyWarning('c');
+		notifyWarning('d');
+		expect(noticeEls()).toHaveLength(3);
+
+		for (const notice of Notice.constructed) notice.hide = () => undefined;
+		noticeEls()[0]?.querySelector('button')?.click();
+
+		expect(noticeEls().some((el) => el.textContent?.includes('d'))).toBe(true);
+	});
+
 	it('frees a slot when the notice is dismissed by Obsidian rather than by our button', () => {
 		notifyWarning('a');
 		notifyWarning('b');

@@ -583,6 +583,18 @@ export default defineConfig({
 			// undefined` arm was added): the same four files above name the only uncovered
 			// arms, matching the four bullets below one for one, and the other eight files in
 			// the list report zero uncovered lines, functions or branches.
+			//
+			// Measured 2026-08-29 at the end of design slice 16 — forms and inline validation
+			// feedback: `routeError`, `<FieldError>`/`<FormBanner>`, `useFieldCommit`/
+			// `useFormCommit`, `NewProjectForm` and `CreateProjectCommand` as the Renovation
+			// Project view's first write, `ProjectList`, the Task 5a persistence fix
+			// (`description`/`start`/`targetCompletion` surviving the vault round trip), and
+			// Task 9 moving the Inspector's `quantity`/`cost` override rows onto the same
+			// composable: 4534/4568 statements, 2259/2300 branches, 1171/1182 functions,
+			// 4070/4092 lines — 99.25 / 98.21 / 99.06 / 99.46. NOTHING RATCHETS: rounded down
+			// these are 99 / 98 / 99 / 99, the floors already in force, unchanged from the
+			// slice-18 measurement immediately above — this slice's own tests exercise every
+			// line and branch it added, and it removed nothing from the denominator either.
 			thresholds: {
 				statements: 99,
 				functions: 99,

@@ -41,7 +41,7 @@ at.
 | # | Do this | It passes when | It exists to catch |
 | --- | --- | --- | --- |
 | 1 | With no projects in the vault, open the Renovation project view (ribbon or command) | A centred panel reads "No renovation projects yet" with a sentence under it | The view's FIRST real content. It mounted an empty Vue app and drew nothing from slice 1 until this slice |
-| 2 | Look for a button on that panel | There is NO button | Amendment 1. Its hand-off is slice 16's creation form, which does not exist — a rendered control that did nothing is the failure this decision was taken to avoid. A button here means someone wired one without the form |
+| 2 | Look for a button on that panel | **Design slice 16 changed this row's answer.** At the time this walkthrough first ran (see Runs below), the panel carried NO button — Amendment 1's hand-off, slice 16's creation form, did not exist yet. Slice 16 has since built that form: the panel now DOES carry a "Create a project" button, and `docs/tests/cases/Create a Project.md` is the case that walks what it opens | The button existing is now the correct reading of Amendment 1, not a violation of it — its hand-off exists now. A rendered control that does nothing was the failure the amendment was refusing; a MISSING button here is what would need explaining today |
 | 3 | Drag the view into a sidebar and narrow it to roughly 400–500px | The panel keeps its side margins and the text wraps rather than overflowing or clipping | `max-width: 28em` against a real font at a real width. jsdom cannot measure it and the fixed captures use 1280 |
 | 4 | Run `Create sample renovation project`. When the editor opens, look at the canvas | The five zones ARE VISIBLE, with the "No plan document yet" panel floating OVER them — not instead of them | **The slice's central decision.** The seeded plan has no background, so a replacement would hide the entire output of the one command that makes zones exist. Neither this nor the harness is reachable from any test |
 | 5 | Read that panel | It says the plan has no plan document and asks for one; it carries NO button | The second buttonless state, for a different reason: slice 5's background picker is a plugin command the editor's Vue tree cannot reach |
@@ -66,8 +66,10 @@ at.
   suite instead, at the store.
 - **The icon slot.** `EmptyState` has one and no registry entry fills it; there is nothing to
   look at until the first `setIcon` caller exists.
-- **A populated Renovation project view.** There is no project list yet — this slice defines
-  only what renders in its place. Step 1's panel is the whole surface.
+- **A populated Renovation project view.** There was no project list at the time this slice
+  shipped — this slice defined only what renders in its place, and step 1's panel was the
+  whole surface. Design slice 16 built that list (`ProjectList.vue`); walking it is
+  `docs/tests/cases/Create a Project.md`'s job, not this file's.
 
 ## Runs
 

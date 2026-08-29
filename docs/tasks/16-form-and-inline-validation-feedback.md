@@ -558,16 +558,33 @@ nothing of its is waiting on this one.
 
 ## Persistence Impact
 
-None. This slice reads slice 2's error types and slice 11's `toUserMessage` port; it
-writes nothing new to the Vault and adds no repository, sidecar field, or schema.
+**This section said "None" through this slice's own review, and Task 5a made that false —
+a design that checks the domain and stops is checking half the claim.** This document's own
+Design section refuses a `Money` field on the New Project form on exactly this ground, in
+the same document that goes on to admit `description`, `start` and `targetCompletion`
+without checking whether the VAULT round-trips them. It does not: the mapper
+(`projectToPersistence`/`projectFromPersistence`) wrote and read only `name` and `status`,
+so all three would appear to save and come back `null` on the next read. Task 5a adds all
+three as genuinely NEW keys to `ProjectFrontmatterSchemaV1` — `description` as
+`z.string().nullable().catch(null)`, following `AssetFrontmatterSchemaV1`'s existing
+pattern for exactly this shape, and `start`/`target-completion` as a shared `DATE_ONLY`
+schema (a regex shape check, a `refine(isRealCalendarDate)` round-trip check, then
+`.nullable().catch(null)` last so any rejected spelling reads as absent rather than
+refusing the whole note). `.catch(null)` is what lets an existing note written before these
+keys existed parse unchanged, which is why NO schema-version bump and no migration step are
+owed even though three new persisted fields are. `start`/`targetCompletion` convert
+date-only, in UTC, always — `Project.start` is a real `Date` where the frontmatter stores a
+plain date string, so the mapper builds midnight UTC rather than local midnight, which is
+what a day-shift west of Greenwich would otherwise produce.
 
-Every piece of state this slice introduces — a field's draft value, its pending/error
-flags, a form's per-submission field-error map and banner text — is component-local
-(Vue `ref`/`reactive`), never written into a Pinia store, per ADR-005 and SDD §15's
-ephemeral-state list. It exists only for the duration of an in-progress edit or an open
-dialog and is discarded on commit, cancel, or unmount; none of it survives a plugin
+Every piece of state this slice introduces BEYOND those three fields — a field's draft
+value, its pending/error flags, a form's per-submission field-error map and banner text —
+is component-local (Vue `ref`/`reactive`), never written into a Pinia store, per ADR-005 and
+SDD §15's ephemeral-state list. It exists only for the duration of an in-progress edit or an
+open dialog and is discarded on commit, cancel, or unmount; none of it survives a plugin
 reload, and none of it is the source of truth for anything — the DTO/query result slice
-6 already defines remains that.
+6 already defines remains that. That half of the original claim still holds; only the
+"nothing new to the Vault" half did not.
 
 ## Testing Strategy
 
@@ -676,6 +693,61 @@ and a spec written in the template's spelling would not type-check as a test.
     command while doing it. This is the one behavioural rule the read-only types above
     exist to protect, so a version of this slice that enforced the write path without it
     would be guarding an entry point that does nothing worth guarding.
+
+### What landed, and what did not (2026-08-29)
+
+The mechanism is complete and in use: `routeError`, `<FieldError>`, `<FormBanner>`,
+`useFieldCommit` and `useFormCommit`, both hosting contexts (`NewProjectForm` as the
+creation dialog, the Inspector's `quantity`/`cost` override rows as the per-field
+context), and the manual case (`docs/tests/cases/Create a Project.md`) that walks what no
+gate reaches. Definition of Done items 3, 4, 5, 6, 7, 9, 10 and 11 are met as written.
+
+**Item 1 is met, but by `CreateProjectCommand` rather than `CreateAssetCommand`.** The
+item's own text names an Asset creation form submitting `{ unitCost: -5, ... }` — this slice
+never built one, and there is still no Asset creation affordance anywhere in the plugin
+(nothing in the register gives one a task before this slice, and this one does not add it).
+`NewProjectForm`/`CreateProjectCommand` is this slice's own, and only, creation dialog, and
+it satisfies the item's actual claim: submitting an invalid project (an empty `name`, for
+instance) dispatches `CreateProjectCommand` exactly once, which resolves a failed `Result`
+carrying a `ValidationError` before any repository write; the dialog does not close; an
+inline error renders under the `name` field specifically; and no `ProjectCreated` event is
+published and no Vault write occurs — proven by `newProjectForm.test.ts`
+("keeps the typed value, renders the error under its own field, and does NOT emit submit").
+Whoever builds an Asset creation dialog inherits this same vocabulary and owes it no second
+proof of item 1 — only its own.
+
+**Item 2's draft-preservation half is met in both contexts; its creation-dialog Escape
+clause is WITHDRAWN.** The item bundles two claims. The first — a rejected commit leaves the
+typed value visible rather than reverting it — holds in both contexts:
+`newProjectForm.test.ts` and the Inspector's own `useFieldCommit` tests each assert it
+directly. The second — "pressing `Escape` afterward... resyncs the field... to the form's
+initial value in a creation-dialog context" — is not what this build does, and nothing in
+this slice's nine tasks builds it. `Escape` inside an open `NewProjectForm` reaches design
+slice 15's `DialogHost` first (`onKeydown`, bound to `.rp-dialog`) and resolves the WHOLE
+dialog as a cancel — the same handler every other dialog kind already has — discarding
+every field at once, not resyncing the one under the caret while the dialog stays open. A
+second, narrower `Escape` scoped to one field inside an already-open form would need
+`@keydown.esc.stop` on every control to keep the keystroke from reaching that handler, plus
+its own reset-to-initial logic sitting underneath a mechanism that already answers "abandon
+this gesture, commit nothing" at the dialog's own coarser grain — and a creation dialog's
+fields are not independent gestures the way an Inspector row's is: `useFormCommit`'s one
+commit boundary is the whole-form submit, so there is no per-field draft to partially
+abandon without leaving the rest of the form in a state nothing else in this design
+describes. The clause is WITHDRAWN rather than ticked over that gap.
+The Inspector-context half of item 2 IS built and is what item 3 restates: `useFieldCommit`'s
+own `onCancel`, wired `@keydown.esc.stop="…onCancel()"` in `RequirementRow.vue`, discards the
+draft and resyncs to the canonical value with no dialog involved. `docs/tests/cases/Create
+a Project.md` steps 10 and 14 walk both halves by hand, in a real vault, side by side.
+
+**Item 8's "no new... persisted field" clause is narrowed, not met as written.** Its other
+two clauses hold without qualification — no new Pinia store, no new repository. The
+persisted-field clause does not: Task 5a added `description`, `start` and
+`target-completion` to `ProjectFrontmatterSchemaV1`, for the reason the Persistence Impact
+section above now states in full. That addition closes a real data-loss gap this slice's
+own review found (a field the form collects and the vault silently drops), needs no schema
+version bump because `.catch(null)` lets an old note parse unchanged, and is additive to an
+existing schema rather than a new one — but "a persisted field was introduced" is still the
+plain, honest description of what it is, and item 8 said none would be.
 
 ## References
 

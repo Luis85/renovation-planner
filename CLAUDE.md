@@ -29,15 +29,21 @@ the architecture-enforcement harness) and every surface slices 13–17 name.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
-a ribbon button and a command, and it draws **four things and still no project list** —
-slice 17 owns the list, and until it lands every one of these is what the pane holds instead
-of one, never beside one. `ViewRoot.vue` renders slice 14's `renovationProject.noProjects`
-empty state; the mapped failure sentence for the refusing `AppError`'s own code
+a ribbon button and a command, and it now draws **a project list** — design slice 16's
+`ProjectList.vue`, not slice 17's: that document is the error-surfacing decision table and
+never once mentions one, so the list was owned by no slice until slice 16 claimed it. This
+paragraph said "still no project list" for slices 14 and 15, which was true until slice 16
+landed. `ViewRoot.vue` renders `ProjectList` once the vault holds at least one project, or
+slice 14's `renovationProject.noProjects` empty state in its place when it holds none — the
+two never draw together, gated on the same `'ready'` status the rest of this paragraph
+describes; the mapped failure sentence for the refusing `AppError`'s own code
 (`.rp-view-message`, via `trError`, so unrecovered settings and a vault fault say different
 things); a loading line in that same region while the read is in flight; and
 `.rp-view-notice`, the one ADDITIVE one, when SOME project notes refused
 (`view.project.some-unreadable`). Slice 15's `DialogHost` mounts here too and is invisible
-until something opens a dialog. `ListProjects()` resolves to a `ProjectListResult` —
+until something opens a dialog — slice 16's `NewProjectForm` is its first caller in this
+view, opened from the empty state's action button and from `ProjectList`'s own header.
+`ListProjects()` resolves to a `ProjectListResult` —
 `{ projects, unreadable }`, not a bare array; the PORT below it answers a `ProjectListing`,
 `{ loaded, refused }`, and the rename across that seam is deliberate — and the empty state is the `'ready'` status
 with BOTH halves clear: an empty list with `unreadable > 0` is a vault that has projects this
@@ -202,18 +208,22 @@ already hydrates. Rules that came out of it:
   state is this Plan in" unanswerable without a live `ToolManager` — a node test could no
   longer ask it — for a gate the component applies in one line
   (`overlay !== null && activeToolId === null`).
-- **An absent `actionLabel` is a decision with a reason, not a gap, and there are two of
-  them, not one.** `renovationProject.noProjects` has no button because its hand-off — a
-  project-creation form — is slice 16's, and slice 16 `dependsOn` slice 11, neither of
-  which exists yet. `planEditor.noBackground` has no button for a different reason:
+- **An absent `actionLabel` is a decision with a reason, not a gap — TWO of them when this
+  slice shipped, ONE now.** `renovationProject.noProjects` had no button because its
+  hand-off — a project-creation form — was slice 16's, and slice 16 `dependsOn` slice 11,
+  neither of which existed yet. Design slice 16 has since built that form and given this
+  entry its action; see that slice's own section below. `planEditor.noBackground` is the
+  buttonless entry that remains, for a different reason:
   slice 5's background picker is the `set-plan-background` plugin COMMAND, which is not a
   member of `PlanEditorCommandServices`, and the editor's Vue tree cannot reach it without
   either widening `PlanEditorContext` (not this slice's surface to widen) or reaching for
-  the global `app`, which the marketplace rules refuse. Both render no button rather than a
+  the global `app`, which the marketplace rules refuse. It renders no button rather than a
   live control that does nothing — the exact failure mode the amendment exists to avoid —
-  and `content.test.ts` asserts both absences, so adding either is a deliberate, tested
-  change rather than an oversight closing quietly. `planEditor.noZones` is the one entry
-  that keeps a button, because its hand-off (`activeToolId = 'draw-polygon'`) already
+  and `content.test.ts` still asserts that one absence, so adding a button here is a
+  deliberate, tested change rather than an oversight closing quietly. (The same file
+  asserted `renovationProject.noProjects`'s absence too, until design slice 16 flipped that
+  assertion the other way — see that slice's section below.) `planEditor.noZones` is the
+  other entry that keeps a button, because its hand-off (`activeToolId = 'draw-polygon'`) already
   exists and is reachable from the editor's own state.
 - **Promoting a mock is not always a byte-for-byte move, and the honest account says which
   file pair that criterion is actually held for.** `EmptyState.vue`'s template crossed from
@@ -254,11 +264,14 @@ already hydrates. Rules that came out of it:
   compliant one. `tests/harness/accessibility.test.ts` now awaits `flushPromises()`
   before scanning and asserts `.rp-empty-state` is actually present in the scanned DOM,
   so a regression that reopens the timing gap fails there rather than passing quietly.
-  **No empty state carrying a button is graded by that case or any other**:
-  `renovationProject.noProjects` has none, and the Plan Editor case's default fixture
-  resolves to `planEditor.noBackground`, the other buttonless entry — `noZones`'s
-  action button is exercised by `emptyStateOverlay.test.ts` alone, and by no
-  accessibility scan.
+  **No empty state carrying a button was graded by that case or any other, through design
+  slice 15** — `renovationProject.noProjects` had none, and the Plan Editor case's default
+  fixture resolves to `planEditor.noBackground`, the other buttonless entry — `noZones`'s
+  action button was exercised by `emptyStateOverlay.test.ts` alone, and by no accessibility
+  scan. Design slice 16 gave `renovationProject.noProjects` its action button and this
+  file's own case now scans it, asserting `.rp-empty-state__action` is present the same
+  way it already asserted `.rp-empty-state` — that slice's own section below has the rest.
+  `noZones`'s button remains the one action-carrying empty state this file does not scan.
 
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
 are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
@@ -613,21 +626,109 @@ own recurring shape:
 
   A no-op assertion and a correct one look identical until something is broken underneath them.
 
+**Design slice 16 has landed: forms and inline validation feedback.** One vocabulary answers
+"a command's typed error, rendered against the field it is about" everywhere in the plugin:
+`routeError` (`presentation/errors/route-error.ts`) keys a command's `AppError.code` against
+a per-form `FieldErrorMap` and answers either the field(s) it names or a form-level banner
+when nothing does — `calibration.coincident-points` is the banner's own worked example,
+since neither `pointA` nor `pointB` alone is wrong. `<FieldError>` mints its own input id and
+hands `{ inputId, aria }` down a scoped slot rather than looking one up, with
+`app.config.idPrefix` set at BOTH `createApp` sites (`app-id-prefix.ts`) so two Vue apps'
+`useId()` calls cannot collide; `<FormBanner>` renders the fallback. Two composables share
+that vocabulary at two different commit boundaries: `useFieldCommit` (blur/enter — Task 9
+moved the Inspector's two Requirement override fields onto it) and `useFormCommit` (one
+explicit submit — `NewProjectForm`, this slice's only creation dialog). A rejected commit
+KEEPS the user's typed value and shows a persistent inline error; it never reverts. The
+Renovation Project view gained its first write: `NewProjectForm` dispatches the real
+`CreateProjectCommand`, reachable from `renovationProject.noProjects`'s action button
+(design slice 14's empty state, which shipped with none) and from `ProjectList.vue`'s own
+header — the project list is THIS slice's, not slice 17's, whose document is the
+error-surfacing decision table and never once names one. `description`, `start` and
+`targetCompletion` survive the vault round trip now too (Task 5a), date-only and in UTC.
+Eight review rounds landed on this branch before this task closed it, and across most of
+them the majority of findings were defects in an EARLIER round's own repair rather than
+fresh ones — CLAUDE.md's own recurring lesson, reproduced here rather than merely cited.
+The rules that lasted:
+
+- **Reverting a rejected field destroys the user's own input for no architectural reason.**
+  Slice 6 already guarantees a rejected commit writes nothing; silently replacing what the
+  user typed with the old value is a second, worse decision layered on top of that
+  guarantee. Both commit boundaries keep the draft and show a persistent error instead.
+- **`Readonly<Ref<T>>` reads as read-only and is not.** It is a SHALLOW mapped type: it
+  freezes `.value` and stops there, so `values.value.name = 'x'` still type-checks and
+  `v-model="values.name"` still unwraps and writes, in a template, past the very `setField`
+  the interface names as the sole write path — `tests/presentation/editor/
+  type-safety.test-d.ts` proves both spellings fail `vue-tsc -noEmit` for the real reason,
+  not merely by naming. `DeepReadonly<Ref<T>>` — Vue's own type, and what `readonly()`
+  actually returns — is what `useFormCommit.values` and `useFieldCommit.draft` are typed as,
+  refusing the write at compile time AND at runtime.
+- **Editing a rejected field retires ONLY its own message, and a rejected PAIR retires as a
+  pair.** `setField`/`onInput` clear the field's error the instant it changes — a message
+  the user has already corrected is a lie if it survives — and `project.target-before-start`
+  routes to `['start', 'targetCompletion']` as one claim about the pair, so correcting either
+  half clears both, never just the one that was touched.
+- **A required `notify` parameter is the one option that must not default to a no-op.**
+  `useFieldCommit` converts every banner-routed failure to `error = null`, because the
+  Inspector has no banner region — so without a second door, a resolved vault failure during
+  an override reached the user through NEITHER channel. Optional-with-a-default would have
+  let the one call site that forgets it fail silently; required means every caller states
+  its door.
+- **A second commit while the first is still in flight COALESCES, and a second submit while
+  the first is still in flight is DROPPED — the same race, two different right answers.** A
+  repeated field commit carries a value the user has since changed, so `useFieldCommit`
+  queues exactly one follow-up with the latest draft; a repeated submit is one intent
+  pressed twice, so `useFormCommit.submit` returns `false` on the second press instead. The
+  asymmetry itself was right from early on; the coalescing MECHANISM took several rounds to
+  actually get right — a later round found it re-dispatching a value that had not changed,
+  and a later one still found it re-dispatching a value the user had already abandoned with
+  `Escape` moments before. Getting a rule right and getting its implementation right are not
+  the same review.
+- **Escape means two different things at two different scopes, and Definition of Done item
+  2 originally asked for only one of them everywhere.** Inside the Inspector, `Escape`
+  resyncs ONE field (`useFieldCommit.onCancel`, wired `@keydown.esc.stop`) because there is
+  no dialog to close. Inside `NewProjectForm`, `Escape` reaches slice 15's `DialogHost`
+  first and cancels the WHOLE dialog — the same handler every other dialog kind already
+  has — discarding every field at once rather than resyncing the one under the caret. The
+  task document's item 2 asked for a creation-dialog Escape that resyncs to the form's
+  initial value while staying open; nothing in this slice builds that second, narrower
+  Escape inside an open form, and the clause is WITHDRAWN rather than left ticked over the
+  gap. `docs/tests/cases/Create a Project.md` steps 10 and 14 are where the difference is
+  actually looked at.
+- **A design that checks the domain and stops is checking half the claim.** The spec refused
+  a `Money` field on this form and, in the same document, admitted `description`, `start`
+  and `targetCompletion` without checking whether the VAULT round-trips them — it does not:
+  `projectToPersistence`/`projectFromPersistence` wrote and read only `name` and `status`.
+  Task 5a persists all three, following `AssetFrontmatterSchemaV1`'s
+  `.string().nullable().catch(null)` pattern so no schema version bump is owed.
+- **A regex that only rejects the one malformed spelling a test happens to try is a shape
+  check wearing a validity check's clothes.** `^\d{4}-\d{2}-\d{2}$` passes `2026-02-30` and
+  `2026-13-01` alike; both parse as `Invalid Date` or land on a different real day with no
+  error anywhere. `isRealCalendarDate` closes both classes with one round-trip predicate,
+  ordered so the finite check runs before `toISOString()`, which throws on exactly the input
+  the predicate exists to reject.
+- **`create-sample-project` is not retired by this slice** — see its own paragraph below and
+  `src/plugin/sampleProject.ts`'s docblock: this slice built the PROJECT half only, and a
+  Plan still has no creation form or a surface to reach one from.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
 every vault. It is a plain callback over a `FuzzySuggestModal` of the Project Index's plan
 entries now. The command ID did not change, because a user's hotkey is bound to it.
 
-**`create-sample-project` is SCAFFOLDING and says so in its name.** One command seeds a
-project, a plan and five zones through the real `CreateProjectCommand` /
-`CreatePlanCommand` / `CreateZoneCommand`, then opens the editor on what it made — the
-vault-side equivalent of `npm run harness`, and the only way zones exist at all before
-slices 6 and 8 can draw one. `src/plugin/sampleProject.ts` names what deletes it — slice
-16's creation forms, NOT slice 15, which built the dialog framework those forms mount in and
-no form that names a project, and NOT slice 14 either: `renovationProject.noProjects` ships
-with no action at all (Amendment 1), so slice 14 wired nothing that could have replaced this
-module — and why the partial notes a failed seed leaves behind are deliberate.
+**`create-sample-project` is SCAFFOLDING and says so in its name, and design slice 16 —
+now landed — retired only HALF of what it seeds.** One command seeds a project, a plan and
+five zones through the real `CreateProjectCommand` / `CreatePlanCommand` /
+`CreateZoneCommand`, then opens the editor on what it made — the vault-side equivalent of
+`npm run harness`. Zones stopped needing it once slices 6 and 8 gave `DrawPolygonTool` a way
+to draw one by hand, and the PROJECT half stopped needing it once slice 16 gave
+`renovationProject.noProjects` a real action (`NewProjectForm` / `CreateProjectCommand` —
+Amendment 1's "ships with no action at all" held through slices 14 and 15 and stopped being
+true here) and gave `ProjectList` its own header button beside it. The PLAN half is what
+this module is still the only source of: nothing in `presentation/` calls
+`CreatePlanCommand`, and there is no project-detail surface a "new plan" action could live
+on — `src/plugin/sampleProject.ts` names exactly this remaining gap and why the partial
+notes a failed seed leaves behind are deliberate.
 
 Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
 each is written up where the code is: the seed's first run failed on Obsidian's
@@ -1312,8 +1413,12 @@ Not oversights; each has a trigger.
   `<VStage>` and friends), so `npm run analyze` reads it as test-only and would have it
   moved to devDependencies — which would build here and fail in a vault. It is in
   `.fallowrc.json`'s `ignoreDependencies` with that reason. The bundle went from about
-  60 KB to **488 KB**; that is what ADR-003 and §54 cost, and it is worth knowing before
-  the next dependency.
+  60 KB to **488 KB** at design slice 5's close; that is what ADR-003 and §54 cost, and it
+  is worth knowing before the next dependency. **488 KB is that slice's own figure, not
+  today's** — eleven slices of feature work later, `dist/main.js` measures **670.06 kB**
+  (gzip 211.08 kB) as of design slice 16's close, verified by running `npm run build` rather
+  than carried forward from an earlier entry here. Read every bundle figure in this file the
+  same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 
   **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a
   production one for exactly one increment, and the bill was 1728 KB of a 2216 KB bundle —

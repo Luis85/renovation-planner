@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { ref, nextTick } from 'vue';
+import { flushPromises } from '@vue/test-utils';
 import { mountDialogHost, type DialogHarness } from '../../helpers/dialogs';
 import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
 import type { Result } from '../../../src/core/result/Result';
@@ -44,7 +45,13 @@ describe('a form dialog with a write in flight', () => {
 		await nextTick();
 
 		pressKey(harness.wrapper.find('.rp-dialog').element, 'Escape');
-		await nextTick();
+		// `flushPromises()`, not `nextTick()`: `settled` flips inside a plain `.then()` on the
+		// RAW `openDialog` promise, outside Vue's own reactivity scheduler, and `nextTick()`
+		// only guarantees Vue's own render flush has run — measured, not assumed: with the
+		// `DialogHost` guard this case exists to prove removed, `nextTick()` alone left
+		// `settled` reading `false` regardless of whether the dialog had actually resolved,
+		// which would have made this assertion pass on the very regression it exists to catch.
+		await flushPromises();
 
 		// The write is still running: the dialog may not resolve out from under it.
 		expect(settled).toBe(false);
@@ -155,7 +162,9 @@ describe('a form dialog with a write in flight', () => {
 		expect(busy.value).toBe(true);
 
 		pressKey(harness.wrapper.find('.rp-dialog').element, 'Escape');
-		await nextTick();
+		// See the first case's comment: a plain `.then()` on the raw promise needs a real
+		// microtask-queue drain, not merely Vue's own render flush.
+		await flushPromises();
 
 		expect(settled).toBe(false);
 

@@ -25,11 +25,10 @@
  * out when this file crossed the cap — a different device grammar, and the one this suite
  * spent eight review rounds getting wrong.
  */
-import type Konva from 'konva';
 import { describe, expect, it } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { settle } from '../../helpers/editor';
-import { chord, click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { chord, click, drawnLines, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
 const PLAN = 'plan-e2e' as never;
@@ -56,21 +55,6 @@ function key(canvas: HTMLElement, type: 'keydown' | 'keyup', init: KeyboardEvent
  */
 function cursorClasses(canvas: HTMLElement): string[] {
 	return [...canvas.classList].filter((name) => name.startsWith('rp-plan-canvas-'));
-}
-
-/**
- * Everything the interaction layer is drawing, as one comparable snapshot.
- *
- * Deliberately not "find the preview line": during a body drag that layer holds the
- * translated ghost AND the selection outline, and picking one out by template order is a
- * dependency on the order of a `<template>` rather than on behaviour. Comparing the whole
- * set is both simpler and a stronger claim — a foreign pointer changes NOTHING that is
- * drawn, not merely nothing about the one node this case thought to name.
- */
-function drawnLines(stage: Konva.Stage | null): readonly (readonly number[])[] {
-	const layer = stage?.findOne<Konva.Layer>('.interaction');
-	if (layer === undefined) throw new Error('expected an interaction layer');
-	return layer.find('Line').map((line) => (line as Konva.Line).points());
 }
 
 it('does not let a foreign pointer’s MOVE steer the owner’s preview', async () => {

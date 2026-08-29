@@ -25,7 +25,7 @@
 import { describe, expect, it } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { settle } from '../../helpers/editor';
-import { click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { click, drawnLines, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
 const PLAN = 'plan-e2e' as never;
@@ -438,6 +438,77 @@ describe('a tool gesture the window took the focus away from', () => {
 
 		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+
+	it('leaves the restored anchor on screen, instead of redrawing the segment it abandoned', async () => {
+		// The ordering the first version of this handler had wrong. `abandonGesture()` puts
+		// `CalibrateTool`'s first point back and redraws its zero-length anchor — and the
+		// `reissuePointerMove` one line below then replayed the remembered position of the
+		// interrupted SECOND point into `pointerMove`, which drew the whole segment again.
+		//
+		// The cost is not cosmetic, because that render is byte-identical to the one
+		// `pointerDown` leaves for a second point that really WAS placed — measured here, the
+		// preview and the committed segment are the same points, which is why this case takes
+		// its expectation from the anchor rather than from a mid-press snapshot. A user coming
+		// back therefore saw the picture that means "measured, awaiting the distance" over a
+		// tool that had thrown the measurement away, with no dialog coming and nothing to say
+		// why.
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Calibrate').click();
+		await settle();
+
+		click(canvas, 300, 300); // the anchor: a complete click, down and up both
+		await settle();
+		const anchorOnly = drawnLines(harness.stage);
+		expect(anchorOnly.length).toBeGreaterThan(0);
+
+		// `buttons: 0` — the hand crosses the plan toward the second point with nothing held,
+		// which is also what leaves `lastStagePoint` there for the re-issue to replay.
+		pointer(canvas, 'pointermove', 500, 300, 0, 1, 0);
+		pointer(canvas, 'pointerdown', 500, 300); // the second point's press…
+		await settle();
+		// The control, so the assertion below is a segment TAKEN DOWN rather than one that was
+		// never drawn.
+		expect(drawnLines(harness.stage)).not.toEqual(anchorOnly);
+
+		blur(canvas); // …and focus lost before it came up
+		await settle();
+
+		expect(drawnLines(harness.stage)).toEqual(anchorOnly);
+		harness.unmount();
+	});
+
+	it('hands the active tool nothing when the focus is lost mid-PAN', async () => {
+		// The same replay reaching the same door from the camera's side. `reissuePointerMove`
+		// refuses to run while a pan does — `lastStagePoint` is then the PAN's own pointer, and
+		// a drawing tool's rubber band has no business jumping to it — but this handler
+		// cancelled the pan FIRST, so that guard was already false by the time the re-issue
+		// asked it. The one door built to keep a synthetic move out of a running pan was the
+		// one door that walked around it.
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+		pointer(canvas, 'pointermove', 600, 200, 0, 1, 0); // where the rubber band is left
+		await settle();
+
+		key(canvas, 'keydown', { key: ' ' });
+		pointer(canvas, 'pointerdown', 900, 500);
+		// A pan move at the press's own pixel: the camera cannot have moved, so a changed
+		// snapshot below is the TOOL having been told something rather than the view shifting
+		// under it.
+		pointer(canvas, 'pointermove', 900, 500);
+		await settle();
+		const drawnBefore = drawnLines(harness.stage);
+		expect(drawnBefore.length).toBeGreaterThan(0);
+
+		blur(canvas);
+		await settle();
+
+		expect(drawnLines(harness.stage)).toEqual(drawnBefore);
 		harness.unmount();
 	});
 

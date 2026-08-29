@@ -11,6 +11,7 @@
  * per axis at the default camera. The fixture zone's world rect (1500..4400)² therefore
  * has the screen footprint (198,198)-(488,388), inside the 800×600 stage.
  */
+import type Konva from 'konva';
 import { mountPlanEditor, type EditorHarness } from './editor';
 import { expectOk } from './domain';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
@@ -237,3 +238,22 @@ export function toolbarButton(harness: EditorHarness, label: string): HTMLButton
 	return found.element as HTMLButtonElement;
 }
 
+
+/**
+ * Everything the interaction layer is drawing, as one comparable snapshot.
+ *
+ * Deliberately not "find the preview line": during a body drag that layer holds the
+ * translated ghost AND the selection outline, and picking one out by template order is a
+ * dependency on the order of a `<template>` rather than on behaviour. Comparing the whole
+ * set is both simpler and a stronger claim — an interruption changes NOTHING that is drawn,
+ * not merely nothing about the one node a case thought to name.
+ *
+ * Shared rather than copied: it was written for `canvasGestureOwnership.test.ts` and wanted
+ * verbatim by `canvasKeyboardGestures.test.ts` the moment a second door replayed a stale
+ * move, which is a second derivation of one question about one layer.
+ */
+export function drawnLines(stage: Konva.Stage | null): readonly (readonly number[])[] {
+	const layer = stage?.findOne<Konva.Layer>('.interaction');
+	if (layer === undefined) throw new Error('expected an interaction layer');
+	return layer.find('Line').map((line) => (line as Konva.Line).points());
+}

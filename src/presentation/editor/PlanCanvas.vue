@@ -221,6 +221,10 @@ function reissuePointerMove(source: ModifierSource): void {
 	// the two Shift call sites because it is a property of re-issuing at all, and a third
 	// caller would have to remember a rule it cannot see.
 	//
+	// What a caller CAN still do is destroy the state this reads before asking: `onBlur`
+	// cancelled the pan first, so the phase was already clear by the time the re-issue got
+	// here. The guard is in the right place and the ordering is the caller's — see `onBlur`.
+	//
 	// Nothing is deferred to the pan's end: a re-issue answers "the camera moved under a
 	// stationary pointer", and a pan moves the pointer too, so the first real move after it
 	// says the same thing truthfully. The camera doors that DO need it are refused during a
@@ -704,14 +708,37 @@ const NO_MODIFIERS: ModifierSource = {
  * pointer to name. `cancelInterruptedGesture` rather than `cancelGesture` because a
  * multi-click tool sits BETWEEN clicks with nothing in flight, and a window losing focus
  * says nothing about a buffer the user is still filling.
+ *
+ * **The ORDER of those three is load-bearing, and the first version of this handler had it
+ * backwards at both ends.** The re-issue goes FIRST, so that it is a statement about the
+ * gesture as it still was, and the interruption is the last word on it:
+ *
+ * - It ran after `cancelInterruptedGesture()`, which had just RESTORED `CalibrateTool`'s
+ *   first point and redrawn its zero-length anchor — and then replayed the remembered
+ *   position of the interrupted second point straight back into `pointerMove`, redrawing
+ *   the abandoned segment over the anchor. Not a cosmetic difference: that render is
+ *   identical to the one `pointerDown` leaves for a second point that really was placed, so
+ *   the user came back to the picture meaning "measured, awaiting the distance" over a tool
+ *   that had thrown the measurement away, with no dialog coming.
+ * - And it ran after `panOverride.cancel()`, which is how the one door built to keep a
+ *   synthetic move out of a running pan walked around its own guard: `reissuePointerMove`
+ *   returns early while `phase === 'panning'`, and cancelling first had already made that
+ *   false — so a blur mid-pan handed a drawing tool a hover at the PAN's pointer and its
+ *   rubber band jumped there. Reported by a review bot on this pull request, which named
+ *   the calibration half; the camera half was the same replay one line up.
+ *
+ * Nothing is lost by re-issuing first. Each tool's `pointerMove` is a preview, so a tool
+ * whose gesture is then abandoned has that preview cleared by the abandonment anyway, and a
+ * tool with nothing in flight — the polygon buffer slice 13 added this call for — keeps the
+ * unconstrained preview the re-issue just drew.
  */
 function onBlur(): void {
+	reissuePointerMove(NO_MODIFIERS);
 	swallowedPointers.clear();
 	panOverride.cancel();
 	syncPanPhase();
 	editor.abandonPan();
 	runtime.toolManager.cancelInterruptedGesture();
-	reissuePointerMove(NO_MODIFIERS);
 }
 
 function onPointerLeave(event: PointerEvent): void {

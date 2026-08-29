@@ -744,6 +744,37 @@ check. Rules that came out of it:
   it, and a pan ends on its release with no move after it to correct the record, so the first
   Shift press afterwards replays the hover). **A fix's own shape tells you which mutation to
   write**, and the suite covering the reported path is not evidence about the one beside it.
+- **Two more doors that did not ask, and one of them was named in the comment that exists to
+  prevent exactly this.** `swallowedPointers` holds a pointer's id "until that pointer ends",
+  and its docblock narrates the scene — finger A space-pans, finger B is swallowed, A
+  releases and ends the pan, B reports back to a canvas with no pan running — then closes
+  with "Consulted at BOTH ends", meaning the release and the cancellation. The MOVE is a
+  third door and it asked nothing, so B steered the rubber band the moment A let go, one
+  event before the cancellation the comment describes. The move is also the door whose damage
+  LASTS: B's release is swallowed, so unlike most defects in this handler nothing self-heals
+  it. The guard is above the RECORD as well as the routing, because the routing-only form
+  passes the whole suite while leaving a Shift press able to replay B's position.
+- **`onBlur` was not idempotent, under a comment that called it idempotent** — and the
+  comment had been true until the ordering fix two commits earlier moved the re-issue above
+  the teardown. Chromium can deactivate a window while leaving the focused element focused,
+  so both blur listeners are registered and one Alt+Tab may deliver BOTH: the second call
+  found the override idle, because the first had just cancelled it, and replayed the pan's own
+  pointer into a tool that was told nothing while that pan ran. Whether the tool heard
+  anything came down to how many blur events the host chose to deliver. The remedy is not a
+  once-per-blur flag — that goes stale-true when focus leaves the container WITHIN the
+  document, where no window blur and no focus event follow, and the next real Alt+Tab would
+  then skip the space-bar cleanup. `onBlur` forgets `lastStagePoint` instead, which makes the
+  second call a no-op at the re-issue's own guard and is the sentence `onPointerLeave` and
+  `onPointerCancel` already carry: **a position remembered from before an interruption is not
+  a claim about where the user's pointer is.** `editor.setPointer` is deliberately NOT cleared
+  with it — those two doors fire because the pointer demonstrably left or was taken, while
+  focus can leave with the pointer still resting over the plan — and that asymmetry has its
+  own case, because clearing it too passes everything else.
+
+  **Both of these are the same shape as the fixes that preceded them, which is the thing to
+  carry rather than either defect: a rule this file states in a docblock is a rule some door
+  is not following, and the docblock is where to look first.** Three rounds running, the
+  comment naming the invariant was the best available description of the bug.
 - **Two expressions of one question, three lines apart, drift immediately.** The camera lock
   and the override-start guard both asked "is a gesture already running", and the lock was
   written without `editor.dragState` — so a camera-mode drag, which is the DEFAULT state and is

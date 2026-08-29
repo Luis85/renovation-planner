@@ -88,11 +88,16 @@ const lastStagePoint = ref<ScreenPoint | null>(null);
  * emptying a half-drawn polygon the tool never received a press for. Ownership has to outlive
  * the pan, because the pointer does.
  *
- * Consulted at BOTH ends, which is this file's own repeated lesson rather than a symmetry for
- * its own sake — a swallowed press owes a swallowed release. Measured: only the cancel path is
- * destructive today, because `cancelGesture()` empties a buffer unconditionally while a bare
- * release is absorbed by each tool's own no-gesture guard. Guarding one and not the other
- * would leave the next reader to discover which half was deliberate.
+ * Consulted at every door that pointer can arrive at — its MOVE, its release and its
+ * cancellation — which is this file's own repeated lesson rather than a symmetry for its own
+ * sake: a swallowed press owes a swallowed everything. The two ends came first, each from its
+ * own round of review, and this docblock then said "BOTH ends" for three slices while the
+ * move door asked nothing — so a swallowed finger steered the active tool the moment the pan
+ * owner let go, in the scene two paragraphs up, one event before the cancellation it
+ * describes. Measured: the cancel path is the destructive one (`cancelGesture()` empties a
+ * buffer unconditionally) while a bare release is absorbed by each tool's own no-gesture
+ * guard; the MOVE is the one whose damage LASTS, because the swallowed release that follows
+ * corrects nothing.
  *
  * Bounded by the number of pointers physically down, and cleared outright on focus loss —
  * a deactivated window owns none of them.

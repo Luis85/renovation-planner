@@ -157,6 +157,21 @@ export class DrawPolygonTool implements EditorTool {
 	}
 
 	/**
+	 * **A documented no-op, which is the whole point of this method existing separately.**
+	 * This tool places its vertex on `pointerdown` and holds nothing that the matching
+	 * `pointerup` would complete — so an interruption between the two has nothing to abandon,
+	 * and the buffer it would otherwise reach is the user's accumulated polygon rather than
+	 * transient state. Routing focus loss through `cancel()` destroyed every vertex placed
+	 * before the click that happened to be in flight.
+	 *
+	 * `closing` is deliberately untouched: it guards the re-entrancy of an in-flight close and
+	 * its staleness is already handled by `generation`, which only a real cancellation bumps.
+	 */
+	abandonGesture(): void {
+		// Nothing is transient here: see above.
+	}
+
+	/**
 	 * Whether a click at `worldPoint` closes the polygon, asked of `closesPolygon` — the same
 	 * predicate `InteractionLayer` asks to decide whether to promise a close, so what the
 	 * user sees and what the click does cannot disagree.

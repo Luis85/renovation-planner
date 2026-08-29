@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 /**
@@ -26,14 +26,40 @@ import { chromium } from 'playwright-core';
  * out in a comment is a name the next author can copy back into code, which is how the
  * mirror returns. `git log` has them.
  *
- * What is deliberately NOT done any more: hunting a DIFFERENT revision on disk when the
- * pinned one is missing. Capturing with a Chromium the project did not pin is a quieter
- * problem than not capturing, and the remedy below is one command.
+ * What is still deliberately NOT done: hunting a DIFFERENT revision on disk when the pinned
+ * one is missing. Capturing with a Chromium the project did not pin is a quieter problem
+ * than not capturing — an unannounced substitution renders a picture somebody then reasons
+ * about as if it were the pinned browser's. `CHROMIUM_OVERRIDE` is the one door out of that,
+ * and it differs from hunting in both halves: a person names the build, and the capture says
+ * out loud that it is not the pinned one.
  *
  * `tests/build/harness-shot.test.ts` holds the rule this rests on: no browser-layout literal
- * is written down in this file, or in either script that calls it.
+ * is written down in this file, or in either script that calls it. What it ANSWERS is
+ * `tests/build/chromium.test.ts`, which drives the function against a temporary
+ * `PLAYWRIGHT_BROWSERS_PATH` rather than against whatever this machine has installed.
  */
+
+/**
+ * The escape hatch, for a machine whose browsers are provisioned rather than installed.
+ *
+ * `npx playwright install chromium` is the remedy on a developer's laptop and is exactly
+ * what a container with its browsers baked in cannot do — its image ships one Chromium, at
+ * a revision nobody consulted this repository's `playwright-core` about, and a `postinstall`
+ * download is usually disabled outright. An error naming only the impossible remedy is how
+ * a capture check goes un-run and gets disclosed as outstanding instead.
+ *
+ * Not a `--flag`: two scripts call this, one of them through the `--` argument parsing
+ * `harness-shot.mjs` already documents as load-bearing, and an environment variable is what
+ * the environment providing the browser can set once for every command that needs it.
+ */
+export const CHROMIUM_OVERRIDE = 'RP_CHROMIUM_EXECUTABLE';
+
 export function resolveChromiumExecutable() {
+	// An empty value is unset. `RP_CHROMIUM_EXECUTABLE= npm run harness-shot` is how a shell
+	// spells "not this time", and taking it literally would resolve the browser to `''`.
+	const override = process.env[CHROMIUM_OVERRIDE];
+	if (override) return useOverride(override);
+
 	let bin;
 
 	try {
@@ -45,12 +71,54 @@ export function resolveChromiumExecutable() {
 		throw new Error('playwright-core could not resolve a Chromium for this platform', { cause: error });
 	}
 
-	if (existsSync(bin)) return bin;
+	if (isFile(bin)) return bin;
 
 	throw new Error(
 		`No Chromium build found for headless capture (looked for ${bin}).\n\n` +
 			'Install one with:\n' +
 			'  npx playwright install chromium\n\n' +
-			'Set PLAYWRIGHT_BROWSERS_PATH first if browsers should not live in the default cache.',
+			'Set PLAYWRIGHT_BROWSERS_PATH first if browsers should not live in the default cache.\n' +
+			`On a machine whose browsers are provisioned rather than installed, name one instead:\n` +
+			`  ${CHROMIUM_OVERRIDE}=/path/to/chrome npm run harness-shot`,
 	);
+}
+
+/**
+ * Whether a path is a FILE that exists — the question both doors ask, asked once.
+ *
+ * `existsSync` is the wrong instrument and answered `true` for a DIRECTORY, which both doors
+ * then handed to Playwright as an executable: it accepts the path and fails at a launch
+ * several steps later, blaming the browser rather than the thing that named it. That is
+ * exactly the late, unactionable failure this module exists to convert into an early one, so
+ * an `existsSync` that lets a directory through defeats its own point.
+ *
+ * The EXECUTABLE bit is deliberately not checked with it. There is no portable question to
+ * ask: Windows has no such bit, and `fs.accessSync(path, X_OK)` succeeds there for any file
+ * that exists, so the check would hold on one of this project's two CI platforms and be
+ * theatre on the other. "It is a file" is what the refusal below claims, and the claim is
+ * written to what the check reaches.
+ */
+function isFile(bin) {
+	return statSync(bin, { throwIfNoEntry: false })?.isFile() === true;
+}
+
+/**
+ * A named build, checked and announced.
+ *
+ * The existence check is this function's own job for the same reason it is below: Playwright
+ * accepts an `executablePath` that does not resolve to a browser and fails several steps
+ * later, at a launch, with a message about the browser rather than about the variable that
+ * named it. `isFile` and not `existsSync`, for the reason stated there — a directory is a
+ * path that exists and is not a browser.
+ */
+function useOverride(bin) {
+	if (!isFile(bin)) {
+		throw new Error(`${CHROMIUM_OVERRIDE} names ${bin}, which is not a file on this machine.`);
+	}
+
+	console.warn(
+		`${CHROMIUM_OVERRIDE} is set: capturing with ${bin}, which is not the Chromium playwright-core pins.\n` +
+			'Read the pictures as approximate — a different build renders text and layout slightly differently.',
+	);
+	return bin;
 }

@@ -44,12 +44,28 @@ import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 export class ToolManager {
 	private readonly tools = new Map<ToolId, EditorTool>();
 	private activeTool: EditorTool | null = null;
-	private gestureInFlight = false;
+	#gestureInFlight = false;
 
 	constructor(private readonly contextFactory: () => EditorContext) {}
 
 	get activeToolId(): ToolId | null {
 		return this.activeTool?.id ?? null;
+	}
+
+	/**
+	 * Whether a tool is between a press and its release — read by the pan override, which
+	 * refuses to claim the middle button while one is running (a camera moving beneath a live
+	 * drag would commit that drag at a position the user never chose).
+	 *
+	 * A GETTER over the flag this class already keeps, rather than a second boolean tracked
+	 * by the canvas: two values modelling one gesture is the drift `activeToolId` itself had
+	 * to be collapsed out of, and the copy would be the one that goes stale. The field behind
+	 * it is `#private` rather than `private` so that this getter is genuinely the only way in
+	 * — TypeScript's `private` is erased at runtime, and `tests/` is transpiled without type
+	 * checking, so a test reaching for the field directly would pass while proving nothing.
+	 */
+	get gestureInFlight(): boolean {
+		return this.#gestureInFlight;
 	}
 
 	/** Throws if `tool.id` is already registered (see decision 3 above). */
@@ -77,9 +93,9 @@ export class ToolManager {
 		}
 		const outgoing = this.activeTool;
 		if (outgoing) {
-			if (this.gestureInFlight) {
+			if (this.#gestureInFlight) {
 				outgoing.cancel();
-				this.gestureInFlight = false;
+				this.#gestureInFlight = false;
 			}
 			outgoing.deactivate();
 		}
@@ -96,9 +112,9 @@ export class ToolManager {
 	clearActiveTool(): void {
 		const outgoing = this.activeTool;
 		if (!outgoing) return;
-		if (this.gestureInFlight) {
+		if (this.#gestureInFlight) {
 			outgoing.cancel();
-			this.gestureInFlight = false;
+			this.#gestureInFlight = false;
 		}
 		outgoing.deactivate();
 		this.activeTool = null;
@@ -109,7 +125,7 @@ export class ToolManager {
 		if (!this.activeTool) {
 			return;
 		}
-		this.gestureInFlight = true;
+		this.#gestureInFlight = true;
 		this.activeTool.pointerDown(event);
 	}
 
@@ -127,7 +143,7 @@ export class ToolManager {
 			return;
 		}
 		this.activeTool.pointerUp(event);
-		this.gestureInFlight = false;
+		this.#gestureInFlight = false;
 	}
 
 	/**
@@ -152,6 +168,44 @@ export class ToolManager {
 			return;
 		}
 		this.activeTool.cancel();
-		this.gestureInFlight = false;
+		this.#gestureInFlight = false;
+	}
+
+	/**
+	 * Abandons an INTERRUPTED gesture — a press whose release is never coming, because focus
+	 * left the element or the tool was switched out from under it. A no-op when nothing is in
+	 * flight, and that guard is the entire difference from `cancelGesture` above.
+	 *
+	 * `PlanCanvas`'s `onBlur` is its one caller, and it had no cleanup at all for two slices:
+	 * an Alt+Tab mid-drag delivers no `pointerup` — the user releases the button in another
+	 * application — so the gesture outlived the hand. `gestureInFlight` then refused every
+	 * wheel and both fit shortcuts through `cameraIsLocked()` for the rest of the session, and
+	 * `SelectTool` kept a translated preview whose delta the user's next click anywhere
+	 * committed.
+	 *
+	 * **The switch paths above deliberately do NOT call this**, though they carry a guard that
+	 * looks identical. A first attempt routed them through here on exactly that reading, and
+	 * the two questions only look alike: switching tools is DELIBERATE, like `Escape`, and a
+	 * user leaving a tool wants what they accumulated in it gone — which is `cancel()`, and
+	 * `deactivate()` immediately after would do it anyway. Two similar guards asking different
+	 * questions is not duplication to consolidate.
+	 *
+	 * A press-to-RELEASE gesture is the whole of what it abandons, which is why `Escape` may
+	 * not be routed through it: a multi-click tool — the polygon tool's vertex buffer, the
+	 * calibration tool's pending first point — sits BETWEEN clicks with the flag false, and
+	 * a completed click is not an interruption. Escape is deliberate and always reaches the
+	 * tool; a window losing focus says nothing about a buffer the user is still filling.
+	 *
+	 * **And the flag is not enough on its own**, which the first version of this got wrong.
+	 * A multi-click tool commits its work on `pointerdown`, so it is between down and up —
+	 * flag TRUE — for the whole of every click, and calling `cancel()` there destroyed every
+	 * vertex placed before the one in flight. So this asks the tool for `abandonGesture()`,
+	 * the narrower door each tool answers for itself, rather than for the deliberate
+	 * `cancel()` that `Escape` and a tool switch take.
+	 */
+	cancelInterruptedGesture(): void {
+		if (!this.#gestureInFlight) return;
+		this.#gestureInFlight = false;
+		this.activeTool?.abandonGesture();
 	}
 }

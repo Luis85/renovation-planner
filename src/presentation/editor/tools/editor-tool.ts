@@ -46,6 +46,17 @@ export interface EditorPointerEvent {
  * render state the tool was accumulating. **No command is ever dispatched from `cancel()`**:
  * a cancelled gesture leaves no trace in `CommandHistory` (`./command-history.ts`) at all.
  * A tool must leave no transient render state behind once `deactivate()` returns.
+ *
+ * `abandonGesture()` is the NARROWER of the two, and the pair exists because the two events
+ * that reach them ask different questions. `cancel()` is DELIBERATE — Escape, a tool switch —
+ * and a user pressing it wants the accumulation gone. `abandonGesture()` is an
+ * INTERRUPTION: focus left the element with a button still down, so the release is never
+ * coming, and what must go is exactly the press-to-release transient that release would have
+ * completed. **A multi-click tool commits its work on `pointerdown`**, so a placed vertex or
+ * a first calibration point is not transient and must survive — an interruption during one
+ * click otherwise destroys every click before it, which is what the first version of the
+ * blur cleanup did. A tool with no press-to-release state answers with a documented no-op;
+ * the method is REQUIRED rather than optional so that a tool which grows one has to say so.
  */
 export interface EditorTool {
 	readonly id: ToolId;
@@ -55,4 +66,5 @@ export interface EditorTool {
 	pointerMove(event: EditorPointerEvent): void;
 	pointerUp(event: EditorPointerEvent): void;
 	cancel(): void;
+	abandonGesture(): void;
 }

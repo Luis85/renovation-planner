@@ -228,6 +228,15 @@ export class SelectTool implements EditorTool {
 		if (context !== null) context.renderState.previewPolygon = null;
 	}
 
+	/**
+	 * Identical to `cancel()`, and that is a fact about THIS tool rather than about the pair:
+	 * everything it holds between clicks is the drag, so the deliberate abandonment and the
+	 * interrupted one have the same work to do. A multi-click tool is where the two diverge.
+	 */
+	abandonGesture(): void {
+		this.cancel();
+	}
+
 	private async commit(
 		context: EditorContext,
 		zoneId: ZoneId,

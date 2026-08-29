@@ -18,6 +18,7 @@
 @import "./editor.css";
 @import "./editor-status.css";
 @import "./editor-requirements.css";
+@import "./editor-cursors.css";
 @import "./dialogs.css";
 @import "./chrome.css";
 @import "./work-packages.css";

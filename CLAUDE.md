@@ -674,6 +674,25 @@ check. Rules that came out of it:
   drawing tool's rubber band following any pointer but the last one to have pressed — for the
   rest of the session, silently, because `toolGesturePointer` is never cleared. Measured by
   writing the mutation and finding the suite green.
+- **A SYNTHETIC input is still an input, and `reissuePointerMove` was the one door that handed
+  a tool something while the camera owned the canvas.** Three pointer handlers keep the active
+  tool out of a running pan; the re-issue is built from `lastStagePoint`, which during a pan is
+  the PAN's own pointer — so Shift pressed mid-pan sent a drawing tool a hover at the panning
+  cursor and its rubber band jumped there. The guard is inside that function rather than at its
+  two Shift call sites, because it is a property of re-issuing at all and a third caller cannot
+  see a rule kept at the other two. Nothing is DEFERRED to the pan's end: a re-issue answers
+  "the camera moved under a stationary pointer", a pan moves the pointer too, and the first
+  real move after it says so truthfully — while the camera doors that do need one (`onWheel`,
+  `onKeyDown`) are refused during a pan anyway by `gestureInFlight()`, which a pan's own
+  `dragState` satisfies.
+  **Its narrowing needed a case of its own, and that is now twice in two rounds**: widen the
+  guard from "a pan is running" to `gestureInFlight()` and the whole suite still passes, while
+  the angle constraint dies at exactly the moment it is wanted — a drawing tool places its
+  vertex on `pointerdown`, so a user holding the button and moving is mid-gesture by
+  definition. The comment above that branch had asserted precisely this and nothing checked it.
+  **The pattern worth carrying: when a fix is a REFUSAL, the suite tends to cover the thing
+  refused and not the thing still allowed** — so write the widened mutation and run it, because
+  a refusal that is too broad is silent in a way a missing refusal is not.
 - **Two expressions of one question, three lines apart, drift immediately.** The camera lock
   and the override-start guard both asked "is a gesture already running", and the lock was
   written without `editor.dragState` — so a camera-mode drag, which is the DEFAULT state and is

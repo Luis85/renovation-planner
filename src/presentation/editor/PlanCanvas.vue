@@ -213,6 +213,20 @@ function editorPointerEvent(event: PointerEvent, at: ScreenPoint): EditorPointer
  * say. Reported by a review bot on the pull request that drew the close target.
  */
 function reissuePointerMove(source: ModifierSource): void {
+	// **A synthetic move is still an input, and while a pan runs the canvas belongs to the
+	// CAMERA.** Three pointer handlers keep the active tool out of a running pan; this
+	// function is the one door that hands it something anyway, and `lastStagePoint` during a
+	// pan is the PAN's own pointer — so a Shift press mid-pan sent a drawing tool a hover at
+	// the panning cursor and its rubber band jumped there. The guard is HERE rather than at
+	// the two Shift call sites because it is a property of re-issuing at all, and a third
+	// caller would have to remember a rule it cannot see.
+	//
+	// Nothing is deferred to the pan's end: a re-issue answers "the camera moved under a
+	// stationary pointer", and a pan moves the pointer too, so the first real move after it
+	// says the same thing truthfully. The camera doors that DO need it are refused during a
+	// pan anyway — `onWheel` and `onKeyDown` both return on `gestureInFlight()`, which a
+	// pan's own `dragState` satisfies.
+	if (panOverride.phase === 'panning') return;
 	const at = lastStagePoint.value;
 	if (at === null || runtime.activeToolId.value === null) return;
 	runtime.toolManager.pointerMove(pointerEventAt(source, at, 'primary'));

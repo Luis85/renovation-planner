@@ -360,6 +360,67 @@ describe('a pointer taken away mid-pan', () => {
 	});
 });
 
+describe('a Shift press during a pan', () => {
+	/**
+	 * While a pan runs the canvas belongs to the CAMERA — every input, and a SYNTHETIC one is
+	 * still an input. Shift re-issues the pointer move so an angle constraint bites on the key
+	 * rather than on the next twitch, and that re-issue is built from `lastStagePoint`, which
+	 * during a pan is the PAN's own pointer. So the one door that hands a tool something while
+	 * the camera owns the canvas was the door that names no pointer at all.
+	 */
+	it('does not move the tool’s sketch, which the pan is otherwise keeping away from it', async () => {
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		pointer(canvas, 'pointermove', 600, 200, 0, 1, 0);
+		await settle();
+
+		// Space-pan from somewhere else entirely, so a leaked re-issue is unmistakable rather
+		// than a rounding difference.
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+		pointer(canvas, 'pointerdown', 200, 600);
+		pointer(canvas, 'pointermove', 250, 650);
+		await settle();
+		const drawnBefore = drawnLines(harness.stage);
+		expect(drawnBefore.length).toBeGreaterThan(0);
+
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true, bubbles: true }));
+		await settle();
+
+		expect(drawnLines(harness.stage)).toEqual(drawnBefore);
+		harness.unmount();
+	});
+
+	it('still reaches the tool while the TOOL’s own gesture is in flight', async () => {
+		// The narrowing, and it needs its own case for the same reason the last one did: the
+		// suppression above passes every test in this suite if it is widened from "a pan is
+		// running" to "any gesture is running" — and that version kills the angle constraint at
+		// exactly the moment it is wanted. A drawing tool places its vertex on `pointerdown`, so
+		// a user who holds the button and moves is mid-gesture by definition, and Shift is what
+		// they press to straighten the line they are already drawing.
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		// Pressed and HELD: the second vertex is placed and the gesture is in flight.
+		pointer(canvas, 'pointerdown', 600, 120);
+		pointer(canvas, 'pointermove', 700, 140);
+		await settle();
+		const drawnBefore = drawnLines(harness.stage);
+		expect(drawnBefore.length).toBeGreaterThan(0);
+
+		// About 11 degrees off horizontal, so the 15-degree constraint has somewhere to move it.
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true, bubbles: true }));
+		await settle();
+
+		expect(drawnLines(harness.stage)).not.toEqual(drawnBefore);
+		harness.unmount();
+	});
+});
+
 describe('a second pointer arriving during a TOOL gesture', () => {
 	/**
 	 * The pan override refuses a press while another gesture runs, camera mode's `beginPan`

@@ -427,13 +427,24 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		// Slice 15's Definition of Done: dialogs reach neither application nor infrastructure
 		// nor plugin nor the event bus. More than SDD §8 forbids, which is why the oracle is
 		// four documents rather than one.
+		//
+		// `core/events` is the half a first draft of this table omitted while its own comment
+		// named it — the oracle says "nor the event bus" and the array did not carry it.
+		// Measured: `../../../core/events` and `../../../core/events/bus` both report from
+		// this path, while plain `../../../core` does not. `vue-rules.test.ts` exercises one
+		// `.ts` spelling of it, so dropping the barrel restriction or an extension would have
+		// left the promised matrix green.
 		forbidden: [
 			...layerShapes('application', '../../../'),
 			...layerShapes('infrastructure', '../../../'),
 			...layerShapes('plugin', '../../../'),
+			...layerShapes('core/events', '../../../'),
 			...PROTOTYPES('../../../'),
 		],
-		allowed: 'vue',
+		// `core` itself, deliberately — the SHARPEST negative available here, because it
+		// proves the ban is keyed on `core/events` rather than on the whole of `core`. `vue`
+		// would pass against a build that banned all of `core` from dialogs.
+		allowed: '../../../core',
 	},
 	{
 		key: '**/src/application/queries/**/*.ts',
@@ -1065,7 +1076,15 @@ import { REPO } from '../helpers/oxlint';
 
 interface Workflow {
 	readonly on: { readonly push?: { readonly branches?: readonly string[] }; readonly pull_request?: unknown };
-	readonly jobs: Record<string, { readonly strategy?: { readonly matrix?: { readonly include?: readonly { os: string }[] } }; readonly steps?: readonly { run?: string }[] }>;
+	readonly jobs: Record<
+		string,
+		{
+			readonly strategy?: { readonly matrix?: { readonly include?: readonly { os: string }[] } };
+			// `if` is part of the shape deliberately: the unconditional-execution case below
+			// reads it, and a type that omitted it would make that assertion unwritable.
+			readonly steps?: readonly { run?: string; if?: string }[];
+		}
+	>;
 }
 
 const workflow = parse(readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')) as Workflow;
@@ -1105,6 +1124,26 @@ describe('CI invokes the definition of done', () => {
 			.filter((run): run is string => run !== undefined && run.includes('npm run'));
 
 		expect(new Set(runs)).toEqual(new Set(['npm run check']));
+	});
+
+	/**
+	 * And it runs UNCONDITIONALLY on every leg, which the three cases above cannot see.
+	 *
+	 * They are independent: the platform lookup asks the matrix, the command lookup asks the
+	 * steps, and neither asks whether the step is gated. So `if: matrix.os !=
+	 * 'windows-latest'` on the check step passes all three — Windows is still in the matrix
+	 * and `npm run check` is still in the job — while the gate never runs there at all. A
+	 * test claiming both platforms invoke the definition of done has to read the condition.
+	 *
+	 * Any `if` is a finding rather than only a matrix-narrowing one: a condition this test
+	 * has to interpret is a condition it will interpret wrongly, and there is no legitimate
+	 * reason for the definition of done to be conditional.
+	 */
+	it('runs it unconditionally, on every leg the matrix includes', () => {
+		const check = (workflow.jobs['verify']?.steps ?? []).find((step) => step.run === 'npm run check');
+
+		expect(check).toBeDefined();
+		expect(check).not.toHaveProperty('if');
 	});
 });
 ```
@@ -1174,6 +1213,11 @@ Create `tests/build/fixtures/indirectDom.fixture.ts`:
  * `*.fixture.ts` rather than `*.test.ts`: Vitest's `include` is `tests/**\/*.test.ts`, so
  * this is never collected, and `tests/build/spec-files.test.ts`'s naming rule bans
  * `.spec.ts` rather than this extension.
+ *
+ * It shares a directory with Task 9's `brokenFake.fixture.ts`, which is why that task's child
+ * vitest config names its own fixture EXACTLY rather than globbing `*.fixture.ts`: a glob
+ * would collect this module too, and this module throwing at evaluation would put a second,
+ * unrelated cause into a run whose whole purpose is discriminating one.
  */
 const reachDocument = (): string => (globalThis as { document?: { title: string } }).document!.title;
 
@@ -1403,7 +1447,15 @@ export default defineConfig({
 	test: {
 		root: process.cwd(),
 		environment: 'node',
-		include: ['tests/build/fixtures/*.fixture.ts'],
+		// NAMED EXACTLY, never globbed. `tests/build/fixtures/*.fixture.ts` also collects
+		// Task 8's `indirectDom.fixture.ts`, which reads `document` at module evaluation and
+		// therefore throws a `ReferenceError` under this run's node environment — so every
+		// child run would carry an unrelated second failure, the direct-run expectation of an
+		// assertion-only failure would be false, and the parent's discriminators would be
+		// reading a run with two causes in it. A glob absorbs the next fixture and tells
+		// nobody, which is the reason `.fallowrc.json`'s own comments give for naming files
+		// one at a time.
+		include: ['tests/build/fixtures/brokenFake.fixture.ts'],
 	},
 });
 ```
@@ -1722,6 +1774,18 @@ export class FixtureVaultAdapter {
 	// …`read`, `modify`, `delete`, `createFolder`, `getFiles`, `getMarkdownFiles`, each
 	// mirroring `FakeVault`'s signature over `node:fs` under `this.root`.
 
+	/**
+	 * A SYNCHRONOUS read, for `openFixtureVault`'s seeding pass only.
+	 *
+	 * Obsidian's own `Vault.read` is async and `FakeVault` mirrors that, so this is a second
+	 * door rather than a change to the first: seeding happens once, before the stack is handed
+	 * out, and nothing under test may reach it. Named `readSync` so a caller that wanted the
+	 * real door cannot take this one by accident.
+	 */
+	readSync(path: string): string {
+		return readFileSync(this.absolute(path), 'utf8');
+	}
+
 	private absolute(path: string): string {
 		return path.startsWith(this.root) ? path : join(this.root, path);
 	}
@@ -1748,6 +1812,21 @@ export class FixtureMetadataCache {
 	 */
 	enqueue(path: string, data: string): void {
 		this.pending.push([path, data]);
+	}
+
+	/**
+	 * Files already on disk when the vault opened — parsed IMMEDIATELY, because Obsidian has
+	 * already parsed them by the time a plugin loads.
+	 *
+	 * This is not a hole in hardening rule 2 and the boundary is worth stating: the rule is
+	 * about the read-after-WRITE window, a note the plugin has just created and reads back in
+	 * the same tick. A checked-in fixture note is not in that window. Without this pass every
+	 * fixture note has no cache entry and no `EchoWindow` history either, so `frontmatterOf`
+	 * answers nothing for all of them and an index rebuild indexes zero entities — a fixture
+	 * vault that reads as empty, which is the "instrument reaches nothing" shape again.
+	 */
+	seedExisting(files: readonly [string, string][]): void {
+		for (const [path, data] of files) this.parsed.set(path, { frontmatter: parseFrontmatter(data).frontmatter });
 	}
 
 	/** The test-visible door onto the async window: drain what Obsidian would have parsed. */
@@ -1779,6 +1858,18 @@ export const openFixtureVault = async (caseName: string): Promise<FixtureStack> 
 
 	const vault = new FixtureVaultAdapter(root);
 	const metadataCache = new FixtureMetadataCache();
+
+	// SEED the cache from the files just cloned, before returning. Without this every
+	// checked-in note has no cache entry and no `EchoWindow` history either, so
+	// `frontmatterOf` answers nothing for all of them: Task 11's first `rebuildIndex()`
+	// would index zero fixture entities and Task 12 could not read its planted frontmatter.
+	//
+	// This does NOT weaken hardening rule 2, and the distinction is the whole point: Obsidian
+	// populates the cache asynchronously for a note the plugin has just CREATED, which is the
+	// read-after-write window that concealed a shipped defect. A note already on disk when
+	// the vault opens is one Obsidian has already parsed. The async window stays, scoped to
+	// `create`.
+	metadataCache.seedExisting(vault.getMarkdownFiles().map((file) => [file.path, vault.readSync(file.path)]));
 	const fileManager = new FixtureFileManager(vault);
 	// `FixtureFileManager` mirrors `FakeFileManager` (tests/helpers/vault.ts:250) — the
 	// repositories reach `processFrontMatter` on every write and `trashFile` on every

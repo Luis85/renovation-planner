@@ -132,6 +132,68 @@ describe('the vault-change pipeline announces the entries it changes', () => {
 		expect(announced).toEqual([]);
 	});
 
+	/**
+	 * **A retype DISPLACES an entry, and the displacement is a fact about the type it left.**
+	 * An upsert keyed on the id replaces the whole entry, so a project note whose `type` is
+	 * hand-edited to another of the five leaves `getIdsByType('renovation-project')` — and the
+	 * announcement named only what it BECAME. `createProjectListChangeSource` filters on
+	 * `renovation-project`, so the one source that needed telling was the one filtered out: a
+	 * mounted project list kept the row, and the row's click resolves through `getPath(id)`,
+	 * which still answers that path, so it opened the retyped note. Reported in review.
+	 *
+	 * The displaced type is read BEFORE the upsert, because after it there is nothing left to
+	 * ask — which is the sentence `applyRemove` has carried since it was written and the sibling
+	 * it sits beside was not following.
+	 */
+	it('announces both types when an upsert displaces an entry of another type', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const path = stack.index.getPath(projectId) ?? '';
+		const { adapter, announced } = wired(stack);
+		stack.vault.entries.set(
+			path,
+			serializeFrontmatter({ type: 'renovation-plan', id: String(projectId), 'schema-version': 1 }),
+		);
+		stack.metadataCache.catchUp();
+
+		adapter.onModify({ path } as never);
+		await settled();
+
+		expect(announced).toEqual([
+			{ id: String(projectId), type: 'renovation-project' },
+			{ id: String(projectId), type: 'renovation-plan' },
+		]);
+	});
+
+	/**
+	 * The other half of the pair, and the one that says the fix is a displacement test rather
+	 * than an unconditional second announcement: an ordinary edit to a project note re-upserts
+	 * the same type, and a view must hear about that once.
+	 */
+	it('announces once when an upsert does not change the entry type', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const path = stack.index.getPath(projectId) ?? '';
+		const { adapter, announced } = wired(stack);
+		stack.vault.entries.set(
+			path,
+			serializeFrontmatter({
+				type: 'renovation-project',
+				id: String(projectId),
+				'schema-version': 1,
+				name: 'Renamed by hand',
+			}),
+		);
+		stack.metadataCache.catchUp();
+
+		adapter.onModify({ path } as never);
+		await settled();
+
+		expect(announced).toEqual([{ id: String(projectId), type: 'renovation-project' }]);
+	});
+
 	it('says nothing about a note that is not ours and never was', async () => {
 		const stack = createRepositoryStack();
 		const { adapter, announced } = wired(stack);

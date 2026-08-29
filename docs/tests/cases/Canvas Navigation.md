@@ -95,6 +95,13 @@ and they are the reason this file exists:
     and a headless browser has no OS window to deactivate. Registering both is what makes this
     step pass whichever way the host behaves; if it still fails, neither fired and that is a
     real finding.
+11b. **With the Select tool, press on a zone and start dragging it. Without releasing,
+    Alt+Tab away, release the button there, and come back.** Expected: the zone is where it
+    started, the wheel still zooms, and a click elsewhere moves nothing. The defect: the
+    gesture outlived the hand — the camera refused to zoom for the rest of the session and
+    the next click anywhere committed the abandoned move. Then repeat with the **Draw zone**
+    tool, alt-tabbing away BETWEEN two vertices: the vertices must still be there, because
+    nothing was interrupted.
 11a. **On a plan with a background and NO zones**, the canvas shows an empty state with a
     "Draw a zone" button. **Tab to that button and press Space.** Expected: the button
     activates and the Draw zone tool becomes active — the canvas must NOT arm the camera or

@@ -93,10 +93,7 @@ export class ToolManager {
 		}
 		const outgoing = this.activeTool;
 		if (outgoing) {
-			if (this.#gestureInFlight) {
-				outgoing.cancel();
-				this.#gestureInFlight = false;
-			}
+			this.cancelInterruptedGesture();
 			outgoing.deactivate();
 		}
 		this.activeTool = next;
@@ -112,10 +109,7 @@ export class ToolManager {
 	clearActiveTool(): void {
 		const outgoing = this.activeTool;
 		if (!outgoing) return;
-		if (this.#gestureInFlight) {
-			outgoing.cancel();
-			this.#gestureInFlight = false;
-		}
+		this.cancelInterruptedGesture();
 		outgoing.deactivate();
 		this.activeTool = null;
 	}
@@ -169,5 +163,29 @@ export class ToolManager {
 		}
 		this.activeTool.cancel();
 		this.#gestureInFlight = false;
+	}
+
+	/**
+	 * Abandons an INTERRUPTED gesture — a press whose release is never coming, because focus
+	 * left the element or the tool was switched out from under it. A no-op when nothing is in
+	 * flight, and that guard is the entire difference from `cancelGesture` above.
+	 *
+	 * **It is one question asked at three doors, and it was written out longhand at two of
+	 * them before this existed** (both switch paths above, which call it now). The third is
+	 * `PlanCanvas`'s `onBlur`, which asked it at NONE: an Alt+Tab mid-drag delivers no
+	 * `pointerup` at all — the user releases the button in another application — so the
+	 * gesture outlived the hand. `gestureInFlight` then refused every wheel and both fit
+	 * shortcuts through `cameraIsLocked()` for the rest of the session, and `SelectTool` kept
+	 * a translated preview whose delta the user's next click anywhere committed.
+	 *
+	 * A press-to-RELEASE gesture is the whole of what it abandons, which is why `Escape` may
+	 * not be routed through it: a multi-click tool — the polygon tool's vertex buffer, the
+	 * calibration tool's pending first point — sits BETWEEN clicks with the flag false, and
+	 * a completed click is not an interruption. Escape is deliberate and always reaches the
+	 * tool; a window losing focus says nothing about a buffer the user is still filling.
+	 */
+	cancelInterruptedGesture(): void {
+		if (!this.#gestureInFlight) return;
+		this.cancelGesture();
 	}
 }

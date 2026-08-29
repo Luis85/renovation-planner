@@ -38,6 +38,11 @@ async function editor() {
 	return { ...built, canvas, camera: useEditorStore(built.harness.pinia) };
 }
 
+/** Focus leaving the canvas element, which is the only notice a held key or gesture gets. */
+function blur(canvas: HTMLElement): void {
+	canvas.dispatchEvent(new FocusEvent('blur', { bubbles: false }));
+}
+
 function key(canvas: HTMLElement, type: 'keydown' | 'keyup', init: KeyboardEventInit): KeyboardEvent {
 	const event = new KeyboardEvent(type, { bubbles: true, cancelable: true, ...init });
 	canvas.dispatchEvent(event);
@@ -325,5 +330,83 @@ describe('the window losing focus, not just the element', () => {
 		harness.unmount();
 
 		expect(() => window.dispatchEvent(new FocusEvent('blur'))).not.toThrow();
+	});
+});
+
+describe('a tool gesture the window took the focus away from', () => {
+	/**
+	 * **The blur cleanup answered for the camera and not for the tool**, which is the same
+	 * omission `pointercancel` was corrected for one round earlier, at the one door that has
+	 * no pointer to name. An Alt+Tab mid-drag delivers no `pointerup` — the user releases the
+	 * button in another application — so without this the gesture outlives the hand.
+	 *
+	 * The guard is `gestureInFlight`, and it is the question `ToolManager`'s own tool-SWITCH
+	 * path already asks: was a press-to-RELEASE gesture interrupted? A multi-click tool sits
+	 * between clicks with the flag false, and its buffer has nothing to do with the window
+	 * losing focus.
+	 */
+	it('releases the camera lock, instead of refusing to zoom for the rest of the session', async () => {
+		// The stickiest half: `cameraIsLocked()` reads `toolManager.gestureInFlight`, so a
+		// gesture left in flight refuses every wheel and both fit shortcuts from then on — with
+		// nothing on screen to say why, and no way back short of reopening the leaf.
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 340, 300);
+		blur(canvas);
+		await settle();
+		const zoom = camera.viewport.zoom;
+
+		canvas.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true }));
+		await settle();
+
+		expect(camera.viewport.zoom).not.toBe(zoom);
+		harness.unmount();
+	});
+
+	it('does not let the next unrelated click commit the abandoned move', async () => {
+		// The same damage `onPointerCancel`'s header records, reached through the other door:
+		// `SelectTool` keeps a translated preview with no button held, and the user's next
+		// click anywhere commits a move by the delta between the abandoned start and it.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
+
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 340, 300);
+		blur(canvas);
+		await settle();
+
+		click(canvas, 900, 500);
+		await settle();
+
+		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).toEqual(before);
+		harness.unmount();
+	});
+
+	it('leaves a half-drawn polygon alone, because no gesture was interrupted', async () => {
+		// The over-correction this file exists to refuse, and the reason the cleanup is gated
+		// rather than unconditional: between two complete clicks nothing is in flight, and a
+		// user who alt-tabs to check a measurement must come back to their vertices.
+		const { harness, canvas, zonesRepo } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		click(canvas, 600, 100);
+		blur(canvas);
+		await settle();
+
+		// The buffer survived: a third vertex and a close land on the original two.
+		click(canvas, 600, 200);
+		click(canvas, 500, 100);
+		await settle();
+
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
 	});
 });

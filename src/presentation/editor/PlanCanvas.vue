@@ -627,12 +627,23 @@ const NO_MODIFIERS: ModifierSource = {
  * slice 13's own reason, unchanged: a Shift released in another application would otherwise
  * leave the preview constrained for ever, while the next click carries the real
  * `shiftKey: false` and places the vertex somewhere the rubber band was not.
+ *
+ * **A THIRD thing follows and this handler answered for none of it for two slices**: a tool
+ * gesture in flight is interrupted here too. An Alt+Tab mid-drag delivers no `pointerup` —
+ * the user releases the button in another application — so `gestureInFlight` stayed true and
+ * `cameraIsLocked()` refused every wheel and both fit shortcuts for the rest of the session,
+ * while `SelectTool` kept a translated preview whose delta the next click anywhere
+ * committed. The same damage `onPointerCancel` was corrected for, at the one door with no
+ * pointer to name. `cancelInterruptedGesture` rather than `cancelGesture` because a
+ * multi-click tool sits BETWEEN clicks with nothing in flight, and a window losing focus
+ * says nothing about a buffer the user is still filling.
  */
 function onBlur(): void {
 	swallowedPointers.clear();
 	panOverride.cancel();
 	syncPanPhase();
 	editor.abandonPan();
+	runtime.toolManager.cancelInterruptedGesture();
 	reissuePointerMove(NO_MODIFIERS);
 }
 

@@ -520,6 +520,21 @@ check. Rules that came out of it:
   guard, so a test asserting the zone did not move passes with the defect present and was
   dropped rather than kept. Which is the invariant-at-the-forbidden-thing rule paying out:
   the guard belongs to the tool, and the routing needs its own case.
+- **A gesture interrupted by FOCUS LOSS is the same question as one interrupted by
+  `pointercancel`, asked at the door with no pointer to name — and `onBlur` answered for the
+  camera only.** An Alt+Tab mid-drag delivers no `pointerup` at all: the user releases the
+  button in another application. So `ToolManager.gestureInFlight` stayed true, and through
+  `cameraIsLocked()` that refused every wheel and both fit shortcuts **for the rest of the
+  session**, with nothing on screen to say why; `SelectTool` meanwhile kept a translated
+  preview whose delta the user's next click anywhere committed — the identical damage
+  `onPointerCancel`'s header already records, through the other door. The guard is
+  `gestureInFlight` and it is NOT the same as `Escape`'s: a multi-click tool sits BETWEEN
+  clicks with the flag false, so an unconditional cancel here empties a polygon buffer the
+  user alt-tabbed away from, which is the over-correction the third case pins.
+  `cancelInterruptedGesture` states that once — the two tool-SWITCH paths had written it out
+  longhand and the blur door asked it at neither, which is this file's recurring shape from
+  its third side: not "state the rule again more carefully" but "notice one question is being
+  answered in three places and two of them are copies".
 - **A chorded mouse button fires NO `pointerdown` and NO `pointerup`, and eight rounds of
   review on this handler hardened it against inputs no mouse can produce.** W3C Pointer
   Events, "chorded button interactions": `pointerdown` fires only on the transition from no

@@ -95,6 +95,24 @@ async function onCreateProject(): Promise<void> {
 }
 
 /**
+ * A project row's click, and the one case that has to do more than open a note.
+ *
+ * A project note deleted after this pane was opened leaves its row on screen: the vault-change
+ * pipeline drops the index entry silently, and `store.hydrate` has no listener to be woken by
+ * — its two callers are `onMounted` and `onCreateProject`. So the row went on being drawn, did
+ * nothing at all when clicked, and told the user nothing until the view was reopened. Reported
+ * in review, against a comment in `openProjectNote` claiming the list was "re-read on the next
+ * hydrate anyway", of which there was none.
+ *
+ * `'missing'` is that row saying so, and the re-read is what removes it. `'failed'` is not:
+ * the composition root has already put a notice in front of the user for it, and the list
+ * behind the row is not stale.
+ */
+async function onOpenProject(projectId: string): Promise<void> {
+	if ((await context.openProject(projectId)) === 'missing') await store.hydrate(context.queries);
+}
+
+/**
  * `null` for no empty state — a normal render, `ProjectList` drawing the vault's projects —
  * or the resolved props for the one key this slice's registry declares
  * (`renovationProject.noProjects`). `EMPTY_STATE_CONTENT.renovationProject` is keyed to
@@ -133,7 +151,7 @@ onMounted(() => {
 			<ProjectList
 				v-else
 				:projects="projects"
-				@open="(id) => void context.openProject(id)"
+				@open="(id) => void onOpenProject(id)"
 				@create="onCreateProject"
 			/>
 			<p

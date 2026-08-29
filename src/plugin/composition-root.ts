@@ -51,7 +51,10 @@ import {
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
-import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
+import type {
+	ProjectOpenOutcome,
+	RenovationProjectDeps,
+} from '../presentation/views/RenovationProjectContext';
 import { openProjectNote } from '../infrastructure/obsidian/workspace/openNote';
 import { notify, notifyFault } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
@@ -568,9 +571,10 @@ export function planEditorDeps(
  * `root.persistence` is `null` are the same total-rather-than-nullable shape `planEditorDeps`
  * uses for the identical situation — a nullable dependency would make every caller branch on
  * it, and refusing to register the view at all would leave a restored leaf pointing at a view
- * type Obsidian does not know. `openProject` answers a no-op rather than a refusal in that
+ * type Obsidian does not know. `openProject` answers `'failed'` rather than a refusal in that
  * state: there is no index to resolve a path through, and nothing to tell the user that the
- * list — empty for the same reason — has not already told them.
+ * list — empty for the same reason — has not already told them. It is `'failed'` and not
+ * `'missing'` because `'missing'` asks the view to re-read a list that has nothing to re-read.
  *
  * **The composed closure also owes the deferred half of Task 5's own review**: `openProjectNote`
  * has no `try`/`catch` of its own, and `ProjectList`'s row click discards the promise this
@@ -598,10 +602,14 @@ export function renovationProjectDeps(
 		openProject: persistence
 			? (projectId) =>
 					openProjectNote({ workspace, vault, index: persistence.index }, projectId).catch(
-						(cause: unknown) => {
+						(cause: unknown): ProjectOpenOutcome => {
 							notifyFault(cause, root.logger, 'view.project.open-failed');
+							// `'failed'`, never `'missing'`: the id DID resolve and the open faulted, so
+							// the list behind the row is not stale and a vault-wide re-read would answer
+							// a question nobody asked. The notice above is what the user acts on.
+							return 'failed';
 						},
 					)
-			: () => Promise.resolve(),
+			: () => Promise.resolve('failed'),
 	};
 }

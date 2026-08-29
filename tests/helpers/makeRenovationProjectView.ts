@@ -77,10 +77,12 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
  * write. It is the honest fake here rather than the refusal bundle's silent one for the reason
  * one paragraph up: this default ANSWERS, so its failures are real ones worth recording.
  *
- * `openProject` stays a no-op: opening a project's own note is an Obsidian-vault operation
- * this harness has none of, and every caller of this factory that cares about it
- * (`renovationProjectEmptyState.test.ts`, `accessibility.test.ts`'s failed-read case) passes
- * its own `deps` explicitly instead of taking the default.
+ * `openProject` stays a no-op answering `'opened'`: opening a project's own note is an
+ * Obsidian-vault operation this harness has none of, and every caller of this factory that
+ * cares about it (`renovationProjectEmptyState.test.ts`, `accessibility.test.ts`'s failed-read
+ * case) passes its own `deps` explicitly instead of taking the default. `'opened'` and not
+ * `'missing'`, because `'missing'` asks `ViewRoot` to re-read the list — a default that
+ * re-hydrated on every row click would be a fake driving behaviour nothing asked for.
  */
 export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView => {
 	if (deps !== undefined) return new RenovationProjectView(new FakeLeaf() as never, deps);
@@ -95,7 +97,7 @@ export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 	const defaults: RenovationProjectDeps = {
 		queries: createRenovationProjectQueries(new ListProjects(projects)),
 		commands: { createProject: new CreateProjectCommand(projects, events), logger: recorder },
-		openProject: () => Promise.resolve(),
+		openProject: () => Promise.resolve('opened'),
 	};
 	return new RenovationProjectView(new FakeLeaf() as never, defaults);
 };

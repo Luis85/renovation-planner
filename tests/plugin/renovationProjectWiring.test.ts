@@ -101,14 +101,36 @@ describe('the renovation project dependencies', () => {
 	 * TOTAL rather than nullable, same as `queries` and `commands` above: with no index to
 	 * resolve a path through, opening anything would be a guess, so this answers a no-op
 	 * rather than reaching for a workspace that has nothing to open.
+	 *
+	 * `'failed'` and never `'missing'`, which is the member `ViewRoot` re-reads the project
+	 * list for: there is no list in this state — `queries` is the refusal bundle — so asking
+	 * for a re-read would set off a read that can only refuse again.
 	 */
 	it('opens nothing when settings were never recovered', async () => {
 		const root = createCompositionRoot(null, recorder, vaultStack());
 		const workspace = new FakeWorkspace();
 
 		const deps = renovationProjectDeps(root, workspace as never, vaultStack().vault);
-		await expect(deps.openProject('project-1')).resolves.toBeUndefined();
+		await expect(deps.openProject('project-1')).resolves.toBe('failed');
 
+		expect(workspace.leaves).toHaveLength(0);
+	});
+
+	/**
+	 * The other half of the outcome, and the one a review round asked for: an id the index
+	 * does not resolve answers `'missing'`, which is what lets the view clear the row that was
+	 * drawn from a project note deleted since the list was read. Asserted HERE as well as in
+	 * `openNote.test.ts` because the composed closure is what the view actually holds, and a
+	 * `.catch` arm flattening every outcome into one would pass that file and fail this.
+	 */
+	it('answers missing for an id the index no longer resolves', async () => {
+		const stack = createRepositoryStack();
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, stack as never);
+		const workspace = new FakeWorkspace();
+
+		const deps = renovationProjectDeps(root, workspace as never, stack.vault as never);
+
+		await expect(deps.openProject('project-1')).resolves.toBe('missing');
 		expect(workspace.leaves).toHaveLength(0);
 	});
 
@@ -140,7 +162,9 @@ describe('the renovation project dependencies', () => {
 
 		const deps = renovationProjectDeps(root, workspace as never, stack.vault as never);
 
-		await expect(deps.openProject('project-1')).resolves.toBeUndefined();
+		// `'failed'`, not `'missing'`: the id DID resolve, so the list behind the row is not
+		// stale and the view must not answer an I/O fault with a vault-wide re-read.
+		await expect(deps.openProject('project-1')).resolves.toBe('failed');
 		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
 		const logged = lines.find((line) => line.event === 'view.project.open-failed');
 		expect(logged?.level).toBe('error');

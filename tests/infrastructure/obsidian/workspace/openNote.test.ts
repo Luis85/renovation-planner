@@ -22,8 +22,12 @@ describe('opening a project note', () => {
 		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
 		const workspace = new FakeWorkspace();
 
-		await openProjectNote({ workspace: workspace as never, vault: vault as never, index }, PROJECT_ID);
+		const outcome = await openProjectNote(
+			{ workspace: workspace as never, vault: vault as never, index },
+			PROJECT_ID,
+		);
 
+		expect(outcome).toBe('opened');
 		expect(workspace.leaves).toHaveLength(1);
 		expect(workspace.leaves[0].opened).toHaveLength(1);
 		expect(workspace.leaves[0].opened[0]?.path).toBe('Project.md');
@@ -41,8 +45,10 @@ describe('opening a project note', () => {
 		const workspace = new FakeWorkspace();
 		const deps = { workspace: workspace as never, vault: vault as never, index };
 
-		await openProjectNote(deps, PROJECT_ID);
-		await openProjectNote(deps, PROJECT_ID);
+		expect(await openProjectNote(deps, PROJECT_ID)).toBe('opened');
+		// The reveal arm answers `'opened'` too: the note IS in front of the user either way,
+		// which is the question the caller is asking.
+		expect(await openProjectNote(deps, PROJECT_ID)).toBe('opened');
 
 		expect(workspace.leaves).toHaveLength(1);
 		// Revealed rather than re-opened: the file is already in that leaf, and `openFile` on it
@@ -93,15 +99,23 @@ describe('opening a project note', () => {
 
 	/**
 	 * The only way to hold an id the index does not resolve is a note deleted since the list
-	 * was read — see the module's own docblock for why that is silent rather than notified.
+	 * was read — and this is the case that used to return SILENTLY, under a comment claiming
+	 * "the list is re-read on the next hydrate anyway". There was no next hydrate: nothing
+	 * publishes a deletion and `RenovationProjectStore.hydrate` has two callers, neither of
+	 * them reachable from one. The answer is what lets `ViewRoot` clear the row that pointed
+	 * here (`tests/presentation/views/viewRootOpenProject.test.ts` holds that half).
 	 */
-	it('opens nothing for an id the index does not resolve', async () => {
+	it('answers missing, opening nothing, for an id the index does not resolve', async () => {
 		const { vault } = createRepositoryStack();
 		const index = new InMemoryProjectIndex();
 		const workspace = new FakeWorkspace();
 
-		await openProjectNote({ workspace: workspace as never, vault: vault as never, index }, PROJECT_ID);
+		const outcome = await openProjectNote(
+			{ workspace: workspace as never, vault: vault as never, index },
+			PROJECT_ID,
+		);
 
+		expect(outcome).toBe('missing');
 		expect(workspace.leaves).toHaveLength(0);
 	});
 
@@ -110,15 +124,22 @@ describe('opening a project note', () => {
 	 * index itself should never produce for a project id, but the guard is what stops a
 	 * `TFolder` from being handed to `openFile`, which expects a `TFile`.
 	 */
-	it('opens nothing for a path that resolves to a folder rather than a file', async () => {
+	it('answers missing, opening nothing, for a path that resolves to a folder rather than a file', async () => {
 		const { vault } = createRepositoryStack();
 		await vault.createFolder('SomeFolder');
 		const index = new InMemoryProjectIndex();
 		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'SomeFolder' });
 		const workspace = new FakeWorkspace();
 
-		await openProjectNote({ workspace: workspace as never, vault: vault as never, index }, PROJECT_ID);
+		const outcome = await openProjectNote(
+			{ workspace: workspace as never, vault: vault as never, index },
+			PROJECT_ID,
+		);
 
+		// The same answer as an unresolved id, and deliberately so: both mean the row points at
+		// nothing, which is the only distinction the caller can act on. A note deleted while the
+		// index has not caught up yet takes THIS arm rather than the one above.
+		expect(outcome).toBe('missing');
 		expect(workspace.leaves).toHaveLength(0);
 	});
 });

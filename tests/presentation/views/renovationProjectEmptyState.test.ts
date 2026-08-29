@@ -25,7 +25,7 @@ import type { RenovationProjectQueryServices } from '../../../src/presentation/r
  * case actually varies.
  */
 const commands = unavailableRenovationProjectCommands();
-const openProject = () => Promise.resolve();
+const openProject = (): Promise<'opened'> => Promise.resolve('opened');
 
 const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
 

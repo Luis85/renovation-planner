@@ -15,6 +15,22 @@ import type { RenovationProjectCommandServices } from './renovationProjectComman
  * exactly like `RenovationProjectView` would be once it has data needs." This is that data
  * need, extending the seam by a field rather than relocating it.
  */
+/**
+ * What a project row's click did, as far as the VIEW needs to know.
+ *
+ * `'missing'` is the only member the view branches on: the row points at a project the vault
+ * no longer holds, so the list it was drawn from is stale and gets re-read. `'failed'` covers
+ * both arms that did not open a note for some other reason — an I/O fault, which the
+ * composition root has already mapped into a notice, and a session with unrecovered settings,
+ * where there is no index to resolve through and no list to refresh. Neither is a stale row,
+ * so neither buys a vault-wide re-read.
+ *
+ * Declared here rather than imported from `openProjectNote`'s own union, which is where the
+ * first two members come from: `presentation/` may not import `infrastructure/`, and the
+ * composition root is the layer that may see both.
+ */
+export type ProjectOpenOutcome = 'opened' | 'missing' | 'failed';
+
 export interface RenovationProjectDeps {
 	readonly queries: RenovationProjectQueryServices;
 	/** Design slice 16's write side — guarded at the root, refusing when settings are unrecovered. */
@@ -24,8 +40,11 @@ export interface RenovationProjectDeps {
 	 * `presentation/` may not reach Obsidian's vault and a `ProjectSummaryDto` carries no
 	 * path — only `id`, `name` and `status`. The composition root knows both the workspace and
 	 * the index, which is the same reason `revealView` takes a view type as a string.
+	 *
+	 * It ANSWERS rather than resolving to nothing, so a row pointing at a deleted note can be
+	 * cleared by the click that found it stale — see `ProjectOpenOutcome`.
 	 */
-	readonly openProject: (projectId: string) => Promise<void>;
+	readonly openProject: (projectId: string) => Promise<ProjectOpenOutcome>;
 }
 
 export const RENOVATION_PROJECT_CONTEXT: InjectionKey<RenovationProjectDeps> = Symbol(

@@ -28,12 +28,13 @@ import type { RenovationProjectDeps } from '../../../src/presentation/views/Reno
  * empty state (that is `tests/presentation/views/renovationProjectEmptyState.test.ts`'s job)
  * — it is about `DialogHost` and the stylesheet hook, so the list only needs to be SOMETHING
  * the view can hydrate against without throwing. `commands` and `openProject` are the same
- * refusal bundle and no-op neither case here dispatches through.
+ * refusal bundle and no-op neither case here dispatches through — `'opened'` rather than
+ * `'missing'`, so a click nothing here makes could not set off a re-read either.
  */
 const deps: RenovationProjectDeps = {
 	queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) },
 	commands: unavailableRenovationProjectCommands(),
-	openProject: () => Promise.resolve(),
+	openProject: () => Promise.resolve('opened' as const),
 };
 
 describe('the view root', () => {

@@ -23,5 +23,5 @@ export function revealView(deps: RevealDeps, type: string): Promise<void> {
 	// Every leaf of the type is a candidate, which is what makes this the SINGLETON case:
 	// there is at most one, and the first is it. `revealPlanEditor` is the same mechanism
 	// over a narrower candidate set — see `revealCandidate`.
-	return revealCandidate(deps, type, deps.workspace.getLeavesOfType(type));
+	return revealCandidate(deps, type, () => deps.workspace.getLeavesOfType(type));
 }

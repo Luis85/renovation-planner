@@ -198,4 +198,28 @@ describe('revealing a view', () => {
 		expect(faults).toHaveLength(1);
 		expect(fake.getLeavesOfType(TYPE)).toHaveLength(1);
 	});
+
+	/**
+	 * **The half the first version of this boundary missed, reported one round after it landed.**
+	 * The fault handler was drawn around the paths INSIDE `revealCandidate`, and the candidate
+	 * lookup sits one call out — in each wrapper's own argument. So a throw from
+	 * `getLeavesOfType` escaped as a bare SYNCHRONOUS throw out of `revealView`, into Obsidian's
+	 * own click handler, at the very call site that had just dropped `runDetached` for this.
+	 * Measured before the fix: zero reports, the error escaping.
+	 *
+	 * `candidates` is a thunk now, called inside the `try`, so the enumeration is inside the
+	 * boundary by construction rather than by a caller keeping it there.
+	 */
+	it('answers a fault from the candidate lookup rather than throwing past the caller', async () => {
+		const exploding = {
+			getLeavesOfType: () => {
+				throw new Error('lookup exploded');
+			},
+		};
+
+		await expect(revealView(workspaceFor(exploding), TYPE)).resolves.toBeUndefined();
+
+		expect(faults).toHaveLength(1);
+		expect((faults[0] as Error).message).toBe('lookup exploded');
+	});
 });

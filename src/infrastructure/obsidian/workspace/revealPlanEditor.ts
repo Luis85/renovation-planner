@@ -43,8 +43,13 @@ export async function revealPlanEditor(
 	viewType: string,
 	planId: string,
 ): Promise<void> {
-	const candidates = deps.workspace
-		.getLeavesOfType(viewType)
-		.filter((leaf) => planIdOf(leaf) === planId);
-	await revealCandidate(deps, viewType, candidates, { planId });
+	// A thunk, so the lookup and every `planIdOf` read happen INSIDE `revealCandidate`'s fault
+	// boundary. Enumerated here, a throw from either escaped this function as a rejection that
+	// the `void` at both call sites dropped on the floor.
+	await revealCandidate(
+		deps,
+		viewType,
+		() => deps.workspace.getLeavesOfType(viewType).filter((leaf) => planIdOf(leaf) === planId),
+		{ planId },
+	);
 }

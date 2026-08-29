@@ -161,4 +161,28 @@ describe('the singleton case, unchanged by the shared mechanism', () => {
 
 		expect(workspace.leaves[0].state).toEqual({ type: 'renovation-project', active: true, state: undefined });
 	});
+
+	/**
+	 * The same gap through this wrapper, and it is worth its own case because the escape SHAPE
+	 * differs: `revealPlanEditor` is `async`, so its throw became an unhandled REJECTION rather
+	 * than the synchronous throw `revealView` produced — one cause, two failure modes, and the
+	 * `void` at both call sites dropped each. The candidate filter reads every candidate's
+	 * `getViewState`, so a leaf that refuses to answer is the second producer here.
+	 */
+	it('answers a fault from a candidate’s own view state rather than rejecting', async () => {
+		const exploding = {
+			getLeavesOfType: () => [
+				{
+					getViewState: () => {
+						throw new Error('state exploded');
+					},
+				},
+			],
+		};
+
+		await expect(revealPlanEditor(depsFor(exploding), TYPE, 'plan-ground')).resolves.toBeUndefined();
+
+		expect(faults).toHaveLength(1);
+		expect((faults[0] as Error).message).toBe('state exploded');
+	});
 });

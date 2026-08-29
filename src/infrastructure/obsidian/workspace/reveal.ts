@@ -81,14 +81,14 @@ function requestKey(type: string, state?: Record<string, unknown>): string {
 export async function revealCandidate(
 	deps: RevealDeps,
 	type: string,
-	candidates: readonly WorkspaceLeaf[],
+	candidates: () => readonly WorkspaceLeaf[],
 	state?: Record<string, unknown>,
 ): Promise<void> {
-	const key = requestKey(type, state);
-	const inFlight = activating.get(key);
-	if (inFlight !== undefined) return inFlight;
 	try {
-		const existing = candidates[0];
+		const key = requestKey(type, state);
+		const inFlight = activating.get(key);
+		if (inFlight !== undefined) return await inFlight;
+		const existing = candidates()[0];
 		if (existing !== undefined) {
 			await deps.workspace.revealLeaf(existing);
 			return;
@@ -113,13 +113,21 @@ export async function revealCandidate(
 			activating.delete(key);
 		}
 	} catch (cause) {
-		// The paths the inner handler cannot reach: revealing an EXISTING leaf, which is not
-		// coalesced and therefore never went through it, and a synchronous throw from
-		// `getLeaf`. Both mattered the moment this module took the fault over from
-		// `runDetached` — a caller that no longer wraps this has nothing left to catch what
-		// escapes, so an activation that answers only SOME of its faults turns the rest into
-		// unhandled rejections reaching nobody. Answering all of them is what lets the two
-		// detached call sites hand the promise straight to `void`.
+		// Everything the inner handler cannot reach, and the boundary is drawn at the FUNCTION
+		// rather than at the paths anyone enumerated — which took two goes to get right, and the
+		// correction is the more useful half. The first version wrapped the reveal-an-existing-
+		// leaf path and a synchronous `getLeaf` throw, having reasoned about the paths INSIDE
+		// this function; the CANDIDATE LOOKUP sits one call out, in each wrapper's argument, and
+		// a throw from `getLeavesOfType` or from a candidate's `getViewState` escaped both — as
+		// a bare synchronous throw out of `revealView` into Obsidian's own click handler, and as
+		// an unhandled rejection out of `revealPlanEditor`. Measured: zero faults reported, the
+		// error escaping, at the very call sites that had just dropped `runDetached` for this.
+		// Reported in review, one round after the boundary moved here.
+		//
+		// So `candidates` is a THUNK, called inside this `try`, and the enumeration is inside
+		// the boundary by construction rather than by a caller remembering to keep it there.
+		// It also skips the lookup entirely for a joined click, which is a consequence rather
+		// than the reason.
 		deps.reportFault(cause);
 	}
 }

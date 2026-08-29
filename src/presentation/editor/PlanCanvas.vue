@@ -687,10 +687,23 @@ function onPointerCancel(event: PointerEvent): void {
 	// The destructive half: `cancelGesture()` empties a tool's buffer outright, so a swallowed
 	// pointer's cancellation reaching it costs the user a half-drawn polygon.
 	if (swallowedPointers.delete(event.pointerId)) return;
-	// No pan was running, so this cancellation belongs to whatever the tool was doing.
-	// `ToolManager` tracks no pointer identity of its own, so a tool gesture is abandoned on
-	// any cancellation reaching here — widening that is its contract to change, not this
-	// file's.
+	// No pan was running, so this cancellation belongs to whatever the tool was doing — but
+	// only if it is the tool's OWN pointer that was taken.
+	//
+	// **This deferred that question, under a reason that stopped being the whole story.** It
+	// said `ToolManager` tracks no pointer identity of its own, so any cancellation reaching
+	// here abandons the gesture and widening it was that contract's business rather than this
+	// file's. True when written; `toolGesturePointer` has lived HERE since, and the move door
+	// reads it. So a hovering pen taken away by the OS — palm rejection, or leaving digitizer
+	// range — was never pressed, is in no swallowed set, simply arrives, and abandoned the
+	// gesture of the pointer that was actually drawing: `SelectTool`'s preview snapped back
+	// and the owner's own release could no longer commit it. The press and move doors both
+	// ask; this was the third.
+	//
+	// The whole tail is under the guard and not just the abandonment: a foreign pointer's
+	// cancellation says nothing about where the OWNER's pointer is, and forgetting it here
+	// would hand the next modifier re-issue a blank where a true position was.
+	if (!isGestureOwner(event.pointerId)) return;
 	//
 	// `cancelInterruptedGesture` and NOT `cancelGesture`, which is the same distinction
 	// `onBlur` draws and for the same reason: a cancellation is the OS TAKING the pointer,

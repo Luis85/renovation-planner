@@ -77,7 +77,14 @@ describe('the Plan Canvas pointer routing', () => {
 
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 400, 300);
-		canvas.dispatchEvent(new PointerEvent('pointercancel', { bubbles: true }));
+		// **The id is named, and has to be.** This event carried none until the cancel door
+		// learned to ask whose pointer was taken — `PointerEvent`'s default is `0`, while the
+		// press above is the rig's default `1`, so the stream said "some OTHER pointer was
+		// cancelled" and no device sends that. The case is about the gesture's OWN pointer
+		// being taken away; identity simply did not matter when it was written, and a default
+		// stood in for a fact. Same shape as the `buttons` correction this suite already paid
+		// for: a fake thinner than the real thing is evidence about a different program.
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
 		await settle();
 
 		// A later, unrelated click far away moves nothing.

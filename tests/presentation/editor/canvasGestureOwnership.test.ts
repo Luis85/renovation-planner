@@ -327,6 +327,50 @@ describe('a pointer taken away mid-pan', () => {
 		harness.unmount();
 	});
 
+	it('still ends a CAMERA-MODE drag, which neither a tool nor the override owns', async () => {
+		// The arm that keeps the cancel door's ownership test from being spelled as bare
+		// identity. Camera mode is the DEFAULT state and its drag is recorded in the store
+		// alone — no tool flag, and the override never claimed it — so `toolGesturePointer` is
+		// null throughout. Asked as `toolGesturePointer !== event.pointerId`, this cancellation
+		// is refused, `endPan` never runs, and the drag follows the bare cursor for the rest of
+		// the session. The whole suite passes against that version, which is why this exists.
+		const { harness, canvas, camera } = await editor();
+		// No tool: camera mode, and no space either — the store's own drag.
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 340, 300);
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
+		await settle();
+		const afterCancel = camera.viewport.pan.x;
+
+		pointer(canvas, 'pointermove', 600, 300);
+		await settle();
+
+		expect(camera.viewport.pan.x).toBe(afterCancel);
+		harness.unmount();
+	});
+
+	it('leaves the OWNER’s coordinate readout alone when a foreign pointer is cancelled', async () => {
+		// The other half of the same guard, and it needed its own case too: leave the tail
+		// outside it — guarding the abandonment alone — and the suite still passes while a
+		// hovering pen taken away by the OS blanks the status bar and forgets where the
+		// drawing hand is. A foreign pointer's cancellation is not news about the owner's.
+		const { harness, canvas, camera } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+		pointer(canvas, 'pointermove', 340, 300, 0, 11);
+		await settle();
+		const readout = camera.pointerWorld;
+		expect(readout).not.toBeNull();
+
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 12, bubbles: true }));
+		await settle();
+
+		expect(camera.pointerWorld).toEqual(readout);
+		harness.unmount();
+	});
+
 	it('ignores a cancellation from a pointer that owns nothing', async () => {
 		const { harness, canvas, camera } = await editor();
 		key(canvas, 'keydown', { key: ' ' });
@@ -420,7 +464,7 @@ describe('a second pointer arriving during a TOOL gesture', () => {
 	 * tool sits BETWEEN clicks with nothing in flight, and two fingers tapping vertices in
 	 * turn is a legitimate way to draw a polygon.
 	 */
-	async function dragWithZoneSelected(interloper: boolean): Promise<number> {
+	async function dragWithZoneSelected(interloper: boolean, cancelFrom?: number): Promise<number> {
 		const { harness, canvas, zonesRepo } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
@@ -432,6 +476,9 @@ describe('a second pointer arriving during a TOOL gesture', () => {
 			// A second finger lands far away on empty canvas and lifts again.
 			pointer(canvas, 'pointerdown', 900, 500, 0, 12);
 			pointer(canvas, 'pointerup', 900, 500, 0, 12);
+		}
+		if (cancelFrom !== undefined) {
+			canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: cancelFrom, bubbles: true }));
 		}
 		pointer(canvas, 'pointerup', 400, 300, 0, 11);
 		await settle();
@@ -463,6 +510,22 @@ describe('a second pointer arriving during a TOOL gesture', () => {
 
 		expect(drawnLines(harness.stage)).not.toEqual(drawnBefore);
 		harness.unmount();
+	});
+
+	it('survives a FOREIGN pointer being cancelled out from under it', async () => {
+		// The cancel door, which the press and move doors already guard. A hovering pen taken
+		// away by the OS — palm rejection, or leaving digitizer range — was never pressed, so
+		// it is in no swallowed set and simply arrives; the handler then abandoned the gesture
+		// of the pointer that IS drawing. `SelectTool`'s preview snapped back and the owner's
+		// own release could no longer commit it.
+		//
+		// The comment deferring this said `ToolManager` tracks no pointer identity, so
+		// widening it was its contract to change — true when written, and no longer the whole
+		// story: `toolGesturePointer` lives in this file and the move door reads it.
+		const undisturbed = await dragWithZoneSelected(false);
+		expect(undisturbed).not.toBe(0);
+
+		expect(await dragWithZoneSelected(false, 12)).toBe(undisturbed);
 	});
 
 	it('commits the owner’s drag, not the newcomer’s coordinates', async () => {

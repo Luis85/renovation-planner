@@ -775,6 +775,60 @@ version bump because `.catch(null)` lets an old note parse unchanged, and is add
 existing schema rather than a new one — but "a persisted field was introduced" is still the
 plain, honest description of what it is, and item 8 said none would be.
 
+### What the code review found afterwards (2026-08-29)
+
+Five defects, none of which any of the four gates could see, and each is written up where its
+code is. What they have in common is worth naming: three of the five are a mechanism that
+looks right at every call site and is wrong about what happens BETWEEN them — a re-render
+between keystrokes, a focus move between a click and a write, a draft that moved between a
+dispatch and its refusal.
+
+- **A parsed draft rendered back into its own input rewrites what the user typed.**
+  `RequirementRow`'s quantity override held a `number` draft bound through `:value`, so the
+  field was rewritten with `String(Number(text))` on any keystroke that moved the parsed
+  value. MEASURED, because the shape is narrower than it first looks: `14.` and `1.50` both
+  survive — the parsed draft does not change on that keystroke, and Vue's computed caching
+  then patches nothing — while every prefix that parses to `NaN` is corrupted (`.5` renders
+  as `NaN5`, `1e3` as `NaN3`, `abc` as `NaN`). A leading decimal point is ordinary input, so
+  `.5` could not be entered at all. The draft is the raw STRING now, exactly as the cost
+  field's already was, and `Number` is applied at `buildCommand` alone. The cost field's own
+  docblock had stated this rule — "not symmetry with quantity, it is the opposite of it" —
+  beside the field that broke it.
+- **Disabling the control that holds focus takes the dialog's keyboard away.**
+  `NewProjectForm` set `:disabled` on every control including its own submit button while
+  submitting; Chromium blurs a disabled focused element to `<body>`, which `.rp-dialog` does
+  not contain, so `DialogHost`'s `Escape` listener and its Tab trap were both dead for the
+  whole write window — the window `busy` exists to make `Escape` refuse DELIBERATELY, refusing
+  it by accident instead and handing the key to Obsidian's own keymap. Controls stay focusable
+  now and are made inoperative by whichever mechanism they actually have: `readonly` where the
+  platform offers one, `aria-disabled` plus a refusal in the handler where it does not.
+  `FormDialog.vue` had already stated this as an invariant of the framework for its own Cancel
+  button, in a docblock whose reasoning named `NewProjectForm`'s disabled fields as a
+  premise — the rule was written down and applied to one button.
+- **`useFormCommit.submit` had no `catch`.** A `dispatch` that rejects rather than resolving a
+  failed `Result` became an unhandled rejection out of `@submit.prevent`, with the dialog open
+  and nothing said to anyone. Every dispatch wired today is a guarded command that cannot
+  throw, which is what made it invisible rather than harmless: the hole opens silently for
+  whoever wires the first unguarded one. `useFormCommit` now takes a required `logger` — the
+  mirror of `useFieldCommit`'s, and the one asymmetry is that a form needs no `notify` beside
+  it, because it HAS a banner — and maps the cause once through `faultError` for both
+  representations.
+- **A field refusal the input could not display was reported nowhere.** `useFieldCommit`
+  suppressed the inline message when the draft had moved under the write (correct: it is about
+  a value the user has replaced) and skipped the notice on `!mine` (correct in isolation), and
+  on the one path where both applied the write failed in silence. The notice now covers
+  whatever the field did not DISPLAY rather than whatever was not `mine`. The comment two
+  lines above it had claimed "the NOTICE still fires either way", which held for one of the
+  two branches it described.
+- **A project row opened a new tab every time it was clicked.** `openProjectNote` called
+  `getLeaf('tab')` unconditionally — the defect `revealView`'s own docblock names as the one
+  every hand-rolled activation grows, in the one activation that was hand-rolled. It reuses the
+  leaf already showing that FILE now, keyed on the file so a second project still opens in its
+  own tab, and reveals rather than re-opens. `FakeLeaf.openFile` recorded the file without
+  setting the leaf's view state, so every note the fake opened was invisible to the very lookup
+  this is built on — the sixth instance of a fake thinner than the real thing, and the reason no
+  instrument could see the duplicate tabs.
+
 ## References
 
 - SDD §59 Inspector Architecture — selection → query → DTO → UI → command; this slice

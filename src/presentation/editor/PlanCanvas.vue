@@ -632,6 +632,29 @@ function onPointerUp(event: PointerEvent): void {
 	// and the exact grammar defect `canvasPointerRouting.test.ts` already exists for.
 	if (panOverride.phase === 'panning') return;
 	if (runtime.activeToolId.value !== null) {
+		// **The last door with no ownership rule, and the one where it cost a wrong WRITE.** A
+		// release from a pointer that does not own the running gesture reached
+		// `ToolManager.pointerUp`, which commits `SelectTool` at that pointer's coordinates and
+		// clears the gesture while the owner's finger is still down: measured, a drag of 1000
+		// world units committed 6000 — the same signature as the press-door defect, through the
+		// other end. `isPrimary` was the only test here, and a foreign pointer's release is
+		// primary too.
+		//
+		// Reachable because a swallowed pointer that LEAVES is forgotten (see `onPointerLeave`)
+		// and may come back still down; the press door swallows it while it stays, and nothing
+		// re-swallows it on return.
+		//
+		// `isGestureOwner` rather than a bare identity test for UNIFORMITY, not because the
+		// difference bites here — measured, and the sentence is narrowed to what the
+		// measurement supports. At the MOVE door the "or nothing is running" arm is
+		// load-bearing and has its own case: a hover with no gesture is how a drawing tool's
+		// loose end follows the pointer. Here it changes nothing any device can produce,
+		// because the press door sets `toolGesturePointer` for every press it forwards, so a
+		// releasing pointer is the owner whenever the tool ever heard its press. One predicate
+		// at four doors is the reason to keep it — four spellings of one question is what this
+		// file has been corrected for repeatedly — and the honest note is that only three of
+		// them need both arms.
+		if (!isGestureOwner(event.pointerId)) return;
 		if (isPrimary(event)) runtime.toolManager.pointerUp(editorPointerEvent(event, stagePoint(event)));
 		return;
 	}
@@ -820,10 +843,16 @@ function onPointerLeave(event: PointerEvent): void {
 	//
 	// Forgetting it is the honest answer rather than capturing it. Capture would make the
 	// contract structural, and it is also a mechanism no gate here can see — jsdom implements
-	// none — so it would be an untestable second answer to a question one line closes. What
-	// remains is written down rather than fixed: a swallowed pointer that leaves and comes back
-	// still down is treated as an ordinary pointer from then on, which its own ownership guard
-	// bounds to a hover with no gesture running.
+	// none — so it would be an untestable second answer to a question one line closes.
+	//
+	// What remains: a swallowed pointer that leaves and comes back still down is an ordinary
+	// pointer from then on, and while a gesture is running every door refuses it — the move,
+	// the release and the cancellation each ask `isGestureOwner`. **That bound was asserted
+	// here one commit before it was true**, when the release door still tested `isPrimary`
+	// alone: measured, the returning pointer's release committed the owner's drag at ITS
+	// coordinates, 6000 world units against the 1000 the hand made. A residue is only as
+	// honest as the guards it names, so the names are the check — if a door stops asking, this
+	// sentence is wrong again.
 	if (swallowedPointers.delete(event.pointerId)) return;
 	// A gesture is owned by ONE pointer, and `pointerleave` carries an identity this handler
 	// used to discard — so a second touch or pen crossing the pane edge stopped a drag the

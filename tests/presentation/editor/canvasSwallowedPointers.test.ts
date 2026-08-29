@@ -237,3 +237,43 @@ it('says nothing about a TOOL gesture it does not own either, not just a pan', a
 	expect(camera.pointerWorld).toEqual(readout);
 	harness.unmount();
 });
+
+/**
+ * The residue the leave-clear leaves behind, and it is larger than the commit that created it
+ * claimed. That comment said a swallowed pointer returning still down is "bounded to a hover
+ * with no gesture running" by its own ownership guard — true of the MOVE door, which has one,
+ * and false of the RELEASE door, which had none. A written-down residue is only as good as the
+ * bound it names.
+ */
+async function dragInterruptedByAReturningPointer(interloper: boolean): Promise<number> {
+	const { harness, canvas, zonesRepo } = await editor();
+	toolbarButton(harness, 'Select').click();
+	await settle();
+	const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+
+	pointer(canvas, 'pointerdown', 300, 300, 0, 11);
+	pointer(canvas, 'pointermove', 400, 300, 0, 11);
+	if (interloper) {
+		pointer(canvas, 'pointerdown', 900, 500, 0, 12); // swallowed by the tool gesture…
+		// …leaves the pane, which is what forgets it…
+		canvas.dispatchEvent(new PointerEvent('pointerleave', { pointerId: 12, bubbles: true }));
+		pointer(canvas, 'pointerup', 900, 500, 0, 12); // …and comes back to release, unswallowed.
+	}
+	pointer(canvas, 'pointerup', 400, 300, 0, 11);
+	await settle();
+
+	const after = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+	harness.unmount();
+	return after - before;
+}
+
+it('does not let a returning pointer’s RELEASE commit the owner’s drag', async () => {
+	// Measured against an undisturbed drag rather than a spelled-out delta, so the case says
+	// what it means — the interloper changes nothing — without pinning the fixture's zoom. The
+	// control is asserted to be a real move first, since two drags that both went nowhere would
+	// agree perfectly and prove nothing.
+	const undisturbed = await dragInterruptedByAReturningPointer(false);
+	expect(undisturbed).not.toBe(0);
+
+	expect(await dragInterruptedByAReturningPointer(true)).toBe(undisturbed);
+});

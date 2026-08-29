@@ -1866,6 +1866,33 @@ of them." The rules that lasted:
 - **`create-sample-project` is not retired by this slice** — see its own paragraph below and
   `src/plugin/sampleProject.ts`'s docblock: this slice built the PROJECT half only, and a
   Plan still has no creation form or a surface to reach one from.
+- **A shared operation shares its FAILURE, or it is only half shared.** The coalescing that
+  made a double click one tab (`openingByPath`) handed both clicks the same promise — so
+  when it rejected, each caller's own `.catch` in the composed closure reported it: two
+  notices and two identical log lines for one open. The map holds the HANDLED promise now
+  and the fault door moved INSIDE the coalescing as `deps.reportFault`, injected because
+  `infrastructure/` may not reach `presentation/notices/notify`; the mapping is still
+  composed at the root in one place, and only the CALL moved to where the coalescing is.
+  `ProjectNoteOpenOutcome` gains `'failed'` to say so, and it means something narrower than
+  "did not open" — the attempt faulted and has already been reported, once. Two things about
+  it are worth more than the fix. The comment in `openNote.ts` asserted the opposite while
+  the defect stood ("a rejection is shared rather than swallowed … which the composed closure
+  turns into one notice"), which is this file's oldest recurring shape arriving once more. And
+  the notice COUNT cannot discriminate the fix from the defect: slice 13's queue folds an
+  identical message into a `(×N)` suffix on the notice already up, so `Notice.shown` reads 1
+  either way and the LOG line count is the only instrument that sees it.
+- **A comment that says an unmount deliberately settles nothing is a comment about the
+  unmounts that existed when it was written.** `DialogHost`'s hook released the background
+  and resolved nothing, arguing that "a leaf's own `openDialog(...)` caller is gone with the
+  leaf". A leaf close stopped being the only unmount the moment `RenovationProjectView.rebind`
+  landed: a settings save tears the whole Vue tree down with the LEAF STILL OPEN, so the New
+  Project form vanished mid-typing and `ViewRoot.onCreateProject()` stayed suspended forever,
+  holding the retired root's context behind it. It settles with the kind's own cancel result
+  now. **Cancel is the right answer and not merely the cheap one**, which is the part to
+  carry: the descriptor's `dispatch` prop closes over the root being REPLACED, so preserving
+  the form across the swap would preserve a form that writes through the very root `rebind`
+  exists to retire — under the previous default project folder, one of the four defects that
+  made `deps` non-readonly. There was nothing to preserve that still pointed anywhere valid.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

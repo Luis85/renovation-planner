@@ -710,8 +710,41 @@ export default defineConfig({
 			// composable: 4534/4568 statements, 2259/2300 branches, 1171/1182 functions,
 			// 4070/4092 lines — 99.25 / 98.21 / 99.06 / 99.46. NOTHING RATCHETS: rounded down
 			// these are 99 / 98 / 99 / 99, the floors already in force, unchanged from the
-			// slice-18 measurement immediately above — this slice's own tests exercise every
+			// slice-18 measurement it was taken against — this slice's own tests exercise every
 			// line and branch it added, and it removed nothing from the denominator either.
+			//
+			// Re-measured 2026-08-29 on the MERGED tree — slice 13 having landed on main in the
+			// meantime, plus the two findings the review bot raised against this branch after
+			// that (a coalesced open failure reported once rather than once per click, and a
+			// dialog the root swap unmounts being settled rather than stranded): 5264/5301
+			// statements, 2613/2662 branches, 1331/1341 functions, 4693/4715 lines —
+			// 99.30 / 98.15 / 99.25 / 99.53. NOTHING RATCHETS: rounded down these are the
+			// 99 / 98 / 99 / 99 already in force, which is what slices 5, 11, 13, 15 and 18 also
+			// measured.
+			//
+			// **FUNCTIONS are the tightest at THREE, and branches are four.** Statements have 16
+			// of headroom and lines 25, both counted as whole covered units rather than as
+			// percentage points, because a unit is what an untested arm actually costs. Neither
+			// parent predicted the branch figure: this branch measured 98.21 alone and main
+			// measured 98.12, and the merge lands between them at 98.15 — the denominator grew
+			// by 362 branches while the covered count grew by 354, which is two trees' arms
+			// diluting one ratio rather than either side losing coverage. Three functions is
+			// small enough that the next untested callback anywhere in `src/` fails the gate
+			// rather than merely narrowing it.
+			//
+			// Neither of the two review fixes adds an uncovered arm, verified by reading
+			// `coverage/coverage-final.json` rather than assumed: `openNote.ts`,
+			// `DialogHost.vue` and `commitField.ts` measure 100% of all four. Across every file
+			// this branch and the merge touched, exactly two carry uncovered positions and both
+			// are already enumerated above — `composition-root.ts`'s
+			// `cascadeNotices.cascadeAborted` (slice 13's paragraph) and `RequirementRow.vue`'s
+			// `row.assetName ?? row.assetId` nullish arm (the merged slice-13 entry). What those
+			// paragraphs do NOT name, and this one does rather than leaving it to the next
+			// reader to rediscover: `RequirementRow.vue` also has three uncovered FUNCTIONS —
+			// the two `undo` stubs on the quantity and cost commands, which `history.run`
+			// (`command.execute()`) never reaches, and the cost field's `@keydown.esc` handler,
+			// whose quantity-field twin IS driven. They are this branch's own, not the merge's,
+			// and they are three of the ten uncovered functions the whole tree has.
 			thresholds: {
 				statements: 99,
 				functions: 99,

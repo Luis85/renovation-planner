@@ -270,13 +270,15 @@ describe('the calibrate tool in a mounted editor', () => {
 
 		expect(useDialogStore(harness.pinia).current?.kind).toBe('form');
 		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
-		// The spine, a bar capping each end, and a tick per interval between them — all of
-		// them `Line`s, and no circles at all any more: the two endpoint dots this drew until
-		// the segment became a ruler said "vertex", which is the one thing the marks are not.
-		// The exact mark count for a given length belongs to the layer's own suite
-		// (`interactionLayer.test.ts`) and to `rulerGeometry.test.ts`; what this wiring case
-		// owns is that the segment is on the layer AT ALL while the prompt is open.
-		expect(interaction?.find('Line').length).toBeGreaterThanOrEqual(3);
+		// The spine as its own `Line`, and the bars and ticks together on the one `Shape` that
+		// paints them — a node per mark is what made this gesture unusably slow, so the count
+		// here is deliberately a pair of nodes and not a tally of marks. No circles at all: the
+		// two endpoint dots this drew until the segment became a ruler said "vertex", which is
+		// the one thing the marks are not. What the marks ARE for a given length belongs to
+		// `interactionLayer.test.ts` and `rulerGeometry.test.ts`; what this wiring case owns is
+		// that the segment is on the layer AT ALL while the prompt is open.
+		expect(interaction?.find('Line')).toHaveLength(1);
+		expect(interaction?.findOne('.measurement-marks')).toBeDefined();
 		expect(interaction?.find('Circle')).toHaveLength(0);
 
 		harness.unmount();

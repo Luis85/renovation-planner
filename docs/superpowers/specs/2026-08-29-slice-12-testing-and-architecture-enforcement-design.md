@@ -38,16 +38,18 @@ enumerates in code and which also includes the `prototypes` group:
 round and verified by reading `forbidden()`. Each banned entry expands to several independent
 glob/path forms, and a probe of one says nothing about the others:
 
-- a layer **group** `g` becomes three globs — `**/${g}` (the barrel spelling),
-  `**/${g}/*` (one level) and `**/${g}/**/*` (any depth). 16 cells × 3 = **48**.
-- a **package** `name` becomes two entries — a `paths` entry for the bare specifier and a
-  `patterns` entry `${name}/*` for its subpaths. 19 cells × 2 = **38**.
+- a layer **group** `g` becomes three globs — `**/${g}`, `**/${g}/*`, `**/${g}/**/*` — which are
+  **not independent**. Measured through ESLint's matcher on real specifiers: `**/${g}` alone
+  matches the barrel form, and all three match the nested forms, so the barrel glob is the only
+  one protecting a distinct import shape.
+- a **package** `name` becomes two entries that ARE independent — a `paths` entry for the bare
+  specifier and a `patterns` entry `${name}/*` for subpaths.
 
-The failure this closes is concrete: delete `...packages.map((name) => \`${name}/*\`)` and a
-bare `import { ref } from 'vue'` probe still reports, while `import x from 'vue/dist/y'`
-becomes allowed in `core/`, `domain/` and `application/` with the suite green. Same for a
-group whose barrel form is dropped while its deep form survives. So the probes enumerate
-spellings, not cells, and the mutation is per SPELLING rather than per group.
+The failure this closes is concrete: delete `...packages.map((name) => \`${name}/*\`)` and a bare
+`import { ref } from 'vue'` probe still reports, while `import x from 'vue/dist/y'` becomes
+allowed in `core/`, `domain/` and `application/` with the suite green. So the probes enumerate
+**import shapes**, not config entries — the distinction the mutation section below turns on, and
+no total is derived here by hand.
 
 **The `prototypes` group is NOT excluded any more, and the reason it was is the same error as
 the one above.** The first two drafts excluded it on the grounds that
@@ -130,7 +132,16 @@ the **root** block (matching files directly under `src/`, e.g. `src/main.ts`) an
 so dropping the barrel or deep prototype spelling from either block would leave both the
 existing suite and this matrix green. `prototypes-one-way-door.test.ts` drives both blocks today
 but only at the one-level spelling. So the enumeration includes a root path and an
-unnamed-subtree path for each distinct prototype import shape, beside the layer pairs. Raised by
+unnamed-subtree path for each distinct prototype import shape, beside the layer pairs.
+
+**And the extension dimension applies to those blocks too, which is the CROSS-PRODUCT the
+previous fixes missed.** Block kind and extension were each brought into scope in their own
+round, and neither round crossed them: the root, catch-all and `presentation/dialogs` blocks
+each declare their own `files` expansion over `SRC_EXTENSIONS`, so removing `.jsx`, `.mjs` or
+`.cjs` from one of *those* blocks changes nothing a layer-path probe can see. The existing suite
+covers only root `.ts`/`.js`, catch-all `.vue` and dialogs `.vue`. The enumeration is therefore
+over **(block × extension × import shape)**, not over layers with two dimensions bolted on —
+fixing each dimension separately is what left their product open twice. Raised by
 a review bot, and it is the same finding as the prototype-spelling one applied to the two blocks
 that finding's fix did not reach.
 
@@ -356,8 +367,14 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
 ## 3. The Integration Test Vault
 
 `tests/vault/` with four cases, plus `openFixtureVault(caseName)`
-returning a disk-backed `FixtureVaultAdapter` implementing only the subset of the
-`Vault`/metadata surface the repositories actually call.
+returning a disk-backed `FixtureVaultAdapter` implementing the subset of the host surface the
+repositories actually call — **`Vault`, `MetadataCache` AND `FileManager`**, not the first two.
+An earlier draft said "the `Vault`/metadata surface", copying the slice document's shorthand
+rather than reading `NoteVaultDeps`, which declares `fileManager: FileManager`; the repositories
+reach `processFrontMatter` on every write and `trashFile` on every delete (all three of
+`ObsidianZoneRepository`, `ObsidianPlanRepository`, `ObsidianProjectRepository`). Without it
+`openFixtureVault` cannot supply runnable dependencies for the `save()`/`delete()` contract cases
+§3 exists to run.
 
 **`openFixtureVault` hands back a writable CLONE, never the checked-in directory** — omitted
 from the first draft and raised by a review bot. The slice document already requires it

@@ -546,7 +546,7 @@ bot.
 | Case | Consumer | Status |
 | --- | --- | --- |
 | `broken-references/` | the bootstrap-degradation test (§2), asserting an observable rejection *and* a healthy record still loading | in this slice |
-| `large-project/` | the index-rebuild operation-count assertion, via the shared recorder | in this slice |
+| `large-project/` | the index-rebuild operation-count assertion, via the shared recorder — **designed, not built** | **DEFERRED by §4a**, with the design kept |
 | `legacy-schema/` | a migration test over a **test-only migration step**, scoped below — the production set has none to exercise | in this slice, narrowly |
 | `valid-project/` | the Obsidian arm of the repository contracts — which is exactly the repoint deferred below | **OPEN, not delivered** |
 
@@ -568,11 +568,22 @@ Criterion 9 ("migrations *can be introduced* without redesign"), which is a clai
 mechanism accepting one, not about any migration existing. Adding a real migration is not this
 slice's to do: slice 12 owns no schema.
 
-**So the four-case vault is NOT claimed as delivered.** Three cases get consumers; `valid-project/`
-ships as content whose only intended reader is the deferred contract repoint. Saying that plainly
-is the alternative to a Definition-of-Done item ticked over a fixture nothing exercises — and the
-`legacy-schema/` row is a genuine addition to scope rather than a re-description, because no
-earlier draft had a migration test in it.
+**So the four-case vault is NOT claimed as delivered.** TWO cases get consumers this round —
+`broken-references/` and `legacy-schema/`. `valid-project/` ships as content whose only intended
+reader is the deferred contract repoint, and `large-project/` is deferred outright by §4a.
+Saying that plainly is the alternative to a Definition-of-Done item ticked over a fixture
+nothing exercises — and the `legacy-schema/` row is a genuine addition to scope rather than a
+re-description, because no earlier draft had a migration test in it.
+
+**This sentence said "three" for a round, and the row above said `large-project/` was "in this
+slice" while §4a two sections down had dropped it.** Raised by a review bot against the commit
+that took the decision. It is this document's own recurring failure in its purest form — a
+scope falling behind a decision made elsewhere in the same file — and the third instance of it
+recorded here. The decision was taken in §4a and three places that describe its subject were
+never re-read against it: the table row, this count, and §5's unmet list. What would have
+caught it is not more care at the decision, it is asking which sentences the decision makes
+false and grepping for its subject; `grep -n large-project` prints eleven lines and three of
+them were wrong.
 
 **Scope decision: additive now, repoint later.** New tests point at the fixture vault. The
 existing Obsidian contract arm keeps running against `FakeVault`, and repointing it is a
@@ -740,9 +751,15 @@ which today it does not.
 
 ## 5. What is recorded as NOT met
 
-Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
+Written into `docs/tasks/12-…md` as open, withdrawn or deferred, never ticked:
 
 - **The §92 phase gate** (15 criteria) — open. Its own text defers it until every slice exists.
+- **`large-project/` and its operation-count assertion** — *deferred* by §4a, design kept in §3.
+  Which means the slice document's "the Integration Test Vault exists with all four cases" item
+  is **PARTLY MET and stays unticked**: two of the four cases have a consumer this round, one
+  ships as a directory the adapter opens, and this one is not built. Listed here because a
+  deferral absent from the unmet list reads exactly like a delivery — the failure this section
+  exists to prevent, and the one a review bot found in this very list.
 - **The vitest two-project split** — *withdrawn*, but the withdrawal argument had a hole and the
   corrected version costs one extra check. `environment: 'node'` is already the default with
   jsdom opted in per file, and forgetting a docblock **fails loudly** — the DOM test dies under

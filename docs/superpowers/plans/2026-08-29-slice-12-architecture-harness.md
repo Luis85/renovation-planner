@@ -2173,9 +2173,10 @@ In `docs/tasks/12-testing-and-architecture-enforcement-infrastructure.md`, edit 
 
 ```markdown
 - [ ] The Integration Test Vault exists with all four cases, and is the only Vault-shaped
-      data any automated test touches. — **PARTLY MET, and not ticked.** Three cases have a
-      consumer (`broken-references/`, `legacy-schema/`, and `valid-project/` only as a
-      directory the adapter opens). `large-project/` is **DROPPED from this round**: its
+      data any automated test touches. — **PARTLY MET, and not ticked.** TWO cases have a
+      consumer this round — `broken-references/` and `legacy-schema/`. `valid-project/`
+      ships as a directory the adapter opens and nothing asserts about.
+      `large-project/` is **DROPPED from this round**: its
       assertion was revised four times, it proves only single enumeration and linear
       metadata-cache I/O, and the shared operation recorder it needs is the one edit in this
       slice that cannot proceed in parallel with PR 25. Its design is kept in the spec so a

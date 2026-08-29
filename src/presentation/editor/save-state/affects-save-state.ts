@@ -61,7 +61,14 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  *   `ReversibleOverrideBase.execute`, all three raised with nothing recorded to write;
  * - `requirement.zone-not-found` and `requirement.asset-not-found` in
  *   `reversible-assign-asset-command.ts`'s `redoCreate`, which re-checks both entities
- *   before `requirements.save`;
+ *   before `requirements.save`. **Both were reached by a failed READ as well as by an absent
+ *   referent until a review bot found it**, each check being one
+ *   `isErr(x) || x.value === null` branch: a vault I/O fault arrived here wearing a
+ *   `Reference` label, so `Persistence`'s safe default was bypassed by a relabel rather than
+ *   by anyone deciding, and the sentence the user got asserted an entity was gone when the
+ *   read had established nothing of the kind. The branches are split now and the read's own
+ *   error is surfaced, so these two codes mean an absent referent and only that — which is
+ *   what makes their place on this list true rather than merely stated;
  * - `reference.set-changed`, `reference.referents-exist`, `reference.entity-gone` and
  *   `reference.reassign-target-gone`, all four inside `deleteResolution.ts`'s `prepare` —
  *   the step that takes the locks and reads the pre-state, before `deleteEntity` or any

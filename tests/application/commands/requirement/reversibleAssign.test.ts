@@ -148,6 +148,74 @@ describe('ReversibleAssignAssetCommand', () => {
 		expect(redo.error.code).toBe('requirement.unit-not-area');
 		expect(await w.requirements.getById(id as never)).toEqual({ ok: true, value: null });
 	});
+
+	/**
+	 * **A failed READ is not a missing referent, and collapsing the two threw away the only
+	 * fact that distinguished them.** `redoCreate` re-checks both endpoints before writing,
+	 * and each check was one `isErr(x) || x.value === null` branch returning a `Reference`
+	 * refusal whose message asserted the entity was gone — a fact a failed read never
+	 * established. Two things went with the label:
+	 *
+	 * - the user was told "the zone is gone" about a zone whose existence is unknown, which is
+	 *   the defect slice 11 already recorded once ("two refusals told the user 'That entry no
+	 *   longer exists' about an entry whose continued existence was the entire reason for the
+	 *   refusal");
+	 * - and `affectsSaveState` reads `Reference` as pre-write, so a vault I/O fault during a
+	 *   redo settled the save indicator back to `Saved` — the safe default for `Persistence`
+	 *   BYPASSED by a relabel rather than by a decision.
+	 *
+	 * `AdapterErrors` already admitted `RepositoryError`, so surfacing the read's own error
+	 * costs no widening. Driven per endpoint, because one branch fixed and one left is the
+	 * partial fix this repository keeps paying for.
+	 */
+	it.each([
+		['zones', 'the zone read'],
+		['assets', 'the asset read'],
+	] as const)('surfaces a repository fault from %s during redo as itself, not as a missing referent', async (endpoint) => {
+		const w = await wired();
+		const adapter = makeAdapter(w);
+		expectOk(await adapter.execute());
+		expectOk(await adapter.undo());
+
+		// Fault the endpoint under test AFTER the fixture is built, so nothing above is
+		// affected and the fault lands on the redo's own re-check.
+		const faulted = w[endpoint] as { getById: unknown };
+		faulted.getById = () =>
+			Promise.resolve({
+				ok: false,
+				error: { category: 'Persistence', code: 'test.injected', message: 'the vault could not be read' },
+			});
+
+		const redo = expectErr(await adapter.execute());
+
+		expect(redo.category).toBe('Persistence');
+		expect(redo.code).toBe('test.injected');
+		// The sentence the relabel invented is gone with it.
+		expect(redo.message).not.toMatch(/is gone/);
+	});
+
+	/**
+	 * The other half of the branch, so the split above cannot be satisfied by surfacing
+	 * everything as a repository error: a referent that is genuinely ABSENT is still the
+	 * `Reference` refusal it always was.
+	 */
+	it.each([
+		['zones', 'requirement.zone-not-found'],
+		['assets', 'requirement.asset-not-found'],
+	] as const)('still refuses with %s when the referent is genuinely absent', async (endpoint, code) => {
+		const w = await wired();
+		const adapter = makeAdapter(w);
+		expectOk(await adapter.execute());
+		expectOk(await adapter.undo());
+
+		const absent = w[endpoint] as { getById: unknown };
+		absent.getById = () => Promise.resolve({ ok: true, value: null });
+
+		const redo = expectErr(await adapter.execute());
+
+		expect(redo.category).toBe('Reference');
+		expect(redo.code).toBe(code);
+	});
 });
 
 describe('UpdateAssetCommand unit-kind guard', () => {

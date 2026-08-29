@@ -122,12 +122,24 @@ export class ReversibleAssignAssetCommand {
 			// between undo and redo is ordinary editing time, and the undo itself opened
 			// it: with the requirement gone the asset is unreferenced, so a unit change
 			// the creation-time guard would have refused is now in force.
+			// **A failed READ and an absent referent are two different answers, and one branch
+			// could only give one of them.** Both checks were `isErr(x) || x.value === null`
+			// returning a `Reference` refusal reading "the zone is gone" — a fact a read that
+			// never completed has not established. The label cost two things: the user was told
+			// an entity no longer exists when what actually happened is that the vault could not
+			// be read (slice 11's own recorded defect, in a second place), and
+			// `affectsSaveState` classes `Reference` as pre-write, so a vault fault during a
+			// redo settled the save indicator back to `Saved` — `Persistence`'s safe default
+			// bypassed by a relabel rather than by anyone deciding. `AdapterErrors` already
+			// admits `RepositoryError`, so surfacing the read's own error widens nothing.
 			const zone = await this.deps.zones.getById(this.input.zoneId);
-			if (isErr(zone) || zone.value === null) {
+			if (isErr(zone)) return err(zone.error);
+			if (zone.value === null) {
 				return err({ category: 'Reference', code: 'requirement.zone-not-found', message: 'The zone is gone.' });
 			}
 			const asset = await this.deps.assets.getById(this.input.assetId);
-			if (isErr(asset) || asset.value === null) {
+			if (isErr(asset)) return err(asset.error);
+			if (asset.value === null) {
 				return err({ category: 'Reference', code: 'requirement.asset-not-found', message: 'The asset is gone.' });
 			}
 			if (zone.value.entity.projectId !== asset.value.entity.projectId) {

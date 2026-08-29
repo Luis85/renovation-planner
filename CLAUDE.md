@@ -1519,6 +1519,24 @@ it:
   general fix is still the sibling bullet's, a command reporting on BOTH channels.
   `DispatchOutcome` does it for successes and this stamp for the failures that were measured;
   the rest is unbuilt and the docblock says so.
+- **`isErr(x) || x.value === null` is two answers in one branch, and the branch can only give
+  one.** `redoCreate` re-checks both endpoints before writing, and each check collapsed a
+  failed READ into the same `Reference` refusal an ABSENT referent gets — message included,
+  so a vault that could not be read told the user "the zone is gone", which is slice 11's own
+  recorded defect appearing in a second place. The save-state consequence is what a review bot
+  actually caught: `affectsSaveState` classes `Reference` as pre-write, so a vault I/O fault
+  during a redo settled the indicator back to `Saved` — **`Persistence`'s safe default bypassed
+  by a relabel rather than by anyone deciding**, which is the failure mode that predicate's own
+  docblock names when it says the deeper fix is at the raise sites. `AdapterErrors` already
+  admitted `RepositoryError`, so surfacing the read's own error widened nothing. **The report
+  named one site and a sweep for the SHAPE found three**, which is the part worth keeping: the
+  two in `redoCreate` escape to a caller, and `onAssetUpdated` holds a third that escapes to
+  nobody — its fallback is conservative and correct for both causes, so its whole cost was the
+  diagnosis, one event name asserting the asset was deleted and no cause logged for the arm
+  that had one. Split too, because "I fixed the case in the report" is not "I fixed the class",
+  and a partial fix reads exactly like a complete one. The fourth match,
+  `inspector-store.ts`'s collapse into `{ kind: 'empty' }`, is the already-recorded
+  `InspectorDto` limitation and is left alone.
 - **The indicator's subject is the GESTURE's write, and a background cascade failing is not
   that — now pinned rather than implicit.** Moving a zone publishes `ZoneGeometryChanged`, and
   `MoveSpatialObjectCommand` AWAITS the publication, so slice 10's recalculation cascade runs

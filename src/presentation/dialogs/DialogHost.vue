@@ -324,10 +324,29 @@ watch(
  *
  * Settling is safe on the leaf-close path this hook was written against too, which is why
  * one hook covers both: every caller of `openDialog` returns on `cancel`, so nothing
- * dispatches and nothing opens a second dialog into a tree that is unmounting. The one thing
- * it cannot stop is a form whose write is already in flight — the framework never started
- * that write — exactly as `onKeydown`'s `busy` branch says of `Escape`; its result is
- * dropped rather than acted on.
+ * dispatches and nothing opens a second dialog into a tree that is unmounting.
+ *
+ * **It settles UNCONDITIONALLY, `descriptor.busy` included, and that is the one door `busy`
+ * does not hold** — reported in review as a P2 and RECORDED rather than closed, so read this
+ * paragraph as the bound rather than as reassurance. `onKeydown` refuses `Escape` while a
+ * write is in flight and `FormDialog` disables Cancel, because the framework never started
+ * that write and cannot stop it. An unmount cannot refuse: the tree is going either way, and
+ * leaving the caller suspended is the defect this hook was added for. So a `saveSettings`
+ * landing inside the window of a single `vault.create` tells `ViewRoot.onCreateProject()`
+ * the dialog was cancelled while its write runs on against the root `rebind` is retiring.
+ * What that costs, measured rather than assumed: the project IS created, under the PREVIOUS
+ * default project folder; `ProjectCreated` reaches the retired root's event bus, so the
+ * rebound tree's `onProjectsChanged` never hears it; and `VaultChangeAdapter` indexes the
+ * note into the new root while publishing nothing — `projectIndexRebuilt()` has exactly one
+ * publisher, the full scan, and `saveSettings` runs that BEFORE the rebind. The rebound list
+ * is stale until the leaf is reopened.
+ *
+ * The remedy the report named — defer the rebind, or otherwise coordinate the active write —
+ * needs the `ItemView` to learn that its Vue tree is mid-write, a seam that does not exist,
+ * and buys that by running on the retired root for the length of the write. It is written
+ * down in `docs/tasks/16` with the work that would close it, and pinned as behaviour by
+ * `tests/presentation/dialogs/formBusy.test.ts`'s last case, so a build that starts holding
+ * this door fails there rather than quietly making this paragraph wrong.
  */
 onBeforeUnmount(() => {
 	releaseBackground();

@@ -232,4 +232,62 @@ describe('a form dialog with a write in flight', () => {
 		harness.unmount();
 		harness = null;
 	});
+
+	/**
+	 * **The one door `busy` does NOT hold, pinned as what is TRUE rather than left as a claim
+	 * nothing reads.** Escape and Cancel are refused while a write is in flight; the UNMOUNT
+	 * hook settles unconditionally, and `RenovationProjectView.rebind` is an unmount that
+	 * happens with the leaf still open — so a settings change landing inside the window of a
+	 * single `vault.create` tells `ViewRoot.onCreateProject()` the dialog was cancelled while
+	 * the write it started is still running against the retired root.
+	 *
+	 * Reported in review as a P2, and the remedy proposed there — defer the rebind, or
+	 * otherwise coordinate the active write — is NOT taken. Deferring needs the `ItemView` to
+	 * learn that its Vue tree is mid-write, a seam that does not exist, and buys that by
+	 * running on the root `rebind` exists to retire for the length of the write. The
+	 * alternative, leaving the caller suspended, is the defect the sibling case above this one
+	 * was written for. So the residual is written down instead, in three places that each
+	 * inherit it: `DialogHost`'s own hook, `docs/tasks/16`, and here.
+	 *
+	 * What the residual costs, measured rather than described: the project IS created, under
+	 * the PREVIOUS default project folder; its `ProjectCreated` goes to the retired root's
+	 * event bus, so the rebound tree's `onProjectsChanged` never hears it; and
+	 * `VaultChangeAdapter` indexes the note into the new root while publishing nothing at all
+	 * — `projectIndexRebuilt()` has exactly one publisher, the full scan, and `saveSettings`
+	 * runs that BEFORE the rebind. The rebound list is therefore stale until the leaf is
+	 * reopened.
+	 *
+	 * This case asserts the settlement, which is the half that is code. That the list goes
+	 * stale is a fact about three modules and is asserted by nothing here.
+	 */
+	it('settles a BUSY dialog on unmount anyway, which is the one door busy does not hold', async () => {
+		harness = mountDialogHost();
+		const busy = ref(false);
+		const pending = harness.store.openDialog({
+			kind: 'form',
+			title: 'New project',
+			component: NewProjectForm,
+			props: { dispatch: neverSettles, busy, logger },
+			busy,
+		});
+		await nextTick();
+
+		// Driven through the REAL form rather than by seeding the ref, for a reason the first
+		// draft of this case measured the hard way: the form OWNS this ref — it writes its own
+		// `submitting` into it — so a `ref(true)` handed in is overwritten with `false` the
+		// moment the component mounts, and the case would have unmounted a dialog that was
+		// never busy while reading exactly like one that was.
+		await harness.wrapper.get('input[data-field="name"]').setValue('Kitchen');
+		await harness.wrapper.get('form').trigger('submit');
+		await nextTick();
+		// The write the framework never started is open, and stays open: nothing below can
+		// stop it, which is the whole of what the residual is.
+		expect(busy.value).toBe(true);
+
+		harness.wrapper.unmount();
+
+		await expect(pending).resolves.toBe('cancel');
+
+		harness = null;
+	});
 });

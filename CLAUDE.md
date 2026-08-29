@@ -786,11 +786,11 @@ check. Rules that came out of it:
   carry rather than either defect: a rule this file states in a docblock is a rule some door
   is not following, and the docblock is where to look first.** Three rounds running, the
   comment naming the invariant was the best available description of the bug.
-- **It ended as FIVE doors asking one question, and the last two rounds are what says why that
+- **It ended as FOUR doors asking one question, and the last two rounds are what says why that
   had to be a function rather than a habit.** `isGestureOwner(pointerId)` — the owner of the
-  running gesture, or nobody's if none runs — is now asked at the press, the move, the
-  release, the cancellation and the leave. Each door was fixed in its own round, by its own
-  report, and each of the first four looked like the last one: the cancel door abandoned the
+  running gesture, or nobody's if none runs — is asked at the move, the release, the
+  cancellation and the leave. Each door was fixed in its own round, by its own report, and
+  each of the first three looked like the last one: the cancel door abandoned the
   drawing pointer's gesture when a hovering pen was taken away (a 1000-unit drag committing
   0), the release door committed `SelectTool` at a foreign pointer's coordinates while the
   owner's finger was still down (1000 committing 6000, the press-door defect's own signature
@@ -798,6 +798,30 @@ check. Rules that came out of it:
   is not "guard the doors" — it is that a question worth asking at one door is a FUNCTION, and
   the moment it is spelled out longhand anywhere, the count of places it is missing is
   unknowable.**
+
+  **This bullet said FIVE for a slice, and counted the press door among them — which spells
+  the question longhand and asks a NARROWER one.** `gestureInFlight && toolGesturePointer !==
+  pointerId` omits `isGestureOwner`'s `editor.dragState` arm, so a second finger pressing
+  during a CAMERA-mode drag is forwarded rather than swallowed. Measured to change no
+  behaviour: with no tool active that press reaches `EditorStore.beginPan`, which keeps the
+  drag it already has. So the correction is to this SENTENCE and not to that door — the file's
+  own "consolidating two questions that merely look alike" rule cuts against widening a gate
+  no test asks to be widened, and the press door's comment states its narrower gate on
+  purpose. Which leaves the paragraph as its own best illustration: the longhand spelling is
+  what made the count wrong, and nothing but a `grep` could have said so.
+- **A pan can END without a release, and the door where that happens cleared half of what the
+  other three clear.** `onPointerCancel`'s PAN branch blanked the status bar and left
+  `lastStagePoint` holding the pan's own pointer. `reissuePointerMove`'s guard is
+  `phase === 'panning'` — the very thing the branch had just cleared — so the suppression
+  stopped applying at exactly the moment the stale point outlived it, and the next Shift press
+  replayed the panning cursor into the active tool: measured, a drawing tool's rubber band
+  snapped from `[1100,300,1200,400]` to the pan's own `[1100,300,900,500]`. **`onBlur`'s
+  docblock names this handler as already carrying the sentence, and it did not** — the
+  blur-ordering commit fixed three interruption doors and this branch was the fourth, never
+  re-read against the rule its own siblings had just taken. Found by review rather than by any
+  gate, four rounds after the doors it sits between were closed. The oldest recurring shape in
+  this file, arriving once more: a rule stated in a docblock is a rule some door is not
+  following, and the docblock is where to look first.
 - **A residue written down is only as honest as the bound it names, and this file asserted one
   that was false when written.** Forgetting a swallowed pointer on leave (above) left a real
   hole, and the commit doing it said so — "an ordinary pointer from then on, which its own

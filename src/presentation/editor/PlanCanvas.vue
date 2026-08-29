@@ -34,7 +34,7 @@ import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import type { ThemeTokens } from './theme/themeTokens';
 import { screenPoint, screenToWorld, viewportTransform, STAGE_PIXELS, type ScreenPoint } from './viewport/Viewport';
 import { PanOverride } from './viewport/pan-override';
-import { MIDDLE_MOUSE_BUTTON, PRIMARY_BUTTON_BIT, panButtonOf } from './pointerButtons';
+import { MIDDLE_MOUSE_BUTTON, PRIMARY_BUTTON_BIT, isPrimary, panButtonOf } from './pointerButtons';
 import { wheelPixels } from './wheelDelta';
 import { useProjectStore } from '../stores/ProjectStore';
 import { useSelectionStore } from './selection/selection-store';
@@ -364,40 +364,21 @@ function onWheel(event: WheelEvent): void {
 	reissuePointerMove(event);
 }
 
-/**
- * Design slice 8's routing rule: with a TOOL active, primary-button pointer events go to
- * `ToolManager` and the camera keeps only wheel/key zoom; with none (camera mode) drag
- * pans exactly as slice 5 shipped. One conversion here — DOM event to
- * `EditorPointerEvent`, world point through `screenToWorld` — so no tool performs its own
- * pixel math (ADR-009).
- */
-
-// Primary button only, in BOTH directions and in both modes — the filter for the TOOL and
-// CAMERA-MODE paths, which is all it has ever been asked at.
+// ---------------------------------------------------------------------------------------
+// The pointer doors. Design slice 8's routing rule: with a TOOL active, primary-button
+// pointer events go to `ToolManager` and the camera keeps only wheel/key zoom; with none
+// (camera mode) drag pans exactly as slice 5 shipped. One conversion here — DOM event to
+// `EditorPointerEvent`, world point through `screenToWorld` — so no tool performs its own
+// pixel math (ADR-009).
 //
-// It used to justify itself by saying the middle button is paste-on-Linux and the right one
-// the context menu, "and claiming either would take a gesture the host owns". Half of that
-// is now false in this very file: the pan override CLAIMS the middle button, and
-// `onPointerDown` asks it before reaching this filter for exactly that reason. X11's
-// primary-selection paste is a TEXT INPUT gesture and a canvas is not one; Obsidian's own
-// Canvas documents middle-drag as its pan. The right button stays unclaimed, and that half
-// of the reason survives: it pans in Obsidian Canvas on Windows and not on macOS, because
-// macOS fires `contextmenu` on mousedown where Windows fires it on mouseup.
-//
-// Down and up take the SAME test on purpose. A mouse shares one `pointerId` across its
-// buttons, so filtering `pointerdown` while forwarding every `pointerup` handed tools a
-// release with no matching press — the impossible event grammar this project has already
-// recorded once as a test-rig defect, here in production code — and `SelectTool`
-// obligingly committed a half-finished move for it.
-//
-// What actually PREVENTS that is the tool's own `event.button !== 'primary'` guard, which
-// is where a category invariant belongs: at the forbidden thing, so it holds for tools not
-// yet written. This filter is the symmetry that keeps the grammar valid in the first place,
-// and it is not independently checked — `tests/presentation/editor/zoneEditing.test.ts`
-// pins the composite behaviour, and removing either half alone still passes.
-function isPrimary(event: PointerEvent): boolean {
-	return event.button === 0;
-}
+// A `//` block and not a docblock, deliberately: it describes the REGION rather than the
+// next declaration, and it spent a slice spelled as `/** */` with a blank line under it —
+// harmless while a line comment separated it from the next function, and one extraction
+// away from reading as `onMouseDown`'s own header. This file has already paid for that
+// once, when `PRIMARY_BUTTON_BIT` was inserted between `panButtonOf`'s docblock and
+// `panButtonOf`. Nothing in any gate reads whether a docblock is attached to what it
+// describes.
+// ---------------------------------------------------------------------------------------
 
 /**
  * **The one door EVERY middle press arrives at, which is why the autoscroll rule lives here
@@ -699,6 +680,19 @@ function onPointerCancel(event: PointerEvent): void {
 		panOverride.abandonGesture();
 		syncPanPhase();
 		editor.abandonPan();
+		// **Both halves, and this branch cleared only one of them.** `reissuePointerMove` refuses
+		// to hand a tool anything while `phase === 'panning'` — and the phase is exactly what the
+		// line above just cleared, so a remembered point that outlives it is a point the very next
+		// Shift press replays. Measured: a drawing tool's rubber band snapped from its own loose
+		// end to the panning cursor. The same defect the blur-ordering commit fixed at `onBlur`,
+		// at the one door that was not re-read against it — and `onBlur`'s docblock had named this
+		// handler as already carrying the sentence, which is this file's oldest recurring shape:
+		// a rule stated in a docblock is a rule some door is not following.
+		//
+		// `setPointer` goes WITH it here, where `onBlur` deliberately keeps it: a cancellation is
+		// the pointer being taken away, so the status bar has nothing true left to show, while
+		// focus can leave with the pointer still resting over the plan.
+		lastStagePoint.value = null;
 		editor.setPointer(null);
 		// Nothing can have been swallowed under the owner's own id — a chorded press fires no
 		// `pointerdown` — so this is housekeeping rather than a repair, and it costs a set

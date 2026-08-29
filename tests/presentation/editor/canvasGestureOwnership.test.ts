@@ -447,6 +447,46 @@ describe('a Shift press during a pan', () => {
 		expect(drawnLines(harness.stage)).not.toEqual(drawnBefore);
 		harness.unmount();
 	});
+
+	/**
+	 * **A pan can END without the pointer being released, and the door it ends at forgot half
+	 * of what the other three clear.** `onPointerCancel`'s pan branch blanked the status bar's
+	 * coordinates and left `lastStagePoint` holding the PAN's own pointer — so the suppression
+	 * above, which is a `phase === 'panning'` test, stopped applying the moment the phase went
+	 * and the next Shift press replayed the panning cursor into the tool. The same defect the
+	 * blur-ordering commit fixed at `onBlur`, at the one door that was not re-read against it,
+	 * and `onBlur`'s own docblock names this handler as already carrying the sentence.
+	 *
+	 * A cancellation rather than a release, deliberately: a pan that ends on `pointerup` has a
+	 * real pointer position behind it, while one the OS takes away leaves a remembered point
+	 * that is no longer a claim about where the user's pointer is.
+	 */
+	it('forgets the pan’s cursor when the pan is CANCELLED rather than released', async () => {
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		click(canvas, 500, 100);
+		pointer(canvas, 'pointermove', 600, 200, 0, 1, 0);
+		await settle();
+
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true }));
+		pointer(canvas, 'pointerdown', 300, 300);
+		pointer(canvas, 'pointermove', 900, 500);
+		await settle();
+		const drawnBefore = drawnLines(harness.stage);
+		expect(drawnBefore.length).toBeGreaterThan(0);
+
+		// The OS takes the pan's pointer: no `pointerup` is ever coming, and the phase clears.
+		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
+		await settle();
+
+		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true, bubbles: true }));
+		await settle();
+
+		expect(drawnLines(harness.stage)).toEqual(drawnBefore);
+		harness.unmount();
+	});
 });
 
 describe('a second pointer arriving during a TOOL gesture', () => {

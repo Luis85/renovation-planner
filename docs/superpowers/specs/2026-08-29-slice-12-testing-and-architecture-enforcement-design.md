@@ -240,15 +240,40 @@ the adapter's header as requirements, not as history:
   (making the old fake honest turned 65 tests red across 12 files).
 - `getAbstractFileByPath` answers a folder object for a folder, never `null`.
 
-**`large-project/` asserts an operation count, not a clock.** The slice document calls it "a
-performance fixture", but this repository deliberately has no `npm run perf`, and a
-wall-clock budget across Ubuntu 22/24/26 and Windows is a flake generator. `FakeVault.operations`
-is already recorded in CLAUDE.md as "the instrument for asserting how MANY reads a repository
-call costs — a count is otherwise invisible, because a correct answer arrives either way",
-and it already caught `listByPlan` re-reading the whole sidecar once per zone. So the
-assertion is that an index rebuild over N notes costs O(N) reads rather than O(N²) —
-deterministic, no clock, and it catches the shape that actually bit this codebase. The
-adapter carries the same recorder for that reason.
+**`large-project/` asserts an operation count, not a clock — and the recorder has to be
+WIDENED first, which the first two drafts missed.** The slice document calls it "a performance
+fixture", but this repository deliberately has no `npm run perf`, and a wall-clock budget across
+Ubuntu 22/24/26 and Windows is a flake generator. A count is deterministic, needs no clock, and
+catches the shape that actually bit this codebase.
+
+**The instrument named in the first draft cannot see the subject**, raised by a review bot on the
+third round and confirmed by reading both sides. `FakeVault.op()` is called from exactly five
+methods — `create`, `modify`, `delete`, `createFolder`, `read` — while
+`buildProjectIndexEntries` enumerates through `vault.getFiles()` and `vault.getMarkdownFiles()`
+and reads frontmatter through the metadata cache. None of those three is instrumented. So
+`operations` would have recorded **zero** for an index rebuild at every fixture size, and the
+assertion would have passed against a quadratic implementation as happily as a linear one — "an
+instrument that reaches nothing looks exactly like a clean tree", which is this repository's own
+rule, quoted in this very document one section earlier.
+
+**The `listByPlan` precedent was cited and does not transfer**, which is the part worth keeping.
+That regression was catchable because that path performs real `vault.read` calls, and `read` is
+one of the five. Reasoning "the recorder caught a cost regression once, so it can catch this
+one" skipped the question of whether the new subject routes through the recorded doors at all.
+A precedent is about a mechanism, not about a category of problem.
+
+So this slice **instruments the operations the rebuild actually performs** before asserting
+anything about them: `getFiles` and `getMarkdownFiles` on the vault, and `getFileCache` on the
+metadata cache. The last is the load-bearing one — enumeration happens once per rebuild, so it
+is the PER-ENTITY lookup whose count distinguishes linear from quadratic, and a rebuild that
+re-enumerates or re-reads per entity is exactly what shows up there.
+
+**The widening is measured as safe rather than assumed**: `.operations` has exactly one consumer
+outside the helper (`tests/infrastructure/obsidian/repositories/contract.test.ts`), and it
+filters for `read:` entries under `Geometry/`, so new entry kinds cannot disturb it. Recorded
+because this repository's own history says a fake widening usually costs something — 86 tests
+once, 65 another time — and the honest report is that this one costs nothing, the same way
+slice 13's `Notice` widening turned out to cost nothing.
 
 ## 4. One item folded in
 

@@ -40,13 +40,34 @@ function validation(code: string): AppError {
 	return { category: 'Validation', code, message: 'developer english' };
 }
 
-function harness(dispatch: Dispatch, logger: Logger = spyLogger()) {
+/**
+ * The ONE construction site in this file, and `errorMap` is an override rather than a
+ * constant so that it stays the only one. `useFormCommit` requires a `logger` — the door
+ * SDD §66 will not let default itself — and nothing type-checks `tests/**`, so a case that
+ * hand-spells the options object can drop it and still run: the cross-field case below did
+ * exactly that, for the one member it needed to vary. `useFieldCommit.test.ts`'s harness
+ * takes both its varying members for the same reason, in the same words.
+ *
+ * What consolidating buys is measured rather than assumed: the THROWN-dispatch case below
+ * asserts `logger.error` was called, so with every case coming through here, dropping the
+ * logger from this one object turns that case RED. A member no test could see while a
+ * duplicate spelled it out separately is now one an existing test pins.
+ *
+ * What is still unchecked is a FUTURE case that hand-spells the options again — nothing
+ * type-checks `tests/**` beyond three named entries, so that half stays a convention. The
+ * instrument that would close it is this directory in `tsconfig.json`'s `include`, which
+ * measures clean today.
+ */
+function harness(
+	dispatch: Dispatch,
+	overrides: { readonly logger?: Logger; readonly errorMap?: FieldErrorMap<NewProject> } = {},
+) {
 	return useFormCommit<NewProject, { id: string }>({
 		initial: { name: '', status: 'IDEA' },
 		dispatch,
-		errorMap: MAP,
+		errorMap: overrides.errorMap ?? MAP,
 		toUserMessage: say,
-		logger,
+		logger: overrides.logger ?? spyLogger(),
 	});
 }
 
@@ -63,7 +84,7 @@ describe('useFormCommit', () => {
 		// caller has to remember, and the one that forgets fails silently.
 		const cause = new Error('the vault exploded');
 		const logger = spyLogger();
-		const form = harness(() => Promise.reject(cause), logger);
+		const form = harness(() => Promise.reject(cause), { logger });
 
 		const closed = await form.submit();
 
@@ -110,12 +131,8 @@ describe('useFormCommit', () => {
 		// `project.target-before-start` is about the PAIR. Clearing only the edited half would
 		// leave a message describing a pair that may now be valid — the untruth setField's
 		// clearing exists to prevent, reintroduced by the array form this slice added to prove.
-		const map: FieldErrorMap<NewProject> = { 'project.target-before-start': ['name', 'status'] };
-		const form = useFormCommit<NewProject, { id: string }>({
-			initial: { name: '', status: 'IDEA' },
-			dispatch: () => Promise.resolve(err(validation('project.target-before-start'))),
-			errorMap: map,
-			toUserMessage: say,
+		const form = harness(() => Promise.resolve(err(validation('project.target-before-start'))), {
+			errorMap: { 'project.target-before-start': ['name', 'status'] },
 		});
 		await form.submit();
 		expect(form.fieldErrors.value.size).toBe(2);

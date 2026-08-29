@@ -57,6 +57,56 @@ describe('opening a project note', () => {
 		expect(workspace.revealed).toEqual([workspace.leaves[0]]);
 	});
 
+	it('coalesces a double click into one tab rather than racing itself', async () => {
+		// The sequential case above is not this one, and its `await` between the two calls is
+		// exactly what hid this: reuse is read off the LEAF's view state, and Obsidian
+		// establishes that inside `openFile`, whose promise is the only thing that says when.
+		// Two clicks of an ordinary double click both reach the lookup before the first open
+		// settles, both miss, and both call `getLeaf('tab')` — two identical tabs from one
+		// gesture. Reported in review.
+		//
+		// It needed the fake to stop being FASTER than the real thing before it could be seen
+		// at all: `FakeLeaf.openFile` used to name the file synchronously, so the second call
+		// always found the first one's leaf and this case passed against the defect. Watched
+		// failing with the honest fake and no coalescing — two leaves.
+		const { vault } = createRepositoryStack();
+		await vault.create('Project.md', '---\nid: project-1\n---\n');
+		const index = new InMemoryProjectIndex();
+		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
+		const workspace = new FakeWorkspace();
+		const deps = { workspace: workspace as never, vault: vault as never, index };
+
+		const outcomes = await Promise.all([
+			openProjectNote(deps, PROJECT_ID),
+			openProjectNote(deps, PROJECT_ID),
+		]);
+
+		// Both clicks are told the truth: the note IS in front of the user, once.
+		expect(outcomes).toEqual(['opened', 'opened']);
+		expect(workspace.leaves).toHaveLength(1);
+		expect(workspace.leaves[0].opened).toHaveLength(1);
+	});
+
+	it('goes back to the leaf lookup once an open has settled', async () => {
+		// The other half of the coalescing rule, and the one a map that never forgot would
+		// break: the entry is released when the open settles, so a click a minute later takes
+		// the ordinary reveal path rather than being answered from a stale promise.
+		const { vault } = createRepositoryStack();
+		await vault.create('Project.md', '---\nid: project-1\n---\n');
+		const index = new InMemoryProjectIndex();
+		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
+		const workspace = new FakeWorkspace();
+		const deps = { workspace: workspace as never, vault: vault as never, index };
+
+		await Promise.all([openProjectNote(deps, PROJECT_ID), openProjectNote(deps, PROJECT_ID)]);
+		expect(await openProjectNote(deps, PROJECT_ID)).toBe('opened');
+
+		expect(workspace.leaves).toHaveLength(1);
+		// Revealed, which is what says the third click went through the lookup and not through
+		// a promise the map had held on to.
+		expect(workspace.revealed).toEqual([workspace.leaves[0]]);
+	});
+
 	it('opens a second note in its own tab rather than taking over the first', async () => {
 		// The other half of the same rule, and the one a naive "reuse a markdown leaf" would
 		// break: reuse is keyed on the FILE, so a different project is a different tab.

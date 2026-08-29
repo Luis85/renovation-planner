@@ -64,11 +64,21 @@ export class FakeLeaf implements WorkspaceLeaf {
 	 * recorded the file left every note it opened invisible to the very lookup "reuse the tab
 	 * this note is already in" is built on, and a duplicate-tab defect had no instrument that
 	 * could see it. Thinner than the real thing, in the one direction that mattered.
+	 *
+	 * **And it establishes that state only when the returned promise SETTLES**, which is the
+	 * same lesson one turn further on. Setting it synchronously modelled a guarantee
+	 * `openFile(file): Promise<void>` does not make: the real call reads the file and builds a
+	 * view, and nothing in its signature promises the leaf answers for that file before it
+	 * resolves. Faster than the real thing is the same defect as thinner than it — a second
+	 * open racing the first found a leaf already naming the note and could not produce the
+	 * duplicate tab a double click really produces, so the coalescing `openProjectNote` now
+	 * does had no instrument either. A fake models what the API GUARANTEES, never what one
+	 * build happens to do first.
 	 */
-	openFile(file: TFile): Promise<void> {
+	async openFile(file: TFile): Promise<void> {
 		this.opened.push(file);
+		await Promise.resolve();
 		this.state = { type: 'markdown', state: { file: file.path } };
-		return Promise.resolve();
 	}
 }
 

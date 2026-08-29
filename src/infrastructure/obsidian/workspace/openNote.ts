@@ -6,6 +6,27 @@ import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 const MARKDOWN_VIEW = 'markdown';
 
 /**
+ * The opens currently in flight, by file path — what makes a DOUBLE click one tab.
+ *
+ * Reuse is read off a leaf's view state, and Obsidian establishes that inside `openFile`,
+ * whose promise is the only thing that says when. So the check below answers "no leaf holds
+ * this note" for every click that arrives before the first open settles, and each of them
+ * then asks for a tab of its own: measured, two identical tabs from one ordinary gesture.
+ * A sequential second click is a different question and the leaf lookup already answers it.
+ *
+ * Keyed on the PATH rather than on the project id, for the same reason the lookup below is:
+ * the tab is the file's, so two ids resolving to one note are one gesture, and two notes are
+ * never coalesced into one.
+ *
+ * Module scope, and deliberately: this belongs to the FUNCTION, not to a caller — a second
+ * caller would otherwise have to remember a guard nothing checks, which is the shape this
+ * repository has paid for repeatedly. It is bounded by its own `finally`: an entry lives
+ * exactly as long as the open it describes, so nothing accumulates and a later click takes
+ * the ordinary lookup path rather than a stale promise.
+ */
+const openingByPath = new Map<string, Promise<ProjectNoteOpenOutcome>>();
+
+/**
  * Which file a leaf is showing, read through the LEAF's own view state rather than through
  * `leaf.view.file` — the same choice `revealPlanEditor.planIdOf` makes and for the same
  * reason: the leaf is what Obsidian persists and restores, so it has an answer even for a
@@ -41,6 +62,16 @@ export type ProjectNoteOpenOutcome = 'opened' | 'missing';
  * identical tabs — the defect `revealView`'s own docblock names as the one every hand-rolled
  * activation grows, and this module was the hand-rolled one. Keying on the file is also what
  * keeps a SECOND project opening in its own tab rather than taking over the first.
+ *
+ * **And reuse is keyed on the file in TWO places, because one of them cannot see a click that
+ * has not finished arriving.** The leaf lookup answers "this note is already open"; it cannot
+ * answer "this note is being opened right now", since the leaf an open in flight is building
+ * does not name the file until `openFile` resolves. A double click is exactly that state, so
+ * both clicks missed and both asked for a tab — the duplicate-tab defect the paragraph above
+ * records, surviving in the one gesture users perform on a list row most readily.
+ * `openingByPath` is the second key, and the sequential test that pinned the first half could
+ * not have caught it: its `await` between the two calls is what the real gesture does not do.
+ * Reported in review.
  *
  * An existing leaf is REVEALED and never re-opened, which is `revealCandidate`'s rule applied
  * here: the file is already in that leaf, and `openFile` on it would rebuild a view the user
@@ -78,6 +109,10 @@ export async function openProjectNote(
 	if (path === undefined) return 'missing';
 	const file = deps.vault.getAbstractFileByPath(normalizePath(path));
 	if (!(file instanceof TFile)) return 'missing';
+	// Asked BEFORE the leaf lookup, because an open in flight is precisely the state the
+	// lookup cannot see: its leaf exists and does not name the file yet.
+	const inFlight = openingByPath.get(file.path);
+	if (inFlight !== undefined) return inFlight;
 	const existing = deps.workspace
 		.getLeavesOfType(MARKDOWN_VIEW)
 		.find((leaf) => filePathOf(leaf) === file.path);
@@ -85,6 +120,18 @@ export async function openProjectNote(
 		await deps.workspace.revealLeaf(existing);
 		return 'opened';
 	}
-	await deps.workspace.getLeaf('tab').openFile(file);
-	return 'opened';
+	// Recorded before the first `await` of the open, so a click landing in the same tick as
+	// this one finds it. A rejection is shared rather than swallowed: both clicks asked for
+	// the same open and the same open failed, which the composed closure turns into one
+	// notice.
+	const opening = deps.workspace
+		.getLeaf('tab')
+		.openFile(file)
+		.then((): ProjectNoteOpenOutcome => 'opened');
+	openingByPath.set(file.path, opening);
+	try {
+		return await opening;
+	} finally {
+		openingByPath.delete(file.path);
+	}
 }

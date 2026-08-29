@@ -1026,6 +1026,56 @@ mechanism that fixes the case in front of it, under a comment describing a wider
   observer callback is a microtask, so a newly inserted sibling is non-`inert` for the tick
   between insertion and sync, which is shorter than any input event but is not "never".
 
+### What the thirteenth review round found (2026-08-29)
+
+Two P2s on the commit that closed the twelfth, and the pair is one shape: a mechanism that
+answers correctly for the caller it was written beside, and answers nothing for the one that
+arrives by a different door — or in a different tick.
+
+- **The project list heard about a create only from the form that made it (P2).**
+  `PROJECT_LIST_CHANGE_EVENTS` held `ProjectIndexRebuilt` alone, under a sentence calling
+  that "a statement about what the bus currently carries". The bus has carried
+  `ProjectCreated` since slice 3 — `CreateProject.execute` publishes one on every successful
+  create — so the sentence was simply false, and the reason recorded for the omission was a
+  non-sequitur: `ViewRoot.onCreateProject` re-reading for its OWN create explains why the
+  form path has an awaited re-read, and explains nothing about every other create path.
+  `create-sample-project` is one of those today, seeding through the same command from the
+  palette, so a Renovation project pane open in a background leaf went on drawing the vault it
+  had read at mount until something rebuilt the whole index — and only `startPersistence`
+  republishes a rebuild, at layout-ready and on a settings swap. Neither is a create.
+
+  **Both refresh paths stay, and the doubled hydrate is bounded rather than tolerated.** The
+  subscription answers a CATEGORY, "some project was created, anywhere"; `onCreateProject`'s
+  `await hydrate()` answers an ORDERING its own handler needs — the list is fresh before that
+  handler returns, which a fire-and-forget bus delivery cannot promise. `hydrate`'s request
+  ticket is what makes the two racing reads settle as one, which is the eighth slice's rule
+  paying out in a place nobody wrote it for.
+
+- **A double click on a project row opened two tabs (P2).** Reuse is read off a leaf's view
+  state, and Obsidian establishes that inside `openFile`, whose promise is the only thing that
+  says when. Two clicks of an ordinary double click both reach the lookup before the first open
+  settles, both miss, and both call `getLeaf('tab')`. The eleventh round's fix keyed reuse on
+  the FILE and closed the sequential case; this is the same defect in the gesture users
+  actually perform on a list row, and that round's test could not have caught it — its `await`
+  between the two calls is exactly what the real gesture does not do.
+
+  `openingByPath` is the second key, asked BEFORE the leaf lookup because an open in flight is
+  precisely the state the lookup cannot see. It lives at module scope, on this file's own
+  recurring rule that the guard belongs to the FUNCTION rather than to a caller who would have
+  to remember it, and it is bounded by its own `finally`: an entry lives exactly as long as the
+  open it describes, which the second new case pins by taking the reveal path on a third click.
+
+  **The instrument had to be repaired before the defect could be seen, and this is the
+  fake-too-KIND rule in its newest disguise: faster than the real thing.** `FakeLeaf.openFile`
+  named the file synchronously, so the racing second call always found the first one's leaf and
+  the case passed against the defect — measured, by writing it against the old fake and watching
+  it go green. Setting that state synchronously modelled a guarantee
+  `openFile(file): Promise<void>` does not make. Establishing it when the promise settles is
+  what the signature actually promises, and the blast radius of making the fake honest was **0
+  tests** across 226 files — nothing had been depending on it, which is worth recording beside
+  the 86-test and 65-test instances for the same reason those are: the number is not the point,
+  the shape is.
+
 
 ## References
 

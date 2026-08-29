@@ -322,11 +322,19 @@ slice 13's `Notice` widening turned out to cost nothing.
 
 ## 4. One item folded in
 
-A check that no `tests/**/*.spec.ts` exists and every `*.test.ts` on disk is collected.
-`vitest.config.ts`'s `include` is `['tests/**/*.test.ts']`, so a `.spec.ts` file under
-`tests/` is a suite that never runs and nothing says so. Measured: zero such files exist
-today under either `tests/` or `src/`, which is what makes this a cheap lock rather than a
-cleanup.
+A check that **no `.spec.ts` exists under `tests/` OR `src/`**, and that every `*.test.ts` on
+disk is collected. `vitest.config.ts`'s `include` is `['tests/**/*.test.ts']`, so a `.spec.ts`
+anywhere is a suite that never runs and nothing says so. Measured: zero such files exist today
+under either tree, which is what makes this a cheap lock rather than a cleanup.
+
+**The `src/` half was missing from the first draft, and the sentence that stated the measurement
+is what convicts it**: it read "zero such files exist today under either `tests/` or `src/`" —
+`src/` measured, then guarded in only one of the two trees. `src/` is the half that matters more,
+because it is **build input**: an uncollected `.spec.ts` under `tests/` is dead weight, while one
+under `src/` is unexecuted test code inside the shipped tree, and the slice's own Definition of
+Done asks for exactly this ("no `.spec.ts` file exists anywhere under `src/`", lines 634–636).
+Raised by a review bot. Measuring a set and then guarding a subset of it is this document's
+recurring failure in its smallest form.
 
 ## 5. What is recorded as NOT met
 

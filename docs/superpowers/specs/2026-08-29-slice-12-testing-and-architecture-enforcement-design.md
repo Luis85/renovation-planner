@@ -21,7 +21,9 @@ scope and cannot be — its own text says it "cannot be verified true until they
 ## The measurement this design rests on
 
 `eslint.config.mjs` builds one block per layer from a `forbidden(layer, { groups, packages })`
-factory. Transcribed from those calls, the forbidden matrix is **35 cells**:
+factory. Transcribed from those calls, the layer and package bans are **35 cells** — read as a
+description of the config's arguments, not as the size of the probe set, which the section below
+enumerates in code and which also includes the `prototypes` group:
 
 | Layer | Forbidden groups | Forbidden packages |
 | --- | --- | --- |
@@ -32,7 +34,7 @@ factory. Transcribed from those calls, the forbidden matrix is **35 cells**:
 | `presentation` | infrastructure, plugin (2) | none declared |
 | `plugin` | none | none |
 
-**A cell is not a probe: 35 cells are 86 SPELLINGS**, raised by a review bot on the second
+**A cell is not a probe: each cell is several SPELLINGS**, raised by a review bot on the second
 round and verified by reading `forbidden()`. Each banned entry expands to several independent
 glob/path forms, and a probe of one says nothing about the others:
 
@@ -47,9 +49,28 @@ becomes allowed in `core/`, `domain/` and `application/` with the suite green. S
 group whose barrel form is dropped while its deep form survives. So the probes enumerate
 spellings, not cells, and the mutation is per SPELLING rather than per group.
 
-The `prototypes` group is deliberately **excluded** from those counts: measured, not assumed —
-`tests/build/prototypes-one-way-door.test.ts` already drives it across all six layers with
-`it.each(LAYERS)`.
+**The `prototypes` group is NOT excluded any more, and the reason it was is the same error as
+the one above.** The first two drafts excluded it on the grounds that
+`tests/build/prototypes-one-way-door.test.ts` already drives it across all six layers — true
+about LAYERS, false about SPELLINGS, which is finding 5 repeated on the group finding 5 was
+used to justify skipping. `PROTOTYPES_GROUP` is `['**/prototypes', '**/prototypes/*',
+'**/prototypes/**/*']`, and every probe in that file imports `../prototypes/ZoneSummary.vue` —
+the one-level form alone. Deleting `**/prototypes` or `**/prototypes/**/*` leaves that suite
+green. So the barrel and deep spellings are this slice's, at each layer and at the root and
+catch-all blocks that carry `PROTOTYPES_GROUP` from outside `forbidden()`.
+
+**And the grand total is no longer computed by hand in this document.** A count derived in prose
+has been wrong twice here — once about how many cells were driven, once about cells-versus-
+spellings — and a third hand-derivation would be the same defect a third time. The probe set is
+**enumerated in code** from the SDD's layering statement (layers × forbidden groups × the three
+glob forms, plus packages × the two entry forms), and the count is whatever that enumeration
+yields. The numbers that stay in prose are the ones with a check under them: three glob forms
+per group, two entry forms per package, and the six cells measured as already driven — the
+16/19 cell split above is likewise a reading of `forbidden()`'s arguments, not a derived total.
+
+The `48` and `38` above therefore describe the layer and package groups *as the config declares
+them*; they are not the size of the probe set, which the enumeration computes and which includes
+the prototypes spellings this section just added back.
 
 **Six of the 35 are driven today, and the first draft of this document said one.** The
 correction came from a review bot, and it is recorded rather than quietly folded in because the
@@ -124,7 +145,8 @@ the config is the subject, not the source.
 ESLint, and states that "a test file's CPU cost is part of its correctness when anything in
 the suite waits in ticks". So the file makes **one `lintText` call per layer**, its code
 carrying every forbidden import for that layer *in every spelling* at once, asserting each is
-reported — about 12 calls rather than 86. The spelling expansion costs import LINES, not
+reported — about 12 calls however many spellings the enumeration yields. The expansion costs
+import LINES, not
 calls, which is why it does not change this shape: one synthetic module per layer simply
 carries a dozen or so import statements instead of a handful. The cost is to be **measured
 before the file is committed**; if it is still heavy, the fallback is folding the cases into an
@@ -147,11 +169,33 @@ over a rule that cannot fail is the thing being replaced.
 
 ## 2. The four remaining meta-tests
 
+**One rule governs all of them, and it is stated here once rather than rediscovered per test.**
+Every meta-test in this section asserts that something FAILED — a lint rule reported, an import
+threw, a child run exited non-zero, a fixture was rejected. *A failure assertion is vacuous
+unless it discriminates the CAUSE of the failure*, because the infrastructure of the test can
+fail in ways that look identical to the defect it is watching for.
+
+This was raised three times by review before it was written down as a class, which is the
+lesson: round two fixed it for `broken-references/` alone, and round four found the same shape
+in two more tests I had written in between. "I fixed the case in the report" is not "I fixed the
+class" — CLAUDE.md's own words, and this document walked into it.
+
+So each test names its discriminator:
+
+| Test | Would pass vacuously if… | Discriminator |
+| --- | --- | --- |
+| layer-boundary probes | the path fails to parse | `PARSE_ERROR` asserted absent, and the *rule id* asserted present |
+| node environment | the fixture's import path is wrong, or its module throws for any other reason | the rejection is the expected `ReferenceError` for the planted global — not a resolution or transform error |
+| broken-fake contract | the child config's `include` is wrong, the fixture fails to import, or vitest collects nothing (all exit non-zero) | a non-zero exit **plus** a collected-test count above zero **plus** the expected contract case named in the child's output |
+| `broken-references/` | the fixture has quietly become valid | an observable rejection by count and code, **plus** a healthy record in the same fixture still loading |
+
 Taken from the slice document's Testing Strategy, unchanged in intent:
 
 - **The node environment fires on an indirect violation.** A fixture module where `domain/`
   reaches a DOM global through a helper — no direct import in the domain file — is imported
-  inside a node test, which asserts the import fails. This proves the node default catches
+  inside a node test, which asserts the import fails **with the expected `ReferenceError` for the
+  planted global**, per the discriminator table above: "the import threw" is equally true of a
+  mistyped fixture path. This proves the node default catches
   what a per-file lint rule cannot see. It does **not** stand in for the indirect *package*
   import gap slice 1 names; that stays open and is recorded as open.
 - **A contract suite fails on a broken fake** — and it has to run in a CHILD vitest process,
@@ -178,7 +222,8 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
   interaction with §4 rather than a detail: a deliberately failing spec checked in as
   `*.test.ts` under `tests/` is collected by the outer `npm run check`, which then fails before
   the meta-test can interpret the child's exit code — the fixture would break the very gate it
-  is part of. `.spec.ts` is not the escape either, since §4 bans that name outright. So the
+  is part of. The child's exit code is also not enough on its own; see the discriminator table
+  above, since a bad `include` and a fixture that fails to import both exit non-zero too. `.spec.ts` is not the escape either, since §4 bans that name outright. So the
   fixture is `tests/build/fixtures/brokenFake.fixture.ts`, outside `vitest.config.ts`'s
   `include` (`tests/**/*.test.ts`), and the child is invoked with a dedicated minimal config
   whose `include` names `*.fixture.ts`. That keeps repo-relative imports of the contract working,

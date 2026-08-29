@@ -720,6 +720,30 @@ check. Rules that came out of it:
   file's oldest recurring lesson arriving in its newest disguise. The opposite
   over-correction, deleting the re-issue outright, is caught by the existing
   constraint-drops-on-blur case in `interactionLayer.test.ts`, so both directions are held.
+- **A guard on the direct path says nothing about the VALUE that path leaves behind.** The
+  ownership guard above refuses a foreign pointer's move as a tool move — and
+  `onPointerMove` wrote `lastStagePoint` at its very top, above every check below it, so the
+  refused pen's coordinates were recorded anyway and the next Shift press rebuilt a synthetic
+  move out of exactly them. The ghost jumped to the pointer the guard had just declined.
+  `isGestureOwner(pointerId)` is the companion to `gestureInFlight()` and exists for its
+  reason: the two gestures a pointer can own record their owner in different places
+  (`toolGesturePointer` beside the manager's flag, `dragState.pointerId` in the store, which
+  the override's pan and camera mode's drag both go through), so a caller would otherwise
+  spell a two-armed question out longhand. Its "or none is running" arm is load-bearing
+  rather than a convenience — a hover with nothing in flight is how a drawing tool's rubber
+  band follows the pointer at all. `editor.setPointer` is gated with it: `pointerWorld` is
+  the status bar's readout of where the pointer is, and a readout following a hovering pen
+  away from the drag the user is making is the same claim being false in the other surface.
+
+  **The method note gained its third variant here, and the three are one rule:** when a fix
+  is a REFUSAL, write the WIDENED mutation and run it; when it is an ORDERING, write the
+  PARTIAL reordering; when it guards ONE of several gestures, DROP THE OTHER ARMS. Every one
+  of those has passed the whole suite at least once while leaving a defect live — this
+  round's was gating the tool's gesture and not the camera's, green across 46 files and 633
+  tests with the camera half still broken (a pan swallows a foreign move but still records
+  it, and a pan ends on its release with no move after it to correct the record, so the first
+  Shift press afterwards replays the hover). **A fix's own shape tells you which mutation to
+  write**, and the suite covering the reported path is not evidence about the one beside it.
 - **Two expressions of one question, three lines apart, drift immediately.** The camera lock
   and the override-start guard both asked "is a gesture already running", and the lock was
   written without `editor.dragState` — so a camera-mode drag, which is the DEFAULT state and is

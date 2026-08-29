@@ -215,10 +215,26 @@ The mutations are the narrow ones — drop `**/${g}`, drop the `${name}/*` patte
 leaving `paths` intact — because a mutation coarser than the defect it stands for is the vacuity
 this file exists to refuse.
 
-**What is NOT required, because it is impossible: a mutation per config PATTERN.** The table
-above shows `**/${g}/*` and `**/${g}/**/*` are redundant against the barrel form, so deleting
-either alone changes no observable behaviour, and demanding a test catch it is demanding a test
-detect a no-op. An earlier draft required exactly that, and its per-spelling mutation list
+**What is NOT required, because it is impossible: a mutation per config PATTERN.** `**/${g}/*`
+and `**/${g}/**/*` are redundant, so deleting either alone changes no observable behaviour, and
+demanding a test catch it is demanding a test detect a no-op.
+
+**Dropping the barrel glob is a different case and IS observable** — spelled out because a
+review round misread the paragraph above as forbidding that mutation too. Measured through
+ESLint's own matcher on real import specifiers, rather than on the bare directory names the
+earlier table used:
+
+| specifier | all three patterns | `**/${g}` dropped | `**/${g}/*` dropped |
+| --- | --- | --- | --- |
+| `../domain` | reports | **silent** | reports |
+| `../../domain` | reports | **silent** | reports |
+| `../domain/Zone` | reports | reports | reports |
+| `../../domain/zone/Zone` | reports | reports | reports |
+
+Only `**/${g}` matches the bare barrel specifier, so removing it frees exactly that import shape
+and the barrel probe goes red. That is why it is in the mutation list and the other two are not:
+the list is not "one mutation per pattern", it is "one mutation per import shape a pattern
+uniquely protects". An earlier draft required exactly that, and its per-spelling mutation list
 silently omitted the one-level case — because no such mutation exists. Probes and mutations are
 defined over **semantically distinct import shapes** (barrel `../domain`, one level
 `../domain/X`, nested `../domain/a/b`), never over config entries.

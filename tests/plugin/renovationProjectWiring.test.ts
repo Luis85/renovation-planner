@@ -131,7 +131,12 @@ describe('the renovation project dependencies', () => {
 		await stack.vault.create('Project.md', '---\nid: project-1\n---\n');
 		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, stack as never);
 		root.persistence?.index.upsert({ id: 'project-1' as never, type: 'renovation-project', path: 'Project.md' });
-		const workspace = { getLeaf: () => ({ openFile: () => Promise.reject(new Error('disk exploded')) }) };
+		// `getLeavesOfType` answers none, which is the case this is about: no tab is already
+		// showing the note, so the reuse path is skipped and the faulting `openFile` is reached.
+		const workspace = {
+			getLeavesOfType: () => [],
+			getLeaf: () => ({ openFile: () => Promise.reject(new Error('disk exploded')) }),
+		};
 
 		const deps = renovationProjectDeps(root, workspace as never, stack.vault as never);
 

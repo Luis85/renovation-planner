@@ -44,8 +44,17 @@ export class FakeLeaf implements WorkspaceLeaf {
 	/** Every file `openProjectNote` (or anything else) opened on this leaf, in order. */
 	readonly opened: TFile[] = [];
 
+	/**
+	 * Sets the leaf's own view state, because the real call does. Obsidian gives a leaf it
+	 * opened a file into a `markdown` view whose state names that file, which is what makes
+	 * the leaf findable through `getLeavesOfType('markdown')` afterwards — so a fake that only
+	 * recorded the file left every note it opened invisible to the very lookup "reuse the tab
+	 * this note is already in" is built on, and a duplicate-tab defect had no instrument that
+	 * could see it. Thinner than the real thing, in the one direction that mattered.
+	 */
 	openFile(file: TFile): Promise<void> {
 		this.opened.push(file);
+		this.state = { type: 'markdown', state: { file: file.path } };
 		return Promise.resolve();
 	}
 }

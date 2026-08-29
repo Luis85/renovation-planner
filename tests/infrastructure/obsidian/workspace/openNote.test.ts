@@ -29,6 +29,68 @@ describe('opening a project note', () => {
 		expect(workspace.leaves[0].opened[0]?.path).toBe('Project.md');
 	});
 
+	it('reuses the tab the note is already open in rather than opening a second one', async () => {
+		// A project row is a thing a user clicks repeatedly — to check a figure, to come back
+		// after looking at something else. `getLeaf('tab')` unconditionally meant N clicks on one
+		// row produced N identical tabs, which is the defect `revealView`'s own docblock names as
+		// the one every hand-rolled activation grows: this module was the hand-rolled one.
+		const { vault } = createRepositoryStack();
+		await vault.create('Project.md', '---\nid: project-1\n---\n');
+		const index = new InMemoryProjectIndex();
+		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
+		const workspace = new FakeWorkspace();
+		const deps = { workspace: workspace as never, vault: vault as never, index };
+
+		await openProjectNote(deps, PROJECT_ID);
+		await openProjectNote(deps, PROJECT_ID);
+
+		expect(workspace.leaves).toHaveLength(1);
+		// Revealed rather than re-opened: the file is already in that leaf, and `openFile` on it
+		// would rebuild a view the user may have scrolled — `revealCandidate`'s own rule.
+		expect(workspace.leaves[0].opened).toHaveLength(1);
+		expect(workspace.revealed).toEqual([workspace.leaves[0]]);
+	});
+
+	it('opens a second note in its own tab rather than taking over the first', async () => {
+		// The other half of the same rule, and the one a naive "reuse a markdown leaf" would
+		// break: reuse is keyed on the FILE, so a different project is a different tab.
+		const { vault } = createRepositoryStack();
+		await vault.create('One.md', '---\nid: project-1\n---\n');
+		await vault.create('Two.md', '---\nid: project-2\n---\n');
+		const index = new InMemoryProjectIndex();
+		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'One.md' });
+		index.upsert({ id: 'project-2' as EntityId<string>, type: 'renovation-project', path: 'Two.md' });
+		const workspace = new FakeWorkspace();
+		const deps = { workspace: workspace as never, vault: vault as never, index };
+
+		await openProjectNote(deps, PROJECT_ID);
+		await openProjectNote(deps, 'project-2');
+
+		expect(workspace.leaves).toHaveLength(2);
+		expect(workspace.leaves[0].opened[0]?.path).toBe('One.md');
+		expect(workspace.leaves[1].opened[0]?.path).toBe('Two.md');
+	});
+
+	it('does not mistake a markdown leaf that names no file for the note', async () => {
+		// A leaf Obsidian has restored but not yet constructed a view for answers `{}` from
+		// `getViewState()`, so "is this leaf showing my note" has to be a question about a
+		// STRING and not about truthiness — `undefined === undefined` would otherwise make the
+		// first fileless markdown leaf a match for every project in the vault.
+		const { vault } = createRepositoryStack();
+		await vault.create('Project.md', '---\nid: project-1\n---\n');
+		const index = new InMemoryProjectIndex();
+		index.upsert({ id: PROJECT_ID, type: 'renovation-project', path: 'Project.md' });
+		const workspace = new FakeWorkspace();
+		const fileless = workspace.withOpen('markdown');
+
+		await openProjectNote({ workspace: workspace as never, vault: vault as never, index }, PROJECT_ID);
+
+		expect(fileless.opened).toHaveLength(0);
+		expect(workspace.revealed).toHaveLength(0);
+		expect(workspace.leaves).toHaveLength(2);
+		expect(workspace.leaves[1].opened[0]?.path).toBe('Project.md');
+	});
+
 	/**
 	 * The only way to hold an id the index does not resolve is a note deleted since the list
 	 * was read — see the module's own docblock for why that is silent rather than notified.

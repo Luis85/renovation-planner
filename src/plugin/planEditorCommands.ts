@@ -10,10 +10,9 @@ import type {
 } from '../application/commands/plan/SetPlanBackground';
 import { backgroundKindFor } from '../domain/plan/PlanBackgroundRef';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
-import { runDetached } from './runDetached';
 import { PlanBackgroundSuggestModal } from '../presentation/modals/PlanBackgroundSuggestModal';
 import { PlanSuggestModal } from '../presentation/modals/PlanSuggestModal';
-import { notify, notifyError, notifyWarning } from '../presentation/notices/notify';
+import { notify, notifyError, notifyFault, notifyWarning } from '../presentation/notices/notify';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
 import type { PluginCommandHost } from './commandHost';
@@ -114,12 +113,18 @@ function openPlanPicker(host: PluginCommandHost): void {
 	}
 	const picker = new PlanSuggestModal(host.app, plans, (plan) => {
 		// A modal callback returns nothing, so this activation has no awaiter — and a fault in
-		// it was reaching neither the user nor the log. `runDetached` is the one place that
-		// is answered, for all four detached doors this plugin has.
-		runDetached(
-			revealPlanEditor(host.app.workspace, PLAN_EDITOR_VIEW, plan.id),
-			host.root.logger,
-			'view.plan-editor.reveal-failed',
+		// it was reaching neither the user nor the log. It is answered inside `revealCandidate`
+		// now rather than here: two picks of the same plan before the first settles are one
+		// activation, and answering at the CALL SITE reported one failure once per pick.
+		void revealPlanEditor(
+			{
+				workspace: host.app.workspace,
+				reportFault: (cause: unknown): void => {
+					notifyFault(cause, host.root.logger, 'view.plan-editor.reveal-failed');
+				},
+			},
+			PLAN_EDITOR_VIEW,
+			plan.id,
 		);
 	});
 	picker.open();

@@ -6,18 +6,37 @@
  * behavioural difference from `revealView`, and it is what the two functions could not
  * both be.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { revealPlanEditor } from '../../../../src/infrastructure/obsidian/workspace/revealPlanEditor';
 import { revealView } from '../../../../src/infrastructure/obsidian/workspace/revealView';
 import { FakeWorkspace } from '../../../helpers/workspace';
 
 const TYPE = 'renovation-plan-editor';
 
+/** Every cause the activation answered — see `revealView.test.ts` for why it is a count. */
+const faults: unknown[] = [];
+
+beforeEach(() => {
+	faults.length = 0;
+});
+
+/**
+ * Builds the whole `RevealDeps`, for the fake rule `revealView.test.ts` states: `reportFault`
+ * is required, and a case omitting it would only fail once something faulted.
+ */
+const depsFor = (fake: unknown) =>
+	({
+		workspace: fake,
+		reportFault: (cause: unknown) => {
+			faults.push(cause);
+		},
+	}) as never;
+
 describe('revealing a plan editor', () => {
 	it('opens a leaf carrying the plan id in its view state', async () => {
 		const workspace = new FakeWorkspace();
 
-		await revealPlanEditor(workspace as never, TYPE, 'plan-ground');
+		await revealPlanEditor(depsFor(workspace), TYPE, 'plan-ground');
 
 		expect(workspace.leaves).toHaveLength(1);
 		expect(workspace.leaves[0].state).toEqual({
@@ -32,7 +51,7 @@ describe('revealing a plan editor', () => {
 		const workspace = new FakeWorkspace();
 		const existing = workspace.withOpen(TYPE, { planId: 'plan-ground' });
 
-		await revealPlanEditor(workspace as never, TYPE, 'plan-ground');
+		await revealPlanEditor(depsFor(workspace), TYPE, 'plan-ground');
 
 		expect(workspace.leaves).toEqual([existing]);
 		expect(workspace.revealed).toEqual([existing]);
@@ -48,7 +67,7 @@ describe('revealing a plan editor', () => {
 		const existing = workspace.withOpen(TYPE, { planId: 'plan-ground' });
 		const before = existing.state;
 
-		await revealPlanEditor(workspace as never, TYPE, 'plan-ground');
+		await revealPlanEditor(depsFor(workspace), TYPE, 'plan-ground');
 
 		expect(existing.state).toBe(before);
 	});
@@ -57,7 +76,7 @@ describe('revealing a plan editor', () => {
 		const workspace = new FakeWorkspace();
 		workspace.withOpen(TYPE, { planId: 'plan-ground' });
 
-		await revealPlanEditor(workspace as never, TYPE, 'plan-first');
+		await revealPlanEditor(depsFor(workspace), TYPE, 'plan-first');
 
 		expect(workspace.leaves).toHaveLength(2);
 		expect(workspace.leaves[1].state?.state).toEqual({ planId: 'plan-first' });
@@ -67,7 +86,7 @@ describe('revealing a plan editor', () => {
 		const workspace = new FakeWorkspace();
 		workspace.withOpen(TYPE);
 
-		await revealPlanEditor(workspace as never, TYPE, 'plan-ground');
+		await revealPlanEditor(depsFor(workspace), TYPE, 'plan-ground');
 
 		expect(workspace.leaves).toHaveLength(2);
 	});
@@ -76,7 +95,7 @@ describe('revealing a plan editor', () => {
 		const workspace = new FakeWorkspace();
 		workspace.withOpen(TYPE, { planId: 7 });
 
-		await revealPlanEditor(workspace as never, TYPE, 'plan-ground');
+		await revealPlanEditor(depsFor(workspace), TYPE, 'plan-ground');
 
 		expect(workspace.leaves).toHaveLength(2);
 	});
@@ -91,8 +110,8 @@ describe('two activations racing', () => {
 		const workspace = new FakeWorkspace();
 
 		await Promise.all([
-			revealPlanEditor(workspace as never, TYPE, 'plan-1'),
-			revealPlanEditor(workspace as never, TYPE, 'plan-1'),
+			revealPlanEditor(depsFor(workspace), TYPE, 'plan-1'),
+			revealPlanEditor(depsFor(workspace), TYPE, 'plan-1'),
 		]);
 
 		expect(workspace.leaves).toHaveLength(1);
@@ -105,8 +124,8 @@ describe('two activations racing', () => {
 		const workspace = new FakeWorkspace();
 
 		await Promise.all([
-			revealPlanEditor(workspace as never, TYPE, 'plan-1'),
-			revealPlanEditor(workspace as never, TYPE, 'plan-2'),
+			revealPlanEditor(depsFor(workspace), TYPE, 'plan-1'),
+			revealPlanEditor(depsFor(workspace), TYPE, 'plan-2'),
 		]);
 
 		expect(workspace.leaves).toHaveLength(2);
@@ -128,8 +147,8 @@ describe('the singleton case, unchanged by the shared mechanism', () => {
 	it('still opens exactly one leaf per view type', async () => {
 		const workspace = new FakeWorkspace();
 
-		await revealView(workspace as never, 'renovation-project');
-		await revealView(workspace as never, 'renovation-project');
+		await revealView(depsFor(workspace), 'renovation-project');
+		await revealView(depsFor(workspace), 'renovation-project');
 
 		expect(workspace.leaves).toHaveLength(1);
 		expect(workspace.revealed).toHaveLength(2);
@@ -138,7 +157,7 @@ describe('the singleton case, unchanged by the shared mechanism', () => {
 	it('passes no view state, since a singleton view has none', async () => {
 		const workspace = new FakeWorkspace();
 
-		await revealView(workspace as never, 'renovation-project');
+		await revealView(depsFor(workspace), 'renovation-project');
 
 		expect(workspace.leaves[0].state).toEqual({ type: 'renovation-project', active: true, state: undefined });
 	});

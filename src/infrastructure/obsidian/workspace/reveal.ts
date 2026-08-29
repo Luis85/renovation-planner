@@ -1,6 +1,21 @@
 import type { Workspace, WorkspaceLeaf } from 'obsidian';
 
 /**
+ * What an activation needs, and the second member is the whole of this module's fault policy.
+ *
+ * `reportFault` is REQUIRED rather than optional, for the reason `useFieldCommit`'s own notice
+ * door is: an optional-with-a-default lets the one call site that forgets it fail silently,
+ * and this is the only place a failed activation is answered at all. It is composed in
+ * `plugin/` — the one layer that may reach both `infrastructure/` and
+ * `presentation/notices/notify` — and CALLED here, because here is where the coalescing is.
+ * That is the same split, for the same reason, that `openProjectNote` already takes.
+ */
+export interface RevealDeps {
+	readonly workspace: Workspace;
+	readonly reportFault: (cause: unknown) => void;
+}
+
+/**
  * The activations currently in flight, by the leaf each one is asking for — what makes a
  * DOUBLE click on the ribbon one tab.
  *
@@ -23,6 +38,8 @@ import type { Workspace, WorkspaceLeaf } from 'obsidian';
  *
  * Bounded by its own `finally`: an entry lives exactly as long as the activation it
  * describes, so a later click takes the ordinary candidate lookup rather than a stale promise.
+ *
+ * **What it holds is the ANSWERED activation**, never the raw one — see `revealCandidate`.
  */
 const activating = new Map<string, Promise<void>>();
 
@@ -62,7 +79,7 @@ function requestKey(type: string, state?: Record<string, unknown>): string {
  * map read and closes the gesture users actually perform.
  */
 export async function revealCandidate(
-	workspace: Workspace,
+	deps: RevealDeps,
 	type: string,
 	candidates: readonly WorkspaceLeaf[],
 	state?: Record<string, unknown>,
@@ -70,22 +87,39 @@ export async function revealCandidate(
 	const key = requestKey(type, state);
 	const inFlight = activating.get(key);
 	if (inFlight !== undefined) return inFlight;
-	const existing = candidates[0];
-	if (existing !== undefined) {
-		await workspace.revealLeaf(existing);
-		return;
-	}
-	// Recorded before the first `await`, so a call landing in the same tick as this one finds
-	// it. A rejection is shared rather than swallowed: both clicks asked for the same
-	// activation, and the same activation failed.
-	const leaf = workspace.getLeaf('tab');
-	const activation = leaf
-		.setViewState({ type, active: true, state })
-		.then(() => workspace.revealLeaf(leaf));
-	activating.set(key, activation);
 	try {
-		await activation;
-	} finally {
-		activating.delete(key);
+		const existing = candidates[0];
+		if (existing !== undefined) {
+			await deps.workspace.revealLeaf(existing);
+			return;
+		}
+		// Recorded before the first `await`, so a call landing in the same tick as this one
+		// finds it — and recorded ALREADY ANSWERED, which is the half a review round found
+		// missing. The map used to hold the RAW activation, so a joining click was handed the
+		// same rejection and each caller reported it: measured, two notices and two identical
+		// log lines for one failed double click. Sharing an operation means sharing its
+		// failure too, and one failure is one report.
+		const leaf = deps.workspace.getLeaf('tab');
+		const activation = leaf
+			.setViewState({ type, active: true, state })
+			.then(() => deps.workspace.revealLeaf(leaf))
+			.catch((cause: unknown) => {
+				deps.reportFault(cause);
+			});
+		activating.set(key, activation);
+		try {
+			await activation;
+		} finally {
+			activating.delete(key);
+		}
+	} catch (cause) {
+		// The paths the inner handler cannot reach: revealing an EXISTING leaf, which is not
+		// coalesced and therefore never went through it, and a synchronous throw from
+		// `getLeaf`. Both mattered the moment this module took the fault over from
+		// `runDetached` — a caller that no longer wraps this has nothing left to catch what
+		// escapes, so an activation that answers only SOME of its faults turns the rest into
+		// unhandled rejections reaching nobody. Answering all of them is what lets the two
+		// detached call sites hand the promise straight to `void`.
+		deps.reportFault(cause);
 	}
 }

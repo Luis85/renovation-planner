@@ -1243,6 +1243,80 @@ making those paragraphs wrong. What no test here asserts is the stale list: that
 about three modules and about an event nobody publishes, and saying so is cheaper than a
 case that would have to compose two roots to demonstrate it.
 
+### What the sixteenth review round found (2026-08-29)
+
+Two P2s. One closed, one already recorded — and the second is the more useful of the pair,
+because what it reports is a residual this branch had already evaluated and declined in
+writing, arriving at a door the write-up had not named.
+
+**Closed: a coalesced activation failure was reported once per CLICK.** `revealCandidate`'s
+`activating` map held the RAW activation, so a joining click was handed the same rejection the
+originator got, and each of the two detached call sites wrapped its own `runDetached` around
+it. Measured before anything was changed: two `reportFault` calls and two identical log lines
+for one failed double click.
+
+This is the SECOND time this repository has had this defect, at the second of its two
+leaf-creating doors — `openProjectNote` was the first, one review round earlier on this same
+branch, and its remedy is the shape this one takes. Worth recording as a shape rather than as
+two bugs: the coalescing was copied to a second door and the FAULT HANDLING was not, because
+at the first door the handling lives in the module and at the second it lived at the call
+sites. A mechanism copied without its policy looks complete at every call site.
+
+The notice COUNT cannot discriminate the fix from the defect, which is the same instrument
+note the `openNote` round recorded: slice 13's queue folds an identical message into a `(×N)`
+suffix on the notice already up, so a user sees one notice either way and the report count is
+the only thing that sees two. The new cases assert on the count.
+
+Taking the reporter's second remedy — "report the failure inside the coalescer, as the
+project-note opening path already does" — over its first ("share the handled outcome") is a
+deliberate choice with a cost, and the cost is stated where it lands. `revealCandidate` now
+owns the fault door (`RevealDeps.reportFault`, REQUIRED, composed in `plugin/` and called in
+`infrastructure/` for the reason `openProjectNote` splits it the same way), so `revealView`
+and `revealPlanEditor` cannot reject at all and their two call sites hand the promise to a
+bare `void`. That takes `runDetached` from three callers to one, and its docblock says so
+rather than going on claiming four doors. A bare `void` beside a promise that CAN reject is
+still the thing `runDetached` exists to refuse; what changed is that these two no longer can.
+
+**And answering only the COALESCED fault would have been half a fix**, which the call sites
+dropping `runDetached` is what makes true. The reuse path (`revealLeaf` on an existing leaf)
+is deliberately not coalesced, so it never passes through the creation path's handler, and a
+synchronous throw from `getLeaf` passes through neither. With nothing wrapping the call any
+more, either would have become an unhandled rejection reaching nobody — the exact failure
+`runDetached` had been added to close, reintroduced by the commit removing it. Both are inside
+the outer `try`, and the case for the reuse path is watched failing with that `catch` removed.
+
+**Recorded, not closed — the rebind residual reaches the Plan Editor too.** The report is that
+`PlanEditorView.rebind` unmounts and remounts immediately, so a settings save landing while an
+editor write is still awaiting the vault publishes that write's eventual domain event on the
+RETIRED bus, and `createPlanChangeSource` does not subscribe to `ProjectIndexEntryChanged`
+(its lists are `PLAN_CHANGE_EVENTS` plus `['ProjectIndexRebuilt']`) — so the remounted canvas
+or Inspector can sit stale over a write that succeeded.
+
+Both halves hold. This is the SAME residual the section above records for the project view,
+reached through the editor rather than through a dialog, and the section above was written as
+though the project view were the whole of it. It is not, and that is the correction this round
+buys: `saveSettings` rebinds every open leaf of BOTH types, so any view whose Vue tree is
+mid-write inherits it.
+
+The remedy the report names — coordinate the rebind with in-flight editor operations — is the
+one already evaluated and declined above, for reasons that do not change on this side:
+deferring needs a seam from `presentation/` back out to the `ItemView` that does not exist,
+and it buys correctness by leaving the retired root live for the length of the write, which is
+the hazard `rebind` exists to close. Its alternative — "explicitly refresh the replacement
+after they settle" — needs the same seam to know when they settle.
+
+One cheap-looking partial was checked and does NOT work, which is worth writing down so the
+next reader does not re-derive it: adding `ProjectIndexEntryChanged` to
+`createPlanChangeSource` would be the same one-line shape that fixed the project list this
+round, and it would fire for nothing here. The write in question is this plugin's OWN, so
+`VaultChangeAdapter`'s echo window suppresses it by design — the pipeline announces only what
+this plugin did not do itself. The staleness is on the command-event channel, which the
+retired bus owns, and no index event exists to carry it.
+
+So the residual stands, and the write-up above is extended rather than duplicated: it costs
+the editor's transient state either way (a rebind remounts), and what it additionally costs is
+a canvas that does not redraw a write that landed, until the leaf is reopened.
+
 ### What the fifteenth review round found (2026-08-29)
 
 One P2, closed. **The vault-change pipeline changed the index and told nobody.**

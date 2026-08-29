@@ -15,8 +15,7 @@ import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presen
 import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
-import { runDetached } from './runDetached';
-import { activateNotices, disposeNotices } from '../presentation/notices/notify';
+import { activateNotices, disposeNotices, notifyFault } from '../presentation/notices/notify';
 import {
 	createCompositionRoot,
 	planEditorDeps,
@@ -191,8 +190,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// Two ways in, one behaviour: both call the same function, so neither can grow its
 		// own idea of what opening the view means — and neither spells the detachment itself.
 		// `openProject` returns nothing and answers its own faults, because Obsidian ignores a
-		// returned promise and a `void` at each door is a rejection handler each door has to
-		// remember. See `runDetached`.
+		// returned promise and a rejection handler at each door is one each door has to
+		// remember. Where that answering LIVES moved a review round later: into
+		// `revealCandidate`, so one failed activation is one report however many clicks
+		// joined it.
 		this.addRibbonIcon(RENOVATION_PROJECT_ICON, tr('command.open-project'), () => {
 			this.openProject();
 		});
@@ -465,17 +466,27 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
-	 * Both ways into the project view, and the place their fault is answered.
+	 * Both ways into the project view, and the place their fault door is COMPOSED — no longer
+	 * the place it is called.
 	 *
 	 * It returns `void` rather than the activation's promise: every caller is an Obsidian
 	 * handler that discards one, so handing it back only offers the next caller a rejection to
-	 * forget. `runDetached` maps, logs and notifies in one step.
+	 * forget. The bare `void` is honest here in a way CLAUDE.md records it was NOT at the four
+	 * doors `runDetached` was written for: `revealView` answers every fault itself and cannot
+	 * reject, so there is no rejection left to forget. Routing it through `runDetached` instead
+	 * reported once per CLICK, and a double click is two clicks sharing one activation — two
+	 * notices and two identical log lines for one failure, which is the defect a review round
+	 * found here in exactly the shape it had already found at `openProjectNote`.
 	 */
 	private openProject(): void {
-		runDetached(
-			revealView(this.app.workspace, RENOVATION_PROJECT_VIEW),
-			this.root.logger,
-			'view.project.reveal-failed',
+		void revealView(
+			{
+				workspace: this.app.workspace,
+				reportFault: (cause: unknown): void => {
+					notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+				},
+			},
+			RENOVATION_PROJECT_VIEW,
 		);
 	}
 }

@@ -17,9 +17,18 @@ import { notifyFault } from '../presentation/notices/notify';
  * nothing, said nothing and recorded nothing — the failure mode CLAUDE.md already records
  * `recoverInterruptedSequences` paying for, at the four entry points no guard wraps.
  *
- * **The handling belongs to this function rather than to the four call sites**, which is the
- * same rule that put the coalescing inside `revealCandidate`: a fifth door would otherwise
+ * **The handling belongs to this function rather than to the call sites**, which is the
+ * same rule that put the coalescing inside `revealCandidate`: a further door would otherwise
  * have to remember a `.catch` that nothing checks.
+ *
+ * **It is down to ONE caller, and that is a narrowing rather than a retreat.** The two
+ * activation doors moved their answering INTO `revealCandidate`, because catching at the
+ * call site is catching per CLICK and a coalesced activation has more clicks than failures:
+ * two notices and two identical log lines for one failed double click, which is the defect a
+ * review round found. The remaining caller (`create-sample-project`) wraps a whole seed, not
+ * a coalesced operation, so per-call is per-operation there and this is still the right door.
+ * A bare `void` beside a promise that CAN reject is still the thing this exists to refuse;
+ * what changed is that `revealView` and `revealPlanEditor` no longer can.
  *
  * `notifyFault` maps ONCE for both halves (SDD §66), so the sentence the user reads and the
  * line the log carries cannot drift. The `event` is the caller's, for the reason

@@ -243,8 +243,16 @@ export function isTFolder(file: unknown): file is TFolder {
 	return file instanceof TFolder;
 }
 
-/** Creates each missing folder segment; existing non-folder at a segment is an error. */
-export async function ensureFolder(vault: Vault, folder: string): Promise<void> {
+/**
+ * Creates each missing folder segment; an existing non-folder at a segment is an error.
+ *
+ * `created` is an OUT parameter rather than a return value, and the difference is the whole
+ * reason it is spelled this way: this function can throw having ALREADY created some of the
+ * segments, and a list handed back by `return` is lost on exactly the path that needs it. A
+ * caller that passes one is a caller that intends to compensate (`undoEnsureFolder`); the
+ * three that pass nothing keep the signature they had.
+ */
+export async function ensureFolder(vault: Vault, folder: string, created?: string[]): Promise<void> {
 	const segments = folder.split('/').filter(Boolean);
 	let current = '';
 	for (const segment of segments) {
@@ -252,10 +260,72 @@ export async function ensureFolder(vault: Vault, folder: string): Promise<void> 
 		const existing = vault.getAbstractFileByPath(current);
 		if (!existing) {
 			await vault.createFolder(current);
+			created?.push(current);
 		} else if (!isTFolder(existing)) {
 			throw new Error(`${current} exists and is not a folder`);
 		}
 	}
+}
+
+/**
+ * `ensureFolder`'s compensation: removes the folders THAT call created, and nothing else.
+ *
+ * The insert path it exists for is `ObsidianProjectRepository`'s, whose class header
+ * predicted this orphan and named design slice 16 as the trigger to close it — that being the
+ * first slice in which a user reaches the path by typing a name, and the first in which
+ * retrying after a failed create is an ordinary thing to do. Left uncompensated, a
+ * `vault.create` that fails after the folder was made leaves an EMPTY folder behind, and
+ * `freshProjectFolder` collides on any abstract file at the base path: the retry lands at
+ * `<name> <id>`, with a different suffix each time because the command mints a new id per
+ * call. Two failed attempts leave two orphans and put the project in a third folder.
+ *
+ * **Deepest first, and EMPTY only.** Neither rule is tidiness; each keeps the rollback
+ * narrower than the damage it undoes.
+ * - Deepest first, because a parent this call created can only be empty once the child it
+ *   created is gone.
+ * - Empty only, because `ensureFolder` walks the CONFIGURED ROOT too and this repository's
+ *   queue is keyed per project: a sibling insert that found that root already there and
+ *   filled it is the case where trashing what we created takes somebody else's work with it.
+ *   Obsidian's `trashFile` on a folder takes everything inside it, so this check is the only
+ *   thing standing between a failed create and that.
+ *
+ * A non-empty folder therefore STOPS the walk rather than being skipped past — every path
+ * still to come is an ancestor of it and cannot be empty either. Three states, and only one
+ * of them skips, which an earlier draft of this paragraph collapsed into two and got wrong:
+ * - GONE (`null`) skips to the parent — something else removed it, so the parent may now be
+ *   empty and genuinely ours to take.
+ * - A FILE now sits at that path: stop, for the same reason a non-empty folder does. It is
+ *   not ours to trash, and its parent is holding it, so no ancestor can be empty either.
+ * - Anything else is a folder, and the emptiness rule decides.
+ *
+ * Returns the paths it tried to remove and could not, for the caller to log. A folder left
+ * standing because it is NOT EMPTY is deliberately not among them: that is this function
+ * working, not failing.
+ *
+ * The `catch` deliberately does NOT `break`, and the first draft of it did. A folder whose
+ * trash refused is still its parent's child, so the emptiness rule ends the walk on the very
+ * next iteration anyway — measured by deleting the `break` and finding all five cases green,
+ * which is this repository's own "dead branch that reads as belt and braces". What removing it
+ * buys, in the one case where the two differ: a trash that throws having ALREADY moved the
+ * folder leaves the parent empty and genuinely ours to take.
+ */
+export async function undoEnsureFolder(
+	vault: Vault,
+	fileManager: FileManager,
+	created: readonly string[],
+): Promise<{ path: string; cause: unknown }[]> {
+	const stranded: { path: string; cause: unknown }[] = [];
+	for (const path of created.toReversed()) {
+		const folder = vault.getAbstractFileByPath(path);
+		if (folder === null) continue;
+		if (!isTFolder(folder) || folder.children.length > 0) break;
+		try {
+			await fileManager.trashFile(folder);
+		} catch (cause) {
+			stranded.push({ path, cause });
+		}
+	}
+	return stranded;
 }
 
 /**

@@ -328,7 +328,7 @@ Taken from the slice document's Testing Strategy, unchanged in intent:
 
 ## 3. The Integration Test Vault
 
-`tests/vault/` with the four cases the slice document names, plus `openFixtureVault(caseName)`
+`tests/vault/` with four cases, plus `openFixtureVault(caseName)`
 returning a disk-backed `FixtureVaultAdapter` implementing only the subset of the
 `Vault`/metadata surface the repositories actually call.
 
@@ -341,6 +341,29 @@ serial run, and let concurrent cases observe each other's writes under vitest's 
 parallelism. Each caller gets an isolated temporary copy, with cleanup defined; the checked-in
 tree is read-only input. That the fixture is the *only* Vault-shaped data any test touches and
 that no test *writes* to the shared copy are two separate claims, and this is the second one.
+
+**Each case is named here with its consumer, because two of the four had none.** The first
+drafts said "the four cases the slice document names" and then specified assertions for only
+`broken-references/` and `large-project/` — so `valid-project/` and `legacy-schema/` appeared
+nowhere in this document at all. Fixture content that nothing reads is indistinguishable from
+correct fixture content: the valid baseline could be malformed and the legacy fixture could
+silently carry the CURRENT schema, with `npm run check` green either way. That is this
+document's own "an instrument that reaches nothing looks exactly like a clean tree", applied to
+data rather than to code, and it is the fourth appearance of that shape here. Raised by a review
+bot.
+
+| Case | Consumer | Status |
+| --- | --- | --- |
+| `broken-references/` | the bootstrap-degradation test (§2), asserting an observable rejection *and* a healthy record still loading | in this slice |
+| `large-project/` | the index-rebuild operation-count assertion, via the shared recorder | in this slice |
+| `legacy-schema/` | a migration test asserting the runner is **deterministic and idempotent** — running it twice reaches the same state, and a note already at the current version is untouched. This is the slice's own Architecture Completion Criterion 9 and nothing else in the plan covers it | in this slice |
+| `valid-project/` | the Obsidian arm of the repository contracts — which is exactly the repoint deferred below | **OPEN, not delivered** |
+
+**So the four-case vault is NOT claimed as delivered.** Three cases get consumers; `valid-project/`
+ships as content whose only intended reader is the deferred contract repoint. Saying that plainly
+is the alternative to a Definition-of-Done item ticked over a fixture nothing exercises — and the
+`legacy-schema/` row is a genuine addition to scope rather than a re-description, because no
+earlier draft had a migration test in it.
 
 **Scope decision: additive now, repoint later.** New tests point at the fixture vault. The
 existing Obsidian contract arm keeps running against `FakeVault`, and repointing it is a

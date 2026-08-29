@@ -154,4 +154,35 @@ describe('ViewRoot, creating a project', () => {
 		// against, which is itself the honest end state of a successful create.
 		expect(wrapper.find('.rp-dialog').exists()).toBe(false);
 	});
+
+	/**
+	 * `onCreateProject`'s `if (result === 'cancel') return;` — untested until now. A Cancel
+	 * closes the dialog without ever having dispatched `createProject`, so re-hydrating would
+	 * be a pointless extra read at best; this pins that the guard actually takes the early
+	 * return rather than falling through to `store.hydrate` regardless of the result.
+	 */
+	it('does not re-hydrate when the dialog is cancelled', async () => {
+		const listProjects = vi.fn<() => Promise<unknown>>(() =>
+			Promise.resolve(ok({ projects: [], unreadable: 0 })),
+		);
+		setActivePinia(createPinia());
+		const context = deps(listProjects);
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+		});
+		await flushPromises();
+		expect(listProjects).toHaveBeenCalledTimes(1); // the mount's own onMounted hydrate
+
+		await wrapper.get('.rp-empty-state__action').trigger('click');
+		await flushPromises();
+		expect(wrapper.findComponent(NewProjectForm).exists()).toBe(true);
+
+		await wrapper.get('.rp-dialog-cancel').trigger('click');
+		await flushPromises();
+
+		expect(wrapper.find('.rp-dialog').exists()).toBe(false);
+		expect(context.commands.createProject.execute).not.toHaveBeenCalled();
+		// Still just the one read from mount — Cancel took the early return.
+		expect(listProjects).toHaveBeenCalledTimes(1);
+	});
 });

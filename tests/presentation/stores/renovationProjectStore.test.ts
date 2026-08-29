@@ -98,6 +98,39 @@ describe('RenovationProjectStore hydration', () => {
 	});
 
 	/**
+	 * Design slice 16's post-command refresh (`ViewRoot.onCreateProject`) is the second
+	 * caller this store's own docblock predicted — a re-hydration of an already-`'ready'`
+	 * view. Without the guard, `status` swings through `'loading'` for the tick the second
+	 * read is in flight, which drops `emptyStateKey` to `null` and back: the empty state
+	 * blinks out and back in on every successful create. Observed ACROSS the await (not
+	 * just after it resolves), because a status that flips to `'loading'` and back to
+	 * `'ready'` before this test ever reads it would pass this assertion for the wrong
+	 * reason if it only checked the end state.
+	 */
+	it('does not drop back to loading on a re-hydration of an already-ready store', async () => {
+		const store = useRenovationProjectStore();
+		await store.hydrate(queries());
+		expect(store.status).toBe('ready');
+
+		let releaseSecond!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			releaseSecond = resolve;
+		});
+		const second = store.hydrate(
+			queries({ listProjects: () => gate.then(() => ok({ projects: [PROJECT], unreadable: 0 })) }),
+		);
+
+		// The second read has started (its `listProjects` is already pending on `gate`) but
+		// has not resolved — exactly the window the unguarded store spent at `'loading'`.
+		expect(store.status).toBe('ready');
+
+		releaseSecond();
+		await second;
+
+		expect(store.status).toBe('ready');
+	});
+
+	/**
 	 * Requirement 1: the hydration ticket. There is one caller today, but `ProjectStore`
 	 * carried this same mechanism through a slice where it had one caller too and gained a
 	 * second later — a slower earlier read landing on top of a fresher later one is a

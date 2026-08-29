@@ -775,6 +775,37 @@ check. Rules that came out of it:
   carry rather than either defect: a rule this file states in a docblock is a rule some door
   is not following, and the docblock is where to look first.** Three rounds running, the
   comment naming the invariant was the best available description of the bug.
+- **It ended as FIVE doors asking one question, and the last two rounds are what says why that
+  had to be a function rather than a habit.** `isGestureOwner(pointerId)` — the owner of the
+  running gesture, or nobody's if none runs — is now asked at the press, the move, the
+  release, the cancellation and the leave. Each door was fixed in its own round, by its own
+  report, and each of the first four looked like the last one: the cancel door abandoned the
+  drawing pointer's gesture when a hovering pen was taken away (a 1000-unit drag committing
+  0), the release door committed `SelectTool` at a foreign pointer's coordinates while the
+  owner's finger was still down (1000 committing 6000, the press-door defect's own signature
+  through the other end), and the leave door forgot where the drawing hand was. **The lesson
+  is not "guard the doors" — it is that a question worth asking at one door is a FUNCTION, and
+  the moment it is spelled out longhand anywhere, the count of places it is missing is
+  unknowable.**
+- **A residue written down is only as honest as the bound it names, and this file asserted one
+  that was false when written.** Forgetting a swallowed pointer on leave (above) left a real
+  hole, and the commit doing it said so — "an ordinary pointer from then on, which its own
+  ownership guard bounds to a hover with no gesture running". True of the move door, which had
+  such a guard, and false of the release door, which had none; the next round's report was
+  exactly that hole. The bound was checked against the door its author had been thinking
+  about. **Writing a known limitation down is not the same as measuring it**, and a documented
+  residue reads as surveyed ground — worse than an unmentioned one, which at least reads as
+  unexplored. The note names its three doors now, so that a door which stops asking makes the
+  sentence wrong rather than quietly stale.
+- **Uniformity is a reason, and it is not the same reason as necessity — say which one you
+  have.** The release door takes `isGestureOwner` rather than a bare identity test, and the
+  first draft of its comment claimed the "or nothing is running" arm kept multi-click tools
+  working there. Measured false: the press door sets `toolGesturePointer` for every press it
+  forwards, so a releasing pointer is the owner whenever the tool ever heard its press, and
+  the two spellings are indistinguishable at that door for any stream a device can produce.
+  The arm IS load-bearing at the move door and has a case there. The predicate stayed, for the
+  bullet above; the sentence changed, because a rule kept for tidiness and a rule kept for
+  behaviour are different claims and only one of them is testable.
 - **Two expressions of one question, three lines apart, drift immediately.** The camera lock
   and the override-start guard both asked "is a gesture already running", and the lock was
   written without `editor.dragState` — so a camera-mode drag, which is the DEFAULT state and is

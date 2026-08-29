@@ -417,6 +417,17 @@ recorded carry-forward rather than this slice's work — that arm lives in
 Vault-shaped data any automated test touches" is **not** true when this lands, and the slice
 document is narrowed to say so rather than left standing while false.
 
+**The three hardening rules get CONFORMANCE TESTS, not a header comment** — and the first draft
+gave them a header comment, which is the defect this repository's guide names before any other:
+*an invariant asserted in a comment gets a test that fails without it*. A review bot pointed out
+what makes it acute here: with the contract repoint deferred, all three in-slice consumers are
+READ paths — bootstrap degradation, index rebuild, the migration runner — so nothing exercises
+`create` with a missing parent, the read-after-create metadata window, or folder resolution. A
+new disk-backed adapter could violate all three requirements with `npm run check` green, which
+is the same "instrument reaches nothing" shape as the recorder and the unread fixtures. So each
+rule below is a focused adapter conformance case, and the header documents them rather than
+substituting for them.
+
 **The new adapter inherits `FakeVault`'s hardening by construction.** A fresh fake starts
 without the three lessons this repository already paid for, and CLAUDE.md's rule is that a
 fake kinder than the real thing turns a shipped crash into a green suite. All three go into
@@ -555,8 +566,23 @@ One branch, `claude/next-slice-planning-gzjphh`. The meta-tests land as the earl
 and the fixture vault after, so the cheap high-value half is reviewable on its own even if
 the vault half needs another round.
 
-Conflict surface with PR 25 is `eslint.config.mjs` only, and this slice **adds no rule
-there** — it drives the rules that already exist.
+Conflict surface with PR 25 is `eslint.config.mjs` — where this slice **adds no rule**, only
+drives the ones that exist — **and `tests/helpers/vault.ts`**, which is a genuine overlap and was
+denied by earlier drafts of this section.
+
+**That denial became false through this document's own later fixes**, which is why it is
+corrected rather than quietly amended. §6 first claimed the overlap was "zero rather than small";
+§3 then acquired a shared operation recorder spanning `FakeVault` and `FixtureVaultAdapter`
+(round three's fix, corrected in round six), and `FakeVault` is defined in
+`tests/helpers/vault.ts` — one of the files this same document lists PR 25 as editing. Injecting
+or extracting a shared recording seam means editing that helper, so the two touch. A packaging
+claim made early and not re-checked after four rounds of scope change is the same species as the
+counts this document has already had to correct three times.
+
+**So the recorder edit is sequenced rather than raced**: it lands after PR 25 merges, and until
+then `large-project/` is the one in-slice consumer blocked on it. Which is a second reason
+question 4 — whether `large-project/` earns its place this round — is worth deciding
+deliberately.
 
 Measured across all 106 of PR 25's files rather than the first page of them, because the
 first draft of this sentence asserted the opposite from a truncated listing: PR 25 **does**

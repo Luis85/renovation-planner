@@ -601,9 +601,13 @@ Written into `docs/tasks/12-…md` as open or withdrawn, never ticked:
   else", which is a claim about the whole tree that nothing in slice 12 needs and that goes stale
   every time a legitimate DOM-touching helper is added somewhere new. The rule's actual subject
   is narrower: **the inner layers' node enforcement**. So it is a DENYLIST — reject
-  **any `@vitest-environment` directive whose value is not `node`** under `tests/core/`,
-  `tests/domain/`, `tests/application/` **and `tests/infrastructure/`** — and it says nothing about anywhere else. Measured: zero files under
-  those four use jsdom today, so it lands green.
+  **any environment directive whose value is not `node`, under EITHER supported spelling** — in
+  `tests/core/`, `tests/domain/`, `tests/application/` and `tests/infrastructure/`, and saying
+  nothing about anywhere else. The check matches what Vitest itself matches, read out of vitest
+  4.1.11 rather than assumed: `` /@(?:vitest|jest)-environment\s+([\w-]+)\b/ ``. So
+  `@jest-environment jsdom`, honoured for Jest compatibility, is refused exactly like the Vitest
+  spelling. The `-options` variants carry no environment name and are not a door. Measured: zero
+  files under those four directories use a non-node environment today, so it lands green.
 
   The fourth directory was missing from the first denylist and a review bot caught it. The
   repository contracts are invoked from mirrored files under

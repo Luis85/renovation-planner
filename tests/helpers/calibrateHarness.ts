@@ -35,9 +35,19 @@ export interface Harness {
 	createCommand: () => ReversibleCalibratePlanCommand;
 	hasSpatialObjects: () => boolean;
 	confirmRecalibration: () => Promise<boolean>;
-	/** Every error `reportRejected` was called with, in call order. */
+	/**
+	 * Every error EITHER report door was called with, in call order.
+	 *
+	 * One list across both doors on purpose: design slice 17 split `reportRejected` (a
+	 * dispatched command refused) from `reportInvalidInput` (this tool refused before building
+	 * one), and every case here asks "was the user told", which is true through either. A case
+	 * that cares WHICH door reads `invalidInput` below.
+	 */
 	rejected: AppError[];
+	/** The subset that came through `reportInvalidInput` — refusals no dispatcher ever saw. */
+	invalidInput: AppError[];
 	reportRejected: (error: AppError) => void;
+	reportInvalidInput: (error: AppError) => void;
 	/** Makes the NEXT dispatched command's `execute()` resolve this refusal instead of `ok`. */
 	failNextExecute: (error: AppError) => void;
 }
@@ -54,6 +64,7 @@ export const harness = (): Harness => {
 	const measurements: number[] = [];
 	const answers: (number | null)[] = [];
 	const rejected: AppError[] = [];
+	const invalidInput: AppError[] = [];
 	/** Set by `failNextExecute`; consumed (and cleared) by the next `execute()` call. */
 	let nextExecuteFailure: AppError | null = null;
 
@@ -131,6 +142,11 @@ export const harness = (): Harness => {
 		createCommand: () => commandInstance,
 		rejected,
 		reportRejected: (error) => rejected.push(error),
+		invalidInput,
+		reportInvalidInput: (error) => {
+			rejected.push(error);
+			invalidInput.push(error);
+		},
 		failNextExecute: (error) => {
 			nextExecuteFailure = error;
 		},
@@ -178,6 +194,7 @@ export function newTool(h: Harness, supplyKnownDistance = h.supplyKnownDistance)
 		hasSpatialObjects: h.hasSpatialObjects,
 		confirmRecalibration: h.confirmRecalibration,
 		reportRejected: h.reportRejected,
+		reportInvalidInput: h.reportInvalidInput,
 	});
 	tool.activate(h.context);
 	return tool;

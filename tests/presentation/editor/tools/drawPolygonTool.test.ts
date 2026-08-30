@@ -99,7 +99,11 @@ function build(h: Harness): DrawPolygonTool {
 			} as never;
 		},
 		nextZoneName: () => h.nextZoneName,
+		// Design slice 17 split the door: `reportInvalidInput` is a refusal this tool made
+		// itself, before any command existed. Both feed one list here, because every case in
+		// this file asks "was the user told", which is true through either.
 		reportRejected: (error) => h.rejections.push(error.message),
+		reportInvalidInput: (error) => h.rejections.push(error.message),
 	});
 }
 
@@ -301,6 +305,7 @@ describe('DrawPolygonTool', () => {
 			},
 			nextZoneName: () => 'Zone 1',
 			reportRejected: () => undefined,
+			reportInvalidInput: () => undefined,
 		});
 		tool.activate(context);
 

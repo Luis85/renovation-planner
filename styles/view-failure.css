@@ -1,0 +1,70 @@
+/*
+ * The in-place view failure (design slice 17): a view's content replaced by the reason it has
+ * none.
+ *
+ * Its shape deliberately MATCHES `.rp-empty-state`'s panel — same centring, same card, same
+ * measure — because both answer "this region has no content to show" and a user meeting them
+ * in the same pane should not have to re-learn the layout. What differs is the part that
+ * carries the meaning: the headline is `--text-error`, so a failure is not mistaken at a
+ * glance for the onboarding state slice 14 draws in the same slot.
+ *
+ * Colour is not the ONLY carrier of that difference, which is SDD §85's rule: the copy says
+ * what failed, and the panel keeps its own border colour so a monochrome or high-contrast
+ * rendering still reads as a distinct card. The colour is the fast signal, not the signal.
+ *
+ * Every colour here is an Obsidian variable rather than a literal — the build fails on a
+ * hard-coded one, reading the parsed tree, so a bare `red` is caught as surely as a hex.
+ */
+.rp-view-failure {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	justify-content: center;
+	min-width: 0;
+	padding: var(--size-4-4);
+}
+
+.rp-view-failure__panel {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+	align-items: center;
+	max-width: 28em;
+	padding: var(--size-4-6);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	background-color: var(--background-secondary);
+	text-align: center;
+}
+
+.rp-view-failure__headline {
+	/* The same asymmetric spacing `.rp-empty-state__headline` carries and for the same reason:
+	   the bottom margin adds to the flex `gap`, so headline->body leads body->action rather
+	   than sitting level with it. */
+	margin: 0 0 var(--size-4-1) 0;
+	color: var(--text-error);
+	font-size: var(--font-ui-large);
+	font-weight: var(--font-semibold);
+}
+
+.rp-view-failure__body {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	line-height: var(--line-height-tight);
+}
+
+/*
+ * ITS OWN FOCUS RING, for the reason `.rp-empty-state__action`'s header records at length:
+ * Obsidian's own `button:focus-visible` box-shadow DOES apply here, and it is unreadable —
+ * measured against the vendored sheet at 2.29:1 in dark and 1.88:1 in light, both under WCAG
+ * 1.4.11's 3:1 floor for a non-text indicator. `--interactive-accent` measures 4.00:1 and
+ * 3.43:1 on those same surfaces.
+ *
+ * Written identically to the empty state's and the project list's, deliberately: three
+ * buttons on one flow with three different rings is the next finding.
+ */
+.rp-view-failure .rp-view-failure__action:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}

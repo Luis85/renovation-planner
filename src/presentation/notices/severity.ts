@@ -19,6 +19,13 @@ export type NoticeSeverity = 'success' | 'info' | 'warning' | 'error';
  * a held notice and promotes it, but not until a user dismisses one. A persistent notice
  * existing to be NOT missed is the same property that lets it crowd out a transient one.
  *
+ * **Design slice 17 took the remedy this paragraph names below, for the ERROR case only.**
+ * `queue.ts`'s `promote` now lets a held `error` take a slot from a visible `warning` —
+ * newest first, the demoted one kept and re-promoted rather than dropped, and never an error
+ * evicting another error. What is written below as "revisiting it means…" is therefore done;
+ * what remains true is everything else in this paragraph, for every pairing that is not
+ * error-behind-warning. A `success` or `info` behind three warnings still waits.
+ *
  * **Name the victim honestly: it is a later ERROR, not only a later success.** An earlier
  * draft of this paragraph said "hold a later success back", which reads as a nuisance and is
  * the least costly case. Three warnings are one command and one background cascade away —
@@ -31,6 +38,12 @@ export type NoticeSeverity = 'success' | 'info' | 'warning' | 'error';
  * hears nothing either. The cap is what makes a persistent tier survivable and this is what it
  * costs; revisiting it means giving `error` priority over a held `warning` rather than raising
  * `MAX_VISIBLE_NOTICES`, which only moves the number at which this starts.
+ *
+ * That last sentence is no longer a prediction — slice 17 implemented exactly it, and the
+ * choice is worth keeping recorded because it was made here, before the need arrived, and
+ * turned out to be the right one when the need did. The price it does carry: a user can now
+ * see a warning leave the screen without having dismissed it. The queue keeps it, so the
+ * failure mode is confusion rather than loss.
  */
 export const AUTO_DISMISS_MS: Readonly<Record<NoticeSeverity, number | null>> = {
 	success: 4000,

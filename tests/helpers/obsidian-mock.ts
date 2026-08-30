@@ -117,6 +117,12 @@ export interface WorkspaceLeaf {
 	getViewState(): { type?: string; state?: Record<string, unknown> };
 	/** `openProjectNote`'s door: opens a note the caller already resolved to a `TFile`. */
 	openFile(file: TFile): Promise<void>;
+	/**
+	 * Closes this leaf. `PlanEditorContext.closeLeaf` is what a Plan Editor offers a user
+	 * whose plan is gone, and the view partially applies THIS method to build it — so a fake
+	 * without it would make that action untestable at the view.
+	 */
+	detach(): void;
 }
 
 /**

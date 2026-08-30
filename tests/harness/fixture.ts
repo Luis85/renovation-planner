@@ -210,5 +210,11 @@ export function harnessEditorContext(): PlanEditorContext {
 		vault: deps.vault,
 		onThemeChange: deps.onThemeChange,
 		onPlanChanged: (listener) => deps.onPlanChanged(HARNESS_PLAN.id, listener),
+		// A no-op, and honestly so: the browser harness draws the editor in a page with no
+		// Obsidian and therefore no leaf to close. The action is still RENDERED and pressable —
+		// which is the point of the harness, since a designer looks at the dangling-reference
+		// state here — it just has nothing to act on. Matching every WRITE in this fixture,
+		// which refuses rather than pretending.
+		closeLeaf: () => undefined,
 	};
 }

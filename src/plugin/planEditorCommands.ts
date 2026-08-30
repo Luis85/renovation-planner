@@ -12,7 +12,13 @@ import { backgroundKindFor } from '../domain/plan/PlanBackgroundRef';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
 import { PlanBackgroundSuggestModal } from '../presentation/modals/PlanBackgroundSuggestModal';
 import { PlanSuggestModal } from '../presentation/modals/PlanSuggestModal';
-import { notify, notifyError, notifyFault, notifyWarning } from '../presentation/notices/notify';
+import {
+	noticeOnlySinks,
+	notify,
+	notifyFault,
+	notifyWarning,
+} from '../presentation/notices/notify';
+import { surfaceError } from '../presentation/errors/surfaceError';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
 import type { PluginCommandHost } from './commandHost';
@@ -81,13 +87,16 @@ async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TF
 	});
 
 	if (isErr(result)) {
-		// Through `notifyError` (SDD §66's last step): a translated sentence keyed by the
+		// Through the surface policy (SDD §66's last step): a translated sentence keyed by the
 		// error's code, never the error's own `message`, which is developer text.
-		// `notifyError` is the ONE door an `AppError` takes to a notice. Spelling
-		// `notify(toUserMessage(getLanguage(), …))` here would produce the same string
-		// today and is refused for CLAUDE.md's "one action, every input" reason: slices 13
-		// and 17 change what an error notice IS, once, at that function.
-		notifyError(result.error);
+		//
+		// **This is the change the older comment here predicted**, in the words it used: "slices
+		// 13 and 17 change what an error notice IS, once, at that function." Slice 17 landed and
+		// this site needed only its ORIGIN — picking a background file is an explicit operation
+		// the user invoked from a modal — because the decision moved out of the call site
+		// entirely. `noticeOnlySinks` is what a plugin command has: no view, no form, no
+		// indicator.
+		surfaceError(result.error, { kind: 'explicit-operation' }, noticeOnlySinks);
 	}
 	// Nothing else to do on success: the command published `PlanBackgroundChanged`, and the
 	// open Plan Editor re-hydrates off that. This code does not know a canvas exists.

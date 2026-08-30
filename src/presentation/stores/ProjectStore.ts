@@ -33,6 +33,27 @@ export const useProjectStore = defineStore('project', () => {
 	const status = ref<ProjectStoreStatus>('idle');
 	const error = ref<RepositoryError | null>(null);
 	/**
+	 * Is what the canvas is drawing older than the vault?
+	 *
+	 * **A separate fact from `error`, and it took three review findings in a row to stop
+	 * pretending otherwise.** `error` answers "why is there nothing to show" — it is set by
+	 * `fail()`, beside `plan = null` and `status = 'failed'`, for a load that gave up. Design
+	 * slice 17's stale-data strip needed a different question, "the content on screen is real
+	 * but may be out of date", and read it off `error` because the `keepPreviousOnFailure`
+	 * path happens to set that field too. Every consequence of that overloading came back as
+	 * a defect: the strip appeared for the wrong reason, then withdrew for the length of a
+	 * keep-on-failure read, then withdrew for the length of an ORDINARY one — `PlanEditorRoot`
+	 * subscribes a plain `hydrate()` to `onPlanChanged`, and with `status` already `'ready'`
+	 * that path leaves the canvas mounted while clearing the field the warning was reading.
+	 *
+	 * Patching the clear a third time would have been the third patch to the same overloaded
+	 * field. This is the field the warning actually means, so the lifetime is stated once and
+	 * every hydration path gets it right by construction: set where a read fails with content
+	 * still on screen, cleared by the one event that makes the canvas current again — a read
+	 * that SUCCEEDED — and cleared by `fail()`, where the stale content is gone with it.
+	 */
+	const stale = ref(false);
+	/**
 	 * The ticket every `hydrate` call takes before its first await, so a slower earlier
 	 * read cannot land on top of a faster later one.
 	 *
@@ -56,6 +77,9 @@ export const useProjectStore = defineStore('project', () => {
 		zones.value = new Map();
 		error.value = cause;
 		status.value = 'failed';
+		// Nothing is on screen to BE stale: this path blanks the plan and the failure state
+		// replaces the canvas.
+		stale.value = false;
 	}
 
 	/**
@@ -95,6 +119,12 @@ export const useProjectStore = defineStore('project', () => {
 		// reference changed, and every camera position lost with it. Only the first load, or
 		// a load after a failure, has nothing to keep showing.
 		if (status.value !== 'ready') status.value = 'loading';
+		// `error` is cleared for the read that is about to happen; `stale` deliberately is NOT.
+		// A read that has STARTED has established nothing, and the canvas is still drawing
+		// exactly what it was drawing a moment ago — so withdrawing the warning here would be an
+		// assurance nothing had earned, for the whole duration of the read. Only a read that
+		// SUCCEEDS retires it. See `stale`'s own declaration for why this is a second field
+		// rather than a third condition on this one.
 		error.value = null;
 
 		const foundPlan = await queries.getPlan(planId);
@@ -102,6 +132,8 @@ export const useProjectStore = defineStore('project', () => {
 		if (isErr(foundPlan)) {
 			if (keepOnFailure && status.value === 'ready') {
 				error.value = foundPlan.error;
+				// Real content is still on screen and the vault has moved past it.
+				stale.value = true;
 				return;
 			}
 			return fail(foundPlan.error);
@@ -118,6 +150,7 @@ export const useProjectStore = defineStore('project', () => {
 		if (isErr(foundZones)) {
 			if (keepOnFailure && status.value === 'ready') {
 				error.value = foundZones.error;
+				stale.value = true;
 				return;
 			}
 			return fail(foundZones.error);
@@ -126,6 +159,10 @@ export const useProjectStore = defineStore('project', () => {
 		plan.value = foundPlan.value;
 		zones.value = new Map(foundZones.value.map((zone) => [zone.id, zone]));
 		status.value = 'ready';
+		// The ONE event that retires a stale-data warning: what is on screen came back from the
+		// vault just now. Every hydration path ends here on success, whatever its options, which
+		// is what makes the lifetime a property of the store rather than of a caller.
+		stale.value = false;
 	}
 
 	/**
@@ -175,6 +212,7 @@ export const useProjectStore = defineStore('project', () => {
 		plan.value = null;
 		zones.value = new Map();
 		error.value = null;
+		stale.value = false;
 		status.value = 'idle';
 	}
 
@@ -186,5 +224,5 @@ export const useProjectStore = defineStore('project', () => {
 	 * being a declared shape.
 	 */
 	// fallow-ignore-next-line unused-store-member
-	return { project, plan, zones, status, error, emptyStateKey, hydrate, reset };
+	return { project, plan, zones, status, error, stale, emptyStateKey, hydrate, reset };
 });

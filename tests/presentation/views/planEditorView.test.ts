@@ -26,10 +26,10 @@ installEditorEnvironment();
 let themeListeners = 0;
 let planListeners = 0;
 
-function deps(): PlanEditorDeps {
+function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 	return {
 		queries: {
-			getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
+			getPlan: () => Promise.resolve(ok(plan)),
 			getRequirementsForZone: () => Promise.resolve(ok([])),
 			listAssets: () => Promise.resolve(ok([])),
 			findZonesByPlan: () => Promise.resolve(ok(FIXTURE_ZONES)),
@@ -66,8 +66,11 @@ function deps(): PlanEditorDeps {
  */
 const openViews: PlanEditorView[] = [];
 
-function makeView(): PlanEditorView {
-	const view = new PlanEditorView(new FakeLeaf() as never, deps());
+function makeView(
+	leaf: FakeLeaf = new FakeLeaf(),
+	plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN,
+): PlanEditorView {
+	const view = new PlanEditorView(leaf as never, deps(plan));
 	openViews.push(view);
 	return view;
 }
@@ -247,5 +250,35 @@ describe('mount and unmount', () => {
 
 		expect(view.containerEl.classList.contains('renovation-planner-container')).toBe(true);
 		await view.onClose();
+	});
+
+	/**
+	 * `PlanEditorContext.closeLeaf`, at the seam that supplies it.
+	 *
+	 * The tree gets a narrow callback and the VIEW is what holds the `WorkspaceLeaf` — the same
+	 * shape `onPlanChanged` already had, and the reason `onThemeChange` gives for not handing
+	 * the `Workspace` down. This is the only place that binding is observable: `PlanEditorRoot`
+	 * can be asked whether it CALLED `closeLeaf`, and only here can it be asked whether calling
+	 * it closes anything.
+	 */
+	it('closes its own leaf when the dangling-plan action is pressed', async () => {
+		// Driven through the RENDERED button rather than by reaching for the provided context:
+		// the binding is only worth anything if the whole chain works, and this is the one place
+		// the far end of it — an actual `WorkspaceLeaf` — exists to be checked.
+		// `planEditorFailure.test.ts` covers which of the two meanings the button carries.
+		const leaf = new FakeLeaf();
+		const view = makeView(leaf, null);
+		await view.setState({ planId: FIXTURE_PLAN.id }, {} as never);
+		await view.onOpen();
+		await settle();
+
+		const action = view.contentEl.querySelector<HTMLButtonElement>('.rp-view-failure__action');
+		expect(action).not.toBeNull();
+		expect(leaf.detached).toBe(0);
+
+		action?.click();
+		await settle();
+
+		expect(leaf.detached).toBe(1);
 	});
 });

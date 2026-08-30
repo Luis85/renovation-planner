@@ -79,6 +79,26 @@ function calibrationError(code: CalibrationErrorCode, message: string): Calibrat
 }
 
 /**
+ * The coincident-points refusal as a VALUE, for the one caller that detects the condition
+ * before `deriveCalibration` would.
+ *
+ * `CalibrateTool` refuses two clicks in the same place before it prompts for a distance —
+ * asking a user to measure something the tool has already decided is meaningless is worse
+ * than not asking — so the domain's own guard is never reached on that path. Before design
+ * slice 17 the tool simply returned, wiping the anchor the user's first click had drawn and
+ * saying nothing; giving it this factory is what lets it refuse with the SAME code the domain
+ * would have raised, rather than minting a second spelling of one failure.
+ *
+ * Exported alone rather than exporting `calibrationError`: the other two codes have no caller
+ * that can detect their condition earlier, and a general factory would be an invitation to
+ * mint calibration errors anywhere. `deriveCalibration` uses this too, so there is exactly one
+ * spelling of this refusal.
+ */
+export function coincidentPointsError(): CalibrationError {
+	return calibrationError('calibration.coincident-points', 'The two calibration points must not coincide.');
+}
+
+/**
  * The one place the scale is derived from (SDD §25's forward-compatibility note): two
  * points measured in CURRENT world units, the real-world distance between them, and the
  * calibration being corrected. First calibration and recalibration are the same formula —
@@ -100,7 +120,7 @@ export function deriveCalibration(
 	}
 	const measuredDistance = distance(pointA, pointB);
 	if (!(measuredDistance > 0)) {
-		return err(calibrationError('calibration.coincident-points', 'The two calibration points must not coincide.'));
+		return err(coincidentPointsError());
 	}
 	const scaleCorrection = knownDistance / measuredDistance;
 	const pixelsPerWorldUnit = (previous?.pixelsPerWorldUnit ?? 1) / scaleCorrection;

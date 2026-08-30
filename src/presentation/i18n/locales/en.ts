@@ -83,8 +83,6 @@ export const en = {
 	 */
 	'editor.hint.constrain-angle': 'Shift constrains the angle',
 	'editor.loading': 'Loading plan…',
-	'editor.plan-missing': 'This plan no longer exists.',
-	'editor.plan-failed': 'This plan could not be read from the vault.',
 	'editor.background-missing': 'The background file for this plan is missing.',
 	'editor.background-failed': 'The background for this plan could not be rendered.',
 	'editor.layer.background': 'Background',
@@ -173,6 +171,22 @@ export const en = {
 	'empty.plan.no-zones.headline': 'No zones yet',
 	'empty.plan.no-zones.body': 'Draw the first zone on this plan. Its area is measured from the outline and drives the quantities and costs of anything you assign to it.',
 	'empty.plan.no-zones.action': 'Draw a zone',
+	// Design slice 17's in-place failure states. The BODY of each is `trError(error)` — the
+	// mapped sentence for that error's own code — so unrecovered settings and a vault fault say
+	// different things; only the headline and the action label are fixed copy here.
+	'view.failure.retry': 'Try again',
+	'view.project.failed.headline': 'Projects could not be loaded',
+	'editor.plan-failed.headline': 'This plan could not be loaded',
+	// The dangling-reference state: not an error at all, so it carries its own body rather than
+	// a mapped one. `GetPlan` succeeded and correctly reported that no plan resolves.
+	'editor.refresh-failed': 'This plan could not be re-read after the last change; what you see may be out of date.',
+	'editor.plan-missing.headline': 'This plan no longer exists',
+	'editor.plan-missing.body': 'This tab points at a plan that is not in the vault any more.',
+	'editor.plan-missing.action': 'Close this tab',
+	// The bootstrap failure, which takes NO action: nothing that reads a configured location was
+	// composed, so there is nothing to re-run, and slice 1 already refused a repair UI. What to
+	// fix lives in the settings tab.
+	'view.session-failure.headline': 'Renovation planner could not start',
 	'view.project.loading': 'Loading projects…',
 	// No second sentence pointing at a diagnostics report: `GetDiagnosticsSnapshotQuery` is
 	// composed and consumed by nobody — no command, no settings entry, no view — so "open the

@@ -11,10 +11,15 @@
  * omission — "an empty Renovation Planner view opens reliably inside Obsidian". That claim
  * stopped being true then, so it stopped being said here.
  *
- * Failure and loading share one region and the empty state is not one of them: a failed
- * read is not "legitimately nothing yet", and `emptyStateKey` is `null` from any status but
- * `'ready'`, so the two can never be drawn together. The warning strip is the one additive
- * one — a partial read still shows what loaded.
+ * The empty state is not one of those: a failed read is not "legitimately nothing yet", and
+ * `emptyStateKey` is `null` from any status but `'ready'`, so the two can never be drawn
+ * together. The warning strip is the one additive one — a partial read still shows what
+ * loaded.
+ *
+ * **Failure and loading used to share one region and no longer do** (design slice 17). They
+ * are different claims — "this could not be read" against "this is being read" — and the
+ * failure now carries a retry, which a loading line must never grow. Sharing the region had
+ * kept them one edit apart from each other.
  *
  * No `<style>` block, ever: `vue/no-restricted-block` fails one, because Obsidian's
  * marketplace rejects inline styles and this plugin's CSS lives in `styles/`, assembled
@@ -30,6 +35,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
+import ViewFailure from '../components/ViewFailure.vue';
 import ProjectList from './ProjectList.vue';
 import NewProjectForm from './NewProjectForm.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
@@ -39,6 +45,7 @@ import { useRenovationProjectStore } from '../stores/RenovationProjectStore';
 import { useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
+import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 
 const context = useRenovationProjectContext();
@@ -135,15 +142,40 @@ const empty = computed(() => {
 });
 
 /**
- * The reader `store.error` did not have. `trError` is what turns the stored `AppError` into
- * the sentence for its own code — so unrecovered settings say so, and a vault fault says
- * something else — rather than one generic line standing in for both.
+ * The whole in-place failure state, or `null` when there is nothing to fail about — design
+ * slice 17's answer to the case slice 14 deferred here.
  *
- * Non-null exactly when `status === 'failed'`: `hydrate` clears it before every read and
- * `fail` is the only writer. Branching on the message rather than on the status keeps this
- * to one arm instead of two.
+ * Non-null exactly when `status === 'failed'`: `hydrate` clears `error` before every read and
+ * `fail` is its only writer. Branching on the error rather than on the status keeps this to
+ * one arm instead of two.
+ *
+ * `trError` is what turns the stored `AppError` into the sentence for its own code — so
+ * unrecovered settings say one thing and a vault fault says another — rather than one generic
+ * line standing in for both. That was already true of the message; what slice 17 adds is that
+ * the ACTION differs too.
+ *
+ * **The retry is withheld from a bootstrap failure, and that is the whole difference between
+ * the two states this returns.** `surfaceFor` answers `session-failure` for a session that
+ * composed no query services at all, and re-running a query that was never wired would do
+ * nothing while looking like it might — the "live control that does nothing" slice 14's own
+ * amendment refuses. Slice 1 settled the recovery: fix `data.json` and reload. The settings
+ * tab is where that is said, and this surface exists so a user is not left staring at a blank
+ * pane wondering why.
+ *
+ * ONE computed rather than three, because the headline, the body and the action are three
+ * answers to one question and splitting them would let a later edit give a session failure a
+ * retry while its headline still said it could not start.
  */
-const failureMessage = computed(() => (error.value === null ? null : trError(error.value)));
+const failure = computed(() => {
+	if (error.value === null) return null;
+	const session =
+		surfaceFor(error.value, viewHydrationOrigin(error.value)).kind === 'session-failure';
+	return {
+		headline: tr(session ? 'view.session-failure.headline' : 'view.project.failed.headline'),
+		body: trError(error.value),
+		...(session ? {} : { actionLabel: tr('view.failure.retry') }),
+	};
+});
 
 onMounted(() => {
 	void hydrate();
@@ -191,16 +223,16 @@ onBeforeUnmount(
 				{{ tr('view.project.some-unreadable') }}
 			</p>
 		</template>
+		<ViewFailure
+			v-else-if="failure !== null"
+			v-bind="failure"
+			@action="() => void hydrate()"
+		/>
 		<div
 			v-else
 			class="rp-view-message"
 		>
-			<p v-if="failureMessage !== null">
-				{{ failureMessage }}
-			</p>
-			<p v-else>
-				{{ tr('view.project.loading') }}
-			</p>
+			<p>{{ tr('view.project.loading') }}</p>
 		</div>
 		<DialogHost />
 	</div>

@@ -108,9 +108,22 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * typing `-5` into one raises the first `Domain` site. The Inspector's Delete button opens
  * `deleteZoneFlow.ts`, and confirming a dialog whose referent set moved underneath it raises
  * `reference.set-changed` — a refusal that states its own innocence in its message and still
- * left a persistent "Save error" badge standing behind it. Calibrating a plan with two clicks
- * at the same point raises `calibration.coincident-points`, and a zone whose polygon cannot be
+ * left a persistent "Save error" badge standing behind it. And a zone whose polygon cannot be
  * measured raises `requirement.area-failed` on the next assignment.
+ *
+ * **One example in that list was wrong and is removed rather than reworded.** It said
+ * "calibrating a plan with two clicks at the same point raises `calibration.coincident-points`",
+ * offered as proof that the `Calculation` category reaches THIS predicate. It does not:
+ * `CalibrateTool.complete` refuses a zero-length measurement before it prompts and before it
+ * dispatches, so no command runs, no `Result` reaches the dispatcher, and nothing reaches the
+ * save indicator. Design slice 17 gave that refusal a toast — it used to be silent — which
+ * changes what the USER sees and not what this predicate sees. Of the three `calibration.*`
+ * codes only `calibration.degenerate-scale` is genuinely reachable here, because it is the one
+ * `deriveCalibration` can raise after the command has actually been dispatched.
+ *
+ * Worth keeping as a shape rather than as a correction: an example offered as evidence of
+ * REACHABILITY has to be traced to the door it claims to arrive at, and this one was traced to
+ * the raise site and no further.
  *
  * **A note on the INSTRUMENT, because measuring this category caught the repository's own
  * rule again.** The first sweep for the codes above used
@@ -211,16 +224,28 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * mapping is slice 17's declared territory — so slice 13 narrowed the predicate, added the
  * stamp above where a write was actually knowable, and left the commands alone.
  *
- * **Where this DOES derive from, and where it will have to agree later.** It derives from
+ * **Where this DOES derive from, and where it now has to agree.** It derives from
  * `WRITE_BOUNDARY_CODES` in `versioning.ts` — the one place those two codes are spelled —
  * and from nothing else. An earlier draft of this docblock said in the present tense that it
  * was "DERIVED from [slice 17's] table" and that "slice 17's no-double-reporting test is what
- * keeps the two in agreement": slice 17 does not exist, so there was no table to derive from
+ * keeps the two in agreement": slice 17 did not exist, so there was no table to derive from
  * and no test to keep anything in agreement. `grep -rn "no-double-reporting" src tests`
- * printed exactly one line, and it was that sentence. Written to the check, in the future
- * tense: when slice 17 authors its error-to-surface table, this predicate is one of the
- * things that table has to agree with, and the agreement will need a check of its own,
- * because nothing today can notice the two disagreeing — the pre-write set above included.
+ * printed exactly one line, and it was that sentence. It was rewritten in the FUTURE tense as
+ * an obligation on whoever built the table.
+ *
+ * **Slice 17 landed and that obligation is discharged**, by
+ * `tests/presentation/errors/saveStateAgreement.test.ts` — which is deliberately not a
+ * derivation. The two answer different questions: `surfaceFor` decides WHICH CONTAINER a
+ * failure belongs in, and at an `autosave-write` origin that is the save indicator for every
+ * category; this predicate decides what the indicator then SAYS. The check asserts the seam
+ * they share, so a build that stopped routing `autosave-write` to `save-state` would leave
+ * this predicate colouring a widget nothing sends anything to.
+ *
+ * **What that check does NOT reach, so the word "agreed" is not read wider than it is**: it
+ * holds the `autosave-write` row and the write-boundary carve-out, and it cannot see a
+ * post-write refusal in a pre-write category at any site the `markUncompensated` stamp does
+ * not cover. That residue is the paragraph above and is unchanged — narrowed by the stamp,
+ * not closed, and still invisible to both linters and the suite.
  */
 export function affectsSaveState(error: AppError): boolean {
 	// Asked FIRST, because it is the only input here that is a report rather than an

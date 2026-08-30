@@ -6,7 +6,8 @@ import type { ZoneStatus } from '../domain/zone/ZoneStatus';
 import type { ZoneType } from '../domain/zone/ZoneType';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
 import { runDetached } from './runDetached';
-import { notifyError, notifyFault } from '../presentation/notices/notify';
+import { noticeOnlySinks, notifyFault } from '../presentation/notices/notify';
+import { surfaceError } from '../presentation/errors/surfaceError';
 import { PLAN_EDITOR_VIEW } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
 import type { StringKey } from '../presentation/i18n/locales/en';
@@ -177,12 +178,15 @@ export async function seedSampleProject(services: PersistenceServices): Promise<
 async function createAndOpen(host: PluginCommandHost, services: PersistenceServices): Promise<void> {
 	const seeded = await seedSampleProject(services);
 	if (isErr(seeded)) {
-		// Through `notifyError` (SDD §66's last step): the notice is a translated sentence
-		// keyed by the error's code, never the error's own `message`, which is developer
-		// text. That function is the ONE door an `AppError` takes to a notice — slice 17
-		// owns WHICH surface this lands on and will change it THERE, which is the whole of
-		// CLAUDE.md's "one action, every input" rule applied to a failure.
-		notifyError(seeded.error);
+		// Through the surface policy (SDD §66's last step): the notice is a translated sentence
+		// keyed by the error's code, never the error's own `message`, which is developer text.
+		//
+		// Slice 17 landed, and this is the change the older comment here predicted. The site no
+		// longer decides that a failure is a toast — it declares WHERE the failure came from and
+		// the table decides. Seeding is a command the user invoked from the palette, so the
+		// origin is `explicit-operation`, and `noticeOnlySinks` is the honest sink set: this is
+		// a plugin command with no view, no form and no save indicator to reach.
+		surfaceError(seeded.error, { kind: 'explicit-operation' }, noticeOnlySinks);
 		return;
 	}
 	// The reveal answers its own fault (`revealCandidate`), under its own event name rather

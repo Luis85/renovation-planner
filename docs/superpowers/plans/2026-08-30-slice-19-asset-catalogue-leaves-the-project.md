@@ -20,6 +20,11 @@
 - **Sentence-case UI text** (`obsidianmd/ui/sentence-case-locale-module` fails the build otherwise).
 - **A view type or command id is DATA** — never renamed. Display names beside them are text.
 - Line budget: `src/**` files cap at 400 lines (`max-lines`); `tests/**` has a larger cap.
+- **`git commit -am` stages modified TRACKED files and adds nothing untracked.** Every task
+  here that creates a file names it in an explicit `git add` first (Tasks 2, 4, 8, 9). This is
+  worth a constraint rather than three reminders: `npm run check` runs against the working
+  tree, so it passes while the commit silently omits the new module its tracked changes
+  import — and the next task's `-am` does not pick it up either.
 
 ---
 
@@ -643,6 +648,51 @@ export async function migrateLibraryFolder(
 }
 ```
 
+**`deps.persist` must write `data.json` and NOTHING else, and that is a contract rather than a
+convenience.** The obvious wiring — route it through `RenovationPlannerPlugin.saveSettings` —
+is wrong for a reason the earlier settings findings did not cover: `saveSettings` replaces the
+composition root and rebinds the views *before* its own `saveData` settles. So a rejecting
+write leaves the running session composed against the DESTINATION while `data.json` still names
+the SOURCE, and the remedy this function's copy names ("set the library folder to the new
+location") cannot be applied, because Task 3's row binds no control. A restart then composes
+against the source and writes new catalogue entries there — splitting the catalogue, which is
+the outcome the persist-failure arm exists to prevent rather than cause.
+
+So the order inside the door is: **write `data.json`, and only then swap the root.** If the
+write rejects, nothing has been swapped and the session is still coherent with the file; the
+notes are at the destination and the setting is not, which is exactly the state the error's
+copy describes and the user can fix.
+
+```ts
+export interface LibraryMigrationDeps {
+	projectFolders(): readonly string[];
+	catalogueNotes(from: string): readonly TFile[];
+	ensureFolder(path: string): Promise<void>;
+	renameFile(file: TFile, to: string): Promise<void>;
+	rebuildIndex(): void;
+	/**
+	 * Writes `data.json` and swaps the composition root, IN THAT ORDER. Never
+	 * `saveSettings` directly: that swaps first and writes second, so a rejecting write
+	 * strands the session on a folder the file does not name.
+	 */
+	persist(libraryFolder: string): Promise<void>;
+	logger: Logger;
+}
+```
+
+- [ ] **Step 3a: Test both halves of the persist failure**
+
+```ts
+it('leaves the session coherent with data.json when persisting fails', async () => {
+	deps.persist = () => Promise.reject(new Error('data.json is read-only'));
+	await migrateLibraryFolder(deps, 'Renovation/Library', 'Shared/Catalogue');
+	// DURABLE and IN-MEMORY, both: asserting only the file would pass against a build that
+	// had already swapped the root, which is the defect this ordering exists to prevent.
+	expect(dataJson().libraryFolder).toBe('Renovation/Library');
+	expect(plugin.root.settings.libraryFolder).toBe('Renovation/Library');
+});
+```
+
 - [ ] **Step 4: Run and watch them pass.**
 
 - [ ] **Step 5: Trigger it from an EXPLICIT action, never from `saveSettings`**
@@ -732,6 +782,10 @@ function is what refuses.
 
 ```bash
 npm run check
+# `-a` stages MODIFIED TRACKED files and adds nothing untracked, so the two files this
+# task creates would be left out of the commit while `npm run check` passed against the
+# working tree. Name them.
+git add src/plugin/settings/libraryMigration.ts tests/plugin/settings/libraryMigration.test.ts
 git commit -am "Make a library folder change a move-and-rebuild migration that persists last"
 ```
 
@@ -1181,6 +1235,9 @@ export class IndexLibraryOverlaps implements LibraryOverlaps {
 
 ```bash
 npm run check
+git add src/application/ports/LibraryOverlaps.ts \
+        src/infrastructure/obsidian/repositories/IndexLibraryOverlaps.ts \
+        tests/application/queries/listProjectsOverlaps.test.ts
 git commit -am "Answer which projects currently overlap the library, derived per read"
 ```
 
@@ -1321,6 +1378,7 @@ This is the project's first row-level status. `tests/harness/accessibility.test.
 
 ```bash
 npm run check
+git add styles/project-list-overlap.css tests/presentation/views/projectListOverlap.test.ts
 git commit -am "Mark a project row whose folder overlaps the library, with a mark and a word"
 ```
 

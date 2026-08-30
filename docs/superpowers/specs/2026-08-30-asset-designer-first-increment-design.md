@@ -1,0 +1,356 @@
+---
+type: Design
+epic: "[[Asset designer]]"
+status: proposed
+date: 2026-08-30
+dependsOn:
+  - "[[19-the-asset-catalogue-leaves-the-project]]"
+---
+
+# The asset designer, first increment
+
+An [[Asset]] definition gains a **shape** — footprint, clearance boundary, anchor, facing,
+height — and a designer surface of its own to draw it on. Typing 120 × 80 yields a rectangle a
+renovator can use immediately; tracing a spec sheet over the object's own calibrated background
+replaces that rectangle rather than sitting beside it.
+
+This document covers the increment's design. It does not restate
+[`docs/requirements/Asset designer.md`](../../requirements/Asset%20designer.md); that epic is the
+specification, and a rule stated in two notes is two rules the day one of them is edited.
+
+## Why this now, and what it waits on
+
+The epic's Definition of Done puts the asset's geometry sidecar **with the shared library**, not
+with any plan and not with any project. On `main` at `1cc687b`, `Asset` still carries a required
+`projectId`, its notes sit under `<projectFolder>/Assets/`, and there is no library folder. Design
+slice 19 is what changes that, and **slice 19 is a design, not an implementation**: PR 41 is open,
+`mergeable_state: clean`, and reports `changed_files: 2` — a spec and a plan, no production code.
+
+So this increment is designed against slice 19's post-state and **cannot merge before slice 19's
+code does**. Four things it consumes from that slice, named so that a change in any of them is a
+change here:
+
+| From slice 19 | Consumed here as |
+| --- | --- |
+| the `libraryFolder` setting (task 3) | the root of `Geometry/` (ADR-0014 below) |
+| `Asset` loses `projectId` (task 5) | a shape referenced across projects at all |
+| `t(language, key, params?)` (task 1) | parameterised copy for dimensions and refusals |
+| `ListAssets` reaching the whole vault | the designer's picker |
+
+That last row is a correction to an easy assumption: **`ListAssets` already exists**
+(`src/application/queries/ListAssets.ts`) and is project-scoped — `execute(projectId)` over
+`assets.listByProject`. This increment writes no new list query; it consumes the one slice 19
+re-scopes.
+
+## What was measured, rather than assumed
+
+Every number and path below was read this session, on `main` at `1cc687b`.
+
+- **`CreateAssetCommand` has no user-facing caller.** It is constructed at
+  `src/plugin/composition-root.ts:344` and guarded at `src/plugin/guardedServices.ts:308`. A grep
+  of `src/presentation` and `src/plugin` for `createAsset` returns those two files and nothing
+  else. Nothing anywhere selects an Asset either — slice 19's own document records the same gap
+  from the delete side. **The only way a vault has an Asset today is a hand-written note.**
+- **Three view types are registered**, at `RenovationPlannerPlugin.ts:181` (`renovation-project`),
+  `:184` (`PLAN_EDITOR_VIEW`) and `:188` (`GEOMETRY_SIDECAR_VIEW`, ADR-011's extension
+  registration rather than a UI surface).
+- **`EditorContext` is already almost subject-agnostic.** `tools/editor-context.ts:31-61` declares
+  `viewport`, `selection`, `snapService`, `commandDispatcher`, `writeLedger`, `renderState` — none
+  of which name a Plan or a Zone. Its deps carry exactly one coupled field, at `:102`:
+  `activePlan: { id: PlanId; calibration: Calibration | null }`.
+- **`PlanCanvas.vue` is 1220 physical lines** (template, script and style together, `grep -c ""` —
+  not the count `max-lines` reads, which skips blanks and comments). It is also the most
+  defect-dense file in the repository: CLAUDE.md carries roughly thirty findings against its
+  pointer and camera handling.
+- **Plan background is note frontmatter**: `background-path`, `background-kind`,
+  `background-page` (`dto/planFrontmatter.ts:30-32`). Calibration is not — it is the sidecar's
+  (`dto/planGeometry.ts`), whose `PlanGeometrySchemaV1` carries `schemaVersion`, `planId`,
+  `revision`, `unit: 'mm'`, `calibration` and `objects`.
+- **Calibration rescales the object it belongs to.** `ReversibleCalibratePlan.ts:150-164` applies
+  `scaleShape(…, scaleCorrection, origin)` to every stored point **including the calibration's own
+  pair**.
+
+## A contradiction this increment has to answer for
+
+[`docs/issues/The plan editor is a mode, not a second view.md`](../../issues/The%20plan%20editor%20is%20a%20mode,%20not%20a%20second%20view.md)
+is `status: Done`, finished 2026-08-23. It decides: *"One view type, `renovation-project`, with
+the plan editor as a mode inside it"*, and states as a consequence *"Slice 05 registers no new
+view type."*
+
+Slice 05's task document designs `PLAN_EDITOR_VIEW = 'renovation-plan-editor'` as a per-plan view
+with `getState()`/`setState()`, and `main` registers it. **The code took the alternative that note
+rejected, and nothing recorded the reversal.** Registering a fourth view type while that sentence
+stands would make it wrong twice, so ADR-0015 below records the supersession as part of taking
+this increment's surface decision — which the epic already says is owed to `docs/development/adrs/`.
+
+That note's own *Revisit when* is arguably met here: it says the second view type is the answer
+when *"a use case needs the canvas and the project overview visible at the same time"*, and tracing
+a spec sheet beside the plan the object will be placed into is that use case.
+
+## Decisions
+
+### 1. The footprint is the only stored geometry of record
+
+Typing dimensions writes a four-point rectangle into the footprint. Tracing replaces it. **Width
+and depth are always the footprint's bounding box and are stored nowhere.**
+
+This is §88's "a derived value is recomputed on read" and the epic's "dimensions read off the
+geometry rather than typed beside it" satisfied by construction rather than by discipline: there
+is no second field for a trace to disagree with, and no reconciliation step for anybody to forget.
+It is also what makes "usable before it is accurate" cost nothing structurally — the cheap path
+and the accurate path produce the same kind of thing.
+
+**Rejected:** storing typed `width`/`depth` beside a traced polygon. It is duplicate data by
+§88, and it makes "which one is true" a question every reader has to answer.
+
+### 2. The note carries scalars; the sidecar carries the space
+
+Following `Plan`'s split exactly, because the reasons are the same ones:
+
+| | `Plan` today | `Asset`, this increment |
+| --- | --- | --- |
+| note frontmatter | `background-path`, `background-kind`, `background-page` | the same three keys, plus `height` |
+| sidecar | `calibration`, `objects[]` | `calibration`, `footprint`, `clearance`, `anchor`, `facing`, `origin` |
+
+`height` is frontmatter because it is a scalar a human should read with the plugin uninstalled
+(§3.2) and nothing in the coordinate space depends on it. The **anchor is sidecar** because it is
+a point in the same space as the footprint, and two files agreeing about one coordinate space is a
+defect waiting for its first hand edit.
+
+**Height is stored, shown and exported and interpreted by nothing.** No calculation, no clearance
+check, no fit test reads it. No task beneath this increment may add a reader; the first epic that
+needs a vertical answer earns the right to state that differently.
+
+### 3. Provenance, so the calibration rule can be told the truth
+
+The epic inherits every rule of [[Calibration and measurement]] with one replacement — the
+calibration belongs to the object — and singles out one to read twice: **an uncalibrated surface
+says so wherever a measurement would otherwise appear.**
+
+Applied naively that rule misfires in both directions. A polygon traced over an uncalibrated
+background is background pixels relabelled as millimetres at the placeholder scale of 1 — exactly
+the defect slice 7 shipped and a human found — so its derived dimensions must be marked unscaled.
+But a typed 120 × 80 involves no background at all and is exact millimetres, so marking *those*
+unscaled is the same lie pointed the other way.
+
+So the sidecar records the footprint's **provenance**: `origin: 'typed' | 'traced'`. The warning
+attaches to a traced footprint on an uncalibrated background and to nothing else. Provenance is
+not derivable from the geometry, so this is not duplicate data under §88.
+
+### 4. ADR-0014 — asset geometry lives in the library's own `Geometry/`
+
+`<libraryFolder>/Geometry/<assetId>.rpgeo`, a sibling of `Assets/`, named by the **full prefixed
+id**, carrying `assetId` where the plan's sidecar carries `planId`, `unit: 'mm'`, its own
+`revision`, and the shape.
+
+This is ADR-011's reasoning with one noun changed. That ADR says *"the unit that owns data here is
+the project"* and derives the folder from the project's own; for a catalogue entry the owning unit
+is the library, whose folder slice 19 introduces. Both alternatives ADR-011 rejected stay rejected
+for its own stated reasons: colocation scatters `.rpgeo` files through the `Assets/` folder a user
+reads and re-couples geometry to a display name, and a second configurable folder re-answers a
+question one setting up has already answered.
+
+**A consequence recorded rather than discovered.** Slice 19's open question 3 says asset notes
+already filed outside the library are indexed but never moved. Their geometry still lands in the
+library's `Geometry/`, because the path derives from the setting and not from where the note
+strayed. That is the intended answer — one geometry home — and it means the index is the only thing
+pairing a stray note with its sidecar, exactly as it already is for plans.
+
+### 5. ADR-0015 — the designer is a per-asset view type
+
+`renovation-asset-designer`, several leaves coexisting, the open asset carried in Obsidian's own
+per-leaf view state as `{ assetId }` — the Plan Editor's shape, method for method, including the
+`setState` trust rule that a restored state naming an asset this build cannot read falls back
+rather than throws.
+
+The ADR also records the supersession described above, so the tree stops holding a `Done` decision
+its own code contradicts.
+
+## Scope
+
+### In
+
+- `Asset` gains a shape: footprint, clearance boundary, anchor, facing (all sidecar) and height
+  (frontmatter).
+- `AssetGeometrySchemaV1` and its store, under ADR-0014's layout.
+- The Asset Designer view, its background, its own calibration, its origin, and its tools.
+- Typed dimensions producing a footprint, and tracing replacing one.
+- A create dialog and an `open-asset-designer` command with a picker, so the loop is walkable from
+  an empty vault.
+- ADR-0014 and ADR-0015.
+
+### Out, named so no task claims otherwise
+
+- **Drawing the shape on a plan**, flagging an overlap between two clearances, and any fit test.
+  Those belong to [[Plan editor]] and [[Asset placement]] and this epic explicitly does not promise
+  them. This increment therefore ships shapes nothing on a plan yet draws.
+- **Any reading of `height` by any calculation.**
+- **What [[Plan revisions]] does about a referenced shape.** The obligation here is only that all
+  five attributes stay identifiable after the fact — which the sidecar's per-file `revision`
+  and the attributes being stored rather than derived already satisfy — not that this increment
+  decides between a version pin and a snapshot.
+- `Supplier` and `Trade` catalogues, and an Asset delete affordance.
+
+## Application layer
+
+Eight commands, each guarded at the composition root, each with a reversible adapter where the
+designer's undo must reach it:
+
+`SetAssetFootprintFromDimensions` · `SetAssetFootprint` · `SetAssetClearance` · `SetAssetAnchor` ·
+`SetAssetFacing` · `SetAssetHeight` · `SetAssetBackground` · `CalibrateAsset`
+
+**Not one `SetAssetShape` taking a partial.** A patch smuggles fields past the smart constructor
+that `Asset.withChanges` exists to re-run, and undo granularity is per gesture: a user who traces a
+clearance and regrets it should not lose their anchor with it.
+
+`CalibrateAsset` mirrors `ReversibleCalibratePlan`, including the part that is easy to miss — it
+multiplies **every world coordinate the object owns** by `scaleCorrection`: footprint, clearance,
+anchor and its own calibration pair. Recalibrating an oven rescales the oven and nothing else on
+any plan, which is the whole reason the epic gives the designer a calibration of its own.
+
+`GetAssetDesign(assetId)` is the one new query: asset fields, shape, calibration, background and
+the derived dimensions, with the provenance flag that decides whether those dimensions are
+presented as measured or as unscaled.
+
+Every command reports a `DispatchOutcome` — `'wrote'` or `'no-write'` — rather than letting `ok`
+be read as evidence of a write, because the save-state indicator infers nothing.
+
+## Presentation
+
+### The extraction, in a commit of its own
+
+`PlanCanvas.vue`'s camera and pointer routing move to a subject-agnostic
+`presentation/editor/surface/EditorSurface.vue`: the pan override, the swallowed-pointer set, the
+chorded-button bitmask, the blur and cancel ordering, the wheel and keyboard camera, and the
+`display: contents` overlay wrapper that keeps an overlay's own controls working. The plan editor
+mounts it with its layer stack; the designer mounts it with a different one.
+
+**Behaviour-preserving, alone in its commit, gated by `canvasPointerRouting.test.ts`,
+`canvasNavigation.test.ts` and `interactionLayer.test.ts`.** No behaviour change rides along with
+it. Those suites are the only thing standing between this extraction and thirty rediscovered
+pointer defects, and a mixed commit makes them unable to say which half moved.
+
+Two generalisations fall out of it: `EditorContext`'s deps take `subject: { id, calibration }` in
+place of `activePlan` — one field, already the only coupled one — and `DrawPolygonTool` stops
+hard-wiring `CreateZone`, taking instead what a completed polygon *does*, so one tool serves zones,
+footprints and clearances.
+
+### The designer itself
+
+`AssetDesignerView.ts` and `AssetDesignerRoot.vue`, its own isolated Vue app (SDD §12), with a
+layer stack (background, footprint, clearance, anchor and facing gizmo, measurement, interaction),
+a toolbar (select, trace footprint, trace clearance, anchor, facing, calibrate), and an inspector
+whose dimensions are read-only derived values beside a `height` field on slice 16's
+`useFieldCommit`. It mounts slice 15's `DialogHost`, slice 13's save-state indicator, and reaches
+the notice queue through the same one door.
+
+Empty states are **overlays**, per slice 14's rule that an empty state replacing a region hides the
+thing the region exists to show: `assetDesigner.noShape` carries the action that opens the
+dimensions form.
+
+`assetDesigner.noBackground` is where a claim had to be narrowed during review of this document.
+`planEditor.noBackground` ships buttonless because `set-plan-background` is a plugin **command**
+the Vue tree cannot reach without either widening its context or reaching for the global `app`,
+which the marketplace rules refuse. Making `SetAssetBackground` an application command does not on
+its own fix that: choosing a document needs a **file picker**, which is an Obsidian modal, and
+`presentation/` may not import `obsidian` at all. So the button exists only if this increment adds
+the seam the plan editor lacked — a `pickBackgroundDocument(): Promise<DocumentRef | null>` port on
+the designer's deps, bound at the composition root, the same way its commands already are. That is
+a decision taken here rather than a consequence: it costs one port and one binding, and it is what
+lets the plan editor's own buttonless empty state be closed later by adding a caller rather than by
+re-litigating the layering.
+
+### Reaching it
+
+An `open-asset-designer` command over a `FuzzySuggestModal` of the indexed assets — a **plain
+callback**, never a `checkCallback`, which is what kept `open-plan-editor` out of the palette in
+every vault that had no plans — and a **new-asset dialog** on `DialogHost` and `useFormCommit`
+that opens the designer on what it created. Both go through `revealCandidate`'s in-flight map, so a
+double click gives one leaf rather than two.
+
+This is what stops the increment repeating slice 7, where `CalibrateTool` was proven by tests,
+registered nowhere, and unreachable for two whole slices until a human opened the toolbar.
+
+## Errors, copy and accessibility
+
+Every new code gets English **and** German copy, bound to its raise sites by a table in
+`toUserMessage.test.ts` copied from the raise sites rather than from `en.ts`, because a table
+derived from the locale file would agree with a typo. German says *Objekt*, never *Material* — the
+term this repository has corrected twice and reintroduced once, and which its two-term gate does
+watch.
+
+The new view joins `tests/harness/accessibility.test.ts`, and its case scans the action-carrying
+empty state — the standing gap that file records about itself.
+
+## Testing strategy
+
+- **Node tests** for the shape maths: a rectangle from dimensions, the bounding box, `scaleShape`
+  across all five attributes, and the degeneracy refusals (`coincident` rather than bitwise
+  equality, which this repository has already paid for twice).
+- **Repository contract tests** for the new sidecar store, including the **three-decimal** float
+  rule — `594.005` is not representable in binary floating point where `594.00` and `99.99`
+  survive a coercion.
+- **A designer rig** mirroring `planEditorRig`, with a **dispatching** event bus rather than a
+  recording one, and pointer streams obeying the real device's grammar: a click is down+up on the
+  same button, `buttons` is set on every move, and a chord fires no second `pointerdown`.
+- **Fixture-vault fixtures** (slice 12): an asset with geometry and one without.
+- **A harness entry** and captures in both colour schemes, plus `?view=asset-designer`; spacing,
+  focus rings, contrast and hit size are measurable nowhere else here.
+- **A manual case**, `docs/tests/cases/Design an Asset.md`, under the smoke suite — appearance and
+  any assumed Obsidian API are verifiable in a real vault and nowhere else, and every one of the
+  four gates was green for each of the three fakes that shipped a defect.
+- Branch-coverage headroom is **tight, and the figure here is somebody else's measurement**: PR 41
+  reports 98.08% (2660/2712) against a floor of 98 after a fresh `npm ci`; CLAUDE.md records 98.12
+  on the tree that merged slice 13. Neither was measured for this document, and the number moves on
+  merge — it has fallen on merge twice in this repository's history. Re-measure before planning, and
+  plan tests **with** the code either way: an untested new arm does not reduce coverage, it fails
+  the gate — except where headroom hides it, which is why the changed files get read out of
+  `coverage-final.json` rather than trusted to the threshold.
+
+## How this meets the epic's Definition of Done
+
+The epic states seven conditions on any item beneath it. Mapped once, so that a task cannot be
+ticked against a condition nobody read:
+
+| Epic condition | Where it is met, or why not yet |
+| --- | --- |
+| A footprint obeys [[Asset library]]'s rules — reference, never copy; derived recomputed on read | Decision 1: the footprint is the only stored geometry, dimensions are its bounding box. Placement references the definition because placement does not exist yet to copy it. |
+| Every attribute a placement referenced stays identifiable | All five are stored, not derived, under one per-file `revision`. The snapshot-versus-pin choice stays [[Plan revisions]]'. |
+| The designer's calibration belongs to the object and never reaches a plan's | `CalibrateAsset` writes the asset's own sidecar and rescales only that object's coordinates. Enforced by the sidecar boundary, not by convention. |
+| Usable before accurate | Typed dimensions need no background and no calibration; half A ships them without a canvas at all. |
+| Clearance captured as a boundary distinct from the footprint | Its own sidecar field and its own tool. What a plan does with it is out of scope, as the epic says. |
+| Anchor and facing captured and round-tripping | Their own sidecar fields, in the footprint's coordinate space. Open questions 1 and 3 name what is still undecided about them. |
+| Height stored, shown, exported, interpreted by nothing | Frontmatter, read by the inspector and by no calculation. Stated in Scope/Out so no task may add a reader. |
+| Round-trips as plain Markdown plus a geometry sidecar in the library | ADR-0014, with the consequence for stray notes written down rather than discovered. |
+
+That is eight rows against seven conditions because the last condition carries two claims — the
+round trip and where the sidecar lives — and a row per claim is what makes each one checkable.
+
+## Sequencing
+
+One spec, two independently-green halves:
+
+- **A — the shape.** `AssetGeometrySchemaV1` and its store, ADR-0014, the six non-drawing commands,
+  typed dimensions, the create dialog and the picker. A complete, usable feature with no new
+  canvas: a renovator types 120 × 80 and every plan referencing that asset knows its footprint.
+- **B — the designer.** ADR-0015, the `EditorSurface` extraction, the view, the tools, tracing, and
+  `CalibrateAsset`.
+
+If B slips, A still ships something usable. That is the epic's own "usable before it is accurate"
+applied to the delivery rather than to the oven.
+
+## Open questions, raised rather than assumed
+
+1. **Facing's unit and zero.** Radians match the geometry code; degrees match what a renovator
+   would type. Which direction is zero — the anchor's own +x, or the footprint's longest edge — is
+   a decision [[Asset placement]] will inherit and cannot renegotiate.
+2. **Whether the clearance may be derived by default** as a uniform offset of the footprint, with
+   tracing as the refinement. It would make the cheap path cheaper; it also invents a second
+   derived-versus-stored question in an increment that just settled one.
+3. **What the designer's origin is.** The epic says the shape is drawn *around* an origin. Whether
+   that origin is the anchor, or a separate thing the anchor may sit away from, decides whether
+   the anchor is one field or two.
+4. **A second asset with the same background.** Two objects on one spec-sheet page each carry
+   their own calibration of the same document, and nothing shares it. Correct, and possibly
+   annoying; measured only by using it.
+5. **Merge order against slice 19 and slice 17**, both of which are in flight as designs.

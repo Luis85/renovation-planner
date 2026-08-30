@@ -1,188 +1,43 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { parse } from 'yaml';
 import { REPO } from '../helpers/oxlint';
 
 /**
- * `yaml` is not a declared dependency of this repository (confirmed:
- * `node -p "require('./package.json').devDependencies.yaml"` answers `undefined`), and
- * `CLAUDE.md`'s own rule is that a dependency nothing else imports fails `npm run analyze`
- * — this file would be its only importer. `tests/release/manifest.test.ts` answers the same
- * "what does this workflow file say" question with `readFileSync` plus a targeted regex; this
- * file needs far more of the document's SHAPE (nested jobs, steps, matrix entries, and which
- * keys are and are not present at each level), so the same mechanism — parsing the raw text
- * ourselves, adding nothing to `package.json` — is applied as a small block-YAML reader scoped
- * to the subset `.github/workflows/ci.yml` actually uses: comments and blank lines, block
- * mappings, block sequences of either scalars or mappings, one flow sequence (`[main]`), and
- * quoted or bare scalars. No anchors, no multi-document files, no block scalars (`|`/`>`) —
- * this workflow has none, and this reader does not need to pretend it might.
+ * `yaml` — a real, general parser, not a hand-rolled reader — so every one of `ci.yml`'s
+ * comments, whether trailing a value or occupying a whole line, is stripped correctly
+ * (measured: a `# trailing comment` appended to the `run: npm run check` line changes no
+ * assertion below). One residual is still worth naming rather than assuming closed: a
+ * YAML block scalar (`run: |` followed by an indented `npm run check` on its own line) is
+ * legal, parses to the string `"npm run check\n"` — note the trailing newline literal
+ * block style keeps — and would fail every string-equality assertion below that expects
+ * the bare `'npm run check'`, for a reason that has nothing to do with whether CI actually
+ * runs the gate. Today's file writes it as a plain scalar and this is unlikely to change
+ * for a single-line command, but the gap is real and unclosed, so it is written down here
+ * rather than left to be rediscovered.
  */
-type YamlValue = string | boolean | YamlScalarArray | YamlMapping;
-type YamlScalarArray = readonly string[];
-interface YamlMapping {
-	readonly [key: string]: YamlValue;
-}
-
-const unquote = (raw: string): string => {
-	const trimmed = raw.trim();
-	const first = trimmed.charAt(0);
-	const last = trimmed.charAt(trimmed.length - 1);
-	if (trimmed.length >= 2 && (first === '"' || first === "'") && last === first) {
-		return trimmed.slice(1, -1);
-	}
-	return trimmed;
-};
-
-/** The colon that ends a YAML key, never one inside a `${{ ... }}` expression or a quoted string. */
-const findKeyColon = (line: string): number => {
-	let quote: string | null = null;
-	let braceDepth = 0;
-	for (let index = 0; index < line.length; index += 1) {
-		const char = line[index];
-		if (quote !== null) {
-			if (char === quote) quote = null;
-			continue;
-		}
-		if (char === '"' || char === "'") {
-			quote = char;
-			continue;
-		}
-		if (char === '{') braceDepth += 1;
-		if (char === '}') braceDepth -= 1;
-		if (char === ':' && braceDepth === 0) {
-			const next = line[index + 1];
-			if (next === undefined || next === ' ') return index;
-		}
-	}
-	return -1;
-};
-
-const parseScalar = (raw: string): string | boolean | YamlScalarArray => {
-	const trimmed = raw.trim();
-	if (trimmed === 'true') return true;
-	if (trimmed === 'false') return false;
-	if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
-		const inner = trimmed.slice(1, -1).trim();
-		return inner === '' ? [] : inner.split(',').map((item) => unquote(item));
-	}
-	return unquote(trimmed);
-};
-
-interface Line {
-	readonly indent: number;
-	content: string;
-}
-
-const isSeqItem = (content: string): boolean => content === '-' || content.startsWith('- ');
-
-/** Reads YAML text into the mapping/sequence/scalar tree the block-style subset above allows. */
-const parseWorkflowYaml = (text: string): YamlMapping => {
-	const lines: Line[] = text
-		.split('\n')
-		.filter((raw) => raw.trim() !== '' && !raw.trim().startsWith('#'))
-		.map((raw) => ({ indent: raw.length - raw.trimStart().length, content: raw.trim() }));
-
-	let cursor = 0;
-
-	// Mutually recursive (a block may be a mapping or a sequence, a mapping's value may be a
-	// block, a sequence item may open a mapping): grouped as methods on one object, referenced
-	// through the object rather than by bare identifier, since `blockAt`, `mapping` and
-	// `sequence` as three separate `const`s would each need the other two declared first,
-	// which no ordering of exactly three mutually-referencing declarations can satisfy.
-	const block = {
-		at(indent: number): YamlValue {
-			if (cursor >= lines.length || lines[cursor].indent !== indent) return {};
-			return isSeqItem(lines[cursor].content) ? block.sequence(indent) : block.mapping(indent);
-		},
-		mapping(indent: number): YamlMapping {
-			const result: Record<string, YamlValue> = {};
-			while (cursor < lines.length && lines[cursor].indent === indent && !isSeqItem(lines[cursor].content)) {
-				const { content } = lines[cursor];
-				const colon = findKeyColon(content);
-				const key = unquote(content.slice(0, colon));
-				const rest = content.slice(colon + 1).trim();
-				cursor += 1;
-				if (rest === '') {
-					const childIndent = cursor < lines.length ? lines[cursor].indent : -1;
-					result[key] = childIndent > indent ? block.at(childIndent) : {};
-				} else {
-					result[key] = parseScalar(rest);
-				}
-			}
-			return result;
-		},
-		sequence(indent: number): readonly YamlValue[] {
-			const result: YamlValue[] = [];
-			while (cursor < lines.length && lines[cursor].indent === indent && isSeqItem(lines[cursor].content)) {
-				const { content } = lines[cursor];
-				const after = content === '-' ? '' : content.slice(2);
-				const itemIndent = indent + (content.length - after.length);
-				if (after === '') {
-					cursor += 1;
-					const childIndent = cursor < lines.length ? lines[cursor].indent : -1;
-					result.push(childIndent > indent ? block.at(childIndent) : {});
-				} else if (findKeyColon(after) !== -1) {
-					// An inline "- key: value" opens a mapping whose later keys align under it;
-					// splice the dash away and hand the rest to `mapping` so the two shapes share
-					// one path.
-					lines[cursor] = { indent: itemIndent, content: after };
-					result.push(block.mapping(itemIndent));
-				} else {
-					cursor += 1;
-					result.push(parseScalar(after));
-				}
-			}
-			return result;
-		},
-	};
-
-	return block.mapping(0);
-};
-
-const asMapping = (value: YamlValue | undefined): YamlMapping => (value !== undefined && typeof value === 'object' && !Array.isArray(value) ? value : {});
-const asArray = (value: YamlValue | undefined): readonly YamlValue[] => (Array.isArray(value) ? value : []);
-
-interface Step {
-	readonly run?: string;
-	readonly if?: string;
-	readonly uses?: string;
-	readonly with?: YamlMapping;
-	readonly name?: string;
-	readonly 'continue-on-error'?: boolean;
-}
-
-interface Job {
-	readonly 'runs-on'?: string;
-	readonly strategy?: YamlMapping;
-	readonly if?: string;
-	readonly steps?: readonly Step[];
-	readonly [key: string]: YamlValue | undefined;
-}
-
 interface Workflow {
-	readonly on: YamlMapping;
-	readonly jobs: Record<string, Job>;
+	readonly on: { readonly push?: { readonly branches?: readonly string[] }; readonly pull_request?: unknown };
+	readonly jobs: Record<
+		string,
+		{
+			readonly 'runs-on'?: string;
+			readonly strategy?: {
+				readonly 'fail-fast'?: boolean;
+				readonly matrix?: { readonly include?: readonly { os: string; node: string }[] };
+			};
+			// `if` is part of the shape at BOTH levels deliberately: the unconditional-execution
+			// case below reads them, and a type that omitted either would make that assertion
+			// unwritable. The JOB-level one is the half a first draft missed — see that case.
+			readonly if?: string;
+			readonly 'continue-on-error'?: boolean;
+			readonly steps?: readonly { run?: string; if?: string; uses?: string; with?: Record<string, string>; 'continue-on-error'?: boolean }[];
+		}
+	>;
 }
 
-// A cast, not a rebuild: rebuilding each step with `run: asString(stepMapping['run'])` etc.
-// assigns every one of those keys on every step, `undefined` included where the real YAML
-// never had it — and an `undefined`-valued key is still an OWN key, so a checkout step
-// (only `uses`) would report `['if', 'name', 'run', 'uses', 'with']` to `Object.keys`, not
-// `['uses']`. The key-allowlist assertions below depend on exactly the keys the YAML
-// declared surviving the parse, so each step and job is spread as parsed and only cast,
-// never reconstructed field by field.
-const toWorkflow = (root: YamlMapping): Workflow => {
-	const jobsRaw = asMapping(root['jobs']);
-	const jobs: Record<string, Job> = {};
-	for (const [name, job] of Object.entries(jobsRaw)) {
-		const jobMapping = asMapping(job);
-		const steps = asArray(jobMapping['steps']).map((step) => asMapping(step) as unknown as Step);
-		jobs[name] = { ...jobMapping, steps } as Job;
-	}
-	return { on: asMapping(root['on']), jobs };
-};
-
-const workflow = toWorkflow(parseWorkflowYaml(readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')));
+const workflow = parse(readFileSync(join(REPO, '.github/workflows/ci.yml'), 'utf8')) as Workflow;
 
 describe('CI invokes the definition of done', () => {
 	/**
@@ -191,8 +46,8 @@ describe('CI invokes the definition of done', () => {
 	 * architecture gate. SDD §8's wording is "every push/PR"; this matches it.
 	 */
 	it('runs on pull requests and on pushes to main, UNFILTERED', () => {
-		expect(workflow.on['pull_request']).toBeDefined();
-		expect(asMapping(workflow.on['push'])['branches']).toContain('main');
+		expect(workflow.on.pull_request).toBeDefined();
+		expect(workflow.on.push?.branches).toContain('main');
 
 		// Presence is not enough, and this is the same conjunction defect the step/job
 		// condition case already had to fix. `pull_request: { types: [opened] }` passes the
@@ -214,8 +69,14 @@ describe('CI invokes the definition of done', () => {
 		const PR_FILTERS = ['types', 'paths', 'paths-ignore', 'branches', 'branches-ignore'] as const;
 		const PUSH_FILTERS = ['paths', 'paths-ignore', 'branches-ignore'] as const;
 
-		for (const filter of PR_FILTERS) expect(workflow.on['pull_request']).not.toHaveProperty(filter);
-		for (const filter of PUSH_FILTERS) expect(workflow.on['push']).not.toHaveProperty(filter);
+		// `pull_request:` with nothing after the colon and no children is legal YAML for
+		// "the trigger, unfiltered" — and the real `yaml` package parses that as `null`, not
+		// `{}` (measured: `parse('pull_request:\n').pull_request === null`). `not.toHaveProperty`
+		// on `null` throws a TypeError rather than failing the assertion, so the loop reads
+		// against `?? {}` — the same claim ("this trigger carries none of these keys"), made
+		// null-safe rather than reworded.
+		for (const filter of PR_FILTERS) expect(workflow.on.pull_request ?? {}).not.toHaveProperty(filter);
+		for (const filter of PUSH_FILTERS) expect(workflow.on.push ?? {}).not.toHaveProperty(filter);
 	});
 
 	/**
@@ -224,8 +85,7 @@ describe('CI invokes the definition of done', () => {
 	 */
 	it('runs npm run check on every declared leg, as one command', () => {
 		const verify = workflow.jobs['verify'];
-		const matrixInclude = asArray(asMapping(asMapping(verify?.strategy)['matrix'])['include']).map((leg) => asMapping(leg));
-		const legTuples = matrixInclude.map((leg) => `${String(leg['os'])}:${String(leg['node'])}`);
+		const legs = (verify?.strategy?.matrix?.include ?? []).map((leg) => `${leg.os}:${leg.node}`);
 		const commands = (verify?.steps ?? []).map((step) => step.run).filter((run): run is string => run !== undefined);
 
 		// EXACT tuples, not "at least one of each OS". `some(os.startsWith('ubuntu'))` stays
@@ -234,7 +94,7 @@ describe('CI invokes the definition of done', () => {
 		// `engines.node` itself exists to catch, moved to a different file.
 		// `tests/release/manifest.test.ts` deliberately pins only the FLOOR, so nothing else
 		// watches the other two.
-		expect(new Set(legTuples)).toEqual(new Set(['ubuntu-latest:22', 'ubuntu-latest:24', 'ubuntu-latest:26', 'windows-latest:22']));
+		expect(new Set(legs)).toEqual(new Set(['ubuntu-latest:22', 'ubuntu-latest:24', 'ubuntu-latest:26', 'windows-latest:22']));
 		expect(commands).toContain('npm run check');
 
 		// And every declared leg must be allowed to REACH the command. `fail-fast` defaults to
@@ -251,7 +111,7 @@ describe('CI invokes the definition of done', () => {
 		//
 		// Asserted as `false` rather than `not.toBe(true)` on purpose: absent and `true` are
 		// the same behaviour, and only one of them looks like a change.
-		expect(asMapping(verify?.strategy)['fail-fast']).toBe(false);
+		expect(verify?.strategy?.['fail-fast']).toBe(false);
 	});
 
 	/**

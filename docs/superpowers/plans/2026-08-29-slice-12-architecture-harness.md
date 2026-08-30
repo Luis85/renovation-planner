@@ -1366,6 +1366,7 @@ interface Workflow {
 	readonly jobs: Record<
 		string,
 		{
+			readonly 'runs-on'?: string;
 			readonly strategy?: { readonly matrix?: { readonly include?: readonly { os: string; node: string }[] } };
 			// `if` is part of the shape at BOTH levels deliberately: the unconditional-execution
 			// case below reads them, and a type that omitted either would make that assertion
@@ -1508,6 +1509,18 @@ describe('CI invokes the definition of done', () => {
 		// should fail here and be added with a reason, rather than take effect silently.
 		expect(Object.keys(verify ?? {}).sort()).toEqual(['runs-on', 'steps', 'strategy']);
 		expect(Object.keys(check ?? {}).sort()).toEqual(['name', 'run']);
+
+		// And `runs-on` must USE the matrix, not a literal. The tuple set proves only that the
+		// matrix declares four legs; `ci.yml:30` is what turns `matrix.os` into an actual
+		// runner, so replacing it with a literal `ubuntu-latest` leaves the tuples, every
+		// setup-node assertion and both key allowlists green while the Windows leg executes on
+		// Ubuntu — and Windows is in this matrix precisely because paths and line endings are
+		// the only things that differ between the platforms.
+		//
+		// Exact twin of the `matrix.node` defect: a matrix entry is a LABEL, and something
+		// else turns it into the thing. Having fixed that one for Node and not asked the same
+		// question of the OS is why this needed a second round.
+		expect(verify?.['runs-on']).toBe('${{ matrix.os }}');
 
 		// The JOB's condition too, which the step's cannot see. GitHub supports
 		// `jobs.<job_id>.if`, so `verify.if: github.event_name == 'push'` leaves both declared
@@ -2567,9 +2580,29 @@ export interface VaultSurface {
 		| 'create'
 		| 'modify'
 		| 'delete'
-		| 'createFolder'
 		| 'on'
-	>;
+	> & {
+		/**
+		 * NOT picked from `Vault`, and the exception is deliberate.
+		 *
+		 * Obsidian declares `createFolder(path: string): Promise<TFolder>`
+		 * (`obsidian.d.ts:7312`), while `FakeVault.createFolder` and the `plugin.ts:79`
+		 * delegate both return `Promise<void>` — so picking it would fail type-checking the
+		 * moment the `*.test-d.ts` pulls this file in, before Task 11 can land.
+		 *
+		 * `Promise<unknown>` rather than widening the fakes, because the alternative touches
+		 * `tests/helpers/vault.ts` — the one file PR 25 edits — and would reopen the conflict
+		 * surface this plan just spent a round narrowing to a single `tsconfig.json` line. It
+		 * is a genuine widening rather than a fudge: `Promise<TFolder>` is assignable to it,
+		 * so production's real `Vault` satisfies this surface too, and the plugin's own callers
+		 * ignore the return value.
+		 *
+		 * The honest cost: this one member is anchored to what the plugin USES rather than to
+		 * what Obsidian declares. Recorded here rather than left for a reader to infer from the
+		 * `&`.
+		 */
+		createFolder(path: string): Promise<unknown>;
+	};
 	fileManager: Pick<FileManager, 'processFrontMatter' | 'trashFile'>;
 	metadataCache: Pick<MetadataCache, 'getFileCache'>;
 }
@@ -2594,10 +2627,19 @@ errors the moment the `*.test-d.ts` below pulls `plugin.ts` into `tsconfig.json`
   to match; the moment the surface becomes a `Pick` of the real interface, `npm run build`
   fails here before Task 11 can land.
 
-The second is the more useful of the two to notice: a widening does not stop at the type it
-widens, it propagates to every annotation written against the narrower one. `grep -n
-'RepositoryStack\|TFile' tests/helpers/plugin.ts` before running the build, so the set is
-derived rather than discovered one build failure at a time.
+A widening does not stop at the type it widens — it propagates to every annotation written
+against the narrower one, and those annotations are in a file the compiler has never looked at.
+
+**Do not try to find them by grep.** A draft prescribed `grep -n 'RepositoryStack\|TFile'`,
+which finds `mustHaveSurface` and `getAbstractFileByPath` and misses `createFolder` entirely —
+that line contains neither string, and its mismatch is a RETURN TYPE (`Promise<void>` against
+Obsidian's `Promise<TFolder>`). A grep over names cannot see a signature.
+
+The instrument that can is the compiler. Add the `*.test-d.ts` to `tsconfig.json` FIRST, run
+`npm run build`, and fix what it reports — every propagation, one build at a time, which is
+exactly what a type-checker is for. Two are known before you start (`mustHaveSurface`,
+`getAbstractFileByPath`) and a third is handled by the `createFolder` exception above; treat
+that list as a head start, not as the set.
 
 **`npm run build` cannot check either claim, and prescribing it here was theatre.**
 `tsconfig.json`'s `include` is `src/**/*.ts`, `src/**/*.vue`, `tests/harness/**/*.vue` and two

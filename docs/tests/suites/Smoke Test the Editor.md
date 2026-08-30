@@ -101,7 +101,9 @@ structural half is in `emptyStateOverlay.test.ts`. The other sixty-odd were not 
 time. So a `suite` verdict says the step COULD be a node test; confirming that it IS one, or
 writing it, is what converts that step from something a human does into something that runs.
 
-**One case has now had that done, and it is the template for the other eight.**
+**One case has now had that done, and it is the template for the other eight** — a template
+with a procedure: `.claude/skills/auditing-manual-test-cases/SKILL.md` is what that pilot cost
+turned into, and the eight remaining cases are what it exists for.
 [[Zone Editing Walkthrough]] carries a *What discharges each step* section naming the test
 behind each of its twenty `suite` and `browser` verdicts, read from the test BODY rather than
 matched on a name. **All seventeen of its `suite` steps are discharged**: four were not when

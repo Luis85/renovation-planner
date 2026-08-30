@@ -1030,6 +1030,21 @@ describe('ProjectDetailStore', () => {
 		expect(store.plans).toEqual([]);
 	});
 
+	/**
+	 * **There is exactly ONE case here for the completed scan, and an earlier draft of this
+	 * plan had two.** The second was written to discriminate `indexScanCompleted` — "has the
+	 * scan RUN" — from the "seen populated" rule it replaced, on the vault whose only project
+	 * note was deleted while Obsidian was closed. That distinction is real and it matters (the
+	 * wrong rule spins a restored pane for the session), but it **cannot be tested here**: this
+	 * store consumes an opaque boolean, so any case passing `true` hits this one branch the one
+	 * way, and the two cases were byte-identical bodies under different names. Found in review,
+	 * against a docblock claiming "every other case here passes under both rules; this one does
+	 * not" — which the store's own code could not make true.
+	 *
+	 * The discrimination lives where the flag is COMPUTED, not where it is consumed:
+	 * `startPersistence` sets it after `index.rebuild(...)` unconditionally, so a completed
+	 * EMPTY rebuild sets it exactly like a full one. Task 5 carries that case.
+	 */
 	it('is gone when the project is missing and the scan has completed', async () => {
 		const store = useProjectDetailStore();
 
@@ -1064,20 +1079,6 @@ describe('ProjectDetailStore', () => {
 		expect(store.status).toBe('ready');
 	});
 
-	/**
-	 * **The case that discriminates `indexScanCompleted` from the "seen populated" rule it
-	 * replaced.** A vault whose only project note was deleted while Obsidian was closed
-	 * rebuilds to a legitimately EMPTY index, so "populated" never becomes true, the `ok(null)`
-	 * arm never fires, and the pane spins for the session. Every other case here passes under
-	 * both rules; this one does not.
-	 */
-	it('reaches the list rather than spinning when the completed scan found nothing at all', async () => {
-		const store = useProjectDetailStore();
-
-		await store.hydrate(queriesAnswering({ getProject: () => Promise.resolve(ok(null)) }), PROJECT.id, true);
-
-		expect(store.status).toBe('gone');
-	});
 
 	/**
 	 * The ticket. A slower EARLIER read must not land on top of a faster later one — without
@@ -1599,6 +1600,47 @@ calls `renovationProjectDeps(root, workspace, vault)` with three arguments, and 
 a required fourth. Update that call to pass
 `{ projectId: null, navigate: () => undefined, indexScanCompleted: () => true }`, the same
 literal the two new cases in Step 7 use.
+
+- [ ] **Step 6a: Pin the index-scan flag where it is COMPUTED**
+
+This is the case Task 4 could not hold, moved to the layer that can. Add it to
+`tests/plugin/` beside the existing persistence-wiring cases (read
+`tests/plugin/persistence-wiring.test.ts` for how that file builds a plugin and drives
+`startPersistence`):
+
+```ts
+/**
+ * **The question is whether the scan has RUN, not whether it found anything**, and those are
+ * the same question only in a vault that still has projects.
+ *
+ * A vault whose only project note was deleted while Obsidian was closed rebuilds to a
+ * legitimately EMPTY index. Under a "has the index been populated" rule the flag never turns
+ * true, a restored detail leaf's `ok(null)` is never authoritative, and the pane holds its
+ * loading line for the rest of the session — trading a destroyed `projectId` for a permanent
+ * spinner, which is not a fix.
+ *
+ * `startPersistence` publishes `projectIndexRebuilt()` unconditionally after
+ * `index.rebuild(...)` — there is no count in the call and no branch above it — so a completed
+ * empty rebuild announces itself exactly like a completed full one, and the flag must follow
+ * that and not the entry count. This case fails against the rule it replaced; the store-level
+ * cases in Task 4 pass under both, which is why it lives here.
+ */
+it('reports the scan as completed after an empty rebuild', async () => {
+	const plugin = await loadedPluginWithEmptyVault();
+
+	expect(plugin.projectViewDeps(null, new FakeLeaf() as never).indexScanCompleted()).toBe(true);
+});
+```
+
+Adapt the construction to whatever that file already uses to reach a loaded plugin and its
+`projectViewDeps`; if the flag is not reachable from outside the class, assert it through the
+composed `RenovationProjectDeps` the factory hands back rather than widening the class's
+surface for a test.
+
+**Watch it fail against the rule it replaces**: change the assignment to
+`this.indexScanCompleted = index.entries().length > 0` (or the equivalent count test) and this
+case goes red while every Task 4 store case stays green. That contrast is its whole
+justification. Restore.
 
 - [ ] **Step 7: Add the wiring cases**
 

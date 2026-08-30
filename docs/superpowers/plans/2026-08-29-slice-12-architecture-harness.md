@@ -48,7 +48,9 @@
 | `tests/build/contractDiscriminates.test.ts` | New: spawns the child run, asserts exit code, collected count, case name, failing assertion | 9 |
 | `.fallowrc.json` | Modified: declare the fixture and its config as a seventh `entry` kind | 9 |
 | `tests/helpers/fixtureVault.ts` | New: `FixtureVaultAdapter` + `openFixtureVault` returning a fixture repository stack | 10 |
-| `tests/helpers/fixtureVault.test.ts` | New: the three hardening rules as adapter conformance cases | 10 |
+| `tests/helpers/fixtureVault.test.ts` | New: the hardening rules as adapter conformance cases | 10 |
+| `tests/helpers/fixtureVault.test-d.ts` | New: compile-time proof that both stacks satisfy `VaultSurface` | 11 |
+| `tsconfig.json`, `.fallowrc.json` | Modified: name that file, so it is compiled and not reported dead | 11 |
 | `tests/vault/broken-references/` | New: fixture content; a zone whose `plan` names a plan that does not exist | 11 |
 | `tests/plugin/brokenReferences.test.ts` | New: index builds fully, planted read refuses, healthy record still loads | 11 |
 | `tests/vault/legacy-schema/` | New: fixture content at the version below a test-only step | 12 |
@@ -1302,7 +1304,7 @@ interface Workflow {
 	readonly jobs: Record<
 		string,
 		{
-			readonly strategy?: { readonly matrix?: { readonly include?: readonly { os: string }[] } };
+			readonly strategy?: { readonly matrix?: { readonly include?: readonly { os: string; node: string }[] } };
 			// `if` is part of the shape at BOTH levels deliberately: the unconditional-execution
 			// case below reads them, and a type that omitted either would make that assertion
 			// unwritable. The JOB-level one is the half a first draft missed — see that case.
@@ -1320,22 +1322,42 @@ describe('CI invokes the definition of done', () => {
 	 * with this test still green, and direct commits to `main` then bypass every
 	 * architecture gate. SDD §8's wording is "every push/PR"; this matches it.
 	 */
-	it('runs on pull requests and on pushes to main', () => {
+	it('runs on pull requests and on pushes to main, UNFILTERED', () => {
 		expect(workflow.on.pull_request).toBeDefined();
 		expect(workflow.on.push?.branches).toContain('main');
+
+		// Presence is not enough, and this is the same conjunction defect the step/job
+		// condition case already had to fix. `pull_request: { types: [opened] }` passes the
+		// assertion above while no SYNCHRONIZE ever runs the gate — a PR verified once and
+		// never again after a fixup. `paths`/`paths-ignore` on either trigger passes it too,
+		// while a change touching only unfiltered paths skips verification entirely.
+		//
+		// A filter is refused rather than interpreted: a condition this test has to reason
+		// about is one it will eventually reason about wrongly, and the gate this slice builds
+		// has no business being conditional on which files a commit touched.
+		expect(workflow.on.pull_request).not.toHaveProperty('types');
+		expect(workflow.on.pull_request).not.toHaveProperty('paths');
+		expect(workflow.on.pull_request).not.toHaveProperty('paths-ignore');
+		expect(workflow.on.push).not.toHaveProperty('paths');
+		expect(workflow.on.push).not.toHaveProperty('paths-ignore');
 	});
 
 	/**
 	 * `npm run check` VERBATIM, not a re-enumeration of its steps. A workflow that spelled
 	 * out `build && lint && test` would drift silently the day `check` changes.
 	 */
-	it('runs npm run check on both platforms, as one command', () => {
+	it('runs npm run check on every declared leg, as one command', () => {
 		const verify = workflow.jobs['verify'];
-		const platforms = (verify?.strategy?.matrix?.include ?? []).map((leg) => leg.os);
+		const legs = (verify?.strategy?.matrix?.include ?? []).map((leg) => `${leg.os}:${leg.node}`);
 		const commands = (verify?.steps ?? []).map((step) => step.run).filter((run): run is string => run !== undefined);
 
-		expect(platforms.some((os) => os.startsWith('ubuntu'))).toBe(true);
-		expect(platforms.some((os) => os.startsWith('windows'))).toBe(true);
+		// EXACT tuples, not "at least one of each OS". `some(os.startsWith('ubuntu'))` stays
+		// true when the 24 and 26 legs are deleted, because 22 is still there — leaving two of
+		// the three ranges `engines.node` declares unexecuted, which is the defect
+		// `engines.node` itself exists to catch, moved to a different file.
+		// `tests/release/manifest.test.ts` deliberately pins only the FLOOR, so nothing else
+		// watches the other two.
+		expect(new Set(legs)).toEqual(new Set(['ubuntu-latest:22', 'ubuntu-latest:24', 'ubuntu-latest:26', 'windows-latest:22']));
 		expect(commands).toContain('npm run check');
 	});
 
@@ -2443,12 +2465,55 @@ silent gap, and the fakes stay free to be classes.
 the fixture adapter out through the back door while the parameter type advertised a structural
 contract. Annotate it `VaultSurface['vault']`.
 
-Run `npm run build` before moving on. Two things have to hold and neither is assumed: every
-existing caller still compiles (`RepositoryStack`'s three members satisfy the picks), and
-`FixtureVaultAdapter` satisfies them too. If a member turns out to be missing from either fake,
-ADD it to the fake — a surface the plugin calls and a fake lacks is the too-thin fake this
-repository has already paid for five times over, and narrowing the `Pick` to make it compile
-would be the same mistake written as a type.
+**`npm run build` cannot check either claim, and prescribing it here was theatre.**
+`tsconfig.json`'s `include` is `src/**/*.ts`, `src/**/*.vue`, `tests/harness/**/*.vue` and two
+individually named `*.test-d.ts` files — measured. Both `tests/helpers/plugin.ts` and the new
+`tests/helpers/fixtureVault.ts` are outside it, and Vitest transpiles without checking
+assignability, so an incomplete adapter or an incompatible existing caller passes the whole
+gate. That would defeat the entire point of replacing a cast with a structural contract:
+the cast at least failed loudly at runtime. Raised by a review bot against a step I had already
+conceded was weak and had not fixed.
+
+So the claim gets the mechanism this repository already uses for claims only a compiler can
+settle — a `*.test-d.ts` named individually in the include, exactly as
+`type-safety.test-d.ts` and `diagnostics.test-d.ts` are:
+
+Create `tests/helpers/fixtureVault.test-d.ts`:
+
+```ts
+import type { VaultSurface } from './plugin';
+import type { FixtureStack } from './fixtureVault';
+import type { RepositoryStack } from './vault';
+
+/**
+ * The structural vault surface, proven at COMPILE TIME — the only place it can be proven.
+ *
+ * `VaultSurface` was widened from a `Pick` over `FakeVault`'s classes so slice 12's
+ * disk-backed adapter can satisfy it too. Nothing at runtime can check that, and
+ * `npm run build` does not reach either helper, so without this file the widening is a
+ * claim in a comment.
+ *
+ * BOTH directions, because each half fails differently: the fixture adapter satisfying the
+ * surface is the new capability, and `RepositoryStack` still satisfying it is what says the
+ * widening broke no existing caller.
+ */
+const fixtureSatisfies: VaultSurface = null as unknown as Pick<FixtureStack, 'vault' | 'fileManager' | 'metadataCache'>;
+const fakeStillSatisfies: VaultSurface = null as unknown as Pick<RepositoryStack, 'vault' | 'fileManager' | 'metadataCache'>;
+
+export type { fixtureSatisfies, fakeStillSatisfies };
+```
+
+Then add it to `tsconfig.json`'s `include` and to `.fallowrc.json`'s `entry` list — nothing
+imports it and no npm script runs it, which is the fourth kind that file's comment already
+describes for the other two `*.test-d.ts` files. Named individually rather than globbed
+`tests/**/*.test-d.ts`, for the reason that comment gives: a glob absorbs the next file and
+tells nobody, including one whose `include` entry was forgotten.
+
+`npm run build` is then a real check for this, because `vue-tsc --noEmit` compiles what the
+include names. If a member turns out to be missing from either fake, ADD it to the fake — a
+surface the plugin calls and a fake lacks is the too-thin fake this repository has already paid
+for five times over, and narrowing the `Pick` to make it compile would be the same mistake
+written as a type.
 
 `tests/helpers/plugin.ts` is **not** among the files PR 25 edits (that is
 `tests/helpers/vault.ts`), so this is safe to make now.

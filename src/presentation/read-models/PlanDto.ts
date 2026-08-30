@@ -56,6 +56,19 @@ export interface ProjectSummaryDto {
 	readonly status: string;
 }
 
+/**
+ * A plan as a LIST ROW sees it (design slice 21) — deliberately not `PlanDto`.
+ *
+ * A row needs neither the background, the calibration nor the layers, and handing a component
+ * the full DTO makes it a consumer of fields it does not read: the next change to any of those
+ * three would then have to reason about a list that never wanted them. `ProjectSummaryDto` is
+ * the same distinction one entity up.
+ */
+export interface PlanSummaryDto {
+	readonly id: string;
+	readonly name: string;
+}
+
 export function toPlanDto(plan: Plan): PlanDto {
 	return {
 		id: plan.id,
@@ -83,4 +96,8 @@ export function toZoneDto(zone: Zone): ZoneDto {
 
 export function toProjectSummaryDto(project: Project): ProjectSummaryDto {
 	return { id: project.id, name: project.name, status: project.status };
+}
+
+export function toPlanSummaryDto(plan: Plan): PlanSummaryDto {
+	return { id: plan.id, name: plan.name };
 }

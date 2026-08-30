@@ -22,6 +22,7 @@ import {
 } from '../../../src/presentation/read-models/renovationProjectQueries';
 import {
 	toPlanDto,
+	toPlanSummaryDto,
 	toProjectSummaryDto,
 	toZoneDto,
 } from '../../../src/presentation/read-models/PlanDto';
@@ -101,6 +102,12 @@ describe('mapping an entity to a read model', () => {
 			name: 'Barn conversion',
 			status: project.status,
 		});
+	});
+
+	it('maps a Plan to the two fields a row renders and no more', () => {
+		const plan = makePlan({ projectId: createProjectId(), name: 'Ground floor' });
+
+		expect(toPlanSummaryDto(plan)).toEqual({ id: plan.id, name: 'Ground floor' });
 	});
 });
 

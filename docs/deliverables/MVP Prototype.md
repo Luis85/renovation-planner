@@ -2,8 +2,29 @@
 type: Deliverable
 parent: "[[User Experience]]"
 order: 20
-horizon: MVP
+horizon: Now
 status: Active
+started: ""
+finished: ""
+start: ""
+due: ""
+risk: ""
+priority: ""
+assignee: ""
+iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
 ---
 ## 1. Prototype Mission
 

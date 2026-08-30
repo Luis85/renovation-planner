@@ -2,16 +2,29 @@
 type: PBI
 parent: "[[Canvas navigation]]"
 order: 10
-status: "New"
+status: New
 started: ""
 finished: ""
-horizon: "MVP"
+horizon: Now
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
 ---
 
 # Switch the measurement unit in the plan editor

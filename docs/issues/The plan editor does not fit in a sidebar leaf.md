@@ -1,17 +1,29 @@
 ---
 type: Issue
 parent: "[[Plan editor and canvas]]"
-order: 10
-status: New
+order: 50
+status: Removed
 started: ""
-finished: ""
-horizon: "MVP"
+finished: 2026-08-30
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
 ---
 
 # The plan editor is unusable in a sidebar leaf

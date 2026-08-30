@@ -26,6 +26,27 @@ owns *how*.
 
 ---
 
+## Execution status
+
+This plan is being executed on this branch, task by task, so the tree ahead of you already
+contains the tasks marked done below. **A task's red step is performed when that task is
+executed, not re-performed from the branch tip** — a reader picking this up cold should start
+at the first task with no commit beside it, exactly as the ledger's resume rule says. Kept
+here rather than only in the (git-ignored) SDD ledger, so the branch itself records it.
+
+| Task | Status |
+|---|---|
+| 1 — `ListPlansByProject` and `PlanSummaryDto` | ✅ complete — `61f4883`, review clean |
+| 2 — `projectPlansChangeSource` | in progress |
+| 3–13 | not started |
+
+**Execution ORDER is not task order:** Task 5's `navigate` consumes Task 11's
+`navigateToProject`, and Task 11 depends on nothing in Tasks 1–10, so the order is
+1, 2, 3, 4, **11**, 5, 6, 7, 8, 9, 10, 12, 13. Numbering is left alone so that briefs, the
+ledger and the PR discussion keep naming the same things.
+
+---
+
 ## Deviation from the spec, decided before Task 1
 
 **The spec's decision 6 asks for a command id and a locale key that are both already taken,
@@ -3255,6 +3276,30 @@ describe('navigateToProject', () => {
 		expect(leaf.getViewState().state).toBeUndefined();
 	});
 
+	/**
+	 * **A throwing candidate lookup must not poison the chain**, which is the half that
+	 * outlives the gesture: an uncaught throw settles `navigationWrites` rejected, every later
+	 * `.then(step)` skips its callback, and project navigation is dead for the rest of the
+	 * session with nothing on screen to say why. Both assertions are load-bearing — reporting
+	 * the fault is equally true of a build whose chain never recovers. Reported by a review
+	 * bot.
+	 */
+	it('reports a throwing leaf lookup and still navigates afterwards', async () => {
+		const workspace = new FakeWorkspace();
+		const leaf = workspace.openLeafOfType(RENOVATION_PROJECT_VIEW);
+		const reportFault = vi.fn();
+		const deps = { workspace, reportFault };
+		const healthy = workspace.getLeavesOfType.bind(workspace);
+		workspace.getLeavesOfType = () => { throw new Error('boom'); };
+
+		await navigateToProject(deps, RENOVATION_PROJECT_VIEW, 'project-1');
+		workspace.getLeavesOfType = healthy;
+		await navigateToProject(deps, RENOVATION_PROJECT_VIEW, 'project-2');
+
+		expect(reportFault).toHaveBeenCalledTimes(1);
+		expect(leaf.getViewState().state).toEqual({ projectId: 'project-2' });
+	});
+
 	/** A door in this directory that REJECTS has no one to catch it. */
 	it('reports a rejecting setViewState and still resolves', async () => {
 		const workspace = new FakeWorkspace();
@@ -3356,20 +3401,34 @@ export async function navigateToProject(
 	if (!(await revealView(deps, type))) return;
 
 	navigationWrites = navigationWrites.then(async () => {
-		// Read INSIDE the chain, not before it: a request superseded while it waited its turn
-		// must not write at all, and by here the counter reflects everything that has arrived.
-		if (ticket !== latestNavigation) return;
-		const leaf = deps.workspace.getLeavesOfType(type)[0];
-		// The case the boolean does not cover: a successful activation whose leaf has since
-		// gone, and the create path having produced none.
-		if (leaf === undefined) return;
+		// The `try` wraps the WHOLE step, not just the write, and both halves of that matter.
+		//
+		// `getLeavesOfType` is a synchronous call into Obsidian that can throw, and
+		// `revealCandidate` next door already treats exactly that as a real workspace fault —
+		// its own comment records the round where a candidate lookup "sat one call out" and
+		// escaped the boundary. A throw here would leave this helper rejecting with nothing
+		// reported, which is the contract every door in this directory keeps.
+		//
+		// And the second consequence is worse than the first: an uncaught throw settles
+		// `navigationWrites` REJECTED, and a rejected promise makes every later
+		// `.then(step)` skip its callback — so one bad lookup would kill project navigation
+		// for the rest of the session, silently. Catching inside the callback is what makes
+		// the stored promise always FULFIL, so the chain recovers by construction rather than
+		// by anyone remembering to reset it. Reported by a review bot against this plan.
 		try {
+			// Read INSIDE the chain, not before it: a request superseded while it waited its
+			// turn must not write at all, and by here the counter reflects everything that
+			// has arrived.
+			if (ticket !== latestNavigation) return;
+			const leaf = deps.workspace.getLeavesOfType(type)[0];
+			// The case the boolean does not cover: a successful activation whose leaf has
+			// since gone, and the create path having produced none.
+			if (leaf === undefined) return;
 			await leaf.setViewState({ type, active: true, state: { projectId: projectId ?? '' } });
 		} catch (cause) {
 			// This step sits OUTSIDE `revealView`'s boundary, whose contract is that it does
 			// not reject — which is why its two detached callers hand it to `void` rather than
-			// to `runDetached`. Without this catch the chain would reject, and every later
-			// navigation queued behind it with it.
+			// to `runDetached`.
 			deps.reportFault(cause);
 		}
 	});

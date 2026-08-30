@@ -278,12 +278,39 @@ The ordering is a **latest-request ticket**, the idiom `ProjectStore.hydrate` an
 
 ```ts
 const ticket = ++latestNavigation;
-await revealView(deps, RENOVATION_PROJECT_VIEW);
+if (!(await revealView(deps, RENOVATION_PROJECT_VIEW))) return; // faulted; already reported
 if (ticket !== latestNavigation) return;   // a later choice arrived; it owns the leaf
 const leaf = deps.workspace.getLeavesOfType(RENOVATION_PROJECT_VIEW)[0];
-if (leaf === undefined) return;            // activation faulted; already reported
-await leaf.setViewState({ type: RENOVATION_PROJECT_VIEW, active: true, state: { projectId } });
+if (leaf === undefined) return;            // nothing to navigate
+try {
+	await leaf.setViewState({ type: RENOVATION_PROJECT_VIEW, active: true, state: { projectId } });
+} catch (cause) {
+	deps.reportFault(cause);               // this step is outside `revealView`'s boundary
+}
 ```
+
+**`revealView` has to ANSWER whether it worked, and an earlier draft of this block inferred
+that from the leaf existing.** It read `if (leaf === undefined) return;` under the sentence
+"an activation that failed leaves no leaf and has already been reported" — which is true of
+the CREATE path and false of the reuse path, the one this command takes in the normal case.
+`revealCandidate` wraps `await deps.workspace.revealLeaf(existing)` in its own fault boundary
+and RESOLVES after reporting (`revealView.test.ts`'s "answers a fault on the reuse path too"
+pins exactly that), so a failed reveal of an existing leaf leaves that leaf sitting in
+`getLeavesOfType`, the check passes, and the command goes on to mutate a leaf it just failed
+to show. Reported in review.
+
+So `revealView` returns `Promise<boolean>` — did this activation succeed — which is additive
+rather than the widening decision 6 refused above: it is a RETURN VALUE, not a parameter whose
+two callers want opposite answers, and both existing doors `void` the call and are unaffected.
+Leaf existence and activation success are two facts, and only one of them was being asked
+about.
+
+**The second `try` is not belt and braces either.** `revealView`'s contract is that it does not
+reject — which is why its two detached callers hand it straight to `void` rather than to
+`runDetached` — and this helper's own `setViewState` sits outside that boundary. Without the
+catch, the helper rejects and inherits whatever its caller happens to do, which is the
+unhandled-rejection shape `runDetached` exists to close. Answering it here keeps the whole
+door non-rejecting, the way every sibling in this directory already is.
 
 Superseded calls **drop their write** rather than queueing behind it, which is the difference
 between a ticket and a chain and is the right one here: a user who picked twice wants the
@@ -291,12 +318,11 @@ second project, not a remount to the first followed by a remount to the second. 
 module-scoped beside the helper, for the reason the coalescing map next door is — a subtlety
 re-remembered per caller is one that eventually is not.
 
-The early return is not defensive padding. `revealView` does not reject; it answers every
-fault through `reportFault`, once per activation. So an activation that failed leaves no leaf
-and has already been reported, and declining to navigate one that is not there is all that is
-left to do. The pair lives in `infrastructure/obsidian/workspace/` beside its siblings, because
-`plugin/` composing the two steps for itself would be the second activation path this decision
-refuses.
+The remaining `leaf === undefined` guard covers the case the boolean does not: a successful
+activation whose leaf has since gone, and the create path having produced none. The pair lives
+in `infrastructure/obsidian/workspace/` beside its siblings, because `plugin/` composing the
+two steps for itself would be the second activation path this decision refuses — and because
+`reportFault` is already a member of `RevealDeps`, so the fault door needs no new seam.
 
 **With no projects in the vault, the command reveals the LIST, not a picker and not a
 notice.** `open-plan-editor` answers `notify(tr('plan.none'))` in that situation, and this
@@ -402,7 +428,7 @@ Nothing outside `presentation/` learns that a detail state exists.
 | `read-models` addition | `PlanSummaryDto` — `{ id, name }`. A summary, not `PlanDto`: a list row needs no background, calibration or layers, and handing a component the full DTO makes it a consumer of fields it does not read. |
 | `modals/ProjectSuggestModal.ts` | A `FuzzySuggestModal` over the index's `renovation-project` entries, mirroring `PlanSuggestModal`. |
 | `application/events/projectPlansChangeSource.ts` | "The set of plans in THIS project changed" — the third change source, and the only one that can hear `PlanCreated`. See *Reads*. |
-| `infrastructure/obsidian/workspace/` addition | Reveal the singleton, then navigate it — the two steps decision 6 spells out, kept out of `plugin/` so there is no second activation path. |
+| `infrastructure/obsidian/workspace/` addition | Reveal the singleton, then navigate it — the two steps decision 6 spells out, kept out of `plugin/` so there is no second activation path. Carries the navigation ticket. |
 | `emptyStates` addition | `renovationProject.noPlans`, **with** an `actionLabel`. |
 
 **Changed**
@@ -431,7 +457,11 @@ Nothing outside `presentation/` learns that a detail state exists.
     cannot answer this one.
 - `ViewRoot.vue` — draws the list or `ProjectDetail` on `context.projectId`, read once per
   mount. Keeps its one `DialogHost`, which now has a second caller.
-- `plugin/` — registers the `open-project` command beside the existing ones.
+- `plugin/` — registers the `open-project` command beside the existing ones, and sets the flag
+  `indexScanCompleted()` reads, in the step that already publishes `projectIndexRebuilt()`.
+- `revealView` — returns `Promise<boolean>` rather than `Promise<void>`: whether the activation
+  succeeded. Additive, and both existing callers `void` it. See decision 6 for why leaf
+  existence could not answer that question.
 - `sampleProject.ts` and `emptyStates/content.ts` — the two docblocks whose stated trigger this
   slice fires.
 - **`CLAUDE.md`** — **two** paragraphs stop being true here, counted by reading that file
@@ -751,7 +781,12 @@ the design this document shipped with, and nothing else here would:
   deliberately settling last** — the ordering is a ticket, not an accident of scheduling, and
   a case whose two calls happen to resolve in issue order passes against a build that has no
   ordering at all;
-- an empty vault reveals the **list** state rather than opening a zero-row picker.
+- an empty vault reveals the **list** state rather than opening a zero-row picker;
+- a **failed reveal of an existing leaf** navigates nothing. `revealCandidate` reports that
+  fault and RESOLVES, leaving the leaf in `getLeavesOfType`, so this case fails against any
+  build that infers success from the leaf being there — which every other case here passes
+  with. Its pair: a `setViewState` that rejects is reported through `reportFault` and the
+  helper still resolves, since a door in this directory that rejects has no one to catch it.
 
 **Wiring** — that the root hands the view both new queries, guarded, and that the refusal
 bundle carries them; and that it hands the view `openPlan` and `onPlansChanged` bound to the

@@ -2256,6 +2256,13 @@ FIVE edits" does not apply.
 - Modify: `src/plugin/composition-root.ts` (`renovationProjectDeps`'s `commands`)
 - Modify: `src/presentation/i18n/locales/en.ts`, `de.ts`
 - Modify: `tests/plugin/renovationProjectCommandWiring.test.ts`
+- Modify: `tests/helpers/makeRenovationProjectView.ts` — **`createPlan` is REQUIRED on
+  `RenovationProjectCommandServices`, so the helper's annotated `defaults` stops compiling the
+  moment this task lands.** That is the annotation doing its job (Task 5 left `commands` alone
+  deliberately). Add
+  `createPlan: new CreatePlanCommand(plans, projects, events)` beside `createProject`, using the
+  `plans` repository Task 5 introduced, and note in the docblock that the default now ANSWERS a
+  plan creation — the harness page can seed one by hand.
 
 **Interfaces:**
 - Consumes: `useFormCommit<CreatePlanInput, { plan: Loaded<Plan> }>({ initial, dispatch, errorMap, toUserMessage, logger })`.

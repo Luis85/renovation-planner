@@ -1611,11 +1611,22 @@ it('binds onPlansChanged to the root’s own event bus, filtered to the project'
 
 /**
  * `openPlan` is bound to the REAL `revealPlanEditor`, which is criterion 2's whole route from
- * the layer that raises the event to the layer allowed to import that function. Asserted on
- * the leaf that ends up holding the plan, because "setViewState was called" is equally true
- * of a build that opened the wrong thing.
+ * the layer that raises the event to the layer allowed to import that function.
+ *
+ * **A SPY on that function, because the criterion names the method and it names it for a
+ * reason.** An earlier draft of this plan asserted on the leaf that ends up holding the plan,
+ * which proves only that something left a leaf in the requested state — a composition that
+ * spelled the state transition itself, or routed through some other activation helper, passes
+ * that assertion identically. What criterion 2 is about is the two doors SHARING one function,
+ * and only a spy on the function can see that. Reported by a review bot; criterion 2 reads
+ * "proven by a spy on that function rather than by driving both paths and comparing results",
+ * and the draft did neither.
+ *
+ * `vi.mock` the module rather than the export, since the composition root imports the binding
+ * directly; check how `tests/plugin/planEditorWiring.test.ts` reaches its own collaborators
+ * before choosing the spelling.
  */
-it('binds openPlan to revealPlanEditor', async () => {
+it('binds openPlan to the real revealPlanEditor', async () => {
 	const { root, workspace, vault } = await composedRoot();
 	const deps = renovationProjectDeps(root, workspace, vault, {
 		projectId: null,
@@ -1625,8 +1636,11 @@ it('binds openPlan to revealPlanEditor', async () => {
 
 	await deps.openPlan('plan-01JXXX');
 
-	const leaf = workspace.getLeavesOfType(PLAN_EDITOR_VIEW)[0];
-	expect(leaf?.getViewState().state).toEqual({ planId: 'plan-01JXXX' });
+	expect(revealPlanEditorSpy).toHaveBeenCalledWith(
+		expect.objectContaining({ workspace }),
+		PLAN_EDITOR_VIEW,
+		'plan-01JXXX',
+	);
 });
 ```
 

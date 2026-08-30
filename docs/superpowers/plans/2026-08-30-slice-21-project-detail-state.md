@@ -3472,11 +3472,28 @@ export async function navigateToProject(
 npx vitest run tests/infrastructure/obsidian/workspace/
 ```
 
-Delete `if (ticket !== latestNavigation) return;` → the "ends on the later project" case goes
-RED and every other case stays green. That contrast is the case's whole justification. Restore.
+Delete `if (ticket !== latestNavigation) return;` → **the "performs no write at all for a
+request superseded in the same tick" case goes RED**, and the mid-write ordering case stays
+green. Restore.
+
+**Point it at that case and no other, because the obvious target does not discriminate.** An
+earlier draft of this step said the mid-write "ends on the later project" case would go red,
+and it does not: the write CHAIN alone serializes call one's write before call two's, so the
+later project is final whether the ticket is there or not. Removing the ticket changes only
+whether the superseded request writes AT ALL — two writes recorded instead of one — which is
+exactly what the same-tick case asserts and what the mid-write case, asserting final state,
+cannot see. The two mechanisms answer different questions and each needs the case that can
+fail for it. Reported by a review bot, against a step whose own case docblock had already said
+this ("a chain alone would remount to the first project and then to the second… asserting only
+the final state cannot tell the two apart") — the reasoning was right in the comment and never
+carried into the instruction.
 
 Then change `if (!(await revealView(deps, type))) return;` to `await revealView(deps, type);`
 → "navigates nothing when revealing an existing leaf faulted" goes RED. Restore.
+
+Then make the chained step's `try` cover the write alone (move `getLeavesOfType` above it) →
+"reports a throwing leaf lookup and still navigates afterwards" goes RED on BOTH assertions.
+Restore.
 
 - [ ] **Step 5: Run the gate and commit**
 

@@ -83,11 +83,11 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 68 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus, paint, or an input grammar jsdom cannot produce | 31 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 49 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 69 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 31 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 47 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
-| `judgement` | Records an answer or an eye's verdict. There is no pass condition for any instrument to settle | 7 |
+| `judgement` | Records an answer or an eye's verdict. There is no pass condition for any instrument to settle. It BEATS the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim | 8 |
 
 165 steps across nine cases. The counts are `grep`ed out of these files rather than carried
 over from the notes the classification was drafted in, so a re-tagged step moves the number.
@@ -149,7 +149,7 @@ that over-reaches.
 of these steps are already inside the jsdom suite's reach — this file has grown case by
 case, and no earlier pass ever asked which steps the suite had caught up with. The steps that
 genuinely need a vault are not spread evenly either: two cases, [[Notices and save state]] and
-[[A Project Owns Its Folder]], hold 27 of the 49 `obsidian` steps between them, because one
+[[A Project Owns Its Folder]], hold 26 of the 47 `obsidian` steps between them, because one
 surface is drawn by Obsidian's own `Notice` and the other is about where files sit. The
 `browser` tier is the one this triage was made to price, and three review rounds moved it in
 both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
@@ -179,7 +179,12 @@ file rather than a claim about where anything sits on screen. The hit was printe
 approved without being read. This project's own rule for exactly that — measure a set with
 an instrument that can see all of it, and test the instrument first — is worth re-reading
 before the next sweep of these files: a regex over prose finds the WORD, and every verdict
-here turns on what the word is doing in the sentence.
+here turns on what the word is doing in the sentence. Re-run later with *under*, a word the
+original pattern also lacked, it produced four hits and no change: a `.rpgeo` file "sits under
+its own project's `Geometry/` folder" is a PATH, an error appearing "under both fields" is
+which field it routes to, and a keyboard zoom moving "the world under the still pointer" is
+neither. That miss cost nothing, which is worth recording beside the one that cost a verdict —
+an instrument is not judged by whether it fires wrongly but by whether its hits get read.
 
 **Nothing checks these verdicts.** They are a reading of each pass condition, and a step whose
 condition is rewritten without its verdict being re-read will carry a stale one. Treat a

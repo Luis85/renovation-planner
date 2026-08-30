@@ -500,6 +500,38 @@ const isUnderTempDir = (candidate: string): boolean => {
 };
 
 /**
+ * Refuses a symlink anywhere in the clone, and does it at the ONE door the clone is made.
+ *
+ * `absolute()`'s containment is LEXICAL — it reads the path, not the filesystem — so a
+ * symlink is contained by that test and escapes in fact: `cpSync` preserves one, and a write
+ * through the cloned link lands on its target. Measured on Node 22.22.2, an absolute symlink
+ * out of a fixture let a write through the clone modify a file outside it.
+ *
+ * **`cpSync`'s own options do not close this**, which is worth recording because it is the
+ * obvious remedy and it fails: `dereference: true`, `verbatimSymlinks: false`, and both
+ * together each still produced a symlink in the clone and still let the write escape — all
+ * four combinations measured, all four escaped.
+ *
+ * So the fixture is REFUSED rather than sanitised. These are checked-in directories this
+ * repository controls; a symlink in one is a mistake, not a scenario, and refusing at the
+ * clone closes the class for every later operation instead of asking each of them.
+ *
+ * What it does NOT cover, named rather than implied: a symlink created DURING a test. Nothing
+ * does today — `create` writes files and `createFolder` makes directories — and closing that
+ * would mean a `realpath` syscall on every `absolute()` call, which is every read and every
+ * write in every fixture-backed suite.
+ */
+const refuseSymlinks = (directory: string, within: string): void => {
+	for (const entry of readdirSync(directory, { withFileTypes: true })) {
+		const child = join(directory, entry.name);
+		if (entry.isSymbolicLink()) {
+			throw new Error(`Fixture vault contains a symlink, which cannot be cloned safely: ${relative(within, child)}`);
+		}
+		if (entry.isDirectory()) refuseSymlinks(child, within);
+	}
+};
+
+/**
  * Opens `tests/vault/<caseName>` as a disk-backed repository stack: a writable temp-dir
  * CLONE of the checked-in fixture, with every collaborator `NoteVaultDeps` and the five
  * repositories need constructed over it — mirroring `createRepositoryStack` exactly, for
@@ -508,6 +540,7 @@ const isUnderTempDir = (candidate: string): boolean => {
 export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 	const root = mkdtempSync(join(tmpdir(), 'rp-vault-'));
 	cpSync(join('tests/vault', caseName), root, { recursive: true });
+	refuseSymlinks(root, root);
 
 	const vault = new FixtureVaultAdapter(root);
 	// The cache reads the vault; the vault holds the create-window record. One direction only,

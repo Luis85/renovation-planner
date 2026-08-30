@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
+import { tmpdir } from 'node:os';
+import process from 'node:process';
 import { TFile, TFolder } from 'obsidian';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
 import { expectOk } from './domain';
@@ -11,6 +13,22 @@ afterEach(() => {
 	open?.dispose();
 	open = null;
 });
+
+/**
+ * Whether this platform will create a symlink at all. Windows needs Developer Mode or
+ * elevation and throws `EPERM`, so the symlink case below is skipped rather than branched.
+ */
+const canSymlink = ((): boolean => {
+	const probe = mkdtempSync(join(tmpdir(), 'rp-symlink-probe-'));
+	try {
+		symlinkSync(join(probe, 'target'), join(probe, 'link'));
+		return true;
+	} catch {
+		return false;
+	} finally {
+		rmSync(probe, { recursive: true, force: true });
+	}
+})();
 
 describe('the fixture vault adapter', () => {
 	/**
@@ -375,5 +393,43 @@ describe('the fixture vault adapter', () => {
 		expect(file.stat.size).toBe(readFileSync(join(open.root, 'Project.md'), 'utf8').length);
 		expect(file.stat.mtime).toBeGreaterThan(0);
 		expect(file.stat.ctime).toBeGreaterThan(0);
+	});
+	/**
+	 * A symlinked fixture is refused at the clone, because containment in `absolute()` is
+	 * LEXICAL and a symlink defeats it in fact: `cpSync` preserves one, and a write through
+	 * the cloned link lands on its target — measured, a write through the clone modified a
+	 * file outside it. `cpSync`'s own options do not help; `dereference: true`,
+	 * `verbatimSymlinks: false` and both together were each measured still producing a
+	 * symlink in the clone and still escaping.
+	 *
+	 * Driven against a fixture this case BUILDS, not one checked in: a symlink in the
+	 * repository would be the very thing the guard exists to refuse, and git's handling of one
+	 * differs across the platforms this suite runs on. Built and torn down in a `finally`,
+	 * because a failing assertion between the two would otherwise leave a fixture directory
+	 * in the working tree — measured, by watching this case fail.
+	 *
+	 * **Skipped where the platform will not create a symlink at all** — Windows needs
+	 * Developer Mode or elevation and throws `EPERM` otherwise. `skipIf` rather than a branch
+	 * around the assertion, so the skip is REPORTED by the runner instead of passing silently:
+	 * on that leg this case asserts nothing, and the guard it covers is exercised by the
+	 * Ubuntu legs only.
+	 */
+	it.skipIf(!canSymlink)('refuses a fixture containing a symlink', () => {
+		const staging = mkdtempSync(join(tmpdir(), 'rp-symlink-case-'));
+		const caseDir = join('tests/vault', `symlink-probe-${process.pid}`);
+		try {
+			writeFileSync(join(staging, 'outside.md'), 'outside');
+			mkdirSync(caseDir, { recursive: true });
+			writeFileSync(join(caseDir, 'Project.md'), '---\nid: "x"\n---\n');
+			symlinkSync(join(staging, 'outside.md'), join(caseDir, 'link.md'));
+
+			// SYNCHRONOUSLY, which is what this function already does for a missing fixture —
+			// `mkdtempSync`/`cpSync` throw before any promise exists — so the guard is
+			// consistent with its neighbours rather than with its `Promise` return type.
+			expect(() => openFixtureVault(basename(caseDir))).toThrow(/contains a symlink/u);
+		} finally {
+			rmSync(caseDir, { recursive: true, force: true });
+			rmSync(staging, { recursive: true, force: true });
+		}
 	});
 });

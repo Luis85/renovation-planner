@@ -39,5 +39,6 @@ describe('foldersOverlap', () => {
 	// unusable rather than merely odd.
 	it('is true when either side is the vault root', () => {
 		expect(foldersOverlap('', 'Renovation/Kitchen refit')).toBe(true);
+		expect(foldersOverlap('Renovation/Kitchen refit', '')).toBe(true);
 	});
 });

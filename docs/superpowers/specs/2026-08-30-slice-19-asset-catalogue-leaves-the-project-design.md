@@ -74,9 +74,28 @@ contain the Asset schema?** Measured on unshallowed history:
 
 - `src/domain/asset/Asset.ts` first appears at `d7d8ee0` (2026-08-26).
 - The commit carrying the `## [0.1.0] - 2026-08-22` section is `26d37b6` (2026-08-24).
-- `git ls-tree -r 26d37b6 | grep -E "^src/.*[Aa]sset"` returns **nothing**. The nine
+- `git ls-tree -r --name-only 26d37b6 | grep -E "^src/.*[Aa]sset"` returns **nothing**. The nine
   asset-named paths in that tree are documentation and one skill reference; no `src/` Asset
   code or schema shipped in 0.1.0.
+
+**`--name-only` is load-bearing, and the first draft of this list omitted it.** Plain
+`git ls-tree -r` prints `100644 blob <oid>\tsrc/…`, so an anchored `^src/` matches no line at
+all — the probe as first written returns nothing against **every** tree, `HEAD` included, where
+Asset unambiguously exists. The measurement behind the conclusion did use `--name-only`; the
+command recorded as its evidence did not, so what got written down was a probe with no
+discriminating power presented as proof.
+
+The instrument is therefore shown discriminating rather than asserted, which is the only form of
+this evidence worth keeping:
+
+| Probe | Tree | Answer |
+| --- | --- | --- |
+| `ls-tree -r` + `^src/` (as first written) | `HEAD` | nothing — **broken; finds Asset nowhere** |
+| `ls-tree -r --name-only` + `^src/` | `HEAD` | **18 paths**, `src/domain/asset/Asset.ts` among them |
+| `ls-tree -r --name-only` + `^src/` | `26d37b6` | nothing — **the real claim** |
+
+Row two is what makes row three mean something. *"Watching a test fail proves it can fail;
+watching it fail against the opposite mistake is what proves it discriminates."*
 
 So no user vault holds an Asset note at any schema version, and there is no bump. The criterion
 is rewritten to ask **that** — *no released commit contained Asset v1* — rather than either the

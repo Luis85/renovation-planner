@@ -178,8 +178,8 @@ them discharged on an assertion covering part of a row, and UNDER-reported it at
 calling covered ground a gap by taking a test's name as its whole claim. The corrections came from a reviewer in
 every case but this one.
 
-**Six mutations were run for the five gaps and the one correction, and several are the evidence
-for the claims above rather than a ritual.** Removing the selection `VLine` from
+**Seven mutations were run for the five gaps and the one correction, and several are the
+evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
 `InteractionLayer.vue` reddens the two new overlay cases and leaves the other thirteen in this
 file green, which is what "a `Circle` count is silent about the outline beside it" MEANS.
 Leaving the overlay behind on deselection — the store still clearing correctly — reddens the new
@@ -192,7 +192,11 @@ one asserting the preview is non-null. And the vertex mutation
 reddened two, which is how the step 7 correction above was found. And leaving the geometry
 entry in the sidecar on a successful delete reddens one case out of the 422 in
 `tests/infrastructure/obsidian/repositories/` — the sharpest of the five, since every other
-assertion about that delete is note-side and a missing note already reads as absent.
+assertion about that delete is note-side and a missing note already reads as absent. That case
+carries a SIBLING zone for a reason a seventh mutation measured: reading the sidecar cannot
+tell an absent file from an empty one, so a delete that wiped the whole plan's geometry —
+every other zone with it — satisfied `not.toContain` perfectly until something else on the
+plan had to survive.
 
 ### What the pilot cost, for the eight cases still to do
 

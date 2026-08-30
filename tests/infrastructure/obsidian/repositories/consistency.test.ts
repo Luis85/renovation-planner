@@ -116,6 +116,12 @@ describe('compensated sequences', () => {
 		const zoneId = createZoneId();
 		const written = expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
 
+		// A SIBLING on the same plan, because `sidecarObjectIds` cannot tell an absent file
+		// from an empty one: without it, a delete that removed the whole plan's sidecar —
+		// every other zone's geometry with it — satisfies `not.toContain` perfectly.
+		const siblingId = createZoneId();
+		expectOk(await stack.zones.save(makeZoneEntity({ id: siblingId, projectId, planId }), 'absent'));
+
 		const sidecarPath = sidecarPathOf(stack, projectId, planId);
 		expect(sidecarObjectIds(stack, sidecarPath)).toContain(zoneId);
 
@@ -127,7 +133,9 @@ describe('compensated sequences', () => {
 		// the only place that shows it, and the compensation cases above cover the FAILING
 		// half of this pair, never this one.
 		expect(zoneNoteText(stack, zoneId)).toBeUndefined();
-		expect(sidecarObjectIds(stack, sidecarPath)).not.toContain(zoneId);
+		const remaining = sidecarObjectIds(stack, sidecarPath);
+		expect(remaining).not.toContain(zoneId);
+		expect(remaining).toContain(siblingId);
 	});
 
 	it('a failed note write after the sidecar was created (plan INSERT) deletes the sidecar', async () => {

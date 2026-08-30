@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Notice } from 'obsidian';
+// Mock-only surface, imported BY NAME. `Notice` carries members
+// the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
+// `'obsidian'` specifier type-checks against a surface that has no such thing. The
+// vitest alias points that specifier at this very file, so this is the SAME class and
+// the same statics — proven, not assumed — and the import now says which surface it
+// wants.
+import { Notice } from '../../../helpers/obsidian-mock';
 import { Decimal } from 'decimal.js';
 import { settleUntil as until } from '../../../helpers/editor';
 import { click, PROJECT_ID, rig, toolbarButton } from '../../../helpers/planEditorRig';

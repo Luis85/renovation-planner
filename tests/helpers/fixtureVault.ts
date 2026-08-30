@@ -20,9 +20,9 @@
  * Every caller gets an isolated writable CLONE; the checked-in tree is read-only input.
  */
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative } from 'node:path';
+import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
-import { TFile, TFolder } from 'obsidian';
+import { TFile, TFolder, type FileStats } from 'obsidian';
 import type { LogLevel, Logger } from '../../src/application/ports/Logger';
 import { EchoWindow } from '../../src/infrastructure/persistence/index/EchoWindow';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
@@ -59,13 +59,36 @@ import type { Line } from './logger';
  * the mock's own header exists to prevent, introduced one directory away from it.
  */
 /** `path` is VAULT-RELATIVE and forward-slashed — never an OS path. See `absolute()`. */
-const fileAt = (path: string): TFile => {
+/**
+ * Whether `candidate` resolves inside `root` — the containment question, asked ONCE.
+ *
+ * `relative()` answers a path, and reading that path is where this gets subtle:
+ * `startsWith('..')` is the obvious test and it is WRONG, because a legal in-root name may
+ * itself begin with two dots. Measured: `..draft.md` and `..notes/file.md` are ordinary
+ * filenames, and `relative(root, root + '/..draft.md')` is `'..draft.md'` — refused by the
+ * naive test, though it never leaves the clone. Only an exact `..`, or a `..` followed by the
+ * separator, is a step OUT.
+ *
+ * One function because this file asked the same question in two places and got two different
+ * answers: `absolute()`'s guard and `isUnderTempDir`'s both spelled it `startsWith('..')`, and
+ * both carried this defect. The commit that added the first one said, of a different pair of
+ * doors, that a question worth asking at one door is a function and the moment it is spelled
+ * out longhand anywhere the count of places it is missing is unknowable — and then spelled it
+ * out longhand. Reported by a review bot.
+ */
+const containedIn = (root: string, candidate: string): boolean => {
+	const fromRoot = relative(root, candidate);
+	return !isAbsolute(fromRoot) && fromRoot !== '..' && !fromRoot.startsWith(`..${sep}`);
+};
+
+const fileAt = (path: string, stat?: FileStats): TFile => {
 	const segments = path.split('/');
 	const file = new TFile();
 	file.path = path;
 	file.name = segments.at(-1) ?? '';
 	file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/u, '');
 	file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
+	if (stat !== undefined) file.stat = stat;
 	return file;
 };
 
@@ -139,7 +162,7 @@ class FixtureVaultAdapter {
 			}
 			writeFileSync(this.absolute(path), data, 'utf8');
 			this.pending(path, null);
-			return Promise.resolve(fileAt(path));
+			return Promise.resolve(fileAt(path, this.statOf(path)));
 		} catch (cause) {
 			return Promise.reject(cause);
 		}
@@ -159,12 +182,14 @@ class FixtureVaultAdapter {
 	getAbstractFileByPath(path: string): TFile | TFolder | null {
 		const absolute = this.absolute(path);
 		if (!existsSync(absolute)) return null;
-		if (!statSync(absolute).isDirectory()) return fileAt(path);
+		if (!statSync(absolute).isDirectory()) return fileAt(path, this.statOf(path));
 
 		const folder = folderAt(path);
 		const prefix = path === '' ? '' : `${path}/`;
 		folder.children = readdirSync(absolute, { withFileTypes: true }).map((entry) =>
-			entry.isDirectory() ? folderAt(`${prefix}${entry.name}`) : fileAt(`${prefix}${entry.name}`),
+			entry.isDirectory()
+				? folderAt(`${prefix}${entry.name}`)
+				: fileAt(`${prefix}${entry.name}`, this.statOf(`${prefix}${entry.name}`)),
 		);
 		return folder;
 	}
@@ -258,11 +283,11 @@ class FixtureVaultAdapter {
 	}
 
 	getMarkdownFiles(): TFile[] {
-		return this.walkFiles().filter((path) => path.endsWith('.md')).map((path) => fileAt(path));
+		return this.walkFiles().filter((path) => path.endsWith('.md')).map((path) => fileAt(path, this.statOf(path)));
 	}
 
 	getFiles(): TFile[] {
-		return this.walkFiles().map((path) => fileAt(path));
+		return this.walkFiles().map((path) => fileAt(path, this.statOf(path)));
 	}
 
 	readBinary(): Promise<ArrayBuffer> {
@@ -287,6 +312,28 @@ class FixtureVaultAdapter {
 	 * `undefined` rather than a throw, because "no such file" is an ANSWER at this door and the
 	 * cache's three-way result depends on telling it apart from an empty file.
 	 */
+	/**
+	 * The clone's real stat for a path, as Obsidian's `TFile.stat` — mirroring
+	 * `FakeVault.nodeAt`, which sets `file.stat` on every file it hands out.
+	 *
+	 * Every `TFile` from here carried the mock's default `{ ctime: 0, mtime: 0, size: 0 }`
+	 * until a review bot noticed what that costs: `fileStatAt` records `mtime:size` as the
+	 * bound on `frontmatterOf`'s echo fallback, so a whole vault of files reporting `0:0`
+	 * makes every pair of writes look like the same write. An external edit restoring earlier
+	 * bytes would be read as this plugin's OWN echo rather than withdrawing the fallback — so
+	 * a fixture-backed conflict test could pass while the real adapter preserves the external
+	 * edit. A stat that type-checks and says nothing, believed by whoever reads it: the same
+	 * defect `vault.ts` records for the same field, in the sibling fake.
+	 *
+	 * Read from disk per lookup rather than cached, for the reason the metadata cache is:
+	 * a snapshot is a second place for the truth to live, and staleness is better made
+	 * unrepresentable than refreshed.
+	 */
+	statOf(path: string): FileStats {
+		const { ctimeMs, mtimeMs, size } = statSync(this.absolute(path));
+		return { ctime: ctimeMs, mtime: mtimeMs, size };
+	}
+
 	readOrUndefined(path: string): string | undefined {
 		const absolute = this.absolute(path);
 		return existsSync(absolute) && !statSync(absolute).isDirectory() ? readFileSync(absolute, 'utf8') : undefined;
@@ -338,8 +385,7 @@ class FixtureVaultAdapter {
 	 */
 	private absolute(vaultPath: string): string {
 		const resolved = join(this.root, ...vaultPath.split('/'));
-		const contained = relative(this.root, resolved);
-		if (contained.startsWith('..') || isAbsolute(contained)) {
+		if (!containedIn(this.root, resolved)) {
 			throw new Error(`Path escapes the fixture clone: ${vaultPath}`);
 		}
 		return resolved;
@@ -450,8 +496,7 @@ const DEFAULT_PROJECT_FOLDER = 'Renovation';
  * pass this one.
  */
 const isUnderTempDir = (candidate: string): boolean => {
-	const fromTempDir = relative(tmpdir(), candidate);
-	return fromTempDir !== '' && !fromTempDir.startsWith('..') && !isAbsolute(fromTempDir);
+	return candidate !== tmpdir() && containedIn(tmpdir(), candidate);
 };
 
 /**

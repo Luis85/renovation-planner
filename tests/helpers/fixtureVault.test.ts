@@ -334,4 +334,46 @@ describe('the fixture vault adapter', () => {
 		open.metadataCache.catchUp();
 		expect(open.metadataCache.getFileCache(file)?.frontmatter?.['name']).toBe('Renamed Twice');
 	});
+	/**
+	 * The containment guard must refuse a step OUT and nothing else.
+	 *
+	 * `..draft.md` is an ordinary filename, and `relative(root, root + '/..draft.md')` is
+	 * `'..draft.md'` — which a `startsWith('..')` test refuses though it never leaves the
+	 * clone. Both arms here, because that is the mutation shape the guard's own commit
+	 * message named and its author then failed to run: when a fix is a REFUSAL, write the
+	 * WIDENED refusal and check it still admits what it should. Reported by a review bot,
+	 * against the fix for the previous one.
+	 */
+	it('admits an in-root name that begins with two dots, while still refusing a step out', async () => {
+		open = await openFixtureVault('valid-project');
+
+		await expect(open.vault.create('..draft.md', 'legal')).resolves.toBeDefined();
+		await expect(open.vault.create('..notes/../..also-legal.md', 'legal')).resolves.toBeDefined();
+		expect(open.vault.getAbstractFileByPath('..draft.md')).not.toBeNull();
+
+		await expect(open.vault.create('../escaped.md', 'x')).rejects.toThrow(/escapes the fixture clone/u);
+	});
+
+	/**
+	 * Every `TFile` carries the clone's REAL stat, not the mock's `{ ctime: 0, mtime: 0,
+	 * size: 0 }` default.
+	 *
+	 * `fileStatAt` bounds `frontmatterOf`'s echo fallback on `mtime:size`, so a vault of files
+	 * all reporting `0:0` makes every pair of writes look like the same write — an external
+	 * edit restoring earlier bytes reads as this plugin's own echo instead of withdrawing the
+	 * fallback. `FakeVault.nodeAt` has set `file.stat` since `main` gave it a real mtime; this
+	 * adapter did not, which is the same fake-thinner-than-its-sibling gap the metadata window
+	 * had.
+	 *
+	 * Asserted on the SIZE as well as on distinctness, because a stat that merely differs
+	 * would pass a counter that has nothing to do with the file.
+	 */
+	it('gives every file the clone\'s real stat rather than the mock default', async () => {
+		open = await openFixtureVault('valid-project');
+		const file = open.vault.getAbstractFileByPath('Project.md') as TFile;
+
+		expect(file.stat.size).toBe(readFileSync(join(open.root, 'Project.md'), 'utf8').length);
+		expect(file.stat.mtime).toBeGreaterThan(0);
+		expect(file.stat.ctime).toBeGreaterThan(0);
+	});
 });

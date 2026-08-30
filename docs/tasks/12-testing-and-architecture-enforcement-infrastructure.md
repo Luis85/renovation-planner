@@ -620,10 +620,35 @@ Infrastructure-specific:
       module's mirrored path, `tests/{contracts,fixtures,vault}` exist alongside the
       `helpers/`, `build/`, `harness/` and `release/` directories already on disk, and
       no `unit/`, `integration/` or `architecture/` directory has been reintroduced.
-- [ ] `vitest.config.ts` runs the node-default / jsdom-opt-in split described in §1,
-      and a check asserts the two projects' collected files union to every
-      `tests/**/*.test.ts` on disk — so no existing suite (`build/`, `harness/`,
-      `release/`, `helpers/`' consumers) is dropped by the split.
+
+      `tests/vault/` now exists, with **two of four** cases carrying a consumer that
+      exercises their content as a SCENARIO (`broken-references/`, `legacy-schema/`).
+      Say two, not three: `valid-project/`'s own conformance suite
+      (`fixtureVault.test.ts`) opens it, and one case there does read `Project.md`
+      through a constructed repository and assert `entity.name` on the result — but
+      that is a smoke check that the read path works, not a consumer exercising this
+      fixture's content as the scenario the other two are (a refusal that must not
+      crash the plugin, a migration that must be idempotent). An adapter smoke-use is
+      not a fixture-content consumer, and counting it as one is how `valid-project/`
+      would come to look delivered. `large-project/` is dropped — see the Integration
+      Test Vault item below.
+- [ ] ~~`vitest.config.ts` runs the node-default / jsdom-opt-in split~~ — **WITHDRAWN**,
+      paired with `tests/build/test-environments.test.ts`. `environment: 'node'` is already
+      the default with jsdom opted in per file, and forgetting a docblock fails loudly. The
+      split would introduce a hazard the current design does not have — a file matched by
+      neither project silently never running — which is why the original item pairs it with
+      a union check: a guard invented to cover a risk the split itself creates.
+
+      The hole the default really has is the opposite one: ADDING a jsdom docblock where it
+      does not belong switches off the indirect-DOM enforcement the node default is credited
+      with. The replacement check resolves the EFFECTIVE environment of every collected file
+      in `tests/core/`, `tests/domain/`, `tests/application/` and anything reaching
+      `tests/contracts/` through the import graph, and requires `node`.
+
+      Read the withdrawal narrowly: without that check the honest status of this item is
+      "outstanding", not "withdrawn". The predicate was corrected six times before it stopped
+      being a paraphrase of the property; a seventh correction is the signal that the split
+      is the answer after all.
 - [ ] Each of Geometry, Money, Quantity, Domain has at least one passing suite,
       owned by the slice named in §2's table.
 - [ ] The Application Test pattern is demonstrated for at least one command
@@ -636,8 +661,22 @@ Infrastructure-specific:
       correctness, and no `.spec.ts` file exists anywhere under `src/`.
 - [ ] The Canvas Adapter Test harness is set up; all three named behaviors (render,
       transform completion, selection) are covered.
-- [ ] The Integration Test Vault exists with all four cases, and is the only
-      Vault-shaped data any automated test touches.
+- [ ] The Integration Test Vault exists with all four cases, and is the only Vault-shaped
+      data any automated test touches. — **PARTLY MET, and not ticked.** TWO cases have a
+      consumer this round — `broken-references/` and `legacy-schema/`. `valid-project/`
+      ships as a directory the adapter opens and nothing SCENARIO-shaped asserts about it,
+      though `fixtureVault.test.ts` does read one value out of it (`entity.name`) as a smoke
+      check on the read path itself — see the layout item above for the same distinction.
+      `large-project/` is **DROPPED from this round**: its
+      assertion was revised four times, it proves only single enumeration and linear
+      metadata-cache I/O, and the shared operation recorder it needs is the one edit in this
+      slice that cannot proceed in parallel with PR 25. Its design is kept in the spec so a
+      later round with a real performance question picks it up rather than rediscovering it.
+
+      The second clause is **false as this lands** and is recorded rather than left standing:
+      the existing Obsidian contract arm (`tests/infrastructure/obsidian/repositories/
+      contract.test.ts`, through `createRepositoryStack`) still runs against `FakeVault`.
+      Repointing it is a carry-forward, not this slice's work.
 - [ ] The Architecture Test Rules — the per-layer ESLint blocks and the `node` default
       environment, the two mechanisms §8 lists, `fallow` deliberately not among them —
       both run inside the single `npm run check` CI invokes on Ubuntu and Windows, and
@@ -645,8 +684,28 @@ Infrastructure-specific:
       fires. No `dependency-cruiser` config exists — see §8, including the indirect-import
       gap it names rather than claims to close.
 
+      Both mechanisms now have a planted-violation meta-test under `tests/build/`:
+      `layer-boundaries.test.ts` fires every (block × extension × import shape) cell of the
+      ESLint rule, and `tests/domain/nodeEnvironment.test.ts` proves the node default catches
+      an indirect DOM reach no per-file lint rule can see. `ci-invokes-check.test.ts` asserts
+      both run inside the single `npm run check` CI invokes on both platforms and on both
+      triggers.
+
+      Four cells are **recorded as unprobeable rather than skipped**, and their two causes are
+      deliberately kept apart because a limitation attributed to the wrong cause sends the
+      next reader to do work that cannot help. `.tsx`, `.mts` and `.cts` have no
+      `parserOptions.projectService`, so the prerequisite is widening that scope, not adding
+      a fixture. The catch-all block × `.ts` has no probeable path at all: `src/prototypes/`
+      is the only unnamed subtree and holds no `.ts` file.
+
+      **The indirect PACKAGE-import gap stays open**, as slice 1 already records. The
+      node-environment test catches a DOM global at runtime, not an import graph.
+
 Phase-level exit gate — the SDD's Architecture Completion Criteria (§92), reproduced
 in full as the condition under which feature development may begin:
+
+Item 13 now has a test — `tests/plugin/brokenReferences.test.ts` — but the gate as a whole
+stays open: its own text defers it until every slice exists.
 
 1. [ ] Domain logic runs without Obsidian.
 2. [ ] Domain logic runs without Vue.

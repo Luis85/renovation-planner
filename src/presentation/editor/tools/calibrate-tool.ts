@@ -51,8 +51,22 @@ export interface CalibrateToolDeps {
 	 * an `AppError`, so the notice reporting it can resolve the user-facing copy from the
 	 * error's `code`. Declared as `{ message: string }` for two slices, which is exactly
 	 * what made this one gesture report a refusal in the log's own untranslated words.
+	 *
+	 * DISPATCHED refusals only, since design slice 17 — see `reportInvalidInput` below.
 	 */
 	readonly reportRejected: (error: AppError) => void;
+	/**
+	 * Where a refusal this tool made ITSELF reaches the user — one it raised before building a
+	 * command, so `commandDispatcher.run` was never entered and nothing downstream heard about
+	 * it.
+	 *
+	 * A separate door from `reportRejected` rather than a parameter, because which of the two a
+	 * call site holds is a fact about that line and is what a reader has to be able to see.
+	 * Design slice 17 routes a dispatched refusal to the save indicator (which
+	 * `withSaveStateTracking` has already set) and this one to a notice — one shared door made
+	 * every pre-dispatch refusal silent.
+	 */
+	readonly reportInvalidInput: (error: AppError) => void;
 }
 
 /**
@@ -308,7 +322,7 @@ export class CalibrateTool implements EditorTool {
 			// returning silently wiped a point the user had placed and gave no reason for it.
 			// The same coded refusal `deriveCalibration` would have raised, from the one factory
 			// that spells it, so the two cannot drift into describing one failure two ways.
-			this.deps.reportRejected(coincidentPointsError());
+			this.deps.reportInvalidInput(coincidentPointsError());
 			return;
 		}
 		// The plan is bound BEFORE the prompt: whatever the user answers, the points were

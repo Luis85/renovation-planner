@@ -223,9 +223,15 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 			const held = entries.find((entry) => entry.handle === null && entry.severity === 'error');
 			if (held === undefined) return;
 
+			// **Never a warning the user is interacting with.** `paused` means the pointer is over
+			// it or its dismiss control has focus, and the queue's existing contract is that a
+			// message must not vanish from under somebody reading it — hiding it here would also
+			// take the focused button out of the tab order mid-interaction. With every visible
+			// warning paused the error stays held, which is the same answer the cap already gives
+			// and strictly better than stealing focus. Reported by a review bot.
 			const victim = visible()
 				.toReversed()
-				.find((entry) => entry.severity === 'warning');
+				.find((entry) => entry.severity === 'warning' && !entry.paused);
 			if (victim === undefined) return;
 
 			victim.handle?.hide();

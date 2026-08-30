@@ -181,7 +181,6 @@ export const en = {
 	// a mapped one. `GetPlan` succeeded and correctly reported that no plan resolves.
 	'editor.plan-missing.headline': 'This plan no longer exists',
 	'editor.plan-missing.body': 'This tab points at a plan that is not in the vault any more.',
-	'editor.plan-missing.action': 'Close this tab',
 	// The bootstrap failure, which takes NO action: nothing that reads a configured location was
 	// composed, so there is nothing to re-run, and slice 1 already refused a repair UI. What to
 	// fix lives in the settings tab.

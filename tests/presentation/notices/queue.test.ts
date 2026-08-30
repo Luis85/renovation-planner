@@ -113,6 +113,20 @@ describe('the notice queue', () => {
 			expect(live().map((o) => o.view.message)).toContain('third');
 		});
 
+		it('leaves a HOVERED warning alone and holds the error instead', () => {
+			// The queue's pause contract outranks preemption: `paused` means the pointer is over
+			// that notice or its dismiss control has focus, and taking it away mid-read — or
+			// pulling a focused button out of the tab order — is worse than making the error
+			// wait. With every visible warning paused there is no victim, so the error stays
+			// held, which is exactly what the cap alone would have done.
+			const { queue, live, opened } = threeStandingWarnings();
+			for (const entry of opened) entry.callbacks.pause();
+
+			queue.push('error', 'urgent');
+
+			expect(live().map((o) => o.view.message)).toEqual(['first', 'second', 'third']);
+		});
+
 		it('does not preempt for another WARNING', () => {
 			// The narrowing, and it needs its own case: a rule letting any later notice preempt
 			// would pass all three cases above while making the cap mean nothing.

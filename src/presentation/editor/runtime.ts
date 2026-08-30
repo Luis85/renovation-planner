@@ -124,18 +124,22 @@ const AUTOSAVE_SINKS: SurfaceSinks = {
 };
 
 /**
- * A tool's rejected command, reported where the table says it belongs.
+ * A tool's DISPATCHED command refused, reported where the table says it belongs.
  *
- * A named function rather than an inline arrow at each binding, because the ORIGIN is the
- * reviewable fact here: `reportRejected: reportAutosaveRejection` states what kind of gesture
- * a tool is, where a reader of `registerEditorTools` can see it beside its sibling's
- * `notifyOperationFailure`.
+ * Every tool here dispatches through `context.commandDispatcher`, which is the wrapped
+ * dispatcher `withSaveStateTracking` decorates — so by the time a refusal reaches this
+ * function the save indicator has already been set from the same `Result`. The origin is
+ * `autosave-write` and this door's whole job is to make sure a toast is NOT also raised: one
+ * failure through two widgets that can drift apart is the defect design slice 17 exists to
+ * close.
  *
- * A drawing or dragging gesture writes through the tracked dispatcher, so its refusal is an
- * `autosave-write` and the indicator already carries it — this door exists to make sure a
- * toast is NOT also raised for it. Calibration is not one of those: it is a multi-click
- * operation the user drove deliberately, so it takes the shared `notifyOperationFailure`, and
- * until this slice's calibration task lands its refusal has no field to attach to either.
+ * **Its pair is `notifyOperationFailure`, bound to every tool's `reportInvalidInput`**, and
+ * the pairing is the correction a review bot found. A tool refuses in two places — before it
+ * builds a command (`createPolygon` declining the geometry, calibration declining two clicks
+ * in one spot) and after dispatching one — and only the second has an indicator behind it.
+ * Binding both to this one sent every pre-dispatch refusal to a save-state sink that is
+ * deliberately a no-op, so an invalid polygon close said nothing at all. The tools carry two
+ * doors now, so the distinction is visible at the binding rather than inferred from the tool.
  */
 function reportAutosaveRejection(error: AppError): void {
 	surfaceError(error, { kind: 'autosave-write' }, AUTOSAVE_SINKS);
@@ -159,6 +163,7 @@ function registerEditorTools(
 			createMoveGesture: (zoneId, forward, inverse) =>
 				new ReversibleMoveZoneCommand(context.commands.moveObject, ledger, zoneId, forward, inverse),
 			reportRejected: reportAutosaveRejection,
+			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
 	toolManager.register(
@@ -173,6 +178,7 @@ function registerEditorTools(
 				),
 			nextZoneName: () => `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
 			reportRejected: reportAutosaveRejection,
+			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
 	toolManager.register(
@@ -202,7 +208,8 @@ function registerEditorTools(
 				return result.values;
 			},
 			createCommand: () => context.commands.calibratePlan(),
-			reportRejected: notifyOperationFailure,
+			reportRejected: reportAutosaveRejection,
+			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
 }

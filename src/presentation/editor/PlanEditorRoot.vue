@@ -100,6 +100,15 @@ function hydrate(): void {
  */
 const failure = computed(() => {
 	if (status.value === 'missing') {
+		// **No action, and the reason is a missing SEAM rather than a decision that none is
+		// wanted.** The state should offer a way out of the tab, and `PlanEditorContext` carries
+		// no door to close a leaf — the view owns every Obsidian object the tree may not touch,
+		// so adding one means widening that interface, and reaching for the global `app` instead
+		// is what the marketplace rules refuse. Rendering the explanation without a control is
+		// slice 14's own amendment applied here: a button that cannot do its job is worse than
+		// no button. `editor.plan-missing.action` was added with this entry and REMOVED again
+		// when the action was not wired, because an unused locale key reads as a control
+		// somebody forgot to render.
 		return {
 			headline: tr('editor.plan-missing.headline'),
 			body: tr('editor.plan-missing.body'),

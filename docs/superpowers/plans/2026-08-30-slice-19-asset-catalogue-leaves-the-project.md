@@ -386,21 +386,50 @@ Delete `projectFolderFrom`.
 Run: `npx vitest run tests/plugin/settings/settings.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Add the settings definition**
+- [ ] **Step 5: Add the settings definition — a `folder` control with a `validate`, NOT a `text` one**
 
-In `SettingsTab.getSettingDefinitions()`, after the project-folder item:
+**Read this before writing the row.** `setControlValue` calls `saveSettings` directly, on
+**every** control change — so a `text` control here would persist an intermediate value on the
+way to a real one, and (per Task 4) fire a catalogue migration for each. Typing
+`Shared/Catalogue` over `Renovation/Library` would move the notes through
+`Renovation/Librar`, `Renovation/Libra`, … and through the DEFAULT, because `settingsFrom`
+falls an empty string back to `Renovation/Library`. `docs/tasks/19` says this row "needs no
+new branch, because `getControlValue` / `setControlValue` are keyed generically" — true of a
+preference, false of a migration, and that sentence is one of the amendments Task 10 owes.
+
+Two Obsidian 1.13 features close it, and neither is used anywhere in this repository yet:
 
 ```ts
 			{
 				name: tr('settings.library-folder.name'),
 				desc: tr('settings.library-folder.desc'),
 				control: {
-					type: 'text',
+					// A FOLDER picker, not free text: the value is chosen whole rather than
+					// typed character by character. `includeRoot` defaults to false, which
+					// matters here — `foldersOverlap` treats the vault root as containing
+					// everything, so the root is never an offerable library.
+					type: 'folder',
 					key: 'libraryFolder',
 					defaultValue: DEFAULT_SETTINGS.libraryFolder,
+					// Runs BEFORE the value is persisted and renders its message inline
+					// beneath the row. This is where §83's refusal belongs — earlier than
+					// the migration, and with a surface of its own.
+					validate: (value: string) => {
+						for (const projectFolder of projectFolders()) {
+							if (foldersOverlap(value, projectFolder)) {
+								return tr('settings.library-folder.overlaps');
+							}
+						}
+					},
 				},
 			},
 ```
+
+**A residue to state rather than assume:** the typings do not say whether a `folder` control
+calls `setControlValue` once on selection or on each keystroke while its suggester is open.
+Obsidian cannot run in this repository, so no test here settles it — which is exactly why Task
+4 no longer hangs a migration off this path at all. `docs/tests/cases/` is where it gets
+looked at.
 
 `en.ts` (sentence case — the lint rule fails a capitalised mid-sentence word):
 
@@ -546,23 +575,57 @@ export async function migrateLibraryFolder(
 
 - [ ] **Step 4: Run and watch them pass.**
 
-- [ ] **Step 5: Route `saveSettings` through it**
+- [ ] **Step 5: Trigger it from an EXPLICIT action, never from `saveSettings`**
 
-In `RenovationPlannerPlugin.saveSettings`, before `createCompositionRoot`:
+**The obvious wiring is wrong and would be destructive.** `setControlValue` calls
+`saveSettings` on every control change, so hanging the migration off `saveSettings` fires one
+catalogue move per intermediate value — including the default, because `settingsFrom` falls an
+empty string back to it. `saveSettings` also has no serialization, so two changes overlap and
+interleave their `renameFile` loops. Neither is a preference bug; both destroy data.
+
+So the migration is reached only from a `SettingDefinitionAction` row — a button, with no
+control and therefore no per-change write:
 
 ```ts
-		// A library-folder CHANGE is a migration and owns its own persistence; every other
-		// settings change is an ordinary save. Comparing normalised values, so a trailing
-		// slash is not a move.
-		const current = this.root.settings?.libraryFolder;
-		if (current !== undefined && normalizeFolder(next.libraryFolder) !== normalizeFolder(current)) {
-			const migrated = await migrateLibraryFolder(this.libraryMigrationDeps(), current, next.libraryFolder);
-			if (isErr(migrated)) {
-				notifyError(migrated.error);
-				return;
-			}
-		}
+			{
+				name: tr('settings.library-folder.move.name'),
+				desc: tr('settings.library-folder.move.desc'),
+				// `disabled` is evaluated on each render, so a run in flight disables its own
+				// button — the serialization `saveSettings` does not provide.
+				disabled: () => this.migrating,
+				action: () => {
+					runDetached(this.logger, 'settings.library-move', async () => {
+						this.migrating = true;
+						try {
+							const from = this.host.root.settings?.libraryFolder;
+							if (from === undefined) return;
+							const to = await this.askDestination();
+							if (to === null) return;
+							const migrated = await migrateLibraryFolder(this.libraryMigrationDeps(), from, to);
+							if (isErr(migrated)) notifyError(migrated.error);
+						} finally {
+							this.migrating = false;
+						}
+					});
+				},
+			},
 ```
+
+Three properties, each inherited rather than invented:
+
+- **One explicit submit.** `askDestination()` opens slice 15's `FormDialog`, whose
+  `openDialog` THROWS if a dialog is already open — a second concurrent migration cannot be
+  started even if the button's `disabled` were wrong.
+- **`runDetached`** is the plugin's one door for a handler that returns nothing, so a fault
+  maps, logs and notifies (SDD §66) instead of becoming an unhandled rejection. An `action`
+  callback returns `void`, which is exactly the shape that door exists for.
+- **The setting is never written by the control on this path.** `migrateLibraryFolder`
+  persists as its own last step, so the file changes only after the notes have moved.
+
+**What the `validate` in Task 3 Step 5 still buys**, given this button: it refuses an
+overlapping folder at the moment of *choosing* one, inline, before the user presses anything —
+`foldersOverlap` is asked twice on purpose, and the migration's own check in Step 3 is the one
+that is load-bearing, because a project folder can be dragged between the two moments.
 
 - [ ] **Step 6: Gate and commit**
 
@@ -1135,6 +1198,13 @@ Read the capture by eye. Spacing, wrapping and contrast are measurements no gate
 - [ ] **Step 2: Apply the five amendments the spec lists**
 
 In `docs/tasks/19`: the schema-bump justification rewritten to *no release exists, verified against the remote*; `foldersOverlap` described as written here rather than as existing; *"slice 18's two sites"* corrected to one; the three-refusals Definition of Done item split into two refusals plus the row marker; `PersistenceError` → `RepositoryError` in the `Interfaces & Contracts` snippets.
+
+**A sixth amendment, found while planning.** That document says the library-folder row "needs
+no new branch, because `getControlValue` / `setControlValue` are keyed generically". True of a
+preference and false of a migration: `setControlValue` calls `saveSettings` on every control
+change, so a generic text row would move the catalogue once per keystroke and once through the
+default. The row is a `folder` control with a `validate`, and the migration hangs off a
+separate action button — see Task 3 Step 5 and Task 4 Step 5.
 
 - [ ] **Step 3: Tick slice 10's seven open criteria**
 

@@ -115,6 +115,7 @@ that renames it breaks the citation visibly.
 | 12 | the sidecar entry disappears | `consistency` *a SUCCESSFUL delete takes the geometry entry with the note, not just the note* |
 | 12 | the panel reads "Nothing selected." | the same `zoneEditing` case |
 | 13 | undo returns the zone with the same shape | the same `zoneEditing` case — it compares the restored points to the originals |
+| 13 | the NOTE is back in the vault ("open the note and check") | **compositional, and no single case crosses the seam.** `ReversibleDeleteZone.undo` restores through `restoreZone` → `zones.save(snapshot, 'absent')`, and the zone-repository contract's *save with 'absent' inserts at revision 1 and reads back* covers that write; the `zoneEditing` case above proves the history reaches it, over `InMemoryZoneRepository`. A dedicated Obsidian-backed restore case was considered and not written: its mutation is a mutation of `save`, which reddens eight cases nobody wrote for it, so by the skill's own gate it would add nothing |
 | 14 | redo deletes it again | `zoneEditing` *redoes a DELETE, which is the one command whose own undo put the entity back* |
 | 17 | a click on a handle moves nothing | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
 | 17 | and Undo does not enable | the same case — it asserts no history entry |
@@ -178,7 +179,7 @@ them discharged on an assertion covering part of a row, and UNDER-reported it at
 calling covered ground a gap by taking a test's name as its whole claim. The corrections came from a reviewer in
 every case but this one.
 
-**Seven mutations were run for the five gaps and the one correction, and several are the
+**Eight mutations were run for the five gaps and the one correction, and several are the
 evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
 `InteractionLayer.vue` reddens the two new overlay cases and leaves the other thirteen in this
 file green, which is what "a `Circle` count is silent about the outline beside it" MEANS.
@@ -196,7 +197,9 @@ assertion about that delete is note-side and a missing note already reads as abs
 carries a SIBLING zone for a reason a seventh mutation measured: reading the sidecar cannot
 tell an absent file from an empty one, so a delete that wiped the whole plan's geometry —
 every other zone with it — satisfied `not.toContain` perfectly until something else on the
-plan had to survive.
+plan had to survive. An eighth mutation, a delete that trashes nothing, reddens it too — and
+would NOT have before the note assertion stopped asking the INDEX for a path the delete had
+just removed, which answered `undefined` for a note still sitting in the vault.
 
 ### What the pilot cost, for the eight cases still to do
 

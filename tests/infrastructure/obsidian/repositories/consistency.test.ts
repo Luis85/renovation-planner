@@ -125,6 +125,12 @@ describe('compensated sequences', () => {
 		const sidecarPath = sidecarPathOf(stack, projectId, planId);
 		expect(sidecarObjectIds(stack, sidecarPath)).toContain(zoneId);
 
+		// Captured BEFORE the delete: `zoneNoteText` asks the INDEX for the path, and the
+		// delete removes that entry — so it answers `undefined` for a note still sitting in
+		// the vault, and a trash that silently did nothing would pass it.
+		const notePath = stack.index.getPath(zoneId);
+		expect(notePath).toBeDefined();
+
 		expectOk(await stack.zones.delete(zoneId, written.version));
 
 		// The note going is all `getById` needs to answer "absent" — it reads the note first —
@@ -132,7 +138,7 @@ describe('compensated sequences', () => {
 		// success from every note-side assertion in this suite. The sidecar's own contents are
 		// the only place that shows it, and the compensation cases above cover the FAILING
 		// half of this pair, never this one.
-		expect(zoneNoteText(stack, zoneId)).toBeUndefined();
+		expect(stack.vault.entries.get(notePath ?? '')).toBeUndefined();
 		const remaining = sidecarObjectIds(stack, sidecarPath);
 		expect(remaining).not.toContain(zoneId);
 		expect(remaining).toContain(siblingId);

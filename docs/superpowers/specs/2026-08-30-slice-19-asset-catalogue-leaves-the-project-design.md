@@ -57,15 +57,37 @@ The task document justifies leaving `ASSET_MIGRATIONS` empty with a fact about h
 `src/infrastructure/persistence/dto/assetFrontmatter.ts` are both in `origin/main`'s tree. The
 sentence is false as written.
 
-The conclusion is unchanged, because the *criterion* was written against a different word than
-the *argument* was. The Definition of Done says **released**, and `git tag --list` answers zero
-— this repository has never cut a release, so no user vault holds an Asset note at any schema
-version. No bump.
+The conclusion is unchanged, but **not for the reason the first draft of this section gave**,
+and the correction is worth more than the conclusion.
 
-This is the document's own falsifier paying out as designed: it fired on the argument and left
-the conclusion standing. The prose is rewritten to the fact that is actually load-bearing —
-*no release exists* — and the `git log main..` half of the criterion is dropped, because it now
-measures something that is true and irrelevant.
+That draft argued *no release exists*, on the evidence that `git tag --list` answers zero. Both
+halves were wrong. `git tag --list` reads the clone, not the remote — and this clone was
+**shallow** when it was asked, having been narrowed by an earlier `--depth=1` fetch, so it was
+the weakest available instrument for a question about history. And a release did happen:
+`CHANGELOG.md` carries a dated `## [0.1.0] - 2026-08-22`, `manifest.json` reads `0.1.0`, and
+`tests/release/changelog.test.ts` states the rule in its own comment — *"The date is what says a
+version shipped rather than being unreleased."* By this repository's own instrument, 0.1.0
+shipped.
+
+What actually establishes the conclusion is the narrower question: **did any released commit
+contain the Asset schema?** Measured on unshallowed history:
+
+- `src/domain/asset/Asset.ts` first appears at `d7d8ee0` (2026-08-26).
+- The commit carrying the `## [0.1.0] - 2026-08-22` section is `26d37b6` (2026-08-24).
+- `git ls-tree -r 26d37b6 | grep -E "^src/.*[Aa]sset"` returns **nothing**. The nine
+  asset-named paths in that tree are documentation and one skill reference; no `src/` Asset
+  code or schema shipped in 0.1.0.
+
+So no user vault holds an Asset note at any schema version, and there is no bump. The criterion
+is rewritten to ask **that** — *no released commit contained Asset v1* — rather than either the
+stale `git log main..` clause or the false and clone-dependent *no release exists*.
+
+**Two lessons, and the second is the one this repository already has a rule for.** A falsifier
+is only as good as the instrument it is asked with, and `git tag --list` is a fact about a
+clone. And a criterion rewritten in a hurry inherits the defect it was replacing: the first
+draft replaced one unverified claim about history with another, which is this file's own
+*"measure a set with an instrument that can see all of it, and test the instrument first"*
+broken in the act of applying it. Found by a review bot, not by me.
 
 ## Correction 2: `foldersOverlap` does not exist
 
@@ -95,7 +117,7 @@ and Trade catalogues of every project with it."* A drag can reach that state tod
 anywhere says so.
 
 **The decision is to detect after the fact and warn.** Two real refusals at the two sites that
-exist, plus a watcher at the door where the drag actually becomes visible. A refusal is
+exist, plus a watcher at **both** doors through which the drag becomes visible. A refusal is
 unavailable — the move has already happened — so the guarantee is narrowed to *the state stops
 being silent*, and the Definition of Done item is rewritten to that rather than left promising
 three refusals.
@@ -113,13 +135,41 @@ Two alternatives were weighed and are recorded so they are not re-proposed:
 
 ## The overlap watcher
 
-`VaultChangeAdapter` is the home, and it is the only candidate: slice 16 established it as the
-sole index writer for notes arriving by hand, copy or sync, and it already announces
-`ProjectIndexEntryChanged` over an `EventBus`. A folder drag reaches the plugin as exactly that
-— a `Project.md` at a new path with its folder re-derived beneath it.
+**The index has TWO doors, and the first draft of this section named one of them.** It said
+`VaultChangeAdapter` was "the home, and it is the only candidate", which is false and false in
+a shape this repository has already paid for.
 
-After an index mutation that changes a project's derived folder, it asks
-`foldersOverlap(derivedFolder, libraryFolder)` and reports a hit.
+- `VaultChangeAdapter` is the incremental door — the sole index writer for notes arriving by
+  hand, copy or sync while the plugin is running, already announcing `ProjectIndexEntryChanged`
+  over an `EventBus`.
+- `RenovationPlannerPlugin` holds the other: `index.rebuild(buildProjectIndexEntries({…}))`, the
+  load-time full scan. `grep -rn "rebuild" VaultChangeAdapter.ts` returns nothing — the adapter
+  never sees one.
+
+A project folder moved **while Obsidian is closed or the plugin is disabled** reaches the plugin
+only through that rebuild. No mutation is ever delivered, so a watcher on the incremental door
+alone would never run — and that is the likelier path by some margin, because tidying a vault's
+folders with the app shut is exactly how people reorganise. It is also precisely the state that
+makes deleting a project take the shared library with it, so the door that misses it is the door
+that matters most.
+
+CLAUDE.md already carries the rule this violates, from the sidecar-mapping fix: **"One rule with
+two doors is two rules unless one function holds it."** That defect had the same shape down to
+the asymmetry — the join lost its folder prefix at both ends and only the full scan got a
+diagnostic, while the incremental door went on misbehaving. `sidecarMappingFor` is the shape to
+copy: one function, both callers, and the caller list measured by a test rather than asserted,
+the way `entityRef.test.ts` pins its two.
+
+So the check is **one predicate asked at both doors**:
+
+- **Incremental**: after an index mutation that changes a project's derived folder, ask
+  `foldersOverlap(derivedFolder, libraryFolder)` for that one entry.
+- **Load-time rebuild**: sweep every project's derived folder against the library once, after
+  the rebuild. Slice 13's `(severity, message)` dedup folds a multi-project hit into one notice
+  at `(×N)`, so the sweep does not become a burst.
+
+Reported by a review bot, which also caught that "the only candidate" was doing the work of an
+argument in a sentence that had never been checked.
 
 Three properties follow from the architecture rather than being chosen:
 
@@ -156,13 +206,16 @@ discovery.
 
 ## Amendments owed to `docs/tasks/19`
 
-- The schema-bump justification, rewritten to *no release exists*; the `git log main..` clause
-  dropped from the criterion.
+- The schema-bump justification, rewritten to *no released commit contained Asset v1* — the
+  `git log main..` clause dropped, and the *no release exists* wording refused: 0.1.0 shipped
+  on 2026-08-22 and the criterion has to ask about that release's tree, not about whether one
+  happened.
 - `foldersOverlap` described as written here, not as existing.
 - The Design section's *"creating a project and changing a project's folder (slice 18's two
   sites)"* — slice 18 has one such site, not two.
-- The Definition of Done's three-refusals item, split: two refusals, plus a watcher whose
-  guarantee is detection and whose surface is a persistent warning.
+- The Definition of Done's three-refusals item, split: two refusals, plus **one overlap
+  predicate asked at both index doors** — the incremental adapter and the load-time rebuild —
+  whose guarantee is detection and whose surface is a persistent warning.
 - `PersistenceError` → `RepositoryError` in the `Interfaces & Contracts` snippets.
 
 ## What this does not change

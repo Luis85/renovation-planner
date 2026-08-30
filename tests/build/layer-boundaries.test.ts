@@ -464,3 +464,190 @@ describe('the blocks declaring no-restricted-imports', () => {
 		expect(BAN_BLOCKS.map((block) => block.key).toSorted()).toEqual(banning.toSorted());
 	});
 });
+
+/**
+ * `lintText` takes ONE path, and the extension in that path is what selects the applicable
+ * `files` globs — so imports combined into one synthetic module cannot exercise `.js`,
+ * `.jsx`, `.mjs`, `.cjs` and `.vue` at once. One call per (block, extension) pair, each
+ * carrying that block's every forbidden import in every shape.
+ */
+const plantedLine = (planted: Planted): string =>
+	planted.names === undefined
+		? `import '${planted.specifier}';`
+		: `import { ${planted.names.join(', ')} } from '${planted.specifier}';`;
+
+const sourceFor = (block: BlockProbe, extension: string): string => {
+	const body = block.forbidden.map(plantedLine).join('\n');
+	if (extension !== 'vue') return `${body}\n`;
+	return `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n`;
+};
+
+/** The `.ts` probe uses the block's REAL path; every other extension is synthetic. */
+const pathFor = (block: BlockProbe, extension: string): string =>
+	extension === 'ts' ? block.path : block.path.replace(/[^/]+$/u, extension === 'vue' ? 'Fixture.vue' : `fixture.${extension}`);
+
+/** An SFC's script block starts on line 3, so a planted import's line is offset. */
+const lineOffset = (extension: string): number => (extension === 'vue' ? 2 : 0);
+
+const probe = (block: BlockProbe, extension: string): Promise<Diagnostic[]> =>
+	lintDetailed(sourceFor(block, extension), pathFor(block, extension));
+
+/**
+ * The catch-all block × `.ts` has NO probeable path, and its cause is deliberately not
+ * filed with the `.tsx`/`.mts`/`.cts` gap above though the symptom is identical.
+ *
+ * Those three fail because no block grants them parser services. This one fails because no
+ * real `.ts` file exists in an unnamed subtree: a nonexistent `.ts` is refused by the project
+ * service; the only real `.ts` outside the six layer subtrees is `src/main.ts`, which selects
+ * the ROOT block; and `src/prototypes/` — the only unnamed subtree — holds five `.vue` files
+ * and one `.md`, measured, no `.ts` at all.
+ *
+ * Widening parser options would fix those three and not this one; adding a file would fix
+ * this one and not those three. Attributing a limitation to the wrong cause sends the next
+ * reader to do work that cannot help.
+ *
+ * The three ways out are refused for stated reasons: a benign real `src/` module contradicts
+ * this slice's scope and would ship in the bundle; widening `parserOptions.projectService` is
+ * the bigger unrelated fix already recorded; and dropping the cell quietly is what the whole
+ * cross-product exists to prevent.
+ */
+const RECORDED_GAPS = ['**/src/**/*.ts × ts', 'every block × tsx', 'every block × mts', 'every block × cts'] as const;
+
+it('records the cells it cannot fire rather than skipping them', () => {
+	const catchAll = BAN_BLOCKS.find((block) => block.key === '**/src/**/*.ts');
+
+	expect(catchAll?.extensions).not.toContain('ts');
+	expect(RECORDED_GAPS).toHaveLength(4);
+});
+
+describe.each(BAN_BLOCKS)('$key', (block) => {
+	describe.each(block.extensions)('.%s', (extension) => {
+		it('reports one diagnostic for every forbidden import, on its own line', async () => {
+			const found = await probe(block, extension);
+			const reported = found
+				.filter((d) => d.ruleId === 'no-restricted-imports')
+				.map((d) => d.line - lineOffset(extension))
+				.toSorted((a, b) => a - b);
+
+			// One per planted line, in order. A COUNT alone survives one import going silent
+			// while another reports twice; matching the lines does not.
+			expect(reported).toEqual(block.forbidden.map((_, index) => index + 1));
+
+			// Vacuity guard. On a POSITIVE case a parse error fails the assertion above
+			// anyway, the rule id simply being absent — but asserting it explicitly is what
+			// makes the failure say "this path could not be parsed" rather than "the rule
+			// did not fire", which are different defects with different fixes.
+			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
+			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
+		});
+
+		// The vacuity guard folded into the case above rather than made a second `it`: both
+		// lint the IDENTICAL source at the IDENTICAL path, so a separate case bought a second
+		// ESLint call per cell — 65 calls — for no additional coverage. Kept as its own
+		// expectation with its own comment, so what it checks is still legible.
+
+
+		// A member probe binds identifiers nothing uses, so `no-unused-vars` reports beside
+		// `no-restricted-imports` on that line. Both assertions above filter by rule id
+		// rather than counting diagnostics, so the extra one is invisible to them by
+		// construction — noted because a count-based assertion would have broken here.
+
+		/**
+		 * The network GLOBALS, which the assertions above cannot reach.
+		 *
+		 * They report under `no-restricted-globals`, a different rule KEY — measured — so a
+		 * matrix built entirely on `no-restricted-imports` is blind to them however many cells
+		 * it has. Slice 11's diagnostics-stay-on-the-device claim rests on both halves, and
+		 * only the import half had a probe.
+		 *
+		 * **NOT `fetch`, and a draft used it.** `eslint-plugin-obsidianmd` bans `app`, `fetch`
+		 * and `localStorage` across ALL of `src/`, so a `fetch` diagnostic says nothing about
+		 * the network ban specifically. Measured:
+		 *
+		 * | planted | `application/queries` | `core` (no network ban) |
+		 * | --- | --- | --- |
+		 * | `fetch` | reports | **reports** |
+		 * | `XMLHttpRequest` | reports | silent |
+		 * | `WebSocket` | reports | silent |
+		 *
+		 * So a later `.vue` override keeping only the marketplace globals would allow every
+		 * real network door while the `fetch` probe stayed green. Every independently
+		 * removable network-only global is planted instead.
+		 *
+		 * I had measured this exact fact one round earlier — it is the reason the negative case
+		 * below was skipped — and drew only half the conclusion from it. Knowing `fetch` is
+		 * banned everywhere is precisely what makes it useless as the POSITIVE probe too.
+		 */
+		// ALL EIGHT for the positive cells — the complete `NETWORK_GLOBALS` list, transcribed.
+		// A draft probed three and omitted `navigator`, `window`, `globalThis` and `self`, so an
+		// extension-specific override keeping the three named ones would leave every cell green
+		// while `navigator.sendBeacon(...)` and `globalThis.fetch(...)` became available there.
+		// Cells-versus-spellings again, on the globals axis.
+		const ALL_NETWORK_GLOBALS = [
+			'fetch',
+			'XMLHttpRequest',
+			'WebSocket',
+			'EventSource',
+			'navigator',
+			'window',
+			'globalThis',
+			'self',
+		] as const;
+
+		// A NARROWER list for the negative cells, and the asymmetry is measured rather than
+		// cautious. Banned in a block with NO network ban:
+		//   `fetch`               — everywhere, by `eslint-plugin-obsidianmd` across `src/`
+		//   `navigator`, `window` — in `core`/`domain`, by the DOM block
+		// The other five are silent wherever no network ban applies, so only they can carry a
+		// negative. Asserting the full list negatively would assert something false.
+		const NETWORK_ONLY_GLOBALS = ['XMLHttpRequest', 'WebSocket', 'EventSource', 'globalThis', 'self'] as const;
+		// A plain REFERENCE, not `new ...`: `navigator`, `window`, `globalThis` and `self` are
+		// not constructors, so a `new` form would be a TypeError in four of the eight cells and
+		// the probe would be testing its own source rather than the rule.
+		/**
+		 * ONE module carrying every name, matched BY LINE — not one lint call per global.
+		 *
+		 * The import probes already work this way and for the same two reasons: a
+		 * line-matched assertion tells "this one went silent" from "the others still fire",
+		 * which a per-name loop only achieves by paying for a separate ESLint call each time.
+		 * Batching takes this file from ~556 calls to ~195; see the budget in Step 7.
+		 */
+		const globalsSource = (names: readonly string[]): string => {
+			const body = names.map((name) => `export const reach_${name} = () => ${name};`).join('\n');
+			return extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
+		};
+
+		it.runIf(block.networkGlobals === true)('reports every network global under its own rule', async () => {
+			const found = await lintDetailed(globalsSource(ALL_NETWORK_GLOBALS), pathFor(block, extension));
+			const reported = found
+				.filter((d) => d.ruleId === 'no-restricted-globals')
+				.map((d) => d.line - lineOffset(extension))
+				.toSorted((a, b) => a - b);
+
+			// One per planted line, in order — so a single global going silent is visible
+			// rather than masked by its seven neighbours still reporting.
+			expect(reported).toEqual(ALL_NETWORK_GLOBALS.map((_, index) => index + 1));
+			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
+			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
+		});
+
+		/**
+		 * And a block with no network ban stays SILENT on them — the negative half, which the
+		 * network-only names make writable for the first time.
+		 *
+		 * A draft skipped this on the grounds that "this block does not ban `fetch`" is true of
+		 * no block. That reasoning was right about `fetch` and wrong to stop there: "this block
+		 * does not ban `XMLHttpRequest`" is true of every block without a network ban, measured
+		 * above. Without this half, a rule that banned the network globals across all of `src/`
+		 * would pass the positive case everywhere and the matrix would say nothing about where
+		 * the ban is keyed.
+		 */
+		it.runIf(block.networkGlobals !== true)('stays silent on network globals where no network ban applies', async () => {
+			const found = await lintDetailed(globalsSource(NETWORK_ONLY_GLOBALS), pathFor(block, extension));
+
+			expect(found.map((d) => d.ruleId)).not.toContain('no-restricted-globals');
+			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
+			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
+		});
+	});
+});

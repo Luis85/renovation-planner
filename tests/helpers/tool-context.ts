@@ -1,10 +1,9 @@
-import type { Result } from '../../src/core/result/Result';
-import type { AppError } from '../../src/core/errors/AppError';
 import type { EntityId } from '../../src/core/identity/EntityId';
 import type { Point } from '../../src/core/geometry/Point';
 import { RenderState } from '../../src/presentation/editor/tools/render-state';
 import { SnapService, type SnapCandidates } from '../../src/presentation/editor/snapping/snap-service';
 import type { EditorContext } from '../../src/presentation/editor/tools/editor-context';
+import type { UndoableCommand } from '../../src/presentation/editor/tools/undoable-command';
 import type { EditorPointerEvent } from '../../src/presentation/editor/tools/editor-tool';
 import { screenPoint } from '../../src/presentation/editor/viewport/Viewport';
 
@@ -26,7 +25,11 @@ import { screenPoint } from '../../src/presentation/editor/viewport/Viewport';
 export interface ToolContextHarness {
 	readonly context: EditorContext;
 	/** Every command the tool dispatched, in order. */
-	readonly dispatched: { execute(): Promise<Result<void, AppError>> }[];
+	// `UndoableCommand[]`, which is what this actually holds. It said
+	// `{ execute(): Promise<Result<void, AppError>> }[]` — the shape `execute` returned before
+	// slice 13 gave every dispatch a `DispatchOutcome` to report, so the array type had been
+	// describing a signature that no longer exists.
+	readonly dispatched: UndoableCommand[];
 	/** Every message the tool sent to its rejection seam. */
 	readonly rejections: string[];
 }

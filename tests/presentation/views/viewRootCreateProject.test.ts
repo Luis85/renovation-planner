@@ -112,7 +112,11 @@ describe('ViewRoot, creating a project', () => {
 	 */
 	it('shares one busy ref between the form and the dialog: Cancel disables while the real dispatch is in flight', async () => {
 		setActivePinia(createPinia());
-		let settle: (() => void) | null = null;
+		// Definite assignment, not `| null`: the assignment happens inside the promise executor,
+		// which TypeScript's control flow cannot see running, so the declared union narrows to
+		// `null` at every later read and `settle?.()` stops being callable. The executor runs
+		// synchronously, so the value is there. Same spelling `drawPolygonTool.test.ts` uses.
+		let settle!: () => void;
 		const pending = new Promise<void>((resolve) => {
 			settle = resolve;
 		});
@@ -148,7 +152,7 @@ describe('ViewRoot, creating a project', () => {
 		// descriptor `FormDialog` reads.
 		expect(wrapper.get('[data-rp-action="cancel"]').attributes('aria-disabled')).toBe('true');
 
-		settle?.();
+		settle();
 		await flushPromises();
 
 		// The write settled, the dialog resolved and closed — nothing left to assert `busy`

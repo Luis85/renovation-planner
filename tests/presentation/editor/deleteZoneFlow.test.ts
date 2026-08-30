@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { err, ok, type Result } from '../../../src/core/result/Result';
+import type { DispatchOutcome } from '../../../src/application/commands/DispatchOutcome';
 import type { AppError } from '../../../src/core/errors/AppError';
 import type { ZoneId } from '../../../src/domain/zone/ZoneId';
 import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
@@ -48,7 +49,10 @@ function referenceError(code: string): AppError {
 function rig(options: {
 	reads: readonly (readonly RequirementId[])[];
 	answers?: readonly DeleteReferenceDialogResult[];
-	dispatchResults?: readonly Result<void, AppError>[];
+	// `DispatchOutcome`, not `void`: slice 13 made every dispatch report whether it wrote, so
+	// the save-state indicator cannot infer one from a bare `ok`. This option type was still
+	// the pre-slice-13 shape.
+	dispatchResults?: readonly Result<DispatchOutcome, AppError>[];
 	targets?: readonly { id: string; label: string }[];
 	picks?: readonly ({ readonly id: string } | 'cancel')[];
 }): Rig {
@@ -79,7 +83,10 @@ function rig(options: {
 		},
 		dispatch: (edit) => {
 			dispatched.push(edit);
-			return Promise.resolve(results.shift() ?? ok(undefined));
+			// `'wrote'`, not `undefined`: since slice 13 every dispatch reports a `DispatchOutcome`
+			// so the save-state indicator cannot infer a write from a bare `ok`. This double still
+			// answered the old `Result<void, …>`.
+			return Promise.resolve(results.shift() ?? ok('wrote'));
 		},
 		copy: {
 			referenceLabel: 'Requirements',

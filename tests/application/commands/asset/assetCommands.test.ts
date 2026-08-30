@@ -7,9 +7,10 @@ import { ListAssets } from '../../../../src/application/queries/ListAssets';
 import { ListRequirementsReferencing } from '../../../../src/application/queries/ListRequirementsReferencing';
 import { ListReassignmentTargets } from '../../../../src/application/queries/ListReassignmentTargets';
 import { InMemorySequenceMarkerStore } from '../../../../src/infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
+import type { SequenceMarker } from '../../../../src/application/reference/deleteResolution';
 import { of as moneyOf } from '../../../../src/core/money/Money';
 import type { MeasurementUnit } from '../../../../src/core/units/MeasurementUnit';
-import { expectErr, expectOk } from '../../../helpers/domain';
+import { expectErr, expectOk, observationToken } from '../../../helpers/domain';
 import { makeAsset, makeZone } from '../../../helpers/entities';
 import {
 	requirementFixture,
@@ -269,15 +270,21 @@ describe('InMemorySequenceMarkerStore', () => {
 		const store = new InMemorySequenceMarkerStore();
 		expect(expectOk(await store.read('entity-1'))).toBeNull();
 
-		const marker = {
+		// Annotated rather than `as const`: the marker's own type is what should decide every
+		// field here, and `as const` froze `progress` to a `readonly []` the type refuses.
+		const marker: SequenceMarker = {
 			schemaVersion: 1,
 			kind: 'delete-resolution',
 			entityId: 'entity-1',
-			entitySnapshot: null,
+			// A real `Loaded<unknown>`: the marker's own type requires one, because "an ID is not a
+			// Zone" — restoring needs the entity in full. It was `null` here, which the round trip
+			// this case tests never reads, so nothing noticed.
+			entitySnapshot: { entity: { id: 'entity-1' }, version: { revision: 1, observed: observationToken('t-1') } },
+			entityKind: 'asset',
 			entityDeleted: false,
 			affectedBefore: [],
 			progress: [],
-		} as const;
+		};
 		expectOk(await store.write(marker));
 		expect(expectOk(await store.read('entity-1'))?.entityId).toBe('entity-1');
 		expectOk(await store.clear('entity-1'));

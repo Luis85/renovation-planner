@@ -8,11 +8,22 @@
  * Obsidian in tests, and a real vault remains the only place appearance is verified.
  *
  * `makeView()` is called with no `deps` argument, which is what keeps this file compiling
- * unchanged now that design slice 14 gave the constructor a second parameter: the default
- * answers `ok({ projects: [], unreadable: 0 })` — an empty project list with nothing refused
- * — so the harness page shows the "no renovation projects yet" empty state, and that is the
- * new thing worth looking at here. The populated surface has nothing else to draw until a
- * later slice builds an actual project list; this slice explicitly does not.
+ * unchanged now that design slice 14 gave the constructor a second parameter. What that
+ * default IS moved in design slice 16, and both halves of the sentence that used to sit here
+ * moved with it.
+ *
+ * It is no longer a fixed `ok({ projects: [], unreadable: 0 })`: `makeRenovationProjectView.ts`
+ * builds a real `InMemoryProjectRepository` with a `ListProjects` reading it and a
+ * `CreateProjectCommand` writing it — see that file's own docblock for why a refusing stand-in
+ * would have been the wrong fake here. The repository starts EMPTY, so the page still opens on
+ * the "no renovation projects yet" empty state; the difference is that its button now works.
+ *
+ * And the populated surface is no longer "nothing else to draw until a later slice": slice 16
+ * built `ProjectList.vue`, so creating a project through that button replaces the empty state
+ * with a real list of rows, in the same session, with no reload. That is the whole reason to
+ * open this page rather than read the empty state's markup — and the reason the list's own
+ * header layout, its focus ring and its long-name truncation were all found by photographing
+ * this surface rather than by any gate.
  */
 import type { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { installObsidianDom } from '../helpers/dom';

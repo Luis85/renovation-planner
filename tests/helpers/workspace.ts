@@ -18,7 +18,7 @@
  * invariant for the next helper someone adds here.
  */
 
-import type { WorkspaceLeaf } from './obsidian-mock';
+import type { TFile, WorkspaceLeaf } from './obsidian-mock';
 
 // `implements` ties this fake to the mock's contract where the EDITOR can see it — no
 // gate type-checks tests/** yet (vitest transpiles without checking, tsconfig includes
@@ -27,9 +27,22 @@ import type { WorkspaceLeaf } from './obsidian-mock';
 export class FakeLeaf implements WorkspaceLeaf {
 	state: { type: string; active?: boolean; state?: Record<string, unknown> } | undefined;
 
-	setViewState(state: { type: string; active?: boolean; state?: Record<string, unknown> }): Promise<void> {
+	/**
+	 * The view Obsidian mounted into this leaf, because Obsidian sets exactly this after
+	 * calling a registered factory — and until `saveSettings` had to find its open views to
+	 * rebind them, this fake had no such member at all. That is the recurring shape recorded
+	 * in CLAUDE.md rather than a gap peculiar to this file: a fake thinner than the real thing
+	 * leaves the mechanism pointed at it undrivable, so `rebindOpenViews` could have been
+	 * written, shipped and green with nothing able to observe that it reached a view.
+	 *
+	 * Assigned by whoever plays Obsidian's part in a test (`openViewOnLeaf`), never by the
+	 * leaf itself: the real one is set by the workspace, not by the factory.
+	 */
+	view: unknown;
+
+	async setViewState(state: { type: string; active?: boolean; state?: Record<string, unknown> }): Promise<void> {
+		await Promise.resolve();
 		this.state = state;
-		return Promise.resolve();
 	}
 
 	/**
@@ -39,6 +52,33 @@ export class FakeLeaf implements WorkspaceLeaf {
 	 */
 	getViewState(): { type?: string; state?: Record<string, unknown> } {
 		return this.state ?? {};
+	}
+
+	/** Every file `openProjectNote` (or anything else) opened on this leaf, in order. */
+	readonly opened: TFile[] = [];
+
+	/**
+	 * Sets the leaf's own view state, because the real call does. Obsidian gives a leaf it
+	 * opened a file into a `markdown` view whose state names that file, which is what makes
+	 * the leaf findable through `getLeavesOfType('markdown')` afterwards — so a fake that only
+	 * recorded the file left every note it opened invisible to the very lookup "reuse the tab
+	 * this note is already in" is built on, and a duplicate-tab defect had no instrument that
+	 * could see it. Thinner than the real thing, in the one direction that mattered.
+	 *
+	 * **And it establishes that state only when the returned promise SETTLES**, which is the
+	 * same lesson one turn further on. Setting it synchronously modelled a guarantee
+	 * `openFile(file): Promise<void>` does not make: the real call reads the file and builds a
+	 * view, and nothing in its signature promises the leaf answers for that file before it
+	 * resolves. Faster than the real thing is the same defect as thinner than it — a second
+	 * open racing the first found a leaf already naming the note and could not produce the
+	 * duplicate tab a double click really produces, so the coalescing `openProjectNote` now
+	 * does had no instrument either. A fake models what the API GUARANTEES, never what one
+	 * build happens to do first.
+	 */
+	async openFile(file: TFile): Promise<void> {
+		this.opened.push(file);
+		await Promise.resolve();
+		this.state = { type: 'markdown', state: { file: file.path } };
 	}
 }
 

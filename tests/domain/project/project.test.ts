@@ -95,6 +95,29 @@ describe('Project.create', () => {
 		expect(error.code).toBe('project.target-before-start');
 	});
 
+	it.each([
+		['start', { start: new Date('nonsense') }],
+		['targetCompletion', { targetCompletion: new Date(NaN) }],
+	])('refuses a %s that is not a real date', (_field, dates) => {
+		const error = expectErr(Project.create({ id: createProjectId(), name: 'Kitchen', ...dates }));
+		expect(error.code).toBe('project.invalid-date');
+	});
+
+	// The ordering rule cannot catch this one and must not be relied on to: every comparison
+	// against `NaN` is false, so a pair whose target precedes its start would ALSO have been
+	// accepted here had the finiteness check not run first.
+	it('refuses an unreal date before comparing the pair', () => {
+		const error = expectErr(
+			Project.create({
+				id: createProjectId(),
+				name: 'Kitchen',
+				start: new Date(NaN),
+				targetCompletion: new Date('2026-08-01'),
+			}),
+		);
+		expect(error.code).toBe('project.invalid-date');
+	});
+
 	it('accepts a targetCompletion equal to start', () => {
 		const day = new Date('2026-09-01');
 		const project = expectOk(

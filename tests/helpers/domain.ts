@@ -1,4 +1,8 @@
-import type { Disposable, DomainEvent, EventBus } from '../../src/core/events/EventBus';
+import type { DomainEvent, EventBus } from '../../src/core/events/EventBus';
+// `Disposable` is declared in its own module and `EventBus` only IMPORTS it — a re-export it
+// never made. Erased by vitest's transpile-only pipeline, so this named nothing for as long
+// as nothing type-checked this file.
+import type { Disposable } from '../../src/core/events/Disposable';
 import { err, type Result } from '../../src/core/result/Result';
 import type { PersistenceError } from '../../src/core/errors/AppError';
 import type { ObservationToken } from '../../src/application/ports/versioning';

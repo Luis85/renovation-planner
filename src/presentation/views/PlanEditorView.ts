@@ -10,6 +10,7 @@ import type {
 import type { BackgroundVault } from '../editor/layers/background/BackgroundRenderModel';
 import type { PlanEditorQueryServices } from '../read-models/planEditorQueries';
 import { tr } from '../i18n/strings';
+import { nextAppIdPrefix } from './app-id-prefix';
 
 /**
  * The Plan Editor (SDD §11's second surface).
@@ -65,9 +66,34 @@ function planIdFrom(state: unknown): PlanEditorViewState | null {
 export class PlanEditorView extends ItemView {
 	constructor(
 		leaf: WorkspaceLeaf,
-		private readonly deps: PlanEditorDeps,
+		private deps: PlanEditorDeps,
 	) {
 		super(leaf);
+	}
+
+	/**
+	 * Points this view at a NEW composition root, remounting so the Vue tree stops holding the
+	 * old one — the same contract as `RenovationProjectView.rebind`, and that file carries the
+	 * account of why "the factory resolves per call" was never enough. `saveSettings` calls
+	 * both for every open leaf of each type.
+	 *
+	 * It goes back through `sync` rather than calling `mount` directly, because `sync` is the
+	 * ONE place that decides whether this view has a plan to draw — a second mounting decision
+	 * beside it is exactly what its own docblock exists to prevent. `unmount` clearing
+	 * `mountedPlanId` is what then lets the SAME plan through that guard, so the leaf redraws
+	 * the plan it was already showing: `planId` is this view's own field and a rebind never
+	 * touches it.
+	 *
+	 * The cost, stated rather than glossed: a remount discards the editor's transient state —
+	 * the undo history, the camera, the selection. That is a real loss on a rare, deliberate
+	 * action, and the alternative is a canvas that goes on writing through a root the vault
+	 * has stopped agreeing with.
+	 */
+	rebind(deps: PlanEditorDeps): void {
+		this.deps = deps;
+		if (this.mountedPlanId === null) return;
+		this.unmount();
+		this.sync();
 	}
 
 	getViewType(): string {
@@ -157,6 +183,7 @@ export class PlanEditorView extends ItemView {
 		};
 
 		const app = createApp(PlanEditorRoot);
+		app.config.idPrefix = nextAppIdPrefix();
 		app.use(createPinia());
 		// On the APP instance and not globally: each ItemView's Vue app is isolated
 		// (ADR-004), and a global `app.use` at plugin scope would leak vue-konva's component

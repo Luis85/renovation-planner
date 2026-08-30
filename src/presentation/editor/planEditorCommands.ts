@@ -122,7 +122,7 @@ export interface PlanEditorCommandServices {
 	 *
 	 * Presentation has no logger of ITS own and this changes nothing about that: what
 	 * crosses is the same `Logger` port the application layer takes, composed at the root
-	 * like every other member here. Two things need it, and both are the developer half of
+	 * like every other member here. THREE things need it, and each is the developer half of
 	 * an error the user is already being shown:
 	 *
 	 * - a compensation that ALSO failed inside a reversible adapter's undo. The undo halves
@@ -133,6 +133,10 @@ export interface PlanEditorCommandServices {
 	 *   so no guard logged the cause on its way here — and SDD §66's two representations
 	 *   are only produced together if this door produces both, which is why `notifyFault`
 	 *   takes this and maps once for both halves.
+	 * - `RequirementRow`'s two `useFieldCommit` override fields (design slice 16), reached
+	 *   through `InspectorPanel` as a prop. A coalesced round's own continuation rejects with
+	 *   nobody holding that promise, so `faultError` there is likewise the only step where the
+	 *   cause can be recorded at all — the same argument as `notifyFault`'s, one door over.
 	 *
 	 * It sits at the top level rather than inside `requirementEdits` because it is now the
 	 * LEAF's logger rather than that bundle's: two unrelated callers reaching into a

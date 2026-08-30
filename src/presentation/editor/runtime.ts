@@ -35,6 +35,7 @@ import { tr } from '../i18n/strings';
 import { notifyError, notifyFault } from '../notices/notify';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
+import { makeCommitField } from './commitField';
 
 /**
  * One Plan Editor leaf's live machinery (design slice 8): the history and its refresh
@@ -97,6 +98,12 @@ export interface EditorRuntime {
 	readonly deleteZone: (zoneId: ZoneId, zoneName: string) => Promise<void>;
 	/** Any panel edit — assign, override, reset — through the ONE dispatch path. Answers whether it landed. */
 	readonly commitEdit: (edit: InspectorEdit) => Promise<boolean>;
+	/**
+	 * The two override fields' door into the same commit path (design slice 16): guards
+	 * only the THROWN half (`commitField.ts`'s `makeCommitField`). A RESOLVED refusal is
+	 * `useFieldCommit`'s own `notify` to route, not this function's to announce.
+	 */
+	readonly commitField: (edit: InspectorEdit) => Promise<DispatchResult>;
 	/** The assign-asset picker's options for this plan's project. */
 	readonly assetOptions: Readonly<Ref<readonly { readonly id: string; readonly name: string }[]>>;
 }
@@ -472,22 +479,23 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		await notifyIfRefused(reportFault(context.commands.logger, wrappedDispatcher.redo()));
 	}
 
+	// `commitField.ts` carries the guard's own doc; this is just the one line that binds it
+	// to this leaf's logger and its `inspector.commit`.
+	const commitField = makeCommitField(context.commands.logger, (edit) => inspector.commit(edit));
+
 	/**
-	 * Every panel edit — delete, assign, either override — through the Inspector's ONE
-	 * commit path (SDD §59), with the same two failure halves as the toolbar: a thrown
-	 * fault is notified, and so is a resolved refusal. Answers whether the edit landed,
-	 * because some callers clear state on success only.
+	 * The Inspector's one commit path. A refusal the panel can attach to an input is rendered
+	 * there by the row that owns it; everything else still reaches `notifyError`, because the
+	 * Inspector has no banner region. The notice door NARROWS here — it does not close.
+	 *
+	 * Which errors may reach a field at all is slice 17's decision table, not this function's —
+	 * `commitField` leaves that half to its callers, and the two override controls route it
+	 * through `useFieldCommit`'s own `notify` instead of this one.
 	 */
 	async function commitEdit(edit: InspectorEdit): Promise<boolean> {
-		const result = await reportFault(context.commands.logger, inspector.commit(edit));
-		if (result === null) return false;
-		if (!result.ok) {
-			// Same seam the tools use: a refused edit must not just do nothing — and it
-			// says so in the user's language, never in the error's own log text.
-			notifyError(result.error);
-			return false;
-		}
-		return true;
+		const result = await commitField(edit);
+		if (!result.ok) notifyError(result.error);
+		return result.ok;
 	}
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
@@ -512,6 +520,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		hydrateInspector: (ids) => inspector.hydrateFrom(ids),
 		deleteZone,
 		commitEdit,
+		commitField,
 	};
 }
 

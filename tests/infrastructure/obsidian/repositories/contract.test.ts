@@ -38,14 +38,36 @@ import { planToPersistence } from '../../../../src/infrastructure/persistence/ma
  * repositories themselves produce.
  */
 
-/** A hand edit: rewrites an OWNED key's value outside any repository — token moves, revision does not. */
+/**
+ * The four keys a hand edit must not be made to, so that what it proves is the OBSERVATION
+ * token moving and not the revision channel beside it — `revision` is the other half of
+ * `checkExpectedVersion`, and `type`/`schema-version`/`id` are what a note IS.
+ */
+const NOT_A_HAND_EDIT = new Set(['type', 'schema-version', 'id', 'revision']);
+
+/**
+ * A hand edit: rewrites an OWNED key's value outside any repository — token moves, revision
+ * does not.
+ *
+ * It picks a key the note ACTUALLY HOLDS rather than naming one, and that is a correction.
+ * It used to append to `name`, which a Requirement note does not have: no schema of that kind
+ * declares one, so the edit added an undeclared key, and the case passed only because the
+ * digest was minting its token over the union of all five schemas — a key it should never
+ * have been reading for that note. Scoping the digest to a note's own kind turned this green
+ * case red, which is the honest outcome: `requirement.external-modification` was being proved
+ * by the very defect the scoping fixed. Every key a note here holds was written by the
+ * repository through `writeOwnedFrontmatter`, so any of them but the four above is owned by
+ * that kind by construction.
+ */
 function handEdit(stack: RepositoryStack, id: string): void {
 	const path = stack.index.getPath(id as EntityId<string>);
 	if (!path) throw new Error(`nothing indexed under ${id}`);
 	const text = stack.vault.entries.get(path);
 	if (text === undefined) throw new Error(`no note at ${path}`);
 	const { frontmatter, body } = parseFrontmatter(text);
-	frontmatter['name'] = `${frontmatter['name']} (edited by hand)`;
+	const key = Object.keys(frontmatter).find((candidate) => !NOT_A_HAND_EDIT.has(candidate));
+	if (key === undefined) throw new Error(`nothing but identity keys to hand-edit at ${path}`);
+	frontmatter[key] = `${String(frontmatter[key])} (edited by hand)`;
 	stack.vault.entries.set(path, `${serializeFrontmatter(frontmatter)}${body}`);
 }
 

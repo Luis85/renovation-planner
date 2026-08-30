@@ -8,6 +8,24 @@
  * it is the first time this promise is called in, because the view had no second
  * constructor argument until this slice gave it one.
  *
+ * **This file is in `tsconfig.json`'s `include`, and that is the fourth entry rather than a
+ * tidy-up.** The promise one paragraph up — a grown constructor requirement meeting every
+ * consumer at once — is a compile-time claim, and nothing type-checked this file, so it was a
+ * convention that had already been broken: design slice 16 gave `RenovationProjectDeps` a
+ * `commands` bundle whose `logger` is REQUIRED, and the default below built `commands` out of
+ * `createProject` alone. `ViewRoot` then handed `logger: undefined` to `useFormCommit`, where a
+ * REJECTING dispatch reaches `faultError` and TypeErrors inside the very catch that exists so a
+ * fault reaches somebody. Invisible to all four gates: vitest transpiles without checking, and
+ * every dispatch wired today is a guarded command that cannot throw — so the hole opens for
+ * whoever wires the first unguarded one, exactly as `useFormCommit`'s own docblock predicts.
+ *
+ * The wider instrument was MEASURED before this narrower one was chosen: a `tests/helpers`
+ * glob for every `.ts` under it, in that same `include`, reports 29 errors — and at least four
+ * are this repository's own recorded fake-too-thin shape rather than test-scaffolding noise: `calibrateHarness`'s viewport missing
+ * `worldPerScreenPixel`, `planEditorRig`'s bundle missing `calibratePlan`, and two `PlanDto`
+ * fixtures missing `calibration`. Worth closing; not worth closing inside a review pass on
+ * another slice, so it is written down here rather than left for the next reader to re-measure.
+ *
  * Split out of `./workspace` on purpose, and that split IS the point of this file existing
  * separately: `RenovationProjectView` mounts `ViewRoot.vue`, a real Vue SFC, and importing
  * it drags that SFC's client-mode compilation into whatever environment does the importing.
@@ -24,23 +42,66 @@
  * `FakeWorkspace` cannot reopen this by accident.
  */
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
-import { ok } from '../../src/core/result/Result';
+import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
+import { ListProjects } from '../../src/application/queries/ListProjects';
+import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
+import { createRenovationProjectQueries } from '../../src/presentation/read-models/renovationProjectQueries';
 import { FakeLeaf } from './workspace';
+import { RecordingEventBus } from './domain';
+import { recorder } from './logger';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 
 /**
- * The default `deps` answers an empty project list with nothing refused —
- * `ok({ projects: [], unreadable: 0 })` — rather than the refusal bundle:
- * `unavailableRenovationProjectQueries()` is what settings.unrecovered actually looks like,
- * and defaulting every caller of this factory to that would make the harness page and every
- * un-migrated test look like a broken session rather than a fresh, empty vault. Optional
- * rather than required, so `tests/harness/mount.ts` keeps compiling
- * unchanged: the harness page therefore shows the empty state now, which is the new thing
- * worth looking at — the populated surface has nothing to draw until a later slice builds
- * an actual project list (this slice explicitly does not).
+ * The default `deps` answers an empty project list with nothing refused, backed by a REAL
+ * `InMemoryProjectRepository` rather than a fixed literal — one built fresh per call, so two
+ * views built through this factory in the same test never share state.
+ *
+ * `commands.createProject` ANSWERS now too, for the same repository, rather than the
+ * refusal bundle it used to default to. Design slice 16 gave the empty state's button a real
+ * hand-off (`ViewRoot` opens `NewProjectForm` and dispatches through it), which is the exact
+ * forward risk CLAUDE.md's fifth fake-instance lesson names: a stand-in that REFUSES what
+ * production would answer turns a tool built for looking into one that shows a false
+ * picture. `tests/harness/mount.ts` calls this with no `deps` at all, so the browser harness
+ * page (`npm run harness`) is the direct beneficiary — a session there can now actually
+ * create a project and see the read model that create landed in.
+ * `tests/presentation/views/viewRootCreateProject.test.ts` covers the identical round trip
+ * against `ViewRoot` mounted directly, with its own hand-built `deps` rather than this
+ * factory's, because that file needs to observe the shared `busy` ref and a controlled,
+ * deferred dispatch — this file's job is the harness path, not that one.
+ * `RecordingEventBus` is a fine stand-in for the real bus here, and the reason is now about
+ * THIS tree rather than about the event: `createProjectListChangeSource` does subscribe to
+ * `ProjectCreated` (added in review — the sample-seed path published one that nothing heard),
+ * but these defaults hand the view a no-op `onProjectsChanged` and never that source, so no
+ * subscription is bound to this bus at all and a dispatching one would run no cascade a
+ * recording one misses. Wire the real source here and this sentence stops being true.
+ *
+ * `commands.logger` is `recorder`, the same recording port `planEditorRig` hands the editor's
+ * own bundle — a real `Logger`, not a noop, so `useFormCommit`'s fault door has somewhere to
+ * write. It is the honest fake here rather than the refusal bundle's silent one for the reason
+ * one paragraph up: this default ANSWERS, so its failures are real ones worth recording.
+ *
+ * `openProject` stays a no-op answering `'opened'`: opening a project's own note is an
+ * Obsidian-vault operation this harness has none of, and every caller of this factory that
+ * cares about it (`renovationProjectEmptyState.test.ts`, `accessibility.test.ts`'s failed-read
+ * case) passes its own `deps` explicitly instead of taking the default. `'opened'` and not
+ * `'missing'`, because `'missing'` asks `ViewRoot` to re-read the list — a default that
+ * re-hydrated on every row click would be a fake driving behaviour nothing asked for.
  */
-export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
-	new RenovationProjectView(
-		new FakeLeaf() as never,
-		deps ?? { queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) } },
-	);
+export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView => {
+	if (deps !== undefined) return new RenovationProjectView(new FakeLeaf() as never, deps);
+
+	const projects = new InMemoryProjectRepository();
+	const events = new RecordingEventBus();
+
+	// ANNOTATED rather than inferred, so a member the interface grows is a compile error here
+	// rather than an `undefined` handed to whoever reads it — which is what this file shipped:
+	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
+	// requires a `logger` beside it.
+	const defaults: RenovationProjectDeps = {
+		queries: createRenovationProjectQueries(new ListProjects(projects)),
+		commands: { createProject: new CreateProjectCommand(projects, events), logger: recorder },
+		openProject: () => Promise.resolve('opened'),
+		onProjectsChanged: () => () => undefined,
+	};
+	return new RenovationProjectView(new FakeLeaf() as never, defaults);
+};

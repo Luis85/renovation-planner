@@ -700,6 +700,80 @@ export default defineConfig({
 			// partial. Nothing here can see whether they still MATCH — jsdom resolves no `var()`
 			// and the harness draws no status bar state on purpose — so that is step 13 of
 			// `docs/tests/cases/Notices and save state.md` and a vault.
+			//
+			// Measured 2026-08-29 at the end of design slice 16 — forms and inline validation
+			// feedback: `routeError`, `<FieldError>`/`<FormBanner>`, `useFieldCommit`/
+			// `useFormCommit`, `NewProjectForm` and `CreateProjectCommand` as the Renovation
+			// Project view's first write, `ProjectList`, the Task 5a persistence fix
+			// (`description`/`start`/`targetCompletion` surviving the vault round trip), and
+			// Task 9 moving the Inspector's `quantity`/`cost` override rows onto the same
+			// composable: 4534/4568 statements, 2259/2300 branches, 1171/1182 functions,
+			// 4070/4092 lines — 99.25 / 98.21 / 99.06 / 99.46. NOTHING RATCHETS: rounded down
+			// these are 99 / 98 / 99 / 99, the floors already in force, unchanged from the
+			// slice-18 measurement it was taken against — this slice's own tests exercise every
+			// line and branch it added, and it removed nothing from the denominator either.
+			//
+			// Re-measured 2026-08-29 on the MERGED tree — slice 13 having landed on main in the
+			// meantime, plus the two findings the review bot raised against this branch after
+			// that (a coalesced open failure reported once rather than once per click, and a
+			// dialog the root swap unmounts being settled rather than stranded): 5264/5301
+			// statements, 2613/2662 branches, 1331/1341 functions, 4693/4715 lines —
+			// 99.30 / 98.15 / 99.25 / 99.53. NOTHING RATCHETS: rounded down these are the
+			// 99 / 98 / 99 / 99 already in force, which is what slices 5, 11, 13, 15 and 18 also
+			// measured.
+			//
+			// Re-measured a third time 2026-08-29, for the FOURTEENTH review round's two
+			// findings — the orphan folder a failed project insert left behind, now
+			// compensated, and the busy-dialog unmount, recorded rather than closed:
+			// 5280/5317 statements, 2619/2668 branches, 1332/1342 functions, 4707/4729 lines —
+			// 99.30 / 98.16 / 99.25 / 99.53. NOTHING RATCHETS, again. The compensation adds 16
+			// statements, 6 branches, one function and 14 lines, and every one of them is
+			// covered — read out of `coverage/coverage-final.json` rather than assumed, where
+			// `noteIo.ts`, `ObsidianProjectRepository.ts` and `DialogHost.vue` each measure
+			// 100% of all four. So the headroom named below is unchanged in UNITS, which is the
+			// figure that matters, while branches move one hundredth: 98.15 to 98.16.
+			//
+			// Re-measured a fourth time 2026-08-29, for the FIFTEENTH round's single finding — the
+			// vault-change pipeline announcing the index entries it changes, so a project note added
+			// by hand, copied in or arriving through sync reaches a mounted pane: 5292/5329
+			// statements, 2623/2672 branches, 1339/1349 functions, 4718/4740 lines —
+			// 99.30 / 98.16 / 99.25 / 99.53. NOTHING RATCHETS. Twelve statements, four branches,
+			// seven functions and eleven lines added, every one covered, and the headroom is
+			// unchanged in units at 16 / 4 / 3 / 25.
+			//
+			// The four branches are worth naming, because ONE of them was uncovered for a run and
+			// the gate did not catch it — branches read 98.12 against a floor of 98, which is three
+			// covered units, so a passing gate is not evidence that a new arm was tested. The arm
+			// was `changedEntityTypeOf`'s `null`: an entry event arriving with no payload, which is
+			// the guard's whole reason for being a guard rather than a cast. Found by reading
+			// `coverage-final.json` for the three changed files rather than by the threshold, and
+			// pinned by a case that was then watched failing against a guard rewritten to default
+			// the missing payload to a project. **Read the floor as a floor and not as a review**:
+			// at this headroom an untested arm costs 0.037pp and hides completely.
+			//
+			// **FUNCTIONS are the tightest at THREE, and branches are four.** Statements have 16
+			// of headroom and lines 25, both counted as whole covered units rather than as
+			// percentage points, because a unit is what an untested arm actually costs. Neither
+			// parent predicted the branch figure: this branch measured 98.21 alone and main
+			// measured 98.12, and the merge lands between them at 98.15 — the denominator grew
+			// by 362 branches while the covered count grew by 354, which is two trees' arms
+			// diluting one ratio rather than either side losing coverage. Three functions is
+			// small enough that the next untested callback anywhere in `src/` fails the gate
+			// rather than merely narrowing it.
+			//
+			// Neither of the two review fixes adds an uncovered arm, verified by reading
+			// `coverage/coverage-final.json` rather than assumed: `openNote.ts`,
+			// `DialogHost.vue` and `commitField.ts` measure 100% of all four. Across every file
+			// this branch and the merge touched, exactly two carry uncovered positions and both
+			// are already enumerated above — `composition-root.ts`'s
+			// `cascadeNotices.cascadeAborted` (slice 13's paragraph) and `RequirementRow.vue`'s
+			// `row.assetName ?? row.assetId` nullish arm (the merged slice-13 entry). What those
+			// paragraphs do NOT name, and this one does rather than leaving it to the next
+			// reader to rediscover: `RequirementRow.vue` also has three uncovered FUNCTIONS —
+			// the two `undo` stubs on the quantity and cost commands, which `history.run`
+			// (`command.execute()`) never reaches, and the cost field's `@keydown.esc` handler,
+			// whose quantity-field twin IS driven. They are this branch's own, not the merge's,
+			// and they are three of the ten uncovered functions the whole tree has.
 			thresholds: {
 				statements: 99,
 				functions: 99,

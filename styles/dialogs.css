@@ -141,6 +141,32 @@
 }
 
 /*
+ * THE BUSY STATE HAS TO BE VISIBLE, and neither mechanism that produces it draws anything.
+ *
+ * No control in a form dialog may be `:disabled` while a write is in flight — `FormDialog.vue`
+ * states that invariant and `NewProjectForm.vue` explains what it costs to break it (the
+ * browser blurs the focused element to `<body>`, and the dialog's `Escape` and Tab trap go
+ * with it). What is left is `readonly` and `aria-disabled`, both of which are ANNOUNCED and
+ * neither of which is painted: the UA graying that came free with `:disabled` went away with
+ * it, so a form mid-write looked exactly like one waiting for input.
+ *
+ * Buttons need nothing here — Obsidian's own sheet already dims `button[aria-disabled="true"]`
+ * identically to `button[disabled]`, with this same 0.7 — so this rule covers the two controls
+ * it does not reach.
+ *
+ * Dimming is refused everywhere else in this repository (`opacity: 0.6` on the harness index's
+ * kind label composited to 4.29:1 and was a finding). It is acceptable HERE for the one reason
+ * that exempts it: WCAG 1.4.3 does not apply the contrast floor to an inactive control, and
+ * these are inactive for as long as the rule applies.
+ */
+.rp-dialog-form input[readonly],
+.rp-dialog-form textarea[readonly],
+.rp-dialog-form select[aria-disabled='true'] {
+	opacity: 0.7;
+	cursor: not-allowed;
+}
+
+/*
  * `background-color` here is redundant with Obsidian's own `button:not(.clickable-icon)`
  * (`tests/harness/obsidian.css`), which already sets `--interactive-normal` on every
  * `<button>` and outranks this single-class selector at (0,1,1) vs (0,1,0) — source order

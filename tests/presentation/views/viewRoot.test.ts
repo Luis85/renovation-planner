@@ -19,6 +19,7 @@ import {
 	useRenovationProjectContext,
 } from '../../../src/presentation/views/RenovationProjectContext';
 import { ok } from '../../../src/core/result/Result';
+import { unavailableRenovationProjectCommands } from '../../../src/presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../../../src/presentation/views/RenovationProjectContext';
 
 /**
@@ -26,10 +27,15 @@ import type { RenovationProjectDeps } from '../../../src/presentation/views/Reno
  * (`ok({ projects: [], unreadable: 0 })`): neither case here is about the project list or its
  * empty state (that is `tests/presentation/views/renovationProjectEmptyState.test.ts`'s job)
  * — it is about `DialogHost` and the stylesheet hook, so the list only needs to be SOMETHING
- * the view can hydrate against without throwing.
+ * the view can hydrate against without throwing. `commands` and `openProject` are the same
+ * refusal bundle and no-op neither case here dispatches through — `'opened'` rather than
+ * `'missing'`, so a click nothing here makes could not set off a re-read either.
  */
 const deps: RenovationProjectDeps = {
 	queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) },
+	commands: unavailableRenovationProjectCommands(),
+	openProject: () => Promise.resolve('opened' as const),
+	onProjectsChanged: () => () => undefined,
 };
 
 describe('the view root', () => {
@@ -52,10 +58,11 @@ describe('the view root', () => {
 	});
 
 	/**
-	 * Slice 15's host, mounted in THIS app too, not only the Plan Editor's. `noProjects`
-	 * ships with no action button (slice 14's Amendment 1), so there is no click here to
-	 * open a dialog with yet — this asserts the host is reachable at all, ahead of the later
-	 * slice whose creation form will be its first caller in this tree.
+	 * Slice 15's host, mounted in THIS app too, not only the Plan Editor's. This opens a
+	 * plain `confirm` descriptor directly through the store rather than through the empty
+	 * state's own button (`viewRootCreateProject.test.ts` covers that click, since design
+	 * slice 16 gave it a real hand-off) — this file's job is only that the host is reachable
+	 * at all, independent of any one caller.
 	 */
 	it('mounts a dialog host that the view can open a dialog through', async () => {
 		const pinia = createPinia();

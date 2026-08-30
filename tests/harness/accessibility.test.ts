@@ -84,10 +84,14 @@
  * The Renovation Project view drew one empty mount div through slice 13, so its case below
  * reported nothing for every slice up to this file's own adoption — that was this project's
  * stated adoption window ("a rule is adopted while it reports nothing", CLAUDE.md). Design
- * slice 14 gave it a real empty state (a headline and body, no button on this entry), so its
- * case below now grades that markup rather than an empty subtree — proven by an assertion
- * that `.rp-empty-state` is actually in the scanned DOM, not merely by the absence of
- * violations, which a scan of nothing would also report. The Plan Editor's case was the
+ * slice 14 gave it a real empty state (a headline and body); design slice 16 gave that same
+ * entry (`renovationProject.noProjects`) its action button, so the case below is this file's
+ * first BUTTON-CARRYING empty state — proven by an assertion that `.rp-empty-state__action`
+ * is in the scanned DOM as well as `.rp-empty-state` itself, not merely by the absence of
+ * violations, which a scan of nothing would also report. Slice 16 also gave this view its
+ * first real dialog CONTENT — `NewProjectForm`, the button's hand-off — scanned by its own
+ * case further down rather than folded into this one, so a defect in the empty state's own
+ * markup and a defect in the form's cannot be conflated. The Plan Editor's case was the
  * first surface here with real content graded from its own first commit; this one caught up
  * a slice later, rather than an accessibility pass arriving once twenty views already fail
  * one.
@@ -102,8 +106,10 @@ import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
 import { installObsidianDom } from '../helpers/dom';
 import { makeView } from '../helpers/makeRenovationProjectView';
-import { err } from '../../src/core/result/Result';
+import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
+import { err, ok } from '../../src/core/result/Result';
 import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
+import NewProjectForm from '../../src/presentation/views/NewProjectForm.vue';
 
 /**
  * See LAYOUT in the header for the three separate, verified reasons these cannot work
@@ -198,6 +204,11 @@ describe('axe against the mounted view', () => {
 		// this scan actually ran against, so a future regression that reintroduces the timing
 		// gap above fails HERE rather than passing vacuously again.
 		expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
+		// Design slice 16's addition: `renovationProject.noProjects` carries an action button
+		// now (`EMPTY_STATE_CONTENT`'s `actionLabel`), so this is the first BUTTON-CARRYING
+		// empty state this file has ever scanned. Asserted directly rather than inferred from
+		// "no violations", for the identical reason the line above exists.
+		expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
 		expect(results.violations).toEqual([]);
 	});
 
@@ -229,6 +240,9 @@ describe('axe against the mounted view', () => {
 						err({ category: 'Persistence', code: 'settings.unrecovered', message: 'no' }),
 					),
 			},
+			commands: unavailableRenovationProjectCommands(),
+			openProject: () => Promise.resolve('opened' as const),
+			onProjectsChanged: () => () => undefined,
 		});
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();
@@ -299,10 +313,12 @@ describe('axe against the mounted view', () => {
 	 * not the markup under test — `<component :is="descriptor.component">` is the one line
 	 * of `FormDialog.vue` it stands in for; the title, the body wrapper and the Cancel
 	 * button around it are real `FormDialog.vue` markup, unconditionally rendered no matter
-	 * what the caller supplies. No caller in this codebase supplies a real
-	 * `FormDescriptor.component` yet (the calibration flow's own form component is a later
-	 * task in this slice), so a stub is the only way to exercise this kind's container at
-	 * all before then.
+	 * what the caller supplies. Design slice 16's `NewProjectForm` is now a real caller of
+	 * `FormDescriptor.component` — see the dedicated case below this block — so the stub
+	 * here is a deliberate choice rather than the only option: it isolates the container's
+	 * OWN markup (title, body wrapper, Cancel button) from any one form's fields, the same
+	 * way the earlier paragraph keeps a dialog finding from being conflated with the Plan
+	 * Editor's five regions.
 	 *
 	 * What this does NOT check is stated once, here, rather than implied: `inert` is not
 	 * modelled by jsdom, so "the background is genuinely unreachable" is asserted by
@@ -325,6 +341,40 @@ describe('axe against the mounted view', () => {
 			expect(results.violations).toEqual([]);
 		},
 	);
+
+	/**
+	 * `NewProjectForm` (design slice 16), the New Project dialog's real content — every
+	 * `<FieldError>`'s minted id and `aria-describedby` wiring, every `<label for>`, and
+	 * `<FormBanner>`'s hidden-until-populated region, none of which the stub `form` case
+	 * above renders. Opened the same way `ViewRoot.onCreateProject` opens it (a `form`
+	 * descriptor naming the real component and a `dispatch` fixture), never through a click
+	 * on the empty state's button — this file already scans that button in the case above;
+	 * dispatching through it here would test Vue's click wiring, not axe.
+	 */
+	it('reports no semantic violations with the New Project form open', async () => {
+		const { view } = mountHarness(document.body);
+		// Same reason as the empty-state case above: the store's query settles a tick after
+		// the synchronous mount, and this dialog is opened from that same view.
+		await flushPromises();
+
+		void useDialogStore().openDialog({
+			kind: 'form',
+			title: 'New project',
+			component: NewProjectForm,
+			props: {
+				dispatch: () => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })),
+			},
+		});
+		await nextTick();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
+		// Load-bearing for the same reason every other presence assertion in this file is:
+		// `results.violations` is `[]` on a scan of nothing at all, indistinguishable from a
+		// scan of a real, compliant form without this line.
+		expect(view.contentEl.querySelector('.rp-dialog-form')).not.toBeNull();
+		expect(results.violations).toEqual([]);
+	});
 });
 
 /**

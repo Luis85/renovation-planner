@@ -4,6 +4,7 @@ import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
+import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
 import type { CreatePlanInput, CreatePlanError } from '../application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../application/commands/project/CreateProject';
@@ -50,8 +51,10 @@ import {
 	createRenovationProjectQueries,
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
+import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
-import { notifyWarning } from '../presentation/notices/notify';
+import { openProjectNote } from '../infrastructure/obsidian/workspace/openNote';
+import { notifyWarning, notifyFault } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
@@ -510,6 +513,10 @@ export function createCompositionRoot(
 				index,
 				echo,
 				logger,
+				// REQUIRED rather than optional, and this is the wiring the requirement buys: an
+				// optional bus would let a root that forgets it compile, pass and announce nothing,
+				// which is the one failure this whole mechanism exists to prevent.
+				events: eventBus,
 			}),
 		},
 	};
@@ -581,21 +588,73 @@ export function planEditorDeps(
 }
 
 /**
- * The Renovation Project view's own dependency bundle (design slice 14) — the seam slice 1
- * reserved in writing, extended by a field rather than relocated.
+ * The Renovation Project view's own dependency bundle (design slice 14, widened by slice 16's
+ * write side) — the seam slice 1 reserved in writing, extended by a field rather than
+ * relocated.
  *
- * Needs no `Workspace` and no `Vault`, unlike `planEditorDeps`: this view's only dependency
- * today is a read side. `unavailableRenovationProjectQueries()` when `root.persistence` is
- * `null` is the same total-rather-than-nullable shape as `planEditorDeps`, for the same
- * stated reason — a nullable dependency would make every caller branch on it, and refusing
- * to register the view at all would leave a restored leaf pointing at a view type Obsidian
- * does not know.
+ * Takes a `Workspace` and a `Vault` now, like `planEditorDeps`: slice 16 gave this view its
+ * first write (`commands.createProject`) and its first way to open a note (`openProject`),
+ * and the latter needs both to resolve a project's id to a file and reveal it.
+ * `unavailableRenovationProjectQueries()`/`unavailableRenovationProjectCommands()` when
+ * `root.persistence` is `null` are the same total-rather-than-nullable shape `planEditorDeps`
+ * uses for the identical situation — a nullable dependency would make every caller branch on
+ * it, and refusing to register the view at all would leave a restored leaf pointing at a view
+ * type Obsidian does not know. `openProject` answers `'failed'` rather than a refusal in that
+ * state: there is no index to resolve a path through, and nothing to tell the user that the
+ * list — empty for the same reason — has not already told them. It is `'failed'` and not
+ * `'missing'` because `'missing'` asks the view to re-read a list that has nothing to re-read.
+ *
+ * **The composed closure also owes the deferred half of Task 5's own review**: `ProjectList`'s
+ * row click discards the promise this returns (`@open="(id) => void context.openProject(id)"`),
+ * so a rejecting `openFile` (a real I/O fault, never the "id resolves to nothing" case
+ * `openProjectNote` already handles by design) would otherwise be an unhandled rejection
+ * reaching nobody. What travels down is the `reportFault` door — `notifyFault`, the same
+ * mapping a guarded command's fault would have taken — rather than a `.catch` wrapped around
+ * the call. It is composed HERE because `openProjectNote` is `infrastructure/`, which may not
+ * import `presentation/notices/notify` (the layer ban runs the other way) and `plugin/` is the
+ * one layer that may reach both; it is CALLED down there because that is where the coalescing
+ * is. A `.catch` at this end reported once per CLICK, and a double click is two clicks sharing
+ * one open: two notices and two identical log lines for one operation, which is the defect a
+ * review round found in the shape this replaced.
  */
-export function renovationProjectDeps(root: CompositionRoot): RenovationProjectDeps {
+export function renovationProjectDeps(
+	root: CompositionRoot,
+	workspace: Workspace,
+	vault: Vault,
+): RenovationProjectDeps {
 	const persistence = root.persistence;
 	return {
 		queries: persistence
 			? createRenovationProjectQueries(persistence.listProjects)
 			: unavailableRenovationProjectQueries(),
+		commands: persistence
+			? { createProject: persistence.createProject, logger: root.logger }
+			: unavailableRenovationProjectCommands(),
+		openProject: persistence
+			? (projectId) =>
+					openProjectNote(
+						{
+							workspace,
+							vault,
+							index: persistence.index,
+							// The fault answers `'failed'` down there and never `'missing'`: the id DID
+							// resolve and the open faulted, so the list behind the row is not stale and a
+							// vault-wide re-read would answer a question nobody asked. This notice is
+							// what the user acts on.
+							reportFault: (cause: unknown): void => {
+								notifyFault(cause, root.logger, 'view.project.open-failed');
+							},
+						},
+						projectId,
+					)
+			: () => Promise.resolve('failed'),
+		// Wired from the bus UNCONDITIONALLY, persistence or not, and that is the honest
+		// shape rather than a convenience: the bus is the root's own and exists either way,
+		// and a refusal bundle re-reading on a rebuild simply refuses again. Making this the
+		// one member that turns into a no-op when `persistence` is null would be a second
+		// answer to "is this session wired", decided in a different place from the other
+		// three — and the arm that would take it is the arm where no index rebuild is ever
+		// published, so it would never run.
+		onProjectsChanged: createProjectListChangeSource(root.eventBus),
 	};
 }

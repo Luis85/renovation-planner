@@ -11,10 +11,11 @@ import { createPluginDataProbe } from '../infrastructure/obsidian/settings/plugi
 import { buildProjectIndexEntries } from '../infrastructure/persistence/index/buildProjectIndexEntries';
 import { projectIndexRebuilt } from '../application/events/projectIndex.events';
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
-import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
+import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
+import { runDetached } from './runDetached';
 import { activateNotices, disposeNotices } from '../presentation/notices/notify';
 import {
 	createCompositionRoot,
@@ -23,6 +24,7 @@ import {
 	type CompositionRoot,
 	type VaultStack,
 } from './composition-root';
+import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { isDataAbsent, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
@@ -37,8 +39,17 @@ import { recoverInterruptedSequences } from '../application/reference/recoverInt
 const LOG_LEVEL: LogLevel = 'info';
 
 /**
- * The plugin shell: the ONLY place anything is registered with Obsidian, and the only layer
- * allowed to reach every other one — it composes them (SDD §9, §10).
+ * The plugin shell: the layer allowed to reach every other one — it composes them (SDD §9,
+ * §10) — and where registering with Obsidian belongs.
+ *
+ * That used to read "the ONLY place anything is registered with Obsidian", which was false
+ * when written and stayed false for fifteen slices: `planEditorCommands.ts` and
+ * `sampleProject.ts` each register commands through the `PluginCommandHost` seam, three
+ * calls between them. The claim that IS true is about the DIRECTORY, and it is worth having
+ * because the layer bans cannot express it — `obsidian` is importable in `infrastructure/`,
+ * and a `Plugin` is passed around as `host`, so nothing structural stops a view or a
+ * repository from registering a command. `tests/build/registration-locality.test.ts` is
+ * that claim, measured by reading `src/` rather than asserted here.
  *
  * `onload` registers and nothing more. No domain logic belongs here, and neither does
  * work: startup cost is paid by every user on every launch, and "register, do not scan" is
@@ -134,8 +145,9 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// registered below may read them. The merge is pure (`settingsFrom`); only the
 		// `loadData` call lives here, in the layer allowed to name it.
 		const loaded = await this.loadSettings(logger, createPluginDataProbe(this.app, this.manifest.id));
-		// Slice 11's verbose-logging switch: the only consumer of the adapter's `setLevel`,
-		// applied once the setting could have been read. Unreadable settings keep the
+		// Slice 11's verbose-logging switch — the only thing that consumes the adapter's
+		// `setLevel` at all, here and again in `saveSettings` when the preference changes
+		// live. Applied once the setting could have been read. Unreadable settings keep the
 		// bootstrap floor — no verbosity without a preference that asked for it.
 		if (loaded?.verboseLogging) logger.setLevel('debug');
 		this.root = createCompositionRoot(
@@ -157,45 +169,46 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// nothing below this line can be configured before it exists.
 		this.addSettingTab(new SettingsTab(this));
 
-		this.registerView(
-			RENOVATION_PROJECT_VIEW,
-			// Per CALL, not captured — the same reason the Plan Editor's factory resolves per
-			// call: `saveSettings` replaces `this.root`, and a view built against the old one
-			// would read through query services pointed at the previous project folder.
-			(leaf) => new RenovationProjectView(leaf, renovationProjectDeps(this.root)),
-		);
+		// Both factories resolve their dependencies PER CALL from the current root rather than
+		// capturing one, because `saveSettings` replaces `this.root` and a view built against
+		// the old one reads through an index nothing maintains any more.
+		//
+		// **That is necessary and it is not sufficient**, which is what an earlier version of
+		// this comment claimed on both counts. Obsidian calls a registered factory when it
+		// CONSTRUCTS a view, so "per call" only ever covered views opened AFTER a swap; every
+		// view already on screen kept the previous root indefinitely. `rebindOpenViews` is the
+		// other half, and the two share ONE spelling of each bundle below so a rebind can
+		// never hand a view something different from what its factory would have built.
+		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps()));
 		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
-		// view many times — the dependencies are resolved PER CALL from the current root, not
-		// captured, because `saveSettings` replaces that root and a view built against the old
-		// one would read through query services pointed at the previous project folder.
-		this.registerView(
-			PLAN_EDITOR_VIEW,
-			(leaf) => new PlanEditorView(leaf, planEditorDeps(this.root, this.app.workspace, this.app.vault)),
-		);
+		// view many times.
+		this.registerView(PLAN_EDITOR_VIEW, (leaf) => new PlanEditorView(leaf, this.planEditorViewDeps()));
 		// Sidecars are visible, openable files (ADR-011): without the extension
 		// registration they render as unsupported attachments in the explorer.
 		this.registerExtensions(['rpgeo'], GEOMETRY_SIDECAR_VIEW);
 		this.registerView(GEOMETRY_SIDECAR_VIEW, (leaf) => new GeometrySidecarView(leaf));
 
 		// Two ways in, one behaviour: both call the same function, so neither can grow its
-		// own idea of what opening the view means. `void` rather than an async handler —
-		// Obsidian ignores a returned promise, and the explicit void is what says the
-		// rejection is unhandled on purpose here rather than by omission.
+		// own idea of what opening the view means — and neither spells the detachment itself.
+		// `openProject` returns nothing and answers its own faults, because Obsidian ignores a
+		// returned promise and a `void` at each door is a rejection handler each door has to
+		// remember. See `runDetached`.
 		this.addRibbonIcon(RENOVATION_PROJECT_ICON, tr('command.open-project'), () => {
-			void this.openProject();
+			this.openProject();
 		});
 
 		this.addCommand({
 			id: 'open-project',
 			name: tr('command.open-project'),
 			callback: () => {
-				void this.openProject();
+				this.openProject();
 			},
 		});
 
-		// The Plan Editor's two commands. Their BEHAVIOUR lives in one module beside this
-		// one; the `addCommand` calls still happen here, so this file remains the only place
-		// anything is registered with Obsidian.
+		// The Plan Editor's two commands. Their BEHAVIOUR and their `addCommand` calls both
+		// live in one module beside this one — the sentence here used to claim the calls
+		// "still happen here", and they never did. What this file keeps is the ORDER: every
+		// registration is initiated from this one `onload`, in the sequence SDD §9 states.
 		registerPlanEditorCommands(this);
 
 		// SCAFFOLDING, and its own module says so at length: one command that seeds a
@@ -288,7 +301,58 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// complete; without it the session reads an index of nothing until the next reload,
 		// and every already-registered listener maintains a root nobody consults.
 		this.startPersistence();
+		// AFTER the rebuild, deliberately: a view rebound first would mount against the new
+		// root's still-empty index, draw its "nothing here" state, and need the rebuild event
+		// to correct itself. Rebinding second means each view mounts once, against an index
+		// that is already populated.
+		this.rebindOpenViews();
 		return this.saveData(next);
+	}
+
+	/** ONE spelling of the Renovation Project view's bundle, for the factory and the rebind. */
+	private projectViewDeps(): RenovationProjectDeps {
+		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault);
+	}
+
+	/** ONE spelling of the Plan Editor's bundle, for the factory and the rebind. */
+	private planEditorViewDeps(): PlanEditorDeps {
+		return planEditorDeps(this.root, this.app.workspace, this.app.vault);
+	}
+
+	/**
+	 * Points every view already on screen at the root that has just replaced the one it was
+	 * built against.
+	 *
+	 * Without this, a swap reached NEW views only. A pane left open across a settings save
+	 * went on reading through the previous root's Project Index — which `VaultChangeAdapter`
+	 * stops maintaining the moment the root is replaced, so it is not merely stale but frozen
+	 * — dispatched writes into the previous root's commands, put new projects under the
+	 * previous default folder, and held its `ProjectIndexRebuilt` subscription on a bus
+	 * nothing publishes to any more. All four measured across a real `saveSettings`; reported
+	 * in review as a P1 against the Renovation Project view, and true of the Plan Editor for
+	 * the same reason and since three slices earlier.
+	 *
+	 * It walks BOTH view types rather than the one that was reported, because "a view built
+	 * against a replaced root" is a category and the second member of it was already there.
+	 * `instanceof` rather than a view-type string comparison: `getLeavesOfType` is already
+	 * keyed by type, and what this needs to know is that the object has the method — a leaf
+	 * holding some other plugin's view under our type is not a thing to guess about.
+	 */
+	private rebindOpenViews(): void {
+		for (const leaf of this.app.workspace.getLeavesOfType(RENOVATION_PROJECT_VIEW)) {
+			if (!(leaf.view instanceof RenovationProjectView)) continue;
+			// ANNOTATED rather than left to the narrowing, and it is the gate that asks for it:
+			// `fallow` resolves a class member through an explicit type, never through a
+			// property access, so a `rebind` reached only via `instanceof` is reported as an
+			// unused class member. Measured — both views were, before this line existed.
+			const view: RenovationProjectView = leaf.view;
+			view.rebind(this.projectViewDeps());
+		}
+		for (const leaf of this.app.workspace.getLeavesOfType(PLAN_EDITOR_VIEW)) {
+			if (!(leaf.view instanceof PlanEditorView)) continue;
+			const view: PlanEditorView = leaf.view;
+			view.rebind(this.planEditorViewDeps());
+		}
 	}
 
 	private vaultStack: VaultStack | null = null;
@@ -400,7 +464,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 		}
 	}
 
-	private openProject(): Promise<void> {
-		return revealView(this.app.workspace, RENOVATION_PROJECT_VIEW);
+	/**
+	 * Both ways into the project view, and the place their fault is answered.
+	 *
+	 * It returns `void` rather than the activation's promise: every caller is an Obsidian
+	 * handler that discards one, so handing it back only offers the next caller a rejection to
+	 * forget. `runDetached` maps, logs and notifies in one step.
+	 */
+	private openProject(): void {
+		runDetached(
+			revealView(this.app.workspace, RENOVATION_PROJECT_VIEW),
+			this.root.logger,
+			'view.project.reveal-failed',
+		);
 	}
 }

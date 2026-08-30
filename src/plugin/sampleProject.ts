@@ -5,6 +5,7 @@ import type { PlanId } from '../domain/plan/PlanId';
 import type { ZoneStatus } from '../domain/zone/ZoneStatus';
 import type { ZoneType } from '../domain/zone/ZoneType';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
+import { runDetached } from './runDetached';
 import { notifyError } from '../presentation/notices/notify';
 import { PLAN_EDITOR_VIEW } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
@@ -24,16 +25,20 @@ import type { PluginCommandHost } from './commandHost';
  * zones drawn by type and status, layer toggling, pan and zoom, a rendered background —
  * had never been seen in the app. The suite passing is exactly why that went unnoticed.
  *
- * **What replaces it, so this does not become permanent by default:** slice 16's creation
- * forms give a real project and plan their names. Slice 14 has landed and is NOT that:
- * `renovationProject.noProjects` ships with no action at all (Amendment 1, 2026-08-26) —
- * its hand-off is this very form, and the form does not exist yet, so there is nothing to
- * wire. Slice 15 has landed and is not that either: it built the dialog framework those
- * forms will be mounted in, so the framework is ready and the forms are still owed. When a
- * user can create a project and a plan through one of those forms, delete this module and
- * its command; nothing else imports it. What it cannot be replaced by yet is a zone — a
- * zone needs a polygon, and drawing one is slices 6 and 8. Until then a seeded flat is the
- * only way zones exist at all.
+ * **What replaces it, so this does not become permanent by default — and design slice 16,
+ * now landed, does NOT retire it, which an earlier draft of this comment predicted it
+ * would.** Slice 16 built HALF of the pair: `NewProjectForm` dispatches the real
+ * `CreateProjectCommand`, reachable from `renovationProject.noProjects`'s action button
+ * (design slice 14's empty state, wired in slice 16) and from `ProjectList`'s own header
+ * button once a project exists. A user can create a PROJECT without this module now. They
+ * still cannot create a PLAN: nothing in `presentation/` calls `CreatePlanCommand`,
+ * `context.openProject` opens only the project's raw note (there is no in-plugin
+ * project-detail surface a "new plan" action could live on), and this module is therefore
+ * still the only way a Plan exists to open at all. What retires it is a plan-creation form
+ * plus a surface to reach one from — neither exists yet. Zones are NOT what is missing:
+ * `DrawPolygonTool` (slices 6 and 8) has let a user draw one by hand for slices now, so a
+ * seeded flat's real remaining job is handing over a PLAN with something already on it, not
+ * the zones themselves.
  *
  * It goes through the REAL commands, never the vault: writing notes here would prove
  * nothing about the persistence layer and would breach `WRITE_BOUNDARY` besides. So a
@@ -193,7 +198,10 @@ export function registerSampleProjectCommand(host: PluginCommandHost): void {
 		checkCallback: (checking: boolean) => {
 			const services = host.root.persistence;
 			if (services === null) return false;
-			if (!checking) void createAndOpen(host, services);
+			// Detached like every other command handler, and answered like every other one:
+			// `createAndOpen` awaits a seed AND an activation, either of which can fault, and
+			// a bare `void` sent both nowhere.
+			if (!checking) runDetached(createAndOpen(host, services), host.root.logger, 'sample-project.failed');
 			return true;
 		},
 	});

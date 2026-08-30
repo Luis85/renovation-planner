@@ -70,8 +70,21 @@ class FakeVault {
 	 * the root as a folder while its sibling treats the identical path as nothing is the
 	 * thin-fake shape this repository has been burned by more than once. Real Obsidian
 	 * resolves the root to its `TFolder` as well.
+	 *
+	 * A returned folder carries its DIRECT `children`, which is the same rule read once more:
+	 * `MockTFolder` declares the field and this fake left it permanently `[]`, so every folder
+	 * in the suite read as empty. `undoEnsureFolder` refuses to trash a folder something else
+	 * has filled — the one thing standing between a failed insert and Obsidian's recursive
+	 * `trashFile` — and against an always-empty fake that refusal could never be driven, nor
+	 * could dropping it ever turn a test red. One level deep and rebuilt per call: nothing here
+	 * holds a folder across a mutation, and a recursive build would walk the whole tree for
+	 * every path lookup a repository makes.
 	 */
 	getAbstractFileByPath(path: string): TFile | MockTFolder | null {
+		return this.nodeAt(path, true);
+	}
+
+	private nodeAt(path: string, withChildren: boolean): TFile | MockTFolder | null {
 		if (this.entries.has(path)) {
 			const segments = path.split('/');
 			const file = new MockTFile();
@@ -86,9 +99,25 @@ class FakeVault {
 			const folder = new MockTFolder();
 			folder.path = path;
 			folder.name = segments.at(-1) ?? '';
+			if (withChildren) {
+				const prefix = path === '' ? '' : `${path}/`;
+				folder.children = [...this.childNames(prefix)].flatMap((name) => this.nodeAt(`${prefix}${name}`, false) ?? []);
+			}
 			return folder;
 		}
 		return null;
+	}
+
+	/** The direct child NAMES under a path prefix, from both namespaces at once. */
+	private childNames(prefix: string): Set<string> {
+		const names = new Set<string>();
+		for (const entry of [...this.entries.keys(), ...this.folders]) {
+			if (!entry.startsWith(prefix)) continue;
+			const rest = entry.slice(prefix.length);
+			if (rest === '') continue;
+			names.add(rest.split('/')[0] ?? '');
+		}
+		return names;
 	}
 
 	// The fake mirrors Obsidian's async API: failures REJECT, never throw synchronously,
@@ -140,11 +169,26 @@ class FakeVault {
 		}
 	}
 
-	delete(file: TFile): Promise<void> {
+	/**
+	 * A file OR a folder, because Obsidian's own `trashFile` takes any `TAbstractFile` and this
+	 * fake modelled only half of that. The folder arm is DESTRUCTIVE on purpose — Obsidian
+	 * takes everything inside — since that is precisely the behaviour `undoEnsureFolder`'s
+	 * emptiness check exists to stay clear of, and a fake that politely refused a non-empty
+	 * folder would make dropping that check invisible.
+	 */
+	delete(file: TFile | MockTFolder): Promise<void> {
 		try {
 			this.op('delete', file.path);
-			if (!this.entries.has(file.path)) throw new Error(`No file to delete: ${file.path}`);
-			this.entries.delete(file.path);
+			if (this.entries.has(file.path)) {
+				this.entries.delete(file.path);
+				return Promise.resolve();
+			}
+			if (!this.folderExists(file.path)) throw new Error(`No file to delete: ${file.path}`);
+			const prefix = `${file.path}/`;
+			// Deleting during iteration is safe for both: a `Map`/`Set` iterator skips an entry
+			// removed before it is reached, and nothing here removes an entry it has not visited.
+			for (const path of this.entries.keys()) if (path.startsWith(prefix)) this.entries.delete(path);
+			for (const path of this.folders) if (path === file.path || path.startsWith(prefix)) this.folders.delete(path);
 			return Promise.resolve();
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -154,6 +198,7 @@ class FakeVault {
 	createFolder(path: string): Promise<void> {
 		try {
 			this.op('createFolder', path);
+			if (this.folderExists(path)) throw new Error(`Folder already exists: ${path}`);
 			this.folders.add(path);
 			return Promise.resolve();
 		} catch (cause) {
@@ -265,7 +310,8 @@ class FakeFileManager {
 		await this.vault.modify(file, `${serializeFrontmatter(frontmatter)}${body}`);
 	}
 
-	trashFile(file: TFile): Promise<void> {
+	/** `TAbstractFile` in Obsidian, so a folder is as ordinary an argument here as a note. */
+	trashFile(file: TFile | MockTFolder): Promise<void> {
 		return this.vault.delete(file);
 	}
 }

@@ -1,0 +1,150 @@
+/*
+ * Field errors, the form banner, and the project list.
+ *
+ * Every colour is an Obsidian variable so a themed vault stays themed (SDD §84). The
+ * assembler parses this with lightningcss and refuses a literal colour at any nesting
+ * depth, including a bare word like `red`.
+ */
+.rp-field-error {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+}
+
+/*
+ * `.rp-field-error` is the wrapper `FieldError.vue` renders; the slotted control (the
+ * caller's `<input>`, bound to the `aria` object the component's scoped slot hands down)
+ * is its descendant. No caller ever applies an `__control` class — reaching the control
+ * through the wrapper is what lets Tasks 6 and 9 get this rule for free.
+ */
+.rp-field-error [aria-invalid='true'] {
+	border-color: var(--text-error);
+}
+
+.rp-field-error__message,
+.rp-form-banner {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--size-2-2);
+	margin: 0;
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-form-banner {
+	padding: var(--size-4-2);
+	border: 1px solid var(--background-modifier-error);
+	border-radius: var(--radius-s);
+	background-color: var(--background-modifier-error-hover);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * THE LIST'S HEADER IS A ROW, and it took a capture to find out it was not one.
+ *
+ * `ProjectList.vue` shipped `.rp-project-list__header`, `__title`, `__create` and `__name`
+ * with NO rule anywhere under `styles/`, so an `<h2>` block followed by a `<button>` simply
+ * stacked: the title on one line, the button beneath it, flush left, with the first row
+ * immediately under that and nothing separating the three. Read off `harness-shots/` at both
+ * 1280 and 460 — the exact class of defect CLAUDE.md names as outside every gate here, since
+ * jsdom lays nothing out.
+ *
+ * The horizontal padding matches the ROW's below, so the title's left edge and a project's
+ * name line up rather than sitting a few pixels apart.
+ */
+.rp-project-list__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-2) var(--size-2-2);
+}
+
+.rp-project-list__title {
+	margin: 0;
+	font-size: var(--font-ui-large);
+}
+
+/*
+ * The header button's own focus ring, for the reason the ROW's below states: Obsidian's
+ * global `:focus { outline: none }` reaches buttons too and the vendored app.css reduction
+ * puts nothing back, so every control in this repository opts its ring back in per control.
+ * Measured rather than reasoned, and the measurement NARROWS the claim: a ring was not
+ * literally absent — nothing flattens this button, so Obsidian's own `button:focus-visible`
+ * box-shadow applied. It was unreadable. In a real Chromium against the vendored sheet that
+ * shadow computes `rgb(85, 85, 85)` on `rgb(28, 28, 28)` in dark (**2.29:1**) and
+ * `rgb(189, 189, 189)` on white in light (**1.88:1**), both under WCAG 1.4.11's 3:1 floor for
+ * a non-text indicator, and a capture of the focused button was indistinguishable from the
+ * resting one. `--interactive-accent` measures **4.00:1** and **3.43:1** on those same two
+ * surfaces. `.rp-empty-state__action` carries the identical rule for the identical reason.
+ *
+ * `outline-offset` is POSITIVE here and negative on the row: the row is edge-to-edge in the
+ * pane, so an outside ring would be clipped, while this button is inset and has room.
+ */
+.rp-project-list__header .rp-project-list__create:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.rp-project-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/*
+ * Scoped under `.rp-project-list`, not a bare `.rp-project-list__row`: Obsidian's own
+ * `button:not(.clickable-icon)` is (0,1,1), a single class here is (0,1,0), and
+ * `tests/build/buttonSpecificity.test.ts` refuses the loss — the same reason
+ * `.rp-dialog-button-danger` (design slice 15) is written `.rp-dialog .rp-dialog-button-danger`.
+ */
+.rp-project-list .rp-project-list__row {
+	display: flex;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	width: 100%;
+	/* WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
+	   photographing the page rather than by any gate. */
+	min-height: var(--size-4-6);
+	padding: var(--size-2-2) var(--size-4-2);
+	border: none;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	color: var(--text-normal);
+	text-align: left;
+	cursor: pointer;
+}
+
+.rp-project-list .rp-project-list__row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* The vendored app.css reduction carries `a { outline: none }` and puts nothing back, so a
+   focus ring is stated here rather than inherited. WCAG 2.4.7. */
+.rp-project-list .rp-project-list__row:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/*
+ * A LONG NAME MUST NOT PUSH THE STATUS OFF THE ROW, which is what it did.
+ *
+ * Captured at 460px — an Obsidian sidebar leaf's real width — a project named past the pane
+ * clipped mid-word AND took its status label entirely off screen: the row said nothing at all
+ * about that project's lifecycle stage. A flex item's `min-width` is `auto`, so the name
+ * refused to shrink below its content and the status, which CAN shrink, was the half that
+ * lost. `min-width: 0` lets the name give way and the ellipsis says it did; `flex-shrink: 0`
+ * on the status is what makes the name the half that gives.
+ */
+.rp-project-list__name {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.rp-project-list__status {
+	flex-shrink: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}

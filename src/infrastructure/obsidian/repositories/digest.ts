@@ -1,4 +1,9 @@
 import type { ObservationToken } from '../../../application/ports/versioning';
+import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../persistence/dto/assetFrontmatter';
+import { PLAN_TYPE, PlanFrontmatterSchemaV1 } from '../../persistence/dto/planFrontmatter';
+import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
+import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1 } from '../../persistence/dto/requirementFrontmatter';
+import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFrontmatter';
 
 /**
  * How an observation token is minted, and therefore what "external modification" MEANS
@@ -13,54 +18,63 @@ import type { ObservationToken } from '../../../application/ports/versioning';
  *
  * Two scopes, because the two file kinds are exposed differently:
  *
- * - A NOTE's token digests ONLY the frontmatter keys this plugin owns (the ones its
- *   schema declares). The note body and any undeclared key belong to the user, so prose
- *   edits and extra keys neither refuse a later save nor get clobbered by one.
+ * - A NOTE's token digests ONLY the frontmatter keys this plugin owns in a note of THAT
+ *   KIND — the ones that note's own schema declares, never the union of all five (see
+ *   `OWNED_KEYS_BY_TYPE`). The note body and any key that schema does not declare belong
+ *   to the user, so prose edits and extra keys neither refuse a later save nor get
+ *   clobbered by one.
  * - A SIDECAR's token digests the raw file text. Every key in the document is
  *   plugin-owned, and `.rpgeo` is deliberately a registered, openable file type
  *   (ADR-011), so ANY out-of-band change — including whitespace — makes the token stale
  *   and refuses the conditional write built on it.
  */
 
-const OWNED_KEYS = [
-	'type',
-	'schema-version',
-	'id',
-	'revision',
-	'name',
-	'status',
-	'project',
-	'plan',
-	'zone-type',
-	'background-path',
-	'background-kind',
-	'background-page',
-	'layers',
-	// Asset notes (design slice 10).
-	'category',
-	'supplier',
-	'sku',
-	'unit',
-	'unit-cost',
-	'currency',
-	'waste-factor-default',
-	'notes',
-	// Requirement notes (design slice 10) — including every `calculated-from-*` input,
-	// whose loss is invisible precisely because the read model keeps working without them.
-	'asset',
-	'origin-kind',
-	'origin-zone',
-	'waste-factor',
-	'quantity-calculated',
-	'quantity-override',
-	'cost-calculated',
-	'cost-override',
-	'calculated-from-area',
-	'calculated-from-unit-cost',
-	'calculated-from-asset-unit',
-	'recalculation-status',
-	'required-date',
-] as const;
+/**
+ * What each note KIND owns, derived from the five frontmatter schemas rather than
+ * transcribed beside them.
+ *
+ * It used to be one hand-written array covering every kind at once, and that union is a
+ * different rule from the one the paragraph above states. `description`, `start` and
+ * `target-completion` (design slice 16) made the difference visible: they belong to a
+ * project note, and a ZONE note carrying a user's own `description` had it digested too —
+ * so editing that property refused the zone's next save with `zone.external-modification`,
+ * for a key the Zone schema does not declare and `writeOwnedFrontmatter` never writes.
+ * Measured before it was fixed, and true of the earlier union as well (an asset's `notes`
+ * on a plan note, and so on) — slice 16 only widened it into keys a user is likely to have.
+ *
+ * Derived and not listed, because a second list is exactly how the first one drifted: a key
+ * added to a schema is owned the day it is added, in the digest and in the write, with
+ * nothing to keep in step.
+ */
+const SCHEMAS: readonly (readonly [string, { readonly shape: Readonly<Record<string, unknown>> }])[] = [
+	[PROJECT_TYPE, ProjectFrontmatterSchemaV1],
+	[PLAN_TYPE, PlanFrontmatterSchemaV1],
+	[ZONE_TYPE, ZoneFrontmatterSchemaV1],
+	[ASSET_TYPE, AssetFrontmatterSchemaV1],
+	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1],
+];
+
+const OWNED_KEYS_BY_TYPE: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
+	SCHEMAS.map(([type, schema]) => [type, Object.keys(schema.shape).toSorted()]),
+);
+
+/**
+ * The fallback for a note whose `type` is none of the five: every key any schema declares.
+ *
+ * Deliberately the WIDER answer rather than the empty one. A token over no keys at all
+ * would move for nothing, so a note this plugin somehow wrote without a recognisable type
+ * could be overwritten by a conditional write that had checked nothing — the failure mode
+ * this whole mechanism exists to prevent. The cost of being wide here is a refusal the user
+ * can clear by re-reading; the cost of being narrow is a lost edit.
+ */
+const EVERY_OWNED_KEY: readonly string[] = [
+	...new Set(Object.values(OWNED_KEYS_BY_TYPE).flat()),
+].toSorted();
+
+/** The keys a note of this `type` owns — its own schema's, or the union when the type is not ours. */
+function ownedKeysFor(type: unknown): readonly string[] {
+	return (typeof type === 'string' ? OWNED_KEYS_BY_TYPE[type] : undefined) ?? EVERY_OWNED_KEY;
+}
 
 /** 64-bit FNV-1a over UTF-8 bytes, hex-encoded — stable across sessions and platforms. */
 function digest(text: string): ObservationToken {
@@ -86,7 +100,8 @@ function digest(text: string): ObservationToken {
 
 /** The token for a note, over its plugin-owned frontmatter keys alone. */
 export function observeFrontmatter(frontmatter: Record<string, unknown>): ObservationToken {
-	const owned = OWNED_KEYS.filter((key) => key in frontmatter)
+	const owned = ownedKeysFor(frontmatter['type'])
+		.filter((key) => key in frontmatter)
 		.toSorted()
 		.map((key) => `${JSON.stringify(key)}:${JSON.stringify(frontmatter[key])}`);
 	return digest(`v1|${owned.join('|')}`);

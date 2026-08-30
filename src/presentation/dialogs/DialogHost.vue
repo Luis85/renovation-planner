@@ -99,23 +99,41 @@ let previouslyFocused: HTMLElement | null = null;
  * a sibling that needed to stay inert for some OTHER reason while this dialog closes would
  * need this to track that instead of blindly clearing every element it backgrounded.
  *
- * It is also a SNAPSHOT taken once, when `inertBackground` runs at open time — not
- * re-derived while the dialog stays open. A sibling added afterward by a `v-if` that flips
- * while a dialog is open never goes `inert`, and a sibling removed afterward leaves
- * `releaseBackground` clearing the attribute off a detached node. Harmless today, but for
- * different reasons on the two hosts this mounts in. The Plan Editor's only conditional
- * root-level siblings are non-focusable `<p>`s, so even an untracked toggle costs nothing
- * reachable. `ViewRoot` (design slice 14) now has one too — `<EmptyState v-if="empty !==
- * null">`, gated on the project list's hydration status — which IS the shape this paragraph
- * warns about: a root-level sibling that can appear or disappear on its own. It is harmless
- * only because nothing in this slice ever opens a dialog from `ViewRoot` (the "Create a
- * project" action named in `EMPTY_STATE_CONTENT` has no hand-off yet, so there is no dialog
- * whose open window could overlap a hydration in flight), not because the hazard stopped
- * applying. A later slice that wires a dialog into `ViewRoot` inherits this exactly: check
- * whether `empty` can still be toggling while that dialog is open, and if so, this snapshot
- * is what needs to widen, not a fresh mechanism beside it.
+ * It used to be a SNAPSHOT taken once at open time, and this paragraph used to be a warning
+ * addressed to whoever made that unsafe: "`ViewRoot` now has one too — `<EmptyState
+ * v-if="empty !== null">` ... harmless only because nothing in this slice ever opens a dialog
+ * from `ViewRoot`, not because the hazard stopped applying. A later slice that wires a dialog
+ * into `ViewRoot` inherits this exactly: check whether `empty` can still be toggling while
+ * that dialog is open, and if so, this snapshot is what needs to widen."
+ *
+ * Design slice 16 wired that dialog, and the round that gave `ViewRoot` a
+ * `ProjectIndexRebuilt` subscription made the answer YES: a restored pane hydrates against
+ * the empty pre-layout index, a user opens the create dialog from the empty state, the
+ * rebuild lands while it is open, and `v-else` replaces the inerted `EmptyState` with a
+ * `ProjectList` full of focusable rows that the snapshot had never seen. Reported in review;
+ * neither the wiring nor the subscription had come back to read this paragraph.
+ *
+ * So it is LIVE rather than a snapshot: `syncBackground` runs at open AND from a
+ * `MutationObserver` on the parent's child list for as long as the dialog stays open, and
+ * `backgrounded` is a `Set` so a re-sync cannot double-count an element it already holds.
+ * That is the widening this docblock asked for rather than a mechanism beside it — the
+ * failure is now unrepresentable instead of merely absent from the toggles somebody
+ * enumerated, which is the same trade `PlanCanvas` made over its re-issued pointer move.
+ *
+ * **The one gap left, stated rather than glossed:** a `MutationObserver` callback is a
+ * microtask, so a newly inserted sibling is non-`inert` for the tick between its insertion
+ * and the sync. Nothing a user can act on lands in that window — it is shorter than any
+ * input event — but it is not the same claim as "never", and a synchronous answer would
+ * take a stable wrapper element in every host rather than a rule this component can hold
+ * for all of them.
  */
-let backgrounded: HTMLElement[] = [];
+let backgrounded = new Set<HTMLElement>();
+
+/**
+ * Disconnected by `releaseBackground` and never left running past a close: an observer
+ * outliving its dialog would go on inerting siblings of a view with nothing open in it.
+ */
+let backgroundWatcher: MutationObserver | null = null;
 
 /**
  * Both call sites only run once `.rp-dialog` exists: `onKeydown` is bound to that element
@@ -130,19 +148,38 @@ function focusableWithin(): HTMLElement[] {
 	return [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)];
 }
 
+/** Every current sibling of the dialog that this host has not already backgrounded. */
+function syncBackground(parent: HTMLElement): void {
+	for (const child of parent.children) {
+		if (!(child instanceof HTMLElement) || child.contains(dialogEl.value)) continue;
+		// No "have I already done this one" guard, deliberately: `backgrounded` is a `Set` so
+		// the add is idempotent, and setting an attribute to the value it already holds is a
+		// no-op. A guard here would be a branch that only ever exists to skip work already
+		// proven free — untestable except by contriving a re-sync, and this repository's
+		// branch floor is not somewhere to spend on that.
+		backgrounded.add(child);
+		child.setAttribute('inert', '');
+	}
+}
+
 function inertBackground(): void {
 	const overlay = (dialogEl.value as HTMLElement).parentElement as HTMLElement; // .rp-dialog-overlay
 	const parent = overlay.parentElement as HTMLElement; // the view root the host mounts inside
-	backgrounded = [...parent.children].filter(
-		(child): child is HTMLElement =>
-			child instanceof HTMLElement && !child.contains(dialogEl.value),
-	);
-	for (const element of backgrounded) element.setAttribute('inert', '');
+	syncBackground(parent);
+	// `childList` alone, and no `subtree`: the rule is about the dialog's own SIBLINGS, and
+	// `inert` already covers every descendant of one, so watching the whole tree would wake
+	// this on every keystroke inside the view for nothing.
+	backgroundWatcher = new MutationObserver(() => {
+		syncBackground(parent);
+	});
+	backgroundWatcher.observe(parent, { childList: true });
 }
 
 function releaseBackground(): void {
+	backgroundWatcher?.disconnect();
+	backgroundWatcher = null;
 	for (const element of backgrounded) element.removeAttribute('inert');
-	backgrounded = [];
+	backgrounded = new Set();
 }
 
 function resolve(result: DialogResult): void {
@@ -179,6 +216,11 @@ function onKeydown(event: KeyboardEvent): void {
 
 	if (event.key === 'Escape') {
 		event.preventDefault();
+		// Still handled here whether or not it acts: letting the key fall through to
+		// Obsidian's own keymap mid-write would be a second surprise on top of the first.
+		// A form whose write is in flight cannot be cancelled out from under it — the
+		// framework never started that write, so it has no way to stop it either.
+		if (descriptor.kind === 'form' && descriptor.busy?.value === true) return;
 		// The same meaning slice 6 gives `Escape` for an in-progress tool gesture, extended
 		// to a dialog: abandon the transient interaction, commit nothing.
 		resolve(cancelResultFor(descriptor.kind));
@@ -258,17 +300,59 @@ watch(
 );
 
 /**
- * A leaf closed with a dialog open would otherwise leave the view's own regions inert
- * forever — and Obsidian REUSES a view, so the next open would inherit a pane nothing can
- * be clicked in, with nothing erroring anywhere.
+ * An unmount has TWO things to undo, and this hook did one of them.
  *
- * This deliberately does NOT call `store.resolve`: a leaf's own `openDialog(...)` caller is
- * gone with the leaf, so its `await` is left pending forever rather than settled with a
- * value nobody reads. That is the intended behaviour — the view is gone, so there is
- * nothing left to dispatch anything on its behalf — not an oversight this comment is
- * silently working around.
+ * The background first: a leaf closed with a dialog open would otherwise leave the view's
+ * own regions inert forever — and Obsidian REUSES a view, so the next open would inherit a
+ * pane nothing can be clicked in, with nothing erroring anywhere.
+ *
+ * And then the awaiting caller. This used to settle nothing, under a comment calling that
+ * deliberate: "a leaf's own `openDialog(...)` caller is gone with the leaf, so its `await`
+ * is left pending forever rather than settled with a value nobody reads". A leaf close is no
+ * longer the only unmount. `RenovationProjectView.rebind` tears this whole tree down and
+ * rebuilds it on every `saveSettings`, with the leaf still OPEN — so a settings change while
+ * the New Project form was up took the form away and left `ViewRoot.onCreateProject()`
+ * suspended on a promise nothing would ever settle, holding the retired root's context alive
+ * behind it. Reported in review.
+ *
+ * CANCEL rather than preserving the form across the swap, and the reason is not that
+ * cancelling was the easier of the two. The descriptor's `dispatch` prop closes over the
+ * root being replaced, so a form carried through would write through the very root `rebind`
+ * exists to retire — under the PREVIOUS default project folder, which is one of the four
+ * defects that made `deps` non-readonly in the first place. There is nothing to preserve
+ * that would still point anywhere valid.
+ *
+ * Settling is safe on the leaf-close path this hook was written against too, which is why
+ * one hook covers both: every caller of `openDialog` returns on `cancel`, so nothing
+ * dispatches and nothing opens a second dialog into a tree that is unmounting.
+ *
+ * **It settles UNCONDITIONALLY, `descriptor.busy` included, and that is the one door `busy`
+ * does not hold** — reported in review as a P2 and RECORDED rather than closed, so read this
+ * paragraph as the bound rather than as reassurance. `onKeydown` refuses `Escape` while a
+ * write is in flight and `FormDialog` disables Cancel, because the framework never started
+ * that write and cannot stop it. An unmount cannot refuse: the tree is going either way, and
+ * leaving the caller suspended is the defect this hook was added for. So a `saveSettings`
+ * landing inside the window of a single `vault.create` tells `ViewRoot.onCreateProject()`
+ * the dialog was cancelled while its write runs on against the root `rebind` is retiring.
+ * What that costs, measured rather than assumed: the project IS created, under the PREVIOUS
+ * default project folder; `ProjectCreated` reaches the retired root's event bus, so the
+ * rebound tree's `onProjectsChanged` never hears it; and `VaultChangeAdapter` indexes the
+ * note into the new root while publishing nothing — `projectIndexRebuilt()` has exactly one
+ * publisher, the full scan, and `saveSettings` runs that BEFORE the rebind. The rebound list
+ * is stale until the leaf is reopened.
+ *
+ * The remedy the report named — defer the rebind, or otherwise coordinate the active write —
+ * needs the `ItemView` to learn that its Vue tree is mid-write, a seam that does not exist,
+ * and buys that by running on the retired root for the length of the write. It is written
+ * down in `docs/tasks/16` with the work that would close it, and pinned as behaviour by
+ * `tests/presentation/dialogs/formBusy.test.ts`'s last case, so a build that starts holding
+ * this door fails there rather than quietly making this paragraph wrong.
  */
-onBeforeUnmount(releaseBackground);
+onBeforeUnmount(() => {
+	releaseBackground();
+	const descriptor = current.value;
+	if (descriptor !== null) store.resolve(cancelResultFor(descriptor.kind));
+});
 </script>
 
 <template>

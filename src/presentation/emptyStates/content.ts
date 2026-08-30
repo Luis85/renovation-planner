@@ -16,24 +16,31 @@ export interface EmptyStateContent {
 	readonly headline: StringKey;
 	readonly body: StringKey;
 	/**
-	 * Absent means NO BUTTON, and `renovationProject.noProjects` and `planEditor.noBackground`
-	 * are why the field is optional rather than the exception to it. `noProjects`'s hand-off is
-	 * slice 16's project-creation form, which depends on slice 11 — so a button here would
-	 * either do nothing or be a second, independently-decided way to create a project.
-	 * `noBackground`'s hand-off is slice 5's `set-plan-background` plugin command, which is not
-	 * a member of `PlanEditorCommandServices`: the editor's Vue tree cannot reach it without
-	 * either widening `PlanEditorContext` (slice 5's surface) or reaching for the global `app`,
-	 * both refused. `planEditor.noZones` is the only entry that keeps this field, because its
-	 * hand-off (`activeToolId = 'draw-polygon'`) already exists and is reachable from here.
+	 * Absent means NO BUTTON, and `planEditor.noBackground` is now the only reason the field
+	 * is optional rather than the exception to it. Its hand-off is slice 5's
+	 * `set-plan-background` plugin command, which is not a member of
+	 * `PlanEditorCommandServices`: the editor's Vue tree cannot reach it without either
+	 * widening `PlanEditorContext` (slice 5's surface) or reaching for the global `app`, both
+	 * refused. `renovationProject.noProjects` is NOT an example of this any more — design
+	 * slice 16 built the form it hands off to, so it keeps the field like `planEditor.noZones`
+	 * does, whose hand-off (`activeToolId = 'draw-polygon'`) already existed and was reachable
+	 * from here.
 	 */
 	readonly actionLabel?: StringKey;
 }
 
 export const EMPTY_STATE_CONTENT = {
 	renovationProject: {
+		/**
+		 * The action arrived with design slice 16: `ViewRoot` opens `NewProjectForm` in
+		 * slice 15's `FormDialog`. Until then this entry had no button on purpose, because
+		 * the form it hands off to did not exist and slice 14's Amendment 1 refuses a live
+		 * control that does nothing.
+		 */
 		noProjects: {
 			headline: 'empty.project.no-projects.headline',
 			body: 'empty.project.no-projects.body',
+			actionLabel: 'empty.project.no-projects.action',
 		},
 	},
 	planEditor: {

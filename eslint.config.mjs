@@ -928,7 +928,25 @@ export default defineConfig([
 			// SFC with an async call site is the trigger to wire the type-aware half.
 			parserOptions: { parser: tsparser },
 		},
+		// `no-unused-vars` (below) needs the TypeScript-aware rule registered under this
+		// key — `src/**/*.ts` gets it from `eslint-plugin-obsidianmd`'s bundled
+		// `typescript-eslint/recommended`, whose OWN `files` pattern is `**/*.{js,cjs,mjs,jsx}`
+		// / `**/*.{ts,cts,mts,tsx}` and never matches `.vue`, so this block cannot reach that
+		// plugin registration and has to bring its own.
+		plugins: { '@typescript-eslint': tseslint.plugin },
 		rules: {
+			// The base `no-unused-vars` is ESLint core, not the TypeScript-aware rule `.ts`
+			// files get from `eslint-plugin-obsidianmd`'s bundled config (same reason as the
+			// `plugins` comment above) — and core's rule does not understand a `FunctionType`
+			// node, so a NAMED parameter in a function-type annotation (`(input: T) => R`,
+			// which nothing here ever WRITES to, because it is a type, not a binding) reads as
+			// an unused variable. `NewProjectForm.vue`'s `dispatch` prop is the first `.vue`
+			// file to declare one. Off here and replaced by the TypeScript-aware rule with the
+			// same `argsIgnorePattern`/`varsIgnorePattern` the `.ts` block already carries,
+			// rather than reaching for an inline suppression `linterOptions.noInlineConfig`
+			// refuses anyway.
+			'no-unused-vars': 'off',
+			'@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
 			// Each of these six is the CHECK under a rule in docs/setup/vue-conventions.md,
 			// and `flat/recommended` enables none of them.
 			'vue/component-api-style': ['error', ['script-setup']],

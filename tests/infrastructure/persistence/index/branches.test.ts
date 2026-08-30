@@ -4,6 +4,7 @@ import { expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../../../helpers/entities';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
+import { createEventBus } from '../../../../src/core/events/EventBus';
 import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
 import { KeyedQueues } from '../../../../src/infrastructure/obsidian/repositories/KeyedQueues';
 import { EchoWindow } from '../../../../src/infrastructure/persistence/index/EchoWindow';
@@ -22,6 +23,9 @@ function adapterOf(stack: ReturnType<typeof createRepositoryStack>, debounceMs?:
 		index: stack.index,
 		echo: stack.echo,
 		logger: stack.logger,
+		// A real bus with no subscribers: the pipeline announces every entry it changes, and
+		// a fake that accepted no publish would be thinner than the port it stands for.
+		events: createEventBus(() => undefined),
 		debounceMs,
 	});
 }

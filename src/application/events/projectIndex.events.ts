@@ -1,4 +1,6 @@
 import type { DomainEvent } from '../../core/events/EventBus';
+import type { EntityId } from '../../core/identity/EntityId';
+import type { EntityType } from '../ports/ProjectIndex';
 
 /**
  * The Project Index was (re)built — the one fact a view needs that no entity emits.
@@ -25,4 +27,52 @@ export type ProjectIndexRebuilt = DomainEvent<'ProjectIndexRebuilt'>;
 
 export function projectIndexRebuilt(): ProjectIndexRebuilt {
 	return { type: 'ProjectIndexRebuilt' };
+}
+
+/**
+ * ONE entry in the Project Index changed out of band — the vault-change pipeline's own
+ * announcement, and the counterpart to the rebuild above rather than a smaller version of it.
+ *
+ * It exists because `ProjectIndexRebuilt` had exactly one publisher for four slices —
+ * `RenovationPlannerPlugin.startPersistence`, at layout-ready and on a settings swap — while
+ * `VaultChangeAdapter` is the SOLE index writer for every change this plugin did not make
+ * itself: a note added by hand, copied in, or arriving through sync. That adapter held no
+ * `EventBus` at all, so every one of those changes reached the index and no view. A mounted
+ * Renovation Project pane went on drawing the vault it had read at mount, indefinitely; the
+ * module that turns this vocabulary into a subscription had recorded the DELETE half of the
+ * same gap in prose ("still publishes nothing at all") and named it unfixable "until something
+ * raises one". This is that something. Reported in review.
+ *
+ * **It carries the entity's type, and a rebuild deliberately carries nothing.** That asymmetry
+ * is the whole reason these are two events rather than one with an optional payload: a rebuild
+ * says nothing about WHICH entities changed, so every subscriber must re-read, while this one
+ * names exactly one entry and lets each source decide whether that entry is its business.
+ * Without the type, the project list would re-read every project note in the vault for every
+ * synced zone note — the subscription would be correct and the surface would be unusable.
+ *
+ * **A RETYPE publishes two of these, one per type, and that follows from the filter rather
+ * than contradicting it.** An index upsert is keyed on the id, so a note whose `type` is
+ * hand-edited from one of the five to another leaves one bucket as it enters the next — two
+ * facts, and each source filters on exactly one of them. Announcing only the arriving type
+ * told every source except the one that needed telling: the project list matched
+ * `renovation-project`, so a project retyped into a plan kept its row. Each event still names
+ * one entry; there are simply two changes to name. Reported in review.
+ *
+ * The id is carried for the same reason every other event in this codebase carries its
+ * subject, and is used by nothing today; a plan-side source that wants "this plan's entry
+ * moved" is the first caller that will need it.
+ */
+export interface ProjectIndexEntryChangedPayload {
+	readonly entityId: EntityId<string>;
+	readonly entityType: EntityType;
+}
+
+export interface ProjectIndexEntryChanged extends DomainEvent<'ProjectIndexEntryChanged'> {
+	readonly payload: ProjectIndexEntryChangedPayload;
+}
+
+export function projectIndexEntryChanged(
+	payload: ProjectIndexEntryChangedPayload,
+): ProjectIndexEntryChanged {
+	return { type: 'ProjectIndexEntryChanged', payload };
 }

@@ -1,6 +1,8 @@
 import { TFile, type MetadataCache, type TFile as TFileType, type Vault } from 'obsidian';
 import type { Logger } from '../../../application/ports/Logger';
 import type { ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
+import type { EventBus } from '../../../core/events/EventBus';
+import { projectIndexEntryChanged } from '../../../application/events/projectIndex.events';
 import { entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
@@ -28,6 +30,7 @@ export class VaultChangeAdapter {
 			metadataCache: MetadataCache;
 			index: ProjectIndex;
 			echo: EchoWindow;
+			events: EventBus;
 			logger: Logger;
 			/** Tests flush synchronously by passing 0. */
 			debounceMs?: number;
@@ -63,7 +66,7 @@ export class VaultChangeAdapter {
 			this.enqueue(file.path);
 			return;
 		}
-		this.deps.index.upsert({ ...existing, path: file.path });
+		this.applyUpsert({ ...existing, path: file.path });
 		this.deps.echo.move(oldPath, file.path);
 		this.pending.delete(oldPath);
 		this.enqueue(file.path);
@@ -104,7 +107,7 @@ export class VaultChangeAdapter {
 		if (!(abstractFile instanceof TFile)) {
 			// Deleted (or replaced by something that is not a note).
 			if (existing) {
-				this.deps.index.remove(existing.id);
+				this.applyRemove(existing);
 				this.deps.echo.forget(path);
 			}
 			return;
@@ -131,7 +134,7 @@ export class VaultChangeAdapter {
 			}
 			// Not ours — but if it USED to be, it changed into something we cannot index.
 			if (existing) {
-				this.deps.index.remove(existing.id);
+				this.applyRemove(existing);
 				this.deps.echo.forget(path);
 			}
 			return;
@@ -143,7 +146,7 @@ export class VaultChangeAdapter {
 
 		this.warnOnDuplicateId(ref.id, path);
 
-		this.deps.index.upsert({
+		this.applyUpsert({
 			id: ref.id as ProjectIndexEntry['id'],
 			type: ref.type,
 			path,
@@ -175,7 +178,7 @@ export class VaultChangeAdapter {
 		if (!(file instanceof TFile)) {
 			this.deps.echo.forget(path);
 			if (planEntry?.geometrySidecarPath === path) {
-				this.deps.index.upsert({ ...planEntry, geometrySidecarPath: undefined });
+				this.applyUpsert({ ...planEntry, geometrySidecarPath: undefined });
 			}
 			return;
 		}
@@ -210,7 +213,7 @@ export class VaultChangeAdapter {
 		// which is how an in-vault backup of a project folder silently sent the live plan's
 		// geometry writes into the copy: `sidecarMappingFor` carries the whole argument, and
 		// carries it for the full scan too, so the two doors cannot answer differently.
-		this.deps.index.upsert({
+		this.applyUpsert({
 			...planEntry,
 			geometrySidecarPath: sidecarMappingFor({
 				logger: this.deps.logger,
@@ -245,7 +248,78 @@ export class VaultChangeAdapter {
 		});
 	}
 
+	/**
+	 * Every index mutation this pipeline makes goes through this pair, and that is a CATEGORY
+	 * rather than a habit: the announcement's whole value is that a view can trust it to mean
+	 * "the index changed under you", which a list of remembered call sites cannot promise. Six
+	 * sites called `index.upsert`/`index.remove` directly before these existed, across four
+	 * handlers and the sidecar path.
+	 *
+	 * The removal reads the entry's `type` BEFORE dropping it, because after `index.remove`
+	 * there is nothing left to ask — which is why both take the whole entry rather than an id.
+	 * The upsert reads for the same reason and did not, which is the defect below.
+	 */
+
+	/**
+	 * An upsert is keyed on the ID, so it REPLACES the whole entry — and when the arriving
+	 * note declares a different `type`, the entry it replaces leaves one `getIdsByType` bucket
+	 * as it enters another. Announcing only what it BECAME tells every source except the one
+	 * that needed telling: `createProjectListChangeSource` matches `renovation-project`, so a
+	 * project note hand-edited into a plan published nothing that source could hear. The
+	 * mounted list kept the row, and the row's click resolves through `getPath(id)` — which
+	 * still answers that path — so it opened the retyped note. Reported in review.
+	 *
+	 * The displaced entry is read from the INDEX rather than passed down from the four call
+	 * sites, and that is the rule this file has already paid for at four pointer doors: a
+	 * question worth asking at one door is a function, and the moment it is spelled longhand
+	 * the count of places it is missing is unknowable. `warnOnDuplicateId` documents a second
+	 * producer the callers cannot see — a note arriving with an id another note already holds
+	 * takes that entry over — and asking the index covers it without anyone remembering to.
+	 *
+	 * Two announcements and not one, because they are two facts and a subscriber filters on
+	 * exactly one of them: the project list must hear "no longer a project", and a future
+	 * plan-side source must hear "now a plan". A single announcement of either type is a
+	 * refresh withheld from the other.
+	 */
+	private applyUpsert(entry: ProjectIndexEntry): void {
+		const displaced = this.findById(entry.id);
+		this.deps.index.upsert(entry);
+		if (displaced !== undefined && displaced.type !== entry.type) {
+			this.announce(displaced.id, displaced.type);
+		}
+		this.announce(entry.id, entry.type);
+	}
+
+	private applyRemove(entry: ProjectIndexEntry): void {
+		this.deps.index.remove(entry.id);
+		this.announce(entry.id, entry.type);
+	}
+
+	/**
+	 * Fire-and-forget, which this repository normally treats as a defect and here is safe for a
+	 * reason worth stating rather than assuming: `createEventBus.publish` NEVER rejects — a
+	 * throwing handler is isolated per subscriber and handed to the bus's own `onError`, which
+	 * the composition root binds to the logger. So there is no rejection to reach nobody. It has
+	 * to be fire-and-forget either way: every caller here is one of Obsidian's synchronous vault
+	 * callbacks, and awaiting a subscriber inside one would put a view's re-read on the vault
+	 * event loop's critical path.
+	 */
+	private announce(id: ProjectIndexEntry['id'], type: ProjectIndexEntry['type']): void {
+		void this.deps.events.publish(projectIndexEntryChanged({ entityId: id, entityType: type }));
+	}
+
 	private findByPath(path: string): ProjectIndexEntry | undefined {
 		return this.deps.index.entries().find((entry) => entry.path === path);
+	}
+
+	/**
+	 * The by-id sibling of `findByPath`, over the same scan and for the same reason there is no
+	 * port method for either: `ProjectIndex` answers `getPath` and the three bucket queries, and
+	 * none of them hands back an ENTRY. A `getById` would be the smaller change and a wider
+	 * surface — this pipeline is the only caller, and it already pays this scan once per
+	 * processed path.
+	 */
+	private findById(id: ProjectIndexEntry['id']): ProjectIndexEntry | undefined {
+		return this.deps.index.entries().find((entry) => entry.id === id);
 	}
 }

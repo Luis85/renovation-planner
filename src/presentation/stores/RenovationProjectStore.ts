@@ -36,14 +36,15 @@ export const useRenovationProjectStore = defineStore('renovation-project', () =>
 	 * The ticket every `hydrate` call takes before its first await, so a slower earlier read
 	 * cannot land on top of a faster later one.
 	 *
-	 * There is one caller today — the view's own `onMounted` — but `ProjectStore` carried
-	 * exactly this same mechanism through a slice where it had one caller too, and gained a
-	 * second later (the post-command refresh funnel, beside the plan-change listener). A
-	 * hydration ticket added only once a second caller exists is a ticket added one bug too
-	 * late: the failure it guards against — a just-created project vanishing with no error
-	 * anywhere, because the LAST resolution wins whether or not it is the freshest — happens
-	 * on the very first overlapping pair of calls, not on some later one a reviewer can catch
-	 * in time.
+	 * It was written with ONE caller — the view's own `onMounted` — and has four now: that
+	 * mount, `onCreateProject`, a row whose project turned out to be `'missing'`, and the
+	 * `ProjectIndexRebuilt` subscription. The last of those is the one that made this a race
+	 * rather than a precaution: a leaf restored before layout-ready is mid-hydration against
+	 * an EMPTY index at the moment the rebuild fires the second read, so the two genuinely
+	 * overlap and the slower first one would otherwise land on top — restoring the empty list
+	 * this whole mechanism exists to replace, with no error anywhere. A hydration ticket added
+	 * only once a second caller exists is a ticket added one bug too late; `ProjectStore`
+	 * carried exactly this same mechanism through a slice where it had one caller too.
 	 */
 	let latestHydration = 0;
 
@@ -60,25 +61,26 @@ export const useRenovationProjectStore = defineStore('renovation-project', () =>
 	}
 
 	/**
-	 * The one hydration routine, run on open.
+	 * The one hydration routine, run on every occasion the view re-reads: on open, on the
+	 * post-command refresh design slice 16 added (`ViewRoot.onCreateProject`, after a
+	 * successful create), on a row that pointed at nothing, and on a rebuilt Project Index.
 	 *
-	 * `status` drops to `'loading'` on every call, unconditionally — unlike
-	 * `ProjectStore.hydrate`, which deliberately stays at `'ready'` on a re-hydration so a
-	 * committed command's refresh does not unmount and rebuild the Konva stage. There is
-	 * one caller here today (the view's own `onMounted`), so the difference is invisible:
-	 * nothing yet re-hydrates a view that is already `'ready'`. It stops being invisible
-	 * the day a later slice re-hydrates this store after creating a project (the same
-	 * post-command-refresh shape `ProjectStore` already has) — at that point `emptyStateKey`
-	 * drops to `null` for one tick (loading is not `'ready'`) and back, and the empty state
-	 * will blink out and back in rather than holding steady the way the Plan Editor's does.
-	 * Not fixed here: the reason is known and stated so the day it matters, fixing it is a
-	 * one-line change rather than a rediscovery.
+	 * `status` drops to `'loading'` only when it is not already `'ready'` — the same guard
+	 * `ProjectStore.hydrate` carries, and for the identical reason: a re-hydration of an
+	 * already-`'ready'` view must not make `emptyStateKey` swing through `null` for the tick
+	 * the read is in flight. This store's docblock used to record that gap as future work
+	 * ("the day a later slice re-hydrates this store after creating a project ... fixing it
+	 * is a one-line change") — that slice is this one, `onCreateProject`'s re-hydrate is the
+	 * second caller, and without the guard every successful create flipped the pane from the
+	 * empty state to the `.rp-view-message` loading line and back, a real and avoidable
+	 * flicker on the one flow this mechanism exists to serve. The guard is exactly the
+	 * one-line fix the earlier paragraph predicted.
 	 */
 	async function hydrate(queries: RenovationProjectQueryServices): Promise<void> {
 		const request = ++latestHydration;
 		const superseded = (): boolean => request !== latestHydration;
 
-		status.value = 'loading';
+		if (status.value !== 'ready') status.value = 'loading';
 		error.value = null;
 
 		const found = await queries.listProjects();

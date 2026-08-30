@@ -4,13 +4,12 @@
  * (ADR-004, SDD §12).
  *
  * It draws real content now: an empty state when the vault holds no projects (design slice
- * 14), the mapped failure message when the read refused, a loading line while it is in
- * flight, and a warning strip when some project notes could not be read. It still draws
- * NO list — slice 17 owns that — so the four states above are, between them, everything
- * this component renders. For every slice before slice 14 it drew nothing at all, and that
- * used to be the increment's stated success criterion rather than an omission — "an empty
- * Renovation Planner view opens reliably inside Obsidian". That claim stopped being true
- * then, so it stopped being said here.
+ * 14), the project list itself once one exists (design slice 16's `ProjectList`), the mapped
+ * failure message when the read refused, a loading line while it is in flight, and a warning
+ * strip when some project notes could not be read. For every slice before slice 14 it drew
+ * nothing at all, and that used to be the increment's stated success criterion rather than an
+ * omission — "an empty Renovation Planner view opens reliably inside Obsidian". That claim
+ * stopped being true then, so it stopped being said here.
  *
  * Failure and loading share one region and the empty state is not one of them: a failed
  * read is not "legitimately nothing yet", and `emptyStateKey` is `null` from any status but
@@ -21,32 +20,110 @@
  * marketplace rejects inline styles and this plugin's CSS lives in `styles/`, assembled
  * into one sheet. The class below is that sheet's only entry point into this view.
  *
- * Slice 15's `DialogHost` mounts here too, not only in the Plan Editor. Not because of an
- * empty-state action: `renovationProject.noProjects` ships with no button at all (slice
- * 14's Amendment 1), so there is no click here yet for `DialogHost` to answer. It mounts
- * because this is one of the two ItemView-scoped Vue apps SDD §12 has the dialog
- * framework mount into (slice 15), and because a later slice's project-creation form —
- * the "Create a project" hand-off `noProjects` names but does not wire — will open from
- * this tree once it exists. A host that mounted only beside a `PlanCanvas` would leave
- * that future form with nothing to open from.
+ * Slice 15's `DialogHost` mounts here too, not only in the Plan Editor — this is one of the
+ * two ItemView-scoped Vue apps SDD §12 has the dialog framework mount into. Design slice 16
+ * gave it its first caller in this tree: `renovationProject.noProjects`'s action opens
+ * `NewProjectForm` in a `FormDialog`, which is why the host mounting here rather than only
+ * beside a `PlanCanvas` stopped being a decision made ahead of its own need.
  */
-import { computed, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
+import ProjectList from './ProjectList.vue';
+import NewProjectForm from './NewProjectForm.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { useRenovationProjectContext } from './RenovationProjectContext';
 import { useRenovationProjectStore } from '../stores/RenovationProjectStore';
+import { useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
+import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 
 const context = useRenovationProjectContext();
 const store = useRenovationProjectStore();
-const { emptyStateKey, status, error, unreadable } = storeToRefs(store);
+const dialogs = useDialogStore();
+const { projects, emptyStateKey, status, error, unreadable } = storeToRefs(store);
 
 /**
- * `null` for no empty state (a normal render, once slice 17's project list exists to draw),
+ * `FormDescriptor.busy`'s other end. ONE ref, read and written by TWO places at once: it is
+ * handed to `NewProjectForm` as its own `busy` prop (which writes `submitting` into it) and
+ * to `openDialog`'s descriptor (which `DialogHost` reads to refuse Escape and disable
+ * Cancel). Passing it to only one of the two is this mechanism's most-repeated defect —
+ * every line reads as correct and the flag never moves.
+ */
+const newProjectBusy = ref(false);
+
+/**
+ * The ONE read this view has, on every occasion it runs — open, after a create, after a row
+ * turned out to point at nothing, and after the Project Index was rebuilt underneath it. A
+ * second "refresh" path would be a second answer to what this pane is showing;
+ * `PlanEditorRoot` states the identical rule about its own.
+ */
+function hydrate(): Promise<void> {
+	return store.hydrate(context.queries);
+}
+
+/**
+ * The empty state's hand-off, and (since Task 8) the project list header's — ONE handler
+ * for both, never two independently-decided ways to open the same form. `createProject`
+ * is passed as `NewProjectForm`'s own `dispatch`: the form owns its dispatch so a rejection
+ * renders under the field it is about and keeps the dialog OPEN, which matters because
+ * `openDialog` throws if a dialog is already open — a caller that dispatched only after
+ * this one resolved could never reopen it to show an error.
+ *
+ * `dialogs.openDialog` THROWS `DialogStackingError` while a dialog is already open, so a
+ * caller has to make it impossible to enter twice concurrently rather than trust that
+ * nobody double clicks; `EmptyState`'s button has no disabled state of its own, so the guard
+ * here is a plain `dialogs.current` check before the dialog is even opened — cheap enough
+ * that two clicks landing in the same synchronous tick still only ever reach `openDialog`
+ * once, since the first call sets `current` before its own `await` yields control back.
+ *
+ * The re-hydrate is not optional politeness: without it a created project is written and
+ * never appears, which is indistinguishable from a create that silently failed.
+ */
+async function onCreateProject(): Promise<void> {
+	if (dialogs.current !== null) return;
+
+	const result = await dialogs.openDialog({
+		kind: 'form',
+		title: tr('form.new-project.title'),
+		component: NewProjectForm,
+		props: {
+			dispatch: (input: CreateProjectInput) => context.commands.createProject.execute(input),
+			busy: newProjectBusy,
+			// The form's own door for a dispatch that THROWS, which `createProject` being a
+			// guarded command means it cannot — but the guard is the ROOT's property, not this
+			// call site's, and `useFormCommit` requires the door rather than assuming the caller.
+			logger: context.commands.logger,
+		},
+		busy: newProjectBusy,
+	});
+	if (result === 'cancel') return;
+	await hydrate();
+}
+
+/**
+ * A project row's click, and the one case that has to do more than open a note.
+ *
+ * A project note deleted after this pane was opened leaves its row on screen: the vault-change
+ * pipeline drops the index entry silently, and `store.hydrate` has no listener to be woken by
+ * — its two callers are `onMounted` and `onCreateProject`. So the row went on being drawn, did
+ * nothing at all when clicked, and told the user nothing until the view was reopened. Reported
+ * in review, against a comment in `openProjectNote` claiming the list was "re-read on the next
+ * hydrate anyway", of which there was none.
+ *
+ * `'missing'` is that row saying so, and the re-read is what removes it. `'failed'` is not:
+ * the composition root has already put a notice in front of the user for it, and the list
+ * behind the row is not stale.
+ */
+async function onOpenProject(projectId: string): Promise<void> {
+	if ((await context.openProject(projectId)) === 'missing') await hydrate();
+}
+
+/**
+ * `null` for no empty state — a normal render, `ProjectList` drawing the vault's projects —
  * or the resolved props for the one key this slice's registry declares
  * (`renovationProject.noProjects`). `EMPTY_STATE_CONTENT.renovationProject` is keyed to
  * match `selectRenovationProjectEmptyState`'s own return type, so a widened selector fails
@@ -69,8 +146,27 @@ const empty = computed(() => {
 const failureMessage = computed(() => (error.value === null ? null : trError(error.value)));
 
 onMounted(() => {
-	void store.hydrate(context.queries);
+	void hydrate();
 });
+
+/**
+ * The index rebuild, and why a view that already read needs telling.
+ *
+ * Obsidian restores its leaves BEFORE `onLayoutReady`, and the index scan runs FROM it (SDD
+ * §47). A pane restored with the app therefore hydrates against an empty index, is answered a
+ * legitimate empty list, and draws the actionable "no projects yet" state over a vault full
+ * of them — permanently, because until this subscription existed neither of the other two
+ * hydrations could be reached by anything a rebuild does.
+ *
+ * Registered at setup and disposed on unmount, the same shape and for the same reason as
+ * `PlanEditorRoot`'s `onPlanChanged`: Obsidian reuses a view, so a listener outliving its Vue
+ * app would re-hydrate a store nothing renders and stack another on the next open.
+ */
+onBeforeUnmount(
+	context.onProjectsChanged(() => {
+		void hydrate();
+	}),
+);
 </script>
 
 <template>
@@ -79,6 +175,13 @@ onMounted(() => {
 			<EmptyState
 				v-if="empty !== null"
 				v-bind="empty"
+				@action="onCreateProject"
+			/>
+			<ProjectList
+				v-else
+				:projects="projects"
+				@open="(id) => void onOpenProject(id)"
+				@create="onCreateProject"
 			/>
 			<p
 				v-if="unreadable > 0"

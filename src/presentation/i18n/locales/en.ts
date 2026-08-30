@@ -57,7 +57,6 @@ export const en = {
 	'editor.inspector.quantity-override.label': 'Override quantity for',
 	'editor.inspector.cost-override.label': 'Override cost for',
 	'editor.inspector.override.reset': 'Reset to calculated',
-	'editor.inspector.override.apply': 'Apply',
 	'entity.requirement.plural': 'Requirements',
 	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
 	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
@@ -136,6 +135,11 @@ export const en = {
 	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
 	'requirement.cross-project': 'A zone and an asset from different projects cannot be linked.',
 	'requirement.negative-quantity': 'A quantity cannot be negative.',
+	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`
+	// and a malformed money literal never reach a dispatch, so there is no raised code for
+	// `routeError` to place. Keyed by the field rather than by any code for that reason.
+	'error.requirement.quantity.unparseable': 'Enter a number, or reset to the calculated figure.',
+	'error.requirement.cost.unparseable': 'Enter an amount, or reset to the calculated figure.',
 	'error.suffix.schema-version-unsupported':
 		'This note was written by a newer version of this plugin. Update the plugin to open it.',
 	'error.suffix.revision-conflict': 'This entry changed elsewhere in the meantime. Reload and try again.',
@@ -175,6 +179,51 @@ export const en = {
 	// diagnostics report" was an instruction the user cannot follow. Slice 14's Amendment 1
 	// refuses a button that does nothing; a sentence that does nothing is the same defect.
 	'view.project.some-unreadable': 'Some projects could not be read from the vault.',
+	'form.new-project.title': 'New renovation project',
+	'form.new-project.name': 'Name',
+	'form.new-project.status': 'Status',
+	'form.new-project.description': 'Description',
+	'form.new-project.start': 'Start',
+	'form.new-project.target-completion': 'Target completion',
+	// One label per `ProjectStatus` (PRD §35's Renovation Lifecycle), so the status control
+	// shows real copy rather than the raw enum member — `PROJECT_STATUS_LABELS`
+	// (`src/presentation/views/projectStatusLabels.ts`) is the binding, and
+	// `projectStatusLabels.test.ts` requires every member of `PROJECT_STATUSES` to resolve
+	// one of these. Ordinary UI labels, not `AppError` codes — the "a key must equal a
+	// minted code" rule below applies to the error block alone.
+	'form.new-project.status.idea': 'Idea',
+	'form.new-project.status.survey': 'Survey',
+	'form.new-project.status.design': 'Design',
+	'form.new-project.status.estimate': 'Estimate',
+	'form.new-project.status.procurement': 'Procurement',
+	'form.new-project.status.ready': 'Ready',
+	'form.new-project.status.execution': 'Execution',
+	'form.new-project.status.inspection': 'Inspection',
+	'form.new-project.status.complete': 'Complete',
+	'form.new-project.status.as-built': 'As built',
+	'empty.project.no-projects.action': 'Create a project',
+	'view.project.list-title': 'Renovation projects',
+	'view.project.create': 'New project',
+	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
+	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
+	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is
+	// `error.code in en`, so a differently-spelled key would silently fall through to the
+	// Validation category sentence for all four. `project.negative-amount` has no entry: this
+	// form has no Money field, and the code is unroutable as things stand (shared by `budget`
+	// and `contingency`, with the field named only in the developer-English `message`).
+	//
+	// `project.invalid-date` DOES get one, and the difference from `negative-amount` is worth
+	// stating rather than looking like an inconsistency. That code can never be about anything
+	// this form renders; this one is about two fields it does render, and is merely improbable
+	// from them — Chromium sanitizes an `<input type="date">` to `''` or a valid date, so today
+	// only another caller of `CreateProjectCommand` can raise it. "No field to attach it to" is
+	// a property of the form; "no browser currently produces one" is a property of the host, and
+	// a missing entry does not degrade to silence, it degrades to the generic Validation
+	// sentence under a field the user can see.
+	'project.empty-name': 'A project needs a name.',
+	'project.unknown-status': 'Choose a status from the list.',
+	'project.target-before-start': 'Target completion must be on or after the start date.',
+	'project.invalid-date': 'Enter a real calendar date.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

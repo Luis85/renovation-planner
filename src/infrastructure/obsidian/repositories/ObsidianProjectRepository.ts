@@ -13,6 +13,7 @@ import {
 	migrateNote,
 	persistenceError,
 	serializeFrontmatter,
+	undoEnsureFolder,
 	writeOwnedFrontmatter,
 } from './noteIo';
 import { observeFrontmatter } from './digest';
@@ -27,23 +28,28 @@ import { fileAt } from './NoteVaultDeps';
  * inside the project folder; frontmatter is the whole persisted state. The simplest of the
  * note-backed repositories — ONE file per entity, and no sidecar.
  *
- * **Its failure story is nevertheless not "the write failed, nothing was written", and this
- * header said it was.** The insert path calls `ensureFolder` before `vault.create`, and the
- * `catch` around the pair compensates nothing, so a create that fails after the folder was
- * made leaves an EMPTY FOLDER behind. No note is written, reads resolve by id, and a folder
- * name reaches no UI (filename is never identity, §83) — but the orphan is COUPLED to the
- * next attempt: `freshProjectFolder` collides on any abstract file at the base path, folders
- * included, so a retry lands at `<name> <id>` rather than `<name>`, with a DIFFERENT suffix
- * each time because `CreateProjectCommand` mints a new id per call. Two failed attempts
- * leave two orphan folders and put the project in a third.
+ * **Its failure story is "the write failed, nothing was written" — but only since design
+ * slice 16, and this header spent two slices recording why it was not.** The insert path
+ * calls `ensureFolder` before `vault.create`, and the `catch` around the pair used to
+ * compensate nothing, so a create that failed after the folder was made left an EMPTY FOLDER
+ * behind. No note is written, reads resolve by id, and a folder name reaches no UI (filename
+ * is never identity, §83) — but the orphan was COUPLED to the next attempt:
+ * `freshProjectFolder` collides on any abstract file at the base path, folders included, so a
+ * retry landed at `<name> <id>` rather than `<name>`, with a DIFFERENT suffix each time
+ * because `CreateProjectCommand` mints a new id per call. Two failed attempts left two orphan
+ * folders and put the project in a third.
  *
- * Recorded rather than compensated, deliberately, and for the reason `sampleProject.ts`
- * already gives for the partial notes a failed seed leaves behind: today the insert arm's
- * only production caller is `seedSampleProject`, and a naive rollback is worse than the
- * orphan — `ensureFolder` also creates the CONFIGURED ROOT, which may be a folder the user
- * owns and has filled. Slice 16's project-creation form is the trigger to revisit it: that
- * is the first time a user reaches this path by typing a name, and the first time retrying
- * after a failed create is an ordinary thing to do.
+ * It was recorded rather than compensated for as long as `seedSampleProject` was the insert
+ * arm's only production caller — the same reason `sampleProject.ts` gives for the partial
+ * notes a failed seed leaves behind — with the trigger to revisit written into this header:
+ * slice 16's project-creation form, being the first time a user reaches this path by typing a
+ * name and the first time retrying after a failed create is an ordinary thing to do. That
+ * slice landed and a review of it asked for exactly the recorded trigger, so the catch
+ * compensates through `undoEnsureFolder` now. The obstacle the old note named — that
+ * `ensureFolder` also creates the CONFIGURED ROOT, which may be a folder the user owns and
+ * has filled — is what makes the rollback narrow rather than absent: only the folders THIS
+ * call created, deepest first, and only while each is still empty. `undoEnsureFolder`'s own
+ * docblock carries both rules and why each is load-bearing.
  *
  * Raw frontmatter never leaves this class: reads migrate, schema-parse and map before
  * returning; writes lower the entity through the mapper and merge through
@@ -114,10 +120,19 @@ export class ObsidianProjectRepository {
 		} else {
 			const folder = freshProjectFolder(this.deps.vault, this.newProjectRoot, project.name, project.id);
 			path = freshNotePath(this.deps.vault, folder, project.name, project.id);
+			// DECLARED outside the `try`, because `ensureFolder` can throw having already made
+			// some of the segments and the catch has to see those. `ObsidianPlanRepository`'s
+			// sidecar compensation is the same shape one file over, including the log line for a
+			// compensation that itself refuses.
+			const createdFolders: string[] = [];
 			try {
-				await ensureFolder(this.deps.vault, folder);
+				await ensureFolder(this.deps.vault, folder, createdFolders);
 				await this.deps.vault.create(path, serializeFrontmatter(dto));
 			} catch (cause) {
+				const stranded = await undoEnsureFolder(this.deps.vault, this.deps.fileManager, createdFolders);
+				for (const failure of stranded) {
+					this.deps.logger.error('project.insert-compensation-failed', { id: project.id, path: failure.path, cause: failure.cause });
+				}
 				return err(persistenceError('project.write-failed', `Could not create the note for project ${project.id}.`, cause));
 			}
 		}

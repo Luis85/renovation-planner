@@ -19,20 +19,27 @@ describe('the empty-state content registry', () => {
 	});
 
 	/**
-	 * Amendment 1: `noProjects` ships with no action button, because its hand-off is slice
-	 * 16's project-creation form and slice 16 depends on slice 11. Asserted rather than left
-	 * implicit, so adding a label is a decision somebody takes deliberately.
+	 * Amendment 1 held while `noProjects` had no hand-off. Design slice 16 built one —
+	 * `ViewRoot` opens `NewProjectForm` in slice 15's `FormDialog` — so this is now the
+	 * opposite assertion, updated rather than deleted: adding a label was always meant to be
+	 * a deliberate, tested change, and this is that change.
 	 */
-	it('gives noProjects no action label, since it has no hand-off yet', () => {
-		expect(EMPTY_STATE_CONTENT.renovationProject.noProjects.actionLabel).toBeUndefined();
+	it('gives the no-projects state an action, because slice 16 built what it hands off to', () => {
+		const content = EMPTY_STATE_CONTENT.renovationProject.noProjects;
+
+		expect(content.actionLabel).toBeDefined();
+		// Non-empty resolved copy, not just a declared key: `''` would render a nameless
+		// button, which is both a control that says nothing and an axe `button-name` failure.
+		expect(t('en', content.actionLabel)).not.toBe('');
 	});
 
 	/**
-	 * Amendment 1 covers `noBackground` too: its hand-off is slice 5's `set-plan-background`
-	 * plugin command, which is not a member of `PlanEditorCommandServices` — the editor's Vue
-	 * tree cannot reach it without either widening `PlanEditorContext` or reaching for the
-	 * global `app`, both refused. `noZones` is the only entry left with a button, because its
-	 * hand-off (`activeToolId = 'draw-polygon'`) already exists and is reachable from here.
+	 * Amendment 1 covers `noBackground` too, unchanged from slice 14: its hand-off is slice
+	 * 5's `set-plan-background` plugin command, which is not a member of
+	 * `PlanEditorCommandServices` — the editor's Vue tree cannot reach it without either
+	 * widening `PlanEditorContext` or reaching for the global `app`, both refused. `noZones`
+	 * is the only entry left with a button, because its hand-off
+	 * (`activeToolId = 'draw-polygon'`) already exists and is reachable from here.
 	 */
 	it('gives noBackground no action label, since its hand-off is unreachable from the editor tree', () => {
 		expect(EMPTY_STATE_CONTENT.planEditor.noBackground.actionLabel).toBeUndefined();

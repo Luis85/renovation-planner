@@ -14,8 +14,20 @@ import { t } from '../../../src/presentation/i18n/strings';
 import { installObsidianDom } from '../../helpers/dom';
 import { makeView } from '../../helpers/makeRenovationProjectView';
 import { useRenovationProjectStore } from '../../../src/presentation/stores/RenovationProjectStore';
+import { unavailableRenovationProjectCommands } from '../../../src/presentation/views/renovationProjectCommands';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 import type { RenovationProjectQueryServices } from '../../../src/presentation/read-models/renovationProjectQueries';
+
+/**
+ * Every case here is about the read side's empty/loading/failed states, never about the
+ * write side — so `commands` and `openProject` are the same refusal bundle and no-op
+ * `makeView`'s own default uses, spelled out here because `queries` is the one field each
+ * case actually varies.
+ */
+const commands = unavailableRenovationProjectCommands();
+const openProject = (): Promise<'opened'> => Promise.resolve('opened');
+/** No index rebuild is published here; `viewRootIndexRebuild.test.ts` is what drives it. */
+const onProjectsChanged = (): (() => void) => () => undefined;
 
 const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
 
@@ -41,7 +53,7 @@ async function settle(): Promise<void> {
 
 async function open(queries: RenovationProjectQueryServices) {
 	installObsidianDom();
-	const view = makeView({ queries });
+	const view = makeView({ queries, commands, openProject, onProjectsChanged });
 	await view.onOpen();
 	await settle();
 	return view;
@@ -59,14 +71,18 @@ describe('the renovation project view', () => {
 	});
 
 	/**
-	 * Amendment 1: no button, because the hand-off is slice 16's project-creation form and
-	 * slice 16 depends on slice 11. A rendered control that does nothing is worse than no
-	 * control, and this is what stops one appearing by accident.
+	 * Amendment 1 held while `noProjects` had no hand-off. Design slice 16 built one —
+	 * `ViewRoot` opens `NewProjectForm` in a `FormDialog` — so this asserts the button now
+	 * exists, updated rather than deleted per that amendment's own rule: a button appearing
+	 * is meant to be a deliberate, tested change. `tests/presentation/views/viewRootCreateProject.test.ts`
+	 * covers what the click actually does; this file's job stays the read side alone.
 	 */
-	it('renders no action button, since there is no hand-off yet', async () => {
+	it('renders an action button, now that slice 16 built its hand-off', async () => {
 		const view = await open(answering([]));
 
-		expect(view.contentEl.querySelector('.rp-empty-state button')).toBeNull();
+		const button = view.contentEl.querySelector('.rp-empty-state button');
+		expect(button).not.toBeNull();
+		expect(button?.textContent).toBe(t('en', 'empty.project.no-projects.action'));
 		await view.onClose();
 	});
 
@@ -140,6 +156,14 @@ describe('the renovation project view', () => {
 	 * A vault holding projects that cannot be read is the third state, and the one a
 	 * one-conditional view could not express at all: it is neither `ready`-with-projects nor
 	 * "nothing here yet". Onboarding copy would be wrong and unactionable here.
+	 *
+	 * The last two assertions are what this case was MISSING, and CLAUDE.md described the
+	 * surface wrongly for a review round because of it: asserting the notice and the absent
+	 * empty state says nothing about what fills the region instead, so "the list draws once
+	 * the vault holds at least one project" read as true. `ProjectList` is the `v-else` of a
+	 * selector that declines on `unreadable > 0` BEFORE it looks at the length, so THIS vault
+	 * draws the list with zero rows — which is the right picture (a header and a way to create
+	 * one, beside the warning) and not the one the sentence promised.
 	 */
 	it('warns instead of inviting when every project note refused', async () => {
 		const view = await open(answering([], 3));
@@ -147,6 +171,8 @@ describe('the renovation project view', () => {
 		const notice = view.contentEl.querySelector('.rp-view-notice');
 		expect(notice?.textContent?.trim()).toBe(t('en', 'view.project.some-unreadable'));
 		expect(view.contentEl.querySelector('.rp-empty-state')).toBeNull();
+		expect(view.contentEl.querySelector('.rp-project-list__header')).not.toBeNull();
+		expect(view.contentEl.querySelectorAll('.rp-project-list__row')).toHaveLength(0);
 		await view.onClose();
 	});
 
@@ -167,6 +193,9 @@ describe('the renovation project view', () => {
 		installObsidianDom();
 		const view = makeView({
 			queries: { listProjects: () => new Promise(() => {}) },
+			commands,
+			openProject,
+			onProjectsChanged,
 		});
 		await view.onOpen();
 		await Promise.resolve();

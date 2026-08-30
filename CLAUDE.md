@@ -37,15 +37,27 @@ architecture-enforcement harness) and every surface slices 16 and 17 name.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
-a ribbon button and a command, and it draws **four things and still no project list** —
-slice 17 owns the list, and until it lands every one of these is what the pane holds instead
-of one, never beside one. `ViewRoot.vue` renders slice 14's `renovationProject.noProjects`
-empty state; the mapped failure sentence for the refusing `AppError`'s own code
+a ribbon button and a command, and it now draws **a project list** — design slice 16's
+`ProjectList.vue`, not slice 17's: that document is the error-surfacing decision table and
+never once mentions one, so the list was owned by no slice until slice 16 claimed it. This
+paragraph said "still no project list" for slices 14 and 15, which was true until slice 16
+landed. `ViewRoot.vue` renders `ProjectList` whenever the empty state does not apply, and slice 14's
+`renovationProject.noProjects` in its place when it does — the two never draw together, gated
+on the same `'ready'` status the rest of this paragraph describes. **"Whenever the empty state
+does not apply" is not "once the vault holds at least one project", and this sentence said the
+second for a review round:** `selectRenovationProjectEmptyState` answers `null` on
+`unreadable > 0` BEFORE it ever looks at the length, so a vault whose only projects are ones
+this build cannot read draws an empty LIST — its header, its Create button and no rows —
+beside the refusal notice, which is the right picture and not the one the sentence promised.
+The list is the `v-else`, so it is what draws in every case the selector declines, present and
+future; the mapped failure sentence for the refusing `AppError`'s own code
 (`.rp-view-message`, via `trError`, so unrecovered settings and a vault fault say different
 things); a loading line in that same region while the read is in flight; and
 `.rp-view-notice`, the one ADDITIVE one, when SOME project notes refused
 (`view.project.some-unreadable`). Slice 15's `DialogHost` mounts here too and is invisible
-until something opens a dialog. `ListProjects()` resolves to a `ProjectListResult` —
+until something opens a dialog — slice 16's `NewProjectForm` is its first caller in this
+view, opened from the empty state's action button and from `ProjectList`'s own header.
+`ListProjects()` resolves to a `ProjectListResult` —
 `{ projects, unreadable }`, not a bare array; the PORT below it answers a `ProjectListing`,
 `{ loaded, refused }`, and the rename across that seam is deliberate — and the empty state is the `'ready'` status
 with BOTH halves clear: an empty list with `unreadable > 0` is a vault that has projects this
@@ -213,18 +225,22 @@ already hydrates. Rules that came out of it:
   state is this Plan in" unanswerable without a live `ToolManager` — a node test could no
   longer ask it — for a gate the component applies in one line
   (`overlay !== null && activeToolId === null`).
-- **An absent `actionLabel` is a decision with a reason, not a gap, and there are two of
-  them, not one.** `renovationProject.noProjects` has no button because its hand-off — a
-  project-creation form — is slice 16's, and slice 16 `dependsOn` slice 11, neither of
-  which exists yet. `planEditor.noBackground` has no button for a different reason:
+- **An absent `actionLabel` is a decision with a reason, not a gap — TWO of them when this
+  slice shipped, ONE now.** `renovationProject.noProjects` had no button because its
+  hand-off — a project-creation form — was slice 16's, and slice 16 `dependsOn` slice 11,
+  neither of which existed yet. Design slice 16 has since built that form and given this
+  entry its action; see that slice's own section below. `planEditor.noBackground` is the
+  buttonless entry that remains, for a different reason:
   slice 5's background picker is the `set-plan-background` plugin COMMAND, which is not a
   member of `PlanEditorCommandServices`, and the editor's Vue tree cannot reach it without
   either widening `PlanEditorContext` (not this slice's surface to widen) or reaching for
-  the global `app`, which the marketplace rules refuse. Both render no button rather than a
+  the global `app`, which the marketplace rules refuse. It renders no button rather than a
   live control that does nothing — the exact failure mode the amendment exists to avoid —
-  and `content.test.ts` asserts both absences, so adding either is a deliberate, tested
-  change rather than an oversight closing quietly. `planEditor.noZones` is the one entry
-  that keeps a button, because its hand-off (`activeToolId = 'draw-polygon'`) already
+  and `content.test.ts` still asserts that one absence, so adding a button here is a
+  deliberate, tested change rather than an oversight closing quietly. (The same file
+  asserted `renovationProject.noProjects`'s absence too, until design slice 16 flipped that
+  assertion the other way — see that slice's section below.) `planEditor.noZones` is the
+  other entry that keeps a button, because its hand-off (`activeToolId = 'draw-polygon'`) already
   exists and is reachable from the editor's own state.
 - **Promoting a mock is not always a byte-for-byte move, and the honest account says which
   file pair that criterion is actually held for.** `EmptyState.vue`'s template crossed from
@@ -265,11 +281,14 @@ already hydrates. Rules that came out of it:
   compliant one. `tests/harness/accessibility.test.ts` now awaits `flushPromises()`
   before scanning and asserts `.rp-empty-state` is actually present in the scanned DOM,
   so a regression that reopens the timing gap fails there rather than passing quietly.
-  **No empty state carrying a button is graded by that case or any other**:
-  `renovationProject.noProjects` has none, and the Plan Editor case's default fixture
-  resolves to `planEditor.noBackground`, the other buttonless entry — `noZones`'s
-  action button is exercised by `emptyStateOverlay.test.ts` alone, and by no
-  accessibility scan.
+  **No empty state carrying a button was graded by that case or any other, through design
+  slice 15** — `renovationProject.noProjects` had none, and the Plan Editor case's default
+  fixture resolves to `planEditor.noBackground`, the other buttonless entry — `noZones`'s
+  action button was exercised by `emptyStateOverlay.test.ts` alone, and by no accessibility
+  scan. Design slice 16 gave `renovationProject.noProjects` its action button and this
+  file's own case now scans it, asserting `.rp-empty-state__action` is present the same
+  way it already asserted `.rp-empty-state` — that slice's own section below has the rest.
+  `noZones`'s button remains the one action-carrying empty state this file does not scan.
 
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
 are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
@@ -1743,21 +1762,239 @@ it:
   it — because "a notice appeared" is equally true of a build that started failing the whole
   deletion, and "the delete succeeded" is equally true of the build being fixed.
 
+**Design slice 16 has landed: forms and inline validation feedback.** One vocabulary answers
+"a command's typed error, rendered against the field it is about" everywhere in the plugin:
+`routeError` (`presentation/errors/route-error.ts`) keys a command's `AppError.code` against
+a per-form `FieldErrorMap` and answers either the field(s) it names or a form-level banner
+when nothing does — `calibration.coincident-points` is the banner's own worked example,
+since neither `pointA` nor `pointB` alone is wrong. `<FieldError>` mints its own input id and
+hands `{ inputId, aria }` down a scoped slot rather than looking one up, with
+`app.config.idPrefix` set at BOTH `createApp` sites (`app-id-prefix.ts`) so two Vue apps'
+`useId()` calls cannot collide; `<FormBanner>` renders the fallback. Two composables share
+that vocabulary at two different commit boundaries: `useFieldCommit` (blur/enter — Task 9
+moved the Inspector's two Requirement override fields onto it) and `useFormCommit` (one
+explicit submit — `NewProjectForm`, this slice's only creation dialog). A rejected commit
+KEEPS the user's typed value and shows a persistent inline error; it never reverts. The
+Renovation Project view gained its first write: `NewProjectForm` dispatches the real
+`CreateProjectCommand`, reachable from `renovationProject.noProjects`'s action button
+(design slice 14's empty state, which shipped with none) and from `ProjectList.vue`'s own
+header — the project list is THIS slice's, not slice 17's, whose document is the
+error-surfacing decision table and never once names one. `description`, `start` and
+`targetCompletion` survive the vault round trip now too (Task 5a), date-only and in UTC.
+Eight review rounds landed on this branch before this task closed it. Four of them —
+rounds two, three, five and seven — found that MOST of that round's own findings were
+defects in the repair the round immediately before it made; two more, rounds six and eight,
+found a MIX of fresh findings and inherited ones, not only inherited. Named by round rather
+than claimed of the whole branch, because it is not universal — CLAUDE.md's own recurring
+lesson, reproduced here at the precision it actually holds rather than rounded up to "most
+of them." The rules that lasted:
+
+- **Reverting a rejected field destroys the user's own input for no architectural reason.**
+  Slice 6 already guarantees a rejected commit writes nothing; silently replacing what the
+  user typed with the old value is a second, worse decision layered on top of that
+  guarantee. Both commit boundaries keep the draft and show a persistent error instead.
+- **`Readonly<Ref<T>>` reads as read-only and is not.** It is a SHALLOW mapped type: it
+  freezes `.value` and stops there, so `values.value.name = 'x'` still type-checks and
+  `v-model="values.name"` still unwraps and writes, in a template, past the very `setField`
+  the interface names as the sole write path — `tests/presentation/editor/
+  type-safety.test-d.ts` proves both spellings fail `vue-tsc -noEmit` for the real reason,
+  not merely by naming. `DeepReadonly<Ref<T>>` — Vue's own type, and what `readonly()`
+  actually returns — is what `useFormCommit.values` and `useFieldCommit.draft` are typed as,
+  refusing the write at compile time AND at runtime.
+- **Editing a rejected field retires ONLY its own message, and a rejected PAIR retires as a
+  pair.** `setField`/`onInput` clear the field's error the instant it changes — a message
+  the user has already corrected is a lie if it survives — and `project.target-before-start`
+  routes to `['start', 'targetCompletion']` as one claim about the pair, so correcting either
+  half clears both, never just the one that was touched.
+- **A required `notify` parameter is the one option that must not default to a no-op.**
+  `useFieldCommit` converts every banner-routed failure to `error = null`, because the
+  Inspector has no banner region — so without a second door, a resolved vault failure during
+  an override reached the user through NEITHER channel. Optional-with-a-default would have
+  let the one call site that forgets it fail silently; required means every caller states
+  its door.
+- **A second commit while the first is still in flight COALESCES, and a second submit while
+  the first is still in flight is DROPPED — the same race, two different right answers.** A
+  repeated field commit carries a value the user has since changed, so `useFieldCommit`
+  queues exactly one follow-up with the latest draft; a repeated submit is one intent
+  pressed twice, so `useFormCommit.submit` returns `false` on the second press instead. The
+  asymmetry itself was right from early on; the coalescing MECHANISM took several rounds to
+  actually get right — a later round found it re-dispatching a value that had not changed,
+  and a later one still found it re-dispatching a value the user had already abandoned with
+  `Escape` moments before. Getting a rule right and getting its implementation right are not
+  the same review.
+- **A guard inside a composable cannot see a caller that walks past its precondition, and a
+  ninth review round found the Reset buttons doing exactly that.** `commitOnce` returns early
+  on a CLEAN field, which is what stops a blur of an untouched input buying an undo entry per
+  tab-through; `RequirementRow`'s Reset called `onInput('')` first, so by the time a round ran
+  the field was dirty by construction and that guard could never fire for the path. Reset on a
+  row holding no override therefore dispatched a real override-clearing command — a vault
+  write, a revision bump and an undo entry standing for a change nobody made — and pressing it
+  again bought another. Measured, not argued: two presses of each of the two fields take the
+  requirement from revision 1 to 5. The row asks the question itself now, and the answer has
+  TWO halves, which is the part worth keeping: `override !== null` is not enough on its own,
+  because the DTO has not refreshed while a commit is in flight, so a value on its way to being
+  persisted still reads as no override — testing it alone would silently discard a Reset that
+  cancels a write the user has just started. `|| pending` routes that case through the
+  coalescing the composable already has. With neither, the gesture is a draft discard, which is
+  `onCancel`. **The existing unit case asserted the defect**: it mounted the row with
+  `override: null` and required a dispatch, so it certified clearing an override that was never
+  set — and the fixture it mounted had no `calculated` field at all, invisible for as long as
+  no case set an override and rendered the branch that reads one.
+- **Escape means two different things at two different scopes, and Definition of Done item
+  2 originally asked for only one of them everywhere.** Inside the Inspector, `Escape`
+  resyncs ONE field (`useFieldCommit.onCancel`, wired `@keydown.esc.stop`) because there is
+  no dialog to close. Inside `NewProjectForm`, `Escape` reaches slice 15's `DialogHost`
+  first and cancels the WHOLE dialog — the same handler every other dialog kind already
+  has — discarding every field at once rather than resyncing the one under the caret. The
+  task document's item 2 asked for a creation-dialog Escape that resyncs to the form's
+  initial value while staying open; nothing in this slice builds that second, narrower
+  Escape inside an open form, and the clause is WITHDRAWN rather than left ticked over the
+  gap. `docs/tests/cases/Create a Project.md` steps 10 and 14 are where the difference is
+  actually looked at.
+- **A design that checks the domain and stops is checking half the claim.** The spec refused
+  a `Money` field on this form and, in the same document, admitted `description`, `start`
+  and `targetCompletion` without checking whether the VAULT round-trips them — it does not:
+  `projectToPersistence`/`projectFromPersistence` wrote and read only `name` and `status`.
+  Task 5a persists all three, following `AssetFrontmatterSchemaV1`'s
+  `.string().nullable().catch(null)` pattern so no schema version bump is owed.
+- **A regex that only rejects the one malformed spelling a test happens to try is a shape
+  check wearing a validity check's clothes.** `^\d{4}-\d{2}-\d{2}$` passes `2026-02-30` and
+  `2026-13-01` alike; both parse as `Invalid Date` or land on a different real day with no
+  error anywhere. `isRealCalendarDate` closes both classes with one round-trip predicate,
+  ordered so the finite check runs before `toISOString()`, which throws on exactly the input
+  the predicate exists to reject.
+- **`create-sample-project` is not retired by this slice** — see its own paragraph below and
+  `src/plugin/sampleProject.ts`'s docblock: this slice built the PROJECT half only, and a
+  Plan still has no creation form or a surface to reach one from.
+- **A shared operation shares its FAILURE, or it is only half shared.** The coalescing that
+  made a double click one tab (`openingByPath`) handed both clicks the same promise — so
+  when it rejected, each caller's own `.catch` in the composed closure reported it: two
+  notices and two identical log lines for one open. The map holds the HANDLED promise now
+  and the fault door moved INSIDE the coalescing as `deps.reportFault`, injected because
+  `infrastructure/` may not reach `presentation/notices/notify`; the mapping is still
+  composed at the root in one place, and only the CALL moved to where the coalescing is.
+  `ProjectNoteOpenOutcome` gains `'failed'` to say so, and it means something narrower than
+  "did not open" — the attempt faulted and has already been reported, once. Two things about
+  it are worth more than the fix. The comment in `openNote.ts` asserted the opposite while
+  the defect stood ("a rejection is shared rather than swallowed … which the composed closure
+  turns into one notice"), which is this file's oldest recurring shape arriving once more. And
+  the notice COUNT cannot discriminate the fix from the defect: slice 13's queue folds an
+  identical message into a `(×N)` suffix on the notice already up, so `Notice.shown` reads 1
+  either way and the LOG line count is the only instrument that sees it.
+- **A comment that says an unmount deliberately settles nothing is a comment about the
+  unmounts that existed when it was written.** `DialogHost`'s hook released the background
+  and resolved nothing, arguing that "a leaf's own `openDialog(...)` caller is gone with the
+  leaf". A leaf close stopped being the only unmount the moment `RenovationProjectView.rebind`
+  landed: a settings save tears the whole Vue tree down with the LEAF STILL OPEN, so the New
+  Project form vanished mid-typing and `ViewRoot.onCreateProject()` stayed suspended forever,
+  holding the retired root's context behind it. It settles with the kind's own cancel result
+  now. **Cancel is the right answer and not merely the cheap one**, which is the part to
+  carry: the descriptor's `dispatch` prop closes over the root being REPLACED, so preserving
+  the form across the swap would preserve a form that writes through the very root `rebind`
+  exists to retire — under the previous default project folder, one of the four defects that
+  made `deps` non-readonly. There was nothing to preserve that still pointed anywhere valid.
+- **A defect its own header predicted, with the trigger named, and the trigger passed
+  unread.** `ObsidianProjectRepository`'s class comment described the orphan folder a failed
+  insert leaves behind for two slices and named THIS slice as when to close it — "slice 16's
+  project-creation form … the first time a user reaches this path by typing a name, and the
+  first time retrying after a failed create is an ordinary thing to do." The slice landed,
+  the form shipped, nobody re-read the header, and the review bot's finding is the code's own
+  note handed back to it. `ensureFolder` records what it created into an OUT parameter — a
+  returned list is lost on exactly the path that needs it, since the walk can throw having
+  already made some segments — and `undoEnsureFolder` removes them deepest first, each one
+  only while it is still EMPTY. The obstacle the old note gave as its reason not to
+  compensate became the BOUND rather than the excuse: `ensureFolder` walks the CONFIGURED
+  ROOT too, this repository's queue is keyed per PROJECT, and Obsidian's `trashFile` on a
+  folder takes everything inside it, so a sibling insert that filled that root is precisely
+  what the emptiness rule stands between. **A deferral written into a comment is a deferral
+  nothing schedules**: no gate can read a trigger, and the slice that trips one has no reason
+  to open the file that states it.
+- **The fake-too-thin rule again, and this time it hid a GUARD rather than a defect.**
+  `FakeVault` left `MockTFolder.children` permanently `[]`, so every folder in the suite read
+  as empty — the emptiness rule above could neither be driven nor caught being deleted. Its
+  `delete` also refused anything that was not a note, where Obsidian's `trashFile` takes any
+  `TAbstractFile`. The folder arm is modelled DESTRUCTIVELY on purpose: a fake that politely
+  refused a non-empty folder would make dropping the guard invisible, which is "not KINDER
+  than the real thing" read against a guard rather than against a crash. Blast radius: 0
+  existing tests — the second time this file records that number, and the second time the
+  number is not the point. One more dead branch came out of the same work and is recorded
+  rather than kept: the `catch` after a refused trash ended with `break`, and a folder whose
+  trash refused is still its parent's child, so the emptiness rule ends the walk on the next
+  iteration regardless. Measured by deleting the `break` and finding every case green.
+- **The unmount settles a BUSY dialog, and that is RECORDED rather than closed.** The same
+  round reported it: `onKeydown` refuses `Escape` while a write is in flight and `FormDialog`
+  disables Cancel, but `onBeforeUnmount` settles unconditionally — so a settings save landing
+  inside the window of one `vault.create` tells `ViewRoot.onCreateProject()` the dialog was
+  cancelled while its write runs on against the root `rebind` is retiring. The remedy the
+  report named — defer the rebind — needs a seam from `presentation/` back out to the
+  `ItemView` that does not exist, and buys correctness by running on the retired root for the
+  length of the write, which is the hazard `rebind` was built to close. The alternative,
+  leaving the caller suspended, is the defect the settlement was added for one round earlier.
+  So the residual is written in the three places that inherit it — the hook, `docs/tasks/16`,
+  and `formBusy.test.ts`'s last case, which pins the settlement as BEHAVIOUR so a build that
+  starts holding this door fails there rather than quietly making those paragraphs wrong.
+  What it costs was traced rather than taken from the report: the project IS created, under
+  the PREVIOUS default project folder; `ProjectCreated` reaches the retired root's bus, so the
+  rebound tree never hears it; and `VaultChangeAdapter` indexes the note while publishing
+  nothing, `projectIndexRebuilt()` having exactly one publisher that `saveSettings` runs
+  BEFORE the rebind. The rebound list is stale until the leaf is reopened.
+- **The half of a staleness that no COMMAND can raise, and the docblock that called it
+  unfixable was pointing at the fix.** `projectListChangeSource` gained `ProjectCreated` in
+  one round and still missed every project note added by hand, copied in, or arriving through
+  sync: `VaultChangeAdapter` is the SOLE index writer for those, and it held no `EventBus` at
+  all, while `ProjectIndexRebuilt` has exactly one publisher (layout-ready and a settings
+  swap). A mounted pane drew the vault it had read at mount, indefinitely. The module's own
+  paragraph had recorded the delete case in prose — "there is no `ProjectDeleted` to add here
+  until something raises one" — which reads as a survey of the ground and was actually a
+  description of the missing publisher one layer down. `ProjectIndexEntryChanged` is that
+  publisher, and **it carries the entity's TYPE, which is what makes the fix usable rather
+  than merely correct**: a rebuild deliberately carries nothing, because it cannot say which
+  entities changed, while this one names one entry and each source filters. Unfiltered, the
+  subscription would be correct and the surface unusable — a burst of synced zone notes would
+  re-read every project note in the vault, once per note. Two rules came with it. Every index
+  mutation goes through ONE pair of private methods rather than six remembered call sites,
+  because "the index changed under you" is a category a view trusts and a call-site list
+  cannot promise. And the ECHO check comes first: this plugin's own writes upsert the index
+  and publish their own command events, so announcing above that check would fire a second
+  refresh per save and make the index, not the domain, the thing views listen to — measured by
+  hoisting the announce above the guard and watching the case go red.
+- **A passing coverage gate is not evidence that a new arm was tested, and this file's own
+  rule needed the sharper spelling.** The paragraph above says an untested new arm "does not
+  reduce coverage, it fails the gate". That is true when the headroom is one arm and false
+  otherwise: this round left `changedEntityTypeOf`'s payload-less arm uncovered and branches
+  read 98.12 against a floor of 98 — three covered units of headroom, so the gate passed and
+  said nothing. It was found by reading `coverage-final.json` for the three CHANGED FILES,
+  which is the instrument that can see one arm, and the threshold is not. Read the floor as a
+  floor.
+- **`events` REQUIRED is half the check, and the compiler owns only that half.** A composition
+  passing no bus fails to build; one passing a FRESH `createEventBus()` compiles, passes every
+  other test here, and announces into an object nothing has subscribed to — the exact shape
+  `slice10CascadeWiring` and `sequenceNoticeWiring` were written for, with the compiler
+  covering the missing argument and nothing covering the wrong one. The wiring case drives a
+  foreign note through the REGISTERED vault handler and asserts on what a subscriber on
+  `root.eventBus` hears. Its first draft passed a `{ path }` object to that handler and the
+  plugin's own `file instanceof TFile` guard dropped it silently one layer above the thing
+  under test — a test that reached nothing, which is indistinguishable from a clean tree.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
 every vault. It is a plain callback over a `FuzzySuggestModal` of the Project Index's plan
 entries now. The command ID did not change, because a user's hotkey is bound to it.
 
-**`create-sample-project` is SCAFFOLDING and says so in its name.** One command seeds a
-project, a plan and five zones through the real `CreateProjectCommand` /
-`CreatePlanCommand` / `CreateZoneCommand`, then opens the editor on what it made — the
-vault-side equivalent of `npm run harness`, and the only way zones exist at all before
-slices 6 and 8 can draw one. `src/plugin/sampleProject.ts` names what deletes it — slice
-16's creation forms, NOT slice 15, which built the dialog framework those forms mount in and
-no form that names a project, and NOT slice 14 either: `renovationProject.noProjects` ships
-with no action at all (Amendment 1), so slice 14 wired nothing that could have replaced this
-module — and why the partial notes a failed seed leaves behind are deliberate.
+**`create-sample-project` is SCAFFOLDING and says so in its name, and design slice 16 —
+now landed — retired only HALF of what it seeds.** One command seeds a project, a plan and
+five zones through the real `CreateProjectCommand` / `CreatePlanCommand` /
+`CreateZoneCommand`, then opens the editor on what it made — the vault-side equivalent of
+`npm run harness`. Zones stopped needing it once slices 6 and 8 gave `DrawPolygonTool` a way
+to draw one by hand, and the PROJECT half stopped needing it once slice 16 gave
+`renovationProject.noProjects` a real action (`NewProjectForm` / `CreateProjectCommand` —
+Amendment 1's "ships with no action at all" held through slices 14 and 15 and stopped being
+true here) and gave `ProjectList` its own header button beside it. The PLAN half is what
+this module is still the only source of: nothing in `presentation/` calls
+`CreatePlanCommand`, and there is no project-detail surface a "new plan" action could live
+on — `src/plugin/sampleProject.ts` names exactly this remaining gap and why the partial
+notes a failed seed leaves behind are deliberate.
 
 Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
 each is written up where the code is: the seed's first run failed on Obsidian's
@@ -2148,6 +2385,36 @@ Two rules that follow from it and are worth stating because breaking them is che
   correct alone and opens a duplicate tab the moment a user uses both. `infrastructure/`
   takes the view type as a STRING for the same reason it takes anything: it may not reach
   `presentation/`, and the composition root is what knows which view it is wiring.
+
+  **One function is not enough on its own, because a leaf takes TIME to exist.** Both
+  leaf-creating doors — there are exactly two in `src/`, counted by grepping `getLeaf(` and
+  `getLeavesOfType(` — look a leaf up and create one when the lookup finds nothing, and a
+  leaf they create does not answer that lookup until its own `await` resolves. So two
+  activations in one tick both find nothing and both create: a double click on the ribbon gave
+  two tabs of the SINGLETON view, two opens of one plan gave two Plan Editors, and a double
+  click on a project row gave two note tabs. Each door now holds a map of what is in flight,
+  asked BEFORE the lookup and released in a `finally`, keyed by what makes two calls the same
+  request — the file path at `openProjectNote`, the view type plus the state that would be set
+  at `revealCandidate`, since `setViewState({ type, active, state })` is the whole of what
+  makes the leaf. Keying on the type ALONE collapses the multiplicity `revealPlanEditor`
+  exists to permit, which is measured as a mutation rather than argued.
+
+  **Every one of those doors is also DETACHED** — Obsidian's ribbon, command and modal
+  handlers all return nothing — so a fault in one has no awaiter. Four spelled that as a bare
+  `void`, two under a comment calling the missing rejection handler deliberate; a ribbon click
+  that faulted opened nothing, said nothing and recorded nothing. `src/plugin/runDetached.ts`
+  is the one step that maps, logs and notifies (SDD §66), and it is a FUNCTION rather than a
+  habit because a fifth door would have to remember a `.catch` nothing checks.
+- **Registering with Obsidian belongs to `src/plugin/`, and that is a check rather than a
+  sentence.** `RenovationPlannerPlugin`'s header claimed to be "the ONLY place anything is
+  registered with Obsidian" and a comment fifty lines below repeated it; both were false when
+  written and stayed false for fifteen slices, since `planEditorCommands.ts` and
+  `sampleProject.ts` each register commands through the `PluginCommandHost` seam. The layer
+  bans cannot express the true claim — `obsidian` is importable in `infrastructure/` and a
+  `Plugin` travels as `host` — so `tests/build/registration-locality.test.ts` reads `src/` for
+  nine registration members and requires every hit under `src/plugin/`. It reads source TEXT,
+  so a differently-named wrapper is invisible to it, and it carries a finds-something-at-all
+  case: a typo'd member list would otherwise pass by reaching nothing.
 - **A view type and a command id are DATA, not text.** Obsidian persists the first in the
   workspace layout and binds a user's hotkey to the second, so renaming either orphans
   something a user has. The display names beside them are text.
@@ -2278,9 +2545,10 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking) **except three entries in
-`tsconfig.json`'s `include`**, each there for its own reason. Three, counted in the file
-rather than remembered: slice 11 added the third and this sentence said "two" for a slice.
+nothing type-checks `tests/**` (vitest transpiles without checking) **except four entries in
+`tsconfig.json`'s `include`**, each there for its own reason. Four, counted in the file
+rather than remembered: slice 11 added the third and this sentence said "two" for a slice,
+and slice 16's review pass added the fourth.
 
 `tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
 `IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is
@@ -2310,12 +2578,28 @@ are dropped by the ledger rather than refused at the door. An unsatisfied direct
 an error, so widening `record` back to strings fails the build at the directive that no
 longer has anything to suppress.
 
+`tests/helpers/makeRenovationProjectView.ts` is the fourth, and it is neither scope nor a
+proof but a FAKE held to the contract it stands for. That file's own docblock promises that a
+grown constructor requirement "meets every consumer at the same time" — a compile-time claim
+with no compiler behind it, and it had already been broken: slice 16 gave
+`RenovationProjectDeps` a `commands` bundle whose `logger` is required, the factory built
+`commands` out of `createProject` alone, and `ViewRoot` then handed `logger: undefined` to
+`useFormCommit` — where a REJECTING dispatch TypeErrors inside the very catch that exists so a
+fault reaches somebody. Invisible to all four gates, and doubly so because every dispatch wired
+today is a guarded command that cannot throw. **The wider instrument was measured before the
+narrow one was chosen**: every `.ts` under `tests/helpers` in that same `include` reports 29
+errors, at least four of them this repository's own fake-too-thin shape rather than scaffolding
+noise — `calibrateHarness`'s viewport missing `worldPerScreenPixel`, `planEditorRig`'s bundle
+missing `calibratePlan`, two `PlanDto` fixtures missing `calibration`. Worth closing, and not
+inside a review pass on another slice, so the number is written down where the next reader
+finds it rather than left to be re-measured.
+
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the
   source project, six of ten review findings were comments precisely stating the rule the
   code beside them broke. A confident paragraph is evidence of intent and of nothing else.
-- **A fake must not be kinder than the real thing, not thinner than it, and not HARSHER than
-  it.** A DOM helper
+- **A fake must not be kinder than the real thing, not thinner than it, not HARSHER than it,
+  and not FASTER than it.** A DOM helper
   that accepted what Obsidian rejects shipped a dead drag target while every test and the
   browser harness drew it happily; too kind. A fake `ItemView` that never nested a
   `.view-header` inside `.workspace-leaf-content` the way Obsidian does left
@@ -2376,6 +2660,29 @@ longer has anything to suppress.
   looking into one that shows a false picture, and it does it silently wherever the consumer has
   no shape for an error. A refusal bundle is the honest stand-in only where the real thing would
   also have nothing to give.
+
+  **The FOURTH face of the rule, and the one that hides a defect completely: FASTER than the
+  real thing.** `FakeLeaf.openFile` and `FakeLeaf.setViewState` each established their leaf's
+  view state SYNCHRONOUSLY, where Obsidian reads a file or runs a view factory and `onOpen`
+  first. That models a guarantee `Promise<void>` does not make — nothing in that signature
+  says the side effect has landed before the promise resolves — and the consequence is worse
+  than a thin fake's: the racing second call always won the lookup, so a regression case
+  written for the duplicate-tab race PASSED against the live defect. Measured both ways, in
+  both files. `FakeVault.createFolder` was the same rule's older face, kind rather than fast:
+  idempotent where Obsidian throws on an existing folder, one method away from a `create` that
+  already refused a duplicate file. **All three corrections cost 0 tests**, which is the figure
+  worth remembering beside the 86 and the 65 for the same reason those are: the blast radius
+  is not the shape. When a fake stands in for something ASYNC, ask what its signature promises
+  rather than what one implementation happens to do first — and where the fake must stay
+  fast, say so, because "faster" reads exactly like "correct" from every green test.
+
+  **And a fake's speed changes what a test's EVENT STREAM means.** `registration.test.ts` drove
+  a ribbon click and a command invocation one `await Promise.resolve()` apart — an input no
+  human can produce — which was harmless until `revealCandidate` learned to coalesce in-flight
+  activations, at which point the case was asserting on a gesture that had not happened. The
+  gap between two human gestures is a MACROTASK turn (`tests/helpers/async.ts`'s `settle()`),
+  never a counted number of microtask hops: a count is a fact about today's implementation and
+  goes stale silently, in the direction of a green test.
 - **A global a dependency installs is a global this plugin has to remove.** Konva assigns
   `window.Konva` at module scope, so every plugin load re-runs it; nothing took it off, so
   deactivating and reactivating logged `Several Konva instances detected` at `console.error`
@@ -2518,8 +2825,12 @@ Not oversights; each has a trigger.
   `<VStage>` and friends), so `npm run analyze` reads it as test-only and would have it
   moved to devDependencies — which would build here and fail in a vault. It is in
   `.fallowrc.json`'s `ignoreDependencies` with that reason. The bundle went from about
-  60 KB to **488 KB**; that is what ADR-003 and §54 cost, and it is worth knowing before
-  the next dependency.
+  60 KB to **488 KB** at design slice 5's close; that is what ADR-003 and §54 cost, and it
+  is worth knowing before the next dependency. **488 KB is that slice's own figure, not
+  today's** — eleven slices of feature work later, `dist/main.js` measures **670.06 kB**
+  (gzip 211.08 kB) as of design slice 16's close, verified by running `npm run build` rather
+  than carried forward from an earlier entry here. Read every bundle figure in this file the
+  same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 
   **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a
   production one for exactly one increment, and the bill was 1728 KB of a 2216 KB bundle —

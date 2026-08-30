@@ -95,7 +95,20 @@ export const useProjectStore = defineStore('project', () => {
 		// reference changed, and every camera position lost with it. Only the first load, or
 		// a load after a failure, has nothing to keep showing.
 		if (status.value !== 'ready') status.value = 'loading';
-		error.value = null;
+		// **A keep-on-failure refresh does NOT withdraw the previous error while it runs**, and
+		// this used to clear it unconditionally. `status` stays `'ready'` on that path, so
+		// `PlanEditorRoot`'s stale-data strip is exactly `status === 'ready' && error !== null`
+		// — and blanking the error here made it disappear for the whole of the next read, over a
+		// canvas still drawing the very same stale snapshot it was drawing a moment before. A
+		// read that has STARTED has established nothing; only one that SUCCEEDS makes the canvas
+		// current again. On a vault that keeps refusing, the strip flickered off and on rather
+		// than standing, and every gap in it was an assurance nothing had earned. Reported by a
+		// review bot.
+		//
+		// The other path still clears here, and the asymmetry is the point: it drops to
+		// `loading` and replaces the canvas, so there is no stale content left for an error to
+		// be about.
+		if (!keepOnFailure) error.value = null;
 
 		const foundPlan = await queries.getPlan(planId);
 		if (superseded()) return;
@@ -126,6 +139,10 @@ export const useProjectStore = defineStore('project', () => {
 		plan.value = foundPlan.value;
 		zones.value = new Map(foundZones.value.map((zone) => [zone.id, zone]));
 		status.value = 'ready';
+		// The one event that retires a stale-data warning: what is on screen came back from the
+		// vault just now. Redundant on the path that cleared above, and load-bearing on the
+		// keep-on-failure one, which deliberately no longer does.
+		error.value = null;
 	}
 
 	/**

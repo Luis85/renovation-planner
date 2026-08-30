@@ -715,6 +715,18 @@ failures, the survivor being the one that says nothing about the other. It is it
 now. Reported by a review bot; the regression case asserts the whole notice LIST rather than
 picking one out, because `find` answers the first match and was satisfied by the defect.
 
+**And the strip had to stop flickering, which is a fix in the STORE rather than in the
+condition.** `ProjectStore.hydrate` cleared `error` unconditionally at its top while leaving
+`status === 'ready'` on the keep-on-failure path — so the strip withdrew for the whole of the
+next read, over a canvas still drawing the very same stale snapshot, and on a vault that keeps
+refusing it blinked off and on rather than standing. A read that has STARTED has established
+nothing; only one that SUCCEEDS makes the canvas current again, so that is now the single event
+that retires the warning. The other path still clears at the top, and the asymmetry is the
+point: it drops to `loading` and replaces the canvas, so no stale content is left for an error
+to be about. Held in BOTH directions by mutation — clearing at the top again, and never
+clearing on success — because a warning that never retires is the over-correction and passes
+any case that only checks the warning appears.
+
 ## References
 
 - SDD §66 Error Boundary — the pipeline this slice completes (the

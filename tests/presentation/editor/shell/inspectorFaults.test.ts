@@ -284,4 +284,43 @@ describe('a failure at an Inspector control', () => {
 		expect(expectOk(await r.zonesRepo.getById('zone-a' as never))).not.toBeNull();
 		r.harness.unmount();
 	});
+
+	/**
+	 * The same rule at the OVERRIDE fields, which reach the dispatcher through their own door.
+	 *
+	 * `useFieldCommit` calls its `notify` when the refusal cannot sit under the field, and
+	 * `props.commit` is the tracked dispatcher — so a save-affecting refusal here is already on
+	 * the indicator, exactly as at `commitEdit`. This row kept toasting it for one commit after
+	 * that path stopped, which is what a rule spelled at two call sites does.
+	 */
+	it('a save-affecting override refusal reaches the indicator, not a notice', async () => {
+		const r = await selectedZone();
+		// A requirement row has to exist before it can have override fields.
+		await assign(r);
+		await until(
+			() => r.harness.wrapper.find('[data-field="quantity"]').exists(),
+			'the requirement row to render its override fields',
+		);
+
+		const before = Notice.shown.length;
+		r.requirementsRepo.save = () =>
+			Promise.resolve({
+				ok: false,
+				error: { category: 'Persistence', code: 'vault.locked', message: 'The vault is read-only.' },
+			}) as ReturnType<typeof r.requirementsRepo.save>;
+
+		// `[data-field]`, not `findAll('input')[0]`: the harness mounts the whole editor and the
+		// layers panel's checkboxes come first, so an index would have driven a checkbox and the
+		// case would have passed in every world.
+		const input = r.harness.wrapper.find('[data-field="quantity"]');
+		await input.setValue('12');
+		await input.trigger('blur');
+		await until(
+			() => saveStateLabel(r.harness).classList.contains('rp-save-state-save-error'),
+			'the save indicator to report the override refusal',
+		);
+
+		expect(Notice.shown.length).toBe(before);
+		r.harness.unmount();
+	});
 });

@@ -32,10 +32,8 @@ import KnownDistanceForm from './shell/KnownDistanceForm.vue';
 import { SnapService } from './snapping/snap-service';
 import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
 import { tr } from '../i18n/strings';
-import { noticeOnlySinks, notifyFault, notifyOperationFailure } from '../notices/notify';
-import { affectsSaveState } from './save-state/affects-save-state';
-import { isTechnicalFault } from '../errors/technical-fault';
-import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
+import { notifyFault, notifyOperationFailure } from '../notices/notify';
+import { reportCommitFailure, reportDispatchRefusal } from './report-refusal';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
@@ -111,46 +109,6 @@ export interface EditorRuntime {
 	readonly assetOptions: Readonly<Ref<readonly { readonly id: string; readonly name: string }[]>>;
 }
 
-
-/**
- * The sinks every door in this leaf shares, plus the no-op save-state door.
- *
- * `saveState` is a no-op for the reason `notifyIfRefused` gives at length: the indicator is
- * driven by `withSaveStateTracking`, one layer below every dispatch here, off the same
- * `Result`. Declared ONCE at module scope rather than rebuilt per call, so the arrow is one
- * function rather than one per binding — and so the reason for it lives in one place.
- */
-const AUTOSAVE_SINKS: SurfaceSinks = {
-	...noticeOnlySinks,
-	saveState: () => undefined,
-};
-
-/**
- * A refusal that came back from a DISPATCH, reported on whichever surface has not already
- * taken it.
- *
- * **"Dispatched" does not mean "the indicator has it".** `withSaveStateTracking` asks
- * `affectsSaveState`, and for a PRE-WRITE category — `Calculation`, `Domain`, `Validation`,
- * `Reference` — it resolves NEUTRAL: no badge, because nothing was written. A door that
- * assumed every dispatched refusal was carried by the indicator therefore routed those to a
- * save-state sink that is deliberately a no-op, and they reached nobody at all. Calibration is
- * the reachable case: `calibration.degenerate-scale` and `nonFiniteRescaleError` are raised by
- * the command, after dispatch and before `geometry.write`.
- *
- * So this asks the SAME predicate the indicator asked. The two cannot disagree about who
- * reported what, because there is one question and one answer.
- *
- * Reported by a review bot, and it is the third distinct shape of the same underlying mistake:
- * the origin of a refusal is not a property of the call site, and every attempt to read it off
- * one has been wrong somewhere.
- */
-function reportDispatchRefusal(error: AppError): void {
-	if (affectsSaveState(error)) {
-		surfaceError(error, { kind: 'autosave-write' }, AUTOSAVE_SINKS);
-		return;
-	}
-	notifyOperationFailure(error);
-}
 
 /** The concrete tools of this slice, registered against one shared context factory. */
 function registerEditorTools(
@@ -574,10 +532,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		// routing it to a badge reading "Save error" would trade their one explanation for
 		// consistency. A refusal is the opposite case: the command considered the request and
 		// declined it, and if that refusal affected the write the indicator is already saying so.
-		if (!result.ok) {
-			if (isTechnicalFault(result.error)) notifyOperationFailure(result.error);
-			else reportDispatchRefusal(result.error);
-		}
+		if (!result.ok) reportCommitFailure(result.error);
 		return result.ok;
 	}
 

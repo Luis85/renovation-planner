@@ -28,7 +28,7 @@ import type { DispatchOutcome } from '../../../application/commands/DispatchOutc
 import { useFieldCommit, type UseFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
-import { notifyOperationFailure } from '../../notices/notify';
+import { reportCommitFailure } from '../report-refusal';
 import { tr } from '../../i18n/strings';
 import FieldError from '../../components/FieldError.vue';
 
@@ -105,8 +105,11 @@ const quantity = useFieldCommit<string, { quantity: number | null }>({
 	errorMap: QUANTITY_ERRORS,
 	field: 'quantity',
 	toUserMessage: trError,
-	// The half `commitEdit` keeps: a refusal with no field to sit under is still announced.
-	notify: notifyOperationFailure,
+	// The half `commitEdit` keeps: a refusal with no field to sit under is still announced —
+	// through the SAME door that path uses, since `props.commit` dispatches through the tracked
+	// dispatcher and a save-affecting refusal is therefore already on the indicator. Reported by
+	// a review bot, which found this row still toasting what `commitEdit` had stopped toasting.
+	notify: reportCommitFailure,
 	logger: props.logger,
 	// The empty field is the RESET, not a parse failure — `Number('')` is `0`, which is why
 	// the empty case is answered before `Number` is consulted at all rather than after.
@@ -203,7 +206,7 @@ const cost = useFieldCommit<string, { cost: Money | null }>({
 	errorMap: COST_ERRORS,
 	field: 'cost',
 	toUserMessage: trError,
-	notify: notifyOperationFailure,
+	notify: reportCommitFailure,
 	logger: props.logger,
 	validate: (raw) =>
 		raw.trim() === '' || canBeMoney(raw.trim()) ? null : tr('error.requirement.cost.unparseable'),

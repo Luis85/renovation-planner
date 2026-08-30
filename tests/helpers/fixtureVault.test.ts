@@ -1,0 +1,213 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { TFile, TFolder } from 'obsidian';
+import { openFixtureVault, type FixtureStack } from './fixtureVault';
+
+let open: FixtureStack | null = null;
+afterEach(() => {
+	open?.dispose();
+	open = null;
+});
+
+describe('the fixture vault adapter', () => {
+	/**
+	 * A writable CLONE. Every contract case calls `save()` and `delete()`, so an adapter
+	 * pointed at the checked-in directory would mutate the baseline in place, leave a dirty
+	 * worktree after a serial run, and let concurrent cases observe each other's writes.
+	 */
+	it('hands back an isolated copy, leaving the checked-in tree untouched', async () => {
+		open = await openFixtureVault('valid-project');
+		const before = readFileSync(join('tests/vault/valid-project', 'Project.md'), 'utf8');
+
+		await open.vault.create('Scratch.md', 'written by a test');
+
+		expect(open.root).not.toContain('tests/vault/valid-project');
+		expect(readFileSync(join('tests/vault/valid-project', 'Project.md'), 'utf8')).toBe(before);
+		expect(existsSync(join('tests/vault/valid-project', 'Scratch.md'))).toBe(false);
+	});
+
+	/**
+	 * Hardening rule 1. Obsidian refuses a create whose parent folder does not exist;
+	 * making the old fake refuse turned 86 tests red. A fake kinder than the real thing
+	 * turns a shipped crash into a green suite.
+	 */
+	it('refuses a create whose parent folder does not exist', async () => {
+		open = await openFixtureVault('valid-project');
+
+		await expect(open.vault.create('NoSuchFolder/Note.md', 'x')).rejects.toThrow(/does not exist/u);
+	});
+
+	/**
+	 * Hardening rule 2. Obsidian populates `MetadataCache` ASYNCHRONOUSLY, so a note read
+	 * back in the tick it was created has no cache entry at all — the defect that made
+	 * `create-sample-project` report a migration failure on a note it had just written
+	 * correctly. Making the old fake honest turned 65 tests red across 12 files.
+	 *
+	 * Keyed on the cache ENTRY, not on `entry?.frontmatter`: `getFileCache` answers `null`
+	 * for "never parsed" and an object with no `frontmatter` for "parsed, and the user
+	 * deleted it". Collapse those two and a note whose frontmatter was deleted is served
+	 * this plugin's own stale bytes forever.
+	 */
+	it('populates the metadata cache asynchronously, with the create-window fallback', async () => {
+		open = await openFixtureVault('valid-project');
+		const path = 'Fresh.md';
+
+		await open.vault.create(path, '---\nid: fresh\ntype: zone\n---\n');
+
+		expect(open.metadataCache.getFileCache(open.vault.getAbstractFileByPath(path))).toBeNull();
+		open.metadataCache.catchUp();
+		expect(open.metadataCache.getFileCache(open.vault.getAbstractFileByPath(path))?.frontmatter).toMatchObject({ id: 'fresh' });
+	});
+
+	/**
+	 * A note already on disk when the vault opened is visible IMMEDIATELY — no seeding pass,
+	 * because the cache parses current bytes rather than a snapshot. This is the case that
+	 * would have failed against the snapshot design without its seeding call, and it is why
+	 * that call could be retired rather than kept alongside.
+	 */
+	it('reads a checked-in note without any seeding pass', async () => {
+		open = await openFixtureVault('valid-project');
+		const file = open.vault.getAbstractFileByPath('Project.md');
+
+		expect(open.metadataCache.getFileCache(file)?.frontmatter).toBeDefined();
+	});
+
+	/**
+	 * Save then read. The snapshot design returned the PRE-SAVE frontmatter here: nothing
+	 * invalidated the entry, and `frontmatterOf` falls back to the echo window only when the
+	 * cache answers `null`. Reported by a review bot against that design; this case is what
+	 * keeps the on-demand answer from regressing back into a cached one.
+	 */
+	it('reflects a modify immediately, rather than serving the bytes from before it', async () => {
+		open = await openFixtureVault('valid-project');
+		const path = 'Project.md';
+		const file = open.vault.getAbstractFileByPath(path);
+
+		await open.fileManager.processFrontMatter(file, (frontmatter) => {
+			frontmatter['status'] = 'changed-by-this-test';
+		});
+
+		expect(open.metadataCache.getFileCache(file)?.frontmatter).toMatchObject({ status: 'changed-by-this-test' });
+	});
+
+	/**
+	 * Three answers, not two. A parsed file with NO frontmatter answers an object whose
+	 * `frontmatter` is undefined, while a file Obsidian has never seen answers `null`.
+	 * Collapsing them makes "never seen" and "the user deleted the frontmatter"
+	 * indistinguishable — the conflation `frontmatterOf` must not make.
+	 */
+	it('tells a file with no frontmatter apart from a file it has never seen', async () => {
+		open = await openFixtureVault('valid-project');
+		const path = 'Plain.md';
+		await open.vault.create(path, 'no frontmatter here\n');
+		open.metadataCache.catchUp();
+
+		expect(open.metadataCache.getFileCache(open.vault.getAbstractFileByPath(path))).toEqual({});
+		expect(open.metadataCache.getFileCache(null)).toBeNull();
+	});
+
+	/** Hardening rule 3. Obsidian answers a folder object for a folder, never `null`. */
+	it('answers a folder object for a folder', async () => {
+		open = await openFixtureVault('valid-project');
+
+		expect(open.vault.getAbstractFileByPath('')).not.toBeNull();
+	});
+
+	/**
+	 * Hardening rule 4, and it is the one a first draft got wrong in the direction that
+	 * hides a defect: Obsidian's `Vault.create` refuses an EXISTING path, and so does
+	 * `FakeVault` (vault.ts:118). A `writeFileSync` that silently truncates would let
+	 * repository code choosing `create` where it should choose `modify` pass every gate here
+	 * and destroy a note in a real vault.
+	 */
+	it('refuses a create whose path already exists', async () => {
+		open = await openFixtureVault('valid-project');
+		const path = 'Twice.md';
+		await open.vault.create(path, 'first');
+
+		await expect(open.vault.create(path, 'second')).rejects.toThrow(/already exists/u);
+		expect(readFileSync(join(open.root, path), 'utf8')).toBe('first');
+	});
+
+	/**
+	 * Vault-relative and forward-slashed, on every platform.
+	 *
+	 * The Windows CI leg is what this protects: `path.join` there produces backslashes, and a
+	 * `TFile.path` carrying one is parsed by `parentOf` (which searches for `/`) as having no
+	 * parent at all — so an indexed project derives the vault root as its folder and every
+	 * later write targets the wrong directory, with Ubuntu green throughout. Asserted rather
+	 * than left to that leg to discover: a defect only one of four legs can see is worth
+	 * failing fast and locally.
+	 */
+	it('gives every file a vault-relative, forward-slashed path on any platform', async () => {
+		open = await openFixtureVault('valid-project');
+		await open.vault.createFolder('Nested');
+		await open.vault.create('Nested/Deep.md', 'x');
+
+		const file = open.vault.getAbstractFileByPath('Nested/Deep.md') as TFile;
+
+		expect(file.path).toBe('Nested/Deep.md');
+		expect(file.path).not.toContain('\\');
+		expect(file.path).not.toContain(open.root);
+		expect(file.basename).toBe('Deep');
+	});
+
+	/**
+	 * The same property, asserted on what ENUMERATION returns — which is where the conversion
+	 * actually happens and where the Windows defect actually lives.
+	 *
+	 * The case above hands `getAbstractFileByPath` an already-correct vault path and checks
+	 * what comes back, so an adapter that walks the clone with `readdirSync` and builds paths
+	 * with `path.relative` — producing `Nested\Deep.md` on Windows — passes it while
+	 * `getFiles()` and `getMarkdownFiles()` hand the index native separators. The bootstrap
+	 * then derives the wrong parent folder for every note, which is the whole failure this pair
+	 * exists to prevent. Asserting the output of a function you handed a good input to is not
+	 * the same as asserting the function that PRODUCES the input.
+	 *
+	 * A NESTED checked-in fixture file is what makes it bite: a path with no separator cannot
+	 * show a separator defect, so `valid-project/` must contain at least one file in a
+	 * subfolder. Recorded as a fixture REQUIREMENT rather than left to chance, and asserted at
+	 * the end of this case so a flattened fixture fails here rather than silently weakening it.
+	 */
+	it('enumerates vault-relative, forward-slashed paths', async () => {
+		open = await openFixtureVault('valid-project');
+
+		const enumerated = [...open.vault.getFiles(), ...open.vault.getMarkdownFiles()].map((file) => file.path);
+
+		expect(enumerated.length).toBeGreaterThan(0);
+		for (const path of enumerated) {
+			expect(path).not.toContain('\\');
+			expect(path).not.toContain(open.root);
+			expect(path.startsWith('/')).toBe(false);
+		}
+
+		expect(enumerated.some((path) => path.includes('/'))).toBe(true);
+	});
+
+	/**
+	 * The narrowing every repository actually performs. `grep -rn "instanceof TFile" src/`
+	 * prints eleven sites, so an adapter answering its own wrapper class makes all eleven
+	 * false in tests while true in the app — every fixture note reads as MISSING with the
+	 * types still satisfied. Asserted against the mock module's classes directly, because
+	 * "not null" is equally true of the wrong class.
+	 */
+	it('answers the mock module TFile and TFolder, which is what the repositories narrow on', async () => {
+		open = await openFixtureVault('valid-project');
+
+		expect(open.vault.getAbstractFileByPath('Project.md')).toBeInstanceOf(TFile);
+		expect(open.vault.getAbstractFileByPath('')).toBeInstanceOf(TFolder);
+	});
+
+	/** The stack is a REPOSITORY stack, not three host surfaces. */
+	it('hands back constructed repositories, not just host APIs', async () => {
+		open = await openFixtureVault('valid-project');
+
+		expect(open.zones).toBeDefined();
+		expect(open.plans).toBeDefined();
+		expect(open.projects).toBeDefined();
+		expect(open.assets).toBeDefined();
+		expect(open.requirements).toBeDefined();
+		expect(open.store).toBeDefined();
+	});
+});

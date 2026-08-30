@@ -1046,10 +1046,29 @@ const ENVIRONMENT_DIRECTIVE = /@(?:vitest|jest)-environment\s+([\w-]+)\b/u;
 
 const posix = (path: string): string => relative(REPO, path).split(sep).join('/');
 
-/** Static import specifiers, enough to walk the suite's own graph. */
+/**
+ * Relative import specifiers — STATIC and DYNAMIC both, because both are graph edges.
+ *
+ * A first draft matched `(?:from|import)\s+['"]` only, which requires whitespace after the
+ * keyword and so cannot see `await import('../x')` or `const m = import('../x')`. That is not
+ * a hypothetical form in this repository: `tests/plugin/persistence-wiring.test.ts:35` reaches
+ * the composition root exactly that way. A collected test reaching a contract through a helper
+ * that imports it dynamically would have been classified as not-protected, free to select
+ * jsdom with this guard green — the transitive hole closed one round earlier, reopened by the
+ * matcher underneath it.
+ *
+ * What it still cannot see, written down rather than implied, because a matcher over source
+ * text is partial by construction: a COMPUTED specifier (`import(someVariable)`), a
+ * `require()`, and a re-export chain that leaves the relative tree and comes back. The first
+ * is the one that would matter, and nothing in `tests/` writes one today — measured. If that
+ * changes, the fix is not a longer regex but Vitest's own resolved module graph, which is the
+ * only authority that cannot be partial.
+ */
 const importsOf = (file: string): string[] => {
 	const source = readFileSync(file, 'utf8');
-	return [...source.matchAll(/(?:from|import)\s+['"](\.[^'"]+)['"]/gu)].map((match) => match[1] ?? '');
+	const statik = [...source.matchAll(/(?:from|import)\s+['"](\.[^'"]+)['"]/gu)];
+	const dynamic = [...source.matchAll(/import\s*\(\s*['"](\.[^'"]+)['"]/gu)];
+	return [...statik, ...dynamic].map((match) => match[1] ?? '');
 };
 
 const resolveSpecifier = (from: string, specifier: string): string | null => {
@@ -2269,13 +2288,27 @@ working is equally true of a fixture that has quietly become valid.
 
 - [ ] **Step 2: Write the failing test**
 
-Create `tests/plugin/brokenReferences.test.ts`:
+Create `tests/plugin/brokenReferences.test.ts`.
+
+**Through the REAL bootstrap, not the fixture's own helper.** `openFixtureVault` hands back a
+`rebuildIndex()` convenience, and calling it here would test the helper rather than the
+plugin — a regression where plugin startup opens the poisoned record, or fails after the index
+is built, would leave the case green. §2 says "loaded through the real bootstrap path" and
+means it. `tests/helpers/plugin.ts` exports `loadedPlugin(surface)`, whose `VaultSurface` is
+`Pick<RepositoryStack, 'vault' | 'fileManager' | 'metadataCache'>` — exactly the three members
+`FixtureStack` carries — so the fixture drives the real `onload`/`onLayoutReady` with no new
+seam. Mirror `tests/plugin/persistence-wiring.test.ts` for how it reaches the composition
+root's repositories afterwards; that file is the existing precedent for both halves.
 
 ```ts
 import { afterEach, describe, expect, it } from 'vitest';
+import { installObsidianDom } from '../helpers/dom';
+import { loadedPlugin } from '../helpers/plugin';
 import { openFixtureVault, type FixtureStack } from '../helpers/fixtureVault';
 import { expectErr, expectOk } from '../helpers/domain';
 import { createZoneId } from '../../src/domain/zone/ZoneId';
+
+installObsidianDom();
 
 let open: FixtureStack | null = null;
 afterEach(() => {
@@ -2283,53 +2316,64 @@ afterEach(() => {
 	open = null;
 });
 
+/** The real startup, over the fixture's three host surfaces. */
+const bootstrap = async (): Promise<{ stack: FixtureStack; plugin: Awaited<ReturnType<typeof loadedPlugin>> }> => {
+	const stack = await openFixtureVault('broken-references');
+	const plugin = await loadedPlugin({
+		vault: stack.vault,
+		fileManager: stack.fileManager,
+		metadataCache: stack.metadataCache,
+	} as never);
+	return { stack, plugin };
+};
+
 /**
  * Architecture Completion Criterion 13 — "a broken project file does not prevent the entire
- * plugin from loading" — and its §92 half about a poisoned note refusing "only when
- * something OPENS it".
+ * plugin from loading" — and its §92 half about a poisoned note refusing "only when something
+ * OPENS it".
  *
- * THREE assertions, and the first is the one criterion 13 is actually about. The earlier
- * design claimed the degradation half alone "simultaneously proves the fixture exercises the
- * failure mode it claims to". It does not: *the rest of the plugin still works* is equally
- * true of a fixture that has quietly become VALID — a schema edit, a fixture typo — so the
- * criterion could sit untested behind a green suite. A test asserting an ABSENCE passes in
- * both worlds when neither world can produce the thing.
+ * THREE assertions, and the first is the one criterion 13 is actually about. An earlier draft
+ * claimed the degradation half alone "simultaneously proves the fixture exercises the failure
+ * mode it claims to". It does not: *the rest of the plugin still works* is equally true of a
+ * fixture that has quietly become VALID — a schema edit, a fixture typo — so the criterion
+ * could sit untested behind a green suite. A test asserting an ABSENCE passes in both worlds
+ * when neither world can produce the thing.
  */
 describe('a broken project file does not stop the plugin loading', () => {
-	it('builds the index fully, dropping nothing and throwing nothing', async () => {
-		open = await openFixtureVault('broken-references');
-
-		expect(() => open!.rebuildIndex()).not.toThrow();
+	it('completes the real bootstrap and builds the index fully, dropping nothing', async () => {
+		const { stack } = await bootstrap();
+		open = stack;
 
 		// The index scan deliberately does NOT run the fail-closed gate: `collectNotes` copies
 		// `project` and `plan` through `stringField(...)` with no referential check, so the
 		// poisoned note is indexed exactly like its neighbours. Asserting a refusal HERE would
 		// be asserting something bootstrapping never produces.
 		//
-		// "Fully built, nothing dropped" is asserted as the poisoned note being present BESIDE
-		// the healthy one — `InMemoryProjectIndex` exposes no `size`, measured, and a count of
-		// entries would be the weaker claim anyway: criterion 13 is about the poisoned note not
-		// taking the rest of the vault down with it.
-		const zones = open.index.getIdsByType('zone');
+		// "Fully built, nothing dropped" is the poisoned note present BESIDE the healthy one.
+		// `InMemoryProjectIndex` exposes no `size` — measured — and a count would be the weaker
+		// claim anyway: criterion 13 is about the poisoned note not taking the vault down with
+		// it. Reaching startup at all is the other half, and it is why this runs through
+		// `loadedPlugin` rather than the fixture's own `rebuildIndex()` helper.
+		const zones = stack.index.getIdsByType('zone');
 		expect(zones).toContain('kitchen');
 		expect(zones).toContain('zone-with-missing-plan');
 	});
 
 	it('refuses the planted record when something opens it, with the code its edge produces', async () => {
-		open = await openFixtureVault('broken-references');
-		open.rebuildIndex();
+		const { stack } = await bootstrap();
+		open = stack;
 
-		const failure = expectErr(await open.zones.getById(createZoneId('zone-with-missing-plan')));
+		const failure = expectErr(await stack.zones.getById(createZoneId('zone-with-missing-plan')));
 
 		expect(failure.code).toBe('zone.sidecar-unreadable');
 		expect((failure.cause as { code?: string } | undefined)?.code).toBe('plan-geometry.path-unresolved');
 	});
 
 	it('still loads a healthy record from the same fixture', async () => {
-		open = await openFixtureVault('broken-references');
-		open.rebuildIndex();
+		const { stack } = await bootstrap();
+		open = stack;
 
-		const loaded = expectOk(await open.zones.getById(createZoneId('kitchen')));
+		const loaded = expectOk(await stack.zones.getById(createZoneId('kitchen')));
 
 		expect(loaded?.entity.name).toBe('Kitchen');
 	});
@@ -2341,6 +2385,16 @@ describe('a broken project file does not stop the plugin loading', () => {
 Run: `npx vitest run tests/plugin/brokenReferences.test.ts`
 
 Correct the zone ids to the fixture's own, and — if the measured refusal differs from `zone.sidecar-unreadable` / `plan-geometry.path-unresolved` — assert what the fixture actually produces and update the README's explanation to match. Do **not** weaken an assertion to `toBeDefined()`: the code is the discriminator.
+
+- [ ] **Step 3b: Watch the bootstrap half fail**
+
+Corrupt the fixture's `Project.md` frontmatter so the schema refuses it, and run the file.
+
+Expected: the FIRST case fails — either `loadedPlugin` rejects, or the index comes back
+without both zones. That is what says this case exercises startup rather than the fixture
+helper. Confirm the discrimination by temporarily replacing `bootstrap()`'s `loadedPlugin`
+call with `stack.rebuildIndex()`: the case goes GREEN against the corrupted fixture, which is
+the hole a review bot found in the earlier draft. Restore both.
 
 - [ ] **Step 4: Watch the middle assertion fail against a valid fixture**
 

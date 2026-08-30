@@ -101,6 +101,29 @@ export async function rig(seed?: (repos: {
 		geometry,
 	});
 	await zonesRepo.save(zoneA, 'absent');
+	// SEEDED, and the seeding is what makes `calibratePlan` below the real thing rather than
+	// a refusal wearing its clothes. `InMemoryPlanGeometrySidecar.read` answers
+	// `test.injected-failure` for a plan it has never heard of, and
+	// `ReversibleCalibratePlanCommand.execute` returns on that snapshot BEFORE it derives or
+	// writes anything — so an unseeded sidecar refuses every gesture, which is exactly the
+	// stand-in the comment on `calibratePlan` claims to avoid. Measured, not reasoned: the
+	// first version of this rig wired the command over an empty sidecar and every calibration
+	// answered `{ ok: false, code: 'test.injected-failure' }`.
+	//
+	// `calibration: null` because the plan is uncalibrated, matching `PLAN_DTO`; the one
+	// object mirrors the zone just saved, so the sidecar and the zone repository do not
+	// disagree about the geometry a rescale would move.
+	//
+	// The residue, named rather than implied: they agree at SEED time and nothing keeps them
+	// agreeing. `InMemoryZoneRepository` writes no sidecar — in production that join is
+	// `ObsidianZoneRepository`'s — so a zone DRAWN during a test is in the zone repository and
+	// not in this document, and a calibration taken after that draw would rescale the seeded
+	// zone alone. No case drives that pair today; closing it means the rig re-implementing the
+	// repository's sidecar join, which is a wider change than wiring one command.
+	sidecar.seed(plan.id, {
+		calibration: null,
+		objects: [{ id: zoneA.id, points: ZONE_A_DTO.points }],
+	});
 
 	// Slice 10's catalog and links, wired for real so the Requirements panel's rows and
 	// its assign/override controls drive actual repositories through the ONE dispatcher.
@@ -149,8 +172,9 @@ export async function rig(seed?: (repos: {
 		// A FACTORY, as the interface requires: `ReversibleCalibratePlanCommand` holds ONE
 		// gesture's inverse, so two overlapping gestures must not share an instance.
 		//
-		// The REAL command over this rig's own plan repository and event bus, not a refusing
-		// stand-in. It was simply ABSENT until `tests/**` was type-checked — and absent is
+		// The REAL command over this rig's own plan repository, SEEDED sidecar and event bus,
+		// not a refusing stand-in — see the seed above, without which it is one.
+		// It was simply ABSENT until `tests/**` was type-checked — and absent is
 		// worse than either: `runtime.ts` reaches `context.commands.calibratePlan()` when the
 		// calibrate tool activates, so the toolbar button slice 15 made reachable would have
 		// TypeErrored in this rig rather than refusing or working. A stand-in that refused

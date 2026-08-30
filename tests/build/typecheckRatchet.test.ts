@@ -161,10 +161,33 @@ describe('the gate wiring', () => {
 		// compiler has one resolution per program. Measured: 77 new errors in `src/`, because
 		// the mock exports 13 members and the real module's surface has `Vault`, `Workspace`,
 		// `MetadataCache`, `FileManager`, `App` and `TAbstractFile` among many others.
+		//
+		// Asked of the EFFECTIVE options rather than the child's own JSON. `readConfigFile`
+		// parses one file and does not apply `extends`, so a mapping added to `tsconfig.json`
+		// — which this config extends — would reach the test program while an assertion on
+		// the raw child stayed green. Measured, not reasoned: with `paths` planted in the
+		// parent, the first version of this case passed all twelve.
 		const config = ts.readConfigFile(path.join(REPO, 'tsconfig.tests.json'), ts.sys.readFile);
 
 		expect(config.error, 'tsconfig.tests.json did not parse').toBeUndefined();
-		expect(config.config.compilerOptions?.paths).toBeUndefined();
+
+		const parsed = ts.parseJsonConfigFileContent(
+			config.config,
+			ts.sys,
+			REPO,
+			undefined,
+			'tsconfig.tests.json',
+			undefined,
+			// What `vue-tsc` adds; without it a `.vue` glob resolves to nothing at all, which
+			// would read as "no files out of scope" rather than as a broken instrument.
+			[{ extension: '.vue', isMixedContent: true, scriptKind: ts.ScriptKind.Deferred }],
+		);
+
+		expect(parsed.errors, 'tsconfig.tests.json did not resolve').toEqual([]);
+		expect(parsed.options.paths).toBeUndefined();
 		expect(config.config.include).toEqual(['tests/**/*.ts', 'tests/**/*.vue']);
+		// The instrument before the measurement: a resolution that reached no test files
+		// would make the assertion above vacuous and green.
+		expect(parsed.fileNames.some((file) => file.includes('tests/'))).toBe(true);
 	});
 });

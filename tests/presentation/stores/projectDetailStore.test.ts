@@ -72,6 +72,21 @@ describe('ProjectDetailStore', () => {
 		expect(store.plans).toEqual([]);
 	});
 
+	/**
+	 * **There is exactly ONE case here for the completed scan, and an earlier draft of this
+	 * plan had two.** The second was written to discriminate `indexScanCompleted` — "has the
+	 * scan RUN" — from the "seen populated" rule it replaced, on the vault whose only project
+	 * note was deleted while Obsidian was closed. That distinction is real and it matters (the
+	 * wrong rule spins a restored pane for the session), but it **cannot be tested here**: this
+	 * store consumes an opaque boolean, so any case passing `true` hits this one branch the one
+	 * way, and the two cases were byte-identical bodies under different names. Found in review,
+	 * against a docblock claiming "every other case here passes under both rules; this one does
+	 * not" — which the store's own code could not make true.
+	 *
+	 * The discrimination lives where the flag is COMPUTED, not where it is consumed:
+	 * `startPersistence` sets it after `index.rebuild(...)` unconditionally, so a completed
+	 * EMPTY rebuild sets it exactly like a full one. Task 5 carries that case.
+	 */
 	it('is gone when the project is missing and the scan has completed', async () => {
 		const store = useProjectDetailStore();
 
@@ -104,21 +119,6 @@ describe('ProjectDetailStore', () => {
 		await store.hydrate(queriesAnswering({}), PROJECT.id, true);
 
 		expect(store.status).toBe('ready');
-	});
-
-	/**
-	 * **The case that discriminates `indexScanCompleted` from the "seen populated" rule it
-	 * replaced.** A vault whose only project note was deleted while Obsidian was closed
-	 * rebuilds to a legitimately EMPTY index, so "populated" never becomes true, the `ok(null)`
-	 * arm never fires, and the pane spins for the session. Every other case here passes under
-	 * both rules; this one does not.
-	 */
-	it('reaches the list rather than spinning when the completed scan found nothing at all', async () => {
-		const store = useProjectDetailStore();
-
-		await store.hydrate(queriesAnswering({ getProject: () => Promise.resolve(ok(null)) }), PROJECT.id, true);
-
-		expect(store.status).toBe('gone');
 	});
 
 	/**

@@ -108,16 +108,20 @@ state transition, and with an empty vault reveals the **list** rather than a zer
 7. A settings save while the detail state is open leaves the user in the same project.
 8. Closing and reopening Obsidian reopens the project that was open — **including when the
    pane is restored before the index scan has run**, which is the ordering Obsidian actually
-   uses. A restored detail state that hydrates against an empty index holds its loading state;
-   it does not read the legitimate `ok(null)` as a deleted project and navigate away, which
-   would discard the `projectId` this criterion is about and no later read could restore it.
+   uses. A restored detail state that hydrates before the scan completes holds its loading
+   state; it does not read the legitimate `ok(null)` as a deleted project and navigate away,
+   which would discard the `projectId` this criterion is about and no later read could
+   restore it. **And it holds only until the scan COMPLETES, zero entries included** — a vault
+   whose last project note was deleted while Obsidian was closed reaches the list, rather than
+   spinning for the session waiting for an index that will never have entries in it.
 9. The `open-project` command reaches the same state transition as a row click — **including
    when a Renovation project leaf is already open**, which is the normal case; with no projects
    in the vault it reveals the list state, not a picker.
 10. Two `open-project` invocations in one tick naming **different** projects leave exactly one
-    leaf, and the leaf ends on the later of the two. The view is a singleton, and a command
-    that can produce a second tab of it has broken that however correct each invocation looks
-    alone.
+    leaf, and the leaf ends on the later of the two **even when the earlier navigation settles
+    last**. The view is a singleton, and a command that can produce a second tab of it has
+    broken that however correct each invocation looks alone; the ordering half is separate,
+    because coalescing the reveal fixes the tab count and leaves the two state writes racing.
 11. The in-app **‹ back** action returns to the list, and a `setState` carrying the list
     sentinel is honoured rather than validated away. A **different mechanism** from criterion
     13's arrow, not a half of it: this action *sets* a state where the arrow asks Obsidian to

@@ -256,14 +256,40 @@ if (leaf === undefined) return;                            // activation faulted
 await leaf.setViewState({ type: RENOVATION_PROJECT_VIEW, active: true, state: { projectId } });
 ```
 
-Both properties fall out rather than being added. **Uniqueness** is `revealView`'s existing
-coalescing, keyed on the type because that call carries no state — so two invocations in one
-tick produce one leaf whether they name the same project or different ones. **Navigation** is
-the second line, and it is *literally the call a row click makes*, which turns this decision's
-"one action, every input holds at `sync()`" from an argument into a fact about the source:
-there is one `setViewState({ projectId })` shape and both doors reach it. Two invocations
-naming different projects serialize on that one leaf and the later wins — the only answer that
-does not silently discard a user's second choice.
+**Uniqueness** falls out rather than being added: it is `revealView`'s existing coalescing,
+keyed on the type because that call carries no state — so two invocations in one tick produce
+one leaf whether they name the same project or different ones. **Navigation** is the second
+line, and it is *literally the call a row click makes*, which turns this decision's "one
+action, every input holds at `sync()`" from an argument into a fact about the source: there is
+one `setViewState({ projectId })` shape and both doors reach it.
+
+**ORDERING does not fall out, and the sentence that said it did was wrong.** That sentence
+read "two invocations naming different projects serialize on that one leaf and the later
+wins", and nothing in the three lines above serializes anything: both calls await the SAME
+coalesced `revealView` promise, so they resume in the same tick and then issue
+`leaf.setViewState` concurrently. Awaiting each locally orders nothing between them — the
+earlier call can settle last, remount last, and win. "Serialize" was a word doing work no code
+was doing. Reported in review, against the fix for the finding one round earlier, which is
+the shape this branch keeps producing: the repair closed uniqueness and left the property it
+claimed in the same breath.
+
+The ordering is a **latest-request ticket**, the idiom `ProjectStore.hydrate` and
+`InspectorStore` already use, applied to a write instead of a read:
+
+```ts
+const ticket = ++latestNavigation;
+await revealView(deps, RENOVATION_PROJECT_VIEW);
+if (ticket !== latestNavigation) return;   // a later choice arrived; it owns the leaf
+const leaf = deps.workspace.getLeavesOfType(RENOVATION_PROJECT_VIEW)[0];
+if (leaf === undefined) return;            // activation faulted; already reported
+await leaf.setViewState({ type: RENOVATION_PROJECT_VIEW, active: true, state: { projectId } });
+```
+
+Superseded calls **drop their write** rather than queueing behind it, which is the difference
+between a ticket and a chain and is the right one here: a user who picked twice wants the
+second project, not a remount to the first followed by a remount to the second. The counter is
+module-scoped beside the helper, for the reason the coalescing map next door is — a subtlety
+re-remembered per caller is one that eventually is not.
 
 The early return is not defensive padding. `revealView` does not reject; it answers every
 fault through `reportFault`, once per activation. So an activation that failed leaves no leaf
@@ -384,7 +410,7 @@ Nothing outside `presentation/` learns that a detail state exists.
 - `RenovationProjectView` — `getState` / `setState` / `sync` / `mount` / `unmount`, and the
   `mounted` and `mountedProjectId` fields the guard above needs. `rebind` becomes
   `unmount(); sync();`.
-- `RenovationProjectDeps` — **four new members, and an earlier draft of this table named
+- `RenovationProjectDeps` — **five new members, and the first draft of this table named
   one.** Listing them matters more than it looks: `presentation/` may not reach
   `infrastructure/`, so every one of these is a seam the composition root has to fill, and a
   component emitting an event no context member answers compiles and does nothing.
@@ -399,6 +425,10 @@ Nothing outside `presentation/` learns that a detail state exists.
   - `onPlansChanged(projectId, listener): () => void` — the third change source, see *Reads*.
     Returns its own disposer and is registered as an unmount hook, because Obsidian reuses a
     view and a subscription outliving its Vue app stacks another on every reopen.
+  - `indexScanCompleted(): boolean` — has the initial index scan run, zero entries included.
+    What makes an `ok(null)` authoritative rather than a race against layout-ready; see
+    *Error handling* for why the count is the wrong question and why `onProjectsChanged`
+    cannot answer this one.
 - `ViewRoot.vue` — draws the list or `ProjectDetail` on `context.projectId`, read once per
   mount. Keeps its one `DialogHost`, which now has a second caller.
 - `plugin/` — registers the `open-project` command beside the existing ones.
@@ -486,8 +516,8 @@ it: that payload gaining the owning project id.*
 
 | Case | Response | Precedent |
 |---|---|---|
-| `getProject` → `ok(null)`, index seen populated | Navigate back to the list **and re-read it** | `ProjectOpenOutcome.'missing'`, which already does exactly this |
-| `getProject` → `ok(null)`, index not yet seen | Hold the loading state and wait for the re-hydrate — see below | the restored-leaf hazard `onProjectsChanged` exists for |
+| `getProject` → `ok(null)`, initial scan completed | Navigate back to the list **and re-read it** | `ProjectOpenOutcome.'missing'`, which already does exactly this |
+| `getProject` → `ok(null)`, scan not yet completed | Hold the loading state and wait for the re-hydrate — see below | the restored-leaf hazard `onProjectsChanged` exists for |
 | Either read `isErr` | Mapped sentence via `trError` in `.rp-view-message`; **stay on the detail** | `ProjectStoreStatus`'s `missing` / `failed` split |
 | Both succeed | `status = 'ready'` | — |
 
@@ -507,12 +537,38 @@ that draws the wrong empty state until a rebuild corrects it. Here it would **na
 correction no later rebuild can undo, because the project the user was in is no longer recorded
 anywhere.
 
-So the `ok(null)` arm may not fire on a read that could have raced the scan. The constraint,
-rather than the implementation, since this is one for the plan: **navigating away on a missing
-project requires having seen the index populated at least once** — `ProjectIndexRebuilt` is the
-event that says so and `onProjectsChanged` already delivers it. Until then an `ok(null)` holds
-the loading state and waits for the re-hydrate that subscription guarantees. Its own case, and
-one that passes with either behaviour unless it drives the restore ordering the hazard is about.
+So the `ok(null)` arm may not fire on a read that could have raced the scan.
+
+**The first version of that constraint said "populated at least once" and would have hung a
+pane forever.** Reported in review, and the counter-example is exact: a vault whose only
+project note was deleted while Obsidian was closed rebuilds to a legitimately EMPTY index, so
+"populated" never becomes true, the `ok(null)` arm never fires, and the restored detail state
+holds its loading line for the rest of the session. Trading a destroyed `projectId` for a
+permanent spinner is not a fix.
+
+**The question is whether the SCAN HAS RUN, not whether it found anything**, and those are the
+same question only in a vault that still has projects. `RenovationPlannerPlugin.startPersistence`
+publishes `projectIndexRebuilt()` unconditionally after `index.rebuild(...)` — verified, there
+is no count in the call and no branch above it — so a completed empty rebuild announces itself
+exactly like a completed full one. The constraint, rather than the implementation, since this
+is one for the plan: **navigating away on a missing project requires the initial index scan to
+have COMPLETED**, zero entries included. Until then an `ok(null)` holds the loading state; from
+then on it is authoritative.
+
+**That needs a seam, and it is a fifth context member rather than a reuse**, which is worth
+saying because the obvious reuse does not work. `onProjectsChanged` collapses three events into
+one payload-less callback by design — its own docblock argues for that — so a listener cannot
+tell a completed rebuild from a `ProjectCreated`, and treating any callback as proof of a scan
+would make a create in another leaf authorise the navigation. `RenovationProjectDeps` therefore
+takes `indexScanCompleted: () => boolean`, composed at the root over a flag the plugin sets in
+the same step that publishes the event. A predicate rather than a subscription because the
+store needs the answer AT HYDRATE TIME and the re-hydrate already arrives through
+`onProjectsChanged`; adding a second subscription would be a second thing to dispose for a fact
+that never goes back to false.
+
+Its own case, driven in the order the hazard is about, and a second one for the empty vault —
+because the first passes under both the wrong constraint and the right one, and only the second
+tells them apart.
 
 **No partial state at the STORE.** The two reads COMBINE all-or-nothing: either both answered
 and the detail draws, or neither did and it does not. There is no honest picture of a project
@@ -669,11 +725,18 @@ here passes without; `rebind` keeping `projectId`. Plus one case that exists bec
 else would notice it: **`result.history = true`**. That single assignment is the entire reason
 the back arrow works, and every other test in this slice passes without it.
 
-And the restored-leaf ordering: a detail state hydrating against an **empty index** holds its
-loading state rather than navigating to the list, and lands on the project once
-`onProjectsChanged` fires. Driven in the order the hazard is about — hydrate first, rebuild
-after — because hydrating a populated index passes under either rule, and the failure this
-guards is a destroyed `projectId` that no later read can restore.
+And the restored-leaf ordering, in **two** cases, because one of them passes under the wrong
+rule as well as the right one:
+
+- a detail state hydrating **before the scan completes** holds its loading state rather than
+  navigating to the list, and lands on the project once `onProjectsChanged` fires. Driven in
+  the order the hazard is about — hydrate first, rebuild after — since hydrating a scanned
+  index passes either way, and the failure this guards is a destroyed `projectId` no later
+  read can restore;
+- a restored detail state whose project really is gone, in a vault with **no projects at
+  all**, reaches the list rather than holding forever. This is the case that discriminates
+  `indexScanCompleted()` from the "seen populated" rule it replaced: under that rule the pane
+  spins for the session, and every other test in this slice passes anyway.
 
 **The command** — four cases, one per property, because each of the first three FAILS against
 the design this document shipped with, and nothing else here would:
@@ -684,7 +747,10 @@ the design this document shipped with, and nothing else here would:
 - two invocations in one tick naming **different** projects leave exactly **one** leaf. Driven
   with two different projects on purpose: the same project passes against a key that coalesces
   on the request, and the singleton breaks only where they differ;
-- the later of those two is the project the leaf ends on, so a second choice is not discarded;
+- the later of those two is the project the leaf ends on, **with the FIRST navigation
+  deliberately settling last** — the ordering is a ticket, not an accident of scheduling, and
+  a case whose two calls happen to resolve in issue order passes against a build that has no
+  ordering at all;
 - an empty vault reveals the **list** state rather than opening a zero-row picker.
 
 **Wiring** — that the root hands the view both new queries, guarded, and that the refusal

@@ -2003,6 +2003,16 @@ const child = spawnSync(
 
 const output = `${child.stdout ?? ''}${child.stderr ?? ''}`;
 
+/**
+ * How many contract cases the planted `name` mismatch breaks — MEASURED by running the child
+ * once in the direct-run step, never counted by eye. The contract registers its own suite, so
+ * this number is a property of `zone-repository.contract.ts` and changes when that file gains a
+ * case that touches `name`. When it changes, re-run and update it with the new figure in the
+ * commit message: a moving expectation silently widened is the thing this assertion exists to
+ * refuse.
+ */
+const EXPECTED_FAILURES = '<the numFailedTests figure from Step 5, as a string>';
+
 describe('the repository contract discriminates', () => {
 	/**
 	 * FOUR assertions, and each closes a way this case would otherwise pass vacuously. A
@@ -2017,6 +2027,33 @@ describe('the repository contract discriminates', () => {
 
 	it('collected something, so the run was not empty', () => {
 		expect(output).toMatch(/"numTotalTests":\s*[1-9]/u);
+	});
+
+	/**
+	 * EXACTLY the planted failure, and nothing else.
+	 *
+	 * "Some tests were collected" and "the expected text appears" are both still true when the
+	 * child fails a SECOND way — and this fixture is outside `tsconfig.json` by design, so a
+	 * port member omitted from the delegation wrapper adds a `... is not a function` failure
+	 * with no compiler to catch it. That is not hypothetical: `listByProject` was exactly that
+	 * omission one round ago, and every parent case here stayed green.
+	 *
+	 * The whole purpose of this meta-test is that the child fails for ONE reason, so the count
+	 * is the assertion that carries it. Read from the JSON reporter rather than inferred from
+	 * the text, and pinned rather than bounded: a failure count that grows is a fixture that
+	 * has stopped isolating its subject, whichever direction it grows in.
+	 *
+	 * The expected number comes from RUNNING the fixture in the direct-run step below, not from
+	 * counting the contract's cases by eye — the contract registers its own suite and the count
+	 * is a property of that suite, not of anything visible here.
+	 */
+	it('fails for exactly the planted reason and no other', () => {
+		const failed = /"numFailedTests":\s*(\d+)/u.exec(output)?.[1];
+
+		expect(failed).toBe(EXPECTED_FAILURES);
+		expect(output).not.toMatch(/is not a function/u);
+		expect(output).not.toMatch(/Cannot read propert/u);
+		expect(output).not.toMatch(/ReferenceError/u);
 	});
 
 	it('names the case that failed', () => {
@@ -2034,13 +2071,29 @@ describe('the repository contract discriminates', () => {
 });
 ```
 
-- [ ] **Step 5: Run it and tighten the third and fourth assertions**
+- [ ] **Step 5: Run the child directly and fill in the three measured values**
 
-Run: `npx vitest run tests/build/contractDiscriminates.test.ts`
+Run the child on its own first, so its output can be read without the parent's framing:
 
-Read the child's actual JSON output and replace the two loose regexes with the exact case title and the exact failure text the contract produces. `/name/iu` matches almost anything and is a placeholder to be removed in this step — a regex that broad is the vacuity this file exists to refuse.
+```bash
+npx vitest run --config tests/build/fixtures/vitest.brokenFake.config.ts --reporter=json
+```
 
-Expected after tightening: PASS, 4 tests.
+Three values in `contractDiscriminates.test.ts` come from this output and **only** from it:
+
+1. `EXPECTED_FAILURES` — the `numFailedTests` figure, as a string. Counting the contract's
+   cases by eye is not a substitute: the contract registers its own suite and the number is a
+   property of `zone-repository.contract.ts`.
+2. The **exact case title** the mismatch fails in, replacing the placeholder `/name/iu`. That
+   regex matches almost anything and is the vacuity this whole file exists to refuse.
+3. The **exact failure text**, replacing the loose `/AssertionError|expected/iu`.
+
+Before filling them in, confirm the run fails for the intended reason ALONE: no
+`is not a function`, no `ReferenceError`, no `Cannot read propert…`. If any appears, the
+delegation wrapper is missing a port member — add it rather than widening the assertion, which
+is how `listByProject` was found.
+
+Expected after filling in: PASS, 5 tests.
 
 - [ ] **Step 6: Watch every discriminator fail**
 
@@ -2633,8 +2686,26 @@ and this task creates a sibling rather than a shared seam — see the packaging 
 
 - [ ] **Step 5: Run the conformance tests until green**
 
+`valid-project/` does not exist yet. Create the minimum content this task needs before running:
+
+```
+tests/vault/valid-project/Project.md          — valid frontmatter
+tests/vault/valid-project/Plans/Ground.md     — any valid note, in a SUBFOLDER
+```
+
+**The nested file is required, not decorative.** The enumeration case ends with
+`expect(enumerated.some((path) => path.includes('/'))).toBe(true)`, which is what stops that
+case being vacuous on a flat fixture — a path with no separator cannot demonstrate a separator
+defect. With only a root-level `Project.md` the case is FALSE and this step cannot reach PASS.
+Task 13 adds a root-level `README.md` and does not help.
+
+Recorded here as well as at the assertion and in Task 13's fixture notes, because those two
+places are read by someone checking or finishing the fixture and this one is read by the person
+CREATING it — which is the only moment the file can be brought into existence. A requirement
+stated everywhere except at the point of creation is a requirement nobody acts on.
+
 Run: `npx vitest run tests/helpers/fixtureVault.test.ts`
-Expected: PASS, 5 tests. `valid-project/` does not exist yet — create the minimum content this task needs (a `Project.md` with valid frontmatter) and let Task 13 finish it.
+Expected: PASS.
 
 - [ ] **Step 6: Watch each hardening rule fail**
 

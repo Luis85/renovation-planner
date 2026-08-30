@@ -131,12 +131,15 @@ that renames it breaks the citation visibly.
 ### The seven gaps, how they were closed, and the one that was never a gap
 
 None was visible from a test name — the suite looked complete until the bodies were read, which
-is the argument for auditing by reading rather than by grep. **Two were missed by the first pass
-of this very audit and found by a reviewer, and a fourth it reported turned out not to be a gap
+is the argument for auditing by reading rather than by grep. **THREE were missed by the first
+pass of this very audit and found by a reviewer — steps 1, 2 and 12 — a fourth came from
+re-reading every cited body against its row, and a fifth it reported turned out not to be a gap
 at all** — which is the argument for not trusting an audit unreviewed either. That pass read the
 body it was pointed at, found an assertion covering PART of a step, and wrote the step down as
 discharged; at step 7 it made the opposite error, reading a test's NAME as its whole claim and
-calling covered ground a gap.
+calling covered ground a gap. The count is stated as an enumeration rather than as a bare
+number because it has now been wrong twice, in the same direction each time: a correction was
+added to the list of bullets below and the sentence counting them was not re-read.
 
 All seven real ones are closed, across five files — three in
 `tests/presentation/editor/zoneEditing.test.ts` (the outline, the deselection, the delete
@@ -204,10 +207,14 @@ None of the seven was a defect: they were steps the suite was assumed to cover a
 
 **Every cited test's BODY has now been read against its row**, which is what the first pass
 claimed to have done and had not. That re-read is where step 4 came from, and it is the last
-of four corrections this audit needed: it OVER-reported coverage at steps 1, 2 and 4, calling
-them discharged on an assertion covering part of a row, and UNDER-reported it at step 7,
-calling covered ground a gap by taking a test's name as its whole claim. The corrections came from a reviewer in
-every case but this one.
+of FIVE corrections this audit needed: it OVER-reported coverage at steps 1, 2, 4 and 12 —
+each time by finding an assertion covering part of a row and writing the step down as
+discharged — and UNDER-reported it at step 7, calling covered ground a gap by taking a test's
+name as its whole claim. Step 12 is the one an earlier draft of this paragraph left out, and
+it is an over-report of the same kind as the other three rather than a milder one: the cited
+case proves a FAILED sidecar removal restores the note, which is the opposite half of the pair
+the row asks about, so the clause was discharged by a test that could not fail for it. The
+corrections came from a reviewer in every case but this one.
 
 **Ten mutations were run for the seven gaps and the one correction, and several are the
 evidence for the claims above rather than a ritual.** Removing the selection `VLine` from

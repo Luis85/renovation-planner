@@ -14,14 +14,16 @@
 	// background, and it imports nothing under `src/` or `tests/`. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
 	// reaches it through the graph — and it having to be reachable is the point of it being
 	// one file rather than a copy in each.
-	// The two `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
+	// The three `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
 	// nothing imports them and no npm script runs them either — `vue-tsc -noEmit`
 	// type-checks them because `tsconfig.json`'s `include` names each one directly, and
 	// compiling is the whole point. `type-safety.test-d.ts` holds the screen/world brand
 	// separation and a `SelectionStore` assignability check; `diagnostics.test-d.ts` holds
 	// slice 11's no-project-content guarantee, which is a claim about `DiagnosticsLedger.record`'s
-	// PARAMETERS and so has no runtime form at all. In both, an unsatisfied `@ts-expect-error`
-	// is itself a compile error, which is the mechanism. Named one at a time rather than
+	// PARAMETERS and so has no runtime form at all; `fixtureVault.test-d.ts` holds slice 12's
+	// `VaultSurface` widening, proved in both directions. In all three, an unsatisfied
+	// `@ts-expect-error` or assignment failure is itself a compile error, which is the
+	// mechanism. Named one at a time rather than
 	// globbed `tests/**/*.test-d.ts`, for the reason `dynamicallyLoaded`'s own comment gives:
 	// a glob absorbs the next file and tells nobody — and here it would absorb one whose
 	// tsconfig `include` entry had been forgotten, leaving a file that is neither compiled
@@ -57,6 +59,7 @@
 		"scripts/background-fixture.mjs",
 		"tests/application/ports/diagnostics.test-d.ts",
 		"tests/presentation/editor/type-safety.test-d.ts",
+		"tests/helpers/fixtureVault.test-d.ts",
 		"src/prototypes/**/*.vue",
 		"tests/fixtures/promotion/ZoneSummary.promoted.vue",
 		"tests/build/fixtures/brokenFake.fixture.ts",

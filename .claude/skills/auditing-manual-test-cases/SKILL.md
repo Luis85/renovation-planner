@@ -74,13 +74,13 @@ audit instead of keeping the new test's justification.
 ## Real-world impact
 
 One 24-step walkthrough against a 3400-test suite. First pass: "18 discharged, 2 gaps". True
-figure after five review rounds: **17 discharged, 4 gaps** — wrong in *both* directions,
-under-reporting coverage three times from partial assertions and over-reporting a gap once
+figure after six review rounds: **17 discharged, 5 gaps** — wrong in *both* directions,
+over-reporting coverage three times from partial assertions and under-reporting it once
 from a test's name. A reviewer found four of the five corrections. Two gaps were invisible to
 any state assertion: leaving a selection overlay drawn after a deselection kept 50 of 51
 existing tests green.
 
-**Replayed against the three failures it was written from**, which is the verification it has:
+**Replayed against the four failures it was written from**, which is the verification it has:
 
 - Step 1 passed on "an accent outline appears with ONE handle circle per vertex". Two clauses;
   the cited test counts circles. Row one says `none`. **Gap caught** — the first pass collapsed
@@ -88,6 +88,10 @@ existing tests green.
 - Step 4 passed on "follows smoothly and stays where dropped; Undo enables". Four clauses, one
   of them a judgement. The `follows` row says `none`, because the cited test asserts only that
   a preview is non-null. **Gap caught.**
+- Step 12 passed on "the zone note AND its sidecar entry disappear". Two clauses; the second
+  was cited to a case proving a FAILED sidecar removal restores the note — the opposite half of
+  the pair. **Gap caught**, and it was the sharpest: every other assertion about that delete is
+  note-side, and a missing note already reads as absent.
 - Step 7 passed on "the vertex snaps back; every other vertex is where it was". Reading the
   BODY finds a last line asserting the whole pre-drag list. **Correctly NOT a gap** — the first
   pass read the name and reported one.

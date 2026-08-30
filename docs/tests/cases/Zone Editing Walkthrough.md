@@ -91,13 +91,13 @@ standing and one that renames it breaks the citation visibly.
 | 9 | `zoneEditing` *Escape abandons a half-drawn polygon BETWEEN clicks — real click pairs, no zone created*; `drawPolygonTool` *cancel discards the buffer without dispatching anything* |
 | 10 | `drawPolygonTool` *a close click while ANOTHER close is in flight is ignored — one shape, one command* |
 | 11 | `drawPolygonTool` *judges the close click in screen pixels through the current camera*; `closeTarget` *accepts a pointer inside the grab radius and refuses one outside it* |
-| 12 | `zoneEditing` *deletes from the Inspector; undo restores the exact entity; the panel follows both ways*. The **sidecar** half is `consistency` *a failed sidecar removal after the note was deleted restores the note bytes* |
+| 12 | The note and the panel: `zoneEditing` *deletes from the Inspector; undo restores the exact entity; the panel follows both ways*. The **sidecar entry** is its own clause and needed its own case — `consistency` *a SUCCESSFUL delete takes the geometry entry with the note, not just the note*. The compensation case cited here first covers the FAILING half of that pair and not this one |
 | 13 | The same `zoneEditing` case as 12 — it asserts the restored points equal the originals |
 | 14 | `zoneEditing` *redoes a DELETE, which is the one command whose own undo put the entity back*. `commandHistory` *a successful redo moves the command back from the redo stack to the undo stack* is the generic mechanism, with fakes |
 | 17 | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
 | 18 | `canvasPointerRouting` *a reflexive right-click mid-drag does not commit the move; the primary release still does*; `selectTool` *a NON-PRIMARY release during a drag does not commit the move* |
 
-### The four gaps, how they were closed, and the one that was never a gap
+### The five gaps, how they were closed, and the one that was never a gap
 
 None was visible from a test name — the suite looked complete until the bodies were read, which
 is the argument for auditing by reading rather than by grep. **Two were missed by the first pass
@@ -107,7 +107,7 @@ body it was pointed at, found an assertion covering PART of a step, and wrote th
 discharged; at step 7 it made the opposite error, reading a test's NAME as its whole claim and
 calling covered ground a gap.
 
-All four real ones are closed — three in `tests/presentation/editor/zoneEditing.test.ts`, one in `tests/presentation/editor/tools/selectTool.test.ts`:
+All five real ones are closed — three in `tests/presentation/editor/zoneEditing.test.ts`, one in `tests/presentation/editor/tools/selectTool.test.ts`, one in `tests/infrastructure/obsidian/repositories/consistency.test.ts`:
 
 - **Step 1 — nothing asserted the selection OUTLINE.** The only interaction-layer assertion in
   the editor suite counted `Circle` nodes, which are the vertex handles; an outline that stopped
@@ -125,6 +125,12 @@ All four real ones are closed — three in `tests/presentation/editor/zoneEditin
   ghost frozen at the original coordinates passed it: the zone would not move under the hand
   and the release would still commit correctly. Closed by *the body preview FOLLOWS the pointer
   mid-drag, rather than merely existing*, in `selectTool.test.ts` beside the case it narrows.
+- **Step 12 — nothing asserted the sidecar entry goes on a SUCCESSFUL delete.** "The zone note
+  AND its sidecar entry disappear" is two clauses, and the audit cited a COMPENSATION case for
+  the second — which proves a FAILED sidecar removal restores the note, the opposite half of
+  the pair. `getById` reads the note first, so a delete that removed the note and left the
+  geometry entry read as a clean success from every note-side assertion in the suite. Closed by
+  *a SUCCESSFUL delete takes the geometry entry with the note, not just the note*.
 - **Step 14 — nothing redid a delete.** `commandHistory` proves redo moves a command between the
   stacks using fakes, and `zoneEditing` redid a CREATE. Closed by *redoes a DELETE, which is the
   one command whose own undo put the entity back*.
@@ -139,13 +145,13 @@ All four real ones are closed — three in `tests/presentation/editor/zoneEditin
   dispatcher was not. *undoes a VERTEX edit to every original point* now drives it, and is a
   second net over a defect the unit case already catches rather than the only one.
 
-None of the four was a defect: they were steps the suite was assumed to cover and did not.
+None of the five was a defect: they were steps the suite was assumed to cover and did not.
 
 **Every cited test's BODY has now been read against its row**, which is what the first pass
 claimed to have done and had not. That re-read is where step 4 came from, and it is the last
-of four corrections this audit needed: it under-reported coverage at steps 1, 2 and 4 by
-taking an assertion covering part of a row as the whole of it, and over-reported a gap at
-step 7 by taking a test's name as its whole claim. The corrections came from a reviewer in
+of four corrections this audit needed: it OVER-reported coverage at steps 1, 2 and 4, calling
+them discharged on an assertion covering part of a row, and UNDER-reported it at step 7,
+calling covered ground a gap by taking a test's name as its whole claim. The corrections came from a reviewer in
 every case but this one.
 
 **All four cases were watched failing against a mutation, and two of the four mutations are the
@@ -156,7 +162,10 @@ Leaving the overlay behind on deselection — the store still clearing correctly
 case while all eighteen of `selectTool`'s and all eighteen of `inspectorStore`'s stay green:
 fifty of fifty-one passing is the measurement that a state assertion cannot see a canvas. Making
 a redo of a delete write nothing reddens exactly one case, the new one. And the vertex mutation
-reddened two, which is how the step 7 correction above was found.
+reddened two, which is how the step 7 correction above was found. And leaving the geometry
+entry in the sidecar on a successful delete reddens one case out of the 422 in
+`tests/infrastructure/obsidian/repositories/` — the sharpest of the five, since every other
+assertion about that delete is note-side and a missing note already reads as absent.
 
 ### What the pilot cost, for the eight cases still to do
 
@@ -165,9 +174,10 @@ Four of the twenty are discharged by a test in a file no reader of this case wou
 step 1's handle count sits inside the case named for step 6, and the both-files halves of
 steps 8 and 12 are in `consistency.test.ts`, two directories away from the editor. A
 name-matching pass would have marked step 1 a gap and taken steps 8 and 12 on trust. Budget
-the audit for reading bodies, and expect roughly **four true gaps in twenty steps**. This line
-has now carried four figures — one in ten, one in five, three in twenty, and this — as the
-audit was corrected in both directions across four review rounds.
+the audit for reading bodies, and expect roughly **five true gaps in twenty steps**. This line
+has now carried five figures — one in ten, one in five, three in twenty, four in twenty, and
+this — as the audit was corrected in both directions across six review rounds. It is a range,
+not a rate.
 Read the number as the range an audit lands in, not as a rate anybody has established.
 
 ## Deliberately NOT checked

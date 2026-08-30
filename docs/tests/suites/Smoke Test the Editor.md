@@ -83,8 +83,8 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 70 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 30 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 71 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 29 |
 | `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 47 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 8 |
@@ -180,13 +180,13 @@ surface is drawn by Obsidian's own `Notice` and the other is about where files s
 `browser` tier is the one this triage was made to price, and three review rounds moved it in
 both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
 `obsidian` or `desktop` on a closer read, and five `suite` steps then turned out to be
-`browser` under the rule above. It has been 35, 27, 33, 32, 31 and 30. Read that as the shape of the
+`browser` under the rule above. It has been 35, 27, 33, 32, 31, 30 and 29. Read that as the shape of the
 remaining audit rather than as a settled figure — a `browser` verdict is exactly as
 unconfirmed as a `suite` one, and for the same reason.
 
-**Five `browser` steps are tagged that way for a POSITIONAL clause alone, and they are the
+**Four `browser` steps are tagged that way for a POSITIONAL clause alone, and they are the
 split candidates.** [[Create a Project]] 1, [[Empty States Walkthrough]] 1, [[Calibrate a Plan]] 2
-and 7, and [[Assign an Asset and Delete a Referenced Zone]] 8 each pass on something
+and [[Assign an Asset and Delete a Referenced Zone]] 8 each pass on something
 being *centred*, *beside* or *above* something else, while the failure each one names in its
 own "It exists to catch" is presence: a view that drew nothing, a tool registered nowhere, a
 calculated figure hidden behind its own override badge. The rule above still tags them
@@ -194,6 +194,19 @@ calculated figure hidden behind its own override badge. The rule above still tag
 centred — but a reader pricing the browser tier should know that five of its steps would fall
 back to `suite` the moment their positional clause became a step of its own. That is what
 "split the step rather than soften the tag" means in practice, with the list to work from.
+
+**It was FIVE until a reviewer read [[Calibrate a Plan]] 7, and that one left the list by a
+third route neither this paragraph nor the rule above had allowed for.** Its positional word
+was not a claim: "the measured plan distance shown *above* the field" described where the
+text happens to render, while everything the step exists to catch — two dialogs in sequence
+through the one-at-a-time store — is `suite`, and BOTH clauses have jsdom cases
+(`calibrateWiring`'s *confirms, then asks for a distance* and *KnownDistanceForm shows what
+was measured*). So the remedy was neither splitting the step nor softening the tag but
+**rewording a pass condition that overclaimed**, and the row is `suite` outright. A positional
+word is a candidate for the split list only once someone has asked whether the step means it —
+this sweep found the word and never asked, which is the same instrument defect as the
+*(see Runs below)* miss recorded below, one layer up: the first sweep matched a word that was
+not a claim about the screen, and this one matched a word that was.
 The count above carries no DENOMINATOR on purpose: the table has the current tier size, and a
 sentence restating it is a second place for it to go stale — which it did, in three consecutive
 review rounds, each time in the sentence next to the one being corrected.

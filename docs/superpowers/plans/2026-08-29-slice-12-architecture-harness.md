@@ -566,7 +566,15 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 			// outright, and `application` bans `obsidian`, so probing it under
 			// `application/queries` would report for the package ban and prove nothing about
 			// the member one.
-			{ specifier: 'obsidian', shape: 'member', names: ['request', 'requestUrl'] },
+			// ONE LINE PER MEMBER, never both on one. Measured: ESLint reports each restricted
+			// specifier separately, so `import { request, requestUrl } from 'obsidian';`
+			// produces TWO `no-restricted-imports` diagnostics on the same line — and the
+			// line-matched assertion expects exactly one per planted line, so a single
+			// combined entry fails every extension cell of this block against a CORRECT
+			// config. Separate lines also detect either member being removed on its own,
+			// which a combined entry cannot.
+			{ specifier: 'obsidian', shape: 'member', names: ['request'] },
+			{ specifier: 'obsidian', shape: 'member', names: ['requestUrl'] },
 		],
 		// The only two blocks with a network ban, so the only two carrying `networkGlobals`.
 		networkGlobals: true,
@@ -2095,6 +2103,22 @@ export class FixtureVaultAdapter {
 	 * `TFile.path` is an Obsidian vault-relative path in production — never an OS path — so
 	 * this is fidelity to the real type as much as a platform fix.
 	 */
+	/**
+	 * Paths this adapter created that Obsidian has not parsed yet, with the exact bytes.
+	 *
+	 * It lives on the VAULT, exactly as `FakeVault.unparsed` does, and that placement is what
+	 * dissolves a construction cycle rather than working around one: the adapter needs to
+	 * record a create, and the cache needs the current bytes to parse. A draft had the adapter
+	 * call `this.cache.enqueue(...)` while its constructor took only `root` and
+	 * `openFixtureVault` built the cache separately — so `this.cache` was `undefined` and
+	 * every create would have failed at runtime. `tests/` is outside the TypeScript build
+	 * include, so nothing would have reported it before the first run.
+	 *
+	 * With the record here, `FixtureMetadataCache(vault)` reads `vault.unparsed` and there is
+	 * no cycle to resolve.
+	 */
+	readonly unparsed = new Map<string, string>();
+
 	constructor(readonly root: string) {}
 
 	/**
@@ -2114,7 +2138,7 @@ export class FixtureVaultAdapter {
 			throw new Error(`File already exists: ${path}`);
 		}
 		writeFileSync(this.absolute(path), data, 'utf8');
-		this.cache.enqueue(path, data);
+		this.unparsed.set(path, data);
 		return fileAt(path);
 	}
 
@@ -2130,9 +2154,11 @@ export class FixtureVaultAdapter {
 	//
 	// TWO of those owe the cache a call and neither is optional, so they are named here rather
 	// than left inside the ellipsis:
-	//   `modify` calls `this.cache.forget(path)` — a modify makes the path cache-visible,
-	//     exactly as `FakeVault.modify` deletes from `unparsed` (vault.ts:136). Without it a
-	//     note created and then modified in the same run stays invisible to the cache forever.
+	//   `modify` calls `this.unparsed.delete(path)` — a modify makes the path cache-visible,
+	//     exactly as `FakeVault.modify` does (vault.ts:136). Without it a note created and then
+	//     modified in the same run stays invisible to the cache forever. On the VAULT, not
+	//     through the cache: the record lives here, so `modify` needs no cache reference and
+	//     the two objects cannot disagree about it.
 	//   `modify` also REFUSES a path that does not exist (`No file to modify: <path>`,
 	//     vault.ts:130), which is the mirror of `create` refusing one that does.
 	// `delete` needs no cache call: `readOrUndefined` answers `undefined` for a path that is
@@ -2168,19 +2194,13 @@ The metadata cache is the one that carries hardening rule 2:
 
 ```ts
 export class FixtureMetadataCache {
-	/** Paths this adapter created that Obsidian has not parsed yet, with the exact bytes. */
-	private readonly unparsed = new Map<string, string>();
-
+	/**
+	 * The create-window record lives on the VAULT (`FixtureVaultAdapter.unparsed`), read from
+	 * here — the same relationship `FakeMetadataCache` has with `FakeVault`. The cache owns no
+	 * state of its own at all, which is what makes staleness unrepresentable rather than
+	 * merely refreshed, and what leaves nothing for the two objects to disagree about.
+	 */
 	constructor(private readonly vault: FixtureVaultAdapter) {}
-
-	enqueue(path: string, data: string): void {
-		this.unparsed.set(path, data);
-	}
-
-	/** A modify makes the path cache-visible, exactly as `FakeVault.modify` does. */
-	forget(path: string): void {
-		this.unparsed.delete(path);
-	}
 
 	/**
 	 * Parsed ON DEMAND from the vault's CURRENT bytes — never from a snapshot map.
@@ -2217,7 +2237,7 @@ export class FixtureMetadataCache {
 	getFileCache(file: TFile | TFolder | null): { frontmatter?: Record<string, unknown> } | null {
 		if (file === null) return null;
 
-		const asCreated = this.unparsed.get(file.path);
+		const asCreated = this.vault.unparsed.get(file.path);
 		if (asCreated !== undefined && asCreated === this.vault.readOrUndefined(file.path)) return null;
 
 		const text = this.vault.readOrUndefined(file.path);
@@ -2228,7 +2248,7 @@ export class FixtureMetadataCache {
 
 	/** What Obsidian eventually does on its own, once its parse queue drains. */
 	catchUp(): void {
-		this.unparsed.clear();
+		this.vault.unparsed.clear();
 	}
 }
 ```
@@ -2241,7 +2261,9 @@ export const openFixtureVault = async (caseName: string): Promise<FixtureStack> 
 	cpSync(join('tests/vault', caseName), root, { recursive: true });
 
 	const vault = new FixtureVaultAdapter(root);
-	const metadataCache = new FixtureMetadataCache();
+	// The cache reads the vault; the vault holds the create-window record. One direction only,
+	// so this order is the only order that compiles and there is no cycle to break.
+	const metadataCache = new FixtureMetadataCache(vault);
 
 	// No seeding pass: `FixtureMetadataCache` parses on demand from the vault's current
 	// bytes, so every checked-in note is visible the moment the clone lands. An earlier draft
@@ -2489,7 +2511,14 @@ describe('a broken project file does not stop the plugin loading', () => {
 		// "Fully built, nothing dropped" is the poisoned note present BESIDE the healthy one.
 		// `InMemoryProjectIndex` exposes no `size` — measured — and a count would be the weaker
 		// claim anyway: criterion 13 is about the poisoned note not taking the vault down.
-		const zones = stack.index.getIdsByType('zone');
+		//
+		// THE PLUGIN'S index, not `stack.index`. `openFixtureVault` builds one of its own and
+		// `loadedPlugin` composes a second; only the second is rebuilt by `startPersistence()`,
+		// so the fixture's own index is still EMPTY here and asserting on it would fail even
+		// when startup succeeded perfectly. The comment two lines above already said every read
+		// goes through the plugin, and this assertion did not — the rule stated in a docblock
+		// that the code beside it breaks, for the second time in this one test.
+		const zones = plugin.root.persistence!.index.getIdsByType('zone');
 		expect(zones).toContain('kitchen');
 		expect(zones).toContain('zone-with-missing-plan');
 	});

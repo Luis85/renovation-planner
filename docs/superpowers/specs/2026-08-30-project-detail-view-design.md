@@ -7,11 +7,34 @@ document is the authority and this one is the earlier measurement.
 **Baseline:** `fix/metadata-cache-modify-parse-lag` at `719528d`, which is `main` plus the
 metadata-cache parse-lag fix.
 Coverage floors in force: statements 99, functions 99, lines 99, branches 98
-(`vitest.config.ts`). Measured on the baseline: 99.21 / 99.04 / 99.43 / **98.06**. Re-measure
-with `npm run test:coverage` before relying on any figure here — **branches has roughly one
-and a half covered branches of headroom**, which is tighter than slice 16 recorded and is a
-real constraint on this slice: an untested new arm does not reduce coverage, it fails the
-gate. Plan the test with the code.
+(`vitest.config.ts`). Branches is the binding one and it has been measured **twice, on two
+different trees**, which is worth carrying because the two disagree by enough to change how
+the risk reads:
+
+| tree | statements / functions / lines / branches | uncovered branches that still pass |
+|---|---|---|
+| baseline `719528d` (`main` + the parse-lag fix), as first written here | 99.21 / 99.04 / 99.43 / **98.06** (2692 branches) | **~1.9** |
+| `main` at `50e1b84`, re-measured during the review round | 99.25 / 99.04 / 99.47 / **98.16** (2627/2676) | **~4.6** |
+
+The arithmetic, so neither figure has to be taken on trust: a floor of 98 permits `U`
+additional uncovered branches where `covered / (total + U) >= 0.98`, i.e.
+`U <= covered / 0.98 - total`. Both trees are green; they differ because the parse-lag fix
+adds branches of its own.
+
+**Take the tighter number as the planning constraint and neither as a fact.** This slice will
+land on whatever `main` is once PR 37 and PR 38 have merged, which is a third tree nobody has
+measured — so **re-measure with `npm run test:coverage` before relying on any figure here**,
+and read the floor as a floor rather than as a budget. What both measurements agree on is the
+shape: the margin is a handful of branches, not a percentage point, so an untested new arm
+does not shave a number, it fails the gate. Plan the test with the code.
+
+One practical note from taking those measurements, because it costs an hour to rediscover:
+run the suite **alone**. Three of the four runs made during this review reported a single
+failing file — `tests/build/write-boundary.test.ts`, `tests/build/lint-edited.test.ts`,
+`tests/harness/harness.test.ts` — every one of them a timeout under machine load rather than
+a defect, every one green on a quiet re-run, and a failing file **suppresses the coverage
+report entirely**, so the number you came for is not printed. CLAUDE.md records the
+parallelism half of this for `tests/build/`; the load half reaches `tests/harness/` too.
 
 **Numbering.** Slices 19 (`the-asset-catalogue-leaves-the-project`) and 20
 (`the-currency-the-pipeline-is-told`) are already written and unbuilt. This is 21 and
@@ -320,6 +343,23 @@ private sync(): void {
 
 The context is rebuilt per mount and carries `projectId` as a plain field, the way
 `PlanEditorContext` carries `planId`. `ViewRoot` reads it once and draws one of the two states.
+A fresh `createPinia()` comes with each mount, which is a quiet dividend of this choice: the
+detail store has no cross-navigation lifetime, so it needs no `reset` and cannot carry one
+project's rows into another's.
+
+**Borrow the STRATEGY from `PlanEditorView`, not the `mount` body — they attach to different
+elements and only one of them is right here.** `PlanEditorView.mount` does
+`contentEl.createDiv('renovation-plan-editor-view')` and mounts into that wrapper;
+`RenovationProjectView.onOpen` mounts onto `contentEl` **directly**, under a comment that says
+why — "so the component's root element IS the `.renovation-planner-view` the stylesheet keys
+off, with no wrapper in the height chain." That is load-bearing: `styles/view.css` gives that
+root `height: 100%`, which resolves against its parent, and a wrapper `div` between them has
+`height: auto`. The editor's wrapper is fine because `styles/editor.css` declares a rule for
+it; a copied project-view wrapper would have none, and the pane would collapse — the exact
+defect the browser harness caught in slice 1 and the exact kind no gate here can see, since
+jsdom lays nothing out. So `mount` keeps `app.mount(this.contentEl)` after `this.contentEl.
+empty()`, and `containerEl.addClass('renovation-planner-container')` stays in `onOpen`, where
+it is a fact about the leaf rather than about the mount.
 
 Nothing outside `presentation/` learns that a detail state exists.
 
@@ -331,7 +371,7 @@ Nothing outside `presentation/` learns that a detail state exists.
 |---|---|
 | `views/ProjectDetail.vue` | The detail state's markup: header (name, status, Open note, ‹ back) then `PlanList`. Draws only what it is given; emits `back`, `openNote`, `openPlan(planId)`, `createPlan`. |
 | `views/PlanList.vue` | Plan rows plus a `+ New plan` header button — deliberately the shape `ProjectList.vue` already has, so the two read as siblings. Emits `open(planId)`, `create`. |
-| `views/NewPlanForm.vue` | One field (`name`), on `useFormCommit`, modelled on `NewProjectForm`. |
+| `views/NewPlanForm.vue` | One field (`name`), on `useFormCommit`, modelled on `NewProjectForm`. **No new dialog KIND** — it is another `component` under the existing `kind: 'form'`, the way `NewProjectForm` already is, so CLAUDE.md's "a new dialog kind is FIVE edits" does not apply. The caller needs `ViewRoot.onCreateProject`'s in-flight guard with it, because `openDialog` THROWS `DialogStackingError` while a dialog is open and two clicks in one tick would otherwise reach it twice. |
 | `stores/ProjectDetailStore.ts` | `project`, `plans`, `status`, `error`, `hydrate(queries, projectId)`. |
 | `read-models` addition | `PlanSummaryDto` — `{ id, name }`. A summary, not `PlanDto`: a list row needs no background, calibration or layers, and handing a component the full DTO makes it a consumer of fields it does not read. |
 | `modals/ProjectSuggestModal.ts` | A `FuzzySuggestModal` over the index's `renovation-project` entries, mirroring `PlanSuggestModal`. |
@@ -341,14 +381,38 @@ Nothing outside `presentation/` learns that a detail state exists.
 
 **Changed**
 
-- `RenovationProjectView` — `getState` / `setState` / `sync` / `mount` / `unmount`, the
-  `mounted` and `mountedProjectId` fields the guard above needs, and `navigate(projectId)` on
-  the context. `rebind` becomes `unmount(); sync();`.
+- `RenovationProjectView` — `getState` / `setState` / `sync` / `mount` / `unmount`, and the
+  `mounted` and `mountedProjectId` fields the guard above needs. `rebind` becomes
+  `unmount(); sync();`.
+- `RenovationProjectDeps` — **four new members, and an earlier draft of this table named
+  one.** Listing them matters more than it looks: `presentation/` may not reach
+  `infrastructure/`, so every one of these is a seam the composition root has to fill, and a
+  component emitting an event no context member answers compiles and does nothing.
+  - `projectId: string | null` — which state to draw, fixed per mount (see *Architecture*).
+  - `navigate(projectId: string | null): void` — the `setViewState` round trip, `null` for the
+    list. The only writer of that state.
+  - `openPlan(planId: string): Promise<void>` — bound to `revealPlanEditor` at the root, the
+    same shape and for the same reason as the existing `openProject`. **`ProjectDetail` emits
+    `openPlan` and nothing was declared to receive it**, which would have left criterion 2 —
+    "opening a row reaches the Plan Editor through `revealPlanEditor`" — with no route from the
+    layer that raises the event to the layer allowed to import that function.
+  - `onPlansChanged(projectId, listener): () => void` — the third change source, see *Reads*.
+    Returns its own disposer and is registered as an unmount hook, because Obsidian reuses a
+    view and a subscription outliving its Vue app stacks another on every reopen.
 - `ViewRoot.vue` — draws the list or `ProjectDetail` on `context.projectId`, read once per
   mount. Keeps its one `DialogHost`, which now has a second caller.
 - `plugin/` — registers the `open-project` command beside the existing ones.
 - `sampleProject.ts` and `emptyStates/content.ts` — the two docblocks whose stated trigger this
   slice fires.
+- **`CLAUDE.md`** — **two** paragraphs stop being true here, counted by reading that file
+  rather than estimated, and they are the same class of defect as the two docblocks above
+  rather than housekeeping, because it is the guide the next author reads FIRST. The
+  `create-sample-project` paragraph says the plan half "is what this module is still the only
+  source of", on the stated grounds that "there is no project-detail surface a 'new plan'
+  action could live on". The two-surfaces paragraph says the Renovation project view "now
+  draws **a project list**" and stops there. Both are edited in this slice, not after it. The
+  vue-router entry is an ADDITION to *Deliberately absent* in the same pass, with decision 4's
+  trigger — not a falsification, which is why it is not one of the two.
 
 **`CreatePlanInput` needs only `projectId` and `name`.** `background` and `layers` are optional
 and stay unset: slice 5's background is its own command, and a plan with no background is a
@@ -450,16 +514,62 @@ event that says so and `onProjectsChanged` already delivers it. Until then an `o
 the loading state and waits for the re-hydrate that subscription guarantees. Its own case, and
 one that passes with either behaviour unless it drives the restore ordering the hazard is about.
 
-**No partial state.** Two reads, each all-or-nothing; there is no honest picture of a project
-whose identity loaded but whose plans did not. Deliberately unlike the list's additive
-`unreadable > 0` notice, which is partial because one read returns many independently-readable
-rows.
+**No partial state at the STORE.** The two reads COMBINE all-or-nothing: either both answered
+and the detail draws, or neither did and it does not. There is no honest picture of a project
+whose identity loaded but whose plans did not. That is a rule about the pair, and it says
+nothing about what happens INSIDE either one.
+
+**But the contrast the next sentence used to draw was false, and the difference is a real
+exposure rather than a wording slip.** It read "deliberately unlike the list's additive
+`unreadable > 0` notice, which is partial because one read returns many
+independently-readable rows" — and `PlanRepository.listByProject` returns many
+independently-readable rows too. Measured, its loop does two different things with them:
+`if (!one.ok) return one` fails the WHOLE list for one bad note, and
+`if (one.value) loaded.push(...)` **silently drops** an indexed id whose `getById` answers
+`ok(null)`. So this read is not the list's shape and it is not "all-or-nothing" either; it is
+strict in one direction and lossy in the other, and the store above it cannot tell the
+difference because both arrive as a successful array.
+
+Neither half is closed by this slice, and both are written down rather than left to be
+rediscovered:
+
+- **The lossy half is bounded and self-correcting.** `ok(null)` for an indexed id means the
+  note is gone, which `VaultChangeAdapter` corrects on its next pass. A row vanishing for a
+  moment is the honest picture of a note that is not there.
+- **The strict half is the one with teeth.** A single plan note written by a newer build
+  refuses as a `MigrationError`, and that refuses the entire detail state — every other plan
+  in the project hidden behind one file's schema version, where the project LIST would have
+  shown its readable rows and counted the rest. That asymmetry is inherited from the port,
+  not chosen here: changing it means changing `listByProject`'s contract, which
+  `ListAssets` and `ListReassignmentTargets` also read through their own repositories.
+  *Trigger: a second surface wanting per-row resilience, or the first report of a project
+  made unopenable by one plan note.*
 
 **The empty state is structurally gated** on `status === 'ready'` — the
-`RenovationProjectStore.emptyStateKey` shape, not `ProjectStore`'s stated-exception one. This
-store has no `keepPreviousOnFailure` need (nothing here re-hydrates after a command that
-already wrote), so the guard can be structural, and a failed read can never render as "no
-plans yet".
+`RenovationProjectStore.emptyStateKey` shape, not `ProjectStore`'s stated-exception one, so a
+failed read can never render as "no plans yet".
+
+**The reason for that had to be rewritten, because the first one stopped being true three
+paragraphs above.** It read *"this store has no `keepPreviousOnFailure` need — nothing here
+re-hydrates after a command that already wrote"*, and the repaired caller list adds exactly
+that: an awaited `hydrate()` after a successful create. The decision survives its reason, on
+the sibling rather than on the absent condition. `RenovationProjectStore` already re-hydrates
+after `ViewRoot.onCreateProject`'s write, already carries a vault-wide subscription, and still
+blanks structurally — because the two things that made slice 8 need the option are both absent
+from this surface: there is no Konva stage to unmount and rebuild, and no `SaveStateStore`
+(one per Plan Editor) for a blanked read to contradict. A plan list replaced by its mapped
+sentence is an honest picture; a canvas replaced by nothing was not.
+
+**What is NOT optional is the re-hydration guard, and it is one line that no test names.**
+`hydrate` must drop `status` to `'loading'` only when it is not already `'ready'` —
+`RenovationProjectStore.hydrate`'s own line, whose docblock records that this store's earlier
+draft omitted it and *"every successful create flipped the pane from the empty state to the
+`.rp-view-message` loading line and back, a real and avoidable flicker on the one flow this
+mechanism exists to serve."* Here the exposure is wider than there, and that is the new part:
+`onPlansChanged`'s index arm fires for **any** plan note in the vault, so without the guard a
+background sync flickers the whole detail state through its loading line while the user is
+reading it. Inheriting the guard costs a condition; discovering it costs a bug report from a
+vault nobody can reproduce.
 
 **A create that refuses**, through `useFormCommit` + `routeError` with a per-form
 `FieldErrorMap`:
@@ -467,8 +577,20 @@ plans yet".
 | code | routes to |
 |---|---|
 | `plan.empty-name` | the `name` field |
-| `plan.project-not-found` | banner, **and** back to the list — the project vanished while the form was open |
+| `plan.project-not-found` | a **notice**, and back to the list — the project vanished while the form was open |
 | anything else | banner |
+
+**That middle row said "banner, and back to the list" and could not have both**, which is the
+remount decision reaching somewhere nobody looked. Navigating rebuilds the tree, the tree
+carries `DialogHost`, and `onBeforeUnmount` settles an open dialog with its kind's cancel
+result — so the form holding the banner is destroyed in the same gesture that would have
+drawn it, and the user is returned to the list having been told nothing at all. Two ways out
+and the notice is the better one: keeping the user in a detail state for a project that no
+longer exists, so that a banner has somewhere to live, is a worse answer than returning them
+to the list, and slice 13's queue renders on `document.body` and therefore outlives the
+remount that destroys everything else. This is also the one refusal on this surface that
+reaches the user through neither of `useFormCommit`'s two doors, so it is the row most likely
+to be re-simplified back into a banner by someone reading the other two.
 
 Every one of those codes needs copy in **both** locale tables, bound to its raise site by a
 table copied **from the raise sites** — never from `en.ts`, because a table derived from the
@@ -477,6 +599,32 @@ that did not degrade to silence, it degraded to the *wrong sentence*.
 
 The German goes in with `tests/presentation/i18n/strings.test.ts`'s vocabulary rows live:
 `Objekt`, never `Material`.
+
+**And the UI strings are enumerated here rather than left as "every new string", because a
+list is checkable and an adjective is not.** Criterion 12 asks for every one of them in both
+tables; an omission degrades to the fallback, which hides the gap from everyone except the
+reader it is wrong for. Modelled on the keys the sibling components already use
+(`view.project.list-title`, `view.project.create`, `form.new-project.name`,
+`dialog.form.submit`):
+
+| key | where |
+|---|---|
+| `view.project.back` | the detail header's ‹ back action |
+| `view.project.open-note` | the detail header's Open note action |
+| `view.project.plans-title` | `PlanList`'s header, beside `view.project.list-title` |
+| `view.project.create-plan` | `PlanList`'s `+ New plan` button, beside `view.project.create` |
+| `form.new-plan.name` | `NewPlanForm`'s one field |
+| `form.new-plan.title` | the dialog descriptor's `title`, resolved by the CALLER |
+| `command.open-project` | the palette entry |
+| `renovationProject.noPlans` (body + `actionLabel`) | through `EMPTY_STATE_CONTENT`, which holds `StringKey`s and never literals |
+
+Two of those are worth their row for a reason beyond completeness. `form.new-plan.title` is
+resolved by the caller and not by the dialog — slice 15's rule, and neither half of it is
+caught by lint, since a descriptor's `title:` is none of `I18N_LITERAL_BAN`'s four call sites.
+And **the detail header's status reuses `PROJECT_STATUS_LABELS`**, which is not a new key at
+all: `ProjectList` already renders it through a local `statusLabel` helper, so the second
+consumer is the moment that helper becomes shared rather than copied — two expressions of one
+question, three files apart.
 
 Nothing new reaches for `notifyFault`. Every door here is a guarded command or query, so a
 fault is already mapped, logged once at the boundary, and returned as a resolved failed
@@ -490,15 +638,26 @@ three statuses; the structural empty-state gate; `ListPlansByProject` and its DT
 `projectPlansChangeSource`: that it delivers `PlanCreated` for its own project and **not** for
 another's, and that its `ProjectIndexEntryChanged` arm fires for a plan entry regardless of
 project — the stated cost above, pinned as behaviour so that narrowing it later is a deliberate
-change rather than a silent one.
+change rather than a silent one. And `ListPlansByProject` gets the two cases its port's own
+loop makes possible and its return type hides: **one unreadable plan refuses the whole list**,
+and **an indexed id whose note is gone is dropped from it**. Both are today's behaviour rather
+than this slice's choice, so both are pinned here — the first so that softening it is
+deliberate, the second so that the row count silently disagreeing with the index is a fact
+somebody chose rather than one nobody noticed.
 
 **jsdom** — `ProjectDetail` and `PlanList` markup and emits; `NewPlanForm` keeping the user's
 typed value on a rejected commit and dropping a second submit while the first is in flight
 (slice 16's two rules); `content.test.ts` flipping `noPlans` to assert its action is
-**present**, the way slice 16 flipped `noProjects`. Plus the one that closes the third review
-finding: an accepted create puts the new plan **in the rendered rows** without a reopen —
-asserted on the markup and not on "hydrate was called", because the latter is equally true of
-a build whose subscription hears nothing and whose create happens to re-read.
+**present**, the way slice 16 flipped `noProjects`. Plus three more. An accepted create puts the
+new plan **in the rendered rows** without a reopen — asserted on the markup and not on
+"hydrate was called", because the latter is equally true of a build whose subscription hears
+nothing and whose create happens to re-read. And a create refused with
+`plan.project-not-found` leaves the user on the LIST **and** raises a notice: both halves in
+one case, because "it navigated" is equally true of the build that tells the user nothing, and
+"a notice appeared" is equally true of the build that strands them in a dead detail state.
+A re-hydration must also not flip a `'ready'` detail state through its loading line — the
+guard named in *Error handling*, whose absence is a flicker no assertion about final content
+can see.
 
 **View level** — the `getState`/`setState` round trip; validation refusing a non-string while
 **accepting `''` as the list**, and the detail → list → detail round trip that only passes if
@@ -529,10 +688,26 @@ the design this document shipped with, and nothing else here would:
 - an empty vault reveals the **list** state rather than opening a zero-row picker.
 
 **Wiring** — that the root hands the view both new queries, guarded, and that the refusal
-bundle carries them. This needs its own case for the `slice10CascadeWiring` reason: a
-composition that forgets a dependency compiles and passes everything else. Also **verify, not
-assume**, that `guardCategory.test.ts`'s walk reaches the new queries — it finds doors by
-shape, and its own header lists what it cannot see.
+bundle carries them; and that it hands the view `openPlan` and `onPlansChanged` bound to the
+real `revealPlanEditor` and the real bus. This needs its own case for the
+`slice10CascadeWiring` reason: a composition that forgets a dependency compiles and passes
+everything else. `onPlansChanged` needs the sharper version of that case, the one
+`renovationProjectWiring` already learned — a root handed a FRESH `createEventBus()` also
+compiles and also announces into an object nothing subscribed to, so the case drives a real
+`PlanCreated` through and asserts on what a subscriber hears. Also **verify, not assume**,
+that `guardCategory.test.ts`'s walk reaches the new queries — it finds doors by shape, and its
+own header lists what it cannot see.
+
+**And `tests/helpers/makeRenovationProjectView.ts` grows with the interface, in the same
+edit.** It is one of the four entries in `tsconfig.json`'s `include` and it is there for
+exactly this: its docblock promises that a grown constructor requirement "meets every consumer
+at the same time", and that promise has already been broken once — slice 16 gave
+`RenovationProjectDeps` a `commands` bundle and the helper built it out of `createProject`
+alone, so `ViewRoot` handed `useFormCommit` a `logger: undefined` that would have TypeErrored
+inside the very catch a fault reaches somebody through. This slice adds **four** members to
+that same interface. The helper's defaults must answer rather than merely satisfy the type —
+its own comment already draws that line for `openProject` — so `openPlan` records the ask and
+`onPlansChanged` returns a real disposer.
 
 **Accessibility** — the detail state joins `tests/harness/accessibility.test.ts`, awaiting
 `flushPromises()` before scanning and asserting the real markup is in the scanned DOM. That
@@ -543,7 +718,10 @@ reaches, and this slice must not make that two.
 
 **Harness** — an index entry for the detail state, captured in both schemes and at
 `--width=460`. Spacing, wrapping and contrast are outside every gate this repository has, and
-that width has already hidden a real layout defect once.
+that width has already hidden a real layout defect once. One thing to look for by name, since
+it is the risk the `mount` note above describes: **the detail state fills its leaf.** A
+collapsed pane is what a stray wrapper in the height chain produces, jsdom cannot see it, and
+it is what the harness caught the first time in slice 1.
 
 ### Two limits stated rather than left for a green run to imply
 
@@ -570,14 +748,35 @@ Each with a trigger.
   because the detail header already exists to hold it.
 - **vue-router.** Reasoned above; goes in CLAUDE.md's *Deliberately absent* section with its
   own trigger.
-- **Retiring `create-sample-project`.** This slice retires the *plan* half — the last thing
-  that module is the only source of — but the command stays: it is the vault-side equivalent
-  of `npm run harness`, and it still seeds zones, an asset and a requirement in one gesture.
-  Its docblock changes. *Trigger: a surface exists for every entity it seeds.*
+- **Retiring `create-sample-project`.** The command stays; the reason it stays had to be
+  measured, because the first version of this entry gave one that is not true. It said the
+  command "still seeds zones, an asset and a requirement in one gesture" — it seeds neither an
+  asset nor a requirement. `sampleProject.ts` calls exactly three commands,
+  `CreateProjectCommand`, `CreatePlanCommand` and `CreateZoneCommand`, for one project, one
+  plan and the five entries in `SAMPLE_ZONES`.
+
+  That matters because it removes the entry's own justification. With slice 16 having given
+  the project half a real surface and this slice giving the plan half one, **every entity this
+  command seeds is now reachable by hand** — zones since slices 6 and 8 gave `DrawPolygonTool`
+  a way to draw one. So the honest reason is the smaller one its docblock already leads with:
+  it is the vault-side equivalent of `npm run harness`, one gesture that produces something
+  worth LOOKING AT, and a scene assembled by hand is six gestures that a reviewer will skip.
+  A convenience, no longer a sole source. Its docblock changes here, and the paragraph that
+  changes is the one naming the plan gap. *Trigger: it stops being used — nobody reaches for
+  it when opening a vault to look at the canvas.*
 - **Plan rename and delete.** Deleting a plan means deciding what happens to its zones, which
   is `deleteZoneFlow`'s question one level up. *Trigger: a `DeletePlanCommand` exists.*
 - **Two detail panes side by side.** The view stays a singleton; wanting this is wanting the
   third `ItemView` decision 1 rejected. *Trigger: an `SDD §11` amendment.*
+- **`PlanEditorView.setState` setting its own `ViewStateResult.history`.** Decision 3 says the
+  Plan Editor "gets the same one-line win whenever it is next touched", and left at that it is
+  the shape CLAUDE.md has a rule against: *a deferral written into a comment is a deferral
+  nothing schedules* — no gate reads a trigger, and the slice that trips one has no reason to
+  open the file stating it. So it is listed here instead, where the register can see it.
+  Deliberately not folded into this slice: the parameter is currently `_result`, changing it
+  means deciding whether a plan swap in one leaf is a history entry, and that question belongs
+  to whoever owns the editor's navigation. *Trigger: the next change to `PlanEditorView`'s
+  state handling.*
 
 ## Open questions
 

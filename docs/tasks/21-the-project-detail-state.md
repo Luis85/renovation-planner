@@ -51,9 +51,13 @@ Measurements, taken on `main` at `719528d`.
   It is a stateless singleton, so it has nowhere to record which project is open.
 - **`EMPTY_STATE_CONTENT`'s docblock names the same gap** from the other end, as the reason
   `planEditor.noBackground` carries no action.
-- **Coverage headroom is 1.6 branches.** 98.06% measured against a floor of 98
-  (`npm run test:coverage`, 2692 branches). An untested new arm does not lower a number, it
-  fails the gate.
+- **Coverage headroom is a handful of branches, and the figure depends on which tree you
+  measure.** 98.06% over 2692 branches on the baseline (`719528d`) gives ~1.9 uncovered
+  branches before the floor of 98 refuses; re-measured on `main` at `50e1b84` during the
+  review round it is 98.16% over 2676 (2627 covered), which gives ~4.6. Both green, both real;
+  the parse-lag fix accounts for the difference. This slice lands on a third tree — `main`
+  after PR 37 and PR 38 — so the number is re-measured then and the tighter one is planned
+  against meanwhile. An untested new arm does not lower a number, it fails the gate.
 
 ## Why it matters
 
@@ -91,7 +95,10 @@ state transition, and with an empty vault reveals the **list** rather than a zer
 3. A plan can be created from the detail state, through the real `CreatePlanCommand`, and
    appears in the list without reopening the pane.
 4. A rejected create keeps the user's typed value and shows an inline error against the field
-   the error names; it never reverts what was typed.
+   the error names; it never reverts what was typed. The one refusal that cannot work that
+   way — the project vanished while the form was open — returns the user to the list **and**
+   tells them why through a notice, because navigating destroys the form the banner would
+   have lived in.
 5. `Project.md` is still reachable, from an **Open note** action in the detail header.
 6. A project id that resolves to nothing, **once the index has been seen populated**, returns
    to the list and re-reads it; a read that *refuses* stays on the detail and shows the mapped
@@ -125,9 +132,12 @@ state transition, and with an empty vault reveals the **list** rather than a zer
 
 ## Risks
 
-- **The 1.6 branches of headroom.** This slice adds a store, two queries, a form and a
-  navigation path. Tests are planned with the code or the gate fails; there is no room to
-  catch up afterwards.
+- **The handful of branches of headroom** (see *Evidence* — between ~1.9 and ~4.6 depending on
+  the tree). This slice adds a store, two queries, a form, a change source, four context
+  members and a navigation path. Tests are planned with the code or the gate fails; there is
+  no room to catch up afterwards. Measure on a quiet machine: a single load-induced timeout in
+  `tests/build/` or `tests/harness/` suppresses the coverage report entirely, so a run that
+  looks like a gate failure can simply be a run that never produced the number.
 - **`FakeLeaf.setViewState` was once *faster* than Obsidian** — it established view state
   synchronously, which made a duplicate-tab regression case pass against a live defect. This
   slice's whole navigation is that round trip, so each navigation case is watched failing

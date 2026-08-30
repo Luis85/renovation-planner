@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
 import { apiVersion } from '../helpers/obsidian-mock';
 import { loadedPlugin } from '../helpers/plugin';
+import { FakeLeaf } from '../helpers/workspace';
 import { createRepositoryStack, serializeFrontmatter } from '../helpers/vault';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../helpers/entities';
 import { expectErr, expectOk } from '../helpers/domain';
@@ -110,6 +111,38 @@ describe('persistence composition', () => {
 
 		// And vault listeners are registered for the change pipeline.
 		expect(plugin.eventRefs.length).toBeGreaterThanOrEqual(4);
+	});
+
+	/**
+	 * **The question is whether the scan has RUN, not whether it found anything**, and those
+	 * are the same question only in a vault that still has projects.
+	 *
+	 * A vault whose only project note was deleted while Obsidian was closed rebuilds to a
+	 * legitimately EMPTY index. Under a "has the index been populated" rule the flag never
+	 * turns true, a restored detail leaf's `ok(null)` is never authoritative, and the pane
+	 * holds its loading line for the rest of the session — trading a destroyed `projectId` for
+	 * a permanent spinner, which is not a fix.
+	 *
+	 * `startPersistence` publishes `projectIndexRebuilt()` unconditionally after
+	 * `index.rebuild(...)` — there is no count in the call and no branch above it — so a
+	 * completed empty rebuild announces itself exactly like a completed full one, and the flag
+	 * must follow that and not the entry count. This case fails against the rule it replaced;
+	 * the store-level cases in Task 4 pass under both, which is why it lives here.
+	 */
+	it('reports the scan as completed after an empty rebuild', async () => {
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS);
+		workspace.layoutReady();
+
+		expect(plugin.root.persistence?.index.entries()).toEqual([]);
+		expect(
+			(
+				plugin as unknown as {
+					projectViewDeps(projectId: string | null, leaf: unknown): { indexScanCompleted(): boolean };
+				}
+			)
+				.projectViewDeps(null, new FakeLeaf() as never)
+				.indexScanCompleted(),
+		).toBe(true);
 	});
 
 	/**

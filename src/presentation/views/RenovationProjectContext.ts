@@ -64,6 +64,60 @@ export interface RenovationProjectDeps {
 	 * renders and stack a second listener on every reopen.
 	 */
 	readonly onProjectsChanged: (listener: () => void) => () => void;
+	/**
+	 * Which state this mount draws: `null` is the LIST, a string is that project's detail
+	 * state. Fixed per mount, never reactive — the view REMOUNTS per navigation
+	 * (`RenovationProjectView.sync`), so the tree is built from this value and the two cannot
+	 * disagree. A provided `Ref` would be the first reactive member any view context here
+	 * carries and a second way a Vue tree in this plugin learns its subject changed.
+	 */
+	readonly projectId: string | null;
+	/**
+	 * Go to a project, or back to the list with `null`. The ONE writer of that state.
+	 *
+	 * It is a `setViewState` round trip rather than a store mutation, and that round trip is
+	 * what buys the pane's own back and forward arrows: `RenovationProjectView.setState` sets
+	 * `ViewStateResult.history`, so each navigation is an entry in Obsidian's own leaf
+	 * navigation history. A `showList()` method on the view would be a second decider.
+	 */
+	readonly navigate: (projectId: string | null) => void;
+	/**
+	 * Open a plan in the Plan Editor — bound to `revealPlanEditor` at the root, the same shape
+	 * and for the same reason as `openProject`: `presentation/` may not reach Obsidian's
+	 * workspace, and a `PlanSummaryDto` carries no path.
+	 */
+	readonly openPlan: (planId: string) => Promise<void>;
+	/**
+	 * "Some plan of THIS project changed — re-read it." The third change source
+	 * (`projectPlansChangeSource`), filtered on the owning project, which `PlanCreated`'s
+	 * payload carries.
+	 *
+	 * Returns its own disposer, registered as an unmount hook for the reason
+	 * `onProjectsChanged` states: Obsidian REUSES a view, so a subscription outliving its Vue
+	 * app stacks another on every reopen.
+	 */
+	readonly onPlansChanged: (projectId: string, listener: () => void) => () => void;
+	/**
+	 * Has the initial index scan RUN — zero entries included.
+	 *
+	 * What makes a `getProject` answering `ok(null)` authoritative rather than a race against
+	 * layout-ready. Obsidian restores its leaves BEFORE `onLayoutReady` and the scan runs from
+	 * it, so a restored detail state asks an empty index and gets a legitimate `ok(null)`;
+	 * acting on that would set `{ projectId: '' }` and destroy the state it is about.
+	 *
+	 * **A predicate rather than a subscription, and not a reuse of `onProjectsChanged`.** That
+	 * callback collapses three events into one payload-less signal by design, so a listener
+	 * cannot tell a completed rebuild from a `ProjectCreated` — treating any callback as proof
+	 * of a scan would let a create in another leaf authorise the navigation. The store needs
+	 * the answer AT HYDRATE TIME, and the re-hydrate already arrives through
+	 * `onProjectsChanged`; a second subscription would be a second thing to dispose for a fact
+	 * that never goes back to false.
+	 *
+	 * **The question is whether the scan RAN, never whether it found anything.** An earlier
+	 * draft asked "has the index been populated", which hangs a restored pane forever in a
+	 * vault whose last project note was deleted while Obsidian was closed.
+	 */
+	readonly indexScanCompleted: () => boolean;
 }
 
 export const RENOVATION_PROJECT_CONTEXT: InjectionKey<RenovationProjectDeps> = Symbol(

@@ -1,8 +1,9 @@
-import { apiVersion, Plugin, TFile, type TAbstractFile } from 'obsidian';
+import { apiVersion, Plugin, TFile, type TAbstractFile, type WorkspaceLeaf } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../presentation/views/GeometrySidecarView';
 import { tr } from '../presentation/i18n/strings';
 import { revealView } from '../infrastructure/obsidian/workspace/revealView';
+import { navigateToProject } from '../infrastructure/obsidian/workspace/navigateToProject';
 import type { LogLevel, Logger } from '../application/ports/Logger';
 import type { PluginDataProbe } from '../application/ports/PluginDataProbe';
 import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
@@ -84,6 +85,20 @@ function onNoteFile(adapterOf: () => VaultChangeAdapter | undefined, method: 'on
 		if (file instanceof TFile) adapterOf()?.[method](file);
 	};
 }
+
+/**
+ * The `projectId` a Renovation Project leaf's own view state currently names — `''` and
+ * `undefined` both read as the LIST, since `navigateToProject`'s write step
+ * (`state: { projectId: projectId ?? '' }`) is the only thing that ever puts a non-empty
+ * string there. Read through `getViewState()` rather than through the view instance: it is
+ * what Obsidian itself persists and restores, so `rebindOpenViews` learns the SAME project a
+ * reopened leaf would.
+ */
+function projectIdOfLeaf(leaf: WorkspaceLeaf): string | null {
+	const state = leaf.getViewState().state;
+	const projectId = state?.['projectId'];
+	return typeof projectId === 'string' && projectId !== '' ? projectId : null;
+}
 export default class RenovationPlannerPlugin extends Plugin {
 	/**
 	 * One field, not a bare `settings` one: a view or the settings tab reaches persisted
@@ -109,6 +124,20 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** What `onunload` has to undo, in the order it was claimed. */
 	private readonly disposers: (() => void)[] = [];
+
+	/**
+	 * Has the initial index scan completed — zero entries included.
+	 *
+	 * Set in `startPersistence` beside the `projectIndexRebuilt()` publish, which is
+	 * unconditional after `index.rebuild(...)`: a completed EMPTY rebuild announces itself
+	 * exactly like a completed full one, and the difference matters — see
+	 * `RenovationProjectDeps.indexScanCompleted`, whose docblock carries why "populated" was
+	 * the wrong question.
+	 *
+	 * Never goes back to false. A settings swap re-runs the scan against a new root, and the
+	 * fact this records — that a scan has happened in this session — stays true.
+	 */
+	private indexScanCompleted = false;
 
 	async onload(): Promise<void> {
 		// FIRST, ahead of even the logger: importing this bundle has ALREADY put Konva on
@@ -178,7 +207,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// view already on screen kept the previous root indefinitely. `rebindOpenViews` is the
 		// other half, and the two share ONE spelling of each bundle below so a rebind can
 		// never hand a view something different from what its factory would have built.
-		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps()));
+		// `projectId: null` — the LIST state — is every fresh leaf's initial bundle: a leaf
+		// Obsidian is constructing has no view state to read yet, and the view learning its
+		// own restored `projectId` and rebuilding against it is the next task's mechanism.
+		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps(null, leaf)));
 		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
 		// view many times.
 		this.registerView(PLAN_EDITOR_VIEW, (leaf) => new PlanEditorView(leaf, this.planEditorViewDeps()));
@@ -310,9 +342,54 @@ export default class RenovationPlannerPlugin extends Plugin {
 		return this.saveData(next);
 	}
 
-	/** ONE spelling of the Renovation Project view's bundle, for the factory and the rebind. */
-	private projectViewDeps(): RenovationProjectDeps {
-		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault);
+	/**
+	 * ONE spelling of the Renovation Project view's bundle, for the factory and the rebind.
+	 *
+	 * `leaf` is the leaf THIS bundle belongs to, and `navigate` is bound to it: a click inside
+	 * this pane must write to this pane, never to whichever leaf `getLeavesOfType` happens to
+	 * answer first — a fact that only bites once the pane is split, since Obsidian's own split
+	 * action duplicates a leaf with its view state intact and this view is a singleton only by
+	 * the plugin's own construction. `navigateToProject`'s own `targetLeaf` parameter is what
+	 * closes that; see its docblock for the split-pane scenario this exists for.
+	 *
+	 * `projectId` is passed rather than read off `leaf.getViewState()` here: this view's own
+	 * remount-per-navigation mechanics (reading its OWN current state, re-hydrating on
+	 * `setState`) are the next task's, and this method stays the one place both the factory and
+	 * the rebind build the same bundle — a caller that knows a different `projectId` (a fresh
+	 * leaf's initial state, say) is free to pass one once that caller exists.
+	 */
+	private projectViewDeps(projectId: string | null, leaf: WorkspaceLeaf): RenovationProjectDeps {
+		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
+			projectId,
+			// Through `navigateToProject` (Task 11), NOT a raw `setViewState`, and it closes
+			// two holes at once. A bare `void` on a rejecting `setViewState` is an unhandled
+			// rejection reaching nobody — the shape `runDetached` exists to close, and the
+			// palette command's own door already answers it through `reportFault`. And two
+			// row clicks before the first write settles issue CONCURRENT writes, where the
+			// earlier one can settle last and reopen the project the user has navigated away
+			// from: the same window Task 11's write chain closes, on the door a user is far
+			// more likely to double-fire than a palette command. Both reported by a review
+			// bot against this plan.
+			//
+			// It is also this repository's own "one action, every input" rule: the row, the
+			// Back action and the palette command now reach ONE door rather than two that
+			// have to be kept in step. `leaf` is passed as the target: see this method's own
+			// docblock for why the type-lookup fallback is not this door's answer.
+			navigate: (next) => {
+				void navigateToProject(
+					{
+						workspace: this.app.workspace,
+						reportFault: (cause: unknown): void => {
+							notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+						},
+					},
+					RENOVATION_PROJECT_VIEW,
+					next,
+					leaf,
+				);
+			},
+			indexScanCompleted: () => this.indexScanCompleted,
+		});
 	}
 
 	/** ONE spelling of the Plan Editor's bundle, for the factory and the rebind. */
@@ -347,7 +424,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// property access, so a `rebind` reached only via `instanceof` is reported as an
 			// unused class member. Measured — both views were, before this line existed.
 			const view: RenovationProjectView = leaf.view;
-			view.rebind(this.projectViewDeps());
+			// The leaf's OWN state, not `null`: a settings swap must not silently return a
+			// detail-state pane to the list, and `projectIdOfLeaf` reads exactly what
+			// `navigateToProject` last wrote there.
+			view.rebind(this.projectViewDeps(projectIdOfLeaf(leaf), leaf));
 		}
 		for (const leaf of this.app.workspace.getLeavesOfType(PLAN_EDITOR_VIEW)) {
 			if (!(leaf.view instanceof PlanEditorView)) continue;
@@ -407,6 +487,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 				logger: this.root.logger,
 			}),
 		);
+
+		// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
+		// completed scan. Announcing first would leave the very re-read this flag exists for
+		// asking a question the flag still answers `false` to.
+		this.indexScanCompleted = true;
 
 		// Announced, because a surface that already read through the index has read a
 		// DIFFERENT index. Obsidian restores its leaves before `onLayoutReady`, so a Plan

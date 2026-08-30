@@ -272,6 +272,28 @@ describe('navigateToProject', () => {
 		expect(leaf.getViewState().state).toEqual({ projectId: 'project-2' });
 	});
 
+	/**
+	 * **The singleton assumption breaks the moment the pane is split.** Obsidian's own split
+	 * action duplicates a leaf with its view state intact, so a vault with the Renovation
+	 * Project pane split genuinely has TWO leaves of the type — and writing to
+	 * `getLeavesOfType(type)[0]` regardless would let a row click or Back raised inside the
+	 * SECOND pane silently retarget the first, leaving the pane the user actually clicked in
+	 * showing its stale state. This case fails against exactly that build: a version that
+	 * ignores `targetLeaf` writes to `first`, since `first` is the type lookup's own index-0
+	 * answer.
+	 */
+	it('writes to the leaf navigation was raised from, leaving a second leaf of the type untouched', async () => {
+		const workspace = new FakeWorkspace();
+		const first = workspace.withOpen(TYPE, { projectId: 'project-1' });
+		const second = workspace.withOpen(TYPE, { projectId: 'project-2' });
+		const deps = { workspace, reportFault: vi.fn<(cause: unknown) => void>() };
+
+		await navigateToProject(deps, TYPE, 'project-3', second);
+
+		expect(second.getViewState().state).toEqual({ projectId: 'project-3' });
+		expect(first.getViewState().state).toEqual({ projectId: 'project-1' });
+	});
+
 	/** A door in this directory that REJECTS has no one to catch it. */
 	it('reports a rejecting setViewState and still resolves', async () => {
 		const workspace = new FakeWorkspace();

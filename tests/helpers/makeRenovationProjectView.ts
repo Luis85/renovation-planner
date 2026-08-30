@@ -94,6 +94,11 @@ export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 	if (deps !== undefined) return new RenovationProjectView(new FakeLeaf() as never, deps);
 
 	const projects = new InMemoryProjectRepository();
+	// Beside `projects` rather than inline in `ListPlansByProject`'s constructor: `commands`
+	// grows a `createPlan` member of its own once Task 8 lands, and it needs the SAME
+	// repository this file's `queries` reads through, not a second empty one silently
+	// answering a different world.
+	const plans = new InMemoryPlanRepository();
 	const events = new RecordingEventBus();
 
 	// ANNOTATED rather than inferred, so a member the interface grows is a compile error here
@@ -101,14 +106,27 @@ export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
 	// requires a `logger` beside it.
 	const defaults: RenovationProjectDeps = {
-		queries: createRenovationProjectQueries(
-			new ListProjects(projects),
-			new GetProject(projects),
-			new ListPlansByProject(new InMemoryPlanRepository()),
-		),
+		queries: createRenovationProjectQueries(new ListProjects(projects), new GetProject(projects), new ListPlansByProject(plans)),
 		commands: { createProject: new CreateProjectCommand(projects, events), logger: recorder },
 		openProject: () => Promise.resolve('opened'),
 		onProjectsChanged: () => () => undefined,
+		// The LIST state, which is what a harness mount with no query string draws and what
+		// every existing case of this factory has always been asserting against.
+		projectId: null,
+		// `navigate` and `openPlan` are the one place this default is deliberately INERT, and
+		// the reason is the same one `openProject`'s own paragraph gives: both are Obsidian
+		// workspace operations this harness has none of. A default that silently did nothing
+		// would let a view that never calls `navigate` pass a test written to prove that it
+		// does — every case that asserts on either passes its own `deps` instead of taking
+		// this one.
+		navigate: () => undefined,
+		openPlan: () => Promise.resolve(),
+		onPlansChanged: () => () => undefined,
+		// TRUE, deliberately: the default vault here is a real in-memory repository that has
+		// already been read, so `ok(null)` from it is authoritative. Defaulting to `false`
+		// would put every case that mounts a detail state through this factory into the
+		// restored-leaf holding pattern, which is a fake driving behaviour nothing asked for.
+		indexScanCompleted: () => true,
 	};
 	return new RenovationProjectView(new FakeLeaf() as never, defaults);
 };

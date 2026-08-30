@@ -5,6 +5,7 @@ import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
+import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
 import type { CreatePlanInput, CreatePlanError } from '../application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../application/commands/project/CreateProject';
@@ -53,8 +54,8 @@ import {
 } from '../presentation/read-models/renovationProjectQueries';
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
-import { openProjectNote } from '../infrastructure/obsidian/workspace/openNote';
-import { notifyWarning, notifyFault } from '../presentation/notices/notify';
+import { renovationProjectOpenPlan, renovationProjectOpenProject } from './renovationProjectOpenSeams';
+import { notifyWarning } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
@@ -616,14 +617,34 @@ export function planEditorDeps(
  * is. A `.catch` at this end reported once per CLICK, and a double click is two clicks sharing
  * one open: two notices and two identical log lines for one operation, which is the defect a
  * review round found in the shape this replaced.
+ *
+ * `options` carries what only the CALLER can know — `projectId` is the view's own field,
+ * `navigate` is bound to `navigateToProject` one caller up (this function may not import
+ * Obsidian's own `notifyFault`-mapped `reportFault` shape twice), and `indexScanCompleted`
+ * reads a session-scoped flag the plugin owns. A default here would let a composition forget
+ * one and still compile — the same self-declared shape this repository already refuses, and
+ * the reason Task 3's own wiring case grows an explicit fourth argument instead.
  */
 export function renovationProjectDeps(
 	root: CompositionRoot,
 	workspace: Workspace,
 	vault: Vault,
+	options: {
+		projectId: string | null;
+		navigate: (projectId: string | null) => void;
+		indexScanCompleted: () => boolean;
+	},
 ): RenovationProjectDeps {
 	const persistence = root.persistence;
 	return {
+		projectId: options.projectId,
+		navigate: options.navigate,
+		indexScanCompleted: options.indexScanCompleted,
+		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve(),
+		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
+		// `onProjectsChanged` states three lines down: the bus is the root's own and exists
+		// either way, and a refusal bundle re-reading simply refuses again.
+		onPlansChanged: createProjectPlansChangeSource(root.eventBus),
 		queries: persistence
 			? createRenovationProjectQueries(persistence.listProjects, persistence.queries.getProject, persistence.listPlansByProject)
 			: unavailableRenovationProjectQueries(),
@@ -631,22 +652,7 @@ export function renovationProjectDeps(
 			? { createProject: persistence.createProject, logger: root.logger }
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
-			? (projectId) =>
-					openProjectNote(
-						{
-							workspace,
-							vault,
-							index: persistence.index,
-							// The fault answers `'failed'` down there and never `'missing'`: the id DID
-							// resolve and the open faulted, so the list behind the row is not stale and a
-							// vault-wide re-read would answer a question nobody asked. This notice is
-							// what the user acts on.
-							reportFault: (cause: unknown): void => {
-								notifyFault(cause, root.logger, 'view.project.open-failed');
-							},
-						},
-						projectId,
-					)
+			? renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)
 			: () => Promise.resolve('failed'),
 		// Wired from the bus UNCONDITIONALLY, persistence or not, and that is the honest
 		// shape rather than a convenience: the bus is the root's own and exists either way,

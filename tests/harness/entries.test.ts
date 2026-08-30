@@ -7,7 +7,7 @@ import { createPinia, type Pinia } from 'pinia';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
 import { createApp, type Component } from 'vue';
-import { componentEntries, discoverEntries, prototypeEntries, registerEntries, registrableComponents } from './entries';
+import { componentEntries, discoverEntries, type HarnessEntry, prototypeEntries, registerEntries, registrableComponents } from './entries';
 import { harnessEditorContext, seedFixture } from './fixture';
 import { HARNESS_PLAN, HARNESS_ZONES } from './planEditor';
 import SharedWorldPrototype from './SharedWorldPrototype.vue';

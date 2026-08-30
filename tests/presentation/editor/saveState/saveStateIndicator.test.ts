@@ -51,10 +51,13 @@ describe('the mark the component spec requires beside the word', () => {
 	 * lets the three cases above go on asserting an exact `.text()`, and is why the mark is
 	 * `aria-hidden` rather than labelled.
 	 */
+	// Each driver is annotated `: void`. Without it the second and third infer from a call on
+	// the store whose own type this table is inside, and TypeScript gives up with an implicit
+	// `any` return — which would then have let a driver return anything at all.
 	it.each([
-		['saved', 'Saved', (store: ReturnType<typeof useSaveStateStore>) => void store],
-		['saving', 'Saving', (store: ReturnType<typeof useSaveStateStore>) => store.beginSaving()],
-		['save-error', 'Save error', (store: ReturnType<typeof useSaveStateStore>) => {
+		['saved', 'Saved', (store: ReturnType<typeof useSaveStateStore>): void => void store],
+		['saving', 'Saving', (store: ReturnType<typeof useSaveStateStore>): void => store.beginSaving()],
+		['save-error', 'Save error', (store: ReturnType<typeof useSaveStateStore>): void => {
 			store.beginSaving();
 			store.resolveErr();
 		}],

@@ -74,7 +74,7 @@ describe('CreateZoneCommand', () => {
 		const { zones, events } = wired();
 		class FailingRead extends InMemoryPlanRepository {
 			override getById() {
-				return injectedReadFailure();
+				return Promise.resolve(injectedReadFailure());
 			}
 		}
 		const error = expectErr(

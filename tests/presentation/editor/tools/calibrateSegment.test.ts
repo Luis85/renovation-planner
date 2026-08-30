@@ -187,7 +187,10 @@ describe('the calibration segment it draws', () => {
 	 */
 	it('a stale gesture unwinding does not wipe the new gesture segment', async () => {
 		const h = harness();
-		let release: ((distance: number | null) => void) | null = null;
+		// Definite assignment — see `viewRootCreateProject.test.ts` for the whole reason: a
+		// `| null` declared here narrows to `null` at every read below, because the assignment
+		// is inside a callback TypeScript cannot see run.
+		let release!: (distance: number | null) => void;
 		const tool = newTool(
 			h,
 			() =>
@@ -201,7 +204,7 @@ describe('the calibration segment it draws', () => {
 
 		tool.cancel();
 		click(tool, at(50, 50)); // the new gesture's anchor
-		release?.(3200);
+		release(3200);
 		await flush();
 
 		expect(h.context.renderState.measurement).toEqual({

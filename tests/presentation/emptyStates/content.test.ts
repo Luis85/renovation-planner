@@ -42,7 +42,11 @@ describe('the empty-state content registry', () => {
 	 * (`activeToolId = 'draw-polygon'`) already exists and is reachable from here.
 	 */
 	it('gives noBackground no action label, since its hand-off is unreachable from the editor tree', () => {
-		expect(EMPTY_STATE_CONTENT.planEditor.noBackground.actionLabel).toBeUndefined();
+		// Asked with `in` rather than by reading the property: the registry entry is a literal
+		// with no `actionLabel`, so its TYPE has no such key and the read does not compile. That
+		// the type already forbids it is the stronger guarantee; this keeps the runtime assertion
+		// so that widening the entry still has to face a red test rather than closing quietly.
+		expect('actionLabel' in EMPTY_STATE_CONTENT.planEditor.noBackground).toBe(false);
 	});
 
 	it('gives noZones an action label, since its hand-off already exists', () => {

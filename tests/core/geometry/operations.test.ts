@@ -51,7 +51,10 @@ const ZERO_SEGMENT: LineSegment = { start: { x: 1, y: 1 }, end: { x: 1, y: 1 } }
  * keeps every expectation unconditional, which is what `vitest/no-conditional-expect`
  * exists for: a conditional expectation silently passes when its condition never holds.
  */
-function errOf<T>(result: Result<T, GeometryError>): GeometryError {
+// `unknown` rather than a `T` parameter, for the reason `expectOk` carries: this is called
+// over a union of results whose value types differ (`number`, `Point`), and a bound `T` has
+// nothing to infer to across one. The value is never read here.
+function errOf(result: Result<unknown, GeometryError>): GeometryError {
 	if (result.ok) {
 		throw new Error('expected a GeometryError, got a value');
 	}

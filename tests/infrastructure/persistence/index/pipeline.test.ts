@@ -137,7 +137,10 @@ describe('vault change detection', () => {
 		expect(stack.index.getGeometrySidecarPath(planId)).toContain('.rpgeo');
 
 		stack.vault.entries.delete(newPath);
-		adapter.onDelete(stack.vault.getAbstractFileByPath(newPath) ?? ({ path: newPath } as never));
+		// One cast over the WHOLE argument. It sat on the fallback alone, so the lookup's own
+		// `TFile | TFolder` leaked past it — a cast that looked like it covered the expression
+		// and covered one arm of it.
+		adapter.onDelete((stack.vault.getAbstractFileByPath(newPath) ?? { path: newPath }) as never);
 		adapter.flush();
 		expect(stack.index.getPath(planId)).toBeUndefined();
 	});

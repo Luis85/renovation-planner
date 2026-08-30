@@ -4,6 +4,7 @@ import { expectOk } from '../../../helpers/domain';
 import { makeProject as makeProjectEntity } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import { createEventBus, type DomainEvent } from '../../../../src/core/events/EventBus';
+import type { ProjectIndexEntryChanged } from '../../../../src/application/events/projectIndex.events';
 import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
 
 /**
@@ -24,7 +25,11 @@ function wired(stack: ReturnType<typeof createRepositoryStack>) {
 	const bus = createEventBus(() => undefined);
 	const announced: { id: string; type: string }[] = [];
 	bus.subscribe('ProjectIndexEntryChanged', (event: DomainEvent) => {
-		const payload = (event as { payload: { entityId: string; entityType: string } }).payload;
+		// The REAL event type, not a hand-written `{ payload: … }`. `DomainEvent` declares only
+		// `type`, so the old cast was a conversion between shapes with no overlap — and it was a
+		// second derivation of a contract `projectIndex.events.ts` already states, free to drift
+		// from it silently.
+		const { payload } = event as ProjectIndexEntryChanged;
 		announced.push({ id: String(payload.entityId), type: payload.entityType });
 	});
 	const adapter = new VaultChangeAdapter({

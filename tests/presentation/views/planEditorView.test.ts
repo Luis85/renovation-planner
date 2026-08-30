@@ -32,6 +32,12 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 			getPlan: () => Promise.resolve(ok(plan)),
 			getRequirementsForZone: () => Promise.resolve(ok([])),
 			listAssets: () => Promise.resolve(ok([])),
+			// The two the contract requires and this fixture omitted until `tests/**` was
+			// type-checked. A fixture thinner than its own annotation is the shape this
+			// repository keeps recording: the view can reach these, and here they answered
+			// `undefined`.
+			listRequirementsReferencing: () => Promise.resolve(ok([])),
+			listReassignmentTargets: () => Promise.resolve(ok([])),
 			findZonesByPlan: () => Promise.resolve(ok(FIXTURE_ZONES)),
 		},
 		// The lifecycle tests here dispatch nothing; the refusal commands keep that honest.

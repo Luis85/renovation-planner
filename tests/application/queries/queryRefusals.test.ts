@@ -6,7 +6,7 @@ import { ListAssets } from '../../../src/application/queries/ListAssets';
 import { ListRequirementsReferencing } from '../../../src/application/queries/ListRequirementsReferencing';
 import { ListReassignmentTargets } from '../../../src/application/queries/ListReassignmentTargets';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
-import { expectErr, expectOk } from '../../helpers/domain';
+import { expectErr, expectFound, expectOk } from '../../helpers/domain';
 import { makeAsset, makeZone } from '../../helpers/entities';
 import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
 
@@ -91,7 +91,7 @@ describe('GetRequirementsForZone error propagation', () => {
 describe('GetRequirementsForZone staleness readings', () => {
 	it('a requirement whose ZONE is gone reads stale without failing the row', async () => {
 		const w = await wiredWithLink();
-		const zone = expectOk(await w.zones.getById(w.zoneId));
+		const zone = expectFound(await w.zones.getById(w.zoneId));
 		expectOk(await w.zones.delete(w.zoneId, zone.version));
 
 		const rows = expectOk(await w.query.execute(w.zoneId));

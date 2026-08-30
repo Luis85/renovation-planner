@@ -5,6 +5,7 @@ import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence
 import { EchoWindow } from '../../../../src/infrastructure/persistence/index/EchoWindow';
 import { observeFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/digest';
 import { createEventBus, type DomainEvent } from '../../../../src/core/events/EventBus';
+import type { ProjectIndexEntryChanged } from '../../../../src/application/events/projectIndex.events';
 import type { Logger } from '../../../../src/application/ports/Logger';
 
 /**
@@ -53,7 +54,8 @@ function wired(cacheShows: Record<string, unknown>, file: TFile, recordedStat: s
 	const bus = createEventBus(() => undefined);
 	const announced: string[] = [];
 	bus.subscribe('ProjectIndexEntryChanged', (event: DomainEvent) => {
-		announced.push(String((event as { payload: { entityId: string } }).payload.entityId));
+		// See `announcements.test.ts`: the real event type, not a hand-written payload shape.
+		announced.push(String((event as ProjectIndexEntryChanged).payload.entityId));
 	});
 	const adapter = new VaultChangeAdapter({
 		vault: { getAbstractFileByPath: () => file } as unknown as Vault,

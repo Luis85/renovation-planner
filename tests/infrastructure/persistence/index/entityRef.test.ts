@@ -50,7 +50,7 @@ function sourceFilesUnder(dir: string): string[] {
 function modulesNaming(needle: string): string[] {
 	return sourceFilesUnder('src')
 		.filter((path) => readFileSync(path, 'utf8').includes(needle))
-		.map((path) => path.replaceAll('\\', '/'))
+		.map((path) => path.replace(/\\/g, '/'))
 		.toSorted();
 }
 

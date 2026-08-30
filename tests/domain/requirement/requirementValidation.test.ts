@@ -61,7 +61,11 @@ describe('Requirement.create refusals', () => {
 	it('refuses an origin kind this version does not read', () => {
 		const error = expectErr(
 			Requirement.create(
-				requirementProps({ origin: { kind: 'work-package' as never, workPackageId: 'wp-1' as never } }),
+				// ONE cast over the whole origin rather than one per field: this is deliberately a
+				// shape from a version that reads work packages, and `workPackageId` is excess on
+				// today's type. Casting the fields individually left the object literal itself
+				// failing excess-property checking, which said nothing about intent.
+				requirementProps({ origin: { kind: 'work-package', workPackageId: 'wp-1' } as never }),
 			),
 		);
 		expect(error.code).toBe('requirement.unknown-origin-kind');

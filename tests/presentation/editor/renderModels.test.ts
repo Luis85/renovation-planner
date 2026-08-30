@@ -132,7 +132,10 @@ describe('resolving the theme', () => {
 	 */
 	it('reads every token from the Obsidian variable it names', () => {
 		const variables = [...new Set(Object.values(THEME_TOKENS))];
-		const sentinel = (variable: string) => `rgb(${variables.indexOf(variable)}, 0, 0)`;
+		// Typed as the ELEMENT of `variables` rather than `string`: `THEME_TOKENS` is a const
+		// object, so its values are a union of literal variable names and `indexOf` takes that
+		// union, not any string. Widening the parameter is what made the call fail.
+		const sentinel = (variable: (typeof variables)[number]) => `rgb(${variables.indexOf(variable)}, 0, 0)`;
 		for (const variable of variables) {
 			document.documentElement.style.setProperty(variable, sentinel(variable));
 		}

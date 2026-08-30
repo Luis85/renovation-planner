@@ -300,6 +300,12 @@ interface BlockProbe {
 	readonly forbidden: readonly Planted[];
 	/** One import the block must NOT report, keyed on the layer rather than firing always. */
 	readonly allowed: string;
+	/**
+	 * Whether this block also bans the network GLOBALS. A separate flag because they report
+	 * under a different rule key — `no-restricted-globals`, measured — so the matrix's
+	 * `no-restricted-imports` assertions cannot see them at all.
+	 */
+	readonly networkGlobals?: boolean;
 }
 
 /**
@@ -356,6 +362,24 @@ Append below `packageShapes`. Every `forbidden` list is transcribed from the sou
 
 ```ts
 const PKG = ['vue', 'pinia', 'konva', 'vue-konva', 'obsidian'] as const;
+
+/**
+ * What `networkFree(...)` adds ON TOP of its parent layer's ban — slice 11's Definition of
+ * Done item 7, transcribed from there rather than read out of the config.
+ *
+ * Probing these is not optional and the reason is the override mechanic: two blocks matching
+ * one file OVERRIDE `no-restricted-imports`, so if an extension were dropped from either
+ * network block the PARENT layer block still matches and still reports every layer-shaped
+ * import planted here. The layer probes would stay green while network access became allowed
+ * in that extension — and `network-boundary.test.ts` would not see it either, since it drives
+ * `.ts` paths only. The extension matrix promises this and only these probes deliver it.
+ */
+const NETWORK_MODULES = ['node:https', 'https', 'node:net', 'electron'] as const;
+const networkShapes = (): readonly Planted[] => [
+	...NETWORK_MODULES.map((name) => ({ specifier: name, shape: 'package' as const })),
+	// Subpaths are a separate `patterns` entry, independent of the `paths` one above.
+	{ specifier: 'node:https/agent', shape: 'package-subpath' },
+];
 const PROTOTYPES = (depth: string): readonly Planted[] => [
 	{ specifier: `${depth}prototypes`, shape: 'barrel' },
 	{ specifier: `${depth}prototypes/ZoneSummary.vue`, shape: 'one-level' },
@@ -486,7 +510,10 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 			...layerShapes('plugin', toSrc('src/application/queries/GetPlan.ts')),
 			...PKG.flatMap(packageShapes),
 			...PROTOTYPES(toSrc('src/application/queries/GetPlan.ts')),
+			...networkShapes(),
 		],
+		// The only two blocks with a network ban, so the only two carrying `networkGlobals`.
+		networkGlobals: true,
 		allowed: `${toSrc('src/application/queries/GetPlan.ts')}domain`,
 	},
 	{
@@ -498,7 +525,10 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 			...layerShapes('plugin', toSrc('src/infrastructure/logging/diagnosticsLedger.ts')),
 			...(['vue', 'pinia', 'konva', 'vue-konva'] as const).flatMap(packageShapes),
 			...PROTOTYPES(toSrc('src/infrastructure/logging/diagnosticsLedger.ts')),
+			...networkShapes(),
 		],
+		// The only two blocks with a network ban, so the only two carrying `networkGlobals`.
+		networkGlobals: true,
 		allowed: 'obsidian',
 	},
 	{
@@ -596,6 +626,31 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
 			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
 		});
+
+		/**
+		 * The network GLOBALS, which the assertions above cannot reach.
+		 *
+		 * They report under `no-restricted-globals`, a different rule KEY — measured — so a
+		 * matrix built entirely on `no-restricted-imports` is blind to them however many
+		 * cells it has. Slice 11's diagnostics-stay-on-the-device claim rests on both halves,
+		 * and only the import half had a probe.
+		 *
+		 * Skipped for every block that declares no network ban, rather than asserted absent:
+		 * `no-restricted-globals` also carries `eslint-plugin-obsidianmd`'s own list (`app`,
+		 * `fetch`, `localStorage`) across all of `src/`, so "this block does not ban fetch" is
+		 * not a true statement about any block and a negative case here would assert
+		 * something false.
+		 */
+		it.runIf(block.networkGlobals === true)('reports the network globals under their own rule', async () => {
+			const body = `export const reach = () => fetch('https://example.invalid');`;
+			const source =
+				extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
+			const found = await lintDetailed(source, pathFor(block, extension));
+
+			expect(found.map((d) => d.ruleId)).toContain('no-restricted-globals');
+			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
+			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
+		});
 	});
 });
 ```
@@ -679,6 +734,15 @@ Run: `npx vitest run tests/build/layer-boundaries.test.ts`
 Expected: FAIL on every block's `.mjs` cell with `NOT_LINTED` — a file matching no block's `files` is not linted at all under flat config. Restore the constant.
 
 **What is NOT required, because it is impossible: a mutation per config PATTERN.** `**/${g}/*` and `**/${g}/**/*` are redundant, so deleting either alone changes no observable behaviour, and demanding a test catch it is demanding a test detect a no-op. The mutation list is "one per import shape a pattern uniquely protects", not "one per pattern".
+
+- [ ] **Step 6b: Watch the network override fail**
+
+In `eslint.config.mjs`, remove `'mjs'` from `SRC_EXTENSIONS` — no; that reddens every block. Do the narrower mutation instead: change `networkFree`'s returned `files` to `['**/src/application/queries/**/*.ts']` and `['**/src/infrastructure/logging/**/*.ts']`, so the override covers `.ts` alone.
+
+Run: `npx vitest run tests/build/layer-boundaries.test.ts`
+Expected: FAIL on those two blocks' `.vue`, `.js`, `.jsx`, `.mjs` and `.cjs` cells — the network module imports and the `fetch` global stop reporting there — while every LAYER-shaped import in the same cells still reports, because the parent `application`/`infrastructure` block still matches. That asymmetry is the whole finding: without the network probes, this mutation leaves the matrix green and network access allowed in five extensions.
+
+Confirm `tests/build/network-boundary.test.ts` also stays green under the mutation, since it drives `.ts` paths only. Restore the config.
 
 - [ ] **Step 7: Measure the wall cost before committing**
 
@@ -813,6 +877,28 @@ describe('test file naming', () => {
 	});
 
 	/**
+	 * And no `*.test.ts` under `src/` either, which neither rule above can see.
+	 *
+	 * The naming rule matches `.spec.ts` only, and the collection oracle below enumerates
+	 * `tests/` only — so `src/foo.test.ts` is invisible to both while being exactly the case
+	 * the `.spec.ts` rationale calls the one that matters most: build input, inside the
+	 * shipped tree, never collected and never run. Reported by a review bot against a
+	 * paragraph of mine arguing precisely why `src/` is the more important half.
+	 *
+	 * Rejecting it is the right rule rather than widening the collection oracle to `src/`,
+	 * because the slice's own layout requirement is that every test of a `src/` module sits
+	 * at its module's MIRRORED path under `tests/`. A collected `src/foo.test.ts` would
+	 * satisfy an oracle and still violate the layout.
+	 */
+	it('has no .test.ts under src/, where a test file would be build input', () => {
+		const offenders = walk(join(REPO, 'src'))
+			.map(posix)
+			.filter((path) => path.endsWith('.test.ts'));
+
+		expect(offenders).toEqual([]);
+	});
+
+	/**
 	 * The other half: a `*.test.ts` that exists on disk and is NOT collected is a suite
 	 * nobody runs, which the naming rule alone cannot see. Asked of Vitest itself rather
 	 * than by re-implementing the `include` glob, so a config change is answered by the
@@ -882,6 +968,12 @@ If `globTestSpecifications` is not available on the installed Vitest, read the A
 printf "import { it } from 'vitest';\nit('x', () => {});\n" > src/nowhere.spec.ts
 npx vitest run tests/build/spec-files.test.ts   # expect: the src/ naming case FAILS
 rm src/nowhere.spec.ts
+
+printf "import { it } from 'vitest';\nit('x', () => {});\n" > src/nowhere.test.ts
+npx vitest run tests/build/spec-files.test.ts   # expect: the src/ .test.ts case FAILS
+# and confirm it is the ONLY case that reddens: the .spec.ts rules and the collection
+# oracle all stay green, which is why this needed a rule of its own rather than a wider glob.
+rm src/nowhere.test.ts
 
 printf "import { it } from 'vitest';\nit('x', () => {});\n" > tests/helpers/uncollected.test.ts
 # temporarily narrow vitest.config.ts include to ['tests/build/**/*.test.ts']
@@ -1673,7 +1765,7 @@ describe('the fixture vault adapter', () => {
 		open = await openFixtureVault('valid-project');
 		const before = readFileSync(join('tests/vault/valid-project', 'Project.md'), 'utf8');
 
-		await open.vault.create(join(open.root, 'Scratch.md'), 'written by a test');
+		await open.vault.create('Scratch.md', 'written by a test');
 
 		expect(open.root).not.toContain('tests/vault/valid-project');
 		expect(readFileSync(join('tests/vault/valid-project', 'Project.md'), 'utf8')).toBe(before);
@@ -1688,7 +1780,7 @@ describe('the fixture vault adapter', () => {
 	it('refuses a create whose parent folder does not exist', async () => {
 		open = await openFixtureVault('valid-project');
 
-		await expect(open.vault.create(join(open.root, 'NoSuchFolder/Note.md'), 'x')).rejects.toThrow();
+		await expect(open.vault.create('NoSuchFolder/Note.md', 'x')).rejects.toThrow();
 	});
 
 	/**
@@ -1704,7 +1796,7 @@ describe('the fixture vault adapter', () => {
 	 */
 	it('populates the metadata cache asynchronously, with the create-window fallback', async () => {
 		open = await openFixtureVault('valid-project');
-		const path = join(open.root, 'Fresh.md');
+		const path = 'Fresh.md';
 
 		await open.vault.create(path, '---\nid: fresh\ntype: zone\n---\n');
 
@@ -1721,7 +1813,7 @@ describe('the fixture vault adapter', () => {
 	 */
 	it('reads a checked-in note without any seeding pass', async () => {
 		open = await openFixtureVault('valid-project');
-		const file = open.vault.getAbstractFileByPath(join(open.root, 'Project.md'));
+		const file = open.vault.getAbstractFileByPath('Project.md');
 
 		expect(open.metadataCache.getFileCache(file)?.frontmatter).toBeDefined();
 	});
@@ -1734,7 +1826,7 @@ describe('the fixture vault adapter', () => {
 	 */
 	it('reflects a modify immediately, rather than serving the bytes from before it', async () => {
 		open = await openFixtureVault('valid-project');
-		const path = join(open.root, 'Project.md');
+		const path = 'Project.md';
 		const file = open.vault.getAbstractFileByPath(path);
 
 		await open.fileManager.processFrontMatter(file, (frontmatter) => {
@@ -1752,7 +1844,7 @@ describe('the fixture vault adapter', () => {
 	 */
 	it('tells a file with no frontmatter apart from a file it has never seen', async () => {
 		open = await openFixtureVault('valid-project');
-		const path = join(open.root, 'Plain.md');
+		const path = 'Plain.md';
 		await open.vault.create(path, 'no frontmatter here\n');
 		open.metadataCache.catchUp();
 
@@ -1764,7 +1856,7 @@ describe('the fixture vault adapter', () => {
 	it('answers a folder object for a folder', async () => {
 		open = await openFixtureVault('valid-project');
 
-		expect(open.vault.getAbstractFileByPath(open.root)).not.toBeNull();
+		expect(open.vault.getAbstractFileByPath('')).not.toBeNull();
 	});
 
 	/**
@@ -1776,11 +1868,34 @@ describe('the fixture vault adapter', () => {
 	 */
 	it('refuses a create whose path already exists', async () => {
 		open = await openFixtureVault('valid-project');
-		const path = join(open.root, 'Twice.md');
+		const path = 'Twice.md';
 		await open.vault.create(path, 'first');
 
 		await expect(open.vault.create(path, 'second')).rejects.toThrow(/already exists/u);
-		expect(readFileSync(path, 'utf8')).toBe('first');
+		expect(readFileSync(join(open.root, path), 'utf8')).toBe('first');
+	});
+
+	/**
+	 * Vault-relative and forward-slashed, on every platform.
+	 *
+	 * The Windows CI leg is what this protects: `path.join` there produces backslashes, and a
+	 * `TFile.path` carrying one is parsed by `parentOf` (which searches for `/`) as having no
+	 * parent at all — so an indexed project derives the vault root as its folder and every
+	 * later write targets the wrong directory, with Ubuntu green throughout. Asserted rather
+	 * than left to that leg to discover: a defect only one of four legs can see is worth
+	 * failing fast and locally.
+	 */
+	it('gives every file a vault-relative, forward-slashed path on any platform', async () => {
+		open = await openFixtureVault('valid-project');
+		await open.vault.createFolder('Nested');
+		await open.vault.create('Nested/Deep.md', 'x');
+
+		const file = open.vault.getAbstractFileByPath('Nested/Deep.md') as TFile;
+
+		expect(file.path).toBe('Nested/Deep.md');
+		expect(file.path).not.toContain('\\');
+		expect(file.path).not.toContain(open.root);
+		expect(file.basename).toBe('Deep');
 	});
 
 	/**
@@ -1793,8 +1908,8 @@ describe('the fixture vault adapter', () => {
 	it('answers the mock module TFile and TFolder, which is what the repositories narrow on', async () => {
 		open = await openFixtureVault('valid-project');
 
-		expect(open.vault.getAbstractFileByPath(join(open.root, 'Project.md'))).toBeInstanceOf(TFile);
-		expect(open.vault.getAbstractFileByPath(open.root)).toBeInstanceOf(TFolder);
+		expect(open.vault.getAbstractFileByPath('Project.md')).toBeInstanceOf(TFile);
+		expect(open.vault.getAbstractFileByPath('')).toBeInstanceOf(TFolder);
 	});
 
 	/** The stack is a REPOSITORY stack, not three host surfaces. */
@@ -1873,6 +1988,7 @@ import { parseFrontmatter, serializeFrontmatter } from './vault';
  * planted record nor the healthy one — while the stack still type-checked. Exactly the defect
  * the mock's own header exists to prevent, introduced one directory away from it.
  */
+/** `path` is VAULT-RELATIVE and forward-slashed — never an OS path. See `absolute()`. */
 const fileAt = (path: string): TFile => {
 	const segments = path.split('/');
 	const file = new TFile();
@@ -1892,6 +2008,23 @@ const folderAt = (path: string): TFolder => {
 };
 
 export class FixtureVaultAdapter {
+	/**
+	 * `root` is the NATIVE absolute path of the clone. Every path this class hands out or
+	 * accepts is VAULT-RELATIVE and forward-slashed, and `absolute()` is the only place the
+	 * two meet.
+	 *
+	 * That separation is required rather than tidy, and the leg that proves it is Windows —
+	 * one of the four `npm run check` runs, and the one this repository keeps because paths
+	 * and line endings are the only things that differ between platforms. `path.join` there
+	 * produces backslashes, so an adapter storing the native path in `TFile.path` hands the
+	 * repositories something they parse with `/`: `parentOf` searches for a forward slash and
+	 * finds none, so an indexed project derives the VAULT ROOT as its folder and every
+	 * subsequent plan and zone write targets the wrong directory. `name` and `basename` come
+	 * out malformed in the same stroke. Ubuntu would have stayed green throughout.
+	 *
+	 * `TFile.path` is an Obsidian vault-relative path in production — never an OS path — so
+	 * this is fidelity to the real type as much as a platform fix.
+	 */
 	constructor(readonly root: string) {}
 
 	/**
@@ -1950,8 +2083,13 @@ export class FixtureVaultAdapter {
 		return existsSync(absolute) && !statSync(absolute).isDirectory() ? readFileSync(absolute, 'utf8') : undefined;
 	}
 
-	private absolute(path: string): string {
-		return path.startsWith(this.root) ? path : join(this.root, path);
+	/**
+	 * The ONE boundary between a vault-relative path and the filesystem. `join` reintroduces
+	 * the native separator here and nowhere else, so nothing above this line can leak one
+	 * into a `TFile`.
+	 */
+	private absolute(vaultPath: string): string {
+		return join(this.root, ...vaultPath.split('/'));
 	}
 }
 ```

@@ -625,7 +625,7 @@ export function renovationProjectDeps(
 	const persistence = root.persistence;
 	return {
 		queries: persistence
-			? createRenovationProjectQueries(persistence.listProjects)
+			? createRenovationProjectQueries(persistence.listProjects, persistence.queries.getProject, persistence.listPlansByProject)
 			: unavailableRenovationProjectQueries(),
 		commands: persistence
 			? { createProject: persistence.createProject, logger: root.logger }

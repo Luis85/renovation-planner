@@ -8,6 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { err, ok } from '../../../src/core/result/Result';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
+import { GetProject } from '../../../src/application/queries/GetProject';
+import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../../src/application/queries/ListProjects';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
@@ -26,7 +28,7 @@ import {
 	toProjectSummaryDto,
 	toZoneDto,
 } from '../../../src/presentation/read-models/PlanDto';
-import { createProjectId } from '../../../src/domain/project/ProjectId';
+import { createProjectId, type ProjectId } from '../../../src/domain/project/ProjectId';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makePlan, makeProject, makeZone } from '../../helpers/entities';
 
@@ -235,7 +237,11 @@ describe('the renovation project query boundary', () => {
 		const projects = new InMemoryProjectRepository();
 		const project = makeProject({ name: 'Barn conversion' });
 		expectOk(await projects.save(project, 'absent'));
-		const queries = createRenovationProjectQueries(new ListProjects(projects));
+		const queries = createRenovationProjectQueries(
+			new ListProjects(projects),
+			new GetProject(projects),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+		);
 
 		const found = expectOk(await queries.listProjects());
 
@@ -245,7 +251,12 @@ describe('the renovation project query boundary', () => {
 	});
 
 	it('answers an empty vault with an empty list and no refusals, not an error', async () => {
-		const queries = createRenovationProjectQueries(new ListProjects(new InMemoryProjectRepository()));
+		const projects = new InMemoryProjectRepository();
+		const queries = createRenovationProjectQueries(
+			new ListProjects(projects),
+			new GetProject(projects),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+		);
 
 		expect(expectOk(await queries.listProjects())).toEqual({ projects: [], unreadable: 0 });
 	});
@@ -258,7 +269,7 @@ describe('the renovation project query boundary', () => {
 	it('answers a failed read with isErr, never with an empty list', async () => {
 		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
 
-		const result = await createRenovationProjectQueries(failing as never).listProjects();
+		const result = await createRenovationProjectQueries(failing as never, undefined as never, undefined as never).listProjects();
 
 		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
 	});
@@ -276,5 +287,105 @@ describe('the renovation project query boundary', () => {
 			category: 'Persistence',
 			code: 'settings.unrecovered',
 		});
+	});
+});
+
+/**
+ * Both new doors map at THIS seam, not in the query: `application/` may not name
+ * `presentation/`, so the query hands back domain entities and the DTO is minted here —
+ * the same division `createPlanEditorQueries` draws for `getPlan` and `findZonesByPlan`.
+ */
+describe('createRenovationProjectQueries — the detail state’s two reads', () => {
+	it('maps a found project to its summary DTO', async () => {
+		const projects = new InMemoryProjectRepository();
+		const saved = expectOk(await projects.save(makeProject({ name: 'Hallway' }), 'absent'));
+		const queries = createRenovationProjectQueries(
+			new ListProjects(projects),
+			new GetProject(projects),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+		);
+
+		const found = expectOk(await queries.getProject(saved.entity.id));
+
+		expect(found).toEqual({ id: saved.entity.id, name: 'Hallway', status: saved.entity.status });
+	});
+
+	/**
+	 * `ok(null)` travels through UNCHANGED — it is not an error and must not become one.
+	 * `ProjectDetailStore` branches on exactly this to tell "no such project" from "the read
+	 * failed", and flattening the two is what would tell a user their project was deleted
+	 * because their vault hiccuped.
+	 */
+	it('passes a missing project through as ok(null)', async () => {
+		const queries = createRenovationProjectQueries(
+			new ListProjects(new InMemoryProjectRepository()),
+			new GetProject(new InMemoryProjectRepository()),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+		);
+
+		const found = expectOk(await queries.getProject('project-01JNOPE'));
+
+		expect(found).toBeNull();
+	});
+
+	it('maps a project’s plans to summary DTOs', async () => {
+		const plans = new InMemoryPlanRepository();
+		const projectId = 'project-01JAAA' as ProjectId;
+		expectOk(await plans.save(makePlan({ projectId, name: 'Ground floor' }), 'absent'));
+		const queries = createRenovationProjectQueries(
+			new ListProjects(new InMemoryProjectRepository()),
+			new GetProject(new InMemoryProjectRepository()),
+			new ListPlansByProject(plans),
+		);
+
+		const listed = expectOk(await queries.listPlansByProject(projectId));
+
+		expect(listed.map((plan) => plan.name)).toEqual(['Ground floor']);
+	});
+
+	/**
+	 * The `isErr` branch of `getProject` — a failed read must stay distinguishable from a
+	 * project that does not exist, the same rule `listProjects`'s own isErr case pins for
+	 * its sibling door.
+	 */
+	it('answers a failed project read with isErr, never as a missing project', async () => {
+		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
+		const queries = createRenovationProjectQueries(
+			new ListProjects(new InMemoryProjectRepository()),
+			failing as never,
+			new ListPlansByProject(new InMemoryPlanRepository()),
+		);
+
+		const result = await queries.getProject('project-01JAAA');
+
+		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
+	});
+
+	/** The `isErr` branch of `listPlansByProject` — the same distinction, one door over. */
+	it('answers a failed plans read with isErr, never as an empty list', async () => {
+		const failing = { execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })) };
+		const queries = createRenovationProjectQueries(
+			new ListProjects(new InMemoryProjectRepository()),
+			new GetProject(new InMemoryProjectRepository()),
+			failing as never,
+		);
+
+		const result = await queries.listPlansByProject('project-01JAAA');
+
+		expect(expectErr(result)).toMatchObject({ category: 'Persistence' });
+	});
+
+	/**
+	 * ONE logical failure must not arrive under two codes when something downstream branches
+	 * on it — the rule `unavailableRenovationProjectQueries` already states for `listProjects`.
+	 */
+	it('refuses both new doors with settings.unrecovered when settings could not be recovered', async () => {
+		const queries = unavailableRenovationProjectQueries();
+
+		const project = await queries.getProject('project-01JAAA');
+		const plans = await queries.listPlansByProject('project-01JAAA');
+
+		expect(expectErr(project).code).toBe('settings.unrecovered');
+		expect(expectErr(plans).code).toBe('settings.unrecovered');
 	});
 });

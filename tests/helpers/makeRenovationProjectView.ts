@@ -43,7 +43,10 @@
  */
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
+import { GetProject } from '../../src/application/queries/GetProject';
+import { ListPlansByProject } from '../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../src/application/queries/ListProjects';
+import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { createRenovationProjectQueries } from '../../src/presentation/read-models/renovationProjectQueries';
 import { FakeLeaf } from './workspace';
@@ -98,7 +101,11 @@ export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
 	// requires a `logger` beside it.
 	const defaults: RenovationProjectDeps = {
-		queries: createRenovationProjectQueries(new ListProjects(projects)),
+		queries: createRenovationProjectQueries(
+			new ListProjects(projects),
+			new GetProject(projects),
+			new ListPlansByProject(new InMemoryPlanRepository()),
+		),
 		commands: { createProject: new CreateProjectCommand(projects, events), logger: recorder },
 		openProject: () => Promise.resolve('opened'),
 		onProjectsChanged: () => () => undefined,

@@ -1,8 +1,14 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { Query } from '../../application/queries/Query';
+import type { GetProjectInput } from '../../application/queries/GetProject';
+import type { ListPlansByProjectInput } from '../../application/queries/ListPlansByProject';
 import type { ProjectListResult } from '../../application/queries/ListProjects';
-import { toProjectSummaryDto, type ProjectSummaryDto } from './PlanDto';
+import type { Loaded } from '../../application/ports/versioning';
+import type { Project } from '../../domain/project/Project';
+import type { Plan } from '../../domain/plan/Plan';
+import type { ProjectId } from '../../domain/project/ProjectId';
+import { toPlanSummaryDto, toProjectSummaryDto, type PlanSummaryDto, type ProjectSummaryDto } from './PlanDto';
 
 /**
  * The view's own shape of a project listing: summaries it can render, and how many projects
@@ -23,6 +29,15 @@ export interface ProjectListView {
  */
 export interface RenovationProjectQueryServices {
 	listProjects(): Promise<Result<ProjectListView, RepositoryError>>;
+	/**
+	 * One project by id — design slice 21's detail state. `ok(null)` means "no such project"
+	 * and travels through unchanged, because the store has to tell that apart from a failed
+	 * read: navigating away on a failure would tell a user their project was deleted because
+	 * their vault hiccuped.
+	 */
+	getProject(projectId: string): Promise<Result<ProjectSummaryDto | null, RepositoryError>>;
+	/** That project's plans, as list rows read them. */
+	listPlansByProject(projectId: string): Promise<Result<readonly PlanSummaryDto[], RepositoryError>>;
 }
 
 /**
@@ -48,7 +63,7 @@ export interface RenovationProjectQueryServices {
  * here rather than being re-derived: one logical failure must not arrive under two different
  * codes when something downstream branches on it.
  */
-function refuseUnrecovered() {
+function refuseUnrecovered(): Promise<Result<never, RepositoryError>> {
 	return Promise.resolve(
 		err<RepositoryError>({
 			category: 'Persistence',
@@ -61,6 +76,8 @@ function refuseUnrecovered() {
 export function unavailableRenovationProjectQueries(): RenovationProjectQueryServices {
 	return {
 		listProjects: refuseUnrecovered,
+		getProject: refuseUnrecovered,
+		listPlansByProject: refuseUnrecovered,
 	};
 }
 
@@ -77,6 +94,8 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
  */
 export function createRenovationProjectQueries(
 	listProjects: Query<void, Result<ProjectListResult, RepositoryError>>,
+	getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>,
+	listPlansByProject: Query<ListPlansByProjectInput, Result<Plan[], RepositoryError>>,
 ): RenovationProjectQueryServices {
 	return {
 		async listProjects() {
@@ -86,6 +105,25 @@ export function createRenovationProjectQueries(
 				projects: found.value.projects.map(toProjectSummaryDto),
 				unreadable: found.value.unreadable,
 			});
+		},
+
+		/**
+		 * The `as ProjectId` is the same boundary assertion every other edge of the system
+		 * makes — `createPlanEditorQueries` states it for `as PlanId` at its own two doors.
+		 * The id arrives from a `ProjectSummaryDto` this bundle itself minted or from
+		 * Obsidian's view state, and the repository's answer for an id that names nothing is
+		 * `ok(null)`, which is a case the caller already handles.
+		 */
+		async getProject(projectId) {
+			const found = await getProject.execute({ projectId: projectId as ProjectId });
+			if (isErr(found)) return found;
+			return ok(found.value === null ? null : toProjectSummaryDto(found.value.entity));
+		},
+
+		async listPlansByProject(projectId) {
+			const listed = await listPlansByProject.execute({ projectId: projectId as ProjectId });
+			if (isErr(listed)) return listed;
+			return ok(listed.value.map(toPlanSummaryDto));
 		},
 	};
 }

@@ -16,6 +16,8 @@ import { projectIndexRebuilt } from '../../src/application/events/projectIndex.e
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { installObsidianDom } from '../helpers/dom';
+import { expectOk } from '../helpers/domain';
+import { makeProject } from '../helpers/entities';
 import { lines, recorder, resetRecorder } from '../helpers/logger';
 import { createRepositoryStack } from '../helpers/vault';
 import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
@@ -92,6 +94,27 @@ describe('the renovation project dependencies', () => {
 
 		expect(result.ok).toBe(false);
 		expect(!result.ok && result.error.code).toBe('settings.unrecovered');
+	});
+
+	/**
+	 * A composition that forgets a dependency COMPILES and passes everything else — the
+	 * `slice10CascadeWiring` reason. So this asserts on what the composed door actually
+	 * ANSWERS, against a real repository behind a real root, rather than on the member existing.
+	 */
+	it('hands the view both detail-state reads, composed against the real persistence stack', async () => {
+		const stack = createRepositoryStack();
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, stack as never);
+		const persistence = root.persistence;
+		if (persistence === null) throw new Error('expected a composed persistence stack');
+		const saved = expectOk(await persistence.projects.save(makeProject({ name: 'Hallway' }), 'absent'));
+
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, stack.vault as never);
+
+		const found = await deps.queries.getProject(saved.entity.id);
+		const plans = await deps.queries.listPlansByProject(saved.entity.id);
+
+		expect(found.ok && found.value?.name).toBe('Hallway');
+		expect(plans.ok && plans.value).toEqual([]);
 	});
 
 	/**

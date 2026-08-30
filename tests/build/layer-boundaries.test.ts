@@ -546,6 +546,26 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 		// ESLint call per cell — 65 calls — for no additional coverage. Kept as its own
 		// expectation with its own comment, so what it checks is still legible.
 
+		/**
+		 * The NEGATIVE direction. Without it, a rule that banned every import in every layer
+		 * would pass the whole of the positive case above unnoticed — the negative half is
+		 * what proves the ban is keyed on the LAYER rather than firing everywhere.
+		 */
+		it('stays silent on an import this block allows', async () => {
+			const body = `import '${block.allowed}';`;
+			const source =
+				extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
+			const found = await lintDetailed(source, pathFor(block, extension));
+
+			expect(found.map((d) => d.ruleId)).not.toContain('no-restricted-imports');
+
+			// The discriminator, and it matters MOST here. On a positive case a parse error
+			// fails the assertion anyway, the rule id simply being absent. On this one it
+			// makes the test pass VACUOUSLY — the same `ignores`-vacuity defect wearing a
+			// different hat.
+			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
+			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
+		});
 
 		// A member probe binds identifiers nothing uses, so `no-unused-vars` reports beside
 		// `no-restricted-imports` on that line. Both assertions above filter by rule id

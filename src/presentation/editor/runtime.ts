@@ -33,6 +33,7 @@ import { SnapService } from './snapping/snap-service';
 import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
 import { tr } from '../i18n/strings';
 import { noticeOnlySinks, notifyFault, notifyOperationFailure } from '../notices/notify';
+import { affectsSaveState } from './save-state/affects-save-state';
 import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
@@ -124,25 +125,30 @@ const AUTOSAVE_SINKS: SurfaceSinks = {
 };
 
 /**
- * A tool's DISPATCHED command refused, reported where the table says it belongs.
+ * A refusal that came back from a DISPATCH, reported on whichever surface has not already
+ * taken it.
  *
- * Every tool here dispatches through `context.commandDispatcher`, which is the wrapped
- * dispatcher `withSaveStateTracking` decorates — so by the time a refusal reaches this
- * function the save indicator has already been set from the same `Result`. The origin is
- * `autosave-write` and this door's whole job is to make sure a toast is NOT also raised: one
- * failure through two widgets that can drift apart is the defect design slice 17 exists to
- * close.
+ * **"Dispatched" does not mean "the indicator has it".** `withSaveStateTracking` asks
+ * `affectsSaveState`, and for a PRE-WRITE category — `Calculation`, `Domain`, `Validation`,
+ * `Reference` — it resolves NEUTRAL: no badge, because nothing was written. A door that
+ * assumed every dispatched refusal was carried by the indicator therefore routed those to a
+ * save-state sink that is deliberately a no-op, and they reached nobody at all. Calibration is
+ * the reachable case: `calibration.degenerate-scale` and `nonFiniteRescaleError` are raised by
+ * the command, after dispatch and before `geometry.write`.
  *
- * **Its pair is `notifyOperationFailure`, bound to every tool's `reportInvalidInput`**, and
- * the pairing is the correction a review bot found. A tool refuses in two places — before it
- * builds a command (`createPolygon` declining the geometry, calibration declining two clicks
- * in one spot) and after dispatching one — and only the second has an indicator behind it.
- * Binding both to this one sent every pre-dispatch refusal to a save-state sink that is
- * deliberately a no-op, so an invalid polygon close said nothing at all. The tools carry two
- * doors now, so the distinction is visible at the binding rather than inferred from the tool.
+ * So this asks the SAME predicate the indicator asked. The two cannot disagree about who
+ * reported what, because there is one question and one answer.
+ *
+ * Reported by a review bot, and it is the third distinct shape of the same underlying mistake:
+ * the origin of a refusal is not a property of the call site, and every attempt to read it off
+ * one has been wrong somewhere.
  */
-function reportAutosaveRejection(error: AppError): void {
-	surfaceError(error, { kind: 'autosave-write' }, AUTOSAVE_SINKS);
+function reportDispatchRefusal(error: AppError): void {
+	if (affectsSaveState(error)) {
+		surfaceError(error, { kind: 'autosave-write' }, AUTOSAVE_SINKS);
+		return;
+	}
+	notifyOperationFailure(error);
 }
 
 /** The concrete tools of this slice, registered against one shared context factory. */
@@ -162,7 +168,7 @@ function registerEditorTools(
 			// and only forward/inverse change.
 			createMoveGesture: (zoneId, forward, inverse) =>
 				new ReversibleMoveZoneCommand(context.commands.moveObject, ledger, zoneId, forward, inverse),
-			reportRejected: reportAutosaveRejection,
+			reportRejected: reportDispatchRefusal,
 			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
@@ -177,7 +183,7 @@ function registerEditorTools(
 					input,
 				),
 			nextZoneName: () => `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
-			reportRejected: reportAutosaveRejection,
+			reportRejected: reportDispatchRefusal,
 			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
@@ -208,7 +214,7 @@ function registerEditorTools(
 				return result.values;
 			},
 			createCommand: () => context.commands.calibratePlan(),
-			reportRejected: reportAutosaveRejection,
+			reportRejected: reportDispatchRefusal,
 			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
@@ -273,10 +279,7 @@ async function reportFault(logger: Logger, operation: Promise<DispatchResult>): 
 async function notifyIfRefused(operation: Promise<DispatchResult | null>): Promise<void> {
 	const result = await operation;
 	if (result === null || result.ok) return;
-	surfaceError(result.error, { kind: 'autosave-write' }, {
-		...noticeOnlySinks,
-		saveState: () => undefined,
-	});
+	reportDispatchRefusal(result.error);
 }
 
 /**

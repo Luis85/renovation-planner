@@ -25,8 +25,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { Notice } from 'obsidian';
-import { click, rig, toolbarButton } from '../../helpers/planEditorRig';
-import { settle } from '../../helpers/editor';
+import { click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { mountPlanEditor, settle } from '../../helpers/editor';
+import { flushPromises } from '@vue/test-utils';
+import { err } from '../../../src/core/result/Result';
+import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
 
@@ -74,5 +77,54 @@ describe('a refusal the dispatcher never saw', () => {
 		expect(saveStateLabel(harness).classList.contains('rp-save-state-save-error')).toBe(false);
 
 		harness.unmount();
+	});
+});
+
+describe('a DISPATCHED refusal the indicator resolved neutral', () => {
+	it('still reaches the user, because no badge was raised for it either', async () => {
+		// **"Dispatched" does not mean "the indicator has it".** `withSaveStateTracking` asks
+		// `affectsSaveState`, and a PRE-WRITE category resolves NEUTRAL — no badge, because
+		// nothing was written. A door assuming every dispatched refusal was carried by the
+		// indicator sent these to a save-state sink that is deliberately a no-op, and they
+		// reached nobody. Calibration's `degenerate-scale` is the reachable case in production;
+		// a refusing `moveObject` is the cheapest way to drive the same shape here.
+		activateNotices();
+		Notice.shown.length = 0;
+		const harness = await mountPlanEditor({
+			commands: {
+				...unavailablePlanEditorCommands(),
+				moveObject: {
+					execute: () =>
+						Promise.resolve(
+							err({
+								category: 'Calculation',
+								code: 'calibration.degenerate-scale',
+								message: 'the derived scale collapsed',
+							}),
+						),
+				},
+			} as never,
+		});
+		await flushPromises();
+
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+		const before = Notice.shown.length;
+
+		// The same gesture `zoneEditing.test.ts` drives: down inside the zone selects AND begins
+		// the drag, up ends it. SelectTool builds a reversible move, dispatches it, and the
+		// command refuses.
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		pointer(canvas, 'pointerdown', 200, 200);
+		pointer(canvas, 'pointermove', 230, 200);
+		pointer(canvas, 'pointermove', 260, 200);
+		pointer(canvas, 'pointerup', 260, 200);
+		await settle();
+
+		expect(Notice.shown.length).toBe(before + 1);
+		expect(document.querySelector('.rp-notice-error')).not.toBeNull();
+
+		harness.wrapper.unmount();
 	});
 });

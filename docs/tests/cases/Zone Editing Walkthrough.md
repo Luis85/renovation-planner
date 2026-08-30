@@ -258,11 +258,19 @@ Four of the twenty are discharged by a test in a file no reader of this case wou
 step 1's handle count sits inside the case named for step 6, and the both-files halves of
 steps 8 and 12 are in `consistency.test.ts`, two directories away from the editor. A
 name-matching pass would have marked step 1 a gap and taken steps 8 and 12 on trust. Budget
-the audit for reading bodies, and expect roughly **five true gaps in twenty steps**. This line
-has now carried five figures — one in ten, one in five, three in twenty, four in twenty, and
-this — as the audit was corrected in both directions across six review rounds. It is a range,
-not a rate.
-Read the number as the range an audit lands in, not as a rate anybody has established.
+the audit for reading bodies, and expect roughly **seven true gaps in twenty steps**. This line
+has now carried six figures — one in ten, one in five, three in twenty, four in twenty, five in
+twenty, and this — as the audit was corrected in both directions across the review rounds. Read
+it as the range an audit lands in, not as a rate anybody has established.
+
+**Every figure this line has held was too LOW** — 2, 4, 3, 4 and 5 gaps per twenty against
+the seven that were really there — so an estimate taken from it should be read as a floor.
+Not because every correction pushed the same way: step 7's REMOVED a gap, and the sequence
+dips at the third. The net ran upward because a missed clause is easy to overlook and a
+wrongly-claimed one has to be argued for. And the last of the six was still stale
+after every other count in this document had been corrected twice — this section is the cost
+baseline for the remaining eight cases and sits three hundred lines below the list it counts,
+so nothing that fixed the list ever brought a reader here.
 
 ## Deliberately NOT checked
 

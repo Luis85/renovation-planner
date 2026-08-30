@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import process from 'node:process';
@@ -426,7 +426,13 @@ describe('the fixture vault adapter', () => {
 			// SYNCHRONOUSLY, which is what this function already does for a missing fixture —
 			// `mkdtempSync`/`cpSync` throw before any promise exists — so the guard is
 			// consistent with its neighbours rather than with its `Promise` return type.
+			const before = readdirSync(tmpdir()).filter((name) => name.startsWith('rp-vault-')).length;
+
 			expect(() => openFixtureVault(basename(caseDir))).toThrow(/contains a symlink/u);
+
+			// The refusal must not strand its own clone: nothing has a stack to `dispose()` when
+			// `openFixtureVault` throws, so the only place that can clean up is `openFixtureVault`.
+			expect(readdirSync(tmpdir()).filter((name) => name.startsWith('rp-vault-')).length).toBe(before);
 		} finally {
 			rmSync(caseDir, { recursive: true, force: true });
 			rmSync(staging, { recursive: true, force: true });

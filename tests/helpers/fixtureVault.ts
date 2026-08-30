@@ -539,8 +539,18 @@ const refuseSymlinks = (directory: string, within: string): void => {
  */
 export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 	const root = mkdtempSync(join(tmpdir(), 'rp-vault-'));
-	cpSync(join('tests/vault', caseName), root, { recursive: true });
-	refuseSymlinks(root, root);
+	// Everything between `mkdtempSync` and the returned stack owns the clone with no `dispose()`
+	// yet reachable: a caller that never receives a stack cannot dispose of one. A missing
+	// fixture makes `cpSync` throw and a symlinked one makes `refuseSymlinks` throw, and either
+	// would otherwise strand an `rp-vault-*` directory in the system temp dir — once per run of
+	// the very conformance case that asserts the refusal. Reported by a review bot.
+	try {
+		cpSync(join('tests/vault', caseName), root, { recursive: true });
+		refuseSymlinks(root, root);
+	} catch (cause) {
+		rmSync(root, { recursive: true, force: true });
+		throw cause;
+	}
 
 	const vault = new FixtureVaultAdapter(root);
 	// The cache reads the vault; the vault holds the create-window record. One direction only,

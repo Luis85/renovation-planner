@@ -41,6 +41,24 @@ const posix = (path: string): string => relative(REPO, path).split(sep).join('/'
  * jsdom with this guard green — the transitive hole closed one round earlier, reopened by the
  * matcher underneath it.
  *
+ * The delimiter class is `['"`` ` ``]` on both quotes now, not `['"]` — this repository already
+ * found this exact gap once, in a sibling scanner over a different suffix
+ * (`tests/harness/harness.test.ts`'s `sheetImport`, over `.css` rather than `.contract`): a
+ * BACKTICK-quoted dynamic import — `` import(`../contracts/x`) `` — is valid, statically
+ * analysable syntax that a delimiter class naming only `'"` does not see. Confirmed here rather
+ * than assumed: with the class left at `['"]`, a planted relay importing
+ * `` await import(`../../contracts/zone-repository.contract`) `` classified as NOT reaching
+ * `tests/contracts/` and the guard passed green over a file that genuinely ran the wrong
+ * environment; widening the delimiter class alone (the INNER exclusion stays `[^'"]`, backtick
+ * deliberately left out of it, for the same reason the CSS scanner's does — a literal backtick
+ * inside a single- or double-quoted specifier is legal on every POSIX filesystem and must go on
+ * matching as it did before) makes the same planted case fail for the right reason. Not a
+ * hypothetical form in this repository at the STATIC (`from`) position — a template literal is
+ * not valid syntax for a static import specifier at all — but the two patterns already share one
+ * character class here, the same way the CSS scanner's `from`/`import(` branches share theirs,
+ * and widening only the branch known to need it would be the allowlist-shaped mistake this
+ * file's own header already refuses in a different guise.
+ *
  * What it still cannot see, written down rather than implied, because a matcher over source
  * text is partial by construction: a COMPUTED specifier (`import(someVariable)`), a
  * `require()`, and a re-export chain that leaves the relative tree and comes back. The first
@@ -50,8 +68,8 @@ const posix = (path: string): string => relative(REPO, path).split(sep).join('/'
  */
 const importsOf = (file: string): string[] => {
 	const source = readFileSync(file, 'utf8');
-	const statik = [...source.matchAll(/(?:from|import)\s+['"](\.[^'"]+)['"]/gu)];
-	const dynamic = [...source.matchAll(/import\s*\(\s*['"](\.[^'"]+)['"]/gu)];
+	const statik = [...source.matchAll(/(?:from|import)\s+['"`](\.[^'"]+)['"`]/gu)];
+	const dynamic = [...source.matchAll(/import\s*\(\s*['"`](\.[^'"]+)['"`]/gu)];
 	return [...statik, ...dynamic].map((match) => match[1] ?? '');
 };
 
@@ -114,6 +132,28 @@ const reachesContracts = (entry: string): boolean => {
 	return false;
 };
 
+/**
+ * What this seam still cannot see: a CLI flag on the OUTER invocation that actually runs
+ * this very suite.
+ *
+ * `createVitest('test', { watch: false })` below resolves `spec.project.config.environment`
+ * from the `options` object passed here and from `vitest.config.ts` on disk, and from
+ * nothing else — read directly out of the installed package rather than assumed:
+ * `createVitest`'s own implementation (`node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js`)
+ * never touches `process.argv`. So a CLI-level override added to the invocation that
+ * actually COLLECTS AND RUNS this suite — `vitest run --coverage --environment=jsdom` in
+ * place of `test:coverage`'s current script, with `vitest.config.ts` itself untouched —
+ * would run every inner-layer test under jsdom while this guard's own nested `createVitest`
+ * call, reading only the unmodified config file, would still report `environment: 'node'`
+ * for every spec and pass green. Not the same hole as a per-file directive: nothing on disk
+ * changes, so nothing this guard reads would disagree with what actually ran.
+ *
+ * Not fixed here, and the brief's own scoping already says why: this file protects the
+ * suite it collects, not the command line that invoked it, and it "does not attempt to
+ * protect its own config file" — a CLI flag on the outer invocation is one layer further
+ * out than that. Named as a residual rather than left implicit, the way this file already
+ * names the computed-specifier, `require()` and re-export-chain gaps above.
+ */
 describe('the inner layers execute in node', () => {
 	it('resolves the effective environment of every collected file to node where it is protected', async () => {
 		const { createVitest } = await import('vitest/node');

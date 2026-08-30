@@ -112,7 +112,10 @@ All four real ones are closed — three in `tests/presentation/editor/zoneEditin
 - **Step 1 — nothing asserted the selection OUTLINE.** The only interaction-layer assertion in
   the editor suite counted `Circle` nodes, which are the vertex handles; an outline that stopped
   being drawn left that count untouched. Closed by *draws the accent OUTLINE beside the handles,
-  which a Circle count cannot see*.
+  which a Circle count cannot see*, which asserts the node's COLOUR and stroke width as well as
+  its geometry — a `Line` present in the Konva tree with a zero width or a non-accent stroke is
+  a node the user cannot see, and the first version of this case would have passed against
+  both.
 - **Step 2 — nothing looked at the interaction layer after a DESELECTION.** Both cited cases
   assert state: the selection store empties, the panel reads "Nothing selected." Handles left
   behind on the canvas were invisible to both. Closed by *takes the outline and the handles down

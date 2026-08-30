@@ -52,6 +52,9 @@ import { installObsidianDom } from '../../helpers/dom';
 // installs globally and this suite installs per file.
 installObsidianDom();
 
+/** `--interactive-accent` is what `themeTokens.ts` resolves the accent from. */
+const ACCENT_FOR_TEST = 'rgb(4, 5, 6)';
+
 /**
  * A notice is INERT until something activates the queue — `onload` is what does that in
  * production, so a suite asserting on `Notice.shown` has to stand where the plugin stands.
@@ -485,6 +488,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 	 */
 
 	it('draws the accent OUTLINE beside the handles, which a Circle count cannot see', async () => {
+		document.documentElement.style.setProperty('--interactive-accent', ACCENT_FOR_TEST);
 		const { harness } = await rig();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -502,7 +506,14 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		expect(outlines[0]?.closed()).toBe(true);
 		// The fixture rect (1500..4400)² through the default camera: world = 10 × screen − 480.
 		expect(outlines[0]?.points()).toEqual([198, 198, 488, 198, 488, 388, 198, 388]);
+		// A node in the tree is not a node the user can SEE: a zero width or an absent stroke
+		// leaves every assertion above true and draws nothing. The colour is asserted against
+		// the variable it is resolved from, so this also pins it as the ACCENT the step names
+		// rather than any stroke at all.
+		expect(outlines[0]?.strokeWidth()).toBeGreaterThan(0);
+		expect(outlines[0]?.stroke()).toBe(ACCENT_FOR_TEST);
 
+		document.documentElement.style.removeProperty('--interactive-accent');
 		harness.unmount();
 	});
 

@@ -38,7 +38,9 @@ here rather than only in the (git-ignored) SDD ledger, so the branch itself reco
 |---|---|
 | 1 — `ListPlansByProject` and `PlanSummaryDto` | ✅ complete — `61f4883`, review clean; amended by `45ea97a` (see below) |
 | 2 — `projectPlansChangeSource` | ✅ complete — `630b833`, review clean |
-| 3–13 | not started |
+| 3 — the view's two new reads, guarded | ✅ complete — `b237799`, review clean |
+| 4 — `ProjectDetailStore` | in progress |
+| 11, then 5–10, 12–13 | not started |
 
 `45ea97a` amends Task 1 after a review finding: its "drops an indexed id whose note is gone"
 case handed its double an already-filtered array, so it could not fail if

@@ -103,6 +103,7 @@ that renames it breaks the citation visibly.
 | 8 | a note AND a sidecar entry appear | the zone-repository contract's *save with 'absent' inserts at revision 1 and reads back* — `getById` reads note THEN sidecar, so a create writing one file cannot round-trip. Not the compensation cases: those assert what a FAILED write leaves behind |
 | 8a | the first vertex grows near enough to close | `interactionLayer` *grows the close target while the pointer is close enough to CLOSE the shape* |
 | 8a | and FILLS | **none** — a resolved theme colour, which is why the step is `browser` |
+| 8a | and RETURNS to its resting size when it is not | `interactionLayer` *grows the close target while the pointer is close enough to CLOSE the shape* — its second half, which moves the pointer away again and asserts the resting radius |
 | 8b | the band snaps flat on the KEY, pointer still | `interactionLayer` *flattens the rubber band the moment Shift goes down, with the pointer still* |
 | 8b | and lets go on release | `interactionLayer` *lets go again on release, just as promptly* |
 | 8b | the click lands on the flat line | `drawPolygonTool` *previews exactly the point the next click places* |
@@ -201,7 +202,13 @@ preview), `tests/presentation/editor/runtime.test.ts` (Undo disabled),
   whole distinction this section exists to draw.
 
 Genuine table omissions, discharged by tests that already existed: step 4's "Undo enables",
-step 8b's status hint (`shell`) and step 13's same-id clause (`reversibleDeleteZone`).
+step 8b's status hint (`shell`), step 13's same-id clause (`reversibleDeleteZone`) and step
+8a's hover RESET — the last of them reported after every count in this document had been
+corrected twice, which is the point of listing them: a clause omitted from the table is
+invisible to the gap count, the mutation inventory and the totals alike, because all three
+are computed over the rows that are there. It is discharged by the SECOND HALF of the case
+the growth row already cites, and that is exactly why it was easy to miss — one test name
+appearing once read as one clause covered.
 
 None of the seven was a defect: they were steps the suite was assumed to cover and did not.
 

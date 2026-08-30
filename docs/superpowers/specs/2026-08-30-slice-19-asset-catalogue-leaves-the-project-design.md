@@ -199,8 +199,26 @@ Three properties follow from the architecture rather than being chosen:
   This is slice 18's own lesson — `NoteVaultDeps.projectFolder` was deleted for it — and here
   it is load-bearing rather than tidy, because the library migration in this same slice changes
   that value mid-session.
-- **Dedup is free.** Slice 13's queue folds on the `(severity, message)` pair into a `(×N)`
-  suffix, so three overlapping projects raise one warning at ×3.
+- **Dedup is NOT free, and the first draft of this bullet said it was.** It claimed slice 13's
+  `(severity, message)` fold meant "three overlapping projects raise one warning at ×3". That
+  reads a display mechanism as if it were a set aggregation. Measured: `push` does
+  `existing.count += 1` for **every** identical push, and `startPersistence()` — which calls
+  `index.rebuild` — is called from `onLayoutReady` **and again from `saveSettings`**, its own
+  docblock saying the build repeats. So `(×N)` counts sweep runs, not projects: one overlapping
+  project plus two unrelated settings saves displays `×3`, identically to three overlapping
+  projects found in one sweep. The likelier reading of that badge is the wrong one.
+
+  So the count is **aggregated before it is notified, and the watcher is state-aware**. One
+  function, asked at both doors, that (a) computes the current set of overlapping project ids
+  from the index, (b) compares it with the set it last reported, and (c) pushes only when the
+  set has **changed** — one message, naming the count through `t`'s new `params` (item 6a,
+  which this slice adds anyway, so the interpolation is not a new cost). A repeat sweep over an
+  unchanged set pushes nothing, which is also the honest behaviour for a `warning` that never
+  auto-dismisses: the notice is still on screen, and pushing again says nothing new.
+
+  **The residue, named rather than solved:** slice 13's queue has no retraction, so a warning
+  raised for an overlap the user then FIXES stays up until they dismiss it. Adding a retract
+  door is queue policy and belongs with the preemption question below, not here.
 
 **Severity is `warning`**, which never auto-dismisses — the state persists until the user moves
 something, so a message that expires would be a message about a condition that is still true.

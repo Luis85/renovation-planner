@@ -283,10 +283,21 @@ Expected: FAIL — `BAN_BLOCKS` is not defined.
 Insert above the `describe` block, below the `declaringBlocks` helper:
 
 ```ts
-/** One planted import: the specifier, and the shape it exercises. */
+/** One planted import: the specifier, the shape it exercises, and how it is spelled. */
 interface Planted {
 	readonly specifier: string;
-	readonly shape: 'barrel' | 'one-level' | 'nested' | 'package' | 'package-subpath';
+	readonly shape: 'barrel' | 'one-level' | 'nested' | 'package' | 'package-subpath' | 'member';
+	/**
+	 * Named bindings, for a ban keyed on `importNames` rather than on the specifier.
+	 *
+	 * Measured, and it is why this field exists rather than a sixth shape string: a bare
+	 * `import 'obsidian';` from `infrastructure/logging` reports NOTHING, while
+	 * `import { request } from 'obsidian';` reports `no-restricted-imports` and
+	 * `import { TFile } from 'obsidian';` does not. A member ban is invisible to a probe that
+	 * plants a side-effect import, so an entry written that way is a dead probe that looks
+	 * exactly like a live one.
+	 */
+	readonly names?: readonly string[];
 }
 
 interface BlockProbe {
@@ -374,7 +385,30 @@ const PKG = ['vue', 'pinia', 'konva', 'vue-konva', 'obsidian'] as const;
  * in that extension — and `network-boundary.test.ts` would not see it either, since it drives
  * `.ts` paths only. The extension matrix promises this and only these probes deliver it.
  */
-const NETWORK_MODULES = ['node:https', 'https', 'node:net', 'electron'] as const;
+/**
+ * EVERY module, not a representative sample — each is an independently removable entry in
+ * `NETWORK_MODULES`, so a subset leaves the ones it omits free to be deleted with the whole
+ * matrix green. A first draft transcribed four of the thirteen, which is the same
+ * cells-versus-spellings error the layer probes already had to fix, one axis over: measured,
+ * deleting `node:http` from the config leaves both this matrix and the existing `.ts` suite
+ * green while `node:http` becomes importable in both protected subtrees.
+ */
+const NETWORK_MODULES = [
+	'http',
+	'https',
+	'http2',
+	'net',
+	'tls',
+	'dgram',
+	'node:http',
+	'node:https',
+	'node:http2',
+	'node:net',
+	'node:tls',
+	'node:dgram',
+	'electron',
+] as const;
+
 const networkShapes = (): readonly Planted[] => [
 	...NETWORK_MODULES.map((name) => ({ specifier: name, shape: 'package' as const })),
 	// Subpaths are a separate `patterns` entry, independent of the `paths` one above.
@@ -526,6 +560,13 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 			...(['vue', 'pinia', 'konva', 'vue-konva'] as const).flatMap(packageShapes),
 			...PROTOTYPES(toSrc('src/infrastructure/logging/diagnosticsLedger.ts')),
 			...networkShapes(),
+			// `NETWORK_MEMBERS` — an `importNames` ban on `obsidian`'s `request`/`requestUrl`,
+			// independently removable and probed nowhere else. It belongs to THIS block alone:
+			// `networkFree` filters the member out for a layer that already bans the package
+			// outright, and `application` bans `obsidian`, so probing it under
+			// `application/queries` would report for the package ban and prove nothing about
+			// the member one.
+			{ specifier: 'obsidian', shape: 'member', names: ['request', 'requestUrl'] },
 		],
 		// The only two blocks with a network ban, so the only two carrying `networkGlobals`.
 		networkGlobals: true,
@@ -590,8 +631,13 @@ Append to `tests/build/layer-boundaries.test.ts`:
  * `.jsx`, `.mjs`, `.cjs` and `.vue` at once. One call per (block, extension) pair, each
  * carrying that block's every forbidden import in every shape.
  */
+const plantedLine = (planted: Planted): string =>
+	planted.names === undefined
+		? `import '${planted.specifier}';`
+		: `import { ${planted.names.join(', ')} } from '${planted.specifier}';`;
+
 const sourceFor = (block: BlockProbe, extension: string): string => {
-	const body = block.forbidden.map((planted) => `import '${planted.specifier}';`).join('\n');
+	const body = block.forbidden.map(plantedLine).join('\n');
 	if (extension !== 'vue') return `${body}\n`;
 	return `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n`;
 };
@@ -626,6 +672,11 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
 			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
 		});
+
+		// A member probe binds identifiers nothing uses, so `no-unused-vars` reports beside
+		// `no-restricted-imports` on that line. Both assertions above filter by rule id
+		// rather than counting diagnostics, so the extra one is invisible to them by
+		// construction — noted because a count-based assertion would have broken here.
 
 		/**
 		 * The network GLOBALS, which the assertions above cannot reach.
@@ -2286,6 +2337,57 @@ sidecar path is indexed for a plan that does not exist.
 working is equally true of a fixture that has quietly become valid.
 ```
 
+- [ ] **Step 1b: Widen `VaultSurface` so no cast is needed**
+
+In `tests/helpers/plugin.ts`, replace
+
+```ts
+export type VaultSurface = Pick<RepositoryStack, 'vault' | 'fileManager' | 'metadataCache'>;
+```
+
+with a STRUCTURAL interface naming only what the plugin actually reaches through those three
+members — read `loadedPlugin`'s own stub (`getMarkdownFiles`, `getFiles`,
+`getAbstractFileByPath`, `read`, `on`, …) and `NoteVaultDeps` for the rest, and declare
+exactly that:
+
+```ts
+/**
+ * What the plugin reaches through the host surfaces — a STRUCTURAL contract, not the fake's
+ * classes.
+ *
+ * It was `Pick<RepositoryStack, 'vault' | 'fileManager' | 'metadataCache'>`, which binds it
+ * to `FakeVault`/`FakeFileManager`/`FakeMetadataCache` themselves. All three carry `private`
+ * members, and a class with a private member is assignable only from its own declaration —
+ * so a SECOND adapter over the same surface can never satisfy that type however faithful it
+ * is, and the only way in is a cast that hides the very mismatch this parameter exists to
+ * check. Slice 12's disk-backed `FixtureVaultAdapter` is that second adapter.
+ */
+export interface VaultSurface {
+	vault: Pick<
+		Vault,
+		'getMarkdownFiles' | 'getFiles' | 'getAbstractFileByPath' | 'read' | 'create' | 'modify' | 'delete' | 'createFolder' | 'on'
+	>;
+	fileManager: Pick<FileManager, 'processFrontMatter' | 'trashFile'>;
+	metadataCache: Pick<MetadataCache, 'getFileCache'>;
+}
+```
+
+A `Pick` of **Obsidian's own interfaces**, imported from `obsidian` — not of the fake's classes,
+and not a hand-written shape. `NoteVaultDeps` already types these three as `Vault`,
+`FileManager` and `MetadataCache`, so picking from those keeps the contract anchored to what
+production passes: a member the plugin starts calling is a compile error here rather than a
+silent gap, and the fakes stay free to be classes.
+
+Run `npm run build` before moving on. Two things have to hold and neither is assumed: every
+existing caller still compiles (`RepositoryStack`'s three members satisfy the picks), and
+`FixtureVaultAdapter` satisfies them too. If a member turns out to be missing from either fake,
+ADD it to the fake — a surface the plugin calls and a fake lacks is the too-thin fake this
+repository has already paid for five times over, and narrowing the `Pick` to make it compile
+would be the same mistake written as a type.
+
+`tests/helpers/plugin.ts` is **not** among the files PR 25 edits (that is
+`tests/helpers/vault.ts`), so this is safe to make now.
+
 - [ ] **Step 2: Write the failing test**
 
 Create `tests/plugin/brokenReferences.test.ts`.
@@ -2301,11 +2403,20 @@ seam. Mirror `tests/plugin/persistence-wiring.test.ts` for how it reaches the co
 root's repositories afterwards; that file is the existing precedent for both halves.
 
 ```ts
+// @vitest-environment jsdom
+// jsdom: `installObsidianDom()` reads `HTMLElement.prototype` at module evaluation and node
+// provides no `HTMLElement`, so without this the file dies before any assertion runs — not a
+// failing test, a file that never executes. `tests/plugin/persistence-wiring.test.ts` carries
+// the same directive for the same reason. `tests/plugin/` is outside the four directories
+// `tests/build/test-environments.test.ts` protects and reaches no contract, so this is
+// permitted there — checked, not assumed.
 import { afterEach, describe, expect, it } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
 import { loadedPlugin } from '../helpers/plugin';
 import { openFixtureVault, type FixtureStack } from '../helpers/fixtureVault';
 import { expectErr, expectOk } from '../helpers/domain';
+import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
+import type RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
 import { createZoneId } from '../../src/domain/zone/ZoneId';
 
 installObsidianDom();
@@ -2316,14 +2427,35 @@ afterEach(() => {
 	open = null;
 });
 
-/** The real startup, over the fixture's three host surfaces. */
-const bootstrap = async (): Promise<{ stack: FixtureStack; plugin: Awaited<ReturnType<typeof loadedPlugin>> }> => {
+/**
+ * The real startup over the fixture's host surfaces, and every argument position matters.
+ *
+ * `loadedPlugin(stored, loadFailure, dataFileExists, surface)` — the surface is the FOURTH
+ * parameter. An earlier draft passed it FIRST, where it was read as stored settings, leaving
+ * the plugin with no vault surface at all; an `as never` cast is what stopped the compiler
+ * saying so. A cast that makes wrong code compile is worse than the wrong code.
+ *
+ * `workspace.layoutReady()` is not optional either: `RenovationPlannerPlugin` registers
+ * `startPersistence()` through `onLayoutReady` and NOT in `onload`, deliberately — a
+ * vault-wide scan in `onload` would block Obsidian's start. So without this call the index
+ * is never built and the assertions below would be about a plugin that never started.
+ *
+ * NO CAST, and that costs one prerequisite edit — see Step 1b. `VaultSurface` is declared as
+ * `Pick<RepositoryStack, 'vault' | 'fileManager' | 'metadataCache'>`, which binds it to
+ * `FakeVault`'s CLASSES; all three carry `private` members, and a class with a private member
+ * is assignable only from its own declaration. So no second adapter can ever satisfy that
+ * type structurally, however faithful it is. Casting past it would hide exactly the mismatch
+ * this test needs the compiler to check.
+ */
+const bootstrap = async (): Promise<{ stack: FixtureStack; plugin: RenovationPlannerPlugin }> => {
 	const stack = await openFixtureVault('broken-references');
-	const plugin = await loadedPlugin({
+	const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, {
 		vault: stack.vault,
 		fileManager: stack.fileManager,
 		metadataCache: stack.metadataCache,
-	} as never);
+	});
+
+	workspace.layoutReady();
 	return { stack, plugin };
 };
 
@@ -2335,45 +2467,48 @@ const bootstrap = async (): Promise<{ stack: FixtureStack; plugin: Awaited<Retur
  * THREE assertions, and the first is the one criterion 13 is actually about. An earlier draft
  * claimed the degradation half alone "simultaneously proves the fixture exercises the failure
  * mode it claims to". It does not: *the rest of the plugin still works* is equally true of a
- * fixture that has quietly become VALID — a schema edit, a fixture typo — so the criterion
- * could sit untested behind a green suite. A test asserting an ABSENCE passes in both worlds
- * when neither world can produce the thing.
+ * fixture that has quietly become VALID, so the criterion could sit untested behind a green
+ * suite. A test asserting an ABSENCE passes in both worlds when neither world can produce the
+ * thing.
+ *
+ * Every read goes through `plugin.root.persistence`, never through the `FixtureStack`'s own
+ * repositories. Those are an independent construction over the same bytes, so asserting on
+ * them would prove the fixture is readable and say nothing about what the plugin composed.
  */
 describe('a broken project file does not stop the plugin loading', () => {
 	it('completes the real bootstrap and builds the index fully, dropping nothing', async () => {
-		const { stack } = await bootstrap();
+		const { stack, plugin } = await bootstrap();
 		open = stack;
 
 		// The index scan deliberately does NOT run the fail-closed gate: `collectNotes` copies
 		// `project` and `plan` through `stringField(...)` with no referential check, so the
 		// poisoned note is indexed exactly like its neighbours. Asserting a refusal HERE would
 		// be asserting something bootstrapping never produces.
-		//
+		expect(plugin.root.persistence).not.toBeNull();
+
 		// "Fully built, nothing dropped" is the poisoned note present BESIDE the healthy one.
 		// `InMemoryProjectIndex` exposes no `size` — measured — and a count would be the weaker
-		// claim anyway: criterion 13 is about the poisoned note not taking the vault down with
-		// it. Reaching startup at all is the other half, and it is why this runs through
-		// `loadedPlugin` rather than the fixture's own `rebuildIndex()` helper.
+		// claim anyway: criterion 13 is about the poisoned note not taking the vault down.
 		const zones = stack.index.getIdsByType('zone');
 		expect(zones).toContain('kitchen');
 		expect(zones).toContain('zone-with-missing-plan');
 	});
 
 	it('refuses the planted record when something opens it, with the code its edge produces', async () => {
-		const { stack } = await bootstrap();
+		const { stack, plugin } = await bootstrap();
 		open = stack;
 
-		const failure = expectErr(await stack.zones.getById(createZoneId('zone-with-missing-plan')));
+		const failure = expectErr(await plugin.root.persistence!.zones.getById(createZoneId('zone-with-missing-plan')));
 
 		expect(failure.code).toBe('zone.sidecar-unreadable');
 		expect((failure.cause as { code?: string } | undefined)?.code).toBe('plan-geometry.path-unresolved');
 	});
 
 	it('still loads a healthy record from the same fixture', async () => {
-		const { stack } = await bootstrap();
+		const { stack, plugin } = await bootstrap();
 		open = stack;
 
-		const loaded = expectOk(await stack.zones.getById(createZoneId('kitchen')));
+		const loaded = expectOk(await plugin.root.persistence!.zones.getById(createZoneId('kitchen')));
 
 		expect(loaded?.entity.name).toBe('Kitchen');
 	});

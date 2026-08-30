@@ -426,13 +426,38 @@ describe('the fixture vault adapter', () => {
 			// SYNCHRONOUSLY, which is what this function already does for a missing fixture —
 			// `mkdtempSync`/`cpSync` throw before any promise exists — so the guard is
 			// consistent with its neighbours rather than with its `Promise` return type.
-			const before = readdirSync(tmpdir()).filter((name) => name.startsWith('rp-vault-')).length;
-
-			expect(() => openFixtureVault(basename(caseDir))).toThrow(/contains a symlink/u);
-
 			// The refusal must not strand its own clone: nothing has a stack to `dispose()` when
 			// `openFixtureVault` throws, so the only place that can clean up is `openFixtureVault`.
-			expect(readdirSync(tmpdir()).filter((name) => name.startsWith('rp-vault-')).length).toBe(before);
+			//
+			// Asserted against a temp dir this case OWNS, not against a count of `rp-vault-*` in
+			// the process-wide one. That count was the first draft and it was both flaky and
+			// non-discriminating: three test files call `openFixtureVault` and vitest runs files
+			// in parallel workers, so a sibling creating or disposing its own clone moves the
+			// count when this refusal cleaned up perfectly, and masks it when this one leaks.
+			// An assertion that can pass in both worlds is the exact defect this branch exists
+			// to refuse, written into the branch. Reported by a review bot.
+			//
+			// `os.tmpdir()` reads `TMPDIR`/`TMP`/`TEMP` at CALL time — measured — and the
+			// environment is per-process while vitest gives each test FILE its own worker and
+			// runs the tests within one sequentially. So redirecting it here is invisible to
+			// every other file and cannot race with anything in this one.
+			const scratch = mkdtempSync(join(tmpdir(), 'rp-scratch-'));
+			const restore = { TMPDIR: process.env['TMPDIR'], TMP: process.env['TMP'], TEMP: process.env['TEMP'] };
+			try {
+				process.env['TMPDIR'] = scratch;
+				process.env['TMP'] = scratch;
+				process.env['TEMP'] = scratch;
+
+				expect(() => openFixtureVault(basename(caseDir))).toThrow(/contains a symlink/u);
+
+				expect(readdirSync(scratch)).toEqual([]);
+			} finally {
+				for (const [key, value] of Object.entries(restore)) {
+					if (value === undefined) delete process.env[key];
+					else process.env[key] = value;
+				}
+				rmSync(scratch, { recursive: true, force: true });
+			}
 		} finally {
 			rmSync(caseDir, { recursive: true, force: true });
 			rmSync(staging, { recursive: true, force: true });

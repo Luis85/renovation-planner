@@ -63,6 +63,12 @@ afterEach(() => {
  */
 const bootstrap = async (): Promise<{ stack: FixtureStack; plugin: RenovationPlannerPlugin }> => {
 	const stack = await openFixtureVault('broken-references');
+	// Cleanup ownership transfers to `afterEach` HERE, before anything that can throw with a
+	// live stack in hand. Each caller used to assign `open` after `bootstrap()` returned, so a
+	// `loadedPlugin` failure — the startup regression these cases exist to detect — stranded
+	// the clone in the system temp dir, on exactly the run that found the bug. Reported by a
+	// review bot, and previously recorded as a deferred minor by the whole-branch review.
+	open = stack;
 	const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, {
 		vault: stack.vault,
 		fileManager: stack.fileManager,
@@ -91,8 +97,7 @@ const bootstrap = async (): Promise<{ stack: FixtureStack; plugin: RenovationPla
  */
 describe('a broken project file does not stop the plugin loading', () => {
 	it('completes the real bootstrap and builds the index fully, dropping nothing', async () => {
-		const { stack, plugin } = await bootstrap();
-		open = stack;
+		const { plugin } = await bootstrap();
 
 		// The index scan deliberately does NOT run the fail-closed gate: `collectNotes` copies
 		// `project` and `plan` through `stringField(...)` with no referential check, so the
@@ -125,8 +130,7 @@ describe('a broken project file does not stop the plugin loading', () => {
 	});
 
 	it('refuses the planted record when something opens it, with the code its edge produces', async () => {
-		const { stack, plugin } = await bootstrap();
-		open = stack;
+		const { plugin } = await bootstrap();
 		const persistence = plugin.root.persistence as NonNullable<typeof plugin.root.persistence>;
 
 		const failure = expectErr(await persistence.zones.getById(PLANTED));
@@ -136,8 +140,7 @@ describe('a broken project file does not stop the plugin loading', () => {
 	});
 
 	it('still loads a healthy record from the same fixture', async () => {
-		const { stack, plugin } = await bootstrap();
-		open = stack;
+		const { plugin } = await bootstrap();
 		const persistence = plugin.root.persistence as NonNullable<typeof plugin.root.persistence>;
 
 		const loaded = expectOk(await persistence.zones.getById(HEALTHY));

@@ -226,18 +226,31 @@ beforeAll(async () => {
 	await lintDetailed('export const probe = 1;\n', 'src/core/identity/generateId.ts');
 }, ESLINT_BOOT_MS);
 
-/** Every block declaring the rule, keyed by its first `files` glob, with its severity. */
-const declaringBlocks = (): Map<string, string> => {
-	const found = new Map<string, string>();
+/**
+ * Every block declaring the rule, as an ORDERED LIST — never a Map.
+ *
+ * A draft keyed a `Map` on each block's first `files` glob, which deduplicates the exact thing
+ * this inventory exists to notice: two blocks beginning with the same glob collapse to one, so
+ * ADDING or DUPLICATING a `no-restricted-imports` block leaves both the membership assertion
+ * and the probe-key comparison unchanged. A pin whose stated purpose is "a block appearing or
+ * disappearing fails here" cannot be built on a structure that silently merges appearances.
+ *
+ * Keyed on the WHOLE `files` array rather than its first entry, for the same reason: two blocks
+ * can share a first glob and differ in the rest, and the scope is what identifies a block.
+ */
+const declaringBlocks = (): { scope: string; severity: string }[] => {
+	const found: { scope: string; severity: string }[] = [];
 	for (const block of eslintConfig as readonly { files?: unknown; rules?: Record<string, unknown> }[]) {
 		const rule = block.rules?.['no-restricted-imports'];
 		if (rule === undefined) continue;
 		const files = Array.isArray(block.files) ? block.files : [block.files];
-		const key = String(files[0]);
-		found.set(key, rule === 'off' ? 'off' : 'error');
+		found.push({ scope: files.map(String).join(','), severity: rule === 'off' ? 'off' : 'error' });
 	}
 	return found;
 };
+
+/** The block's identity for the probe table: its first glob, which is what `BAN_BLOCKS` keys on. */
+const firstGlob = (scope: string): string => scope.split(',')[0] ?? '';
 
 describe('the blocks declaring no-restricted-imports', () => {
 	/**
@@ -251,25 +264,45 @@ describe('the blocks declaring no-restricted-imports', () => {
 	 * after them would disable every layer ban at once.
 	 */
 	it('is exactly this set, with exactly these severities', () => {
-		expect(Object.fromEntries(declaringBlocks())).toEqual({
-			'**/*.{js,cjs,mjs,jsx}': 'off',
-			'**/*.{ts,cts,mts,tsx}': 'off',
-			'**/src/**/*.ts': 'error',
-			'**/src/core/**/*.ts': 'error',
-			'**/src/domain/**/*.ts': 'error',
-			'**/src/application/**/*.ts': 'error',
-			'**/src/infrastructure/**/*.ts': 'error',
-			'**/src/presentation/**/*.ts': 'error',
-			'**/src/plugin/**/*.ts': 'error',
-			'**/src/*.ts': 'error',
-			'**/src/presentation/dialogs/**/*.ts': 'error',
-			'**/src/application/queries/**/*.ts': 'error',
-			'**/src/infrastructure/logging/**/*.ts': 'error',
-		});
+		// Compared as a sorted LIST of pairs, not an object: an object keyed on the scope would
+		// re-introduce the deduplication this inventory was rebuilt to avoid.
+		const declared = declaringBlocks()
+			.map((block) => `${firstGlob(block.scope)}=${block.severity}`)
+			.sort();
+
+		expect(declared).toEqual([
+			'**/*.{js,cjs,mjs,jsx}=off',
+			'**/*.{ts,cts,mts,tsx}=off',
+			'**/src/**/*.ts=error',
+			'**/src/*.ts=error',
+			'**/src/application/**/*.ts=error',
+			'**/src/application/queries/**/*.ts=error',
+			'**/src/core/**/*.ts=error',
+			'**/src/domain/**/*.ts=error',
+			'**/src/infrastructure/**/*.ts=error',
+			'**/src/infrastructure/logging/**/*.ts=error',
+			'**/src/plugin/**/*.ts=error',
+			'**/src/presentation/**/*.ts=error',
+			'**/src/presentation/dialogs/**/*.ts=error',
+		]);
+	});
+
+	/**
+	 * And no block is declared TWICE. Asserted separately from the list above rather than
+	 * folded into it: the sorted comparison would catch a duplicate as a length mismatch, but
+	 * the failure would read as "one unexpected entry" rather than "this block is declared
+	 * twice", and the two call for different fixes.
+	 */
+	it('declares each block exactly once', () => {
+		const scopes = declaringBlocks().map((block) => block.scope);
+
+		expect(scopes).toHaveLength(new Set(scopes).size);
 	});
 
 	it('has one probe entry per ban-declaring block', () => {
-		const banning = [...declaringBlocks()].filter(([, severity]) => severity === 'error').map(([key]) => key);
+		const banning = declaringBlocks()
+			.filter((block) => block.severity === 'error')
+			.map((block) => firstGlob(block.scope));
 
 		expect(BAN_BLOCKS.map((block) => block.key).sort()).toEqual([...banning].sort());
 	});
@@ -1691,6 +1724,7 @@ zoneRepositoryContract(() => {
 	const repository: ZoneRepository = {
 		getById: (id) => inner.getById(id),
 		listByPlan: (planId) => inner.listByPlan(planId),
+		listByProject: (projectId) => inner.listByProject(projectId),
 		delete: (id, expected) => inner.delete(id, expected),
 		save: (zone, expected) => inner.save({ ...zone, name: '' }, expected),
 	};
@@ -1710,7 +1744,11 @@ zoneRepositoryContract(() => {
 });
 ```
 
-`ZoneRepository`'s real member list comes from `src/application/ports/ZoneRepository.ts` — read it and match it exactly; the four above are what `InMemoryZoneRepository` exposes today. A member missing from the delegation object is a compile error, which is the point of annotating the constant rather than casting it.
+`ZoneRepository`'s real member list comes from `src/application/ports/ZoneRepository.ts` — **read it and match it exactly**. It declares FIVE: `getById`, `save`, `delete`, `listByProject`, `listByPlan`. A draft delegated four and omitted `listByProject`, which the contract calls twice.
+
+**The annotation does NOT catch that, and believing it would was the mistake.** This fixture is deliberately outside `tsconfig.json` — that is what lets it be a deliberately failing spec — so `const repository: ZoneRepository` is never checked by any compiler, and the missing member surfaces at runtime as `repository.listByProject is not a function`. In the child run that is a SECOND cause beside the planted name mismatch, in a run whose entire purpose is proving there is exactly one. The same defect as globbing the child config's `include`, arriving through the type system instead of the file system.
+
+So the member list is derived by reading the port, and the direct-run step below is what verifies it: a run that fails on anything other than the name assertion means the delegation is incomplete.
 
 Run the fixture directly once to confirm it fails for the *intended* reason:
 
@@ -2954,7 +2992,9 @@ that nothing reads is indistinguishable from correct fixture content.
 
 In `docs/tasks/12-testing-and-architecture-enforcement-infrastructure.md`, edit the infrastructure-specific Definition of Done. Leave every box **unticked** and append the status to each item this slice touched:
 
-- The `tests/{contracts,fixtures,vault}` layout item — append: `tests/vault/` now exists with three of four cases carrying a consumer.
+- The `tests/{contracts,fixtures,vault}` layout item — append: `tests/vault/` now exists, with **two of four** cases carrying a consumer that asserts their content (`broken-references/`, `legacy-schema/`). Say two, not three: `valid-project/` is only *opened* by the adapter's conformance cases and nothing asserts its content, and `large-project/` is dropped. An adapter smoke-use is not a fixture-content consumer, and counting it as one is how `valid-project/` would come to look delivered.
+
+  **This line said "three" while the Definition-of-Done text twelve lines below said "two"** — the same figure, contradicting itself inside the task written to record it honestly. It is the third instance in this PR of a count fixed in one place and not its neighbour, after the `large-project/` status and the fixture-consumer count in the spec. The lesson each time is the same and has not stuck: a number appearing twice is one fact with two copies, and the fix is a grep for the number, not a re-read of the paragraph.
 - The `vitest.config.ts` two-project split item — replace the item body with the **withdrawal**, paired with its check:
 
 ```markdown

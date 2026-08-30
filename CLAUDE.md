@@ -2545,10 +2545,13 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking) **except four entries in
-`tsconfig.json`'s `include`**, each there for its own reason. Four, counted in the file
+nothing type-checks `tests/**` (vitest transpiles without checking) **except five entries in
+`tsconfig.json`'s `include`**, each there for its own reason. Five, counted in the file
 rather than remembered: slice 11 added the third and this sentence said "two" for a slice,
-and slice 16's review pass added the fourth.
+slice 16's review pass added the fourth, and slice 12 added the fifth — this sentence
+narrated exactly that failure mode ("counted … rather than remembered") one slice before
+falling into it itself, sitting at "four" through slice 12's own thirteen tasks until its
+final review round re-counted the file.
 
 `tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
 `IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is
@@ -2593,6 +2596,31 @@ noise — `calibrateHarness`'s viewport missing `worldPerScreenPixel`, `planEdit
 missing `calibratePlan`, two `PlanDto` fixtures missing `calibration`. Worth closing, and not
 inside a review pass on another slice, so the number is written down where the next reader
 finds it rather than left to be re-measured.
+
+`tests/helpers/fixtureVault.test-d.ts` is the fifth, and it is a KIND of its own rather than
+a fourth instance of scope, of a `@ts-expect-error` proof, or of a fake held to a contract.
+It asserts BIDIRECTIONAL assignability — that slice 12's disk-backed `FixtureStack` satisfies
+the same structural `VaultSurface` that `FakeVault`'s in-memory `RepositoryStack` already
+does, and that `RepositoryStack` still satisfies it too, so the widening that let the surface
+admit a second implementation is proven not to have narrowed what the first one already
+promised.
+Neither half is a `@ts-expect-error`: both assignments must compile, which is the opposite
+shape from the two `.test-d.ts` files above it. Naming `RepositoryStack` is what gives it its
+second effect, incidental to the proof it was written for: that type lives in
+`tests/helpers/vault.ts`, which no earlier `*.test-d.ts` had ever pulled into a real program,
+and `tests/**` is normally transpiled without checking — so this was the first time anything
+type-checked that file's ANNOTATIONS against its CODE, and it found two pre-existing defects
+on its first run. `tests/helpers/logger.ts` carried `Logger` only as a LOCAL, unexported
+type-only import (`TS2459: declares 'Logger' locally, but it is not exported`), which
+`vault.ts` had been importing from there regardless, unchecked, for its own
+`RepositoryStack.logger: Logger` field; and `RepositoryStack` itself never declared the
+`ledger` field `createRepositoryStack` had always returned, invisible for as long as the gap
+between a factory's return value and its declared interface had no compiler pointed at it.
+Both were fixed at their source rather than augmented around here. The technique
+generalises past this one file: pulling a single `*.test-d.ts` into `tsconfig.json`'s
+`include` does not check only the assertions written in it — it type-checks every module that
+file imports, transitively, for the first time, which is a cheap way to point a compiler at a
+helper subtree nothing else reaches.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the

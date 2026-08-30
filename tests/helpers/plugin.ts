@@ -1,15 +1,66 @@
-import type { TFile } from 'obsidian';
+import type { FileManager, MetadataCache, TAbstractFile, TFile, Vault } from 'obsidian';
 import RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
-import type { RepositoryStack } from './vault';
 import { FakeWorkspace } from './workspace';
 
 /**
- * The three app members the persistence stack reads through. A suite passes a real
- * `createRepositoryStack()` here when it needs the index scan to FIND something — the
- * empty default proves wiring, not contents, and a scan over nothing cannot tell a rebuilt
- * index from an untouched one.
+ * What the plugin reaches through the host surfaces — a STRUCTURAL contract, not the fake's
+ * classes.
+ *
+ * It was `Pick<RepositoryStack, 'vault' | 'fileManager' | 'metadataCache'>`, which binds it
+ * to `FakeVault`/`FakeFileManager`/`FakeMetadataCache` themselves. All three carry `private`
+ * members, and a class with a private member is assignable only from its own declaration —
+ * so a SECOND adapter over the same surface can never satisfy that type however faithful it
+ * is, and the only way in is a cast that hides the very mismatch this parameter exists to
+ * check. Slice 12's disk-backed `FixtureVaultAdapter` is that second adapter.
  */
-export type VaultSurface = Pick<RepositoryStack, 'vault' | 'fileManager' | 'metadataCache'>;
+export interface VaultSurface {
+	vault: Pick<
+		Vault,
+		| 'getMarkdownFiles'
+		| 'getFiles'
+		| 'getAbstractFileByPath'
+		| 'read'
+		// `cachedRead` is called by this file's own `cachedRead` delegate below, and a draft
+		// of this list omitted it — the widening has to be COMPLETE or it re-creates the hole
+		// it removes, one member along.
+		// Derive the list by reading every `mustHaveSurface().<member>` call in that file
+		// rather than by recalling which ones matter.
+		| 'cachedRead'
+		| 'create'
+		| 'modify'
+		| 'delete'
+		// NOT `on`. `loadedPlugin` does not delegate it through the surface — it defines its
+		// own handler-recording stub (`on`, below), so no member of the passed surface is ever
+		// consulted for it. Measured, not merely argued: including it does NOT fail to
+		// type-check, because Obsidian's `EventRef` is declared as an EMPTY interface
+		// (`obsidian.d.ts:2769`), so `FakeVault.on`'s `{ off(): void }` satisfies it
+		// structurally regardless. Excluded anyway, for the reason stated above: nothing here
+		// reads it through the surface.
+	> & {
+		/**
+		 * NOT picked from `Vault`, and the exception is deliberate.
+		 *
+		 * Obsidian declares `createFolder(path: string): Promise<TFolder>`
+		 * (`obsidian.d.ts:7312`), while `FakeVault.createFolder` and this file's own
+		 * `createFolder` delegate below both return `Promise<void>` — so picking it would fail
+		 * type-checking the moment the `*.test-d.ts` pulls this file in, before Task 11 can land.
+		 *
+		 * `Promise<unknown>` rather than widening the fakes, because the alternative touches
+		 * `tests/helpers/vault.ts` — the one file PR 25 edits — and would reopen the conflict
+		 * surface this plan just spent a round narrowing to a single `tsconfig.json` line. It
+		 * is a genuine widening rather than a fudge: `Promise<TFolder>` is assignable to it,
+		 * so production's real `Vault` satisfies this surface too, and the plugin's own callers
+		 * ignore the return value.
+		 *
+		 * The honest cost: this one member is anchored to what the plugin USES rather than to
+		 * what Obsidian declares. Recorded here rather than left for a reader to infer from the
+		 * `&`.
+		 */
+		createFolder(path: string): Promise<unknown>;
+	};
+	fileManager: Pick<FileManager, 'processFrontMatter' | 'trashFile'>;
+	metadataCache: Pick<MetadataCache, 'getFileCache'>;
+}
 
 /** The plugin id the manifest declares, and what the data-file path is built from. */
 const PLUGIN_ID = 'renovation-planner';
@@ -43,7 +94,7 @@ export async function loadedPlugin(
 	 * vault — but "read this file" has no honest empty answer, and a stub that invented one
 	 * would let a suite assert about content it never provided.
 	 */
-	const mustHaveSurface = (): RepositoryStack['vault'] => {
+	const mustHaveSurface = (): VaultSurface['vault'] => {
 		if (!surface) throw new Error('This test read vault CONTENT; pass a createRepositoryStack() surface.');
 		return surface.vault;
 	};
@@ -63,7 +114,7 @@ export async function loadedPlugin(
 		// and these then read through IT rather than through a second copy.
 		getMarkdownFiles: (): TFile[] => surface?.vault.getMarkdownFiles() ?? [],
 		getFiles: (): TFile[] => surface?.vault.getFiles() ?? [],
-		getAbstractFileByPath: (path: string): TFile | null => surface?.vault.getAbstractFileByPath(path) ?? null,
+		getAbstractFileByPath: (path: string): TAbstractFile | null => surface?.vault.getAbstractFileByPath(path) ?? null,
 		// The CONTENT half, and it was missing — which made this stub thin rather than
 		// merely small: the plugin's own repositories read through `this.app.vault`, so a
 		// stub that could list files but not read one answered every plan read with
@@ -76,7 +127,7 @@ export async function loadedPlugin(
 		create: (path: string, data: string): Promise<TFile> => mustHaveSurface().create(path, data),
 		modify: (file: TFile, data: string): Promise<void> => mustHaveSurface().modify(file, data),
 		delete: (file: TFile): Promise<void> => mustHaveSurface().delete(file),
-		createFolder: (path: string): Promise<void> => mustHaveSurface().createFolder(path),
+		createFolder: (path: string): Promise<unknown> => mustHaveSurface().createFolder(path),
 		on: (_event: string, handler: (...args: never[]) => void): { off(): void } => {
 			vaultHandlers.push(handler);
 			return { off: () => undefined };
@@ -86,7 +137,17 @@ export async function loadedPlugin(
 	// nothing here behaves, which is honest — an empty collaborator answers no note.
 	const app = { workspace, vault, fileManager: surface?.fileManager ?? {}, metadataCache: surface?.metadataCache ?? {} };
 
-	const plugin = new RenovationPlannerPlugin(app as never, { id: PLUGIN_ID });
+	// `RenovationPlannerPlugin extends Plugin` resolves against the REAL `obsidian` package's
+	// types here — `vitest.config.ts`'s alias to `obsidian-mock.ts` is a vitest-only module
+	// resolution, invisible to `vue-tsc` — so the real `Plugin` constructor wants a full
+	// `PluginManifest` and carries no `data`/`loadFailure` fields at all; the mock's `Plugin`
+	// carries both (`obsidian-mock.ts`). One cast for the constructor's second argument and
+	// one for the instance, rather than widening either the real type or the mock's runtime
+	// shape, since both are honest as they stand and only this bridge needs to say so.
+	const plugin = new RenovationPlannerPlugin(app as never, { id: PLUGIN_ID } as never) as RenovationPlannerPlugin & {
+		data: unknown;
+		loadFailure: unknown;
+	};
 	plugin.data = stored;
 	plugin.loadFailure = loadFailure;
 	await plugin.onload();

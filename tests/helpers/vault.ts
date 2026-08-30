@@ -1,4 +1,4 @@
-import { TFile as MockTFile, TFolder as MockTFolder, type TFile } from 'obsidian';
+import { TFile as MockTFile, TFolder as MockTFolder, type FileStats, type TFile } from 'obsidian';
 import type { LogLevel } from '../../src/application/ports/Logger';
 import { serializeFrontmatter } from '../../src/infrastructure/obsidian/repositories/noteIo';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
@@ -45,22 +45,74 @@ class VaultEntries extends Map<string, string> {
 	 * states that as its own bound rather than claiming to be proof.
 	 */
 	private readonly mtimes = new Map<string, number>();
+
+	/**
+	 * Creation times, off the same counter, and NOT a synonym for the modification time.
+	 *
+	 * `ctime` is stamped by the first write to a path and left alone by every later one, so a
+	 * file that has been modified reports `ctime < mtime` the way a real one does. Returning
+	 * the mtime for both would be the defect the paragraph above already refuses in a second
+	 * spelling: a field that type-checks and says nothing, believed by whoever reads it.
+	 *
+	 * The bound the mtime paragraph states applies here too — a counter cannot produce the
+	 * same-tick collision a real clock's finite granularity can, so a file created and
+	 * modified inside one tick reports two distinct values where a filesystem may report one.
+	 */
+	private readonly ctimes = new Map<string, number>();
 	private clock = 0;
 
-	statOf(path: string): { mtime: number; size: number } {
-		return { mtime: this.mtimes.get(path) ?? 0, size: (this.get(path) ?? '').length };
+	/**
+	 * Typed as Obsidian's own `FileStats` rather than as the shape it happens to return.
+	 *
+	 * The literal `{ mtime: number; size: number }` compiled for as long as nothing
+	 * type-checked this file, and stopped compiling the moment slice 12's `*.test-d.ts` pulled
+	 * it into `tsconfig.json`'s program — `ctime` is required and was absent. Naming the real
+	 * interface is what makes the COMPILER answer for the next member Obsidian adds, rather
+	 * than a reader noticing.
+	 */
+	statOf(path: string): FileStats {
+		return {
+			ctime: this.ctimes.get(path) ?? 0,
+			mtime: this.mtimes.get(path) ?? 0,
+			size: (this.get(path) ?? '').length,
+		};
+	}
+
+	/** Stamps the creation time on a path's FIRST write and leaves it alone thereafter. */
+	private touch(path: string): void {
+		const now = ++this.clock;
+		if (!this.ctimes.has(path)) this.ctimes.set(path, now);
+		this.mtimes.set(path, now);
 	}
 
 	override set(path: string, text: string): this {
 		this.onOutsideWrite(path);
-		this.mtimes.set(path, ++this.clock);
+		this.touch(path);
 		return super.set(path, text);
 	}
 
 	/** `FakeVault`s own writers, which record their own parse-lag entry and must not retire it. */
 	setOwn(path: string, text: string): void {
-		this.mtimes.set(path, ++this.clock);
+		this.touch(path);
 		super.set(path, text);
+	}
+
+	/**
+	 * Removing the bytes removes the STATS with them, and it is an override rather than a
+	 * cleanup at each caller for the reason `touch` is one function: a path's records live
+	 * here, so the object that owns them is the object that must forget them.
+	 *
+	 * Without this the `ctime` of a deleted path outlived it, and `touch`'s first-write rule
+	 * then handed the RECREATED file its predecessor's creation time — measured, a fresh
+	 * create reporting `ctime: 1` against `mtime: 2`, which is a file claiming to have been
+	 * modified after it was created and before it existed. No real filesystem answers that,
+	 * and a fake that does is the exact "believed by whoever reads it" defect the paragraph
+	 * above records for this field. Reported by a review bot.
+	 */
+	override delete(path: string): boolean {
+		this.mtimes.delete(path);
+		this.ctimes.delete(path);
+		return super.delete(path);
 	}
 }
 
@@ -431,6 +483,21 @@ export interface RepositoryStack {
 	migrations: MigrationRunner;
 	logged: Line[];
 	logger: Logger;
+	/**
+	 * `createRepositoryStack` has always returned this field; the interface never
+	 * declared it, which was invisible for as long as nothing type-checked this file (a
+	 * `tests/**` transpile does not check assignability). `tests/helpers/fixtureVault.test-d.ts`
+	 * pulling this interface into a real program was the first thing that could have caught
+	 * the excess-property error on the return statement below — and did.
+	 *
+	 * Typed as the CONCRETE class, matching `store`/`migrations`/`index`/`echo` and every
+	 * repository field on this interface, rather than as the `DiagnosticsLedger` port: a
+	 * caller reading a concrete-only member later is not refused, and the port type would buy
+	 * nothing here — `logger: Logger` is the one exception on this interface, and it is an
+	 * exception because that field is a plain object literal with no class behind it, not a
+	 * constructed instance the way this one is.
+	 */
+	ledger: InMemoryDiagnosticsLedger;
 	store: PlanGeometryStore;
 	projects: ObsidianProjectRepository;
 	plans: ObsidianPlanRepository;

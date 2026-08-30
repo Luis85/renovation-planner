@@ -42,9 +42,11 @@ branches     98.08%  (2660/2712)
 
 **2.24 branches of headroom** before the floor of 98 — looser than the task document's *"98.02
 … roughly 0.4 of a branch"*, which was taken on an older tree. Read it as the binding
-constraint on the watcher below rather than as comfort: it is two branches, and this slice
-adds arms. The document's *"deletions help"* argument stands and is the reason to expect this
-slice to end level rather than to plan on the headroom.
+constraint rather than as comfort: it is two branches, and this slice adds arms. The reporting
+design below ended up adding markedly fewer than the notice design it replaced — no watcher, no
+session state, no transition arms — which is a real budget consequence of that simplification
+rather than an argument for it. The document's *"deletions help"* argument stands and is the
+reason to expect this slice to end level rather than to plan on the headroom.
 
 ## Correction 1: the no-bump argument is stale, and its replacement took four tries
 
@@ -131,10 +133,12 @@ so a project folder that has come to contain the library *"would take the shared
 and Trade catalogues of every project with it."* A drag can reach that state today and nothing
 anywhere says so.
 
-**The decision is to detect after the fact and warn.** Two real refusals at the two sites that
-exist, plus a watcher at **both** doors through which the drag becomes visible. A refusal is
-unavailable — the move has already happened — so the guarantee is narrowed to *the state stops
-being silent*, and the Definition of Done item is rewritten to that rather than left promising
+**The decision is to detect after the fact and RECORD.** Two real refusals at the two sites
+that exist, plus the condition reported as a derived entry in the diagnostics snapshot. A
+refusal is unavailable — the move has already happened — and an interruptive surface turned out
+to be unavailable too, for reasons the next section establishes over five review rounds. So the
+guarantee is narrowed twice: to *the state is discoverable*, rather than to a refusal or to
+anyone being told. The Definition of Done item is rewritten to that rather than left promising
 three refusals.
 
 Two alternatives were weighed and are recorded so they are not re-proposed:
@@ -148,133 +152,112 @@ Two alternatives were weighed and are recorded so they are not re-proposed:
   drag able to render a project unreadable, with the remedy outside the plugin. A refusal the
   user cannot act on from inside the surface that raised it.
 
-## The overlap watcher
+## Reporting the overlap: a derived diagnostic, not a notice
 
-**The index has TWO doors, and the first draft of this section named one of them.** It said
-`VaultChangeAdapter` was "the home, and it is the only candidate", which is false and false in
-a shape this repository has already paid for.
+**This section replaced a notice design that took five review rounds to fail.** The account of
+that is at the end, because the shape it teaches is worth more than the design it discarded.
 
-- `VaultChangeAdapter` is the incremental door — the sole index writer for notes arriving by
-  hand, copy or sync while the plugin is running, already announcing `ProjectIndexEntryChanged`
-  over an `EventBus`.
-- `RenovationPlannerPlugin` holds the other: `index.rebuild(buildProjectIndexEntries({…}))`, the
-  load-time full scan. `grep -rn "rebuild" VaultChangeAdapter.ts` returns nothing — the adapter
-  never sees one.
+### What is built
 
-A project folder moved **while Obsidian is closed or the plugin is disabled** reaches the plugin
-only through that rebuild. No mutation is ever delivered, so a watcher on the incremental door
-alone would never run — and that is the likelier path by some margin, because tidying a vault's
-folders with the app shut is exactly how people reorganise. It is also precisely the state that
-makes deleting a project take the shared library with it, so the door that misses it is the door
-that matters most.
+`foldersOverlap(a, b)` — one predicate, written in this slice (Correction 2), with **two
+refusal call sites**: creating a project, and moving the library. Those are unchanged and are
+where §83 is actually enforced.
 
-CLAUDE.md already carries the rule this violates, from the sidecar-mapping fix: **"One rule with
-two doors is two rules unless one function holds it."** That defect had the same shape down to
-the asymmetry — the join lost its folder prefix at both ends and only the full scan got a
-diagnostic, while the incremental door went on misbehaving. `sidecarMappingFor` is the shape to
-copy: one function, both callers, and the caller list measured by a test rather than asserted,
-the way `entityRef.test.ts` pins its two.
+For the third site, which has no door, `DiagnosticsSnapshot` gains one **computed** field:
 
-So the check is **one predicate asked at both doors**:
+```ts
+	/** Projects whose derived folder overlaps the library folder (§83). Derived per read. */
+	folderOverlaps: Array<{ projectId: string; projectName: string }>;
+```
 
-- **Incremental**: after an index mutation that changes a project's derived folder, ask
-  `foldersOverlap(derivedFolder, libraryFolder)` for that one entry.
-- **Load-time rebuild**: sweep every project's derived folder against the library once, after
-  the rebuild. A whole-vault sweep is not a burst of notices, because what it feeds is the
-  boolean below rather than one push per hit.
+`GetDiagnosticsSnapshotQuery` answers it by asking `foldersOverlap` of every indexed project's
+derived folder against the current `libraryFolder`. `DiagnosticsSources` gains one member
+supplying those, alongside `latestSchemaVersions()` and `lastAppliedMigration()`, which are
+already live-derived rather than ledger-backed. The query's own contract holds: everything is
+*"answered from memory, none from a vault read"* — the project index **is** memory.
 
-Reported by a review bot, which also caught that "the only candidate" was doing the work of an
-argument in a sentence that had never been checked.
+### Why this is derived rather than recorded, which is a correction
 
-Three properties follow from the architecture rather than being chosen:
+The decision was taken as *"record it into `DiagnosticsSnapshot.validationIssues`"*, and that
+would have been wrong. Measured in `diagnosticsLedger.ts`: the ledger is **append-only** —
+duplicates collapse on a `(kind, id, code)` triple and the cap evicts the oldest, but **nothing
+is ever removed because it stopped being true**. It holds read-path *refusals*, which are facts
+about reads that happened and do not become untrue. An overlap is a live *condition* that the
+user can fix, and a ledger entry for it would sit there for the rest of the session under a
+docblock promising *"an honest 'what is wrong right now'"*.
 
-- **It reports through an injected `notify`, never `presentation/notices/notify`** — the layer
-  ban refuses infrastructure reaching presentation. `CascadeDeps.notify` and
-  `ResolutionOps.notify` are the established shape, and both carry the lesson that
-  optional-for-the-suite is precisely what lets a forgetful composition root compile and say
-  nothing. So it owes a wiring test beside `slice10CascadeWiring` and `sequenceNoticeWiring`,
-  **watched red with the binding deleted** — and asserting the pair, since "a notice appeared"
-  is equally true of a build that refuses the whole index write.
-- **It reads `libraryFolder` from a supplier at check time, never from a constructor field.**
-  This is slice 18's own lesson — `NoteVaultDeps.projectFolder` was deleted for it — and here
-  it is load-bearing rather than tidy, because the library migration in this same slice changes
-  that value mid-session.
-- **The notice says THAT there is an overlap, never HOW MANY — and arriving at that took three
-  wrong drafts, each one adding mechanism where the answer was to promise less.**
+Deriving it in the query is what makes the stale-condition problem **unrepresentable** rather
+than mitigated: fix the overlap, and the next read simply does not report it. There is no
+retraction, because there was never a record.
 
-  - *Draft 1: "dedup is free."* It claimed slice 13's `(severity, message)` fold meant "three
-    overlapping projects raise one warning at ×3" — reading a display mechanism as a set
-    aggregation. Measured: `push` does `existing.count += 1` for every identical push, and
-    `startPersistence()` (which calls `index.rebuild`) is called from `onLayoutReady` **and
-    again from `saveSettings`**, its own docblock saying the build repeats. So `(×N)` counted
-    sweep runs: one overlapping project plus two unrelated settings saves displayed `×3`,
-    identically to three projects found in one sweep.
-  - *Draft 2: aggregate the set, interpolate the count, push only when the set changes.* This
-    fixed the repeat-push count and broke on a set that CHANGES while staying non-empty. The
-    dedup key is the message **text** (`entry.severity === severity && entry.message === message`),
-    `warning` has `AUTO_DISMISS_MS: null`, and this design defers retraction — so `{A}` then
-    `{A,B}` leaves *"1 project"* standing **beside** *"2 projects"*, a return to `{A}` dedups
-    against the stale first entry and shows `×2`, and enough churn consumes all three
-    `MAX_VISIBLE_NOTICES` slots with contradictory copy.
-  - *Draft 3: hold the reported set for the session.* Necessary — `saveSettings` calls
-    `createCompositionRoot(…)` and re-runs `startPersistence()`, so a set composed with the index
-    is emptied on every settings save and the rebuild re-pushes — but it does nothing about
-    draft 2's problem, because that one is about the message text rather than the push count.
+### What this deletes
 
-  **What the surface actually owes is a boolean.** The user's remedy is identical whether one
-  project overlaps or four: move something. So the watcher pushes **once on the transition from
-  no overlap to some overlap**, with FIXED text that stays true for as long as any overlap
-  stands. A set that changes while remaining non-empty pushes nothing — the warning is already
-  up and still accurate. Nothing to replace, nothing to retract while the condition holds, no
-  slot churn, and no interpolation needed here at all (item 6a still lands for slice 15's row
-  label, which is a genuinely per-value string).
+Everything the notice design needed and nothing else does:
 
-  **Which projects** goes to the log line, where a list costs nothing and is not competing for
-  three slots.
+- **No watcher at either index door.** The two-doors requirement was real *for a watcher*; a
+  query computes on demand, so neither `VaultChangeAdapter` nor the load-time `index.rebuild`
+  changes at all.
+- **No session-scoped state**, so no `saveSettings` lifetime question and no third member of
+  the root's session-collaborator argument.
+- **No transition to decide**, global or per-entry — the exact hazard of asking `foldersOverlap`
+  of one changed entry and clearing a flag that another project still justifies.
+- **No count, no dedup, no `(×N)`, no retraction, no slot cap**, and no fourth persistent
+  warning competing for three slots.
+- **No interpolation here.** Item 6a still lands for slice 15's row label, which is a genuine
+  per-value string.
 
-- **The transition state is SESSION-scoped, and the mechanism already exists.** Keeping it in
-  the composition root would mean `saveSettings` resets "was there an overlap last time" to
-  *no* on every settings save, and the rebuild that follows re-announces a condition the user
-  was already told about. `saveSettings` threads session-scoped collaborators into the new root
-  — `{ ledger: this.ledger, markers: this.sequenceMarkerStore(…) }` — and `this.ledger`'s
-  docblock states this exact rationale: *"The diagnostics ledger outlives composition roots:
-  `saveSettings` replaces the root (and with it every repository), but the validation issues
-  recorded so far describe the SESSION's vault reads."* The overlap flag is the same kind of
-  fact and becomes a third member of that argument. `activateNotices()` runs once from `onload`
-  with `disposeNotices` on the disposers, so state and surface now share a lifetime.
+### What it costs, stated plainly
 
-  **Two tests are owed and named so they are not optional.** Change an unrelated setting twice
-  over one standing overlap and assert the warning is pushed **once** — watched red by moving
-  the flag into the root. And grow the overlap set from one project to two and assert **no
-  second notice** — watched red by restoring a count-bearing message, which is the only mutation
-  that separates draft 2 from this one.
+**Nobody is told.** A user who never opens Diagnostics never learns that a folder drag put their
+project around the shared library, and the PRD's harm — deleting that project takes every
+project's catalogues — is real. This is the accepted price of the surface, not an oversight: §83's
+third site has no door to refuse at, and five rounds established that an interruptive surface
+cannot represent a standing condition under this queue. `docs/tasks/17`'s own procedure names
+exactly this trade for exactly this shape: *"NO INTERRUPTIVE SURFACE. Log it and leave a
+persisted, discoverable marker … for whoever looks at that entity, or at Diagnostics, next."*
 
-  **The residue, named rather than solved:** the queue has no retraction, so a warning raised
-  for an overlap the user then FIXES stays up until they dismiss it. Adding a retract door is
-  queue policy and belongs with the preemption question below.
+A log line at each refusal still exists (slice 11, unconditional). What does not exist is anyone
+being interrupted.
 
-  **The lesson, and it is the one this branch keeps re-teaching:** three rounds here each added
-  mechanism — a count, then state to make the count honest, then a lifetime to make the state
-  survive — when the defect was that the notice was promising something it had no business
-  promising. A condition that is either true or false needed a notice that is either up or
-  down.
+### The five rounds, compressed, because the shape is the lesson
 
-**Severity is `warning`**, which never auto-dismisses — the state persists until the user moves
-something, so a message that expires would be a message about a condition that is still true.
+Each fix was correct about the thing it fixed; none questioned the surface.
 
-## The one coupling to slice 17
+1. *"Dedup is free"* — `(×N)` counted sweep runs, not projects, because `push` increments on
+   every identical push and `startPersistence()` re-runs from `saveSettings`.
+2. *Aggregate the set and interpolate the count* — fixed that, and broke on a set that changes
+   while staying non-empty: dedup is keyed on message **text**, so `{A}` then `{A,B}` leaves two
+   contradictory warnings standing.
+3. *Hold the reported set for the session* — necessary against `saveSettings` replacing the
+   root, and orthogonal to (2).
+4. *Drop the count, push on the transition* — and a still-live stale entry means the
+   count-free warning folds into it as `×2` anyway.
+5. *Defer preemption to slice 17* — which assigns policy for an **error** preempting a warning
+   and says nothing about a fourth **warning**. The deferral was to a decision that does not
+   exist.
 
-This adds a **fourth** source of never-auto-dismissing `warning` notices.
-`docs/tasks/17-presentation-layer-error-surfacing.md` already records as an open exposure that
-the queue caps at three visible slots and that standing warnings hide every later **error** —
-including its announcement, because `announce` rides `render` and `render` runs only for a
-notice actually shown.
+**Four of the five were defects introduced by the previous fix.** A toast queue with text-keyed
+dedup, a three-slot cap, no expiry for `warning` and no retract door cannot express *"this
+condition is currently true"* — and every round spent building scaffolding around that was a
+round not spent asking whether the surface was right. The signal was available from round one:
+the fix that keeps needing another fix is usually answering the wrong question.
+## The coupling to slice 17, and its disappearance
 
-**Slice 19 adds the source and cites the exposure; slice 17 decides the policy.** Queue
-preemption is that slice's table. Two branches deciding it independently is how the second
-derivations this repository keeps deleting get made, and this is the single point at which the
-two parallel tracks touch — named here so it is a known merge conversation rather than a
-discovery.
+**There was one, and taking the diagnostics surface removed it.** The notice design added a
+fourth source of never-auto-dismissing `warning` notices, against a queue that caps at three
+visible slots — so it depended on a warning-versus-warning preemption policy that slice 17 does
+not define. (Its recorded exposure is that standing warnings hide every later **error**; a
+fourth warning is a different question and an open one.) This slice would have been shipping a
+detection guarantee that a full queue silently voided.
+
+**Slice 19 now touches no notice surface at all**, so the two parallel tracks have no contact
+point: nothing here constrains slice 17's table, and nothing in that table changes what this
+slice reports. Recorded because the coupling was real when the branch opened and its absence is
+a consequence of a decision rather than of the tracks never having overlapped.
+
+What slice 19 does take FROM slice 17 is its decision procedure — the row naming a persisted,
+discoverable marker as the correct surface where no interruptive one is. That is a dependency
+on a document, not on a mechanism, and it runs in the direction the slice numbers already do.
 
 ## Amendments owed to `docs/tasks/19`
 
@@ -284,9 +267,11 @@ discovery.
 - `foldersOverlap` described as written here, not as existing.
 - The Design section's *"creating a project and changing a project's folder (slice 18's two
   sites)"* — slice 18 has one such site, not two.
-- The Definition of Done's three-refusals item, split: two refusals, plus **one overlap
-  predicate asked at both index doors** — the incremental adapter and the load-time rebuild —
-  whose guarantee is detection and whose surface is a persistent warning.
+- The Definition of Done's three-refusals item, split: **two refusals** at the sites that have
+  a door, plus a **derived `DiagnosticsSnapshot.folderOverlaps`** for the site that does not.
+  The guarantee is discoverability, not a refusal and not a notification, and the item must say
+  so — it is the second time this criterion has been narrowed, and a criterion that quietly
+  keeps its old wording is how the gap between promise and check reopens.
 - `PersistenceError` → `RepositoryError` in the `Interfaces & Contracts` snippets.
 
 ## What this does not change
@@ -333,7 +318,10 @@ still held a false release-commit id, is a reminder that a checklist covers what
 
 **What this does not make true.** Re-running a recorded command proves the command answers what
 the file says it answers today. It says nothing about the claims here that are judgements rather
-than measurements — that `VaultChangeAdapter` and the load-time rebuild are the *only* two index
-doors, that the watcher's severity should be `warning`, or that slice 17 rather than this slice
-owns queue preemption. Those are still arguments, and the three findings above were all
-originally arguments that read as settled.
+than measurements — that discoverability is an acceptable guarantee for §83's third site, that
+the diagnostics query is the right home for a derived condition, or that two refusals plus a
+derived entry is what §83 should now be read as asking for. Those are still arguments, and every
+finding this branch took was originally an argument that read as settled. The strongest evidence
+for that: the notice design survived five rounds of *fixes* before anyone asked whether it was
+the right surface, and the answer took one measurement of a docblock that had been there all
+along.

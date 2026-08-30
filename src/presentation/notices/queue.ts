@@ -183,6 +183,17 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 				resume: () => {
 					entry.paused = false;
 					ops.arm(entry);
+					// **And retry preemption, because this entry may have been the only thing
+					// blocking it.** `promote` refuses to demote a warning somebody is reading, so
+					// an error arriving during that interaction stays held — and a warning has no
+					// auto-dismiss timer, so `arm` above schedules nothing and no later event is
+					// guaranteed to run `promote` again. Without this the error waits, invisible
+					// and unannounced, for an unrelated push or dismissal.
+					//
+					// The pause guard and this retry are one mechanism, not two: protecting a
+					// notice under the pointer is only correct if the protection ENDS with the
+					// interaction.
+					ops.promote();
 				},
 			});
 			ops.arm(entry);

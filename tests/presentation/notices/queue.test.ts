@@ -153,6 +153,25 @@ describe('the notice queue', () => {
 			expect(opened.map((o) => o.view.message)).not.toContain('held-warning');
 		});
 
+		it('preempts as soon as the interaction that protected a warning ends', () => {
+			// **The hole the pause guard opened, and the reason it needs closing rather than
+			// reverting.** Holding the error while every warning is being read is right; leaving
+			// it held once the pointer moves away is not. A warning has no auto-dismiss timer, so
+			// `arm` does nothing for it and `resume` alone would never retry — the error would
+			// stay invisible AND unannounced until some unrelated push or dismissal happened to
+			// run `promote` again.
+			const { queue, live, opened } = threeStandingWarnings();
+			for (const entry of opened) entry.callbacks.pause();
+			queue.push('error', 'urgent');
+			expect(live().map((o) => o.view.message)).toEqual(['first', 'second', 'third']);
+
+			// The user moves the pointer off the newest warning.
+			opened[2]?.callbacks.resume();
+
+			expect(live().map((o) => o.view.message)).toContain('urgent');
+			expect(live().map((o) => o.view.message)).not.toContain('third');
+		});
+
 		it('does not preempt for another WARNING', () => {
 			// The narrowing, and it needs its own case: a rule letting any later notice preempt
 			// would pass all three cases above while making the cap mean nothing.

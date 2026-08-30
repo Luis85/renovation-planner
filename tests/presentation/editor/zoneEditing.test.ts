@@ -476,6 +476,130 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		harness.unmount();
 	});
 
+	/**
+	 * The four cases below close the gaps the audit of
+	 * `docs/tests/cases/Zone Editing Walkthrough.md` found — its steps 1, 2, 7 and 14. Each
+	 * was a step the suite was ASSUMED to cover: two because the only interaction-layer
+	 * assertion in the editor suite counts `Circle` nodes and is silent about everything
+	 * beside them, and two because the undo side of a gesture was never driven end to end.
+	 */
+
+	it('draws the accent OUTLINE beside the handles, which a Circle count cannot see', async () => {
+		const { harness } = await rig();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		click(canvas, 200, 200);
+		await settle();
+
+		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
+		// The handles were already asserted elsewhere; this is the shape drawn BESIDE them,
+		// and an outline that stopped being drawn would leave that count untouched.
+		const outlines = interaction?.find<Konva.Line>('Line') ?? [];
+		expect(outlines).toHaveLength(1);
+		expect(outlines[0]?.closed()).toBe(true);
+		// The fixture rect (1500..4400)² through the default camera: world = 10 × screen − 480.
+		expect(outlines[0]?.points()).toEqual([198, 198, 488, 198, 488, 388, 198, 388]);
+
+		harness.unmount();
+	});
+
+	it('takes the outline and the handles down on deselection, not just the store entry', async () => {
+		const { harness } = await rig();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		click(canvas, 200, 200);
+		await settle();
+
+		const interaction = harness.stage?.findOne<Konva.Layer>('.interaction');
+		expect(interaction?.find('Circle')).toHaveLength(ZONE_A_DTO.points.length);
+		expect(interaction?.find('Line')).toHaveLength(1);
+
+		// (700,500) is world (6520,4520) — outside the fixture rect, so this is empty canvas.
+		click(canvas, 700, 500);
+		await settle();
+
+		// The store emptying and the panel reading "Nothing selected." are asserted by the
+		// unit suite. What neither can see is the CANVAS: handles left behind would satisfy
+		// both and go on being drawn over a zone the user no longer has selected.
+		expect(interaction?.find('Circle')).toHaveLength(0);
+		expect(interaction?.find('Line')).toHaveLength(0);
+
+		harness.unmount();
+	});
+
+	it('undoes a VERTEX edit to every original point, not just the one that moved', async () => {
+		const { harness, zonesRepo } = await rig();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		click(canvas, 200, 200);
+		await settle();
+
+		pointer(canvas, 'pointerdown', 199, 199);
+		pointer(canvas, 'pointermove', 250, 250);
+		pointer(canvas, 'pointerup', 250, 250);
+		await until(
+			async () => (expectOk(await zonesRepo.getById('zone-a' as never)))
+				?.entity.geometry.points[0]?.x === 2020,
+			'the vertex drag to land in the repository',
+		);
+
+		toolbarButton(harness, 'Undo').click();
+		await until(
+			async () => (expectOk(await zonesRepo.getById('zone-a' as never)))
+				?.entity.geometry.points[0]?.x === 1500,
+			'the undo of the vertex edit to restore the moved point',
+		);
+
+		// EVERY point, not only the moved one. A `SelectTool` that snapshotted the geometry
+		// AFTER the edit would restore the dragged vertex and leave the rest as they are —
+		// which is indistinguishable from correct until the whole array is compared.
+		const restored = expectOk(await zonesRepo.getById('zone-a' as never));
+		expect(restored?.entity.geometry.points).toEqual(ZONE_A_DTO.points);
+
+		harness.unmount();
+	});
+
+	it('redoes a DELETE, which is the one command whose own undo put the entity back', async () => {
+		const { harness, zonesRepo } = await rig();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		click(canvas, 200, 200);
+		await settle();
+
+		toolbarButton(harness, 'Delete zone').click();
+		await until(
+			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).length === 0,
+			'the delete to land in the repository',
+		);
+
+		toolbarButton(harness, 'Undo').click();
+		await until(
+			async () => (expectOk(await zonesRepo.getById('zone-a' as never))) !== null,
+			'the undo of the delete to restore the zone',
+		);
+
+		toolbarButton(harness, 'Redo').click();
+		await until(
+			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).length === 0,
+			'the redo of the delete to remove the zone again',
+		);
+		expect(expectOk(await zonesRepo.getById('zone-a' as never))).toBeNull();
+
+		harness.unmount();
+	});
+
 	it('using the runtime outside the provider fails at the mount point', () => {
 		expect(() => {
 			mount(

@@ -82,7 +82,7 @@ standing and one that renames it breaks the citation visibly.
 | 4 | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* |
 | 5 | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* |
 | 6 | `zoneEditing` *drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)* — the whole step, including the area changing without a reselect |
-| 7 | **PARTIAL.** The forward half is `selectTool` *dragging a vertex replaces exactly that index and keeps every other vertex*, and the adapter is `reversibleMoveZoneCommand`. **Nothing undoes a vertex edit.** See the gaps below |
+| 7 | `selectTool` *dragging a vertex replaces exactly that index and keeps every other vertex* — whose LAST line asserts `gesture.inverse.points`, so the inverse is covered at the dispatch boundary — plus `zoneEditing` *undoes a VERTEX edit to every original point*, which drives the same claim through the history and the repository |
 | 8 | `drawPolygonTool` *three vertices plus a close click produce exactly ONE dispatched command and a selection*; `interactionLayer` *marks every placed vertex, and draws the first one as the close target*; `handleMetrics` *grows the start vertex on hover, and draws it larger than an ordinary vertex at rest*. The **both-files** half is `consistency` *a failed sidecar write after an INSERT deletes the created note — not "restores nothing"* |
 | 8a | `interactionLayer` *grows the close target while the pointer is close enough to CLOSE the shape* covers the GROW. The FILL is a resolved theme colour and stays `browser` |
 | 8b | `interactionLayer` *flattens the rubber band the moment Shift goes down, with the pointer still* and *lets go again on release, just as promptly*. The toolbar-focus clause — Chromium focusing the nearest focusable ancestor — stays `browser` |
@@ -97,21 +97,26 @@ standing and one that renames it breaks the citation visibly.
 | 17 | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
 | 18 | `canvasPointerRouting` *a reflexive right-click mid-drag does not commit the move; the primary release still does*; `selectTool` *a NON-PRIMARY release during a drag does not commit the move* |
 
-### The four gaps
+### The gaps, and the one that was not
 
 None is visible from a test name — the suite looks complete until the bodies are read, which is
-the argument for auditing by reading rather than by grep. **Two of the four were missed by the
-first pass of this very audit and found by a reviewer**, which is the argument for not trusting
-it unreviewed either; that pass read the body it was pointed at, found an assertion covering
-PART of the step, and wrote the step down as discharged.
+the argument for auditing by reading rather than by grep. **Two were missed by the first pass of this very audit and
+found by a reviewer, and a fourth it reported turned out not to be a gap at all** — which is
+the argument for not trusting an audit unreviewed either. That pass read the body it was
+pointed at, found an assertion covering PART of a step, and wrote the step down as discharged;
+at step 7 it made the opposite error, reading a test's NAME as its whole claim and calling
+covered ground a gap.
 
-- **Step 7 — no test undoes a vertex edit.** `reversible-move-zone-command.ts` states that a
-  vertex drag and a body drag are the SAME command ("there is no second class and there was
-  never going to be one"), so the adapter is covered by step 5's case and the forward edit by
-  `selectTool`. What is untested is the INVERSE polygon, which `SelectTool` computes — one
-  index replaced for a vertex, every point translated for a body — and which lives on the
-  side of that seam no case crosses. A `SelectTool` that snapshotted the geometry AFTER the
-  edit would pass every test in this repository and undo nothing.
+- **Step 7 was NOT a gap, and this entry is the correction.** The first pass claimed "a
+  `SelectTool` that snapshotted the geometry AFTER the edit would pass every test in this
+  repository and undo nothing". That was measured and is false: writing the mutation turns
+  `selectTool`'s own vertex case red, because its last line — three lines below the name the
+  audit read — asserts `gesture.inverse.points` against the whole pre-drag list. What was
+  genuinely undriven is narrower: no case pressed Undo after a vertex edit and looked at the
+  REPOSITORY, so the dispatch-to-vault link was untested even though the polygon handed to the
+  dispatcher was not. `zoneEditing` *undoes a VERTEX edit to every original point* now drives
+  it, and it is a second net over a defect the unit case already catches rather than the only
+  one.
 - **Step 14 — no test redoes a delete.** `commandHistory` proves redo moves a command between
   the stacks, with fake commands; `zoneEditing` redoes a CREATE and asserts the id survives.
   A redo of `ReversibleDeleteZone` — which must delete an entity its own undo restored — is
@@ -132,6 +137,16 @@ release. Neither is a defect: they are steps the suite was assumed to cover and 
 Steps 1 and 2 stay `suite`: Konva nodes are countable in jsdom — `zoneEditing` already counts
 them — so these are tests nobody has written rather than claims jsdom cannot reach.
 
+**All four cases were watched failing against a mutation, and two of the four mutations are
+the evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
+`InteractionLayer.vue` reddens the two new overlay cases and leaves the other thirteen in this
+file green, which is what "a `Circle` count is silent about the outline beside it" MEANS.
+Leaving the overlay behind on deselection — the store still clearing correctly — reddens the
+new case while all eighteen of `selectTool`'s and all eighteen of `inspectorStore`'s stay
+green: fifty of fifty-one passing is the measurement that a state assertion cannot see a
+canvas. Making a redo of a delete write nothing reddens exactly one case, the new one. And the
+vertex mutation reddened two, which is how the step 7 correction above was found.
+
 ### What the pilot cost, for the eight cases still to do
 
 Twenty steps, and the useful measure is not the time but WHERE the coverage turned out to be.
@@ -139,9 +154,10 @@ Four of the twenty are discharged by a test in a file no reader of this case wou
 step 1's handle count sits inside the case named for step 6, and the both-files halves of
 steps 8 and 12 are in `consistency.test.ts`, two directories away from the editor. A
 name-matching pass would have marked step 1 a gap and taken steps 8 and 12 on trust. Budget
-the audit for reading bodies, and expect roughly **one true gap in five steps** — four in
-twenty here, after review. The first figure written on this line was one in ten, from the two
-gaps this audit found before a reviewer found the two it had missed.
+the audit for reading bodies, and expect roughly **three true gaps in twenty steps**. This
+line has now carried three figures: one in ten from the pass that missed two, one in five once
+a reviewer found them, and this one once writing the tests proved a fourth was never a gap.
+Read the number as the range an audit lands in, not as a rate anybody has established.
 
 ## Deliberately NOT checked
 

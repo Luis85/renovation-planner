@@ -104,16 +104,17 @@ writing it, is what converts that step from something a human does into somethin
 **One case has now had that done, and it is the template for the other eight.**
 [[Zone Editing Walkthrough]] carries a *What discharges each step* section naming the test
 behind each of its twenty `suite` and `browser` verdicts, read from the test BODY rather than
-matched on a name. Sixteen were discharged and four were not — nothing undoes a vertex edit,
-nothing redoes a delete, nothing asserts the selection OUTLINE, and nothing looks at the
-interaction layer after a DESELECTION. Not one of the four is visible from a test name.
+matched on a name. Seventeen were discharged and three were not: nothing asserted the selection
+OUTLINE, nothing looked at the interaction layer after a DESELECTION, and nothing redid a
+delete. All three now have cases, each watched failing against a mutation.
 
-**Two of those four were missed by the audit's own first pass and found by a reviewer**, which
-is the number to plan against rather than the tidy one. That pass read the body it was pointed
-at, found an assertion covering PART of a step — a `Circle` count that is the vertex handles
-and says nothing about the outline beside them — and wrote the step down as discharged. So the
-rate is roughly **one true gap in five steps**, and an audit wants a second reader as much as
-the triage did.
+**The audit was wrong in BOTH directions before those tests were written, which is the number
+to plan against rather than the tidy one.** Its first pass missed the two overlay gaps — it
+read the body it was pointed at, found an assertion covering PART of a step, and wrote the step
+down as discharged — and a reviewer found them. It also reported a fourth gap that was not one:
+it read a test's NAME as its whole claim and called the vertex inverse untested, where that
+test's last line asserts it. So an audit wants a second reader as much as the triage did, and
+writing the test is what settles a gap claim, because a mutation cannot be argued with.
 
 What the pilot also measured is where coverage turned out to LIVE: four of the twenty are
 discharged by a case in a file no reader of that walkthrough would open, including its step 1,

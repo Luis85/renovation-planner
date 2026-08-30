@@ -41,6 +41,13 @@
 	// `type-safety.test-d.ts` above is read by `vue-tsc` rather than imported. Named rather
 	// than globbing `tests/fixtures/**`, for the reason `dynamicallyLoaded`'s own comment gives
 	// about the concept stylesheets: a glob absorbs the next fixture and tells nobody.
+	// `tests/build/fixtures/brokenFake.fixture.ts` and its `vitest.brokenFake.config.ts` are a
+	// seventh kind: a deliberately failing spec run by a SPAWNED CHILD vitest, reachable only
+	// through that child's own `include` glob. Nothing imports either and no npm script runs
+	// them — `tests/build/contractDiscriminates.test.ts` spawns the child and reads its exit
+	// code — so fallow's import graph reaches neither and reports both dead. Named rather than
+	// globbed `tests/build/fixtures/**`, for the reason `dynamicallyLoaded`'s own comment gives:
+	// a glob absorbs the next fixture and tells nobody.
 	"entry": [
 		"src/main.ts",
 		"tests/harness/page.ts",
@@ -51,7 +58,9 @@
 		"tests/application/ports/diagnostics.test-d.ts",
 		"tests/presentation/editor/type-safety.test-d.ts",
 		"src/prototypes/**/*.vue",
-		"tests/fixtures/promotion/ZoneSummary.promoted.vue"
+		"tests/fixtures/promotion/ZoneSummary.promoted.vue",
+		"tests/build/fixtures/brokenFake.fixture.ts",
+		"tests/build/fixtures/vitest.brokenFake.config.ts"
 	],
 	// Loaded by a page, never imported by a module — which is what this key is for.
 	// `docs/user-experience/concepts/*.css` are the concept mocks' sheets: the static HTML

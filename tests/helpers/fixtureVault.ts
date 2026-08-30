@@ -285,8 +285,35 @@ class FixtureVaultAdapter {
 	 * to reach the real filesystem and is never itself assigned into a returned object, so
 	 * nothing above this line can leak a native separator into a `TFile`.
 	 */
+	/**
+	 * The one place a vault-relative path becomes a native one — and therefore the one place
+	 * that can be asked whether it is still inside the clone.
+	 *
+	 * `join` NORMALIZES, so a `..` segment silently walks out: measured, `join(root,
+	 * '../escaped.md')` answers a sibling of the clone and `'../../etc/passwd'` answers an
+	 * absolute path nowhere near it. Every read, every write and `delete`'s recursive
+	 * `rmSync` resolve through here, so an escaping path is not a wrong answer — it is a real
+	 * filesystem operation on somebody else's directory, under a class whose whole claim is
+	 * isolation.
+	 *
+	 * `dispose()` already asks `isUnderTempDir` before its own `rmSync`. That guarded the door
+	 * that deletes the clone and left the door that does all the other work unguarded — this
+	 * repository's own recurring shape: a question worth asking at one door is a FUNCTION, and
+	 * the moment it is spelled out longhand anywhere, the count of places it is missing is
+	 * unknowable. This asks the stricter question of the two, because `isUnderTempDir` admits
+	 * any sibling clone under `tmpdir()` and containment here means THIS root.
+	 *
+	 * A throw rather than a refusal: an escaping path is a defect in the caller, not a vault
+	 * state a test is entitled to observe, and `''` (the vault root itself) stays legal
+	 * because `nodeAt('')` looks it up.
+	 */
 	private absolute(vaultPath: string): string {
-		return join(this.root, ...vaultPath.split('/'));
+		const resolved = join(this.root, ...vaultPath.split('/'));
+		const contained = relative(this.root, resolved);
+		if (contained.startsWith('..') || isAbsolute(contained)) {
+			throw new Error(`Path escapes the fixture clone: ${vaultPath}`);
+		}
+		return resolved;
 	}
 }
 

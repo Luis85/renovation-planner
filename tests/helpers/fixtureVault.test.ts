@@ -255,4 +255,33 @@ describe('the fixture vault adapter', () => {
 
 		expect(loaded?.entity.name).toBe('Valid Project');
 	});
+	/**
+	 * Hardening rule 4, added after a review bot found the hole: **no path resolves outside
+	 * the clone.**
+	 *
+	 * `absolute()` is the single boundary between a vault-relative path and a native one, so
+	 * every read, every write and `delete`'s recursive `rmSync` goes through it — and `join`
+	 * normalizes, so a `..` segment walked straight out of the clone and operated on a
+	 * sibling. `dispose()`'s own guard covered the door that deletes the clone and not the
+	 * door that does everything else.
+	 *
+	 * Asserted on `delete` as well as `create`, because they fail differently and only one of
+	 * them is destructive: a create that escapes writes one file somewhere it should not, a
+	 * delete that escapes takes a directory and everything under it. Both arms, and the
+	 * legal-root case beside them, because a guard that refused `''` would break
+	 * `getAbstractFileByPath('')`'s lookup of the vault root and no other case here would say
+	 * so.
+	 */
+	it('refuses any path that resolves outside the clone, on every door', async () => {
+		open = await openFixtureVault('valid-project');
+		const root = open.root;
+
+		await expect(open.vault.create('../escaped.md', 'x')).rejects.toThrow(/escapes the fixture clone/u);
+		await expect(open.vault.create('a/../../escaped.md', 'x')).rejects.toThrow(/escapes the fixture clone/u);
+		expect(() => open?.vault.getAbstractFileByPath('../escaped.md')).toThrow(/escapes the fixture clone/u);
+
+		// The vault ROOT itself is legal and must stay so — `nodeAt('')` looks it up.
+		expect(open.vault.getAbstractFileByPath('')).not.toBeNull();
+		expect(existsSync(join(root, 'Project.md'))).toBe(true);
+	});
 });

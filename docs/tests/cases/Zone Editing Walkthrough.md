@@ -232,7 +232,10 @@ would NOT have before the note assertion stopped asking the INDEX for a path the
 just removed, which answered `undefined` for a note still sitting in the vault. A ninth, an
 Undo button with its condition dropped, reddens the new disabled case and nothing else — every
 other assertion on that control in this suite is `disabled === false` and an always-live Undo
-satisfies all of them.
+satisfies all of them. The tenth is step 13's, written out under that bullet rather than here
+because the claim it supports is a correction: publishing `zoneCreated` from inside
+`restoreEntity`, through the delete command's own `ops.events`, reddens the new event-silence
+case and leaves the other seven in that file green.
 
 ### What the pilot cost, for the eight cases still to do
 

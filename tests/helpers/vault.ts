@@ -30,13 +30,36 @@ class VaultEntries extends Map<string, string> {
 		super();
 	}
 
+	/**
+	 * Modification times, as a monotonic counter rather than a clock.
+	 *
+	 * The mock `TFile` has carried a `stat` field since it was written and it was always
+	 * `{ mtime: 0, size: 0 }` — a field that type-checks and says nothing, which is worse
+	 * than an absent one because a reader believes it. It is populated now, because
+	 * `frontmatterOf` asks whether a file has changed since this plugin wrote it.
+	 *
+	 * **A counter is KINDER than a real filesystem in exactly one way, and it is written
+	 * down rather than hidden**: every write here changes the mtime, where a real clock has
+	 * finite granularity and two writes inside one tick can share one. So the same-tick
+	 * collision is a case this fake cannot produce, and the guard reading these values
+	 * states that as its own bound rather than claiming to be proof.
+	 */
+	private readonly mtimes = new Map<string, number>();
+	private clock = 0;
+
+	statOf(path: string): { mtime: number; size: number } {
+		return { mtime: this.mtimes.get(path) ?? 0, size: (this.get(path) ?? '').length };
+	}
+
 	override set(path: string, text: string): this {
 		this.onOutsideWrite(path);
+		this.mtimes.set(path, ++this.clock);
 		return super.set(path, text);
 	}
 
 	/** `FakeVault`s own writers, which record their own parse-lag entry and must not retire it. */
 	setOwn(path: string, text: string): void {
+		this.mtimes.set(path, ++this.clock);
 		super.set(path, text);
 	}
 }
@@ -132,6 +155,7 @@ class FakeVault {
 			file.name = segments.at(-1) ?? '';
 			file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/, '');
 			file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
+			file.stat = this.entries.statOf(path);
 			return file;
 		}
 		if (this.folderExists(path)) {

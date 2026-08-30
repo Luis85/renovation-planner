@@ -22,6 +22,7 @@ import { parsePersisted } from '../../persistence/mappers/parse';
 import {
 	ensureFolder,
 	cacheReading,
+	fileStatAt,
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
@@ -223,7 +224,7 @@ export class ObsidianZoneRepository {
 			projectId: zone.projectId,
 			planId: zone.planId,
 		});
-		this.deps.echo.markFrontmatter(notePath, dto, supersedes);
+		this.deps.echo.markFrontmatter(notePath, dto, { reading: supersedes, stat: fileStatAt(this.deps.vault, notePath) });
 
 		return ok({ entity: zone, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}

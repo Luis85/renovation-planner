@@ -136,6 +136,27 @@ export interface FrontmatterSource {
 }
 
 /**
+ * A file's own mtime and size as one comparable string — what `EchoWindow` records after a
+ * write and what `frontmatterOf` compares against on the next read.
+ *
+ * Deliberately not a content hash: this is asked on every read, and hashing a note's bytes
+ * would mean reading them, which `frontmatterOf` is synchronous precisely to avoid.
+ */
+function fileStatToken(file: TFile): string {
+	return `${file.stat.mtime}:${file.stat.size}`;
+}
+
+/**
+ * The same reading, taken through a path rather than a handle, so a writer can ask for it
+ * AFTER its own write — the moment that matters, and one the pre-write `TFile` cannot answer
+ * on a host that hands out immutable file handles.
+ */
+export function fileStatAt(vault: Vault, path: string): string | undefined {
+	const file = vault.getAbstractFileByPath(path);
+	return file instanceof TFileValue ? fileStatToken(file) : undefined;
+}
+
+/**
  * The frontmatter of a note — via `MetadataCache`, not raw parsing, with `EchoWindow` as
  * the fallback for the two windows the cache cannot answer for itself.
  *
@@ -189,12 +210,23 @@ export function frontmatterOf(source: FrontmatterSource, file: TFile): Record<st
 	if (cached === null) return source.echo.frontmatterAt(file.path) ?? {};
 	const parsed = cached.frontmatter;
 	if (parsed === undefined) return {};
-	const superseded = source.echo.supersededToken(file.path);
-	if (superseded !== undefined && observeFrontmatter(parsed) === superseded) {
-		return source.echo.frontmatterAt(file.path) ?? parsed;
-	}
-	return parsed;
+	const written = source.echo.frontmatterAt(file.path);
+	if (written === undefined) return parsed;
+
+	// 1. Is this still the file WE wrote? A cache token cannot answer that — an unparsed
+	//    external edit is invisible to the cache by definition — so the FILE is asked. A
+	//    mismatch withdraws the fallback, which is the safe direction: this guard can only
+	//    refuse the echo more often than a version without it, never less.
+	const stat = source.echo.observedFileStat(file.path);
+	if (stat === undefined || stat !== fileStatToken(file)) return parsed;
+
+	// 2. Is the cache showing a state that is OURS and superseded? Any earlier write of ours
+	//    counts, not just the reading taken before the latest one: Obsidian may parse an
+	//    intermediate write while a later one is still unparsed.
+	if (!source.echo.supersededStates(file.path).has(observeFrontmatter(parsed))) return parsed;
+	return written;
 }
+
 
 /**
  * What Obsidian's metadata cache is showing for a note RIGHT NOW, as a token — or

@@ -313,6 +313,84 @@ describe('reading back inside the metadata cache parse window', () => {
 });
 
 /**
+ * A read that must have found something, without a non-null assertion: these cases have just
+ * written the note they are reading, so an absent one is a broken fixture and says so here
+ * rather than at whichever property is touched next.
+ */
+function asLoaded<T>(loaded: T | null): T {
+	if (loaded === null) throw new Error("the fixture wrote a note this read did not find");
+	return loaded;
+}
+
+/**
+ * The two P1s a review of the parse-lag fix found, both driven rather than argued.
+ *
+ * They share a root: a comparison of cache TOKENS cannot tell "the cache is behind US" from
+ * "the cache is behind SOMEBODY ELSE", and it cannot see an external edit at all, because an
+ * unparsed edit is by definition invisible to the cache. So the echo is served only when BOTH
+ * questions answer yes — is the file still the one we wrote, and is the cache showing a state
+ * of ours that we have since superseded.
+ */
+describe('the echo fallback refuses itself when it cannot prove the cache is behind US', () => {
+	/**
+	 * The one that was a REGRESSION rather than a gap. Before the parse-lag fix this save was
+	 * refused — the stale cached revision differed from the expectation the command held — and
+	 * the fix turned that refusal into a silent overwrite of somebody else's edit, which is the
+	 * exact harm the conditional-write contract exists to prevent.
+	 */
+	it('does not hide, or overwrite, an external edit that landed during the window', async () => {
+		const stack = createRepositoryStack();
+		const id = makeProjectEntity().id;
+		expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'Original' }), 'absent'));
+		stack.metadataCache.catchUp();
+		const path = stack.index.getPath(id) as string;
+		const before = stack.vault.entries.get(path) as string;
+
+		const read = expectOk(await stack.projects.getById(id));
+		const ours = expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'Ours' }), asLoaded(read).version));
+
+		// Somebody else writes, and Obsidian has parsed NEITHER write.
+		stack.vault.entries.set(path, before.replace(/name: .*/, 'name: Edited by hand'));
+		stack.vault.pendingParse.set(path, before);
+
+		// NOT our own bytes. It cannot be the external edit either — the cache has not parsed
+		// that, and this function does not read files — so the honest answer is the stale cache,
+		// which is what makes the conditional write below refuse rather than overwrite.
+		expect(expectOk(await stack.projects.getById(id))?.entity.name).not.toBe('Ours');
+		expect((await stack.projects.save(makeProjectEntity({ id, name: 'Ours again' }), ours.version)).ok).toBe(false);
+		expect(stack.vault.entries.get(path)).toContain('Edited by hand');
+	});
+
+	/**
+	 * The one that was already there and which the fix narrowed without closing: two writes
+	 * inside one window, and Obsidian parses the FIRST before the second. The cached token then
+	 * matches neither the reading taken before the latest write nor the latest echo, so the
+	 * intermediate state was served as if it were current.
+	 */
+	it('serves the latest write when the cache has parsed only an earlier one of ours', async () => {
+		const stack = createRepositoryStack();
+		const id = makeProjectEntity().id;
+		expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'Original' }), 'absent'));
+		stack.metadataCache.catchUp();
+		const path = stack.index.getPath(id) as string;
+		const before = stack.vault.entries.get(path) as string;
+
+		const first = expectOk(await stack.projects.getById(id));
+		expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'First' }), asLoaded(first).version));
+		stack.vault.pendingParse.set(path, before);
+		const afterFirst = stack.vault.entries.get(path) as string;
+
+		const second = expectOk(await stack.projects.getById(id));
+		expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'Second' }), asLoaded(second).version));
+
+		// Obsidian's queue reaches the first write's bytes, before the second are parsed.
+		stack.vault.pendingParse.set(path, afterFirst);
+
+		expect(expectOk(await stack.projects.getById(id))?.entity.name).toBe('Second');
+	});
+});
+
+/**
  * The second defect a live vault found, on the very next command after the parse-window one
  * was fixed: "the geometry sidecar could not be created".
  *

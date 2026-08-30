@@ -8,6 +8,7 @@ import type { RequirementRepository } from '../../../application/ports/Requireme
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import {
 	cacheReading,
+	fileStatAt,
 	persistenceError,
 	writeOwnedFrontmatter,
 } from '../repositories/noteIo';
@@ -136,6 +137,8 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 					),
 				);
 			}
+			// BEFORE the write: what the cache shows now. The stat is taken AFTER it.
+			const reading = cacheReading(this.deps, file);
 			try {
 				await writeOwnedFrontmatter(this.deps.fileManager, file, dto);
 			} catch (cause) {
@@ -143,7 +146,7 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 			}
 			// `markStale` writes without bumping the revision, so the pre-write reading is the
 			// only thing that can tell a lagging cache from a caught-up one here.
-			this.deps.echo.markFrontmatter(file.path, dto, cacheReading(this.deps, file));
+			this.deps.echo.markFrontmatter(file.path, dto, { reading: reading, stat: fileStatAt(this.deps.vault, file.path) });
 			return ok(undefined);
 		});
 	}

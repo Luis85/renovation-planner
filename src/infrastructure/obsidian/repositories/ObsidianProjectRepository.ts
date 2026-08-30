@@ -9,6 +9,7 @@ import { revisionConflict } from '../../../application/ports/versioning';
 import { projectFromPersistence, projectToPersistence } from '../../persistence/mappers/projectMapper';
 import {
 	cacheReading,
+	fileStatAt,
 	ensureFolder,
 	frontmatterOf,
 	migrateNote,
@@ -141,7 +142,7 @@ export class ObsidianProjectRepository {
 		}
 
 		this.deps.index.upsert({ id: project.id, type: 'renovation-project', path });
-		this.deps.echo.markFrontmatter(path, dto, supersedes);
+		this.deps.echo.markFrontmatter(path, dto, { reading: supersedes, stat: fileStatAt(this.deps.vault, path) });
 
 		return ok({ entity: project, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}

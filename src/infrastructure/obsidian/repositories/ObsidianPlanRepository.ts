@@ -9,6 +9,7 @@ import { revisionConflict } from '../../../application/ports/versioning';
 import { calibrationFromPersistence, planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
 import {
 	cacheReading,
+	fileStatAt,
 	ensureFolder,
 	frontmatterOf,
 	openNoteById,
@@ -213,7 +214,7 @@ export class ObsidianPlanRepository {
 			// a location behind the index's back (ADR-011) — the rebuild is the repair.
 			geometrySidecarPath: this.deps.index.getGeometrySidecarPath(plan.id),
 		});
-		this.deps.echo.markFrontmatter(note.path, dto, supersedes);
+		this.deps.echo.markFrontmatter(note.path, dto, { reading: supersedes, stat: fileStatAt(this.deps.vault, note.path) });
 
 		return ok({ entity: plan, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}

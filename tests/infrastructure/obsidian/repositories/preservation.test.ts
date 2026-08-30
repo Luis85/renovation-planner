@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
-import { expectOk } from '../../../helpers/domain';
+import { expectFound, expectOk } from '../../../helpers/domain';
 import {
 	makeAsset,
 	makePlan,
@@ -88,7 +88,7 @@ const PRESERVATION_CASES: ReadonlyArray<{
 		reads: 'Renamed plan',
 		drive: async (stack) => {
 			const { projectId, planId } = await seedPlan(stack);
-			const read = expectOk(await stack.plans.getById(planId));
+			const read = expectFound(await stack.plans.getById(planId));
 			await expectTargetedUpdatePreservesUserContent({
 				stack,
 				id: planId,

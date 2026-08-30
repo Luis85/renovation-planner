@@ -1,5 +1,5 @@
 import type { App } from 'vue';
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { mount, type GlobalMountOptions, type VueWrapper } from '@vue/test-utils';
 import VueKonva from 'vue-konva';
 import IndexPage from './IndexPage.vue';
 import { harnessEditorContext, seedFixture } from './fixture';
@@ -32,14 +32,18 @@ import { componentEntries, prototypeEntries, registerEntries, registrableCompone
  * test the consequence is what matters, and `IndexPage.vue` already turns an unresolved tag into
  * a named entry failure a case can assert on.
  *
+ * Typed as `GlobalMountOptions` — Vue Test Utils' own — rather than the hand-written
+ * `{ plugins: unknown[]; provide: Record<symbol, unknown> }` it carried until `tests/**` was
+ * type-checked. That shape is a near-miss, not a typo: `plugins` is `unknown[]` where VTU
+ * wants installable plugins, so every one of this function's three call sites failed at the
+ * `global:` position while the annotation itself read as deliberate. One signature, three
+ * errors.
+ *
  * Called per mount rather than built once: `seedFixture()` creates and installs a fresh Pinia,
  * and two mounts sharing one would share whatever the first left behind — the reproducibility
  * the fixture exists for.
  */
-export function indexAppConfig(): {
-	plugins: unknown[];
-	provide: Record<symbol, unknown>;
-} {
+export function indexAppConfig(): GlobalMountOptions {
 	// BOTH kinds, exactly as `page.ts` does it, and through the same function: a top-level
 	// prototype composes the mocks written beside it as well as the real components, and a
 	// template-only file can import neither.

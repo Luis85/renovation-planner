@@ -35,7 +35,11 @@ function harness(options: { worldPerScreenPixel?: number } = {}): Harness {
 	const inputs: CreateZoneInput[] = [];
 	const rejections: string[] = [];
 	let failNext = false;
-	let gate: (() => void) | null = null;
+	// `Promise<void>`, not `void`: `gateNextDispatch` assigns a function that returns the gated
+	// promise, and the dispatcher below awaits it through `.then`. The declaration said `void`
+	// until `tests/**` was type-checked — wrong about the value it holds, while the runtime was
+	// right all along, which is why nothing failed.
+	let gate: (() => Promise<void>) | null = null;
 
 	const { context } = toolContext({
 		worldPerScreenPixel: options.worldPerScreenPixel,

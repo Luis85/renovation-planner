@@ -149,7 +149,11 @@ describe('the in-memory diagnostics ledger', () => {
 	it('hands out a copy, so a caller cannot mutate what was recorded', () => {
 		const ledger = new InMemoryDiagnosticsLedger();
 		ledger.record('zone', id('z-1'), refusal('x.y'));
-		ledger.issues().length = 0;
+		// Cast deliberately: `issues()` returns a `readonly` array, so this line is exactly what
+		// the type forbids — which is the point. `readonly` is erased at runtime, so "a caller
+		// cannot mutate what was recorded" is a claim about the COPY the getter hands out, and
+		// only a runtime mutation can test it.
+		(ledger.issues() as { length: number }).length = 0;
 		expect(ledger.issues()).toHaveLength(1);
 	});
 });

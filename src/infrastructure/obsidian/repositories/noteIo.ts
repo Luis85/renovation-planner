@@ -140,7 +140,20 @@ export interface FrontmatterSource {
  * write and what `frontmatterOf` compares against on the next read.
  *
  * Deliberately not a content hash: this is asked on every read, and hashing a note's bytes
- * would mean reading them, which `frontmatterOf` is synchronous precisely to avoid.
+ * would mean reading them, which `frontmatterOf` is synchronous precisely to avoid. What that
+ * costs is a real residue rather than a rounding error, and `EchoWindow.observedFileStat`
+ * states it: a write that collides on both halves is served the echo over somebody else's
+ * bytes.
+ *
+ * **A writer takes this reading with NOTHING AWAITED since its own write**, which is a rule
+ * about the CALL SITE that no signature here can carry. It is a statement about the file WE
+ * wrote, so it is only true while that is still what is on disk. Four of the five writers
+ * have nothing but synchronous index bookkeeping in between; `ObsidianZoneRepository` awaits
+ * a whole sidecar mutation after its note write and took the reading after that, so an
+ * external edit landing in that window was recorded as ours — the same overwrite the guard
+ * exists to refuse, reached through the one path with an await in the middle of it. Its
+ * regression case is 'does not vouch for an external edit that landed while the sidecar write
+ * was in flight', in `tests/infrastructure/obsidian/repositories/contract.test.ts`.
  */
 function fileStatToken(file: TFile): string {
 	return `${file.stat.mtime}:${file.stat.size}`;
@@ -194,9 +207,27 @@ export function fileStatAt(vault: Vault, path: string): string | undefined {
  * returns `{}` rather than reaching for the echo — otherwise the change pipeline would
  * never drop it from the index.
  *
- * The one residue, stated because it is real and not because it is likely: an edit that
- * restores a note's frontmatter to byte-identical the pre-write reading is answered from
- * the echo until the next write. It is self-correcting and nothing here can see it.
+ * **The CREATE window below takes no such guard, and the reason is that there is nothing
+ * better to withdraw to.** With no cache entry at all the only alternative answer is `{}`,
+ * which every caller reads as a version-0 document — that IS defect 1 above. So an external
+ * edit landing on a note we have just created, before Obsidian has parsed either write, is
+ * answered from the echo. The asymmetry is deliberate: in the MODIFY window withdrawing
+ * yields the stale cache, which is wrong but harmless and refuses the next conditional save,
+ * while here it yields a refusal to read the note at all.
+ *
+ * The residue, stated because it is real and not because it is likely: an external edit that
+ * collides with our own write on BOTH halves of the file stat is served the echo over its own
+ * bytes. That is the one direction of the stat guard's error that is not safe —
+ * `EchoWindow.observedFileStat` carries the whole account, and `noteIo.echo.test.ts` pins it
+ * as behaviour. Its reach is wider than one read: `VaultChangeAdapter.processNote` reads
+ * through here too, so a colliding edit is answered as our own echo and its event is
+ * SUPPRESSED. Reads self-correct the moment the cache catches up; the index does not, because
+ * that path's one event has already been spent.
+ *
+ * An earlier draft listed a second residue beside it — an edit restoring a note's frontmatter
+ * to byte-identical the pre-write reading. The stat guard closes that one (the edit moves the
+ * mtime), so it is not a residue any more except when the stat ALSO collides, which is the
+ * paragraph above.
  */
 export function frontmatterOf(source: FrontmatterSource, file: TFile): Record<string, unknown> {
 	// On the CACHE ENTRY, not on `.frontmatter`, and that distinction is the whole

@@ -388,6 +388,47 @@ describe('the echo fallback refuses itself when it cannot prove the cache is beh
 
 		expect(expectOk(await stack.projects.getById(id))?.entity.name).toBe('Second');
 	});
+
+	/**
+	 * The stat is a statement about the file WE wrote, so it has to be taken while that is
+	 * still what is on disk. Every other writer takes it with nothing but synchronous index
+	 * bookkeeping between the note write and the reading; the Zone repository writes its note,
+	 * then AWAITS a whole sidecar mutation, and took the reading after that. An external edit
+	 * landing in that window was recorded as OUR stat, and `frontmatterOf` then vouched for a
+	 * file somebody else had written — the same overwrite the case above exists to refuse,
+	 * reached through the one path with an await in the middle of it.
+	 */
+	it('does not vouch for an external edit that landed while the sidecar write was in flight', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const plan = makePlanEntity({ projectId: project.id });
+		expectOk(await stack.plans.save(plan, 'absent'));
+		const zone = makeZoneEntity({ projectId: project.id, planId: plan.id, name: 'Original' });
+		const named = (name: string) => makeZoneEntity({ id: zone.id, projectId: project.id, planId: plan.id, name });
+		expectOk(await stack.zones.save(zone, 'absent'));
+		stack.metadataCache.catchUp();
+
+		const path = stack.index.getPath(zone.id) as string;
+		const before = stack.vault.entries.get(path) as string;
+		const read = asLoaded(expectOk(await stack.zones.getById(zone.id)));
+
+		// Somebody else writes the NOTE while the sidecar write this save awaits is running,
+		// and Obsidian has parsed neither that edit nor our own write.
+		const mutate = stack.store.mutate.bind(stack.store);
+		stack.store.mutate = async (...args: Parameters<typeof mutate>) => {
+			const result = await mutate(...args);
+			stack.vault.entries.set(path, before.replace(/name: .*/, 'name: Edited by hand'));
+			stack.vault.pendingParse.set(path, before);
+			return result;
+		};
+
+		const ours = expectOk(await stack.zones.save(named('Ours'), read.version));
+
+		expect(expectOk(await stack.zones.getById(zone.id))?.entity.name).not.toBe('Ours');
+		expect((await stack.zones.save(named('Ours again'), ours.version)).ok).toBe(false);
+		expect(stack.vault.entries.get(path)).toContain('Edited by hand');
+	});
 });
 
 /**

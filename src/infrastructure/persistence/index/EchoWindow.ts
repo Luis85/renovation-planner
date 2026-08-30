@@ -139,13 +139,31 @@ export class EchoWindow {
 	 * The file's own mtime and size as they stood immediately after this plugin last wrote
 	 * at `path`, or `undefined` when that is not known.
 	 *
-	 * **This is a heuristic and says so.** Two writes inside one clock tick that leave the
-	 * file the same size are indistinguishable here, and a host whose `TFile.stat` lags its
-	 * own writes reports a value that no longer matches, which withdraws the fallback rather
-	 * than widening it. Both directions of that error are SAFE: the guard can only ever
-	 * refuse to serve the echo more often than a version without it, never less, so it
-	 * cannot introduce an overwrite. What it can do is let the parse-lag defect resurface on
-	 * such a host, which is why the live-vault case is what settles it.
+	 * **This is a heuristic, and its two error directions are NOT both safe** — an earlier
+	 * draft of this paragraph said they were, and a review round was right to disbelieve it.
+	 * The claim under it ("the guard can only refuse the echo more often than a version
+	 * without it") is true and measures the wrong baseline: the version without the guard is
+	 * the one that shipped the overwrite the guard exists to close, so being no worse than it
+	 * is not a safety property. Against the behaviour BEFORE the fallback existed — a stale
+	 * cache refusing the next conditional save — the two directions differ:
+	 *
+	 * - **Stat MISMATCH** (a host whose `TFile.stat` lags its own writes) withdraws the
+	 *   fallback. Safe: the read answers the stale cache and the next save is refused, which
+	 *   is the pre-fallback behaviour. The cost is that the parse-lag defect can resurface on
+	 *   such a host, which is why the live-vault case is what settles it.
+	 * - **Stat COLLISION** (an external write landing within the clock's granularity of ours
+	 *   AND leaving the byte size unchanged — a sync client restoring a file with its source
+	 *   mtime is the realistic path) serves the echo over bytes that are not ours. Not safe:
+	 *   the caller's expectation then matches at the next `checkExpectedVersion`, so a save
+	 *   that used to be refused overwrites the external edit.
+	 *
+	 * That residue is not closable here. `mtime:size` is the whole of what a file says about
+	 * itself synchronously, and `frontmatterOf` is synchronous by construction —
+	 * `VaultChangeAdapter` calls it and has no `await` to spend — so a content hash is not
+	 * available at the only moment this question is asked. It is pinned as behaviour by the
+	 * 'cannot see an external edit that preserved both the mtime and the byte size' case in
+	 * `tests/infrastructure/obsidian/repositories/noteIo.echo.test.ts`, so a build that closes
+	 * it fails there rather than leaving this paragraph to go quietly stale.
 	 */
 	observedFileStat(path: string): string | undefined {
 		return this.fileStat.get(path);

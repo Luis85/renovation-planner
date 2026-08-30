@@ -2658,6 +2658,56 @@ finds it rather than left to be re-measured.
   write and read the stale marker back in the slice-10 cascade. Blast radius of the honest
   fake: **9 tests**, every one of them a genuine read-after-modify, against 65 and 86 for the
   two instances above — the number is not the shape, which is why all three are recorded.
+
+  **Two review rounds then found that the fix's own fallback was the new hazard, and the
+  second round's lesson is the one worth keeping.** A cache TOKEN cannot tell "the cache is
+  behind US" from "the cache is behind SOMEBODY ELSE", and it cannot see an external edit at
+  all — an unparsed edit is by definition invisible to the cache. So the echo is served only
+  when BOTH questions answer yes: is the FILE still the one we wrote (`EchoWindow` records
+  `TFile.stat` after each write), and is the cache showing a state of ours we have since
+  superseded (a CHAIN, because Obsidian may parse an intermediate write while a later one is
+  still unparsed). The first of those was a REGRESSION this fix introduced and it was data
+  loss: a hand edit landing inside the window was hidden by the echo, and the next
+  conditional save — which the stale cached revision used to REFUSE — then overwrote it.
+
+  - **A reading about "the file WE wrote" is only true while that is still what is on disk,
+    and that is a rule about the CALL SITE no signature can carry.** Four writers take the
+    stat with nothing but synchronous index bookkeeping since their write;
+    `ObsidianZoneRepository` awaits a whole sidecar mutation in between and took it after,
+    so an external edit landing in that window was recorded as OURS and `frontmatterOf`
+    vouched for somebody else's bytes. Found by a review bot reading the ONE writer whose
+    shape differs — which is the search worth copying: when a rule is kept correctly at four
+    sites, look for the fifth that is not shaped like them.
+  - **"Both directions of that error are SAFE" was false, and it was false because it
+    measured the wrong baseline.** `observedFileStat`'s docblock argued that the guard "can
+    only refuse the echo more often than a version without it" — true, and the version
+    without the guard is the one that shipped the overwrite, so being no worse than it is not
+    a safety property. Against the behaviour BEFORE the fallback existed the two directions
+    differ: a stat MISMATCH withdraws (safe, and only lets the parse-lag defect resurface),
+    while a stat COLLISION serves the echo over bytes that are not ours (an overwrite that
+    used to be a refusal). A safety claim names its baseline or it is not a claim.
+  - **`mtime:size` cannot be strengthened here and the sentence says so rather than
+    promising more.** It is the whole of what a file states about itself synchronously, and
+    `frontmatterOf` is synchronous by construction — `VaultChangeAdapter` calls it and has no
+    `await` to spend — so a content hash is unavailable at the only moment the question is
+    asked. The residue is PINNED as behaviour (`noteIo.echo.test.ts`) rather than described,
+    so a build that closes it fails a case instead of leaving a paragraph quietly stale.
+  - **A residue has as many faces as it has readers, and this one had a second nobody
+    named.** `VaultChangeAdapter.processNote` reads through `frontmatterOf` and then asks
+    `echo.matches` of the RESULT — so inside the window the fallback hands back exactly the
+    value that comparison is against, and a colliding external edit is suppressed as our own
+    echo. The read half self-corrects the moment the parse queue catches up; the INDEX half
+    does not, because that path's one event has already been spent
+    (`echoCollision.test.ts`). Both instruments had to be hand-built, because the fake
+    vault's mtime is a monotonic COUNTER and every write there moves the stat — a fake
+    kinder than a real clock, in the one property the guard rests on, and its own docblock
+    says so.
+  - **The CREATE window deliberately takes no stat guard, and that asymmetry needed writing
+    down before it read as an oversight.** With no cache entry the only thing to withdraw to
+    is `{}`, which every caller reads as a version-0 document — the original create-window
+    defect. In the MODIFY window withdrawing yields the stale cache: wrong, harmless, and it
+    refuses the next save. Withdrawing is only the safe direction where there is something
+    safe to withdraw TO.
   **Third instance, same shape, found the same way — by running the plugin.** `FakeVault`'s
   `create` accepted a path whose PARENT FOLDER did not exist; Obsidian refuses one. So
   `PlanGeometryStore` had no `ensureFolder` in front of the geometry sidecar — the project,

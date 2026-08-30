@@ -21,6 +21,7 @@ import { SpatialObjectGeometrySchemaV1 } from '../../persistence/dto/planGeometr
 import { parsePersisted } from '../../persistence/mappers/parse';
 import {
 	ensureFolder,
+	cacheReading,
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
@@ -162,6 +163,8 @@ export class ObsidianZoneRepository {
 		}
 
 		// Step 2b.
+		const supersedes = cacheReading(this.deps, existing);
+
 		const conflict = checkExpectedVersion('zone', zone.id, currentVersion, expected);
 		if (conflict) return err(conflict);
 
@@ -220,7 +223,7 @@ export class ObsidianZoneRepository {
 			projectId: zone.projectId,
 			planId: zone.planId,
 		});
-		this.deps.echo.markFrontmatter(notePath, dto);
+		this.deps.echo.markFrontmatter(notePath, dto, supersedes);
 
 		return ok({ entity: zone, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}

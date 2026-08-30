@@ -2621,12 +2621,43 @@ finds it rather than left to be re-measured.
   step from 0). Making the fake honest turned **65 tests across 12 files** red at once, which
   is the measure of what a kind fake was concealing. Two things came out of it and both are
   load-bearing: `frontmatterOf` falls back to `EchoWindow` — already "what this plugin last
-  wrote here" — when there is NO cache entry, and it keys on the cache ENTRY rather than on
+  wrote here" — when there is no cache entry (and, since the modify window below, when the
+  entry it has predates our own write), and it keys on the cache ENTRY rather than on
   `entry?.frontmatter`, because `getFileCache` answers `null` for "never parsed" but an
   object with no `frontmatter` for "parsed, and the user deleted it". Collapse those two and
   a note whose frontmatter was deleted is served this plugin's own stale bytes forever. The
   fake states what it models and what it still does not: the create window, not the parse lag
   after a modify, where Obsidian holds a STALE entry rather than none.
+
+  **That last sentence stood for eleven slices and named the defect it was hiding.** The
+  MODIFY window is real and it shipped: `SetPlanBackground` wrote the reference, published
+  `PlanBackgroundChanged`, the Plan Editor re-hydrated off that event INSIDE the window, and
+  `GetPlan` answered a plan with no background — so the canvas drew none, and the background
+  appeared only much later, when some unrelated action (a calibration, in the report) re-read
+  a note the parse queue had caught up with in the meantime. Every gate was green: the fake
+  cleared its own lag record on `modify`, so every read-after-modify in the suite read the
+  bytes on disk. **A fake that says what it does not model is still a fake that does not model
+  it**, and writing the gap down bought exactly nothing — the sentence was read as a survey of
+  the ground rather than as a live exposure, which is this file's own "a documented residue
+  reads as surveyed ground" rule, arriving in the one place that had already written it out.
+
+  What closed it: `FakeVault.pendingParse` models BOTH windows (a create leaves the cache with
+  no entry, a modify leaves it the PREVIOUS text, and a second write inside one window keeps
+  the earliest, because the cache is behind both), and `frontmatterOf` now detects the modify
+  window rather than declaring it undetectable. The detection is a READING and not a guess:
+  every writer takes `cacheReading` — the cache's own answer, immediately before it writes —
+  and hands it to `markFrontmatter` as `supersedes`; a cache still answering exactly that has
+  not been re-parsed, so the echo record is the truthful answer, and a cache answering
+  anything else has moved on and wins. **A revision comparison was tried first and is the
+  instructive failure**: it cannot tell a lagging cache from a hand edit that DROPPED the
+  `revision` key, and it made `VaultChangeAdapter` blind to exactly such an edit — measured,
+  on the two `announcements.test.ts` cases that drive one, which is the whole reason the
+  discriminator is a token of the pre-write reading. `cacheReading` is also deliberately not
+  `observeFrontmatter(frontmatterOf(...))`: inside the window that digests what this plugin
+  WROTE rather than what the cache SHOWED, which breaks the chain on the second consecutive
+  write and read the stale marker back in the slice-10 cascade. Blast radius of the honest
+  fake: **9 tests**, every one of them a genuine read-after-modify, against 65 and 86 for the
+  two instances above — the number is not the shape, which is why all three are recorded.
   **Third instance, same shape, found the same way — by running the plugin.** `FakeVault`'s
   `create` accepted a path whose PARENT FOLDER did not exist; Obsidian refuses one. So
   `PlanGeometryStore` had no `ensureFolder` in front of the geometry sidecar — the project,

@@ -3,11 +3,12 @@ import { err, ok, type Result } from '../../../core/result/Result';
 import type { Plan } from '../../../domain/plan/Plan';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
-import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
+import type { EntityVersion, Expected, Loaded, ObservationToken } from '../../../application/ports/versioning';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { revisionConflict } from '../../../application/ports/versioning';
 import { calibrationFromPersistence, planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
 import {
+	cacheReading,
 	ensureFolder,
 	frontmatterOf,
 	openNoteById,
@@ -127,7 +128,7 @@ export class ObsidianPlanRepository {
 		const nextRevision = (currentVersion?.revision ?? 0) + 1;
 		const dto: Record<string, unknown> = { ...planToPersistence(plan, nextRevision) };
 
-		if (existing) return this.updateExisting(plan, existing, dto, nextRevision);
+		if (existing) return this.updateExisting(plan, existing, dto, nextRevision, cacheReading(this.deps, existing));
 
 		// The derived folder, for the INSERT alone — where the note and its sidecar are
 		// created. `undefined` is a refusal rather than a fallback: writing to a defaulted
@@ -193,6 +194,8 @@ export class ObsidianPlanRepository {
 		note: TFile,
 		dto: Record<string, unknown>,
 		nextRevision: number,
+		// What the cache answered before this write — see `frontmatterOf`.
+		supersedes: ObservationToken | undefined,
 	): Promise<Result<Loaded<Plan>, RepositoryError>> {
 		try {
 			await writeOwnedFrontmatter(this.deps.fileManager, note, dto);
@@ -210,7 +213,7 @@ export class ObsidianPlanRepository {
 			// a location behind the index's back (ADR-011) — the rebuild is the repair.
 			geometrySidecarPath: this.deps.index.getGeometrySidecarPath(plan.id),
 		});
-		this.deps.echo.markFrontmatter(note.path, dto);
+		this.deps.echo.markFrontmatter(note.path, dto, supersedes);
 
 		return ok({ entity: plan, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}

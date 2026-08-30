@@ -69,6 +69,10 @@ function handEdit(stack: RepositoryStack, id: string): void {
 	if (key === undefined) throw new Error(`nothing but identity keys to hand-edit at ${path}`);
 	frontmatter[key] = `${String(frontmatter[key])} (edited by hand)`;
 	stack.vault.entries.set(path, `${serializeFrontmatter(frontmatter)}${body}`);
+	// Anything the outside world does to a file is something Obsidian parses, so a hand edit
+	// is by definition visible to the metadata cache. Without this the fake would model a
+	// hand edit nobody has read yet, which is not what any caller of `touch` means.
+	stack.metadataCache.catchUp();
 }
 
 function plantNote(
@@ -78,6 +82,8 @@ function plantNote(
 	owned: Record<string, unknown>,
 ): void {
 	stack.vault.entries.set(path, serializeFrontmatter(owned));
+	// Planted from outside, so parsed — see `handEdit`.
+	stack.metadataCache.catchUp();
 	stack.index.upsert({
 		id: owned['id'] as EntityId<string>,
 		type,
@@ -247,8 +253,62 @@ describe('reading a note back inside Obsidian’s parse window', () => {
 		const path = stack.index.getPath(project.id) as string;
 
 		stack.vault.entries.set(path, 'someone deleted the frontmatter');
+		stack.metadataCache.catchUp();
 
 		expect((await stack.projects.getById(project.id)).ok).toBe(false);
+	});
+});
+
+/**
+ * The third defect a live vault found, and the second one this fake was too kind to show.
+ *
+ * Obsidian's metadata cache lags a MODIFY as well as a create — the entry is present and
+ * parsed from the PREVIOUS version of the file. `frontmatterOf` consulted the echo window
+ * only when there was no entry AT ALL, so a read inside that window was served the
+ * pre-write frontmatter: `SetPlanBackground` wrote the reference and published its event,
+ * the Plan Editor re-hydrated off that event, and the query answered a plan with no
+ * background. The canvas drew nothing, and the background appeared only much later, when
+ * some unrelated action re-read a note the cache had caught up with in the meantime.
+ *
+ * The discriminator is `revision`, an owned key on every note kind: a cache entry whose
+ * revision is BEHIND the one this plugin last wrote is an entry that predates our write.
+ * Anything else — equal, ahead, or a note whose frontmatter is gone — is the cache's to
+ * answer, so a hand edit still wins.
+ */
+describe('reading back inside the metadata cache parse window', () => {
+	it('answers with what this plugin just wrote, not the frontmatter the cache still holds', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const plan = makePlanEntity({ projectId: project.id });
+		expectOk(await stack.plans.save(plan, 'absent'));
+		stack.metadataCache.catchUp();
+
+		const loaded = expectOk(await stack.plans.getById(plan.id));
+		const background = { path: 'Plans/floor.png', kind: 'image' } as const;
+		const updated = expectOk(loaded?.entity.withBackground(background) as never) as Plan;
+		expectOk(await stack.plans.save(updated, (loaded as NonNullable<typeof loaded>).version));
+
+		// No `catchUp()`: this is the tick the event fires in, and Obsidian has not re-parsed.
+		expect(expectOk(await stack.plans.getById(plan.id))?.entity.background).toEqual(background);
+	});
+
+	/**
+	 * The rule the echo fallback must not break, driven from the other side. Preferring our
+	 * own last write unconditionally would serve stale bytes over a real edit for as long as
+	 * the change pipeline had not run.
+	 */
+	it('prefers a hand edit the cache has already parsed over its own last write', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const path = stack.index.getPath(project.id) as string;
+
+		const written = stack.vault.entries.get(path) as string;
+		stack.vault.entries.set(path, written.replace(/^name: .*$/m, 'name: Renamed by hand'));
+		stack.metadataCache.catchUp();
+
+		expect(expectOk(await stack.projects.getById(project.id))?.entity.name).toBe('Renamed by hand');
 	});
 });
 

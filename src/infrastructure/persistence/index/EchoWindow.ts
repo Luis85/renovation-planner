@@ -30,6 +30,7 @@ import { observeFrontmatter } from '../../obsidian/repositories/digest';
 export class EchoWindow {
 	private readonly tokens = new Map<string, ObservationToken>();
 	private readonly notes = new Map<string, Record<string, unknown>>();
+	private readonly superseded = new Map<string, ObservationToken>();
 
 	matches(path: string, token: ObservationToken): boolean {
 		return this.tokens.get(path) === token;
@@ -56,10 +57,33 @@ export class EchoWindow {
 	 * a mere convenience wrapper any more, which is why the sidecar writers still call
 	 * `mark`: a `.rpgeo` document is not frontmatter and nothing reads one back through
 	 * `frontmatterOf`.
+	 *
+	 * `supersedes` is the token of the frontmatter Obsidian's metadata cache answered
+	 * IMMEDIATELY BEFORE this write, and it is what bounds `frontmatterOf`'s stale-cache
+	 * fallback to the window it belongs in — see that function. A caller that has no such
+	 * reading passes none: an insert has no prior entry, and the load-time scan is reading
+	 * the cache rather than racing it.
 	 */
-	markFrontmatter(path: string, frontmatter: Record<string, unknown>): void {
+	markFrontmatter(path: string, frontmatter: Record<string, unknown>, supersedes?: ObservationToken): void {
 		this.mark(path, observeFrontmatter(frontmatter));
 		this.notes.set(path, { ...frontmatter });
+		if (supersedes === undefined) this.superseded.delete(path);
+		else this.superseded.set(path, supersedes);
+	}
+
+	/**
+	 * What the metadata cache was showing for `path` just before this plugin last wrote
+	 * there, or `undefined` if that is not known.
+	 *
+	 * A cache still answering exactly this has not been re-parsed since — the parse-lag
+	 * window. A cache answering anything else has moved on, whether because it caught up
+	 * with our write or because somebody edited the note, and in both of those the cache is
+	 * the authority. That is the whole discrimination, and it is why this is a TOKEN of the
+	 * pre-write reading rather than a revision or a timestamp: a revision cannot tell a
+	 * lagging cache from a hand edit that dropped the key.
+	 */
+	supersededToken(path: string): ObservationToken | undefined {
+		return this.superseded.get(path);
 	}
 
 	/**
@@ -74,6 +98,7 @@ export class EchoWindow {
 	forget(path: string): void {
 		this.tokens.delete(path);
 		this.notes.delete(path);
+		this.superseded.delete(path);
 	}
 
 	/** A rename moves the recorded bytes' token — and their content — with the file. */
@@ -86,6 +111,11 @@ export class EchoWindow {
 		if (note !== undefined) {
 			this.notes.delete(oldPath);
 			this.notes.set(newPath, note);
+		}
+		const supersedes = this.superseded.get(oldPath);
+		if (supersedes !== undefined) {
+			this.superseded.delete(oldPath);
+			this.superseded.set(newPath, supersedes);
 		}
 	}
 }

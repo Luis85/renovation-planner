@@ -16,27 +16,67 @@ import { PlanGeometryStore } from '../../src/infrastructure/obsidian/repositorie
 import type { Line, Logger } from './logger';
 
 /**
+ * The vault's bytes, as a `Map` that also knows when a write came from OUTSIDE the plugin.
+ *
+ * A test putting bytes straight into this map stands for the outside world — a hand edit, a
+ * synced note, content that was already there — and anything the outside world does to a
+ * file is something Obsidian parses. So a direct `set` retires whatever the parse queue was
+ * still behind on for that path, which is what keeps `pendingParse` a model of THIS
+ * plugin's own write window rather than of the whole cache. `FakeVault`'s own writers record
+ * their pending entry AFTER calling through here, for exactly that reason.
+ */
+class VaultEntries extends Map<string, string> {
+	constructor(private readonly onOutsideWrite: (path: string) => void) {
+		super();
+	}
+
+	override set(path: string, text: string): this {
+		this.onOutsideWrite(path);
+		return super.set(path, text);
+	}
+
+	/** `FakeVault`s own writers, which record their own parse-lag entry and must not retire it. */
+	setOwn(path: string, text: string): void {
+		super.set(path, text);
+	}
+}
+
+/**
  * A vault that BEHAVES like files rather than like a call log: create refuses on an
  * existing path, read refuses on a missing one, delete refuses on a missing one, and
  * every operation is observable through `files`. Not kinder than the real thing — that
  * is the point.
  */
 class FakeVault {
-	readonly entries = new Map<string, string>();
+	readonly entries = new VaultEntries((path) => this.pendingParse.delete(path));
 	private readonly folders = new Set<string>();
 
 	/**
-	 * Paths this fake has created and Obsidian has not parsed yet, mapped to the exact text
-	 * that was written — see `FakeMetadataCache`, which is where this is the difference
-	 * between the suite and a real vault.
+	 * Writes Obsidian's parse queue has not reached yet, mapped to what its metadata cache
+	 * still shows for that path — `null` for a file it has never seen at all.
 	 *
-	 * The TEXT and not just the path, because that is what bounds the window honestly: a
-	 * note whose bytes have changed since we created it is a note something else touched,
-	 * and anything the outside world does to a file is something Obsidian has parsed. So
-	 * the cache goes blind for exactly one thing — a file this plugin just created and
-	 * nobody has looked at since — which is the case that produced a real defect.
+	 * This is what makes the fake honest about a cache that is populated ASYNCHRONOUSLY, and
+	 * it models BOTH windows (see `FakeMetadataCache`): a CREATE leaves `null`, so the cache
+	 * has no entry; a MODIFY leaves the PREVIOUS text, so the cache answers a stale one. A
+	 * second write before the queue drains keeps the earliest recorded text, because the
+	 * cache is behind both.
+	 *
+	 * Only writes made THROUGH this fake are recorded. Bytes a test puts straight into
+	 * `entries` stand for vault content that was already there, and anything the outside
+	 * world does to a file is something Obsidian has parsed — so those stay visible, which
+	 * is what keeps this a model of the write window rather than of the whole cache.
 	 */
-	readonly unparsed = new Map<string, string>();
+	readonly pendingParse = new Map<string, string | null>();
+
+	/** Obsidian's parse queue draining: every write becomes visible to the cache. */
+	catchUp(): void {
+		this.pendingParse.clear();
+	}
+
+	/** Records a write the parse queue has not reached, keeping the earliest text behind it. */
+	private pending(path: string, previous: string | null): void {
+		if (!this.pendingParse.has(path)) this.pendingParse.set(path, previous);
+	}
 
 	/** Injected failures, keyed `<op>:<path>` — how compensation paths are driven red. */
 	readonly failures = new Set<string>();
@@ -145,8 +185,10 @@ class FakeVault {
 			const parent = path.slice(0, Math.max(path.lastIndexOf('/'), 0));
 			if (!this.folderExists(parent)) throw new Error(`Folder does not exist: ${parent}`);
 			if (this.entries.has(path)) throw new Error(`File already exists: ${path}`);
-			this.entries.set(path, data);
-			this.unparsed.set(path, data);
+			// Ours, so it RECORDS its own parse-lag entry rather than retiring one: the cache has
+			// never seen this path. See `VaultEntries`.
+			this.pending(path, null);
+			this.entries.setOwn(path, data);
 			return Promise.resolve(this.getAbstractFileByPath(path) as TFile);
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -157,12 +199,10 @@ class FakeVault {
 		try {
 			this.op('modify', file.path);
 			if (!this.entries.has(file.path)) throw new Error(`No file to modify: ${file.path}`);
-			this.entries.set(file.path, data);
-			// A modify makes the path CACHE-VISIBLE, and that is where this fake is still
-			// kinder than Obsidian — see `FakeMetadataCache`. It models the create window,
-			// which is the one that produced a real defect, and not the parse lag after
-			// every write.
-			this.unparsed.delete(file.path);
+			// Keeps whatever the cache was already behind on — a modify inside the create window
+			// leaves it with no entry at all, not with a text it never parsed.
+			this.pending(file.path, this.entries.get(file.path) as string);
+			this.entries.setOwn(file.path, data);
 			return Promise.resolve();
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -181,13 +221,14 @@ class FakeVault {
 			this.op('delete', file.path);
 			if (this.entries.has(file.path)) {
 				this.entries.delete(file.path);
+				this.pendingParse.delete(file.path);
 				return Promise.resolve();
 			}
 			if (!this.folderExists(file.path)) throw new Error(`No file to delete: ${file.path}`);
 			const prefix = `${file.path}/`;
 			// Deleting during iteration is safe for both: a `Map`/`Set` iterator skips an entry
 			// removed before it is reached, and nothing here removes an entry it has not visited.
-			for (const path of this.entries.keys()) if (path.startsWith(prefix)) this.entries.delete(path);
+			for (const path of this.entries.keys()) if (path.startsWith(prefix)) { this.entries.delete(path); this.pendingParse.delete(path); }
 			for (const path of this.folders) if (path === file.path || path.startsWith(prefix)) this.folders.delete(path);
 			return Promise.resolve();
 		} catch (cause) {
@@ -320,34 +361,40 @@ class FakeMetadataCache {
 	constructor(private readonly vault: FakeVault) {}
 
 	getFileCache(file: TFile): { frontmatter?: Record<string, unknown> } | null {
-		// NOT kinder than the real thing, and this is the half that used to be. Obsidian
-		// parses a new file into its metadata cache ASYNCHRONOUSLY, so a note read back in
-		// the same tick it was created has NO cache entry at all. Parsing the vault's own
-		// text synchronously made every read-after-write succeed in the suite and fail in a
-		// vault — which is exactly what `create-sample-project` did on its first run in
-		// Obsidian: the project note was written, `CreatePlanCommand` read it back to
-		// validate the reference, got no frontmatter, and reported a migration failure.
-		// What this models and what it does NOT, because the second half matters: it models
-		// the window after a CREATE, where Obsidian has no entry for the file at all. It
-		// does not model the parse lag after a MODIFY, where Obsidian has a STALE entry
-		// rather than none — a different failure, which `frontmatterOf`'s echo fallback
-		// cannot detect and does not claim to.
-		const asCreated = this.vault.unparsed.get(file.path);
-		if (asCreated !== undefined && asCreated === this.vault.entries.get(file.path)) return null;
-		const text = this.vault.entries.get(file.path);
+		// NOT kinder than the real thing, and this fake has been corrected twice for that
+		// one rule. Obsidian's metadata cache is populated ASYNCHRONOUSLY, so what it
+		// answers is the text its parse queue last reached — never necessarily the bytes on
+		// disk. Two windows follow, and this models BOTH of them:
+		//
+		//  - after a CREATE there is no entry at all, and answering `{}` for one made every
+		//    caller read a version-0 document. That is what `create-sample-project` hit on
+		//    its first real run: the project note was written, `CreatePlanCommand` read it
+		//    back to validate the reference, and the migration runner reported a chain gap.
+		//  - after a MODIFY the entry is STALE — present, and parsed from the PREVIOUS
+		//    version of the file. This half was unmodelled, under a comment saying so, and
+		//    it hid a shipped defect: `SetPlanBackground` wrote the reference and published
+		//    its event, the Plan Editor re-hydrated inside the window, and the query read
+		//    the pre-write frontmatter straight back — so the canvas drew no background at
+		//    all until something re-read the note much later. Every read-after-modify in
+		//    the suite passed throughout.
+		//
+		// `pendingParse` holds the writes the queue has not reached and what the cache still
+		// shows for them; anything else is answered from disk. `catchUp()` drains the queue.
+		const behind = this.vault.pendingParse.get(file.path);
+		const seen = behind === undefined ? this.vault.entries.get(file.path) : behind;
+		if (seen === undefined || seen === null) return null;
 		// `CachedMetadata | null`, as the real signature says, and the two are NOT the same
 		// answer: null means Obsidian has no entry for the file, while a file it parsed and
 		// found no frontmatter in answers an OBJECT whose `frontmatter` is undefined. This
 		// fake used to answer null for both, which made "never seen" and "frontmatter
 		// deleted" indistinguishable — the exact conflation `frontmatterOf` must not make.
-		if (text === undefined) return null;
-		if (!text.startsWith('---\n')) return {};
-		return { frontmatter: parseFrontmatter(text).frontmatter };
+		if (!seen.startsWith('---\n')) return {};
+		return { frontmatter: parseFrontmatter(seen).frontmatter };
 	}
 
 	/** What Obsidian eventually does on its own, once its parse queue drains. */
 	catchUp(): void {
-		this.vault.unparsed.clear();
+		this.vault.catchUp();
 	}
 }
 

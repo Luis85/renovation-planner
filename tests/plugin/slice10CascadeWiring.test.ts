@@ -93,6 +93,12 @@ describe('slice-10 cascade wiring', () => {
 			},
 		} as never);
 
+		// The cascade wrote through the PLUGIN's repositories, which hold the plugin's own
+		// `EchoWindow`; this stack has a different one, so it can only see the write once
+		// Obsidian's parse queue has caught up. That is a fact about two roots over one vault
+		// rather than about the cascade — in a session there is one echo — and the assertion
+		// below is about what ended up in the vault, which is exactly the settled state.
+		stack.metadataCache.catchUp();
 		const recalculated = expectOk(await stack.requirements.getById(requirement.entity.id));
 		expect(recalculated?.entity.recalculationStatus).toBe('current');
 		// squareAt() is 10 mm × 10 mm = 0.0001 m²; × 1.10 waste — not the fixture's 10 m².
@@ -122,6 +128,12 @@ describe('slice-10 cascade wiring', () => {
 			payload: { assetId: asset.entity.id, projectId: project.entity.id },
 		} as never);
 
+		// The cascade wrote through the PLUGIN's repositories, which hold the plugin's own
+		// `EchoWindow`; this stack has a different one, so it can only see the write once
+		// Obsidian's parse queue has caught up. That is a fact about two roots over one vault
+		// rather than about the cascade — in a session there is one echo — and the assertion
+		// below is about what ended up in the vault, which is exactly the settled state.
+		stack.metadataCache.catchUp();
 		const recalculated = expectOk(await stack.requirements.getById(requirement.entity.id));
 		expect(recalculated?.entity.recalculationStatus).toBe('current');
 		// 0.00011 m2 x 50.00 EUR per m2, rounded to the minor unit.

@@ -101,3 +101,36 @@ export const ESLINT_BOOT_MS = 60_000;
 export const warmUpEslint = async (): Promise<void> => {
 	await eslint.calculateConfigForFile('src/main.ts');
 };
+
+/** One reported diagnostic: which rule fired, and on which line of the linted text. */
+export interface Diagnostic {
+	readonly ruleId: string;
+	readonly line: number;
+}
+
+/**
+ * `lintText` with the LINE kept — the shape a batched probe needs.
+ *
+ * A probe that plants several forbidden imports in one module and asserts
+ * `toContain('no-restricted-imports')` passes when ANY of them reports, so a spelling that
+ * silently becomes allowed is invisible while its neighbours still fire. Matching one
+ * diagnostic per planted line is what tells those two worlds apart. Asserting the COUNT
+ * alone was the cheaper option and is not enough: it survives one import going silent while
+ * another reports twice.
+ *
+ * A separate export rather than a widening of `lintText`, because six existing test files
+ * consume that array-of-ids shape and none of them needs the detail.
+ *
+ * `line` is `0` for a diagnostic ESLint reports without one, so the field is always a
+ * number and a caller never has to narrow it.
+ */
+export const lintDetailed = async (code: string, filePath: string): Promise<Diagnostic[]> => {
+	const [result] = await eslint.lintText(code, { filePath, warnIgnored: false });
+
+	if (result === undefined) return [{ ruleId: 'NOT_LINTED', line: 0 }];
+
+	return result.messages.map((message) => ({
+		ruleId: message.ruleId ?? 'PARSE_ERROR',
+		line: message.line ?? 0,
+	}));
+};

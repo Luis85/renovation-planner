@@ -1482,19 +1482,32 @@ describe('CI invokes the definition of done', () => {
 	 * has to interpret is a condition it will interpret wrongly, and there is no legitimate
 	 * reason for the definition of done to be conditional.
 	 */
-	it('runs it unconditionally, on every leg the matrix includes', () => {
+	it('runs it unconditionally, with no key that could discount its verdict', () => {
 		const verify = workflow.jobs['verify'];
 		const check = (verify?.steps ?? []).find((step) => step.run === 'npm run check');
 
 		expect(check).toBeDefined();
-		expect(check).not.toHaveProperty('if');
 
-		// `continue-on-error: true` makes a FAILED check step non-fatal, so the verify job
-		// reports success over a broken definition of done — with the command, the matrix, the
-		// runtime setup and the absence of `if` all unchanged, which is every other assertion
-		// in this file. Refused at both levels, since GitHub honours it on the job as well.
-		expect(check).not.toHaveProperty('continue-on-error');
-		expect(verify).not.toHaveProperty('continue-on-error');
+		// An ALLOWLIST of keys, not a denylist of the ways somebody has thought of.
+		//
+		// This assertion was patched five times — the step's `if`, the job's `if`, trigger
+		// path/type filters, trigger branch filters, then `continue-on-error` — and every one
+		// was a different way for "the gate exists" to be true while "the gate decides
+		// anything" was false. `continue-on-error: true` is the plainest: the command, the
+		// matrix, the runtime setup and the absence of `if` all stay exactly as asserted while
+		// a failed `npm run check` is reported as a successful job. `timeout-minutes: 1` would
+		// have been the sixth.
+		//
+		// So this stops listing the places. This repository's own rule is that a CATEGORY
+		// invariant is checked at the forbidden thing, and the forbidden thing here is *any*
+		// key that can alter whether the gate's verdict counts. Measured against `ci.yml` as
+		// it stands: the verify job uses `runs-on`, `strategy`, `steps`; the check step uses
+		// `name` and `run`.
+		//
+		// A new key is a DELIBERATE change to how the definition of done is enforced, so it
+		// should fail here and be added with a reason, rather than take effect silently.
+		expect(Object.keys(verify ?? {}).sort()).toEqual(['runs-on', 'steps', 'strategy']);
+		expect(Object.keys(check ?? {}).sort()).toEqual(['name', 'run']);
 
 		// The JOB's condition too, which the step's cannot see. GitHub supports
 		// `jobs.<job_id>.if`, so `verify.if: github.event_name == 'push'` leaves both declared

@@ -20,7 +20,7 @@
  * Every caller gets an isolated writable CLONE; the checked-in tree is read-only input.
  */
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import { TFile, TFolder } from 'obsidian';
 import type { LogLevel, Logger } from '../../src/application/ports/Logger';
@@ -36,7 +36,8 @@ import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/reposi
 import { ObsidianAssetRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetRepository';
 import { ObsidianRequirementRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import { PlanGeometryStore } from '../../src/infrastructure/obsidian/repositories/PlanGeometryStore';
-import { parseFrontmatter, serializeFrontmatter, type Line, type RepositoryStack } from './vault';
+import { parseFrontmatter, serializeFrontmatter, type RepositoryStack } from './vault';
+import type { Line } from './logger';
 
 /**
  * `getAbstractFileByPath` answers the MOCK MODULE's own `TFile`/`TFolder`, constructed and
@@ -45,9 +46,12 @@ import { parseFrontmatter, serializeFrontmatter, type Line, type RepositoryStack
  * `tests/helpers/obsidian-mock.ts`'s header states the rule and the reason: the real
  * `TFile`/`TFolder` are CLASSES and the repositories narrow with `instanceof`, so a fake
  * that answers anything else makes every one of those checks false in tests while true in
- * the app. `grep -rn "instanceof TFile\|instanceof TFolder" src/` prints ELEVEN sites —
- * `NoteVaultDeps.fileAt`, `noteIo.openNoteById` and `folderExists`, `PlanGeometryStore`
- * (twice), `VaultChangeAdapter` (three times), and two presentation call sites.
+ * the app. `grep -rn "instanceof TFile\|instanceof TFolder" src/` prints 19 lines — 16
+ * narrowing sites and 3 comments describing the rule. The 16: `NoteVaultDeps.fileAt`,
+ * `noteIo.ts` (three — `openNoteById`, `isTFolder`, and its rename-collision check),
+ * `PlanGeometryStore` (twice), `VaultChangeAdapter` (three times), `ObsidianZoneRepository`,
+ * `BackgroundRenderModel`, `GeometrySidecarView`, `openNote.ts`, `vaultFileProbe.ts`, and
+ * `RenovationPlannerPlugin.ts` (twice).
  *
  * A first draft of this file declared its own `FixtureFile`/`FixtureFolder` pair, which
  * would have made every fixture note read as MISSING — Task 11 could have loaded neither the
@@ -128,11 +132,28 @@ class FixtureVaultAdapter {
 		}
 	}
 
-	/** Hardening rule 3: a folder answers a folder OBJECT, never `null`. */
+	/**
+	 * Hardening rule 3: a folder answers a folder OBJECT, never `null` — and that object's
+	 * `children` are populated ONE LEVEL DEEP, mirroring `FakeVault.nodeAt`'s own
+	 * `withChildren` branch (vault.ts:99-104). `MockTFolder.children` defaults to `[]`
+	 * (`obsidian-mock.ts`), so leaving it unset here would make `undoEnsureFolder`
+	 * (`noteIo.ts`) read every folder as empty and trash it — through `FixtureFileManager`
+	 * .trashFile → `FixtureVaultAdapter.delete` → `rmSync(..., { recursive: true })` — which
+	 * is a REAL filesystem delete, not a map splice. Direct children only, rebuilt per call:
+	 * nothing here holds a folder across a mutation, and a recursive build would walk the
+	 * whole tree for every path lookup a repository makes.
+	 */
 	getAbstractFileByPath(path: string): TFile | TFolder | null {
 		const absolute = this.absolute(path);
 		if (!existsSync(absolute)) return null;
-		return statSync(absolute).isDirectory() ? folderAt(path) : fileAt(path);
+		if (!statSync(absolute).isDirectory()) return fileAt(path);
+
+		const folder = folderAt(path);
+		const prefix = path === '' ? '' : `${path}/`;
+		folder.children = readdirSync(absolute, { withFileTypes: true }).map((entry) =>
+			entry.isDirectory() ? folderAt(`${prefix}${entry.name}`) : fileAt(`${prefix}${entry.name}`),
+		);
+		return folder;
 	}
 
 	/**
@@ -357,6 +378,22 @@ export interface FixtureStack extends Omit<RepositoryStack, 'vault' | 'fileManag
 const DEFAULT_PROJECT_FOLDER = 'Renovation';
 
 /**
+ * `dispose()`'s one guard: refuses to `rmSync` anything that isn't genuinely under the OS
+ * temp directory. `root` is always the exact string `mkdtempSync` returned three lines
+ * above it, so under today's code this can never fire — but "the convention holds" is
+ * exactly the claim this task's own rule-4 mutation disproved once already: pointing
+ * `root` at the checked-in `tests/vault/valid-project` made `dispose()` delete it for
+ * real, recovered only with `git checkout --`. `relative` rather than `startsWith`,
+ * because a sibling directory sharing the temp dir's string prefix
+ * (`/tmp/rp-vault-evil` against `/tmp/rp-vault-`) would pass a prefix check and must not
+ * pass this one.
+ */
+const isUnderTempDir = (candidate: string): boolean => {
+	const fromTempDir = relative(tmpdir(), candidate);
+	return fromTempDir !== '' && !fromTempDir.startsWith('..') && !isAbsolute(fromTempDir);
+};
+
+/**
  * Opens `tests/vault/<caseName>` as a disk-backed repository stack: a writable temp-dir
  * CLONE of the checked-in fixture, with every collaborator `NoteVaultDeps` and the five
  * repositories need constructed over it — mirroring `createRepositoryStack` exactly, for
@@ -421,7 +458,12 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		requirements: new ObsidianRequirementRepository(deps),
 		projectFolder: DEFAULT_PROJECT_FOLDER,
 		root,
-		dispose: () => rmSync(root, { recursive: true, force: true }),
+		dispose: () => {
+			if (!isUnderTempDir(root)) {
+				throw new Error(`Refusing to delete a path outside the OS temp directory: ${root}`);
+			}
+			rmSync(root, { recursive: true, force: true });
+		},
 		rebuildIndex() {
 			index.rebuild(
 				buildProjectIndexEntries({

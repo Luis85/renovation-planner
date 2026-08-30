@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { TFile, TFolder } from 'obsidian';
+import type { ProjectId } from '../../src/domain/project/ProjectId';
+import { expectOk } from './domain';
 import { openFixtureVault, type FixtureStack } from './fixtureVault';
 
 let open: FixtureStack | null = null;
@@ -115,6 +117,27 @@ describe('the fixture vault adapter', () => {
 	});
 
 	/**
+	 * A folder's `children` are populated ONE LEVEL DEEP, and both arms matter: a folder
+	 * that has one, and a folder that genuinely does not. `MockTFolder.children` defaults to
+	 * `[]`, and `undoEnsureFolder` (`noteIo.ts`) reads exactly that field to decide whether a
+	 * failed insert may trash the folder it just created — reachable from `open.projects` on
+	 * any failed insert. An adapter that always answered `[]` would satisfy the emptiness
+	 * guard unconditionally and let a real `rmSync` take a non-empty folder off disk; an
+	 * adapter that populated every folder's `children` regardless of whether it had any would
+	 * pass a case asserting only the populated arm. Both are asserted here.
+	 */
+	it("populates a folder's children one level deep, and only for a folder that has any", async () => {
+		open = await openFixtureVault('valid-project');
+		await open.vault.createFolder('Empty');
+
+		const root = open.vault.getAbstractFileByPath('') as TFolder;
+		const empty = open.vault.getAbstractFileByPath('Empty') as TFolder;
+
+		expect(root.children.length).toBeGreaterThan(0);
+		expect(empty.children).toEqual([]);
+	});
+
+	/**
 	 * Hardening rule 4, and it is the one a first draft got wrong in the direction that
 	 * hides a defect: Obsidian's `Vault.create` refuses an EXISTING path, and so does
 	 * `FakeVault` (vault.ts:118). A `writeFileSync` that silently truncates would let
@@ -187,10 +210,11 @@ describe('the fixture vault adapter', () => {
 
 	/**
 	 * The narrowing every repository actually performs. `grep -rn "instanceof TFile" src/`
-	 * prints eleven sites, so an adapter answering its own wrapper class makes all eleven
-	 * false in tests while true in the app — every fixture note reads as MISSING with the
-	 * types still satisfied. Asserted against the mock module's classes directly, because
-	 * "not null" is equally true of the wrong class.
+	 * prints 18 lines — 15 narrowing sites, the other 3 comments describing the rule — so
+	 * an adapter answering its own wrapper class makes all 15 false in tests while true in
+	 * the app — every fixture note reads as MISSING with the types still satisfied.
+	 * Asserted against the mock module's classes directly, because "not null" is equally
+	 * true of the wrong class.
 	 */
 	it('answers the mock module TFile and TFolder, which is what the repositories narrow on', async () => {
 		open = await openFixtureVault('valid-project');
@@ -205,9 +229,30 @@ describe('the fixture vault adapter', () => {
 
 		expect(open.zones).toBeDefined();
 		expect(open.plans).toBeDefined();
-		expect(open.projects).toBeDefined();
 		expect(open.assets).toBeDefined();
 		expect(open.requirements).toBeDefined();
 		expect(open.store).toBeDefined();
+	});
+
+	/**
+	 * `toBeDefined()` alone certifies that the object literal has these keys, not that the
+	 * repositories are constructed and usable AGAINST the fixture — this repository has
+	 * already paid for exactly that gap once (a fixture missing `status` that a test name
+	 * promised to read, but never asserted). `rebuildIndex()` first, because `getById`
+	 * resolves through the INDEX (`locate` → `index.getPath`), which `openFixtureVault`
+	 * deliberately leaves empty at open, mirroring `createRepositoryStack`. A real read
+	 * through `open.projects` discriminates three things a `toBeDefined()` cannot: that the
+	 * repository was constructed correctly, that `Project.md`'s frontmatter is genuinely
+	 * schema-valid, and that the on-demand metadata-cache path this file exists to harden
+	 * (hardening rule 2) actually feeds a repository read rather than only a direct
+	 * `getFileCache` call.
+	 */
+	it('reads the checked-in project through a constructed repository', async () => {
+		open = await openFixtureVault('valid-project');
+		open.rebuildIndex();
+
+		const loaded = expectOk(await open.projects.getById('proj-valid' as ProjectId));
+
+		expect(loaded?.entity.name).toBe('Valid Project');
 	});
 });

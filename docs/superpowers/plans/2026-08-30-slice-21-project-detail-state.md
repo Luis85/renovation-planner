@@ -2019,14 +2019,14 @@ const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Hallway', status: '
 
 describe('ProjectDetail', () => {
 	it('names the project and renders its status through the shared label', () => {
-		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [] } });
+		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], emptyState: null } });
 
 		expect(wrapper.get('.rp-project-detail__name').text()).toBe('Hallway');
 		expect(wrapper.get('.rp-project-detail__status').text()).toBe(t('en', 'form.new-project.status.idea'));
 	});
 
 	it('emits back, openNote and createPlan from the header', async () => {
-		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [] } });
+		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], emptyState: null } });
 
 		await wrapper.get('.rp-project-detail__back').trigger('click');
 		await wrapper.get('.rp-project-detail__open-note').trigger('click');
@@ -2042,8 +2042,25 @@ describe('ProjectDetail', () => {
 	 * carries it up, and `ViewRoot` calls `context.openPlan`. A component that swallowed it
 	 * would compile and do nothing.
 	 */
+	/**
+	 * **The header survives an empty project**, which is every project a user has just
+	 * created. Back and Open note live here and nowhere else, so an empty state drawn in
+	 * PLACE of this component would fail criteria 5 and 11 on the most common detail state
+	 * there is. Reported by a review bot against the plan.
+	 */
+	it('keeps back and open note when the project has no plans', () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [], emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+		});
+
+		expect(wrapper.find('.rp-project-detail__back').exists()).toBe(true);
+		expect(wrapper.find('.rp-project-detail__open-note').exists()).toBe(true);
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
+		expect(wrapper.find('.rp-plan-list').exists()).toBe(false);
+	});
+
 	it('carries a plan row’s id up from PlanList', async () => {
-		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }] } });
+		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], emptyState: null } });
 
 		await wrapper.get('.rp-plan-list__row').trigger('click');
 
@@ -2135,7 +2152,19 @@ import PlanList from './PlanList.vue';
 import { statusLabel } from './statusLabel';
 import { tr } from '../i18n/strings';
 
-defineProps<{ project: ProjectSummaryDto; plans: readonly PlanSummaryDto[] }>();
+/**
+ * `emptyState` is the resolved `EmptyState` props for a project with no plans, or `null`.
+ * It is drawn INSIDE the plans region rather than in place of this component, because the
+ * Back and Open note controls live in this header and nowhere else — replacing the whole
+ * detail state with an empty state takes a newly created project's only way back with it.
+ * Slice 14's own rule, arriving on a third surface: an empty state that replaces a region
+ * hides the thing the region exists to show.
+ */
+defineProps<{
+	project: ProjectSummaryDto;
+	plans: readonly PlanSummaryDto[];
+	emptyState: EmptyStateProps | null;
+}>();
 defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: [] }>();
 </script>
 
@@ -2161,7 +2190,13 @@ defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []
 				{{ tr('view.project.open-note') }}
 			</button>
 		</div>
+		<EmptyState
+			v-if="emptyState !== null"
+			v-bind="emptyState"
+			@action="$emit('createPlan')"
+		/>
 		<PlanList
+			v-else
 			:plans="plans"
 			@open="(planId) => $emit('openPlan', planId)"
 			@create="$emit('createPlan')"
@@ -2169,6 +2204,10 @@ defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []
 	</div>
 </template>
 ```
+
+`EmptyStateProps` is whatever `resolveEmptyState` returns — read
+`src/presentation/emptyStates/resolve.ts` for the exported name and import the type rather
+than restating its shape.
 
 - [ ] **Step 6: Style it**
 
@@ -2461,6 +2500,10 @@ The seam where every piece so far meets. `ViewRoot` reads `context.projectId` ON
 - Modify: `src/presentation/views/ViewRoot.vue`
 - Create: `tests/presentation/views/viewRootProjectDetail.test.ts`
 - Modify: `tests/presentation/views/viewRoot.test.ts` (the list state must go on drawing)
+- Modify: `tests/presentation/views/viewRootOpenProject.test.ts` — **it asserts the behaviour
+  criterion 1 replaces.** That file covers the row click opening the note and the `'missing'`
+  re-read. Repoint its row-click cases at the detail header's Open note action, which is where
+  `onOpenProject` still lives; do not delete the `'missing'` coverage, which is still real.
 
 **Interfaces:**
 - Consumes: everything from Tasks 3–8.
@@ -2480,6 +2523,37 @@ describe('ViewRoot in the detail state', () => {
 
 		expect(wrapper.find('.rp-project-detail').exists()).toBe(true);
 		expect(wrapper.find('.rp-project-list').exists()).toBe(false);
+	});
+
+	/**
+	 * **Criterion 1, and the case an earlier draft of this plan had no route for.** The list
+	 * row NAVIGATES; it does not open `Project.md`. Both halves asserted, because "navigate
+	 * was called" is equally true of a build that also still opens the note.
+	 */
+	it('navigates into a project from a list row rather than opening its note', async () => {
+		const navigate = vi.fn();
+		const openProject = vi.fn().mockResolvedValue('opened');
+		const wrapper = mountRoot({ projectId: null, navigate, openProject, projects: [{ id: 'project-1', name: 'Hallway', status: 'IDEA' }] });
+		await flushPromises();
+
+		await wrapper.get('.rp-project-list__row').trigger('click');
+
+		expect(navigate).toHaveBeenCalledWith('project-1');
+		expect(openProject).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * Criterion 5 and criterion 11 on the most common detail state there is — a project just
+	 * created, with no plans. The empty state goes inside the plans region, never in place of
+	 * the header that holds the only way back.
+	 */
+	it('keeps the way back and the note action on a project with no plans', async () => {
+		const wrapper = mountRoot({ projectId: 'project-1', plans: [] });
+		await flushPromises();
+
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
+		expect(wrapper.find('.rp-project-detail__back').exists()).toBe(true);
+		expect(wrapper.find('.rp-project-detail__open-note').exists()).toBe(true);
 	});
 
 	/** Criterion 2's presentation half; the `revealPlanEditor` half is Task 5's wiring case. */
@@ -2700,34 +2774,54 @@ if (context.projectId !== null) {
 }
 ```
 
-Template: the whole existing body becomes the `v-if="context.projectId === null"` branch, and
-the `v-else` draws the detail state with the same three-region shape — the empty state, the
-content, the shared `.rp-view-message` for loading and failure. The `.rp-view-notice` warning
-strip stays on the LIST branch only: it is about unreadable PROJECTS, and
-`listPlansByProject` reports no such count.
+Template: the existing body becomes the `v-if="context.projectId === null"` branch, and the
+`v-else` draws the detail state with the same three-region shape — the content, and the shared
+`.rp-view-message` for loading and failure. The `.rp-view-notice` warning strip stays on the
+LIST branch only: it is about unreadable PROJECTS, and `listPlansByProject` reports no such
+count.
+
+**The list branch is NOT unchanged, and an earlier draft of this plan said it was.** Criterion
+1 is *"clicking a project row opens that project's detail state; it does **not** open
+`Project.md`"* — so `ProjectList`'s `@open` repoints from `onOpenProject` to
+`context.navigate(id)`. Leaving the handler alone would have preserved the exact behaviour
+this slice exists to replace, on the slice's primary entry path, while every other case in
+this plan passed. Reported by a review bot against the plan.
+
+`onOpenProject` KEEPS its `'missing'` → re-hydrate arm and keeps its only remaining caller:
+the detail header's **Open note** action (decision 5). That arm is still right there — a note
+that turns out to be gone is a stale surface, and the detail state's own re-read answers
+`'gone'` and returns the user to the list.
+
+**`ProjectDetail` draws for EVERY ready project, and the no-plans empty state goes INSIDE its
+plans region.** Replacing the whole detail state with an `EmptyState` takes the Back and Open
+note controls with it — they live in `ProjectDetail`'s header and nowhere else — so criterion
+5 and criterion 11 would both fail for a project with no plans, which is *every project a user
+has just created*. That is slice 14's own rule arriving on a third surface: **an empty state
+that replaces a region hides the thing the region exists to show**, which is why both Plan
+Editor empty states are overlays inside `PlanCanvas` rather than replacements for it. Also
+reported by a review bot against the plan.
 
 ```vue
 	<div class="renovation-planner-view">
 		<template v-if="context.projectId === null">
-			<!-- unchanged list state -->
+			<!-- the list state, with ONE change: @open navigates -->
+			<ProjectList
+				:projects="projects"
+				@open="(id) => context.navigate(id)"
+				@create="onCreateProject"
+			/>
 		</template>
 		<template v-else>
-			<template v-if="detailStatus === 'ready' && project !== null">
-				<EmptyState
-					v-if="detailEmpty !== null"
-					v-bind="detailEmpty"
-					@action="() => void onCreatePlan(context.projectId!)"
-				/>
-				<ProjectDetail
-					v-else
-					:project="project"
-					:plans="plans"
-					@back="context.navigate(null)"
-					@open-note="() => void context.openProject(project!.id)"
-					@open-plan="(planId) => void context.openPlan(planId)"
-					@create-plan="() => void onCreatePlan(context.projectId!)"
-				/>
-			</template>
+			<ProjectDetail
+				v-if="detailStatus === 'ready' && project !== null"
+				:project="project"
+				:empty-state="detailEmpty"
+				:plans="plans"
+				@back="context.navigate(null)"
+				@open-note="() => void onOpenProject(project!.id)"
+				@open-plan="(planId) => void context.openPlan(planId)"
+				@create-plan="() => void onCreatePlan(context.projectId!)"
+			/>
 			<div
 				v-else
 				class="rp-view-message"
@@ -2863,6 +2957,10 @@ it('reports no semantic violations on the project detail state and its action', 
 
 	expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
 	expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
+	// The empty state sits INSIDE the detail shell, so this scan grades the header's controls
+	// in the same pass — which is what makes it the scan of a real surface rather than of a
+	// component in isolation.
+	expect(view.contentEl.querySelector('.rp-project-detail__back')).not.toBeNull();
 	expect(results.violations).toEqual([]);
 });
 
@@ -3035,6 +3133,28 @@ describe('navigateToProject', () => {
 	});
 
 	/**
+	 * **The window the ticket alone does not close**, and it is separate from the case above
+	 * because the two calls do NOT overlap at the ticket check: the first passes it, begins a
+	 * slow write, and only then does the second arrive. Without the write chain the first
+	 * settles last and restores the project the user navigated away from. Reported by a review
+	 * bot; the same-tick case passes against that build.
+	 */
+	it('ends on the later project when a second navigation arrives mid-write', async () => {
+		const workspace = new FakeWorkspace();
+		const leaf = workspace.openLeafOfType(RENOVATION_PROJECT_VIEW);
+		const deps = { workspace, reportFault: vi.fn() };
+		const writes = slowSetViewState(leaf); // first write resolves only when released
+
+		const first = navigateToProject(deps, RENOVATION_PROJECT_VIEW, 'project-1');
+		await writes.firstWriteStarted;
+		const second = navigateToProject(deps, RENOVATION_PROJECT_VIEW, 'project-2');
+		writes.releaseFirst();
+		await Promise.all([first, second]);
+
+		expect(leaf.getViewState().state).toEqual({ projectId: 'project-2' });
+	});
+
+	/**
 	 * The case that fails against any build inferring success from the leaf being there —
 	 * which every other case here passes with.
 	 */
@@ -3061,8 +3181,17 @@ describe('navigateToProject', () => {
 });
 ```
 
-`deferredSetViewState` is a local helper stubbing the leaf's `setViewState` so the first call's
-promise resolves after the second's. Write it in this file — it exists to prove one ordering.
+`deferredSetViewState` and `slowSetViewState` are local helpers in this file stubbing the
+leaf's `setViewState`: the first makes call one's promise resolve after call two's, and the
+second exposes `firstWriteStarted` (so the test can let call one get past the ticket check
+before call two arrives) and `releaseFirst`. Both exist to prove one ordering each; write them
+beside the cases.
+
+**`navigationWrites` is module state, so reset it between cases** — either export a
+test-only reset or `vi.resetModules()` in a `beforeEach`. A chain left holding a previous
+case's rejected or pending promise makes the next case's result a fact about test order.
+Whichever you choose, say so in the module's own comment: `activating` next door is module
+state for the same reason and carries the same hazard.
 
 - [ ] **Step 3: Write it**
 
@@ -3076,6 +3205,26 @@ import type { RevealDeps } from './reveal';
  * eventually is not.
  */
 let latestNavigation = 0;
+
+/**
+ * The writes themselves, in issue order.
+ *
+ * The ticket alone is not enough, and the spec's own version stopped one step short. It is
+ * read once, before `setViewState`, so it can only drop a request that was superseded BEFORE
+ * its write began — the same-tick case. A request that passed the check and is mid-write when
+ * a later one arrives is not dropped and not ordered: both writes are in flight, and the
+ * earlier one can settle LAST and restore the project the user has already navigated away
+ * from. Reported by a review bot against this plan, and the window is real rather than
+ * theoretical: `setViewState` on a live leaf runs the registered factory and the view's
+ * `onOpen`, which mounts a Vue app and issues a query.
+ *
+ * Chaining makes "the latest request wins" true of the WRITES rather than of the intentions:
+ * the earlier write completes first because it was queued first, and the later one lands on
+ * top of it. The ticket check stays, INSIDE the chained step, because it is still what stops
+ * a superseded request writing at all — a chain alone would remount to the first project and
+ * then to the second, which is the flicker the ticket exists to avoid.
+ */
+let navigationWrites: Promise<void> = Promise.resolve();
 
 /**
  * Reveal the singleton view, then navigate it to a project — design slice 21's two steps, in
@@ -3115,20 +3264,26 @@ export async function navigateToProject(
 	// asked about: `revealCandidate` reports a failed reveal of an EXISTING leaf and RESOLVES,
 	// leaving that leaf in `getLeavesOfType`.
 	if (!(await revealView(deps, type))) return;
-	if (ticket !== latestNavigation) return;
-	const leaf = deps.workspace.getLeavesOfType(type)[0];
-	// The case the boolean does not cover: a successful activation whose leaf has since gone,
-	// and the create path having produced none.
-	if (leaf === undefined) return;
-	try {
-		await leaf.setViewState({ type, active: true, state: { projectId: projectId ?? '' } });
-	} catch (cause) {
-		// This step sits OUTSIDE `revealView`'s boundary, whose contract is that it does not
-		// reject — which is why its two detached callers hand it to `void` rather than to
-		// `runDetached`. Without this catch the helper rejects and inherits whatever its caller
-		// happens to do, which is the unhandled-rejection shape `runDetached` exists to close.
-		deps.reportFault(cause);
-	}
+
+	navigationWrites = navigationWrites.then(async () => {
+		// Read INSIDE the chain, not before it: a request superseded while it waited its turn
+		// must not write at all, and by here the counter reflects everything that has arrived.
+		if (ticket !== latestNavigation) return;
+		const leaf = deps.workspace.getLeavesOfType(type)[0];
+		// The case the boolean does not cover: a successful activation whose leaf has since
+		// gone, and the create path having produced none.
+		if (leaf === undefined) return;
+		try {
+			await leaf.setViewState({ type, active: true, state: { projectId: projectId ?? '' } });
+		} catch (cause) {
+			// This step sits OUTSIDE `revealView`'s boundary, whose contract is that it does
+			// not reject — which is why its two detached callers hand it to `void` rather than
+			// to `runDetached`. Without this catch the chain would reject, and every later
+			// navigation queued behind it with it.
+			deps.reportFault(cause);
+		}
+	});
+	await navigationWrites;
 }
 ```
 

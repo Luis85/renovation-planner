@@ -46,6 +46,10 @@ automatable at all. Not for authoring a new case, and not for reviewing a diff.
 Cite by test NAME, never line number: an edit that moves a case leaves the citation standing,
 one that renames it breaks the citation visibly.
 
+A clause no instrument can settle gets a row saying so and stays a **residue**, not a gap — and
+it does not reclassify the step. One adverb beside three assertable clauses is still an
+assertable step; a pass condition with no assertable clause at all is the different thing.
+
 ## The mutation gate
 
 A gap is closed when, and only when:

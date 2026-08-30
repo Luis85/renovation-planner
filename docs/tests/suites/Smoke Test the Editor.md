@@ -87,7 +87,7 @@ tested today.
 | `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 30 |
 | `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 47 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
-| `judgement` | Records an answer or an eye's verdict. There is no pass condition for any instrument to settle. It BEATS the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim | 8 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 8 |
 
 165 steps across nine cases. The counts are `grep`ed out of these files rather than carried
 over from the notes the classification was drafted in, so a re-tagged step moves the number.
@@ -106,7 +106,9 @@ with a procedure: `.claude/skills/auditing-manual-test-cases/SKILL.md` is what t
 turned into, and the eight remaining cases are what it exists for.
 [[Zone Editing Walkthrough]] carries a *What discharges each step* section naming the test
 behind each of its twenty `suite` and `browser` verdicts, read from the test BODY rather than
-matched on a name. **All seventeen of its `suite` steps are discharged**: five were not when the
+matched on a name. **All seventeen of its `suite` steps are discharged of every clause an
+instrument can settle** — step 4 keeps "smoothly" as a residue, which a drag that lands
+correctly and stutters would still fail — and five were not when the
 audit began — nothing asserted the selection OUTLINE, nothing looked at the interaction layer
 after a DESELECTION, nothing asserted that a drag PREVIEW follows the pointer rather than merely
 existing, nothing asserted the geometry entry goes on a SUCCESSFUL delete, and nothing redid a

@@ -9,7 +9,7 @@ views:
       - file.name
       - dependsOn
       - horizon
-      - iteration
+      - release
       - status
     homeFolder: docs
     openIn: split
@@ -27,7 +27,7 @@ views:
     iterationGoalProperty: note.goal
     inferFolderHierarchy: false
     hierarchyOnly: true
-    stateValues: New, Ready, Active, Resolved, Done
+    stateValues: New, Ready, Active, Resolved, Done, Removed
     startedStates: Active
     deliverableStateValues: New, Active, Done
     iterationOpenStates: Ready
@@ -37,6 +37,38 @@ views:
     typeFolder.absence: docs/absences
     stateColor.ready: "#e6cb1e"
     stateColor.active: "#0e41b9"
+    releaseProperty: note.release
+  - type: product-release
+    name: Release Management
+    membershipProperty: note.release
+    versionProperty: note.version
+    targetDateProperty: note.target-date
+    releasedDateProperty: note.released
+    descriptionProperty: note.description
+    releaseStatusProperty: note.status
+    stateProperty: note.status
+    releaseNotesFolder: docs/release-notes
+    releasedStatusValues: Released
+    releasedTransitionValue: Released
+    releaseStatusValues: Planned, In Progress, Released
+  - type: product-estimation
+    name: Estimation
+    dimProperty.strategic-alignment: note.strategic-alignment
+    dimProperty.customer-value: note.customer-value
+    dimProperty.business-impact: note.business-impact
+    dimProperty.reach: note.reach
+    dimProperty.risk-reduction: note.risk-reduction
+    dimProperty.compliance: note.compliance
+    dimProperty.time-criticality: note.time-criticality
+    dimProperty.enablement: note.enablement
+    confidenceProperty: note.confidence
+    effortProperty: note.effort
+    complexityProperty: note.complexity
+    valueProperty: note.business-value
+    stampProperty: note.business-value-model
+    indicatorLabel: RICE
+    indicatorOperands: reach, business-impact, confidence
+    indicatorDivisor: effort
   - type: table
     name: Business rules
     filters:
@@ -116,3 +148,17 @@ views:
       - layer
       - persistence
       - partOf
+  - type: table
+    name: Data Quality
+    order:
+      - file.name
+      - horizon
+      - release
+    sort:
+      - property: release
+        direction: DESC
+      - property: horizon
+        direction: DESC
+    columnSize:
+      file.name: 447
+      note.horizon: 176

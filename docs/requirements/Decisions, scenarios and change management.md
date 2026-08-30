@@ -4,13 +4,27 @@ order: 180
 status: ""
 started: ""
 finished: ""
-horizon: "V2"
+horizon:
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
+release: "[[Brave Turtle]]"
 ---
 
 # Decisions, scenarios and change management

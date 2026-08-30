@@ -2,16 +2,29 @@
 type: Deliverable
 parent: "[[User Interface]]"
 order: 20
-status: Open
+status: New
 started: ""
 finished: ""
-horizon: "MVP"
+horizon: Now
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
 ---
 
 # Sitemap

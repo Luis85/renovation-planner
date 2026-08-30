@@ -1,17 +1,30 @@
 ---
 type: Feature
 parent: "[[Project management]]"
-order: 40
+order: 25
 status: ""
 started: ""
 finished: ""
-horizon: "MVP"
+horizon: Later
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
 ---
 
 # Onboarding and example project

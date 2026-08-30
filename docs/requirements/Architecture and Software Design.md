@@ -5,13 +5,27 @@ order: 0
 status: Active
 started: 2026-08-23
 finished: ""
-horizon: "MVP"
+horizon: Now
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
+release: "[[MVP]]"
 ---
 
 # Architecture and Software Design

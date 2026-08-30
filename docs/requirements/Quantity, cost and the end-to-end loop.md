@@ -5,13 +5,27 @@ order: 30
 status: Active
 started: 2026-08-25
 finished: ""
-horizon: MVP
+horizon: Now
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: "[[1 - Iteration]]"
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
+release: "[[MVP]]"
 ---
 # Quantity, cost and the end-to-end loop
 

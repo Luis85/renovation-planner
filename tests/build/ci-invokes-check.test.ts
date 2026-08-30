@@ -245,6 +245,33 @@ describe('CI invokes the definition of done', () => {
 		// it. Asked at every level now, so there is no level left above.
 		expect(Object.keys(workflow).toSorted()).toEqual(['concurrency', 'jobs', 'name', 'on']);
 
+		// And `concurrency`'s CONTENTS, because the allowlist above permits the key and says
+		// nothing about its value — the same gap `strategy` needed its own assertion for a few
+		// lines down, reappearing in the key this file had just started permitting.
+		//
+		// `cancel-in-progress` is deliberately an EXPRESSION, not `true`: a superseded push to a
+		// PR should cancel its own stale run, and a push to `main` must never be cancelled by a
+		// later one, because main is where both platforms' verdicts are wanted on every commit.
+		// Flatten it to `true` and a `main` run can be killed part-way through `npm run check`
+		// while every other assertion in this file stays green — the gate reporting on no commit
+		// at all. Broadening the group has the same effect from the other direction, by
+		// colliding runs that have nothing to do with each other.
+		//
+		// This branch has its own evidence for how that feels: six pushes in half an hour
+		// cancelled six PR runs in turn, so no leg completed until the pushing stopped. That is
+		// the intended behaviour for a PR and it is exactly what must not reach `main`.
+		//
+		// The `$` is interpolated rather than written next to `{{`, because
+		// `no-template-curly-in-string` sees `${` in an ordinary string and assumes a template
+		// literal was meant — right for JavaScript, wrong for a GitHub expression. An inline
+		// suppression is not available: `linterOptions.noInlineConfig` refuses the whole class
+		// and `tests/build/suppressions.test.ts` asserts no file turns a rule off.
+		const $ = '$';
+		expect(workflow.concurrency).toEqual({
+			group: `ci-${$}{{ github.workflow }}-${$}{{ github.ref }}`,
+			'cancel-in-progress': `${$}{{ github.event_name == 'pull_request' }}`,
+		});
+
 		// `strategy`'s OWN keys too, because this allowlist reads the job's and does not
 		// recurse — `strategy` was permitted to hold anything, which is how `fail-fast` came
 		// to need its own assertion above. `max-parallel: 1` is the member that motivates it

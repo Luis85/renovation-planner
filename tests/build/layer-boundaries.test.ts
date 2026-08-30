@@ -35,13 +35,30 @@ beforeAll(async () => {
  * Keyed on the WHOLE `files` array rather than its first entry, for the same reason: two blocks
  * can share a first glob and differ in the rest, and the scope is what identifies a block.
  */
-const declaringBlocks = (): { files: readonly string[]; severity: string }[] => {
-	const found: { files: readonly string[]; severity: string }[] = [];
-	for (const block of eslintConfig as readonly { files?: unknown; rules?: Record<string, unknown> }[]) {
+const declaringBlocks = (): { files: readonly string[]; ignores: readonly string[]; severity: string }[] => {
+	const found: { files: readonly string[]; ignores: readonly string[]; severity: string }[] = [];
+	for (const block of eslintConfig as readonly {
+		files?: unknown;
+		ignores?: unknown;
+		rules?: Record<string, unknown>;
+	}[]) {
 		const rule = block.rules?.['no-restricted-imports'];
 		if (rule === undefined) continue;
 		const files = (Array.isArray(block.files) ? block.files : [block.files]).map(String);
-		found.push({ files, severity: rule === 'off' ? 'off' : 'error' });
+		// `ignores` is read and pinned, not discarded. A flat-config block's `ignores` SUBTRACTS
+		// from its `files`, so a ban-declaring block that gained `ignores: ['**/src/domain/legacy/**']`
+		// would stop applying there while `files` — and therefore the membership pin below, and
+		// every probe, which drives one representative path per block — stayed exactly as
+		// asserted. That is a partially disabled layer boundary certified green, and it is the
+		// same shape as this branch's CI guard being blind to the level above the one it read:
+		// the pin validated the field somebody looked at and not the field beside it.
+		// Reported by a review bot. Measured: no BAN block declares one today, so each pins the
+		// empty list and any addition has to be a deliberate, argued change here — while the two
+		// base-config `off` blocks turn out to carry `ignores: ['**/tests/**']`, which is real
+		// content this pin could not see and a first draft of this very comment got wrong by
+		// probing only the ban blocks.
+		const ignores = (Array.isArray(block.ignores) ? block.ignores : block.ignores === undefined ? [] : [block.ignores]).map(String);
+		found.push({ files, ignores, severity: rule === 'off' ? 'off' : 'error' });
 	}
 	return found;
 };
@@ -421,15 +438,19 @@ describe('the blocks declaring no-restricted-imports', () => {
 		// locale- and ICU-dependent, so a comparator chosen for readability would make this
 		// assertion's result a property of the runtime rather than of the config.
 		const declared = declaringBlocks()
-			.map((block) => ({ files: block.files, severity: block.severity }))
+			.map((block) => ({ files: block.files, ignores: block.ignores, severity: block.severity }))
 			.toSorted((a, b) => (firstGlob(a.files) < firstGlob(b.files) ? -1 : firstGlob(a.files) > firstGlob(b.files) ? 1 : 0));
 
 		/** One ban-declaring block: its full nine-glob scope, built from the prefix it covers. */
-		const banning = (prefix: string) => ({ files: scopeOf(prefix), severity: 'error' });
+		const banning = (prefix: string) => ({ files: scopeOf(prefix), ignores: [], severity: 'error' });
 
 		expect(declared).toEqual([
-			{ files: ['**/*.{js,cjs,mjs,jsx}'], severity: 'off' },
-			{ files: ['**/*.{ts,cts,mts,tsx}'], severity: 'off' },
+			// The two base-config blocks carry `ignores: ['**/tests/**']` — real content the pin
+			// was blind to until this field was read, which is the finding making its own case:
+			// their `off` does not reach the test tree, and nothing here would have noticed that
+			// changing either.
+			{ files: ['**/*.{js,cjs,mjs,jsx}'], ignores: ['**/tests/**'], severity: 'off' },
+			{ files: ['**/*.{ts,cts,mts,tsx}'], ignores: ['**/tests/**'], severity: 'off' },
 			banning('**/src/**/*'),
 			banning('**/src/*'),
 			banning('**/src/application/**/*'),

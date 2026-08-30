@@ -76,8 +76,8 @@ standing and one that renames it breaks the citation visibly.
 
 | # | Discharged by |
 | --- | --- |
-| 1 | **PARTIAL.** `zoneEditing` *drags one vertex handle…* counts one interaction-layer `Circle` per vertex, under a comment naming DoD 5, and `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* covers the panel. **Nothing asserts the accent OUTLINE** — the Circle count would pass with it absent. See the gaps below |
-| 2 | **PARTIAL.** `selectTool` *clicking empty canvas clears the selection* covers the store and `inspectorStore` *an empty selection produces …* the panel. **Nothing looks at the interaction layer AFTER a deselection**, so handles left behind would pass both. See the gaps below |
+| 1 | `zoneEditing` *drags one vertex handle…* counts one interaction-layer `Circle` per vertex, under a comment naming DoD 5; `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* covers the panel; and `zoneEditing` *draws the accent OUTLINE beside the handles, which a Circle count cannot see* covers the outline the Circle count is silent about |
+| 2 | `selectTool` *clicking empty canvas clears the selection* covers the store and `inspectorStore` *an empty selection produces …* the panel; `zoneEditing` *takes the outline and the handles down on deselection, not just the store entry* covers the canvas, which neither of those can see |
 | 3 | `selectTool` *a near-zero pointerUp is a pure selection — no command, no history entry* and *a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click* |
 | 4 | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* |
 | 5 | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* |
@@ -93,19 +93,33 @@ standing and one that renames it breaks the citation visibly.
 | 11 | `drawPolygonTool` *judges the close click in screen pixels through the current camera*; `closeTarget` *accepts a pointer inside the grab radius and refuses one outside it* |
 | 12 | `zoneEditing` *deletes from the Inspector; undo restores the exact entity; the panel follows both ways*. The **sidecar** half is `consistency` *a failed sidecar removal after the note was deleted restores the note bytes* |
 | 13 | The same `zoneEditing` case as 12 — it asserts the restored points equal the originals |
-| 14 | **NOTHING redoes a delete.** See the gaps below |
+| 14 | `zoneEditing` *redoes a DELETE, which is the one command whose own undo put the entity back*. `commandHistory` *a successful redo moves the command back from the redo stack to the undo stack* is the generic mechanism, with fakes |
 | 17 | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
 | 18 | `canvasPointerRouting` *a reflexive right-click mid-drag does not commit the move; the primary release still does*; `selectTool` *a NON-PRIMARY release during a drag does not commit the move* |
 
-### The gaps, and the one that was not
+### The three gaps, how they were closed, and the one that was never a gap
 
-None is visible from a test name — the suite looks complete until the bodies are read, which is
-the argument for auditing by reading rather than by grep. **Two were missed by the first pass of this very audit and
-found by a reviewer, and a fourth it reported turned out not to be a gap at all** — which is
-the argument for not trusting an audit unreviewed either. That pass read the body it was
-pointed at, found an assertion covering PART of a step, and wrote the step down as discharged;
-at step 7 it made the opposite error, reading a test's NAME as its whole claim and calling
-covered ground a gap.
+None was visible from a test name — the suite looked complete until the bodies were read, which
+is the argument for auditing by reading rather than by grep. **Two were missed by the first pass
+of this very audit and found by a reviewer, and a fourth it reported turned out not to be a gap
+at all** — which is the argument for not trusting an audit unreviewed either. That pass read the
+body it was pointed at, found an assertion covering PART of a step, and wrote the step down as
+discharged; at step 7 it made the opposite error, reading a test's NAME as its whole claim and
+calling covered ground a gap.
+
+All three real ones are closed, in `tests/presentation/editor/zoneEditing.test.ts`:
+
+- **Step 1 — nothing asserted the selection OUTLINE.** The only interaction-layer assertion in
+  the editor suite counted `Circle` nodes, which are the vertex handles; an outline that stopped
+  being drawn left that count untouched. Closed by *draws the accent OUTLINE beside the handles,
+  which a Circle count cannot see*.
+- **Step 2 — nothing looked at the interaction layer after a DESELECTION.** Both cited cases
+  assert state: the selection store empties, the panel reads "Nothing selected." Handles left
+  behind on the canvas were invisible to both. Closed by *takes the outline and the handles down
+  on deselection, not just the store entry*.
+- **Step 14 — nothing redid a delete.** `commandHistory` proves redo moves a command between the
+  stacks using fakes, and `zoneEditing` redid a CREATE. Closed by *redoes a DELETE, which is the
+  one command whose own undo put the entity back*.
 
 - **Step 7 was NOT a gap, and this entry is the correction.** The first pass claimed "a
   `SelectTool` that snapshotted the geometry AFTER the edit would pass every test in this
@@ -114,38 +128,20 @@ covered ground a gap.
   audit read — asserts `gesture.inverse.points` against the whole pre-drag list. What was
   genuinely undriven is narrower: no case pressed Undo after a vertex edit and looked at the
   REPOSITORY, so the dispatch-to-vault link was untested even though the polygon handed to the
-  dispatcher was not. `zoneEditing` *undoes a VERTEX edit to every original point* now drives
-  it, and it is a second net over a defect the unit case already catches rather than the only
-  one.
-- **Step 14 — no test redoes a delete.** `commandHistory` proves redo moves a command between
-  the stacks, with fake commands; `zoneEditing` redoes a CREATE and asserts the id survives.
-  A redo of `ReversibleDeleteZone` — which must delete an entity its own undo restored — is
-  exercised nowhere.
+  dispatcher was not. *undoes a VERTEX edit to every original point* now drives it, and is a
+  second net over a defect the unit case already catches rather than the only one.
 
-Both are worth writing as node tests rather than left to the walkthrough, per this suite's own
-rule that a manual case whose findings are not converted will find the same thing again next
-release. Neither is a defect: they are steps the suite was assumed to cover and does not.
+None of the three was a defect: they were steps the suite was assumed to cover and did not.
 
-- **Step 1 — nothing asserts the selection OUTLINE.** The one interaction-layer assertion in
-  the editor suite counts `Circle` nodes, which are the vertex handles. An accent outline that
-  stopped being drawn would leave that count untouched and every test green.
-- **Step 2 — nothing looks at the interaction layer after a DESELECTION.** Both cited cases
-  assert state: the selection store empties and the panel reads "Nothing selected." Handles or
-  an outline left behind on the canvas are invisible to both, which is the deselect half of the
-  same hole.
-
-Steps 1 and 2 stay `suite`: Konva nodes are countable in jsdom — `zoneEditing` already counts
-them — so these are tests nobody has written rather than claims jsdom cannot reach.
-
-**All four cases were watched failing against a mutation, and two of the four mutations are
-the evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
+**All four cases were watched failing against a mutation, and two of the four mutations are the
+evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
 `InteractionLayer.vue` reddens the two new overlay cases and leaves the other thirteen in this
 file green, which is what "a `Circle` count is silent about the outline beside it" MEANS.
-Leaving the overlay behind on deselection — the store still clearing correctly — reddens the
-new case while all eighteen of `selectTool`'s and all eighteen of `inspectorStore`'s stay
-green: fifty of fifty-one passing is the measurement that a state assertion cannot see a
-canvas. Making a redo of a delete write nothing reddens exactly one case, the new one. And the
-vertex mutation reddened two, which is how the step 7 correction above was found.
+Leaving the overlay behind on deselection — the store still clearing correctly — reddens the new
+case while all eighteen of `selectTool`'s and all eighteen of `inspectorStore`'s stay green:
+fifty of fifty-one passing is the measurement that a state assertion cannot see a canvas. Making
+a redo of a delete write nothing reddens exactly one case, the new one. And the vertex mutation
+reddened two, which is how the step 7 correction above was found.
 
 ### What the pilot cost, for the eight cases still to do
 

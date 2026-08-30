@@ -20,8 +20,9 @@ export interface VaultSurface {
 		| 'getFiles'
 		| 'getAbstractFileByPath'
 		| 'read'
-		// `cachedRead` is called at `plugin.ts:75` and a draft of this list omitted it — the
-		// widening has to be COMPLETE or it re-creates the hole it removes, one member along.
+		// `cachedRead` is called by this file's own `cachedRead` delegate below, and a draft
+		// of this list omitted it — the widening has to be COMPLETE or it re-creates the hole
+		// it removes, one member along.
 		// Derive the list by reading every `mustHaveSurface().<member>` call in that file
 		// rather than by recalling which ones matter.
 		| 'cachedRead'
@@ -29,18 +30,20 @@ export interface VaultSurface {
 		| 'modify'
 		| 'delete'
 		// NOT `on`. `loadedPlugin` does not delegate it through the surface — it defines its
-		// own handler-recording stub (`plugin.ts:80`), so no member of the passed surface is
-		// ever consulted for it. Including it would also fail to type-check the moment the
-		// `*.test-d.ts` lands: Obsidian's `Vault.on` returns an `EventRef` while `FakeVault.on`
-		// returns `{ off(): void }`.
+		// own handler-recording stub (`on`, below), so no member of the passed surface is ever
+		// consulted for it. Measured, not merely argued: including it does NOT fail to
+		// type-check, because Obsidian's `EventRef` is declared as an EMPTY interface
+		// (`obsidian.d.ts:2769`), so `FakeVault.on`'s `{ off(): void }` satisfies it
+		// structurally regardless. Excluded anyway, for the reason stated above: nothing here
+		// reads it through the surface.
 	> & {
 		/**
 		 * NOT picked from `Vault`, and the exception is deliberate.
 		 *
 		 * Obsidian declares `createFolder(path: string): Promise<TFolder>`
-		 * (`obsidian.d.ts:7312`), while `FakeVault.createFolder` and the `plugin.ts:79`
-		 * delegate both return `Promise<void>` — so picking it would fail type-checking the
-		 * moment the `*.test-d.ts` pulls this file in, before Task 11 can land.
+		 * (`obsidian.d.ts:7312`), while `FakeVault.createFolder` and this file's own
+		 * `createFolder` delegate below both return `Promise<void>` — so picking it would fail
+		 * type-checking the moment the `*.test-d.ts` pulls this file in, before Task 11 can land.
 		 *
 		 * `Promise<unknown>` rather than widening the fakes, because the alternative touches
 		 * `tests/helpers/vault.ts` — the one file PR 25 edits — and would reopen the conflict

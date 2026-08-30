@@ -360,6 +360,21 @@ export interface RepositoryStack {
 	migrations: MigrationRunner;
 	logged: Line[];
 	logger: Logger;
+	/**
+	 * `createRepositoryStack` has always returned this field; the interface never
+	 * declared it, which was invisible for as long as nothing type-checked this file (a
+	 * `tests/**` transpile does not check assignability). `tests/helpers/fixtureVault.test-d.ts`
+	 * pulling this interface into a real program was the first thing that could have caught
+	 * the excess-property error on the return statement below — and did.
+	 *
+	 * Typed as the CONCRETE class, matching `store`/`migrations`/`index`/`echo` and every
+	 * repository field on this interface, rather than as the `DiagnosticsLedger` port: a
+	 * caller reading a concrete-only member later is not refused, and the port type would buy
+	 * nothing here — `logger: Logger` is the one exception on this interface, and it is an
+	 * exception because that field is a plain object literal with no class behind it, not a
+	 * constructed instance the way this one is.
+	 */
+	ledger: InMemoryDiagnosticsLedger;
 	store: PlanGeometryStore;
 	projects: ObsidianProjectRepository;
 	plans: ObsidianPlanRepository;

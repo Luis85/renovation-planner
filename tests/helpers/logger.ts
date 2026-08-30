@@ -1,6 +1,16 @@
 import type { LogLevel, Logger } from '../../src/application/ports/Logger';
 
 /**
+ * Re-exported for `tests/helpers/vault.ts`'s `RepositoryStack.logger: Logger` — that
+ * file imports it from here rather than from the port directly, and this module used to
+ * carry the name only as a LOCAL, unexported type-only import, which type-checked nothing
+ * until `tests/helpers/fixtureVault.test-d.ts` pulled `vault.ts` into a real program for
+ * the first time and found it (`TS2459: declares 'Logger' locally, but it is not
+ * exported`).
+ */
+export type { Logger };
+
+/**
  * A `Logger` that records instead of printing, plus the `vi.mock` factory that makes the
  * plugin construct it.
  *

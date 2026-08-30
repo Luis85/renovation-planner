@@ -180,8 +180,8 @@ So the check is **one predicate asked at both doors**:
 - **Incremental**: after an index mutation that changes a project's derived folder, ask
   `foldersOverlap(derivedFolder, libraryFolder)` for that one entry.
 - **Load-time rebuild**: sweep every project's derived folder against the library once, after
-  the rebuild. Slice 13's `(severity, message)` dedup folds a multi-project hit into one notice
-  at `(×N)`, so the sweep does not become a burst.
+  the rebuild. A whole-vault sweep is not a burst of notices, because what it feeds is the
+  boolean below rather than one push per hit.
 
 Reported by a review bot, which also caught that "the only candidate" was doing the work of an
 argument in a sentence that had never been checked.
@@ -199,48 +199,65 @@ Three properties follow from the architecture rather than being chosen:
   This is slice 18's own lesson — `NoteVaultDeps.projectFolder` was deleted for it — and here
   it is load-bearing rather than tidy, because the library migration in this same slice changes
   that value mid-session.
-- **Dedup is NOT free, and the first draft of this bullet said it was.** It claimed slice 13's
-  `(severity, message)` fold meant "three overlapping projects raise one warning at ×3". That
-  reads a display mechanism as if it were a set aggregation. Measured: `push` does
-  `existing.count += 1` for **every** identical push, and `startPersistence()` — which calls
-  `index.rebuild` — is called from `onLayoutReady` **and again from `saveSettings`**, its own
-  docblock saying the build repeats. So `(×N)` counts sweep runs, not projects: one overlapping
-  project plus two unrelated settings saves displays `×3`, identically to three overlapping
-  projects found in one sweep. The likelier reading of that badge is the wrong one.
+- **The notice says THAT there is an overlap, never HOW MANY — and arriving at that took three
+  wrong drafts, each one adding mechanism where the answer was to promise less.**
 
-  So the count is **aggregated before it is notified, and the watcher is state-aware**. One
-  function, asked at both doors, that (a) computes the current set of overlapping project ids
-  from the index, (b) compares it with the set it last reported, and (c) pushes only when the
-  set has **changed** — one message, naming the count through `t`'s new `params` (item 6a,
-  which this slice adds anyway, so the interpolation is not a new cost). A repeat sweep over an
-  unchanged set pushes nothing, which is also the honest behaviour for a `warning` that never
-  auto-dismisses: the notice is still on screen, and pushing again says nothing new.
+  - *Draft 1: "dedup is free."* It claimed slice 13's `(severity, message)` fold meant "three
+    overlapping projects raise one warning at ×3" — reading a display mechanism as a set
+    aggregation. Measured: `push` does `existing.count += 1` for every identical push, and
+    `startPersistence()` (which calls `index.rebuild`) is called from `onLayoutReady` **and
+    again from `saveSettings`**, its own docblock saying the build repeats. So `(×N)` counted
+    sweep runs: one overlapping project plus two unrelated settings saves displayed `×3`,
+    identically to three projects found in one sweep.
+  - *Draft 2: aggregate the set, interpolate the count, push only when the set changes.* This
+    fixed the repeat-push count and broke on a set that CHANGES while staying non-empty. The
+    dedup key is the message **text** (`entry.severity === severity && entry.message === message`),
+    `warning` has `AUTO_DISMISS_MS: null`, and this design defers retraction — so `{A}` then
+    `{A,B}` leaves *"1 project"* standing **beside** *"2 projects"*, a return to `{A}` dedups
+    against the stale first entry and shows `×2`, and enough churn consumes all three
+    `MAX_VISIBLE_NOTICES` slots with contradictory copy.
+  - *Draft 3: hold the reported set for the session.* Necessary — `saveSettings` calls
+    `createCompositionRoot(…)` and re-runs `startPersistence()`, so a set composed with the index
+    is emptied on every settings save and the rebuild re-pushes — but it does nothing about
+    draft 2's problem, because that one is about the message text rather than the push count.
 
-  **The residue, named rather than solved:** slice 13's queue has no retraction, so a warning
-  raised for an overlap the user then FIXES stays up until they dismiss it. Adding a retract
-  door is queue policy and belongs with the preemption question below, not here.
+  **What the surface actually owes is a boolean.** The user's remedy is identical whether one
+  project overlaps or four: move something. So the watcher pushes **once on the transition from
+  no overlap to some overlap**, with FIXED text that stays true for as long as any overlap
+  stands. A set that changes while remaining non-empty pushes nothing — the warning is already
+  up and still accurate. Nothing to replace, nothing to retract while the condition holds, no
+  slot churn, and no interpolation needed here at all (item 6a still lands for slice 15's row
+  label, which is a genuinely per-value string).
 
-- **That reported set is SESSION-scoped, and putting it in the composition root would have
-  rebuilt the defect it was added to fix.** `saveSettings` calls `createCompositionRoot(…)` and
-  then re-runs `startPersistence()`, so a watcher composed with the index and the adapter gets a
-  fresh, empty "last reported" set on every settings save — and the rebuild that follows
-  immediately re-pushes the identical warning. `(×N)` climbs once per settings save again, which
-  is exactly the bullet above, reintroduced by the bullet above.
+  **Which projects** goes to the log line, where a list costs nothing and is not competing for
+  three slots.
 
-  **The mechanism already exists and needs no invention.** `saveSettings` passes session-scoped
-  collaborators *into* the new root — `{ ledger: this.ledger, markers: this.sequenceMarkerStore(…) }`
-  — and `this.ledger`'s docblock states this very rationale: *"The diagnostics ledger outlives
-  composition roots: `saveSettings` replaces the root (and with it every repository), but the
-  validation issues recorded so far describe the SESSION's vault reads."* The reported set is the
-  same kind of fact about the session, so it becomes a third member of that argument rather than
-  a field on anything the swap discards. The notice queue is already plugin-scoped
-  (`activateNotices()` from `onload`, `disposeNotices` on the disposers), so the state and the
-  surface it feeds now have the same lifetime — which they did not in the draft above.
+- **The transition state is SESSION-scoped, and the mechanism already exists.** Keeping it in
+  the composition root would mean `saveSettings` resets "was there an overlap last time" to
+  *no* on every settings save, and the rebuild that follows re-announces a condition the user
+  was already told about. `saveSettings` threads session-scoped collaborators into the new root
+  — `{ ledger: this.ledger, markers: this.sequenceMarkerStore(…) }` — and `this.ledger`'s
+  docblock states this exact rationale: *"The diagnostics ledger outlives composition roots:
+  `saveSettings` replaces the root (and with it every repository), but the validation issues
+  recorded so far describe the SESSION's vault reads."* The overlap flag is the same kind of
+  fact and becomes a third member of that argument. `activateNotices()` runs once from `onload`
+  with `disposeNotices` on the disposers, so state and surface now share a lifetime.
 
-  **A settings-save test is owed and is named here so it is not optional**: change an unrelated
-  setting twice over one standing overlap and assert the warning is pushed **once**, not three
-  times. Watched red by moving the set back into the root — the only mutation that distinguishes
-  the two designs, since every other case passes under both.
+  **Two tests are owed and named so they are not optional.** Change an unrelated setting twice
+  over one standing overlap and assert the warning is pushed **once** — watched red by moving
+  the flag into the root. And grow the overlap set from one project to two and assert **no
+  second notice** — watched red by restoring a count-bearing message, which is the only mutation
+  that separates draft 2 from this one.
+
+  **The residue, named rather than solved:** the queue has no retraction, so a warning raised
+  for an overlap the user then FIXES stays up until they dismiss it. Adding a retract door is
+  queue policy and belongs with the preemption question below.
+
+  **The lesson, and it is the one this branch keeps re-teaching:** three rounds here each added
+  mechanism — a count, then state to make the count honest, then a lifetime to make the state
+  survive — when the defect was that the notice was promising something it had no business
+  promising. A condition that is either true or false needed a notice that is either up or
+  down.
 
 **Severity is `warning`**, which never auto-dismisses — the state persists until the user moves
 something, so a message that expires would be a message about a condition that is still true.

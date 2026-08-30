@@ -32,7 +32,9 @@ The steps below are the ones where "the suite is green" proves nothing about the
 
 Each step carries a `Reachable by` verdict — the cheapest instrument that could
 discharge it as written. [[Smoke Test the Editor]]'s *The triage column* section defines
-the five values and what they do not claim.
+the five values and what they do not claim. **This case has been AUDITED**: *What
+discharges each step*, below, names the test behind every `suite` and `browser` verdict
+here, or says there is none.
 
 | # | Reachable by | Do this | It passes when | It exists to catch |
 | --- | --- | --- | --- | --- |
@@ -60,6 +62,70 @@ the five values and what they do not claim.
 | 17 | `suite` | Select a zone, then CLICK one of its vertex handles without dragging | Nothing moves and Undo does not enable | The click-vs-drag epsilon on the VERTEX gesture. It applied to body drags only, so a click within the handle teleported that vertex — up to 8 mm per percent of zoom, ~80 mm at the default camera — and pushed a real move onto the undo stack |
 | 18 | `suite` | Start dragging a zone, and right-click mid-drag without releasing the left button | The drag continues; releasing the left button commits exactly one move | Button routing. The canvas forwarded every `pointerup` while filtering `pointerdown`, so the right-button release committed the move at the half-finished position and the real release did nothing |
 | 19 | `desktop` | On a touch screen or trackpad, start a zone drag and swipe as if to scroll the pane | Either the drag continues or nothing moves at all — never a zone that jumps to a later, unrelated click | `touch-action: none` plus the `pointercancel` handler. A stolen gesture delivers no `pointerup`, and the abandoned gesture used to stay live |
+
+## What discharges each step
+
+The audit of this case's `suite` and `browser` verdicts — the pilot for the other eight, and
+the thing the `Reachable by` column deliberately does NOT claim. A verdict says a step COULD
+be a node test; this table says which test actually is one, read from the test body rather
+than inferred from a filename. Only the twenty `suite` and `browser` steps appear: the two
+`obsidian` and two `desktop` steps have nothing here to find.
+
+Cited by test NAME rather than by line, so an edit that moves a case leaves the citation
+standing and one that renames it breaks the citation visibly.
+
+| # | Discharged by |
+| --- | --- |
+| 1 | `zoneEditing` *drags one vertex handle…* — its first assertion counts one interaction-layer `Circle` per vertex, under a comment naming DoD 5; `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* |
+| 2 | `selectTool` *clicking empty canvas clears the selection*; `inspectorStore` *an empty selection produces …* |
+| 3 | `selectTool` *a near-zero pointerUp is a pure selection — no command, no history entry* and *a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click* |
+| 4 | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* |
+| 5 | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* |
+| 6 | `zoneEditing` *drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)* — the whole step, including the area changing without a reselect |
+| 7 | **PARTIAL.** The forward half is `selectTool` *dragging a vertex replaces exactly that index and keeps every other vertex*, and the adapter is `reversibleMoveZoneCommand`. **Nothing undoes a vertex edit.** See the gaps below |
+| 8 | `drawPolygonTool` *three vertices plus a close click produce exactly ONE dispatched command and a selection*; `interactionLayer` *marks every placed vertex, and draws the first one as the close target*; `handleMetrics` *grows the start vertex on hover, and draws it larger than an ordinary vertex at rest*. The **both-files** half is `consistency` *a failed sidecar write after an INSERT deletes the created note — not "restores nothing"* |
+| 8a | `interactionLayer` *grows the close target while the pointer is close enough to CLOSE the shape* covers the GROW. The FILL is a resolved theme colour and stays `browser` |
+| 8b | `interactionLayer` *flattens the rubber band the moment Shift goes down, with the pointer still* and *lets go again on release, just as promptly*. The toolbar-focus clause — Chromium focusing the nearest focusable ancestor — stays `browser` |
+| 8c | `drawPolygonTool` *does not let the constraint decide whether the polygon CLOSES* |
+| 8e | Nothing, by construction: a 460px truncation is a layout measurement |
+| 9 | `zoneEditing` *Escape abandons a half-drawn polygon BETWEEN clicks — real click pairs, no zone created*; `drawPolygonTool` *cancel discards the buffer without dispatching anything* |
+| 10 | `drawPolygonTool` *a close click while ANOTHER close is in flight is ignored — one shape, one command* |
+| 11 | `drawPolygonTool` *judges the close click in screen pixels through the current camera*; `closeTarget` *accepts a pointer inside the grab radius and refuses one outside it* |
+| 12 | `zoneEditing` *deletes from the Inspector; undo restores the exact entity; the panel follows both ways*. The **sidecar** half is `consistency` *a failed sidecar removal after the note was deleted restores the note bytes* |
+| 13 | The same `zoneEditing` case as 12 — it asserts the restored points equal the originals |
+| 14 | **NOTHING redoes a delete.** See the gaps below |
+| 17 | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
+| 18 | `canvasPointerRouting` *a reflexive right-click mid-drag does not commit the move; the primary release still does*; `selectTool` *a NON-PRIMARY release during a drag does not commit the move* |
+
+### The two gaps
+
+Both are UNDO-side, and neither is visible from a test name — the suite looks complete until
+the bodies are read, which is the argument for auditing by reading rather than by grep.
+
+- **Step 7 — no test undoes a vertex edit.** `reversible-move-zone-command.ts` states that a
+  vertex drag and a body drag are the SAME command ("there is no second class and there was
+  never going to be one"), so the adapter is covered by step 5's case and the forward edit by
+  `selectTool`. What is untested is the INVERSE polygon, which `SelectTool` computes — one
+  index replaced for a vertex, every point translated for a body — and which lives on the
+  side of that seam no case crosses. A `SelectTool` that snapshotted the geometry AFTER the
+  edit would pass every test in this repository and undo nothing.
+- **Step 14 — no test redoes a delete.** `commandHistory` proves redo moves a command between
+  the stacks, with fake commands; `zoneEditing` redoes a CREATE and asserts the id survives.
+  A redo of `ReversibleDeleteZone` — which must delete an entity its own undo restored — is
+  exercised nowhere.
+
+Both are worth writing as node tests rather than left to the walkthrough, per this suite's own
+rule that a manual case whose findings are not converted will find the same thing again next
+release. Neither is a defect: they are steps the suite was assumed to cover and does not.
+
+### What the pilot cost, for the eight cases still to do
+
+Twenty steps, and the useful measure is not the time but WHERE the coverage turned out to be.
+Four of the twenty are discharged by a test in a file no reader of this case would open —
+step 1's handle count sits inside the case named for step 6, and the both-files halves of
+steps 8 and 12 are in `consistency.test.ts`, two directories away from the editor. A
+name-matching pass would have marked step 1 a gap and taken steps 8 and 12 on trust. Budget
+the audit for reading bodies, and expect roughly one true gap in ten steps.
 
 ## Deliberately NOT checked
 

@@ -101,6 +101,18 @@ structural half is in `emptyStateOverlay.test.ts`. The other sixty-odd were not 
 time. So a `suite` verdict says the step COULD be a node test; confirming that it IS one, or
 writing it, is what converts that step from something a human does into something that runs.
 
+**One case has now had that done, and it is the template for the other eight.**
+[[Zone Editing Walkthrough]] carries a *What discharges each step* section naming the test
+behind each of its twenty `suite` and `browser` verdicts, read from the test BODY rather than
+matched on a name. Eighteen were discharged; two were not, both on the UNDO side and neither
+visible from any test name — nothing undoes a vertex edit, and nothing redoes a delete. What
+the pilot actually measured is where the coverage turned out to LIVE: four of the twenty are
+discharged by a case in a file no reader of that walkthrough would open, including its step 1,
+whose assertion sits inside the case named for its step 6, and the both-files halves of steps 8
+and 12, which are in `consistency.test.ts` two directories away. A name-matching pass would
+have called step 1 a gap and taken 8 and 12 on trust. Budget the remaining eight for reading
+bodies, and expect roughly one true gap in ten steps.
+
 **Both `suite` and `browser` run on the fakes, so neither reaches the fidelity residue.** Three
 of the first four defects this suite ever found were a fake accepting what Obsidian refuses,
 and a browser harness wired for real writes would compose the same `FakeVault`. That is why a

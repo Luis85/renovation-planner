@@ -143,6 +143,41 @@ route to a project's own metadata), and modifier-click (invisible, which is the 
 CLAUDE.md already records for the Shift-constrain key, paid for a gesture that has a perfectly
 good visible home).
 
+### 6. An `open-project` command, reaching the same state transition
+
+The detail state is reachable from a palette command as well as from a row, mirroring
+`open-plan-editor`: a plain `callback` over a `ProjectSuggestModal` — a `FuzzySuggestModal`
+of the Project Index's `renovation-project` entries — which then reveals the view with that
+project's state.
+
+**"One action, every input" holds at `sync()`, not at the reveal.** The row click and the
+command necessarily take different doors, because one already holds a leaf and the other must
+find or create one — that split is `revealView`'s entire job and is the same one
+`openProjectNote` already takes. What matters is that both end at Obsidian calling `setState`,
+and `sync()` is the single place that decides what is mounted. A second activation path that
+decided for itself is what this rule exists to refuse, and there isn't one.
+
+**It needs no new mechanism.** `revealCandidate` already accepts an optional `state` and keys
+its in-flight map by `type` plus the serialized state (`requestKey`, with sorted keys so two
+equal states written in different orders do not miss each other). So
+`revealView(deps, RENOVATION_PROJECT_VIEW, { projectId })` gets the double-invocation
+coalescing for free — the guard that exists because a leaf takes time to exist, and without
+which two invocations in one tick both find nothing and both create.
+
+**With no projects in the vault, the command reveals the LIST, not a picker and not a
+notice.** `open-plan-editor` answers `notify(tr('plan.none'))` in that situation, and this
+deliberately differs. The reason is a property of the surfaces rather than a preference: a
+Plan Editor with no plan draws nothing, so a notice is the only thing that command can
+usefully do. This view **has** a list state whose empty state carries a Create button, so
+revealing it puts the user one click from the thing they were trying to reach. A zero-row
+fuzzy picker would be the worst of the three. Stated here so that nobody later "fixes" the
+inconsistency by adding a `project.none` notice and quietly removing the better behaviour.
+
+The command id `open-project` is **DATA** — Obsidian binds a user's hotkey to it, so it is
+never renamed. `command.open-project` needs an entry in both locale tables. Registration lives
+in `src/plugin/`, which `tests/build/registration-locality.test.ts` enforces by reading `src/`
+for nine registration members.
+
 ## Architecture
 
 ```
@@ -174,6 +209,7 @@ Nothing outside `presentation/` learns that a detail state exists.
 | `views/NewPlanForm.vue` | One field (`name`), on `useFormCommit`, modelled on `NewProjectForm`. |
 | `stores/ProjectDetailStore.ts` | `project`, `plans`, `status`, `error`, `hydrate(queries, projectId)`. |
 | `read-models` addition | `PlanSummaryDto` — `{ id, name }`. A summary, not `PlanDto`: a list row needs no background, calibration or layers, and handing a component the full DTO makes it a consumer of fields it does not read. |
+| `modals/ProjectSuggestModal.ts` | A `FuzzySuggestModal` over the index's `renovation-project` entries, mirroring `PlanSuggestModal`. |
 | `emptyStates` addition | `renovationProject.noPlans`, **with** an `actionLabel`. |
 
 **Changed**
@@ -182,6 +218,7 @@ Nothing outside `presentation/` learns that a detail state exists.
   context.
 - `ViewRoot.vue` — switches on `context.projectId`. Keeps its one `DialogHost`, which now has a
   second caller.
+- `plugin/` — registers the `open-project` command beside the existing ones.
 - `sampleProject.ts` and `emptyStates/content.ts` — the two docblocks whose stated trigger this
   slice fires.
 
@@ -273,6 +310,12 @@ empty id; `sync()` not mounting twice on the `onOpen`/`setState` race; `rebind` 
 = true`**. That single assignment is the entire reason the back arrow works, and every other
 test in this slice passes without it.
 
+**The command** — that `open-project` reveals with `{ projectId }` state; that two invocations
+in one tick coalesce into one activation (the `revealCandidate` guard, driven through the
+real door rather than asserted of the map); and that an empty vault reveals the **list** state
+rather than opening a zero-row picker. That last one needs its own case because every other
+test passes with either behaviour.
+
 **Wiring** — that the root hands the view both new queries, guarded, and that the refusal
 bundle carries them. This needs its own case for the `slice10CascadeWiring` reason: a
 composition that forgets a dependency compiles and passes everything else. Also **verify, not
@@ -326,10 +369,8 @@ Each with a trigger.
 
 ## Open questions
 
-None blocking. One worth naming: **whether the detail state should be reachable from a
-command** (`open-project`, a `FuzzySuggestModal` over the index's project entries) the way
-`open-plan-editor` is for plans. It would be the third caller of `navigate` and costs almost
-nothing, but "one action, every input" cuts both ways — a command is an input, and adding it
-in the same slice that builds the surface is cheaper than adding it later. Deferred to the
-slice document rather than decided here, because it changes the plugin's command list, which
-is data a user binds hotkeys to.
+None. The one this document carried on 2026-08-30 — whether the detail state should also be
+reachable from a palette command — was settled the same day and is decision 6 above. It is
+recorded as a decision rather than deleted because its empty-vault behaviour deliberately
+differs from `open-plan-editor`'s, and a difference nobody wrote down is a difference somebody
+later removes.

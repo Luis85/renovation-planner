@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { dirname, relative, sep } from 'node:path';
 import eslintConfig from '../../eslint.config.mjs';
-import { ESLINT_BOOT_MS, lintDetailed, warmUpEslint } from '../helpers/eslint';
+import { ESLINT_BOOT_MS, lintDetailed, warmUpEslint, type Diagnostic } from '../helpers/eslint';
 
 /**
  * The layer boundary, checked AT THE FORBIDDEN THING.

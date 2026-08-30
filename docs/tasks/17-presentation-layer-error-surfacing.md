@@ -727,6 +727,24 @@ to be about. Held in BOTH directions by mutation — clearing at the top again, 
 clearing on success — because a warning that never retires is the over-correction and passes
 any case that only checks the warning appears.
 
+**That fix was itself too narrow, and the third finding in a row here is what says the field
+was the problem rather than any of its three clears.** It protected the `keepPreviousOnFailure`
+path only, and `PlanEditorRoot` subscribes a PLAIN `hydrate()` — no options — to
+`onPlanChanged`, which fires for any external plan change; with `status` already `'ready'` that
+path also leaves the canvas mounted, so it withdrew the warning for the length of its read in
+exactly the same way. The answer is not a third condition on `error`. `error` means "why is
+there nothing to show" — `fail()` sets it beside `plan = null` — and the strip needs "what is on
+screen is real but may be out of date". `ProjectStore.stale` is that second fact, set where a
+read fails with content still on screen, cleared by the one event that makes the canvas current
+(a read that SUCCEEDED) and by `fail()`, where the stale content is gone with it. Every
+hydration path ends at one of those three, so a future caller gets the lifetime right without
+knowing the rule.
+
+**The shape worth keeping, because this document paid for it three times:** all three defects
+were consequences of one overloaded field, and each individual patch was correct about the
+door it was shown and silent about the next one. A field that answers two questions produces a
+finding per caller until it answers one.
+
 ## References
 
 - SDD §66 Error Boundary — the pipeline this slice completes (the

@@ -254,6 +254,48 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		harness.wrapper.unmount();
 	});
 
+	it('keeps saying so through an ORDINARY refresh too, not only a keep-on-failure one', async () => {
+		// The door the first fix missed. `PlanEditorRoot` subscribes a plain `hydrate()` — no
+		// options — to `onPlanChanged`, which fires for any external plan change; with `status`
+		// already `'ready'` that path leaves the canvas mounted, so it is the same situation and
+		// was withdrawing the warning for the length of the read. Fixing the keep-on-failure
+		// clear alone left this one open, which is what moved the answer from a third condition
+		// on `error` to a field of its own. Reported by a review bot.
+		let resolveThird: ((value: Awaited<ReturnType<PlanEditorQueryServices['getPlan']>>) => void) | null =
+			null;
+		let call = 0;
+		const flaky: PlanEditorQueryServices = {
+			...fakeQueries(FIXTURE_PLAN),
+			getPlan: () => {
+				call += 1;
+				if (call === 1) return Promise.resolve(ok(FIXTURE_PLAN));
+				if (call === 2) return Promise.resolve(err(HYDRATION_FAULT));
+				return new Promise((resolve) => {
+					resolveThird = resolve;
+				});
+			},
+		};
+		const harness = await mountPlanEditor({ queries: flaky });
+		await flushPromises();
+		const store = useProjectStore(harness.pinia);
+
+		await store.hydrate(flaky, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+		await flushPromises();
+		expect(harness.wrapper.find('.rp-editor-notice').text()).toBe(t('en', 'editor.refresh-failed'));
+
+		// No options — exactly what `onPlanChanged` triggers — and held open.
+		const inFlight = store.hydrate(flaky, FIXTURE_PLAN.id);
+		await flushPromises();
+		expect(harness.wrapper.find('.rp-editor-notice').text()).toBe(t('en', 'editor.refresh-failed'));
+
+		resolveThird?.(ok(FIXTURE_PLAN));
+		await inFlight;
+		await flushPromises();
+		expect(harness.wrapper.find('.rp-editor-notice').exists()).toBe(false);
+
+		harness.wrapper.unmount();
+	});
+
 	it('does not swallow the background notice, which is about something else entirely', async () => {
 		// The two BACKGROUND notices are alternatives to each other — a background is missing or
 		// unreadable, never both — so they are one `v-if`/`v-else-if` chain. Staleness is an

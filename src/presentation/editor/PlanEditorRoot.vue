@@ -35,7 +35,7 @@ const context = usePlanEditorContext();
 // every tool and the toolbar already share.
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
-const { status, error } = storeToRefs(projectStore);
+const { status, error, stale } = storeToRefs(projectStore);
 const { layersPanelOpen, inspectorPanelOpen } = storeToRefs(useWorkspaceStore());
 const { emptyStateKey } = storeToRefs(projectStore);
 
@@ -76,13 +76,20 @@ function onEmptyStateAction(): void {
  *
  * `ProjectStore.hydrate(..., { keepPreviousOnFailure: true })` — which is how every post-command
  * refresh reads back — deliberately keeps `status === 'ready'` and the previous scene when the
- * read fails, and records the error beside it. Nothing rendered that pair, so the write
- * succeeded, the indicator said Saved, and the canvas silently showed pre-command geometry.
+ * read fails. Nothing rendered that, so the write succeeded, the indicator said Saved, and the
+ * canvas silently showed pre-command geometry.
  *
  * `'ready'` is the whole point of the guard: any other status is already replaced by the
  * failure state, and this exists only for the case where there IS content to keep showing.
+ *
+ * **It reads `stale` and not `error`, which is the correction of three findings rather than
+ * one.** `error` means "why is there nothing to show" — `fail()` sets it beside `plan = null` —
+ * and this needs "what is on screen is real but may be out of date". Reading the first as the
+ * second made the strip withdraw for the length of any in-flight read, including the plain
+ * `hydrate()` this file subscribes to `onPlanChanged` below. `ProjectStore.stale` states that
+ * lifetime once; see its declaration.
  */
-const staleAfterRefresh = computed(() => status.value === 'ready' && error.value !== null);
+const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value);
 
 const root = ref<HTMLElement | null>(null);
 const { tokens, refresh } = useThemeTokens(root);

@@ -36,9 +36,15 @@ here rather than only in the (git-ignored) SDD ledger, so the branch itself reco
 
 | Task | Status |
 |---|---|
-| 1 — `ListPlansByProject` and `PlanSummaryDto` | ✅ complete — `61f4883`, review clean |
-| 2 — `projectPlansChangeSource` | in progress |
+| 1 — `ListPlansByProject` and `PlanSummaryDto` | ✅ complete — `61f4883`, review clean; amended by `45ea97a` (see below) |
+| 2 — `projectPlansChangeSource` | ✅ complete — `630b833`, review clean |
 | 3–13 | not started |
+
+`45ea97a` amends Task 1 after a review finding: its "drops an indexed id whose note is gone"
+case handed its double an already-filtered array, so it could not fail if
+`ObsidianPlanRepository.listByProject` stopped dropping. The drop is pinned at the repository
+now, where the behaviour lives, and the query-level case's name and docblock are narrowed to
+the pass-through property they actually check.
 
 **Execution ORDER is not task order:** Task 5's `navigate` consumes Task 11's
 `navigateToProject`, and Task 11 depends on nothing in Tasks 1–10, so the order is
@@ -2208,6 +2214,7 @@ rather than review.
  * second consumer.
  */
 import type { PlanSummaryDto, ProjectSummaryDto } from '../read-models/PlanDto';
+import EmptyState from '../components/EmptyState.vue';
 import PlanList from './PlanList.vue';
 import { statusLabel } from './statusLabel';
 import { tr } from '../i18n/strings';

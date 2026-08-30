@@ -221,6 +221,13 @@ describe('foldersOverlap', () => {
 		expect(foldersOverlap(' Renovation/Library/ ', 'Renovation/Library')).toBe(true);
 	});
 
+	// Over-refusing costs a rename; under-refusing costs every project's catalogue. On a
+	// case-insensitive filesystem these two strings are ONE folder.
+	it('refuses a case-folded overlap, because the directions are not symmetric', () => {
+		expect(foldersOverlap('Renovation/library', 'Renovation/Library')).toBe(true);
+		expect(foldersOverlap('renovation', 'Renovation/Kitchen refit')).toBe(true);
+	});
+
 	// The vault ROOT contains everything, which is what makes an empty library folder
 	// unusable rather than merely odd.
 	it('is true when either side is the vault root', () => {
@@ -256,10 +263,25 @@ import { normalizeFolder } from './paths';
  * from becoming three predicates.
  */
 export function foldersOverlap(a: string, b: string): boolean {
-	const left = normalizeFolder(a);
-	const right = normalizeFolder(b);
+	// CASE-INSENSITIVE, deliberately, and this is the one asymmetric decision in the file.
+	// Obsidian's paths are case-sensitive; Windows and macOS filesystems usually are not, so
+	// `Renovation/library` and `Renovation/Library` can be ONE folder on disk and two strings
+	// here. A case-sensitive comparison answers `false` for a genuine overlap and lets through
+	// exactly the state this guard exists to prevent — deleting the apparently separate
+	// project folder takes the shared catalogue with it.
+	//
+	// Over-refusing costs a user one rename; under-refusing costs them every project's
+	// catalogue. The directions are not symmetric, so the safe one is taken without waiting
+	// to learn which filesystem the vault is on — which nothing here can ask anyway.
+	const left = fold(a);
+	const right = fold(b);
 	if (left === right) return true;
 	return contains(left, right) || contains(right, left);
+}
+
+/** `toLowerCase` on the normalised path — see the asymmetry note in `foldersOverlap`. */
+function fold(raw: string): string {
+	return normalizeFolder(raw).toLowerCase();
 }
 
 /** Whether `outer` is an ancestor of `inner`, at a folder boundary. */
@@ -554,8 +576,14 @@ export async function migrateLibraryFolder(
 
 	// 2. Move, so vault links survive — `renameFile`, never create-and-delete.
 	const moved: string[] = [];
-	for (const note of deps.catalogueNotes(from)) {
-		const next = joinFolder(destination, note.name);
+	const source = normalizeFolder(from);
+	for (const note of deps.catalogueNotes(source)) {
+		// The path RELATIVE to the old root, never `note.name`. A catalogue note lives at
+		// `<library>/Assets/Tiles.md`, so its leaf name alone would flatten it to
+		// `<destination>/Tiles.md` — losing the layout `assetsFolderFor(libraryFolder)`
+		// expects, and colliding the moment `Suppliers/` and `Trades/` exist.
+		const relative = note.path.slice(source.length + 1);
+		const next = joinFolder(destination, relative);
 		try {
 			await deps.ensureFolder(parentOf(next));
 			await deps.renameFile(note, next);
@@ -584,22 +612,42 @@ empty string back to it. `saveSettings` also has no serialization, so two change
 interleave their `renameFile` loops. Neither is a preference bug; both destroy data.
 
 So the migration is reached only from a `SettingDefinitionAction` row — a button, with no
-control and therefore no per-change write:
+control and therefore no per-change write.
+
+**Two things about that button are not obvious and were wrong in the first draft of this
+plan.**
+
+*It needs a host that exists.* `askDestination()` cannot use slice 15's `FormDialog`:
+`DialogHost` is mounted in `PlanEditorRoot.vue` and `ViewRoot.vue` and nowhere else, its store
+is scoped to each view's own Pinia app, and `SettingsTab` mounts no Vue app at all. A user
+opening plugin settings with no Renovation Project or Plan Editor leaf open has nothing to
+render into. So the destination is asked with an Obsidian **`Modal`** owned by `src/plugin/` —
+the layer allowed to name `obsidian` — in the shape `open-plan-editor`'s `FuzzySuggestModal`
+already uses for the plan picker. No Vue, no `DialogHost`, no dependency on which leaves happen
+to be open.
+
+*It needs a SYNCHRONOUS lock, and `disabled` is not one.* `disabled` is evaluated per render
+and needs an `update()` call to re-evaluate, and `openDialog`'s throw-if-open only covers the
+window while a dialog is up — which closes when the destination is submitted, before the rename
+loop finishes. A second click during a slow migration would open a second modal and start a
+second move from the same old root. The guard is a field tested and set **before any `await`**:
 
 ```ts
 			{
 				name: tr('settings.library-folder.move.name'),
 				desc: tr('settings.library-folder.move.desc'),
-				// `disabled` is evaluated on each render, so a run in flight disables its own
-				// button — the serialization `saveSettings` does not provide.
 				disabled: () => this.migrating,
 				action: () => {
+					// Tested and SET synchronously, before anything can yield. `disabled`
+					// above is cosmetic — it needs a re-render to take effect, and a second
+					// click can land before one happens.
+					if (this.migrating) return;
+					this.migrating = true;
 					runDetached(this.logger, 'settings.library-move', async () => {
-						this.migrating = true;
 						try {
 							const from = this.host.root.settings?.libraryFolder;
 							if (from === undefined) return;
-							const to = await this.askDestination();
+							const to = await askLibraryDestination(this.app);
 							if (to === null) return;
 							const migrated = await migrateLibraryFolder(this.libraryMigrationDeps(), from, to);
 							if (isErr(migrated)) notifyError(migrated.error);
@@ -611,16 +659,25 @@ control and therefore no per-change write:
 			},
 ```
 
-Three properties, each inherited rather than invented:
+- [ ] **Step 5a: Test the lock at the door, not at the render**
 
-- **One explicit submit.** `askDestination()` opens slice 15's `FormDialog`, whose
-  `openDialog` THROWS if a dialog is already open — a second concurrent migration cannot be
-  started even if the button's `disabled` were wrong.
-- **`runDetached`** is the plugin's one door for a handler that returns nothing, so a fault
-  maps, logs and notifies (SDD §66) instead of becoming an unhandled rejection. An `action`
-  callback returns `void`, which is exactly the shape that door exists for.
-- **The setting is never written by the control on this path.** `migrateLibraryFolder`
-  persists as its own last step, so the file changes only after the notes have moved.
+```ts
+it('refuses a second migration while one is in flight, without waiting for a re-render', () => {
+	const tab = createSettingsTab({ migrate: neverResolves });
+	tab.libraryMoveAction();
+	tab.libraryMoveAction();
+	// Watched red by moving `this.migrating = true` inside the async closure, which is where
+	// the first draft had it: `disabled` alone lets the second click through.
+	expect(askLibraryDestination).toHaveBeenCalledTimes(1);
+});
+```
+
+Two properties still inherited rather than invented: **`runDetached`** is the plugin's one door
+for a handler that returns nothing, so a fault maps, logs and notifies (SDD §66) rather than
+becoming an unhandled rejection — an `action` callback returns `void`, which is exactly its
+shape; and **the setting is never written by the control on this path**, because
+`migrateLibraryFolder` persists as its own last step, so `data.json` changes only after the
+notes have moved.
 
 **What the `validate` in Task 3 Step 5 still buys**, given this button: it refuses an
 overlapping folder at the moment of *choosing* one, inline, before the user presses anything —
@@ -693,14 +750,43 @@ Make it `Partial<Omit<CreateAssetProps, 'id'>>`. **Delete the `projectId` clause
 
 `assetFrontmatter.ts` — delete `project: z.string().min(1),`. **`ASSET_MIGRATIONS` stays empty** and the schema stays at version 1: the version is DERIVED from registered steps, and no release exists (verified against the remote — see the spec's Correction 1). If `list_releases` ever answers non-empty before this lands, this decision is void and a v1→v2 step is mandatory.
 
-`assetMapper.ts` — stop reading and writing `project`, and **strip a leftover key** so the note is rewritten without it on its next save:
+`assetMapper.ts` — stop reading and writing `project`. **Omitting it from the DTO is not
+enough, and the first draft of this step was wrong about that.** `writeOwnedFrontmatter` is
+`processFrontMatter(file, (fm) => Object.assign(fm, owned))` — a MERGE. A key absent from the
+new DTO is simply preserved, so a note carrying `project` would keep it forever and the
+round-trip test in Step 5 would fail. Removing it from the schema makes it worse rather than
+better: it becomes an unowned extra, which this write path is designed to protect.
+
+So a retired owned key needs explicit deletion semantics, and the door that owns keys is the
+place for it:
 
 ```ts
-export function assetToPersistence(asset: Asset, revision: number): Record<string, unknown> {
-	const { project: _dropped, ...rest } = /* … */;
-	// `project` is removed rather than merely unread: the rule is about the BYTES.
+/**
+ * Merges the plugin-owned keys into an existing note without touching body or extras, and
+ * DELETES keys this build has retired.
+ *
+ * `retired` exists because omission cannot express removal here: this is a merge, so a key
+ * dropped from the DTO is preserved rather than cleared. Slice 19 retired `project` from an
+ * Asset when the catalogue left the project, and the rule is about the BYTES — a note is
+ * rewritten without it on its next save.
+ */
+export async function writeOwnedFrontmatter(
+	fileManager: FileManager,
+	file: TFile,
+	owned: Record<string, unknown>,
+	retired: readonly string[] = [],
+): Promise<void> {
+	await fileManager.processFrontMatter(file, (frontmatter) => {
+		for (const key of retired) delete frontmatter[key];
+		Object.assign(frontmatter, owned);
+	});
 }
 ```
+
+`NoteWriteSpec` gains `retiredKeys?: readonly string[]`, and the asset spec sets
+`retiredKeys: ['project']`. **Ordering is load-bearing**: delete first, assign second, so a key
+that is both retired and re-owned survives as its new value rather than being deleted after it
+was written.
 
 - [ ] **Step 5: Add the round-trip test the strip needs**
 
@@ -1245,7 +1331,12 @@ git commit -am "Close slice 19: narrow the reassignment header, apply the amendm
 
 These need a decision and I have not taken them.
 
-1. **Case sensitivity in `foldersOverlap`.** Obsidian paths are case-sensitive; Windows and macOS filesystems usually are not. `Renovation/library` and `Renovation/Library` may be the same folder on the user's disk and different strings here, so the predicate would answer `false` for a genuine overlap. Task 2 compares case-sensitively — matching Obsidian's own model — and CI runs Windows, so this is decidable but undecided.
+1. ~~**Case sensitivity in `foldersOverlap`.**~~ **Decided, not open.** Left as a question in the
+   first draft, which was wrong: the two directions are not symmetric. Under-refusing permits
+   the exact state the guard exists to prevent — deleting an apparently separate project folder
+   takes the shared catalogue — while over-refusing costs a rename. Task 2 folds case, and says
+   so where the code is. Nothing here can ask which filesystem the vault is on, and it does not
+   need to.
 2. **The library migration and open Plan Editor leaves.** Moving catalogue notes rebuilds the index, but a mounted Inspector holds `InspectorDto`s built before the move. Nothing here refreshes them, and `ProjectIndexEntryChanged` fires per entry from `VaultChangeAdapter` — not from a bulk `renameFile` loop in the plugin shell. Whether the migration should publish, or leaves are expected to be stale until reopened, is unresolved.
 3. **`Asset` notes already outside the library.** Slice 18 made discovery declaration-based, so an asset note the user filed anywhere is read and indexed. After Task 5 its *updates* write where it sits and only *inserts* go to the library, so such a note never moves. That is consistent with slice 18 and it means "the catalogue lives in the library folder" is true of new assets only. Worth stating in `docs/tasks/19` rather than discovering later.
 4. **Coverage headroom is 2.24 branches** and this slice adds arms in eight files. The spec's "deletions help" argument (three refusals removed) is a reason to expect it to end level, not a measurement. If Task 10 Step 5 comes in under the floor, the choice between adding tests and lowering a floor is yours — this project's ratchet policy says floors only rise.

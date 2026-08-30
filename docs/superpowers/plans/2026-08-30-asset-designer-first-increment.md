@@ -131,6 +131,8 @@ export type FootprintOrigin = 'typed' | 'traced';
 export interface AssetShape {
 	readonly footprint: Polygon;
 	readonly footprintOrigin: FootprintOrigin;
+	/** Captured on an uncalibrated surface and still awaiting a scale. Typed geometry is never pending. */
+	readonly pendingScale: boolean;
 	readonly clearance: Polygon | null;
 	readonly anchor: Point;
 	/** Radians, measured anticlockwise from +x, normalised to [0, 2π). */
@@ -222,6 +224,8 @@ export type FootprintOrigin = 'typed' | 'traced';
 export interface AssetShape {
 	readonly footprint: Polygon;
 	readonly footprintOrigin: FootprintOrigin;
+	/** Captured on an uncalibrated surface and still awaiting a scale. Typed geometry is never pending. */
+	readonly pendingScale: boolean;
 	readonly clearance: Polygon | null;
 	readonly anchor: Point;
 	readonly facing: number;
@@ -306,6 +310,7 @@ export function shapeFromDimensions(width: number, depth: number): Result<AssetS
 	return ok({
 		footprint: footprint.value,
 		footprintOrigin: 'typed',
+		pendingScale: false,
 		clearance: null,
 		anchor: { x: 0, y: 0 },
 		facing: 0,
@@ -381,6 +386,7 @@ const valid = {
 	shape: {
 		footprint: { points: [[-600, -400], [600, -400], [600, 400], [-600, 400]] },
 		footprintOrigin: 'typed',
+		pendingScale: false,
 		clearance: null,
 		anchor: { x: 0, y: 0 },
 		facing: 0,
@@ -439,6 +445,13 @@ const pointTuple = z.tuple([z.number(), z.number()]);
 export const AssetShapeSchemaV1 = z.object({
 	footprint: z.object({ points: z.array(pointTuple) }),
 	footprintOrigin: z.enum(['typed', 'traced']),
+	/**
+	 * Whether these coordinates are still awaiting a scale — a fact recorded AT CAPTURE, not
+	 * derived from whether a calibration happens to exist now. Deriving it would answer a
+	 * question about the past out of live state, and would re-flag a genuinely measured
+	 * outline the moment its background was replaced.
+	 */
+	pendingScale: z.boolean().catch(false),
 	clearance: z.object({ points: z.array(pointTuple) }).nullable(),
 	anchor: z.object({ x: z.number(), y: z.number() }),
 	facing: z.number(),
@@ -550,6 +563,37 @@ npx vitest run tests/infrastructure
 
 Expected: PASS, with the new file's cases included.
 
+- [ ] **Step 5a: Move `Geometry/` when `libraryFolder` changes**
+
+Slice 19's settings migration validates, moves the catalogue notes, rebuilds the index and persists
+the new value **last**. Asset geometry joins that same move — it does not get a second migration.
+
+Write the failing test first:
+
+```typescript
+it('moves the geometry sidecars with the catalogue, so a designed shape survives the setting', async () => {
+	await store.write(assetId, documentWithShape);
+	await changeLibraryFolder('Renovation/Library', 'Vault/Catalogue');
+	const moved = await store.read(assetId);
+	expect(isOk(moved) && moved.value.document.shape).not.toBeNull();
+	expect(vault.exists('Renovation/Library/Geometry/' + assetId + '.rpgeo')).toBe(false);
+});
+
+it('does not persist the new folder when moving the geometry fails', async () => {
+	await store.write(assetId, documentWithShape);
+	vault.failRenameOf(/\.rpgeo$/);
+	await expectRejectedChange('Vault/Catalogue');
+	expect(settings.libraryFolder).toBe('Renovation/Library');
+	const stillThere = await store.read(assetId);
+	expect(isOk(stillThere) && stillThere.value.document.shape).not.toBeNull();
+});
+```
+
+Without this, the store resolves sidecars under the new folder the instant the setting persists,
+every designed shape disappears from the application and the files are orphaned under the old path
+— **silently**, because an absent sidecar reads as `shape: null` rather than as an error. The
+second case is what keeps the failure recoverable: persist last, or not at all.
+
 - [ ] **Step 6: Add the fixture-vault fixtures**
 
 Slice 12's disk-backed fixture vault needs two assets: one with a `.rpgeo` beside its note in the
@@ -636,10 +680,18 @@ describe('SetAssetFootprintFromDimensions', () => {
 });
 
 describe('SetAssetFootprint', () => {
-	it('marks a traced footprint traced, which is what arms the unscaled warning', async () => {
+	it('marks a traced footprint traced, and pending a scale when the surface is uncalibrated', async () => {
 		await traceCommand.execute({ assetId, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 }] });
 		const stored = await sidecar.read(assetId);
 		expect(isOk(stored) && stored.value.document.shape?.footprintOrigin).toBe('traced');
+		expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(true);
+	});
+
+	it('marks a trace taken on a CALIBRATED surface as already scaled', async () => {
+		await seedCalibration();
+		await traceCommand.execute({ assetId, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 }] });
+		const stored = await sidecar.read(assetId);
+		expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(false);
 	});
 
 	it('refuses a two-point outline through the one polygon validator', async () => {
@@ -819,7 +871,7 @@ export interface AssetDesignDto {
 	readonly shape: AssetShape | null;
 	/** Null when there is no footprint to measure. */
 	readonly dimensions: Dimensions | null;
-	/** True only for a TRACED footprint over an UNCALIBRATED background. */
+	/** `shape.pendingScale` — a stored fact about capture, never a join of live state. */
 	readonly dimensionsUnscaled: boolean;
 	readonly version: EntityVersion;
 }
@@ -832,14 +884,21 @@ This is the query's real subject, so drive all four rows:
 
 ```typescript
 it.each([
-	['typed',  null,           false],
-	['typed',  'calibrated',   false],
-	['traced', null,           true ],
-	['traced', 'calibrated',   false],
-])('origin %s with calibration %s reports unscaled=%s', async (origin, calibration, expected) => {
-	await seed({ origin, calibration });
+	['typed',  false, false],
+	['traced', false, false],
+	['traced', true,  true ],
+])('origin %s with pendingScale %s reports unscaled=%s', async (origin, pendingScale, expected) => {
+	await seed({ origin, pendingScale });
 	const dto = await query.execute(assetId);
 	expect(isOk(dto) && dto.value.dimensionsUnscaled).toBe(expected);
+});
+
+it('keeps a measured outline measured when its background is replaced', async () => {
+	await seed({ origin: 'traced', pendingScale: false, calibration: 'calibrated' });
+	await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+	const dto = await query.execute(assetId);
+	expect(isOk(dto) && dto.value.calibration).toBeNull();
+	expect(isOk(dto) && dto.value.dimensionsUnscaled).toBe(false);
 });
 
 it('answers null dimensions rather than zeros when there is no footprint', async () => {
@@ -1342,8 +1401,8 @@ git commit -m "The designer's tools, and a toolbar that reaches all of them"
 - [ ] **Step 1: Write the failing tests**
 
 ```typescript
-it('rescales every coordinate the object owns, its own calibration pair included', async () => {
-	await seedShape({ footprint: rect(100, 60), anchor: { x: 10, y: 10 }, clearance: rect(120, 80) });
+it('rescales the coordinates that came off the background, its own calibration pair included', async () => {
+	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', anchor: { x: 10, y: 10 }, clearance: rect(120, 80) });
 	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
 	const stored = await sidecar.read(assetId);
 	// scaleCorrection is 2: the drawn 100 units are really 200 mm.
@@ -1359,6 +1418,23 @@ it('touches no plan and no other asset', async () => {
 	await calibrate.execute({ assetId, pointA: a, pointB: b, knownDistance: 200 });
 	expect(await sidecar.read(otherAssetId)).toEqual(otherBefore);
 	expect(await planSidecar.read(planId)).toEqual(planBefore);
+});
+
+it('leaves a TYPED footprint alone, because it was authored in millimetres', async () => {
+	await seedShape({ footprint: rect(1200, 800), footprintOrigin: 'typed', clearance: rect(1400, 1000) });
+	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
+	const stored = await sidecar.read(assetId);
+	const shape = isOk(stored) ? stored.value.document.shape : null;
+	// The typed rectangle is untouched; the traced clearance is doubled.
+	expect(shape?.footprint.points[2]).toEqual({ x: 600, y: 400 });
+	expect(shape?.clearance?.points[2]).toEqual({ x: 1400, y: 1000 });
+});
+
+it('clears pendingScale, because the coordinates it just converted are millimetres now', async () => {
+	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', pendingScale: true });
+	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
+	const stored = await sidecar.read(assetId);
+	expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(false);
 });
 
 it('refuses two coincident points, which is a division by zero', async () => {
@@ -1378,7 +1454,20 @@ The second case is the epic's central separation — the calibration a designer 
 
 - [ ] **Step 2: Implement**
 
-Derive, then apply `scaleShape(…, scaleCorrection, origin)` to the footprint, the clearance, the anchor **and the calibration's own pair**, then write the whole document once. The at-rest invariant `distance(pointA, pointB) === knownDistance` is established by the command, not by the validator — `Calibration.ts`'s docblock says why, and it applies here unchanged.
+Derive, then apply `scaleShape(…, scaleCorrection, origin)` to **the coordinates that came off the
+background** — the clearance, the anchor, the calibration's own pair, and the footprint **only when
+`footprintOrigin === 'traced'`** — then clear `pendingScale` and write the whole document once.
+
+**This is the one place slice 7's plan rule may not be copied**, and it is worth reading
+`ReversibleCalibratePlan` with that in mind rather than transcribing it. That command rescales
+*every* coordinate the plan owns, which is right there because every one of them was drawn on the
+background at the placeholder scale of 1. An asset has a coordinate source a plan never had: a
+typed 1200 × 800 is authored in true millimetres and was never in the background's space, so
+rescaling it turns an exact oven into an arbitrary one — silently, since the result still looks
+like a plausible oven.
+
+The at-rest invariant `distance(pointA, pointB) === knownDistance` is established by the command,
+not by the validator — `Calibration.ts`'s docblock says why, and that part applies here unchanged.
 
 - [ ] **Step 3: Register the tool and run the whole suite**
 
@@ -1425,6 +1514,29 @@ it('refuses a path that is not a supported background kind', async () => {
 	expect(isErr(result)).toBe(true);
 });
 
+it('clears the calibration, because two points on the old document name nothing on the new one', async () => {
+	await seedCalibration();
+	await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+	const stored = await sidecar.read(assetId);
+	expect(isOk(stored) && stored.value.document.calibration).toBeNull();
+});
+
+it('does NOT re-flag an already-measured outline: the object did not change size', async () => {
+	await seedShape({ footprintOrigin: 'traced', pendingScale: false });
+	await seedCalibration();
+	await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+	const stored = await sidecar.read(assetId);
+	expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(false);
+});
+
+it('leaves neither half applied when the write fails', async () => {
+	sidecarWriteFails();
+	const before = await readFrontmatter(assetNotePath);
+	const result = await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+	expect(isErr(result)).toBe(true);
+	expect(await readFrontmatter(assetNotePath)).toEqual(before);
+});
+
 it('draws no background button when no picker is bound, rather than a control that does nothing', () => {
 	const wrapper = mountDesigner({ picker: null });
 	expect(wrapper.find('.rp-empty-state__action').exists()).toBe(false);
@@ -1446,6 +1558,13 @@ it('does nothing when the picker is cancelled', async () => {
 The third case is why this port exists at all: `presentation/` may not import `obsidian`, so a file picker is unreachable from the Vue tree without a bound port — and `planEditor.noBackground` ships buttonless for exactly that reason. A button with no picker behind it is the failure mode slice 14's amendment exists to avoid.
 
 - [ ] **Step 2: Implement the command, the port and the Obsidian binding**
+
+The command writes the note's three background keys **and** clears the sidecar's calibration. Those
+are two files, so order them so a failure cannot leave a scale belonging to a document that is no
+longer there: clear the calibration first, then write the reference; a failure after the clear
+leaves a surface that says it is uncalibrated, which is true and recoverable, while the reverse
+leaves a new picture measured by the old document's scale. The last test above pins that ordering.
+
 
 The binding lives in `src/plugin/`, uses Obsidian's own file suggester, and reaches the designer through the deps bundle — never through the global `app`, which the marketplace rules refuse.
 

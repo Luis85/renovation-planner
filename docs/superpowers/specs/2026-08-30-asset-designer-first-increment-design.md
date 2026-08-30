@@ -110,7 +110,7 @@ Following `Plan`'s split exactly, because the reasons are the same ones:
 | | `Plan` today | `Asset`, this increment |
 | --- | --- | --- |
 | note frontmatter | `background-path`, `background-kind`, `background-page` | the same three keys, plus `height` |
-| sidecar | `calibration`, `objects[]` | `calibration`, `footprint`, `clearance`, `anchor`, `facing`, `origin` |
+| sidecar | `calibration`, `objects[]` | `calibration`, `footprint`, `clearance`, `anchor`, `facing`, `footprintOrigin`, `pendingScale` |
 
 `height` is frontmatter because it is a scalar a human should read with the plugin uninstalled
 (§3.2) and nothing in the coordinate space depends on it. The **anchor is sidecar** because it is
@@ -133,9 +133,23 @@ the defect slice 7 shipped and a human found — so its derived dimensions must 
 But a typed 120 × 80 involves no background at all and is exact millimetres, so marking *those*
 unscaled is the same lie pointed the other way.
 
-So the sidecar records the footprint's **provenance**: `origin: 'typed' | 'traced'`. The warning
-attaches to a traced footprint on an uncalibrated background and to nothing else. Provenance is
-not derivable from the geometry, so this is not duplicate data under §88.
+So the sidecar records two facts about how the coordinates came to exist:
+
+- `footprintOrigin: 'typed' | 'traced'` — whether the outline was authored in millimetres or taken
+  off the background. This is what decides whether calibration may rescale it (Decision 6).
+- `pendingScale: boolean` — whether the traced coordinates are still awaiting a scale, set at the
+  moment of capture and cleared by the calibration that converts them.
+
+`dimensionsUnscaled` is `pendingScale`, and that is a **correction to this document's own first
+draft**, which derived it as `traced && calibration === null`. That derivation asks a question
+about the PAST — was there a scale when these coordinates were captured — out of LIVE state, so it
+answers wrongly the moment either input moves: replacing a background (Decision 5) would re-flag an
+outline that really was measured, and the answer would change without the geometry changing. It is
+the "a phase test cannot answer a question about the past" shape this repository has recorded
+repeatedly, and writing it down as a stored fact is what makes the staleness unrepresentable rather
+than refreshed on one more event.
+
+Neither field is derivable from the geometry, so neither is duplicate data under §88.
 
 ### 4. ADR-0014 — asset geometry lives in the library's own `Geometry/`
 
@@ -150,13 +164,56 @@ for its own stated reasons: colocation scatters `.rpgeo` files through the `Asse
 reads and re-couples geometry to a display name, and a second configurable folder re-answers a
 question one setting up has already answered.
 
+**A `libraryFolder` change must move `Geometry/` with `Assets/`.** Slice 19's own settings
+migration validates, moves, rebuilds and persists the new value **last**; asset geometry joins that
+move rather than getting a second one. Without it the store would resolve sidecars under the new
+folder the instant the setting persisted, every designed shape would vanish from the application,
+and the files would be orphaned under the old path — a silent loss, since an absent sidecar reads
+as `shape: null` rather than as an error. The move is part of the same migration and the same
+failure handling: the setting does not persist unless the move succeeded.
+
 **A consequence recorded rather than discovered.** Slice 19's open question 3 says asset notes
 already filed outside the library are indexed but never moved. Their geometry still lands in the
 library's `Geometry/`, because the path derives from the setting and not from where the note
 strayed. That is the intended answer — one geometry home — and it means the index is the only thing
 pairing a stray note with its sidecar, exactly as it already is for plans.
 
-### 5. ADR-0015 — the designer is a per-asset view type
+### 5. Replacing the background clears the calibration
+
+A calibration is two points on a **particular document** and a scale derived from them. Give the
+asset a different background and those points name nothing, so `SetAssetBackground` clears the
+calibration in the same write that changes the reference — atomically, because a state where the
+scale belongs to the old document and the picture is the new one is one no reader could interpret.
+
+What it deliberately does **not** do is re-flag existing geometry. Coordinates already converted to
+millimetres are measurements of a real object, and the object did not change size because the
+drawing of it did; `pendingScale` is untouched. What the clearing prevents is the next trace
+silently inheriting the previous document's scale, and the designer says the surface is
+uncalibrated again, which is the epic's own inherited rule doing the work.
+
+### 6. Calibration rescales what came off the background, and nothing else
+
+`CalibrateAsset` multiplies by `scaleCorrection` **only the coordinates that came from the
+background** — a `traced` footprint, the clearance, the anchor, and its own calibration pair — and
+never a `typed` footprint.
+
+This is the one place slice 7's plan rule may not be copied, and the first draft of this document
+copied it. `ReversibleCalibratePlan` rescales *every* coordinate the plan owns, which is correct
+there because every one of them was drawn on the background at the placeholder scale of 1. An asset
+has a coordinate source a plan never had: a typed 1200 × 800 is authored in true millimetres and
+was never in the background's space at all. Rescaling it would turn an exact oven into an arbitrary
+one — silently, since the number would still look like a plausible oven.
+
+`footprintOrigin` is what makes the distinction expressible, which is the second job that field
+does and the reason it is worth its byte.
+
+**The known limitation, stated rather than discovered:** a typed footprint and a trace taken before
+calibrating are not in one space until the calibration lands, so the two draw a picture that does
+not agree with itself in between. Calibrating repairs it. Refusing the mix outright was the
+alternative, and it is rejected because the epic's whole "usable before it is accurate" ladder is
+built on letting a renovator start before the surface is exact.
+
+### 7. ADR-0015 — the designer is a per-asset view type
 
 `renovation-asset-designer`, several leaves coexisting, the open asset carried in Obsidian's own
 per-leaf view state as `{ assetId }` — the Plan Editor's shape, method for method, including the
@@ -185,10 +242,21 @@ its own code contradicts.
   Those belong to [[Plan editor]] and [[Asset placement]] and this epic explicitly does not promise
   them. This increment therefore ships shapes nothing on a plan yet draws.
 - **Any reading of `height` by any calculation.**
-- **What [[Plan revisions]] does about a referenced shape.** The obligation here is only that all
-  five attributes stay identifiable after the fact — which the sidecar's per-file `revision`
-  and the attributes being stored rather than derived already satisfy — not that this increment
-  decides between a version pin and a snapshot.
+- **Retained history for a referenced shape, and the epic's recoverability condition is therefore
+  NOT met by this increment.** The sidecar is a single mutable document: its `revision` identifies
+  the latest write and retains no earlier state, so editing a footprint overwrites in place and the
+  previous one is gone. That is the opposite of "recoverable rather than overwritten in place", and
+  the first draft of this document claimed the revision counter satisfied it, which it does not.
+
+  Nothing is lost today, and that is a fact rather than a defence: placement is out of scope, so no
+  plan references a shape, and [[Plan revisions]] does not exist to have approved one. Building
+  version history now would also pre-empt the choice the epic explicitly assigns to that epic — a
+  version pin or a snapshot at approval — with the mechanism nobody has chosen yet.
+
+  **The trigger is named so this cannot land quietly:** the first increment that lets a placement
+  reference a shape, or [[Plan revisions]] itself, whichever comes first, owes retained history
+  before it ships. Until then this condition is open, and no task beneath this increment may tick
+  it.
 - `Supplier` and `Trade` catalogues, and an Asset delete affordance.
 
 ## Application layer
@@ -203,10 +271,13 @@ designer's undo must reach it:
 that `Asset.withChanges` exists to re-run, and undo granularity is per gesture: a user who traces a
 clearance and regrets it should not lose their anchor with it.
 
-`CalibrateAsset` mirrors `ReversibleCalibratePlan`, including the part that is easy to miss — it
-multiplies **every world coordinate the object owns** by `scaleCorrection`: footprint, clearance,
-anchor and its own calibration pair. Recalibrating an oven rescales the oven and nothing else on
-any plan, which is the whole reason the epic gives the designer a calibration of its own.
+`CalibrateAsset` borrows `ReversibleCalibratePlan`'s machinery and **not** its rule: it rescales
+the clearance, the anchor, its own calibration pair and a `traced` footprint, and leaves a `typed`
+one alone (Decision 6). It clears `pendingScale`, since the coordinates it just converted are
+millimetres now. Recalibrating an oven rescales that oven and nothing else on any plan, which is
+the whole reason the epic gives the designer a calibration of its own.
+
+`SetAssetBackground` clears the calibration in the same write (Decision 5).
 
 `GetAssetDesign(assetId)` is the one new query: asset fields, shape, calibration, background and
 the derived dimensions, with the provenance flag that decides whether those dimensions are
@@ -315,8 +386,8 @@ ticked against a condition nobody read:
 | Epic condition | Where it is met, or why not yet |
 | --- | --- |
 | A footprint obeys [[Asset library]]'s rules — reference, never copy; derived recomputed on read | Decision 1: the footprint is the only stored geometry, dimensions are its bounding box. Placement references the definition because placement does not exist yet to copy it. |
-| Every attribute a placement referenced stays identifiable | All five are stored, not derived, under one per-file `revision`. The snapshot-versus-pin choice stays [[Plan revisions]]'. |
-| The designer's calibration belongs to the object and never reaches a plan's | `CalibrateAsset` writes the asset's own sidecar and rescales only that object's coordinates. Enforced by the sidecar boundary, not by convention. |
+| Every attribute a placement referenced stays identifiable | **Not met, and named as open** — see Scope/Out. All five are stored rather than derived, but one mutable sidecar retains no earlier state. Nothing references a shape yet; the first increment that lets one owes retained history. |
+| The designer's calibration belongs to the object and never reaches a plan's | `CalibrateAsset` writes the asset's own sidecar and rescales only that object's background-derived coordinates (Decision 6). Enforced by the sidecar boundary, not by convention. |
 | Usable before accurate | Typed dimensions need no background and no calibration; half A ships them without a canvas at all. |
 | Clearance captured as a boundary distinct from the footprint | Its own sidecar field and its own tool. What a plan does with it is out of scope, as the epic says. |
 | Anchor and facing captured and round-tripping | Their own sidecar fields, in the footprint's coordinate space. Open questions 1 and 3 name what is still undecided about them. |

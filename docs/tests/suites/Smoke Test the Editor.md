@@ -108,11 +108,16 @@ turned into, and the eight remaining cases are what it exists for.
 behind each of its twenty `suite` and `browser` verdicts, read from the test BODY rather than
 matched on a name. **All seventeen of its `suite` steps are discharged of every clause an
 instrument can settle** — step 4 keeps "smoothly" as a residue, which a drag that lands
-correctly and stutters would still fail — and five were not when the
-audit began — nothing asserted the selection OUTLINE, nothing looked at the interaction layer
-after a DESELECTION, nothing asserted that a drag PREVIEW follows the pointer rather than merely
-existing, nothing asserted the geometry entry goes on a SUCCESSFUL delete, and nothing redid a
-delete — and each now has a case watched failing against a mutation. **Its three `browser` steps are not discharged, and are not gaps either**,
+correctly and stutters would still fail — and SEVEN were not when the
+audit began: nothing asserted the selection OUTLINE (1), nothing looked at the interaction
+layer after a DESELECTION (2), nothing asserted the Undo button is DISABLED (3), nothing
+asserted that a drag PREVIEW follows the pointer rather than merely existing (4), nothing
+asserted the geometry entry goes on a SUCCESSFUL delete (12), nothing asserted the restore
+publishes no creation event (13), and nothing redid a delete (14) — and each now has a case
+watched failing against a mutation. This sentence said FIVE and listed five until steps 3 and
+13 were added to the walkthrough's own list and this copy was not re-read; the step numbers
+are here so that the next omission is visible as a gap in a sequence rather than as a number
+only the canonical file can contradict. **Its three `browser` steps are not discharged, and are not gaps either**,
 which is a distinction the first draft of this paragraph collapsed into one number: 8a and 8b
 have their jsdom-reachable halves covered and a browser residue BY DESIGN — a theme colour, a
 host focus behaviour — and 8e has nothing at all by construction, being a 460px truncation.

@@ -57,8 +57,11 @@ A gap is closed when, and only when:
 1. You break **exactly that clause** in the source — the narrowest change making the claim
    false while leaving the rest correct.
 2. The new test goes **red**.
-3. Its **neighbours stay green** — the half that proves the test adds coverage rather than
-   duplicating one, and what makes the audit measurable instead of arguable.
+3. **No neighbour goes red *on an assertion of the clause*** — the half that proves the test
+   adds coverage rather than duplicating one, and what makes the audit measurable instead of
+   arguable. A neighbour reddening at a **prerequisite** does not count against this; the
+   paragraph below is how to tell the two apart, and it is a required read rather than a
+   footnote, because the worked example in this very skill trips it.
 4. You restore the source and record which mutation you ran.
 
 If the mutation reddens a test you did not write, read WHY before concluding the clause was
@@ -84,11 +87,20 @@ too, and that case never asserts the outline appears: its setup requires one bef
 
 One 24-step walkthrough against a 3400-test suite, twenty of its steps `suite` or `browser`
 and so in scope for this audit. First pass: "18 discharged, 2 gaps". True figure after the
-review rounds: **13 discharged, 7 gaps** — wrong in *both* directions, over-reporting
-coverage four times from partial assertions (steps 1, 2, 4 and 12) and under-reporting it
-once from a test's name (step 7). A reviewer found four of those five corrections. Two gaps
-were invisible to any state assertion: leaving a selection overlay drawn after a deselection
-kept 50 of 51 existing tests green.
+review rounds, as a THREE-way split rather than a two-way one: **10 discharged, 7 suite gaps,
+3 browser residues** — wrong in *both* directions, over-reporting coverage four times from
+partial assertions (steps 1, 2, 4 and 12) and under-reporting it once from a test's name
+(step 7). A reviewer found four of those five corrections. Two gaps were invisible to any
+state assertion: leaving a selection overlay drawn after a deselection kept 50 of 51 existing
+tests green.
+
+**The third column is the one a two-way split silently folds into "discharged", and it is not
+a rounding error — it is the tier distinction.** All seven gaps are `suite` steps; the three
+`browser` steps (8a, 8b, 8e) are not gaps and are not discharged either, because each retains
+a clause no node test can settle — a resolved theme fill, host focus behaviour, two layout
+measurements. Writing them as discharged claims coverage that no instrument in the suite can
+provide, which is the same over-report this skill exists to catch, made at the level of the
+totals instead of a row.
 
 Every one of those five corrections was a step whose cited test NAME read correctly, which is
 what "audit by reading the body" buys. The figures carry their step numbers for a second

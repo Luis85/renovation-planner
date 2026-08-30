@@ -265,24 +265,27 @@ const declaringBlocks = (): { files: readonly string[]; severity: string }[] => 
 const firstGlob = (files: readonly string[]): string => files[0] ?? '';
 
 /**
- * The EXTENSIONS a block's scope covers, pinned beside its first glob.
+ * The nine extensions `SRC_EXTENSIONS` declares, transcribed rather than imported.
  *
- * A draft compared only `firstGlob`, which throws away every glob after the first — so
- * deleting a layer block's `.tsx` entry left this assertion, the uniqueness check and the
- * probe-key comparison all green. That is the worst case available here, because `.tsx` is
- * exactly the extension the probe matrix records as UNPROBEABLE: the executable half cannot
- * fire it, so nothing else in the harness would notice a shippable extension losing its layer
- * ban. I collected the whole scope precisely to avoid this and then discarded it one line
- * later.
+ * Imported, the assertion would compare the config against itself; transcribed, a removed
+ * extension is a failure here. Used to BUILD the expected `files` array for each block, so
+ * every glob is pinned in full and not reduced to its extension.
  *
- * The extension set rather than the whole scope string: the full arrays are nine globs each
- * and pinning them verbatim would be 13 unreadable lines that nobody re-reads, while the
- * extension is the only part that varies independently of the first glob — `srcFiles(layer)`
- * derives every entry from one `SRC_EXTENSIONS` map, so a dropped entry IS a dropped
- * extension.
+ * A draft pinned the extension SET beside the first glob, which was a deliberate trade
+ * against thirteen verbose lines — and it was the wrong trade, because reducing a glob to its
+ * extension discards everything else about it. Changing a block's `**\/src/core/**\/*.tsx`
+ * entry to `**\/src/core/*.tsx` preserves both the first glob and the derived `tsx`, so the
+ * assertion stays green while NESTED `.tsx` files lose the layer ban — and the executable
+ * matrix cannot catch it, because `.tsx` is exactly what it records as unprobeable.
+ *
+ * Third revision of this one assertion: the first glob only, then the extension set, now the
+ * complete arrays. Each intermediate form was a smaller projection chosen for readability,
+ * and each discarded the part a mutation would use.
  */
-const extensionsOf = (files: readonly string[]): readonly string[] =>
-	files.map((glob) => glob.slice(glob.lastIndexOf('.') + 1));
+const SRC_EXT = ['ts', 'tsx', 'mts', 'cts', 'vue', 'js', 'jsx', 'mjs', 'cjs'] as const;
+
+/** The full nine-glob expansion a `srcFiles(...)` block produces for one path prefix. */
+const scopeOf = (prefix: string): string[] => SRC_EXT.map((extension) => `${prefix}.${extension}`);
 
 describe('the blocks declaring no-restricted-imports', () => {
 	/**
@@ -298,8 +301,9 @@ describe('the blocks declaring no-restricted-imports', () => {
 	it('is exactly this set, with exactly these severities', () => {
 		// Compared as a sorted LIST of pairs, not an object: an object keyed on the scope would
 		// re-introduce the deduplication this inventory was rebuilt to avoid.
-		// Compared as OBJECTS, sorted by first glob — no delimiter anywhere, because the data
-		// contains commas and braces and any encoding invites the defect above.
+		// Compared as OBJECTS carrying the COMPLETE files array, sorted by first glob — no
+		// delimiter anywhere, because the data contains commas and braces and any encoding
+		// invites the defect above.
 		//
 		// CODE-UNIT order (`<`), not `localeCompare`. Measured, and the two DISAGREE on this
 		// data: `localeCompare` puts `**/src/*.ts` before `**/src/**/*.ts` while code-unit
@@ -311,29 +315,26 @@ describe('the blocks declaring no-restricted-imports', () => {
 		// locale- and ICU-dependent, so a comparator chosen for readability would make this
 		// assertion's result a property of the runtime rather than of the config.
 		const declared = declaringBlocks()
-			.map((block) => ({ first: firstGlob(block.files), severity: block.severity, extensions: extensionsOf(block.files) }))
-			.sort((a, b) => (a.first < b.first ? -1 : a.first > b.first ? 1 : 0));
+			.map((block) => ({ files: block.files, severity: block.severity }))
+			.sort((a, b) => (firstGlob(a.files) < firstGlob(b.files) ? -1 : firstGlob(a.files) > firstGlob(b.files) ? 1 : 0));
 
-		// The nine-extension expansion every `srcFiles(layer)` block shares. Written once
-		// rather than repeated eleven times, so a reader sees at a glance that every
-		// ban-declaring block covers the same set and the two `off` blocks do not.
-		const SRC = ['ts', 'tsx', 'mts', 'cts', 'vue', 'js', 'jsx', 'mjs', 'cjs'];
-		const banning = (first: string) => ({ first, severity: 'error', extensions: SRC });
+		/** One ban-declaring block: its full nine-glob scope, built from the prefix it covers. */
+		const banning = (prefix: string) => ({ files: scopeOf(prefix), severity: 'error' });
 
 		expect(declared).toEqual([
-			{ first: '**/*.{js,cjs,mjs,jsx}', severity: 'off', extensions: ['{js,cjs,mjs,jsx}'] },
-			{ first: '**/*.{ts,cts,mts,tsx}', severity: 'off', extensions: ['{ts,cts,mts,tsx}'] },
-			banning('**/src/**/*.ts'),
-			banning('**/src/*.ts'),
-			banning('**/src/application/**/*.ts'),
-			banning('**/src/application/queries/**/*.ts'),
-			banning('**/src/core/**/*.ts'),
-			banning('**/src/domain/**/*.ts'),
-			banning('**/src/infrastructure/**/*.ts'),
-			banning('**/src/infrastructure/logging/**/*.ts'),
-			banning('**/src/plugin/**/*.ts'),
-			banning('**/src/presentation/**/*.ts'),
-			banning('**/src/presentation/dialogs/**/*.ts'),
+			{ files: ['**/*.{js,cjs,mjs,jsx}'], severity: 'off' },
+			{ files: ['**/*.{ts,cts,mts,tsx}'], severity: 'off' },
+			banning('**/src/**/*'),
+			banning('**/src/*'),
+			banning('**/src/application/**/*'),
+			banning('**/src/application/queries/**/*'),
+			banning('**/src/core/**/*'),
+			banning('**/src/domain/**/*'),
+			banning('**/src/infrastructure/**/*'),
+			banning('**/src/infrastructure/logging/**/*'),
+			banning('**/src/plugin/**/*'),
+			banning('**/src/presentation/**/*'),
+			banning('**/src/presentation/dialogs/**/*'),
 		]);
 	});
 
@@ -1520,6 +1521,20 @@ describe('CI invokes the definition of done', () => {
 		// Same shape as the key allowlists two rounds ago: validating the objects you looked
 		// for is not the same as refusing the ones you did not.
 		expect(setups.map((step) => step.with?.['node-version']).sort()).toEqual(['22', '24', '26']);
+
+		// And each one must run BEFORE the gate. Inventory and contents say nothing about
+		// position: moving all three setup steps below `npm run check` leaves the tuples, the
+		// `runs-on` pin, every allowlist and this inventory green, while the gate runs on the
+		// runner's preinstalled Node and the declared 22/24/26 coverage evaporates.
+		//
+		// A workflow is a SEQUENCE, and every assertion in this file until now treated it as a
+		// set. That is the same "what is true of the thing" versus "what is true of the whole"
+		// gap as the four before it, on the one axis a set cannot express.
+		const checkIndex = steps.findIndex((step) => step.run === 'npm run check');
+		expect(checkIndex).toBeGreaterThan(-1);
+		for (const setup of setups) {
+			expect(steps.indexOf(setup)).toBeLessThan(checkIndex);
+		}
 
 		for (const version of ['22', '24', '26']) {
 			const setup = setups.find((step) => step.with?.['node-version'] === version);

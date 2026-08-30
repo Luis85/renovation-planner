@@ -35,8 +35,6 @@ import { GetPlan } from '../../src/application/queries/GetPlan';
 import { createPlanEditorQueries } from '../../src/presentation/read-models/planEditorQueries';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
-import { ReversibleCalibratePlanCommand } from '../../src/application/commands/plan/ReversibleCalibratePlan';
-import { InMemoryPlanGeometrySidecar } from './geometry-sidecar';
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryAssetRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryRequirementRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
@@ -86,7 +84,6 @@ export async function rig(seed?: (repos: {
 	zones: InMemoryZoneRepository;
 }) => Promise<void>): Promise<Rig> {
 	const plans = new InMemoryPlanRepository();
-	const sidecar = new InMemoryPlanGeometrySidecar();
 	const plan = makePlan({ projectId: PROJECT_ID, id: PLAN_DTO.id as PlanId });
 	await plans.save(plan, 'absent');
 	const zonesRepo = new InMemoryZoneRepository();
@@ -101,29 +98,6 @@ export async function rig(seed?: (repos: {
 		geometry,
 	});
 	await zonesRepo.save(zoneA, 'absent');
-	// SEEDED, and the seeding is what makes `calibratePlan` below the real thing rather than
-	// a refusal wearing its clothes. `InMemoryPlanGeometrySidecar.read` answers
-	// `test.injected-failure` for a plan it has never heard of, and
-	// `ReversibleCalibratePlanCommand.execute` returns on that snapshot BEFORE it derives or
-	// writes anything — so an unseeded sidecar refuses every gesture, which is exactly the
-	// stand-in the comment on `calibratePlan` claims to avoid. Measured, not reasoned: the
-	// first version of this rig wired the command over an empty sidecar and every calibration
-	// answered `{ ok: false, code: 'test.injected-failure' }`.
-	//
-	// `calibration: null` because the plan is uncalibrated, matching `PLAN_DTO`; the one
-	// object mirrors the zone just saved, so the sidecar and the zone repository do not
-	// disagree about the geometry a rescale would move.
-	//
-	// The residue, named rather than implied: they agree at SEED time and nothing keeps them
-	// agreeing. `InMemoryZoneRepository` writes no sidecar — in production that join is
-	// `ObsidianZoneRepository`'s — so a zone DRAWN during a test is in the zone repository and
-	// not in this document, and a calibration taken after that draw would rescale the seeded
-	// zone alone. No case drives that pair today; closing it means the rig re-implementing the
-	// repository's sidecar join, which is a wider change than wiring one command.
-	sidecar.seed(plan.id, {
-		calibration: null,
-		objects: [{ id: zoneA.id, points: ZONE_A_DTO.points }],
-	});
 
 	// Slice 10's catalog and links, wired for real so the Requirements panel's rows and
 	// its assign/override controls drive actual repositories through the ONE dispatcher.
@@ -169,19 +143,38 @@ export async function rig(seed?: (repos: {
 		deleteZone: makeDeleteZoneCommand(zonesRepo, events, requirementsRepo, locks),
 		zones: zonesRepo,
 		zoneInspector: new GetZoneInspector(zonesRepo),
-		// A FACTORY, as the interface requires: `ReversibleCalibratePlanCommand` holds ONE
-		// gesture's inverse, so two overlapping gestures must not share an instance.
+		// A FACTORY, as the interface requires, and one that REFUSES TO BE USED — deliberately,
+		// loudly, and after two rounds of trying to make it work.
 		//
-		// The REAL command over this rig's own plan repository, SEEDED sidecar and event bus,
-		// not a refusing stand-in — see the seed above, without which it is one.
-		// It was simply ABSENT until `tests/**` was type-checked — and absent is
-		// worse than either: `runtime.ts` reaches `context.commands.calibratePlan()` when the
-		// calibrate tool activates, so the toolbar button slice 15 made reachable would have
-		// TypeErrored in this rig rather than refusing or working. A stand-in that refused
-		// would be the other failure this repository has already paid for, one file over in
-		// `tests/harness/planEditor.ts`: a bundle that refuses what production answers shows
-		// a false picture wherever the consumer has no shape for an error.
-		calibratePlan: () => new ReversibleCalibratePlanCommand(plans, sidecar, events),
+		// This rig cannot represent a calibration, and the reason is structural rather than a
+		// missing line. In production the geometry sidecar IS the source of truth for a plan's
+		// calibration and its zone coordinates, joined back by `ObsidianPlanRepository.getById`
+		// and `ObsidianZoneRepository`. This rig runs on the IN-MEMORY repositories, which hold
+		// no sidecar and perform no such join — so a calibration written to a sidecar here is
+		// invisible to the `GetPlan`/`FindZonesByPlan` reads the post-command refresh makes, and
+		// invisible to the geometry cascade that recalculates requirements from a zone's area.
+		//
+		// The two attempts before this one are why the remedy is a throw rather than a wiring:
+		//   - the real command over an EMPTY sidecar refused every gesture with
+		//     `test.injected-failure`, because `read` answers that for an unknown plan;
+		//   - the real command over a SEEDED one succeeded — measured, `{ ok: true, value:
+		//     'wrote' }` — and left every reader in the editor showing the pre-calibration plan.
+		// The second is the worse failure: a test could assert the command succeeded and believe
+		// this rig calibrates. Both were found by review rather than by any gate, because no test
+		// completes a calibration through this rig — `calibrateWiring.test.ts` builds its own
+		// recording factory for that, and `interactionLayer.test.ts` places only the first point.
+		//
+		// So the honest stand-in is one that cannot be mistaken for either a refusal or a
+		// success. Whoever first completes a calibration here gets this sentence instead of a
+		// misleading green, and their next move is to give the rig the sidecar join — which is a
+		// change to the repositories the rig composes, not to this line.
+		calibratePlan: (): never => {
+			throw new Error(
+				'planEditorRig does not model the geometry sidecar join, so it cannot calibrate. ' +
+					'Wire the in-memory repositories to a shared PlanGeometryDocument first, or build ' +
+					'a recording factory in your own suite the way calibrateWiring.test.ts does.',
+			);
+		},
 		requirementEdits: {
 			assignAsset: new AssignAssetCommand(zonesRepo, assetsRepo, requirementsRepo, events, locks),
 			setQuantityOverride: new SetRequirementQuantityOverrideCommand(requirementsRepo, events, locks),

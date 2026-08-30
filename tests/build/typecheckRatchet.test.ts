@@ -63,6 +63,16 @@ describe('findingsByFile', () => {
 		expect([...grouped.keys()].filter((file) => !file.startsWith('tests/'))).toEqual([]);
 	});
 
+	it('reads a filename that contains a parenthesis', () => {
+		// A legal filename, and a lazy path class stops inside the NAME, fails the digits that
+		// must follow, and drops the line — leaving that file free to hold type errors while
+		// never reaching `regressions`. The ratchet passing over the thing it exists to catch,
+		// which is why the path is captured greedily to the LAST `(line,col)`.
+		const parenthesised = findingsByFile('tests/foo(bar).test.ts(1,1): error TS2322: Type X is wrong.');
+
+		expect([...parenthesised.keys()]).toEqual(['tests/foo(bar).test.ts']);
+	});
+
 	it('normalises a Windows path so one baseline serves both CI platforms', () => {
 		// `npm run check` rides a Windows leg. Without this the same tree reports every file
 		// as a regression AND every entry as stale, with nothing changed in it.

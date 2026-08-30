@@ -9,8 +9,18 @@
  * keeps the rules, which are the part with behaviour worth pinning.
  */
 
-/** `path(line,col): error TS0000: message` — the only line shape tsc reports a finding in. */
-const FINDING = /^(?<file>[^(\n]+)\((?<line>\d+),(?<col>\d+)\): error (?<code>TS\d+): (?<message>.*)$/;
+/**
+ * `path(line,col): error TS0000: message` — the only line shape tsc reports a finding in.
+ *
+ * The path is captured GREEDILY, so the `(line,col)` it stops at is the LAST one on the line
+ * rather than the first parenthesis in it. A filename containing `(` is legal —
+ * `tests/foo(bar).test.ts(1,1): error TS2322: …` — and a lazier path class stops inside the
+ * NAME, fails the digits that must follow, and drops the whole line: a file free to hold type
+ * errors while never appearing in `regressions`, which is the ratchet passing over the exact
+ * thing it exists to catch. Reported by a review bot; measured both ways in
+ * `typecheckRatchet.test.ts`.
+ */
+const FINDING = /^(?<file>.+)\((?<line>\d+),(?<col>\d+)\): error (?<code>TS\d+): (?<message>.*)$/;
 
 /**
  * tsc prints a path with the platform's separator, so a baseline written on Linux would name

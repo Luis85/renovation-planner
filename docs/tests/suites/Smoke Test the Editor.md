@@ -146,8 +146,8 @@ both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out 
 remaining audit rather than as a settled figure — a `browser` verdict is exactly as
 unconfirmed as a `suite` one, and for the same reason.
 
-**Five of those 32 are `browser` for a POSITIONAL clause alone, and they are the split
-candidates.** [[Create a Project]] 1, [[Empty States Walkthrough]] 1, [[Calibrate a Plan]] 2
+**Five `browser` steps are tagged that way for a POSITIONAL clause alone, and they are the
+split candidates.** [[Create a Project]] 1, [[Empty States Walkthrough]] 1, [[Calibrate a Plan]] 2
 and 7, and [[Assign an Asset and Delete a Referenced Zone]] 8 each pass on something
 being *centred*, *beside* or *above* something else, while the failure each one names in its
 own "It exists to catch" is presence: a view that drew nothing, a tool registered nowhere, a
@@ -156,6 +156,9 @@ calculated figure hidden behind its own override badge. The rule above still tag
 centred — but a reader pricing the browser tier should know that five of its steps would fall
 back to `suite` the moment their positional clause became a step of its own. That is what
 "split the step rather than soften the tag" means in practice, with the list to work from.
+The count above carries no DENOMINATOR on purpose: the table has the current tier size, and a
+sentence restating it is a second place for it to go stale — which it did, in three consecutive
+review rounds, each time in the sentence next to the one being corrected.
 
 **The list was SIX until a reviewer read it.** It came out of a `grep` for layout vocabulary
 over each step's pass condition, and the sweep counted [[Empty States Walkthrough]] step 2 on

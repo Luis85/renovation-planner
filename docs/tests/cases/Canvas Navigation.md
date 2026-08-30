@@ -56,14 +56,14 @@ the five values and what they do not claim.
 1. `suite` Open a plan with zones (the sample project's five will do). Note roughly where they sit.
 2. `browser` **Click once on empty canvas.** The canvas should now be focused — nothing visible says
    so, which is why the next step is the actual check.
-3. `browser` **Hold the space bar.** Expected: the pointer becomes a **grab hand** and the plan does
+3. `obsidian` **Hold the space bar.** Expected: the pointer becomes a **grab hand** and the plan does
    NOT scroll. Then, still holding, **drag**: the pointer becomes a **closed** grabbing hand
    and the plan moves with it.
    *Record what Obsidian itself did with the space bar, if anything.*
-4. `browser` **Release the space bar mid-drag**, with the button still down, and keep dragging. Expected:
+4. `suite` **Release the space bar mid-drag**, with the button still down, and keep dragging. Expected:
    the pan continues. This is the rule every canvas editor shares and the one most easily got
    wrong — the gesture belongs to the drag, and the modifier only started it.
-5. `browser` **Select the Draw zone tool. Place two vertices. Now hold space and drag** to move the
+5. `suite` **Select the Draw zone tool. Place two vertices. Now hold space and drag** to move the
    view, release, and place the third vertex and close the polygon. Expected: the zone is
    created from all three points — the half-drawn polygon **survives the pan**. This is the
    whole reason the pan is an override rather than a tool; a `PanTool` would have discarded
@@ -72,7 +72,7 @@ the five values and what they do not claim.
    No autoscroll widget appears, and nothing is pasted anywhere.
 7. `browser` **Start a zone drag with the left button, and press the middle button mid-drag.** Expected:
    nothing pans. The zone drag finishes normally on the left release.
-8. `browser` **Shift+wheel.** Expected: the plan moves **sideways** and the zoom does not change. Then
+8. `desktop` **Shift+wheel.** Expected: the plan moves **sideways** and the zoom does not change. Then
    wheel **without** shift: it zooms, as before. Try it on a **trackpad** too — a two-finger
    sideways swipe should pan **with no modifier held**, and a mostly-vertical swipe should
    still zoom rather than drifting sideways as your fingers wobble.
@@ -80,14 +80,14 @@ the five values and what they do not claim.
    second finger down and move it, then lift it. Expected: neither disturbs the first
    finger's pan. Try it in camera mode (no tool selected), which is where a second finger
    most plausibly lands.
-9. `browser` **`Shift+1`.** Expected: the camera reframes so every zone is visible at once, centred,
+9. `obsidian` **`Shift+1`.** Expected: the camera reframes so every zone is visible at once, centred,
    with a margin. Then zoom in hard on one corner and press it again.
    *Record whether Obsidian's own keymap took `Shift+1` first.*
    **On a non-US keyboard, this is the step to watch.** Both shortcuts match the PHYSICAL
    digit key (`event.code`), not the character the layout produces — `Shift+2` is `@` on a
    US layout and `"` on the German and UK ones. If either does nothing on your keyboard,
    that is a real defect and not a local quirk.
-10. `browser` **Select one zone, then `Shift+2`.** Expected: the camera frames that zone. With
+10. `suite` **Select one zone, then `Shift+2`.** Expected: the camera frames that zone. With
     **nothing** selected, `Shift+2` must do **nothing at all** — the view you had is kept.
 11. `desktop` **Hold space, then Alt+Tab away and back** without releasing it. Expected: the canvas is
     NOT stuck in pan mode — the next click selects normally. Focus leaving is the only notice

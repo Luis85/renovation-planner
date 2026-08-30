@@ -83,10 +83,10 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 68 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus, paint, or an input grammar jsdom cannot produce | 35 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 46 |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 9 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 72 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus, paint, or an input grammar jsdom cannot produce | 27 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 49 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
 | `judgement` | Records an answer or an eye's verdict. There is no pass condition for any instrument to settle | 7 |
 
 165 steps across nine cases. The counts are `grep`ed out of these files rather than carried
@@ -108,15 +108,27 @@ step whose "It exists to catch" names an Obsidian-specific behaviour is tagged `
 where its logic is `suite`-reachable, and why neither verdict is on its own a reason to stop
 walking a case in a vault before a release.
 
-**What the distribution says, since it is not what the suite's own header implies.** Two
-fifths of these steps are already inside the jsdom suite's reach — this file has grown case by
+**A step is tagged for its WHOLE pass condition, including a clause that is not the point of
+it.** Several steps end with a secondary observation in a higher tier than the thing they are
+mainly about — [[Canvas Navigation]] step 3 is a grab cursor and a pan, then *"record what
+Obsidian itself did with the space bar"*; [[Create a Project]] step 7a is a busy dialog
+refusing `Escape`, then a conditional clause about a vault hotkey firing. The tag is the
+HIGHER tier in every such case, because a verdict names what would discharge the step as
+written and half a step is not discharged. The cost is that the tag then hides how much of the
+step a cheaper instrument would reach, and the remedy where that matters is to split the step
+rather than to soften the tag. The first draft of this triage got four of these wrong in the
+cheaper direction, which is what the rule is written down for.
+
+**What the distribution says, since it is not what the suite's own header implies.** Getting on
+for half of these steps are already inside the jsdom suite's reach — this file has grown case by
 case, and no earlier pass ever asked which steps the suite had caught up with. The steps that
 genuinely need a vault are not spread evenly either: two cases, [[Notices and save state]] and
-[[A Project Owns Its Folder]], hold 27 of the 46 `obsidian` steps between them, because one
-surface is drawn by Obsidian's own `Notice` and the other is about where files sit. Meanwhile
-[[Canvas Navigation]] is the case a real browser would change most — 9 of its 16 steps are
-`browser`, including the cursor keyword its own header lists as something only an eye can
-confirm, which a computed style read under a real pointer would settle.
+[[A Project Owns Its Folder]], hold 27 of the 49 `obsidian` steps between them, because one
+surface is drawn by Obsidian's own `Notice` and the other is about where files sit. The
+`browser` tier is the smallest of the four at 27, and it got smaller under review rather than
+larger: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
+`obsidian` or `desktop` on a closer read. Read that as the shape of the remaining audit — a
+`browser` verdict is exactly as unconfirmed as a `suite` one, and for the same reason.
 
 **Nothing checks these verdicts.** They are a reading of each pass condition, and a step whose
 condition is rewritten without its verdict being re-read will carry a stale one. Treat a

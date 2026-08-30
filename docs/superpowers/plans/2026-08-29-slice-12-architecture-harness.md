@@ -238,19 +238,31 @@ beforeAll(async () => {
  * Keyed on the WHOLE `files` array rather than its first entry, for the same reason: two blocks
  * can share a first glob and differ in the rest, and the scope is what identifies a block.
  */
-const declaringBlocks = (): { scope: string; severity: string }[] => {
-	const found: { scope: string; severity: string }[] = [];
+const declaringBlocks = (): { files: readonly string[]; severity: string }[] => {
+	const found: { files: readonly string[]; severity: string }[] = [];
 	for (const block of eslintConfig as readonly { files?: unknown; rules?: Record<string, unknown> }[]) {
 		const rule = block.rules?.['no-restricted-imports'];
 		if (rule === undefined) continue;
-		const files = Array.isArray(block.files) ? block.files : [block.files];
-		found.push({ scope: files.map(String).join(','), severity: rule === 'off' ? 'off' : 'error' });
+		const files = (Array.isArray(block.files) ? block.files : [block.files]).map(String);
+		found.push({ files, severity: rule === 'off' ? 'off' : 'error' });
 	}
 	return found;
 };
 
-/** The block's identity for the probe table: its first glob, which is what `BAN_BLOCKS` keys on. */
-const firstGlob = (scope: string): string => scope.split(',')[0] ?? '';
+/**
+ * The `files` array is kept as an ARRAY and never joined into a delimited string.
+ *
+ * A draft joined on `,` and split on `,`, which is unsound for this data and not merely
+ * fragile: two of the thirteen blocks are `**\/*.{js,cjs,mjs,jsx}` and `**\/*.{ts,cts,mts,tsx}`,
+ * whose brace globs CONTAIN commas. Measured — `'**\/*.{js,cjs,mjs,jsx}'.split(',')[0]` is
+ * `'**\/*.{js'`, and the derived extension list came out `{js|cjs|mjs|jsx}` against an expected
+ * `{js,cjs,mjs,jsx}`. The prescribed test could not have passed at all.
+ *
+ * The lesson is narrower than "escape your delimiters": I invented a serialization for data
+ * whose alphabet I had not checked, when the structure was already in hand and needed no
+ * encoding. An array compared to an array has no delimiter to collide with.
+ */
+const firstGlob = (files: readonly string[]): string => files[0] ?? '';
 
 /**
  * The EXTENSIONS a block's scope covers, pinned beside its first glob.
@@ -269,11 +281,8 @@ const firstGlob = (scope: string): string => scope.split(',')[0] ?? '';
  * derives every entry from one `SRC_EXTENSIONS` map, so a dropped entry IS a dropped
  * extension.
  */
-const extensionsOf = (scope: string): string =>
-	scope
-		.split(',')
-		.map((glob) => glob.slice(glob.lastIndexOf('.') + 1))
-		.join('|');
+const extensionsOf = (files: readonly string[]): readonly string[] =>
+	files.map((glob) => glob.slice(glob.lastIndexOf('.') + 1));
 
 describe('the blocks declaring no-restricted-imports', () => {
 	/**
@@ -289,29 +298,32 @@ describe('the blocks declaring no-restricted-imports', () => {
 	it('is exactly this set, with exactly these severities', () => {
 		// Compared as a sorted LIST of pairs, not an object: an object keyed on the scope would
 		// re-introduce the deduplication this inventory was rebuilt to avoid.
+		// Compared as OBJECTS, sorted by first glob — no delimiter anywhere, because the data
+		// contains commas and braces and any encoding invites the defect above.
 		const declared = declaringBlocks()
-			.map((block) => `${firstGlob(block.scope)}=${block.severity}=${extensionsOf(block.scope)}`)
-			.sort();
+			.map((block) => ({ first: firstGlob(block.files), severity: block.severity, extensions: extensionsOf(block.files) }))
+			.sort((a, b) => a.first.localeCompare(b.first));
 
-		// `SRC` is the nine-extension expansion every `srcFiles(layer)` block shares. Written
-		// once rather than repeated thirteen times, so a reader can see at a glance that every
+		// The nine-extension expansion every `srcFiles(layer)` block shares. Written once
+		// rather than repeated eleven times, so a reader sees at a glance that every
 		// ban-declaring block covers the same set and the two `off` blocks do not.
-		const SRC = 'ts|tsx|mts|cts|vue|js|jsx|mjs|cjs';
+		const SRC = ['ts', 'tsx', 'mts', 'cts', 'vue', 'js', 'jsx', 'mjs', 'cjs'];
+		const banning = (first: string) => ({ first, severity: 'error', extensions: SRC });
 
 		expect(declared).toEqual([
-			'**/*.{js,cjs,mjs,jsx}=off={js,cjs,mjs,jsx}',
-			'**/*.{ts,cts,mts,tsx}=off={ts,cts,mts,tsx}',
-			`**/src/**/*.ts=error=${SRC}`,
-			`**/src/*.ts=error=${SRC}`,
-			`**/src/application/**/*.ts=error=${SRC}`,
-			`**/src/application/queries/**/*.ts=error=${SRC}`,
-			`**/src/core/**/*.ts=error=${SRC}`,
-			`**/src/domain/**/*.ts=error=${SRC}`,
-			`**/src/infrastructure/**/*.ts=error=${SRC}`,
-			`**/src/infrastructure/logging/**/*.ts=error=${SRC}`,
-			`**/src/plugin/**/*.ts=error=${SRC}`,
-			`**/src/presentation/**/*.ts=error=${SRC}`,
-			`**/src/presentation/dialogs/**/*.ts=error=${SRC}`,
+			{ first: '**/*.{js,cjs,mjs,jsx}', severity: 'off', extensions: ['{js,cjs,mjs,jsx}'] },
+			{ first: '**/*.{ts,cts,mts,tsx}', severity: 'off', extensions: ['{ts,cts,mts,tsx}'] },
+			banning('**/src/**/*.ts'),
+			banning('**/src/*.ts'),
+			banning('**/src/application/**/*.ts'),
+			banning('**/src/application/queries/**/*.ts'),
+			banning('**/src/core/**/*.ts'),
+			banning('**/src/domain/**/*.ts'),
+			banning('**/src/infrastructure/**/*.ts'),
+			banning('**/src/infrastructure/logging/**/*.ts'),
+			banning('**/src/plugin/**/*.ts'),
+			banning('**/src/presentation/**/*.ts'),
+			banning('**/src/presentation/dialogs/**/*.ts'),
 		]);
 	});
 
@@ -322,7 +334,7 @@ describe('the blocks declaring no-restricted-imports', () => {
 	 * twice", and the two call for different fixes.
 	 */
 	it('declares each block exactly once', () => {
-		const scopes = declaringBlocks().map((block) => block.scope);
+		const scopes = declaringBlocks().map((block) => JSON.stringify(block.files));
 
 		expect(scopes).toHaveLength(new Set(scopes).size);
 	});
@@ -330,7 +342,7 @@ describe('the blocks declaring no-restricted-imports', () => {
 	it('has one probe entry per ban-declaring block', () => {
 		const banning = declaringBlocks()
 			.filter((block) => block.severity === 'error')
-			.map((block) => firstGlob(block.scope));
+			.map((block) => firstGlob(block.files));
 
 		expect(BAN_BLOCKS.map((block) => block.key).sort()).toEqual([...banning].sort());
 	});
@@ -1449,12 +1461,25 @@ describe('CI invokes the definition of done', () => {
 	 */
 	it('gives every declared Node version a setup step guarded on that version', () => {
 		const steps = workflow.jobs['verify']?.steps ?? [];
-		const setups = steps
-			.filter((step) => step.uses?.startsWith('actions/setup-node') === true)
-			.map((step) => `${step.if ?? ''}|${step.with?.['node-version'] ?? ''}`);
+		const setups = steps.filter((step) => step.uses?.startsWith('actions/setup-node') === true);
 
 		for (const version of ['22', '24', '26']) {
-			expect(setups).toContainEqual(`\${{ matrix.node == '${version}' }}|${version}`);
+			const setup = setups.find((step) => step.with?.['node-version'] === version);
+
+			expect(setup?.if).toBe(`\${{ matrix.node == '${version}' }}`);
+
+			// The SAME key allowlist as the job and the check step, applied here too. A draft
+			// projected each setup step down to `if` and `node-version`, which discards
+			// everything else — so `continue-on-error: true` on the Node 26 setup leaves every
+			// assertion green while that setup FAILS and `npm run check` proceeds on the
+			// runner's default Node. The declared leg stops being guaranteed to run on the Node
+			// it names, which is the whole point of the three conditional steps.
+			//
+			// I closed this class on the job and the check step one round ago and did not ask
+			// it of the third kind of step in the same file. An allowlist is only a category
+			// check where it is actually applied.
+			expect(Object.keys(setup ?? {}).sort()).toEqual(['if', 'uses', 'with']);
+			expect(Object.keys(setup?.with ?? {}).sort()).toEqual(['cache', 'node-version']);
 		}
 	});
 

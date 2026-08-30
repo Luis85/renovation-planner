@@ -161,8 +161,9 @@ const reachesContracts = (entry: string): boolean => {
  * `createVitest('test', { watch: false })` below resolves `spec.project.config.environment`
  * from the `options` object passed here and from `vitest.config.ts` on disk, and from
  * nothing else — read directly out of the installed package rather than assumed:
- * `createVitest`'s own implementation (`node_modules/vitest/dist/chunks/cli-api.CnMVyzaz.js`)
- * never touches `process.argv`. So a CLI-level override added to the invocation that
+ * `createVitest`'s own implementation, exported from `vitest/node` — read by NAME rather
+ * than by the content-hashed chunk file it currently lives in, which rotates on every
+ * vitest patch — never touches `process.argv`. So a CLI-level override added to the invocation that
  * actually COLLECTS AND RUNS this suite — `vitest run --coverage --environment=jsdom` in
  * place of `test:coverage`'s current script, with `vitest.config.ts` itself untouched —
  * would run every inner-layer test under jsdom while this guard's own nested `createVitest`
@@ -184,6 +185,15 @@ describe('the inner layers execute in node', () => {
 		await vitest.close();
 
 		const offenders: string[] = [];
+		// Tracked SEPARATELY from `offenders`, and asserted separately below: a guard that
+		// examines nothing passes `toEqual([])` for the same reason a guard that examines
+		// everything correctly does, and this repository's own recurring shape is a category
+		// check silently reaching zero of the things it claims to cover. Two arrays rather
+		// than one combined count, because a single combined assertion would stay green with
+		// either arm dead — the "guards one of several things" mutation this branch names
+		// throughout, applied to its own gate.
+		const examinedByDirectory: string[] = [];
+		const examinedByContract: string[] = [];
 		for (const spec of specs) {
 			const path = posix(spec.moduleId);
 			const protectedByDirectory = PROTECTED_DIRECTORIES.some((dir) => path.startsWith(dir));
@@ -193,7 +203,13 @@ describe('the inner layers execute in node', () => {
 			// defect one level down — and a directory-wide ban on `tests/infrastructure/`
 			// reaches past its own justification, since that layer may legitimately touch
 			// the DOM.
-			if (!protectedByDirectory && !reachesContracts(spec.moduleId)) continue;
+			if (protectedByDirectory) {
+				examinedByDirectory.push(path);
+			} else if (reachesContracts(spec.moduleId)) {
+				examinedByContract.push(path);
+			} else {
+				continue;
+			}
 
 			const declared = ENVIRONMENT_DIRECTIVE.exec(readFileSync(spec.moduleId, 'utf8'))?.[1];
 			const effective = declared ?? spec.project.config.environment;
@@ -201,5 +217,14 @@ describe('the inner layers execute in node', () => {
 		}
 
 		expect(offenders).toEqual([]);
+		// Both arms, independently: a regression in `PROTECTED_DIRECTORIES` (a typo, an
+		// emptied list) reddens the first without touching the second, and a regression in
+		// `reachesContracts` (it has already been holed three times — dynamic imports,
+		// extensions, backtick delimiters) reddens the second without touching the first.
+		// Neither figure is pinned to a number on purpose: the count of files under either
+		// arm changes as the suite grows, and hard-coding it is this same file's `spec-files`
+		// sibling's stale-figure mistake waiting to happen here too.
+		expect(examinedByDirectory.length).toBeGreaterThan(0);
+		expect(examinedByContract.length).toBeGreaterThan(0);
 	}, 120_000);
 });

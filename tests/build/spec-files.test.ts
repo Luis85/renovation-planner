@@ -70,10 +70,14 @@ describe('test file naming', () => {
 			.toSorted();
 
 		// NO `dir` override. `vitest.config.ts`'s `include` is already `tests/**/*.test.ts`, and
-		// `dir` rebases it — measured: `{ watch: false }` returns 245 specifications and
-		// `{ watch: false, dir: 'tests' }` returns ZERO, because the include resolves to
-		// `tests/tests/**/*.test.ts`. With `onDisk` holding the real suite, the assertion could
-		// never have passed.
+		// `dir` rebases it — measured: `{ watch: false }` returns a non-zero count of
+		// specifications while `{ watch: false, dir: 'tests' }` returns ZERO, because the
+		// include resolves to `tests/tests/**/*.test.ts`. The SHAPE of that measurement is
+		// what is asserted here, deliberately never a specific figure: a count is a fact about
+		// today's suite and goes stale the moment a test file is added or removed, which is
+		// exactly the mistake this comment itself once made — it read "245" long after the
+		// suite had grown past that number. With `onDisk` holding the real suite, the
+		// assertion below could never have passed under the rebased call.
 		const { createVitest } = await import('vitest/node');
 		const vitest = await createVitest('test', { watch: false });
 		const specs = await vitest.globTestSpecifications();

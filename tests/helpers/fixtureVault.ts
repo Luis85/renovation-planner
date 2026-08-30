@@ -202,6 +202,9 @@ class FixtureVaultAdapter {
 			if (existsSync(absolute)) {
 				throw new Error(`Folder already exists: ${path}`);
 			}
+			// Recursive on purpose, unlike `create` above: this accepts a missing parent
+			// where `create` deliberately refuses one, mirroring `FakeVault.createFolder`'s
+			// own documented parity gap rather than closing it.
 			mkdirSync(absolute, { recursive: true });
 			return Promise.resolve();
 		} catch (cause) {
@@ -446,9 +449,8 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		migrations,
 		logged,
 		logger,
-		// Not in `RepositoryStack`'s own declared shape either — `createRepositoryStack`
-		// returns it anyway, and `tests/**` is untyped, so this mirrors what that function
-		// actually hands back rather than what its type happens to name.
+		// Inherited from `RepositoryStack` through `FixtureStack`'s `Omit` — needs no
+		// justification of its own, only the value.
 		ledger,
 		store,
 		projects: new ObsidianProjectRepository(deps, DEFAULT_PROJECT_FOLDER),

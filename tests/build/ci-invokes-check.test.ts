@@ -228,6 +228,23 @@ describe('CI invokes the definition of done', () => {
 		expect(Object.keys(verify ?? {}).toSorted()).toEqual(['runs-on', 'steps', 'strategy']);
 		expect(Object.keys(check ?? {}).toSorted()).toEqual(['name', 'run']);
 
+		// The WORKFLOW's own keys, which is the level this allowlist did not have and the one
+		// that outranks both of the others.
+		//
+		// `defaults.run.shell` is settable at workflow, job and step level, and it decides how
+		// every `run` is executed. A top-level `defaults: run: shell: bash {0} || true` turns a
+		// failed `npm run check` into a successful step on every matrix leg — measured, with
+		// that exact override present this file reported 5/5 green, because nothing here looked
+		// above `jobs`. `working-directory` is the same key's quieter sibling: it would run the
+		// gate somewhere that is not this repository.
+		//
+		// This is the shape the plan's own constraints name and this instrument has now been
+		// holed by twice: a guard on one level of a nested structure is only as good as what
+		// the ENCLOSING level can express. The step's `if` was closed and the job's `if`
+		// reopened it; the job's and the step's keys were closed and the workflow's reopened
+		// it. Asked at every level now, so there is no level left above.
+		expect(Object.keys(workflow).toSorted()).toEqual(['concurrency', 'jobs', 'name', 'on']);
+
 		// `strategy`'s OWN keys too, because this allowlist reads the job's and does not
 		// recurse — `strategy` was permitted to hold anything, which is how `fail-fast` came
 		// to need its own assertion above. `max-parallel: 1` is the member that motivates it

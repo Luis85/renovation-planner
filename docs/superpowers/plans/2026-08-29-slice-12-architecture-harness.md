@@ -764,14 +764,20 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 			// One per planted line, in order. A COUNT alone survives one import going silent
 			// while another reports twice; matching the lines does not.
 			expect(reported).toEqual(block.forbidden.map((_, index) => index + 1));
-		});
 
-		it('does not pass vacuously on a parse failure', async () => {
-			const found = await probe(block, extension);
-
+			// Vacuity guard. On a POSITIVE case a parse error fails the assertion above
+			// anyway, the rule id simply being absent — but asserting it explicitly is what
+			// makes the failure say "this path could not be parsed" rather than "the rule
+			// did not fire", which are different defects with different fixes.
 			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
 			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
 		});
+
+		// The vacuity guard folded into the case above rather than made a second `it`: both
+		// lint the IDENTICAL source at the IDENTICAL path, so a separate case bought a second
+		// ESLint call per cell — 65 calls — for no additional coverage. Kept as its own
+		// expectation with its own comment, so what it checks is still legible.
+		
 
 		// A member probe binds identifiers nothing uses, so `no-unused-vars` reports beside
 		// `no-restricted-imports` on that line. Both assertions above filter by rule id
@@ -830,19 +836,31 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 		// A plain REFERENCE, not `new ...`: `navigator`, `window`, `globalThis` and `self` are
 		// not constructors, so a `new` form would be a TypeError in four of the eight cells and
 		// the probe would be testing its own source rather than the rule.
-		const globalsSource = (name: string): string => {
-			const body = `export const reach = () => ${name};`;
+		/**
+		 * ONE module carrying every name, matched BY LINE — not one lint call per global.
+		 *
+		 * The import probes already work this way and for the same two reasons: a
+		 * line-matched assertion tells "this one went silent" from "the others still fire",
+		 * which a per-name loop only achieves by paying for a separate ESLint call each time.
+		 * Batching takes this file from ~556 calls to ~195; see the budget in Step 7.
+		 */
+		const globalsSource = (names: readonly string[]): string => {
+			const body = names.map((name) => `export const reach_${name} = () => ${name};`).join('\n');
 			return extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
 		};
 
 		it.runIf(block.networkGlobals === true)('reports every network global under its own rule', async () => {
-			for (const name of ALL_NETWORK_GLOBALS) {
-				const found = await lintDetailed(globalsSource(name), pathFor(block, extension));
+			const found = await lintDetailed(globalsSource(ALL_NETWORK_GLOBALS), pathFor(block, extension));
+			const reported = found
+				.filter((d) => d.ruleId === 'no-restricted-globals')
+				.map((d) => d.line - lineOffset(extension))
+				.sort((a, b) => a - b);
 
-				expect(found.map((d) => d.ruleId), name).toContain('no-restricted-globals');
-				expect(found.map((d) => d.ruleId), name).not.toContain('PARSE_ERROR');
-				expect(found.map((d) => d.ruleId), name).not.toContain('NOT_LINTED');
-			}
+			// One per planted line, in order — so a single global going silent is visible
+			// rather than masked by its seven neighbours still reporting.
+			expect(reported).toEqual(ALL_NETWORK_GLOBALS.map((_, index) => index + 1));
+			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
+			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
 		});
 
 		/**
@@ -857,13 +875,11 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 		 * the ban is keyed.
 		 */
 		it.runIf(block.networkGlobals !== true)('stays silent on network globals where no network ban applies', async () => {
-			for (const name of NETWORK_ONLY_GLOBALS) {
-				const found = await lintDetailed(globalsSource(name), pathFor(block, extension));
+			const found = await lintDetailed(globalsSource(NETWORK_ONLY_GLOBALS), pathFor(block, extension));
 
-				expect(found.map((d) => d.ruleId), name).not.toContain('no-restricted-globals');
-				expect(found.map((d) => d.ruleId), name).not.toContain('PARSE_ERROR');
-				expect(found.map((d) => d.ruleId), name).not.toContain('NOT_LINTED');
-			}
+			expect(found.map((d) => d.ruleId)).not.toContain('no-restricted-globals');
+			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
+			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
 		});
 	});
 });
@@ -962,7 +978,25 @@ Confirm `tests/build/network-boundary.test.ts` also stays green under the mutati
 
 Run: `npx vitest run tests/build/layer-boundaries.test.ts --reporter=verbose 2>&1 | tail -20`
 
-Record the file's total duration. CLAUDE.md records six `tests/build/` files timing out under Windows file-parallelism, each booting a type-aware ESLint, and states that a test file's CPU cost is part of its correctness when anything in the suite waits in ticks. The boot dominates; roughly 130 cached calls at the 7–30ms range is 0.9–3.9 seconds on top of it.
+Record the file's total duration. CLAUDE.md records six `tests/build/` files timing out under Windows file-parallelism, each booting a type-aware ESLint, and states that a test file's CPU cost is part of its correctness when anything in the suite waits in ticks.
+
+**The call count, derived rather than recalled** — and the figure this plan carried for most of its life was badly wrong:
+
+| | calls |
+| --- | --- |
+| 65 (block × extension) cells × 1 batched forbidden-import probe | 65 |
+| 65 cells × 1 allowed-import probe | 65 |
+| 12 network cells × 1 batched globals probe | 12 |
+| 53 non-network cells × 1 batched negative-globals probe | 53 |
+| **total** | **195** |
+
+At the measured 7–30 ms for a cached call that is **1.4–5.9 seconds** beyond boot.
+
+**As first written it was 556**, because the globals were probed one name per call (12 × 8 plus 53 × 5 = 361) and two `it`s linted identical input in every cell (a wasted 65). At the same rates that is 3.9–16.7 seconds — enough to change the answer to the question this step exists to ask, which is whether a seventh ESLint-booting file is safe under Windows contention. The plan said "roughly 130" throughout, a figure that predated the globals entirely and was never re-derived when they were added.
+
+Batching the globals into one line-matched module is what removes 361 of those calls, and it costs nothing in discrimination: matching by line already tells "this one went silent" from "its neighbours still fire", which is the only thing a per-name loop bought.
+
+If the measured duration still proves heavy, the fallback is unchanged — fold the cases into an existing ESLint-booting file rather than adding a seventh. Do not raise a timeout to make it fit.
 
 If the file proves heavy, the fallback is unchanged: fold the cases into an existing ESLint-booting file rather than adding a seventh. Do not raise a timeout to make it fit.
 

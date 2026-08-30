@@ -268,6 +268,21 @@ Eleven blocks × six parseable extensions × two directions is on the order of *
 70 and not 12 — a figure to be recomputed from the discovered set rather than trusted from this
 sentence, since the discovery step is what determines it.
 
+**Recomputed from the implementation plan, and the estimate was low because it omitted a
+dimension rather than because it miscounted the ones it had: 195 calls, not 130.** The discovered
+set is **65** (block, extension) cells, so the two import directions really are 130 and the
+arithmetic above was right about the half it measured. The **globals** probe is a third direction
+it never counted — one call per cell, 12 network cells asserting the ban bites and 53 asserting it
+does not — which is 65 more. *The estimate was checked against the dimension its author was
+holding in mind*, which is this section's own recurring defect arriving for the fourth time.
+
+**195 is the BATCHED figure, and the unbatched spelling is 556.** The plan as first written
+probed each forbidden import and each network global in its own `lintDetailed` call; folding the
+per-block imports into one line-matched module and the per-cell globals into another is what
+brings 556 down to 195. The batching is not an optimisation of a passing design — at 30 ms a
+call, 556 is 16.7 seconds, which is a different answer to the question the budget paragraph
+below exists to settle.
+
 **Measured while writing the implementation plan, and it refines the block figure rather than
 contradicting it:** the config declares `no-restricted-imports` in **13** blocks, of which two
 set it to `"off"` — the shared JS/TS base configs, matching `**/*.{js,cjs,mjs,jsx}` and
@@ -293,16 +308,20 @@ whichever test body runs first, against vitest's 5 s default — the precise fai
 records for this directory. **The warm-up therefore requires a real `.ts` `lintText` call**, not
 `warmUpEslint()` alone, and `ESLINT_BOOT_MS` covers the pair.
 
-**About 130 cached calls at the 30 ms
-upper bound is roughly 3.9 seconds**, and about 0.9 at the 7 ms lower bound — so the boot still
+**About 195 cached calls at the 30 ms
+upper bound is roughly 5.9 seconds**, and about 1.4 at the 7 ms lower bound — so the boot still
 dominates, but not as overwhelmingly as the earlier figure implied.
 
-**That figure was stale for a round**, budgeting seventy calls and describing the change as
-12→70, after the instruction above had already widened to eleven blocks. Two seconds and 3.9
-seconds are different answers to the question this paragraph exists to settle — whether a seventh
-ESLint-booting file is acceptable under Windows full-suite contention — so the stale number was a
-wrong input to a live decision rather than a rounding error. Third time this section has had a
-figure or a scope fall behind a widening made a few paragraphs above it.
+**That figure has now been stale twice, and the second time is the more instructive.** The first
+staleness budgeted seventy calls and described the change as 12→70, after the instruction above
+had already widened to eleven blocks. The second stood at 130 while the plan below it had grown
+a globals dimension the estimate never counted — and the number appeared in **four** places in
+this document, so the correction was a `grep` for the figure rather than a re-read of the
+paragraph. Two seconds, 3.9 and 5.9 are different answers to the question this paragraph exists
+to settle — whether a seventh ESLint-booting file is acceptable under Windows full-suite
+contention — so each stale number was a wrong input to a live decision rather than a rounding
+error. Fourth time this section has had a figure or a scope fall behind a widening made a few
+paragraphs above it, and the first time the fall was a whole dimension rather than a count.
 
 It is still **measured before the file is committed** rather than trusted to that arithmetic; if
 it does prove heavy, the fallback is unchanged — fold the cases into an existing ESLint-booting
@@ -702,12 +721,12 @@ reverse because neither writes code that the other choice would have to delete.
 **Question 1 — how large is the §1 matrix? Decided: keep it, and make its size a product of named
 dimensions rather than a list.** The probe set gained a dimension in nearly every review round:
 cells, then import shapes, then extensions, then block kinds, then the block × extension
-cross-product. It is on the order of 130 `lintText` calls across eleven blocks. *The reason
+cross-product. It is 195 `lintDetailed` calls over 65 cells across eleven blocks. *The reason
 against was never that any dimension is wrong* — each was added because a blind spot was measured
 — *but that the size was reached by accumulation rather than by a decision.* Accumulation is
 answered by construction: the cases are generated from three named arrays (block, extension,
 import shape) with the exceptions listed beside them, so the count is a consequence of the
-dimensions and a reader can see every dimension at once. A hand-written list of 130 cells would
+dimensions and a reader can see every dimension at once. A hand-written list of 195 cases would
 be the thing worth refusing. *Reversed by:* a measured boot cost that makes the file too slow to
 sit in `tests/build/` — the budget is `ESLINT_BOOT_MS`, and §7 records how to measure it.
 

@@ -41,23 +41,45 @@ const posix = (path: string): string => relative(REPO, path).split(sep).join('/'
  * jsdom with this guard green — the transitive hole closed one round earlier, reopened by the
  * matcher underneath it.
  *
- * The delimiter class is `['"`` ` ``]` on both quotes now, not `['"]` — this repository already
- * found this exact gap once, in a sibling scanner over a different suffix
+ * Every delimiter (`'`, `"`, `` ` ``) is matched now, not just the first two — this repository
+ * already found this exact gap once, in a sibling scanner over a different suffix
  * (`tests/harness/harness.test.ts`'s `sheetImport`, over `.css` rather than `.contract`): a
  * BACKTICK-quoted dynamic import — `` import(`../contracts/x`) `` — is valid, statically
- * analysable syntax that a delimiter class naming only `'"` does not see. Confirmed here rather
- * than assumed: with the class left at `['"]`, a planted relay importing
+ * analysable syntax that a pattern naming only `'"` does not see. Confirmed here rather than
+ * assumed: with backtick unmatched, a planted relay importing
  * `` await import(`../../contracts/zone-repository.contract`) `` classified as NOT reaching
  * `tests/contracts/` and the guard passed green over a file that genuinely ran the wrong
- * environment; widening the delimiter class alone (the INNER exclusion stays `[^'"]`, backtick
- * deliberately left out of it, for the same reason the CSS scanner's does — a literal backtick
- * inside a single- or double-quoted specifier is legal on every POSIX filesystem and must go on
- * matching as it did before) makes the same planted case fail for the right reason. Not a
- * hypothetical form in this repository at the STATIC (`from`) position — a template literal is
- * not valid syntax for a static import specifier at all — but the two patterns already share one
- * character class here, the same way the CSS scanner's `from`/`import(` branches share theirs,
- * and widening only the branch known to need it would be the allowlist-shaped mistake this
- * file's own header already refuses in a different guise.
+ * environment.
+ *
+ * **Widened once, and the first widening was itself holed a round later — a single delimiter
+ * CLASS shared between all three quote characters, at both the opening and interior positions,
+ * lets one match run PAST its own closing delimiter and into a second statement.** A file with
+ * two backtick-quoted imports of the same kind —
+ * `` import(`../contracts/a`); import(`../contracts/b`); `` — greedily matched from the first
+ * opening backtick to the LAST backtick in the remaining source, producing one garbage capture
+ * spanning both statements; `resolveSpecifier` then fails on the garbage string and BOTH edges
+ * are dropped from the walk, silently. Confirmed for both patterns, not assumed from one: a
+ * planted file with two backtick-quoted STATIC imports reproduces the identical shape.
+ * `tests/harness/harness.test.ts`'s `sheetImport` shares the same construction (one delimiter
+ * class, shared interior exclusion) and has the identical hole at the regex level — checked
+ * rather than inherited silently — but it is harmless THERE because that scanner calls
+ * `.test()` for a per-file yes/no answer rather than extracting and individually resolving
+ * each match the way this function's callers do; a garbage match spanning two real imports
+ * still answers "yes, this file imports a stylesheet" correctly. This function cannot make
+ * that trade: `reachesContracts` needs every individual specifier resolved, so a merged match
+ * loses real edges rather than merely losing precision.
+ *
+ * The fix is not a wider or narrower shared class but THREE separate alternatives, one per
+ * delimiter, each excluding only its OWN delimiter from its interior — `'(\.[^']+)'`,
+ * `"(\.[^"]+)"`, `` `(\.[^`]+)` `` — so a match can never run past the specific character
+ * that opened it. This is also what makes the POSIX-legal case survive
+ * correctly: a literal backtick inside a single- or double-quoted specifier
+ * (`import './weird\`.ts'`) is legal on every filesystem and is still not excluded from the
+ * single- or double-quoted alternative's own interior, so it goes on matching exactly as
+ * before — it is the BACKTICK alternative's interior that now excludes backtick, and only
+ * that one. Three capture groups rather than one, since a shared exclusion class cannot
+ * express "not my own delimiter, whichever it was" without one; `match[1] ?? match[2] ??
+ * match[3]` reads whichever alternative fired.
  *
  * What it still cannot see, written down rather than implied, because a matcher over source
  * text is partial by construction: a COMPUTED specifier (`import(someVariable)`), a
@@ -68,9 +90,9 @@ const posix = (path: string): string => relative(REPO, path).split(sep).join('/'
  */
 const importsOf = (file: string): string[] => {
 	const source = readFileSync(file, 'utf8');
-	const statik = [...source.matchAll(/(?:from|import)\s+['"`](\.[^'"]+)['"`]/gu)];
-	const dynamic = [...source.matchAll(/import\s*\(\s*['"`](\.[^'"]+)['"`]/gu)];
-	return [...statik, ...dynamic].map((match) => match[1] ?? '');
+	const statik = [...source.matchAll(/(?:from|import)\s+(?:'(\.[^']+)'|"(\.[^"]+)"|`(\.[^`]+)`)/gu)];
+	const dynamic = [...source.matchAll(/import\s*\(\s*(?:'(\.[^']+)'|"(\.[^"]+)"|`(\.[^`]+)`)/gu)];
+	return [...statik, ...dynamic].map((match) => match[1] ?? match[2] ?? match[3] ?? '');
 };
 
 /**

@@ -740,7 +740,7 @@ npx vitest run tests/application/commands/asset/setAssetFootprint.test.ts
 
 - [ ] **Step 3: Implement both commands**
 
-Each: read the sidecar, build or validate the shape, merge it over the existing document preserving every attribute it does not own, write conditionally on `expected`, publish an `assetShapeChanged` event, return `ok('wrote')`. A refusal returns before the write. Add the event to `src/domain/asset/Asset.events.ts` following `assetCreated`'s shape.
+Each: read the sidecar, build or validate the shape, merge it over the existing document preserving every attribute it does not own, write conditionally on `expected`, publish an `assetDesignChanged` event — one event for every design command in this increment (see Task B3a), never a per-field family, return `ok('wrote')`. A refusal returns before the write. Add the event to `src/domain/asset/Asset.events.ts` following `assetCreated`'s shape.
 
 **Two rules are load-bearing here, and both apply to every command in A5, A6 and B6.**
 
@@ -1000,7 +1000,7 @@ Add the asset geometry sidecar to `guardCategory.test.ts`'s detonated collaborat
 it('a shape written through the root reaches a subscriber on the root event bus', async () => {
 	const root = createCompositionRoot(deps);
 	const heard: string[] = [];
-	root.eventBus.subscribe('AssetShapeChanged', (e) => heard.push(e.assetId));
+	root.eventBus.subscribe('AssetDesignChanged', (e) => heard.push(e.assetId));
 	await root.assetDesign.setFootprintFromDimensions.execute({ assetId, width: 100, depth: 60 });
 	expect(heard).toEqual([assetId]);
 });
@@ -1226,9 +1226,11 @@ git commit -m "Extract the editor's gesture surface, unchanged"
 // editor-context.ts
 readonly subject: { readonly id: EntityId; readonly calibration: Calibration | null };
 
-// draw-polygon-tool.ts — the tool no longer names a Zone
+// draw-polygon-tool.ts — the tool no longer names a Zone, and still produces a COMMAND
 export interface PolygonCompletion {
-	complete(points: readonly Point[]): Promise<Result<DispatchOutcome, AppError>>;
+	/** Builds the reversible command for these vertices; the tool dispatches it through
+	 *  `context.commandDispatcher.run`, which is what puts the gesture on the undo stack. */
+	commandFor(points: readonly Point[]): UndoableCommand;
 }
 ```
 
@@ -1243,19 +1245,27 @@ Fix each site it names. There is exactly one coupled field, so this is a rename,
 - [ ] **Step 2: Write the failing test for the injected completion**
 
 ```typescript
-it('dispatches whatever completion it was given, so one tool serves zones and footprints', async () => {
-	const complete = vi.fn().mockResolvedValue(ok('wrote'));
-	const tool = new DrawPolygonTool({ complete });
+it('builds its command from the completion it was given, so one tool serves zones and footprints', async () => {
+	const commandFor = vi.fn().mockReturnValue(fakeUndoableCommand);
+	const tool = new DrawPolygonTool({ commandFor });
 	await drawTriangle(tool);
-	expect(complete).toHaveBeenCalledWith([
+	expect(commandFor).toHaveBeenCalledWith([
 		{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 },
 	]);
+});
+
+it('dispatches that command through the dispatcher, so the gesture reaches the undo stack', async () => {
+	const tool = new DrawPolygonTool({ commandFor: () => fakeUndoableCommand });
+	await drawTriangle(tool);
+	expect(context.commandDispatcher.run).toHaveBeenCalledWith(fakeUndoableCommand);
 });
 ```
 
 - [ ] **Step 3: Implement the injection**
 
-`DrawPolygonTool` takes a `PolygonCompletion` rather than constructing a `CreateZone` dispatch. The plan editor passes the zone completion; the designer will pass a footprint one in Task B5. **The generation counter, the duplicate-vertex `coincident` guard, the close-target rule and the Shift constraint all stay exactly as they are** — this is a change to what completion does, not to how a polygon is drawn.
+`DrawPolygonTool` takes a `PolygonCompletion` rather than constructing a `CreateZone` dispatch. The plan editor passes the zone completion; the designer will pass a footprint one in Task B5.
+
+**The completion returns a COMMAND, not a result**, and that distinction is load-bearing: the tool must go on dispatching through `context.commandDispatcher.run`, because that is the single funnel per leaf that puts a gesture on the undo stack, refreshes the stores and drives the save-state badge. A completion that performed its own dispatch would take every drawing gesture off all three with nothing erroring anywhere. **The generation counter, the duplicate-vertex `coincident` guard, the close-target rule and the Shift constraint all stay exactly as they are** — this is a change to what completion does, not to how a polygon is drawn.
 
 - [ ] **Step 4: Run the editor suite, gate, commit**
 
@@ -1376,10 +1386,10 @@ it('keeps the LATEST read when two hydrations overlap', async () => {
 	expect(store.design?.shape).not.toBeNull();
 });
 
-it('refreshes a second leaf showing the same asset when AssetShapeChanged is published', async () => {
+it.each(['footprint', 'height', 'background'])('refreshes a second leaf on the same asset after a %s change', async (field) => {
 	mountTwoLeavesOn(assetId);
-	await events.publish(assetShapeChanged(assetId));
-	expect(secondLeaf.store.design?.dimensions).toEqual({ width: 1200, depth: 800 });
+	await changeOnFirstLeaf(field);
+	expect(secondLeaf.store.design).toEqual(await currentDesign(assetId));
 });
 
 it('reports a fault from a dispatch bound to a click, which has no awaiter', async () => {
@@ -1389,6 +1399,14 @@ it('reports a fault from a dispatch bound to a click, which has no awaiter', asy
 	expect(notices.shown).toHaveLength(1);
 });
 ```
+
+**One event, not a list of them.** Every command in A5–A7, B6 and B7 publishes
+`AssetDesignChanged { assetId }` — including `SetAssetHeight` and `SetAssetBackground`, which change
+fields `GetAssetDesign` returns without touching the shape. A subscription keyed on shape events
+alone leaves a peer leaf's inspector and background stale until it is reopened, and a per-field
+event list is a rule stated as a list: it goes stale the day a ninth command is added, silently and
+in the direction of a stale surface. The leaf filters by `assetId`, so an unrelated asset's change
+costs nothing.
 
 Each case is a rule this repository has already paid for: a thrown fault is not "nothing happened"
 so the refresh runs on rejection too; a store two things hydrate needs a request ticket or the
@@ -1411,6 +1429,84 @@ npx vitest run tests/presentation/designer
 npm run check
 git add src/presentation/designer tests/presentation/designer
 git commit -m "One dispatcher per designer leaf, and a refresh that survives a fault"
+```
+
+---
+
+### Task B3b: the reversible adapters, without which undo is a lie
+
+**Files:**
+- Create: `src/application/editor/asset/ReversibleAssetDesignCommands.ts`
+- Test: `tests/application/editor/reversibleAssetDesign.test.ts`
+
+**Interfaces:**
+- Consumes: A5–A7's commands, B6's `CalibrateAsset`, B7's `SetAssetBackground`, the `AssetGeometrySidecar` port, `WriteLedger`.
+- Produces: one reversible adapter per design command, each satisfying `UndoableCommand`
+  **structurally** — the interface lives in `presentation/` and the layer ban holds, exactly as
+  slice 8's zone adapters do.
+
+**Why this task exists:** B3a wires `CommandHistory` and the toolbar advertises undo and redo, and
+until this task nothing gives those buttons anything to reverse. Every design command is a
+read-merge-write against one document, so the inverse is the same write with the document as it
+was — but "as it was" has to be **captured before the forward write**, and by the command itself,
+because a later reader cannot reconstruct it.
+
+- [ ] **Step 1: Write the failing tests**
+
+```typescript
+it('restores the exact document the forward write replaced', async () => {
+	await seedShape({ footprint: rect(1200, 800), footprintOrigin: 'typed' });
+	const before = await sidecar.read(assetId);
+	const command = reversible.setFootprint({ assetId, points: triangle });
+	await command.execute();
+	await command.undo();
+	const after = await sidecar.read(assetId);
+	expect(isOk(before) && isOk(after) && after.value.document).toEqual(before.value.document);
+});
+
+it('restores a calibration undo including every coordinate it rescaled', async () => {
+	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', pendingScale: true });
+	const command = reversible.calibrate({ assetId, pointA: a, pointB: b, knownDistance: 200 });
+	await command.execute();
+	await command.undo();
+	const after = await sidecar.read(assetId);
+	expect(isOk(after) && after.value.document.shape?.footprint.points[2]).toEqual({ x: 100, y: 60 });
+	expect(isOk(after) && after.value.document.shape?.pendingScale).toBe(true);
+});
+
+it('records every write into the ledger, restores included, so the next expectation is the history\'s', async () => {
+	const command = reversible.setAnchor({ assetId, anchor: { x: 5, y: 5 } });
+	await command.execute();
+	const afterWrite = ledger.expectationFor(assetId);
+	await command.undo();
+	expect(ledger.expectationFor(assetId)).not.toEqual(afterWrite);
+});
+
+it('reports no-write on an undo that had nothing to reverse', async () => {
+	const command = reversible.setAnchor({ assetId, anchor: unchangedAnchor });
+	await command.execute();
+	expect(await command.undo()).toEqual(ok('no-write'));
+});
+
+it('undoes a height change through the note, not the sidecar', async () => { /* height is frontmatter */ });
+```
+
+The third case is slice 8's rule applied here: **every write records into the `WriteLedger`,
+restores included**, or the next command's expectation is a revision the vault no longer has.
+
+- [ ] **Step 2: Implement**
+
+Each adapter captures the pre-state (the sidecar snapshot, or the asset's own field for height and
+background), runs the forward command, and returns an inverse built from **what it actually found**
+rather than from what it assumed. Conditioning on `expected` applies to the undo write too — an
+undo that overwrites somebody else's later edit is the lost update this plan already closed once.
+
+- [ ] **Step 3: Gate and commit**
+
+```bash
+npm run check
+git add src/application/editor tests/application/editor
+git commit -m "Reversible adapters for every asset design command"
 ```
 
 ---
@@ -1656,6 +1752,9 @@ git commit -m "Calibrate an asset, and rescale only what that object owns"
 **Files:**
 - Create: `src/application/commands/asset/SetAssetBackground.ts`
 - Create: `src/presentation/designer/ports.ts` (`BackgroundPicker`)
+- Modify: `src/domain/asset/Asset.ts` (the background reference field)
+- Modify: `src/infrastructure/persistence/dto/assetFrontmatter.ts` (the three keys)
+- Modify: `src/infrastructure/persistence/mappers/assetMapper.ts` (both directions)
 - Modify: `src/plugin/composition-root.ts` (bind the picker)
 - Modify: the designer's `noBackground` empty state (add its action)
 - Test: `tests/application/commands/asset/setAssetBackground.test.ts`
@@ -1667,6 +1766,28 @@ git commit -m "Calibrate an asset, and rescale only what that object owns"
 ```typescript
 export interface DocumentRef { readonly path: string; readonly kind: 'image' | 'pdf'; readonly page: number | null; }
 export interface BackgroundPicker { pick(): Promise<DocumentRef | null>; }
+```
+
+- [ ] **Step 0: Add the three keys to the owned-field path first**
+
+`AssetFrontmatterSchemaV1` is a `z.object`, so it **strips unknown keys**, and `assetMapper.ts`
+writes only modelled fields — the two are the repository's only owned-field read/write path. A
+command that wrote `background-path` around them would not round-trip, and the next ordinary save of
+that asset would silently delete it.
+
+So this task carries the same three-file change A7 made for `height`: the field on `Asset`, the
+schema keys, and both directions of the mapper. Follow `planFrontmatter.ts`, which already models
+exactly these three (`background-path`, `background-kind`, `background-page`) — same names, same
+nullable page — and use the existing `.nullable().catch(null)` pattern so no schema version bump is
+owed. Add a repository round-trip case:
+
+```typescript
+it('round-trips a background reference through the repository, and an ordinary save keeps it', async () => {
+	await setBackground.execute({ assetId, path: 'Specs/oven.pdf', kind: 'pdf', page: 2 });
+	await assets.save(await loadAsset(assetId));       // an unrelated later save
+	const reloaded = await assets.getById(assetId);
+	expect(isOk(reloaded) && reloaded.value?.background).toEqual({ path: 'Specs/oven.pdf', kind: 'pdf', page: 2 });
+});
 ```
 
 - [ ] **Step 1: Write the failing tests**

@@ -319,8 +319,10 @@ the notice queue through the same one door.
 wrapped object per designer leaf, which re-reads `GetAssetDesign` after every dispatch — on a
 rejection as well as on success, since a thrown fault is not "nothing happened" and a write may
 already have landed. The store's hydration takes a request ticket, or the slower of two overlapping
-reads wins and a just-drawn footprint vanishes with no error; and `AssetShapeChanged` refreshes any
-other leaf showing the same asset. None of this comes along with the extracted gesture surface — it
+reads wins and a just-drawn footprint vanishes with no error; and one event — `AssetDesignChanged`, published by every design
+command including the two that change no geometry — refreshes any other leaf showing the same
+asset. A subscription keyed on shape events alone leaves a peer leaf stale after a height or
+background change, and a per-field event list goes stale the day a ninth command is added. None of this comes along with the extracted gesture surface — it
 lives above it, and the plan gives it a task of its own.
 
 **Two dialog kinds, not one.** `NewAssetForm` creates an asset; a second kind edits the dimensions

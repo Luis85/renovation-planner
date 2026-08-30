@@ -300,9 +300,19 @@ describe('the blocks declaring no-restricted-imports', () => {
 		// re-introduce the deduplication this inventory was rebuilt to avoid.
 		// Compared as OBJECTS, sorted by first glob — no delimiter anywhere, because the data
 		// contains commas and braces and any encoding invites the defect above.
+		//
+		// CODE-UNIT order (`<`), not `localeCompare`. Measured, and the two DISAGREE on this
+		// data: `localeCompare` puts `**/src/*.ts` before `**/src/**/*.ts` while code-unit
+		// order puts them the other way, because `*` (0x2A) sorts below `.` (0x2E) but a
+		// collator weights punctuation differently. A draft used `localeCompare` against an
+		// expected list in code-unit order, so the assertion could not pass at all.
+		//
+		// Code-unit order is also the right choice independent of that: `localeCompare` is
+		// locale- and ICU-dependent, so a comparator chosen for readability would make this
+		// assertion's result a property of the runtime rather than of the config.
 		const declared = declaringBlocks()
 			.map((block) => ({ first: firstGlob(block.files), severity: block.severity, extensions: extensionsOf(block.files) }))
-			.sort((a, b) => a.first.localeCompare(b.first));
+			.sort((a, b) => (a.first < b.first ? -1 : a.first > b.first ? 1 : 0));
 
 		// The nine-extension expansion every `srcFiles(layer)` block shares. Written once
 		// rather than repeated eleven times, so a reader sees at a glance that every
@@ -1501,6 +1511,16 @@ describe('CI invokes the definition of done', () => {
 		const steps = workflow.jobs['verify']?.steps ?? [];
 		const setups = steps.filter((step) => step.uses?.startsWith('actions/setup-node') === true);
 
+		// EXACTLY three, and exactly these versions. A `find` per version validates the step it
+		// matches and says nothing about the ones it does not: appending a FOURTH setup step
+		// selecting Node 20 leaves all three finds, the matrix tuples, the `runs-on` pin and
+		// every allowlist green — while every leg runs the gate on Node 20, because the last
+		// setup step before `npm run check` is the one that decides.
+		//
+		// Same shape as the key allowlists two rounds ago: validating the objects you looked
+		// for is not the same as refusing the ones you did not.
+		expect(setups.map((step) => step.with?.['node-version']).sort()).toEqual(['22', '24', '26']);
+
 		for (const version of ['22', '24', '26']) {
 			const setup = setups.find((step) => step.with?.['node-version'] === version);
 
@@ -2643,7 +2663,15 @@ export interface VaultSurface {
 		| 'create'
 		| 'modify'
 		| 'delete'
-		| 'on'
+		// NOT `on`. `loadedPlugin` does not delegate it through the surface — it defines its
+		// own handler-recording stub (`plugin.ts:80`), so no member of the passed surface is
+		// ever consulted for it. Including it would also fail to type-check the moment the
+		// `*.test-d.ts` lands: Obsidian's `Vault.on` returns an `EventRef` while `FakeVault.on`
+		// returns `{ off(): void }`.
+		//
+		// This member was in a draft of the list, which is a direct breach of the derivation
+		// rule stated two paragraphs above it — read every `mustHaveSurface().<member>` call.
+		// `on` is not one of them. I wrote the rule and then added a member by recall anyway.
 	> & {
 		/**
 		 * NOT picked from `Vault`, and the exception is deliberate.

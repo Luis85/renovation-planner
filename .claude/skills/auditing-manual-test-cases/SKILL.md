@@ -61,8 +61,12 @@ A gap is closed when, and only when:
    duplicating one, and what makes the audit measurable instead of arguable.
 4. You restore the source and record which mutation you ran.
 
-If the mutation reddens a test you did not write, the clause was already covered: correct the
-audit instead of keeping the new test's justification.
+If the mutation reddens a test you did not write, read WHY before concluding the clause was
+covered. A neighbour can fail at a **prerequisite** — its setup expecting the very thing you
+removed — without ever asserting the clause. The clause is covered only when that test fails
+*on an assertion of the clause itself*; otherwise the gap is real and the neighbour's redness
+is noise. Removing the selection outline in the worked example reddens the deselection case
+too, and that case never asserts the outline appears: its setup requires one before deselecting.
 
 ## Common mistakes
 
@@ -72,6 +76,7 @@ audit instead of keeping the new test's justification.
 | One assertion taken as covering a multi-clause step | Step 4 forces a row per clause |
 | A test asserting the thing exists, not that it works | Break the clause, not the object |
 | A closing test duplicating an existing one | Gate condition 3 |
+| A red neighbour taken as proof the clause was covered | Read the failing assertion — a prerequisite is not a discharge |
 | Summary updated, canonical source left stale | Step 7 |
 | Trusting a regex sweep's hits | Read every match — a word match is not a claim match |
 

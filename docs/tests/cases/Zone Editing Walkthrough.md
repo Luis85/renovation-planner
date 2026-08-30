@@ -80,9 +80,10 @@ that renames it breaks the citation visibly.
 | --- | --- | --- |
 | 1 | the accent outline appears | `zoneEditing` *draws the accent OUTLINE beside the handles, which a Circle count cannot see* |
 | 1 | one handle circle per vertex | `zoneEditing` *drags one vertex handle…* — its first assertion, under a comment naming DoD 5 |
-| 1 | the Inspector shows the name and area in m² | `zoneEditing` *drags one vertex handle…* — it waits on `wrapper.text()` containing `5.51 m²`, so the RENDERED figure. `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* covers the DTO behind it, and would stay green with either `<dd>` deleted from `InspectorPanel.vue` |
+| 1 | the Inspector shows the area in m² | `zoneEditing` *drags one vertex handle…* — it waits on `wrapper.text()` containing `5.51 m²`, so the RENDERED figure |
+| 1 | the Inspector shows the zone's NAME | `zoneEditing` *a FAILED delete surfaces through the notice seam and leaves the zone intact* — the only case asserting `wrapper.text()` contains `Kitchen`. `inspectorStore` covers the DTO behind both and would stay green with either `<dd>` deleted from `InspectorPanel.vue` |
 | 2 | outline and handles vanish | `zoneEditing` *takes the outline and the handles down on deselection, not just the store entry* |
-| 2 | the panel reads "Nothing selected." | `selectTool` *clicking empty canvas clears the selection*; `inspectorStore` *an empty selection produces …* |
+| 2 | the panel reads "Nothing selected." | `zoneEditing` *deletes from the Inspector; undo restores the exact entity; the panel follows both ways* — it asserts that string in `wrapper.text()`. `selectTool` *clicking empty canvas clears the selection* and `inspectorStore` *an empty selection produces …* cover the STATE behind it and would both stay green with the copy removed |
 | 3 | a wiggle selects and dispatches nothing | `selectTool` *a near-zero pointerUp is a pure selection — no command, no history entry* |
 | 3 | the epsilon is camera-scaled | `selectTool` *a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click* |
 | 3 | the Undo button stays DISABLED | `runtime` *leaves Undo DISABLED until there is something to undo, which nothing asserted* — placed beside the file's other assertions on that control, and because `zoneEditing` was at its line cap. Every other assertion on that control in the suite is `disabled === false` |

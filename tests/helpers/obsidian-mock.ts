@@ -241,6 +241,25 @@ export class FuzzySuggestModal<T> {
 		this.close();
 	}
 
+	/**
+	 * The SAME gesture in the other order, and it exists because modelling only the
+	 * convenient one is exactly the "kinder than the real thing" this file refuses.
+	 *
+	 * `SuggestModal.selectSuggestion` is widely believed to CLOSE before it delivers the
+	 * choice, and `obsidian.d.ts` states no ordering either way — so a subclass that treats
+	 * `onClose` as "the user dismissed me" is correct under one ordering and loses every
+	 * choice under the other. With only `choose()` above, a picker whose cancellation answer
+	 * was not deferred passed every case here while being wrong in a vault (measured: three
+	 * cases go red once this door exists and the deferral is removed).
+	 *
+	 * Both doors are kept deliberately: what a caller owes is order-INDEPENDENCE, which is a
+	 * claim about the pair rather than about either one.
+	 */
+	chooseAfterClose(item: T): void {
+		this.close();
+		this.onChooseItem(item);
+	}
+
 	getItems(): T[] {
 		throw new Error('FuzzySuggestModal.getItems must be implemented by a subclass');
 	}

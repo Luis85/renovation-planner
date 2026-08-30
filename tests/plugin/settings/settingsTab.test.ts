@@ -257,6 +257,32 @@ describe('moving the library', () => {
 	});
 
 	/**
+	 * The SAME gesture with the picker's two callbacks in the other order, which is the one
+	 * Obsidian is believed to actually use: `SuggestModal.selectSuggestion` closes before it
+	 * delivers the choice, and nothing in `obsidian.d.ts` states an ordering either way.
+	 *
+	 * This is what makes `onClose`'s microtask deferral load-bearing rather than decorative.
+	 * Without it the close arrives first, answers `null`, and the migration never runs — the
+	 * user's choice silently discarded and the row simply re-enabled. Watched red by removing
+	 * the deferral; the case above, which drives the other ordering, stays green either way.
+	 */
+	it('takes the choice when the picker closes before delivering it', async () => {
+		const { plugin, tab } = await withStored(null);
+		const { renamed } = equipVault(plugin, {
+			folders: ['Shared/Catalogue'],
+			files: ['Renovation/Library/Assets/Tiles.md'],
+		});
+
+		moveRow(tab).action(0);
+		(FuzzySuggestModal.opened[0] as FuzzySuggestModal<string>).chooseAfterClose('Shared/Catalogue');
+		await settle();
+
+		expect(renamed).toEqual(['Renovation/Library/Assets/Tiles.md -> Shared/Catalogue/Assets/Tiles.md']);
+		expect(plugin.root.settings?.libraryFolder).toBe('Shared/Catalogue');
+		expect(plugin.saved.at(-1)).toEqual({ ...DEFAULT_SETTINGS, libraryFolder: 'Shared/Catalogue' });
+	});
+
+	/**
 	 * The lock is tested at the DOOR, not at the render: `disabled` is evaluated per render
 	 * and a second click can land before one happens, so a guard that only sets its flag
 	 * inside the async closure lets the second click open a second picker and start a

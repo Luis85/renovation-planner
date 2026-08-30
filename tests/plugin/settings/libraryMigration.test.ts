@@ -97,8 +97,23 @@ describe('migrateLibraryFolder', () => {
 		expect(rig.ensured).toEqual(['Shared/Catalogue/Assets', 'Shared/Catalogue/Assets']);
 	});
 
-	it('leaves data.json untouched when a move fails', async () => {
-		const rig = harness({ renameFile: () => Promise.reject(new Error('locked')) });
+	/**
+	 * A partial move is not compensated, so the DIAGNOSTIC is the only record of which notes
+	 * were relocated before the failure — `docs/tasks/19`'s Definition of Done asks for one
+	 * "naming what moved". Asserting the event name alone would stay green against a
+	 * diagnostic that had dropped `moved` entirely, which is why the context is asserted and
+	 * why the fixture moves ONE note successfully first: an empty `moved` would pass against
+	 * a dropped field too.
+	 */
+	it('leaves data.json untouched when a move fails, and names what it had already moved', async () => {
+		const relocated: string[] = [];
+		const rig = harness({
+			renameFile: (_file, to) => {
+				if (relocated.length > 0) return Promise.reject(new Error('locked'));
+				relocated.push(to);
+				return Promise.resolve();
+			},
+		});
 
 		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
 
@@ -107,7 +122,16 @@ describe('migrateLibraryFolder', () => {
 		// Not merely "no persist": the rebuild is downstream of the move too, so a partial
 		// move must not re-point the index at a folder half the catalogue never reached.
 		expect(rig.order).not.toContain('rebuild');
-		expect(rig.logged.map((line) => line.event)).toEqual(['settings.library-move-failed']);
+		expect(rig.logged).toHaveLength(1);
+		expect(rig.logged[0].event).toBe('settings.library-move-failed');
+		// The note that DID move, by its destination path, plus the cause that stopped the
+		// next one — the two halves a reader needs to find the catalogue and know why it is
+		// in two places.
+		expect(rig.logged[0].context).toMatchObject({ moved: ['Shared/Catalogue/Assets/Tiles.md'] });
+		expect(rig.logged[0].context?.cause).toBeInstanceOf(Error);
+		// And no reverse move: the only rename after the failure would be a compensation,
+		// and this migration deliberately attempts none.
+		expect(relocated).toEqual(['Shared/Catalogue/Assets/Tiles.md']);
 	});
 
 	/**

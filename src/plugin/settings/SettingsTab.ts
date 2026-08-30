@@ -60,9 +60,15 @@ class LibraryDestinationModal extends FuzzySuggestModal<string> {
 	 * of the session.
 	 *
 	 * The answer is DEFERRED by a microtask because Obsidian's own ordering of
-	 * `onChooseItem` and `onClose` is not stated in the typings: whichever arrives first, a
-	 * choice made in the same task wins over the cancellation, and `settle` makes the second
-	 * of the two a no-op either way.
+	 * `onChooseItem` and `onClose` is not stated in the typings — `SuggestModal` is widely
+	 * believed to CLOSE before it delivers the choice — so whichever arrives first, a choice
+	 * made in the same task wins over the cancellation, and `settle` makes the second of the
+	 * two a no-op either way.
+	 *
+	 * That is order-INDEPENDENCE, which is a claim about a PAIR and therefore needs both
+	 * orderings driven: `settingsTab.test.ts` does exactly that, through the mock's `choose`
+	 * and `chooseAfterClose`. With only the first of those, removing this deferral leaves
+	 * every case green while the likelier ordering discards the user's choice silently.
 	 */
 	onClose(): void {
 		queueMicrotask(() => {

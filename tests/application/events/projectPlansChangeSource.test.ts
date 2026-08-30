@@ -72,6 +72,62 @@ describe('createProjectPlansChangeSource', () => {
 		expect(listener).not.toHaveBeenCalled();
 	});
 
+	/**
+	 * `projectIdOf` is a guard, not a cast: `PlanEventPayload.projectId` is a `PlanId` and
+	 * still narrowed with `typeof === 'string'` rather than trusted, because `DomainEvent`
+	 * itself promises nothing beyond `type`. An event carrying no payload at all must be
+	 * DROPPED rather than compared — matching `null` against the string `OURS` would already
+	 * fail, so the case that actually exercises the guard is a listener subscribed with no
+	 * project id of its own, where a naive `===` on two `undefined`s would wrongly match.
+	 */
+	it('stays silent for a PlanCreated event carrying no payload', async () => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createProjectPlansChangeSource(events)(undefined as never, listener);
+
+		await events.publish({ type: 'PlanCreated' } as never);
+
+		expect(listener).not.toHaveBeenCalled();
+	});
+
+	it('stays silent for a PlanCreated event whose projectId is not a string', async () => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createProjectPlansChangeSource(events)(undefined as never, listener);
+
+		await events.publish({ type: 'PlanCreated', payload: { projectId: 42 } } as never);
+
+		expect(listener).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * `changedEntityTypeOf` is the guard for the second list. An event with no payload has
+	 * no `entityType` to compare, and must be dropped rather than matched against
+	 * `'renovation-plan'` by way of two `undefined`s.
+	 */
+	it('stays silent for a ProjectIndexEntryChanged event carrying no payload', async () => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createProjectPlansChangeSource(events)(OURS, listener);
+
+		await events.publish({ type: 'ProjectIndexEntryChanged' } as never);
+
+		expect(listener).not.toHaveBeenCalled();
+	});
+
+	it('stays silent for a ProjectIndexEntryChanged event whose entityType is not a string', async () => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createProjectPlansChangeSource(events)(OURS, listener);
+
+		await events.publish({
+			type: 'ProjectIndexEntryChanged',
+			payload: { entityId: 'plan-01JZZZ', entityType: 7 },
+		} as never);
+
+		expect(listener).not.toHaveBeenCalled();
+	});
+
 	it('disposes every subscription it took', async () => {
 		const events = createEventBus();
 		const listener = vi.fn<() => void>();

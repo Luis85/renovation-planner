@@ -34,6 +34,15 @@ function sidecarPathOf(stack: RepositoryStack, projectId: ProjectId, planId: Pla
 	return sidecarPathFor(folder, planId);
 }
 
+/** The ids the plan's sidecar currently holds — what a note-side assertion cannot see. */
+function sidecarObjectIds(stack: RepositoryStack, sidecarPath: string): readonly string[] {
+	const raw = stack.vault.entries.get(sidecarPath);
+	if (raw === undefined) return [];
+	const parsed: unknown = JSON.parse(raw);
+	const objects = (parsed as { objects?: readonly { id?: string }[] }).objects ?? [];
+	return objects.flatMap((object) => (object.id === undefined ? [] : [object.id]));
+}
+
 function zoneNoteText(stack: RepositoryStack, zoneId: ZoneId): string | undefined {
 	const path = stack.index.getPath(zoneId);
 	return path ? stack.vault.entries.get(path) : undefined;
@@ -99,6 +108,40 @@ describe('compensated sequences', () => {
 
 		stack.vault.failures.clear();
 		expectOk(await stack.zones.delete(zoneId, written.version));
+	});
+
+	it('a SUCCESSFUL delete takes the geometry entry with the note, not just the note', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = createZoneId();
+		const written = expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
+
+		// A SIBLING on the same plan, because `sidecarObjectIds` cannot tell an absent file
+		// from an empty one: without it, a delete that removed the whole plan's sidecar —
+		// every other zone's geometry with it — satisfies `not.toContain` perfectly.
+		const siblingId = createZoneId();
+		expectOk(await stack.zones.save(makeZoneEntity({ id: siblingId, projectId, planId }), 'absent'));
+
+		const sidecarPath = sidecarPathOf(stack, projectId, planId);
+		expect(sidecarObjectIds(stack, sidecarPath)).toContain(zoneId);
+
+		// Captured BEFORE the delete: `zoneNoteText` asks the INDEX for the path, and the
+		// delete removes that entry — so it answers `undefined` for a note still sitting in
+		// the vault, and a trash that silently did nothing would pass it.
+		const notePath = stack.index.getPath(zoneId);
+		expect(notePath).toBeDefined();
+
+		expectOk(await stack.zones.delete(zoneId, written.version));
+
+		// The note going is all `getById` needs to answer "absent" — it reads the note first —
+		// so a delete that removed the note and left the geometry entry behind reads as a clean
+		// success from every note-side assertion in this suite. The sidecar's own contents are
+		// the only place that shows it, and the compensation cases above cover the FAILING
+		// half of this pair, never this one.
+		expect(stack.vault.entries.get(notePath ?? '')).toBeUndefined();
+		const remaining = sidecarObjectIds(stack, sidecarPath);
+		expect(remaining).not.toContain(zoneId);
+		expect(remaining).toContain(siblingId);
 	});
 
 	it('a failed note write after the sidecar was created (plan INSERT) deletes the sidecar', async () => {

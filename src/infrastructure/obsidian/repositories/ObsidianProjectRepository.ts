@@ -8,6 +8,8 @@ import type { ProjectListing } from '../../../application/ports/ProjectRepositor
 import { revisionConflict } from '../../../application/ports/versioning';
 import { projectFromPersistence, projectToPersistence } from '../../persistence/mappers/projectMapper';
 import {
+	cacheReading,
+	fileStatAt,
 	ensureFolder,
 	frontmatterOf,
 	migrateNote,
@@ -103,6 +105,8 @@ export class ObsidianProjectRepository {
 		const existing = this.locate(project.id);
 		const currentVersion = existing ? versionOfFrontmatter(frontmatterOf(this.deps, existing)) : undefined;
 
+		const supersedes = cacheReading(this.deps, existing);
+
 		const conflict = checkExpectedVersion('project', project.id, currentVersion, expected);
 		if (conflict) return err(conflict);
 
@@ -138,7 +142,7 @@ export class ObsidianProjectRepository {
 		}
 
 		this.deps.index.upsert({ id: project.id, type: 'renovation-project', path });
-		this.deps.echo.markFrontmatter(path, dto);
+		this.deps.echo.markFrontmatter(path, dto, { reading: supersedes, stat: fileStatAt(this.deps.vault, path) });
 
 		return ok({ entity: project, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}

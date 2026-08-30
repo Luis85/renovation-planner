@@ -10,6 +10,8 @@ import type {
 } from '../../../application/ports/versioning';
 import { revisionConflict } from '../../../application/ports/versioning';
 import {
+	cacheReading,
+	fileStatAt,
 	ensureFolder,
 	frontmatterOf,
 	openNoteById,
@@ -70,6 +72,10 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 		? versionOfFrontmatter(frontmatterOf(deps, existing))
 		: undefined;
 
+	// Taken from the CACHE and not from `currentVersion`, which may itself have come from
+	// the echo — see `cacheReading`.
+	const supersedes = cacheReading(deps, existing);
+
 	const conflict = checkExpectedVersion(spec.kind, entity.id, currentVersion, expected);
 	if (conflict) return err(conflict);
 
@@ -111,7 +117,10 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 		path: notePath,
 		projectId: entity.projectId,
 	});
-	deps.echo.markFrontmatter(notePath, dto);
+	// The reading the cache gave BEFORE this write, so a read landing inside Obsidian parse
+	// lag can tell a cache that has not caught up from one that has. Undefined on the insert
+	// path, where there was no entry to supersede.
+	deps.echo.markFrontmatter(notePath, dto, { reading: supersedes, stat: fileStatAt(deps.vault, notePath) });
 	return ok({
 		entity,
 		version: { revision: nextRevision, observed: observeFrontmatter(dto) },

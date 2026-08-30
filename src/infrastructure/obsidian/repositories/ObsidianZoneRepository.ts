@@ -21,6 +21,8 @@ import { SpatialObjectGeometrySchemaV1 } from '../../persistence/dto/planGeometr
 import { parsePersisted } from '../../persistence/mappers/parse';
 import {
 	ensureFolder,
+	cacheReading,
+	fileStatAt,
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
@@ -162,6 +164,8 @@ export class ObsidianZoneRepository {
 		}
 
 		// Step 2b.
+		const supersedes = cacheReading(this.deps, existing);
+
 		const conflict = checkExpectedVersion('zone', zone.id, currentVersion, expected);
 		if (conflict) return err(conflict);
 
@@ -201,6 +205,14 @@ export class ObsidianZoneRepository {
 			return err(persistenceError('zone.write-failed', `Could not write the note for zone ${zone.id}.`, cause));
 		}
 
+		// HERE, and not beside `markFrontmatter` where its four siblings take it, because this
+		// is the only writer with an `await` between its note write and that call. The reading
+		// is a statement about the file WE just wrote, so it has to be taken while that is
+		// still what is on disk: taken after the sidecar mutation below, an external edit
+		// landing in that window was recorded as OUR stat, and `frontmatterOf` then vouched
+		// for somebody else's bytes and let the next conditional save overwrite them.
+		const writtenStat = fileStatAt(this.deps.vault, notePath);
+
 		// Step 4.
 		const mutated = await this.geometry.mutate(zone.planId, (sidecarDto) => ({
 			...sidecarDto,
@@ -220,7 +232,7 @@ export class ObsidianZoneRepository {
 			projectId: zone.projectId,
 			planId: zone.planId,
 		});
-		this.deps.echo.markFrontmatter(notePath, dto);
+		this.deps.echo.markFrontmatter(notePath, dto, { reading: supersedes, stat: writtenStat });
 
 		return ok({ entity: zone, version: { revision: nextRevision, observed: observeFrontmatter(dto) } });
 	}

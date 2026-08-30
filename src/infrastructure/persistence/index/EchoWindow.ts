@@ -2,6 +2,21 @@ import type { ObservationToken } from '../../../application/ports/versioning';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 
 /**
+ * What a writer observed around its own write, for `frontmatterOf`s two-part test.
+ *
+ * Both halves are taken at different MOMENTS and that is why this is a pair rather than one
+ * value: `reading` is the cache BEFORE the write, `stat` is the file AFTER it.
+ */
+export interface CacheObservation {
+	/** What `MetadataCache` answered for this path immediately before the write. */
+	readonly reading: ObservationToken | undefined;
+	/** The file own mtime and size immediately after the write, as one comparable string. */
+	readonly stat: string | undefined;
+}
+
+const EMPTY: ReadonlySet<ObservationToken> = new Set();
+
+/**
  * The short memory that keeps the vault-change pipeline from reprocessing this plugin's
  * own writes: Obsidian raises `modify` for them too, and a debounced pipeline that
  * cannot tell its own echo from a hand edit would race the writer it echoes.
@@ -30,6 +45,8 @@ import { observeFrontmatter } from '../../obsidian/repositories/digest';
 export class EchoWindow {
 	private readonly tokens = new Map<string, ObservationToken>();
 	private readonly notes = new Map<string, Record<string, unknown>>();
+	private readonly superseded = new Map<string, Set<ObservationToken>>();
+	private readonly fileStat = new Map<string, string>();
 
 	matches(path: string, token: ObservationToken): boolean {
 		return this.tokens.get(path) === token;
@@ -56,10 +73,119 @@ export class EchoWindow {
 	 * a mere convenience wrapper any more, which is why the sidecar writers still call
 	 * `mark`: a `.rpgeo` document is not frontmatter and nothing reads one back through
 	 * `frontmatterOf`.
+	 *
+	 * `observed` is what bounds `frontmatterOf`'s stale-cache fallback to the window it
+	 * belongs in, and it carries TWO readings because that fallback has to answer two
+	 * questions no single comparison can (see that function):
+	 *
+	 * - `reading` — what the metadata cache answered IMMEDIATELY BEFORE this write. It joins
+	 *   the set of states that are ours and superseded, together with whatever we had written
+	 *   there before, so a cache that catches up with an INTERMEDIATE write of ours is still
+	 *   recognised as behind. Comparing against the latest reading alone missed exactly that,
+	 *   which is the second of the two P1s a review of this mechanism found.
+	 * - `stat` — the FILE's own mtime and size immediately AFTER this write. A cache token
+	 *   cannot see an external edit at all: an unparsed edit is by definition invisible to
+	 *   the cache, so a hand edit landing inside the window left the cache still showing the
+	 *   pre-plugin state, the fallback recognised that state as ours, and served our bytes
+	 *   over somebody else's newer ones. That was the first P1, and it was a REGRESSION: the
+	 *   stale cached revision used to refuse the next save, and the fallback turned that
+	 *   refusal into a silent overwrite.
+	 *
+	 * A caller with no such readings passes none — the load-time scan is reading the cache
+	 * rather than racing it — and the fallback is then simply not offered for that path.
+	 *
+	 * **An INSERT may spell that either way, and the two are equivalent**, which is worth
+	 * stating because the five writers do not agree on the spelling and a reader should not
+	 * have to derive why that is harmless. `cacheReading` is branch-free by design (its own
+	 * docblock says why), so the four writers whose insert and update arms share one call
+	 * site pass `{ reading: undefined, stat }`; `ObsidianPlanRepository` splits the two into
+	 * separate methods and its insert passes nothing. On a fresh path BOTH leave the chain
+	 * empty — there is no prior cache entry to supersede and no previous write of ours — so
+	 * `frontmatterOf` step 2 declines and the recorded stat is never consulted. The writer's
+	 * own shape decides the spelling; neither is a rule the other breaks. Pinned by the two
+	 * 'an insert' cases in `noteIo.echo.test.ts` rather than left as this paragraph.
 	 */
-	markFrontmatter(path: string, frontmatter: Record<string, unknown>): void {
+	markFrontmatter(path: string, frontmatter: Record<string, unknown>, observed?: CacheObservation): void {
+		// BEFORE `mark`, which overwrites it: what we had written here previously is a state
+		// the cache may still be about to parse.
+		const previous = this.tokens.get(path);
 		this.mark(path, observeFrontmatter(frontmatter));
 		this.notes.set(path, { ...frontmatter });
+
+		if (observed === undefined) {
+			this.superseded.delete(path);
+			this.fileStat.delete(path);
+			return;
+		}
+		// A reading equal to what we last wrote means the cache had CAUGHT UP before this
+		// write, so everything older is no longer a state it can be showing, and the chain
+		// starts again from here.
+		//
+		// **That bounds the set by the writes inside one UN-DRAINED parse window, not by the
+		// session** — an earlier spelling of this comment claimed the second, which is the
+		// stronger claim and rests on the queue draining. It does drain, so the practical
+		// bound is a burst (the slice-10 cascade's two writes on one requirement is the
+		// realistic worst case here); a host whose queue never drained would grow this set
+		// for as long as writes kept landing. There is deliberately no cap: evicting an entry
+		// is exactly how the fallback stops recognising a window it is still inside, which is
+		// the defect this whole mechanism exists to close.
+		const chain =
+			observed.reading !== undefined && observed.reading === previous
+				? new Set<ObservationToken>()
+				: (this.superseded.get(path) ?? new Set<ObservationToken>());
+		if (observed.reading !== undefined) chain.add(observed.reading);
+		if (previous !== undefined) chain.add(previous);
+		this.superseded.set(path, chain);
+
+		if (observed.stat === undefined) this.fileStat.delete(path);
+		else this.fileStat.set(path, observed.stat);
+	}
+
+	/**
+	 * The states this plugin knows to be ITS OWN AND SUPERSEDED at `path` — the cache reading
+	 * taken before each write in the current window, plus each frontmatter this plugin wrote
+	 * and has since replaced.
+	 *
+	 * A cache answering any of these has not caught up with our latest write. A cache
+	 * answering anything else has moved on to something we do not recognise, and is the
+	 * authority — which is what keeps a hand edit winning.
+	 */
+	supersededStates(path: string): ReadonlySet<ObservationToken> {
+		return this.superseded.get(path) ?? EMPTY;
+	}
+
+	/**
+	 * The file's own mtime and size as they stood immediately after this plugin last wrote
+	 * at `path`, or `undefined` when that is not known.
+	 *
+	 * **This is a heuristic, and its two error directions are NOT both safe** — an earlier
+	 * draft of this paragraph said they were, and a review round was right to disbelieve it.
+	 * The claim under it ("the guard can only refuse the echo more often than a version
+	 * without it") is true and measures the wrong baseline: the version without the guard is
+	 * the one that shipped the overwrite the guard exists to close, so being no worse than it
+	 * is not a safety property. Against the behaviour BEFORE the fallback existed — a stale
+	 * cache refusing the next conditional save — the two directions differ:
+	 *
+	 * - **Stat MISMATCH** (a host whose `TFile.stat` lags its own writes) withdraws the
+	 *   fallback. Safe: the read answers the stale cache and the next save is refused, which
+	 *   is the pre-fallback behaviour. The cost is that the parse-lag defect can resurface on
+	 *   such a host, which is why the live-vault case is what settles it.
+	 * - **Stat COLLISION** (an external write landing within the clock's granularity of ours
+	 *   AND leaving the byte size unchanged — a sync client restoring a file with its source
+	 *   mtime is the realistic path) serves the echo over bytes that are not ours. Not safe:
+	 *   the caller's expectation then matches at the next `checkExpectedVersion`, so a save
+	 *   that used to be refused overwrites the external edit.
+	 *
+	 * That residue is not closable here. `mtime:size` is the whole of what a file says about
+	 * itself synchronously, and `frontmatterOf` is synchronous by construction —
+	 * `VaultChangeAdapter` calls it and has no `await` to spend — so a content hash is not
+	 * available at the only moment this question is asked. It is pinned as behaviour by the
+	 * 'cannot see an external edit that preserved both the mtime and the byte size' case in
+	 * `tests/infrastructure/obsidian/repositories/noteIo.echo.test.ts`, so a build that closes
+	 * it fails there rather than leaving this paragraph to go quietly stale.
+	 */
+	observedFileStat(path: string): string | undefined {
+		return this.fileStat.get(path);
 	}
 
 	/**
@@ -74,6 +200,8 @@ export class EchoWindow {
 	forget(path: string): void {
 		this.tokens.delete(path);
 		this.notes.delete(path);
+		this.superseded.delete(path);
+		this.fileStat.delete(path);
 	}
 
 	/** A rename moves the recorded bytes' token — and their content — with the file. */
@@ -86,6 +214,16 @@ export class EchoWindow {
 		if (note !== undefined) {
 			this.notes.delete(oldPath);
 			this.notes.set(newPath, note);
+		}
+		const supersedes = this.superseded.get(oldPath);
+		if (supersedes !== undefined) {
+			this.superseded.delete(oldPath);
+			this.superseded.set(newPath, supersedes);
+		}
+		const stat = this.fileStat.get(oldPath);
+		if (stat !== undefined) {
+			this.fileStat.delete(oldPath);
+			this.fileStat.set(newPath, stat);
 		}
 	}
 }

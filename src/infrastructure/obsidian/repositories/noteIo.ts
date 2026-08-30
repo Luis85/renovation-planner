@@ -6,7 +6,9 @@ import type { EntityId } from '../../../core/identity/EntityId';
 import type { MigrationRunner } from '../../persistence/migration/MigrationRunner';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
+import type { ObservationToken } from '../../../application/ports/versioning';
 import { parentOf } from './paths';
+import { observeFrontmatter } from './digest';
 
 /**
  * The one module the repositories read and write notes through. Everything above
@@ -134,28 +136,98 @@ export interface FrontmatterSource {
 }
 
 /**
+ * A file's own mtime and size as one comparable string — what `EchoWindow` records after a
+ * write and what `frontmatterOf` compares against on the next read.
+ *
+ * Deliberately not a content hash: this is asked on every read, and hashing a note's bytes
+ * would mean reading them, which `frontmatterOf` is synchronous precisely to avoid. What that
+ * costs is a real residue rather than a rounding error, and `EchoWindow.observedFileStat`
+ * states it: a write that collides on both halves is served the echo over somebody else's
+ * bytes.
+ *
+ * **A writer takes this reading with NOTHING AWAITED since its own write**, which is a rule
+ * about the CALL SITE that no signature here can carry. It is a statement about the file WE
+ * wrote, so it is only true while that is still what is on disk. Four of the five writers
+ * have nothing but synchronous index bookkeeping in between; `ObsidianZoneRepository` awaits
+ * a whole sidecar mutation after its note write and took the reading after that, so an
+ * external edit landing in that window was recorded as ours — the same overwrite the guard
+ * exists to refuse, reached through the one path with an await in the middle of it. Its
+ * regression case is 'does not vouch for an external edit that landed while the sidecar write
+ * was in flight', in `tests/infrastructure/obsidian/repositories/contract.test.ts`.
+ */
+function fileStatToken(file: TFile): string {
+	return `${file.stat.mtime}:${file.stat.size}`;
+}
+
+/**
+ * The same reading, taken through a path rather than a handle, so a writer can ask for it
+ * AFTER its own write — the moment that matters, and one the pre-write `TFile` cannot answer
+ * on a host that hands out immutable file handles.
+ */
+export function fileStatAt(vault: Vault, path: string): string | undefined {
+	const file = vault.getAbstractFileByPath(path);
+	return file instanceof TFileValue ? fileStatToken(file) : undefined;
+}
+
+/**
  * The frontmatter of a note — via `MetadataCache`, not raw parsing, with `EchoWindow` as
- * the fallback for the one case the cache cannot answer.
+ * the fallback for the two windows the cache cannot answer for itself.
  *
- * **Obsidian populates its `MetadataCache` asynchronously.** A note read back in the same
- * tick it was created has NO cache entry, and this function used to answer `{}` for it —
- * which every caller then read as a version-0 document, so the migration runner threw
- * `chain-gap` and the read failed with "Migrating the … note failed". That is not a
- * hypothetical: it is what `create-sample-project` did on its first run in a real vault,
- * where `CreatePlanCommand` reads back the Project it had just created to validate the
- * reference. The suite could not see it, because `FakeMetadataCache` parsed the vault's own
- * text synchronously — a fake kinder than the real thing, which now models the delay.
+ * **Obsidian populates its `MetadataCache` asynchronously**, so what `getFileCache` answers
+ * is the text Obsidian's parse queue last reached, never necessarily the bytes on disk.
+ * Two windows follow from that, and this function has been wrong in each of them:
  *
- * The cache is still PREFERRED and the fallback is consulted only when there is no cache
- * entry at all. That ordering is deliberate: the echo record is what this plugin last
- * wrote, so preferring it would mean serving our own bytes over a hand edit for as long as
- * the debounced change pipeline had not run. A path that has ever been parsed always has a
- * cache entry, so the fallback answers exactly the window it exists for.
+ * 1. **After a CREATE there is no entry at all.** This used to answer `{}`, which every
+ *    caller read as a version-0 document, so the migration runner threw `chain-gap` and the
+ *    read failed with "Migrating the … note failed". That is what `create-sample-project`
+ *    did on its first run in a real vault, where `CreatePlanCommand` reads back the Project
+ *    it had just created to validate the reference.
+ * 2. **After a MODIFY the entry is STALE** — present, and parsed from the file's PREVIOUS
+ *    version. This used to be returned as-is, under a comment calling the window
+ *    undetectable, and it shipped a defect: `SetPlanBackground` wrote the reference and
+ *    published `PlanBackgroundChanged`, the Plan Editor re-hydrated off that event inside
+ *    the window, and `GetPlan` answered a plan with no background — so the canvas drew
+ *    none, and the background appeared only later, when some unrelated action re-read a
+ *    note the queue had caught up with in the meantime.
  *
- * What this still does NOT fix, so the sentence stays narrower than the function: a cache
- * entry that is STALE — present but parsed from an earlier version of the file — is
- * returned as-is, exactly as before. That window belongs to Obsidian's parse queue and no
- * fallback here can detect it.
+ * **What makes the second window detectable is a reading, not a guess.** Every writer takes
+ * the cache's own answer immediately before it writes and hands that token to
+ * `markFrontmatter`; a cache still answering exactly that has not been re-parsed since, so
+ * the echo record — what this plugin just wrote — is the truthful answer. A cache answering
+ * anything else has moved on, and the cache wins.
+ *
+ * That is why the test is a TOKEN of the pre-write reading and not a revision comparison.
+ * A revision cannot tell a lagging cache from a hand edit that dropped or lowered the key,
+ * and reading it that way made `VaultChangeAdapter` blind to exactly such an edit —
+ * measured, on the two `announcements.test.ts` cases that drive one.
+ *
+ * **The cache still wins every case it can answer**, which is what keeps a hand edit
+ * authoritative: it moves the entry, so the token stops matching on the very next read.
+ * A note whose frontmatter a user DELETED answers an entry with no `frontmatter` at all and
+ * returns `{}` rather than reaching for the echo — otherwise the change pipeline would
+ * never drop it from the index.
+ *
+ * **The CREATE window below takes no such guard, and the reason is that there is nothing
+ * better to withdraw to.** With no cache entry at all the only alternative answer is `{}`,
+ * which every caller reads as a version-0 document — that IS defect 1 above. So an external
+ * edit landing on a note we have just created, before Obsidian has parsed either write, is
+ * answered from the echo. The asymmetry is deliberate: in the MODIFY window withdrawing
+ * yields the stale cache, which is wrong but harmless and refuses the next conditional save,
+ * while here it yields a refusal to read the note at all.
+ *
+ * The residue, stated because it is real and not because it is likely: an external edit that
+ * collides with our own write on BOTH halves of the file stat is served the echo over its own
+ * bytes. That is the one direction of the stat guard's error that is not safe —
+ * `EchoWindow.observedFileStat` carries the whole account, and `noteIo.echo.test.ts` pins it
+ * as behaviour. Its reach is wider than one read: `VaultChangeAdapter.processNote` reads
+ * through here too, so a colliding edit is answered as our own echo and its event is
+ * SUPPRESSED. Reads self-correct the moment the cache catches up; the index does not, because
+ * that path's one event has already been spent.
+ *
+ * An earlier draft listed a second residue beside it — an edit restoring a note's frontmatter
+ * to byte-identical the pre-write reading. The stat guard closes that one (the edit moves the
+ * mtime), so it is not a residue any more except when the stat ALSO collides, which is the
+ * paragraph above.
  */
 export function frontmatterOf(source: FrontmatterSource, file: TFile): Record<string, unknown> {
 	// On the CACHE ENTRY, not on `.frontmatter`, and that distinction is the whole
@@ -167,7 +239,47 @@ export function frontmatterOf(source: FrontmatterSource, file: TFile): Record<st
 	// pipeline would never drop it from the index. Only the first case may fall back.
 	const cached = source.metadataCache.getFileCache(file);
 	if (cached === null) return source.echo.frontmatterAt(file.path) ?? {};
-	return cached.frontmatter ?? {};
+	const parsed = cached.frontmatter;
+	if (parsed === undefined) return {};
+	const written = source.echo.frontmatterAt(file.path);
+	if (written === undefined) return parsed;
+
+	// 1. Is this still the file WE wrote? A cache token cannot answer that — an unparsed
+	//    external edit is invisible to the cache by definition — so the FILE is asked. A
+	//    mismatch withdraws the fallback, which is the safe direction: this guard can only
+	//    refuse the echo more often than a version without it, never less.
+	const stat = source.echo.observedFileStat(file.path);
+	if (stat === undefined || stat !== fileStatToken(file)) return parsed;
+
+	// 2. Is the cache showing a state that is OURS and superseded? Any earlier write of ours
+	//    counts, not just the reading taken before the latest one: Obsidian may parse an
+	//    intermediate write while a later one is still unparsed.
+	if (!source.echo.supersededStates(file.path).has(observeFrontmatter(parsed))) return parsed;
+	return written;
+}
+
+
+/**
+ * What Obsidian's metadata cache is showing for a note RIGHT NOW, as a token — or
+ * `undefined` when it has no entry for the file at all.
+ *
+ * Deliberately NOT `observeFrontmatter(frontmatterOf(...))`, and the difference is the whole
+ * reason this exists: `frontmatterOf` may answer from the echo record, so digesting its
+ * result inside the parse-lag window yields a token of what this plugin WROTE rather than of
+ * what the cache SHOWED. Threading that as `supersedes` breaks the chain on the second
+ * consecutive write inside one window — the cache has not moved, but the recorded token has,
+ * so the next read stops recognising the window and serves the stale entry. Measured: the
+ * slice-10 cascade marks a requirement stale and recalculates it in one go, and read the
+ * marker back instead of the recalculated figure.
+ *
+ * Every writer hands this to `markFrontmatter`, taken immediately before it writes. It takes
+ * an ABSENT file too, because every caller is on a save path whose insert arm has none, and a
+ * ternary at each of those was a branch per repository for one question asked one way.
+ */
+export function cacheReading(source: FrontmatterSource, file: TFile | null): ObservationToken | undefined {
+	const cached = file ? source.metadataCache.getFileCache(file) : null;
+	if (cached === null) return undefined;
+	return observeFrontmatter(cached.frontmatter ?? {});
 }
 
 /**

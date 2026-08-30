@@ -49,43 +49,47 @@ and they are the reason this file exists:
 
 ## Procedure
 
-1. Open a plan with zones (the sample project's five will do). Note roughly where they sit.
-2. **Click once on empty canvas.** The canvas should now be focused — nothing visible says
+Each step carries a `Reachable by` verdict — the cheapest instrument that could
+discharge it as written. [[Smoke Test the Editor]]'s *The triage column* section defines
+the five values and what they do not claim.
+
+1. `suite` Open a plan with zones (the sample project's five will do). Note roughly where they sit.
+2. `browser` **Click once on empty canvas.** The canvas should now be focused — nothing visible says
    so, which is why the next step is the actual check.
-3. **Hold the space bar.** Expected: the pointer becomes a **grab hand** and the plan does
+3. `obsidian` **Hold the space bar.** Expected: the pointer becomes a **grab hand** and the plan does
    NOT scroll. Then, still holding, **drag**: the pointer becomes a **closed** grabbing hand
    and the plan moves with it.
    *Record what Obsidian itself did with the space bar, if anything.*
-4. **Release the space bar mid-drag**, with the button still down, and keep dragging. Expected:
+4. `suite` **Release the space bar mid-drag**, with the button still down, and keep dragging. Expected:
    the pan continues. This is the rule every canvas editor shares and the one most easily got
    wrong — the gesture belongs to the drag, and the modifier only started it.
-5. **Select the Draw zone tool. Place two vertices. Now hold space and drag** to move the
+5. `suite` **Select the Draw zone tool. Place two vertices. Now hold space and drag** to move the
    view, release, and place the third vertex and close the polygon. Expected: the zone is
    created from all three points — the half-drawn polygon **survives the pan**. This is the
    whole reason the pan is an override rather than a tool; a `PanTool` would have discarded
    the buffer on the way in.
-6. **Middle-button drag** on the canvas, with the Select tool active. Expected: the plan pans.
+6. `desktop` **Middle-button drag** on the canvas, with the Select tool active. Expected: the plan pans.
    No autoscroll widget appears, and nothing is pasted anywhere.
-7. **Start a zone drag with the left button, and press the middle button mid-drag.** Expected:
+7. `browser` **Start a zone drag with the left button, and press the middle button mid-drag.** Expected:
    nothing pans. The zone drag finishes normally on the left release.
-8. **Shift+wheel.** Expected: the plan moves **sideways** and the zoom does not change. Then
+8. `desktop` **Shift+wheel.** Expected: the plan moves **sideways** and the zoom does not change. Then
    wheel **without** shift: it zooms, as before. Try it on a **trackpad** too — a two-finger
    sideways swipe should pan **with no modifier held**, and a mostly-vertical swipe should
    still zoom rather than drifting sideways as your fingers wobble.
-8a. **On a touch device, if you have one:** with the plan panning under one finger, put a
+8a. `desktop` **On a touch device, if you have one:** with the plan panning under one finger, put a
    second finger down and move it, then lift it. Expected: neither disturbs the first
    finger's pan. Try it in camera mode (no tool selected), which is where a second finger
    most plausibly lands.
-9. **`Shift+1`.** Expected: the camera reframes so every zone is visible at once, centred,
+9. `obsidian` **`Shift+1`.** Expected: the camera reframes so every zone is visible at once, centred,
    with a margin. Then zoom in hard on one corner and press it again.
    *Record whether Obsidian's own keymap took `Shift+1` first.*
    **On a non-US keyboard, this is the step to watch.** Both shortcuts match the PHYSICAL
    digit key (`event.code`), not the character the layout produces — `Shift+2` is `@` on a
    US layout and `"` on the German and UK ones. If either does nothing on your keyboard,
    that is a real defect and not a local quirk.
-10. **Select one zone, then `Shift+2`.** Expected: the camera frames that zone. With
+10. `suite` **Select one zone, then `Shift+2`.** Expected: the camera frames that zone. With
     **nothing** selected, `Shift+2` must do **nothing at all** — the view you had is kept.
-11. **Hold space, then Alt+Tab away and back** without releasing it. Expected: the canvas is
+11. `desktop` **Hold space, then Alt+Tab away and back** without releasing it. Expected: the canvas is
     NOT stuck in pan mode — the next click selects normally. Focus leaving is the only notice
     the canvas gets that the key was released.
     **This step is the ONLY instrument for a claim no gate can settle.** The cleanup is
@@ -95,7 +99,7 @@ and they are the reason this file exists:
     and a headless browser has no OS window to deactivate. Registering both is what makes this
     step pass whichever way the host behaves; if it still fails, neither fired and that is a
     real finding.
-11b. **With the Select tool, press on a zone and start dragging it. Without releasing,
+11b. `desktop` **With the Select tool, press on a zone and start dragging it. Without releasing,
     Alt+Tab away, release the button there, and come back.** Expected: the zone is where it
     started, the wheel still zooms, and a click elsewhere moves nothing. The defect: the
     gesture outlived the hand — the camera refused to zoom for the rest of the session and
@@ -104,15 +108,15 @@ and they are the reason this file exists:
     nothing was interrupted. Then a third time, alt-tabbing away **while still holding the
     button that placed a vertex** — the vertices must survive that too, since a drawing tool
     places its point on the press and has nothing the release would have completed.
-11a. **On a plan with a background and NO zones**, the canvas shows an empty state with a
+11a. `browser` **On a plan with a background and NO zones**, the canvas shows an empty state with a
     "Draw a zone" button. **Tab to that button and press Space.** Expected: the button
     activates and the Draw zone tool becomes active — the canvas must NOT arm the camera or
     swallow the key. The one keyboard-reachable control inside the canvas, and the canvas's
     own shortcuts must not take precedence over it.
-12. **Right-click the canvas.** Expected: whatever Obsidian normally does. The right button is
+12. `judgement` **Right-click the canvas.** Expected: whatever Obsidian normally does. The right button is
     deliberately not claimed by the camera — see below.
     *Record what appeared.*
-13. **Chorded buttons, which need a real mouse and cannot be done on a trackpad.** Three
+13. `desktop` **Chorded buttons, which need a real mouse and cannot be done on a trackpad.** Three
     sequences, each ending with the canvas back under control — no stuck camera, no gesture
     still following the cursor after every button is up:
     a. **Middle-drag to pan. With the middle button still down, press and hold the left

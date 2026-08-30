@@ -46,6 +46,18 @@ node_modules/
 .impeccable/live/*.png
 # impeccable-ignore-end
 
+# The SFC probes `tests/build/lint-edited.test.ts` plants. Its `afterEach` removes them, so
+# this rule is for the run that is KILLED — a Ctrl+C or a timed-out CI leg leaves one behind,
+# and `git add -A` would then commit it. That is worse than the litter it looks like: a probe
+# in the tree is a real `.vue` file matching the exclusion in `tests/helpers/plantedProbe.ts`,
+# so it would be permanently skipped by the harness walk AND by the lint-scope coverage check
+# whose whole promise is that no source file falls out of scope — a file no gate reads.
+#
+# The path is the one `plantedProbePath` builds; the two are checked against each other by
+# `tests/build/planted-probe.test.ts` only insofar as it pins the NAME, so a rename that
+# missed this line would leak again. Anchored, because that is the one directory it plants in.
+/tests/harness/lint-edited-probe-*.vue
+
 # Python bytecode — `lookup.py` and `sections.py` in docs/reviews/ are run directly.
 __pycache__/
 *.pyc

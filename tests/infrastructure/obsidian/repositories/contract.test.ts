@@ -69,6 +69,10 @@ function handEdit(stack: RepositoryStack, id: string): void {
 	if (key === undefined) throw new Error(`nothing but identity keys to hand-edit at ${path}`);
 	frontmatter[key] = `${String(frontmatter[key])} (edited by hand)`;
 	stack.vault.entries.set(path, `${serializeFrontmatter(frontmatter)}${body}`);
+	// Anything the outside world does to a file is something Obsidian parses, so a hand edit
+	// is by definition visible to the metadata cache. Without this the fake would model a
+	// hand edit nobody has read yet, which is not what any caller of `touch` means.
+	stack.metadataCache.catchUp();
 }
 
 function plantNote(
@@ -78,6 +82,8 @@ function plantNote(
 	owned: Record<string, unknown>,
 ): void {
 	stack.vault.entries.set(path, serializeFrontmatter(owned));
+	// Planted from outside, so parsed — see `handEdit`.
+	stack.metadataCache.catchUp();
 	stack.index.upsert({
 		id: owned['id'] as EntityId<string>,
 		type,
@@ -247,8 +253,181 @@ describe('reading a note back inside Obsidian’s parse window', () => {
 		const path = stack.index.getPath(project.id) as string;
 
 		stack.vault.entries.set(path, 'someone deleted the frontmatter');
+		stack.metadataCache.catchUp();
 
 		expect((await stack.projects.getById(project.id)).ok).toBe(false);
+	});
+});
+
+/**
+ * The third defect a live vault found, and the second one this fake was too kind to show.
+ *
+ * Obsidian's metadata cache lags a MODIFY as well as a create — the entry is present and
+ * parsed from the PREVIOUS version of the file. `frontmatterOf` consulted the echo window
+ * only when there was no entry AT ALL, so a read inside that window was served the
+ * pre-write frontmatter: `SetPlanBackground` wrote the reference and published its event,
+ * the Plan Editor re-hydrated off that event, and the query answered a plan with no
+ * background. The canvas drew nothing, and the background appeared only much later, when
+ * some unrelated action re-read a note the cache had caught up with in the meantime.
+ *
+ * The discriminator is `revision`, an owned key on every note kind: a cache entry whose
+ * revision is BEHIND the one this plugin last wrote is an entry that predates our write.
+ * Anything else — equal, ahead, or a note whose frontmatter is gone — is the cache's to
+ * answer, so a hand edit still wins.
+ */
+describe('reading back inside the metadata cache parse window', () => {
+	it('answers with what this plugin just wrote, not the frontmatter the cache still holds', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const plan = makePlanEntity({ projectId: project.id });
+		expectOk(await stack.plans.save(plan, 'absent'));
+		stack.metadataCache.catchUp();
+
+		const loaded = expectOk(await stack.plans.getById(plan.id));
+		const background = { path: 'Plans/floor.png', kind: 'image' } as const;
+		const updated = expectOk(loaded?.entity.withBackground(background) as never) as Plan;
+		expectOk(await stack.plans.save(updated, (loaded as NonNullable<typeof loaded>).version));
+
+		// No `catchUp()`: this is the tick the event fires in, and Obsidian has not re-parsed.
+		expect(expectOk(await stack.plans.getById(plan.id))?.entity.background).toEqual(background);
+	});
+
+	/**
+	 * The rule the echo fallback must not break, driven from the other side. Preferring our
+	 * own last write unconditionally would serve stale bytes over a real edit for as long as
+	 * the change pipeline had not run.
+	 */
+	it('prefers a hand edit the cache has already parsed over its own last write', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const path = stack.index.getPath(project.id) as string;
+
+		const written = stack.vault.entries.get(path) as string;
+		stack.vault.entries.set(path, written.replace(/^name: .*$/m, 'name: Renamed by hand'));
+		stack.metadataCache.catchUp();
+
+		expect(expectOk(await stack.projects.getById(project.id))?.entity.name).toBe('Renamed by hand');
+	});
+});
+
+/**
+ * A read that must have found something, without a non-null assertion: these cases have just
+ * written the note they are reading, so an absent one is a broken fixture and says so here
+ * rather than at whichever property is touched next.
+ */
+function asLoaded<T>(loaded: T | null): T {
+	if (loaded === null) throw new Error("the fixture wrote a note this read did not find");
+	return loaded;
+}
+
+/**
+ * The two P1s a review of the parse-lag fix found, both driven rather than argued.
+ *
+ * They share a root: a comparison of cache TOKENS cannot tell "the cache is behind US" from
+ * "the cache is behind SOMEBODY ELSE", and it cannot see an external edit at all, because an
+ * unparsed edit is by definition invisible to the cache. So the echo is served only when BOTH
+ * questions answer yes — is the file still the one we wrote, and is the cache showing a state
+ * of ours that we have since superseded.
+ */
+describe('the echo fallback refuses itself when it cannot prove the cache is behind US', () => {
+	/**
+	 * The one that was a REGRESSION rather than a gap. Before the parse-lag fix this save was
+	 * refused — the stale cached revision differed from the expectation the command held — and
+	 * the fix turned that refusal into a silent overwrite of somebody else's edit, which is the
+	 * exact harm the conditional-write contract exists to prevent.
+	 */
+	it('does not hide, or overwrite, an external edit that landed during the window', async () => {
+		const stack = createRepositoryStack();
+		const id = makeProjectEntity().id;
+		expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'Original' }), 'absent'));
+		stack.metadataCache.catchUp();
+		const path = stack.index.getPath(id) as string;
+		const before = stack.vault.entries.get(path) as string;
+
+		const read = expectOk(await stack.projects.getById(id));
+		const ours = expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'Ours' }), asLoaded(read).version));
+
+		// Somebody else writes, and Obsidian has parsed NEITHER write.
+		stack.vault.entries.set(path, before.replace(/name: .*/, 'name: Edited by hand'));
+		stack.vault.pendingParse.set(path, before);
+
+		// NOT our own bytes. It cannot be the external edit either — the cache has not parsed
+		// that, and this function does not read files — so the honest answer is the stale cache,
+		// which is what makes the conditional write below refuse rather than overwrite.
+		expect(expectOk(await stack.projects.getById(id))?.entity.name).not.toBe('Ours');
+		expect((await stack.projects.save(makeProjectEntity({ id, name: 'Ours again' }), ours.version)).ok).toBe(false);
+		expect(stack.vault.entries.get(path)).toContain('Edited by hand');
+	});
+
+	/**
+	 * The one that was already there and which the fix narrowed without closing: two writes
+	 * inside one window, and Obsidian parses the FIRST before the second. The cached token then
+	 * matches neither the reading taken before the latest write nor the latest echo, so the
+	 * intermediate state was served as if it were current.
+	 */
+	it('serves the latest write when the cache has parsed only an earlier one of ours', async () => {
+		const stack = createRepositoryStack();
+		const id = makeProjectEntity().id;
+		expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'Original' }), 'absent'));
+		stack.metadataCache.catchUp();
+		const path = stack.index.getPath(id) as string;
+		const before = stack.vault.entries.get(path) as string;
+
+		const first = expectOk(await stack.projects.getById(id));
+		expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'First' }), asLoaded(first).version));
+		stack.vault.pendingParse.set(path, before);
+		const afterFirst = stack.vault.entries.get(path) as string;
+
+		const second = expectOk(await stack.projects.getById(id));
+		expectOk(await stack.projects.save(makeProjectEntity({ id, name: 'Second' }), asLoaded(second).version));
+
+		// Obsidian's queue reaches the first write's bytes, before the second are parsed.
+		stack.vault.pendingParse.set(path, afterFirst);
+
+		expect(expectOk(await stack.projects.getById(id))?.entity.name).toBe('Second');
+	});
+
+	/**
+	 * The stat is a statement about the file WE wrote, so it has to be taken while that is
+	 * still what is on disk. Every other writer takes it with nothing but synchronous index
+	 * bookkeeping between the note write and the reading; the Zone repository writes its note,
+	 * then AWAITS a whole sidecar mutation, and took the reading after that. An external edit
+	 * landing in that window was recorded as OUR stat, and `frontmatterOf` then vouched for a
+	 * file somebody else had written — the same overwrite the case above exists to refuse,
+	 * reached through the one path with an await in the middle of it.
+	 */
+	it('does not vouch for an external edit that landed while the sidecar write was in flight', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const plan = makePlanEntity({ projectId: project.id });
+		expectOk(await stack.plans.save(plan, 'absent'));
+		const zone = makeZoneEntity({ projectId: project.id, planId: plan.id, name: 'Original' });
+		const named = (name: string) => makeZoneEntity({ id: zone.id, projectId: project.id, planId: plan.id, name });
+		expectOk(await stack.zones.save(zone, 'absent'));
+		stack.metadataCache.catchUp();
+
+		const path = stack.index.getPath(zone.id) as string;
+		const before = stack.vault.entries.get(path) as string;
+		const read = asLoaded(expectOk(await stack.zones.getById(zone.id)));
+
+		// Somebody else writes the NOTE while the sidecar write this save awaits is running,
+		// and Obsidian has parsed neither that edit nor our own write.
+		const mutate = stack.store.mutate.bind(stack.store);
+		stack.store.mutate = async (...args: Parameters<typeof mutate>) => {
+			const result = await mutate(...args);
+			stack.vault.entries.set(path, before.replace(/name: .*/, 'name: Edited by hand'));
+			stack.vault.pendingParse.set(path, before);
+			return result;
+		};
+
+		const ours = expectOk(await stack.zones.save(named('Ours'), read.version));
+
+		expect(expectOk(await stack.zones.getById(zone.id))?.entity.name).not.toBe('Ours');
+		expect((await stack.zones.save(named('Ours again'), ours.version)).ok).toBe(false);
+		expect(stack.vault.entries.get(path)).toContain('Edited by hand');
 	});
 });
 

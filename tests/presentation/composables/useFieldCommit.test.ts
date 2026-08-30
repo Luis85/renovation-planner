@@ -575,12 +575,19 @@ describe('useFieldCommit', () => {
 		// cannot attach anywhere else. A version that only repaired `inFlight`/`pending` and
 		// discarded the cause would leave this uncalled while the field looked perfectly settled.
 		expect(notify).toHaveBeenCalledTimes(1);
-		expect(notify).toHaveBeenCalledWith({
-			category: 'Persistence',
-			code: 'vault.unexpected-failure',
-			message: fault.message,
-			cause: fault,
-		});
+		// `objectContaining` rather than an exact shape: design slice 17 has `faultError` stamp
+		// every mapped fault with `technicalFault`, so a consumer can tell a THROW from a
+		// refusal — the two are otherwise the same `PersistenceError`. What this case is about
+		// is that the door receives the MAPPED error with its cause attached, not that the
+		// object carries nothing else.
+		expect(notify).toHaveBeenCalledWith(
+			expect.objectContaining({
+				category: 'Persistence',
+				code: 'vault.unexpected-failure',
+				message: fault.message,
+				cause: fault,
+			}),
+		);
 		// The DEVELOPER-facing half of the same failure, which this door produced for nobody
 		// until now: it mapped the cause with a `createVaultExceptionMapper` of its own and
 		// called `options.notify`, so a fault reached the user as a sentence and a developer as

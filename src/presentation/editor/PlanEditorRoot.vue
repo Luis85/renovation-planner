@@ -71,6 +71,19 @@ function onEmptyStateAction(): void {
 	runtime.setTool('draw-polygon');
 }
 
+/**
+ * The canvas is drawing data it can no longer confirm.
+ *
+ * `ProjectStore.hydrate(..., { keepPreviousOnFailure: true })` — which is how every post-command
+ * refresh reads back — deliberately keeps `status === 'ready'` and the previous scene when the
+ * read fails, and records the error beside it. Nothing rendered that pair, so the write
+ * succeeded, the indicator said Saved, and the canvas silently showed pre-command geometry.
+ *
+ * `'ready'` is the whole point of the guard: any other status is already replaced by the
+ * failure state, and this exists only for the case where there IS content to keep showing.
+ */
+const staleAfterRefresh = computed(() => status.value === 'ready' && error.value !== null);
+
 const root = ref<HTMLElement | null>(null);
 const { tokens, refresh } = useThemeTokens(root);
 const backgroundStatus = ref<BackgroundStatus>('none');
@@ -193,8 +206,25 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 			</div>
 			<InspectorPanel v-if="inspectorPanelOpen" />
 		</div>
+		<!--
+			ADDITIVE, and never the in-place failure state, because the canvas is showing valid
+			data. `withEditorStateRefresh` re-reads after a successful write with
+			`keepPreviousOnFailure`, so a failed read-back leaves `status === 'ready'` with the
+			PRE-command scene still drawn and an `error` set. Replacing that with a failure panel
+			would hide a plan the user can still work on, to report a read that failed; saying
+			nothing left the indicator reading Saved over a canvas quietly out of date. A strip
+			that persists while the condition does is the shape that fits — the same one the two
+			background notices already use. Reported by a review bot.
+		-->
 		<p
-			v-if="backgroundStatus === 'missing'"
+			v-if="staleAfterRefresh"
+			class="rp-editor-notice"
+			role="status"
+		>
+			{{ tr('editor.refresh-failed') }}
+		</p>
+		<p
+			v-else-if="backgroundStatus === 'missing'"
 			class="rp-editor-notice"
 			role="status"
 		>

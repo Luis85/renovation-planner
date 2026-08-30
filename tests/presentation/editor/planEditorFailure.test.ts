@@ -14,6 +14,8 @@ import { flushPromises } from '@vue/test-utils';
 import { err, ok } from '../../../src/core/result/Result';
 import { t } from '../../../src/presentation/i18n/strings';
 import { fakeQueries, mountPlanEditor } from '../../helpers/editor';
+import { FIXTURE_PLAN } from '../../helpers/planFixtures';
+import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import * as policy from '../../../src/presentation/errors/errorSurfacePolicy';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 import type { AppError } from '../../../src/core/errors/AppError';
@@ -170,6 +172,42 @@ describe('the Plan Editor, when its plan is simply gone', () => {
 		expect(spy).not.toHaveBeenCalled();
 
 		spy.mockRestore();
+		harness.wrapper.unmount();
+	});
+});
+
+describe('the Plan Editor, when a post-write refresh fails', () => {
+	it('keeps the canvas and says the view may be out of date', async () => {
+		// `keepPreviousOnFailure` is how every post-command refresh reads back: a failed read
+		// leaves `status === 'ready'` with the previous scene drawn and an `error` recorded.
+		// Nothing rendered that pair, so the indicator said Saved over a canvas quietly showing
+		// pre-command geometry.
+		let call = 0;
+		const flaky: PlanEditorQueryServices = {
+			...fakeQueries(FIXTURE_PLAN),
+			getPlan: () => {
+				call += 1;
+				return call === 1
+					? Promise.resolve(ok(FIXTURE_PLAN))
+					: Promise.resolve(
+							err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' }),
+						);
+			},
+		};
+		const harness = await mountPlanEditor({ queries: flaky });
+		await flushPromises();
+		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(true);
+
+		// A second hydrate, the shape `withEditorStateRefresh` performs after a committed write.
+		const store = useProjectStore(harness.pinia);
+		await store.hydrate(flaky, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+		await flushPromises();
+
+		// ADDITIVE: the canvas stays, because the data it draws is valid — only stale.
+		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(true);
+		expect(harness.wrapper.find('.rp-view-failure').exists()).toBe(false);
+		expect(harness.wrapper.find('.rp-editor-notice').text()).toBe(t('en', 'editor.refresh-failed'));
+
 		harness.wrapper.unmount();
 	});
 });

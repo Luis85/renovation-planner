@@ -73,6 +73,12 @@ function faultLine(event: string) {
 	return lines.find((line) => line.event === event);
 }
 
+function saveStateLabel(harness: { wrapper: { find: (s: string) => { exists: () => boolean; element: Element } } }): HTMLElement {
+	const label = harness.wrapper.find('.rp-save-state-label');
+	if (!label.exists()) throw new Error('expected the save-state indicator to be mounted');
+	return label.element as HTMLElement;
+}
+
 describe('a failure at an Inspector control', () => {
 	beforeEach(() => {
 		resetRecorder();
@@ -120,7 +126,24 @@ describe('a failure at an Inspector control', () => {
 		r.harness.unmount();
 	});
 
-	it('a RESOLVED refusal during an assignment reaches the user as a notice', async () => {
+	/**
+	 * **A RESOLVED save-affecting refusal goes to the indicator, and to nothing else.**
+	 *
+	 * This case used to assert a notice, and design slice 17 moved it: `commitField` dispatches
+	 * through the tracked dispatcher, so `withSaveStateTracking` has already flipped the badge
+	 * by the time the refusal reaches `commitEdit`. Reporting it again as a toast is one failure
+	 * through two widgets that can drift apart, which that slice's Definition of Done forbids by
+	 * name.
+	 *
+	 * The claim it used to carry — that a notice shows the LOCALE table's copy and never the
+	 * error's own `message` — is not lost with it: `toUserMessage.test.ts` binds every reachable
+	 * code to its sentence, and `notify.test.ts` proves the door resolves through that table. It
+	 * is the SURFACE that changed here, not the copy rule.
+	 *
+	 * The case above it is the deliberate counterpart: a mapped THROW still gets its sentence,
+	 * because that sentence is the only account of it a user will ever get.
+	 */
+	it('a RESOLVED save-affecting refusal reaches the indicator, not a notice', async () => {
 		const r = await selectedZone();
 		const before = Notice.shown.length;
 		r.requirementsRepo.save = () =>
@@ -130,13 +153,14 @@ describe('a failure at an Inspector control', () => {
 			}) as ReturnType<typeof r.requirementsRepo.save>;
 
 		await assign(r);
-		await until(() => Notice.shown.length > before, 'the refusal notice');
+		await until(
+			() => saveStateLabel(r.harness).classList.contains('rp-save-state-save-error'),
+			'the save indicator to report the refusal',
+		);
 
-		// The notice carries the LOCALE table's copy for the error, never the error's own
-		// `message` — 'The vault is read-only.' is log text, and slice 11's boundary is what
-		// keeps it out of a Notice. `vault.locked` has no key of its own, so `toUserMessage`
-		// falls back to the category line.
-		expect(Notice.shown.at(-1)).toContain('The vault could not be read or written.');
+		// Both halves, and the pairing is the point: "the indicator flipped" is equally true of
+		// a build that also toasts, which is exactly what this replaced.
+		expect(Notice.shown.length).toBe(before);
 		r.harness.unmount();
 	});
 

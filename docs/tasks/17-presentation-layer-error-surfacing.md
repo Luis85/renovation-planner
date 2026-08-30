@@ -627,6 +627,50 @@ outside the editor's bundle, and offering it here is the same seam problem one l
 out. One action rather than two, and this names the missing half rather than implying the item
 is fully met.
 
+### Amendment 5 (2026-08-30): a FAULT keeps its sentence; a REFUSAL goes where the indicator did not
+
+The table routes an autosave-path `PersistenceError` to the save indicator with no toast beside
+it, and reviewing that rule against the code found it under-specified in one direction.
+
+`makeCommitField` maps a **thrown** fault into a resolved `Result` carrying a coded
+`PersistenceError`, so by the time it reaches a reporting site it is structurally identical to
+a refusal the command returned. Routed identically, a technical fault would show a badge
+reading "Save error" and no cause at all — trading the user's only account of it for
+consistency. SDD §65 already draws the line this needs: a throw is a technical fault, a
+refusal is expected.
+
+So `faultError` stamps every mapped fault (`presentation/errors/technical-fault.ts`), which is
+sound because that function is the ONE place a thrown cause becomes an `AppError` — its
+definition plus four callers, all catch blocks. `commitEdit` asks, and a fault takes the
+notice while a refusal takes `reportDispatchRefusal`.
+
+**`reportDispatchRefusal` asks `affectsSaveState`, the same predicate the indicator asked**,
+rather than assuming every dispatched refusal was carried by it. That assumption was false for
+a PRE-WRITE category — `Calculation`, `Domain`, `Validation`, `Reference` — where the indicator
+resolves neutral: a calibration whose scale collapsed after dispatch and before
+`geometry.write` reached nobody at all.
+
+The delete flow deliberately stays on the notice. Its failed arm carries a failed referents
+QUERY and a failed DISPATCH through one branch, and no predicate can separate them — a failed
+query is a `Persistence` error exactly like a failed write. A toast for both over-reports the
+dispatched case and correctly reports the query case; the unsafe direction is silence.
+
+### Amendment 6 (2026-08-30): a canvas showing stale data says so, without being replaced
+
+`withEditorStateRefresh` re-reads after every committed write with `keepPreviousOnFailure`, and
+`ProjectStore` honours that by keeping `status === 'ready'` and the previous scene when the
+read fails, recording the error beside it. Nothing rendered that pair: the write succeeded, the
+indicator read **Saved**, and the canvas silently showed pre-command geometry.
+
+The in-place failure state is the wrong surface for it, which is why this needed its own
+answer rather than a widened guard. The data on screen is valid — only stale — and
+`keepPreviousOnFailure` exists precisely to keep showing it; replacing it would hide a plan the
+user can still work on in order to report a read that failed.
+
+`editor.refresh-failed` is an ADDITIVE strip in the region the two background notices already
+use, shown while `status === 'ready' && error !== null`. It persists as long as the condition
+does, which a toast would not.
+
 ## References
 
 - SDD §66 Error Boundary — the pipeline this slice completes (the

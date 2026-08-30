@@ -34,6 +34,7 @@ import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from 
 import { tr } from '../i18n/strings';
 import { noticeOnlySinks, notifyFault, notifyOperationFailure } from '../notices/notify';
 import { affectsSaveState } from './save-state/affects-save-state';
+import { isTechnicalFault } from '../errors/technical-fault';
 import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
@@ -567,7 +568,16 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	 */
 	async function commitEdit(edit: InspectorEdit): Promise<boolean> {
 		const result = await commitField(edit);
-		if (!result.ok) notifyOperationFailure(result.error);
+		// **A FAULT keeps its sentence; a REFUSAL goes wherever the indicator did not.** SDD §65
+		// draws that line: `commitField` maps a THROW into a coded `PersistenceError`, and the
+		// sentence that error resolves to is the only account of it the user will ever get —
+		// routing it to a badge reading "Save error" would trade their one explanation for
+		// consistency. A refusal is the opposite case: the command considered the request and
+		// declined it, and if that refusal affected the write the indicator is already saying so.
+		if (!result.ok) {
+			if (isTechnicalFault(result.error)) notifyOperationFailure(result.error);
+			else reportDispatchRefusal(result.error);
+		}
 		return result.ok;
 	}
 

@@ -2072,6 +2072,26 @@ The rules that came out of it:
   knows nothing about which leaf this is. The dangling-plan state shipped without it for one
   commit, with the missing seam written down rather than worked around by reaching for the
   global `app`, which the marketplace rules refuse.
+- **A FAULT and a REFUSAL are the same shape by the time they reach a surface, and SDD §65 is
+  the line between them.** `makeCommitField` maps a throw into a resolved `Result` carrying a
+  coded `PersistenceError`, indistinguishable from one a command returned — so routing both to
+  the save indicator would show a badge and no cause for the one case where the mapped sentence
+  is the user's ONLY account. `faultError` stamps every mapped fault, which is sound because it
+  is the one place a thrown cause becomes an `AppError`: its definition plus four callers, all
+  catch blocks.
+- **"Dispatched" is not "the indicator has it", and assuming so made a whole gesture silent.**
+  `withSaveStateTracking` asks `affectsSaveState`, and a PRE-WRITE category resolves NEUTRAL —
+  no badge, nothing written. A door that assumed otherwise routed those to a save-state sink
+  that is deliberately a no-op: a calibration whose scale collapsed after dispatch and before
+  `geometry.write` reached nobody. The door asks the same predicate the indicator asked now, so
+  the two cannot disagree about who reported what. **Three separate review rounds found three
+  shapes of this one mistake**, and the shape is the lesson: the origin of a refusal is not a
+  property of the call site, and every attempt to read it off one was wrong somewhere.
+- **A view showing valid-but-STALE data is not a view that failed.** `keepPreviousOnFailure`
+  keeps the previous scene and `status === 'ready'` when a post-write read-back fails, so the
+  in-place failure state is the wrong surface — replacing the canvas would hide a plan the user
+  can still work on in order to report a read that failed. An additive strip, shown while the
+  condition holds, is the shape that fits; a toast would not, because the staleness outlives it.
 - **`analyze` reads `.test-d.ts` as an unreachable FILE**, so `.fallowrc.json` names each of the
   four one at a time — deliberately not globbed, because "a glob absorbs the next file and tells
   nobody" and here it would absorb one whose `tsconfig.json` entry had been forgotten, leaving a

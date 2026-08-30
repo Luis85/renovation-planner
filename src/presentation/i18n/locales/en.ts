@@ -179,6 +179,7 @@ export const en = {
 	'editor.plan-failed.headline': 'This plan could not be loaded',
 	// The dangling-reference state: not an error at all, so it carries its own body rather than
 	// a mapped one. `GetPlan` succeeded and correctly reported that no plan resolves.
+	'editor.refresh-failed': 'This plan could not be re-read after the last change; what you see may be out of date.',
 	'editor.plan-missing.headline': 'This plan no longer exists',
 	'editor.plan-missing.body': 'This tab points at a plan that is not in the vault any more.',
 	'editor.plan-missing.action': 'Close this tab',

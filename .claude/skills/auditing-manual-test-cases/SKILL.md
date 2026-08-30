@@ -82,14 +82,25 @@ too, and that case never asserts the outline appears: its setup requires one bef
 
 ## Real-world impact
 
-One 24-step walkthrough against a 3400-test suite. First pass: "18 discharged, 2 gaps". True
-figure after six review rounds: **17 discharged, 5 gaps** — wrong in *both* directions,
-over-reporting coverage three times from partial assertions and under-reporting it once
-from a test's name. A reviewer found four of the five corrections. Two gaps were invisible to
-any state assertion: leaving a selection overlay drawn after a deselection kept 50 of 51
-existing tests green.
+One 24-step walkthrough against a 3400-test suite, twenty of its steps `suite` or `browser`
+and so in scope for this audit. First pass: "18 discharged, 2 gaps". True figure after the
+review rounds: **13 discharged, 7 gaps** — wrong in *both* directions, over-reporting
+coverage four times from partial assertions (steps 1, 2, 4 and 12) and under-reporting it
+once from a test's name (step 7). A reviewer found four of those five corrections. Two gaps
+were invisible to any state assertion: leaving a selection overlay drawn after a deselection
+kept 50 of 51 existing tests green.
 
-**Replayed against the four failures it was written from**, which is the verification it has:
+Every one of those five corrections was a step whose cited test NAME read correctly, which is
+what "audit by reading the body" buys. The figures carry their step numbers for a second
+reason: this count has now gone stale three times — twice in `Zone Editing Walkthrough.md`
+and once here — each time because a correction was appended to the canonical audit and a
+summary elsewhere was not re-read. `docs/tests/cases/Zone Editing Walkthrough.md` is the
+canonical figure and this paragraph is a copy, so check it against that file rather than
+citing it onward.
+
+**Replayed against the four failures it was written from**, which is the verification it
+has. Those four are not the five corrections above and do not line up with them: this is
+the set the recipe was replayed against, three over-reports plus the under-report:
 
 - Step 1 passed on "an accent outline appears with ONE handle circle per vertex". Two clauses;
   the cited test counts circles. Row one says `none`. **Gap caught** — the first pass collapsed

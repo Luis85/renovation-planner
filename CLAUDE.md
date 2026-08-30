@@ -2409,6 +2409,28 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   **A test file's CPU cost is part of its correctness when anything in the suite waits in
   ticks**, and a green local run on a four-core machine cannot see it.
 
+  **`settleUntil`'s own bound was that same mistake one level up, and it took a red CI leg to
+  see it.** The helper exists because a fixed `settle()` is a fixed tick count; its remedy was
+  a loop bounded at 50 ROUNDS, and a round is four microtasks and one `setTimeout(0)` that Node
+  clamps to about a millisecond — so the budget was about fifty milliseconds of wall clock on
+  every machine, while the work it waits on is a cold Vite transform whose duration is entirely
+  the machine's business. Measured rather than reasoned: `openIndex('entry=prototype:ZonePanel')`
+  settles in four to six rounds locally, which READS as a tenfold margin and is five
+  milliseconds against fifty. `verify (ubuntu-latest, 26)` spent all fifty and failed, while
+  the three prototypes scanned before it passed — a per-MODULE cost, so no ordering makes one
+  of them "the cold one". It is a DEADLINE now (4s, under vitest's 5000ms default so a real
+  regression still fails as this helper's named error rather than as an anonymous test
+  timeout).
+  **Pre-warming the entry module was tried first and is the more useful half of the finding**:
+  `HarnessEntry.component` is a real loader, so awaiting it does move that transform out of the
+  polled window — and with the budget starved to one round `ZonePanel` still failed, because it
+  is a template-only mock composing a real `<StatusBar />` that the index registers through
+  `defineAsyncComponent`, which resolves lazily INSIDE the window. **A list of things to warm
+  goes stale as mocks compose more of them; a deadline needs no list.** `settleUntil.test.ts`
+  pins boundedness with a STUBBED `Date.now` rather than by waiting the budget out — four
+  seconds on every CI leg to prove one `throw` is a bad trade — and says so, since what it
+  cannot measure is whether the VALUE is right for a contended runner.
+
   **It has now caught ten defects the whole of `npm run check` could not**, which is the
   argument for running it on anything that draws: the view collapsing to a sliver of its
   pane (slice 1); and in slice 5, a layers panel sized with `--size-4-18` — 72 pixels,

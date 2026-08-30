@@ -62,6 +62,39 @@ export function indexAppConfig(): {
 }
 
 /**
+ * Do the entry's cold Vite transform under a real `await`, BEFORE the page starts polling for
+ * it.
+ *
+ * `settleUntil` below is bounded in ROUNDS, and a round is four microtasks and one
+ * `setTimeout(0)` — so fifty of them are tens of milliseconds of wall clock, while
+ * transforming a `.vue` file for the first time in a worker is tens of milliseconds too.
+ * That margin is not a safety margin, it is a coin toss, and CI is where it lands badly:
+ * `verify (ubuntu-latest, 26)` failed on `prototype:ZonePanel` while the three prototypes
+ * scanned before it passed, which is what says the cost is per-MODULE and that no ordering
+ * makes one of them "the cold one".
+ *
+ * `settle()`'s own docblock states the rule this applies: use it where the code under test is
+ * detached and there is no promise to await, and where there IS one, await that instead. The
+ * loader on `HarnessEntry` is exactly that promise, and the module registry is per worker, so
+ * warming it here is the same module the page's `defineAsyncComponent` then resolves —
+ * instantly. What remains inside the polled window is Vue rendering an already-loaded
+ * component, which is what a round budget can honestly cover.
+ *
+ * **A WARM-UP, never the load**, which is why the rejection is swallowed. The page owns what
+ * happens to a module that will not import — it renders a named failure card, and cases assert
+ * on it. Letting this throw would replace that card with an exception out of the helper, so a
+ * broken prototype would stop being a reported failure and become a crashed test.
+ *
+ * An unknown id warms nothing and falls through to the same failure card, which is what the
+ * `?entry=does-not-exist` case drives.
+ */
+async function warmEntryModule(entryId: string | null): Promise<void> {
+	if (entryId === null) return;
+	const entry = [...prototypeEntries(), ...componentEntries()].find((one) => one.id === entryId);
+	await entry?.component().catch(() => undefined);
+}
+
+/**
  * The index mounted at one URL, for the files that drive the REAL entry list.
  *
  * `?entry=` is read in `setup()`, so the URL has to be on `window.location` BEFORE the mount
@@ -75,6 +108,8 @@ export function indexAppConfig(): {
  */
 export async function openIndex(query: string): Promise<VueWrapper> {
 	window.history.replaceState({}, '', query === '' ? '/' : `/?${query}`);
+
+	await warmEntryModule(new URLSearchParams(window.location.search).get('entry'));
 
 	const host = document.createElement('div');
 

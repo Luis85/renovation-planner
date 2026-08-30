@@ -131,6 +131,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.no-reassignment-target': 'In diesem Projekt gibt es keine andere Zone, der diese Anforderungen zugewiesen werden könnten.',
 	'reference.self-reassign': 'Referenzen können nicht dem zu löschenden Eintrag neu zugewiesen werden. Bitte einen anderen wählen.',
 	'reference.cross-project-reassign': 'Referenzen können nur innerhalb desselben Projekts neu zugewiesen werden.',
+	'reference.row.project': '{name}',
 	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
 	'requirement.cross-project': 'Eine Zone und ein Objekt aus verschiedenen Projekten können nicht verknüpft werden.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',

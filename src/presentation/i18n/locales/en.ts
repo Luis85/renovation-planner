@@ -132,6 +132,7 @@ export const en = {
 	'reference.no-reassignment-target': 'There is no other zone in this project to reassign these requirements to.',
 	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
 	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
+	'reference.row.project': '{name}',
 	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
 	'requirement.cross-project': 'A zone and an asset from different projects cannot be linked.',
 	'requirement.negative-quantity': 'A quantity cannot be negative.',

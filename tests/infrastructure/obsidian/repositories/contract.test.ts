@@ -515,6 +515,43 @@ describe('writing into a folder nothing has created yet', () => {
 	});
 });
 
+/**
+ * `ObsidianPlanRepository.listByProject`'s own drop, driven through the real index/note
+ * loop rather than through a hand-built `PlanRepository` double. `listPlansByProject.test.ts`
+ * used to claim this behaviour from the application layer with a fake repository that could
+ * only ever return an already-filtered array — it could not produce an indexed id whose note
+ * is gone, so it could not distinguish that from a project that genuinely has one plan, and
+ * kept passing no matter what the repository's loop did. This is the fixture that CAN produce
+ * it: an index entry planted directly (`index.upsert`, never `plantNote`), pointing at a path
+ * nothing ever wrote — the shape a note deleted out from under a stale index entry leaves
+ * behind, before `VaultChangeAdapter`'s next pass corrects it.
+ */
+describe('listByProject and a note the index still points at', () => {
+	it('drops an indexed plan id whose note is gone rather than reporting it', async () => {
+		const stack = createRepositoryStack();
+		const project = makeProjectEntity();
+		expectOk(await stack.projects.save(project, 'absent'));
+		const survivor = makePlanEntity({ projectId: project.id, name: 'Ground floor' });
+		expectOk(await stack.plans.save(survivor, 'absent'));
+
+		// Indexed, never written: `getAbstractFileByPath` answers null for this path, so
+		// `openNoteById` reports 'missing' the same way it would for a note removed by hand.
+		const folder = projectFolderOf(stack.index, project.id);
+		if (folder === undefined) throw new Error(`no folder indexed for project ${project.id}`);
+		const staleId = createPlanId();
+		stack.index.upsert({
+			id: staleId,
+			type: 'renovation-plan',
+			path: `${plansFolderFor(folder)}/Ghost ${staleId}.md`,
+			projectId: project.id,
+		});
+
+		const listed = expectOk(await stack.plans.listByProject(project.id));
+
+		expect(listed.map((plan) => plan.entity.name)).toEqual(['Ground floor']);
+	});
+});
+
 assetRepositoryContract(() => {
 	const stack = createRepositoryStack();
 	return {

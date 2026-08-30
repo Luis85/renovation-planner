@@ -23,9 +23,15 @@ export interface ListPlansByProjectInput {
  * **It has no `unreadable` half, and that is inherited rather than decided.** `ListProjects`
  * can report a partial listing because `ProjectRepository.listAll` answers `{ loaded,
  * refused }`; `PlanRepository.listByProject` answers a bare array whose loop fails the whole
- * list for one bad note and silently drops an id whose note is gone. Both are pinned in
- * `listPlansByProject.test.ts` so that softening either is deliberate. Widening this needs
- * the PORT's contract to change, which `ListAssets` and `ListReassignmentTargets` also read
+ * list for one bad note and silently drops an id whose note is gone. This class does neither
+ * reconciliation, counting nor validation of its own — it passes the port's array straight
+ * through, which is what `listPlansByProject.test.ts` pins. The FAIL-whole-list half is also
+ * pinned there, at this class, because a repository double can produce it (a failed read is a
+ * `Result` value, nothing more). The DROP half cannot be produced by a double honestly — it
+ * needs a real index/note loop with a missing note behind an indexed id — so it is pinned at
+ * `ObsidianPlanRepository.listByProject` itself, in
+ * `tests/infrastructure/obsidian/repositories/contract.test.ts`. Widening either needs the
+ * PORT's contract to change, which `ListAssets` and `ListReassignmentTargets` also read
  * through.
  */
 export class ListPlansByProject

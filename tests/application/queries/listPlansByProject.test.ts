@@ -2,12 +2,18 @@
  * `ListPlansByProject` — the project detail state's read (design slice 21).
  *
  * An Application Test in the SDD §71 sense: the query against an in-memory repository, with
- * no Obsidian anywhere. Two of its four cases pin behaviour this slice INHERITS from
- * `PlanRepository.listByProject` rather than chooses — the loop fails the whole list for one
- * unreadable note (`if (!one.ok) return one`) and silently drops an indexed id whose note is
- * gone (`if (one.value) loaded.push(...)`). The store above cannot tell the second from a
- * project that really has fewer plans, because both arrive as a successful array. Pinned so
- * that changing either is a deliberate act with a red test behind it.
+ * no Obsidian anywhere. `ListPlansByProject` itself does no reconciliation, counting or
+ * validation of its own — it passes `PlanRepository.listByProject`'s array through unchanged,
+ * mapping each `Loaded<Plan>` to its entity and nothing more. The third case below pins that
+ * pass-through for the FAIL-whole-list behaviour the query inherits from the port (the loop
+ * fails the whole list for one unreadable note, `if (!one.ok) return one`), because a
+ * hand-built `PlanRepository` double can produce a failed read honestly — it is a `Result`
+ * value, nothing about the note behind it. It does NOT pin the port's other inherited
+ * behaviour — silently dropping an indexed id whose note is gone — because a double that
+ * simply returns an already-filtered array cannot distinguish that drop from a project that
+ * genuinely has fewer plans; that behaviour is pinned where it can actually be produced, at
+ * `ObsidianPlanRepository.listByProject` against a real index/note loop, in
+ * `tests/infrastructure/obsidian/repositories/contract.test.ts`.
  */
 import { describe, expect, it } from 'vitest';
 import { ListPlansByProject } from '../../../src/application/queries/ListPlansByProject';
@@ -81,13 +87,17 @@ describe('ListPlansByProject', () => {
 	});
 
 	/**
-	 * The LOSSY half, bounded and self-correcting: `ok(null)` for an indexed id means the note
-	 * is gone, which `VaultChangeAdapter` corrects on its next pass. A row vanishing for a
-	 * moment is the honest picture of a note that is not there — but the ROW COUNT then
-	 * disagrees with the index, silently, and this case is what makes that a fact somebody
-	 * chose. Driven at the port, because `InMemoryPlanRepository` cannot produce the state.
+	 * The PASS-THROUGH property, not the drop itself: whatever array the port answers is what
+	 * this query hands back, entity for `Loaded<Plan>`, with no filtering, counting or
+	 * reconciliation added on top. This double can only ever answer an already-filtered
+	 * `[survivor]` — it has no way to also hold an indexed id whose note is gone — so it
+	 * cannot tell a project that genuinely has one plan from one where a second plan's note
+	 * vanished and got dropped underneath it. That distinction, and the drop behaviour itself,
+	 * is pinned at `ObsidianPlanRepository.listByProject` in
+	 * `tests/infrastructure/obsidian/repositories/contract.test.ts`, against a real index/note
+	 * loop this fixture cannot produce.
 	 */
-	it('drops an indexed id whose note is gone rather than reporting it', async () => {
+	it('passes the port’s array through unchanged, adding no reconciliation of its own', async () => {
 		const survivor: Loaded<Plan> = { entity: makePlan({ projectId: PROJECT, name: 'First floor' }), version: 1 };
 
 		const result = await new ListPlansByProject(

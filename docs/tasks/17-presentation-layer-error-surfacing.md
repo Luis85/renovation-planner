@@ -488,43 +488,119 @@ Contract notes:
 
 ## Definition of Done
 
-- [ ] All eight `AppError` categories from slice 2 appear in the decision table
+Ticked against what a check actually proves. Two items are amended rather than ticked, and
+both amendments are below the list they belong to — an item ticked over a hole is the defect
+this whole slice is about, one document up.
+
+- [x] All eight `AppError` categories from slice 2 appear in the decision table
     with a typical origin, a surface, and a justification — none silently
     defaulted to "toast" or omitted.
-- [ ] `surfaceFor(error, origin)` is implemented, pure, and exhaustive over
-    `ErrorCategory` with no `default` fallthrough case.
-- [ ] A Zone-save `PersistenceError` on the autosave path flips slice 13's
+- [x] `surfaceFor(error, origin)` is implemented, pure, and exhaustive over
+    `ErrorCategory` with no `default` fallthrough case. Measured: deleting an arm reports
+    `TS2322` at the exhaustion assignment.
+- [x] A Zone-save `PersistenceError` on the autosave path flips slice 13's
     indicator to Save Error and does not also raise a toast for the same
     failure — proven by a test, not left as a sentence in this document.
-- [ ] Calibration's `calibration.invalid-distance` renders as an inline field
+    (`tests/presentation/editor/runtime.test.ts`, which asserts the PAIR: two existing cases
+    had encoded the double-report and were rewritten rather than deleted.)
+- [ ] **AMENDED — see Amendment 1.** Calibration's `calibration.invalid-distance` renders as an inline field
     error; `calibration.coincident-points` and `calibration.degenerate-scale`
     render as toasts — both proven by tests distinguishing the two by origin.
-- [ ] `PersistenceError` from a `background-cascade` resolves to a toast while every
+- [x] `PersistenceError` from a `background-cascade` resolves to a toast while every
     other category from that same origin resolves to `none` — the failed stale marker
-    is the one background failure with nothing left to carry it (slice 10).
-- [ ] A Requirement left with a missing target by `delete-anyway` reaches no surface
+    is the one background failure with nothing left to carry it (slice 10). Its own case,
+    not a row in a loop, for the reason the Testing section gives.
+- [x] A Requirement left with a missing target by `delete-anyway` reaches no surface
     through `surfaceFor` at all — it is a persisted read-model state (slice 10's
     `missingTarget`), and the table says so rather than leaving a reader to assume
     an unrouted case was forgotten.
-- [ ] A delete on an entity with existing referents reaches slice 15's modal
+- [x] **For the one code path that exists.** A delete on an entity with existing referents reaches slice 15's modal
     and never a toast or inline error, in every code path that can trigger it
-    (Zone delete, Asset delete).
-- [ ] A failed background recalculation (`onZoneGeometryChanged` cascade)
+    (Zone delete, Asset delete). `deleteZoneFlow.ts` is the Zone path. **There is no Asset
+    path**: `grep -rn "deleteAsset" src/presentation/` prints nothing, so `DeleteAssetCommand`
+    is composed in the root and reachable from no surface. That half is vacuous rather than
+    satisfied, and it is written here so the next slice to give Assets a delete control knows
+    it inherits this item rather than finding it ticked.
+- [x] A failed background recalculation (`onZoneGeometryChanged` cascade)
     produces zero toast/modal/inline calls; `recalculationStatus` remains the
-    only user-facing trace until the affected Requirement is next viewed.
-- [ ] Every error routed through `surfaceFor`, including every one resolving to
+    only user-facing trace until the affected Requirement is next viewed. Verified by
+    reading `composition-root.ts`'s `cascadeNotices`, which has exactly two members —
+    `cascadeAborted` and `staleMarkerFailed`, both persistence-side. Neither fires per
+    recalculation.
+- [ ] **NOT DONE, and not started — see Amendment 2.** Every error routed through `surfaceFor`, including every one resolving to
     `"none"`, is independently provable to have already been passed to
     `logger.error` — logging is never conditional on the surface chosen.
-- [ ] A view whose hydrating query resolved `isErr` renders an in-place failure state with
+- [x] A view whose hydrating query resolved `isErr` renders an in-place failure state with
     `ToUserMessage` copy and a retry action — never slice 14's empty-state copy, and
     never a toast over a blank region. A `GetPlan` that resolved `ok(null)` renders a
     dangling-reference state and reaches no error surface at all, since it is not an
     error. Both are proven by tests, and both close deferrals slice 14 made to this slice.
-- [ ] The only surface this slice adds beyond slices 13/15/16 is that in-place view failure
+    (`viewRootFailure.test.ts`, `planEditorFailure.test.ts`. The bootstrap origin withholds
+    the retry, which is a THIRD state this item did not anticipate and is described below.)
+- [x] The only surface this slice adds beyond slices 13/15/16 is that in-place view failure
     state, and it is added because slice 14 identified a case none of them covers — not
     because a fourth container looked useful. Every other routed error lands on a toast, a
     modal, an inline field error, the save-state indicator, or a persisted marker slices
     10/11/13 already define.
+
+### Amendment 1 (2026-08-30): the inline calibration error is WITHDRAWN, because no user can reach it
+
+The item asked for `calibration.invalid-distance` to render as an inline field error. Building
+that would have meant restructuring the calibration gesture so the dialog owns its dispatch —
+the shape slice 16 settled for `NewProjectForm` — and this slice's own spec named that as its
+largest piece of work and its schedule risk.
+
+**It was not built, because reading the guards showed the refusal is unreachable from the UI
+through three of them**, and the outermost is the one that matters:
+
+1. `KnownDistanceForm` computes `parsed` as `null` unless the typed value is non-empty, finite
+   and positive, and **disables its submit button** on `parsed === null`. A user cannot submit
+   an invalid distance at all.
+2. `runtime.ts`'s `supplyKnownDistance` returns `null` for anything that is not a number.
+3. `CalibrateTool.complete` returns early on a non-positive or non-finite distance.
+
+So `deriveCalibration`'s `calibration.invalid-distance` arm cannot be reached by any gesture.
+Rendering an inline error for it would have been a surface for a failure nobody can produce —
+and validating at the input, which is what the form already does, is *better* than dispatching
+and rendering a refusal. The honest conclusion is that this item asked for the weaker design.
+
+**The other two thirds of the item are done, and one of them was a real defect.**
+`calibration.degenerate-scale` already reached a toast through `reportRejected`.
+`calibration.coincident-points` did not reach anything: `CalibrateTool.complete` refused a
+zero-length measurement and returned **silently**, wiping the anchor the user's first click had
+drawn. Two clicks in one place discarded a placed point with no reason given. It raises the
+domain's own coded refusal now, through one exported factory both sites share, and
+`calibrateTool.test.ts` pins it.
+
+What is NOT closed by that: the inline half stays unbuilt, and if a future caller can supply a
+distance without passing through `KnownDistanceForm` — a script, an import, an undo replay —
+the refusal becomes reachable and this amendment becomes wrong. That is the trigger.
+
+### Amendment 2 (2026-08-30): the logging item is untouched, not partially met
+
+Nothing in this slice checks that every routed error was already logged. The guarantee is
+believed to hold by construction — slice 11's `guardCommand`/`guardQuery` log at the mapping
+step, before any `Result` reaches Presentation — but "believed to hold by construction" is what
+that slice's own review rounds kept finding to be false, and this slice added no instrument for
+it.
+
+It is left unticked rather than argued for, because the item asks for something
+*independently provable* and no such proof exists. The shape it needs is a check at the
+forbidden thing rather than a walk of call sites: every door that reaches a surface takes an
+error whose logging already happened, which is a claim about the boundary and not about
+`surfaceFor`.
+
+### Amendment 3 (2026-08-30): a third view state this document did not anticipate
+
+The `view-hydration` item describes two states. There are three, and the third is the reason
+`viewHydrationOrigin` exists: a session whose settings never loaded refuses every query with
+`settings.unrecovered`, and that is a `bootstrap` origin rather than a hydration failure. It
+renders the same container with **no retry**, because nothing was composed to re-run and slice
+1 already refused a repair UI.
+
+This document's own "Bootstrap: the failure that precedes every row above" section called for
+exactly that, so the state was designed here; what was missing was any Definition of Done item
+covering it. Both views implement it and both have cases for it.
 
 ## References
 

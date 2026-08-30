@@ -22,18 +22,22 @@ runner.
 10 closing means: `Project`, `Plan`, `Zone`, `Asset` and `Requirement`, the quantity and
 cost engine behind them, the reference-integrity engine that guards deleting either end of
 a link, and the recalculation cascade that keeps a figure honest when its inputs move.
-Everything past this point is feature work on a proven template. Slice 11 has since closed
+Everything past this point is feature work on a proven template. Slice 11 closed
 the first half of the cross-cutting pair — the Error Boundary, the logging policy,
-diagnostics and the data-safety rules. **The second half of that pair is slice 12, and slice
-12 is still not done**: `docs/requirements/Errors, diagnostics and the test harness.md` opens
+diagnostics and the data-safety rules — and **slice 12, its second half, has since closed
+too**: `docs/requirements/Errors, diagnostics and the test harness.md` opens
 "Slices 11 and 12: the two cross-cutting slices", so those two are the pair and nothing else
 can be a half of it. An earlier draft of this passage gave that half to slice 13 in the same
 breath as it listed slice 12 as outstanding — a sentence contradicting itself two clauses
-later. Slice 13 belongs to *Shared UI vocabulary* (slices 13–17, where 14 and 15 had already
-landed), and what it closed there is the toast and the save-state badge — the notice queue and
+later. Slice 13 belongs to *Shared UI vocabulary* (slices 13–17), and what it closed there is
+the toast and the save-state badge — the notice queue and
 the save-state indicator, the surface any view or command reports a transient message or a
-save state through. What is NOT done is slice 12 (the fixture vaults and the
-architecture-enforcement harness) and every surface slices 16 and 17 name.
+save state through. **That group is now complete: 14 and 15 landed first, then 16, and slice
+17 — the integration slice the map calls "17 integrates them" — has closed it.** What is NOT
+done is slices 19, 20 and 21, which are written and unbuilt, plus the items slices 16 and 17
+WITHDREW rather than ticked; each is recorded in its own task document's amendments rather
+than here, because a list of exceptions kept in two places is one that disagrees with
+itself.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
@@ -1975,6 +1979,91 @@ of them." The rules that lasted:
   `root.eventBus` hears. Its first draft passed a `{ path }` object to that handler and the
   plugin's own `file instanceof TFile` guard dropped it silently one layer above the thing
   under test — a test that reached nothing, which is indistinguishable from a clean tree.
+
+**Design slice 17 has landed: every `AppError` reaching Presentation has exactly one surface,
+and a call site cannot reach one without asking.** `surfaceFor(error, origin)`
+(`presentation/errors/errorSurfacePolicy.ts`) is SDD §66's last step — the one slice 11 named
+and deliberately did not finish designing. A surface is a function of the PAIR: the same
+`CalculationError` is an inline field error under the known-distance input, a toast for two
+canvas point-picks, and nothing at all inside a background cascade; and origin alone does not
+decide it either, because the toast's `level` comes from the category. `surfaceError` dispatches
+to the doors a site actually has, and `ViewFailure.vue` is the ONE container this slice adds.
+The rules that came out of it:
+
+- **A policy a call site CONSULTS is the guard-nobody-dispatches-through shape, and this file
+  had already paid for it twice.** The slice document specified `surfaceFor` as advisory. What
+  shipped is advisory PLUS a lock: `ErrorSurface` carries a `unique symbol` its own module
+  declares and never exports, so a hand-built `{ kind: 'toast', level: 'error' }` cannot satisfy
+  `ToastSurface` and `notifyError` is unreachable without having asked. **State the guarantee
+  narrowly** — it holds that a call site ASKED, never that it asked with the RIGHT origin, which
+  no type can close. The ten origins are tabulated in the slice's spec because review is the
+  only instrument for that half. Measured, not asserted: deleting `& Routed` from the seven
+  union members reports exactly three `TS2578` unused-directive errors, one per literal.
+- **Two individually-correct mechanisms double-reported one failure for four slices, because
+  nothing owned which one should speak.** Every dispatch in a Plan Editor leaf runs through
+  `withSaveStateTracking`, which asks `affectsSaveState` and flips the save indicator for
+  anything that wrote or might have — and `notifyIfRefused` plus two `reportRejected` bindings
+  then ALSO raised a toast for the same `Result`. Neither mechanism was wrong alone. The
+  Definition of Done forbade it by name and slice 11's own illustrative code had left it open.
+  Two existing tests encoded the defect, and their NAMES were still right ("is reported, and
+  leaves the command on the undo stack") — only the surface changed, so they assert the pair now
+  rather than counting notices.
+- **A `grep` for the docblock claim found an eleventh call site the slice's own spec table
+  missed.** That table was measured with a filter that excluded `notify.ts`, so `notifyFault` —
+  which calls `notifyError` from inside that file — was invisible to it. The repository's rule
+  is that an "only place X" docblock gets a grep in the SAME edit; the rule works, and it works
+  by catching the person who wrote the table.
+- **A guard whose `else` is unreachable still costs a branch, and branch headroom is not a
+  budget.** The plan spelled the simple call sites as `if (surface.kind === 'toast')`, which is
+  correct and leaves a dead `else` at each — three uncovered branches against two of headroom.
+  They use `surfaceError` with sinks instead. Read the floors as floors: this slice landed with
+  **branches at 98.02% against 98** and **functions at 99.05% against 99**, which is about two
+  branches and under one function.
+- **Functions coverage failed with every test passing, which is what the tight metric looks like
+  from the inside.** 3726 green, 98.98% functions, gate red. The one genuinely new uncovered
+  function was `noticeOnlySinks.unrenderable` — unreached because every production site is
+  routed to a surface it CAN draw, which is the design working rather than a gap. Pinned as
+  behaviour (a notice-only site handed a `view-failure` still says something) rather than
+  covered incidentally.
+- **`satisfies never` on a property is the exhaustiveness spelling that does NOT work.** Once
+  the switch is exhaustive the whole of `error` narrows to `never`, so reading `.category` off
+  it is itself an error. The check has to be on the narrowed VALUE (`const unrouted: never =
+  error`). Tried the other way first; the compiler said so immediately.
+- **A failure state must not be a mode of the empty state**, and that is structural rather than
+  a copy convention. `EmptyState` is generic enough to have been reused, which is exactly the
+  reason not to: slice 14's objection is that "create your first project" shown because a vault
+  read failed is actively misleading, and two components make that a fact about the markup. It
+  also keeps `.rp-empty-state` meaning what every existing assertion and the axe case take it to
+  mean.
+- **The retry is withheld from a bootstrap failure, and that needed a THIRD state nobody had
+  named.** `settings.unrecovered` means the composition root wired no query services at all, so
+  re-running one does nothing while looking like it might — the live-control-that-does-nothing
+  slice 14's own amendment refuses. `viewHydrationOrigin` draws that line once for both views.
+  A single test case would not have discriminated: a build offering a retry to both passes
+  anything that only checks the retryable one.
+- **A spy on a module export may bind to nothing, so it was verified before being trusted.**
+  `renovationProjectEmptyState.test.ts` records that instrument failing on another surface — a
+  compiled `<script setup>` closes over the imported identifier directly — and a spy binding to
+  nothing reports `not.toHaveBeenCalled()` for every build ever written. The absence test for
+  "a missing plan never reaches `surfaceFor`" was measured against a FAILED read, where it IS
+  reached, before the absence was read as evidence.
+- **An example offered as proof of REACHABILITY has to be traced to the door it claims to
+  arrive at.** `affectsSaveState`'s docblock cited "calibrating with two clicks at the same
+  point raises `calibration.coincident-points`" as evidence that `Calculation` reaches that
+  predicate. It does not: `CalibrateTool` refuses before it dispatches, so no command runs and
+  nothing reaches the indicator. The claim had been traced to the raise site and no further.
+- **A Definition of Done item can ask for the WEAKER design, and the answer is to withdraw it
+  rather than build it.** The slice asked for `calibration.invalid-distance` to render inline,
+  which would have meant restructuring the calibration gesture — its own spec's largest task and
+  named schedule risk. Reading the guards first showed `KnownDistanceForm` **disables its submit
+  button** unless the value parses positive and finite, so no user can produce that refusal at
+  all. Validating at the input is better than dispatching and rendering a refusal. What the same
+  item's other third bought was real, though: coincident clicks used to be refused SILENTLY,
+  wiping a point the user had placed with no reason given.
+- **`analyze` reads `.test-d.ts` as an unreachable FILE**, so `.fallowrc.json` names each of the
+  four one at a time — deliberately not globbed, because "a glob absorbs the next file and tells
+  nobody" and here it would absorb one whose `tsconfig.json` entry had been forgotten, leaving a
+  file that is neither compiled nor reported.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

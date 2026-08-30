@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { ProjectRepository } from '../../src/application/ports/ProjectRepository';
 import type { EntityVersion, ObservationToken } from '../../src/application/ports/versioning';
-import type { Project, ProjectId } from '../../src/domain/project/Project';
+import type { Project } from '../../src/domain/project/Project';
+import type { ProjectId } from '../../src/domain/project/ProjectId';
 import { expectErr, expectOk } from '../helpers/domain';
 import { assertSaveUpsertsById } from './upsert';
 

@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { PlanRepository } from '../../src/application/ports/PlanRepository';
 import type { EntityVersion } from '../../src/application/ports/versioning';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
-import type { Plan, PlanId } from '../../src/domain/plan/Plan';
+import type { Plan } from '../../src/domain/plan/Plan';
+import type { PlanId } from '../../src/domain/plan/PlanId';
 import { expectErr, expectOk } from '../helpers/domain';
 import { assertSaveUpsertsById } from './upsert';
 

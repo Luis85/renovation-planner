@@ -25,7 +25,8 @@
   - a fix that is a **refusal** → write the WIDENED refusal and run it; the suite tends to cover the thing refused and not the thing still allowed.
   - a fix that is an **ordering** → write the PARTIAL reordering and run it; moving a call part of the way passes the reported case and leaves its sibling live.
   - a fix that guards **one level of a nested structure** → ask what the ENCLOSING level can express. Task 7's step-condition assertion was written to close a hole and reopened it one level up: GitHub supports `jobs.<job_id>.if` as well as a step's, so gating the job leaves the guarded step perfectly intact and unrun. The same applies to a config block inside a block, a matrix inside a job, and a glob inside a glob.
-  - and the variant running through every one of them: a fix that guards **one of several** things → drop the other arms and run it.
+  - a fix that guards **one of several** things → drop the other arms and run it.
+  - a fix that guards a thing → **ask what that thing is standing on.** Two instruments in this plan were holed three layers deep, one layer per review round, each fix correct and each leaving the layer beneath it unasserted: the contract-reachability check (the guard, then the matcher that missed dynamic `import()`, then the resolver that tried only `.ts`), and the CI check (the command, then the conditions it runs under, then the `setup-node` steps deciding the runtime it runs on). A guard is only as good as the thing it reads, and the thing it reads has a thing it reads.
 - **A failure assertion is vacuous unless it discriminates the CAUSE of the failure.** Every test in this plan that asserts something failed also asserts *why*.
 - **No `.spec.ts` file** is created anywhere. Fixtures that must not be collected use `*.fixture.ts`.
 

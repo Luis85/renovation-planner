@@ -105,6 +105,10 @@ describe('surfaceError', () => {
 		expect(unrenderable).toHaveBeenCalledWith(
 			expect.objectContaining({ category: 'Persistence' }),
 			expect.objectContaining({ kind: 'save-state' }),
+			// The third argument is what makes this door usable rather than merely informative:
+			// `ToastSurface` is branded, so a caller could not build one to degrade to, and the
+			// toast is the only door every call site is guaranteed to have.
+			expect.objectContaining({ kind: 'toast', level: 'error' }),
 		);
 		expect(toast).not.toHaveBeenCalled();
 	});

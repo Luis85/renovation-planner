@@ -28,8 +28,19 @@ export interface SurfaceSinks {
 	 * the caller's and visible. Optional-with-a-`?? noop` default makes the forgetting call site
 	 * silent with nothing anywhere erroring — the exact shape `useFieldCommit.notify`'s own
 	 * docblock records this repository paying for, and the reason that option is required too.
+	 *
+	 * The third argument is the toast this failure WOULD have been at an `explicit-operation`
+	 * origin, handed over because a caller cannot build one: `ToastSurface` is branded, so
+	 * without this the only universally-available door would be unreachable from the one place
+	 * that needs to reach it. A site that wants to degrade to a notice writes
+	 * `(error, _surface, asToast) => notifyError(error, asToast)`; one that wants to do
+	 * something else ignores it.
 	 */
-	readonly unrenderable: (error: AppError, surface: ErrorSurface) => void;
+	readonly unrenderable: (
+		error: AppError,
+		surface: ErrorSurface,
+		asToast: ToastSurface,
+	) => void;
 
 	/**
 	 * Renders the error under one named field, and REPORTS whether it could.
@@ -73,7 +84,7 @@ function dispatchOptional(
 	sinks: SurfaceSinks,
 	sink: ((error: AppError) => void) | undefined,
 ): ErrorSurface {
-	if (sink === undefined) sinks.unrenderable(error, surface);
+	if (sink === undefined) sinks.unrenderable(error, surface, toastFallbackFor(error));
 	else sink(error);
 	return surface;
 }

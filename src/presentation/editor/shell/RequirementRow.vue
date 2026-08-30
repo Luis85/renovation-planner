@@ -28,7 +28,7 @@ import type { DispatchOutcome } from '../../../application/commands/DispatchOutc
 import { useFieldCommit, type UseFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
-import { notifyError } from '../../notices/notify';
+import { notifyOperationFailure } from '../../notices/notify';
 import { tr } from '../../i18n/strings';
 import FieldError from '../../components/FieldError.vue';
 
@@ -106,7 +106,7 @@ const quantity = useFieldCommit<string, { quantity: number | null }>({
 	field: 'quantity',
 	toUserMessage: trError,
 	// The half `commitEdit` keeps: a refusal with no field to sit under is still announced.
-	notify: notifyError,
+	notify: notifyOperationFailure,
 	logger: props.logger,
 	// The empty field is the RESET, not a parse failure — `Number('')` is `0`, which is why
 	// the empty case is answered before `Number` is consulted at all rather than after.
@@ -203,7 +203,7 @@ const cost = useFieldCommit<string, { cost: Money | null }>({
 	errorMap: COST_ERRORS,
 	field: 'cost',
 	toUserMessage: trError,
-	notify: notifyError,
+	notify: notifyOperationFailure,
 	logger: props.logger,
 	validate: (raw) =>
 		raw.trim() === '' || canBeMoney(raw.trim()) ? null : tr('error.requirement.cost.unparseable'),

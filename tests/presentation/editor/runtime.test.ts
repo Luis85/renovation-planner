@@ -35,6 +35,16 @@ installObsidianDom();
  * unchanged; only the store's revision moves, which is enough to make the ledger's
  * memory of "what this command last wrote" stale.
  */
+/**
+ * The save indicator's label element, which since design slice 17 is where a refused
+ * autosave-path write is reported — the toast door no longer carries it.
+ */
+function saveStateLabel(harness: Rig['harness']): HTMLElement {
+	const label = harness.wrapper.find('.rp-save-state-label');
+	if (!label.exists()) throw new Error('expected the save-state indicator to be mounted');
+	return label.element as HTMLElement;
+}
+
 async function externallyTouchZoneA(zonesRepo: Rig['zonesRepo']): Promise<void> {
 	const loaded = expectOk(await zonesRepo.getById('zone-a' as never));
 	if (loaded === null) throw new Error('expected zone-a to exist');
@@ -84,8 +94,17 @@ describe('a refused undo', () => {
 		undoButton.click();
 		await settle();
 
-		// Told, not swallowed — the same seam every refused gesture already reports through.
-		expect(Notice.shown.length).toBe(noticesBefore + 1);
+		// **Told, not swallowed — and design slice 17 changed WHICH surface tells them.** An
+		// undo is a write like any other (`withSaveStateTracking` wraps `undo` and `redo` for
+		// exactly that reason), so its refusal is an `autosave-write` origin and the table sends
+		// it to the save indicator, which is already on screen for this plan. The toast is
+		// deliberately NOT also raised: one failure reported through two widgets is two widgets
+		// that can drift apart, which is what that slice's Definition of Done forbids by name.
+		//
+		// Both halves are asserted, and the pairing is the point — "the indicator flipped" is
+		// equally true of a build that toasts as well, which is the defect this replaced.
+		expect(saveStateLabel(harness).classList.contains('rp-save-state-save-error')).toBe(true);
+		expect(Notice.shown.length).toBe(noticesBefore);
 		// Retryable: `CommandHistory.undoNow` leaves a refused undo ON the stack rather than
 		// popping it, so the button stays enabled rather than silently going stale.
 		expect(undoButton.disabled).toBe(false);
@@ -121,7 +140,9 @@ describe('a refused redo', () => {
 		redoButton.click();
 		await settle();
 
-		expect(Notice.shown.length).toBe(noticesBefore + 1);
+		// The same slice 17 rule as the refused undo above, through the redo door.
+		expect(saveStateLabel(harness).classList.contains('rp-save-state-save-error')).toBe(true);
+		expect(Notice.shown.length).toBe(noticesBefore);
 		expect(redoButton.disabled).toBe(false);
 		// The redo never landed: the zone is still where the undo left it.
 		expect(

@@ -32,7 +32,8 @@ import KnownDistanceForm from './shell/KnownDistanceForm.vue';
 import { SnapService } from './snapping/snap-service';
 import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
 import { tr } from '../i18n/strings';
-import { notifyError, notifyFault } from '../notices/notify';
+import { noticeOnlySinks, notifyFault, notifyOperationFailure } from '../notices/notify';
+import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
@@ -109,6 +110,37 @@ export interface EditorRuntime {
 }
 
 
+/**
+ * The sinks every door in this leaf shares, plus the no-op save-state door.
+ *
+ * `saveState` is a no-op for the reason `notifyIfRefused` gives at length: the indicator is
+ * driven by `withSaveStateTracking`, one layer below every dispatch here, off the same
+ * `Result`. Declared ONCE at module scope rather than rebuilt per call, so the arrow is one
+ * function rather than one per binding — and so the reason for it lives in one place.
+ */
+const AUTOSAVE_SINKS: SurfaceSinks = {
+	...noticeOnlySinks,
+	saveState: () => undefined,
+};
+
+/**
+ * A tool's rejected command, reported where the table says it belongs.
+ *
+ * A named function rather than an inline arrow at each binding, because the ORIGIN is the
+ * reviewable fact here: `reportRejected: reportAutosaveRejection` states what kind of gesture
+ * a tool is, where a reader of `registerEditorTools` can see it beside its sibling's
+ * `notifyOperationFailure`.
+ *
+ * A drawing or dragging gesture writes through the tracked dispatcher, so its refusal is an
+ * `autosave-write` and the indicator already carries it — this door exists to make sure a
+ * toast is NOT also raised for it. Calibration is not one of those: it is a multi-click
+ * operation the user drove deliberately, so it takes the shared `notifyOperationFailure`, and
+ * until this slice's calibration task lands its refusal has no field to attach to either.
+ */
+function reportAutosaveRejection(error: AppError): void {
+	surfaceError(error, { kind: 'autosave-write' }, AUTOSAVE_SINKS);
+}
+
 /** The concrete tools of this slice, registered against one shared context factory. */
 function registerEditorTools(
 	toolManager: ToolManager,
@@ -126,7 +158,7 @@ function registerEditorTools(
 			// and only forward/inverse change.
 			createMoveGesture: (zoneId, forward, inverse) =>
 				new ReversibleMoveZoneCommand(context.commands.moveObject, ledger, zoneId, forward, inverse),
-			reportRejected: notifyError,
+			reportRejected: reportAutosaveRejection,
 		}),
 	);
 	toolManager.register(
@@ -140,7 +172,7 @@ function registerEditorTools(
 					input,
 				),
 			nextZoneName: () => `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
-			reportRejected: notifyError,
+			reportRejected: reportAutosaveRejection,
 		}),
 	);
 	toolManager.register(
@@ -170,7 +202,7 @@ function registerEditorTools(
 				return result.values;
 			},
 			createCommand: () => context.commands.calibratePlan(),
-			reportRejected: notifyError,
+			reportRejected: notifyOperationFailure,
 		}),
 	);
 }
@@ -214,10 +246,30 @@ async function reportFault(logger: Logger, operation: Promise<DispatchResult>): 
  * its stack rather than popping it, so without this the button stays enabled, does
  * nothing, and says nothing about why. A caller chains `notifyIfRefused(reportFault(op))`
  * to cover both halves — throw and resolved refusal — in one line.
+ *
+ * **Design slice 17 narrowed it, and the narrowing is the point.** Every dispatch reaching
+ * here has already passed through `withSaveStateTracking`, which asks `affectsSaveState` and
+ * flips the save indicator for anything that wrote or might have. Toasting it as well reported
+ * ONE failure through TWO widgets that can drift apart — the toast dismisses and the indicator
+ * does not, or the reverse — which is the reconciliation slice 11's own illustrative code left
+ * open and this slice's Definition of Done forbids by name.
+ *
+ * So the origin is `autosave-write`, the table answers `save-state`, and this door stays shut
+ * for it. The `saveState` sink is deliberately a NO-OP: the indicator is driven by the
+ * DECORATOR one layer down, off the same `Result`, so there is nothing left for this site to
+ * do — the policy's whole job here is to decide that no toast is owed. If indicator-flipping
+ * ever moves out of `withSaveStateTracking`, this is the line that has to grow a body.
+ *
+ * A refusal the indicator does NOT report still reaches the user: `surfaceError` sends
+ * anything the table routes elsewhere to `unrenderable`, which raises the notice.
  */
 async function notifyIfRefused(operation: Promise<DispatchResult | null>): Promise<void> {
 	const result = await operation;
-	if (result !== null && !result.ok) notifyError(result.error);
+	if (result === null || result.ok) return;
+	surfaceError(result.error, { kind: 'autosave-write' }, {
+		...noticeOnlySinks,
+		saveState: () => undefined,
+	});
 }
 
 /**
@@ -337,7 +389,11 @@ function createDeleteZoneAction(
 			return;
 		}
 		if (outcome.kind === 'failed') {
-			notifyError(outcome.error);
+			// The DECISION half of this flow already happened — `deleteZoneWithReferences` opened
+			// slice 15's modal and the user answered it. What lands here is the residue: the
+			// command refused after that answer, which is an explicit operation like any other,
+			// not a second decision to put in front of them.
+			notifyOperationFailure(outcome.error);
 			return;
 		}
 		if (outcome.kind === 'cancelled') return;
@@ -485,16 +541,23 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 
 	/**
 	 * The Inspector's one commit path. A refusal the panel can attach to an input is rendered
-	 * there by the row that owns it; everything else still reaches `notifyError`, because the
-	 * Inspector has no banner region. The notice door NARROWS here — it does not close.
+	 * there by the row that owns it; everything else arrives here, because the Inspector has no
+	 * banner region. The notice door NARROWS here — it does not close.
 	 *
-	 * Which errors may reach a field at all is slice 17's decision table, not this function's —
-	 * `commitField` leaves that half to its callers, and the two override controls route it
-	 * through `useFieldCommit`'s own `notify` instead of this one.
+	 * **The origin is `explicit-operation`, not `form-field-commit`, and that is a claim about
+	 * WHICH edits reach this function.** The two override controls route their own refusals
+	 * through `useFieldCommit`'s `notify`; what is left for this path is the assign and the
+	 * reset — clicks, with no single input a message could be attached to. Declaring a field
+	 * origin here would name a field that does not exist and send the failure to an inline
+	 * renderer with nowhere to put it.
+	 *
+	 * The older comment said "which errors may reach a field at all is slice 17's decision
+	 * table, not this function's". That is still true, and this line is the answer it was
+	 * waiting for.
 	 */
 	async function commitEdit(edit: InspectorEdit): Promise<boolean> {
 		const result = await commitField(edit);
-		if (!result.ok) notifyError(result.error);
+		if (!result.ok) notifyOperationFailure(result.error);
 		return result.ok;
 	}
 

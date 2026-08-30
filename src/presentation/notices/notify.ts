@@ -3,6 +3,8 @@ import type { AppError } from '../../core/errors/AppError';
 import { createVaultExceptionMapper } from '../../application/errors/exceptionMapper';
 import type { Logger } from '../../application/ports/Logger';
 import { trError } from '../i18n/toUserMessage';
+import { surfaceFor, type ToastSurface } from '../errors/errorSurfacePolicy';
+import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
 import { tr } from '../i18n/strings';
 import { createNoticeQueue, type NoticeHost, type NoticeQueue, type NoticeView } from './queue';
 import { SEVERITY_LABEL_KEYS, type NoticeSeverity } from './severity';
@@ -390,9 +392,64 @@ export function notifyWarning(message: string): void {
  *
  * Beside `notify` rather than in a module of its own because the two are one decision:
  * which of them a call site reaches for is entirely "do I hold text, or an error?".
+ *
+ * **Design slice 17 made the second parameter the door's lock.** `ToastSurface` carries a
+ * brand `errorSurfacePolicy.ts` declares and never exports, so it cannot be built by hand:
+ * the only way to call this is to have asked `surfaceFor` what surface the failure belongs
+ * on, and to have been told a toast. A call site that should have flipped the save indicator
+ * instead can no longer reach this function by accident. What the type does NOT hold is that
+ * the caller named the right ORIGIN; that half is review's, against the table in the slice's
+ * spec.
+ *
+ * The SEVERITY comes from that routed answer rather than being fixed at `error`, which is
+ * what lets a `Geometry` refusal and a background stale-marker failure arrive as warnings —
+ * both quieter than an error by the table's own reasoning, and neither expressible before.
+ *
+ * `grep -rn "notifyError" src/` prints eleven lines that are not comments: this definition,
+ * `notifyFault` below it, and nine call sites across the editor, the Inspector row and two
+ * plugin commands. The eleventh — `notifyFault`'s — is the one this slice's own spec table
+ * missed, because that table was measured with a grep that excluded this file.
  */
-export function notifyError(error: AppError): void {
-	queue?.push('error', trError(error));
+export function notifyError(error: AppError, routed: ToastSurface): void {
+	queue?.push(routed.level, trError(error));
+}
+
+/**
+ * The doors a call site has when a notice is the only surface it can draw — a plugin command
+ * with no view of its own, an editor action whose failure belongs to no field.
+ *
+ * Both members end at `notifyError`, and that is the honest shape rather than a shortcut: such
+ * a site genuinely has one door, so a surface the table routes elsewhere has exactly one place
+ * left to go. Declared ONCE here rather than spelled at each call site, because three copies of
+ * "and if you cannot draw it, toast it" is three chances for one of them to be a `() => {}`
+ * that tells nobody — which is the failure `unrenderable` being required exists to prevent, and
+ * would reintroduce it one level down.
+ *
+ * A site with more doors than this builds its own `SurfaceSinks` and does not reach for this.
+ */
+export const noticeOnlySinks: SurfaceSinks = {
+	toast: notifyError,
+	unrenderable: (error, _surface, asToast) => {
+		notifyError(error, asToast);
+	},
+};
+
+/**
+ * The `(error) => void` door a call site hands to something that will report a failure LATER
+ * and cannot route it itself — `useFieldCommit`'s required `notify`, and the two Inspector
+ * override rows that supply it.
+ *
+ * The origin is fixed at `explicit-operation` and the name says so, because that is the only
+ * thing this shape can honestly mean: a composable calls its `notify` precisely when the
+ * failure could NOT be attached to the field, which is the FIELD question of slice 17's
+ * decision procedure already answered "no". The next question down is OPERATION.
+ *
+ * It exists so that door is one function rather than an arrow per binding — two spellings of
+ * one decision drift, and a call site that wrote its own could quietly pick a different origin
+ * for the identical situation.
+ */
+export function notifyOperationFailure(error: AppError): void {
+	surfaceError(error, { kind: 'explicit-operation' }, noticeOnlySinks);
 }
 
 /**
@@ -442,7 +499,19 @@ export function faultError(cause: unknown, logger: Logger, event: string): AppEr
  * holds is guarded; the ports are not, and this is what keeps their faults presentable.
  * The event name is the caller's, for the same reason `guardCommand` takes one: it says
  * which door faulted.
+ *
+ * **It routes through the policy like every other toast, and the origin is
+ * `explicit-operation` for a reason worth stating.** A fault arriving here is a THROW that no
+ * guard turned into a `Result` — so there was no `Result` for a policy to have routed, and
+ * this is the one door where the surface really is decided at the door. Asking anyway keeps
+ * `notifyError` reachable through exactly one mechanism rather than two, and answers what the
+ * old fixed `'error'` severity said: a technical fault at an operation the user triggered is
+ * an error toast. It is NOT `background-cascade`, which would route a `Persistence` fault to a
+ * warning and every other category to silence — and a fault reaching nobody is precisely the
+ * defect this function exists to prevent.
  */
 export function notifyFault(cause: unknown, logger: Logger, event: string): void {
-	notifyError(faultError(cause, logger, event));
+	const error = faultError(cause, logger, event);
+	const surface = surfaceFor(error, { kind: 'explicit-operation' });
+	if (surface.kind === 'toast') notifyError(error, surface);
 }

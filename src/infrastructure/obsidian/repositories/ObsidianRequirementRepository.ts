@@ -146,7 +146,7 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 			}
 			// `markStale` writes without bumping the revision, so the pre-write reading is the
 			// only thing that can tell a lagging cache from a caught-up one here.
-			this.deps.echo.markFrontmatter(file.path, dto, { reading: reading, stat: fileStatAt(this.deps.vault, file.path) });
+			this.deps.echo.markFrontmatter(file.path, dto, { reading, stat: fileStatAt(this.deps.vault, file.path) });
 			return ok(undefined);
 		});
 	}

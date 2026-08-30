@@ -91,9 +91,19 @@ export class EchoWindow {
 	 *   stale cached revision used to refuse the next save, and the fallback turned that
 	 *   refusal into a silent overwrite.
 	 *
-	 * A caller with no such readings passes none — an insert has no prior cache entry, and
-	 * the load-time scan is reading the cache rather than racing it — and the fallback is
-	 * then simply not offered for that path.
+	 * A caller with no such readings passes none — the load-time scan is reading the cache
+	 * rather than racing it — and the fallback is then simply not offered for that path.
+	 *
+	 * **An INSERT may spell that either way, and the two are equivalent**, which is worth
+	 * stating because the five writers do not agree on the spelling and a reader should not
+	 * have to derive why that is harmless. `cacheReading` is branch-free by design (its own
+	 * docblock says why), so the four writers whose insert and update arms share one call
+	 * site pass `{ reading: undefined, stat }`; `ObsidianPlanRepository` splits the two into
+	 * separate methods and its insert passes nothing. On a fresh path BOTH leave the chain
+	 * empty — there is no prior cache entry to supersede and no previous write of ours — so
+	 * `frontmatterOf` step 2 declines and the recorded stat is never consulted. The writer's
+	 * own shape decides the spelling; neither is a rule the other breaks. Pinned by the two
+	 * 'an insert' cases in `noteIo.echo.test.ts` rather than left as this paragraph.
 	 */
 	markFrontmatter(path: string, frontmatter: Record<string, unknown>, observed?: CacheObservation): void {
 		// BEFORE `mark`, which overwrites it: what we had written here previously is a state
@@ -108,8 +118,17 @@ export class EchoWindow {
 			return;
 		}
 		// A reading equal to what we last wrote means the cache had CAUGHT UP before this
-		// write, so everything older is no longer a state it can be showing. Starting a fresh
-		// chain there is what stops this set growing for the life of the session.
+		// write, so everything older is no longer a state it can be showing, and the chain
+		// starts again from here.
+		//
+		// **That bounds the set by the writes inside one UN-DRAINED parse window, not by the
+		// session** — an earlier spelling of this comment claimed the second, which is the
+		// stronger claim and rests on the queue draining. It does drain, so the practical
+		// bound is a burst (the slice-10 cascade's two writes on one requirement is the
+		// realistic worst case here); a host whose queue never drained would grow this set
+		// for as long as writes kept landing. There is deliberately no cap: evicting an entry
+		// is exactly how the fallback stops recognising a window it is still inside, which is
+		// the defect this whole mechanism exists to close.
 		const chain =
 			observed.reading !== undefined && observed.reading === previous
 				? new Set<ObservationToken>()

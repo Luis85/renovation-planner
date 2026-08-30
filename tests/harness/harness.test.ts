@@ -18,6 +18,7 @@ import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver } from '../helpers/layout';
 import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
 import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
+import { isPlantedProbe } from '../helpers/plantedProbe';
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
@@ -352,10 +353,18 @@ describe('the browser harness', () => {
 		// "bundler"` and `allowJs` mean Vite compiles both, so a future helper written in
 		// either would have had its stylesheet import go unscanned).
 		const MODULE = /\.(?:ts|tsx|mts|cts|js|mjs|cjs|jsx|vue)$/;
+		// `isPlantedProbe` because `tests/build/lint-edited.test.ts` writes real `.vue` files
+		// into `tests/harness/` and removes them, in a worker running beside this one. Without
+		// it this walk lists a probe and then READS it, and the read loses the race: measured,
+		// `ENOENT … lint-edited-probe-1.vue`, on a tree with no source change at all. Excluded
+		// in the walk rather than at either use below, for the reason its sibling walker in
+		// `lint-scope.test.ts` gives — a probe is not a module of this page under any question
+		// asked of this list.
 		const sources = (dir: string): string[] =>
 			readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 				const full = path.join(dir, entry.name);
 				if (entry.isDirectory()) return sources(full);
+				if (isPlantedProbe(full)) return [];
 				return MODULE.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
 			});
 

@@ -89,4 +89,35 @@ describe('the echo fallback', () => {
 
 		expect(frontmatterOf(source, fileAt('Project.md', 7, 120))).toEqual(PRE_WRITE);
 	});
+
+	/**
+	 * The five writers do not agree on how an INSERT spells "there was nothing to supersede",
+	 * and these two cases are why that is harmless rather than why it is tidy.
+	 *
+	 * `cacheReading` is branch-free by design, so the four writers whose insert and update
+	 * arms share one call site pass `{ reading: undefined, stat }` on both;
+	 * `ObsidianPlanRepository` splits them and its insert passes nothing at all. On a fresh
+	 * path there is no prior cache entry and no previous write of ours, so the chain is empty
+	 * either way and step 2 declines before the recorded stat is ever consulted — which is
+	 * what makes the stat an insert records DEAD rather than merely unused. A build that
+	 * starts distinguishing the two spellings fails here.
+	 */
+	it('declines the fallback after an insert that recorded a stat', () => {
+		const echo = new EchoWindow();
+		echo.markFrontmatter('Project.md', OURS, { reading: undefined, stat: '7:120' });
+		const source = { metadataCache: cacheShowing(PRE_WRITE), echo };
+
+		expect(echo.supersededStates('Project.md').size).toBe(0);
+		// The stat MATCHES, so only the empty chain can be what declines here.
+		expect(frontmatterOf(source, fileAt('Project.md', 7, 120))).toEqual(PRE_WRITE);
+	});
+
+	it('declines it identically after an insert that recorded nothing', () => {
+		const echo = new EchoWindow();
+		echo.markFrontmatter('Project.md', OURS);
+		const source = { metadataCache: cacheShowing(PRE_WRITE), echo };
+
+		expect(echo.supersededStates('Project.md').size).toBe(0);
+		expect(frontmatterOf(source, fileAt('Project.md', 7, 120))).toEqual(PRE_WRITE);
+	});
 });

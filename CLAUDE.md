@@ -2708,6 +2708,17 @@ finds it rather than left to be re-measured.
     defect. In the MODIFY window withdrawing yields the stale cache: wrong, harmless, and it
     refuses the next save. Withdrawing is only the safe direction where there is something
     safe to withdraw TO.
+  - **Two claims that survived the fix and were still wrong, both found by re-reading rather
+    than by any gate.** `markFrontmatter` said starting a fresh chain "stops this set growing
+    for the life of the session" — it resets only when a write OBSERVES the cache caught up, so
+    the real bound is the writes inside one un-drained parse window, and a queue that never
+    drained would grow it. And the five writers disagree on how an INSERT spells "nothing to
+    supersede" — four pass `{ reading: undefined, stat }` because `cacheReading` is branch-free
+    by design, `ObsidianPlanRepository` splits its arms and passes none — which is equivalent
+    (a fresh path leaves the chain empty either way, so the stat an insert records is DEAD),
+    and nothing said so. Both are now written to what the code does, and the equivalence is
+    pinned by a pair of cases rather than asserted, because "these two spellings mean the same
+    thing" is exactly the sentence that stops being true without anything failing.
   **Third instance, same shape, found the same way — by running the plugin.** `FakeVault`'s
   `create` accepted a path whose PARENT FOLDER did not exist; Obsidian refuses one. So
   `PlanGeometryStore` had no `ensureFolder` in front of the geometry sidecar — the project,
@@ -2773,6 +2784,31 @@ finds it rather than left to be re-measured.
   `pdfjs-dist` had the same shape (`globalThis.pdfjsWorker`) and lost it by ceasing to be
   bundled. Check what a new dependency writes to `window`, and check it in the BUILT bundle
   rather than in the dependency's docs.
+- **A test that writes into a directory another test WALKS is a race, and the exclusion has to
+  live with the walk rather than with whoever remembered it.** `tests/build/lint-edited.test.ts`
+  plants real `.vue` probes under `tests/harness/` — it must, because only a path matching
+  ESLint's `VUE_FILES` exercises the Vue rules those cases exist for — and TWO other files walk
+  that directory in parallel workers. `lint-scope.test.ts` excluded them and carried a careful
+  argument for why; `harness.test.ts` never did, so it listed a probe and then READ it, losing
+  the race: `ENOENT … lint-edited-probe-1.vue`, on a tree with no source change at all,
+  reproduced on a stash of the branch and therefore nothing to do with the change under review.
+  `tests/helpers/plantedProbe.ts` now owns both the NAME and the predicate, with the planter and
+  both walkers importing it, because a naming convention two files agree about by hand is one
+  rename away from silently reaching nothing. Three things came out of it:
+  - **Hoisting the working version verbatim would have been a silent no-op on one CI leg.** The
+    regex was `/^tests\/harness\/…/` and its original caller builds `${dir}/${entry.name}`;
+    `harness.test.ts` uses `path.join`, which is a BACKSLASH on Windows. Measured as a mutation:
+    restoring the POSIX-only shape reddens two cases of `planted-probe.test.ts`. **A predicate
+    moving to a second caller is a predicate meeting a second spelling of its input**, and the
+    old caller's correctness says nothing about the new one's.
+  - **A comment naming a helper that does not exist reads exactly like one naming a helper that
+    does.** `lint-scope.test.ts` said "see `isPlantedProbe`" while the thing was called
+    `PLANTED_PROBE`, and a grep for the name it gave returned that comment and nothing else.
+    Now it is the real name, in a real module.
+  - **Removing a `const` orphans the docblock above it**, which is this file's own
+    attached-docblock rule read backwards: the paragraph about the probe regex was left sitting
+    over `walk`, describing something two definitions away. Nothing in any gate reads whether a
+    docblock still belongs to what follows it.
 - `tests/**` has a larger line budget than `src/**`, not none. The one suite without a cap
   is the one that grows into the place tests hide.
 

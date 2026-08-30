@@ -480,11 +480,21 @@ describe('the wired Plan Editor (design slice 8)', () => {
 	});
 
 	/**
-	 * The four cases below close the gaps the audit of
-	 * `docs/tests/cases/Zone Editing Walkthrough.md` found — its steps 1, 2, 7 and 14. Each
-	 * was a step the suite was ASSUMED to cover: two because the only interaction-layer
-	 * assertion in the editor suite counts `Circle` nodes and is silent about everything
-	 * beside them, and two because the undo side of a gesture was never driven end to end.
+	 * THREE of the four cases below close gaps the audit of
+	 * `docs/tests/cases/Zone Editing Walkthrough.md` found — its steps 1, 2 and 14. Each was
+	 * a step the suite was ASSUMED to cover: two because the only interaction-layer assertion
+	 * in the editor suite counts `Circle` nodes and is silent about everything beside them,
+	 * and one because the REDO side of a delete was never driven end to end.
+	 *
+	 * The fourth, *undoes a VERTEX edit…*, is not a gap closure and the audit says so at
+	 * length: step 7 was reported as a gap by that audit's first pass and the report was
+	 * measured false — `selectTool`'s own vertex case asserts the whole pre-drag point list
+	 * against the recorded inverse, three lines below the name the first pass stopped at, so
+	 * the defect it claimed nothing would catch reddens that case. This one is a SECOND net,
+	 * over the narrower thing that really was undriven: no case had pressed Undo after a
+	 * vertex edit and then read the REPOSITORY, so the dispatch-to-vault link went untested
+	 * while the polygon handed to the dispatcher did not. Counting it among the closures
+	 * would inflate the recorded count and contradict the audit it cites.
 	 */
 
 	it('draws the accent OUTLINE beside the handles, which a Circle count cannot see', async () => {
@@ -572,7 +582,10 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 		// EVERY point, not only the moved one. A `SelectTool` that snapshotted the geometry
 		// AFTER the edit would restore the dragged vertex and leave the rest as they are —
-		// which is indistinguishable from correct until the whole array is compared.
+		// which is indistinguishable from correct until the whole array is compared. That
+		// mutation reddens `selectTool`'s own vertex case too, and this is the SECOND net
+		// rather than the only one: what it adds is the READ-BACK, since the unit case
+		// asserts the inverse the dispatcher was handed and never that the vault took it.
 		const restored = expectOk(await zonesRepo.getById('zone-a' as never));
 		expect(restored?.entity.geometry.points).toEqual(ZONE_A_DTO.points);
 

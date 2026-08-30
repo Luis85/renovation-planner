@@ -1292,6 +1292,12 @@ git commit -m "Add the project detail store, with the index-scan gate a restored
 composition root has to fill — and **a component emitting an event no context member answers
 compiles and does nothing.** The spec's own first draft named one of the five.
 
+**Execute Task 11 before this task.** `navigate` routes through `navigateToProject`, which
+Task 11 builds — see the code below and the ruling in the ledger. Task 11 depends on nothing
+in Tasks 1–10, so the execution order is 1, 2, 3, 4, **11**, 5, 6, 7, 8, 9, 10, 12, 13. The
+task numbering is unchanged so that briefs, the ledger and the PR discussion keep referring to
+the same things.
+
 `tests/helpers/makeRenovationProjectView.ts` grows **in the same edit**. It is in
 `tsconfig.json`'s `include` for exactly this: its docblock promises that a grown constructor
 requirement "meets every consumer at the same time", and that promise has already been broken
@@ -1424,12 +1430,30 @@ Then `projectViewDeps()` grows:
 	private projectViewDeps(projectId: string | null, leaf: WorkspaceLeaf): RenovationProjectDeps {
 		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
 			projectId,
+			// Through `navigateToProject` (Task 11), NOT a raw `setViewState`, and it closes
+			// two holes at once. A bare `void` on a rejecting `setViewState` is an unhandled
+			// rejection reaching nobody — the shape `runDetached` exists to close, and the
+			// palette command's own door already answers it through `reportFault`. And two
+			// row clicks before the first write settles issue CONCURRENT writes, where the
+			// earlier one can settle last and reopen the project the user has navigated away
+			// from: the same window Task 11's write chain closes, on the door a user is far
+			// more likely to double-fire than a palette command. Both reported by a review
+			// bot against this plan.
+			//
+			// It is also this repository's own "one action, every input" rule: the row, the
+			// Back action and the palette command now reach ONE door rather than two that
+			// have to be kept in step.
 			navigate: (next) => {
-				void leaf.setViewState({
-					type: RENOVATION_PROJECT_VIEW,
-					active: true,
-					state: { projectId: next ?? '' },
-				});
+				void navigateToProject(
+					{
+						workspace: this.app.workspace,
+						reportFault: (cause: unknown): void => {
+							notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+						},
+					},
+					RENOVATION_PROJECT_VIEW,
+					next,
+				);
 			},
 			indexScanCompleted: () => this.indexScanCompleted,
 		});
@@ -1437,8 +1461,9 @@ Then `projectViewDeps()` grows:
 ```
 
 **Read `registerView` and `rebindOpenViews` before writing this.** The factory currently calls
-`projectViewDeps()` with no arguments; it now needs the leaf, which the factory receives, and
-`projectId`, which the VIEW owns. The cleanest shape that keeps `projectId` the view's own
+`projectViewDeps()` with no arguments; it now needs `projectId`, which the VIEW owns. It no
+longer needs the LEAF — routing `navigate` through `navigateToProject` means the singleton is
+resolved by view type rather than captured, which is one fewer thing for the factory to carry. The cleanest shape that keeps `projectId` the view's own
 field is to hand the view a FACTORY rather than a bundle:
 
 ```ts
@@ -2647,6 +2672,29 @@ describe('ViewRoot in the detail state', () => {
 		expect(navigate).not.toHaveBeenCalled();
 	});
 
+	/**
+	 * The Open note action racing a deletion. Asserted on the NAVIGATION rather than on
+	 * "hydrate was called", because refreshing the list store from the detail state is
+	 * equally true of the build that leaves the user on a stale screen — which is what an
+	 * earlier draft of this plan specified. Reported by a review bot.
+	 */
+	it('returns to the list when the header’s note turns out to be gone', async () => {
+		const navigate = vi.fn();
+		let exists = true;
+		const wrapper = mountRoot({
+			projectId: 'project-1',
+			navigate,
+			openProject: () => { exists = false; return Promise.resolve('missing'); },
+			getProject: () => Promise.resolve(exists ? ok(PROJECT) : ok(null)),
+		});
+		await flushPromises();
+
+		await wrapper.get('.rp-project-detail__open-note').trigger('click');
+		await flushPromises();
+
+		expect(navigate).toHaveBeenCalledWith(null);
+	});
+
 	/** Criterion 6's other arm: the project really is gone, so return to the list. */
 	it('navigates back to the list when the project is gone and the scan has run', async () => {
 		const navigate = vi.fn();
@@ -2795,9 +2843,35 @@ this slice exists to replace, on the slice's primary entry path, while every oth
 this plan passed. Reported by a review bot against the plan.
 
 `onOpenProject` KEEPS its `'missing'` → re-hydrate arm and keeps its only remaining caller:
-the detail header's **Open note** action (decision 5). That arm is still right there — a note
-that turns out to be gone is a stale surface, and the detail state's own re-read answers
-`'gone'` and returns the user to the list.
+the detail header's **Open note** action (decision 5).
+
+**But the arm has to re-read the store that is actually DRAWN, and an earlier draft of this
+plan claimed the detail state would correct itself when nothing made it.** `onOpenProject`
+called the LIST store's `hydrate()`; in the detail state that refreshes something invisible,
+`detailStatus` stays `'ready'`, and the user sits on a project whose note is gone with no
+correction coming. The sentence asserting otherwise was mine, in a reply on PR #42, and a
+review bot measured it false one round later — this repository's oldest recurring shape, in
+its newest place.
+
+So the handler branches on which state is drawn:
+
+```ts
+/**
+ * A row's click is a NAVIGATION now (criterion 1); this handler survives for the detail
+ * header's Open note action, which is the one caller that still opens `Project.md`.
+ *
+ * `'missing'` means the id resolved to nothing, so the surface that asked is stale — and
+ * WHICH surface asked decides which read corrects it. The list re-reads itself; the detail
+ * state re-reads ITSELF, which answers `ok(null)`, settles `'gone'`, and returns the user
+ * to the list through the `watch` above. Calling the list's `hydrate` from the detail state
+ * refreshes something nobody is looking at.
+ */
+async function onOpenProject(projectId: string): Promise<void> {
+	if ((await context.openProject(projectId)) !== 'missing') return;
+	if (context.projectId === null) await hydrate();
+	else await hydrateDetail(context.projectId);
+}
+```
 
 **`ProjectDetail` draws for EVERY ready project, and the no-plans empty state goes INSIDE its
 plans region.** Replacing the whole detail state with an `EmptyState` takes the Back and Open
@@ -3120,23 +3194,29 @@ describe('navigateToProject', () => {
 	});
 
 	/**
-	 * **With the FIRST navigation deliberately settling last.** The ordering is a ticket, not
-	 * an accident of scheduling: a case whose two calls happen to resolve in issue order
-	 * passes against a build that has no ordering at all.
+	 * The superseded request writes NOTHING — which is the ticket's own job, and the half the
+	 * write chain does not do. A chain alone would remount to the first project and then to
+	 * the second, which is the flicker the ticket exists to avoid, and asserting only the
+	 * final state cannot tell the two apart.
+	 *
+	 * An earlier draft of this plan had a `deferredSetViewState` case here instead, awaiting
+	 * both navigations and only then releasing the held write — which cannot finish, because
+	 * neither navigation resolves until that write does. It would have timed out rather than
+	 * checked an ordering, and with the write chain in place the scenario it described is
+	 * unreachable anyway. Reported by a review bot; the helper is deleted with the case.
 	 */
-	it('ends on the later project even when the earlier navigation settles last', async () => {
+	it('performs no write at all for a request superseded in the same tick', async () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.openLeafOfType(RENOVATION_PROJECT_VIEW);
+		const written = recordSetViewState(leaf);
 		const deps = { workspace, reportFault: vi.fn() };
-		const settleOrder = deferredSetViewState(leaf); // resolves the FIRST call last
 
 		await Promise.all([
 			navigateToProject(deps, RENOVATION_PROJECT_VIEW, 'project-1'),
 			navigateToProject(deps, RENOVATION_PROJECT_VIEW, 'project-2'),
 		]);
-		settleOrder.releaseFirstLast();
 
-		expect(leaf.getViewState().state).toEqual({ projectId: 'project-2' });
+		expect(written.map((state) => state.projectId)).toEqual(['project-2']);
 	});
 
 	/**
@@ -3188,11 +3268,14 @@ describe('navigateToProject', () => {
 });
 ```
 
-`deferredSetViewState` and `slowSetViewState` are local helpers in this file stubbing the
-leaf's `setViewState`: the first makes call one's promise resolve after call two's, and the
-second exposes `firstWriteStarted` (so the test can let call one get past the ticket check
-before call two arrives) and `releaseFirst`. Both exist to prove one ordering each; write them
-beside the cases.
+`recordSetViewState` and `slowSetViewState` are local helpers in this file wrapping the leaf's
+`setViewState`: the first appends every state actually written to an array, and the second
+exposes `firstWriteStarted` (so the test can let call one get past the ticket check before call
+two arrives) and `releaseFirst`. Write them beside the cases.
+
+**Neither may await both navigations before releasing a held write** — that is a deadlock, not
+a test, and it is the mistake the deleted `deferredSetViewState` case made: a navigation does
+not resolve until its own write does.
 
 **`navigationWrites` is module state, so reset it between cases** — either export a
 test-only reset or `vi.resetModules()` in a `beforeEach`. A chain left holding a previous

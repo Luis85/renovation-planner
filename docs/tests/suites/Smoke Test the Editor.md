@@ -191,7 +191,7 @@ being *centred*, *beside* or *above* something else, while the failure each one 
 own "It exists to catch" is presence: a view that drew nothing, a tool registered nowhere, a
 calculated figure hidden behind its own override badge. The rule above still tags them
 `browser`, because a panel really can render off-centre and the pass condition really does say
-centred — but a reader pricing the browser tier should know that five of its steps would fall
+centred — but a reader pricing the browser tier should know that four of its steps would fall
 back to `suite` the moment their positional clause became a step of its own. That is what
 "split the step rather than soften the tag" means in practice, with the list to work from.
 

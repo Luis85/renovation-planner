@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { REPO } from '../helpers/oxlint';
+import { plantedProbePath } from '../helpers/plantedProbe';
 
 /**
  * The edit-loop hook: oxlint over the ONE file an agent just wrote — and ESLint too when that
@@ -77,7 +78,7 @@ const plantedSfcs: string[] = [];
 let planted = 0;
 
 const plantSfc = (contents: string) => {
-	const file = path.join(REPO, 'tests', 'harness', `lint-edited-probe-${(planted += 1)}.vue`);
+	const file = path.join(REPO, plantedProbePath((planted += 1)));
 
 	plantedSfcs.push(file);
 	writeFileSync(file, contents);

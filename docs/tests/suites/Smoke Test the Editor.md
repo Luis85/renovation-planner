@@ -84,13 +84,26 @@ tested today.
 | Verdict | What it means | Steps |
 | --- | --- | --- |
 | `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 71 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 29 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 47 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 28 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 48 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 8 |
 
 165 steps across nine cases. The counts are `grep`ed out of these files rather than carried
 over from the notes the classification was drafted in, so a re-tagged step moves the number.
+The instrument is TWO patterns, because the verdict has two spellings and a grep that sees only
+the table form silently under-counts by the sixteen steps of [[Canvas Navigation]]:
+
+```bash
+grep -rhoE '^\| [0-9]+[a-z]? \| `(suite|browser|obsidian|desktop|judgement)` \|' docs/tests/cases/*.md
+grep -ohE '^\s*[0-9]+[a-z]?\.\s+`(suite|browser|obsidian|desktop|judgement)`' 'docs/tests/cases/Canvas Navigation.md'
+```
+
+Written down because it had to be reconstructed once: the sentence above said the numbers were
+grepped and not with what, and a first attempt that matched table rows alone answered 149 —
+close enough to read as right, and wrong by exactly the case whose steps are a list.
+[[Editor Walkthrough]] 7 has since moved `browser` → `obsidian` (its own paragraph says why),
+which is what took those two rows from 29 and 47; the total, and the other three, are unchanged.
 
 **`suite` means REACHABLE, and never "already covered".** That difference is the whole of the
 follow-up work. A sample was checked against the tests rather than inferred from filenames —

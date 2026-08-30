@@ -40,7 +40,7 @@ a step that only says "it looks right" cannot fail.
 | 5 | `suite` | Untick a layer in the Layers panel | Its contents disappear; ticking it back restores them | Layer visibility wired to the wrong layer, or to none |
 | 6 | `suite` | Drag to pan; zoom with the wheel and with `+`/`-`; move the pointer | The camera follows, the zoom percentage changes, and the status bar's world-millimetre readout tracks the pointer | A viewport transform applied twice or in the wrong direction. `+`/`-` is listed separately because it is a different code path from the wheel |
 | 6a | `suite` | Rest the pointer on a spot you can identify, note the readout, then zoom with `+`/`-` and pan — WITHOUT moving the mouse | The readout changes as the keyboard zoom moves the world under the still pointer, and holds absolutely steady for the whole of a pan | The readout is a function of the pointer AND the camera, so it goes stale when either moves. It was assigned on pointer moves alone: the keyboard zoom anchors at the stage centre, so it simply lied until the next mouse move, and a pan — which is DEFINED by holding one world point under the cursor — recomputed it from the pre-pan camera every move, drifting the one number that should not have moved at all |
-| 7 | `browser` | `Set plan background`, choose `editor-background-png-test.png` | The sheet appears UNDER the zones, its top-left corner at world (0,0), reading the right way up | Placement, orientation and scale. The sheet is annotated with its own size, an origin marker and a 1000mm scale bar so all three are checkable rather than plausible — see below |
+| 7 | `obsidian` | `Set plan background`, choose `editor-background-png-test.png` | The sheet appears UNDER the zones, its top-left corner at world (0,0), reading the right way up | Placement, orientation and scale — and, since 2026-08-30, whether the sheet appears AT ALL. The sheet is annotated with its own size, an origin marker and a 1000mm scale bar so all three are checkable rather than plausible. **Timing-sensitive: a green walk here is weaker evidence than it looks** — see below |
 | 8 | `obsidian` | `Set plan background`, choose `editor-background-pdf-test.pdf` | The page renders | **The only step no automated test can stand in for**: production asks Obsidian for pdf.js, and the suite runs our own copy of it |
 | 9 | `obsidian` | Switch Obsidian's theme (light ⇄ dark) | Zone colours and the shell follow, with no reload | A palette resolved once at mount instead of on `css-change`. This failed in the browser harness for exactly that reason |
 | 10 | `obsidian` | Open a second plan in a second tab; then run `Open plan editor` again and pick a plan that is already open | Each tab keeps its own camera; the already-open plan is REVEALED rather than opened twice | Per-leaf state leaking between views, and a second entry point deciding for itself what "open" means |
@@ -63,6 +63,34 @@ declared to be one world millimetre per source pixel until slice 7 calibrates it
 
 Zone fills are translucent on purpose, so a background under a zone is visible through it —
 "I cannot see it" is a failure, not an expected consequence of the zone being on top.
+
+**This step is TIMING-SENSITIVE, and a green walk of it is weaker evidence than it looks.**
+Until 2026-08-30 the background did not appear at all: the command wrote the reference and
+published `PlanBackgroundChanged`, the editor re-hydrated off that event, and the read came
+back from a `MetadataCache` entry Obsidian had not re-parsed yet — so the query answered a
+plan with no background. Nothing re-hydrates on its own, so it stayed invisible until some
+unrelated action re-read the note much later, which is why it was first reported as "the
+background only appears when I calibrate".
+
+The reason it survived this step is that **it is a race, not a constant**: it shows when the
+re-hydrate lands inside Obsidian's parse window and disappears when the queue happens to drain
+first. So this row could pass on one machine, one vault or one run and fail on the next, and a
+single green walk reads as proof of something it did not test. If the sheet does not appear,
+**do not click anything else first** — switching tools or calibrating will make it appear and
+destroy the evidence. Fixed in `frontmatterOf` (a cache entry matching the reading taken
+immediately before our own write is a cache that has not caught up), and confirmed in a live
+vault on 2026-08-30.
+
+**That is also why this row is `obsidian` rather than `browser`, which is a re-tag and not the
+value the triage pass gave it.** The paint clauses — under the zones, top-left at world (0,0),
+the right way up — are a real engine's to settle and nothing else here changes that. The clause
+this defect added is not: whether the sheet appears at all depends on where a read lands
+relative to Obsidian's own parse queue, and no browser harness has one, so a harness would
+discharge this step green in both worlds. The triage's rule decides it rather than taste — the
+verdict names the cheapest instrument that could discharge the step AS WRITTEN, and only
+`judgement` is carved out from ranking, so a step needing a browser for three clauses and
+Obsidian for a fourth is `obsidian`. `browser` beside a row whose own paragraph says the
+failure is a race in Obsidian's cache would be a verdict contradicting the step it labels.
 
 ## Runs
 

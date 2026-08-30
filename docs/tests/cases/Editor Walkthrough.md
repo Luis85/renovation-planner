@@ -24,24 +24,28 @@ happen when a folder or a note does not exist yet.
 
 ## Steps
 
+Each step carries a `Reachable by` verdict — the cheapest instrument that could
+discharge it as written. [[Smoke Test the Editor]]'s *The triage column* section defines
+the five values and what they do not claim.
+
 Each step names what it would catch, because a step whose purpose is vague gets skipped and
 a step that only says "it looks right" cannot fail.
 
-| # | Do this | It passes when | It exists to catch |
-| --- | --- | --- | --- |
-| 1 | Run `Create sample renovation project` | A project note, a plan note, a `Geometry/*.rpgeo` sidecar and five zone notes appear under `Renovation/` | The whole persistence layer on a vault with no folders in it. Two of the four known defects fired here |
-| 2 | Run `Open plan editor` and pick the plan | The editor opens on it | The command is available with no plan note active — it used to require one, which made it invisible in every vault |
-| 3 | Look at the shell | §60's five regions are present: toolbar, layers panel, canvas, inspector, status bar | Layout collapse. The toolbar and inspector were deliberately empty until slice 6 — they have content since slice 8, which [[Zone Editing Walkthrough]] walks |
-| 4 | Look at the zones | Five zones, each with its name and a status caption; fills differ by zone TYPE and dash patterns by STATUS | A render model that draws every zone identically. The sample covers four types, all three statuses and one non-rectangular outline for exactly this |
-| 5 | Untick a layer in the Layers panel | Its contents disappear; ticking it back restores them | Layer visibility wired to the wrong layer, or to none |
-| 6 | Drag to pan; zoom with the wheel and with `+`/`-`; move the pointer | The camera follows, the zoom percentage changes, and the status bar's world-millimetre readout tracks the pointer | A viewport transform applied twice or in the wrong direction. `+`/`-` is listed separately because it is a different code path from the wheel |
-| 6a | Rest the pointer on a spot you can identify, note the readout, then zoom with `+`/`-` and pan — WITHOUT moving the mouse | The readout changes as the keyboard zoom moves the world under the still pointer, and holds absolutely steady for the whole of a pan | The readout is a function of the pointer AND the camera, so it goes stale when either moves. It was assigned on pointer moves alone: the keyboard zoom anchors at the stage centre, so it simply lied until the next mouse move, and a pan — which is DEFINED by holding one world point under the cursor — recomputed it from the pre-pan camera every move, drifting the one number that should not have moved at all |
-| 7 | `Set plan background`, choose `editor-background-png-test.png` | The sheet appears UNDER the zones, its top-left corner at world (0,0), reading the right way up | Placement, orientation and scale. The sheet is annotated with its own size, an origin marker and a 1000mm scale bar so all three are checkable rather than plausible — see below |
-| 8 | `Set plan background`, choose `editor-background-pdf-test.pdf` | The page renders | **The only step no automated test can stand in for**: production asks Obsidian for pdf.js, and the suite runs our own copy of it |
-| 9 | Switch Obsidian's theme (light ⇄ dark) | Zone colours and the shell follow, with no reload | A palette resolved once at mount instead of on `css-change`. This failed in the browser harness for exactly that reason |
-| 10 | Open a second plan in a second tab; then run `Open plan editor` again and pick a plan that is already open | Each tab keeps its own camera; the already-open plan is REVEALED rather than opened twice | Per-leaf state leaking between views, and a second entry point deciding for itself what "open" means |
-| 11 | Close a Plan Editor tab and reopen it | The zones render identically | An unmount that leaves a stage, observer or listener behind |
-| 12 | Quit Obsidian and reopen it, with two Plan Editor tabs open | **Both** tabs reopen onto the plan they were showing | The startup ordering. Check both: Obsidian defers a non-active leaf, so only the first one is exercised early enough to break |
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 1 | `suite` | Run `Create sample renovation project` | A project note, a plan note, a `Geometry/*.rpgeo` sidecar and five zone notes appear under `Renovation/` | The whole persistence layer on a vault with no folders in it. Two of the four known defects fired here |
+| 2 | `obsidian` | Run `Open plan editor` and pick the plan | The editor opens on it | The command is available with no plan note active — it used to require one, which made it invisible in every vault |
+| 3 | `browser` | Look at the shell | §60's five regions are present: toolbar, layers panel, canvas, inspector, status bar | Layout collapse. The toolbar and inspector were deliberately empty until slice 6 — they have content since slice 8, which [[Zone Editing Walkthrough]] walks |
+| 4 | `browser` | Look at the zones | Five zones, each with its name and a status caption; fills differ by zone TYPE and dash patterns by STATUS | A render model that draws every zone identically. The sample covers four types, all three statuses and one non-rectangular outline for exactly this |
+| 5 | `suite` | Untick a layer in the Layers panel | Its contents disappear; ticking it back restores them | Layer visibility wired to the wrong layer, or to none |
+| 6 | `browser` | Drag to pan; zoom with the wheel and with `+`/`-`; move the pointer | The camera follows, the zoom percentage changes, and the status bar's world-millimetre readout tracks the pointer | A viewport transform applied twice or in the wrong direction. `+`/`-` is listed separately because it is a different code path from the wheel |
+| 6a | `suite` | Rest the pointer on a spot you can identify, note the readout, then zoom with `+`/`-` and pan — WITHOUT moving the mouse | The readout changes as the keyboard zoom moves the world under the still pointer, and holds absolutely steady for the whole of a pan | The readout is a function of the pointer AND the camera, so it goes stale when either moves. It was assigned on pointer moves alone: the keyboard zoom anchors at the stage centre, so it simply lied until the next mouse move, and a pan — which is DEFINED by holding one world point under the cursor — recomputed it from the pre-pan camera every move, drifting the one number that should not have moved at all |
+| 7 | `browser` | `Set plan background`, choose `editor-background-png-test.png` | The sheet appears UNDER the zones, its top-left corner at world (0,0), reading the right way up | Placement, orientation and scale. The sheet is annotated with its own size, an origin marker and a 1000mm scale bar so all three are checkable rather than plausible — see below |
+| 8 | `obsidian` | `Set plan background`, choose `editor-background-pdf-test.pdf` | The page renders | **The only step no automated test can stand in for**: production asks Obsidian for pdf.js, and the suite runs our own copy of it |
+| 9 | `obsidian` | Switch Obsidian's theme (light ⇄ dark) | Zone colours and the shell follow, with no reload | A palette resolved once at mount instead of on `css-change`. This failed in the browser harness for exactly that reason |
+| 10 | `obsidian` | Open a second plan in a second tab; then run `Open plan editor` again and pick a plan that is already open | Each tab keeps its own camera; the already-open plan is REVEALED rather than opened twice | Per-leaf state leaking between views, and a second entry point deciding for itself what "open" means |
+| 11 | `obsidian` | Close a Plan Editor tab and reopen it | The zones render identically | An unmount that leaves a stage, observer or listener behind |
+| 12 | `obsidian` | Quit Obsidian and reopen it, with two Plan Editor tabs open | **Both** tabs reopen onto the plan they were showing | The startup ordering. Check both: Obsidian defers a non-active leaf, so only the first one is exercised early enough to break |
 
 ## Reading the PNG fixture (step 7)
 

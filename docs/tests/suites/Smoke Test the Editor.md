@@ -73,6 +73,55 @@ than of the walkthrough. Every defect above was fixed in the slice that shipped 
 fix carries a test that fails without it — a manual case whose findings are not converted
 into an automated check will find the same thing again next release.
 
+## The triage column
+
+Every step below carries a **`Reachable by`** verdict — a column in the eight cases whose
+steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
+procedure is a list. The verdict names the **cheapest instrument that could discharge that
+step as written**. It is a claim about the step's own pass condition, not a report on what is
+tested today.
+
+| Verdict | What it means | Steps |
+| --- | --- | --- |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 68 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus, paint, or an input grammar jsdom cannot produce | 35 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 46 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 9 |
+| `judgement` | Records an answer or an eye's verdict. There is no pass condition for any instrument to settle | 7 |
+
+165 steps across nine cases. The counts are `grep`ed out of these files rather than carried
+over from the notes the classification was drafted in, so a re-tagged step moves the number.
+
+**`suite` means REACHABLE, and never "already covered".** That difference is the whole of the
+follow-up work. A sample was checked against the tests rather than inferred from filenames —
+the click-versus-drag epsilon, the click on a vertex handle, the close-while-a-close-is-in-flight
+guard and the chorded-button grammar all have named cases in `selectTool.test.ts`,
+`drawPolygonTool.test.ts` and `canvasChordedButtons.test.ts`, and the empty-state overlay's
+structural half is in `emptyStateOverlay.test.ts`. The other sixty-odd were not opened one at a
+time. So a `suite` verdict says the step COULD be a node test; confirming that it IS one, or
+writing it, is what converts that step from something a human does into something that runs.
+
+**Both `suite` and `browser` run on the fakes, so neither reaches the fidelity residue.** Three
+of the first four defects this suite ever found were a fake accepting what Obsidian refuses,
+and a browser harness wired for real writes would compose the same `FakeVault`. That is why a
+step whose "It exists to catch" names an Obsidian-specific behaviour is tagged `obsidian` even
+where its logic is `suite`-reachable, and why neither verdict is on its own a reason to stop
+walking a case in a vault before a release.
+
+**What the distribution says, since it is not what the suite's own header implies.** Two
+fifths of these steps are already inside the jsdom suite's reach — this file has grown case by
+case, and no earlier pass ever asked which steps the suite had caught up with. The steps that
+genuinely need a vault are not spread evenly either: two cases, [[Notices and save state]] and
+[[A Project Owns Its Folder]], hold 27 of the 46 `obsidian` steps between them, because one
+surface is drawn by Obsidian's own `Notice` and the other is about where files sit. Meanwhile
+[[Canvas Navigation]] is the case a real browser would change most — 9 of its 16 steps are
+`browser`, including the cursor keyword its own header lists as something only an eye can
+confirm, which a computed style read under a real pointer would settle.
+
+**Nothing checks these verdicts.** They are a reading of each pass condition, and a step whose
+condition is rewritten without its verdict being re-read will carry a stale one. Treat a
+verdict the way this project treats a docblock: evidence of intent, and of nothing else.
+
 ## Cases
 
 - [[Editor Walkthrough]] — design slice 5's Definition of Done, end to end.

@@ -1,4 +1,4 @@
-import { TFile as MockTFile, TFolder as MockTFolder, type TFile } from 'obsidian';
+import { TFile as MockTFile, TFolder as MockTFolder, type FileStats, type TFile } from 'obsidian';
 import type { LogLevel } from '../../src/application/ports/Logger';
 import { serializeFrontmatter } from '../../src/infrastructure/obsidian/repositories/noteIo';
 import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
@@ -45,21 +45,55 @@ class VaultEntries extends Map<string, string> {
 	 * states that as its own bound rather than claiming to be proof.
 	 */
 	private readonly mtimes = new Map<string, number>();
+
+	/**
+	 * Creation times, off the same counter, and NOT a synonym for the modification time.
+	 *
+	 * `ctime` is stamped by the first write to a path and left alone by every later one, so a
+	 * file that has been modified reports `ctime < mtime` the way a real one does. Returning
+	 * the mtime for both would be the defect the paragraph above already refuses in a second
+	 * spelling: a field that type-checks and says nothing, believed by whoever reads it.
+	 *
+	 * The bound the mtime paragraph states applies here too — a counter cannot produce the
+	 * same-tick collision a real clock's finite granularity can, so a file created and
+	 * modified inside one tick reports two distinct values where a filesystem may report one.
+	 */
+	private readonly ctimes = new Map<string, number>();
 	private clock = 0;
 
-	statOf(path: string): { mtime: number; size: number } {
-		return { mtime: this.mtimes.get(path) ?? 0, size: (this.get(path) ?? '').length };
+	/**
+	 * Typed as Obsidian's own `FileStats` rather than as the shape it happens to return.
+	 *
+	 * The literal `{ mtime: number; size: number }` compiled for as long as nothing
+	 * type-checked this file, and stopped compiling the moment slice 12's `*.test-d.ts` pulled
+	 * it into `tsconfig.json`'s program — `ctime` is required and was absent. Naming the real
+	 * interface is what makes the COMPILER answer for the next member Obsidian adds, rather
+	 * than a reader noticing.
+	 */
+	statOf(path: string): FileStats {
+		return {
+			ctime: this.ctimes.get(path) ?? 0,
+			mtime: this.mtimes.get(path) ?? 0,
+			size: (this.get(path) ?? '').length,
+		};
+	}
+
+	/** Stamps the creation time on a path's FIRST write and leaves it alone thereafter. */
+	private touch(path: string): void {
+		const now = ++this.clock;
+		if (!this.ctimes.has(path)) this.ctimes.set(path, now);
+		this.mtimes.set(path, now);
 	}
 
 	override set(path: string, text: string): this {
 		this.onOutsideWrite(path);
-		this.mtimes.set(path, ++this.clock);
+		this.touch(path);
 		return super.set(path, text);
 	}
 
 	/** `FakeVault`s own writers, which record their own parse-lag entry and must not retire it. */
 	setOwn(path: string, text: string): void {
-		this.mtimes.set(path, ++this.clock);
+		this.touch(path);
 		super.set(path, text);
 	}
 }

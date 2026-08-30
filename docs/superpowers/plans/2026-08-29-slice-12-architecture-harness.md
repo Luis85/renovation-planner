@@ -21,6 +21,11 @@
 - **Vitest collects `tests/**/*.test.ts` only**, with `environment: 'node'` as the default and jsdom opted in per file by docblock.
 - **Nothing enters ESLint's `ignores`.** `tests/build/suppressions.test.ts` asserts no file suppresses a rule; a fixture added to `ignores` would make a meta-test lint a file ESLint skips and pass vacuously.
 - **An invariant asserted in a comment gets a test that fails without it**, and the test is watched failing: mutate, run, see red, restore. Every task below that adds an assertion names its mutation.
+- **Which mutation to write is decided by the fix's own SHAPE.** `CLAUDE.md` states two variants and this plan's review added a third, each learned by a suite passing while a defect stood:
+  - a fix that is a **refusal** → write the WIDENED refusal and run it; the suite tends to cover the thing refused and not the thing still allowed.
+  - a fix that is an **ordering** → write the PARTIAL reordering and run it; moving a call part of the way passes the reported case and leaves its sibling live.
+  - a fix that guards **one level of a nested structure** → ask what the ENCLOSING level can express. Task 7's step-condition assertion was written to close a hole and reopened it one level up: GitHub supports `jobs.<job_id>.if` as well as a step's, so gating the job leaves the guarded step perfectly intact and unrun. The same applies to a config block inside a block, a matrix inside a job, and a glob inside a glob.
+  - and the variant running through every one of them: a fix that guards **one of several** things → drop the other arms and run it.
 - **A failure assertion is vacuous unless it discriminates the CAUSE of the failure.** Every test in this plan that asserts something failed also asserts *why*.
 - **No `.spec.ts` file** is created anywhere. Fixtures that must not be collected use `*.fixture.ts`.
 

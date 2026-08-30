@@ -81,6 +81,38 @@ getState(): Record<string, unknown> { return { projectId: this.projectId ?? '' }
 `''` rather than an omitted key, for the reason `PlanEditorView.getState` already gives: a key
 that is sometimes absent is a different shape to reason about.
 
+**`''` is a DESTINATION here, and that is the one place this view must not copy
+`PlanEditorView`.** `planIdFrom` refuses an empty id and `setState` then leaves `planId`
+alone, which is right for a view whose empty case is *nothing to draw*. This view's empty case
+is the **list**, which is a state a user navigates to — so refusing `''` refuses the only
+state the back arrow ever restores. Reported in review, and the failure is total rather than
+cosmetic: `getState` records `{ projectId: '' }` for the list, so pressing back from a project
+restores exactly the value the validator was about to discard, the field keeps the project it
+already held, and the pane never leaves the detail state. The in-app **‹ back** action sets
+the same `{ projectId: '' }` and would have died with it.
+
+So the parse is three-way, and the third arm is the one the Plan Editor does not have:
+
+```ts
+/**
+ * `''` is the LIST — a state, not an absence. A value that is not a string at all is a
+ * layout this build does not recognise, and the conservative answer to that is to go on
+ * drawing whatever is already drawn.
+ */
+function projectIdFrom(state: unknown): { projectId: string | null } | null {
+	if (typeof state !== 'object' || state === null) return null;
+	const projectId = (state as Record<string, unknown>)['projectId'];
+	if (typeof projectId !== 'string') return null;
+	return { projectId: projectId.length > 0 ? projectId : null };
+}
+```
+
+A leaf restored from a layout written before this slice carries no `projectId` key at all and
+lands on the refusal arm — correctly, because a freshly constructed view's field is already
+`null` and `null` is the list. That the two coincide is worth stating so that nobody later
+"simplifies" the refusal into a default and discovers the difference on a view that has
+already navigated.
+
 Three reasons this beats a `selectedProjectId` ref in `RenovationProjectStore`:
 
 - **`rebind` survives it.** `rebind` remounts the whole Vue tree on a settings save. State
@@ -109,6 +141,11 @@ consistently with every other Obsidian surface.
 `PlanEditorView.setState` currently ignores that parameter — its signature is
 `setState(state: unknown, _result: ViewStateResult)`. This slice sets it here; the Plan
 Editor gets the same one-line win whenever it is next touched.
+
+**Back is a navigation like any other** and takes the same door:
+`setViewState({ type, state: { projectId: '' } })`. Not a `showList()` method on the view,
+because a second way to change which state is drawn is a second decider — and it is the reason
+decision 2's sentinel has to be *accepted* rather than validated away.
 
 ### 4. vue-router is refused, with a trigger
 
@@ -147,22 +184,70 @@ good visible home).
 
 The detail state is reachable from a palette command as well as from a row, mirroring
 `open-plan-editor`: a plain `callback` over a `ProjectSuggestModal` — a `FuzzySuggestModal`
-of the Project Index's `renovation-project` entries — which then reveals the view with that
-project's state.
+of the Project Index's `renovation-project` entries — which then makes sure the view's leaf
+exists and navigates it to that project.
 
 **"One action, every input" holds at `sync()`, not at the reveal.** The row click and the
-command necessarily take different doors, because one already holds a leaf and the other must
-find or create one — that split is `revealView`'s entire job and is the same one
-`openProjectNote` already takes. What matters is that both end at Obsidian calling `setState`,
-and `sync()` is the single place that decides what is mounted. A second activation path that
-decided for itself is what this rule exists to refuse, and there isn't one.
+command differ in exactly one thing: the row already holds a leaf, and the command may have to
+create one. That is `revealView`'s entire job and the same split `openProjectNote` takes. Once
+the leaf exists the two are the *same* call — see the two steps below — and both end at
+Obsidian calling `setState`, with `sync()` the single place that decides what is mounted. A
+second activation path that decided for itself is what this rule exists to refuse, and there
+isn't one.
 
-**It needs no new mechanism.** `revealCandidate` already accepts an optional `state` and keys
-its in-flight map by `type` plus the serialized state (`requestKey`, with sorted keys so two
-equal states written in different orders do not miss each other). So
-`revealView(deps, RENOVATION_PROJECT_VIEW, { projectId })` gets the double-invocation
-coalescing for free — the guard that exists because a leaf takes time to exist, and without
-which two invocations in one tick both find nothing and both create.
+**It is TWO steps, and the first draft of this paragraph said one.** That draft read *"it needs
+no new mechanism … `revealView(deps, RENOVATION_PROJECT_VIEW, { projectId })` gets the
+double-invocation coalescing for free"*, and it was wrong in three independent ways. All three
+were reported in review and all three are measured against `reveal.ts` rather than argued:
+
+- **`revealView` takes no `state` parameter.** Its signature is `(deps, type)`. `state` is
+  `revealCandidate`'s fourth argument and `revealView` forwards the first three, so there is
+  nothing to pass one through — the call that draft wrote does not compile.
+- **`revealCandidate` sets the state only on a leaf it CREATED**, and deliberately — its own
+  comment says setting it on an existing leaf "rebuilds a view the user has already scrolled,
+  filtered or panned". That is exactly right for the Plan Editor, whose candidate filter
+  already guarantees the leaf holds that plan. The NORMAL case for this command is a Renovation
+  Project leaf that is already open, so the state would have been passed, ignored, and the user
+  left on the list or on whichever project they were last in.
+- **`requestKey` is `type` plus the serialized state, and for a SINGLETON that is the wrong
+  key.** Two `open-project` invocations naming different projects produce two different keys,
+  so neither joins the other; an in-flight leaf does not answer `getLeavesOfType` yet, so both
+  create one. Two tabs of the view whose whole premise is that there is one — the defect
+  `activating` exists to prevent, walking straight through it, because the key describes the
+  REQUEST where the guard needs to describe the LEAF.
+
+**The remedy leaves `reveal.ts` untouched**, which is most of the argument for it. Three cases
+pin that module's coalescing, its release and its one-report-per-failure, and its key
+derivation is load-bearing for `revealPlanEditor`, where two plans genuinely are two leaves.
+Widening it was considered and refused: every shape of the widening ends in a parameter whose
+two callers want opposite answers to *does the candidate predicate already imply the state* —
+one boolean deciding both the key and whether an existing leaf is re-stated, in a module whose
+docblock already argues that a subtlety re-remembered per caller is one that eventually is not.
+
+Instead the command does what it actually means, in the order it means it:
+
+```ts
+await revealView(deps, RENOVATION_PROJECT_VIEW);          // guarantee the leaf — unchanged
+const leaf = deps.workspace.getLeavesOfType(RENOVATION_PROJECT_VIEW)[0];
+if (leaf === undefined) return;                            // activation faulted; already reported
+await leaf.setViewState({ type: RENOVATION_PROJECT_VIEW, active: true, state: { projectId } });
+```
+
+Both properties fall out rather than being added. **Uniqueness** is `revealView`'s existing
+coalescing, keyed on the type because that call carries no state — so two invocations in one
+tick produce one leaf whether they name the same project or different ones. **Navigation** is
+the second line, and it is *literally the call a row click makes*, which turns this decision's
+"one action, every input holds at `sync()`" from an argument into a fact about the source:
+there is one `setViewState({ projectId })` shape and both doors reach it. Two invocations
+naming different projects serialize on that one leaf and the later wins — the only answer that
+does not silently discard a user's second choice.
+
+The early return is not defensive padding. `revealView` does not reject; it answers every
+fault through `reportFault`, once per activation. So an activation that failed leaves no leaf
+and has already been reported, and declining to navigate one that is not there is all that is
+left to do. The pair lives in `infrastructure/obsidian/workspace/` beside its siblings, because
+`plugin/` composing the two steps for itself would be the second activation path this decision
+refuses.
 
 **With no projects in the vault, the command reveals the LIST, not a picker and not a
 notice.** `open-plan-editor` answers `notify(tr('plan.none'))` in that situation, and this
@@ -185,16 +270,56 @@ ProjectList  --open(id)-->  ViewRoot  --navigate(id)-->  RenovationProjectView
                                                               |
                                           leaf.setViewState({ projectId })
                                                               |
-                                        Obsidian --setState--> sync() --> re-provide
+                                        Obsidian --setState--> sync() --> remount
                                                               |
                               ViewRoot draws ProjectDetail --> ProjectDetailStore.hydrate
 ```
 
 `sync()` is borrowed from `PlanEditorView` for the reason its docblock gives — `onOpen` and
 `setState` race and the order is not something a plugin may assume, so one function decides.
-The difference: **both** states mount here, because this view has no "nothing to draw" case.
-`sync()` therefore guards on the mounted `projectId` *changing*, and `ViewRoot` switches
-within one mounted tree rather than being torn down and rebuilt per navigation.
+
+**It REMOUNTS, exactly as the Plan Editor does, and the first draft of this document said the
+opposite.** That draft had `ViewRoot` switching "within one mounted tree rather than being torn
+down and rebuilt per navigation", and there is no mechanism under it: `RenovationProjectDeps` is
+a plain object, `app.provide` runs once before `mount`, and a component that has already run
+`inject()` holds the value it was handed. Changing a class field invalidates nothing, so the
+tree would have gone on drawing the list forever, after a `setState` that had done everything it
+was asked. Reported in review, which offered a provided reactive ref as the alternative. The
+remount is taken instead, for three reasons and one cost.
+
+- It is the mechanism this repository already has, in the sibling view, under a docblock that
+  argues for it. A `DeepReadonly<Ref>` in the context would be the first reactive member any
+  view context here carries, and a second way a Vue tree in this plugin learns its subject
+  changed.
+- It makes the staleness **unrepresentable** rather than refreshed: the tree is built from the
+  `projectId`, so the two cannot disagree. CLAUDE.md has paid three times for the other order.
+- `rebind` already relies on it. `RenovationProjectView.rebind` is `onClose(); onOpen();` today
+  and becomes the Plan Editor's `unmount(); sync();` with no new reasoning — `projectId` is the
+  view's own field and a remount never touches it, which is criterion 7.
+
+**The cost, stated rather than glossed.** Every navigation discards the tree, so returning to
+the list re-reads it and loses its scroll position, and a dialog open at that moment is settled
+by `DialogHost.onBeforeUnmount` with its kind's cancel result. Both are correct for a
+deliberate navigation, and both are the residual `PlanEditorView.rebind` already records; the
+re-read is also the honest answer, since a user navigating back to the list is a user who last
+saw it before creating a plan in it.
+
+**One difference from `PlanEditorView` survives, and it is in the GUARD rather than in the
+strategy.** There, `planId === null` means *nothing to mount*, so `sync()` returns on it. Here
+`null` means *mount the list*, which is a real state — so the guard needs a `mounted` flag
+beside `mountedProjectId`, or a first open of the list (`null === null`) is skipped and the
+pane draws nothing at all.
+
+```ts
+private sync(): void {
+	if (this.mounted && this.projectId === this.mountedProjectId) return;
+	this.unmount();
+	this.mount(this.projectId);   // null draws the list, a string draws that project
+}
+```
+
+The context is rebuilt per mount and carries `projectId` as a plain field, the way
+`PlanEditorContext` carries `planId`. `ViewRoot` reads it once and draws one of the two states.
 
 Nothing outside `presentation/` learns that a detail state exists.
 
@@ -210,14 +335,17 @@ Nothing outside `presentation/` learns that a detail state exists.
 | `stores/ProjectDetailStore.ts` | `project`, `plans`, `status`, `error`, `hydrate(queries, projectId)`. |
 | `read-models` addition | `PlanSummaryDto` — `{ id, name }`. A summary, not `PlanDto`: a list row needs no background, calibration or layers, and handing a component the full DTO makes it a consumer of fields it does not read. |
 | `modals/ProjectSuggestModal.ts` | A `FuzzySuggestModal` over the index's `renovation-project` entries, mirroring `PlanSuggestModal`. |
+| `application/events/projectPlansChangeSource.ts` | "The set of plans in THIS project changed" — the third change source, and the only one that can hear `PlanCreated`. See *Reads*. |
+| `infrastructure/obsidian/workspace/` addition | Reveal the singleton, then navigate it — the two steps decision 6 spells out, kept out of `plugin/` so there is no second activation path. |
 | `emptyStates` addition | `renovationProject.noPlans`, **with** an `actionLabel`. |
 
 **Changed**
 
-- `RenovationProjectView` — `getState` / `setState` / `sync`, plus `navigate(projectId)` on the
-  context.
-- `ViewRoot.vue` — switches on `context.projectId`. Keeps its one `DialogHost`, which now has a
-  second caller.
+- `RenovationProjectView` — `getState` / `setState` / `sync` / `mount` / `unmount`, the
+  `mounted` and `mountedProjectId` fields the guard above needs, and `navigate(projectId)` on
+  the context. `rebind` becomes `unmount(); sync();`.
+- `ViewRoot.vue` — draws the list or `ProjectDetail` on `context.projectId`, read once per
+  mount. Keeps its one `DialogHost`, which now has a second caller.
 - `plugin/` — registers the `open-project` command beside the existing ones.
 - `sampleProject.ts` and `emptyStates/content.ts` — the two docblocks whose stated trigger this
   slice fires.
@@ -244,22 +372,83 @@ Both guarded at the composition root like every other door, and both given a ref
 on it.
 
 `ProjectDetailStore.hydrate` carries a **request ticket**, like `ProjectStore.hydrate` and
-`InspectorStore`. It has two concurrent callers from day one — its own mount and
-`onProjectsChanged` — which is exactly the condition that made the ticket necessary there:
-without it the slower earlier read lands on top of the faster later one and content silently
-reverts with no error anywhere.
+`InspectorStore`. It has concurrent callers from day one, which is exactly the condition that
+made the ticket necessary there: without it the slower earlier read lands on top of the faster
+later one and content silently reverts with no error anywhere.
+
+**Which callers — and the first draft named two that between them cannot see this slice's own
+write.** It listed the store's mount and `onProjectsChanged`, and
+`createProjectListChangeSource` subscribes to `ProjectIndexRebuilt`, `ProjectCreated`, and
+`ProjectIndexEntryChanged` filtered to `entityType === 'renovation-project'`. `CreatePlan`
+publishes `PlanCreated`, which is on none of those lists, and a plan's index entry is dropped
+by the third. So a plan created from `NewPlanForm` would not have appeared until the pane was
+reopened — on a form whose whole job is to add a row to the list beside it, which is the shape
+that invites a user to press Create again and get two. Reported in review.
+
+There are **four** callers, and the fourth is a mechanism rather than a call, for the reason
+`projectListChangeSource`'s own docblock gives about the project side:
+
+- **the store's mount**;
+- **`onProjectsChanged`**, which stays — this store reads a *project* as well as its plans, so
+  a project note renamed, retyped or deleted out of band is its business exactly as it is the
+  list's;
+- **an awaited `hydrate()` after a successful create**, answering an ORDERING its own handler
+  needs — the list is fresh before that handler returns, which a fire-and-forget bus delivery
+  cannot promise. `ViewRoot.onCreateProject`'s shape exactly;
+- **`onPlansChanged(projectId, listener)`**, answering the CATEGORY: *some plan of this project
+  changed, from anywhere*. A new `application/events/projectPlansChangeSource.ts` — a third
+  source beside the two that exist, because it asks a third question. `planChangeSource` is
+  "this plan changed" and every caller of it binds a plan id; `projectListChangeSource` is "the
+  set of projects changed" and is unfiltered. This is "the set of plans in THIS project
+  changed", filtered on `PlanCreated`'s payload, which already carries the owning project —
+  verified: `CreatePlan.execute` publishes `planCreated({ planId, projectId })`.
+
+**Both paths stay, and the doubled hydrate is bounded rather than tolerated**, by the same
+argument the project side already makes: the ticket settles the two racing reads as one. Leaving
+the subscription out *because* the form re-reads is precisely the reasoning a review round has
+already rejected on the other surface — `create-sample-project` creates a plan through the same
+command, and a plan note copied in or arriving through sync reaches the index through
+`VaultChangeAdapter` and no form at all.
+
+**Its `ProjectIndexEntryChanged` arm cannot be filtered by project, and that is a stated cost
+rather than an oversight.** `ProjectIndexEntryChangedPayload` carries `entityId` and
+`entityType` and no owning project — measured — so the arm fires for a change to any plan note
+in the vault, and this one leaf re-reads one project's plans. Affordable exactly because the
+view is a singleton and the query is project-scoped, which is what makes it different from the
+"once per synced zone note" the project list's own filter exists to avoid. *Trigger to narrow
+it: that payload gaining the owning project id.*
 
 ## Error handling
 
 | Case | Response | Precedent |
 |---|---|---|
-| `getProject` → `ok(null)` | Navigate back to the list **and re-read it** | `ProjectOpenOutcome.'missing'`, which already does exactly this |
+| `getProject` → `ok(null)`, index seen populated | Navigate back to the list **and re-read it** | `ProjectOpenOutcome.'missing'`, which already does exactly this |
+| `getProject` → `ok(null)`, index not yet seen | Hold the loading state and wait for the re-hydrate — see below | the restored-leaf hazard `onProjectsChanged` exists for |
 | Either read `isErr` | Mapped sentence via `trError` in `.rp-view-message`; **stay on the detail** | `ProjectStoreStatus`'s `missing` / `failed` split |
 | Both succeed | `status = 'ready'` | — |
 
 **A failed read is not a missing project**, and navigating away on one would tell a user their
 project was deleted because their vault hiccuped. That is the whole reason
 `ProjectStoreStatus` keeps the two apart, and it is kept here.
+
+**Nor is an EMPTY INDEX a missing project, which is what the table's first two rows are split
+over.** Found while repairing the hydrate callers rather than reported in review, and written
+out here because an unqualified `ok(null)` arm would have collided with criterion 8: it is the
+same defect the project list already has a subscription for, made worse by this state having
+somewhere to go. The index scan runs from `onLayoutReady` and Obsidian
+restores its leaves *before* that (SDD §47), so a detail leaf restored with the app hydrates
+against an empty index and `getProject` answers a perfectly legitimate `ok(null)`. On the list
+that draws the wrong empty state until a rebuild corrects it. Here it would **navigate**, set
+`{ projectId: '' }`, and destroy the very view state criterion 8 exists to preserve — a
+correction no later rebuild can undo, because the project the user was in is no longer recorded
+anywhere.
+
+So the `ok(null)` arm may not fire on a read that could have raced the scan. The constraint,
+rather than the implementation, since this is one for the plan: **navigating away on a missing
+project requires having seen the index populated at least once** — `ProjectIndexRebuilt` is the
+event that says so and `onProjectsChanged` already delivers it. Until then an `ok(null)` holds
+the loading state and waits for the re-hydrate that subscription guarantees. Its own case, and
+one that passes with either behaviour unless it drives the restore ordering the hazard is about.
 
 **No partial state.** Two reads, each all-or-nothing; there is no honest picture of a project
 whose identity loaded but whose plans did not. Deliberately unlike the list's additive
@@ -297,24 +486,47 @@ fault is already mapped, logged once at the boundary, and returned as a resolved
 
 **Node** — the request ticket (a slower earlier read must not land on a faster later one); the
 three statuses; the structural empty-state gate; `ListPlansByProject` and its DTO mapping; the
-`routeError` field map, driven from the raise sites and `grep`ped in the same edit.
+`routeError` field map, driven from the raise sites and `grep`ped in the same edit. Plus
+`projectPlansChangeSource`: that it delivers `PlanCreated` for its own project and **not** for
+another's, and that its `ProjectIndexEntryChanged` arm fires for a plan entry regardless of
+project — the stated cost above, pinned as behaviour so that narrowing it later is a deliberate
+change rather than a silent one.
 
 **jsdom** — `ProjectDetail` and `PlanList` markup and emits; `NewPlanForm` keeping the user's
 typed value on a rejected commit and dropping a second submit while the first is in flight
 (slice 16's two rules); `content.test.ts` flipping `noPlans` to assert its action is
-**present**, the way slice 16 flipped `noProjects`.
+**present**, the way slice 16 flipped `noProjects`. Plus the one that closes the third review
+finding: an accepted create puts the new plan **in the rendered rows** without a reopen —
+asserted on the markup and not on "hydrate was called", because the latter is equally true of
+a build whose subscription hears nothing and whose create happens to re-read.
 
-**View level** — the `getState`/`setState` round trip; validation refusing a non-string and an
-empty id; `sync()` not mounting twice on the `onOpen`/`setState` race; `rebind` keeping
-`projectId`. Plus one case that exists because nothing else would notice it: **`result.history
-= true`**. That single assignment is the entire reason the back arrow works, and every other
-test in this slice passes without it.
+**View level** — the `getState`/`setState` round trip; validation refusing a non-string while
+**accepting `''` as the list**, and the detail → list → detail round trip that only passes if
+it does; `sync()` not mounting twice on the `onOpen`/`setState` race; `sync()` mounting the
+**list** on a first open, which is what the `mounted` flag exists for and what a bare
+`projectId === mountedProjectId` guard silently skips; a navigation between two projects
+actually remounting, which is the whole of the first review finding and which every other case
+here passes without; `rebind` keeping `projectId`. Plus one case that exists because nothing
+else would notice it: **`result.history = true`**. That single assignment is the entire reason
+the back arrow works, and every other test in this slice passes without it.
 
-**The command** — that `open-project` reveals with `{ projectId }` state; that two invocations
-in one tick coalesce into one activation (the `revealCandidate` guard, driven through the
-real door rather than asserted of the map); and that an empty vault reveals the **list** state
-rather than opening a zero-row picker. That last one needs its own case because every other
-test passes with either behaviour.
+And the restored-leaf ordering: a detail state hydrating against an **empty index** holds its
+loading state rather than navigating to the list, and lands on the project once
+`onProjectsChanged` fires. Driven in the order the hazard is about — hydrate first, rebuild
+after — because hydrating a populated index passes under either rule, and the failure this
+guards is a destroyed `projectId` that no later read can restore.
+
+**The command** — four cases, one per property, because each of the first three FAILS against
+the design this document shipped with, and nothing else here would:
+
+- it navigates an **already-open** leaf. Started from a leaf that exists, asserted on that
+  leaf's resulting state — not on `setViewState` having been called, which the create branch
+  satisfies too;
+- two invocations in one tick naming **different** projects leave exactly **one** leaf. Driven
+  with two different projects on purpose: the same project passes against a key that coalesces
+  on the request, and the singleton breaks only where they differ;
+- the later of those two is the project the leaf ends on, so a second choice is not discarded;
+- an empty vault reveals the **list** state rather than opening a zero-row picker.
 
 **Wiring** — that the root hands the view both new queries, guarded, and that the refusal
 bundle carries them. This needs its own case for the `slice10CascadeWiring` reason: a

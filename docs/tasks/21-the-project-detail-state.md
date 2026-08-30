@@ -93,19 +93,35 @@ state transition, and with an empty vault reveals the **list** rather than a zer
 4. A rejected create keeps the user's typed value and shows an inline error against the field
    the error names; it never reverts what was typed.
 5. `Project.md` is still reachable, from an **Open note** action in the detail header.
-6. A project id that resolves to nothing returns to the list **and re-reads it**; a read that
-   *refuses* stays on the detail and shows the mapped sentence. The two are distinguishable in
-   a test.
+6. A project id that resolves to nothing, **once the index has been seen populated**, returns
+   to the list and re-reads it; a read that *refuses* stays on the detail and shows the mapped
+   sentence. The two are distinguishable in a test, and the qualifier is criterion 8's — before
+   the scan has run, "resolves to nothing" is a statement about the index rather than about the
+   vault.
 7. A settings save while the detail state is open leaves the user in the same project.
-8. Closing and reopening Obsidian reopens the project that was open.
-9. The `open-project` command reaches the same state transition as a row click; with no
-   projects in the vault it reveals the list state, not a picker.
-10. Every new user-facing string resolves through `t()` in both locale tables, with the German
+8. Closing and reopening Obsidian reopens the project that was open — **including when the
+   pane is restored before the index scan has run**, which is the ordering Obsidian actually
+   uses. A restored detail state that hydrates against an empty index holds its loading state;
+   it does not read the legitimate `ok(null)` as a deleted project and navigate away, which
+   would discard the `projectId` this criterion is about and no later read could restore it.
+9. The `open-project` command reaches the same state transition as a row click — **including
+   when a Renovation project leaf is already open**, which is the normal case; with no projects
+   in the vault it reveals the list state, not a picker.
+10. Two `open-project` invocations in one tick naming **different** projects leave exactly one
+    leaf, and the leaf ends on the later of the two. The view is a singleton, and a command
+    that can produce a second tab of it has broken that however correct each invocation looks
+    alone.
+11. The in-app **‹ back** action returns to the list, and a `setState` carrying the list
+    sentinel is honoured rather than validated away. A **different mechanism** from criterion
+    13's arrow, not a half of it: this action *sets* a state where the arrow asks Obsidian to
+    *restore* one. Both carry the same sentinel, which is why a validator modelled on the Plan
+    Editor's would have killed both — but only this one is reachable from a test.
+12. Every new user-facing string resolves through `t()` in both locale tables, with the German
     checked against the vocabulary rows in `tests/presentation/i18n/strings.test.ts`.
-11. **The pane's back arrow returns to the list**, and forward returns to the project. Not
+13. **The pane's back arrow returns to the list**, and forward returns to the project. Not
     checkable by any gate here — `FakeLeaf` records asks rather than behaving and jsdom models
     no workspace — so it is walked in [[Navigate into a project and back]].
-12. `npm run check` passes, coverage floors held.
+14. `npm run check` passes, coverage floors held.
 
 ## Risks
 
@@ -119,6 +135,19 @@ state transition, and with an empty vault reveals the **list** rather than a zer
 - **`sync()` and the `onOpen`/`setState` race.** Obsidian does not promise an order. Deciding
   in one place is what stops a restore mounting twice, and it is the part most likely to look
   correct and be wrong.
+- **Four of the design's mechanisms were wrong on first writing, and every one of them would
+  have compiled and passed.** The review round on the design PR found: a `setState` that
+  changed a plain class field and expected an already-injected Vue tree to notice; a validator
+  that would have refused the very sentinel `getState` writes for the list, killing the back
+  arrow; a plan list with no subscription that can hear `PlanCreated`; and a palette command
+  routed through a reveal that sets state only on leaves it creates and coalesces on a key
+  that lets one singleton become two tabs. The spec carries each correction with the
+  measurement behind it. The shape to carry into the implementation is that all four were
+  **mechanism** defects behind correct-sounding prose: each read as a settled decision and none
+  of them had anything under it. They land across the criteria rather than in one place — the
+  remount on 7, the subscription on 3, the sentinel on 11, the command on 9 and 10 — and 9 and
+  10 are split from each other because one command defect is about the leaf that already exists
+  and the other about the leaf that does not.
 - **`create-sample-project`'s docblock and `EMPTY_STATE_CONTENT`'s both state a trigger this
   slice fires.** Both are edited here. A comment stating a trigger that has already fired is
   worse than no comment.

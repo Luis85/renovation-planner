@@ -65,6 +65,32 @@ const routed = <T extends { readonly kind: string }>(surface: T): T & Routed =>
 	surface as T & Routed;
 
 /**
+ * The code every door in a session with unrecovered settings refuses with — minted in
+ * `composition-root.ts`'s refusal bundles and in `renovationProjectCommands.ts`, one code at
+ * every door rather than a different one per service.
+ */
+const SETTINGS_UNRECOVERED = 'settings.unrecovered';
+
+/**
+ * Which origin a VIEW's failed hydrating query actually has.
+ *
+ * A view cannot tell these two apart by the shape of the failure — both arrive as a refused
+ * `Result` from a query it called at mount — and they want opposite surfaces, so the
+ * distinction has to be drawn somewhere. It is drawn here, once, rather than by an `if` in
+ * each of the two views that need it.
+ *
+ * `settings.unrecovered` means the composition root deliberately wired NO repositories, no
+ * index and no query services (slice 1), so nothing failed to read — nothing was ever built to
+ * read. That is `bootstrap`, and the surface it earns has no retry, because there is nothing to
+ * re-run and slice 1 already refused a repair UI: recovery is fixing `data.json` and reloading.
+ * Anything else is a query that really did try and really did fail, which a retry can
+ * legitimately re-attempt.
+ */
+export function viewHydrationOrigin(error: AppError): ErrorOrigin {
+	return error.code === SETTINGS_UNRECOVERED ? { kind: 'bootstrap' } : { kind: 'view-hydration' };
+}
+
+/**
  * A toast's urgency, from the category and the origin.
  *
  * `Geometry` is the one category that speaks quieter than its origin suggests: an

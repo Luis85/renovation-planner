@@ -374,7 +374,12 @@ describe('what the shell shows when there is no plan to draw', () => {
 		});
 
 		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-editor-canvas-message').text()).toBe(t('en', 'editor.plan-missing'));
+		// Design slice 17 moved this into the shared `ViewFailure` and gave it a headline and a
+		// body; the claim — the shell SAYS the plan is gone, and draws no canvas over it — is
+		// unchanged. `planEditorFailure.test.ts` is where the new state's own rules are pinned.
+		expect(harness.wrapper.find('.rp-view-failure__headline').text()).toBe(
+			t('en', 'editor.plan-missing.headline'),
+		);
 	});
 
 	it('says something DIFFERENT when the read failed', async () => {
@@ -387,7 +392,16 @@ describe('what the shell shows when there is no plan to draw', () => {
 			},
 		});
 
-		expect(harness.wrapper.find('.rp-editor-canvas-message').text()).toBe(t('en', 'editor.plan-failed'));
+		// "Something DIFFERENT" is now different in a stronger sense than when this case was
+		// written: the body is `trError(error)`, the mapped sentence for the failing code, so two
+		// different causes no longer share one fixed line. Asserted as a difference from the
+		// missing-plan headline, which is the claim this case has always made.
+		expect(harness.wrapper.find('.rp-view-failure__headline').text()).toBe(
+			t('en', 'editor.plan-failed.headline'),
+		);
+		expect(harness.wrapper.find('.rp-view-failure__headline').text()).not.toBe(
+			t('en', 'editor.plan-missing.headline'),
+		);
 	});
 
 	/**

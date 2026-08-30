@@ -75,8 +75,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	// it has to say — `Shift` is the legend printed on many keyboards but not the word.
 	'editor.hint.constrain-angle': 'Umschalttaste beschränkt den Winkel',
 	'editor.loading': 'Grundriss wird geladen …',
-	'editor.plan-missing': 'Diesen Grundriss gibt es nicht mehr.',
-	'editor.plan-failed': 'Dieser Grundriss konnte nicht aus dem Vault gelesen werden.',
 	'editor.background-missing': 'Die Hintergrunddatei dieses Grundrisses fehlt.',
 	'editor.background-failed': 'Der Hintergrund dieses Grundrisses konnte nicht gezeichnet werden.',
 	'editor.layer.background': 'Hintergrund',

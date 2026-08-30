@@ -83,8 +83,6 @@ export const en = {
 	 */
 	'editor.hint.constrain-angle': 'Shift constrains the angle',
 	'editor.loading': 'Loading plan…',
-	'editor.plan-missing': 'This plan no longer exists.',
-	'editor.plan-failed': 'This plan could not be read from the vault.',
 	'editor.background-missing': 'The background file for this plan is missing.',
 	'editor.background-failed': 'The background for this plan could not be rendered.',
 	'editor.layer.background': 'Background',

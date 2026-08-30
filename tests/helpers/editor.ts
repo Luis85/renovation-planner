@@ -61,7 +61,17 @@ export interface EditorHarness {
 	readonly unmount: () => void;
 }
 
-function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[]): PlanEditorQueryServices {
+/**
+ * The full query stack, exported so a case that wants ONE member to behave differently
+ * overrides that member rather than hand-rolling a stack.
+ *
+ * Hand-rolled partial stacks are this repository's fake-too-thin rule waiting to happen, and
+ * it happened: design slice 17's first draft of `planEditorFailure.test.ts` declared two
+ * members, one of them under a name (`listZonesForPlan`) the real interface does not have, and
+ * every mount logged `context.queries.listAssets is not a function` while the assertions
+ * passed. Spreading this keeps a new member reaching every caller the day it is written.
+ */
+export function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[] = []): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(plan)),
 		findZonesByPlan: () => Promise.resolve(ok(zones)),

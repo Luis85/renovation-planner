@@ -10,6 +10,8 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
+import { trError } from '../i18n/toUserMessage';
+import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import { usePlanEditorContext } from './PlanEditorContext';
 import { provideEditorRuntime } from './runtime';
 import { useThemeTokens } from './theme/useThemeTokens';
@@ -18,6 +20,7 @@ import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import DialogHost from '../dialogs/DialogHost.vue';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import EmptyState from '../components/EmptyState.vue';
+import ViewFailure from '../components/ViewFailure.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import PlanCanvas from './PlanCanvas.vue';
@@ -32,7 +35,7 @@ const context = usePlanEditorContext();
 // every tool and the toolbar already share.
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
-const { status } = storeToRefs(projectStore);
+const { status, error } = storeToRefs(projectStore);
 const { layersPanelOpen, inspectorPanelOpen } = storeToRefs(useWorkspaceStore());
 const { emptyStateKey } = storeToRefs(projectStore);
 
@@ -76,6 +79,42 @@ function hydrate(): void {
 	void projectStore.hydrate(context.queries, context.planId);
 }
 
+/**
+ * The two states that replace the canvas with a reason, or `null` for loading — design slice
+ * 17's answer to BOTH cases slice 14 deferred to it, which land in the same slot and are not
+ * the same thing.
+ *
+ * **`missing` is not an error at all**, and that is the distinction worth keeping. `GetPlan`
+ * SUCCEEDED and correctly reported that no plan resolves — this tab points at something that
+ * is gone. It reaches `surfaceFor` never, which `planEditorDangling.test.ts` pins as an
+ * absence, because an absence nothing asserts is indistinguishable from an omission. So it
+ * carries its own body rather than a mapped one; there is no `AppError` to map.
+ *
+ * **`failed` used to say ONE fixed sentence**, `editor.plan-failed`, so unrecovered settings
+ * and a vault fault told the user the same thing. Slice 11 fixed exactly that defect in the
+ * Renovation Project view and it was never carried here. `trError` is the fix, and it makes
+ * this view's copy behave like that one's.
+ *
+ * The retry follows the same rule as `ViewRoot`'s and through the same function: a query that
+ * really tried can be re-run, and a session that composed no query services cannot.
+ */
+const failure = computed(() => {
+	if (status.value === 'missing') {
+		return {
+			headline: tr('editor.plan-missing.headline'),
+			body: tr('editor.plan-missing.body'),
+		};
+	}
+	const failed = error.value;
+	if (status.value !== 'failed' || failed === null) return null;
+	const session = surfaceFor(failed, viewHydrationOrigin(failed)).kind === 'session-failure';
+	return {
+		headline: tr(session ? 'view.session-failure.headline' : 'editor.plan-failed.headline'),
+		body: trError(failed),
+		...(session ? {} : { actionLabel: tr('view.failure.retry') }),
+	};
+});
+
 onMounted(() => {
 	// Re-resolved against the real root element now that there is one; the setup-time
 	// value came from the document, which is right for a first paint and not for a theme
@@ -115,19 +154,16 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					@action="onEmptyStateAction()"
 				/>
 			</PlanCanvas>
+			<ViewFailure
+				v-else-if="failure !== null"
+				v-bind="failure"
+				@action="hydrate()"
+			/>
 			<div
 				v-else
 				class="rp-editor-canvas-message"
 			>
-				<p v-if="status === 'missing'">
-					{{ tr('editor.plan-missing') }}
-				</p>
-				<p v-else-if="status === 'failed'">
-					{{ tr('editor.plan-failed') }}
-				</p>
-				<p v-else>
-					{{ tr('editor.loading') }}
-				</p>
+				<p>{{ tr('editor.loading') }}</p>
 			</div>
 			<InspectorPanel v-if="inspectorPanelOpen" />
 		</div>

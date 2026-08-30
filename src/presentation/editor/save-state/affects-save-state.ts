@@ -211,16 +211,28 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * mapping is slice 17's declared territory — so slice 13 narrowed the predicate, added the
  * stamp above where a write was actually knowable, and left the commands alone.
  *
- * **Where this DOES derive from, and where it will have to agree later.** It derives from
+ * **Where this DOES derive from, and where it now has to agree.** It derives from
  * `WRITE_BOUNDARY_CODES` in `versioning.ts` — the one place those two codes are spelled —
  * and from nothing else. An earlier draft of this docblock said in the present tense that it
  * was "DERIVED from [slice 17's] table" and that "slice 17's no-double-reporting test is what
- * keeps the two in agreement": slice 17 does not exist, so there was no table to derive from
+ * keeps the two in agreement": slice 17 did not exist, so there was no table to derive from
  * and no test to keep anything in agreement. `grep -rn "no-double-reporting" src tests`
- * printed exactly one line, and it was that sentence. Written to the check, in the future
- * tense: when slice 17 authors its error-to-surface table, this predicate is one of the
- * things that table has to agree with, and the agreement will need a check of its own,
- * because nothing today can notice the two disagreeing — the pre-write set above included.
+ * printed exactly one line, and it was that sentence. It was rewritten in the FUTURE tense as
+ * an obligation on whoever built the table.
+ *
+ * **Slice 17 landed and that obligation is discharged**, by
+ * `tests/presentation/errors/saveStateAgreement.test.ts` — which is deliberately not a
+ * derivation. The two answer different questions: `surfaceFor` decides WHICH CONTAINER a
+ * failure belongs in, and at an `autosave-write` origin that is the save indicator for every
+ * category; this predicate decides what the indicator then SAYS. The check asserts the seam
+ * they share, so a build that stopped routing `autosave-write` to `save-state` would leave
+ * this predicate colouring a widget nothing sends anything to.
+ *
+ * **What that check does NOT reach, so the word "agreed" is not read wider than it is**: it
+ * holds the `autosave-write` row and the write-boundary carve-out, and it cannot see a
+ * post-write refusal in a pre-write category at any site the `markUncompensated` stamp does
+ * not cover. That residue is the paragraph above and is unchanged — narrowed by the stamp,
+ * not closed, and still invisible to both linters and the suite.
  */
 export function affectsSaveState(error: AppError): boolean {
 	// Asked FIRST, because it is the only input here that is a report rather than an

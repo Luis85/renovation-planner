@@ -188,12 +188,51 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 			ops.arm(entry);
 		},
 
-		/** Fill every free slot, oldest held notice first. */
+		/**
+		 * Fill every free slot, oldest held notice first — and, since design slice 17, let a held
+		 * ERROR take a slot from a visible WARNING when there is no free one.
+		 *
+		 * **Why preemption rather than a larger cap.** `severity.ts` chose this before anything
+		 * depended on it: raising `MAX_VISIBLE_NOTICES` only moves the number at which the same
+		 * thing starts happening. `warning` and `error` have no auto-dismiss, so three standing
+		 * warnings held every later error invisibly AND unannounced — `announce` rides `render`,
+		 * and `render` runs only for a notice actually shown, so a screen-reader user heard
+		 * nothing either. Slice 17's table routes a dozen categories to a toast, which is what
+		 * made that queue policy load-bearing rather than a tolerable edge.
+		 *
+		 * **The demoted warning is not dismissed.** Its handle is hidden and cleared, which puts
+		 * it back exactly where a notice that never got a slot sits — held, counted, and
+		 * promoted into the next slot to free. Losing it would trade one silenced message for
+		 * another, which is not a fix.
+		 *
+		 * It is the NEWEST visible warning that yields: the oldest has been on screen longest and
+		 * is likeliest to have been read already.
+		 *
+		 * An error never evicts another error. That is the narrowing rather than an omission —
+		 * without it the newest error would silence the one before it and the cap would become a
+		 * rotating window over the very severity this exists to protect.
+		 */
 		promote(): void {
 			for (const entry of entries) {
-				if (visible().length >= MAX_VISIBLE_NOTICES) return;
+				if (visible().length >= MAX_VISIBLE_NOTICES) break;
 				if (entry.handle === null) ops.show(entry);
 			}
+
+			// `break` above, not `return`: reaching the cap is exactly the condition preemption
+			// exists for, so returning there would skip it in every case that needs it.
+			const held = entries.find((entry) => entry.handle === null && entry.severity === 'error');
+			if (held === undefined) return;
+
+			const victim = visible()
+				.toReversed()
+				.find((entry) => entry.severity === 'warning');
+			if (victim === undefined) return;
+
+			victim.handle?.hide();
+			if (victim.timer !== null) cancelTimeout(victim.timer);
+			victim.timer = null;
+			victim.handle = null;
+			ops.show(held);
 		},
 	};
 

@@ -47,6 +47,97 @@ describe('the notice queue', () => {
 		vi.useFakeTimers();
 	});
 
+
+	/**
+	 * **Design slice 17's preemption, and the exposure it closes.**
+	 *
+	 * `AUTO_DISMISS_MS` gives `warning` and `error` no timer at all, so three standing warnings
+	 * fill every visible slot and never leave. `severity.ts` recorded the consequence before
+	 * anything depended on it: every later `notifyError` is queued invisibly AND unannounced,
+	 * because `announce` rides `render` and `render` runs only for a notice actually shown.
+	 * Slice 17's table routes a dozen categories to a toast, which is what turned that from a
+	 * tolerable edge into a load-bearing policy.
+	 *
+	 * The remedy is the one that file pre-selected — "giving `error` priority over a held
+	 * `warning` rather than raising `MAX_VISIBLE_NOTICES`, which only moves the number at which
+	 * this starts".
+	 */
+	describe('an error arriving behind a full screen of warnings', () => {
+		function threeStandingWarnings() {
+			const recorder = recordingHost();
+			const queue = createNoticeQueue(recorder.host);
+			// Three distinct sentences, none of which dedups into another and none of which
+			// expires. This is one command and one background cascade away in a real vault:
+			// `background.unsupported`, `cascade.aborted`, `cascade.stale-marker-failed`.
+			queue.push('warning', 'first');
+			queue.push('warning', 'second');
+			queue.push('warning', 'third');
+			return { ...recorder, queue };
+		}
+
+		it('is shown, by taking a slot from a held warning', () => {
+			const { queue, live } = threeStandingWarnings();
+			expect(live()).toHaveLength(3);
+
+			queue.push('error', 'the one that matters');
+
+			expect(live().map((o) => o.view.message)).toContain('the one that matters');
+			expect(live()).toHaveLength(3);
+		});
+
+		it('takes the NEWEST warning slot, not the oldest', () => {
+			// The oldest has been on screen longest and is likeliest to have been read; the
+			// newest is the one the user is least likely to have taken in already.
+			const { queue, live } = threeStandingWarnings();
+
+			queue.push('error', 'urgent');
+
+			const shown = live().map((o) => o.view.message);
+			expect(shown).toContain('first');
+			expect(shown).not.toContain('third');
+		});
+
+		it('keeps the demoted warning rather than dropping it', () => {
+			// Demotion is not dismissal. The warning goes back to the held set and is promoted
+			// into the next freed slot, which is what the queue already guarantees for anything
+			// that never got one.
+			const { queue, live, opened } = threeStandingWarnings();
+			queue.push('error', 'urgent');
+
+			// Both halves, in the order the real host performs them: the element goes, THEN the
+			// hint arrives. `dismissed` only sweeps and promotes, and `sweep` reads `handle.live`.
+			const urgent = opened.find((o) => o.view.message === 'urgent');
+			urgent?.handle.hide();
+			urgent?.callbacks.dismissed();
+
+			expect(live().map((o) => o.view.message)).toContain('third');
+		});
+
+		it('does not preempt for another WARNING', () => {
+			// The narrowing, and it needs its own case: a rule letting any later notice preempt
+			// would pass all three cases above while making the cap mean nothing.
+			const { queue, live } = threeStandingWarnings();
+
+			queue.push('warning', 'fourth');
+
+			expect(live().map((o) => o.view.message)).toEqual(['first', 'second', 'third']);
+		});
+
+		it('does not preempt a screen that is already all errors', () => {
+			const { host, live } = recordingHost();
+			const queue = createNoticeQueue(host);
+			queue.push('error', 'a');
+			queue.push('error', 'b');
+			queue.push('error', 'c');
+
+			queue.push('error', 'd');
+
+			// Nothing to take: an error may not evict another error, or the newest error would
+			// silence the one before it and the cap would be a rotating window.
+			expect(live().map((o) => o.view.message)).toEqual(['a', 'b', 'c']);
+		});
+	});
+
 	it('opens a notice for a push', () => {
 		const { host, opened } = recordingHost();
 		createNoticeQueue(host).push('error', 'boom');

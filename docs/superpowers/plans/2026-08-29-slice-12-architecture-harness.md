@@ -252,6 +252,29 @@ const declaringBlocks = (): { scope: string; severity: string }[] => {
 /** The block's identity for the probe table: its first glob, which is what `BAN_BLOCKS` keys on. */
 const firstGlob = (scope: string): string => scope.split(',')[0] ?? '';
 
+/**
+ * The EXTENSIONS a block's scope covers, pinned beside its first glob.
+ *
+ * A draft compared only `firstGlob`, which throws away every glob after the first — so
+ * deleting a layer block's `.tsx` entry left this assertion, the uniqueness check and the
+ * probe-key comparison all green. That is the worst case available here, because `.tsx` is
+ * exactly the extension the probe matrix records as UNPROBEABLE: the executable half cannot
+ * fire it, so nothing else in the harness would notice a shippable extension losing its layer
+ * ban. I collected the whole scope precisely to avoid this and then discarded it one line
+ * later.
+ *
+ * The extension set rather than the whole scope string: the full arrays are nine globs each
+ * and pinning them verbatim would be 13 unreadable lines that nobody re-reads, while the
+ * extension is the only part that varies independently of the first glob — `srcFiles(layer)`
+ * derives every entry from one `SRC_EXTENSIONS` map, so a dropped entry IS a dropped
+ * extension.
+ */
+const extensionsOf = (scope: string): string =>
+	scope
+		.split(',')
+		.map((glob) => glob.slice(glob.lastIndexOf('.') + 1))
+		.join('|');
+
 describe('the blocks declaring no-restricted-imports', () => {
 	/**
 	 * Pinned by EXACT membership, the way `guardCategory.test.ts` and `entityRef.test.ts`
@@ -267,23 +290,28 @@ describe('the blocks declaring no-restricted-imports', () => {
 		// Compared as a sorted LIST of pairs, not an object: an object keyed on the scope would
 		// re-introduce the deduplication this inventory was rebuilt to avoid.
 		const declared = declaringBlocks()
-			.map((block) => `${firstGlob(block.scope)}=${block.severity}`)
+			.map((block) => `${firstGlob(block.scope)}=${block.severity}=${extensionsOf(block.scope)}`)
 			.sort();
 
+		// `SRC` is the nine-extension expansion every `srcFiles(layer)` block shares. Written
+		// once rather than repeated thirteen times, so a reader can see at a glance that every
+		// ban-declaring block covers the same set and the two `off` blocks do not.
+		const SRC = 'ts|tsx|mts|cts|vue|js|jsx|mjs|cjs';
+
 		expect(declared).toEqual([
-			'**/*.{js,cjs,mjs,jsx}=off',
-			'**/*.{ts,cts,mts,tsx}=off',
-			'**/src/**/*.ts=error',
-			'**/src/*.ts=error',
-			'**/src/application/**/*.ts=error',
-			'**/src/application/queries/**/*.ts=error',
-			'**/src/core/**/*.ts=error',
-			'**/src/domain/**/*.ts=error',
-			'**/src/infrastructure/**/*.ts=error',
-			'**/src/infrastructure/logging/**/*.ts=error',
-			'**/src/plugin/**/*.ts=error',
-			'**/src/presentation/**/*.ts=error',
-			'**/src/presentation/dialogs/**/*.ts=error',
+			'**/*.{js,cjs,mjs,jsx}=off={js,cjs,mjs,jsx}',
+			'**/*.{ts,cts,mts,tsx}=off={ts,cts,mts,tsx}',
+			`**/src/**/*.ts=error=${SRC}`,
+			`**/src/*.ts=error=${SRC}`,
+			`**/src/application/**/*.ts=error=${SRC}`,
+			`**/src/application/queries/**/*.ts=error=${SRC}`,
+			`**/src/core/**/*.ts=error=${SRC}`,
+			`**/src/domain/**/*.ts=error=${SRC}`,
+			`**/src/infrastructure/**/*.ts=error=${SRC}`,
+			`**/src/infrastructure/logging/**/*.ts=error=${SRC}`,
+			`**/src/plugin/**/*.ts=error=${SRC}`,
+			`**/src/presentation/**/*.ts=error=${SRC}`,
+			`**/src/presentation/dialogs/**/*.ts=error=${SRC}`,
 		]);
 	});
 
@@ -1343,7 +1371,8 @@ interface Workflow {
 			// case below reads them, and a type that omitted either would make that assertion
 			// unwritable. The JOB-level one is the half a first draft missed — see that case.
 			readonly if?: string;
-			readonly steps?: readonly { run?: string; if?: string; uses?: string; with?: Record<string, string> }[];
+			readonly 'continue-on-error'?: boolean;
+			readonly steps?: readonly { run?: string; if?: string; uses?: string; with?: Record<string, string>; 'continue-on-error'?: boolean }[];
 		}
 	>;
 }
@@ -1459,6 +1488,13 @@ describe('CI invokes the definition of done', () => {
 
 		expect(check).toBeDefined();
 		expect(check).not.toHaveProperty('if');
+
+		// `continue-on-error: true` makes a FAILED check step non-fatal, so the verify job
+		// reports success over a broken definition of done — with the command, the matrix, the
+		// runtime setup and the absence of `if` all unchanged, which is every other assertion
+		// in this file. Refused at both levels, since GitHub honours it on the job as well.
+		expect(check).not.toHaveProperty('continue-on-error');
+		expect(verify).not.toHaveProperty('continue-on-error');
 
 		// The JOB's condition too, which the step's cannot see. GitHub supports
 		// `jobs.<job_id>.if`, so `verify.if: github.event_name == 'push'` leaves both declared

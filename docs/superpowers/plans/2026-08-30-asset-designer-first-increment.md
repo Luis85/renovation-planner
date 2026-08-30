@@ -563,6 +563,29 @@ npx vitest run tests/infrastructure
 
 Expected: PASS, with the new file's cases included.
 
+- [ ] **Step 4a: Refuse a corrupt shape at the READ, not only at the command**
+
+The schema shape in A3 accepts a polygon with zero, one or two vertices — `Polygon` is deliberately
+unvalidated at the type level so a tool can hold a mid-gesture buffer — so a hand-edited sidecar
+would otherwise cross into `AssetShape` without ever passing `createPolygon`, while every command
+above assumes it did.
+
+Close it at both ends: `.min(3)` on each polygon's `points` in `AssetShapeSchemaV1`, **and**
+`validateAssetShape` in the adapter's read path, because the schema cannot see the non-finite and
+facing rules the domain validator owns. Add the test:
+
+```typescript
+it('refuses a hand-edited sidecar whose footprint has two vertices', async () => {
+	await vault.write(sidecarPath, JSON.stringify({ ...validDocument, shape: { ...validShape, footprint: { points: [[0, 0], [1, 1]] } } }));
+	const read = await sidecar.read(assetId);
+	expect(isErr(read)).toBe(true);
+});
+```
+
+That is a refusal and not a silent repair: a shape somebody typed by hand is data this plugin did
+not write, and reading it as an empty design would present a corrupted file as an asset nobody has
+drawn yet.
+
 - [ ] **Step 5a: Move `Geometry/` when `libraryFolder` changes**
 
 Slice 19's settings migration validates, moves the catalogue notes, rebuilds the index and persists
@@ -719,7 +742,29 @@ npx vitest run tests/application/commands/asset/setAssetFootprint.test.ts
 
 Each: read the sidecar, build or validate the shape, merge it over the existing document preserving every attribute it does not own, write conditionally on `expected`, publish an `assetShapeChanged` event, return `ok('wrote')`. A refusal returns before the write. Add the event to `src/domain/asset/Asset.events.ts` following `assetCreated`'s shape.
 
-**The preservation rule is the load-bearing part**: setting a footprint must never clear a clearance, an anchor or a facing. That is what test 3 pins, and it is why these commands read before they write rather than composing a fresh document.
+**Two rules are load-bearing here, and both apply to every command in A5, A6 and B6.**
+
+*Preservation*: setting a footprint must never clear a clearance, an anchor or a facing. That is
+what test 3 pins, and it is why these commands read before they write rather than composing a fresh
+document.
+
+*Conditioning*: the write passes **`input.expected ?? snapshot.version`** — the version this command
+just read — never `undefined`. An unconditional whole-document replace is a lost update the moment
+two designer leaves show one asset: both read revision N, one sets the anchor, the other sets the
+facing, and the later write restores the earlier attribute from its own stale snapshot with nothing
+reporting anything. Add the case:
+
+```typescript
+it('refuses the second of two writes built from the same revision, rather than losing one', async () => {
+	const first = await sidecar.read(assetId);
+	const second = await sidecar.read(assetId);
+	await anchor.execute({ assetId, anchor: { x: 1, y: 1 }, expected: isOk(first) ? first.value.version : undefined });
+	const late = await facing.execute({ assetId, facing: 1, expected: isOk(second) ? second.value.version : undefined });
+	expect(isErr(late)).toBe(true);
+	const stored = await sidecar.read(assetId);
+	expect(isOk(stored) && stored.value.document.shape?.anchor).toEqual({ x: 1, y: 1 });
+});
+```
 
 - [ ] **Step 4: Run, watch pass, then commit**
 
@@ -1035,7 +1080,36 @@ it('drops a second submit while the first is still in flight', async () => {
 
 - [ ] **Step 3: Implement the form**
 
-Both dimension fields optional but paired; on submit, create the asset, then set the footprint only if both are given. **A rejected commit keeps the user's typed value and shows a persistent inline error — it never reverts.** Editing a field retires only its own message, and the paired dimension error retires both halves together.
+Both dimension fields optional but paired; on submit, create the asset, then set the footprint only
+if both are given.
+
+**Two rules stop a failed footprint write stranding an asset**, which is the sequence's real
+hazard — the note is committed before the sidecar is touched, so a vault fault in between leaves an
+asset with no footprint and a dialog that would create a *second* one on retry:
+
+1. **Validate the dimensions before creating anything.** `footprintFromDimensions` is pure, so the
+   common failure — a zero, a negative, a non-number — is caught with nothing yet written.
+2. **Keep the created id and reuse it on retry.** The form holds the `assetId` it created; a retry
+   after a footprint failure dispatches only `SetAssetFootprintFromDimensions` against that id. The
+   asset already exists and is usable — it simply has no footprint yet — so re-creating it would
+   turn one vault fault into two catalogue entries.
+
+```typescript
+it('does not create a second asset when the footprint write fails and the user retries', async () => {
+	setFootprintFromDimensions.mockResolvedValueOnce(err(vaultFault));
+	const form = mountForm();
+	await fillAndSubmit(form, { name: 'Island', width: '1200', depth: '800' });
+	setFootprintFromDimensions.mockResolvedValueOnce(ok('wrote'));
+	await form.submit();
+	expect(createAsset).toHaveBeenCalledTimes(1);
+	expect(setFootprintFromDimensions).toHaveBeenCalledTimes(2);
+});
+
+it('writes nothing at all when the dimensions are invalid', async () => {
+	await fillAndSubmit(mountForm(), { name: 'Island', width: '0', depth: '800' });
+	expect(createAsset).not.toHaveBeenCalled();
+});
+``` **A rejected commit keeps the user's typed value and shows a persistent inline error — it never reverts.** Editing a field retires only its own message, and the paired dimension error retires both halves together.
 
 - [ ] **Step 4: Add the copy to both locales**
 
@@ -1261,6 +1335,86 @@ git commit -m "ADR-0015 and the asset designer view"
 
 ---
 
+### Task B3a: the designer's runtime, and the refresh nobody else performs
+
+**Files:**
+- Create: `src/presentation/designer/runtime.ts`
+- Create: `src/presentation/designer/stores/assetDesignStore.ts`
+- Test: `tests/presentation/designer/designerRefresh.test.ts`
+
+**Interfaces:**
+- Consumes: `GetAssetDesignQuery` (A8), `CommandHistory`, `withEditorStateRefresh`'s pattern, the guarded command bundle (A9).
+- Produces: `useDesignerRuntime()` — one wrapped dispatcher per leaf, and `AssetDesignStore.hydrate(assetId)`.
+
+**Why this task exists:** without it every write in Phase B is invisible until the leaf is reopened.
+The plan editor solves this with `withEditorStateRefresh` and a per-leaf wrapped dispatcher, and
+that solution does not come along with the extracted gesture surface — it lives above it.
+
+- [ ] **Step 1: Write the failing tests**
+
+```typescript
+it('re-reads the design after a successful dispatch, so the canvas shows what was written', async () => {
+	const runtime = useDesignerRuntime(deps);
+	await runtime.dispatch(setFootprintCommand);
+	expect(store.design?.dimensions).toEqual({ width: 1200, depth: 800 });
+});
+
+it('re-reads after a REJECTED dispatch too, because a write may have landed before the fault', async () => {
+	setFootprint.mockRejectedValueOnce(new Error('vault exploded'));
+	const runtime = useDesignerRuntime(deps);
+	await expect(runtime.dispatch(setFootprintCommand)).rejects.toThrow();
+	expect(query.execute).toHaveBeenCalledTimes(2);
+});
+
+it('keeps the LATEST read when two hydrations overlap', async () => {
+	const slow = deferred(); const fast = deferred();
+	query.execute.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
+	const a = store.hydrate(assetId); const b = store.hydrate(assetId);
+	fast.resolve(ok(designWithFootprint));
+	slow.resolve(ok(designWithoutFootprint));
+	await Promise.all([a, b]);
+	expect(store.design?.shape).not.toBeNull();
+});
+
+it('refreshes a second leaf showing the same asset when AssetShapeChanged is published', async () => {
+	mountTwoLeavesOn(assetId);
+	await events.publish(assetShapeChanged(assetId));
+	expect(secondLeaf.store.design?.dimensions).toEqual({ width: 1200, depth: 800 });
+});
+
+it('reports a fault from a dispatch bound to a click, which has no awaiter', async () => {
+	setFootprint.mockRejectedValueOnce(new Error('vault exploded'));
+	await clickToolbarButton();
+	expect(logger.error).toHaveBeenCalled();
+	expect(notices.shown).toHaveLength(1);
+});
+```
+
+Each case is a rule this repository has already paid for: a thrown fault is not "nothing happened"
+so the refresh runs on rejection too; a store two things hydrate needs a request ticket or the
+slower earlier read wins and a just-drawn shape vanishes with no error; a change reaches every leaf
+showing that subject; and every dispatch is ultimately bound to a click handler that discards its
+promise, so without a last-stop reporter a fault is an unhandled rejection and the button silently
+stops working.
+
+- [ ] **Step 2: Implement**
+
+One wrapped dispatcher per leaf — tools, toolbar and inspector all dispatch through it, because a
+dispatch that bypasses it breaks the refresh and the undo/redo flags with nothing erroring
+anywhere. Wrap `run`, `undo` and `redo` with the save-state tracking **outside** the refresh
+decorator, so `Saved` never appears while the canvas still shows the pre-command state.
+
+- [ ] **Step 3: Run, gate, commit**
+
+```bash
+npx vitest run tests/presentation/designer
+npm run check
+git add src/presentation/designer tests/presentation/designer
+git commit -m "One dispatcher per designer leaf, and a refresh that survives a fault"
+```
+
+---
+
 ### Task B4: the layers
 
 **Files:**
@@ -1466,6 +1620,23 @@ typed 1200 × 800 is authored in true millimetres and was never in the backgroun
 rescaling it turns an exact oven into an arbitrary one — silently, since the result still looks
 like a plausible oven.
 
+**Mirror the finite-result guard, which is the part of `ReversibleCalibratePlan` that must be
+copied.** `ReversibleCalibratePlan.ts:167` carries it with its reason: a finite ratio does not mean
+a finite product — a legal-looking input (a measured ~1e-302 over a known 3200) yields a finite
+correction whose rescaled coordinates overflow to `Infinity`, which `JSON.stringify` then writes as
+`null`, leaving a sidecar that fails every later read. Check every rescaled coordinate before
+writing and refuse the calibration instead:
+
+```typescript
+it('refuses a calibration whose rescaled coordinates would overflow, rather than writing nulls', async () => {
+	await seedShape({ footprint: rect(1e300, 1e300), footprintOrigin: 'traced' });
+	const result = await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 1e-302, y: 0 }, knownDistance: 3200 });
+	expect(isErr(result)).toBe(true);
+	const stored = await sidecar.read(assetId);
+	expect(isOk(stored)).toBe(true);
+});
+```
+
 The at-rest invariant `distance(pointA, pointB) === knownDistance` is established by the command,
 not by the validator — `Calibration.ts`'s docblock says why, and that part applies here unchanged.
 
@@ -1629,11 +1800,49 @@ it('does not dispatch when a clean height field is blurred', async () => {
 
 The last case is the Reset-button lesson from slice 16: a guard inside a composable cannot see a caller that walks past its precondition, and a dispatch for a change nobody made buys a vault write and an undo entry.
 
+- [ ] **Step 1a: Build the dimensions editor the empty state promises**
+
+`assetDesigner.noShape`'s action opens a **dimensions form for the asset already open**, and
+nothing in this plan built one until this step: `NewAssetForm` creates a *different* asset, and this
+inspector renders width and depth read-only. So an existing asset with no geometry — including one
+deliberately created with the dimension fields left blank — had no way to type the rectangle the
+epic's "usable before it is accurate" ladder promises.
+
+Add one dialog kind, `'asset-dimensions'`, resolving `{ width: number; depth: number } | null`, with
+**two** callers: the empty state's action, and an "Edit dimensions" control in this inspector beside
+the read-only pair. Both dispatch `SetAssetFootprintFromDimensions` for the open asset.
+
+```typescript
+it('opens the dimensions dialog from the empty state and writes the rectangle to the OPEN asset', async () => {
+	dialog.openDialog.mockResolvedValue({ width: 1200, depth: 800 });
+	await mountDesigner({ design: withoutShape }).find('.rp-empty-state__action').trigger('click');
+	expect(setFootprintFromDimensions).toHaveBeenCalledWith(expect.objectContaining({ assetId: openAssetId, width: 1200, depth: 800 }));
+	expect(createAsset).not.toHaveBeenCalled();
+});
+
+it('offers the same editor from the inspector once a shape exists', async () => {
+	await mountInspector({ dimensions: { width: 1200, depth: 800 } }).find('.rp-designer-edit-dimensions').trigger('click');
+	expect(dialog.openDialog).toHaveBeenCalledWith(expect.objectContaining({ kind: 'asset-dimensions' }));
+});
+
+it('retypes a TRACED footprint as typed, since the numbers are now authored rather than measured', async () => {
+	dialog.openDialog.mockResolvedValue({ width: 1200, depth: 800 });
+	await editDimensionsOn({ footprintOrigin: 'traced' });
+	const stored = await sidecar.read(openAssetId);
+	expect(isOk(stored) && stored.value.document.shape?.footprintOrigin).toBe('typed');
+	expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(false);
+});
+```
+
+That third case is the one worth thinking about rather than copying: typing dimensions over a trace
+replaces measured coordinates with authored ones, so the provenance must follow, or a later
+calibration would rescale a rectangle nobody measured (Decision 6).
+
 - [ ] **Step 2: Implement, gate, commit**
 
 ```bash
 npm run check
-git add src/presentation/designer tests/presentation/designer
+git add src/presentation/designer src/presentation/dialogs tests/presentation/designer
 git commit -m "The designer's inspector: derived dimensions, an honest warning, one editable scalar"
 ```
 
@@ -1671,6 +1880,27 @@ it('opens two leaves for two different assets', async () => {
 ```
 
 Case 1 is the `open-plan-editor` defect, refused in advance: a `checkCallback` requiring an active asset note kept that command out of the palette in every vault that had none. Case 3 is the mutation that proves case 2's key is the view type **plus the state** — keying on the type alone collapses the multiplicity the view exists to permit.
+
+- [ ] **Step 1a: Make the create dialog open what it created**
+
+The design promises that the new-asset dialog opens the designer on what it created, and A10 built
+the dialog against a designer that did not exist yet — it returns an `assetId` nobody consumes. Wire
+the `create-asset` callback to reveal that asset now, through the same door the picker uses:
+
+```typescript
+it('opens the designer on the asset the dialog created, in exactly one leaf', async () => {
+	dialog.openDialog.mockResolvedValue({ assetId: 'asset-01JABC' });
+	await runCreateAssetCommand();
+	expect(workspace.createdLeaves).toHaveLength(1);
+	expect(workspace.createdLeaves[0].state).toEqual({ assetId: 'asset-01JABC' });
+});
+
+it('opens nothing when the dialog is cancelled', async () => {
+	dialog.openDialog.mockResolvedValue(null);
+	await runCreateAssetCommand();
+	expect(workspace.createdLeaves).toHaveLength(0);
+});
+```
 
 - [ ] **Step 2: Implement, gate, commit**
 

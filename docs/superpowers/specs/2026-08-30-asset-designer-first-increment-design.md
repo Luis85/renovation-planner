@@ -315,6 +315,21 @@ whose dimensions are read-only derived values beside a `height` field on slice 1
 `useFieldCommit`. It mounts slice 15's `DialogHost`, slice 13's save-state indicator, and reaches
 the notice queue through the same one door.
 
+**One dispatcher per leaf, and it refreshes.** Tools, toolbar and inspector all dispatch through one
+wrapped object per designer leaf, which re-reads `GetAssetDesign` after every dispatch — on a
+rejection as well as on success, since a thrown fault is not "nothing happened" and a write may
+already have landed. The store's hydration takes a request ticket, or the slower of two overlapping
+reads wins and a just-drawn footprint vanishes with no error; and `AssetShapeChanged` refreshes any
+other leaf showing the same asset. None of this comes along with the extracted gesture surface — it
+lives above it, and the plan gives it a task of its own.
+
+**Two dialog kinds, not one.** `NewAssetForm` creates an asset; a second kind edits the dimensions
+of the asset already open, and it is what `assetDesigner.noShape`'s action opens. Without it an
+existing asset with no geometry has no way to reach "type 120 × 80", since the inspector's
+dimensions are read-only by construction. Typing dimensions over a traced outline retypes its
+provenance to `typed`, because the numbers are authored from that point on and Decision 6 must not
+later rescale a rectangle nobody measured.
+
 Empty states are **overlays**, per slice 14's rule that an empty state replacing a region hides the
 thing the region exists to show: `assetDesigner.noShape` carries the action that opens the
 dimensions form.

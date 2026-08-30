@@ -104,14 +104,22 @@ writing it, is what converts that step from something a human does into somethin
 **One case has now had that done, and it is the template for the other eight.**
 [[Zone Editing Walkthrough]] carries a *What discharges each step* section naming the test
 behind each of its twenty `suite` and `browser` verdicts, read from the test BODY rather than
-matched on a name. Eighteen were discharged; two were not, both on the UNDO side and neither
-visible from any test name — nothing undoes a vertex edit, and nothing redoes a delete. What
-the pilot actually measured is where the coverage turned out to LIVE: four of the twenty are
+matched on a name. Sixteen were discharged and four were not — nothing undoes a vertex edit,
+nothing redoes a delete, nothing asserts the selection OUTLINE, and nothing looks at the
+interaction layer after a DESELECTION. Not one of the four is visible from a test name.
+
+**Two of those four were missed by the audit's own first pass and found by a reviewer**, which
+is the number to plan against rather than the tidy one. That pass read the body it was pointed
+at, found an assertion covering PART of a step — a `Circle` count that is the vertex handles
+and says nothing about the outline beside them — and wrote the step down as discharged. So the
+rate is roughly **one true gap in five steps**, and an audit wants a second reader as much as
+the triage did.
+
+What the pilot also measured is where coverage turned out to LIVE: four of the twenty are
 discharged by a case in a file no reader of that walkthrough would open, including its step 1,
-whose assertion sits inside the case named for its step 6, and the both-files halves of steps 8
-and 12, which are in `consistency.test.ts` two directories away. A name-matching pass would
-have called step 1 a gap and taken 8 and 12 on trust. Budget the remaining eight for reading
-bodies, and expect roughly one true gap in ten steps.
+whose handle count sits inside the case named for its step 6, and the both-files halves of
+steps 8 and 12, which are in `consistency.test.ts` two directories away. A name-matching pass
+would have called step 1 a gap outright and taken 8 and 12 on trust.
 
 **Both `suite` and `browser` run on the fakes, so neither reaches the fidelity residue.** Three
 of the first four defects this suite ever found were a fake accepting what Obsidian refuses,

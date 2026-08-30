@@ -76,8 +76,8 @@ standing and one that renames it breaks the citation visibly.
 
 | # | Discharged by |
 | --- | --- |
-| 1 | `zoneEditing` *drags one vertex handle…* — its first assertion counts one interaction-layer `Circle` per vertex, under a comment naming DoD 5; `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* |
-| 2 | `selectTool` *clicking empty canvas clears the selection*; `inspectorStore` *an empty selection produces …* |
+| 1 | **PARTIAL.** `zoneEditing` *drags one vertex handle…* counts one interaction-layer `Circle` per vertex, under a comment naming DoD 5, and `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* covers the panel. **Nothing asserts the accent OUTLINE** — the Circle count would pass with it absent. See the gaps below |
+| 2 | **PARTIAL.** `selectTool` *clicking empty canvas clears the selection* covers the store and `inspectorStore` *an empty selection produces …* the panel. **Nothing looks at the interaction layer AFTER a deselection**, so handles left behind would pass both. See the gaps below |
 | 3 | `selectTool` *a near-zero pointerUp is a pure selection — no command, no history entry* and *a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click* |
 | 4 | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* |
 | 5 | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* |
@@ -97,10 +97,13 @@ standing and one that renames it breaks the citation visibly.
 | 17 | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
 | 18 | `canvasPointerRouting` *a reflexive right-click mid-drag does not commit the move; the primary release still does*; `selectTool` *a NON-PRIMARY release during a drag does not commit the move* |
 
-### The two gaps
+### The four gaps
 
-Both are UNDO-side, and neither is visible from a test name — the suite looks complete until
-the bodies are read, which is the argument for auditing by reading rather than by grep.
+None is visible from a test name — the suite looks complete until the bodies are read, which is
+the argument for auditing by reading rather than by grep. **Two of the four were missed by the
+first pass of this very audit and found by a reviewer**, which is the argument for not trusting
+it unreviewed either; that pass read the body it was pointed at, found an assertion covering
+PART of the step, and wrote the step down as discharged.
 
 - **Step 7 — no test undoes a vertex edit.** `reversible-move-zone-command.ts` states that a
   vertex drag and a body drag are the SAME command ("there is no second class and there was
@@ -118,6 +121,17 @@ Both are worth writing as node tests rather than left to the walkthrough, per th
 rule that a manual case whose findings are not converted will find the same thing again next
 release. Neither is a defect: they are steps the suite was assumed to cover and does not.
 
+- **Step 1 — nothing asserts the selection OUTLINE.** The one interaction-layer assertion in
+  the editor suite counts `Circle` nodes, which are the vertex handles. An accent outline that
+  stopped being drawn would leave that count untouched and every test green.
+- **Step 2 — nothing looks at the interaction layer after a DESELECTION.** Both cited cases
+  assert state: the selection store empties and the panel reads "Nothing selected." Handles or
+  an outline left behind on the canvas are invisible to both, which is the deselect half of the
+  same hole.
+
+Steps 1 and 2 stay `suite`: Konva nodes are countable in jsdom — `zoneEditing` already counts
+them — so these are tests nobody has written rather than claims jsdom cannot reach.
+
 ### What the pilot cost, for the eight cases still to do
 
 Twenty steps, and the useful measure is not the time but WHERE the coverage turned out to be.
@@ -125,7 +139,9 @@ Four of the twenty are discharged by a test in a file no reader of this case wou
 step 1's handle count sits inside the case named for step 6, and the both-files halves of
 steps 8 and 12 are in `consistency.test.ts`, two directories away from the editor. A
 name-matching pass would have marked step 1 a gap and taken steps 8 and 12 on trust. Budget
-the audit for reading bodies, and expect roughly one true gap in ten steps.
+the audit for reading bodies, and expect roughly **one true gap in five steps** — four in
+twenty here, after review. The first figure written on this line was one in ten, from the two
+gaps this audit found before a reviewer found the two it had missed.
 
 ## Deliberately NOT checked
 

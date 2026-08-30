@@ -83,8 +83,8 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 69 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 31 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 70 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 30 |
 | `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 47 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
 | `judgement` | Records an answer or an eye's verdict. There is no pass condition for any instrument to settle. It BEATS the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim | 8 |
@@ -104,9 +104,14 @@ writing it, is what converts that step from something a human does into somethin
 **One case has now had that done, and it is the template for the other eight.**
 [[Zone Editing Walkthrough]] carries a *What discharges each step* section naming the test
 behind each of its twenty `suite` and `browser` verdicts, read from the test BODY rather than
-matched on a name. Seventeen were discharged and three were not: nothing asserted the selection
-OUTLINE, nothing looked at the interaction layer after a DESELECTION, and nothing redid a
-delete. All three now have cases, each watched failing against a mutation.
+matched on a name. **All seventeen of its `suite` steps are discharged**: three were not when
+the audit began — nothing asserted the selection OUTLINE, nothing looked at the interaction
+layer after a DESELECTION, nothing redid a delete — and each now has a case watched failing
+against a mutation. **Its three `browser` steps are not discharged, and are not gaps either**,
+which is a distinction the first draft of this paragraph collapsed into one number: 8a and 8b
+have their jsdom-reachable halves covered and a browser residue BY DESIGN — a theme colour, a
+host focus behaviour — and 8e has nothing at all by construction, being a 460px truncation.
+Count coverage per TIER or the totals contradict the audit's own rows.
 
 **The audit was wrong in BOTH directions before those tests were written, which is the number
 to plan against rather than the tidy one.** Its first pass missed the two overlay gaps — it
@@ -163,7 +168,7 @@ surface is drawn by Obsidian's own `Notice` and the other is about where files s
 `browser` tier is the one this triage was made to price, and three review rounds moved it in
 both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
 `obsidian` or `desktop` on a closer read, and five `suite` steps then turned out to be
-`browser` under the rule above. It has been 35, 27, 33, 32 and 31. Read that as the shape of the
+`browser` under the rule above. It has been 35, 27, 33, 32, 31 and 30. Read that as the shape of the
 remaining audit rather than as a settled figure — a `browser` verdict is exactly as
 unconfirmed as a `suite` one, and for the same reason.
 

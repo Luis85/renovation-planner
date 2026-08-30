@@ -87,7 +87,7 @@ standing and one that renames it breaks the citation visibly.
 | 8a | `interactionLayer` *grows the close target while the pointer is close enough to CLOSE the shape* covers the GROW. The FILL is a resolved theme colour and stays `browser` |
 | 8b | `interactionLayer` *flattens the rubber band the moment Shift goes down, with the pointer still* and *lets go again on release, just as promptly*. The toolbar-focus clause — Chromium focusing the nearest focusable ancestor — stays `browser` |
 | 8c | `drawPolygonTool` *does not let the constraint decide whether the polygon CLOSES* |
-| 8e | Nothing, by construction: a 460px truncation is a layout measurement |
+| 8e | Nothing, by construction: a 460px truncation is a layout measurement. Not a gap — a `browser` row with no jsdom-reachable half is the tier working as intended |
 | 9 | `zoneEditing` *Escape abandons a half-drawn polygon BETWEEN clicks — real click pairs, no zone created*; `drawPolygonTool` *cancel discards the buffer without dispatching anything* |
 | 10 | `drawPolygonTool` *a close click while ANOTHER close is in flight is ignored — one shape, one command* |
 | 11 | `drawPolygonTool` *judges the close click in screen pixels through the current camera*; `closeTarget` *accepts a pointer inside the grab radius and refuses one outside it* |

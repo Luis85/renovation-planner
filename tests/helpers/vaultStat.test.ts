@@ -47,4 +47,25 @@ describe('the fake vault file stat', () => {
 		expect(created.size).toBe('first'.length);
 		expect(modified.size).toBe('second, longer'.length);
 	});
+	/**
+	 * A recreated path is a NEW file, and gets a new creation time.
+	 *
+	 * `touch` stamps `ctime` only on a path's first write, so a record that outlived the
+	 * delete handed the replacement its predecessor's creation time — measured before the
+	 * fix, a fresh create reporting `ctime: 1` against `mtime: 2`: a file modified after it
+	 * was created and before it existed. Asserted against the FIRST file's ctime rather than
+	 * against zero, because a stat reset to zero would pass the latter and is its own lie.
+	 */
+	it('gives a recreated path a new creation time rather than the deleted file\'s', async () => {
+		const { vault } = createRepositoryStack();
+		await vault.create('Recreated.md', 'first');
+		const first = (vault.getAbstractFileByPath('Recreated.md') as MockTFile).stat;
+
+		await vault.delete(vault.getAbstractFileByPath('Recreated.md') as MockTFile);
+		await vault.create('Recreated.md', 'second');
+		const second = (vault.getAbstractFileByPath('Recreated.md') as MockTFile).stat;
+
+		expect(second.ctime).toBeGreaterThan(first.ctime);
+		expect(second.ctime).toBe(second.mtime);
+	});
 });

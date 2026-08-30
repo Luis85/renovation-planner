@@ -96,6 +96,24 @@ class VaultEntries extends Map<string, string> {
 		this.touch(path);
 		super.set(path, text);
 	}
+
+	/**
+	 * Removing the bytes removes the STATS with them, and it is an override rather than a
+	 * cleanup at each caller for the reason `touch` is one function: a path's records live
+	 * here, so the object that owns them is the object that must forget them.
+	 *
+	 * Without this the `ctime` of a deleted path outlived it, and `touch`'s first-write rule
+	 * then handed the RECREATED file its predecessor's creation time — measured, a fresh
+	 * create reporting `ctime: 1` against `mtime: 2`, which is a file claiming to have been
+	 * modified after it was created and before it existed. No real filesystem answers that,
+	 * and a fake that does is the exact "believed by whoever reads it" defect the paragraph
+	 * above records for this field. Reported by a review bot.
+	 */
+	override delete(path: string): boolean {
+		this.mtimes.delete(path);
+		this.ctimes.delete(path);
+		return super.delete(path);
+	}
 }
 
 /**

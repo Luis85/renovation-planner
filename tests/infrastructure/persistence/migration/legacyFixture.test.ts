@@ -99,6 +99,17 @@ describe('the migration runner accepts a step', () => {
 		// then be the one of the three that touches no fixture content at all.
 		const current = runner.migrateToLatest('zone', raw, 1) as Record<string, unknown>;
 
+		// This call shares its short-circuit with the second half of "reaches the same state
+		// when run twice": both pass `fromVersion === latest`, so `while (version < latest)`
+		// never re-enters and neither ever reaches `renameLabel.migrate` or its own version
+		// guard. Measured rather than assumed: no mutation to `renameLabel` can redden THIS
+		// assertion in isolation — only a change to that loop condition can, and that same
+		// change also breaks "applies it to a note at the version below", since that case's
+		// own single call ends by hitting the identical `version === latest` termination. So
+		// this assertion is real and load-bearing (it is what stops the runner from touching
+		// already-current data) but is not separable, by mutation, from the other two here —
+		// a future reader mutating `renameLabel` and seeing this case stay green while
+		// another reddens should read that as expected, not as a coverage hole.
 		expect(runner.migrateToLatest('zone', { ...current }, 2)).toEqual(current);
 	});
 

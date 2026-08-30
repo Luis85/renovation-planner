@@ -737,7 +737,7 @@ Expected: FAIL on every block's `.mjs` cell with `NOT_LINTED` — a file matchin
 
 - [ ] **Step 6b: Watch the network override fail**
 
-In `eslint.config.mjs`, remove `'mjs'` from `SRC_EXTENSIONS` — no; that reddens every block. Do the narrower mutation instead: change `networkFree`'s returned `files` to `['**/src/application/queries/**/*.ts']` and `['**/src/infrastructure/logging/**/*.ts']`, so the override covers `.ts` alone.
+The narrow mutation, not `SRC_EXTENSIONS` — dropping an extension there reddens every block and so cannot tell the network probes apart from the layer ones. In `eslint.config.mjs`, narrow `networkFree`'s returned `files` to `.ts` alone (`['**/src/application/queries/**/*.ts']` and `['**/src/infrastructure/logging/**/*.ts']`), so the override stops covering the other five extensions while the parent layer blocks still cover all of them.
 
 Run: `npx vitest run tests/build/layer-boundaries.test.ts`
 Expected: FAIL on those two blocks' `.vue`, `.js`, `.jsx`, `.mjs` and `.cjs` cells — the network module imports and the `fetch` global stop reporting there — while every LAYER-shaped import in the same cells still reports, because the parent `application`/`infrastructure` block still matches. That asymmetry is the whole finding: without the network probes, this mutation leaves the matrix green and network access allowed in five extensions.

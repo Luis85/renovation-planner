@@ -771,25 +771,63 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 		 * The network GLOBALS, which the assertions above cannot reach.
 		 *
 		 * They report under `no-restricted-globals`, a different rule KEY — measured — so a
-		 * matrix built entirely on `no-restricted-imports` is blind to them however many
-		 * cells it has. Slice 11's diagnostics-stay-on-the-device claim rests on both halves,
-		 * and only the import half had a probe.
+		 * matrix built entirely on `no-restricted-imports` is blind to them however many cells
+		 * it has. Slice 11's diagnostics-stay-on-the-device claim rests on both halves, and
+		 * only the import half had a probe.
 		 *
-		 * Skipped for every block that declares no network ban, rather than asserted absent:
-		 * `no-restricted-globals` also carries `eslint-plugin-obsidianmd`'s own list (`app`,
-		 * `fetch`, `localStorage`) across all of `src/`, so "this block does not ban fetch" is
-		 * not a true statement about any block and a negative case here would assert
-		 * something false.
+		 * **NOT `fetch`, and a draft used it.** `eslint-plugin-obsidianmd` bans `app`, `fetch`
+		 * and `localStorage` across ALL of `src/`, so a `fetch` diagnostic says nothing about
+		 * the network ban specifically. Measured:
+		 *
+		 * | planted | `application/queries` | `core` (no network ban) |
+		 * | --- | --- | --- |
+		 * | `fetch` | reports | **reports** |
+		 * | `XMLHttpRequest` | reports | silent |
+		 * | `WebSocket` | reports | silent |
+		 *
+		 * So a later `.vue` override keeping only the marketplace globals would allow every
+		 * real network door while the `fetch` probe stayed green. Every independently
+		 * removable network-only global is planted instead.
+		 *
+		 * I had measured this exact fact one round earlier — it is the reason the negative case
+		 * below was skipped — and drew only half the conclusion from it. Knowing `fetch` is
+		 * banned everywhere is precisely what makes it useless as the POSITIVE probe too.
 		 */
-		it.runIf(block.networkGlobals === true)('reports the network globals under their own rule', async () => {
-			const body = `export const reach = () => fetch('https://example.invalid');`;
-			const source =
-				extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
-			const found = await lintDetailed(source, pathFor(block, extension));
+		const NETWORK_ONLY_GLOBALS = ['XMLHttpRequest', 'WebSocket', 'EventSource'] as const;
+		const globalsSource = (name: string): string => {
+			const body = `export const reach = () => new ${name}('wss://example.invalid');`;
+			return extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
+		};
 
-			expect(found.map((d) => d.ruleId)).toContain('no-restricted-globals');
-			expect(found.map((d) => d.ruleId)).not.toContain('PARSE_ERROR');
-			expect(found.map((d) => d.ruleId)).not.toContain('NOT_LINTED');
+		it.runIf(block.networkGlobals === true)('reports every network global under its own rule', async () => {
+			for (const name of NETWORK_ONLY_GLOBALS) {
+				const found = await lintDetailed(globalsSource(name), pathFor(block, extension));
+
+				expect(found.map((d) => d.ruleId), name).toContain('no-restricted-globals');
+				expect(found.map((d) => d.ruleId), name).not.toContain('PARSE_ERROR');
+				expect(found.map((d) => d.ruleId), name).not.toContain('NOT_LINTED');
+			}
+		});
+
+		/**
+		 * And a block with no network ban stays SILENT on them — the negative half, which the
+		 * network-only names make writable for the first time.
+		 *
+		 * A draft skipped this on the grounds that "this block does not ban `fetch`" is true of
+		 * no block. That reasoning was right about `fetch` and wrong to stop there: "this block
+		 * does not ban `XMLHttpRequest`" is true of every block without a network ban, measured
+		 * above. Without this half, a rule that banned the network globals across all of `src/`
+		 * would pass the positive case everywhere and the matrix would say nothing about where
+		 * the ban is keyed.
+		 */
+		it.runIf(block.networkGlobals !== true)('stays silent on network globals where no network ban applies', async () => {
+			for (const name of NETWORK_ONLY_GLOBALS) {
+				const found = await lintDetailed(globalsSource(name), pathFor(block, extension));
+
+				expect(found.map((d) => d.ruleId), name).not.toContain('no-restricted-globals');
+				expect(found.map((d) => d.ruleId), name).not.toContain('PARSE_ERROR');
+				expect(found.map((d) => d.ruleId), name).not.toContain('NOT_LINTED');
+			}
 		});
 	});
 });
@@ -3001,7 +3039,13 @@ const renameLabel = {
 	toVersion: 2,
 	migrate: (raw: Record<string, unknown>): Record<string, unknown> => {
 		const { 'legacy-label': label, ...rest } = raw;
-		return { ...rest, name: label };
+		// The STEP advances `schema-version`; the runner does not. `migrateToLatest(kind, raw,
+		// fromVersion)` takes the version as a PARAMETER and tracks it in a local — it never
+		// rewrites the object it returns. A draft omitted this line, so the first case's
+		// expected version 2 was unreachable, and deriving the second call's `fromVersion`
+		// from the returned frontmatter would have re-applied the migration rather than
+		// testing idempotence.
+		return { ...rest, name: label, 'schema-version': 2 };
 	},
 };
 
@@ -3010,7 +3054,7 @@ describe('the migration runner accepts a step', () => {
 		open = await openFixtureVault('legacy-schema');
 		const runner = createMigrationRunner({ zone: [renameLabel] });
 
-		const migrated = runner.migrateNote('zone', { 'schema-version': 1, 'legacy-label': 'Kitchen' });
+		const migrated = runner.migrateToLatest('zone', { 'schema-version': 1, 'legacy-label': 'Kitchen' }, 1);
 
 		expect(migrated).toMatchObject({ name: 'Kitchen', 'schema-version': 2 });
 		expect(migrated).not.toHaveProperty('legacy-label');
@@ -3020,8 +3064,12 @@ describe('the migration runner accepts a step', () => {
 		open = await openFixtureVault('legacy-schema');
 		const runner = createMigrationRunner({ zone: [renameLabel] });
 
-		const once = runner.migrateNote('zone', { 'schema-version': 1, 'legacy-label': 'Kitchen' });
-		const twice = runner.migrateNote('zone', once as Record<string, unknown>);
+		const once = runner.migrateToLatest('zone', { 'schema-version': 1, 'legacy-label': 'Kitchen' }, 1);
+		// `fromVersion: 2` — the version the first pass produced, passed EXPLICITLY. Deriving
+		// it from `once` would be reading the object the step just stamped, which is the same
+		// number by construction and so proves nothing; passing 1 again would re-run the step
+		// rather than test idempotence.
+		const twice = runner.migrateToLatest('zone', once as Record<string, unknown>, 2);
 
 		expect(twice).toEqual(once);
 	});
@@ -3031,7 +3079,7 @@ describe('the migration runner accepts a step', () => {
 		const runner = createMigrationRunner({ zone: [renameLabel] });
 		const current = { 'schema-version': 2, name: 'Kitchen' };
 
-		expect(runner.migrateNote('zone', { ...current })).toEqual(current);
+		expect(runner.migrateToLatest('zone', { ...current }, 2)).toEqual(current);
 	});
 });
 ```
@@ -3040,7 +3088,7 @@ describe('the migration runner accepts a step', () => {
 
 Run: `npx vitest run tests/infrastructure/persistence/migration/legacyFixture.test.ts`
 
-`migrateNote`'s real signature, the version frontmatter key and the step shape all come from the source read in Step 1 — correct the test to the actual API rather than inventing one. If `createMigrationRunner` takes a differently-shaped table, match it.
+The API is `migrateToLatest(kind, raw, fromVersion)` — read from `MigrationRunner.ts:97` rather than recalled; a draft of this task called a `migrateNote` that does not exist. If `createMigrationRunner` takes a differently-shaped table, match it from the source too.
 
 Expected after correction: PASS, 3 tests.
 

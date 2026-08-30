@@ -647,8 +647,33 @@ Infrastructure-specific:
 
       Read the withdrawal narrowly: without that check the honest status of this item is
       "outstanding", not "withdrawn". The predicate was corrected six times before it stopped
-      being a paraphrase of the property; a seventh correction is the signal that the split
-      is the answer after all.
+      being a paraphrase of the property; a seventh correction was named, in the original
+      plan, as the signal that the split is the answer after all.
+
+      **That threshold has already been crossed, within this same branch, and is recorded
+      here as OPEN rather than acted on.** `git log --oneline -- tests/build/
+      test-environments.test.ts` shows three commits: `a955d71` (Task 6's own self-reported
+      sixth correction, at the file's first commit), then `2924fd5` ("Widen the
+      import-specifier delimiter class to backticks…") and `5a09276` ("Split the
+      import-specifier delimiter class per-quote…") — a measured seventh and eighth
+      correction to the same predicate, both landed inside Task 6 itself, before this record
+      was written. The split is not taken here regardless, for three reasons:
+
+      1. Both further corrections were to the import-specifier MATCHER inside the transitive
+         contract-caller walk (`importsOf`/`reachesContracts`), not to the effective-
+         environment resolution the split would replace — a project split would have
+         prevented neither backtick defect, since a split still has to decide which files
+         belong to which project, by the same kind of matcher.
+      2. The split edits `vitest.config.ts`, which this plan's own packaging table names as
+         a real conflict surface with PR 25 — taking it now forces a resequence of an
+         otherwise complete and green branch.
+      3. A structural change to the test-runner configuration, taken in the last task of
+         thirteen and unreviewed against its own consequences, is the late scope widening
+         this whole process exists to avoid.
+
+      A future round is free to revisit this once the threshold is crossed again outside a
+      review window this narrow — the count above is where that future round should start
+      counting from, not "six."
 - [ ] Each of Geometry, Money, Quantity, Domain has at least one passing suite,
       owned by the slice named in §2's table.
 - [ ] The Application Test pattern is demonstrated for at least one command

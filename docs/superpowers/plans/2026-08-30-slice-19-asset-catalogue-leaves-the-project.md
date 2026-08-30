@@ -408,70 +408,55 @@ Delete `projectFolderFrom`.
 Run: `npx vitest run tests/plugin/settings/settings.test.ts`
 Expected: PASS.
 
-- [ ] **Step 5: Add the settings definition — a `folder` control with a `validate`, NOT a `text` one**
+- [ ] **Step 5: Add the settings row — with NO control bound to `libraryFolder` at all**
 
-**Read this before writing the row.** `setControlValue` calls `saveSettings` directly, on
-**every** control change — so a `text` control here would persist an intermediate value on the
-way to a real one, and (per Task 4) fire a catalogue migration for each. Typing
-`Shared/Catalogue` over `Renovation/Library` would move the notes through
-`Renovation/Librar`, `Renovation/Libra`, … and through the DEFAULT, because `settingsFrom`
-falls an empty string back to `Renovation/Library`. `docs/tasks/19` says this row "needs no
-new branch, because `getControlValue` / `setControlValue` are keyed generically" — true of a
-preference, false of a migration, and that sentence is one of the amendments Task 10 owes.
-
-Two Obsidian 1.13 features close it, and neither is used anywhere in this repository yet:
+**Read this before writing the row; two earlier drafts of it were wrong in the same way.**
+`setControlValue(key, value)` calls `saveSettings` immediately. So *any* control bound to
+`libraryFolder` persists it the moment a value is chosen — with no notes moved — and the
+migration then reads that already-persisted value as its `from`, searches the new empty
+folder, and leaves the catalogue stranded at the old path. A `text` control does this per
+keystroke; a `folder` control does it once. **Once is enough to strand the catalogue**, which
+is why swapping the control type was not the fix and this row binds no control:
 
 ```ts
+			// NO `control`, deliberately. Anything keyed to `libraryFolder` here writes it
+			// through `setControlValue` → `saveSettings` the instant it changes, and the
+			// migration would then read the NEW value as the folder to move FROM. The only
+			// writer of this setting is `migrateLibraryFolder`, which persists last —
+			// after the notes have moved.
 			{
 				name: tr('settings.library-folder.name'),
-				desc: tr('settings.library-folder.desc'),
-				control: {
-					// A FOLDER picker, not free text: the value is chosen whole rather than
-					// typed character by character. `includeRoot` defaults to false, which
-					// matters here — `foldersOverlap` treats the vault root as containing
-					// everything, so the root is never an offerable library.
-					type: 'folder',
-					key: 'libraryFolder',
-					defaultValue: DEFAULT_SETTINGS.libraryFolder,
-					// Runs BEFORE the value is persisted and renders its message inline
-					// beneath the row. This is where §83's refusal belongs — earlier than
-					// the migration, and with a surface of its own.
-					validate: (value: string) => {
-						for (const projectFolder of projectFolders()) {
-							if (foldersOverlap(value, projectFolder)) {
-								return tr('settings.library-folder.overlaps');
-							}
-						}
-					},
-				},
+				desc: tr('settings.library-folder.current', { folder: this.host.root.settings.libraryFolder }),
 			},
 ```
 
-**A residue to state rather than assume:** the typings do not say whether a `folder` control
-calls `setControlValue` once on selection or on each keystroke while its suggester is open.
-Obsidian cannot run in this repository, so no test here settles it — which is exactly why Task
-4 no longer hangs a migration off this path at all. `docs/tests/cases/` is where it gets
-looked at.
+A `SettingDefinitionBase` with a `name` and a `desc` and no control is already how this tab
+renders the unrecovered-settings message, so this is the shape it has rather than a new one.
+The current folder rides in the description through `t`'s new `params` (Task 1).
 
-`en.ts` (sentence case — the lint rule fails a capitalised mid-sentence word):
+**Where §83's refusal lives, now that there is no `validate` hook.** Inside
+`migrateLibraryFolder` (Task 4 Step 3), which is where it was always load-bearing — a project
+folder can be dragged between choosing a destination and applying it, so a check at the moment
+of choosing was never sufficient anyway. The destination modal additionally *filters*
+overlapping folders out of its suggestions, which is a convenience rather than the guard: it
+stops a user picking an obviously wrong folder, and the migration is what refuses one.
 
-```ts
-	'settings.library-folder.name': 'Library folder',
-	'settings.library-folder.desc': 'Where the shared asset catalogue lives. Changing this moves the notes.',
-	'settings.library-folder.overlaps': 'The library folder cannot be inside a project folder, or contain one.',
-	'settings.library-folder.move-failed': 'The library could not be moved, so the setting was not changed.',
-	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
-```
-
-`de.ts` — **`Objekt`, never `Material`, for an Asset** (`tests/presentation/i18n/strings.test.ts` refuses the word):
+`en.ts` / `de.ts` gain:
 
 ```ts
-	'settings.library-folder.name': 'Bibliotheksordner',
-	'settings.library-folder.desc': 'Wo der gemeinsame Objektkatalog liegt. Eine Änderung verschiebt die Notizen.',
-	'settings.library-folder.overlaps': 'Der Bibliotheksordner darf nicht in einem Projektordner liegen oder einen enthalten.',
-	'settings.library-folder.move-failed': 'Die Bibliothek konnte nicht verschoben werden, die Einstellung wurde nicht geändert.',
-	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
+	'settings.library-folder.current': 'Currently {folder}. Changing this moves the notes.',
 ```
+
+```ts
+	'settings.library-folder.current': 'Zurzeit {folder}. Eine Änderung verschiebt die Notizen.',
+```
+
+and `settings.library-folder.desc` from the earlier draft is dropped — it said what this now
+says.
+
+**The residue this removes.** Two earlier drafts carried a note about whether a `folder`
+control writes per keystroke or once on selection. With no control bound, the question no
+longer has anything to affect, and open question 7 closes with it.
 
 - [ ] **Step 6: Refuse an overlapping folder at project creation**
 
@@ -1341,3 +1326,18 @@ These need a decision and I have not taken them.
 3. **`Asset` notes already outside the library.** Slice 18 made discovery declaration-based, so an asset note the user filed anywhere is read and indexed. After Task 5 its *updates* write where it sits and only *inserts* go to the library, so such a note never moves. That is consistent with slice 18 and it means "the catalogue lives in the library folder" is true of new assets only. Worth stating in `docs/tasks/19` rather than discovering later.
 4. **Coverage headroom is 2.24 branches** and this slice adds arms in eight files. The spec's "deletions help" argument (three refusals removed) is a reason to expect it to end level, not a measurement. If Task 10 Step 5 comes in under the floor, the choice between adding tests and lowering a floor is yours — this project's ratchet policy says floors only rise.
 5. **German copy.** I drafted `de.ts` strings following the recorded terminology rule (`Objekt`, never `Material`), but CLAUDE.md records three German defects found only by a human reading the file, and the only gate is a two-term check. These want a native reader.
+
+6. **Where the apply gesture lives — narrowed, not closed.** Most of this is now settled by
+   measurement rather than taste. The migration must not hang off `saveSettings` (data loss);
+   its prompt cannot be slice 15's `FormDialog` (`DialogHost` mounts only inside the two view
+   roots, and `SettingsTab` mounts no Vue app), so it is an Obsidian `Modal` owned by
+   `src/plugin/`; and no control may be bound to `libraryFolder` at all, because any write
+   persists it with no notes moved. What remains open is only whether the trigger is a settings
+   action row or a palette command (`move-library-folder`) — a destructive vault-wide operation
+   arguably belongs in the palette, and the modal works identically from either.
+7. **Everything in this list is worth re-reading against the tasks before execution.** Two
+   entries that stood here through three review rounds turned out to be settled by a
+   measurement nobody had taken (case sensitivity, which is asymmetric and therefore decidable;
+   the `folder` control's write timing, which stopped existing once no control was bound). A
+   question list is not evidence that its entries are open — it is evidence that somebody wrote
+   them down.

@@ -26,6 +26,15 @@ export type Units = (typeof UNITS)[number];
  */
 const DEFAULT_PROJECT_FOLDER = 'Renovation';
 
+/**
+ * §36's drawing, and it is only legal because slice 18 landed first: under the pre-18 shape
+ * `Renovation` WAS the project folder, so `foldersOverlap('Renovation/Library',
+ * 'Renovation')` is true and the default would be refused by the rule §83 states. After
+ * slice 18 the project folders are `Renovation/Kitchen refit` and friends, and the library
+ * is their sibling.
+ */
+const DEFAULT_LIBRARY_FOLDER = 'Renovation/Library';
+
 export interface RenovationPlannerSettings {
 	/** Measurement system for quantities and dimensions (SDD A§15: default units). */
 	units: Units;
@@ -38,6 +47,14 @@ export interface RenovationPlannerSettings {
 	 */
 	projectFolder: string;
 	/**
+	 * Where the shared Asset (and later Supplier and Trade) catalogues live — one per vault
+	 * (§83). Unlike `projectFolder` this is not "where a new one starts": it is where the
+	 * catalogue IS, so changing it MOVES the notes. ADR-011 priced a configurable path as
+	 * something to avoid where it can be avoided; here it cannot, because a shared library
+	 * has no project folder to derive its location from.
+	 */
+	libraryFolder: string;
+	/**
 	 * Verbose logging (slice 11): drops the console logger's floor from `info` to
 	 * `debug`. Diagnostics, not telemetry — everything stays in the local console
 	 * (SDD §67), this only widens what reaches it.
@@ -48,6 +65,7 @@ export interface RenovationPlannerSettings {
 export const DEFAULT_SETTINGS: RenovationPlannerSettings = {
 	units: 'metric',
 	projectFolder: DEFAULT_PROJECT_FOLDER,
+	libraryFolder: DEFAULT_LIBRARY_FOLDER,
 	verboseLogging: false,
 };
 
@@ -84,12 +102,13 @@ export function isDataAbsent(raw: unknown): boolean {
 }
 
 /**
- * Whether a folder path is usable as one. Empty after trimming is the only refusal: a
- * path is user text, `normalizePath` is applied where it meets the Vault, and anything
- * non-empty is a place.
+ * Whether a folder path is usable as one. Empty after trimming is the only refusal: a path
+ * is user text, `normalizePath` is applied where it meets the Vault, and anything non-empty
+ * is a place. The `fallback` parameter is what lets one validator serve both folder
+ * settings — the alternative was a second function differing only in its default.
  */
-function projectFolderFrom(value: unknown): string {
-	return typeof value === 'string' && value.trim() ? value.trim() : DEFAULT_SETTINGS.projectFolder;
+function folderFrom(value: unknown, fallback: string): string {
+	return typeof value === 'string' && value.trim() ? value.trim() : fallback;
 }
 
 /**
@@ -105,7 +124,8 @@ export function settingsFrom(raw: unknown): RenovationPlannerSettings {
 	const stored = typeof raw === 'object' && raw !== null ? (raw as Partial<RenovationPlannerSettings>) : {};
 	return {
 		units: unitsFrom(stored.units),
-		projectFolder: projectFolderFrom(stored.projectFolder),
+		projectFolder: folderFrom(stored.projectFolder, DEFAULT_SETTINGS.projectFolder),
+		libraryFolder: folderFrom(stored.libraryFolder, DEFAULT_SETTINGS.libraryFolder),
 		verboseLogging: verboseLoggingFrom(stored.verboseLogging),
 	};
 }

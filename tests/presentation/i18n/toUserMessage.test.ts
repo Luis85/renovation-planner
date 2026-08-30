@@ -117,9 +117,22 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['project.unknown-status', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 	['project.target-before-start', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 	['project.invalid-date', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
+	// Design slice 19's §83 overlap guard. A `Persistence` refusal rather than a `Validation`
+	// one, because it is `persistenceError` at the repository that mints it — and that is
+	// precisely why the row earns its place: the generic Persistence sentence is "reading or
+	// writing the vault failed unexpectedly", which is false about a refusal that read and
+	// wrote nothing and knows exactly what is wrong.
+	[
+		'project.folder-overlaps-library',
+		'Persistence',
+		'error.category.persistence',
+		'infrastructure/obsidian/repositories/ObsidianProjectRepository.ts',
+	],
 ];
 
-describe("design slice 10's coded refusals", () => {
+// Named for the shape rather than for a slice: the table below has carried codes from slices
+// 10, 16 and 19, and a describe naming one of them reads as a scope the table does not have.
+describe('coded refusals that carry copy of their own', () => {
 	it.each(MINTED)('%s resolves its own copy rather than the %s category sentence', (code, category, categoryKey) => {
 		const refusal = error({ category, code });
 

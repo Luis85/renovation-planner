@@ -42,7 +42,8 @@ export class SettingsTab extends PluginSettingTab {
 		// keeps a failed read from becoming a write through a control nobody has written yet,
 		// and a definition rather than a `display()` fallback is what keeps the message in
 		// the settings search index.
-		if (this.host.root.settings === null) return [{ name: tr('settings.unrecovered') }];
+		const settings = this.host.root.settings;
+		if (settings === null) return [{ name: tr('settings.unrecovered') }];
 
 		// `tr` resolves the language per call, and this runs on every render — which is
 		// what keeps the pane correct after Obsidian's own language setting changes.
@@ -67,6 +68,18 @@ export class SettingsTab extends PluginSettingTab {
 					key: 'projectFolder',
 					defaultValue: DEFAULT_SETTINGS.projectFolder,
 				},
+			},
+			// NO `control`, deliberately. Anything keyed to `libraryFolder` here writes it
+			// through `setControlValue` → `saveSettings` the instant it changes, and the
+			// migration would then read the NEW value as the folder to move FROM — searching
+			// the new, empty folder and stranding the catalogue at the old path. A `text`
+			// control does that per keystroke and a folder picker once, and once is enough,
+			// which is why the answer was to bind no control rather than to pick a different
+			// one. The only writer of this setting is the migration, which persists LAST,
+			// after the notes have moved.
+			{
+				name: tr('settings.library-folder.name'),
+				desc: tr('settings.library-folder.current', { folder: settings.libraryFolder }),
 			},
 			{
 				name: tr('settings.verbose-logging.name'),

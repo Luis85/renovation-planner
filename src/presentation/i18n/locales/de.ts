@@ -18,6 +18,17 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.project-folder.name': 'Standardordner für neue Projekte',
 	'settings.project-folder.desc':
 		'Vault-Ordner, in dem der Ordner eines neuen Projekts angelegt wird. Ein bestehendes Projekt behält den Ordner, in dem es sich bereits befindet.',
+	'settings.library-folder.name': 'Bibliotheksordner',
+	'settings.library-folder.current': 'Zurzeit {folder}. Eine Änderung verschiebt die Notizen.',
+	'settings.library-folder.move.name': 'Bibliothek verschieben',
+	'settings.library-folder.move.desc': 'Einen neuen Ordner wählen und den Katalog dorthin verschieben.',
+	'settings.library-folder-empty': 'Ein Bibliotheksordner darf nicht leer sein.',
+	'settings.library-overlaps-project': 'Dieser Ordner liegt in einem Projektordner oder enthält einen.',
+	'settings.library-move-failed':
+		'Die Bibliothek konnte nicht verschoben werden, die Einstellung wurde nicht geändert.',
+	'settings.library-persist-failed':
+		'Der Katalog wurde verschoben, aber die Einstellung konnte nicht gespeichert werden. Bitte den Bibliotheksordner auf den neuen Ort setzen.',
+	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
 	'settings.verbose-logging.desc': 'Debug-Meldungen in der Entwicklerkonsole anzeigen. Alles bleibt auf diesem Gerät.',
 	'view.geometry.name': 'Geometrie-Seitendatei',

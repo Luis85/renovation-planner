@@ -154,3 +154,35 @@ describe('a failed project insert leaves no folder behind', () => {
 		expect(stack.vault.getAbstractFileByPath('Renovation')).toBeNull();
 	});
 });
+
+/**
+ * §83's first door, and it sits one line ABOVE the compensation this file is otherwise about:
+ * a refusal that runs before `ensureFolder` has nothing to compensate, because nothing was
+ * created. The two cases are a pair on purpose — the refusal alone is equally true of a build
+ * that refuses every insert, so the sibling case is what says the guard is about the OVERLAP
+ * and not about the library folder being configured at all.
+ *
+ * Asserted on the VAULT as well as on the code, for the same reason the cases above are: the
+ * whole claim is "creates nothing", and a case reading only the returned error passes against
+ * a guard placed after `ensureFolder`.
+ */
+describe('a project folder that would overlap the library', () => {
+	it('is refused, and creates neither the folder nor the root it would have needed', async () => {
+		const stack = createRepositoryStack('Renovation', 'Renovation/Library');
+
+		const refusal = expectErr(await stack.projects.save(makeProjectEntity({ name: 'Library' }), 'absent'));
+
+		expect(refusal.code).toBe('project.folder-overlaps-library');
+		expect(stack.vault.getAbstractFileByPath('Renovation/Library')).toBeNull();
+		expect(stack.vault.getAbstractFileByPath('Renovation')).toBeNull();
+	});
+
+	it('leaves a sibling of the library alone', async () => {
+		const stack = createRepositoryStack('Renovation', 'Renovation/Library');
+
+		const project = makeProjectEntity({ name: 'Kitchen refit' });
+		expectOk(await stack.projects.save(project, 'absent'));
+
+		expect(stack.index.getPath(project.id)).toBe('Renovation/Kitchen refit/Kitchen refit.md');
+	});
+});

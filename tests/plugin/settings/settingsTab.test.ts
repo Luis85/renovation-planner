@@ -125,4 +125,32 @@ describe('the settings pane', () => {
 
 		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS, units: 'imperial' });
 	});
+
+	/**
+	 * The library folder row, and the whole of its contract is what it does NOT declare.
+	 * `setControlValue` writes through `saveSettings` the instant a control changes, so a
+	 * control keyed to `libraryFolder` would persist a new path with no notes moved — and the
+	 * migration that moves them reads the setting as the folder to move FROM, so it would then
+	 * search the new empty folder and strand the catalogue. The row is a name and a
+	 * description; the move is an action, and it belongs to the step that moves the notes.
+	 */
+	it('declares the library folder without binding a control to it', async () => {
+		const { tab } = await withStored(null);
+
+		const row = tab.getSettingDefinitions().find((item) => item.name === t('en', 'settings.library-folder.name'));
+
+		expect(row).toBeDefined();
+		expect(row && 'control' in row ? row.control : undefined).toBeUndefined();
+	});
+
+	// The current folder rides in the description, so the pane says where the catalogue is
+	// without offering a control that would move the setting off it.
+	it('names the current library folder in the row description', async () => {
+		const { tab } = await withStored({ ...DEFAULT_SETTINGS, libraryFolder: 'Shared/Catalogue' });
+
+		const row = tab.getSettingDefinitions().find((item) => item.name === t('en', 'settings.library-folder.name'));
+
+		expect(row?.desc).toBe(t('en', 'settings.library-folder.current', { folder: 'Shared/Catalogue' }));
+		expect(row?.desc).toContain('Shared/Catalogue');
+	});
 });

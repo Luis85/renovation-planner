@@ -367,7 +367,7 @@ function composeSlice10(
 	};
 }
 
-function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectRoot: string) {
+function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectRoot: string, libraryFolder: string) {
 	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
 	return {
 		geometryStore,
@@ -377,7 +377,7 @@ function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectR
 		// argument rather than through the shared `NoteVaultDeps` field. That field is what
 		// Task 7 deletes; reading it here would have left this call site needing a second
 		// edit the day it goes.
-		projects: new ObsidianProjectRepository(deps, newProjectRoot),
+		projects: new ObsidianProjectRepository(deps, newProjectRoot, libraryFolder),
 		plans: new ObsidianPlanRepository(deps, geometryStore),
 		zones: new ObsidianZoneRepository(deps, geometryStore),
 		assets: new ObsidianAssetRepository(deps),
@@ -466,7 +466,7 @@ export function createCompositionRoot(
 		logger,
 		ledger,
 	};
-	const repositories = composeRepositories(deps, vault, settings.projectFolder);
+	const repositories = composeRepositories(deps, vault, settings.projectFolder, settings.libraryFolder);
 	const { geometryStore, projects, plans, zones, assets, requirements } = repositories;
 
 	// One lock set per plugin: assignment, unit changes and delete resolutions across

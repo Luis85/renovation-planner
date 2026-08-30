@@ -14,6 +14,10 @@ export const en = {
 	'settings.project-folder.name': 'Default projects folder',
 	'settings.project-folder.desc':
 		'Vault folder where a new project’s folder is created. An existing project keeps the folder it is already in.',
+	'settings.library-folder.name': 'Library folder',
+	'settings.library-folder.current': 'Currently {folder}. Changing this moves the notes.',
+	'settings.library-folder.move.name': 'Move the library',
+	'settings.library-folder.move.desc': 'Choose a new folder and move the catalogue into it.',
 	'settings.verbose-logging.name': 'Verbose logging',
 	'settings.verbose-logging.desc': 'Show debug-level messages in the developer console. Everything stays on this device.',
 	'view.geometry.name': 'Geometry sidecar',
@@ -225,6 +229,21 @@ export const en = {
 	'project.unknown-status': 'Choose a status from the list.',
 	'project.target-before-start': 'Target completion must be on or after the start date.',
 	'project.invalid-date': 'Enter a real calendar date.',
+	// Slice 19's coded refusals. Keyed by the exact `AppError.code`, for the reason the slice
+	// 16 block above states: `toUserMessage`'s lookup is `error.code in en`, so an
+	// `error.`-prefixed key would never resolve and each of these would silently fall through
+	// to its category's generic sentence — which for the four below is "reading or writing the
+	// vault failed unexpectedly", false about a refusal that knows exactly what is wrong.
+	//
+	// The persist-failure sentence names the REMEDY rather than the fault, because its recovery
+	// is not the obvious one: the notes are already at the destination, so re-running the move
+	// moves nothing, and pointing the setting at where they now are is the fix.
+	'settings.library-folder-empty': 'A library folder cannot be empty.',
+	'settings.library-overlaps-project': 'That folder is inside a project folder, or contains one.',
+	'settings.library-move-failed': 'The library could not be moved, so the setting was not changed.',
+	'settings.library-persist-failed':
+		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
+	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

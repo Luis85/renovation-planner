@@ -519,7 +519,17 @@ export interface RepositoryStack {
 
 export type { FakeVault, FakeFileManager, FakeMetadataCache };
 
-export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryStack {
+/**
+ * `libraryFolder` defaults to a TOP-LEVEL `Library`, deliberately not the plugin's own
+ * `DEFAULT_SETTINGS.libraryFolder` (`Renovation/Library`). Slice 19's §83 guard refuses a new
+ * project whose folder overlaps the library, and every project root this suite constructs
+ * stacks with — `Renovation`, `Projects/A`, `Projects/B`, `Somewhere Else`,
+ * `Somewhere/My Renovation` — puts its projects one segment below that root. A sibling under
+ * `Renovation` would therefore collide with any project this suite happened to name `Library`;
+ * a top-level `Library` overlaps none of those roots or their children, so a case that wants
+ * the refusal has to ASK for it by naming the folder.
+ */
+export function createRepositoryStack(projectFolder = 'Renovation', libraryFolder = 'Library'): RepositoryStack {
 	const vault = new FakeVault();
 	const fileManager = new FakeFileManager(vault);
 	const metadataCache = new FakeMetadataCache(vault);
@@ -567,7 +577,7 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		logger,
 		ledger,
 		store,
-		projects: new ObsidianProjectRepository(deps, projectFolder),
+		projects: new ObsidianProjectRepository(deps, projectFolder, libraryFolder),
 		plans: new ObsidianPlanRepository(deps, store),
 		zones: new ObsidianZoneRepository(deps, store),
 		assets: new ObsidianAssetRepository(deps),

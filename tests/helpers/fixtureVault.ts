@@ -485,6 +485,15 @@ export interface FixtureStack extends Omit<RepositoryStack, 'vault' | 'fileManag
 const DEFAULT_PROJECT_FOLDER = 'Renovation';
 
 /**
+ * Top-level, and deliberately not the plugin's own `Renovation/Library` default — the same
+ * choice `createRepositoryStack` makes and for the same reason: slice 19's §83 guard refuses
+ * a new project whose folder overlaps the library, and every project this stack creates lands
+ * one segment under `DEFAULT_PROJECT_FOLDER`. A top-level `Library` cannot overlap any of
+ * them, so a fixture case wanting the refusal has to construct the repository itself.
+ */
+const DEFAULT_LIBRARY_FOLDER = 'Library';
+
+/**
  * `dispose()`'s one guard: refuses to `rmSync` anything that isn't genuinely under the OS
  * temp directory. `root` is always the exact string `mkdtempSync` returned three lines
  * above it, so under today's code this can never fire — but "the convention holds" is
@@ -599,7 +608,7 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		// justification of its own, only the value.
 		ledger,
 		store,
-		projects: new ObsidianProjectRepository(deps, DEFAULT_PROJECT_FOLDER),
+		projects: new ObsidianProjectRepository(deps, DEFAULT_PROJECT_FOLDER, DEFAULT_LIBRARY_FOLDER),
 		plans: new ObsidianPlanRepository(deps, store),
 		zones: new ObsidianZoneRepository(deps, store),
 		assets: new ObsidianAssetRepository(deps),

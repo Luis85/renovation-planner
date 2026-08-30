@@ -804,14 +804,39 @@ describe.each(BAN_BLOCKS)('$key', (block) => {
 		 * below was skipped — and drew only half the conclusion from it. Knowing `fetch` is
 		 * banned everywhere is precisely what makes it useless as the POSITIVE probe too.
 		 */
-		const NETWORK_ONLY_GLOBALS = ['XMLHttpRequest', 'WebSocket', 'EventSource'] as const;
+		// ALL EIGHT for the positive cells — the complete `NETWORK_GLOBALS` list, transcribed.
+		// A draft probed three and omitted `navigator`, `window`, `globalThis` and `self`, so an
+		// extension-specific override keeping the three named ones would leave every cell green
+		// while `navigator.sendBeacon(...)` and `globalThis.fetch(...)` became available there.
+		// Cells-versus-spellings again, on the globals axis.
+		const ALL_NETWORK_GLOBALS = [
+			'fetch',
+			'XMLHttpRequest',
+			'WebSocket',
+			'EventSource',
+			'navigator',
+			'window',
+			'globalThis',
+			'self',
+		] as const;
+
+		// A NARROWER list for the negative cells, and the asymmetry is measured rather than
+		// cautious. Banned in a block with NO network ban:
+		//   `fetch`               — everywhere, by `eslint-plugin-obsidianmd` across `src/`
+		//   `navigator`, `window` — in `core`/`domain`, by the DOM block
+		// The other five are silent wherever no network ban applies, so only they can carry a
+		// negative. Asserting the full list negatively would assert something false.
+		const NETWORK_ONLY_GLOBALS = ['XMLHttpRequest', 'WebSocket', 'EventSource', 'globalThis', 'self'] as const;
+		// A plain REFERENCE, not `new ...`: `navigator`, `window`, `globalThis` and `self` are
+		// not constructors, so a `new` form would be a TypeError in four of the eight cells and
+		// the probe would be testing its own source rather than the rule.
 		const globalsSource = (name: string): string => {
-			const body = `export const reach = () => new ${name}('wss://example.invalid');`;
+			const body = `export const reach = () => ${name};`;
 			return extension === 'vue' ? `<template><div /></template>\n<script setup lang="ts">\n${body}\n</script>\n` : `${body}\n`;
 		};
 
 		it.runIf(block.networkGlobals === true)('reports every network global under its own rule', async () => {
-			for (const name of NETWORK_ONLY_GLOBALS) {
+			for (const name of ALL_NETWORK_GLOBALS) {
 				const found = await lintDetailed(globalsSource(name), pathFor(block, extension));
 
 				expect(found.map((d) => d.ruleId), name).toContain('no-restricted-globals');
@@ -1103,7 +1128,7 @@ describe('test file naming', () => {
 			.filter((path) => path.endsWith('.test.ts'))
 			.sort();
 
-		const vitest = await startVitest('test', [], { run: true, watch: false, dir: 'tests' }, undefined, {
+		const vitest = await startVitest('test', [], { run: true, watch: false }, undefined, {
 			stdout: process.stdout,
 			stderr: process.stderr,
 		});
@@ -1131,8 +1156,13 @@ Replace the `it('collects every *.test.ts on disk')` body with a collection-only
 			.filter((path) => path.endsWith('.test.ts'))
 			.sort();
 
+		// NO `dir` override. `vitest.config.ts`'s `include` is already `tests/**/*.test.ts`, and
+		// `dir` rebases it — measured: `{ watch: false }` returns 221 specifications and
+		// `{ watch: false, dir: 'tests' }` returns ZERO, because the include resolves to
+		// `tests/tests/**/*.test.ts`. With `onDisk` holding the real suite, the assertion could
+		// never have passed.
 		const { createVitest } = await import('vitest/node');
-		const vitest = await createVitest('test', { watch: false, dir: 'tests' });
+		const vitest = await createVitest('test', { watch: false });
 		const specs = await vitest.globTestSpecifications();
 		await vitest.close();
 
@@ -2256,6 +2286,38 @@ describe('the fixture vault adapter', () => {
 	});
 
 	/**
+	 * The same property, asserted on what ENUMERATION returns — which is where the conversion
+	 * actually happens and where the Windows defect actually lives.
+	 *
+	 * The case above hands `getAbstractFileByPath` an already-correct vault path and checks
+	 * what comes back, so an adapter that walks the clone with `readdirSync` and builds paths
+	 * with `path.relative` — producing `Nested\Deep.md` on Windows — passes it while
+	 * `getFiles()` and `getMarkdownFiles()` hand the index native separators. The bootstrap
+	 * then derives the wrong parent folder for every note, which is the whole failure this pair
+	 * exists to prevent. Asserting the output of a function you handed a good input to is not
+	 * the same as asserting the function that PRODUCES the input.
+	 *
+	 * A NESTED checked-in fixture file is what makes it bite: a path with no separator cannot
+	 * show a separator defect, so `valid-project/` must contain at least one file in a
+	 * subfolder. Recorded as a fixture REQUIREMENT rather than left to chance, and asserted at
+	 * the end of this case so a flattened fixture fails here rather than silently weakening it.
+	 */
+	it('enumerates vault-relative, forward-slashed paths', async () => {
+		open = await openFixtureVault('valid-project');
+
+		const enumerated = [...open.vault.getFiles(), ...open.vault.getMarkdownFiles()].map((file) => file.path);
+
+		expect(enumerated.length).toBeGreaterThan(0);
+		for (const path of enumerated) {
+			expect(path, path).not.toContain('\\');
+			expect(path, path).not.toContain(open.root);
+			expect(path.startsWith('/'), path).toBe(false);
+		}
+
+		expect(enumerated.some((path) => path.includes('/'))).toBe(true);
+	});
+
+	/**
 	 * The narrowing every repository actually performs. `grep -rn "instanceof TFile" src/`
 	 * prints eleven sites, so an adapter answering its own wrapper class makes all eleven
 	 * false in tests while true in the app — every fixture note reads as MISSING with the
@@ -3175,6 +3237,13 @@ Implements spec §5 and §4a. This is the honesty half, and it deserves its own 
 - Produces: nothing.
 
 - [ ] **Step 1: Name `valid-project/`'s status where the fixture lives**
+
+**`valid-project/` must contain at least one file in a SUBFOLDER.** The adapter's
+path-enumeration conformance case asserts that no enumerated path carries a native separator,
+and a fixture whose files all sit at the root has no path with a separator in it — so the
+assertion would be vacuous exactly on the platform it exists for. The case checks this itself,
+so a flattened fixture fails rather than silently weakening the check; stated here too, because
+the requirement belongs where the fixture is built and not only where it is read.
 
 Create `tests/vault/valid-project/README.md`:
 

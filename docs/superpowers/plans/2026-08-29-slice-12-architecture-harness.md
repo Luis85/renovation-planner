@@ -1309,7 +1309,7 @@ interface Workflow {
 			// case below reads them, and a type that omitted either would make that assertion
 			// unwritable. The JOB-level one is the half a first draft missed — see that case.
 			readonly if?: string;
-			readonly steps?: readonly { run?: string; if?: string }[];
+			readonly steps?: readonly { run?: string; if?: string; uses?: string; with?: Record<string, string> }[];
 		}
 	>;
 }
@@ -1335,11 +1335,19 @@ describe('CI invokes the definition of done', () => {
 		// A filter is refused rather than interpreted: a condition this test has to reason
 		// about is one it will eventually reason about wrongly, and the gate this slice builds
 		// has no business being conditional on which files a commit touched.
-		expect(workflow.on.pull_request).not.toHaveProperty('types');
-		expect(workflow.on.pull_request).not.toHaveProperty('paths');
-		expect(workflow.on.pull_request).not.toHaveProperty('paths-ignore');
-		expect(workflow.on.push).not.toHaveProperty('paths');
-		expect(workflow.on.push).not.toHaveProperty('paths-ignore');
+		// Enumerated as a SET rather than one `not.toHaveProperty` per field, because listing
+		// them by hand is what left `branches` out of the first version — and a draft of this
+		// very comment predicted "the next hole here will also be an existence check standing
+		// in for an applicability one" one round before `pull_request: { branches: [x] }` was
+		// found doing exactly that. A prediction is not a check.
+		//
+		// `push.branches` is the one filter that must be PRESENT (it is what scopes the push
+		// trigger to main), so it is excluded from the pull-request list rather than shared.
+		const PR_FILTERS = ['types', 'paths', 'paths-ignore', 'branches', 'branches-ignore'] as const;
+		const PUSH_FILTERS = ['paths', 'paths-ignore', 'branches-ignore'] as const;
+
+		for (const filter of PR_FILTERS) expect(workflow.on.pull_request).not.toHaveProperty(filter);
+		for (const filter of PUSH_FILTERS) expect(workflow.on.push).not.toHaveProperty(filter);
 	});
 
 	/**
@@ -1359,6 +1367,31 @@ describe('CI invokes the definition of done', () => {
 		// watches the other two.
 		expect(new Set(legs)).toEqual(new Set(['ubuntu-latest:22', 'ubuntu-latest:24', 'ubuntu-latest:26', 'windows-latest:22']));
 		expect(commands).toContain('npm run check');
+	});
+
+	/**
+	 * And each leg actually SELECTS the Node it declares, which the tuple set cannot see.
+	 *
+	 * `matrix.node` is only a label: `ci.yml` selects the runtime through three conditional
+	 * `actions/setup-node` steps, written as literal quoted versions on purpose so
+	 * `tests/release/manifest.test.ts` can scan them. So deleting the Node 26 setup step — or
+	 * changing its condition to `matrix.node == '24'` — leaves the tuple set and every
+	 * assertion above green while the `ubuntu-latest:26` leg silently runs the runner's
+	 * DEFAULT Node. The declared range goes unexecuted with the check that exists to prevent
+	 * exactly that still passing.
+	 *
+	 * Third layer of the same property in this file: the command, then its conditions, now
+	 * the runtime the command runs under.
+	 */
+	it('gives every declared Node version a setup step guarded on that version', () => {
+		const steps = workflow.jobs['verify']?.steps ?? [];
+		const setups = steps
+			.filter((step) => step.uses?.startsWith('actions/setup-node') === true)
+			.map((step) => `${step.if ?? ''}|${step.with?.['node-version'] ?? ''}`);
+
+		for (const version of ['22', '24', '26']) {
+			expect(setups).toContainEqual(`\${{ matrix.node == '${version}' }}|${version}`);
+		}
 	});
 
 	/**
@@ -2703,7 +2736,12 @@ Expected: the third case FAILS. Neither half alone discriminates; both are requi
 
 ```bash
 npm run check
-git add tests/vault/broken-references/ tests/plugin/brokenReferences.test.ts
+# Step 1b's four files land in THIS commit — they are prerequisites of this task, not of a
+# later one, and no other task stages them. Leaving them out would commit a test that cannot
+# compile against the tree it was verified on, having run `npm run check` over a dirty working
+# directory and reported the result as if it described the commit.
+git add tests/vault/broken-references/ tests/plugin/brokenReferences.test.ts \
+        tests/helpers/plugin.ts tests/helpers/fixtureVault.test-d.ts tsconfig.json .fallowrc.json
 git commit -m "Assert a poisoned note refuses on a read while the plugin and its neighbours load"
 ```
 
@@ -2978,7 +3016,11 @@ git commit -m "Record slice 12's open, withdrawn and dropped items without ticki
 
 One branch, `claude/next-slice-planning-gzjphh`. Tasks 1–9 are the meta-tests and land first, so the cheap high-value half is reviewable on its own even if the fixture vault needs another round. Tasks 10–13 are the vault.
 
-**The conflict surface with PR 25 is now empty, and this is a consequence of dropping `large-project/` rather than a fact the spec states.** The spec's §6 names `tests/helpers/vault.ts` as a real overlap — but the only thing in this slice that would have edited it is the shared operation recorder, which exists solely for `large-project/`'s assertion. With Q4 dropping that fixture, nothing in this plan modifies that file: Task 10 *reads* it as a model and creates a sibling.
+**The conflict surface is ONE LINE, and it was empty until this plan's own review reopened it.** The spec's §6 names `tests/helpers/vault.ts` as a real overlap — but the only thing in this slice that would have edited it is the shared operation recorder, which exists solely for `large-project/`'s assertion, so Q4 dropping that fixture removed it: Task 10 *reads* that file as a model and creates a sibling.
+
+Task 11's compile-time proof then added a `tsconfig.json` `include` entry, and PR 25 edits `tsconfig.json` too. **So "empty" became false through this plan's own later fix**, which is the same defect the spec's §6 already had to correct once — a packaging claim made early and not re-checked after the scope changed — repeated here in the document that corrected it.
+
+What the overlap actually is, so the sequencing decision stays proportionate: **one line appended to `include`**, against PR 25's edit of a different entry in the same array. A textual conflict with no semantic one, resolvable by keeping both lines. Tasks 1–10 touch neither file, so the parallel-work argument holds in full up to Task 11; only that task's Step 1b waits for PR 25 or accepts a trivial merge.
 
 So the surface is:
 
@@ -2986,9 +3028,9 @@ So the surface is:
 | --- | --- | --- |
 | `eslint.config.mjs` | driven, not modified (mutated and restored during watched-failing steps only) | edited |
 | `tests/helpers/vault.ts` | **read only** — Task 10 creates a sibling | edited |
-| `.fallowrc.json` | one `entry` addition (Task 9) | not edited |
+| `.fallowrc.json` | two `entry` additions (Tasks 9 and 11) | not edited |
 | `vitest.config.ts` | untouched — the two-project split stays withdrawn | edited |
-| `tsconfig.json` | untouched — no new file needs an `include` entry | edited |
+| `tsconfig.json` | **one `include` addition (Task 11)** — a real overlap | edited |
 
 `vitest.config.ts` and `tsconfig.json` stay untouched **only while the split stays withdrawn**. If Task 6's guard ever needs a seventh correction and the structural split is taken instead, this table changes and the work must be resequenced behind PR 25.
 

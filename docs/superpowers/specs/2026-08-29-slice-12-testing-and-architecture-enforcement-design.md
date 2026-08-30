@@ -907,14 +907,25 @@ The whole conflict surface is: `eslint.config.mjs` (driven, not modified),
 `vitest.config.ts` and `tsconfig.json` stay untouched only while the two-project split stays
 withdrawn.
 
-**§4a's Q4 then emptied that surface, and the consequence is recorded here rather than left
-to be rediscovered.** The only thing in this slice that would edit `tests/helpers/vault.ts`
-is the shared operation recorder, and the recorder exists solely for `large-project/`'s
-assertion. Dropping that fixture drops the overlap with it: the implementation plan reads
-that helper as a model for a disk-backed sibling and modifies nothing in it. So the surface
-is `eslint.config.mjs` (driven) plus one `entry` line in `.fallowrc.json`, and the
-sequencing constraint the paragraph above imposes has nothing left to sequence. It stands as
-written for the case where Q4 is reversed.
+**§4a's Q4 emptied that surface, and the implementation plan's own review then reopened it
+one line wide.** The only thing in this slice that would edit `tests/helpers/vault.ts` is the
+shared operation recorder, and the recorder exists solely for `large-project/`'s assertion, so
+dropping that fixture drops the overlap: the plan reads that helper as a model for a
+disk-backed sibling and modifies nothing in it. The sequencing constraint the paragraph above
+imposes therefore has nothing left to sequence, and stands as written for the case where Q4 is
+reversed.
+
+What replaced it is smaller and is recorded rather than left for a third correction of this
+same paragraph: the plan's compile-time proof that both stacks satisfy the widened
+`VaultSurface` is a `*.test-d.ts`, which has to be named in `tsconfig.json`'s `include` — a
+file PR 25 also edits. **One line appended to that array**, against PR 25's edit of a different
+entry in it: a textual conflict with no semantic one. Everything before that task touches
+neither file.
+
+The shape is worth keeping, since this paragraph has now been wrong twice in the same way: a
+packaging claim is a statement about a plan that is still changing, so it goes stale by
+DEFAULT and needs re-deriving whenever the plan gains a file — not re-reading when somebody
+remembers to.
 
 ## 7. Verification
 

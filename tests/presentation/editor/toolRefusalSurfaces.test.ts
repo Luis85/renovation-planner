@@ -31,6 +31,9 @@ import { flushPromises } from '@vue/test-utils';
 import { err } from '../../../src/core/result/Result';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 import { activateNotices } from '../../../src/presentation/notices/notify';
+import { guardCommand } from '../../../src/application/errors/guardAgainstThrowing';
+import { createVaultExceptionMapper } from '../../../src/application/errors/exceptionMapper';
+import type { Logger } from '../../../src/application/ports/Logger';
 import { installObsidianDom } from '../../helpers/dom';
 
 installObsidianDom();
@@ -122,6 +125,71 @@ describe('a DISPATCHED refusal the indicator resolved neutral', () => {
 		pointer(canvas, 'pointerup', 260, 200);
 		await settle();
 
+		expect(Notice.shown.length).toBe(before + 1);
+		expect(document.querySelector('.rp-notice-error')).not.toBeNull();
+
+		harness.wrapper.unmount();
+	});
+});
+
+describe('a FAULT the application boundary mapped', () => {
+	it('keeps its sentence, rather than reading as an ordinary save-affecting refusal', async () => {
+		// **The fault a dispatched editor command produces does not come from a `catch` in
+		// presentation.** `guardCommand` catches it one layer below, maps it through the vault's
+		// `ExceptionMapper` and returns a resolved failed `Result` — which is shaped exactly like
+		// a refusal the command chose to return. `Persistence` is not a pre-write category, so
+		// `affectsSaveState` answers true and the routing sends it to the save-state sink, which
+		// is deliberately a no-op here because the indicator is driven one layer down. The user
+		// got a badge reading "Save error" and no cause at all, and the mapped sentence — the only
+		// account of a fault that will ever exist — reached nobody.
+		//
+		// Reported by a review bot. The repair is that `ExceptionMapper`'s declared return type
+		// obliges every mapper to stamp, so the guard's own catch produces a stamped fault
+		// without knowing it is doing so; this case is what watches the WIRE, by driving the real
+		// `guardCommand` rather than by hand-stamping an error and asserting the branch.
+		activateNotices();
+		Notice.shown.length = 0;
+		const logged: string[] = [];
+		const logger: Logger = {
+			debug: () => undefined,
+			info: () => undefined,
+			warn: () => undefined,
+			error: (event) => {
+				logged.push(event);
+			},
+		};
+		const harness = await mountPlanEditor({
+			commands: {
+				...unavailablePlanEditorCommands(),
+				moveObject: guardCommand(
+					{
+						execute: () => {
+							throw new Error('the vault went away mid-write');
+						},
+					},
+					'test.move.faulted',
+					logger,
+					createVaultExceptionMapper('vault'),
+				),
+			} as never,
+		});
+		await flushPromises();
+
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+		const before = Notice.shown.length;
+
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		pointer(canvas, 'pointerdown', 200, 200);
+		pointer(canvas, 'pointermove', 230, 200);
+		pointer(canvas, 'pointerup', 260, 200);
+		await settle();
+
+		// The guard did its half: mapped once, logged once, with the cause.
+		expect(logged).toContain('test.move.faulted');
+		// And the user was told. Silence here is the defect, and it is the WHOLE defect —
+		// the badge was raised either way, which is what made it look like a working path.
 		expect(Notice.shown.length).toBe(before + 1);
 		expect(document.querySelector('.rp-notice-error')).not.toBeNull();
 

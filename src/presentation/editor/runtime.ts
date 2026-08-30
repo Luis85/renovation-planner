@@ -33,7 +33,7 @@ import { SnapService } from './snapping/snap-service';
 import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
-import { reportCommitFailure, reportDispatchRefusal } from './report-refusal';
+import { reportDispatchFailure } from './report-failure';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
@@ -127,7 +127,7 @@ function registerEditorTools(
 			// and only forward/inverse change.
 			createMoveGesture: (zoneId, forward, inverse) =>
 				new ReversibleMoveZoneCommand(context.commands.moveObject, ledger, zoneId, forward, inverse),
-			reportRejected: reportDispatchRefusal,
+			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
@@ -142,7 +142,7 @@ function registerEditorTools(
 					input,
 				),
 			nextZoneName: () => `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
-			reportRejected: reportDispatchRefusal,
+			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
@@ -173,7 +173,7 @@ function registerEditorTools(
 				return result.values;
 			},
 			createCommand: () => context.commands.calibratePlan(),
-			reportRejected: reportDispatchRefusal,
+			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
@@ -238,7 +238,7 @@ async function reportFault(logger: Logger, operation: Promise<DispatchResult>): 
 async function notifyIfRefused(operation: Promise<DispatchResult | null>): Promise<void> {
 	const result = await operation;
 	if (result === null || result.ok) return;
-	reportDispatchRefusal(result.error);
+	reportDispatchFailure(result.error);
 }
 
 /**
@@ -532,7 +532,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		// routing it to a badge reading "Save error" would trade their one explanation for
 		// consistency. A refusal is the opposite case: the command considered the request and
 		// declined it, and if that refusal affected the write the indicator is already saying so.
-		if (!result.ok) reportCommitFailure(result.error);
+		if (!result.ok) reportDispatchFailure(result.error);
 		return result.ok;
 	}
 

@@ -2666,11 +2666,11 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking) **except six entries in
-`tsconfig.json`'s `include`**, each there for its own reason. Six, counted in the file
+nothing type-checks `tests/**` (vitest transpiles without checking) **except seven entries in
+`tsconfig.json`'s `include`**, each there for its own reason. Seven, counted in the file
 rather than remembered: slice 11 added the third and this sentence said "two" for a slice,
 slice 16's review pass added the fourth, slice 12 added the fifth, and slice 17 added the
-sixth — this sentence
+sixth and — in a review round on its own pull request — the seventh; this sentence
 narrated exactly that failure mode ("counted … rather than remembered") one slice before
 falling into it itself, sitting at "four" through slice 12's own thirteen tasks until its
 final review round re-counted the file.
@@ -2755,6 +2755,35 @@ from the seven union members reports exactly three `TS2578: Unused '@ts-expect-e
 directives, one per literal. **What it deliberately does not prove is written into the file**:
 that a call site asked with the RIGHT origin, which no type can hold, and for which the spec's
 origin table plus review are the whole instrument.
+
+`tests/application/errors/exceptionMapper.test-d.ts` is the seventh, and it is the same kind
+put to a claim about code NOBODY HAS WRITTEN YET. `ExceptionMapper`'s declared return is
+`AppError & TechnicalFault`, so a mapper that forgets to stamp the fault it mints fails at its
+own `return` — which is the only form in which "every `AppError` minted from a thrown cause
+carries the stamp" can be checked at all, since the mappers it quantifies over are the future
+geometry and import ones the type's own docblock promises. Its two directives are held for
+DIFFERENT reasons and both mutations were run rather than reasoned: widening `ExceptionMapper`
+to a bare `AppError` unsatisfies the first and leaves the second biting, because
+`VaultExceptionMapper` restates the obligation in its own call signature; widening only that
+signature reports nothing at all, because the interface EXTENDS `ExceptionMapper` and inherits
+the stamped one. The first draft of the file's own comment asserted the two were independent
+and that widening one would leave the other open — false in both directions, and the sentence
+is now what the mutations printed.
+
+**It exists because the rule's earlier, REMEMBERED form was kept at one of its two sites.**
+Slice 17 stamped by hand in `faultError`, under a docblock calling that "the single site where
+a thrown cause becomes an `AppError`"; `guardAgainstThrowing.ts`'s catch is the second, and it
+is the one every guarded command and query goes through. So a repository exception under a
+dispatched editor command arrived in Presentation unstamped, was read as an ordinary
+save-affecting refusal, and was routed to the save indicator — badge raised, toast suppressed
+as a double-report, and the mapped sentence, which is the only account of a fault that will
+ever exist, reaching nobody. Reported by a review bot on the pull request; `CLAUDE.md`'s own
+rule is that a docblock saying "the only place X" gets a `grep` in the SAME edit, and that one
+never did. **The two report doors then collapsed into one**, which is the part worth carrying:
+`reportCommitFailure` existed as a separate function ONLY because its callers were the only
+ones whose faults were stamped, so the fault arm would have been dead in its sibling. Making
+the stamp a type obligation removed the asymmetry, and with it the reason for the second
+function — a split kept alive by a defect rather than by a distinction.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the

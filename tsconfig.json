@@ -21,6 +21,7 @@
     "tests/harness/**/*.vue",
     "tests/helpers/makeRenovationProjectView.ts",
     "tests/helpers/fixtureVault.test-d.ts",
-    "tests/presentation/errors/errorSurfacePolicy.test-d.ts"
+    "tests/presentation/errors/errorSurfacePolicy.test-d.ts",
+    "tests/application/errors/exceptionMapper.test-d.ts"
   ]
 }

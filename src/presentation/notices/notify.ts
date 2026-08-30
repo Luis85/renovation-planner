@@ -5,7 +5,6 @@ import type { Logger } from '../../application/ports/Logger';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, type ToastSurface } from '../errors/errorSurfacePolicy';
 import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
-import { markTechnicalFault } from '../errors/technical-fault';
 import { tr } from '../i18n/strings';
 import { createNoticeQueue, type NoticeHost, type NoticeQueue, type NoticeView } from './queue';
 import { SEVERITY_LABEL_KEYS, type NoticeSeverity } from './severity';
@@ -485,12 +484,12 @@ const mapUnexpected = createVaultExceptionMapper('vault');
 export function faultError(cause: unknown, logger: Logger, event: string): AppError {
 	const mapped = mapUnexpected(cause);
 	logger.error(event, { cause, code: mapped.code });
-	// **Stamped here because this is the one place a THROW becomes an `AppError`.** By the time
-	// a consumer sees it, a mapped fault and a resolved refusal are the same shape — a failed
-	// `Result` carrying a `PersistenceError` — and design slice 17 routes them differently: a
-	// save-affecting refusal is already on the indicator, while a fault's mapped sentence is
-	// the only account of it the user will ever get. See `technical-fault.ts`.
-	return markTechnicalFault(mapped);
+	// Already carries the technical-fault stamp: `mapUnexpected` is an `ExceptionMapper`, whose
+	// declared return type is what obliges every mapper to apply it. An earlier version stamped
+	// HERE instead, under a comment calling this "the one place a THROW becomes an `AppError`" —
+	// which was false, and the site it missed is the one every guarded command goes through.
+	// See `core/errors/technical-fault.ts`.
+	return mapped;
 }
 
 /**

@@ -655,6 +655,41 @@ QUERY and a failed DISPATCH through one branch, and no predicate can separate th
 query is a `Persistence` error exactly like a failed write. A toast for both over-reports the
 dispatched case and correctly reports the query case; the unsafe direction is silence.
 
+### Amendment 7 (2026-08-30): the stamp is a TYPE obligation, and the two report doors merge
+
+**Amendment 5's central claim was false, and the sentence naming it is where the defect was.**
+It says `faultError` "is the ONE place a thrown cause becomes an `AppError` — its definition
+plus four callers, all catch blocks". `application/errors/guardAgainstThrowing.ts` holds a
+second, and it is the one EVERY guarded command and query goes through: its `catch` maps the
+cause through the vault's `ExceptionMapper` and returns a resolved failed `Result`, with no
+stamp on it. So a repository exception under a dispatched editor command — `MoveSpatialObjectCommand`
+against a vault that threw — reached Presentation looking exactly like a refusal the command had
+chosen to return. `Persistence` is not a pre-write category, so `affectsSaveState` answered
+true, the routing sent it to the save-state sink, and the mapped sentence reached nobody while
+the badge went up. Reported by a review bot; the claim had never been grepped.
+
+**The repair is not a second `markTechnicalFault` call.** `ExceptionMapper`'s declared return
+type is `AppError & TechnicalFault` now, so the obligation is discharged by the compiler at
+every mapper, including the geometry and import ones that file's own docblock promises are
+coming. `guardAgainstThrowing` is unchanged — it already returns what its mapper gave it.
+`faultError` drops its hand-written stamp, because `mapUnexpected` is an `ExceptionMapper`.
+The module moved from `presentation/errors/` to `core/errors/technical-fault.ts`, since its
+writer is now in `application/` and its reader in `presentation/`, on opposite sides of it.
+
+**`reportCommitFailure` is gone, merged into `reportDispatchFailure`.** It existed as a second
+function ONLY because its callers were the only ones whose faults carried a stamp, so the fault
+arm would have been dead in its sibling — a split kept alive by the defect rather than by a
+distinction. With both doors able to see a fault there is one rule and one function holding it,
+which is what this document's own earlier amendment asked for. The module is `report-failure.ts`
+rather than `report-refusal.ts`, because a refusal is precisely what the function distinguishes
+from a fault.
+
+The proof is `tests/application/errors/exceptionMapper.test-d.ts` (a claim about mappers not yet
+written has no runtime form) and one behavioural case in `toolRefusalSurfaces.test.ts` that
+drives the REAL `guardCommand` around a throwing command and requires the toast — watched red
+against an unstamped mapper, with the file's other two cases staying green, which is what
+distinguishes the fix from "toast everything".
+
 ### Amendment 6 (2026-08-30): a canvas showing stale data says so, without being replaced
 
 `withEditorStateRefresh` re-reads after every committed write with `keepPreviousOnFailure`, and

@@ -2808,6 +2808,30 @@ function hydrateDetail(projectId: string): Promise<void> {
 }
 
 /**
+ * The detail state's two render models, the mirror of the list state's own `empty` and
+ * `failureMessage` — and an earlier draft of this task bound `detailEmpty` and
+ * `detailFailureMessage` in the template while defining neither, which does not compile.
+ * Reported by a review bot.
+ *
+ * `EMPTY_STATE_CONTENT.renovationProject` is keyed to match the selector's return type, so a
+ * widened selector fails at the type of this lookup rather than at a runtime `undefined` —
+ * the same guarantee the list state's `empty` relies on.
+ */
+const detailEmpty = computed(() => {
+	const key = detailEmptyKey.value;
+	return key === null ? null : resolveEmptyState(EMPTY_STATE_CONTENT.renovationProject[key]);
+});
+
+/**
+ * Non-null exactly when the detail read failed: `hydrate` clears `error` before every read and
+ * `fail` is its only writer. Branching on the message rather than on the status keeps this to
+ * one arm, exactly as `failureMessage` does for the list.
+ */
+const detailFailureMessage = computed(() =>
+	detailError.value === null ? null : trError(detailError.value),
+);
+
+/**
  * `'gone'` is the store saying the scan has run and this project is not in the vault, which
  * is `ProjectOpenOutcome.'missing'`'s answer one level up: return to the list, which re-reads
  * on mount. A `watch` rather than a branch inside `hydrate`, because navigation is a rendering
@@ -3180,7 +3204,17 @@ and from the inner `.catch` that calls `reportFault`. A joined activation return
 one it joined returned, which is what `return await inFlight` already gives once the map holds
 `Promise<boolean>`.
 
-Add to the existing reveal test file:
+**The two EXISTING fault cases move with the return type, and this is part of the change
+rather than a consequence of it.** `tests/infrastructure/obsidian/workspace/revealView.test.ts:169`
+and `:220` both read `await expect(revealView(...)).resolves.toBeUndefined();` — measured, both
+lines — so widening the contract without touching them fails the very test run this step
+mandates. Change both to `resolves.toBe(false)`: each drives a fault (a failing reveal and an
+exploding lookup), and `false` is precisely the new contract's answer for them. That is a
+strengthening rather than a weakening — `undefined` was the only thing the old signature could
+say, and these two cases now assert the fault was REPORTED as well as absorbed. Reported by a
+review bot.
+
+Then add to the same file:
 
 ```ts
 it('answers false when revealing an existing leaf faults, and the leaf is still there', async () => {

@@ -88,7 +88,7 @@ export class CalibrateTool implements EditorTool {
 	 *
 	 * The converse — that a buffered completion IS always consumed by its own gesture's
 	 * release, rather than surviving to be picked up by the next click's `pointerUp` — is
-	 * not this tool's doing: it rests on `PlanCanvas`'s `setPointerCapture` on the down
+	 * not this tool's doing: it rests on `EditorSurface`'s `setPointerCapture` on the down
 	 * event, which is what guarantees the matching `pointerup` (or a `pointercancel` if the
 	 * capture is broken) reaches this element even when the release happens outside the
 	 * pane. Without it a release outside `.rp-plan-canvas` fires neither — `onPointerLeave`

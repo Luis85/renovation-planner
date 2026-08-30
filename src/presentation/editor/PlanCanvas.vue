@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
- * The Konva stage: §17's seven layers in their fixed order, sized to the pane, with the
- * baseline camera on top.
+ * The Konva stage: §17's seven layers in their fixed order, sized to the pane. The camera
+ * those layers are drawn through, and every gesture that moves it, is one level out in
+ * `surface/EditorSurface.vue`; this file hands that surface its layers and its slot.
  *
  * Every layer sets `listening: false`. There is no interactive tool yet to receive pointer
  * events, and per §62 an inert hit graph on layers nothing interacts with is pure cost —
  * Konva would maintain a second, hidden canvas per layer for nothing. Slice 6 turns
  * listening on selectively, per node, without restructuring this list. The camera itself
- * therefore listens on the DOM container rather than on the Stage, which is also what lets
- * it keep working once individual nodes start listening.
+ * therefore listens on `EditorSurface`'s DOM container rather than on the Stage, which is
+ * also what lets it keep working once individual nodes start listening.
  */
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';

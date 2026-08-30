@@ -109,7 +109,7 @@ export const useEditorStore = defineStore('editor', () => {
 	 *
 	 * Refreshing it at the camera call sites was the alternative and is the shape that
 	 * decays: it is a list of the paths someone thought of, and the wrong half of it is
-	 * unreachable anyway — `PlanCanvas.reissuePointerMove` returns early when no tool is
+	 * unreachable anyway — `EditorSurface.reissuePointerMove` returns early when no tool is
 	 * active, which is camera mode, where the keyboard zoom is still live.
 	 */
 	const pointerWorld = computed<Point | null>(() =>
@@ -248,7 +248,7 @@ export const useEditorStore = defineStore('editor', () => {
 	/**
 	 * `activeToolId` is the ONE reactive mirror of `ToolManager`'s non-reactive pointer,
 	 * written by `runtime.ts`'s `setTool` and read by `EditorRuntime.activeToolId`, which
-	 * is this ref — so the toolbar's active state and `PlanCanvas`'s tool-versus-camera
+	 * is this ref — so the toolbar's active state and `EditorSurface`'s tool-versus-camera
 	 * routing both come from here. It briefly had a second writer and a private copy beside
 	 * it: three places holding the active tool, the one this comment named as the consumer
 	 * being the dead one. `hoveredObjectId` and `temporaryPolygon` are still inert — slice 8's tools

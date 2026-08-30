@@ -1135,11 +1135,11 @@ onBeforeUnmount(() => {
 		<slot :size="size" />
 		<!--
 			Whatever floats over the stage — design slice 14's empty state today. It is a
-			SIBLING of `<VStage>` inside this div rather than a child of it: Konva owns
-			everything inside the stage and would not render a DOM node there at all. The div
-			is already `position: relative` (`styles/editor.css`), so an absolutely positioned
-			overlay resolves against the canvas region and not against the shell — which is
-			what keeps it off the layers panel and the inspector.
+			SIBLING of the default slot's stage inside this div rather than a child of it:
+			Konva owns everything inside the stage and would not render a DOM node there at
+			all. The div is already `position: relative` (`styles/editor.css`), so an
+			absolutely positioned overlay resolves against the canvas region and not against
+			the shell — which is what keeps it off the layers panel and the inspector.
 
 			**The `.stop` modifiers are the pointer half of `isCanvasKey`**, and they are
 			expressed HERE rather than as a predicate at each handler on purpose. `keydown`

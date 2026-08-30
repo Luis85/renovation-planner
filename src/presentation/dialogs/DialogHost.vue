@@ -118,7 +118,7 @@ let previouslyFocused: HTMLElement | null = null;
  * `backgrounded` is a `Set` so a re-sync cannot double-count an element it already holds.
  * That is the widening this docblock asked for rather than a mechanism beside it — the
  * failure is now unrepresentable instead of merely absent from the toggles somebody
- * enumerated, which is the same trade `PlanCanvas` made over its re-issued pointer move.
+ * enumerated, which is the same trade `EditorSurface` made over its re-issued pointer move.
  *
  * **The one gap left, stated rather than glossed:** a `MutationObserver` callback is a
  * microtask, so a newly inserted sibling is non-`inert` for the tick between its insertion

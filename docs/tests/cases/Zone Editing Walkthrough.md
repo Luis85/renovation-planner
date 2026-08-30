@@ -68,34 +68,58 @@ here, or says there is none.
 The audit of this case's `suite` and `browser` verdicts — the pilot for the other eight, and
 the thing the `Reachable by` column deliberately does NOT claim. A verdict says a step COULD
 be a node test; this table says which test actually is one, read from the test body rather
-than inferred from a filename. Only the twenty `suite` and `browser` steps appear: the two
-`obsidian` and two `desktop` steps have nothing here to find.
+than inferred from a filename. Only the twenty `suite` and `browser` steps appear.
 
-Cited by test NAME rather than by line, so an edit that moves a case leaves the citation
-standing and one that renames it breaks the citation visibly.
+**One row per CLAUSE**, per `.claude/skills/auditing-manual-test-cases/SKILL.md`, and that is
+not presentation: every over-report this audit made came from folding a step's clauses onto a
+single assertion, and it made four of them while this table had one row per STEP. Cited by test
+NAME rather than by line, so an edit that moves a case leaves the citation standing and one
+that renames it breaks the citation visibly.
 
-| # | Discharged by |
-| --- | --- |
-| 1 | `zoneEditing` *drags one vertex handle…* counts one interaction-layer `Circle` per vertex, under a comment naming DoD 5; `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* covers the panel; and `zoneEditing` *draws the accent OUTLINE beside the handles, which a Circle count cannot see* covers the outline the Circle count is silent about |
-| 2 | `selectTool` *clicking empty canvas clears the selection* covers the store and `inspectorStore` *an empty selection produces …* the panel; `zoneEditing` *takes the outline and the handles down on deselection, not just the store entry* covers the canvas, which neither of those can see |
-| 3 | `selectTool` *a near-zero pointerUp is a pure selection — no command, no history entry* and *a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click* |
-| 4 | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* for the command, and *the body preview FOLLOWS the pointer mid-drag, rather than merely existing* for the ghost the user actually watches — the first asserts only that a preview is non-null. **"Smoothly" is a fourth clause and has no test**: a drag landing on the right coordinates and committing correctly can still stutter, and no instrument here settles that. It is a residue this row keeps, not a gap to close |
-| 5 | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* |
-| 6 | `zoneEditing` *drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)* — the whole step, including the area changing without a reselect |
-| 7 | `selectTool` *dragging a vertex replaces exactly that index and keeps every other vertex* — whose LAST line asserts `gesture.inverse.points`, so the inverse is covered at the dispatch boundary — plus `zoneEditing` *undoes a VERTEX edit to every original point*, which drives the same claim through the history and the repository |
-| 8 | `drawPolygonTool` *three vertices plus a close click produce exactly ONE dispatched command and a selection*; `interactionLayer` *marks every placed vertex, and draws the first one as the close target*; `handleMetrics` *grows the start vertex on hover, and draws it larger than an ordinary vertex at rest*. The **both-files** half is `consistency` *a failed sidecar write after an INSERT deletes the created note — not "restores nothing"* |
-| 8a | `interactionLayer` *grows the close target while the pointer is close enough to CLOSE the shape* covers the GROW. The FILL is a resolved theme colour and stays `browser` |
-| 8b | `interactionLayer` *flattens the rubber band the moment Shift goes down, with the pointer still* and *lets go again on release, just as promptly*. The toolbar-focus clause — Chromium focusing the nearest focusable ancestor — stays `browser` |
-| 8c | `drawPolygonTool` *does not let the constraint decide whether the polygon CLOSES* |
-| 8e | Nothing, by construction: a 460px truncation is a layout measurement. Not a gap — a `browser` row with no jsdom-reachable half is the tier working as intended |
-| 9 | `zoneEditing` *Escape abandons a half-drawn polygon BETWEEN clicks — real click pairs, no zone created*; `drawPolygonTool` *cancel discards the buffer without dispatching anything* |
-| 10 | `drawPolygonTool` *a close click while ANOTHER close is in flight is ignored — one shape, one command* |
-| 11 | `drawPolygonTool` *judges the close click in screen pixels through the current camera*; `closeTarget` *accepts a pointer inside the grab radius and refuses one outside it* |
-| 12 | The note and the panel: `zoneEditing` *deletes from the Inspector; undo restores the exact entity; the panel follows both ways*. The **sidecar entry** is its own clause and needed its own case — `consistency` *a SUCCESSFUL delete takes the geometry entry with the note, not just the note*. The compensation case cited here first covers the FAILING half of that pair and not this one |
-| 13 | The same `zoneEditing` case as 12 — it asserts the restored points equal the originals |
-| 14 | `zoneEditing` *redoes a DELETE, which is the one command whose own undo put the entity back*. `commandHistory` *a successful redo moves the command back from the redo stack to the undo stack* is the generic mechanism, with fakes |
-| 17 | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
-| 18 | `canvasPointerRouting` *a reflexive right-click mid-drag does not commit the move; the primary release still does*; `selectTool` *a NON-PRIMARY release during a drag does not commit the move* |
+| # | Clause | Discharged by |
+| --- | --- | --- |
+| 1 | the accent outline appears | `zoneEditing` *draws the accent OUTLINE beside the handles, which a Circle count cannot see* |
+| 1 | one handle circle per vertex | `zoneEditing` *drags one vertex handle…* — its first assertion, under a comment naming DoD 5 |
+| 1 | the Inspector shows the name and area | `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* |
+| 2 | outline and handles vanish | `zoneEditing` *takes the outline and the handles down on deselection, not just the store entry* |
+| 2 | the panel reads "Nothing selected." | `selectTool` *clicking empty canvas clears the selection*; `inspectorStore` *an empty selection produces …* |
+| 3 | a wiggle selects and dispatches nothing | `selectTool` *a near-zero pointerUp is a pure selection — no command, no history entry* |
+| 3 | the epsilon is camera-scaled | `selectTool` *a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click* |
+| 4 | one command per drag | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* |
+| 4 | the ghost follows the pointer | `selectTool` *the body preview FOLLOWS the pointer mid-drag, rather than merely existing* |
+| 4 | the zone stays where dropped | the same drag case — it asserts the committed `forward.points` |
+| 4 | "smoothly" | **none.** A drag landing correctly and stuttering fails this and passes everything. A residue, not a gap |
+| 5 | undo returns the exact prior position | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* |
+| 6 | only that vertex moves | `selectTool` *dragging a vertex replaces exactly that index and keeps every other vertex* |
+| 6 | the area changes with no reselect | `zoneEditing` *drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)* |
+| 7 | the vertex snaps back | `zoneEditing` *undoes a VERTEX edit to every original point, not just the one that moved* |
+| 7 | every other vertex is where it was | `selectTool` *dragging a vertex…* — its LAST line asserts `gesture.inverse.points` against the whole pre-drag list |
+| 8 | every click leaves a circle | `interactionLayer` *marks every placed vertex, and draws the first one as the close target* |
+| 8 | the FIRST is drawn larger | `handleMetrics` *grows the start vertex on hover, and draws it larger than an ordinary vertex at rest* |
+| 8 | the polygon closes into a selected zone | `drawPolygonTool` *three vertices plus a close click produce exactly ONE dispatched command and a selection* |
+| 8 | a note AND a sidecar entry appear | the zone-repository contract's *save with 'absent' inserts at revision 1 and reads back* — `getById` reads note THEN sidecar, so a create writing one file cannot round-trip. Not the compensation cases: those assert what a FAILED write leaves behind |
+| 8a | the first vertex grows near enough to close | `interactionLayer` *grows the close target while the pointer is close enough to CLOSE the shape* |
+| 8a | and FILLS | **none** — a resolved theme colour, which is why the step is `browser` |
+| 8b | the band snaps flat on the KEY, pointer still | `interactionLayer` *flattens the rubber band the moment Shift goes down, with the pointer still* |
+| 8b | and lets go on release | `interactionLayer` *lets go again on release, just as promptly* |
+| 8b | the click lands on the flat line | `drawPolygonTool` *previews exactly the point the next click places* |
+| 8b | the toolbar button hands focus back | **none** — Chromium focusing the nearest focusable ancestor, which is why the step is `browser` |
+| 8c | the polygon still closes under Shift | `drawPolygonTool` *does not let the constraint decide whether the polygon CLOSES* |
+| 8e | the name truncates with an ellipsis | **none** — a layout measurement, which is why the step is `browser` |
+| 8e | the hint stays whole | **none** — same |
+| 9 | the first buffer is gone | `zoneEditing` *Escape abandons a half-drawn polygon BETWEEN clicks — real click pairs, no zone created* |
+| 9 | the next clicks start a fresh shape | `drawPolygonTool` *cancel discards the buffer without dispatching anything* |
+| 10 | a double-click makes exactly ONE zone | `drawPolygonTool` *a close click while ANOTHER close is in flight is ignored — one shape, one command* |
+| 11 | closing still works at ~20% zoom | `drawPolygonTool` *judges the close click in screen pixels through the current camera*; `closeTarget` *accepts a pointer inside the grab radius and refuses one outside it* |
+| 12 | the zone note disappears | `zoneEditing` *deletes from the Inspector; undo restores the exact entity; the panel follows both ways* |
+| 12 | the sidecar entry disappears | `consistency` *a SUCCESSFUL delete takes the geometry entry with the note, not just the note* |
+| 12 | the panel reads "Nothing selected." | the same `zoneEditing` case |
+| 13 | undo returns the zone with the same shape | the same `zoneEditing` case — it compares the restored points to the originals |
+| 14 | redo deletes it again | `zoneEditing` *redoes a DELETE, which is the one command whose own undo put the entity back* |
+| 17 | a click on a handle moves nothing | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
+| 17 | and Undo does not enable | the same case — it asserts no history entry |
+| 18 | the drag survives a right-click | `canvasPointerRouting` *a reflexive right-click mid-drag does not commit the move; the primary release still does* |
+| 18 | the left release commits exactly one move | the same case; `selectTool` *a NON-PRIMARY release during a drag does not commit the move* |
 
 ### The five gaps, how they were closed, and the one that was never a gap
 
@@ -154,14 +178,17 @@ them discharged on an assertion covering part of a row, and UNDER-reported it at
 calling covered ground a gap by taking a test's name as its whole claim. The corrections came from a reviewer in
 every case but this one.
 
-**All four cases were watched failing against a mutation, and two of the four mutations are the
-evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
+**Six mutations were run for the five gaps and the one correction, and several are the evidence
+for the claims above rather than a ritual.** Removing the selection `VLine` from
 `InteractionLayer.vue` reddens the two new overlay cases and leaves the other thirteen in this
 file green, which is what "a `Circle` count is silent about the outline beside it" MEANS.
 Leaving the overlay behind on deselection — the store still clearing correctly — reddens the new
 case while all eighteen of `selectTool`'s and all eighteen of `inspectorStore`'s stay green:
 fifty of fifty-one passing is the measurement that a state assertion cannot see a canvas. Making
-a redo of a delete write nothing reddens exactly one case, the new one. And the vertex mutation
+a redo of a delete write nothing reddens exactly one case, the new one. Freezing the drag
+preview at its origin — so the ghost exists and does not move — reddens the new preview case
+alone, leaving the eighteen other `selectTool` cases and all fifteen here green, including the
+one asserting the preview is non-null. And the vertex mutation
 reddened two, which is how the step 7 correction above was found. And leaving the geometry
 entry in the sidecar on a successful delete reddens one case out of the 422 in
 `tests/infrastructure/obsidian/repositories/` — the sharpest of the five, since every other

@@ -2494,10 +2494,23 @@ and not a hand-written shape. `NoteVaultDeps` already types these three as `Vaul
 production passes: a member the plugin starts calling is a compile error here rather than a
 silent gap, and the fakes stay free to be classes.
 
-**Change `mustHaveSurface`'s return annotation too**, in the same edit. It reads
-`(): RepositoryStack['vault'] =>` — the nominal `FakeVault` again — so leaving it would keep
-the fixture adapter out through the back door while the parameter type advertised a structural
-contract. Annotate it `VaultSurface['vault']`.
+**Two annotations inside that file change with it**, in the same edit, and both are compile
+errors the moment the `*.test-d.ts` below pulls `plugin.ts` into `tsconfig.json`:
+
+- `mustHaveSurface` reads `(): RepositoryStack['vault'] =>` — the nominal `FakeVault` again —
+  so leaving it would keep the fixture adapter out through the back door while the parameter
+  type advertised a structural contract. Annotate it `VaultSurface['vault']`.
+- `getAbstractFileByPath` at `plugin.ts:66` is declared `(path: string): TFile | null`, but
+  Obsidian's own `Vault.getAbstractFileByPath` answers **`TAbstractFile | null`** — which
+  includes `TFolder`. Widen it to `TAbstractFile | null`. It compiles today only because
+  `RepositoryStack['vault']` is `FakeVault`, whose narrower signature the delegation happens
+  to match; the moment the surface becomes a `Pick` of the real interface, `npm run build`
+  fails here before Task 11 can land.
+
+The second is the more useful of the two to notice: a widening does not stop at the type it
+widens, it propagates to every annotation written against the narrower one. `grep -n
+'RepositoryStack\|TFile' tests/helpers/plugin.ts` before running the build, so the set is
+derived rather than discovered one build failure at a time.
 
 **`npm run build` cannot check either claim, and prescribing it here was theatre.**
 `tsconfig.json`'s `include` is `src/**/*.ts`, `src/**/*.vue`, `tests/harness/**/*.vue` and two
@@ -2711,13 +2724,28 @@ Correct the zone ids to the fixture's own, and — if the measured refusal diffe
 
 - [ ] **Step 3b: Watch the bootstrap half fail**
 
-Corrupt the fixture's `Project.md` frontmatter so the schema refuses it, and run the file.
+Delete `workspace.layoutReady()` from `bootstrap()` and run the file.
 
-Expected: the FIRST case fails — either `loadedPlugin` rejects, or the index comes back
-without both zones. That is what says this case exercises startup rather than the fixture
-helper. Confirm the discrimination by temporarily replacing `bootstrap()`'s `loadedPlugin`
-call with `stack.rebuildIndex()`: the case goes GREEN against the corrupted fixture, which is
-the hole a review bot found in the earlier draft. Restore both.
+Expected: the FIRST case fails — `plugin.root.persistence.index` is empty, because
+`RenovationPlannerPlugin` registers `startPersistence()` through `onLayoutReady` and nothing
+fired it. That is bootstrap-SPECIFIC behaviour, which is what makes it the mutation that
+discriminates: no arrangement of the fixture alone can reproduce it.
+
+**Corrupting `Project.md` is NOT a valid mutation here, and a draft of this step prescribed
+it.** `buildProjectIndexEntries`'s `collectNotes` reads only the declaration fields through
+`entityRefOf(frontmatter)` — `type`, `id`, `project`, `plan` — and never parses the Project
+schema, so both zone notes are indexed whether or not their owning project can be loaded. The
+mutation is inert: the case stays green, and so would the `rebuildIndex()` comparison beside
+it, proving nothing in either direction.
+
+Worse, the test's own comment three lines above the assertion **states this fact** — "the index
+scan deliberately does NOT run the fail-closed gate" — and `negatives.test.ts:606` is a
+describe block by that name. I wrote a mutation that contradicts a fact I had just cited.
+Which is why the rule for a watched-failing step is now: **the mutation must change something
+the assertion can observe, and the way to check that is to name which line of the subject it
+changes.** Here it is `RenovationPlannerPlugin:211`.
+
+Restore the call afterwards.
 
 - [ ] **Step 4: Watch the middle assertion fail against a valid fixture**
 

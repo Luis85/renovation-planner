@@ -95,7 +95,7 @@ this evidence worth keeping:
 | `ls-tree -r --name-only` + `^src/` | `26d37b6` | nothing — **the real claim** |
 
 Row two is what makes row three mean something. *"Watching a test fail proves it can fail;
-watching it fail against the opposite mistake is what proves it discriminates."*
+watching it fail against the OPPOSITE mistake is what proves it discriminates."*
 
 So no user vault holds an Asset note at any schema version, and there is no bump. The criterion
 is rewritten to ask **that** — *no released commit contained Asset v1* — rather than either the
@@ -249,3 +249,34 @@ heaviest on a 2.24-branch budget — and
 [[Settings and configuration]] refuses it in the product owner's own words: the setting
 *"moves the catalogues, rebuilds the index, and refuses the new value until the move has
 succeeded."* Recorded so the next reader working under the same budget does not re-draft it.
+
+## Every claim in this file was re-run
+
+Three review rounds on this branch found the same defect three times — an instrument recorded
+without being tested: `git tag --list` asked of a clone that was silently shallow,
+`VaultChangeAdapter` asserted as "the only candidate" without checking the second index door,
+and a `grep` anchor that could not match any `ls-tree` line. Each time the conclusion survived
+and the evidence did not, which is the worse half: a reader checking the work by running the
+recorded command would have been misled in all three.
+
+So on 2026-08-30 every command and every quotation in this file was executed or matched against
+its source, rather than trusted. Four commands (`foldersOverlap` absent from `src/` and
+`tests/`; no `rebuild` in `VaultChangeAdapter`; `commands/project/` holding only
+`CreateProject.ts`; `index.rebuild(buildProjectIndexEntries(…))` present in
+`RenovationPlannerPlugin`), the eight signature rows, the coverage figures, the three-row probe
+table, and nine attributed quotations across CLAUDE.md, the PRD, `changelog.test.ts`,
+`Settings and configuration.md` and the slice 17 and 19 task documents.
+
+**One defect found, and it was in the checker.** A first pass matched quotations line by line
+and reported two CLAUDE.md citations missing; both are present and correct, and wrap across
+lines. Re-run with whitespace normalised, all nine matched — the fourth instrument on this
+branch to be wrong about its own subject, and the first to fail in the safe direction. The only
+change the sweep produced in the document itself was restoring `OPPOSITE` to the capitalisation
+CLAUDE.md gives it.
+
+**What this does not make true.** Re-running a recorded command proves the command answers what
+the file says it answers today. It says nothing about the claims here that are judgements rather
+than measurements — that `VaultChangeAdapter` and the load-time rebuild are the *only* two index
+doors, that the watcher's severity should be `warning`, or that slice 17 rather than this slice
+owns queue preemption. Those are still arguments, and the three findings above were all
+originally arguments that read as settled.

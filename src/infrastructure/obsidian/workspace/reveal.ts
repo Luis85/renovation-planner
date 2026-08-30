@@ -1,6 +1,21 @@
 import type { Workspace, WorkspaceLeaf } from 'obsidian';
 
 /**
+ * What an activation needs, and the second member is the whole of this module's fault policy.
+ *
+ * `reportFault` is REQUIRED rather than optional, for the reason `useFieldCommit`'s own notice
+ * door is: an optional-with-a-default lets the one call site that forgets it fail silently,
+ * and this is the only place a failed activation is answered at all. It is composed in
+ * `plugin/` — the one layer that may reach both `infrastructure/` and
+ * `presentation/notices/notify` — and CALLED here, because here is where the coalescing is.
+ * That is the same split, for the same reason, that `openProjectNote` already takes.
+ */
+export interface RevealDeps {
+	readonly workspace: Workspace;
+	readonly reportFault: (cause: unknown) => void;
+}
+
+/**
  * The activations currently in flight, by the leaf each one is asking for — what makes a
  * DOUBLE click on the ribbon one tab.
  *
@@ -23,6 +38,8 @@ import type { Workspace, WorkspaceLeaf } from 'obsidian';
  *
  * Bounded by its own `finally`: an entry lives exactly as long as the activation it
  * describes, so a later click takes the ordinary candidate lookup rather than a stale promise.
+ *
+ * **What it holds is the ANSWERED activation**, never the raw one — see `revealCandidate`.
  */
 const activating = new Map<string, Promise<void>>();
 
@@ -62,30 +79,55 @@ function requestKey(type: string, state?: Record<string, unknown>): string {
  * map read and closes the gesture users actually perform.
  */
 export async function revealCandidate(
-	workspace: Workspace,
+	deps: RevealDeps,
 	type: string,
-	candidates: readonly WorkspaceLeaf[],
+	candidates: () => readonly WorkspaceLeaf[],
 	state?: Record<string, unknown>,
 ): Promise<void> {
-	const key = requestKey(type, state);
-	const inFlight = activating.get(key);
-	if (inFlight !== undefined) return inFlight;
-	const existing = candidates[0];
-	if (existing !== undefined) {
-		await workspace.revealLeaf(existing);
-		return;
-	}
-	// Recorded before the first `await`, so a call landing in the same tick as this one finds
-	// it. A rejection is shared rather than swallowed: both clicks asked for the same
-	// activation, and the same activation failed.
-	const leaf = workspace.getLeaf('tab');
-	const activation = leaf
-		.setViewState({ type, active: true, state })
-		.then(() => workspace.revealLeaf(leaf));
-	activating.set(key, activation);
 	try {
-		await activation;
-	} finally {
-		activating.delete(key);
+		const key = requestKey(type, state);
+		const inFlight = activating.get(key);
+		if (inFlight !== undefined) return await inFlight;
+		const existing = candidates()[0];
+		if (existing !== undefined) {
+			await deps.workspace.revealLeaf(existing);
+			return;
+		}
+		// Recorded before the first `await`, so a call landing in the same tick as this one
+		// finds it — and recorded ALREADY ANSWERED, which is the half a review round found
+		// missing. The map used to hold the RAW activation, so a joining click was handed the
+		// same rejection and each caller reported it: measured, two notices and two identical
+		// log lines for one failed double click. Sharing an operation means sharing its
+		// failure too, and one failure is one report.
+		const leaf = deps.workspace.getLeaf('tab');
+		const activation = leaf
+			.setViewState({ type, active: true, state })
+			.then(() => deps.workspace.revealLeaf(leaf))
+			.catch((cause: unknown) => {
+				deps.reportFault(cause);
+			});
+		activating.set(key, activation);
+		try {
+			await activation;
+		} finally {
+			activating.delete(key);
+		}
+	} catch (cause) {
+		// Everything the inner handler cannot reach, and the boundary is drawn at the FUNCTION
+		// rather than at the paths anyone enumerated — which took two goes to get right, and the
+		// correction is the more useful half. The first version wrapped the reveal-an-existing-
+		// leaf path and a synchronous `getLeaf` throw, having reasoned about the paths INSIDE
+		// this function; the CANDIDATE LOOKUP sits one call out, in each wrapper's argument, and
+		// a throw from `getLeavesOfType` or from a candidate's `getViewState` escaped both — as
+		// a bare synchronous throw out of `revealView` into Obsidian's own click handler, and as
+		// an unhandled rejection out of `revealPlanEditor`. Measured: zero faults reported, the
+		// error escaping, at the very call sites that had just dropped `runDetached` for this.
+		// Reported in review, one round after the boundary moved here.
+		//
+		// So `candidates` is a THUNK, called inside this `try`, and the enumeration is inside
+		// the boundary by construction rather than by a caller remembering to keep it there.
+		// It also skips the lookup entirely for a joined click, which is a consequence rather
+		// than the reason.
+		deps.reportFault(cause);
 	}
 }

@@ -1,5 +1,5 @@
-import type { Workspace, WorkspaceLeaf } from 'obsidian';
-import { revealCandidate } from './reveal';
+import type { WorkspaceLeaf } from 'obsidian';
+import { revealCandidate, type RevealDeps } from './reveal';
 
 /**
  * Read through the LEAF's own view state rather than through `leaf.view`: the leaf is what
@@ -32,14 +32,24 @@ function planIdOf(leaf: WorkspaceLeaf): string | undefined {
  *
  * The view type is a STRING here for the reason `revealView` states: `infrastructure/` may
  * not reach `presentation/`, and the composition root knows which view it is wiring.
+ *
+ * It does not REJECT, for the reason `revealView` gives: the fault is answered inside the
+ * coalescer, once per activation. `createAndOpen` awaits this and therefore no longer sees a
+ * reveal failure as its OWN — which is the more precise reading rather than a loss, since the
+ * seed it reports on had already succeeded by then and the reveal reports under its own event.
  */
 export async function revealPlanEditor(
-	workspace: Workspace,
+	deps: RevealDeps,
 	viewType: string,
 	planId: string,
 ): Promise<void> {
-	const candidates = workspace
-		.getLeavesOfType(viewType)
-		.filter((leaf) => planIdOf(leaf) === planId);
-	await revealCandidate(workspace, viewType, candidates, { planId });
+	// A thunk, so the lookup and every `planIdOf` read happen INSIDE `revealCandidate`'s fault
+	// boundary. Enumerated here, a throw from either escaped this function as a rejection that
+	// the `void` at both call sites dropped on the floor.
+	await revealCandidate(
+		deps,
+		viewType,
+		() => deps.workspace.getLeavesOfType(viewType).filter((leaf) => planIdOf(leaf) === planId),
+		{ planId },
+	);
 }

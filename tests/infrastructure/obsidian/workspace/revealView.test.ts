@@ -1,6 +1,17 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { revealView } from '../../../../src/infrastructure/obsidian/workspace/revealView';
 import { FakeWorkspace } from '../../../helpers/workspace';
+
+/**
+ * Every cause the activation answered, which is how "reported ONCE" is asked as a count
+ * rather than as a boolean — the same instrument `openNote.test.ts` uses, for the same
+ * finding at the sibling door.
+ */
+const faults: unknown[] = [];
+
+beforeEach(() => {
+	faults.length = 0;
+});
 
 /**
  * No DOM: this is the whole reason activation lives in a module rather than in the plugin's
@@ -9,8 +20,21 @@ import { FakeWorkspace } from '../../../helpers/workspace';
 
 const TYPE = 'renovation-project';
 
-// The fake's shape is the real one's; the cast is the module boundary the mock stands in for.
-const workspaceFor = (fake: FakeWorkspace) => fake as unknown as Parameters<typeof revealView>[0];
+/**
+ * The fake's shape is the real one's; the cast is the module boundary the mock stands in for.
+ *
+ * It builds the whole `RevealDeps` rather than just the workspace, and that is the fake rule
+ * rather than brevity: `reportFault` is REQUIRED, so a case that left it out would pass until
+ * something faulted and then die with `deps.reportFault is not a function` — a stand-in
+ * thinner than the real thing, which `tests/` is not type-checked to catch.
+ */
+const workspaceFor = (fake: unknown) =>
+	({
+		workspace: fake,
+		reportFault: (cause: unknown) => {
+			faults.push(cause);
+		},
+	}) as unknown as Parameters<typeof revealView>[0];
 
 describe('revealing a view', () => {
 	it('opens a leaf and gives it the view state when none is open', async () => {
@@ -95,5 +119,107 @@ describe('revealing a view', () => {
 		expect(fake.leaves).toHaveLength(1);
 		expect(created.state).toBe(stateAfterCreate);
 		expect(fake.revealed).toEqual([created, created]);
+	});
+
+	/**
+	 * **The defect the coalescing itself created, reported one review round after it landed —
+	 * and the SECOND time this repository has had it, at the second of its two leaf-creating
+	 * doors.** `openProjectNote` was the first, and its fix is the shape this one takes.
+	 *
+	 * Both clicks were handed the same rejecting promise, and each call site wrapped its own
+	 * `runDetached` around it: measured before the fix, two `reportFault` calls and two
+	 * identical log lines for one failed double click. The notice COUNT cannot see it — slice
+	 * 13's queue folds an identical message into a `(×N)` suffix on the notice already up — so
+	 * the report count is the only instrument that discriminates, which is why this asserts on
+	 * it rather than on what the user sees.
+	 *
+	 * Watched failing against the previous shape: two reports.
+	 */
+	it('reports a coalesced activation failure once', async () => {
+		const failing = {
+			getLeavesOfType: () => [],
+			getLeaf: () => ({
+				setViewState: () => Promise.reject(new Error('workspace exploded')),
+			}),
+			revealLeaf: () => Promise.resolve(),
+		};
+
+		await Promise.all([revealView(workspaceFor(failing), TYPE), revealView(workspaceFor(failing), TYPE)]);
+
+		expect(faults).toHaveLength(1);
+		expect((faults[0] as Error).message).toBe('workspace exploded');
+	});
+
+	/**
+	 * The half that only matters BECAUSE the fault moved in here: the reuse path is not
+	 * coalesced, so it never passes through the handler on the creation path — and the two
+	 * detached call sites no longer wrap this in anything. Left unanswered, a failing
+	 * `revealLeaf` on an existing leaf would be an unhandled rejection reaching nobody, which
+	 * is the exact failure `runDetached` had been added to close.
+	 */
+	it('answers a fault on the reuse path too, rather than rejecting', async () => {
+		const fake = new FakeWorkspace();
+		fake.withOpen(TYPE);
+		const failing = {
+			getLeavesOfType: (type: string) => fake.getLeavesOfType(type),
+			getLeaf: () => fake.getLeaf('tab'),
+			revealLeaf: () => Promise.reject(new Error('reveal exploded')),
+		};
+
+		await expect(revealView(workspaceFor(failing), TYPE)).resolves.toBeUndefined();
+
+		expect(faults).toHaveLength(1);
+		expect((faults[0] as Error).message).toBe('reveal exploded');
+	});
+
+	/**
+	 * And the entry is released on the failing path, which the `finally` buys: a click after a
+	 * failed activation has to reach the workspace again rather than being answered forever
+	 * from a promise the map never let go of.
+	 */
+	it('goes back to the workspace after a failed activation', async () => {
+		let failNext = true;
+		const fake = new FakeWorkspace();
+		const flaky = {
+			getLeavesOfType: (type: string) => fake.getLeavesOfType(type),
+			getLeaf: () => {
+				if (failNext) {
+					failNext = false;
+					return { setViewState: () => Promise.reject(new Error('once')) };
+				}
+				return fake.getLeaf('tab');
+			},
+			revealLeaf: (leaf: unknown) => fake.revealLeaf(leaf as never),
+		};
+
+		await revealView(workspaceFor(flaky), TYPE);
+		await revealView(workspaceFor(flaky), TYPE);
+
+		expect(faults).toHaveLength(1);
+		expect(fake.getLeavesOfType(TYPE)).toHaveLength(1);
+	});
+
+	/**
+	 * **The half the first version of this boundary missed, reported one round after it landed.**
+	 * The fault handler was drawn around the paths INSIDE `revealCandidate`, and the candidate
+	 * lookup sits one call out — in each wrapper's own argument. So a throw from
+	 * `getLeavesOfType` escaped as a bare SYNCHRONOUS throw out of `revealView`, into Obsidian's
+	 * own click handler, at the very call site that had just dropped `runDetached` for this.
+	 * Measured before the fix: zero reports, the error escaping.
+	 *
+	 * `candidates` is a thunk now, called inside the `try`, so the enumeration is inside the
+	 * boundary by construction rather than by a caller keeping it there.
+	 */
+	it('answers a fault from the candidate lookup rather than throwing past the caller', async () => {
+		const exploding = {
+			getLeavesOfType: () => {
+				throw new Error('lookup exploded');
+			},
+		};
+
+		await expect(revealView(workspaceFor(exploding), TYPE)).resolves.toBeUndefined();
+
+		expect(faults).toHaveLength(1);
+		expect((faults[0] as Error).message).toBe('lookup exploded');
 	});
 });

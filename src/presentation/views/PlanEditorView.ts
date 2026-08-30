@@ -88,6 +88,20 @@ export class PlanEditorView extends ItemView {
 	 * the undo history, the camera, the selection. That is a real loss on a rare, deliberate
 	 * action, and the alternative is a canvas that goes on writing through a root the vault
 	 * has stopped agreeing with.
+	 *
+	 * **A second cost is RECORDED rather than closed, and it is the same residual
+	 * `DialogHost.onBeforeUnmount` carries on the project side.** A `saveSettings` landing while
+	 * an editor write is still awaiting the vault remounts over it: the write completes, but its
+	 * domain event is published on the RETIRED bus, and `createPlanChangeSource` subscribes to
+	 * `PLAN_CHANGE_EVENTS` and `ProjectIndexRebuilt` — neither of which the retired bus will
+	 * raise for it — so the remounted canvas can sit stale over a write that succeeded, until
+	 * the leaf is reopened. Reported in review, and the remedy it names is the one declined
+	 * above it: deferring the rebind needs a seam from here back out to the `ItemView` that does
+	 * not exist, and keeps the retired root live for the write's length, which is what this
+	 * method exists to stop. Subscribing to `ProjectIndexEntryChanged` looks like the cheap
+	 * partial and is not one — the write is this plugin's own, so `VaultChangeAdapter`'s echo
+	 * window suppresses it by design and no index event is ever raised to carry it.
+	 * `docs/tasks/16`'s sixteenth-round section has the full account.
 	 */
 	rebind(deps: PlanEditorDeps): void {
 		this.deps = deps;

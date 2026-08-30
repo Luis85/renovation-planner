@@ -6,7 +6,7 @@ import type { ZoneStatus } from '../domain/zone/ZoneStatus';
 import type { ZoneType } from '../domain/zone/ZoneType';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
 import { runDetached } from './runDetached';
-import { notifyError } from '../presentation/notices/notify';
+import { notifyError, notifyFault } from '../presentation/notices/notify';
 import { PLAN_EDITOR_VIEW } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
 import type { StringKey } from '../presentation/i18n/locales/en';
@@ -185,7 +185,20 @@ async function createAndOpen(host: PluginCommandHost, services: PersistenceServi
 		notifyError(seeded.error);
 		return;
 	}
-	await revealPlanEditor(host.app.workspace, PLAN_EDITOR_VIEW, seeded.value);
+	// The reveal answers its own fault (`revealCandidate`), under its own event name rather
+	// than as a seed failure — which is the more precise reading: by this line the seed has
+	// already succeeded, so reporting a reveal fault as `sample-project.failed` would name the
+	// wrong operation. `runDetached` at the command still covers everything above it.
+	await revealPlanEditor(
+		{
+			workspace: host.app.workspace,
+			reportFault: (cause: unknown): void => {
+				notifyFault(cause, host.root.logger, 'view.plan-editor.reveal-failed');
+			},
+		},
+		PLAN_EDITOR_VIEW,
+		seeded.value,
+	);
 }
 
 export function registerSampleProjectCommand(host: PluginCommandHost): void {

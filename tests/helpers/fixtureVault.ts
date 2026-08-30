@@ -96,14 +96,27 @@ class FixtureVaultAdapter {
 	 * this is fidelity to the real type as much as a platform fix.
 	 */
 	/**
-	 * Paths this adapter created that Obsidian has not parsed yet, with the exact bytes.
+	 * Writes Obsidian's parse queue has not reached yet, mapped to what its metadata cache
+	 * STILL SHOWS for that path — `null` for a file it has never seen at all.
 	 *
-	 * It lives on the VAULT, exactly as `FakeVault.unparsed` does, and that placement is what
-	 * dissolves a construction cycle rather than working around one: the adapter needs to
-	 * record a create, and the cache needs the current bytes to parse. With the record here,
-	 * `FixtureMetadataCache(vault)` reads `vault.unparsed` and there is no cycle to resolve.
+	 * Named and shaped exactly as `FakeVault.pendingParse`, deliberately: two fakes standing
+	 * in for one host object are two chances to disagree about it, and the only defence is
+	 * that the second is a transcription of the first rather than a second derivation. This
+	 * field was `unparsed: Map<string, string>` — the CREATE window alone — until `main`
+	 * taught `FakeVault` the modify window too, at which point this adapter was thinner than
+	 * its sibling and this paragraph's predecessor said so in a clause that had become false.
+	 *
+	 * It lives on the VAULT, exactly as `FakeVault`'s does, and that placement dissolves a
+	 * construction cycle rather than working around one: the adapter records the write, and
+	 * the cache needs the bytes to parse, so `FixtureMetadataCache(vault)` reads it from here
+	 * and there is nothing to resolve.
 	 */
-	readonly unparsed = new Map<string, string>();
+	readonly pendingParse = new Map<string, string | null>();
+
+	/** Records a write the parse queue has not reached, keeping the EARLIEST text behind it. */
+	private pending(path: string, previous: string | null): void {
+		if (!this.pendingParse.has(path)) this.pendingParse.set(path, previous);
+	}
 
 	constructor(readonly root: string) {}
 
@@ -125,7 +138,7 @@ class FixtureVaultAdapter {
 				throw new Error(`File already exists: ${path}`);
 			}
 			writeFileSync(this.absolute(path), data, 'utf8');
-			this.unparsed.set(path, data);
+			this.pending(path, null);
 			return Promise.resolve(fileAt(path));
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -157,8 +170,17 @@ class FixtureVaultAdapter {
 	}
 
 	/**
-	 * Mirrors `FakeVault.modify` (vault.ts:130): refuses a path that does not exist, and
-	 * makes the path CACHE-VISIBLE again — the mirror of `create` recording it as unparsed.
+	 * Mirrors `FakeVault.modify`: refuses a path that does not exist, and leaves the metadata
+	 * cache STALE rather than making it current — Obsidian's queue has not reached the write,
+	 * so what it shows is the PREVIOUS version of the file, not the bytes now on disk.
+	 *
+	 * The pre-write text is read before the write for exactly that reason. An earlier version
+	 * cleared the record here instead, which modelled the opposite of production: a
+	 * read-after-modify saw the new bytes immediately, so every such flow passed here while
+	 * the same one observed stale frontmatter in a vault. That is the defect `main` fixed in
+	 * `FakeVault` (a background written, its event published, the editor re-hydrating inside
+	 * the window and reading the PRE-write reference straight back).
+	 *
 	 * On the VAULT, not through the cache: the record lives here, so `modify` needs no cache
 	 * reference and the two objects cannot disagree about it.
 	 */
@@ -168,8 +190,8 @@ class FixtureVaultAdapter {
 			if (!existsSync(absolute)) {
 				throw new Error(`No file to modify: ${file.path}`);
 			}
+			this.pending(file.path, this.readOrUndefined(file.path) ?? null);
 			writeFileSync(absolute, data, 'utf8');
-			this.unparsed.delete(file.path);
 			return Promise.resolve();
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -180,8 +202,10 @@ class FixtureVaultAdapter {
 	 * A file OR a folder, because Obsidian's own `trashFile` takes any `TAbstractFile` and
 	 * takes everything a folder holds. `rmSync`'s `recursive` option is that same behaviour —
 	 * destructive on purpose, mirroring `FakeVault.delete`'s own header on the point.
-	 * `unparsed` needs no cleanup here: `readOrUndefined` answers `undefined` for a path that
-	 * is gone, and `getFileCache` turns that into `null` on its own.
+	 * The pending-parse window IS retired here, for the path and for everything under it when
+	 * the target is a folder — mirroring `FakeVault.delete`. Leaving it would be worse than a
+	 * stale entry: a recreate at the same path would find a record of the deleted file's text
+	 * and serve it as what the cache still shows.
 	 */
 	delete(file: TFile | TFolder): Promise<void> {
 		try {
@@ -190,6 +214,11 @@ class FixtureVaultAdapter {
 				throw new Error(`No file to delete: ${file.path}`);
 			}
 			rmSync(absolute, { recursive: true, force: true });
+			this.pendingParse.delete(file.path);
+			const prefix = `${file.path}/`;
+			for (const path of this.pendingParse.keys()) {
+				if (path.startsWith(prefix)) this.pendingParse.delete(path);
+			}
 			return Promise.resolve();
 		} catch (cause) {
 			return Promise.reject(cause);
@@ -339,7 +368,7 @@ class FixtureFileManager {
 
 class FixtureMetadataCache {
 	/**
-	 * The create-window record lives on the VAULT (`FixtureVaultAdapter.unparsed`), read from
+	 * The window record lives on the VAULT (`FixtureVaultAdapter.pendingParse`), read from
 	 * here — the same relationship `FakeMetadataCache` has with `FakeVault`. The cache owns no
 	 * state of its own at all, which is what makes staleness unrepresentable rather than
 	 * merely refreshed, and what leaves nothing for the two objects to disagree about.
@@ -347,35 +376,37 @@ class FixtureMetadataCache {
 	constructor(private readonly vault: FixtureVaultAdapter) {}
 
 	/**
-	 * Parsed ON DEMAND from the vault's CURRENT bytes — never from a snapshot map. A checked-in
-	 * note is visible the moment the clone lands, so no seeding pass is needed here.
+	 * What Obsidian's parse queue last reached for this path — never necessarily the bytes on
+	 * disk. A checked-in note is visible the moment the clone lands, so no seeding pass is
+	 * needed; anything this adapter has written since is answered from `pendingParse`.
 	 *
-	 * Three answers, not two. `null` means Obsidian has no entry for the file — never parsed,
-	 * or inside the create window. A file it parsed and found NO frontmatter in answers an
-	 * OBJECT whose `frontmatter` is undefined. Conflating those makes "never seen" and "the
-	 * user deleted the frontmatter" indistinguishable — the exact conflation `frontmatterOf`
-	 * must not make.
+	 * BOTH windows, transcribed from `FakeMetadataCache`:
+	 *  - after a CREATE there is no entry at all. Answering `{}` for one made every caller
+	 *    read a version-0 document, which is what `create-sample-project` hit on its first
+	 *    real run.
+	 *  - after a MODIFY the entry is STALE — present, and parsed from the PREVIOUS version.
+	 *    This half was unmodelled here, under a comment asserting `FakeVault` did not model it
+	 *    either; `main` had since taught it to, and the clause was false when the branch
+	 *    merged.
 	 *
-	 * What this models and what it does NOT: the window after a CREATE, where Obsidian has no
-	 * entry at all. It does not model the parse lag after a MODIFY, where Obsidian holds a
-	 * STALE entry rather than none — a different failure, which `FakeVault` does not model
-	 * either.
+	 * Three answers, not two. `null` means Obsidian has no entry for the file. A file it
+	 * parsed and found NO frontmatter in answers an OBJECT whose `frontmatter` is undefined.
+	 * Conflating those makes "never seen" and "the user deleted the frontmatter"
+	 * indistinguishable — the exact conflation `frontmatterOf` must not make.
 	 */
 	getFileCache(file: TFile | TFolder | null): { frontmatter?: Record<string, unknown> } | null {
 		if (file === null) return null;
 
-		const asCreated = this.vault.unparsed.get(file.path);
-		if (asCreated !== undefined && asCreated === this.vault.readOrUndefined(file.path)) return null;
-
-		const text = this.vault.readOrUndefined(file.path);
-		if (text === undefined) return null;
-		if (!text.startsWith('---\n')) return {};
-		return { frontmatter: parseFrontmatter(text).frontmatter };
+		const behind = this.vault.pendingParse.get(file.path);
+		const seen = behind === undefined ? this.vault.readOrUndefined(file.path) : behind;
+		if (seen === undefined || seen === null) return null;
+		if (!seen.startsWith('---\n')) return {};
+		return { frontmatter: parseFrontmatter(seen).frontmatter };
 	}
 
 	/** What Obsidian eventually does on its own, once its parse queue drains. */
 	catchUp(): void {
-		this.vault.unparsed.clear();
+		this.vault.pendingParse.clear();
 	}
 }
 

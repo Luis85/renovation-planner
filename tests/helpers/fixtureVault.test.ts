@@ -76,20 +76,34 @@ describe('the fixture vault adapter', () => {
 	});
 
 	/**
-	 * Save then read. The snapshot design returned the PRE-SAVE frontmatter here: nothing
-	 * invalidated the entry, and `frontmatterOf` falls back to the echo window only when the
-	 * cache answers `null`. Reported by a review bot against that design; this case is what
-	 * keeps the on-demand answer from regressing back into a cached one.
+	 * Save then read, through the door a repository actually uses.
+	 *
+	 * This case was written against a SNAPSHOT design that returned the pre-save frontmatter
+	 * here because nothing ever invalidated the entry — stale forever, not stale for a window.
+	 * It asserted the modify was visible IMMEDIATELY, which caught that bug and, once `main`
+	 * taught `FakeVault` the modify window, encoded the opposite defect: production holds the
+	 * PREVIOUS version until its parse queue drains, so a cache that answers the new bytes at
+	 * once is kinder than the real thing in the direction that hides a read-after-write.
+	 *
+	 * `catchUp()` is what tells the two apart, and it is why this case survives its own
+	 * correction rather than being deleted: a permanently-stale snapshot fails the third
+	 * assertion, and a cache made current on modify fails the second. Only a real window
+	 * passes both.
 	 */
-	it('reflects a modify immediately, rather than serving the bytes from before it', async () => {
+	it('serves the pre-save frontmatter for the window, and the new bytes once it drains', async () => {
 		open = await openFixtureVault('valid-project');
 		const path = 'Project.md';
 		const file = open.vault.getAbstractFileByPath(path);
+		const before = open.metadataCache.getFileCache(file)?.frontmatter?.['status'];
 
 		await open.fileManager.processFrontMatter(file, (frontmatter) => {
 			frontmatter['status'] = 'changed-by-this-test';
 		});
 
+		expect(before).not.toBe('changed-by-this-test');
+		expect(open.metadataCache.getFileCache(file)?.frontmatter).toMatchObject({ status: before });
+
+		open.metadataCache.catchUp();
 		expect(open.metadataCache.getFileCache(file)?.frontmatter).toMatchObject({ status: 'changed-by-this-test' });
 	});
 
@@ -283,5 +297,41 @@ describe('the fixture vault adapter', () => {
 		// The vault ROOT itself is legal and must stay so — `nodeAt('')` looks it up.
 		expect(open.vault.getAbstractFileByPath('')).not.toBeNull();
 		expect(existsSync(join(root, 'Project.md'))).toBe(true);
+	});
+	/**
+	 * Hardening rule 2's SECOND face, added after a review bot found it missing: **after a
+	 * MODIFY the cache is stale, not current.**
+	 *
+	 * The first face (a create is invisible until the queue drains) shipped with this adapter.
+	 * This one did not, under a docblock asserting `FakeVault` did not model it either — true
+	 * when written, and false by the time this branch merged `main`, which had taught
+	 * `FakeVault` exactly this through `pendingParse`. A fake thinner than the sibling fake
+	 * standing in for the same host object is the governing rule of this whole file broken one
+	 * import away.
+	 *
+	 * It matters because it is the direction that HIDES a defect: a read-after-modify that
+	 * sees the new bytes immediately passes here while the same flow reads pre-write
+	 * frontmatter in a vault. `main` fixed the same hole in `FakeVault` after it hid a shipped
+	 * one — a plan background written, its event published, the editor re-hydrating inside the
+	 * window and drawing nothing.
+	 *
+	 * All three arms, because each passes against a different wrong model: the stale read (a
+	 * cache made current on modify fails it), the drain (a cache permanently stuck on the old
+	 * text fails it), and the earliest-text rule (a record overwritten by the second write
+	 * would answer the first modification's text rather than the original's).
+	 */
+	it('holds the pre-write frontmatter until the parse queue drains', async () => {
+		open = await openFixtureVault('valid-project');
+		const file = open.vault.getAbstractFileByPath('Project.md') as TFile;
+		const before = open.metadataCache.getFileCache(file)?.frontmatter?.['name'];
+
+		await open.vault.modify(file, '---\nname: "Renamed Once"\n---\n');
+		expect(open.metadataCache.getFileCache(file)?.frontmatter?.['name']).toBe(before);
+
+		await open.vault.modify(file, '---\nname: "Renamed Twice"\n---\n');
+		expect(open.metadataCache.getFileCache(file)?.frontmatter?.['name']).toBe(before);
+
+		open.metadataCache.catchUp();
+		expect(open.metadataCache.getFileCache(file)?.frontmatter?.['name']).toBe('Renamed Twice');
 	});
 });

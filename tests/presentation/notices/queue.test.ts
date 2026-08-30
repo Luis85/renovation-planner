@@ -127,6 +127,32 @@ describe('the notice queue', () => {
 			expect(live().map((o) => o.view.message)).toEqual(['first', 'second', 'third']);
 		});
 
+		it('never opens a warning it is about to demote for a held error', () => {
+			// **An announcement is made at `open`, so opening-then-hiding is not free.**
+			// `createObsidianHost.open` announces during its initial render, so a warning shown
+			// for one synchronous instant and immediately demoted still reaches a screen reader —
+			// a message a sighted user never had the chance to read. The fill loop must not hand
+			// a slot to a warning while an error is waiting for one.
+			const { host, opened, live } = recordingHost();
+			const queue = createNoticeQueue(host);
+			queue.push('error', 'e1');
+			queue.push('error', 'e2');
+			queue.push('error', 'e3');
+			// Both held behind a full screen, the warning FIRST so a strict FIFO fill reaches it
+			// before the error.
+			queue.push('warning', 'held-warning');
+			queue.push('error', 'held-error');
+			expect(opened.map((o) => o.view.message)).toEqual(['e1', 'e2', 'e3']);
+
+			// Free exactly one slot.
+			opened[0]?.handle.hide();
+			opened[0]?.callbacks.dismissed();
+
+			// The freed slot goes to the held ERROR, and the warning is never constructed at all.
+			expect(live().map((o) => o.view.message)).toEqual(['e2', 'e3', 'held-error']);
+			expect(opened.map((o) => o.view.message)).not.toContain('held-warning');
+		});
+
 		it('does not preempt for another WARNING', () => {
 			// The narrowing, and it needs its own case: a rule letting any later notice preempt
 			// would pass all three cases above while making the cap mean nothing.

@@ -213,9 +213,24 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 		 * rotating window over the very severity this exists to protect.
 		 */
 		promote(): void {
-			for (const entry of entries) {
+			// **Held ERRORS take a free slot first, and this ordering is not the same rule as the
+			// preemption below — it is what stops that rule doing visible damage.** A strict
+			// oldest-first fill hands a free slot to a held warning while an error is still
+			// waiting, and the preemption block then hides the warning it has just opened. That
+			// is not merely wasteful: `createObsidianHost.open` ANNOUNCES during its initial
+			// render, so a warning shown for one synchronous instant still reaches a screen
+			// reader — a message a sighted user was never given the chance to read. Reported by a
+			// review bot.
+			//
+			// Within each tier the order stays oldest-first, which is the FIFO promise everything
+			// else in this queue makes.
+			const queued = entries.filter((held) => held.handle === null);
+			for (const entry of [
+				...queued.filter((held) => held.severity === 'error'),
+				...queued.filter((held) => held.severity !== 'error'),
+			]) {
 				if (visible().length >= MAX_VISIBLE_NOTICES) break;
-				if (entry.handle === null) ops.show(entry);
+				ops.show(entry);
 			}
 
 			// `break` above, not `return`: reaching the cap is exactly the condition preemption

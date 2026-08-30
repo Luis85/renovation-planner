@@ -106,6 +106,7 @@ that renames it breaks the citation visibly.
 | 8b | the band snaps flat on the KEY, pointer still | `interactionLayer` *flattens the rubber band the moment Shift goes down, with the pointer still* |
 | 8b | and lets go on release | `interactionLayer` *lets go again on release, just as promptly* |
 | 8b | the click lands on the flat line | `drawPolygonTool` *previews exactly the point the next click places* |
+| 8b | the status bar says `Shift constrains the angle`, and not under Select | `shell` *announces the angle constraint under the tools that take it, and no others* |
 | 8b | the toolbar button hands focus back | **none** — Chromium focusing the nearest focusable ancestor, which is why the step is `browser` |
 | 8c | the polygon still closes under Shift | `drawPolygonTool` *does not let the constraint decide whether the polygon CLOSES* |
 | 8e | the name truncates with an ellipsis | **none** — a layout measurement, which is why the step is `browser` |
@@ -118,6 +119,8 @@ that renames it breaks the citation visibly.
 | 12 | the sidecar entry disappears | `consistency` *a SUCCESSFUL delete takes the geometry entry with the note, not just the note* |
 | 12 | the panel reads "Nothing selected." | the same `zoneEditing` case |
 | 13 | undo returns the zone with the same shape | the same `zoneEditing` case — it compares the restored points to the originals |
+| 13 | the restore keeps the SAME id | `reversibleDeleteZone` *undo resurrects the EXACT entity — same id, same type, identical geometry (DoD 8)* |
+| 13 | the restore publishes NO creation event | `reversibleDeleteZone` *undo publishes NOTHING — a restore is not a creation*. Nothing asserted it: the redo case clears `events.published` immediately after its own undo, discarding the evidence |
 | 13 | the NOTE is back in the vault ("open the note and check") | **compositional, and no single case crosses the seam.** `ReversibleDeleteZone.undo` restores through `restoreZone` → `zones.save(snapshot, 'absent')`, and the zone-repository contract's *save with 'absent' inserts at revision 1 and reads back* covers that write; the `zoneEditing` case above proves the history reaches it, over `InMemoryZoneRepository`. A dedicated Obsidian-backed restore case was considered and not written: its mutation is a mutation of `save`, which reddens eight cases nobody wrote for it, so by the skill's own gate it would add nothing |
 | 14 | redo deletes it again | `zoneEditing` *redoes a DELETE, which is the one command whose own undo put the entity back* |
 | 17 | a click on a handle moves nothing | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
@@ -125,7 +128,7 @@ that renames it breaks the citation visibly.
 | 18 | the drag survives a right-click | `canvasPointerRouting` *a reflexive right-click mid-drag does not commit the move; the primary release still does* |
 | 18 | the left release commits exactly one move | the same case; `selectTool` *a NON-PRIMARY release during a drag does not commit the move* |
 
-### The five gaps, how they were closed, and the one that was never a gap
+### The seven gaps, how they were closed, and the one that was never a gap
 
 None was visible from a test name — the suite looked complete until the bodies were read, which
 is the argument for auditing by reading rather than by grep. **Two were missed by the first pass
@@ -135,7 +138,7 @@ body it was pointed at, found an assertion covering PART of a step, and wrote th
 discharged; at step 7 it made the opposite error, reading a test's NAME as its whole claim and
 calling covered ground a gap.
 
-All five real ones are closed — three in `tests/presentation/editor/zoneEditing.test.ts`, one in `tests/presentation/editor/tools/selectTool.test.ts`, one in `tests/infrastructure/obsidian/repositories/consistency.test.ts`:
+All seven real ones are closed — three in `tests/presentation/editor/zoneEditing.test.ts`, one in `tests/presentation/editor/tools/selectTool.test.ts`, one in `tests/infrastructure/obsidian/repositories/consistency.test.ts`:
 
 - **Step 1 — nothing asserted the selection OUTLINE.** The only interaction-layer assertion in
   the editor suite counted `Circle` nodes, which are the vertex handles; an outline that stopped
@@ -173,7 +176,17 @@ All five real ones are closed — three in `tests/presentation/editor/zoneEditin
   dispatcher was not. *undoes a VERTEX edit to every original point* now drives it, and is a
   second net over a defect the unit case already catches rather than the only one.
 
-None of the five was a defect: they were steps the suite was assumed to cover and did not.
+- **Step 13 — nothing asserted the restore publishes no creation event.** `restore-zone.ts`
+  saves and publishes nothing on purpose: a restore is not a creation, and anything subscribed
+  to `ZoneCreated` would treat it as one. The redo case clears `events.published` right after
+  its own `undo()`, discarding exactly that evidence. Closed by *undo publishes NOTHING — a
+  restore is not a creation*, whose verification is a SENSITIVITY check rather than a source
+  mutation, and the case says so: nothing in the undo path holds an event bus, so publishing
+  from a restore requires wiring one — and that wiring is the change the case exists to catch.
+- **Step 3's Undo-DISABLED clause** and **step 8b's status-hint clause** were omissions from
+  this table rather than from the suite; the hint was already discharged by `shell`.
+
+None of the seven was a defect: they were steps the suite was assumed to cover and did not.
 
 **Every cited test's BODY has now been read against its row**, which is what the first pass
 claimed to have done and had not. That re-read is where step 4 came from, and it is the last
@@ -182,7 +195,7 @@ them discharged on an assertion covering part of a row, and UNDER-reported it at
 calling covered ground a gap by taking a test's name as its whole claim. The corrections came from a reviewer in
 every case but this one.
 
-**Nine mutations were run for the five gaps and the one correction, and several are the
+**Nine mutations were run for six of the seven gaps and the one correction, and several are the
 evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
 `InteractionLayer.vue` reddens the two new overlay cases and leaves the other thirteen in this
 file green, which is what "a `Circle` count is silent about the outline beside it" MEANS.

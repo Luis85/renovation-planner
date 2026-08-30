@@ -80,6 +80,32 @@ describe('ReversibleDeleteZoneCommand', () => {
 		expect(after.entity.geometry.points).toEqual(before.entity.geometry.points);
 	});
 
+	it('undo publishes NOTHING — a restore is not a creation', async () => {
+		const { zones, events, zone, makeCommand } = await wired();
+
+		const reversible = makeCommand();
+		await reversible.execute();
+		expect(events.published.map((event) => event.type)).toEqual(['ZoneDeleted']);
+
+		events.published.length = 0;
+		await reversible.undo();
+
+		// `restore-zone.ts` saves through the repository and publishes nothing, deliberately:
+		// a restore is not a creation, and anything subscribed to `ZoneCreated` would treat it
+		// as one. Nothing asserted it. The redo case below clears this array immediately after
+		// its own `undo()`, discarding exactly this evidence, so a restore that began emitting
+		// `ZoneCreated` left every case in this file green.
+		//
+		// Sensitivity checked by removing the reset two lines up: the delete's own
+		// `ZoneDeleted` then remains and the case fails, so the assertion reads the array
+		// rather than passing on an empty one it never filled. A SOURCE mutation is not
+		// available cheaply — nothing in the undo path holds an event bus, which is why
+		// publishing from a restore requires wiring one, and that wiring is the change this
+		// case exists to catch.
+		expect(events.published).toHaveLength(0);
+		expect(expectOk(await zones.getById(zone.id))).not.toBeNull();
+	});
+
 	it('redo deletes again, against the state the restore wrote', async () => {
 		const { zones, events, zone, makeCommand } = await wired();
 

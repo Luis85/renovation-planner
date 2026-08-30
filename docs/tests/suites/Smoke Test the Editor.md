@@ -83,8 +83,8 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 66 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus, paint, or an input grammar jsdom cannot produce | 33 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 67 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus, paint, or an input grammar jsdom cannot produce | 32 |
 | `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 49 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
 | `judgement` | Records an answer or an eye's verdict. There is no pass condition for any instrument to settle | 7 |
@@ -128,13 +128,13 @@ surface is drawn by Obsidian's own `Notice` and the other is about where files s
 `browser` tier is the one this triage was made to price, and three review rounds moved it in
 both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
 `obsidian` or `desktop` on a closer read, and six `suite` steps then turned out to be
-`browser` under the rule above. It has been 35, 27 and 33. Read that as the shape of the
+`browser` under the rule above. It has been 35, 27, 33 and 32. Read that as the shape of the
 remaining audit rather than as a settled figure — a `browser` verdict is exactly as
 unconfirmed as a `suite` one, and for the same reason.
 
-**Six of those 33 are `browser` for a POSITIONAL clause alone, and they are the split
-candidates.** [[Create a Project]] 1, [[Empty States Walkthrough]] 1 and 2, [[Calibrate a
-Plan]] 2 and 7, and [[Assign an Asset and Delete a Referenced Zone]] 8 each pass on something
+**Five of those 32 are `browser` for a POSITIONAL clause alone, and they are the split
+candidates.** [[Create a Project]] 1, [[Empty States Walkthrough]] 1, [[Calibrate a Plan]] 2
+and 7, and [[Assign an Asset and Delete a Referenced Zone]] 8 each pass on something
 being *centred*, *beside* or *above* something else, while the failure each one names in its
 own "It exists to catch" is presence: a view that drew nothing, a tool registered nowhere, a
 calculated figure hidden behind its own override badge. The rule above still tags them
@@ -142,6 +142,15 @@ calculated figure hidden behind its own override badge. The rule above still tag
 centred — but a reader pricing the browser tier should know that six of its steps would fall
 back to `suite` the moment their positional clause became a step of its own. That is what
 "split the step rather than soften the tag" means in practice, with the list to work from.
+
+**The list was SIX until a reviewer read it.** It came out of a `grep` for layout vocabulary
+over each step's pass condition, and the sweep counted [[Empty States Walkthrough]] step 2 on
+the word *below* — in "(see Runs below)", a cross-reference to another section of that same
+file rather than a claim about where anything sits on screen. The hit was printed and
+approved without being read. This project's own rule for exactly that — measure a set with
+an instrument that can see all of it, and test the instrument first — is worth re-reading
+before the next sweep of these files: a regex over prose finds the WORD, and every verdict
+here turns on what the word is doing in the sentence.
 
 **Nothing checks these verdicts.** They are a reading of each pass condition, and a step whose
 condition is rewritten without its verdict being re-read will carry a stale one. Treat a

@@ -80,14 +80,16 @@ that renames it breaks the citation visibly.
 | --- | --- | --- |
 | 1 | the accent outline appears | `zoneEditing` *draws the accent OUTLINE beside the handles, which a Circle count cannot see* |
 | 1 | one handle circle per vertex | `zoneEditing` *drags one vertex handle…* — its first assertion, under a comment naming DoD 5 |
-| 1 | the Inspector shows the name and area | `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* |
+| 1 | the Inspector shows the name and area in m² | `zoneEditing` *drags one vertex handle…* — it waits on `wrapper.text()` containing `5.51 m²`, so the RENDERED figure. `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* covers the DTO behind it, and would stay green with either `<dd>` deleted from `InspectorPanel.vue` |
 | 2 | outline and handles vanish | `zoneEditing` *takes the outline and the handles down on deselection, not just the store entry* |
 | 2 | the panel reads "Nothing selected." | `selectTool` *clicking empty canvas clears the selection*; `inspectorStore` *an empty selection produces …* |
 | 3 | a wiggle selects and dispatches nothing | `selectTool` *a near-zero pointerUp is a pure selection — no command, no history entry* |
 | 3 | the epsilon is camera-scaled | `selectTool` *a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click* |
+| 3 | the Undo button stays DISABLED | `runtime` *leaves Undo DISABLED until there is something to undo, which nothing asserted* — placed beside the file's other assertions on that control, and because `zoneEditing` was at its line cap. Every other assertion on that control in the suite is `disabled === false` |
 | 4 | one command per drag | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* |
 | 4 | the ghost follows the pointer | `selectTool` *the body preview FOLLOWS the pointer mid-drag, rather than merely existing* |
 | 4 | the zone stays where dropped | the same drag case — it asserts the committed `forward.points` |
+| 4 | Undo enables | `zoneEditing` *draws a zone through the toolbar and canvas…* — it asserts `undoButton.disabled === false` before pressing it |
 | 4 | "smoothly" | **none.** A drag landing correctly and stuttering fails this and passes everything. A residue, not a gap |
 | 5 | undo returns the exact prior position | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* |
 | 6 | only that vertex moves | `selectTool` *dragging a vertex replaces exactly that index and keeps every other vertex* |
@@ -111,7 +113,7 @@ that renames it breaks the citation visibly.
 | 9 | the next clicks start a fresh shape | `drawPolygonTool` *cancel discards the buffer without dispatching anything* |
 | 10 | a double-click makes exactly ONE zone | `drawPolygonTool` *a close click while ANOTHER close is in flight is ignored — one shape, one command* |
 | 11 | closing still works at ~20% zoom | `drawPolygonTool` *judges the close click in screen pixels through the current camera*; `closeTarget` *accepts a pointer inside the grab radius and refuses one outside it* |
-| 12 | the zone note disappears | `zoneEditing` *deletes from the Inspector; undo restores the exact entity; the panel follows both ways* |
+| 12 | the zone note disappears | `consistency` *a SUCCESSFUL delete takes the geometry entry with the note, not just the note* — it captures the pre-delete path and reads the vault at it. The `zoneEditing` case runs on `InMemoryZoneRepository` and cannot see a Markdown file |
 | 12 | the sidecar entry disappears | `consistency` *a SUCCESSFUL delete takes the geometry entry with the note, not just the note* |
 | 12 | the panel reads "Nothing selected." | the same `zoneEditing` case |
 | 13 | undo returns the zone with the same shape | the same `zoneEditing` case — it compares the restored points to the originals |
@@ -179,7 +181,7 @@ them discharged on an assertion covering part of a row, and UNDER-reported it at
 calling covered ground a gap by taking a test's name as its whole claim. The corrections came from a reviewer in
 every case but this one.
 
-**Eight mutations were run for the five gaps and the one correction, and several are the
+**Nine mutations were run for the five gaps and the one correction, and several are the
 evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
 `InteractionLayer.vue` reddens the two new overlay cases and leaves the other thirteen in this
 file green, which is what "a `Circle` count is silent about the outline beside it" MEANS.
@@ -199,7 +201,10 @@ tell an absent file from an empty one, so a delete that wiped the whole plan's g
 every other zone with it — satisfied `not.toContain` perfectly until something else on the
 plan had to survive. An eighth mutation, a delete that trashes nothing, reddens it too — and
 would NOT have before the note assertion stopped asking the INDEX for a path the delete had
-just removed, which answered `undefined` for a note still sitting in the vault.
+just removed, which answered `undefined` for a note still sitting in the vault. A ninth, an
+Undo button with its condition dropped, reddens the new disabled case and nothing else — every
+other assertion on that control in this suite is `disabled === false` and an always-live Undo
+satisfies all of them.
 
 ### What the pilot cost, for the eight cases still to do
 

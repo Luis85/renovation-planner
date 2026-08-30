@@ -63,6 +63,9 @@ describe('the calibration segment it draws', () => {
 			hasSpatialObjects: h.hasSpatialObjects,
 			confirmRecalibration: h.confirmRecalibration,
 			reportRejected: h.reportRejected,
+			// Slice 17 split this door from `reportRejected` — a refusal this tool makes before
+			// building a command, which no dispatcher ever sees. Both literals here omitted it.
+			reportInvalidInput: h.reportInvalidInput,
 		});
 
 		expect(() => tool.pointerMove(at(10, 10))).not.toThrow();
@@ -133,6 +136,9 @@ describe('the calibration segment it draws', () => {
 			hasSpatialObjects: () => true,
 			confirmRecalibration: () => Promise.resolve(false),
 			reportRejected: h.reportRejected,
+			// Slice 17 split this door from `reportRejected` — a refusal this tool makes before
+			// building a command, which no dispatcher ever sees. Both literals here omitted it.
+			reportInvalidInput: h.reportInvalidInput,
 		});
 		tool.activate(h.context);
 		click(tool, at(0, 0));

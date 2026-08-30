@@ -284,7 +284,7 @@ describe('the notice door', () => {
 			code: 'vault.unexpected-failure',
 			message: 'a fault that resolved after onunload',
 		};
-		notifyError(late);
+		notifyError(late, expectToast(surfaceFor(late, { kind: 'explicit-operation' })));
 		expect(noticeEls()).toHaveLength(0);
 		expect(Notice.constructed).toHaveLength(constructedBefore);
 	});

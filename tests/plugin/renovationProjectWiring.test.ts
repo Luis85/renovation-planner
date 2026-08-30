@@ -9,7 +9,13 @@
  * plugin.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { Notice } from 'obsidian';
+// Mock-only surface, imported BY NAME. `Notice` carries members
+// the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
+// `'obsidian'` specifier type-checks against a surface that has no such thing. The
+// vitest alias points that specifier at this very file, so this is the SAME class and
+// the same statics — proven, not assumed — and the import now says which surface it
+// wants.
+import { Notice } from '../helpers/obsidian-mock';
 import { activateNotices } from '../../src/presentation/notices/notify';
 import { createCompositionRoot, renovationProjectDeps } from '../../src/plugin/composition-root';
 import { projectIndexRebuilt } from '../../src/application/events/projectIndex.events';

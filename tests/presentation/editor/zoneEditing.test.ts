@@ -16,7 +16,13 @@ import type Konva from 'konva';
 import { createPinia, setActivePinia } from 'pinia';
 import { defineComponent } from 'vue';
 import { mount } from '@vue/test-utils';
-import { Notice } from 'obsidian';
+// Mock-only surface, imported BY NAME. `Notice` carries members
+// the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
+// `'obsidian'` specifier type-checks against a surface that has no such thing. The
+// vitest alias points that specifier at this very file, so this is the SAME class and
+// the same statics — proven, not assumed — and the import now says which surface it
+// wants.
+import { Notice } from '../../helpers/obsidian-mock';
 import { mountPlanEditor, settle, settleUntil as until } from '../../helpers/editor';
 import {
 	click,

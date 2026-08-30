@@ -18,15 +18,15 @@ import { FIXTURE_PLAN } from '../../helpers/planFixtures';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import * as policy from '../../../src/presentation/errors/errorSurfacePolicy';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
-import type { AppError } from '../../../src/core/errors/AppError';
+import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
 
-const HYDRATION_FAULT: AppError = {
+const HYDRATION_FAULT: RepositoryError = {
 	category: 'Persistence',
 	code: 'vault.unexpected-failure',
 	message: 'io',
 };
 
-const UNRECOVERED: AppError = {
+const UNRECOVERED: RepositoryError = {
 	category: 'Persistence',
 	code: 'settings.unrecovered',
 	message: 'no settings',
@@ -40,7 +40,10 @@ const UNRECOVERED: AppError = {
  * `context.queries.listAssets is not a function` underneath passing assertions, with one of
  * its two members named for a method the interface does not have.
  */
-function refusingPlan(error: AppError, onCall?: () => void): PlanEditorQueryServices {
+// `RepositoryError`, not `AppError`: `getPlan` declares that narrower error type, so a
+// helper taking the wider one promised a refusal the interface cannot express. Both
+// constants below are `Persistence`, so nothing at a call site changes.
+function refusingPlan(error: RepositoryError, onCall?: () => void): PlanEditorQueryServices {
 	const getPlan = () => {
 		onCall?.();
 		return Promise.resolve(err(error));
@@ -216,8 +219,10 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		// `status === 'ready'`, so the strip vanished for the whole of the next read — over a
 		// canvas still drawing the same stale snapshot. A read that has STARTED has established
 		// nothing. Reported by a review bot.
-		let resolveSecond: ((value: Awaited<ReturnType<PlanEditorQueryServices['getPlan']>>) => void) | null =
-			null;
+		// Definite assignment, not `| null`: the assignment happens inside the promise executor,
+		// which TypeScript's control flow cannot see run, so a declared union narrows to `null`
+		// at every later read and `resolveSecond(…)` stops being callable.
+		let resolveSecond!: (value: Awaited<ReturnType<PlanEditorQueryServices['getPlan']>>) => void;
 		let call = 0;
 		const flaky: PlanEditorQueryServices = {
 			...fakeQueries(FIXTURE_PLAN),
@@ -246,7 +251,7 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		expect(harness.wrapper.find('.rp-editor-notice').text()).toBe(t('en', 'editor.refresh-failed'));
 
 		// And it retires on the one event that earns it: a read that came back.
-		resolveSecond?.(ok(FIXTURE_PLAN));
+		resolveSecond(ok(FIXTURE_PLAN));
 		await inFlight;
 		await flushPromises();
 		expect(harness.wrapper.find('.rp-editor-notice').exists()).toBe(false);
@@ -261,8 +266,9 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		// was withdrawing the warning for the length of the read. Fixing the keep-on-failure
 		// clear alone left this one open, which is what moved the answer from a third condition
 		// on `error` to a field of its own. Reported by a review bot.
-		let resolveThird: ((value: Awaited<ReturnType<PlanEditorQueryServices['getPlan']>>) => void) | null =
-			null;
+		// See `resolveSecond` above: a definite assignment, because the executor's write is
+		// invisible to control flow and the `| null` union narrows to `null` at every read.
+		let resolveThird!: (value: Awaited<ReturnType<PlanEditorQueryServices['getPlan']>>) => void;
 		let call = 0;
 		const flaky: PlanEditorQueryServices = {
 			...fakeQueries(FIXTURE_PLAN),
@@ -288,7 +294,7 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		await flushPromises();
 		expect(harness.wrapper.find('.rp-editor-notice').text()).toBe(t('en', 'editor.refresh-failed'));
 
-		resolveThird?.(ok(FIXTURE_PLAN));
+		resolveThird(ok(FIXTURE_PLAN));
 		await inFlight;
 		await flushPromises();
 		expect(harness.wrapper.find('.rp-editor-notice').exists()).toBe(false);

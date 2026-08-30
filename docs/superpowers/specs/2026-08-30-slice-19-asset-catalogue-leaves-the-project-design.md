@@ -220,6 +220,28 @@ Three properties follow from the architecture rather than being chosen:
   raised for an overlap the user then FIXES stays up until they dismiss it. Adding a retract
   door is queue policy and belongs with the preemption question below, not here.
 
+- **That reported set is SESSION-scoped, and putting it in the composition root would have
+  rebuilt the defect it was added to fix.** `saveSettings` calls `createCompositionRoot(…)` and
+  then re-runs `startPersistence()`, so a watcher composed with the index and the adapter gets a
+  fresh, empty "last reported" set on every settings save — and the rebuild that follows
+  immediately re-pushes the identical warning. `(×N)` climbs once per settings save again, which
+  is exactly the bullet above, reintroduced by the bullet above.
+
+  **The mechanism already exists and needs no invention.** `saveSettings` passes session-scoped
+  collaborators *into* the new root — `{ ledger: this.ledger, markers: this.sequenceMarkerStore(…) }`
+  — and `this.ledger`'s docblock states this very rationale: *"The diagnostics ledger outlives
+  composition roots: `saveSettings` replaces the root (and with it every repository), but the
+  validation issues recorded so far describe the SESSION's vault reads."* The reported set is the
+  same kind of fact about the session, so it becomes a third member of that argument rather than
+  a field on anything the swap discards. The notice queue is already plugin-scoped
+  (`activateNotices()` from `onload`, `disposeNotices` on the disposers), so the state and the
+  surface it feeds now have the same lifetime — which they did not in the draft above.
+
+  **A settings-save test is owed and is named here so it is not optional**: change an unrelated
+  setting twice over one standing overlap and assert the warning is pushed **once**, not three
+  times. Watched red by moving the set back into the root — the only mutation that distinguishes
+  the two designs, since every other case passes under both.
+
 **Severity is `warning`**, which never auto-dismisses — the state persists until the user moves
 something, so a message that expires would be a message about a condition that is still true.
 

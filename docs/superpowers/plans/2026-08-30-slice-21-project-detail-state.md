@@ -186,8 +186,17 @@ implicitly include this section.
 
 The read the detail state is built on, and the two behaviours its port's own loop makes
 possible and its return type hides. Both are TODAY's behaviour rather than this slice's
-choice, and both are pinned here — the first so that softening it is deliberate, the second
-so that a row count silently disagreeing with the index is a fact somebody chose.
+choice, so both are pinned — the first so that softening it is deliberate, the second so that
+a row count silently disagreeing with the index is a fact somebody chose.
+
+**They are pinned in two different places, and the second moved after a review finding
+(`45ea97a`).** The refusal is pinned HERE, at the query, because the query is where a caller
+meets it. The DROP is pinned at the repository
+(`tests/infrastructure/obsidian/repositories/contract.test.ts`), because that is where the
+behaviour lives: a case at this level hands its double an already-filtered array and cannot
+fail if the port stops dropping — which is what the first version of this task shipped, under
+a name and a docblock claiming otherwise. The query-level case keeps the smaller property it
+can actually detect, that `ListPlansByProject` adds no reconciliation of its own.
 
 **Files:**
 - Create: `src/application/queries/ListPlansByProject.ts`

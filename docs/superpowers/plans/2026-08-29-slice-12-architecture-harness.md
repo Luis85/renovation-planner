@@ -1080,8 +1080,10 @@ interface Workflow {
 		string,
 		{
 			readonly strategy?: { readonly matrix?: { readonly include?: readonly { os: string }[] } };
-			// `if` is part of the shape deliberately: the unconditional-execution case below
-			// reads it, and a type that omitted it would make that assertion unwritable.
+			// `if` is part of the shape at BOTH levels deliberately: the unconditional-execution
+			// case below reads them, and a type that omitted either would make that assertion
+			// unwritable. The JOB-level one is the half a first draft missed — see that case.
+			readonly if?: string;
 			readonly steps?: readonly { run?: string; if?: string }[];
 		}
 	>;
@@ -1140,10 +1142,19 @@ describe('CI invokes the definition of done', () => {
 	 * reason for the definition of done to be conditional.
 	 */
 	it('runs it unconditionally, on every leg the matrix includes', () => {
-		const check = (workflow.jobs['verify']?.steps ?? []).find((step) => step.run === 'npm run check');
+		const verify = workflow.jobs['verify'];
+		const check = (verify?.steps ?? []).find((step) => step.run === 'npm run check');
 
 		expect(check).toBeDefined();
 		expect(check).not.toHaveProperty('if');
+
+		// The JOB's condition too, which the step's cannot see. GitHub supports
+		// `jobs.<job_id>.if`, so `verify.if: github.event_name == 'push'` leaves both declared
+		// triggers, every matrix leg AND this unconditional step intact while skipping all PR
+		// verification. A first draft of this case checked the step alone — the same defect it
+		// was written to fix, one level up, which is why the two assertions live together
+		// rather than in separate cases somebody could satisfy one at a time.
+		expect(verify).not.toHaveProperty('if');
 	});
 });
 ```
@@ -1615,6 +1626,7 @@ Create `tests/helpers/fixtureVault.test.ts`:
 import { afterEach, describe, expect, it } from 'vitest';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { TFile, TFolder } from 'obsidian';
 import { openFixtureVault, type FixtureStack } from './fixtureVault';
 
 let open: FixtureStack | null = null;
@@ -1680,6 +1692,36 @@ describe('the fixture vault adapter', () => {
 		expect(open.vault.getAbstractFileByPath(open.root)).not.toBeNull();
 	});
 
+	/**
+	 * Hardening rule 4, and it is the one a first draft got wrong in the direction that
+	 * hides a defect: Obsidian's `Vault.create` refuses an EXISTING path, and so does
+	 * `FakeVault` (vault.ts:118). A `writeFileSync` that silently truncates would let
+	 * repository code choosing `create` where it should choose `modify` pass every gate here
+	 * and destroy a note in a real vault.
+	 */
+	it('refuses a create whose path already exists', async () => {
+		open = await openFixtureVault('valid-project');
+		const path = join(open.root, 'Twice.md');
+		await open.vault.create(path, 'first');
+
+		await expect(open.vault.create(path, 'second')).rejects.toThrow(/already exists/u);
+		expect(readFileSync(path, 'utf8')).toBe('first');
+	});
+
+	/**
+	 * The narrowing every repository actually performs. `grep -rn "instanceof TFile" src/`
+	 * prints eleven sites, so an adapter answering its own wrapper class makes all eleven
+	 * false in tests while true in the app — every fixture note reads as MISSING with the
+	 * types still satisfied. Asserted against the mock module's classes directly, because
+	 * "not null" is equally true of the wrong class.
+	 */
+	it('answers the mock module TFile and TFolder, which is what the repositories narrow on', async () => {
+		open = await openFixtureVault('valid-project');
+
+		expect(open.vault.getAbstractFileByPath(join(open.root, 'Project.md'))).toBeInstanceOf(TFile);
+		expect(open.vault.getAbstractFileByPath(open.root)).toBeInstanceOf(TFolder);
+	});
+
 	/** The stack is a REPOSITORY stack, not three host surfaces. */
 	it('hands back constructed repositories, not just host APIs', async () => {
 		open = await openFixtureVault('valid-project');
@@ -1737,15 +1779,42 @@ store:
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { TFile, TFolder } from 'obsidian';
 import { parseFrontmatter, serializeFrontmatter } from './vault';
 
-/** What `getAbstractFileByPath` answers. Obsidian distinguishes the two; so does this. */
-export class FixtureFile {
-	constructor(readonly path: string) {}
-}
-export class FixtureFolder {
-	constructor(readonly path: string) {}
-}
+/**
+ * `getAbstractFileByPath` answers the MOCK MODULE's own `TFile`/`TFolder`, constructed and
+ * populated — never a wrapper class of this file's own.
+ *
+ * `tests/helpers/obsidian-mock.ts`'s header states the rule and the reason: the real
+ * `TFile`/`TFolder` are CLASSES and the repositories narrow with `instanceof`, so a fake
+ * that answers anything else makes every one of those checks false in tests while true in
+ * the app. `grep -rn "instanceof TFile\|instanceof TFolder" src/` prints ELEVEN sites —
+ * `NoteVaultDeps.fileAt`, `noteIo.openNoteById` and `folderExists`, `PlanGeometryStore`
+ * (twice), `VaultChangeAdapter` (three times), and two presentation call sites.
+ *
+ * A first draft of this file declared its own `FixtureFile`/`FixtureFolder` pair, which
+ * would have made every fixture note read as MISSING — Task 11 could have loaded neither the
+ * planted record nor the healthy one — while the stack still type-checked. Exactly the defect
+ * the mock's own header exists to prevent, introduced one directory away from it.
+ */
+const fileAt = (path: string): TFile => {
+	const segments = path.split('/');
+	const file = new TFile();
+	file.path = path;
+	file.name = segments.at(-1) ?? '';
+	file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/u, '');
+	file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
+	return file;
+};
+
+const folderAt = (path: string): TFolder => {
+	const segments = path.split('/');
+	const folder = new TFolder();
+	folder.path = path;
+	folder.name = segments.at(-1) ?? '';
+	return folder;
+};
 
 export class FixtureVaultAdapter {
 	constructor(readonly root: string) {}
@@ -1755,20 +1824,27 @@ export class FixtureVaultAdapter {
 	 * does this. Making the old fake refuse turned 86 tests red — a precondition only ever
 	 * checked in production is a precondition nothing checks.
 	 */
-	async create(path: string, data: string): Promise<FixtureFile> {
+	async create(path: string, data: string): Promise<TFile> {
 		if (!existsSync(dirname(this.absolute(path)))) {
-			throw new Error(`Cannot create ${path}: its parent folder does not exist.`);
+			throw new Error(`Folder does not exist: ${dirname(path)}`);
+		}
+		// Obsidian's `Vault.create` REFUSES an existing path, and so does `FakeVault`
+		// (vault.ts:118). `writeFileSync` silently truncates, which is kinder than the real
+		// thing in the direction that hides a defect: repository code choosing `create` where
+		// it should choose `modify` would pass here and destroy a note in a vault.
+		if (existsSync(this.absolute(path))) {
+			throw new Error(`File already exists: ${path}`);
 		}
 		writeFileSync(this.absolute(path), data, 'utf8');
 		this.cache.enqueue(path, data);
-		return new FixtureFile(path);
+		return fileAt(path);
 	}
 
 	/** Hardening rule 3: a folder answers a folder OBJECT, never `null`. */
-	getAbstractFileByPath(path: string): FixtureFile | FixtureFolder | null {
+	getAbstractFileByPath(path: string): TFile | TFolder | null {
 		const absolute = this.absolute(path);
 		if (!existsSync(absolute)) return null;
-		return statSync(absolute).isDirectory() ? new FixtureFolder(path) : new FixtureFile(path);
+		return statSync(absolute).isDirectory() ? folderAt(path) : fileAt(path);
 	}
 
 	// …`read`, `modify`, `delete`, `createFolder`, `getFiles`, `getMarkdownFiles`, each
@@ -1842,7 +1918,7 @@ export class FixtureMetadataCache {
 	 * it". Collapse those two and a note whose frontmatter was deleted is served this
 	 * plugin's own stale bytes forever.
 	 */
-	getFileCache(file: FixtureFile | FixtureFolder | null): { frontmatter?: Record<string, unknown> } | null {
+	getFileCache(file: TFile | TFolder | null): { frontmatter?: Record<string, unknown> } | null {
 		if (file === null) return null;
 		return this.parsed.get(file.path) ?? null;
 	}

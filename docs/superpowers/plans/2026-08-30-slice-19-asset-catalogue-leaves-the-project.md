@@ -443,16 +443,45 @@ stops a user picking an obviously wrong folder, and the migration is what refuse
 
 `en.ts` / `de.ts` gain:
 
+`en.ts` — the row, the action, and a sentence for every error CODE this slice can raise.
+**The codes are not optional**: slice 11 records that a code with no locale entry does not
+degrade to silence, it degrades to the WRONG sentence, because `toUserMessage` falls back to
+the category's generic copy.
+
 ```ts
+	'settings.library-folder.name': 'Library folder',
 	'settings.library-folder.current': 'Currently {folder}. Changing this moves the notes.',
+	'settings.library-folder.move.name': 'Move the library',
+	'settings.library-folder.move.desc': 'Choose a new folder and move the catalogue into it.',
+	'error.settings.library-folder-empty': 'A library folder cannot be empty.',
+	'error.settings.library-overlaps-project': 'That folder is inside a project folder, or contains one.',
+	'error.settings.library-move-failed': 'The library could not be moved, so the setting was not changed.',
+	'error.settings.library-persist-failed': 'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
+	'error.project.folder-overlaps-library': 'That project folder would overlap the library folder.',
 ```
+
+`de.ts` — **`Objekt`, never `Material`**, which `tests/presentation/i18n/strings.test.ts`
+refuses by value:
 
 ```ts
+	'settings.library-folder.name': 'Bibliotheksordner',
 	'settings.library-folder.current': 'Zurzeit {folder}. Eine Änderung verschiebt die Notizen.',
+	'settings.library-folder.move.name': 'Bibliothek verschieben',
+	'settings.library-folder.move.desc': 'Einen neuen Ordner wählen und den Katalog dorthin verschieben.',
+	'error.settings.library-folder-empty': 'Ein Bibliotheksordner darf nicht leer sein.',
+	'error.settings.library-overlaps-project': 'Dieser Ordner liegt in einem Projektordner oder enthält einen.',
+	'error.settings.library-move-failed': 'Die Bibliothek konnte nicht verschoben werden, die Einstellung wurde nicht geändert.',
+	'error.settings.library-persist-failed': 'Der Katalog wurde verschoben, aber die Einstellung konnte nicht gespeichert werden. Bitte den Bibliotheksordner auf den neuen Ort setzen.',
+	'error.project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
 ```
 
-and `settings.library-folder.desc` from the earlier draft is dropped — it said what this now
-says.
+**The persist-failure sentence names the remedy rather than the fault**, because its recovery
+is not the obvious one: the notes are already at the destination, so re-running the migration
+moves nothing — pointing the setting at where they now are is the fix.
+
+`settings.library-folder.desc` and `settings.library-folder.overlaps` from earlier drafts are
+dropped: the first said what `.current` now says, and the second belonged to a `validate` hook
+that no longer exists.
 
 **The residue this removes.** Two earlier drafts carried a note about whether a `folder`
 control writes per keystroke or once on selection. With no control bound, the question no
@@ -522,6 +551,17 @@ it('leaves data.json untouched when a move fails', async () => {
 	expect(persisted).toBeUndefined();
 });
 
+// The last failure point, and the only one where the notes have already moved. It gets its
+// own assertion because its recovery differs from every other arm: re-running the migration
+// would move nothing, since the notes are already there.
+it('reports a distinct outcome when persisting fails after the move', async () => {
+	deps.persist = () => Promise.reject(new Error('data.json is read-only'));
+	const result = await migrateLibraryFolder(deps, 'Renovation/Library', 'Shared/Catalogue');
+	expect(isErr(result) && result.error.code).toBe('settings.library-persist-failed');
+	// It RESOLVES a failed Result rather than rejecting — the declared contract.
+	expect(result).toBeDefined();
+});
+
 it('refuses a destination overlapping any project folder, naming the project', async () => {
 	const result = await migrateLibraryFolder(deps, 'Renovation/Library', 'Renovation/Kitchen refit/Library');
 	expect(isErr(result) && result.error.code).toBe('settings.library-overlaps-project');
@@ -581,7 +621,24 @@ export async function migrateLibraryFolder(
 
 	// 3. Rebuild from the new roots, and 4. persist ONLY now.
 	deps.rebuildIndex();
-	await deps.persist(destination);
+	try {
+		await deps.persist(destination);
+	} catch (cause) {
+		// The one failure this function cannot make safe: every note has MOVED and the
+		// durable setting still names the old folder, so a restart writes new catalogue
+		// entries under the old location and splits the catalogue in two. Rejecting here
+		// would also break this function's declared `Result` contract and send the caller
+		// down the generic fault path, which says nothing a user could act on.
+		//
+		// It gets its own code because its recovery is its own: the notes are already at
+		// the destination, so re-running the migration is NOT the remedy — setting the
+		// library folder to where they now are is.
+		deps.logger.error('settings.library-persist-failed', { destination, cause });
+		return err(persistenceError(
+			'settings.library-persist-failed',
+			`The catalogue moved to ${destination} but the setting could not be saved.`,
+		));
+	}
 	return ok(undefined);
 }
 ```
@@ -664,10 +721,12 @@ shape; and **the setting is never written by the control on this path**, because
 `migrateLibraryFolder` persists as its own last step, so `data.json` changes only after the
 notes have moved.
 
-**What the `validate` in Task 3 Step 5 still buys**, given this button: it refuses an
-overlapping folder at the moment of *choosing* one, inline, before the user presses anything —
-`foldersOverlap` is asked twice on purpose, and the migration's own check in Step 3 is the one
-that is load-bearing, because a project folder can be dragged between the two moments.
+**Where §83's refusal lives.** Inside this function and nowhere else. Task 3's row binds no
+control, so there is no `validate` hook to put a second check in — and there should not be one:
+a project folder can be dragged between choosing a destination and applying it, so a check at
+the moment of choosing was never sufficient. The destination modal *filters* overlapping
+folders out of its suggestions, which stops a user picking an obviously wrong one; this
+function is what refuses.
 
 - [ ] **Step 6: Gate and commit**
 
@@ -1226,9 +1285,32 @@ In `ProjectList.vue`, inside the row button after the status span:
 }
 
 .rp-project-list__overlap::before {
+	/* The MARK half of "a mark and a word". An empty `content` with no box draws NOTHING —
+	   the first draft of this block had exactly that, and the row would have shipped as a
+	   styled word, which is the contract violation this glyph exists to avoid. The border
+	   trick draws a filled triangle with no asset and no `setIcon`. */
 	content: '';
-	/* A drawn triangle: the MARK half of "a mark and a word". */
+	display: inline-block;
+	width: 0;
+	height: 0;
+	margin-right: var(--size-2-2);
+	border-left: var(--size-2-2) solid transparent;
+	border-right: var(--size-2-2) solid transparent;
+	border-bottom: var(--size-2-3) solid var(--text-warning);
 }
+```
+
+**The test must assert a load-bearing property, not the selector's existence.** A rule that
+declares only `content: ''` satisfies "the stylesheet declares this class" while drawing
+nothing, so:
+
+```ts
+it('draws a mark, not only a styled word', () => {
+	const rule = ruleFor('.rp-project-list__overlap::before');
+	// `border-bottom` is what makes the triangle visible; without it the pseudo-element has
+	// no box at all. Watched red by reducing the rule to `content: ''`.
+	expect(rule).toMatch(/border-bottom:/);
+});
 ```
 
 - [ ] **Step 5: Add the accessibility case**
@@ -1274,8 +1356,11 @@ In `docs/tasks/19`: the schema-bump justification rewritten to *no release exist
 no new branch, because `getControlValue` / `setControlValue` are keyed generically". True of a
 preference and false of a migration: `setControlValue` calls `saveSettings` on every control
 change, so a generic text row would move the catalogue once per keystroke and once through the
-default. The row is a `folder` control with a `validate`, and the migration hangs off a
-separate action button — see Task 3 Step 5 and Task 4 Step 5.
+default. Worse, ANY control bound to that key does it — a `folder` control writes once instead
+of per keystroke, and once is enough, because the migration then reads the just-persisted value
+as the folder to move FROM and searches an empty directory. So the row binds **no control at
+all**: a name and a description, with the migration on a separate action button. See Task 3
+Step 5 and Task 4 Step 5.
 
 - [ ] **Step 3: Tick slice 10's seven open criteria**
 

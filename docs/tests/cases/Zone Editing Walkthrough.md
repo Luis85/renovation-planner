@@ -79,7 +79,7 @@ standing and one that renames it breaks the citation visibly.
 | 1 | `zoneEditing` *drags one vertex handle…* counts one interaction-layer `Circle` per vertex, under a comment naming DoD 5; `inspectorStore` *a single-id selection produces a zone DTO sourced from the query* covers the panel; and `zoneEditing` *draws the accent OUTLINE beside the handles, which a Circle count cannot see* covers the outline the Circle count is silent about |
 | 2 | `selectTool` *clicking empty canvas clears the selection* covers the store and `inspectorStore` *an empty selection produces …* the panel; `zoneEditing` *takes the outline and the handles down on deselection, not just the store entry* covers the canvas, which neither of those can see |
 | 3 | `selectTool` *a near-zero pointerUp is a pure selection — no command, no history entry* and *a click is camera-scaled: sub-pixel-per-millimetre jitter at high zoom stays a click* |
-| 4 | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* |
+| 4 | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* for the command, and *the body preview FOLLOWS the pointer mid-drag, rather than merely existing* for the ghost the user actually watches — the first asserts only that a preview is non-null |
 | 5 | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* |
 | 6 | `zoneEditing` *drags one vertex handle; the Inspector carries the post-drag area with no reselect (DoD 3)* — the whole step, including the area changing without a reselect |
 | 7 | `selectTool` *dragging a vertex replaces exactly that index and keeps every other vertex* — whose LAST line asserts `gesture.inverse.points`, so the inverse is covered at the dispatch boundary — plus `zoneEditing` *undoes a VERTEX edit to every original point*, which drives the same claim through the history and the repository |
@@ -97,7 +97,7 @@ standing and one that renames it breaks the citation visibly.
 | 17 | `selectTool` *a CLICK on a vertex handle moves nothing and adds no history entry* |
 | 18 | `canvasPointerRouting` *a reflexive right-click mid-drag does not commit the move; the primary release still does*; `selectTool` *a NON-PRIMARY release during a drag does not commit the move* |
 
-### The three gaps, how they were closed, and the one that was never a gap
+### The four gaps, how they were closed, and the one that was never a gap
 
 None was visible from a test name — the suite looked complete until the bodies were read, which
 is the argument for auditing by reading rather than by grep. **Two were missed by the first pass
@@ -107,7 +107,7 @@ body it was pointed at, found an assertion covering PART of a step, and wrote th
 discharged; at step 7 it made the opposite error, reading a test's NAME as its whole claim and
 calling covered ground a gap.
 
-All three real ones are closed, in `tests/presentation/editor/zoneEditing.test.ts`:
+All four real ones are closed — three in `tests/presentation/editor/zoneEditing.test.ts`, one in `tests/presentation/editor/tools/selectTool.test.ts`:
 
 - **Step 1 — nothing asserted the selection OUTLINE.** The only interaction-layer assertion in
   the editor suite counted `Circle` nodes, which are the vertex handles; an outline that stopped
@@ -117,6 +117,11 @@ All three real ones are closed, in `tests/presentation/editor/zoneEditing.test.t
   assert state: the selection store empties, the panel reads "Nothing selected." Handles left
   behind on the canvas were invisible to both. Closed by *takes the outline and the handles down
   on deselection, not just the store entry*.
+- **Step 4 — nothing asserted that the preview FOLLOWS the pointer.** The cited drag case
+  checks `previewPolygon` is non-null mid-drag and then validates the committed polygon, so a
+  ghost frozen at the original coordinates passed it: the zone would not move under the hand
+  and the release would still commit correctly. Closed by *the body preview FOLLOWS the pointer
+  mid-drag, rather than merely existing*, in `selectTool.test.ts` beside the case it narrows.
 - **Step 14 — nothing redid a delete.** `commandHistory` proves redo moves a command between the
   stacks using fakes, and `zoneEditing` redid a CREATE. Closed by *redoes a DELETE, which is the
   one command whose own undo put the entity back*.
@@ -131,7 +136,14 @@ All three real ones are closed, in `tests/presentation/editor/zoneEditing.test.t
   dispatcher was not. *undoes a VERTEX edit to every original point* now drives it, and is a
   second net over a defect the unit case already catches rather than the only one.
 
-None of the three was a defect: they were steps the suite was assumed to cover and did not.
+None of the four was a defect: they were steps the suite was assumed to cover and did not.
+
+**Every cited test's BODY has now been read against its row**, which is what the first pass
+claimed to have done and had not. That re-read is where step 4 came from, and it is the last
+of four corrections this audit needed: it under-reported coverage at steps 1, 2 and 4 by
+taking an assertion covering part of a row as the whole of it, and over-reported a gap at
+step 7 by taking a test's name as its whole claim. The corrections came from a reviewer in
+every case but this one.
 
 **All four cases were watched failing against a mutation, and two of the four mutations are the
 evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
@@ -150,9 +162,9 @@ Four of the twenty are discharged by a test in a file no reader of this case wou
 step 1's handle count sits inside the case named for step 6, and the both-files halves of
 steps 8 and 12 are in `consistency.test.ts`, two directories away from the editor. A
 name-matching pass would have marked step 1 a gap and taken steps 8 and 12 on trust. Budget
-the audit for reading bodies, and expect roughly **three true gaps in twenty steps**. This
-line has now carried three figures: one in ten from the pass that missed two, one in five once
-a reviewer found them, and this one once writing the tests proved a fourth was never a gap.
+the audit for reading bodies, and expect roughly **four true gaps in twenty steps**. This line
+has now carried four figures — one in ten, one in five, three in twenty, and this — as the
+audit was corrected in both directions across four review rounds.
 Read the number as the range an audit lands in, not as a rate anybody has established.
 
 ## Deliberately NOT checked

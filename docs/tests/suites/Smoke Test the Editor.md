@@ -104,22 +104,25 @@ writing it, is what converts that step from something a human does into somethin
 **One case has now had that done, and it is the template for the other eight.**
 [[Zone Editing Walkthrough]] carries a *What discharges each step* section naming the test
 behind each of its twenty `suite` and `browser` verdicts, read from the test BODY rather than
-matched on a name. **All seventeen of its `suite` steps are discharged**: three were not when
+matched on a name. **All seventeen of its `suite` steps are discharged**: four were not when
 the audit began — nothing asserted the selection OUTLINE, nothing looked at the interaction
-layer after a DESELECTION, nothing redid a delete — and each now has a case watched failing
-against a mutation. **Its three `browser` steps are not discharged, and are not gaps either**,
+layer after a DESELECTION, nothing asserted that a drag PREVIEW follows the pointer rather than
+merely existing, and nothing redid a delete — and each now has a case watched failing against a
+mutation. **Its three `browser` steps are not discharged, and are not gaps either**,
 which is a distinction the first draft of this paragraph collapsed into one number: 8a and 8b
 have their jsdom-reachable halves covered and a browser residue BY DESIGN — a theme colour, a
 host focus behaviour — and 8e has nothing at all by construction, being a 460px truncation.
 Count coverage per TIER or the totals contradict the audit's own rows.
 
 **The audit was wrong in BOTH directions before those tests were written, which is the number
-to plan against rather than the tidy one.** Its first pass missed the two overlay gaps — it
-read the body it was pointed at, found an assertion covering PART of a step, and wrote the step
-down as discharged — and a reviewer found them. It also reported a fourth gap that was not one:
-it read a test's NAME as its whole claim and called the vertex inverse untested, where that
-test's last line asserts it. So an audit wants a second reader as much as the triage did, and
-writing the test is what settles a gap claim, because a mutation cannot be argued with.
+to plan against rather than the tidy one.** Its first pass missed THREE gaps — the two
+overlay ones and a drag preview asserted only to be non-null — each time by reading the body it
+was pointed at, finding an assertion covering PART of a step, and writing the step down as
+discharged. It also reported a gap that was not one: it read a test's NAME as its whole claim
+and called the vertex inverse untested, where that test's last line asserts it. Four
+corrections in four review rounds, in both directions, and a reviewer found all but the last.
+So an audit wants a second reader as much as the triage did, and writing the test is what
+settles a gap claim, because a mutation cannot be argued with.
 
 What the pilot also measured is where coverage turned out to LIVE: four of the twenty are
 discharged by a case in a file no reader of that walkthrough would open, including its step 1,

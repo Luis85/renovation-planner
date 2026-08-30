@@ -2545,10 +2545,11 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking) **except five entries in
-`tsconfig.json`'s `include`**, each there for its own reason. Five, counted in the file
+nothing type-checks `tests/**` (vitest transpiles without checking) **except six entries in
+`tsconfig.json`'s `include`**, each there for its own reason. Six, counted in the file
 rather than remembered: slice 11 added the third and this sentence said "two" for a slice,
-slice 16's review pass added the fourth, and slice 12 added the fifth — this sentence
+slice 16's review pass added the fourth, slice 12 added the fifth, and slice 17 added the
+sixth — this sentence
 narrated exactly that failure mode ("counted … rather than remembered") one slice before
 falling into it itself, sitting at "four" through slice 12's own thirteen tasks until its
 final review round re-counted the file.
@@ -2621,6 +2622,18 @@ generalises past this one file: pulling a single `*.test-d.ts` into `tsconfig.js
 `include` does not check only the assertions written in it — it type-checks every module that
 file imports, transitively, for the first time, which is a cheap way to point a compiler at a
 helper subtree nothing else reaches.
+
+`tests/presentation/errors/errorSurfacePolicy.test-d.ts` is the sixth, and it is a second
+instance of the `@ts-expect-error` kind rather than a new one — with the difference that what
+it proves is an ACCESS rule rather than a parameter's shape. Slice 17's `ErrorSurface` carries
+a `unique symbol` its own module declares and never exports, so the three literals in this file
+are structurally perfect and still unassignable: the only way to hold a surface is to have
+called `surfaceFor`, which is what makes "a call site cannot reach a toast without asking the
+policy" a `tsc` guarantee rather than a lint one. Measured, not asserted — deleting `& Routed`
+from the seven union members reports exactly three `TS2578: Unused '@ts-expect-error'`
+directives, one per literal. **What it deliberately does not prove is written into the file**:
+that a call site asked with the RIGHT origin, which no type can hold, and for which the spec's
+origin table plus review are the whole instrument.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the

@@ -115,6 +115,27 @@ describe('SelectTool', () => {
 		expect(h.context.renderState.previewPolygon).toBeNull();
 	});
 
+	it('the body preview FOLLOWS the pointer mid-drag, rather than merely existing', () => {
+		const before = squarePoints(0, 0);
+		const h = harness();
+		const tool = build(h, [{ id: 'zone-a', points: before }]);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10));
+		tool.pointerMove(eventAt(40, 10)); // delta (+30, 0)
+
+		// Asserting the preview is merely non-null — which is all the drag case above does —
+		// says that SOMETHING is drawn. A preview stuck at the original coordinates satisfies
+		// that while showing the user a ghost that does not move under their hand, and the
+		// release would still commit the right polygon. "The zone follows" is this assertion
+		// and nothing else: the ghost is at the pointer, on every move, not just at the end.
+		expect(h.context.renderState.previewPolygon?.[0]).toEqual({ x: 30, y: 0 });
+		expect(h.context.renderState.previewPolygon?.[2]).toEqual({ x: 130, y: 100 });
+
+		tool.pointerMove(eventAt(50, 10));
+		expect(h.context.renderState.previewPolygon?.[0]).toEqual({ x: 40, y: 0 });
+	});
+
 	it('a near-zero pointerUp is a pure selection — no command, no history entry', () => {
 		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
 		const h = harness();

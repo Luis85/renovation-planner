@@ -18,7 +18,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from 'obsidian';
 import { expectOk } from '../../helpers/domain';
-import { pointer, rig, toolbarButton, type Rig } from '../../helpers/planEditorRig';
+import { click, pointer, rig, toolbarButton, type Rig } from '../../helpers/planEditorRig';
 import { settle } from '../../helpers/editor';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { installObsidianDom } from '../../helpers/dom';
@@ -130,4 +130,27 @@ describe('a refused redo', () => {
 
 		harness.unmount();
 	});
+
+	it('leaves Undo DISABLED until there is something to undo, which nothing asserted', async () => {
+		const { harness } = await rig();
+		const canvas = harness.canvasEl;
+		if (canvas === null) throw new Error('expected a mounted canvas');
+
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		// Every other assertion on this control in the suite is `disabled === false`. A
+		// binding that lost its condition — an Undo always live — satisfies all of them and
+		// offers the user a control for a history that does not exist.
+		expect(toolbarButton(harness, 'Undo').disabled).toBe(true);
+
+		click(canvas, 200, 200);
+		await settle();
+
+		// A plain selection is not a command: still nothing to undo.
+		expect(toolbarButton(harness, 'Undo').disabled).toBe(true);
+
+		harness.unmount();
+	});
+
 });

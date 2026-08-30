@@ -73,6 +73,175 @@ than of the walkthrough. Every defect above was fixed in the slice that shipped 
 fix carries a test that fails without it — a manual case whose findings are not converted
 into an automated check will find the same thing again next release.
 
+## The triage column
+
+Every step below carries a **`Reachable by`** verdict — a column in the eight cases whose
+steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
+procedure is a list. The verdict names the **cheapest instrument that could discharge that
+step as written**. It is a claim about the step's own pass condition, not a report on what is
+tested today.
+
+| Verdict | What it means | Steps |
+| --- | --- | --- |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 71 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 28 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 48 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 8 |
+
+165 steps across nine cases. The counts are `grep`ed out of these files rather than carried
+over from the notes the classification was drafted in, so a re-tagged step moves the number.
+The instrument is TWO patterns, because the verdict has two spellings and a grep that sees only
+the table form silently under-counts by the sixteen steps of [[Canvas Navigation]]:
+
+```bash
+grep -rhoE '^\| [0-9]+[a-z]? \| `(suite|browser|obsidian|desktop|judgement)` \|' docs/tests/cases/*.md
+grep -ohE '^\s*[0-9]+[a-z]?\.\s+`(suite|browser|obsidian|desktop|judgement)`' 'docs/tests/cases/Canvas Navigation.md'
+```
+
+Written down because it had to be reconstructed once: the sentence above said the numbers were
+grepped and not with what, and a first attempt that matched table rows alone answered 149 —
+close enough to read as right, and wrong by exactly the case whose steps are a list.
+[[Editor Walkthrough]] 7 has since moved `browser` → `obsidian` (its own paragraph says why),
+which is what took those two rows from 29 and 47; the total, and the other three, are unchanged.
+
+**`suite` means REACHABLE, and never "already covered".** That difference is the whole of the
+follow-up work. A sample was checked against the tests rather than inferred from filenames —
+the click-versus-drag epsilon, the click on a vertex handle, the close-while-a-close-is-in-flight
+guard and the chorded-button grammar all have named cases in `selectTool.test.ts`,
+`drawPolygonTool.test.ts` and `canvasChordedButtons.test.ts`, and the empty-state overlay's
+structural half is in `emptyStateOverlay.test.ts`. The other sixty-odd were not opened one at a
+time. So a `suite` verdict says the step COULD be a node test; confirming that it IS one, or
+writing it, is what converts that step from something a human does into something that runs.
+
+**One case has now had that done, and it is the template for the other eight** — a template
+with a procedure: `.claude/skills/auditing-manual-test-cases/SKILL.md` is what that pilot cost
+turned into, and the eight remaining cases are what it exists for.
+[[Zone Editing Walkthrough]] carries a *What discharges each step* section naming the test
+behind each of its twenty `suite` and `browser` verdicts, read from the test BODY rather than
+matched on a name. **All seventeen of its `suite` steps are discharged of every clause an
+instrument can settle** — step 4 keeps "smoothly" as a residue, which a drag that lands
+correctly and stutters would still fail — and SEVEN were not when the
+audit began: nothing asserted the selection OUTLINE (1), nothing looked at the interaction
+layer after a DESELECTION (2), nothing asserted the Undo button is DISABLED (3), nothing
+asserted that a drag PREVIEW follows the pointer rather than merely existing (4), nothing
+asserted the geometry entry goes on a SUCCESSFUL delete (12), nothing asserted the restore
+publishes no creation event (13), and nothing redid a delete (14) — and each now has a case
+watched failing against a mutation. This sentence said FIVE and listed five until steps 3 and
+13 were added to the walkthrough's own list and this copy was not re-read; the step numbers
+are here so that the next omission is visible as a gap in a sequence rather than as a number
+only the canonical file can contradict. **Its three `browser` steps are not discharged, and are not gaps either**,
+which is a distinction the first draft of this paragraph collapsed into one number: 8a and 8b
+have their jsdom-reachable halves covered and a browser residue BY DESIGN — a theme colour, a
+host focus behaviour — and 8e has nothing at all by construction, being a 460px truncation.
+Count coverage per TIER or the totals contradict the audit's own rows.
+
+**The audit was wrong in BOTH directions before those tests were written, which is the number
+to plan against rather than the tidy one.** It OVER-reported coverage four times — the two
+overlay clauses, a drag preview asserted only to be non-null, and a sidecar deletion cited to a
+COMPENSATION case proving the opposite half of its pair — each time by finding an assertion
+covering PART of a step and writing the step down as discharged. It UNDER-reported once: it read
+a test's NAME as its whole claim and called the vertex inverse untested, where that test's last
+line asserts it. Five corrections across six review rounds, and a reviewer found all but one.
+So an audit wants a second reader as much as the triage did, and writing the test is what
+settles a gap claim, because a mutation cannot be argued with.
+
+What the pilot also measured is where coverage turned out to LIVE: four of the twenty are
+discharged by a case in a file no reader of that walkthrough would open, including its step 1,
+whose handle count sits inside the case named for its step 6, and the both-files halves of
+steps 8 and 12, which are in `consistency.test.ts` two directories away. A name-matching pass
+would have called step 1 a gap outright and taken 8 and 12 on trust.
+
+**Both `suite` and `browser` run on the fakes, so neither reaches the fidelity residue.** Three
+of the first four defects this suite ever found were a fake accepting what Obsidian refuses,
+and a browser harness wired for real writes would compose the same `FakeVault`. That is why a
+step whose "It exists to catch" names an Obsidian-specific behaviour is tagged `obsidian` even
+where its logic is `suite`-reachable, and why neither verdict is on its own a reason to stop
+walking a case in a vault before a release.
+
+**A step is tagged for its WHOLE pass condition, including a clause that is not the point of
+it.** Several steps end with a secondary observation in a higher tier than the thing they are
+mainly about — [[Canvas Navigation]] step 3 is a grab cursor and a pan, then *"record what
+Obsidian itself did with the space bar"*; [[Create a Project]] step 7a is a busy dialog
+refusing `Escape`, then a conditional clause about a vault hotkey firing. The tag is the
+HIGHER tier in every such case, because a verdict names what would discharge the step as
+written and half a step is not discharged. The cost is that the tag then hides how much of the
+step a cheaper instrument would reach, and the remedy where that matters is to split the step
+rather than to soften the tag. The first draft of this triage got four of these wrong in the
+cheaper direction, which is what the rule is written down for.
+
+**And the whole ROW, not the pass condition alone — which is the half of the rule the sentence
+above did not say, and a reviewer read it the narrow way twice.** A step is three columns: what
+to do, what passes, and what it exists to catch. Some rows state a pass condition NARROWER than
+the failure they name. [[Editor Walkthrough]] step 3 passes when "§60's five regions are
+present" and exists to catch *layout collapse* — and a view collapsed to 39px of a 700px pane
+has all five regions present, which is the defect `npm run harness` actually found and no gate
+could see. [[Assign an Asset and Delete a Referenced Zone]] step 14 says "look at what the
+dialog COVERS" and then passes on the dialog's own words. Read either row by its pass condition
+alone and it is `suite`; read what the step is for and only a browser settles it. The highest
+tier anything in the row requires is the tag, so both are `browser`. Where that grates, the
+honest repair is to tighten the pass condition until it can fail the way the fourth column says
+it should — the same remedy as the split, applied to a row that under-promises rather than one
+that over-reaches.
+
+**What the distribution says, since it is not what the suite's own header implies.** Two fifths
+of these steps are already inside the jsdom suite's reach — this file has grown case by
+case, and no earlier pass ever asked which steps the suite had caught up with. The steps that
+genuinely need a vault are not spread evenly either: two cases, [[Notices and save state]] and
+[[A Project Owns Its Folder]], hold 26 of the 47 `obsidian` steps between them, because one
+surface is drawn by Obsidian's own `Notice` and the other is about where files sit. The
+`browser` tier is the one this triage was made to price, and three review rounds moved it in
+both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
+`obsidian` or `desktop` on a closer read, and five `suite` steps then turned out to be
+`browser` under the rule above. It has been 35, 27, 33, 32, 31, 30 and 29. Read that as the shape of the
+remaining audit rather than as a settled figure — a `browser` verdict is exactly as
+unconfirmed as a `suite` one, and for the same reason.
+
+**Four `browser` steps are tagged that way for a POSITIONAL clause alone, and they are the
+split candidates.** [[Create a Project]] 1, [[Empty States Walkthrough]] 1, [[Calibrate a Plan]] 2
+and [[Assign an Asset and Delete a Referenced Zone]] 8 each pass on something
+being *centred*, *beside* or *above* something else, while the failure each one names in its
+own "It exists to catch" is presence: a view that drew nothing, a tool registered nowhere, a
+calculated figure hidden behind its own override badge. The rule above still tags them
+`browser`, because a panel really can render off-centre and the pass condition really does say
+centred — but a reader pricing the browser tier should know that four of its steps would fall
+back to `suite` the moment their positional clause became a step of its own. That is what
+"split the step rather than soften the tag" means in practice, with the list to work from.
+
+**It was FIVE until a reviewer read [[Calibrate a Plan]] 7, and that one left the list by a
+third route neither this paragraph nor the rule above had allowed for.** Its positional word
+was not a claim: "the measured plan distance shown *above* the field" described where the
+text happens to render, while everything the step exists to catch — two dialogs in sequence
+through the one-at-a-time store — is `suite`, and BOTH clauses have jsdom cases
+(`calibrateWiring`'s *confirms, then asks for a distance* and *KnownDistanceForm shows what
+was measured*). So the remedy was neither splitting the step nor softening the tag but
+**rewording a pass condition that overclaimed**, and the row is `suite` outright. A positional
+word is a candidate for the split list only once someone has asked whether the step means it —
+this sweep found the word and never asked, which is the same instrument defect as the
+*(see Runs below)* miss recorded below, one layer up: the first sweep matched a word that was
+not a claim about the screen, and this one matched a word that was.
+The count above carries no DENOMINATOR on purpose: the table has the current tier size, and a
+sentence restating it is a second place for it to go stale — which it did, in three consecutive
+review rounds, each time in the sentence next to the one being corrected.
+
+**The list was SIX until a reviewer read it.** It came out of a `grep` for layout vocabulary
+over each step's pass condition, and the sweep counted [[Empty States Walkthrough]] step 2 on
+the word *below* — in "(see Runs below)", a cross-reference to another section of that same
+file rather than a claim about where anything sits on screen. The hit was printed and
+approved without being read. This project's own rule for exactly that — measure a set with
+an instrument that can see all of it, and test the instrument first — is worth re-reading
+before the next sweep of these files: a regex over prose finds the WORD, and every verdict
+here turns on what the word is doing in the sentence. Re-run later with *under*, a word the
+original pattern also lacked, it produced four hits and no change: a `.rpgeo` file "sits under
+its own project's `Geometry/` folder" is a PATH, an error appearing "under both fields" is
+which field it routes to, and a keyboard zoom moving "the world under the still pointer" is
+neither. That miss cost nothing, which is worth recording beside the one that cost a verdict —
+an instrument is not judged by whether it fires wrongly but by whether its hits get read.
+
+**Nothing checks these verdicts.** They are a reading of each pass condition, and a step whose
+condition is rewritten without its verdict being re-read will carry a stale one. Treat a
+verdict the way this project treats a docblock: evidence of intent, and of nothing else.
+
 ## Cases
 
 - [[Editor Walkthrough]] — design slice 5's Definition of Done, end to end.
@@ -89,10 +258,14 @@ into an automated check will find the same thing again next release.
   panel empty), the §64 decision panel over a pane that is entirely canvas, and the
   round trip through a real reload.
 - [[Canvas Navigation]] — the camera gestures a user reaches for while doing something
-  else: space-drag, middle-drag, shift+wheel and the two zoom-to-fit shortcuts. Four of its
-  twelve steps are the only place anything can see them — a cursor keyword (jsdom resolves no
-  styles and a headless capture hovers over nothing), what Obsidian's own keymap does with
-  the space bar and `Shift+1`, and what a real desktop does with a middle press.
+  else: space-drag, middle-drag, shift+wheel and the two zoom-to-fit shortcuts. **NINE of its
+  SIXTEEN steps** need Obsidian, a real desktop, or settle nothing an instrument can reach:
+  what Obsidian's own keymap does with the space bar and `Shift+1`, what a real desktop does
+  with a middle press, a trackpad, a touch screen and a chorded mouse, and what a right-click
+  produces, which the step records rather than asserts. This sentence read "four of its twelve
+  steps" until the triage gave it something to be checked against — the procedure had grown to
+  sixteen and the summary had not moved. The cursor keyword it used to name is `browser` now,
+  not manual: a real pointer over a real element has a computed style.
 - [[Empty States Walkthrough]] — design slice 14's two central-view empty states. Its step 4
   is the sharpest example in this suite of a claim only a vault can settle: the Plan Editor's
   empty states are OVERLAYS over a canvas that stays mounted, and the two things that

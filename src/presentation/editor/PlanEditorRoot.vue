@@ -215,6 +215,14 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 			nothing left the indicator reading Saved over a canvas quietly out of date. A strip
 			that persists while the condition does is the shape that fits — the same one the two
 			background notices already use. Reported by a review bot.
+
+			**Its own `v-if`, and NOT a link in the chain below it, which is how it first
+			shipped.** The two background notices are alternatives to each other — a background
+			is missing or unreadable, never both — so they are one chain. Staleness is an
+			independent fact about a re-READ, and chaining it in front meant a failed read-back
+			suppressed the sentence explaining why the background was absent: two unrelated
+			failures, one of them silently swallowing the other, and the survivor being the one
+			that says nothing about the background. Also reported by a review bot.
 		-->
 		<p
 			v-if="staleAfterRefresh"
@@ -224,7 +232,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 			{{ tr('editor.refresh-failed') }}
 		</p>
 		<p
-			v-else-if="backgroundStatus === 'missing'"
+			v-if="backgroundStatus === 'missing'"
 			class="rp-editor-notice"
 			role="status"
 		>

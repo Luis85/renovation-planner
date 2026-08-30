@@ -706,6 +706,15 @@ user can still work on in order to report a read that failed.
 use, shown while `status === 'ready' && error !== null`. It persists as long as the condition
 does, which a toast would not.
 
+**"In the region they use" is not "in the chain they form", and the first version was the
+second.** The two background notices are alternatives to EACH OTHER — a background is missing
+or unreadable, never both — so one `v-if`/`v-else-if` chain is right for them. Staleness is an
+independent fact about a re-READ, and putting it at the head of that chain meant a failed
+read-back suppressed the only sentence explaining why the plan had no background: two unrelated
+failures, the survivor being the one that says nothing about the other. It is its own `v-if`
+now. Reported by a review bot; the regression case asserts the whole notice LIST rather than
+picking one out, because `find` answers the first match and was satisfied by the defect.
+
 ## References
 
 - SDD §66 Error Boundary — the pipeline this slice completes (the

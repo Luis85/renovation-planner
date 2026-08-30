@@ -210,4 +210,43 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 
 		harness.wrapper.unmount();
 	});
+
+	it('does not swallow the background notice, which is about something else entirely', async () => {
+		// The two BACKGROUND notices are alternatives to each other — a background is missing or
+		// unreadable, never both — so they are one `v-if`/`v-else-if` chain. Staleness is an
+		// independent fact about a re-READ, and the strip first shipped as the head of that same
+		// chain: a failed read-back then suppressed the only sentence explaining why the plan had
+		// no background, leaving the survivor one that says nothing about it. Reported by a
+		// review bot.
+		let call = 0;
+		const flaky: PlanEditorQueryServices = {
+			...fakeQueries(FIXTURE_PLAN),
+			getPlan: () => {
+				call += 1;
+				return call === 1 ? Promise.resolve(ok(FIXTURE_PLAN)) : Promise.resolve(err(HYDRATION_FAULT));
+			},
+		};
+		const harness = await mountPlanEditor({ queries: flaky });
+		await flushPromises();
+
+		// The canvas reports what it found where the background should have been. Emitted rather
+		// than fixtured, because `backgroundStatus` is a ref the canvas writes through this event
+		// and there is no other door to it.
+		const canvas = harness.wrapper.findComponent({ name: 'PlanCanvas' });
+		canvas.vm.$emit('background-status', 'missing');
+		await flushPromises();
+
+		const store = useProjectStore(harness.pinia);
+		await store.hydrate(flaky, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+		await flushPromises();
+
+		// BOTH, in order. Asserted as the whole list rather than by picking one out, because
+		// `find` answers the first match and would have been satisfied by the defect.
+		expect(harness.wrapper.findAll('.rp-editor-notice').map((el) => el.text())).toStrictEqual([
+			t('en', 'editor.refresh-failed'),
+			t('en', 'editor.background-missing'),
+		]);
+
+		harness.wrapper.unmount();
+	});
 });

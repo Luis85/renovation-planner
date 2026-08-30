@@ -62,3 +62,25 @@ export function expectErr<T, E>(result: Result<T, E>): E {
 	}
 	return result.error;
 }
+
+/**
+ * Unwraps a repository read that was expected to FIND something: ok, and not `null`.
+ *
+ * `getById` answers `Result<Loaded<T> | null, …>`, so `expectOk` alone leaves the null arm
+ * live and every use of the value below it is a `possibly null` error — 87 of them across
+ * `tests/**` when the compiler was first pointed at it, which is the single largest class of
+ * the debt in `scripts/typecheck-tests-baseline.json`.
+ *
+ * A `!` would silence each one, and this is worth the helper instead: a seed that failed to
+ * land throws a TypeError several lines later, naming a property rather than the read, while
+ * this fails at the read with the question it was asking. Two arms and two messages, never
+ * one — an absent entity and a refusing repository are different test failures.
+ */
+export function expectFound<T, E>(result: Result<T | null, E>): T {
+	const value = expectOk(result);
+
+	if (value === null) {
+		throw new Error('Expected the entity to be found, got null.');
+	}
+	return value;
+}

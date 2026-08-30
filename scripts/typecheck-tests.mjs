@@ -38,6 +38,31 @@ const BASELINE = "scripts/typecheck-tests-baseline.json";
  */
 const VUE_TSC = path.join("node_modules", "vue-tsc", "bin", "vue-tsc.js");
 
+/**
+ * What a NON-ZERO exit from `vue-tsc` meant: its findings, or an exit because the tool could
+ * not run at all.
+ *
+ * Its own function rather than a branch inside `report`, because the rule it carries is the
+ * one worth finding: tsc exits non-zero WITH its findings on stdout, so an exit carrying
+ * nothing there is a missing binary or an unparseable config — and that must not read as a
+ * clean tree, which is exactly what an empty findings string would mean downstream. A gate
+ * reporting success when it could not run is worse than no gate.
+ */
+const findingsOrExit = (error) => {
+	// Not optional-chained: the only throw reaching here is `execFileSync`'s, which is always
+	// an object. Its `stdout`/`stderr` ARE nullable — a spawn that never started (a missing
+	// binary) leaves both null and puts the whole story on `message`, which is why the second
+	// fallback is the error itself rather than an empty string.
+	const failure = error;
+	const stdout = String(failure.stdout ?? "");
+
+	if (stdout.trim() !== "") return stdout;
+
+	console.error(`vue-tsc could not run.\n${String(failure.stderr ?? error)}`);
+	return process.exit(2);
+};
+
+/** Everything `vue-tsc` printed about `tests/**`, or `""` when it had nothing to say. */
 const report = () => {
 	try {
 		execFileSync(process.execPath, [VUE_TSC, "--noEmit", "-p", "tsconfig.tests.json"], {
@@ -46,17 +71,7 @@ const report = () => {
 		});
 		return "";
 	} catch (error) {
-		// tsc exits non-zero WITH its findings on stdout. An exit carrying nothing there is the
-		// tool itself failing — a missing binary, an unparseable config — and that must not read
-		// as a clean tree, which is exactly what an empty findings string would mean below. A
-		// gate that reports success when it could not run is worse than no gate.
-		const stdout = String(error?.stdout ?? "");
-
-		if (stdout.trim() === "") {
-			console.error(`vue-tsc could not run.\n${String(error?.stderr ?? error)}`);
-			process.exit(2);
-		}
-		return stdout;
+		return findingsOrExit(error);
 	}
 };
 

@@ -7,7 +7,9 @@ import { GetRequirementsForZone } from '../../src/application/queries/GetRequire
 import type { RequirementRepository } from '../../src/application/ports/RequirementRepository';
 import type { Loaded } from '../../src/application/ports/versioning';
 import type { Requirement } from '../../src/domain/requirement/Requirement';
-import { expectErr, expectOk } from '../helpers/domain';
+import { expectErr, expectFound, expectOk } from '../helpers/domain';
+import type { Result } from '../../src/core/result/Result';
+import type { ValidationError } from '../../src/core/errors/AppError';
 import { makeAsset, makeZone } from '../helpers/entities';
 import { requirementFixture, TEN_SQUARE_METERS } from '../helpers/slice10';
 
@@ -23,7 +25,7 @@ const VALID_ASSET = {
 	unitCost: moneyOf('45.00', 'EUR'),
 };
 
-function requirementFromRaw(base: Requirement, areaM2: Decimal): ResultLike<Requirement> {
+function requirementFromRaw(base: Requirement, areaM2: Decimal): Result<Requirement, ValidationError> {
 	const quantity = { calculated: { value: base.quantity.calculated.value, unit: base.unit } };
 	return base.withRecalculation(quantity.calculated, base.estimatedCost.calculated, {
 		...base.calculatedFrom,
@@ -31,7 +33,6 @@ function requirementFromRaw(base: Requirement, areaM2: Decimal): ResultLike<Requ
 	});
 }
 
-type ResultLike<T> = { ok: true; value: T };
 
 async function wiredRecalculate() {
 	const w = await requirementFixture();
@@ -72,7 +73,12 @@ describe('Asset validation', () => {
 			id: 'asset-1' as never,
 			projectId: 'p' as never,
 			...VALID_ASSET,
-			unitCost: createMoney('-5.00', 'EUR').value ?? moneyOf('-5.00', 'EUR'),
+			// `Money` itself permits a negative amount — `AMOUNT_PATTERN` admits the sign — so
+			// this construction succeeds and it is `Asset.create` that refuses, which is the
+			// refusal under test. It read `createMoney(...).value ?? moneyOf(...)` until
+			// `tests/**` was type-checked: `.value` does not exist on the un-narrowed union, so
+			// the fallback was there to absorb a refusal that never comes.
+			unitCost: expectOk(createMoney('-5.00', 'EUR')),
 		});
 		if (negative.ok) throw new Error('unexpected success');
 		expect(negative.error.code).toBe('asset.negative-unit-cost');
@@ -142,10 +148,10 @@ describe('RecalculateRequirementCommand edges', () => {
 		if (!assigned.ok) throw new Error('unexpected success');
 
 		// Bypass the update guard by writing the note directly through save().
-		const mutated = expectOk(await w.assets.getById(w.assetId));
-		const changed = mutated?.entity.withChanges({ unit: 'piece' });
-		if (!changed?.ok) throw new Error('unexpected success');
-		expectOk(await w.assets.save(changed.value, expectOk(await w.assets.getById(w.assetId)).version));
+		const mutated = expectFound(await w.assets.getById(w.assetId));
+		const changed = mutated.entity.withChanges({ unit: 'piece' });
+		if (!changed.ok) throw new Error('unexpected success');
+		expectOk(await w.assets.save(changed.value, expectFound(await w.assets.getById(w.assetId)).version));
 
 		const error = expectErr(await w.recalculate.execute({ requirementId: assigned.value.requirement.id }));
 		expect(error.code).toBe('requirement.unit-not-area');
@@ -201,7 +207,7 @@ describe('GetRequirementsForZone readings', () => {
 		if (!assigned.ok) throw new Error('unexpected success');
 
 		// Hand-edit the persisted record's calculated-from-area to something else.
-		const loaded = expectOk(await w.requirements.getById(assigned.value.requirement.id));
+		const loaded = expectFound(await w.requirements.getById(assigned.value.requirement.id));
 		const tampered: Loaded<Requirement> = {
 			entity: expectOk(
 				requirementFromRaw(loaded.entity, new Decimal('99')),

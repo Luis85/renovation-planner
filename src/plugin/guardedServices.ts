@@ -64,7 +64,6 @@ import type { ResolvedSequence } from '../application/reference/deleteResolution
 import type { Asset } from '../domain/asset/Asset';
 import type { Requirement } from '../domain/requirement/Requirement';
 import type { RequirementId } from '../domain/requirement/RequirementId';
-import type { ProjectId } from '../domain/project/ProjectId';
 import type { Project } from '../domain/project/Project';
 import type { Plan } from '../domain/plan/Plan';
 import type { Zone } from '../domain/zone/Zone';
@@ -163,7 +162,7 @@ export interface GuardedSlice10Services {
 	/** Slice 10's read side, beside the zone inspector query — guarded member by member. */
 	readonly requirementQueries: {
 		readonly getRequirementsForZone: Query<ZoneId, Result<readonly RequirementInspectorDTO[], RepositoryError>>;
-		readonly listAssets: Query<ProjectId, Result<readonly Asset[], RepositoryError>>;
+		readonly listAssets: Query<void, Result<readonly Asset[], RepositoryError>>;
 		readonly listRequirementsReferencing: Query<ReferencedTarget, Result<readonly RequirementId[], RepositoryError>>;
 		readonly listReassignmentTargets: Query<ReferencedTarget, Result<readonly ReassignmentTargetDto[], RepositoryError>>;
 	};

@@ -93,6 +93,7 @@ const PORT_MEMBERS: ReadonlySet<string> = new Set([
 	'save',
 	'delete',
 	'listAll',
+	'listAll',
 	'listByProject',
 	'listByPlan',
 	'listByZone',
@@ -251,7 +252,7 @@ function slice10Services(): Fixture[] {
 	const project = makeProject();
 	const plan = makePlan({ projectId: project.id });
 	const zone = makeZone({ projectId: project.id, planId: plan.id });
-	const asset = makeAsset({ projectId: project.id });
+	const asset = makeAsset();
 	const requirement = makeRequirement({
 		projectId: project.id,
 		assetId: asset.id,
@@ -263,7 +264,6 @@ function slice10Services(): Fixture[] {
 	const target = { kind: 'zone', zoneId: zone.id } as const;
 	return [
 		commandCase('CreateAssetCommand', new CreateAssetCommand(assets, events) as never, 'command.createAsset.failed', {
-			projectId: project.id,
 			name: 'Porcelain Terrace Tile',
 			category: 'material',
 			unit: 'm2',
@@ -335,7 +335,7 @@ function slice10Services(): Fixture[] {
 			'query.getRequirementsForZone.failed',
 			zone.id,
 		),
-		queryCase('ListAssets', new ListAssets(assets) as never, 'query.listAssets.failed', project.id),
+		queryCase('ListAssets', new ListAssets(assets) as never, 'query.listAssets.failed', undefined),
 		queryCase(
 			'ListRequirementsReferencing',
 			new ListRequirementsReferencing(requirements) as never,

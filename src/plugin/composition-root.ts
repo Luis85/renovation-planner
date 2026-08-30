@@ -380,7 +380,7 @@ function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectR
 		projects: new ObsidianProjectRepository(deps, newProjectRoot, libraryFolder),
 		plans: new ObsidianPlanRepository(deps, geometryStore),
 		zones: new ObsidianZoneRepository(deps, geometryStore),
-		assets: new ObsidianAssetRepository(deps),
+		assets: new ObsidianAssetRepository(deps, libraryFolder),
 		requirements: new ObsidianRequirementRepository(deps),
 	};
 }

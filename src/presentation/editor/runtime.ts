@@ -1,4 +1,4 @@
-import { inject, provide, reactive, ref, watch, type InjectionKey, type Ref } from 'vue';
+import { inject, provide, reactive, ref, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
@@ -264,27 +264,24 @@ function wrapDispatcher(
 }
 
 /**
- * The assign picker's options, read once per leaf: the project's asset catalog changes
+ * The assign picker's options, read once per leaf: the vault's asset catalogue changes
  * only through this same app (whose own dispatches refresh nothing about THIS list
  * because the picker is a catalogue view, not a figure), and a stale option that no
- * longer resolves fails the assignment command loudly rather than silently. Watched off
- * the PLAN, because hydration is async — at build time there is no projectId yet.
+ * longer resolves fails the assignment command loudly rather than silently.
+ *
+ * A single read rather than design slice 8's watch on the plan's project: the catalogue
+ * left the project in design slice 19, so there is no longer an input to wait for — the
+ * watch existed because at build time there was no `projectId` yet, and that is the whole
+ * of what it was for.
  */
-function watchAssetOptions(
+function loadAssetOptions(
 	context: PlanEditorContext,
-	projectStore: ReturnType<typeof useProjectStore>,
 	assetOptionsRef: Ref<readonly { readonly id: string; readonly name: string }[]>,
 ): void {
-	watch(
-		() => projectStore.plan?.projectId,
-		(projectId) => {
-			void (async () => {
-				const options = await context.queries.listAssets(String(projectId ?? ''));
-				if (options.ok) assetOptionsRef.value = options.value;
-			})();
-		},
-		{ immediate: true },
-	);
+	void (async () => {
+		const options = await context.queries.listAssets();
+		if (options.ok) assetOptionsRef.value = options.value;
+	})();
 }
 
 /**
@@ -500,9 +497,9 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
 
-	// The assign picker's options, hydrated by the watcher below.
+	// The assign picker's options, hydrated once per leaf.
 	const assetOptionsRef = ref<readonly { readonly id: string; readonly name: string }[]>([]);
-	watchAssetOptions(context, projectStore, assetOptionsRef);
+	loadAssetOptions(context, assetOptionsRef);
 
 	return {
 		dispatcher: wrappedDispatcher,

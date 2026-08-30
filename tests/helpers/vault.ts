@@ -513,6 +513,12 @@ export interface RepositoryStack {
 	 * derived from. Every other project's folder is `projectFolderOf`'s to answer.
 	 */
 	projectFolder: string;
+	/**
+	 * The library root the stack was constructed with, echoed back the same way — the folder
+	 * `ObsidianAssetRepository` inserts into since design slice 19, which a case asserting on
+	 * an asset's PATH has no other way to name.
+	 */
+	libraryFolder: string;
 	/** Rebuilds the index from the vault contents — the scan the plugin runs at load. */
 	rebuildIndex(): void;
 }
@@ -580,9 +586,10 @@ export function createRepositoryStack(projectFolder = 'Renovation', libraryFolde
 		projects: new ObsidianProjectRepository(deps, projectFolder, libraryFolder),
 		plans: new ObsidianPlanRepository(deps, store),
 		zones: new ObsidianZoneRepository(deps, store),
-		assets: new ObsidianAssetRepository(deps),
+		assets: new ObsidianAssetRepository(deps, libraryFolder),
 		requirements: new ObsidianRequirementRepository(deps),
 		projectFolder,
+		libraryFolder,
 		rebuildIndex() {
 			index.rebuild(
 				buildProjectIndexEntries({

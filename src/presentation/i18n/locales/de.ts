@@ -144,7 +144,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.cross-project-reassign': 'Referenzen können nur innerhalb desselben Projekts neu zugewiesen werden.',
 	'reference.row.project': '{name}',
 	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
-	'requirement.cross-project': 'Eine Zone und ein Objekt aus verschiedenen Projekten können nicht verknüpft werden.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',

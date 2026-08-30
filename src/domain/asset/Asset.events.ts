@@ -1,10 +1,13 @@
 import type { DomainEvent } from '../../core/events/EventBus';
-import type { ProjectId } from '../project/ProjectId';
 import type { AssetId } from './AssetId';
 
+/**
+ * The asset id alone since design slice 19 — an Asset belongs to no project, and nothing
+ * subscribed carried one anyway: the recalculation cascade keys on `assetId` and re-reads
+ * the requirements that reference it, each of which holds its own project.
+ */
 export interface AssetEventPayload {
 	readonly assetId: AssetId;
-	readonly projectId: ProjectId;
 }
 
 /** §34's initial catalog names `AssetCreated` explicitly; the other two extend it. */

@@ -45,6 +45,8 @@ async function wired(projectName = 'Renovation') {
 	return {
 		project,
 		plan,
+		projects,
+		plans,
 		zones,
 		assets,
 		requirements,
@@ -69,6 +71,29 @@ async function seedBathroom(w: ReturnType<typeof wired>): Promise<ZoneId> {
 	return zone.entity.id;
 }
 
+/** A second project, with its own plan and zone, in the SAME repositories. */
+async function seedSecondProject(
+	w: Awaited<ReturnType<typeof wired>>,
+): Promise<{ projectId: ReturnType<typeof makeProject>['id']; zoneId: ZoneId }> {
+	const project = expectOk(await w.projects.save(makeProject({ name: 'Loft' }), 'absent'));
+	const plan = expectOk(
+		await w.plans.save(makePlan({ projectId: project.entity.id }), 'absent'),
+	);
+	const zone = expectOk(
+		await w.zones.save(
+			expectOk(
+				makeZone({
+					projectId: project.entity.id,
+					planId: plan.entity.id,
+					name: 'Loft floor',
+				}).withGeometry({ points: TEN_SQUARE_METERS }),
+			),
+			'absent',
+		),
+	);
+	return { projectId: project.entity.id, zoneId: zone.entity.id };
+}
+
 function makeCommand(w: ReturnType<typeof wired>) {
 	return new AssignAssetCommand(
 		w.zones,
@@ -79,15 +104,15 @@ function makeCommand(w: ReturnType<typeof wired>) {
 	);
 }
 
-function porcelainTile(projectId: ReturnType<typeof makeProject>['id'], overrides?: { unit?: MeasurementUnit }) {
-	return makeAsset({ projectId, wasteFactorDefault: new Decimal('0.10'), ...overrides });
+function porcelainTile(overrides?: { unit?: MeasurementUnit }) {
+	return makeAsset({ wasteFactorDefault: new Decimal('0.10'), ...overrides });
 }
 
 describe('AssignAssetCommand', () => {
 	it('creates a requirement whose calculated figures are correct on first creation', async () => {
 		const w = await wired();
 		const zoneId = await seedBathroom(w);
-		const asset = expectOk(await w.assets.save(porcelainTile(w.project.entity.id), 'absent'));
+		const asset = expectOk(await w.assets.save(porcelainTile(), 'absent'));
 
 		const result = await makeCommand(w).execute({ zoneId, assetId: asset.entity.id });
 		if (!result.ok) throw new Error(String(result.error));
@@ -101,7 +126,7 @@ describe('AssignAssetCommand', () => {
 	it('is idempotent on a repeated call for the same pair, reporting created:false', async () => {
 		const w = await wired();
 		const zoneId = await seedBathroom(w);
-		const asset = expectOk(await w.assets.save(porcelainTile(w.project.entity.id), 'absent'));
+		const asset = expectOk(await w.assets.save(porcelainTile(), 'absent'));
 		const command = makeCommand(w);
 
 		const first = await command.execute({ zoneId, assetId: asset.entity.id });
@@ -118,7 +143,7 @@ describe('AssignAssetCommand', () => {
 			const w = await wired();
 			const zoneId = await seedBathroom(w);
 			const asset = expectOk(
-				await w.assets.save(porcelainTile(w.project.entity.id, { unit }), 'absent'),
+				await w.assets.save(porcelainTile({ unit }), 'absent'),
 			);
 			const error = expectErr(await makeCommand(w).execute({ zoneId, assetId: asset.entity.id }));
 			expect(error.code).toBe('requirement.unit-not-area');
@@ -126,20 +151,29 @@ describe('AssignAssetCommand', () => {
 		},
 	);
 
-	it('rejects a cross-project pairing driven through the command itself, not any picker', async () => {
+	/**
+	 * Slice 19: the catalogue left the project, so one Asset serves every project in the
+	 * vault. This is the INVERSE of the deleted `requirement.cross-project` refusal — a
+	 * deleted refusal leaves no test behind, and nothing would notice the guard being
+	 * reintroduced, so the positive is what is asserted here.
+	 */
+	it('assigns one asset into zones from two different projects', async () => {
 		const w = await wired();
-		const zoneId = await seedBathroom(w);
-		// A second project, its asset in the SAME asset repository — the picker filters
-		// by project, and this input is exactly what only a non-picker caller can produce.
-		const second = expectOk(
-			await new InMemoryProjectRepository().save(makeProject({ name: 'Other' }), 'absent'),
-		);
-		const foreignAsset = expectOk(
-			await w.assets.save(porcelainTile(second.entity.id), 'absent'),
-		);
-		const error = expectErr(
-			await makeCommand(w).execute({ zoneId, assetId: foreignAsset.entity.id }),
-		);
-		expect(error.code).toBe('requirement.cross-project');
+		const kitchenZoneId = await seedBathroom(w);
+		const loft = await seedSecondProject(w);
+		const tiles = expectOk(await w.assets.save(porcelainTile(), 'absent'));
+		const command = makeCommand(w);
+
+		const first = await command.execute({ zoneId: kitchenZoneId, assetId: tiles.entity.id });
+		const second = await command.execute({ zoneId: loft.zoneId, assetId: tiles.entity.id });
+
+		// `expectOk` rather than a boolean, so a reintroduced refusal fails naming its own
+		// code rather than reporting `false`.
+		const kitchenRequirement = expectOk(first).requirement;
+		const loftRequirement = expectOk(second).requirement;
+		// Each Requirement carries its OWN zone's project, which is what "work stays
+		// project-scoped while catalogues do not" means at the row level.
+		expect(kitchenRequirement.projectId).toBe(w.project.entity.id);
+		expect(loftRequirement.projectId).toBe(loft.projectId);
 	});
 });

@@ -44,7 +44,7 @@ export async function wiredWithLink() {
 	);
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);

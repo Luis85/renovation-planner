@@ -31,7 +31,6 @@ async function selectZoneWithRequirements(count: number) {
 		for (let index = 0; index < count; index += 1) {
 			await assets.save(
 				makeAsset({
-					projectId: PROJECT_ID,
 					name: `Asset ${index}`,
 					unit: 'm2',
 					wasteFactorDefault: new Decimal('0.10'),
@@ -47,7 +46,7 @@ async function selectZoneWithRequirements(count: number) {
 
 	// Assign every seeded asset through the panel's own control, so the referents exist the
 	// way a user would have made them.
-	for (const asset of expectOk(await r.assetsRepo.listByProject(PROJECT_ID))) {
+	for (const asset of expectOk(await r.assetsRepo.listAll())) {
 		await until(() => {
 			const el = r.harness.wrapper.find('#rp-assign-asset').element as HTMLSelectElement;
 			return [...el.options].some((option) => option.value === asset.entity.id);

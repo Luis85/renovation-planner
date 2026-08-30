@@ -175,22 +175,9 @@ describe('reassignment target refusals', () => {
 		expect(error.code).toBe('reference.self-reassign');
 	});
 
-	it('refuses a reassignment target from another project — zones AND assets', async () => {
-		const w = await wiredTwoZones();
-		const zone = makeZone({ projectId: 'project-other' as never, planId: w.plan.entity.id });
-		const raw = await w.zones.save(zone, 'absent');
-		if (!raw.ok) throw new Error(`save refused: ${JSON.stringify(raw.error)}`);
-		const foreignProjectZone = expectOk(raw);
-		const error = expectErr(
-			await w.command.execute({
-				zoneId: w.zoneA,
-				resolution: 'reassign',
-				reassignTo: foreignProjectZone.entity.id,
-				resolvedReferents: [],
-			}),
-		);
-		expect(error.code).toBe('reference.cross-project-reassign');
-	});
+	// The zone half of `reference.cross-project-reassign` moved to
+	// `tests/application/reference/deleteAssetRefusals.test.ts`, where design slice 19 put
+	// it BESIDE the asset half it is now asymmetric with — see that file's own header.
 
 	it('refuses a reassign resolution without a target', async () => {
 		const w = await wiredTwoZones();
@@ -225,7 +212,7 @@ async function wiredWithLink() {
 	const zoneEntity = expectOk(await w.zones.save(geometry, 'absent'));
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -276,7 +263,7 @@ describe('ReversibleAssignAssetCommand guards', () => {
 				'absent',
 			),
 		);
-		const assetEntity = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const assetEntity = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const adapter = makeAdapter({ ...w, zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 		const error = expectErr(await adapter.undo());
 		expect((error as { code: string }).code).toBe('undo.before-execute');
@@ -290,7 +277,7 @@ describe('ReversibleAssignAssetCommand guards', () => {
 				'absent',
 			),
 		);
-		const assetEntity = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const assetEntity = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const adapter = makeAdapter({ ...w, zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 		expectOk(await adapter.execute());
 		expectOk(await adapter.undo());
@@ -304,7 +291,12 @@ describe('ReversibleAssignAssetCommand guards', () => {
 		expect(redo.error.code).toBe('requirement.asset-not-found');
 	});
 
-	it('redo refuses when the endpoints no longer share a project', async () => {
+	/**
+	 * The inverse of the `requirement.cross-project` refusal design slice 19 deleted, asked
+	 * at the REDO door rather than at the command's — the adapter re-runs the creation-time
+	 * checks against the current entities, and this is the one that is no longer among them.
+	 */
+	it('redo succeeds even though the zone has moved to another project since', async () => {
 		const w = await requirementFixture();
 		const zoneEntity = expectOk(
 			await w.zones.save(
@@ -312,21 +304,18 @@ describe('ReversibleAssignAssetCommand guards', () => {
 				'absent',
 			),
 		);
-		const assetEntity = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const assetEntity = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const adapter = makeAdapter({ ...w, zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 		expectOk(await adapter.execute());
 		expectOk(await adapter.undo());
 
 		// Move the ZONE to another project through a direct conditional save.
-		const moved = zoneEntity.entity.withChanges?.({}) ?? zoneEntity.entity;
-		void moved;
 		const current = expectOk(await w.zones.getById(zoneEntity.entity.id));
 		Object.assign(current.entity, { projectId: 'project-other' });
 		expectOk(await w.zones.save(current.entity, current.version));
 
-		const redo = await adapter.execute();
-		if (redo.ok) throw new Error('expected the redo to refuse against the moved zone');
-		expect(redo.error.code).toBe('requirement.cross-project');
+		const redo = expectOk(await adapter.execute());
+		expect(redo.outcome).toBe('wrote');
 	});
 });
 
@@ -359,7 +348,7 @@ describe('asset-cascade isolation arms', () => {
 			logger,
 			recalculate: (input) => w.recalculate.execute(input as never),
 		});
-		const assetEntity = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const assetEntity = expectOk(await w.assets.save(makeAsset(), 'absent'));
 
 		await w.events.publish({
 			type: 'AssetUpdated',
@@ -371,7 +360,7 @@ describe('asset-cascade isolation arms', () => {
 
 	it('a failed STALE MARKER is loud per requirement: notified, logged, recalculation skipped', async () => {
 		const w = await requirementFixture();
-		const assetEntity = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const assetEntity = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const zoneId = (await wiredZoneFor(w)).zoneId;
 		const assigned = await w.assign.execute({ zoneId, assetId: assetEntity.entity.id });
 		if (!assigned.ok) throw new Error(`assign failed: ${JSON.stringify(assigned.error)}`);
@@ -416,7 +405,7 @@ describe('asset-cascade isolation arms', () => {
 			logger,
 			recalculate: (input) => w.recalculate.execute(input as never),
 		});
-		const assetEntity = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const assetEntity = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const zoneId = (await wiredZoneFor(w)).zoneId;
 		await w.assign.execute({ zoneId, assetId: assetEntity.entity.id });
 		// The geometry edit cascades; by recalculation time the asset is gone, so the
@@ -443,7 +432,7 @@ describe('asset-cascade isolation arms', () => {
 			logger,
 			recalculate: (input) => w.recalculate.execute(input as never),
 		});
-		const assetEntity = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const assetEntity = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const zoneId = (await wiredZoneFor(w)).zoneId;
 		await w.assign.execute({ zoneId, assetId: assetEntity.entity.id });
 		// The update event arrives; by the time the handler looks, the asset is gone.

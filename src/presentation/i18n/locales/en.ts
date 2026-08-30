@@ -138,7 +138,6 @@ export const en = {
 	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
 	'reference.row.project': '{name}',
 	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
-	'requirement.cross-project': 'A zone and an asset from different projects cannot be linked.',
 	'requirement.negative-quantity': 'A quantity cannot be negative.',
 	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`
 	// and a malformed money literal never reach a dispatch, so there is no raised code for

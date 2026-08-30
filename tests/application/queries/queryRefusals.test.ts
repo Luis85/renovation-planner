@@ -38,7 +38,7 @@ async function wiredWithLink() {
 	);
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -158,9 +158,9 @@ describe('picker query refusals', () => {
 	it('ListAssets propagates a failed listing', async () => {
 		const w = await wiredWithLink();
 		const assets = overridePort(w.assets, {
-			listByProject: () => Promise.resolve(err(injectedPersistenceError())),
+			listAll: () => Promise.resolve(err(injectedPersistenceError())),
 		});
-		const error = expectErr(await new ListAssets(assets).execute(w.project.entity.id));
+		const error = expectErr(await new ListAssets(assets).execute());
 		expect(error.code).toBe('test.injected-failure');
 	});
 
@@ -212,14 +212,15 @@ describe('picker query refusals', () => {
 		expect(zoneListError.code).toBe('test.injected-failure');
 
 		const assetsListFailing = overridePort(w.assets, {
-			listByProject: () => Promise.resolve(err(injectedPersistenceError())),
+			listAll: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const assetListError = expectErr(
 			await new ListReassignmentTargets(w.zones, assetsListFailing).execute({ kind: 'asset', assetId: w.assetId }),
 		);
 		expect(assetListError.code).toBe('test.injected-failure');
 
-		// An unknown entity has no project to list targets FROM: empty, not an error.
+		// An unknown entity is not there to be excluded from its own target list, and the
+		// zone case has no project to list from either: empty, not an error.
 		const unknownZone = expectOk(await targets.execute({ kind: 'zone', zoneId: 'zone-none' as never }));
 		expect(unknownZone).toEqual([]);
 		const unknownAsset = expectOk(await targets.execute({ kind: 'asset', assetId: 'asset-none' as never }));

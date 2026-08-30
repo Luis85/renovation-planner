@@ -142,9 +142,6 @@ export class ReversibleAssignAssetCommand {
 			if (asset.value === null) {
 				return err({ category: 'Reference', code: 'requirement.asset-not-found', message: 'The asset is gone.' });
 			}
-			if (zone.value.entity.projectId !== asset.value.entity.projectId) {
-				return err({ category: 'Validation', code: 'requirement.cross-project', message: 'Projects no longer match.' });
-			}
 			if (UNIT_KIND[asset.value.entity.unit] !== 'area') {
 				return err({
 					category: 'Validation',

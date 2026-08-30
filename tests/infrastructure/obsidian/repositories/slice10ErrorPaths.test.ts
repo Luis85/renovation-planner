@@ -54,12 +54,16 @@ function rewriteNote(stack: RepositoryStack, path: string, from: string, to: str
 	stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace(from, to));
 }
 
+/**
+ * No project is seeded first, and that is the behaviour under test rather than a shortcut:
+ * since design slice 19 an asset's folder is the LIBRARY's, so a save needs no project note
+ * in the index to resolve a location from.
+ */
 async function seedAsset(stack: RepositoryStack, overrides?: Parameters<typeof makeAsset>[0]) {
-	const projectId = overrides?.projectId ?? (await seedProject(stack));
-	const asset = makeAsset({ projectId, ...overrides });
+	const asset = makeAsset({ ...overrides });
 	const written = expectOk(await stack.assets.save(asset, 'absent'));
 	const path = stack.index.getPath(written.entity.id) ?? '';
-	return { projectId, asset, assetId: written.entity.id, version: written.version, path };
+	return { asset, assetId: written.entity.id, version: written.version, path };
 }
 
 async function seedPlanWithZone(stack: RepositoryStack) {
@@ -233,11 +237,8 @@ describe('ObsidianAssetRepository failure branches', () => {
 
 	it('an insert whose note create fails reports asset.write-failed', async () => {
 		const stack = createRepositoryStack();
-		const projectId = await seedProject(stack);
-		const asset = makeAsset({ projectId, name: 'Collision' });
-		const folder = projectFolderOf(stack.index, projectId);
-		if (folder === undefined) throw new Error(`no folder indexed for project ${projectId}`);
-		stack.vault.failures.add(`create:${assetsFolderFor(folder)}/Collision.md`);
+		const asset = makeAsset({ name: 'Collision' });
+		stack.vault.failures.add(`create:${assetsFolderFor(stack.libraryFolder)}/Collision.md`);
 		const error = expectErr(await stack.assets.save(asset, 'absent'));
 		expect(error.code).toBe('asset.write-failed');
 	});
@@ -291,26 +292,26 @@ describe('ObsidianAssetRepository failure branches', () => {
 		expect(error.code).toBe('asset.schema-version-malformed');
 	});
 
-	it('listByProject propagates a corrupt sibling note', async () => {
+	it('listAll propagates a corrupt sibling note', async () => {
 		const stack = createRepositoryStack();
-		const { projectId, path } = await seedAsset(stack);
-		await seedAsset(stack, { projectId });
+		const { path } = await seedAsset(stack);
+		await seedAsset(stack, { name: 'Second' });
 		stack.vault.entries.set(path, 'someone deleted the frontmatter');
 
-		const listed = await stack.assets.listByProject(projectId);
+		const listed = await stack.assets.listAll();
 		expect(listed.ok).toBe(false);
 	});
 
-	it('listByProject skips an indexed id whose note has vanished entirely', async () => {
+	it('listAll skips an indexed id whose note has vanished entirely', async () => {
 		const stack = createRepositoryStack();
 		const first = await seedAsset(stack);
-		const second = await seedAsset(stack, { projectId: first.projectId });
+		const second = await seedAsset(stack, { name: 'Second' });
 
 		// The note is gone WITHOUT the index being told — a vault-level deletion this
 		// plugin did not observe. The listing skips it rather than failing the whole read.
 		stack.vault.entries.delete(second.path);
 
-		const listed = expectOk(await stack.assets.listByProject(first.projectId));
+		const listed = expectOk(await stack.assets.listAll());
 		expect(listed.map((loaded) => loaded.entity.id)).toEqual([first.assetId]);
 	});
 });

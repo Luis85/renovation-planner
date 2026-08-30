@@ -10,7 +10,8 @@ import type { ZoneRepository } from '../ports/ZoneRepository';
  * The eligible reassignment targets, already filtered by every rule the delete command
  * would otherwise reject the choice for — so slice 15's picker cannot OFFER a target that
  * fails validation. Zone case: every other zone in the same project. Asset case: every
- * other area-kind asset in the same project. Both exclude the entity being deleted.
+ * other area-kind asset in the VAULT, since design slice 19 gave the catalogue no project
+ * to be narrowed by. Both exclude the entity being deleted.
  *
  * Validation still runs in the command regardless; eligibility here is UX narrowing, not
  * enforcement.
@@ -28,8 +29,7 @@ export class ListReassignmentTargets {
 			const listed = await this.assets.getById(target.assetId);
 			if (isErr(listed)) return listed;
 			if (listed.value === null) return ok([]);
-			const projectId = listed.value.entity.projectId;
-			const all = await this.assets.listByProject(projectId);
+			const all = await this.assets.listAll();
 			if (isErr(all)) return all;
 			return ok(
 				all.value

@@ -18,7 +18,6 @@ export function assetToPersistence(asset: Asset, revision: number): Record<strin
 		'schema-version': 1,
 		id: asset.id,
 		revision,
-		project: asset.projectId,
 		name: asset.name,
 		category: toKebab(asset.category),
 		supplier: asset.supplier,
@@ -42,7 +41,6 @@ export function assetFromPersistence(rawFrontmatter: unknown): Result<Asset, Val
 	// remaining validation is the entity's own smart constructor.
 	const created = Asset.create({
 		id: dto.id as Asset['id'],
-		projectId: dto.project as Asset['projectId'],
 		name: dto.name,
 		category: dto.category,
 		supplier: dto.supplier ?? null,

@@ -611,9 +611,10 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		projects: new ObsidianProjectRepository(deps, DEFAULT_PROJECT_FOLDER, DEFAULT_LIBRARY_FOLDER),
 		plans: new ObsidianPlanRepository(deps, store),
 		zones: new ObsidianZoneRepository(deps, store),
-		assets: new ObsidianAssetRepository(deps),
+		assets: new ObsidianAssetRepository(deps, DEFAULT_LIBRARY_FOLDER),
 		requirements: new ObsidianRequirementRepository(deps),
 		projectFolder: DEFAULT_PROJECT_FOLDER,
+		libraryFolder: DEFAULT_LIBRARY_FOLDER,
 		root,
 		dispose: () => {
 			if (!isUnderTempDir(root)) {

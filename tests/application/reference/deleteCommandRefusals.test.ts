@@ -42,7 +42,7 @@ async function wiredZoneWithLink() {
 	);
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -258,7 +258,7 @@ describe('DeleteZoneCommand closure refusals', () => {
 		// completed write in `progress` when the second one fails.
 		const secondAsset = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			),
 		);

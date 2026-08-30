@@ -156,10 +156,9 @@ const NOTE_BACKED_CASES: ReadonlyArray<{
 	},
 	{
 		kind: 'asset',
-		seed: async (stack) => {
-			const projectId = await seedProject(stack);
-			return expectOk(await stack.assets.save(makeAssetEntity({ projectId }), 'absent')).entity.id;
-		},
+		// No project seeded: an asset's folder is the library's since design slice 19, so
+		// there is nothing for the save to resolve out of the index.
+		seed: async (stack) => expectOk(await stack.assets.save(makeAssetEntity(), 'absent')).entity.id,
 		read: (stack, id) => stack.assets.getById(id as never),
 	},
 	{
@@ -323,8 +322,7 @@ describe('the fail-closed gate is scoped to one entity', () => {
 	 */
 	it('is a READ gate: a save holding a current expectation overwrites a future-version note', async () => {
 		const stack = createRepositoryStack();
-		const projectId = await seedProject(stack);
-		const asset = makeAssetEntity({ projectId });
+		const asset = makeAssetEntity();
 		expectOk(await stack.assets.save(asset, 'absent'));
 		plantFutureSchemaVersion(stack, asset.id);
 		expect(expectErr(await stack.assets.getById(asset.id)).code).toBe('asset.schema-version-unsupported');
@@ -349,8 +347,7 @@ describe('the fail-closed gate is scoped to one entity', () => {
 	 */
 	it('refuses to DELETE a future-version note, not only to load one', async () => {
 		const stack = createRepositoryStack();
-		const projectId = await seedProject(stack);
-		const asset = makeAssetEntity({ projectId });
+		const asset = makeAssetEntity();
 		const written = expectOk(await stack.assets.save(asset, 'absent'));
 		plantFutureSchemaVersion(stack, asset.id);
 

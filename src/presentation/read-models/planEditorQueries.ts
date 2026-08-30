@@ -1,7 +1,6 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { PlanId } from '../../domain/plan/PlanId';
-import type { ProjectId } from '../../domain/project/ProjectId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { Loaded } from '../../application/ports/versioning';
 import type { Query } from '../../application/queries/Query';
@@ -44,8 +43,12 @@ export interface PlanEditorQueryServices {
 	getRequirementsForZone(
 		zoneId: string,
 	): Promise<Result<readonly RequirementInspectorDTO[], RepositoryError>>;
-	/** The assign-asset picker's options for one project, unfiltered (the command enforces the unit-kind rule). */
-	listAssets(projectId: string): Promise<Result<readonly AssetOptionDto[], RepositoryError>>;
+	/**
+	 * The assign-asset picker's options: the vault's whole catalogue, unfiltered (the
+	 * command enforces the unit-kind rule). No project narrows it — since design slice 19
+	 * an Asset belongs to none.
+	 */
+	listAssets(): Promise<Result<readonly AssetOptionDto[], RepositoryError>>;
 	/**
 	 * What the delete flow shows the user BEFORE the dialog, and owes back to the command
 	 * as `resolvedReferents`. IDs rather than a count, because the command compares sets.
@@ -117,7 +120,7 @@ export function createPlanEditorQueries(queries: {
 	/** Production composition always passes both slice-10 members; omitted only by editor
 	 * test rigs that mount no Requirements panel content, which then answer empty. */
 	readonly getRequirementsForZone?: Query<ZoneId, Result<readonly RequirementInspectorDTO[], RepositoryError>>;
-	readonly listAssets?: Query<ProjectId, Result<readonly Asset[], RepositoryError>>;
+	readonly listAssets?: Query<void, Result<readonly Asset[], RepositoryError>>;
 	readonly listRequirementsReferencing?: Query<ReferencedTarget, Result<readonly RequirementId[], RepositoryError>>;
 	readonly listReassignmentTargets?: Query<ReferencedTarget, Result<readonly ReassignmentTargetDto[], RepositoryError>>;
 }): PlanEditorQueryServices {
@@ -137,10 +140,10 @@ export function createPlanEditorQueries(queries: {
 			if (!found) return ok([]);
 			return await found.execute(zoneId as ZoneId);
 		},
-		async listAssets(projectId) {
+		async listAssets() {
 			const listed = queries.listAssets;
 			if (!listed) return ok([]);
-			const found = await listed.execute(projectId as ProjectId);
+			const found = await listed.execute();
 			if (isErr(found)) return found;
 			return ok(found.value.map((asset) => ({ id: asset.id, name: asset.name })));
 		},

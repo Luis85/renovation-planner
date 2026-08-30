@@ -44,7 +44,6 @@ async function seededStack() {
 	const asset = expectOk(
 		await stack.assets.save(
 			makeAsset({
-				projectId: project.entity.id,
 				wasteFactorDefault: new Decimal('0.10'),
 			}),
 			'absent',

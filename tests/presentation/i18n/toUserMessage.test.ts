@@ -108,7 +108,6 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['reference.self-reassign', 'Validation', 'error.category.validation', 'application/commands/zone/DeleteZone.ts'],
 	['reference.cross-project-reassign', 'Validation', 'error.category.validation', 'application/commands/zone/DeleteZone.ts'],
 	['requirement.unit-not-area', 'Validation', 'error.category.validation', 'application/commands/requirement/AssignAsset.ts'],
-	['requirement.cross-project', 'Validation', 'error.category.validation', 'application/commands/requirement/AssignAsset.ts'],
 	['requirement.negative-quantity', 'Domain', 'error.category.domain', 'application/commands/requirement/SetRequirementQuantityOverride.ts'],
 	// Design slice 16's New Project form. `project.negative-amount` is deliberately absent:
 	// it is raised by the same `Project.create` and would belong here on the same grounds,

@@ -199,6 +199,7 @@ Create `tests/build/layer-boundaries.test.ts`:
 
 ```ts
 import { beforeAll, describe, expect, it } from 'vitest';
+import { dirname, relative, sep } from 'node:path';
 import eslintConfig from '../../eslint.config.mjs';
 import { ESLINT_BOOT_MS, lintDetailed, warmUpEslint } from '../helpers/eslint';
 
@@ -313,6 +314,28 @@ interface BlockProbe {
  */
 const EXTENSIONS = ['ts', 'vue', 'js', 'jsx', 'mjs', 'cjs'] as const;
 
+/**
+ * How a file at `path` spells its way back up to `src/` — DERIVED, never hand-written.
+ *
+ * Four entries in the first draft of this table carried a hand-written depth and all four
+ * were wrong, in BOTH directions: `presentation/dialogs`, `application/queries` and
+ * `infrastructure/logging` sit two levels below `src/` and were given three, while the
+ * `infrastructure` probe at `persistence/dto/planGeometry.ts` sits three levels down and was
+ * given two. A review bot caught one of the four and read the rest as the same off-by-one;
+ * they are not one error, they are a per-file fact got wrong four times by eye.
+ *
+ * The verdicts were unaffected — measured: `no-restricted-imports` matches the raw specifier
+ * text, so `**\/application` matches `../../application` and `../../../application` alike, and
+ * every cell reported identically at either depth. What was wrong is FIDELITY: a probe
+ * spelling `../../../application` from a dialog exercises an import no dialog could contain,
+ * since it resolves outside the repository. A matrix that fires on a specifier production
+ * cannot write is testing a spelling nobody uses.
+ *
+ * Derived rather than corrected, because correcting four values leaves the fifth to be got
+ * wrong by the next author.
+ */
+const toSrc = (path: string): string => `${relative(dirname(path), 'src').split(sep).join('/')}/`;
+
 /** Every shape a group glob can protect. `**\/${g}` alone matches the barrel. */
 const layerShapes = (layer: string, depth: string): readonly Planted[] => [
 	{ specifier: `${depth}${layer}`, shape: 'barrel' },
@@ -352,13 +375,13 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		path: 'src/core/identity/generateId.ts',
 		extensions: EXTENSIONS,
 		forbidden: [
-			...layerShapes('domain', '../../'),
-			...layerShapes('application', '../../'),
-			...layerShapes('infrastructure', '../../'),
-			...layerShapes('presentation', '../../'),
-			...layerShapes('plugin', '../../'),
+			...layerShapes('domain', toSrc('src/core/identity/generateId.ts')),
+			...layerShapes('application', toSrc('src/core/identity/generateId.ts')),
+			...layerShapes('infrastructure', toSrc('src/core/identity/generateId.ts')),
+			...layerShapes('presentation', toSrc('src/core/identity/generateId.ts')),
+			...layerShapes('plugin', toSrc('src/core/identity/generateId.ts')),
 			...PKG.flatMap(packageShapes),
-			...PROTOTYPES('../../'),
+			...PROTOTYPES(toSrc('src/core/identity/generateId.ts')),
 		],
 		allowed: '../geometry/operations',
 	},
@@ -367,27 +390,27 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		path: 'src/domain/requirement/Requirement.errors.ts',
 		extensions: EXTENSIONS,
 		forbidden: [
-			...layerShapes('application', '../../'),
-			...layerShapes('infrastructure', '../../'),
-			...layerShapes('presentation', '../../'),
-			...layerShapes('plugin', '../../'),
+			...layerShapes('application', toSrc('src/domain/requirement/Requirement.errors.ts')),
+			...layerShapes('infrastructure', toSrc('src/domain/requirement/Requirement.errors.ts')),
+			...layerShapes('presentation', toSrc('src/domain/requirement/Requirement.errors.ts')),
+			...layerShapes('plugin', toSrc('src/domain/requirement/Requirement.errors.ts')),
 			...PKG.flatMap(packageShapes),
-			...PROTOTYPES('../../'),
+			...PROTOTYPES(toSrc('src/domain/requirement/Requirement.errors.ts')),
 		],
-		allowed: '../../core',
+		allowed: `${toSrc('src/domain/requirement/Requirement.errors.ts')}core`,
 	},
 	{
 		key: '**/src/application/**/*.ts',
 		path: 'src/application/editor/WriteLedger.ts',
 		extensions: EXTENSIONS,
 		forbidden: [
-			...layerShapes('infrastructure', '../../'),
-			...layerShapes('presentation', '../../'),
-			...layerShapes('plugin', '../../'),
+			...layerShapes('infrastructure', toSrc('src/application/editor/WriteLedger.ts')),
+			...layerShapes('presentation', toSrc('src/application/editor/WriteLedger.ts')),
+			...layerShapes('plugin', toSrc('src/application/editor/WriteLedger.ts')),
 			...PKG.flatMap(packageShapes),
-			...PROTOTYPES('../../'),
+			...PROTOTYPES(toSrc('src/application/editor/WriteLedger.ts')),
 		],
-		allowed: '../../domain',
+		allowed: `${toSrc('src/application/editor/WriteLedger.ts')}domain`,
 	},
 	{
 		key: '**/src/infrastructure/**/*.ts',
@@ -395,10 +418,10 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		extensions: EXTENSIONS,
 		// `obsidian` is this layer's job and is deliberately absent from the ban.
 		forbidden: [
-			...layerShapes('presentation', '../../'),
-			...layerShapes('plugin', '../../'),
+			...layerShapes('presentation', toSrc('src/infrastructure/persistence/dto/planGeometry.ts')),
+			...layerShapes('plugin', toSrc('src/infrastructure/persistence/dto/planGeometry.ts')),
 			...(['vue', 'pinia', 'konva', 'vue-konva'] as const).flatMap(packageShapes),
-			...PROTOTYPES('../../'),
+			...PROTOTYPES(toSrc('src/infrastructure/persistence/dto/planGeometry.ts')),
 		],
 		allowed: 'obsidian',
 	},
@@ -406,7 +429,7 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		key: '**/src/presentation/**/*.ts',
 		path: 'src/presentation/editor/deleteZoneFlow.ts',
 		extensions: EXTENSIONS,
-		forbidden: [...layerShapes('infrastructure', '../../'), ...layerShapes('plugin', '../../'), ...PROTOTYPES('../../')],
+		forbidden: [...layerShapes('infrastructure', toSrc('src/presentation/editor/deleteZoneFlow.ts')), ...layerShapes('plugin', toSrc('src/presentation/editor/deleteZoneFlow.ts')), ...PROTOTYPES(toSrc('src/presentation/editor/deleteZoneFlow.ts'))],
 		allowed: 'vue',
 	},
 	{
@@ -414,16 +437,16 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		path: 'src/plugin/RenovationPlannerPlugin.ts',
 		extensions: EXTENSIONS,
 		// The composition root may reach every layer. Only the prototypes door stays shut.
-		forbidden: PROTOTYPES('../'),
-		allowed: '../infrastructure/logging/diagnosticsLedger',
+		forbidden: PROTOTYPES(toSrc('src/plugin/RenovationPlannerPlugin.ts')),
+		allowed: `${toSrc('src/plugin/RenovationPlannerPlugin.ts')}infrastructure/logging/diagnosticsLedger`,
 	},
 	{
 		key: '**/src/*.ts',
 		path: 'src/main.ts',
 		extensions: EXTENSIONS,
 		// The ROOT block, spelled from outside `forbidden()`'s machinery.
-		forbidden: PROTOTYPES('./'),
-		allowed: './plugin/RenovationPlannerPlugin',
+		forbidden: PROTOTYPES(toSrc('src/main.ts')),
+		allowed: `${toSrc('src/main.ts')}plugin/RenovationPlannerPlugin`,
 	},
 	{
 		key: '**/src/presentation/dialogs/**/*.ts',
@@ -440,16 +463,16 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		// `.ts` spelling of it, so dropping the barrel restriction or an extension would have
 		// left the promised matrix green.
 		forbidden: [
-			...layerShapes('application', '../../../'),
-			...layerShapes('infrastructure', '../../../'),
-			...layerShapes('plugin', '../../../'),
-			...layerShapes('core/events', '../../../'),
-			...PROTOTYPES('../../../'),
+			...layerShapes('application', toSrc('src/presentation/dialogs/dialog-store.ts')),
+			...layerShapes('infrastructure', toSrc('src/presentation/dialogs/dialog-store.ts')),
+			...layerShapes('plugin', toSrc('src/presentation/dialogs/dialog-store.ts')),
+			...layerShapes('core/events', toSrc('src/presentation/dialogs/dialog-store.ts')),
+			...PROTOTYPES(toSrc('src/presentation/dialogs/dialog-store.ts')),
 		],
 		// `core` itself, deliberately — the SHARPEST negative available here, because it
 		// proves the ban is keyed on `core/events` rather than on the whole of `core`. `vue`
 		// would pass against a build that banned all of `core` from dialogs.
-		allowed: '../../../core',
+		allowed: `${toSrc('src/presentation/dialogs/dialog-store.ts')}core`,
 	},
 	{
 		key: '**/src/application/queries/**/*.ts',
@@ -458,23 +481,23 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		// Slice 11 item 7: the parent APPLICATION ban restated, because two blocks matching
 		// one file override rather than merge. A group dropped from the parent goes quiet here.
 		forbidden: [
-			...layerShapes('infrastructure', '../../../'),
-			...layerShapes('presentation', '../../../'),
-			...layerShapes('plugin', '../../../'),
+			...layerShapes('infrastructure', toSrc('src/application/queries/GetPlan.ts')),
+			...layerShapes('presentation', toSrc('src/application/queries/GetPlan.ts')),
+			...layerShapes('plugin', toSrc('src/application/queries/GetPlan.ts')),
 			...PKG.flatMap(packageShapes),
-			...PROTOTYPES('../../../'),
+			...PROTOTYPES(toSrc('src/application/queries/GetPlan.ts')),
 		],
-		allowed: '../../domain',
+		allowed: `${toSrc('src/application/queries/GetPlan.ts')}domain`,
 	},
 	{
 		key: '**/src/infrastructure/logging/**/*.ts',
 		path: 'src/infrastructure/logging/diagnosticsLedger.ts',
 		extensions: EXTENSIONS,
 		forbidden: [
-			...layerShapes('presentation', '../../../'),
-			...layerShapes('plugin', '../../../'),
+			...layerShapes('presentation', toSrc('src/infrastructure/logging/diagnosticsLedger.ts')),
+			...layerShapes('plugin', toSrc('src/infrastructure/logging/diagnosticsLedger.ts')),
 			...(['vue', 'pinia', 'konva', 'vue-konva'] as const).flatMap(packageShapes),
-			...PROTOTYPES('../../../'),
+			...PROTOTYPES(toSrc('src/infrastructure/logging/diagnosticsLedger.ts')),
 		],
 		allowed: 'obsidian',
 	},
@@ -486,8 +509,8 @@ const BAN_BLOCKS: readonly BlockProbe[] = [
 		// recorded gap in the extension loop below.
 		path: 'src/nowhere/Fixture.vue',
 		extensions: ['vue', 'js', 'jsx', 'mjs', 'cjs'],
-		forbidden: PROTOTYPES('../'),
-		allowed: '../core',
+		forbidden: PROTOTYPES(toSrc('src/nowhere/Fixture.vue')),
+		allowed: `${toSrc('src/nowhere/Fixture.vue')}core`,
 	},
 ];
 ```
@@ -1686,8 +1709,55 @@ describe('the fixture vault adapter', () => {
 		await open.vault.create(path, '---\nid: fresh\ntype: zone\n---\n');
 
 		expect(open.metadataCache.getFileCache(open.vault.getAbstractFileByPath(path))).toBeNull();
-		await open.metadataCache.settle();
+		open.metadataCache.catchUp();
 		expect(open.metadataCache.getFileCache(open.vault.getAbstractFileByPath(path))?.frontmatter).toMatchObject({ id: 'fresh' });
+	});
+
+	/**
+	 * A note already on disk when the vault opened is visible IMMEDIATELY — no seeding pass,
+	 * because the cache parses current bytes rather than a snapshot. This is the case that
+	 * would have failed against the snapshot design without its seeding call, and it is why
+	 * that call could be retired rather than kept alongside.
+	 */
+	it('reads a checked-in note without any seeding pass', async () => {
+		open = await openFixtureVault('valid-project');
+		const file = open.vault.getAbstractFileByPath(join(open.root, 'Project.md'));
+
+		expect(open.metadataCache.getFileCache(file)?.frontmatter).toBeDefined();
+	});
+
+	/**
+	 * Save then read. The snapshot design returned the PRE-SAVE frontmatter here: nothing
+	 * invalidated the entry, and `frontmatterOf` falls back to the echo window only when the
+	 * cache answers `null`. Reported by a review bot against that design; this case is what
+	 * keeps the on-demand answer from regressing back into a cached one.
+	 */
+	it('reflects a modify immediately, rather than serving the bytes from before it', async () => {
+		open = await openFixtureVault('valid-project');
+		const path = join(open.root, 'Project.md');
+		const file = open.vault.getAbstractFileByPath(path);
+
+		await open.fileManager.processFrontMatter(file, (frontmatter) => {
+			frontmatter['status'] = 'changed-by-this-test';
+		});
+
+		expect(open.metadataCache.getFileCache(file)?.frontmatter).toMatchObject({ status: 'changed-by-this-test' });
+	});
+
+	/**
+	 * Three answers, not two. A parsed file with NO frontmatter answers an object whose
+	 * `frontmatter` is undefined, while a file Obsidian has never seen answers `null`.
+	 * Collapsing them makes "never seen" and "the user deleted the frontmatter"
+	 * indistinguishable — the conflation `frontmatterOf` must not make.
+	 */
+	it('tells a file with no frontmatter apart from a file it has never seen', async () => {
+		open = await openFixtureVault('valid-project');
+		const path = join(open.root, 'Plain.md');
+		await open.vault.create(path, 'no frontmatter here\n');
+		open.metadataCache.catchUp();
+
+		expect(open.metadataCache.getFileCache(open.vault.getAbstractFileByPath(path))).toEqual({});
+		expect(open.metadataCache.getFileCache(null)).toBeNull();
 	});
 
 	/** Hardening rule 3. Obsidian answers a folder object for a folder, never `null`. */
@@ -1854,17 +1924,30 @@ export class FixtureVaultAdapter {
 
 	// …`read`, `modify`, `delete`, `createFolder`, `getFiles`, `getMarkdownFiles`, each
 	// mirroring `FakeVault`'s signature over `node:fs` under `this.root`.
+	//
+	// TWO of those owe the cache a call and neither is optional, so they are named here rather
+	// than left inside the ellipsis:
+	//   `modify` calls `this.cache.forget(path)` — a modify makes the path cache-visible,
+	//     exactly as `FakeVault.modify` deletes from `unparsed` (vault.ts:136). Without it a
+	//     note created and then modified in the same run stays invisible to the cache forever.
+	//   `modify` also REFUSES a path that does not exist (`No file to modify: <path>`,
+	//     vault.ts:130), which is the mirror of `create` refusing one that does.
+	// `delete` needs no cache call: `readOrUndefined` answers `undefined` for a path that is
+	// gone, and `getFileCache` turns that into `null` on its own.
 
 	/**
-	 * A SYNCHRONOUS read, for `openFixtureVault`'s seeding pass only.
+	 * The current bytes, or `undefined` for a path that does not exist — the door
+	 * `FixtureMetadataCache` parses through, mirroring `FakeMetadataCache` reading
+	 * `vault.entries` directly.
 	 *
-	 * Obsidian's own `Vault.read` is async and `FakeVault` mirrors that, so this is a second
-	 * door rather than a change to the first: seeding happens once, before the stack is handed
-	 * out, and nothing under test may reach it. Named `readSync` so a caller that wanted the
-	 * real door cannot take this one by accident.
+	 * Synchronous and separate from the async `read` the repositories take, because the cache
+	 * is answering "what does Obsidian believe is here" rather than performing a vault read.
+	 * `undefined` rather than a throw, because "no such file" is an ANSWER at this door and the
+	 * cache's three-way result depends on telling it apart from an empty file.
 	 */
-	readSync(path: string): string {
-		return readFileSync(this.absolute(path), 'utf8');
+	readOrUndefined(path: string): string | undefined {
+		const absolute = this.absolute(path);
+		return existsSync(absolute) && !statSync(absolute).isDirectory() ? readFileSync(absolute, 'utf8') : undefined;
 	}
 
 	private absolute(path: string): string {
@@ -1877,55 +1960,67 @@ The metadata cache is the one that carries hardening rule 2:
 
 ```ts
 export class FixtureMetadataCache {
-	private readonly parsed = new Map<string, { frontmatter: Record<string, unknown> }>();
-	private pending: [string, string][] = [];
+	/** Paths this adapter created that Obsidian has not parsed yet, with the exact bytes. */
+	private readonly unparsed = new Map<string, string>();
 
-	/**
-	 * Hardening rule 2: Obsidian populates `MetadataCache` ASYNCHRONOUSLY, so a note read
-	 * back in the tick it was created has NO cache entry at all. Making the old fake honest
-	 * turned 65 tests across 12 files red, and the defect it had concealed was
-	 * `create-sample-project` reporting "Migrating the project note failed" on a note it had
-	 * just written correctly — an absent `schema-version` reads as version 0, and there is no
-	 * migration step from 0.
-	 *
-	 * Do NOT parse synchronously "for convenience". That is precisely the kindness that hid a
-	 * shipped defect behind 860 green tests.
-	 */
+	constructor(private readonly vault: FixtureVaultAdapter) {}
+
 	enqueue(path: string, data: string): void {
-		this.pending.push([path, data]);
+		this.unparsed.set(path, data);
+	}
+
+	/** A modify makes the path cache-visible, exactly as `FakeVault.modify` does. */
+	forget(path: string): void {
+		this.unparsed.delete(path);
 	}
 
 	/**
-	 * Files already on disk when the vault opened — parsed IMMEDIATELY, because Obsidian has
-	 * already parsed them by the time a plugin loads.
+	 * Parsed ON DEMAND from the vault's CURRENT bytes — never from a snapshot map.
 	 *
-	 * This is not a hole in hardening rule 2 and the boundary is worth stating: the rule is
-	 * about the read-after-WRITE window, a note the plugin has just created and reads back in
-	 * the same tick. A checked-in fixture note is not in that window. Without this pass every
-	 * fixture note has no cache entry and no `EchoWindow` history either, so `frontmatterOf`
-	 * answers nothing for all of them and an index rebuild indexes zero entities — a fixture
-	 * vault that reads as empty, which is the "instrument reaches nothing" shape again.
-	 */
-	seedExisting(files: readonly [string, string][]): void {
-		for (const [path, data] of files) this.parsed.set(path, { frontmatter: parseFrontmatter(data).frontmatter });
-	}
-
-	/** The test-visible door onto the async window: drain what Obsidian would have parsed. */
-	async settle(): Promise<void> {
-		await Promise.resolve();
-		for (const [path, data] of this.pending) this.parsed.set(path, { frontmatter: parseFrontmatter(data).frontmatter });
-		this.pending = [];
-	}
-
-	/**
-	 * Keyed on the cache ENTRY, not on `entry?.frontmatter`. `getFileCache` answers `null` for
-	 * "never parsed" and an object with no `frontmatter` for "parsed, and the user deleted
-	 * it". Collapse those two and a note whose frontmatter was deleted is served this
-	 * plugin's own stale bytes forever.
+	 * A first draft held a `parsed` Map populated at open and on create, which is a design
+	 * `FakeMetadataCache` does not have and it introduced a staleness the real fake cannot
+	 * express: a repository writing through `processFrontMatter` and reading back got the
+	 * bytes from before its own save, because nothing invalidated the entry and
+	 * `frontmatterOf` falls back to the echo window only when the cache answers `null`.
+	 * Reported by a review bot, which proposed adding invalidation on modify. Parsing on
+	 * demand is taken instead: it makes the stale state UNREPRESENTABLE rather than
+	 * refreshed on one more event, which is this repository's own stated preference and the
+	 * lesson `pointerWorld` already paid for.
+	 *
+	 * It also retires `seedExisting`. With on-demand parsing a checked-in note is visible
+	 * the moment the clone lands, so the seeding pass added one round earlier has nothing
+	 * left to do — said plainly rather than deleted quietly, because it was defended in
+	 * review and its disappearance is a consequence of a better fix, not a reversal.
+	 *
+	 * Three answers, not two, and the third is the one a draft collapsed. `null` means
+	 * Obsidian has no entry for the file — never parsed, or inside the create window. A file
+	 * it parsed and found NO frontmatter in answers an OBJECT whose `frontmatter` is
+	 * undefined. Conflating those makes "never seen" and "the user deleted the frontmatter"
+	 * indistinguishable, which is the exact conflation `frontmatterOf` must not make: collapse
+	 * them and a note whose frontmatter was deleted is served this plugin's own stale bytes
+	 * forever.
+	 *
+	 * What this models and what it does NOT: the window after a CREATE, where Obsidian has no
+	 * entry at all — the one that produced a real defect, `create-sample-project` reporting a
+	 * migration failure on a note it had just written correctly. It does not model the parse
+	 * lag after a MODIFY, where Obsidian holds a STALE entry rather than none. That is a
+	 * different failure, `FakeVault` does not model it either, and neither claims to.
 	 */
 	getFileCache(file: TFile | TFolder | null): { frontmatter?: Record<string, unknown> } | null {
 		if (file === null) return null;
-		return this.parsed.get(file.path) ?? null;
+
+		const asCreated = this.unparsed.get(file.path);
+		if (asCreated !== undefined && asCreated === this.vault.readOrUndefined(file.path)) return null;
+
+		const text = this.vault.readOrUndefined(file.path);
+		if (text === undefined) return null;
+		if (!text.startsWith('---\n')) return {};
+		return { frontmatter: parseFrontmatter(text).frontmatter };
+	}
+
+	/** What Obsidian eventually does on its own, once its parse queue drains. */
+	catchUp(): void {
+		this.unparsed.clear();
 	}
 }
 ```
@@ -1940,17 +2035,10 @@ export const openFixtureVault = async (caseName: string): Promise<FixtureStack> 
 	const vault = new FixtureVaultAdapter(root);
 	const metadataCache = new FixtureMetadataCache();
 
-	// SEED the cache from the files just cloned, before returning. Without this every
-	// checked-in note has no cache entry and no `EchoWindow` history either, so
-	// `frontmatterOf` answers nothing for all of them: Task 11's first `rebuildIndex()`
-	// would index zero fixture entities and Task 12 could not read its planted frontmatter.
-	//
-	// This does NOT weaken hardening rule 2, and the distinction is the whole point: Obsidian
-	// populates the cache asynchronously for a note the plugin has just CREATED, which is the
-	// read-after-write window that concealed a shipped defect. A note already on disk when
-	// the vault opens is one Obsidian has already parsed. The async window stays, scoped to
-	// `create`.
-	metadataCache.seedExisting(vault.getMarkdownFiles().map((file) => [file.path, vault.readSync(file.path)]));
+	// No seeding pass: `FixtureMetadataCache` parses on demand from the vault's current
+	// bytes, so every checked-in note is visible the moment the clone lands. An earlier draft
+	// seeded a snapshot map here and had to, because that map was the only thing the cache
+	// could answer from — see the cache's own header for why the snapshot went instead.
 	const fileManager = new FixtureFileManager(vault);
 	// `FixtureFileManager` mirrors `FakeFileManager` (tests/helpers/vault.ts:250) — the
 	// repositories reach `processFrontMatter` on every write and `trashFile` on every

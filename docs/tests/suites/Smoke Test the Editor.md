@@ -83,8 +83,8 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 67 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus, paint, or an input grammar jsdom cannot produce | 32 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 68 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus, paint, or an input grammar jsdom cannot produce | 31 |
 | `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 49 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
 | `judgement` | Records an answer or an eye's verdict. There is no pass condition for any instrument to settle | 7 |
@@ -119,6 +119,20 @@ step a cheaper instrument would reach, and the remedy where that matters is to s
 rather than to soften the tag. The first draft of this triage got four of these wrong in the
 cheaper direction, which is what the rule is written down for.
 
+**And the whole ROW, not the pass condition alone — which is the half of the rule the sentence
+above did not say, and a reviewer read it the narrow way twice.** A step is three columns: what
+to do, what passes, and what it exists to catch. Some rows state a pass condition NARROWER than
+the failure they name. [[Editor Walkthrough]] step 3 passes when "§60's five regions are
+present" and exists to catch *layout collapse* — and a view collapsed to 39px of a 700px pane
+has all five regions present, which is the defect `npm run harness` actually found and no gate
+could see. [[Assign an Asset and Delete a Referenced Zone]] step 14 says "look at what the
+dialog COVERS" and then passes on the dialog's own words. Read either row by its pass condition
+alone and it is `suite`; read what the step is for and only a browser settles it. The highest
+tier anything in the row requires is the tag, so both are `browser`. Where that grates, the
+honest repair is to tighten the pass condition until it can fail the way the fourth column says
+it should — the same remedy as the split, applied to a row that under-promises rather than one
+that over-reaches.
+
 **What the distribution says, since it is not what the suite's own header implies.** Two fifths
 of these steps are already inside the jsdom suite's reach — this file has grown case by
 case, and no earlier pass ever asked which steps the suite had caught up with. The steps that
@@ -127,8 +141,8 @@ genuinely need a vault are not spread evenly either: two cases, [[Notices and sa
 surface is drawn by Obsidian's own `Notice` and the other is about where files sit. The
 `browser` tier is the one this triage was made to price, and three review rounds moved it in
 both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
-`obsidian` or `desktop` on a closer read, and six `suite` steps then turned out to be
-`browser` under the rule above. It has been 35, 27, 33 and 32. Read that as the shape of the
+`obsidian` or `desktop` on a closer read, and five `suite` steps then turned out to be
+`browser` under the rule above. It has been 35, 27, 33, 32 and 31. Read that as the shape of the
 remaining audit rather than as a settled figure — a `browser` verdict is exactly as
 unconfirmed as a `suite` one, and for the same reason.
 
@@ -139,7 +153,7 @@ being *centred*, *beside* or *above* something else, while the failure each one 
 own "It exists to catch" is presence: a view that drew nothing, a tool registered nowhere, a
 calculated figure hidden behind its own override badge. The rule above still tags them
 `browser`, because a panel really can render off-centre and the pass condition really does say
-centred — but a reader pricing the browser tier should know that six of its steps would fall
+centred — but a reader pricing the browser tier should know that five of its steps would fall
 back to `suite` the moment their positional clause became a step of its own. That is what
 "split the step rather than soften the tag" means in practice, with the list to work from.
 

@@ -450,8 +450,16 @@ export const AssetShapeSchemaV1 = z.object({
 	 * derived from whether a calibration happens to exist now. Deriving it would answer a
 	 * question about the past out of live state, and would re-flag a genuinely measured
 	 * outline the moment its background was replaced.
+	 *
+	 * `.default(false)` and NOT `.catch(false)`: a missing key is an older file and reads as
+	 * measured, but a PRESENT invalid value (`"true"` from a hand edit) must fail the read
+	 * rather than be coerced — coercing it silently suppresses the unscaled warning and
+	 * presents placeholder-space geometry as millimetres, which is the one direction of this
+	 * field that is unsafe. Same rule as the polygon vertex count in Task A4: refuse, do not
+	 * repair. (`revision` keeps `.catch(0)` because a bad counter costs a conflict, not a
+	 * silent misreading.)
 	 */
-	pendingScale: z.boolean().catch(false),
+	pendingScale: z.boolean().default(false),
 	clearance: z.object({ points: z.array(pointTuple) }).nullable(),
 	anchor: z.object({ x: z.number(), y: z.number() }),
 	facing: z.number(),
@@ -1440,7 +1448,9 @@ git commit -m "One dispatcher per designer leaf, and a refresh that survives a f
 - Test: `tests/application/editor/reversibleAssetDesign.test.ts`
 
 **Interfaces:**
-- Consumes: A5–A7's commands, B6's `CalibrateAsset`, B7's `SetAssetBackground`, the `AssetGeometrySidecar` port, `WriteLedger`.
+- Consumes: A5–A7's commands, B6's `CalibrateAsset`, B7's `SetAssetBackground`, the
+  `AssetGeometrySidecar` port, the `EventBus`, and **two** `WriteLedger`s — `noteLedger` and
+  `geometryLedger` (see the rule below).
 - Produces: one reversible adapter per design command, each satisfying `UndoableCommand`
   **structurally** — the interface lives in `presentation/` and the layer ban holds, exactly as
   slice 8's zone adapters do.
@@ -1493,6 +1503,47 @@ it('undoes a height change through the note, not the sidecar', async () => { /* 
 
 The third case is slice 8's rule applied here: **every write records into the `WriteLedger`,
 restores included**, or the next command's expectation is a revision the vault no longer has.
+
+**Two ledgers, because an asset is two resources.** `SessionWriteLedger` holds one
+`EntityVersion` per `EntityId` (`WriteLedger.ts:53`), and this increment writes an asset's **note**
+(height, background) and its **sidecar** (everything geometric) under the same `assetId`. One
+ledger therefore has them overwrite each other: undo a height edit, and the note's version is what
+the ledger holds; undo the geometry edit beneath it, and that note version is presented to the
+sidecar, refused as stale, and the undo stack is stuck with no way forward. The designer's runtime
+holds `noteLedger` and `geometryLedger`, and each adapter records into the one its own write went
+to. Add the case:
+
+```typescript
+it('undoes a geometry edit beneath a height edit, rather than presenting the note version to the sidecar', async () => {
+	await history.run(reversible.setFootprint({ assetId, points: triangle }));
+	await history.run(reversible.setHeight({ assetId, height: 900 }));
+	expect(isOk(await history.undo())).toBe(true);   // the height
+	expect(isOk(await history.undo())).toBe(true);   // the geometry — this is the one that used to fail
+});
+```
+
+**Two adapters are not note-only, and one of them looks like it is.** `SetAssetHeight` writes the
+note alone. `SetAssetBackground` writes the note **and clears the sidecar's calibration** (Decision
+5), so its inverse must restore **both** — a snapshot rule that captures only the asset's background
+field restores the old document reference over an erased calibration, which is not the pre-command
+design and is exactly what the undo advertises. Its case seeds a **calibrated** asset:
+
+```typescript
+it('restores the calibration a background change cleared, not only the reference', async () => {
+	await seedCalibration();
+	const command = reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+	await command.execute();
+	await command.undo();
+	const after = await sidecar.read(assetId);
+	expect(isOk(after) && after.value.document.calibration).not.toBeNull();
+});
+```
+
+**Every successful restore publishes `AssetDesignChanged` too.** The initiating leaf refreshes
+through its own dispatcher, so an undo that publishes nothing leaves a peer leaf sitting on the
+forward state until something unrelated wakes it — the same staleness Task B3a closed for the
+forward path, re-entering through the inverse. Cover it across leaves for a note change and a
+geometry change alike.
 
 - [ ] **Step 2: Implement**
 
@@ -1851,11 +1902,39 @@ The third case is why this port exists at all: `presentation/` may not import `o
 
 - [ ] **Step 2: Implement the command, the port and the Obsidian binding**
 
-The command writes the note's three background keys **and** clears the sidecar's calibration. Those
-are two files, so order them so a failure cannot leave a scale belonging to a document that is no
-longer there: clear the calibration first, then write the reference; a failure after the clear
-leaves a surface that says it is uncalibrated, which is true and recoverable, while the reverse
-leaves a new picture measured by the old document's scale. The last test above pins that ordering.
+The command writes the note's three background keys **and** clears the sidecar's calibration
+(Decision 5). Those are two files, so both the ordering and the failure of the SECOND write matter:
+
+- **Order**: clear the calibration first, then write the reference. A failure between them leaves a
+  surface that says it is uncalibrated — true and recoverable — where the reverse order leaves a new
+  picture measured by the old document's scale.
+- **Compensate**: if the note write then fails, **restore the calibration that was just cleared**,
+  from the snapshot taken before clearing it. Without that, a failed background change leaves the
+  user on their old background with its perfectly valid calibration destroyed, for a change that
+  did not happen. The first version of this step had only the ordering and its test injected a
+  failure into the first write alone, so it could not see this at all.
+- **A failed compensation is reported, not swallowed**: stamp the returned refusal with
+  `markUncompensated` so the save-state indicator does not settle at `Saved` over a vault whose
+  calibration is gone — the rule slice 13 arrived at after four measurements of `affectsSaveState`.
+
+```typescript
+it('restores the calibration when the note write fails, so a failed change changes nothing', async () => {
+	await seedCalibration();
+	noteWriteFails();
+	const result = await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+	expect(isErr(result)).toBe(true);
+	const stored = await sidecar.read(assetId);
+	expect(isOk(stored) && stored.value.document.calibration).not.toBeNull();
+});
+
+it('reports an uncompensated failure rather than letting the indicator settle at Saved', async () => {
+	await seedCalibration();
+	noteWriteFails();
+	sidecarWriteFails();          // the compensation cannot land either
+	const result = await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+	expect(isErr(result) && leftWritesBehind(result.error)).toBe(true);
+});
+```
 
 
 The binding lives in `src/plugin/`, uses Obsidian's own file suggester, and reaches the designer through the deps bundle — never through the global `app`, which the marketplace rules refuse.

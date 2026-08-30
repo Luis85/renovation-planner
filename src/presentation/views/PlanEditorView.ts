@@ -194,6 +194,12 @@ export class PlanEditorView extends ItemView {
 			vault: this.deps.vault,
 			onThemeChange: this.deps.onThemeChange,
 			onPlanChanged: (listener) => this.deps.onPlanChanged(planId, listener),
+			// NOT a `PlanEditorDeps` member: the composition root composes services and knows
+			// nothing about which leaf this is. The leaf is the VIEW's, so the view is what can
+			// close it.
+			closeLeaf: () => {
+				this.leaf.detach();
+			},
 		};
 
 		const app = createApp(PlanEditorRoot);

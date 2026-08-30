@@ -11,7 +11,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
-import { err } from '../../../src/core/result/Result';
+import { err, ok } from '../../../src/core/result/Result';
 import { t } from '../../../src/presentation/i18n/strings';
 import { fakeQueries, mountPlanEditor } from '../../helpers/editor';
 import * as policy from '../../../src/presentation/errors/errorSurfacePolicy';
@@ -87,6 +87,9 @@ describe('the Plan Editor, when its plan cannot be shown', () => {
 		await flushPromises();
 
 		expect(calls).toBe(2);
+		// The mirror of the dangling case: a retryable failure re-reads and must NOT close the
+		// tab out from under the user.
+		expect(harness.closedLeaf()).toBe(0);
 		harness.wrapper.unmount();
 	});
 
@@ -101,6 +104,33 @@ describe('the Plan Editor, when its plan cannot be shown', () => {
 });
 
 describe('the Plan Editor, when its plan is simply gone', () => {
+	it('offers to close the tab, and closes it', async () => {
+		// The one useful action. There is nothing to retry — the query SUCCEEDED and reported an
+		// absence — so a retry button here would re-ask a question already answered.
+		let calls = 0;
+		const counting: PlanEditorQueryServices = {
+			...fakeQueries(null),
+			getPlan: () => {
+				calls += 1;
+				return Promise.resolve(ok(null));
+			},
+		};
+		const harness = await mountPlanEditor({ queries: counting });
+		await flushPromises();
+		expect(calls).toBe(1);
+
+		expect(failureEl(harness, '__action').text()).toBe(t('en', 'editor.plan-missing.action'));
+		await failureEl(harness, '__action').trigger('click');
+		await flushPromises();
+
+		expect(harness.closedLeaf()).toBe(1);
+		// And it did NOT re-run the query: the two states share one button and mean opposite
+		// things by it, so a handler that always re-hydrated would look right here and be wrong.
+		expect(calls).toBe(1);
+
+		harness.wrapper.unmount();
+	});
+
 	it('says the tab points at a plan that no longer exists', async () => {
 		const harness = await mountPlanEditor({ queries: danglingPlan() });
 		await flushPromises();

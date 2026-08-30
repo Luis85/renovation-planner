@@ -58,6 +58,8 @@ export interface EditorHarness {
 	readonly changePlan: () => void;
 	/** How many theme listeners are still registered — the unmount leak check. */
 	readonly themeListeners: () => number;
+	/** How many times the tree asked to close this leaf (`PlanEditorContext.closeLeaf`). */
+	readonly closedLeaf: () => number;
 	readonly unmount: () => void;
 }
 
@@ -151,6 +153,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	installEditorEnvironment();
 
 	const themeListeners = new Set<() => void>();
+	let closedLeaf = 0;
 	const planListeners = new Set<() => void>();
 
 	// `plan` is `PlanDto | null | undefined` here: `undefined` means the option was
@@ -170,6 +173,9 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		onPlanChanged: (listener) => {
 			planListeners.add(listener);
 			return () => planListeners.delete(listener);
+		},
+		closeLeaf: () => {
+			closedLeaf += 1;
 		},
 	};
 
@@ -210,6 +216,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 			for (const listener of planListeners) listener();
 		},
 		themeListeners: () => themeListeners.size,
+		closedLeaf: () => closedLeaf,
 		unmount: () => {
 			wrapper.unmount();
 			host.remove();

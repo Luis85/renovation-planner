@@ -2060,6 +2060,18 @@ The rules that came out of it:
   all. Validating at the input is better than dispatching and rendering a refusal. What the same
   item's other third bought was real, though: coincident clicks used to be refused SILENTLY,
   wiping a point the user had placed with no reason given.
+- **A generic component's one event can mean two opposite things, and the CALLER is what
+  decides.** `ViewFailure`'s action retries a read that failed and closes a tab whose plan is
+  gone — `PlanEditorRoot` branches on the status rather than the component learning which of
+  its callers means what, which is what keeps it reusable by a view this slice has never heard
+  of. Both directions are mutation-checked: a handler that always retried, or always closed,
+  passes a suite that tests only one of them.
+- **`PlanEditorContext.closeLeaf()` is the view's leaf, partially applied** — the same shape
+  `onPlanChanged` already had, and the reason `onThemeChange` gives for not handing the
+  `Workspace` down. NOT a `PlanEditorDeps` member: the composition root composes services and
+  knows nothing about which leaf this is. The dangling-plan state shipped without it for one
+  commit, with the missing seam written down rather than worked around by reaching for the
+  global `app`, which the marketplace rules refuse.
 - **`analyze` reads `.test-d.ts` as an unreachable FILE**, so `.fallowrc.json` names each of the
   four one at a time — deliberately not globbed, because "a glob absorbs the next file and tells
   nobody" and here it would absorb one whose `tsconfig.json` entry had been forgotten, leaving a

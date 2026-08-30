@@ -80,6 +80,22 @@ function hydrate(): void {
 }
 
 /**
+ * The failure state's one button, which means two different things.
+ *
+ * A plan that could not be READ is retryable — the query really tried and may succeed on a
+ * second attempt. A plan that is GONE is not: `GetPlan` succeeded and reported an absence, so
+ * re-running it answers the same thing, and the useful action is to close the tab.
+ *
+ * Branching HERE rather than emitting two events, because `ViewFailure` is deliberately generic
+ * (resolved strings in, one `action` out) and teaching it which of its callers means what would
+ * make it this slice's component rather than any view's.
+ */
+function onFailureAction(): void {
+	if (status.value === 'missing') context.closeLeaf();
+	else hydrate();
+}
+
+/**
  * The two states that replace the canvas with a reason, or `null` for loading — design slice
  * 17's answer to BOTH cases slice 14 deferred to it, which land in the same slot and are not
  * the same thing.
@@ -100,18 +116,19 @@ function hydrate(): void {
  */
 const failure = computed(() => {
 	if (status.value === 'missing') {
-		// **No action, and the reason is a missing SEAM rather than a decision that none is
-		// wanted.** The state should offer a way out of the tab, and `PlanEditorContext` carries
-		// no door to close a leaf — the view owns every Obsidian object the tree may not touch,
-		// so adding one means widening that interface, and reaching for the global `app` instead
-		// is what the marketplace rules refuse. Rendering the explanation without a control is
-		// slice 14's own amendment applied here: a button that cannot do its job is worse than
-		// no button. `editor.plan-missing.action` was added with this entry and REMOVED again
-		// when the action was not wired, because an unused locale key reads as a control
-		// somebody forgot to render.
+		// **The action closes the tab, and it is the only useful one.** There is nothing to
+		// retry: `GetPlan` succeeded and reported that no plan resolves, so the plan is not
+		// coming back and re-running the query would answer the same thing. What the user can
+		// do is stop looking at a tab that points at nothing.
+		//
+		// This shipped with NO action for one commit, because `PlanEditorContext` carried no
+		// door to close a leaf and reaching for the global `app` is what the marketplace rules
+		// refuse. `closeLeaf` is that door — a narrow callback the VIEW partially applies from
+		// its own `WorkspaceLeaf`, the same shape `onPlanChanged` already had.
 		return {
 			headline: tr('editor.plan-missing.headline'),
 			body: tr('editor.plan-missing.body'),
+			actionLabel: tr('editor.plan-missing.action'),
 		};
 	}
 	const failed = error.value;
@@ -166,7 +183,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 			<ViewFailure
 				v-else-if="failure !== null"
 				v-bind="failure"
-				@action="hydrate()"
+				@action="onFailureAction()"
 			/>
 			<div
 				v-else

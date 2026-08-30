@@ -175,6 +175,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.plan-failed.headline': 'Dieser Grundriss konnte nicht geladen werden',
 	'editor.plan-missing.headline': 'Diesen Grundriss gibt es nicht mehr',
 	'editor.plan-missing.body': 'Dieser Tab verweist auf einen Grundriss, der nicht mehr im Vault ist.',
+	'editor.plan-missing.action': 'Tab schließen',
 	'view.session-failure.headline': 'Renovation Planner konnte nicht gestartet werden',
 	'view.project.loading': 'Projekte werden geladen …',
 	// Kein zweiter Satz über einen Diagnosebericht: den gibt es in diesem Build nicht — siehe

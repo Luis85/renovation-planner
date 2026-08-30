@@ -602,6 +602,31 @@ This document's own "Bootstrap: the failure that precedes every row above" secti
 exactly that, so the state was designed here; what was missing was any Definition of Done item
 covering it. Both views implement it and both have cases for it.
 
+### Amendment 4 (2026-08-30): the dangling-plan state has its action
+
+The `ok(null)` half of the view-hydration item asks for "an action to close the leaf or pick
+another plan". It shipped for one commit with NO action and the reason was recorded here:
+`PlanEditorContext` carried no door to close a leaf, and reaching for the global `app` is what
+the marketplace rules refuse.
+
+`PlanEditorContext.closeLeaf()` is that door now — a narrow callback the VIEW partially applies
+from its own `WorkspaceLeaf`, which is the shape `onPlanChanged` already had and the reason
+`onThemeChange` gives for not handing the `Workspace` down. The composition root is untouched:
+it composes services and knows nothing about which leaf this is.
+
+Two things the wiring turned up. The failure state's single button now means two OPPOSITE
+things — retry a read that really failed, close a tab whose plan is gone — so the handler
+branches on the status rather than the component learning which caller means what; both
+directions are mutation-checked, because a handler that always retried, or always closed, looks
+correct against a suite testing only one. And the widening was met at compile time by both
+context constructions, the test harness and the browser-harness fixture, which is what
+`tests/helpers/makeRenovationProjectView.ts`'s own docblock promises for the other view.
+
+"Pick another plan" is still not built: the plan picker is `open-plan-editor`, a plugin command
+outside the editor's bundle, and offering it here is the same seam problem one level further
+out. One action rather than two, and this names the missing half rather than implying the item
+is fully met.
+
 ## References
 
 - SDD §66 Error Boundary — the pipeline this slice completes (the

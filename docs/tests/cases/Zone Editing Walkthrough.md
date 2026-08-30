@@ -90,7 +90,7 @@ that renames it breaks the citation visibly.
 | 4 | one command per drag | `selectTool` *a body drag dispatches exactly ONE gesture regardless of pointermove count* |
 | 4 | the ghost follows the pointer | `selectTool` *the body preview FOLLOWS the pointer mid-drag, rather than merely existing* |
 | 4 | the zone stays where dropped | the same drag case — it asserts the committed `forward.points` |
-| 4 | Undo enables | `zoneEditing` *draws a zone through the toolbar and canvas…* — it asserts `undoButton.disabled === false` before pressing it |
+| 4 | Undo enables | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* — it presses Undo after the DRAG, so a regression confined to body-drag history registration fails it. The draw case's `undoButton.disabled === false` proves only that CREATING enables the control |
 | 4 | "smoothly" | **none.** A drag landing correctly and stuttering fails this and passes everything. A residue, not a gap |
 | 5 | undo returns the exact prior position | `zoneEditing` *selects by click, moves by drag with exactly one command, and undo restores the exact points* |
 | 6 | only that vertex moves | `selectTool` *dragging a vertex replaces exactly that index and keeps every other vertex* |
@@ -180,11 +180,20 @@ All seven real ones are closed — three in `tests/presentation/editor/zoneEditi
   saves and publishes nothing on purpose: a restore is not a creation, and anything subscribed
   to `ZoneCreated` would treat it as one. The redo case clears `events.published` right after
   its own `undo()`, discarding exactly that evidence. Closed by *undo publishes NOTHING — a
-  restore is not a creation*, whose verification is a SENSITIVITY check rather than a source
-  mutation, and the case says so: nothing in the undo path holds an event bus, so publishing
-  from a restore requires wiring one — and that wiring is the change the case exists to catch.
-- **Step 3's Undo-DISABLED clause** and **step 8b's status-hint clause** were omissions from
-  this table rather than from the suite; the hint was already discharged by `shell`.
+  restore is not a creation*, watched failing against a real source mutation:
+  publishing `zoneCreated` from inside `restoreEntity`, reached through the delete command's
+  own `ops.events`, reddens it and leaves the other seven cases in that file green. An earlier
+  draft recorded only a sensitivity check and said a source mutation was unavailable because
+  nothing in the undo path holds a bus — true of the path and false of the object it holds.
+- **Step 3 — nothing asserted the Undo button is DISABLED.** Every assertion on that control
+  anywhere in the suite is `disabled === false`, so a binding that lost its condition — an Undo
+  always live over an empty history — satisfied all of them. Closed by `runtime` *leaves Undo
+  DISABLED until there is something to undo*, and the mutation reddens that case alone. An
+  earlier draft filed this as a table omission; it is a suite gap, and the difference is the
+  whole distinction this section exists to draw.
+
+Genuine table omissions, discharged by tests that already existed: step 4's "Undo enables",
+step 8b's status hint (`shell`) and step 13's same-id clause (`reversibleDeleteZone`).
 
 None of the seven was a defect: they were steps the suite was assumed to cover and did not.
 
@@ -195,7 +204,7 @@ them discharged on an assertion covering part of a row, and UNDER-reported it at
 calling covered ground a gap by taking a test's name as its whole claim. The corrections came from a reviewer in
 every case but this one.
 
-**Nine mutations were run for six of the seven gaps and the one correction, and several are the
+**Ten mutations were run for the seven gaps and the one correction, and several are the
 evidence for the claims above rather than a ritual.** Removing the selection `VLine` from
 `InteractionLayer.vue` reddens the two new overlay cases and leaves the other thirteen in this
 file green, which is what "a `Circle` count is silent about the outline beside it" MEANS.

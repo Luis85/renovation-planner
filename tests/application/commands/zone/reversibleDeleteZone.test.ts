@@ -96,12 +96,11 @@ describe('ReversibleDeleteZoneCommand', () => {
 		// its own `undo()`, discarding exactly this evidence, so a restore that began emitting
 		// `ZoneCreated` left every case in this file green.
 		//
-		// Sensitivity checked by removing the reset two lines up: the delete's own
-		// `ZoneDeleted` then remains and the case fails, so the assertion reads the array
-		// rather than passing on an empty one it never filled. A SOURCE mutation is not
-		// available cheaply — nothing in the undo path holds an event bus, which is why
-		// publishing from a restore requires wiring one, and that wiring is the change this
-		// case exists to catch.
+		// Watched failing against the real thing: publishing `zoneCreated` from inside
+		// `restoreEntity`, reached through the delete command's own `ops.events`, reddens this
+		// case and leaves the other seven in this file green. The first version of this comment
+		// claimed no source mutation was available because nothing in the undo path holds a
+		// bus — true of the undo path and false of the object it already holds.
 		expect(events.published).toHaveLength(0);
 		expect(expectOk(await zones.getById(zone.id))).not.toBeNull();
 	});

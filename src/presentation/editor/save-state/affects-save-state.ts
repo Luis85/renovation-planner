@@ -108,9 +108,22 @@ const PRE_WRITE_CATEGORIES: readonly ErrorCategory[] = [
  * typing `-5` into one raises the first `Domain` site. The Inspector's Delete button opens
  * `deleteZoneFlow.ts`, and confirming a dialog whose referent set moved underneath it raises
  * `reference.set-changed` — a refusal that states its own innocence in its message and still
- * left a persistent "Save error" badge standing behind it. Calibrating a plan with two clicks
- * at the same point raises `calibration.coincident-points`, and a zone whose polygon cannot be
+ * left a persistent "Save error" badge standing behind it. And a zone whose polygon cannot be
  * measured raises `requirement.area-failed` on the next assignment.
+ *
+ * **One example in that list was wrong and is removed rather than reworded.** It said
+ * "calibrating a plan with two clicks at the same point raises `calibration.coincident-points`",
+ * offered as proof that the `Calculation` category reaches THIS predicate. It does not:
+ * `CalibrateTool.complete` refuses a zero-length measurement before it prompts and before it
+ * dispatches, so no command runs, no `Result` reaches the dispatcher, and nothing reaches the
+ * save indicator. Design slice 17 gave that refusal a toast — it used to be silent — which
+ * changes what the USER sees and not what this predicate sees. Of the three `calibration.*`
+ * codes only `calibration.degenerate-scale` is genuinely reachable here, because it is the one
+ * `deriveCalibration` can raise after the command has actually been dispatched.
+ *
+ * Worth keeping as a shape rather than as a correction: an example offered as evidence of
+ * REACHABILITY has to be traced to the door it claims to arrive at, and this one was traced to
+ * the raise site and no further.
  *
  * **A note on the INSTRUMENT, because measuring this category caught the repository's own
  * rule again.** The first sweep for the codes above used

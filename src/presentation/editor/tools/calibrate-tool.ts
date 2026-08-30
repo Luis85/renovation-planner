@@ -1,6 +1,7 @@
 import type { AppError } from '../../../core/errors/AppError';
 import { distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
+import { coincidentPointsError } from '../../../domain/plan/Calibration';
 import type { CalibratePlanInput } from '../../../application/commands/plan/ReversibleCalibratePlan';
 import type { CalibratePlanTransaction } from '../planEditorCommands';
 import type { EditorContext } from './editor-context';
@@ -302,6 +303,12 @@ export class CalibrateTool implements EditorTool {
 			// Two clicks in the same place still drew an anchor marker; nothing is going to
 			// be asked about it, so it comes off again here.
 			this.clearMeasurement(context);
+			// **And it is REPORTED** (design slice 17). Refusing before the prompt stays right —
+			// asking for a measurement of a meaningless segment is worse than not asking — but
+			// returning silently wiped a point the user had placed and gave no reason for it.
+			// The same coded refusal `deriveCalibration` would have raised, from the one factory
+			// that spells it, so the two cannot drift into describing one failure two ways.
+			this.deps.reportRejected(coincidentPointsError());
 			return;
 		}
 		// The plan is bound BEFORE the prompt: whatever the user answers, the points were

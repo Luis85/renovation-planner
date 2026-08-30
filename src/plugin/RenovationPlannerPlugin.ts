@@ -287,6 +287,56 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// is the other writer and is guarded independently (`getSettingDefinitions`).
 		if (this.root.settings === null) return Promise.resolve();
 
+		this.applySettings(next);
+		return this.saveData(next);
+	}
+
+	/**
+	 * The library folder's write door, and it is a SEPARATE method rather than a call to
+	 * `saveSettings` for one reason: the order.
+	 *
+	 * `saveSettings` swaps the composition root and rebinds the views BEFORE its own
+	 * `saveData` settles, which is right for a preference — the pane's control has already
+	 * shown the new value — and destructive here. A rejecting write would leave the running
+	 * session composed against the DESTINATION while `data.json` still named the SOURCE, and
+	 * the remedy `settings.library-persist-failed` names ("set the library folder to the new
+	 * location") cannot be applied, because the library row binds no control. A restart would
+	 * then compose against the source and write new catalogue entries there, splitting the
+	 * catalogue in two — the outcome that failure arm exists to prevent rather than cause.
+	 *
+	 * So: write the file, and only then swap. If the write rejects, nothing has been swapped
+	 * and the session is still coherent with the file — the notes are at the destination and
+	 * the setting is not, which is exactly the state the error's copy describes.
+	 */
+	async persistLibraryFolder(libraryFolder: string): Promise<void> {
+		// The same guard `saveSettings` carries, for the same whole-session reason: a
+		// transient read failure must not stamp defaults over a `data.json` sitting there
+		// intact.
+		const current = this.root.settings;
+		if (current === null) return;
+
+		const next = settingsFrom({ ...current, libraryFolder });
+		await this.saveData(next);
+		this.applySettings(next);
+	}
+
+	/**
+	 * The Project Index rebuild, as a door the library migration can reach: it moves notes
+	 * out from under an index that still names their old paths, and the rebuild is what
+	 * makes the session agree with the vault BEFORE the setting is written. The same step
+	 * `applySettings` takes after a root swap, so there is one rebuild and not two spellings
+	 * of one.
+	 */
+	rebuildProjectIndex(): void {
+		this.startPersistence();
+	}
+
+	/**
+	 * Everything a settings change does to the RUNNING session, with no write in it. Both
+	 * write doors call this; what differs is which side of their own `saveData` they call it
+	 * on, which is the whole of `persistLibraryFolder`'s reason to exist.
+	 */
+	private applySettings(next: RenovationPlannerSettings): void {
 		// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
 		// pane takes effect immediately, in both directions, without a plugin reload.
 		this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
@@ -307,7 +357,6 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// to correct itself. Rebinding second means each view mounts once, against an index
 		// that is already populated.
 		this.rebindOpenViews();
-		return this.saveData(next);
 	}
 
 	/** ONE spelling of the Renovation Project view's bundle, for the factory and the rebind. */

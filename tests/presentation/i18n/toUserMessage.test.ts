@@ -128,6 +128,30 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.persistence',
 		'infrastructure/obsidian/repositories/ObsidianProjectRepository.ts',
 	],
+	// Slice 19's library-folder migration, and the four rows are the four ways it can
+	// refuse. Each category below is copied from the RAISE SITE rather than from what the
+	// sentence sounds like: the two refusals are `Validation` because nothing has been read
+	// or written when they fire, and the two failures are `Persistence` because a vault
+	// operation is exactly what did not work.
+	//
+	// The last one is why the pair is not one row: `settings.library-move-failed` and
+	// `settings.library-persist-failed` share a category and a category sentence, and their
+	// RECOVERIES are opposites — one says the setting was not changed, the other says the
+	// notes already moved and the setting is what needs setting.
+	['settings.library-folder-empty', 'Validation', 'error.category.validation', 'plugin/settings/libraryMigration.ts'],
+	[
+		'settings.library-overlaps-project',
+		'Validation',
+		'error.category.validation',
+		'plugin/settings/libraryMigration.ts',
+	],
+	['settings.library-move-failed', 'Persistence', 'error.category.persistence', 'plugin/settings/libraryMigration.ts'],
+	[
+		'settings.library-persist-failed',
+		'Persistence',
+		'error.category.persistence',
+		'plugin/settings/libraryMigration.ts',
+	],
 ];
 
 // Named for the shape rather than for a slice: the table below has carried codes from slices

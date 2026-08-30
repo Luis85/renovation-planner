@@ -10,12 +10,15 @@
  * Nothing here asserts markup: since 1.13 the app renders the controls from the
  * definitions, so what the pane looks like is Obsidian's answer and only a live vault's.
  */
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { FuzzySuggestModal, Notice, type SettingDefinitionItem } from 'obsidian';
 import { SettingsTab } from '../../../src/plugin/settings/SettingsTab';
 import { DEFAULT_SETTINGS, UNITS } from '../../../src/plugin/settings/settings';
+import type RenovationPlannerPlugin from '../../../src/plugin/RenovationPlannerPlugin';
 import { t } from '../../../src/presentation/i18n/strings';
 import { loadedPlugin } from '../../helpers/plugin';
 import { installObsidianDom } from '../../helpers/dom';
+import { settle } from '../../helpers/async';
 
 // `activateNotices` — reached here through the real plugin/editor wiring — appends its
 // two live regions with Obsidian's `createDiv`, one of the prototype extensions the app
@@ -152,5 +155,199 @@ describe('the settings pane', () => {
 
 		expect(row?.desc).toBe(t('en', 'settings.library-folder.current', { folder: 'Shared/Catalogue' }));
 		expect(row?.desc).toContain('Shared/Catalogue');
+	});
+});
+
+/**
+ * The library move, which is the only writer of `libraryFolder` there is.
+ *
+ * Every case here drives the ACTION the definition declares rather than a method invented
+ * for the test: a tab that stopped declaring the row would keep passing a test that called
+ * its handler directly, and the row is the whole of what a user can reach.
+ */
+const moveRow = (tab: SettingsTab) => {
+	const found = tab.getSettingDefinitions().find((item) => item.name === t('en', 'settings.library-folder.move.name'));
+	if (found === undefined || !('action' in found)) throw new Error('no library move action declared');
+	return found;
+};
+
+/** The library row's description, which is where the CURRENT folder is shown. */
+const currentFolderRow = (items: SettingDefinitionItem[]) =>
+	items.find((item) => item.name === t('en', 'settings.library-folder.name'));
+
+interface VaultEquipment {
+	folders?: string[];
+	files?: string[];
+	renameFile?: (file: { path: string }, to: string) => Promise<void>;
+}
+
+/**
+ * The three vault members the migration reaches and `loadedPlugin`'s stub does not model:
+ * folder enumeration for the picker, the catalogue's own files, and the two writes.
+ * Patched onto the stub rather than added to `VaultSurface`, because nothing else in the
+ * suite reads any of them — a fake member nothing exercises cannot be caught drifting.
+ */
+function equipVault(plugin: RenovationPlannerPlugin, equipment: VaultEquipment): { renamed: string[] } {
+	const renamed: string[] = [];
+	const vault = plugin.app.vault as unknown as Record<string, unknown>;
+	vault.getAllFolders = (): { path: string }[] => (equipment.folders ?? []).map((path) => ({ path }));
+	vault.getFiles = (): { path: string }[] => (equipment.files ?? []).map((path) => ({ path }));
+	vault.createFolder = (): Promise<void> => Promise.resolve();
+	(plugin.app.fileManager as unknown as Record<string, unknown>).renameFile =
+		equipment.renameFile ??
+		((file: { path: string }, to: string): Promise<void> => {
+			renamed.push(`${file.path} -> ${to}`);
+			return Promise.resolve();
+		});
+	return { renamed };
+}
+
+describe('moving the library', () => {
+	beforeEach(() => {
+		FuzzySuggestModal.opened.length = 0;
+		Notice.shown.length = 0;
+	});
+
+	it('declares the move as an action row rather than a control', async () => {
+		const { tab } = await withStored(null);
+
+		const row = moveRow(tab);
+
+		expect(row.name).toBe(t('en', 'settings.library-folder.move.name'));
+		expect(row.desc).toBe(t('en', 'settings.library-folder.move.desc'));
+		expect('control' in row ? row.control : undefined).toBeUndefined();
+	});
+
+	// The picker cannot offer a destination the migration would refuse: §83's check still
+	// lives in the migration, because a project folder can be dragged between choosing a
+	// destination and applying it.
+	it('offers only folders that do not overlap a project folder', async () => {
+		const { plugin, tab } = await withStored(null);
+		equipVault(plugin, { folders: ['Shared/Catalogue', 'Renovation/Kitchen refit'] });
+		plugin.root.persistence?.index.rebuild([
+			{ id: 'p1' as never, type: 'renovation-project', path: 'Renovation/Kitchen refit/Project.md' },
+		]);
+
+		moveRow(tab).action(0);
+		const picker = FuzzySuggestModal.opened[0] as FuzzySuggestModal<string>;
+
+		expect(picker.getItems()).toEqual(['Shared/Catalogue']);
+		expect(picker.getItemText('Shared/Catalogue')).toBe('Shared/Catalogue');
+	});
+
+	it('moves the catalogue, persists the new folder and re-renders the row', async () => {
+		const { plugin, tab } = await withStored(null);
+		const { renamed } = equipVault(plugin, {
+			folders: ['Shared/Catalogue'],
+			files: ['Renovation/Library/Assets/Tiles.md'],
+		});
+		expect(currentFolderRow(tab.settingItems)?.desc).toContain('Renovation/Library');
+
+		moveRow(tab).action(0);
+		(FuzzySuggestModal.opened[0] as FuzzySuggestModal<string>).choose('Shared/Catalogue');
+		await settle();
+
+		expect(renamed).toEqual(['Renovation/Library/Assets/Tiles.md -> Shared/Catalogue/Assets/Tiles.md']);
+		expect(plugin.root.settings?.libraryFolder).toBe('Shared/Catalogue');
+		expect(plugin.saved.at(-1)).toEqual({ ...DEFAULT_SETTINGS, libraryFolder: 'Shared/Catalogue' });
+		// Obsidian never re-evaluates `getSettingDefinitions()` on its own, so without the
+		// `update()` call the pane keeps showing the folder the catalogue has just left.
+		expect(currentFolderRow(tab.settingItems)?.desc).toContain('Shared/Catalogue');
+		expect(currentFolderRow(tab.getSettingDefinitions())?.desc).toContain('Shared/Catalogue');
+	});
+
+	/**
+	 * The lock is tested at the DOOR, not at the render: `disabled` is evaluated per render
+	 * and a second click can land before one happens, so a guard that only sets its flag
+	 * inside the async closure lets the second click open a second picker and start a
+	 * second move from the same old root.
+	 */
+	it('refuses a second migration while one is in flight, without waiting for a re-render', async () => {
+		const { plugin, tab } = await withStored(null);
+		equipVault(plugin, { folders: ['Shared/Catalogue'] });
+
+		const row = moveRow(tab);
+		row.action(0);
+		row.action(0);
+
+		expect(FuzzySuggestModal.opened).toHaveLength(1);
+		expect(row.disabled).toBeTypeOf('function');
+		expect(typeof row.disabled === 'function' && row.disabled()).toBe(true);
+		// Left settled rather than in flight, so the next case starts from a clean tab.
+		(FuzzySuggestModal.opened[0] as FuzzySuggestModal<string>).close();
+		await settle();
+	});
+
+	it('releases the lock when the picker is dismissed, and moves nothing', async () => {
+		const { plugin, tab } = await withStored(null);
+		const { renamed } = equipVault(plugin, {
+			folders: ['Shared/Catalogue'],
+			files: ['Renovation/Library/Assets/Tiles.md'],
+		});
+
+		moveRow(tab).action(0);
+		(FuzzySuggestModal.opened[0] as FuzzySuggestModal<string>).close();
+		await settle();
+
+		expect(renamed).toEqual([]);
+		expect(plugin.saved).toEqual([]);
+		moveRow(tab).action(0);
+		expect(FuzzySuggestModal.opened).toHaveLength(2);
+	});
+
+	it('tells the user when the move fails, and changes nothing', async () => {
+		const { plugin, tab } = await withStored(null);
+		equipVault(plugin, {
+			folders: ['Shared/Catalogue'],
+			files: ['Renovation/Library/Assets/Tiles.md'],
+			renameFile: () => Promise.reject(new Error('locked')),
+		});
+
+		moveRow(tab).action(0);
+		(FuzzySuggestModal.opened[0] as FuzzySuggestModal<string>).choose('Shared/Catalogue');
+		await settle();
+
+		expect(Notice.shown).toEqual([t('en', 'settings.library-move-failed')]);
+		expect(plugin.root.settings?.libraryFolder).toBe('Renovation/Library');
+		expect(plugin.saved).toEqual([]);
+	});
+
+	/**
+	 * The one failure the migration cannot make safe, and the reason `persist` is its own
+	 * plugin method rather than `saveSettings`: that one swaps the composition root BEFORE
+	 * its own `saveData` settles, so a rejecting write would strand the session on a folder
+	 * `data.json` does not name — and the persist-failure copy ("set the library folder to
+	 * the new location") is unusable, because the row binds no control.
+	 *
+	 * Both halves are asserted. Checking only the file would pass against a build that had
+	 * already swapped the root, which is exactly the defect this ordering exists to prevent.
+	 */
+	it('leaves the session coherent with data.json when persisting fails', async () => {
+		const { plugin, tab } = await withStored(null);
+		equipVault(plugin, { folders: ['Shared/Catalogue'], files: ['Renovation/Library/Assets/Tiles.md'] });
+		plugin.saveData = (): Promise<void> => Promise.reject(new Error('data.json is read-only'));
+
+		moveRow(tab).action(0);
+		(FuzzySuggestModal.opened[0] as FuzzySuggestModal<string>).choose('Shared/Catalogue');
+		await settle();
+
+		expect(Notice.shown).toEqual([t('en', 'settings.library-persist-failed')]);
+		expect(plugin.saved).toEqual([]);
+		expect(plugin.root.settings?.libraryFolder).toBe('Renovation/Library');
+	});
+
+	/**
+	 * The guard `saveSettings` has carried since slice 1, at the second write door: a
+	 * transient read failure must not stamp a folder over a `data.json` sitting there
+	 * intact. Unreachable from the pane — a tab with unrecovered settings declares one
+	 * text-only row and no action — so it is driven at the method it belongs to.
+	 */
+	it('refuses to persist a library folder when the settings were never recovered', async () => {
+		const { plugin } = await loadedPlugin(null, new Error('unreadable'));
+
+		await plugin.persistLibraryFolder('Shared/Catalogue');
+
+		expect(plugin.saved).toEqual([]);
+		expect(plugin.root.settings).toBeNull();
 	});
 });

@@ -1,7 +1,87 @@
-import { PluginSettingTab, type SettingDefinitionItem } from 'obsidian';
+import { FuzzySuggestModal, PluginSettingTab, type App, type SettingDefinitionItem } from 'obsidian';
 import { tr } from '../../presentation/i18n/strings';
+import { notifyError } from '../../presentation/notices/notify';
+import { isErr } from '../../core/result/Result';
+import { ensureFolder, renameNote } from '../../infrastructure/obsidian/repositories/noteIo';
+import { runDetached } from '../runDetached';
 import { DEFAULT_SETTINGS, UNITS, settingsFrom, type RenovationPlannerSettings } from './settings';
+import {
+	catalogueNotesIn,
+	libraryDestinations,
+	migrateLibraryFolder,
+	projectFolderPaths,
+	type LibraryMigrationDeps,
+} from './libraryMigration';
 import type RenovationPlannerPlugin from '../RenovationPlannerPlugin';
+
+/**
+ * Where the library is moved TO, asked with an Obsidian `Modal` rather than slice 15's
+ * `FormDialog`.
+ *
+ * `DialogHost` is mounted in `PlanEditorRoot.vue` and `ViewRoot.vue` and nowhere else, its
+ * store is scoped to each view's own Pinia app, and a settings tab mounts no Vue app at
+ * all — so a user opening plugin settings with no Renovation Project or Plan Editor leaf
+ * open would have nothing to render into. This is the shape `open-plan-editor`'s plan
+ * picker already uses, and it depends on no leaf being open.
+ *
+ * It offers the folders the vault already HAS, which is the one thing this shape cannot do
+ * differently: a fuzzy picker chooses from a list, and there is no field to type a path
+ * that does not exist yet into. The cost is stated rather than hidden — moving the
+ * catalogue somewhere new means creating that folder in the file explorer first — and it is
+ * the honest trade for a picker that cannot mistype a path.
+ */
+class LibraryDestinationModal extends FuzzySuggestModal<string> {
+	private settled = false;
+
+	constructor(
+		app: App,
+		private readonly folders: readonly string[],
+		private readonly answer: (folder: string | null) => void,
+	) {
+		super(app);
+		this.setPlaceholder(tr('settings.library-folder.move.name'));
+	}
+
+	getItems(): string[] {
+		return [...this.folders];
+	}
+
+	getItemText(folder: string): string {
+		return folder;
+	}
+
+	onChooseItem(folder: string): void {
+		this.settle(folder);
+	}
+
+	/**
+	 * Dismissal is the only way this picker can answer "nothing was chosen", and without an
+	 * answer the caller's lock is never released — the row would stay disabled for the rest
+	 * of the session.
+	 *
+	 * The answer is DEFERRED by a microtask because Obsidian's own ordering of
+	 * `onChooseItem` and `onClose` is not stated in the typings: whichever arrives first, a
+	 * choice made in the same task wins over the cancellation, and `settle` makes the second
+	 * of the two a no-op either way.
+	 */
+	onClose(): void {
+		queueMicrotask(() => {
+			this.settle(null);
+		});
+	}
+
+	private settle(folder: string | null): void {
+		if (this.settled) return;
+		this.settled = true;
+		this.answer(folder);
+	}
+}
+
+function askLibraryDestination(app: App, folders: readonly string[]): Promise<string | null> {
+	return new Promise((resolve) => {
+		new LibraryDestinationModal(app, folders, resolve).open();
+	});
+}
 
 /**
  * The settings tab: what a user sees under Settings → Community plugins → Renovation
@@ -81,6 +161,22 @@ export class SettingsTab extends PluginSettingTab {
 				name: tr('settings.library-folder.name'),
 				desc: tr('settings.library-folder.current', { folder: settings.libraryFolder }),
 			},
+			// The move is an ACTION, never a control. `setControlValue` writes through
+			// `saveSettings` on every change — one catalogue move per intermediate value,
+			// with no serialization between two of them — and both of those destroy data
+			// rather than merely being wrong.
+			//
+			// It closes over the folder this render was built from, which is the same value
+			// the row above prints: the migration moves the catalogue the user was just
+			// looking at, rather than whatever the setting says by the time they click.
+			{
+				name: tr('settings.library-folder.move.name'),
+				desc: tr('settings.library-folder.move.desc'),
+				disabled: () => this.migrating,
+				action: () => {
+					this.startLibraryMove(settings.libraryFolder);
+				},
+			},
 			{
 				name: tr('settings.verbose-logging.name'),
 				desc: tr('settings.verbose-logging.desc'),
@@ -114,4 +210,64 @@ export class SettingsTab extends PluginSettingTab {
 		return this.host.saveSettings(settingsFrom({ ...this.host.root.settings, [key]: value }));
 	}
 
+	/**
+	 * Whether a library move is running, and it is a SYNCHRONOUS lock rather than a
+	 * rendering state.
+	 *
+	 * `disabled` above is evaluated per render and needs an `update()` call to be
+	 * re-evaluated, and the picker's own "one at a time" only covers the window while it is
+	 * up — which closes when the destination is submitted, before the rename loop finishes.
+	 * A second click during a slow migration would otherwise open a second picker and start
+	 * a second move from the same old root.
+	 */
+	private migrating = false;
+
+	private startLibraryMove(from: string): void {
+		// Tested and SET before anything can yield. Everything below this line is either
+		// asynchronous or a re-render, so this pair is the only thing standing between two
+		// clicks and two concurrent rename loops.
+		if (this.migrating) return;
+		this.migrating = true;
+		// `update()` rather than `refreshDomState()`: the latter re-evaluates `visible` and
+		// `disabled` in place, which is half of what is owed here — the row above prints the
+		// current folder in its DESCRIPTION, and only a re-read of the definitions can
+		// change that.
+		this.update();
+		runDetached(this.runLibraryMove(from), this.host.root.logger, 'settings.library-move');
+	}
+
+	private async runLibraryMove(from: string): Promise<void> {
+		try {
+			const projectFolders = projectFolderPaths(this.host.root.persistence);
+			const folders = this.app.vault.getAllFolders(false).map((folder) => folder.path);
+			const to = await askLibraryDestination(this.app, libraryDestinations(folders, projectFolders));
+			if (to === null) return;
+
+			const migrated = await migrateLibraryFolder(this.libraryMigrationDeps(), from, to);
+			if (isErr(migrated)) notifyError(migrated.error);
+		} finally {
+			this.migrating = false;
+			this.update();
+		}
+	}
+
+	/**
+	 * The vault operations the migration is handed, so that nothing in `plugin/` spells a
+	 * vault mutation itself: both writes resolve to `infrastructure/obsidian/`, and the two
+	 * settings-side steps resolve to the plugin's own doors.
+	 */
+	private libraryMigrationDeps(): LibraryMigrationDeps {
+		const { vault, fileManager } = this.app;
+		return {
+			projectFolders: () => projectFolderPaths(this.host.root.persistence),
+			catalogueNotes: (from) => catalogueNotesIn(vault.getFiles(), from),
+			ensureFolder: (path) => ensureFolder(vault, path),
+			renameFile: (file, to) => renameNote(fileManager, file, to),
+			rebuildIndex: () => {
+				this.host.rebuildProjectIndex();
+			},
+			persist: (folder) => this.host.persistLibraryFolder(folder),
+			logger: this.host.root.logger,
+		};
+	}
 }

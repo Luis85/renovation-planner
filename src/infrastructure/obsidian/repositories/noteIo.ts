@@ -356,6 +356,21 @@ export function isTFolder(file: unknown): file is TFolder {
 }
 
 /**
+ * A MOVE, through Obsidian's own `FileManager` — which is what rewrites every link in the
+ * vault that pointed at the old path. A create-and-delete pair would leave every one of
+ * them dangling, so the two are not interchangeable however similar the outcome looks in a
+ * file listing.
+ *
+ * It lives here rather than at its caller because the write boundary is a claim about a
+ * DIRECTORY: slice 19's library migration is composed in `plugin/settings/` and is handed
+ * this function as a dep, so the only code naming a vault mutation is still the code in
+ * `infrastructure/obsidian/`.
+ */
+export function renameNote(fileManager: FileManager, file: TFile, to: string): Promise<void> {
+	return fileManager.renameFile(file, to);
+}
+
+/**
  * Creates each missing folder segment; an existing non-folder at a segment is an error.
  *
  * `created` is an OUT parameter rather than a return value, and the difference is the whole

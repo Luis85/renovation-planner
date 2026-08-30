@@ -59,6 +59,16 @@ describe('a refusal the dispatcher never saw', () => {
 
 		// The whole point: something was said. Silence is the regression this file exists for.
 		expect(Notice.shown.length).toBe(before + 1);
+		// **And it is an ERROR, which `docs/tests/cases/Notices and save state.md` step 21 now
+		// depends on**: that step uses this gesture as its error source while three warnings
+		// stand, and only an error preempts a warning. A `Calculation` refusal at an
+		// `explicit-operation` origin is `toastLevel`'s default arm; if that ever became a
+		// warning the manual step would silently stop exercising preemption.
+		//
+		// Read off the RENDERED element rather than `Notice.shown`, which records the raw
+		// message the constructor was handed and knows nothing about severity — the host applies
+		// `rp-notice-<severity>` when it builds the body.
+		expect(document.querySelector('.rp-notice-error')).not.toBeNull();
 		// And the indicator does NOT claim a write failed, because nothing was written — which
 		// is the other half, and the one a "just toast everything" fix would break.
 		expect(saveStateLabel(harness).classList.contains('rp-save-state-save-error')).toBe(false);

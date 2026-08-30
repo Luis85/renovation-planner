@@ -411,8 +411,13 @@ const NETWORK_MODULES = [
 
 const networkShapes = (): readonly Planted[] => [
 	...NETWORK_MODULES.map((name) => ({ specifier: name, shape: 'package' as const })),
-	// Subpaths are a separate `patterns` entry, independent of the `paths` one above.
-	{ specifier: 'node:https/agent', shape: 'package-subpath' },
+	// A subpath per module, exactly as `packageShapes` does for the other restricted packages.
+	// The `patterns` entry is built as `${name}/*` PER MODULE, so each is independently
+	// removable: a single representative (`node:https/agent`, in a draft) leaves `http/*` free
+	// to be deleted with `http/client` importable in both protected subtrees and this whole
+	// matrix green. Third appearance of cells-versus-spellings in this one probe set — the
+	// module names, then the members, now the subpaths.
+	...NETWORK_MODULES.map((name) => ({ specifier: `${name}/sub`, shape: 'package-subpath' as const })),
 ];
 const PROTOTYPES = (depth: string): readonly Planted[] => [
 	{ specifier: `${depth}prototypes`, shape: 'barrel' },
@@ -1074,7 +1079,7 @@ Create `tests/build/test-environments.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { REPO } from '../helpers/oxlint';
 
@@ -1130,12 +1135,32 @@ const importsOf = (file: string): string[] => {
 	return [...statik, ...dynamic].map((match) => match[1] ?? '');
 };
 
+/**
+ * Every extension Vitest itself can resolve, in its own order — not just `.ts`.
+ *
+ * A draft tried the literal path, `.ts` and `/index.ts` alone, so an extensionless import of a
+ * `.js` or `.mjs` relay resolved to nothing and its own import of `tests/contracts/` was never
+ * visited: the collected caller came back unprotected and free to select jsdom with the guard
+ * green. The transitive walk has now been holed twice in three rounds by the RESOLVER beneath
+ * it rather than by the walk — first by missing dynamic `import()`, now by missing extensions.
+ *
+ * Widened rather than made authoritative, and the trade is stated so the next reader inherits
+ * it: Vitest's own resolved module graph is the only thing that cannot be partial, and
+ * `importsOf`'s header already names it as the remedy when this list stops being enough. What
+ * this still cannot resolve is a path alias from `vitest.config.ts` — measured, `tests/` uses
+ * none today.
+ */
+const RESOLVABLE = ['', '.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs'] as const;
+
 const resolveSpecifier = (from: string, specifier: string): string | null => {
 	const base = resolve(dirname(from), specifier);
-	for (const candidate of [base, `${base}.ts`, `${base}/index.ts`]) {
+	const candidates = [
+		...RESOLVABLE.map((extension) => `${base}${extension}`),
+		...RESOLVABLE.filter((extension) => extension !== '').map((extension) => `${base}/index${extension}`),
+	];
+	for (const candidate of candidates) {
 		try {
-			readFileSync(candidate, 'utf8');
-			return candidate;
+			if (statSync(candidate).isFile()) return candidate;
 		} catch {
 			continue;
 		}
@@ -2387,7 +2412,20 @@ exactly that:
 export interface VaultSurface {
 	vault: Pick<
 		Vault,
-		'getMarkdownFiles' | 'getFiles' | 'getAbstractFileByPath' | 'read' | 'create' | 'modify' | 'delete' | 'createFolder' | 'on'
+		| 'getMarkdownFiles'
+		| 'getFiles'
+		| 'getAbstractFileByPath'
+		| 'read'
+		// `cachedRead` is called at `plugin.ts:75` and a draft of this list omitted it — the
+		// widening has to be COMPLETE or it re-creates the hole it removes, one member along.
+		// Derive the list by reading every `mustHaveSurface().<member>` call in that file
+		// rather than by recalling which ones matter.
+		| 'cachedRead'
+		| 'create'
+		| 'modify'
+		| 'delete'
+		| 'createFolder'
+		| 'on'
 	>;
 	fileManager: Pick<FileManager, 'processFrontMatter' | 'trashFile'>;
 	metadataCache: Pick<MetadataCache, 'getFileCache'>;
@@ -2399,6 +2437,11 @@ and not a hand-written shape. `NoteVaultDeps` already types these three as `Vaul
 `FileManager` and `MetadataCache`, so picking from those keeps the contract anchored to what
 production passes: a member the plugin starts calling is a compile error here rather than a
 silent gap, and the fakes stay free to be classes.
+
+**Change `mustHaveSurface`'s return annotation too**, in the same edit. It reads
+`(): RepositoryStack['vault'] =>` — the nominal `FakeVault` again — so leaving it would keep
+the fixture adapter out through the back door while the parameter type advertised a structural
+contract. Annotate it `VaultSurface['vault']`.
 
 Run `npm run build` before moving on. Two things have to hold and neither is assumed: every
 existing caller still compiles (`RepositoryStack`'s three members satisfy the picks), and
@@ -2439,7 +2482,24 @@ import { openFixtureVault, type FixtureStack } from '../helpers/fixtureVault';
 import { expectErr, expectOk } from '../helpers/domain';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import type RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
-import { createZoneId } from '../../src/domain/zone/ZoneId';
+import type { ZoneId } from '../../src/domain/zone/ZoneId';
+
+/**
+ * The fixture's own ids, BRANDED — never minted.
+ *
+ * `createZoneId()` takes no parameters and always generates a fresh id, so
+ * `createZoneId('kitchen')` silently discards the string and looks up an id that exists
+ * nowhere: both reads would answer `ok(null)`, the planted-refusal case would fail, and
+ * `tests/` sits outside `tsconfig.json`'s include so the extra argument is not a build error.
+ * A call that compiles, runs, and asks the wrong question.
+ *
+ * A cast is the honest spelling here rather than a weakness: these strings are the fixture
+ * notes' own frontmatter `id` values, and `buildProjectIndexEntries` asserts raw frontmatter
+ * into `EntityId` exactly this way after checking only that it is non-empty. The fixture is
+ * the authority on its own ids.
+ */
+const PLANTED = 'zone-with-missing-plan' as ZoneId;
+const HEALTHY = 'kitchen' as ZoneId;
 
 installObsidianDom();
 
@@ -2527,7 +2587,7 @@ describe('a broken project file does not stop the plugin loading', () => {
 		const { stack, plugin } = await bootstrap();
 		open = stack;
 
-		const failure = expectErr(await plugin.root.persistence!.zones.getById(createZoneId('zone-with-missing-plan')));
+		const failure = expectErr(await plugin.root.persistence!.zones.getById(PLANTED));
 
 		expect(failure.code).toBe('zone.sidecar-unreadable');
 		expect((failure.cause as { code?: string } | undefined)?.code).toBe('plan-geometry.path-unresolved');
@@ -2537,7 +2597,7 @@ describe('a broken project file does not stop the plugin loading', () => {
 		const { stack, plugin } = await bootstrap();
 		open = stack;
 
-		const loaded = expectOk(await plugin.root.persistence!.zones.getById(createZoneId('kitchen')));
+		const loaded = expectOk(await plugin.root.persistence!.zones.getById(HEALTHY));
 
 		expect(loaded?.entity.name).toBe('Kitchen');
 	});

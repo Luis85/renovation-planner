@@ -39,8 +39,14 @@ here rather than only in the (git-ignored) SDD ledger, so the branch itself reco
 | 1 — `ListPlansByProject` and `PlanSummaryDto` | ✅ complete — `61f4883`, review clean; amended by `45ea97a` (see below) |
 | 2 — `projectPlansChangeSource` | ✅ complete — `630b833`, review clean |
 | 3 — the view's two new reads, guarded | ✅ complete — `b237799`, review clean |
-| 4 — `ProjectDetailStore` | in progress |
-| 11, then 5–10, 12–13 | not started |
+| 4 — `ProjectDetailStore` | ✅ complete — `674887f`, amended (see below) |
+| 11 — `revealView` answers, `navigateToProject` | ✅ complete — `4d1245d`, review clean |
+| 5 — the five context seams | next |
+| 6–10, 12–13 | not started |
+
+Task 4's review found its two completed-scan cases byte-identical at the store layer; the
+duplicate is retired and the real discrimination moved to Task 5's Step 6a, where the flag is
+computed.
 
 `45ea97a` amends Task 1 after a review finding: its "drops an indexed id whose note is gone"
 case handed its double an already-filtered array, so it could not fail if
@@ -3570,8 +3576,25 @@ Then change `if (!(await revealView(deps, type))) return;` to `await revealView(
 → "navigates nothing when revealing an existing leaf faulted" goes RED. Restore.
 
 Then make the chained step's `try` cover the write alone (move `getLeavesOfType` above it) →
-"reports a throwing leaf lookup and still navigates afterwards" goes RED on BOTH assertions.
-Restore.
+**the case that throws only on the write step's own re-read** goes RED. Restore.
+
+**Not the case that throws on EVERY lookup, which cannot see this mutation at all.** An earlier
+draft of this step named that one, and it is unreachable: `navigateToProject` calls
+`revealView` first, `revealView` reaches the same throwing `getLeavesOfType` inside
+`revealCandidate`'s own `try`, and that boundary catches it, reports it and answers `false` —
+so the helper returns at `if (!(await revealView(deps, type))) return;` and `navigationWrites`
+is never touched. The write step's `try` is provably unreached in both the mutated and the
+unmutated build. Measured empirically by the implementer with isolated traces, and confirmed
+independently by the task reviewer's hand-trace.
+
+So the discriminating case throws only on the SECOND `getLeavesOfType` call. Under the mutation
+that call sits outside the `try`, the async callback throws, `navigationWrites` settles
+permanently rejected, and the awaiting call rejects with the raw error — which is exactly the
+session-killing behaviour the guard exists to prevent. **This is the third verification step in
+this plan that named a mutation it could not observe**, after the ticket mutation aimed at a
+case the write chain alone satisfies and Task 4's byte-identical discriminator. All three were
+written against the mechanism the author had in mind rather than the call path the test would
+take; read every remaining mutation instruction against the call path before running it.
 
 - [ ] **Step 5: Run the gate and commit**
 

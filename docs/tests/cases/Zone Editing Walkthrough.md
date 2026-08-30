@@ -138,7 +138,12 @@ body it was pointed at, found an assertion covering PART of a step, and wrote th
 discharged; at step 7 it made the opposite error, reading a test's NAME as its whole claim and
 calling covered ground a gap.
 
-All seven real ones are closed — three in `tests/presentation/editor/zoneEditing.test.ts`, one in `tests/presentation/editor/tools/selectTool.test.ts`, one in `tests/infrastructure/obsidian/repositories/consistency.test.ts`:
+All seven real ones are closed, across five files — three in
+`tests/presentation/editor/zoneEditing.test.ts` (the outline, the deselection, the delete
+redo), and one each in `tests/presentation/editor/tools/selectTool.test.ts` (the drag
+preview), `tests/presentation/editor/runtime.test.ts` (Undo disabled),
+`tests/infrastructure/obsidian/repositories/consistency.test.ts` (the sidecar entry) and
+`tests/application/commands/zone/reversibleDeleteZone.test.ts` (the event silence):
 
 - **Step 1 — nothing asserted the selection OUTLINE.** The only interaction-layer assertion in
   the editor suite counted `Circle` nodes, which are the vertex handles; an outline that stopped

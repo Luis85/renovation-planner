@@ -43,9 +43,9 @@ branches     98.08%  (2660/2712)
 **2.24 branches of headroom** before the floor of 98 — looser than the task document's *"98.02
 … roughly 0.4 of a branch"*, which was taken on an older tree. Read it as the binding
 constraint rather than as comfort: it is two branches, and this slice adds arms. The reporting
-design below ended up adding markedly fewer than the notice design it replaced — no watcher, no
-session state, no transition arms — which is a real budget consequence of that simplification
-rather than an argument for it. The document's *"deletions help"* argument stands and is the
+design below ended up adding markedly fewer than the two designs it replaced — no watcher, no
+session state, no transition arms, no snapshot field — which is a real budget consequence of
+that simplification rather than an argument for it. The document's *"deletions help"* argument stands and is the
 reason to expect this slice to end level rather than to plan on the headroom.
 
 ## Correction 1: the no-bump argument is stale, and its replacement took four tries
@@ -133,12 +133,13 @@ so a project folder that has come to contain the library *"would take the shared
 and Trade catalogues of every project with it."* A drag can reach that state today and nothing
 anywhere says so.
 
-**The decision is to detect after the fact and RECORD.** Two real refusals at the two sites
-that exist, plus the condition reported as a derived entry in the diagnostics snapshot. A
-refusal is unavailable — the move has already happened — and an interruptive surface turned out
-to be unavailable too, for reasons the next section establishes over five review rounds. So the
-guarantee is narrowed twice: to *the state is discoverable*, rather than to a refusal or to
-anyone being told. The Definition of Done item is rewritten to that rather than left promising
+**The decision is to detect after the fact and MARK the affected project.** Two real refusals
+at the two sites that have a door, plus a marker on that project's row in the Renovation
+Project view. A refusal is unavailable — the move has already happened — and both an
+interruptive surface and a diagnostics report turned out to be unavailable too, for reasons the
+next section establishes over seven review rounds. So the guarantee is narrowed to *the
+affected project says so where a user already looks*, rather than to a refusal or to anyone
+being interrupted. The Definition of Done item is rewritten to that rather than left promising
 three refusals.
 
 Two alternatives were weighed and are recorded so they are not re-proposed:
@@ -152,95 +153,94 @@ Two alternatives were weighed and are recorded so they are not re-proposed:
   drag able to render a project unreadable, with the remedy outside the plugin. A refusal the
   user cannot act on from inside the surface that raised it.
 
-## Reporting the overlap: a derived diagnostic, not a notice
+## Reporting the overlap: a mark on the affected project's row
 
-**This section replaced a notice design that took five review rounds to fail.** The account of
-that is at the end, because the shape it teaches is worth more than the design it discarded.
+**Seven review rounds preceded this section.** The account of them is at the end; it teaches
+more than the design does.
 
 ### What is built
 
 `foldersOverlap(a, b)` — one predicate, written in this slice (Correction 2), with **two
-refusal call sites**: creating a project, and moving the library. Those are unchanged and are
-where §83 is actually enforced.
+refusal call sites**: creating a project, and moving the library. That is where §83 is
+enforced. For the third site, which has no door, the affected project's own row says so.
 
-For the third site, which has no door, `DiagnosticsSnapshot` gains one **computed** field:
+- `ProjectListResult` gains `overlapping: readonly ProjectId[]`, answered inside
+  `ListProjectsQuery` from a collaborator that asks `projectFolderOf(index, projectId)` for
+  each listed project and `foldersOverlap` against the current `libraryFolder`. One query and
+  one failure mode, rather than a second query the read model would have to combine — and
+  combining is where an advisory marker would otherwise need a policy for "the list loaded but
+  the markers did not".
+- `ProjectSummaryDto` gains `libraryOverlap: boolean`, set in `createRenovationProjectQueries`,
+  which is already where domain entities become view shapes and is the division that file's own
+  docblock draws.
+- `ProjectList.vue` renders a marker on a row whose flag is set, plus one `StringKey` of copy.
 
-```ts
-	/** Projects whose derived folder overlaps the library folder (§83). Derived per read. */
-	folderOverlaps: Array<{ projectId: string; projectName: string }>;
-```
+### Why a row rather than a report or a notice
 
-`GetDiagnosticsSnapshotQuery` answers it by asking `foldersOverlap` of every indexed project's
-derived folder against the current `libraryFolder`. `DiagnosticsSources` gains one member
-supplying those, alongside `latestSchemaVersions()` and `lastAppliedMigration()`, which are
-already live-derived rather than ledger-backed. The query's own contract holds: everything is
-*"answered from memory, none from a vault read"* — the project index **is** memory.
+The two surfaces tried before it both failed on a measurement, not on taste:
 
-### Why this is derived rather than recorded, which is a correction
+- **A notice cannot represent a standing condition** under slice 13's queue — text-keyed dedup,
+  a three-slot cap, no expiry for `warning`, no retract door. Five rounds established that; the
+  compressed account is below.
+- **Diagnostics cannot be opened.** `grep -rn "GetDiagnosticsSnapshot" src/` finds the query,
+  two docblocks and `guardedServices.ts` — composition only, no command, no settings entry, no
+  view. `en.ts` had already recorded exactly this, as the reason a sentence pointing at a
+  diagnostics report was deleted: *"an instruction the user cannot follow … a sentence that does
+  nothing is the same defect."* Slice 17's row says **discoverable** marker, and I let that word
+  do the work of a measurement.
 
-The decision was taken as *"record it into `DiagnosticsSnapshot.validationIssues`"*, and that
-would have been wrong. Measured in `diagnosticsLedger.ts`: the ledger is **append-only** —
-duplicates collapse on a `(kind, id, code)` triple and the cap evicts the oldest, but **nothing
-is ever removed because it stopped being true**. It holds read-path *refusals*, which are facts
-about reads that happened and do not become untrue. An overlap is a live *condition* that the
-user can fix, and a ledger entry for it would sit there for the rest of the session under a
-docblock promising *"an honest 'what is wrong right now'"*.
+The row satisfies what slice 17 actually asks for — *a marker on the affected entity* — and
+every property the other two lacked falls out of it rather than being engineered:
 
-Deriving it in the query is what makes the stale-condition problem **unrepresentable** rather
-than mitigated: fix the overlap, and the next read simply does not report it. There is no
-retraction, because there was never a record.
+| Hazard | Why it cannot arise here |
+| --- | --- |
+| Stale after the user fixes it | Derived per render from the current index and setting |
+| Counting, `(×N)`, dedup | Per-row; nothing aggregates |
+| Retraction | Nothing was recorded to retract |
+| Slot cap, preemption | Not a notice |
+| Session state, `saveSettings` lifetime | Stateless |
+| Privacy (slice 11's hard rule) | A rendered list is UI, not an exportable payload |
 
-### What this deletes
+That last row is the one to read twice. `docs/tasks/11` forbids *"a human-readable project or
+zone name"* in the diagnostics snapshot because it may be copied or exported; a project list on
+screen is already showing those names as its entire purpose. The rule is about the payload, not
+about the word.
 
-Everything the notice design needed and nothing else does:
+### What it must be, per this repository's own rules
 
-- **No watcher at either index door.** The two-doors requirement was real *for a watcher*; a
-  query computes on demand, so neither `VaultChangeAdapter` nor the load-time `index.rebuild`
-  changes at all.
-- **No session-scoped state**, so no `saveSettings` lifetime question and no third member of
-  the root's session-collaborator argument.
-- **No transition to decide**, global or per-entry — the exact hazard of asking `foldersOverlap`
-  of one changed entry and clearing a flag that another project still justifies.
-- **No count, no dedup, no `(×N)`, no retraction, no slot cap**, and no fourth persistent
-  warning competing for three slots.
-- **No interpolation here.** Item 6a still lands for slice 15's row label, which is a genuine
-  per-value string.
+**A mark and a word, never a colour alone** — SDD §85, and `docs/components/Save-state
+indicator.md` states it more sharply: *"Both, always, never one"*, recording that a coloured dot
+"works perfectly for the author who built it". The marker is therefore drawn **and** labelled.
 
-### What it costs, stated plainly
+It is also the first row-level status this project has, so it is owed an **axe scan**:
+`tests/harness/accessibility.test.ts` already mounts the real Renovation Project view, and the
+existing note that no action-carrying empty state was ever graded is the precedent for adding
+the case with the markup rather than after it.
 
-**Nobody is told.** A user who never opens Diagnostics never learns that a folder drag put their
-project around the shared library, and the PRD's harm — deleting that project takes every
-project's catalogues — is real. This is the accepted price of the surface, not an oversight: §83's
-third site has no door to refuse at, and five rounds established that an interruptive surface
-cannot represent a standing condition under this queue. `docs/tasks/17`'s own procedure names
-exactly this trade for exactly this shape: *"NO INTERRUPTIVE SURFACE. Log it and leave a
-persisted, discoverable marker … for whoever looks at that entity, or at Diagnostics, next."*
+### What it costs
 
-A log line at each refusal still exists (slice 11, unconditional). What does not exist is anyone
-being interrupted.
+A user who never opens the Renovation Project view is not told — but that view is the plugin's
+front door and its ribbon button, which is a different claim from a report with no opener. And
+nothing is *interrupted*: a user who does not look at the row does not learn the state. That is
+the accepted price of a site §83 gave no door to refuse at.
 
-### The five rounds, compressed, because the shape is the lesson
+### The seven rounds, compressed, because the shape is the lesson
 
-Each fix was correct about the thing it fixed; none questioned the surface.
+1. *"Dedup is free"* — `(×N)` counted sweep runs, not projects.
+2. *Aggregate and interpolate the count* — broke on a set that changes while staying non-empty,
+   because dedup is keyed on message text.
+3. *Hold the set for the session* — necessary against `saveSettings` replacing the root, and
+   orthogonal to (2).
+4. *Drop the count, push on the transition* — folds into a still-live stale entry as `×2`.
+5. *Defer preemption to slice 17* — to a policy that document does not define.
+6. *Move to the diagnostics snapshot* — to a surface with no opener.
+7. *…carrying `projectName`* — into a payload whose hard rule forbids exactly that.
 
-1. *"Dedup is free"* — `(×N)` counted sweep runs, not projects, because `push` increments on
-   every identical push and `startPersistence()` re-runs from `saveSettings`.
-2. *Aggregate the set and interpolate the count* — fixed that, and broke on a set that changes
-   while staying non-empty: dedup is keyed on message **text**, so `{A}` then `{A,B}` leaves two
-   contradictory warnings standing.
-3. *Hold the reported set for the session* — necessary against `saveSettings` replacing the
-   root, and orthogonal to (2).
-4. *Drop the count, push on the transition* — and a still-live stale entry means the
-   count-free warning folds into it as `×2` anyway.
-5. *Defer preemption to slice 17* — which assigns policy for an **error** preempting a warning
-   and says nothing about a fourth **warning**. The deferral was to a decision that does not
-   exist.
-
-**Four of the five were defects introduced by the previous fix.** A toast queue with text-keyed
-dedup, a three-slot cap, no expiry for `warning` and no retract door cannot express *"this
-condition is currently true"* — and every round spent building scaffolding around that was a
-round not spent asking whether the surface was right. The signal was available from round one:
-the fix that keeps needing another fix is usually answering the wrong question.
+**Five of the seven were introduced by the fix for the one before.** Two separate wrong surfaces
+were each defended with a sentence quoted from a document I had not measured — *"discoverable"*
+in slice 17's row, and *"the queue folds identical messages"* in slice 13's. The signal was
+available from round one: **a fix that keeps needing another fix is answering the wrong
+question**, and a quoted word is not a measurement.
 ## The coupling to slice 17, and its disappearance
 
 **There was one, and taking the diagnostics surface removed it.** The notice design added a
@@ -267,11 +267,12 @@ on a document, not on a mechanism, and it runs in the direction the slice number
 - `foldersOverlap` described as written here, not as existing.
 - The Design section's *"creating a project and changing a project's folder (slice 18's two
   sites)"* — slice 18 has one such site, not two.
-- The Definition of Done's three-refusals item, split: **two refusals** at the sites that have
-  a door, plus a **derived `DiagnosticsSnapshot.folderOverlaps`** for the site that does not.
-  The guarantee is discoverability, not a refusal and not a notification, and the item must say
-  so — it is the second time this criterion has been narrowed, and a criterion that quietly
-  keeps its old wording is how the gap between promise and check reopens.
+- The Definition of Done's three-refusals item, split: **two refusals** at the sites that have a
+  door, plus a **`libraryOverlap` marker on the affected project's row** for the site that does
+  not. The guarantee is that the affected project says so where a user already looks — not a
+  refusal, not a notification, not a report. This criterion has now been narrowed three times
+  and re-surfaced twice; a criterion that quietly keeps its old wording is how the gap between
+  promise and check reopens, which is the whole reason this list exists.
 - `PersistenceError` → `RepositoryError` in the `Interfaces & Contracts` snippets.
 
 ## What this does not change
@@ -318,9 +319,9 @@ still held a false release-commit id, is a reminder that a checklist covers what
 
 **What this does not make true.** Re-running a recorded command proves the command answers what
 the file says it answers today. It says nothing about the claims here that are judgements rather
-than measurements — that discoverability is an acceptable guarantee for §83's third site, that
-the diagnostics query is the right home for a derived condition, or that two refusals plus a
-derived entry is what §83 should now be read as asking for. Those are still arguments, and every
+than measurements — that a row marker is an acceptable guarantee for §83's third site, that the
+project list is the right home for it, or that two refusals plus a marker is what §83 should now
+be read as asking for. Those are still arguments, and every
 finding this branch took was originally an argument that read as settled. The strongest evidence
 for that: the notice design survived five rounds of *fixes* before anyone asked whether it was
 the right surface, and the answer took one measurement of a docblock that had been there all

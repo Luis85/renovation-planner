@@ -35,6 +35,8 @@ import { GetPlan } from '../../src/application/queries/GetPlan';
 import { createPlanEditorQueries } from '../../src/presentation/read-models/planEditorQueries';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { ReversibleCalibratePlanCommand } from '../../src/application/commands/plan/ReversibleCalibratePlan';
+import { InMemoryPlanGeometrySidecar } from './geometry-sidecar';
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryAssetRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryRequirementRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
@@ -50,6 +52,9 @@ export const PLAN_DTO: PlanDto = {
 	projectId: PROJECT_ID,
 	name: 'Ground floor',
 	background: null,
+	// Uncalibrated, like `planFixtures.ts`'s — absent until `tests/**` was type-checked, on a
+	// literal annotated `PlanDto` with the field required.
+	calibration: null,
 	layers: [],
 };
 
@@ -81,6 +86,7 @@ export async function rig(seed?: (repos: {
 	zones: InMemoryZoneRepository;
 }) => Promise<void>): Promise<Rig> {
 	const plans = new InMemoryPlanRepository();
+	const sidecar = new InMemoryPlanGeometrySidecar();
 	const plan = makePlan({ projectId: PROJECT_ID, id: PLAN_DTO.id as PlanId });
 	await plans.save(plan, 'absent');
 	const zonesRepo = new InMemoryZoneRepository();
@@ -140,6 +146,18 @@ export async function rig(seed?: (repos: {
 		deleteZone: makeDeleteZoneCommand(zonesRepo, events, requirementsRepo, locks),
 		zones: zonesRepo,
 		zoneInspector: new GetZoneInspector(zonesRepo),
+		// A FACTORY, as the interface requires: `ReversibleCalibratePlanCommand` holds ONE
+		// gesture's inverse, so two overlapping gestures must not share an instance.
+		//
+		// The REAL command over this rig's own plan repository and event bus, not a refusing
+		// stand-in. It was simply ABSENT until `tests/**` was type-checked — and absent is
+		// worse than either: `runtime.ts` reaches `context.commands.calibratePlan()` when the
+		// calibrate tool activates, so the toolbar button slice 15 made reachable would have
+		// TypeErrored in this rig rather than refusing or working. A stand-in that refused
+		// would be the other failure this repository has already paid for, one file over in
+		// `tests/harness/planEditor.ts`: a bundle that refuses what production answers shows
+		// a false picture wherever the consumer has no shape for an error.
+		calibratePlan: () => new ReversibleCalibratePlanCommand(plans, sidecar, events),
 		requirementEdits: {
 			assignAsset: new AssignAssetCommand(zonesRepo, assetsRepo, requirementsRepo, events, locks),
 			setQuantityOverride: new SetRequirementQuantityOverrideCommand(requirementsRepo, events, locks),

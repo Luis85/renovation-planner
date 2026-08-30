@@ -77,6 +77,16 @@ export const harness = (): Harness => {
 		viewport: {
 			worldToScreen: (point) => point as never,
 			screenToWorld: screenToWorld as never,
+			// One world millimetre per screen pixel, matching this harness's identity
+			// projection above — a camera whose scale disagreed with its own transform would
+			// be the harsher half of the too-thin rule rather than a fix for it.
+			//
+			// ABSENT until `tests/**` was type-checked, and `tool-context.ts`'s header — one
+			// file over — already names this exact member as the one whose omission leaves a
+			// suite exercising the old shape with nothing to say so. It was fixed there and
+			// not here, which is this repository's oldest recurring shape: a rule stated in a
+			// docblock is a rule some door is not following.
+			worldPerScreenPixel: () => 1,
 			setPan: () => undefined,
 			setZoom: () => undefined,
 		},

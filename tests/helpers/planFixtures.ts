@@ -16,6 +16,12 @@ export const FIXTURE_PLAN: PlanDto = {
 	projectId: 'project-1',
 	name: 'Ground floor',
 	background: null,
+	// An UNCALIBRATED plan, which is what a fixture with no background should be — and it was
+	// simply ABSENT until `tests/**` was type-checked, on a literal annotated `PlanDto` with
+	// the field required. `null` rather than a calibration because the two must not disagree:
+	// every area these fixtures produce is at the placeholder scale, and a fixture claiming a
+	// calibration it never took would make those figures read as measured.
+	calibration: null,
 	layers: [],
 };
 

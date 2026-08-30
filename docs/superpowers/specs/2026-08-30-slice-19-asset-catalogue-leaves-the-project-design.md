@@ -46,7 +46,7 @@ constraint on the watcher below rather than as comfort: it is two branches, and 
 adds arms. The document's *"deletions help"* argument stands and is the reason to expect this
 slice to end level rather than to plan on the headroom.
 
-## Correction 1: the no-bump argument is stale, the conclusion survives
+## Correction 1: the no-bump argument is stale, and its replacement took four tries
 
 The task document justifies leaving `ASSET_MIGRATIONS` empty with a fact about history:
 
@@ -57,56 +57,52 @@ The task document justifies leaving `ASSET_MIGRATIONS` empty with a fact about h
 `src/infrastructure/persistence/dto/assetFrontmatter.ts` are both in `origin/main`'s tree. The
 sentence is false as written.
 
-The conclusion is unchanged, but **not for the reason the first draft of this section gave**,
-and the correction is worth more than the conclusion.
+The conclusion is unchanged. **Establishing why took four attempts, three of them wrong, and
+the sequence is worth more than the answer.**
 
-That draft argued *no release exists*, on the evidence that `git tag --list` answers zero. Both
-halves were wrong. `git tag --list` reads the clone, not the remote — and this clone was
-**shallow** when it was asked, having been narrowed by an earlier `--depth=1` fetch, so it was
-the weakest available instrument for a question about history. And a release did happen:
-`CHANGELOG.md` carries a dated `## [0.1.0] - 2026-08-22`, `manifest.json` reads `0.1.0`, and
-`tests/release/changelog.test.ts` states the rule in its own comment — *"The date is what says a
-version shipped rather than being unreleased."* By this repository's own instrument, 0.1.0
-shipped.
+1. The task document argued *slice 10 is unmerged*. Stale — it is on `main`.
+2. This file's first draft argued *no release exists*, evidenced by `git tag --list` answering
+   zero. Right conclusion, worthless instrument: that command reads the clone, and this clone
+   was **silently shallow**, narrowed by an earlier `--depth=1` fetch of another branch.
+3. A review bot correctly attacked that instrument and offered a premise with it — that
+   `CHANGELOG.md`'s dated `## [0.1.0] - 2026-08-22` means the version shipped. This file's
+   second draft **adopted that premise without checking it**, and then identified `26d37b6` as
+   the released commit using `git log -S` — still run against the shallow history.
+4. The bot answered that `26d37b6` changes only `.gitignore` and never touched `CHANGELOG.md`
+   at all. Correct: it was the shallow graft boundary, which is what makes an early commit
+   appear to introduce every line it merely inherited.
 
-What actually establishes the conclusion is the narrower question: **did any released commit
-contain the Asset schema?** Measured on unshallowed history:
+**Measured on full history, and against the remote rather than the clone:**
 
-- `src/domain/asset/Asset.ts` first appears at `d7d8ee0` (2026-08-26).
-- The commit carrying the `## [0.1.0] - 2026-08-22` section is `26d37b6` (2026-08-24).
-- `git ls-tree -r --name-only 26d37b6 | grep -E "^src/.*[Aa]sset"` returns **nothing**. The nine
-  asset-named paths in that tree are documentation and one skill reference; no `src/` Asset
-  code or schema shipped in 0.1.0.
+- `## [0.1.0] - 2026-08-22` is present in `0b5d769` — *"add plugin scaffold"*, the **initial
+  commit**. It is scaffold content, never a release record.
+- `manifest.json` has been touched by exactly one commit in the repository's life: that same
+  `0b5d769`. The version has never been bumped.
+- `git ls-remote --tags origin` returns nothing, and the GitHub API reports **zero releases and
+  zero tags**.
 
-**`--name-only` is load-bearing, and the first draft of this list omitted it.** Plain
-`git ls-tree -r` prints `100644 blob <oid>\tsrc/…`, so an anchored `^src/` matches no line at
-all — the probe as first written returns nothing against **every** tree, `HEAD` included, where
-Asset unambiguously exists. The measurement behind the conclusion did use `--name-only`; the
-command recorded as its evidence did not, so what got written down was a probe with no
-discriminating power presented as proof.
+So **no release exists**, no released commit can contain the Asset schema, and `ASSET_MIGRATIONS`
+stays empty. Draft 2's conclusion was right and its evidence was not; draft 3 replaced the
+evidence with worse evidence and changed a correct conclusion into an incorrect one.
 
-The instrument is therefore shown discriminating rather than asserted, which is the only form of
-this evidence worth keeping:
+**`changelog.test.ts` does not say what both of us read it as saying.** It asserts that the
+CHANGELOG holds one dated section matching `manifest.version` — a *format* convention the
+scaffold satisfied on day one. Its comment, *"the date is what says a version shipped rather than
+being planned"*, distinguishes a dated section from `[Unreleased]` **for the extractor**. It is
+not evidence that a publish happened, and no test in `tests/release/` can be: publishing is the
+workflow's act, and its record is a tag.
 
-| Probe | Tree | Answer |
-| --- | --- | --- |
-| `ls-tree -r` + `^src/` (as first written) | `HEAD` | nothing — **broken; finds Asset nowhere** |
-| `ls-tree -r --name-only` + `^src/` | `HEAD` | **18 paths**, `src/domain/asset/Asset.ts` among them |
-| `ls-tree -r --name-only` + `^src/` | `26d37b6` | nothing — **the real claim** |
+The criterion is therefore forward-looking rather than archaeological: **no release exists, so
+none contains Asset v1 — and if a release is cut before this slice lands, ask that tag's tree
+before ticking the box.** That is checkable by `list_releases` against the remote, which is the
+one instrument here that is not a fact about somebody's clone.
 
-Row two is what makes row three mean something. *"Watching a test fail proves it can fail;
-watching it fail against the OPPOSITE mistake is what proves it discriminates."*
-
-So no user vault holds an Asset note at any schema version, and there is no bump. The criterion
-is rewritten to ask **that** — *no released commit contained Asset v1* — rather than either the
-stale `git log main..` clause or the false and clone-dependent *no release exists*.
-
-**Two lessons, and the second is the one this repository already has a rule for.** A falsifier
-is only as good as the instrument it is asked with, and `git tag --list` is a fact about a
-clone. And a criterion rewritten in a hurry inherits the defect it was replacing: the first
-draft replaced one unverified claim about history with another, which is this file's own
-*"measure a set with an instrument that can see all of it, and test the instrument first"*
-broken in the act of applying it. Found by a review bot, not by me.
+**Three lessons, and the third is new.** An instrument that reads a clone cannot answer a
+question about a repository. A criterion rewritten in a hurry inherits the defect it was
+replacing. And — the one this round actually cost — **a reviewer can be right about the defect
+and wrong about the premise it offers with it**, so adopting the whole correction is its own
+failure: the bot was right twice about the instrument and wrong once about the conclusion, and
+this file followed it into the error rather than checking the one claim that had changed.
 
 ## Correction 2: `foldersOverlap` does not exist
 
@@ -225,10 +221,9 @@ discovery.
 
 ## Amendments owed to `docs/tasks/19`
 
-- The schema-bump justification, rewritten to *no released commit contained Asset v1* — the
-  `git log main..` clause dropped, and the *no release exists* wording refused: 0.1.0 shipped
-  on 2026-08-22 and the criterion has to ask about that release's tree, not about whether one
-  happened.
+- The schema-bump justification, rewritten to *no release exists — verified against the remote,
+  not a clone*, with the `git log main..` clause dropped and the falsifier made forward-looking:
+  if a release is cut before this slice lands, ask that tag's tree.
 - `foldersOverlap` described as written here, not as existing.
 - The Design section's *"creating a project and changing a project's folder (slice 18's two
   sites)"* — slice 18 has one such site, not two.
@@ -255,24 +250,29 @@ succeeded."* Recorded so the next reader working under the same budget does not 
 Three review rounds on this branch found the same defect three times — an instrument recorded
 without being tested: `git tag --list` asked of a clone that was silently shallow,
 `VaultChangeAdapter` asserted as "the only candidate" without checking the second index door,
-and a `grep` anchor that could not match any `ls-tree` line. Each time the conclusion survived
-and the evidence did not, which is the worse half: a reader checking the work by running the
-recorded command would have been misled in all three.
+a `grep` anchor that could not match any `ls-tree` line, and a release commit id that was really
+a shallow-clone graft boundary. Three times the conclusion survived and only the evidence was
+wrong; the fourth time the evidence was wrong **and took a correct conclusion down with it**,
+because this file adopted a reviewer's premise along with its finding. A reader checking the
+work by running the recorded command would have been misled in every one.
 
 So on 2026-08-30 every command and every quotation in this file was executed or matched against
 its source, rather than trusted. Four commands (`foldersOverlap` absent from `src/` and
 `tests/`; no `rebuild` in `VaultChangeAdapter`; `commands/project/` holding only
 `CreateProject.ts`; `index.rebuild(buildProjectIndexEntries(…))` present in
-`RenovationPlannerPlugin`), the eight signature rows, the coverage figures, the three-row probe
-table, and nine attributed quotations across CLAUDE.md, the PRD, `changelog.test.ts`,
-`Settings and configuration.md` and the slice 17 and 19 task documents.
+`RenovationPlannerPlugin`), the eight signature rows, the coverage figures, and nine attributed
+quotations across CLAUDE.md, the PRD, `changelog.test.ts`, `Settings and configuration.md` and
+the slice 17 and 19 task documents. **The sweep did not re-run the release-commit lookup**, which
+is precisely where the fourth defect was — it read as settled because it had just been rewritten,
+which is the same reason the three before it read as settled.
 
 **One defect found, and it was in the checker.** A first pass matched quotations line by line
 and reported two CLAUDE.md citations missing; both are present and correct, and wrap across
 lines. Re-run with whitespace normalised, all nine matched — the fourth instrument on this
 branch to be wrong about its own subject, and the first to fail in the safe direction. The only
 change the sweep produced in the document itself was restoring `OPPOSITE` to the capitalisation
-CLAUDE.md gives it.
+CLAUDE.md gives it — and a sweep whose only finding is a capitalisation, run over a file that
+still held a false release-commit id, is a reminder that a checklist covers what it lists.
 
 **What this does not make true.** Re-running a recorded command proves the command answers what
 the file says it answers today. It says nothing about the claims here that are judgements rather

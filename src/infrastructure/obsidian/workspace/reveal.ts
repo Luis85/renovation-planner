@@ -41,7 +41,7 @@ export interface RevealDeps {
  *
  * **What it holds is the ANSWERED activation**, never the raw one — see `revealCandidate`.
  */
-const activating = new Map<string, Promise<void>>();
+const activating = new Map<string, Promise<boolean>>();
 
 /**
  * What identifies the leaf an activation is asking for.
@@ -77,13 +77,20 @@ function requestKey(type: string, state?: Record<string, unknown>): string {
  * candidate and an in-flight creation are mutually exclusive for both callers today — a
  * creation only ever starts because the lookup found nothing — so asking it first costs a
  * map read and closes the gesture users actually perform.
+ *
+ * **It ANSWERS whether the activation succeeded**, rather than resolving `void`: leaf
+ * existence cannot answer that question, since a failed reveal of an EXISTING leaf leaves
+ * that leaf sitting in `getLeavesOfType` regardless. `true` on every path that got through
+ * `setViewState`/`revealLeaf` without the fault handler firing; `false` from this function's
+ * own `catch` and from the inner `.catch` that reports a fault on the creation path. A joined
+ * activation answers whatever the one it joined answered.
  */
 export async function revealCandidate(
 	deps: RevealDeps,
 	type: string,
 	candidates: () => readonly WorkspaceLeaf[],
 	state?: Record<string, unknown>,
-): Promise<void> {
+): Promise<boolean> {
 	try {
 		const key = requestKey(type, state);
 		const inFlight = activating.get(key);
@@ -91,7 +98,7 @@ export async function revealCandidate(
 		const existing = candidates()[0];
 		if (existing !== undefined) {
 			await deps.workspace.revealLeaf(existing);
-			return;
+			return true;
 		}
 		// Recorded before the first `await`, so a call landing in the same tick as this one
 		// finds it — and recorded ALREADY ANSWERED, which is the half a review round found
@@ -100,15 +107,17 @@ export async function revealCandidate(
 		// log lines for one failed double click. Sharing an operation means sharing its
 		// failure too, and one failure is one report.
 		const leaf = deps.workspace.getLeaf('tab');
-		const activation = leaf
+		const activation: Promise<boolean> = leaf
 			.setViewState({ type, active: true, state })
 			.then(() => deps.workspace.revealLeaf(leaf))
+			.then(() => true)
 			.catch((cause: unknown) => {
 				deps.reportFault(cause);
+				return false;
 			});
 		activating.set(key, activation);
 		try {
-			await activation;
+			return await activation;
 		} finally {
 			activating.delete(key);
 		}
@@ -129,5 +138,6 @@ export async function revealCandidate(
 		// It also skips the lookup entirely for a joined click, which is a consequence rather
 		// than the reason.
 		deps.reportFault(cause);
+		return false;
 	}
 }

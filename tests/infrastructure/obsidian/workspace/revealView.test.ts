@@ -166,7 +166,7 @@ describe('revealing a view', () => {
 			revealLeaf: () => Promise.reject(new Error('reveal exploded')),
 		};
 
-		await expect(revealView(workspaceFor(failing), TYPE)).resolves.toBeUndefined();
+		await expect(revealView(workspaceFor(failing), TYPE)).resolves.toBe(false);
 
 		expect(faults).toHaveLength(1);
 		expect((faults[0] as Error).message).toBe('reveal exploded');
@@ -217,9 +217,34 @@ describe('revealing a view', () => {
 			},
 		};
 
-		await expect(revealView(workspaceFor(exploding), TYPE)).resolves.toBeUndefined();
+		await expect(revealView(workspaceFor(exploding), TYPE)).resolves.toBe(false);
 
 		expect(faults).toHaveLength(1);
 		expect((faults[0] as Error).message).toBe('lookup exploded');
+	});
+
+	/**
+	 * **It ANSWERS whether the activation succeeded**, and leaf existence could not have
+	 * answered that question: `revealCandidate` reports a failed reveal of an EXISTING leaf
+	 * and RESOLVES, leaving that leaf in `getLeavesOfType` — so a caller inferring success
+	 * from the leaf being there would go on to act as though a failed reveal had worked.
+	 */
+	it('answers false when revealing an existing leaf faults, and the leaf is still there', async () => {
+		const fake = new FakeWorkspace();
+		const leaf = fake.withOpen(TYPE);
+		fake.revealLeaf = () => Promise.reject(new Error('boom'));
+
+		const answered = await revealView(workspaceFor(fake), TYPE);
+
+		expect(answered).toBe(false);
+		expect(fake.getLeavesOfType(TYPE)).toContain(leaf);
+		expect(faults).toHaveLength(1);
+	});
+
+	it('answers true on a successful reveal', async () => {
+		const fake = new FakeWorkspace();
+		fake.withOpen(TYPE);
+
+		expect(await revealView(workspaceFor(fake), TYPE)).toBe(true);
 	});
 });

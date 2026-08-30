@@ -1492,7 +1492,10 @@ interface Workflow {
 		string,
 		{
 			readonly 'runs-on'?: string;
-			readonly strategy?: { readonly matrix?: { readonly include?: readonly { os: string; node: string }[] } };
+			readonly strategy?: {
+				readonly 'fail-fast'?: boolean;
+				readonly matrix?: { readonly include?: readonly { os: string; node: string }[] };
+			};
 			// `if` is part of the shape at BOTH levels deliberately: the unconditional-execution
 			// case below reads them, and a type that omitted either would make that assertion
 			// unwritable. The JOB-level one is the half a first draft missed — see that case.
@@ -1556,6 +1559,22 @@ describe('CI invokes the definition of done', () => {
 		// watches the other two.
 		expect(new Set(legs)).toEqual(new Set(['ubuntu-latest:22', 'ubuntu-latest:24', 'ubuntu-latest:26', 'windows-latest:22']));
 		expect(commands).toContain('npm run check');
+
+		// And every declared leg must be allowed to REACH the command. `fail-fast` defaults to
+		// TRUE in GitHub Actions, so a cancelled sibling is the state this workflow is in the
+		// moment the key is deleted — the first leg to fail cancels the rest, and the Windows
+		// verdict this matrix exists to collect is never produced. The tuple set says four legs
+		// are declared; it cannot say four legs report.
+		//
+		// This one fails in the direction the key allowlist below is structurally blind to.
+		// That allowlist refuses a key being ADDED to the job — it is the answer to
+		// `continue-on-error` and `timeout-minutes` — and it reads the job's OWN keys, so it
+		// does not recurse into `strategy`. A key REMOVED from a nested object is invisible to
+		// it twice over. An allowlist cannot express "this must still be here".
+		//
+		// Asserted as `false` rather than `not.toBe(true)` on purpose: absent and `true` are
+		// the same behaviour, and only one of them looks like a change.
+		expect(verify?.strategy?.['fail-fast']).toBe(false);
 	});
 
 	/**
@@ -1671,6 +1690,15 @@ describe('CI invokes the definition of done', () => {
 		// should fail here and be added with a reason, rather than take effect silently.
 		expect(Object.keys(verify ?? {}).sort()).toEqual(['runs-on', 'steps', 'strategy']);
 		expect(Object.keys(check ?? {}).sort()).toEqual(['name', 'run']);
+
+		// `strategy`'s OWN keys too, because this allowlist reads the job's and does not
+		// recurse — `strategy` was permitted to hold anything, which is how `fail-fast` came
+		// to need its own assertion above. `max-parallel: 1` is the member that motivates it
+		// beyond tidiness: it does not change any leg's verdict, but combined with a
+		// `cancel-in-progress` concurrency group it serialises four legs behind the slow
+		// Windows one, so a fixup pushed mid-run cancels legs that never started. The whole
+		// matrix then reports on no commit at all, with every assertion in this file green.
+		expect(Object.keys(verify?.strategy ?? {}).sort()).toEqual(['fail-fast', 'matrix']);
 
 		// And `runs-on` must USE the matrix, not a literal. The tuple set proves only that the
 		// matrix declares four legs; `ci.yml:30` is what turns `matrix.os` into an actual

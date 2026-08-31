@@ -65,7 +65,7 @@ async function wiredWithLink() {
 		zoneId: zoneEntity.entity.id,
 		assetId: assetEntity.entity.id,
 		requirementId: assigned.value.requirement.id,
-		query: new GetRequirementsForZone(w.requirements, w.zones, w.assets),
+		query: new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects),
 	};
 }
 
@@ -76,7 +76,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			listByZone: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(requirements, w.zones, w.assets).execute(w.zoneId),
+			await new GetRequirementsForZone(requirements, w.zones, w.assets, w.projects).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -87,7 +87,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, w.zones, assets).execute(w.zoneId),
+			await new GetRequirementsForZone(w.requirements, w.zones, assets, w.projects).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -98,7 +98,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, zones, w.assets).execute(w.zoneId),
+			await new GetRequirementsForZone(w.requirements, zones, w.assets, w.projects).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -163,7 +163,7 @@ describe('GetRequirementsForZone staleness readings', () => {
 			},
 		});
 		const rows = expectOk(
-			await new GetRequirementsForZone(requirements, w.zones, w.assets).execute(w.zoneId),
+			await new GetRequirementsForZone(requirements, w.zones, w.assets, w.projects).execute(w.zoneId),
 		);
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.recalculationStatus).toBe('stale');

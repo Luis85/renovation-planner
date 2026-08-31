@@ -2,12 +2,13 @@ import { Decimal } from 'decimal.js';
 import { err, isErr, isOk, ok, type Result } from '../../core/result/Result';
 import type { RepositoryError } from '../ports/repositoryErrors';
 import { effectiveValue } from '../../core/derived/DerivedValue';
-import type { Money } from '../../core/money/Money';
+import type { Currency, Money } from '../../core/money/Money';
 import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
 import type { RequirementId } from '../../domain/requirement/RequirementId';
 import type { CalculatedFrom, Requirement } from '../../domain/requirement/Requirement';
 import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { AssetRepository } from '../ports/AssetRepository';
+import type { ProjectRepository } from '../ports/ProjectRepository';
 import type { RequirementRepository } from '../ports/RequirementRepository';
 import type { Loaded } from '../ports/versioning';
 import type { Zone } from '../../domain/zone/Zone';
@@ -62,6 +63,7 @@ function inputsStillMatch(
 	recordedFrom: CalculatedFrom,
 	currentAreaMm2: Result<number, unknown>,
 	asset: { unit: MeasurementUnit; unitCost: Money },
+	projectCurrency: Currency,
 ): boolean {
 	if (!isOk(currentAreaMm2)) return false;
 	const measured = toMeasuredQuantity(new Decimal(currentAreaMm2.value), recordedFrom.assetUnit);
@@ -70,7 +72,12 @@ function inputsStillMatch(
 		measured.value.value.equals(recordedFrom.zoneArea.value) &&
 		asset.unit === recordedFrom.assetUnit &&
 		asset.unitCost.amount === recordedFrom.unitCost.amount &&
-		asset.unitCost.currency === recordedFrom.unitCost.currency
+		asset.unitCost.currency === recordedFrom.unitCost.currency &&
+		// The project's currency at calculation time IS the recorded unit cost's — the
+		// requirement note carries one `currency` key for both. So this needs no new field
+		// and no migration: a project whose currency moved no longer matches what its own
+		// figures were derived from.
+		projectCurrency === recordedFrom.unitCost.currency
 	);
 }
 
@@ -78,16 +85,19 @@ function inputsStillMatch(
  * The one-way staleness reading: the persisted marker, a missing endpoint, or a
  * calculatedFrom mismatch — any one of the three reads "stale", and nothing here can
  * move a persisted "stale" back to "current" (only RecalculateRequirementCommand's own
- * successful save clears the marker).
+ * successful save clears the marker). The project is an endpoint like the zone and the
+ * asset: a project that is gone reads "stale" rather than "current", the same rule the
+ * other two already carry.
  */
 function isStaleReading(
 	r: Requirement,
 	zone: { area(): Result<number, unknown> } | null,
 	asset: { unit: MeasurementUnit; unitCost: Money } | null,
+	projectCurrency: Currency | null,
 ): boolean {
 	if (r.recalculationStatus === 'stale') return true;
-	if (asset === null || zone === null) return true;
-	return !inputsStillMatch(r.calculatedFrom, zone.area(), asset);
+	if (asset === null || zone === null || projectCurrency === null) return true;
+	return !inputsStillMatch(r.calculatedFrom, zone.area(), asset, projectCurrency);
 }
 
 export class GetRequirementsForZone
@@ -98,23 +108,43 @@ export class GetRequirementsForZone
 		private readonly requirements: RequirementRepository,
 		private readonly zones: ZoneRepository,
 		private readonly assets: AssetRepository,
+		private readonly projects: ProjectRepository,
 	) {}
 
 	async execute(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], RepositoryError>> {
 		const listed = await this.requirements.listByZone(zoneId);
 		if (isErr(listed)) return listed;
 
+		// One project backs every row this call can return — `listByZone` scopes to a
+		// single Zone, and a Zone belongs to exactly one Project — so it is read once here
+		// rather than once per requirement.
+		const projectCurrency = await this.loadProjectCurrency(zoneId);
+		if (isErr(projectCurrency)) return err(projectCurrency.error);
+
 		const rows: RequirementInspectorDTO[] = [];
 		for (const loaded of listed.value) {
-			const row = await this.buildRow(loaded.entity);
+			const row = await this.buildRow(loaded.entity, projectCurrency.value);
 			if (isErr(row)) return row;
 			rows.push(row.value);
 		}
 		return ok(rows);
 	}
 
+	private async loadProjectCurrency(
+		zoneId: ZoneId,
+	): Promise<Result<Currency | null, RepositoryError>> {
+		const zone = await this.zones.getById(zoneId);
+		if (isErr(zone)) return err(zone.error);
+		if (zone.value === null) return ok(null);
+
+		const project = await this.projects.getById(zone.value.entity.projectId);
+		if (isErr(project)) return err(project.error);
+		return ok(project.value?.entity.currency ?? null);
+	}
+
 	private async buildRow(
 		r: Requirement,
+		projectCurrency: Currency | null,
 	): Promise<Result<RequirementInspectorDTO, RepositoryError>> {
 		const asset = await this.assets.getById(r.assetId);
 		if (isErr(asset)) return err(asset.error);
@@ -127,6 +157,7 @@ export class GetRequirementsForZone
 			r,
 			zone.value?.entity ?? null,
 			assetEntity,
+			projectCurrency,
 		);
 
 		return ok({

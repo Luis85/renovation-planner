@@ -93,7 +93,7 @@ async function wired() {
 	return {
 		project, plan, zones, assets, requirements, events, logger,
 		zone, asset, assign, recalculate, deps,
-		readModel: new GetRequirementsForZone(requirements, zones, assets),
+		readModel: new GetRequirementsForZone(requirements, zones, assets, projects),
 	};
 }
 

@@ -69,19 +69,27 @@ const emit = defineEmits<{ submit: [values: CreatePlanInput]; projectGone: [] }>
  * (see `INITIAL`), so it renders no field any of them could be about.
  *
  * **`plan.project-not-found` is deliberately ABSENT, and the user's real answer is neither
- * arm of this map.** The project vanished while the form was open, so what the user needs is
- * a notice and a return to the list — and a banner cannot be that, because navigating
- * rebuilds this tree, `DialogHost.onBeforeUnmount` settles the open dialog, and the form
- * holding the banner is destroyed in the same gesture that would have drawn it. Slice 13's
- * notice queue renders on `document.body` and outlives the remount, which is why the notice
- * is the half that survives. Keeping the user in a detail state for a project that no longer
- * exists, purely so a banner has somewhere to live, is the worse answer.
+ * arm of this map.** The project vanished while the form was open, so this form emits
+ * `projectGone` and the VIEW answers: `ProjectDetailState.onProjectGone` calls
+ * `ProjectDetailStore.markGone`, the status settles `'gone'`, the pane draws the screen that
+ * says so, and a `watch(status)` retires this dialog. A banner cannot be that answer either
+ * way — the form holding it is destroyed by the same gesture that would have drawn it.
+ *
+ * **This paragraph prescribed a NOTICE and a RETURN TO THE LIST until a review bot read it
+ * against the handler**, and both halves had been retired by the improvement pass. The
+ * redirect went because an automatic navigation records a history entry nobody asked for, so
+ * the pane's Back arrow bounced through a dead project; the notice went with it because it
+ * resolved `view.project.gone`, the very key the screen's headline resolves, so the two said
+ * one sentence twice at once. The old text also argued that keeping the user in a detail
+ * state for a project that no longer exists "is the worse answer" — which is now precisely
+ * what ships, and for a better reason than the banner it was arguing about: the screen
+ * persists, names what happened, and carries a way back, where a notice expires.
  *
  * Read the word "absent" precisely: `routeError` has two answers, so an absent entry still
  * SETS the banner, and this form does not pretend otherwise. That write is left alone rather
- * than suppressed — it is the last word only in the build where the view fails to navigate,
- * and there the generic Reference sentence beats silence. `onSubmit` is what makes the emit
- * the answer in every other build.
+ * than suppressed — it is the last word only in a build where the view ignores the emit, and
+ * there the generic Reference sentence beats silence. `onSubmit` is what makes the emit the
+ * answer in every other build.
  */
 const NEW_PLAN_ERRORS: FieldErrorMap<CreatePlanInput> = {
 	'plan.empty-name': 'name',

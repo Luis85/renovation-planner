@@ -157,6 +157,46 @@ describe('project and zone listings', () => {
 		expect(listing.refused).toBe(0);
 	});
 
+	/**
+	 * **The listing is narrowed by the index's TYPE, not by how an id is SPELLED**, and these
+	 * two cases are what tell those apart.
+	 *
+	 * `PlanFrontmatterSchemaV1` declares `id: z.string().min(1)` and the zone schema is the
+	 * same, so a note written by hand, copied in or arriving through sync can carry any
+	 * non-empty id. `CreatePlanCommand` mints `plan-<ULID>`, which is why the prefix filter
+	 * these replace looked right for years: every plan the APP creates satisfies it. Such a
+	 * note was indexed under the right type and the right project, reachable from the palette,
+	 * and silently missing from the project's own list — two surfaces disagreeing about which
+	 * plans exist.
+	 *
+	 * Both are watched RED against the prefix filter, and the id is deliberately one no
+	 * convention would produce. Reported by a review bot against the plan half; the zone half
+	 * was the same shape one file away and is fixed and pinned with it rather than left as the
+	 * instance the report did not happen to name.
+	 */
+	it('lists a plan whose id does not carry the conventional prefix', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const planId = 'imported-floor-1' as PlanId;
+		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
+
+		const listed = expectOk(await stack.plans.listByProject(projectId));
+
+		expect(listed.map((one) => one.entity.id)).toEqual([planId]);
+	});
+
+	it('lists a zone whose id does not carry the conventional prefix', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = 'imported-kitchen' as ReturnType<typeof createZoneId>;
+		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, planId, projectId }), 'absent'));
+
+		const listed = expectOk(await stack.zones.listByProject(projectId));
+
+		expect(listed.map((one) => one.entity.id)).toEqual([zoneId]);
+	});
+
 	it('listByProject skips a vanished note', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);

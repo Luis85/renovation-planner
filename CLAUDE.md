@@ -192,7 +192,8 @@ own first draft included:
   plugin registered six, which is a fake migrating a whole suite against a different schema
   world than production, harmless only because every table is empty at version 1 and
   invisible either way. One table with two importers cannot drift; two tables had nothing to
-  notice them drifting.
+  notice them drifting. The test-side importer is `tests/helpers/repositoryStack.ts` now,
+  since both stacks build their runner there rather than each building its own.
 - **The fail-closed schema gate is a READ gate**, and the claim is narrowed to that where
   the code lives. No save path calls `migrateNote`, so a future-version note is protected
   from being overwritten only because every command loads before it saves and the load
@@ -2307,6 +2308,32 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   (`npm run test-build`) remains the only place appearance is verified.
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
+
+**There are TWO repository stacks and ONE thing they are.** `createRepositoryStack`
+(in-memory, `tests/helpers/vault.ts`) and `openFixtureVault` (disk-backed,
+`tests/helpers/fixtureVault.ts`) differ in three host fakes and nothing else — which
+`FixtureStack`'s docblock had asserted for years while two copies made the claim rather than
+one definition, and `npm run analyze` reported the pair as the repository's largest clone
+family (four groups, 98 lines). `tests/helpers/repositoryStack.ts`'s `stackFoundation` is the
+definition: the logger recorder, the index, the echo window, the migration runner, the
+ledger, the `NoteVaultDeps` bundle, the geometry store and `rebuildIndex`. Three smaller
+shared behaviours sit in `vault.ts` beside `parseFrontmatter`, which `fixtureVault.ts`
+already imports from — `describeFile`, `applyFrontmatterEdit` and `fileCacheAnswer`, the last
+being the THREE-answer rule (`null` for no entry, `{}` for parsed-with-no-frontmatter, the
+frontmatter otherwise) that both fakes carried a paragraph about and that `frontmatterOf`
+must not conflate.
+
+**The five repositories are deliberately NOT in that foundation, and the reason is a fallow
+constraint worth knowing before the next extraction.** Fallow resolves a class's members
+through the annotation where the consuming expression sits, and it does NOT follow a field
+through an `extends` into another module — so constructing them in the shared function took
+`npm run analyze` from clean to eleven `unused-class-members` findings, every one a
+repository method whose only call sites are tests. Measured in three steps: redeclaring the
+fields on both stack interfaces recovered three and left eight, and only the `new` expression
+living in each stack file recovered all eleven. This is the Gotchas section's "fallow
+resolves an interface's members through an explicit type annotation" met from a new
+direction, and it costs five constructor calls per file — with the drift that mattered gone
+anyway, since `deps` and `store` are built in one place so the arguments cannot differ.
 
 **`tests/**` is type-checked by the `build` step, like `src/`** — `tsconfig.json`'s `include`
 is `src/**` plus `tests/**`, and there is no second program and no fifth gate. That was not

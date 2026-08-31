@@ -15,7 +15,6 @@ import type { ReassignmentTargetDto } from '../../application/queries/reassignme
 import type { Asset } from '../../domain/asset/Asset';
 import type { Plan as PlanEntity } from '../../domain/plan/Plan';
 import type { Zone as ZoneEntity } from '../../domain/zone/Zone';
-import type { RequirementId } from '../../domain/requirement/RequirementId';
 import { toPlanDto, toZoneDto, type PlanDto, type ZoneDto } from './PlanDto';
 
 /** One row of the assign-asset picker: what a `<select>` needs, nothing more. */
@@ -56,10 +55,16 @@ export interface PlanEditorQueryServices {
 	 * What the delete flow shows the user BEFORE the dialog, and owes back to the command
 	 * as `resolvedReferents`. IDs rather than a count, because the command compares sets.
 	 *
-	 * FLAT, over a query that now answers groups: a Zone belongs to one project, so every
-	 * referent of one is in that project and the grouping has nothing to say here.
+	 * GROUPED, exactly as the query answers: one entry per referencing project, carrying a
+	 * `projectPath` only where that project's name is ambiguous among the groups returned.
+	 * This member flattened them for a slice, which made slice 19's grouping unreachable —
+	 * the ambiguity decision is the QUERY's and cannot be recovered downstream once the
+	 * names are gone, and the delete dialog's row per project is what needs it. The flat
+	 * set the command compares is derived from these by the flow, in one place.
 	 */
-	listRequirementsReferencing(zoneId: string): Promise<Result<readonly RequirementId[], RepositoryError>>;
+	listRequirementsReferencing(
+		zoneId: string,
+	): Promise<Result<readonly ReferencingGroup[], RepositoryError>>;
 	/** The Reassign picker's candidates, already narrowed to what the command would accept. */
 	listReassignmentTargets(
 		zoneId: string,
@@ -156,13 +161,10 @@ export function createPlanEditorQueries(queries: {
 		async listRequirementsReferencing(zoneId) {
 			const listed = queries.listRequirementsReferencing;
 			if (!listed) return ok([]);
-			const found = await listed.execute({ kind: 'zone', zoneId: zoneId as ZoneId });
-			if (isErr(found)) return found;
-			// Flattened here and nowhere else: a Zone belongs to ONE project, so the query's
-			// grouping collapses to a single group and the delete flow's `resolvedReferents`
-			// is the same set it has always been. The GROUPS are what the asset-side dialog
-			// needs, and the seam that carries them up is the next task's, not this one's.
-			return ok(found.value.flatMap((group) => group.requirementIds));
+			// Handed on verbatim, like `listReassignmentTargets` below: the grouping IS the
+			// presentation contract since slice 19, because the delete dialog draws one row per
+			// referencing project and only the query knows which of those names collide.
+			return await listed.execute({ kind: 'zone', zoneId: zoneId as ZoneId });
 		},
 		async listReassignmentTargets(zoneId) {
 			const listed = queries.listReassignmentTargets;

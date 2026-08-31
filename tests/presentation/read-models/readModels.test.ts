@@ -211,10 +211,8 @@ describe('the plan editor query boundary', () => {
 	});
 
 	/**
-	 * Since slice 19 this member flattens GROUPS into the flat referent set the Zone delete
-	 * flow owes the command, so it has a failure arm of its own between the query and the
-	 * flattening — and a read that refuses must not reach the flow as an empty set, which is
-	 * exactly the picture "this zone has no referents" produces.
+	 * A read that refuses must not reach the flow as an empty set — that is exactly the
+	 * picture "this zone has no referents" produces, and the flow would delete on it.
 	 */
 	it('surfaces a failed referent read rather than an empty referent set', async () => {
 		const failing = createPlanEditorQueries({
@@ -230,7 +228,14 @@ describe('the plan editor query boundary', () => {
 		});
 	});
 
-	it('flattens the referent groups a shared asset would spread across projects', async () => {
+	/**
+	 * The seam carries the GROUPS. It flattened them for one slice, which left slice 19's
+	 * grouping — and the per-project rows the delete dialog draws from it — unreachable: the
+	 * ambiguity decision is the query's, and once the project names are gone nothing
+	 * downstream can recover it. The assertion is on the shape, not on a count, because a
+	 * flattening answers the right NUMBER of referents and the wrong thing entirely.
+	 */
+	it('carries the referent groups a shared asset spreads across projects, unflattened', async () => {
 		const grouped = createPlanEditorQueries({
 			getPlan: { execute: () => Promise.resolve(ok(null)) },
 			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
@@ -245,7 +250,10 @@ describe('the plan editor query boundary', () => {
 			},
 		} as never);
 
-		expect(expectOk(await grouped.listRequirementsReferencing('zone-1'))).toEqual(['r-1', 'r-2', 'r-3']);
+		expect(expectOk(await grouped.listRequirementsReferencing('zone-1'))).toEqual([
+			{ projectId: 'p-1', projectName: 'Kitchen', requirementIds: ['r-1', 'r-2'] },
+			{ projectId: 'p-2', projectName: 'Bathroom', requirementIds: ['r-3'] },
+		]);
 	});
 
 	it('answers empty for a slice-10 query the composition omitted', async () => {

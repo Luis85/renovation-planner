@@ -309,8 +309,10 @@ function loadAssetOptions(
  * The Inspector's Delete action, and the flow's four collaborators bound to this leaf:
  * slice 10's two queries, slice 15's two dialog kinds, and the Inspector's own commit path.
  *
- * Every string is resolved HERE — `tr` at the call site, the zone's own name from the
- * caller — because nothing under `presentation/dialogs/` resolves a key on its own behalf.
+ * Every string the dialogs receive is resolved before it reaches them, because nothing
+ * under `presentation/dialogs/` resolves a key on its own behalf: the reassign title with
+ * `tr` here, the zone's own name from the caller, and the reference rows in
+ * `deleteZoneFlow` — which is where the groups those labels depend on actually are.
  *
  * Both failure halves of SDD §65 are handled here rather than in `commitEdit`, and that is
  * the reason this action does not go through it: a refusal the flow ACTS on
@@ -327,17 +329,16 @@ function createDeleteZoneAction(
 	const deps: DeleteZoneFlowDeps = {
 		listReferents: (zoneId) => context.queries.listRequirementsReferencing(zoneId),
 		listReassignmentTargets: (zoneId) => context.queries.listReassignmentTargets(zoneId),
-		askResolution: (entityLabel, referenceLabel, count) =>
-			dialogs.openDialog({
-				kind: 'delete-reference',
-				entityLabel,
-				references: [{ label: referenceLabel, count }],
-			}),
+		// The rows arrive built. `deleteZoneFlow` maps the query's per-project groups onto them,
+		// because which label a row takes depends on the ambiguity `ListRequirementsReferencing`
+		// resolved — building them here would derive that rule a second time, and this door
+		// cannot see the groups at all.
+		askResolution: (entityLabel, references) =>
+			dialogs.openDialog({ kind: 'delete-reference', entityLabel, references }),
 		askReassignTarget: (title, candidates) =>
 			dialogs.openDialog({ kind: 'entity-picker', title, candidates }),
 		dispatch: (edit) => inspector.commit(edit),
 		copy: {
-			referenceLabel: tr('entity.requirement.plural'),
 			reassignTitle: tr('editor.inspector.delete-zone.reassign-title'),
 		},
 	};

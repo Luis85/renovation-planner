@@ -76,7 +76,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.inspector.quantity-override.label': 'Mengen-Übersteuerung für',
 	'editor.inspector.cost-override.label': 'Kosten-Übersteuerung für',
 	'editor.inspector.override.reset': 'Auf berechneten Wert zurücksetzen',
-	'entity.requirement.plural': 'Anforderungen',
 	'editor.inspector.delete-zone.reassign-title': 'Zu welcher Zone sollen diese Anforderungen verschoben werden?',
 	'sequence.marker-clear-failed': 'Das Löschen wurde gespeichert, aber der Wiederherstellungseintrag konnte nicht aus dem Vault entfernt werden. Er wird beim nächsten Öffnen dieses Vaults entfernt.',
 	'cascade.stale-marker-failed': 'Eine Anforderung konnte nicht als veraltet markiert werden. Ihre Werte können falsch sein, bis sie neu berechnet wird.',
@@ -145,7 +144,11 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.no-reassignment-target': 'In diesem Projekt gibt es keine andere Zone, der diese Anforderungen zugewiesen werden könnten.',
 	'reference.self-reassign': 'Referenzen können nicht dem zu löschenden Eintrag neu zugewiesen werden. Bitte einen anderen wählen.',
 	'reference.cross-project-reassign': 'Referenzen können nur innerhalb desselben Projekts neu zugewiesen werden.',
+	// Zeilen im Löschdialog (Slice 15, Punkt 6): zwei Schlüssel statt eines mit fest
+	// verdrahtetem Trennzeichen — Wortstellung und Interpunktion um einen eingesetzten
+	// Namen gehören der Übersetzung.
 	'reference.row.project': '{name}',
+	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',

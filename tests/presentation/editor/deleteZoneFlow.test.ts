@@ -5,9 +5,15 @@ import type { AppError } from '../../../src/core/errors/AppError';
 import type { ZoneId } from '../../../src/domain/zone/ZoneId';
 import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
 import type { InspectorEdit } from '../../../src/presentation/editor/inspector/inspector-store';
-import type { DeleteReferenceDialogResult } from '../../../src/presentation/dialogs/dialog-store';
+import type {
+	DeleteReferenceDialogResult,
+	ReferenceRow,
+} from '../../../src/presentation/dialogs/dialog-store';
+import type { ReferencingGroup } from '../../../src/application/queries/ListRequirementsReferencing';
+import type { ProjectId } from '../../../src/domain/project/ProjectId';
 import {
 	deleteZoneWithReferences,
+	rowsFor,
 	type DeleteZoneFlowDeps,
 } from '../../../src/presentation/editor/deleteZoneFlow';
 import { toUserMessage } from '../../../src/presentation/i18n/toUserMessage';
@@ -29,11 +35,26 @@ const ZONE = 'zone-1' as ZoneId;
 const R1 = 'req-1' as RequirementId;
 const R2 = 'req-2' as RequirementId;
 const R3 = 'req-3' as RequirementId;
+const PROJECT = 'project-1' as ProjectId;
+
+/**
+ * A read, as the query answers one since design slice 19: GROUPS, not a flat set.
+ *
+ * A Zone belongs to ONE project, so every case below states its read as the ids in that
+ * one group — and an empty read is NO group rather than an empty one, because
+ * `ListRequirementsReferencing` builds a group only for a project that has at least one
+ * referent. Spelling the equivalence here rather than in each case is what keeps the
+ * flow's zero branch asserted on the same thing it was before.
+ */
+function groupOf(ids: readonly RequirementId[]): readonly ReferencingGroup[] {
+	if (ids.length === 0) return [];
+	return [{ projectId: PROJECT, projectName: 'Kitchen refit', requirementIds: ids }];
+}
 
 interface Rig {
 	readonly deps: DeleteZoneFlowDeps;
 	readonly dispatched: InspectorEdit[];
-	readonly asked: { entityLabel: string; referenceLabel: string; count: number }[];
+	readonly asked: { entityLabel: string; references: readonly ReferenceRow[] }[];
 	readonly pickerOpened: { title: string; candidates: readonly { id: string; label: string }[] }[];
 }
 
@@ -57,7 +78,7 @@ function rig(options: {
 	picks?: readonly ({ readonly id: string } | 'cancel')[];
 }): Rig {
 	const dispatched: InspectorEdit[] = [];
-	const asked: { entityLabel: string; referenceLabel: string; count: number }[] = [];
+	const asked: { entityLabel: string; references: readonly ReferenceRow[] }[] = [];
 	const pickerOpened: { title: string; candidates: readonly { id: string; label: string }[] }[] = [];
 	const reads = [...options.reads];
 	const answers = [...(options.answers ?? [])];
@@ -68,11 +89,11 @@ function rig(options: {
 		listReferents: () => {
 			const next = reads.shift();
 			if (next === undefined) throw new Error('the flow read the referents more times than the test scripted');
-			return Promise.resolve(ok(next));
+			return Promise.resolve(ok(groupOf(next)));
 		},
 		listReassignmentTargets: () => Promise.resolve(ok(options.targets ?? [])),
-		askResolution: (entityLabel, referenceLabel, count) => {
-			asked.push({ entityLabel, referenceLabel, count });
+		askResolution: (entityLabel, references) => {
+			asked.push({ entityLabel, references });
 			const next = answers.shift();
 			if (next === undefined) throw new Error('the flow opened the dialog more times than the test scripted');
 			return Promise.resolve(next);
@@ -89,7 +110,6 @@ function rig(options: {
 			return Promise.resolve(results.shift() ?? ok('wrote'));
 		},
 		copy: {
-			referenceLabel: 'Requirements',
 			reassignTitle: 'Move to which zone?',
 		},
 	};
@@ -103,7 +123,9 @@ describe('the Inspector delete-with-references flow', () => {
 		const outcome = await deleteZoneWithReferences(r.deps, ZONE, 'Bathroom');
 
 		expect(outcome).toEqual({ kind: 'deleted' });
-		expect(r.asked).toEqual([{ entityLabel: 'Bathroom', referenceLabel: 'Requirements', count: 2 }]);
+		expect(r.asked).toEqual([
+			{ entityLabel: 'Bathroom', references: [{ label: 'Kitchen refit', count: 2 }] },
+		]);
 		// The IDs the row was built from, not a count and not a re-read.
 		expect(r.dispatched).toEqual([
 			{ kind: 'delete', zoneId: ZONE, resolution: 'remove-references', resolvedReferents: [R1, R2] },
@@ -209,7 +231,9 @@ describe('the Inspector delete-with-references flow', () => {
 			});
 
 			expect(await deleteZoneWithReferences(r.deps, ZONE, 'Bathroom')).toEqual({ kind: 'deleted' });
-			expect(r.asked).toEqual([{ entityLabel: 'Bathroom', referenceLabel: 'Requirements', count: 3 }]);
+			expect(r.asked).toEqual([
+				{ entityLabel: 'Bathroom', references: [{ label: 'Kitchen refit', count: 3 }] },
+			]);
 			expect(r.dispatched[1]).toMatchObject({ resolvedReferents: [R1, R2, R3] });
 		});
 
@@ -245,7 +269,7 @@ describe('the Inspector delete-with-references flow', () => {
 			});
 
 			expect(await deleteZoneWithReferences(r.deps, ZONE, 'Bathroom')).toEqual({ kind: 'deleted' });
-			expect(r.asked.map((ask) => ask.count)).toEqual([2, 2]);
+			expect(r.asked.map((ask) => ask.references[0]?.count)).toEqual([2, 2]);
 			expect(r.dispatched[0]).toMatchObject({ resolvedReferents: [R1, R2] });
 			expect(r.dispatched[1]).toMatchObject({ resolvedReferents: [R2, R3] });
 		});
@@ -289,7 +313,7 @@ describe('the Inspector delete-with-references flow', () => {
 			listReferents: () => {
 				call += 1;
 				return call === 1
-					? Promise.resolve(ok([R1] as readonly RequirementId[]))
+					? Promise.resolve(ok(groupOf([R1])))
 					: Promise.resolve(err({ category: 'Persistence', code: 'vault.unreadable', message: 'no' } as AppError));
 			},
 			dispatch: () => Promise.resolve(err(referenceError('reference.set-changed'))),
@@ -309,7 +333,7 @@ describe('the Inspector delete-with-references flow', () => {
 			listReferents: () => {
 				call += 1;
 				return call === 1
-					? Promise.resolve(ok([] as readonly RequirementId[]))
+					? Promise.resolve(ok(groupOf([])))
 					: Promise.resolve(err({ category: 'Persistence', code: 'vault.unreadable', message: 'no' } as AppError));
 			},
 			dispatch: () => Promise.resolve(err(referenceError('reference.referents-exist'))),
@@ -354,5 +378,70 @@ describe('the Inspector delete-with-references flow', () => {
 				error: { code: 'vault.unreadable' },
 			});
 		});
+	});
+});
+
+/**
+ * Slice 15's Definition of Done item 6, driven against the MAPPING rather than through the
+ * flow — which is what that item asks for and why: every Zone fixture is single-group, so a
+ * caller that read `groups[0]` and ignored the rest would pass every case above.
+ *
+ * One localized key per label, never a translated fragment concatenated with a name
+ * ([[Multilanguage]]): word order and the punctuation around an interpolated name are the
+ * translator's to choose, which is exactly what a second key buys.
+ */
+describe('the reference-row mapping (slice 15 item 6)', () => {
+	const group = (
+		name: string,
+		ids: readonly RequirementId[],
+		path?: string,
+	): ReferencingGroup => ({ projectId: PROJECT, projectName: name, projectPath: path, requirementIds: ids });
+
+	it("renders one row per project, labelled by name, counted by that project's referents", () => {
+		expect(
+			rowsFor([
+				{ projectId: PROJECT, projectName: 'Kitchen refit', requirementIds: [R1, R2] },
+				{ projectId: PROJECT, projectName: 'Bathroom', requirementIds: [R3] },
+			]),
+		).toEqual([
+			{ label: 'Kitchen refit', count: 2 },
+			{ label: 'Bathroom', count: 1 },
+		]);
+	});
+
+	it('disambiguates two projects sharing a name by path, and leaves the distinct one plain', () => {
+		expect(
+			rowsFor([
+				group('Kitchen refit', [R1], 'Renovation/Kitchen refit'),
+				group('Kitchen refit', [R2], 'Renovation/Kitchen refit 2'),
+				group('Bathroom', [R3]),
+			]).map((row) => row.label),
+		).toEqual([
+			'Kitchen refit — Renovation/Kitchen refit',
+			'Kitchen refit — Renovation/Kitchen refit 2',
+			'Bathroom',
+		]);
+	});
+
+	/**
+	 * The query writes `projectPath` as an EXPLICIT `undefined` where an ambiguous project
+	 * cannot be placed — the index holds no note for it — so `'projectPath' in group` answers
+	 * true with no value and a mapper keyed on it renders `Kitchen refit — undefined`. The
+	 * test asks for the value, because that is the mistake available here.
+	 */
+	it('falls back to the plain label for an ambiguous project the index cannot place', () => {
+		const unplaceable: ReferencingGroup = {
+			projectId: PROJECT,
+			projectName: 'Kitchen refit',
+			projectPath: undefined,
+			requirementIds: [R1],
+		};
+
+		expect('projectPath' in unplaceable).toBe(true);
+		expect(rowsFor([unplaceable])).toEqual([{ label: 'Kitchen refit', count: 1 }]);
+	});
+
+	it('answers no rows for no groups', () => {
+		expect(rowsFor([])).toEqual([]);
 	});
 });

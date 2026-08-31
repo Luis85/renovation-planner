@@ -70,11 +70,13 @@ describe('deleting a Zone that Requirements reference', () => {
 		toolbarButton(r.harness, 'Delete zone').click();
 		await until(() => r.harness.wrapper.find('[data-rp-action="delete-anyway"]').exists(), 'the dialog');
 
-		// The row the descriptor was built from — the count came from
-		// `ListRequirementsReferencing`, not from anything the dialog recomputed.
-		const row = r.harness.wrapper.find('.rp-dialog-reference-row');
-		expect(row.text()).toContain('Requirements');
-		expect(row.text()).toContain('2');
+		// The row the descriptor was built from — the count AND the project name came from
+		// `ListRequirementsReferencing`, not from anything the dialog recomputed. Slice 15's
+		// item 6: exactly one row, naming the owning project, because a Zone yields one group.
+		const rows = r.harness.wrapper.findAll('.rp-dialog-reference-row');
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.text()).toContain('Kitchen refit');
+		expect(rows[0]?.text()).toContain('2');
 
 		await dialogButton(r.harness, 'remove-references').trigger('click');
 		await until(

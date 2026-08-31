@@ -61,7 +61,6 @@ export const en = {
 	'editor.inspector.quantity-override.label': 'Override quantity for',
 	'editor.inspector.cost-override.label': 'Override cost for',
 	'editor.inspector.override.reset': 'Reset to calculated',
-	'entity.requirement.plural': 'Requirements',
 	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
 	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
@@ -134,7 +133,13 @@ export const en = {
 	'reference.no-reassignment-target': 'There is no other zone in this project to reassign these requirements to.',
 	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
 	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
+	// The delete dialog's reference rows (slice 15 item 6), one row per project. TWO keys
+	// rather than one plus a hand-built separator: word order and the punctuation around an
+	// interpolated name are the translator's to choose ([[Multilanguage]]). The path form is
+	// used only for a group whose project name `ListRequirementsReferencing` found ambiguous
+	// among the groups it answered, and only when that project could be placed.
 	'reference.row.project': '{name}',
+	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
 	'requirement.negative-quantity': 'A quantity cannot be negative.',
 	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`

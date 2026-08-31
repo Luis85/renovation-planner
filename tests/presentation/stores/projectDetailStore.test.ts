@@ -161,6 +161,37 @@ describe('ProjectDetailStore', () => {
 	});
 
 	/**
+	 * The flicker guard's own trade, applied to a MISS rather than to a hit — pinned rather
+	 * than left implied by `hydrate`'s docblock. An already-`'ready'` store re-hydrating
+	 * against a pre-scan `ok(null)` keeps `'ready'` (the guard above the read never let it
+	 * leave) AND keeps its project and plans exactly as they were, rather than adopting the
+	 * loading line: the miss is transient and self-corrects on the next authoritative
+	 * re-hydrate, and blanking a project that is correctly rendered is the worse of the two
+	 * wrong answers. A review bot proposed setting `'loading'` unconditionally here instead;
+	 * that was declined, and this case is what makes the decision testable rather than only
+	 * argued in a comment.
+	 *
+	 * All three fields are asserted, and the fixture carries a real plan, not an empty list —
+	 * a status-only assertion, or one against no content, would pass equally against a build
+	 * that blanked the screen and left `status` behind.
+	 */
+	it('keeps a ready detail state and its content when a re-hydrate misses before the scan has completed', async () => {
+		const store = useProjectDetailStore();
+		await store.hydrate(
+			queriesAnswering({ listPlansByProject: () => Promise.resolve(ok([{ id: 'plan-1', name: 'Ground floor' }])) }),
+			PROJECT.id,
+			true,
+		);
+		expect(store.status).toBe('ready');
+
+		await store.hydrate(queriesAnswering({ getProject: () => Promise.resolve(ok(null)) }), PROJECT.id, false);
+
+		expect(store.status).toBe('ready');
+		expect(store.project?.name).toBe('Hallway');
+		expect(store.plans.map((plan) => plan.name)).toEqual(['Ground floor']);
+	});
+
+	/**
 	 * Structurally gated on `'ready'` — the `RenovationProjectStore.emptyStateKey` shape, not
 	 * `ProjectStore`'s stated-exception one — so a failed read can never render as "no plans
 	 * yet".

@@ -59,8 +59,25 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	 * `indexScanCompleted` is passed IN rather than read, because the store may not reach the
 	 * plugin. It answers one question — has the initial scan RUN, zero entries included — and
 	 * it is the difference between an authoritative `ok(null)` and one that merely raced the
-	 * scan. Until it is true, a missing project holds the loading state; from then on it is
-	 * the list.
+	 * scan, but what that difference DOES depends on where `status` already was:
+	 *
+	 * - Not yet `'ready'` (`'idle'`, already `'loading'`): there is nothing on screen to
+	 *   prefer over "still loading", so a miss before the scan has run holds the loading
+	 *   line, and only a completed scan's `ok(null)` is authoritative enough to call the
+	 *   project `'gone'`.
+	 * - Already `'ready'`: the guard above never let `status` leave `'ready'`, and this
+	 *   branch does not touch it either — a pre-scan miss on an already-drawn project leaves
+	 *   the project and its plans exactly as they were, rather than adopting the loading
+	 *   line. That is the flicker guard's OWN trade applied to this branch and not a second
+	 *   oversight beside it: the miss is transient and self-corrects the moment the scan
+	 *   completes and the next `onProjectsChanged`/`onPlansChanged` re-hydrate lands, and
+	 *   blanking a project that is correctly rendered — because a pre-scan read transiently
+	 *   could not find it — is the worse of the two wrong answers. What was on screen was
+	 *   true a moment ago; the loading line asserts nothing at all.
+	 *
+	 * A COMPLETED scan's `ok(null)` is authoritative regardless of where `status` started,
+	 * which is why only the `'gone'` assignment below is conditioned on `indexScanCompleted`
+	 * and not on `status`.
 	 *
 	 * The two reads COMBINE all-or-nothing: there is no honest picture of a project whose
 	 * identity loaded but whose plans did not.

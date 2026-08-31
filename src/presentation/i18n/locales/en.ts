@@ -327,6 +327,16 @@ export const en = {
 	'settings.library-persist-failed':
 		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
 	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
+	// The one refusal the skip-and-count listings produce, and the only consumer that raises
+	// it is the reassignment picker: every other reader carries the count into a warning strip
+	// instead. Keyed by the exact code, per the block above — an `error.`-prefixed key would
+	// fall through to the Persistence category's "reading or writing the vault failed
+	// unexpectedly", which is false about a refusal that knows precisely what is wrong.
+	//
+	// The second sentence points at the diagnostics report, which is why the report is in the
+	// same increment: a sentence naming a surface that does not exist is a promise on screen.
+	'zone.listing-incomplete':
+		'Some zones in this project could not be read, so the list of places to move this to is incomplete. Open the diagnostics report to see which notes refused.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

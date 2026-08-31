@@ -192,7 +192,7 @@ describe('project and zone listings', () => {
 		const zoneId = 'imported-kitchen' as ReturnType<typeof createZoneId>;
 		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, planId, projectId }), 'absent'));
 
-		const listed = expectOk(await stack.zones.listByProject(projectId));
+		const listed = expectOk(await stack.zones.listByProject(projectId)).loaded;
 
 		expect(listed.map((one) => one.entity.id)).toEqual([zoneId]);
 	});
@@ -499,6 +499,7 @@ describe('the find-zones query', () => {
 		expectOk(await stack.zones.save(zoneB, 'absent'));
 
 		const found = expectOk(await new FindZonesByPlan(stack.zones).execute({ planId }));
-		expect(found.map((loaded) => loaded.entity.name).toSorted()).toEqual(['A', 'B']);
+		expect(found.loaded.map((loaded) => loaded.entity.name).toSorted()).toEqual(['A', 'B']);
+		expect(found.refused).toBe(0);
 	});
 });

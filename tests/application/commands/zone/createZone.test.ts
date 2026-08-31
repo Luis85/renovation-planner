@@ -113,7 +113,7 @@ describe('CreateZoneCommand', () => {
 		);
 		expect(geometryError).toMatchObject({ category: 'Geometry', code: 'polygon-too-few-points' });
 
-		expect(expectOk(await zones.listByPlan(plan.id))).toHaveLength(0);
+		expect(expectOk(await zones.listByPlan(plan.id)).loaded).toHaveLength(0);
 		expect(events.published).toHaveLength(0);
 	});
 

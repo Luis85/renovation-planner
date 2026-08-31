@@ -87,7 +87,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await settle();
 
 		// Persisted, not merely rendered.
-		const listed = expectOk(await zonesRepo.listByPlan('plan-e2e' as never));
+		const listed = expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded;
 		expect(listed).toHaveLength(2);
 		const created = listed.find((loaded) => loaded.entity.id !== 'zone-a');
 		if (created === undefined) throw new Error('expected the drawn zone to persist');
@@ -106,17 +106,17 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		expect(undoButton.disabled).toBe(false);
 		undoButton.click();
 		await until(
-			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).length === 1,
+			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 1,
 			'the undo of the drawn zone to land in the repository',
 		);
 
 		const redoButton = toolbarButton(harness, 'Redo');
 		redoButton.click();
 		await until(
-			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).length === 2,
+			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 2,
 			'the redo to re-create the zone',
 		);
-		const afterRedo = expectOk(await zonesRepo.listByPlan('plan-e2e' as never));
+		const afterRedo = expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded;
 		expect(afterRedo).toHaveLength(2);
 		expect(afterRedo.some((loaded) => loaded.entity.id === created.entity.id)).toBe(true);
 
@@ -215,12 +215,12 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		const deleteButton = toolbarButton(harness, 'Delete zone');
 		deleteButton.click();
 		await until(
-			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).length === 0,
+			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 0,
 			'the delete to land in the repository',
 		);
 
 		// Both the note-side repo state and the panel agree it is gone (DoD 3/8).
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(0);
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(0);
 		expect(harness.wrapper.text()).toContain('Nothing selected.');
 
 		toolbarButton(harness, 'Undo').click();
@@ -255,7 +255,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		click(canvas, 700, 200);
 		await settle();
 
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(1);
 
 		harness.unmount();
 	});
@@ -273,7 +273,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await settle();
 		click(canvas, 200, 200);
 		await settle();
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(1);
 
 		harness.unmount();
 	});
@@ -292,7 +292,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			new PointerEvent('pointerdown', { button: 1, clientX: 200, clientY: 200, bubbles: true }),
 		);
 		await settle();
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(1);
 
 		// Modifier-bearing moves translate without disturbing anything. The button on a
 		// MOVE event also travels through the translation (middle = auxiliary, right =
@@ -310,7 +310,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			);
 		}
 		await settle();
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(1);
 
 		harness.unmount();
 	});
@@ -382,7 +382,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		await settle();
 
 		// The write failed; nothing was created and no selection was made.
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(1);
 		// And the buffer is INTACT: the next click would still close it.
 		canvas.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 		await settle();
@@ -393,7 +393,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 		click(canvas, 600, 200);
 		click(canvas, 500, 100);
 		await settle();
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(2);
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(2);
 
 		harness.unmount();
 	});
@@ -478,7 +478,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 		// The write failed, the zone survives, and the refusal reached the user through the
 		// same seam a failed draw uses — not a silent no-op.
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(1);
 		expect(Notice.shown.length).toBe(noticesBefore + 1);
 		expect(harness.wrapper.text()).toContain('Kitchen'); // selection and panel intact
 
@@ -610,7 +610,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 		toolbarButton(harness, 'Delete zone').click();
 		await until(
-			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).length === 0,
+			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 0,
 			'the delete to land in the repository',
 		);
 
@@ -622,7 +622,7 @@ describe('the wired Plan Editor (design slice 8)', () => {
 
 		toolbarButton(harness, 'Redo').click();
 		await until(
-			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).length === 0,
+			async () => (expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).length === 0,
 			'the redo of the delete to remove the zone again',
 		);
 		expect(expectOk(await zonesRepo.getById('zone-a' as never))).toBeNull();

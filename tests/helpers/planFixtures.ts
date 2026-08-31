@@ -97,7 +97,7 @@ export const emptyRequirementReads = (): Pick<
 export function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[] = []): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(plan)),
-		findZonesByPlan: () => Promise.resolve(ok(zones)),
+		findZonesByPlan: () => Promise.resolve(ok({ zones, unreadable: 0 })),
 		...emptyRequirementReads(),
 	};
 }

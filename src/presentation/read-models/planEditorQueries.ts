@@ -14,7 +14,7 @@ import type {
 import type { ReassignmentTargetDto } from '../../application/queries/reassignmentTypes';
 import type { Asset } from '../../domain/asset/Asset';
 import type { Plan as PlanEntity } from '../../domain/plan/Plan';
-import type { Zone as ZoneEntity } from '../../domain/zone/Zone';
+import type { ZoneListing } from '../../application/ports/ZoneRepository';
 import { toPlanDto, toZoneDto, type PlanDto, type ZoneDto } from './PlanDto';
 
 /** One row of the assign-asset picker: what a `<select>` needs, nothing more. */
@@ -34,9 +34,21 @@ export interface AssetOptionDto {
  * — which is exactly the distinction slice 14's empty-state selectors and slice 17's
  * error routing both branch on, and neither could recover it afterwards.
  */
+/**
+ * The canvas's own shape of a zone listing: the zones it can draw, and how many it cannot.
+ *
+ * `unreadable` is the view-side name for the port's `refused` — the same number, and the
+ * rename across this seam is the one `ListProjects` already makes: the port speaks of notes it
+ * declined to load, and the view speaks of zones the user cannot see.
+ */
+export interface ZoneScene {
+	readonly zones: readonly ZoneDto[];
+	readonly unreadable: number;
+}
+
 export interface PlanEditorQueryServices {
 	getPlan(planId: string): Promise<Result<PlanDto | null, RepositoryError>>;
-	findZonesByPlan(planId: string): Promise<Result<readonly ZoneDto[], RepositoryError>>;
+	findZonesByPlan(planId: string): Promise<Result<ZoneScene, RepositoryError>>;
 	/**
 	 * Slice 10's Requirements panel rows for one zone. The query's own DTO is handed on
 	 * verbatim — it IS the presentation contract (the stale flag, the missing-target
@@ -127,7 +139,7 @@ export function unavailablePlanEditorQueries(): PlanEditorQueryServices {
  */
 export function createPlanEditorQueries(queries: {
 	readonly getPlan: Query<GetPlanInput, Result<Loaded<PlanEntity> | null, RepositoryError>>;
-	readonly findZonesByPlan: Query<FindZonesByPlanInput, Result<Loaded<ZoneEntity>[], RepositoryError>>;
+	readonly findZonesByPlan: Query<FindZonesByPlanInput, Result<ZoneListing, RepositoryError>>;
 	/** Production composition always passes both slice-10 members; omitted only by editor
 	 * test rigs that mount no Requirements panel content, which then answer empty. */
 	readonly getRequirementsForZone?: Query<ZoneId, Result<readonly RequirementInspectorDTO[], RepositoryError>>;
@@ -144,7 +156,10 @@ export function createPlanEditorQueries(queries: {
 		async findZonesByPlan(planId) {
 			const found = await queries.findZonesByPlan.execute({ planId: planId as PlanId });
 			if (isErr(found)) return found;
-			return ok(found.value.map((loaded) => toZoneDto(loaded.entity)));
+			return ok({
+				zones: found.value.loaded.map((loaded) => toZoneDto(loaded.entity)),
+				unreadable: found.value.refused,
+			});
 		},
 		async getRequirementsForZone(zoneId) {
 			const found = queries.getRequirementsForZone;

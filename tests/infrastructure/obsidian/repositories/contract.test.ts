@@ -482,7 +482,7 @@ describe('writing into a folder nothing has created yet', () => {
 		const zone = makeZoneEntity({ projectId: project.id, planId: plan.id });
 		expectOk(await stack.zones.save(zone, 'absent'));
 
-		expect(expectOk(await stack.zones.listByPlan(plan.id))).toHaveLength(1);
+		expect(expectOk(await stack.zones.listByPlan(plan.id)).loaded).toHaveLength(1);
 	});
 	/**
 	 * The geometry sidecar is PLAN-grained: one vault read, one JSON parse, one migration
@@ -506,7 +506,7 @@ describe('writing into a folder nothing has created yet', () => {
 		}
 
 		stack.vault.operations.length = 0;
-		expect(expectOk(await stack.zones.listByPlan(plan.id))).toHaveLength(4);
+		expect(expectOk(await stack.zones.listByPlan(plan.id)).loaded).toHaveLength(4);
 
 		const sidecarReads = stack.vault.operations.filter(
 			(operation) => operation.startsWith('read:') && operation.includes('Geometry/'),

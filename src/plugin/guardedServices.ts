@@ -76,7 +76,7 @@ import type { Zone } from '../domain/zone/Zone';
 import type { ZoneId } from '../domain/zone/ZoneId';
 import type { PlanRepository } from '../application/ports/PlanRepository';
 import type { ProjectRepository } from '../application/ports/ProjectRepository';
-import type { ZoneRepository } from '../application/ports/ZoneRepository';
+import type { ZoneListing, ZoneRepository } from '../application/ports/ZoneRepository';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import type { EventBus } from '../core/events/EventBus';
 import type { CalibratePlanTransaction } from '../presentation/editor/planEditorCommands';
@@ -116,7 +116,7 @@ export interface QueryServices {
 	readonly getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>;
 	readonly getPlan: Query<GetPlanInput, Result<Loaded<Plan> | null, RepositoryError>>;
 	readonly getZone: Query<GetZoneInput, Result<Loaded<Zone> | null, RepositoryError>>;
-	readonly findZonesByPlan: Query<FindZonesByPlanInput, Result<Loaded<Zone>[], RepositoryError>>;
+	readonly findZonesByPlan: Query<FindZonesByPlanInput, Result<ZoneListing, RepositoryError>>;
 	/** SDD §68's content-free snapshot — versions, schema versions, migration state, issues. */
 	readonly diagnostics: Query<void, DiagnosticsSnapshot>;
 }

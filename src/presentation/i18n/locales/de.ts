@@ -37,6 +37,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-persist-failed':
 		'Der Katalog wurde verschoben, aber die Einstellung konnte nicht gespeichert werden. Bitte den Bibliotheksordner auf den neuen Ort setzen.',
 	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
+	// „Zonen“, nicht „Bereiche“: die deutsche Oberfläche nennt eine Zone überall sonst so
+	// (`editor.zone.default-name`, `editor.inspector.delete-zone.reassign-title`).
+	'zone.listing-incomplete':
+		'Einige Zonen in diesem Projekt konnten nicht gelesen werden, daher ist die Liste möglicher Ziele unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
 	'settings.verbose-logging.desc': 'Debug-Meldungen in der Entwicklerkonsole anzeigen. Alles bleibt auf diesem Gerät.',
 	'view.geometry.name': 'Geometrie-Seitendatei',

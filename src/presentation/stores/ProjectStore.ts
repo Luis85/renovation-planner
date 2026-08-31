@@ -157,7 +157,7 @@ export const useProjectStore = defineStore('project', () => {
 		}
 
 		plan.value = foundPlan.value;
-		zones.value = new Map(foundZones.value.map((zone) => [zone.id, zone]));
+		zones.value = new Map(foundZones.value.zones.map((zone) => [zone.id, zone]));
 		status.value = 'ready';
 		// The ONE event that retires a stale-data warning: what is on screen came back from the
 		// vault just now. Every hydration path ends here on success, whatever its options, which

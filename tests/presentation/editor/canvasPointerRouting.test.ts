@@ -32,7 +32,7 @@ describe('the Plan Canvas pointer routing', () => {
 		const { harness, zonesRepo } = await rig();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
-		const before = expectOk(await zonesRepo.listByPlan('plan-e2e' as never))[0];
+		const before = expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded[0];
 
 		toolbarButton(harness, 'Select').click();
 		await settle();
@@ -45,14 +45,14 @@ describe('the Plan Canvas pointer routing', () => {
 		chord(canvas, 400, 300, 2, 1); // …and released, the primary still down
 		await settle();
 
-		const midDrag = expectOk(await zonesRepo.listByPlan('plan-e2e' as never))[0];
+		const midDrag = expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded[0];
 		expect(midDrag.entity.geometry.points).toEqual(before.entity.geometry.points);
 
 		// The gesture is still live: the genuine primary release commits it.
 		pointer(canvas, 'pointerup', 400, 300);
 		await until(
 			async () =>
-				(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)))[0].entity.geometry
+				(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded)[0].entity.geometry
 					.points[0].x !== before.entity.geometry.points[0].x,
 			'the primary release to commit the move',
 		);
@@ -68,7 +68,7 @@ describe('the Plan Canvas pointer routing', () => {
 		const { harness, zonesRepo } = await rig();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
-		const before = expectOk(await zonesRepo.listByPlan('plan-e2e' as never))[0];
+		const before = expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded[0];
 
 		toolbarButton(harness, 'Select').click();
 		await settle();
@@ -91,7 +91,7 @@ describe('the Plan Canvas pointer routing', () => {
 		click(canvas, 900, 500);
 		await settle();
 
-		const after = expectOk(await zonesRepo.listByPlan('plan-e2e' as never))[0];
+		const after = expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded[0];
 		expect(after.entity.geometry.points).toEqual(before.entity.geometry.points);
 		expect(harness.wrapper.text()).not.toContain('NaN');
 

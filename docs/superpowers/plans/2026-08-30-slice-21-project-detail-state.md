@@ -75,6 +75,9 @@ that no longer exists:
 | `d7f207f` | Plan text — the sweep: three helpers described but never defined, and Task 11's Files list |
 | `15f39cf` | **Amends Task 11**: `revealCandidate` answers the leaf it revealed, so the write path stops re-deriving it after the `await` |
 | Task 9's own commit | **Amends Task 9's own text** (three lines below, in its section) and records three deviations from it: `ProjectDetailState.vue` is EXTRACTED — `ViewRoot` measured 414 lines with the detail state inline, and `vue-tsc` narrows a template `v-if` for a direct binding but not inside a template arrow function, so every handler needed an assertion the compiler could not check; `onOpenProject`'s list arm is GONE rather than kept, because a row click no longer reaches it and an unreachable branch costs a branch of a floor with about two to spare; and `mountRoot`'s `listPlansByProject` returns a COPY, because the live array the step specified cannot make the creation case pass against a correct build (a `ref` assigned the array it already holds does not re-render — measured both ways) |
+| `bc9b16f` | **Amends Task 9**: `onProjectGone` settles `'gone'` from the command's own authority (`ProjectDetailStore.markGone`) rather than navigating, so the `'gone'` watcher becomes the one door out of the state |
+| `d4f2adc` | **Amends Task 9 again, and supersedes its `'gone'` handling outright** — the improvement pass over the closed slice. The watcher is retired: `setState` records `ViewStateResult.history` for any accepted changed state, so an automatic redirect left the DEAD project on the back stack and Back bounced through it. `'gone'` draws its own screen, the form is retired deliberately, and the notice goes with the redirect. See the amendment block at the head of Task 9 |
+| `92573d1`, `a265207`, `a984239`, `4483bdc`, `b5b6128`, `b73d006` | The rest of the improvement pass, none of it amending a task's contract: `I18N_LITERAL_BAN` widened to `addCommand({ name })` and `addRibbonIcon`'s title with the rule's first instrument; the outer `submitting` guard removed from both creation forms as unreachable; `planEditor.noZones` graded by axe; the double-mount remedy MEASURED (it works only if Obsidian does not await `onOpen`) and the pin that claimed to catch it narrowed; and the sentences the retired redirect left behind |
 
 Task 4's review found its two completed-scan cases byte-identical at the store layer; the
 duplicate is retired and the real discrimination moved to Task 5's Step 6a, where the flag is
@@ -209,7 +212,7 @@ implicitly include this section.
 | `src/presentation/read-models/renovationProjectQueries.ts` | `getProject` and `listPlansByProject` on the interface, the factory and the refusal bundle. |
 | `src/presentation/views/RenovationProjectContext.ts` | Five new `RenovationProjectDeps` members. |
 | `src/presentation/views/RenovationProjectView.ts` | `getState`/`setState`/`sync`/`mount`/`unmount`; `rebind` becomes `unmount(); sync();`. |
-| `src/presentation/views/ViewRoot.vue` | Draws the list or `ProjectDetail` on `context.projectId`. |
+| `src/presentation/views/ViewRoot.vue` | Draws the list or, on `context.projectId`, a `ProjectDetailState.vue` — EXTRACTED rather than inline; see Task 9's own commit row above for why the compiler rather than the line count decided that, and Task 9's amendment for the `'gone'` handling inside it. |
 | `src/presentation/views/ProjectList.vue` | Uses the extracted `statusLabel`. |
 | `src/presentation/emptyStates/content.ts` | `renovationProject.noPlans`, with an `actionLabel`. |
 | `src/presentation/emptyStates/selectors.ts` | `selectProjectDetailEmptyState`. |
@@ -2793,6 +2796,57 @@ The seam where every piece so far meets. `ViewRoot` reads `context.projectId` ON
 - Consumes: everything from Tasks 3–8.
 - Produces: no new exports; four new handlers inside `ViewRoot`.
 
+> ### Amendment (post-execution): `'gone'` DRAWS A SCREEN; nothing redirects
+>
+> **Everything below that navigates on `'gone'` is SUPERSEDED. Do not implement it.** That is
+> the `watch(detailStatus, …)` in Step 3's snippet, the `notifyWarning` + `context.navigate(null)`
+> pair inside `onProjectGone`, the two test snippets that assert those calls, and both of
+> Step 5's mutations. The shipped contract landed in `d4f2adc`, in the improvement pass over
+> this slice.
+>
+> **The watcher was not merely redundant, it produced a defect this task cannot see.**
+> `RenovationProjectView.setState` sets `ViewStateResult.history` for any accepted, CHANGED
+> state and cannot tell a correction from a deliberate navigation — measured, all three of
+> list→project, project→list (the correction) and a back-arrow-shaped restore answer `true`. So
+> the automatic redirect left the DEAD project on Obsidian's back stack: Back restored it, the
+> fresh mount re-read it, found it still gone and bounced forward again. Reported on PR 42 with
+> two candidate patches; the second was taken, on the ground that it removes a mechanism rather
+> than adding one and leaves behind something a gate here can check, where threading a
+> `corrective` flag buys correctness that lives entirely in Obsidian's history semantics.
+>
+> What that changes below, so a worker does not have to diff it out of the prose:
+>
+> - **Delete the `watch(detailStatus, …)` entirely.** `'gone'` is drawn by a `v-else-if` branch
+>   rendering `EmptyState` with `view.project.gone` / `view.project.gone-body` and an action
+>   that calls `context.navigate(null)` — the one navigation on this path, and a deliberate one,
+>   so the history entry Obsidian records for it is one the user asked for.
+> - **`onProjectGone` becomes `detail.markGone()` followed by
+>   `dialogs.resolve(cancelResultFor('form'))`.** The notice is GONE: it resolved
+>   `view.project.gone`, the key the screen's headline resolves, so keeping both said one
+>   sentence twice at once in two surfaces. And the form has to be retired deliberately —
+>   without the redirect there is no remount, so no `DialogHost.onBeforeUnmount` settles it and
+>   it would float over the screen saying its project does not exist. That makes the view a
+>   SECOND caller of `dialogStore.resolve`; both docblocks claiming `DialogHost` was the only
+>   one are rewritten, and the rule survives narrower: no KIND COMPONENT settles.
+> - **The three test snippets change subject.** *"returns to the list AND notifies …"* becomes
+>   *"retires the form and draws the gone screen …"*, asserting a TRIPLE — the dialog is gone,
+>   the screen draws, and `navigate` was NOT called. *"returns to the list when the header's note
+>   turns out to be gone"* and *"navigates back to the list when the project is gone and the scan
+>   has run"* both assert the screen and `navigate` not called; the second merged into
+>   *"draws an actionable gone state instead of navigating out of it"*, which also asserts one
+>   navigation on the action's own click.
+> - **Step 5's two mutations are replaced by three**, because a partial fix here reads exactly
+>   like a complete one: restoring the watcher reddens three cases; dropping ONLY the dialog
+>   resolution reddens the vanished-project case alone; and `viewRootOpenProject.test.ts`'s
+>   `'missing'` case has to be rewritten, since it asserted the redirect from the Open note path.
+> - **`ProjectDetailState.vue` is where all of this lives**, not `ViewRoot.vue` — the extraction
+>   named at the end of Step 3 happened.
+>
+> `src/presentation/views/ProjectDetailState.vue` and
+> `tests/presentation/views/viewRootProjectDetail.test.ts` are the shipped versions and are the
+> thing to read, not this task's snippets. `docs/tasks/21`'s *The improvement pass* section
+> carries the decision, and criteria 4 and 6 are amended there with their earlier wording quoted.
+
 - [ ] **Step 1: Add the empty-state entry Task 9's lookup needs**
 
 **This step moved here from Task 10** because Task 9 is what reads it. `ViewRoot`'s
@@ -2944,6 +2998,10 @@ describe('ViewRoot in the detail state', () => {
 	});
 
 	/**
+	 * SUPERSEDED — see this task's amendment. The shipped case is
+	 * 'retires the form and draws the gone screen when the project vanished while it was open',
+	 * asserting a TRIPLE: the dialog is gone, the screen draws, and `navigate` was NOT called.
+	 *
 	 * Criterion 4's one refusal that cannot be a banner. BOTH halves in one case, deliberately:
 	 * "it navigated" is equally true of the build that tells the user nothing, and "a notice
 	 * appeared" is equally true of the build that strands them in a dead detail state.
@@ -2987,6 +3045,9 @@ describe('ViewRoot in the detail state', () => {
 	 * equally true of the build that leaves the user on a stale screen — which is what an
 	 * earlier draft of this plan specified. Reported by a review bot.
 	 */
+	// SUPERSEDED — see this task's amendment. The shipped case is
+	// 'draws the gone screen when the header’s note turns out to be gone', and it asserts the
+	// screen plus `navigate` NOT called. The re-read and its `ok(null)` are unchanged.
 	it('returns to the list when the header’s note turns out to be gone', async () => {
 		const navigate = vi.fn();
 		let exists = true;
@@ -3004,7 +3065,14 @@ describe('ViewRoot in the detail state', () => {
 		expect(navigate).toHaveBeenCalledWith(null);
 	});
 
-	/** Criterion 6's other arm: the project really is gone, so return to the list. */
+	/**
+	 * SUPERSEDED — see this task's amendment. This merged into the shipped
+	 * 'draws an actionable gone state instead of navigating out of it', which asserts the absent
+	 * loading line, the screen, `navigate` NOT called, and then ONE navigation on the action's
+	 * own click.
+	 *
+	 * Criterion 6's other arm: the project really is gone, so return to the list.
+	 */
 	it('navigates back to the list when the project is gone and the scan has run', async () => {
 		const navigate = vi.fn();
 		mountRoot({ projectId: 'project-1', navigate, getProject: () => Promise.resolve(ok(null)) });
@@ -3192,6 +3260,9 @@ const detailFailureMessage = computed(() =>
 );
 
 /**
+ * SUPERSEDED by this task's amendment — DO NOT IMPLEMENT. `'gone'` draws its own screen and
+ * nothing redirects; the watcher below records a history entry nobody asked for.
+ *
  * `'gone'` is the store saying the scan has run and this project is not in the vault, which
  * is `ProjectOpenOutcome.'missing'`'s answer one level up: return to the list, which re-reads
  * on mount. A `watch` rather than a branch inside `hydrate`, because navigation is a rendering
@@ -3222,6 +3293,11 @@ async function onCreatePlan(projectId: string): Promise<void> {
 			busy: newPlanBusy,
 			logger: context.commands.logger,
 			onProjectGone: () => {
+				// SUPERSEDED by this task's amendment — DO NOT IMPLEMENT. The shipped body is
+				// `detail.markGone()` then `dialogs.resolve(cancelResultFor('form'))`: no
+				// notice (it resolves the key the screen's own headline resolves) and no
+				// navigation (it records a history entry nobody asked for).
+				//
 				// The one refusal that reaches the user through neither of `useFormCommit`'s
 				// doors. A notice rather than a banner because the navigation below destroys
 				// the form the banner would have lived in, and slice 13's queue renders on
@@ -3361,7 +3437,11 @@ extract the detail branch into a `ProjectDetailState.vue` that owns its own stor
 handlers rather than shaving lines.
 
 `view.project.gone` is a new locale key: en `This project no longer exists.`, de
-`Dieses Projekt existiert nicht mehr.`
+`Dieses Projekt existiert nicht mehr.` **It shipped as TWO** — `view.project.gone-body` beside
+it, for the screen this task's amendment describes: en `It may have been deleted or moved out of
+this vault. Go back to the project list.`, de `Es wurde möglicherweise gelöscht oder aus diesem
+Vault verschoben. Gehen Sie zurück zur Projektliste.` The headline is shared between the two
+surfaces it once had; since `d4f2adc` there is only the screen.
 
 - [ ] **Step 4: Run the tests and watch them pass**
 
@@ -3370,6 +3450,12 @@ npx vitest run tests/presentation/views/
 ```
 
 - [ ] **Step 5: Watch two cases fail for the right reason**
+
+**SUPERSEDED by this task's amendment — both mutations below name behaviour that no longer
+exists.** The shipped set is three, and the amendment says why a partial fix here reads exactly
+like a complete one: restore the watcher → three cases red; drop ONLY the dialog resolution →
+the vanished-project case red alone; and `viewRootOpenProject.test.ts`'s `'missing'` case has to
+be rewritten, since it asserted the redirect from the Open note path.
 
 1. Delete the `watch(detailStatus, ...)` → "navigates back to the list when the project is
    gone" goes RED, and "holds the loading line" stays GREEN. Both directions matter.

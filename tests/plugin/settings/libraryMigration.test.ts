@@ -79,7 +79,7 @@ describe('migrateLibraryFolder', () => {
 		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
 
 		expect(isOk(result)).toBe(true);
-		expect(rig.order).toEqual(['move', 'move', 'rebuild', 'persist']);
+		expect(rig.order).toEqual(['rebuild', 'move', 'move', 'rebuild', 'persist']);
 		expect(rig.persistedFolder()).toBe(DESTINATION);
 	});
 
@@ -122,9 +122,15 @@ describe('migrateLibraryFolder', () => {
 
 		expect(isErr(result) && result.error.code).toBe('settings.library-move-failed');
 		expect(rig.persistedFolder()).toBeUndefined();
-		// Not merely "no persist": the rebuild is downstream of the move too, so a partial
-		// move must not re-point the index at a folder half the catalogue never reached.
-		expect(rig.order).not.toContain('rebuild');
+		// Not merely "no persist": the POST-move rebuild is downstream of the move too, so a
+		// partial move must not re-point the index at a folder half the catalogue never
+		// reached. Asserted as the exact sequence rather than as "contains no rebuild", which
+		// stopped discriminating when step 0 put a refresh in front of the move: that spelling
+		// now fails for the refresh and would go on passing if the post-move rebuild came back.
+		// Step 0's refresh and nothing after it. This case overrides `renameFile` without
+		// recording, so a move leaves no entry — the discriminating half is that no SECOND
+		// 'rebuild' appears, which is what a partial move must never produce.
+		expect(rig.order).toEqual(['rebuild']);
 		expect(rig.logged).toHaveLength(1);
 		expect(rig.logged[0].event).toBe('settings.library-move-failed');
 		// The note that DID move, by its destination path, plus the cause that stopped the
@@ -150,6 +156,83 @@ describe('migrateLibraryFolder', () => {
 	 * build it throws before any assertion runs.
 	 */
 	it('resolves a distinct outcome when the rebuild fails after the move', async () => {
+		// Throws on the SECOND call, not on every one: since step 0 refreshes the index before
+		// reading it, an unconditional thrower never reaches the move at all and this case
+		// would silently become a test of `settings.library-refresh-failed` — green, and about
+		// a different arm than its name claims. Measured: that was the first spelling here.
+		//
+		// It WRAPS the harness's own dep rather than replacing it, because the recorder is
+		// private to `harness()`. A hand-rolled `order.push('rebuild')` does not merely fail
+		// to record — `order` is not in scope, so the ReferenceError is caught by step 0's own
+		// catch and reported as a refresh failure, which is a fake manufacturing the very
+		// outcome this case exists to distinguish from.
+		const rig = harness();
+		const refresh = rig.deps.rebuildIndex;
+		let calls = 0;
+		rig.deps.rebuildIndex = (): void => {
+			calls += 1;
+			if (calls === 1) {
+				refresh();
+				return;
+			}
+			throw new Error('the metadata cache is not ready');
+		};
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+		expect(isErr(result) && result.error.code).toBe('settings.library-rebuild-failed');
+		// Persistence is not attempted: the session cannot be told to agree with a vault it
+		// has just failed to read.
+		expect(rig.order).toEqual(['rebuild', 'move', 'move']);
+		expect(rig.persistedFolder()).toBeUndefined();
+		expect(rig.logged).toHaveLength(1);
+		expect(rig.logged[0].event).toBe('settings.library-rebuild-failed');
+		expect(rig.logged[0].context?.cause).toBeInstanceOf(Error);
+	});
+
+	/**
+	 * The defect this step exists for, driven through the one relationship that produces it:
+	 * the enumeration reads the INDEX, and the index is stale until something rebuilds it.
+	 *
+	 * A user renames a folder inside the library and then moves the library in the same
+	 * session. Obsidian reports that rename as a `TFolder`, `RenovationPlannerPlugin` filters
+	 * every vault event to `TFile`, so each DESCENDANT note keeps its old path in the index —
+	 * while the vault file already has its new one. `catalogueNotesIn` intersects the two, so
+	 * the note matches neither side and is silently omitted: the migration moves what is left,
+	 * rebuilds, and persists the destination as a success.
+	 *
+	 * The fake models exactly that dependency and nothing else — `catalogueNotes` answers
+	 * nothing until a rebuild has run, which is what the real closure over the live index
+	 * does. Against a build with no step 0 it returns empty, no note moves, and the migration
+	 * still resolves `ok` having persisted the destination: the assertion on `renamed` is
+	 * what discriminates, and asserting `isOk` alone would pass in both worlds, which is the
+	 * shape this file has already been caught by once.
+	 */
+	it('refreshes the index before enumerating, so a note under a renamed folder still moves', async () => {
+		let refreshed = false;
+		const rig = harness({
+			rebuildIndex: () => {
+				refreshed = true;
+			},
+			catalogueNotes: (from) => (refreshed ? [noteAt(`${from}/Assets/Tiles.md`)] : []),
+		});
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+		expect(isOk(result)).toBe(true);
+		expect(rig.renamed).toEqual([
+			{ from: `${SOURCE}/Assets/Tiles.md`, to: `${DESTINATION}/Assets/Tiles.md` },
+		]);
+		expect(rig.persistedFolder()).toBe(DESTINATION);
+	});
+
+	/**
+	 * Step 0's own failure arm. It is NOT the rebuild row's: that sentence opens "The
+	 * catalogue moved", and here nothing has been renamed at all — asserted on `renamed`
+	 * rather than on the code alone, because a build that refused with the right code after
+	 * moving half the catalogue would satisfy the code assertion and be the worse outcome.
+	 */
+	it('refuses without moving anything when the pre-move refresh fails', async () => {
 		const rig = harness({
 			rebuildIndex: () => {
 				throw new Error('the metadata cache is not ready');
@@ -158,13 +241,12 @@ describe('migrateLibraryFolder', () => {
 
 		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
 
-		expect(isErr(result) && result.error.code).toBe('settings.library-rebuild-failed');
-		// Persistence is not attempted: the session cannot be told to agree with a vault it
-		// has just failed to read.
-		expect(rig.order).toEqual(['move', 'move']);
+		expect(isErr(result) && result.error.code).toBe('settings.library-refresh-failed');
+		expect(rig.renamed).toEqual([]);
+		expect(rig.order).toEqual([]);
 		expect(rig.persistedFolder()).toBeUndefined();
 		expect(rig.logged).toHaveLength(1);
-		expect(rig.logged[0].event).toBe('settings.library-rebuild-failed');
+		expect(rig.logged[0].event).toBe('settings.library-refresh-failed');
 		expect(rig.logged[0].context?.cause).toBeInstanceOf(Error);
 	});
 
@@ -180,7 +262,7 @@ describe('migrateLibraryFolder', () => {
 
 		// It RESOLVES a failed Result rather than rejecting — the declared contract.
 		expect(isErr(result) && result.error.code).toBe('settings.library-persist-failed');
-		expect(rig.order).toEqual(['move', 'move', 'rebuild']);
+		expect(rig.order).toEqual(['rebuild', 'move', 'move', 'rebuild']);
 		expect(rig.logged.map((line) => line.event)).toEqual(['settings.library-persist-failed']);
 	});
 
@@ -417,7 +499,8 @@ it('moves an empty library when the source folder does not exist at all', async 
 
 	expect(isOk(result)).toBe(true);
 	expect(rig.renamed).toEqual([]);
-	expect(rig.order).toEqual(['rebuild', 'persist']);
+	// Two rebuilds and no move: step 0's refresh, then step 5's, with nothing to relocate.
+	expect(rig.order).toEqual(['rebuild', 'rebuild', 'persist']);
 	expect(rig.persistedFolder()).toBe(DESTINATION);
 });
 

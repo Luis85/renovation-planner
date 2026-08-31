@@ -165,6 +165,16 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.validation',
 		'plugin/settings/libraryMigration.ts',
 	],
+	// Step 0's REFRESH failure, minted rather than folded into the rebuild row below for the
+	// reason that row gives about the persist one: both are the same operation failing, and
+	// the rebuild sentence opens "The catalogue moved" — false here, where the refusal fires
+	// before a single rename. The recovery differs with it: a retry may simply work.
+	[
+		'settings.library-refresh-failed',
+		'Persistence',
+		'error.category.persistence',
+		'plugin/settings/libraryMigration.ts',
+	],
 	['settings.library-move-failed', 'Persistence', 'error.category.persistence', 'plugin/settings/libraryMigration.ts'],
 	// The REBUILD failure, minted rather than folded into the persist row below. Both leave the
 	// notes at the destination and the setting naming the source, but the persist sentence says

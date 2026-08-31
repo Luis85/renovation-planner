@@ -46,7 +46,7 @@ export interface LibraryMigrationDeps {
 }
 
 /**
- * Validate, move, rebuild, and persist LAST.
+ * Refresh, validate, move, rebuild, and persist LAST.
  *
  * The order is the whole point — persisting first leaves every project resolving an empty
  * library while the notes sit at the old path, which is a catalogue split in two rather
@@ -83,6 +83,41 @@ export async function migrateLibraryFolder(
 	}
 	const destination = normalizeFolder(to);
 	const source = normalizeFolder(from);
+
+	// 0. Refresh the index before ANY question is asked of it, because both of the questions
+	// below are asked of it and a stale answer to either moves files.
+	//
+	// `RenovationPlannerPlugin` filters every vault event to `TFile`, so the `TFolder`
+	// Obsidian reports for a folder rename is dropped and the index keeps each DESCENDANT
+	// note at its old path until the next full rebuild. That filter is pre-existing and
+	// global — every index consumer inherits it — and this step does not close it. What it
+	// closes is the two places THIS function would otherwise act on the stale answer:
+	//
+	// - `catalogueNotes(source)` intersects index paths with live `TFile` paths, so a
+	//   descendant of a renamed folder matches NEITHER and is silently omitted. The
+	//   migration then moves the rest, rebuilds, and persists the destination as a success:
+	//   a move that relocates too FEW notes raises nothing, which is the hazard
+	//   `catalogueNotesIn`'s own docblock names for a different cause.
+	// - `projectFolders()` derives each project's folder from where its note sits
+	//   (ADR-0013), through the same index — so step 3's §83 overlap check would be
+	//   adjudicating against folders that have moved, and could permit a destination that
+	//   really does overlap a project folder.
+	//
+	// It is a second full scan on a rare, user-initiated, explicitly-confirmed operation,
+	// which is the cheapest possible price for both. It gets its OWN code rather than
+	// sharing step 5's: that sentence opens "The catalogue moved to …", and nothing has
+	// moved here — the remedy differs too, since a retry is exactly what may work.
+	try {
+		deps.rebuildIndex();
+	} catch (cause) {
+		deps.logger.error('settings.library-refresh-failed', { source, destination, cause });
+		return err({
+			category: 'Persistence',
+			code: 'settings.library-refresh-failed',
+			message: `The project index could not be refreshed, so nothing was moved and the setting was not changed.`,
+			cause,
+		});
+	}
 
 	// 1. A source the vault does not hold at the SPELLING the setting names, while holding a
 	// folder that differs from it only in case.

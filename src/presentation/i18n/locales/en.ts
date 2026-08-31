@@ -267,6 +267,12 @@ export const en = {
 	'settings.library-overlaps-source': 'That folder overlaps the current library folder.',
 	'settings.library-source-case-mismatch':
 		'The library folder does not exist at the spelling this setting names, though a similarly named folder does. Rename that folder to match before moving.',
+	// The REFRESH failure is step 0's, and its sentence is the only one in this group that
+	// says nothing moved. Sharing the rebuild sentence below would have opened with "The
+	// catalogue moved" about a migration that had not started, and its remedy differs: a
+	// retry is exactly what may work here.
+	'settings.library-refresh-failed':
+		'The app could not catch up with the vault, so nothing was moved and the setting was not changed. Try again, or reload Obsidian.',
 	'settings.library-move-failed': 'The library could not be moved, so the setting was not changed.',
 	'settings.library-rebuild-failed':
 		'The catalogue moved, but the app could not catch up with the change. Reload Obsidian, then set the library folder to the new location.',

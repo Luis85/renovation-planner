@@ -215,6 +215,10 @@ function equipVault(plugin: RenovationPlannerPlugin, equipment: VaultEquipment):
 	const folders = ['Renovation/Library', ...(equipment.folders ?? [])];
 	vault.getAllFolders = (): { path: string }[] => folders.map((path) => ({ path }));
 	vault.getFiles = (): { path: string }[] => (equipment.files ?? []).map((path) => ({ path }));
+	// The index scan enumerates `getMarkdownFiles()` while `catalogueNotesIn` is handed
+	// `getFiles()` — two different doors onto the same notes, and stubbing only the second
+	// left every rebuild scanning an empty vault.
+	vault.getMarkdownFiles = (): { path: string }[] => (equipment.files ?? []).map((path) => ({ path }));
 	vault.createFolder = (): Promise<void> => Promise.resolve();
 	(plugin.app.fileManager as unknown as Record<string, unknown>).renameFile =
 		equipment.renameFile ??
@@ -226,9 +230,25 @@ function equipVault(plugin: RenovationPlannerPlugin, equipment: VaultEquipment):
 	// `catalogueNotesIn`, which asks the index first so that a project filed under the library
 	// is not swept into the destination. A fixture that planted files without indexing them
 	// would enumerate nothing, and every move case here would pass over an empty catalogue.
-	for (const [position, path] of (equipment.files ?? []).entries()) {
-		plugin.root.persistence?.index.upsert({ id: `a${position}` as never, type: 'renovation-asset', path });
-	}
+	//
+	// Seeded through the METADATA CACHE rather than by upserting into the live index, because
+	// the migration's step 0 refreshes the index before reading it and a refresh re-composes
+	// the whole persistence stack (`rebuildProjectIndex` → `startPersistence`). A hand-upserted
+	// entry does not survive that, so the direct spelling made three move cases enumerate an
+	// empty catalogue and move nothing. This is the route production takes — the scan reads
+	// `getFiles()` and asks the cache for each note's frontmatter — so the fixture is now
+	// modelling the mechanism instead of short-circuiting it, and a rebuild at any point in
+	// the migration re-derives exactly what a real vault would.
+	const frontmatter = new Map(
+		(equipment.files ?? []).map((path, position) => [path, { type: 'renovation-asset', id: `a${position}` }]),
+	);
+	(plugin.app.metadataCache as unknown as Record<string, unknown>).getFileCache = (file: {
+		path: string;
+	}): { frontmatter?: Record<string, unknown> } | null => {
+		const found = frontmatter.get(file.path);
+		return found === undefined ? null : { frontmatter: found };
+	};
+	plugin.rebuildProjectIndex();
 	return { renamed };
 }
 

@@ -27,6 +27,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-overlaps-source': 'Dieser Ordner überlappt den aktuellen Bibliotheksordner.',
 	'settings.library-source-case-mismatch':
 		'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
+	'settings.library-refresh-failed':
+		'Die App konnte den Vault nicht einlesen. Es wurde nichts verschoben und die Einstellung wurde nicht geändert. Bitte erneut versuchen oder Obsidian neu laden.',
 	'settings.library-move-failed':
 		'Die Bibliothek konnte nicht verschoben werden, die Einstellung wurde nicht geändert.',
 	'settings.library-rebuild-failed':

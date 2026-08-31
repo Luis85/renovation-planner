@@ -298,8 +298,29 @@ the mutation printed.
   (`renovationProjectView.test.ts` asserts the mounted list as `[null, 'project-01JAAA']`)
   rather than fixed. `setState` before `onOpen` is closed by an `opened` flag; the other
   ordering needs a deferred, coalescing mount, which turns a synchronous mount asynchronous
-  for every caller and every case in that file. That is an increment with its own argument.
-  A build that starts coalescing fails at that assertion and has to come and say so.
+  for every caller and every case in that file.
+
+  **The improvement pass measured the remedy rather than taking it, and the measurement is why
+  it is still not taken.** Deferring `onOpen`'s mount by one microtask and returning that
+  promise collapses the pair to `['project-01JAAA']` when the caller does NOT await `onOpen`,
+  and leaves it at `[null, 'project-01JAAA']` when it does. So the cheap fix's entire benefit
+  rests on a fact about the HOST: whether Obsidian awaits `onOpen` before calling `setState`.
+  If it awaits, no deferral inside `onOpen` helps and the change is pure cost — a first mount
+  that is asynchronous for every caller, bought for nothing.
+
+  That turns this from an increment with a design argument into one whose FIRST task is a
+  measurement, and the measurement is not available anywhere this repository can reach:
+  `FakeLeaf` records asks rather than behaving, and an eye in a vault cannot settle it either
+  — a visible flash of the list before the project says which ORDERING happens, never whether
+  the host awaited. Reading Obsidian's own view-loading sequence, or instrumenting `onOpen`
+  and `setState` with log lines in a real vault, is what would.
+
+  **And the pin promises more than it delivers, which is the second half of the finding.**
+  Its docblock said "a build that starts coalescing must fail HERE"; measured, the microtask
+  variant passes all 31 cases in that file with the coalescing live in one of the two call
+  shapes. It catches a fix that defers past the case's own `await view.onOpen()` and no other.
+  The docblock now says that, because a pin on a fix nobody has written is a pin on the shape
+  its author imagined.
 - ~~**A command's `name:` literal is caught by no gate.**~~ **Closed by the improvement
   pass.** The deferral's own reason was wrong and re-measuring is what showed it: widening
   "touches every existing call site's evidence" — it touches none. All five `addCommand` calls

@@ -2188,11 +2188,23 @@ which is the shape to expect from the next one too:
   (`projectId` is still `null` then) and there is nothing left to defer. The real remedy is a
   deferred, coalescing mount, which turns a synchronous mount asynchronous for every caller and
   every case in that file — an increment with its own argument, not a review-round line. So the
-  surviving double mount is pinned as `[null, 'project-01JAAA']`, and a build that starts
-  coalescing fails there and has to come and say so. **The lesson is the reply, not the
-  defect:** the fix was announced on the pull request from the SHAPE of the flag, and measuring
-  it produced exactly that failing pair — this branch's own recurring defect, committed in a
-  review reply about it.
+  surviving double mount is pinned as `[null, 'project-01JAAA']`. **The lesson is the reply, not
+  the defect:** the fix was announced on the pull request from the SHAPE of the flag, and
+  measuring it produced exactly that failing pair — this branch's own recurring defect,
+  committed in a review reply about it.
+
+  **The improvement pass then measured the remedy itself, and both halves of the sentence above
+  had to be narrowed.** Deferring `onOpen`'s mount by one microtask and returning that promise
+  collapses the pair to `['project-01JAAA']` when the caller does NOT await `onOpen`, and leaves
+  it at `[null, 'project-01JAAA']` when it does. So the fix's entire benefit rests on whether
+  Obsidian awaits `onOpen` before calling `setState` — which `FakeLeaf` cannot answer, no gate
+  here can see, and an eye in a vault cannot either: the visible flash says which ORDERING
+  happens, never whether the host awaited. That is the increment's first task and it is a
+  MEASUREMENT rather than a design decision, which is not what "an increment with its own
+  argument" implied. And the pin promises more than it delivers: "a build that starts coalescing
+  fails there" is true only of a fix that defers past the await — the microtask variant passes
+  the whole file, 31 cases, with the coalescing live in one of the two call shapes. A pin on a
+  fix nobody has written yet is a pin on the shape its author imagined.
 - **An automatic redirect records a history entry nobody asked for, so the `'gone'` watcher is
   retired.** `ProjectDetailState` used to `watch(status)` and navigate to the list on `'gone'`;
   `setState` sets `ViewStateResult.history` for any accepted CHANGED state and cannot tell a

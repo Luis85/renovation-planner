@@ -432,8 +432,18 @@ describe('the list and detail states', () => {
 	 * case in this file. That is a change worth its own increment and its own argument, not a
 	 * drive-by inside a review round; `docs/tasks/21` carries it.
 	 *
-	 * Asserted as `[null, 'project-01JAAA']` deliberately: a build that starts coalescing must
-	 * fail HERE and be made to say so, rather than quietly satisfying a weaker assertion.
+	 * Asserted as `[null, 'project-01JAAA']` deliberately, and **read that promise narrowly**:
+	 * it catches a fix that defers the mount past this case's own `await view.onOpen()`, and it
+	 * does NOT catch one that defers by a microtask inside `onOpen` and returns that promise.
+	 * Measured rather than reasoned — under that variant this file's 31 cases all pass, while
+	 * the same two calls made WITHOUT awaiting `onOpen` collapse to `['project-01JAAA']`.
+	 *
+	 * Which is the more useful finding, and it belongs to the increment rather than to this
+	 * case: the cheap remedy's whole benefit depends on whether Obsidian awaits `onOpen` before
+	 * calling `setState`. If it awaits, no deferral inside `onOpen` helps at all and the fix is
+	 * pure cost. `FakeLeaf` cannot answer that, and neither can an eye in a vault — a visible
+	 * flash says which ORDERING happens, never whether the host awaited. `docs/tasks/21` carries
+	 * it as a measurement to take rather than as a design to argue.
 	 */
 	it('still mounts the list first when onOpen precedes setState', async () => {
 		const mounted: (string | null)[] = [];

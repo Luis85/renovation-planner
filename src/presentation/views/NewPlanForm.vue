@@ -196,12 +196,21 @@ async function focusFirstInvalidControl(): Promise<void> {
  * navigates: it emits, and `ViewRoot` owns both halves.
  */
 async function onSubmit(): Promise<void> {
-	// The press the `aria-disabled` submit button announces as refused, actually refused.
-	// `form.submit()` drops a second concurrent submit on its own, so this is not what keeps
-	// one form from creating two plans — it is what keeps a refused press from ALSO running
-	// the focus move, which would drag the keyboard onto whichever control still carries an
-	// error from the submit currently in flight.
-	if (form.submitting.value) return;
+	// **No `if (form.submitting.value) return;` here, and its absence is measured rather than
+	// assumed.** This form carried one under a comment saying it kept a refused press from ALSO
+	// running the focus move, "which would drag the keyboard onto whichever control still
+	// carries an error from the submit currently in flight". That scenario cannot occur:
+	// `useFormCommit.submit` clears `fieldErrors` BEFORE it sets `submitting`, and
+	// `focusFirstInvalidControl` awaits `nextTick` and re-queries, so a refused press finds no
+	// `aria-invalid` control to move to. Driven exactly as the comment described — a first press
+	// refused with a field error, a second that hangs, a third refused mid-flight — focus stayed
+	// on the button and the in-flight count of errored controls was 0, with the guard and
+	// without it. `form.submit()` is what drops the press itself, which is what keeps one form
+	// from creating two plans.
+	//
+	// `newPlanForm.test.ts` pins the mechanism that makes the removal safe rather than the line
+	// that claimed to, and it discriminates: move that clear after the dispatch and the case
+	// goes red.
 	projectGone.value = false;
 	if (await form.submit()) {
 		emit('submit', form.values.value);

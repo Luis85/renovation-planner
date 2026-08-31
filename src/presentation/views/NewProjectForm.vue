@@ -252,12 +252,14 @@ async function focusFirstInvalidControl(): Promise<void> {
  * nothing, focus stays where the user left it, and `role="alert"` is what announces.
  */
 async function onSubmit(): Promise<void> {
-	// The press the `aria-disabled` submit button below announces as refused, actually refused.
-	// `form.submit()` drops a second concurrent submit on its own, so this is not what keeps
-	// one form from creating two projects — it is what keeps a refused press from ALSO running
-	// the focus move, which would drag the keyboard to whichever control still carries an error
-	// from the submit that is currently in flight.
-	if (form.submitting.value) return;
+	// **No `if (form.submitting.value) return;` here**, for the reason `NewPlanForm.onSubmit`
+	// states at length and measured on both: `useFormCommit.submit` clears `fieldErrors` before
+	// it sets `submitting`, and `focusFirstInvalidControl` awaits `nextTick` and re-queries, so
+	// the focus move a refused press would run finds no `aria-invalid` control. Removed from
+	// both forms in one edit rather than from the one it was reported against — the comment was
+	// identical in both, so fixing one would have left the same false claim standing next door.
+	// `form.submit()` drops the concurrent press itself, which is what keeps one form from
+	// creating two projects.
 	if (await form.submit()) {
 		emit('submit', form.values.value);
 		return;

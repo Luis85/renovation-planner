@@ -112,6 +112,66 @@ describe('NewPlanForm', () => {
 		expect(wrapper.get('[data-field="name"]').attributes('aria-invalid')).toBeUndefined();
 	});
 
+	/**
+	 * **What actually keeps a refused press from moving the keyboard, measured after the
+	 * `onSubmit` guard that claimed to was removed.**
+	 *
+	 * Both creation forms carried `if (form.submitting.value) return;` above their submit, under
+	 * a comment saying it "keeps a refused press from ALSO running the focus move, which would
+	 * drag the keyboard onto whichever control still carries an error from the submit currently
+	 * in flight". That scenario cannot occur: `useFormCommit.submit` clears `fieldErrors` BEFORE
+	 * it sets `submitting`, and `focusFirstInvalidControl` awaits `nextTick` and re-queries — so
+	 * by the time a refused press could look, no control carries `aria-invalid` at all. Measured
+	 * with the guard and without it, driving exactly the scenario the comment describes: focus
+	 * stayed on the button and the in-flight `aria-invalid` count was 0 in both builds.
+	 *
+	 * So this case pins the MECHANISM rather than the removed line, and it discriminates: move
+	 * the clear in `use-form-commit.ts` to after the dispatch and the second press finds the
+	 * first submit's error still rendered and focuses the input. Watched red that way.
+	 *
+	 * `NewProjectForm` carries the identical mechanism and the identical removal;
+	 * `newProjectForm.test.ts`'s own in-flight case asserts the same focus and had credited the
+	 * guard for it in a comment while passing without it.
+	 */
+	it('moves focus nowhere on a press refused mid-write, even after an earlier field error', async () => {
+		// A definite assignment, this repository's house spelling: a local assigned inside a
+		// callback narrows to `null` at every later read, which `npm run build` reports as
+		// `TS2349: Type 'never' has no call signatures`. Measured here, not remembered.
+		let hang!: (result: Result<{ plan: Loaded<Plan> }, AppError>) => void;
+		let call = 0;
+		const dispatch = vi.fn<Dispatch>(() => {
+			call += 1;
+			// The first press REFUSES with a field error, so the name control really does carry
+			// `aria-invalid` before the in-flight window opens — without that, this case would be
+			// asking its question of a form that has no errored control to find.
+			if (call === 1) return Promise.resolve(err(refusal('Domain', 'plan.empty-name')));
+			return new Promise((resolve) => {
+				hang = resolve;
+			});
+		});
+		const wrapper = mount(NewPlanForm, {
+			attachTo: document.body,
+			props: { projectId: PROJECT_ID, dispatch, logger: recorder },
+		});
+
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+		expect(wrapper.findAll('[aria-invalid="true"]')).toHaveLength(1);
+
+		const submit = wrapper.get('button[type="submit"]');
+		(submit.element as HTMLButtonElement).focus();
+		// The second press opens the in-flight window; the third is the refused one.
+		await wrapper.get('form').trigger('submit');
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(document.activeElement).toBe(submit.element);
+		expect(dispatch).toHaveBeenCalledTimes(2);
+		hang(ok(created()));
+		await flushPromises();
+		wrapper.unmount();
+	});
+
 	/** A repeated submit is ONE intent pressed twice, so the second is DROPPED. */
 	it('drops a second submit while the first is in flight', async () => {
 		const { dispatch, release } = deferredDispatch();

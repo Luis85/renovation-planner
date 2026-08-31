@@ -299,12 +299,21 @@ the mutation printed.
   Obsidian's own registration API — the two user-visible strings that go through no DOM helper
   and were therefore unreachable from the other four. `id` is deliberately not covered: a
   command id is data a user's hotkey binds to. See the improvement-pass section above.
-- **`NewPlanForm.onSubmit`'s own `submitting` guard is a second, local statement of a refusal
-  `useFormCommit` already makes**, kept for the narrower reason its comment gives: a refused
-  press must not also run the focus move onto a control carrying the in-flight submit's error.
-  Whether that second path is reachable at all was raised on this branch and is NOT settled
-  here — it needs a case that fails without the guard, and there is none. Carried into the
-  whole-branch review rather than removed on a reading.
+- ~~**`NewPlanForm.onSubmit`'s own `submitting` guard**~~ **— settled by the improvement pass,
+  and the answer is that its stated reason was false.** The guard claimed to keep a refused
+  press from running the focus move "onto whichever control still carries an error from the
+  submit currently in flight". Driven exactly as written — a first press refused with a field
+  error, a second that hangs, a third refused mid-flight — focus stayed on the button and the
+  in-flight count of `aria-invalid` controls was **0**, with the guard and without it:
+  `useFormCommit.submit` clears `fieldErrors` BEFORE it sets `submitting`, and
+  `focusFirstInvalidControl` awaits `nextTick` and re-queries, so there is nothing to land on.
+  Removed from `NewPlanForm` AND from `NewProjectForm`, because the comment was identical in
+  both and fixing the one it was reported against would have left the same false claim next
+  door. `newPlanForm.test.ts` now pins the MECHANISM instead of the line, and it discriminates:
+  moving that clear to after the dispatch turns it red, with focus landing on the input — the
+  exact harm the guard was written for, reachable only once the thing that really prevents it
+  is broken. `newProjectForm.test.ts`'s in-flight case had credited the guard in a comment
+  while passing without it, and now says what holds it.
 - **The detail state's layout was captured for the first time in Task 13**, and the two
   capture-only defects it found are fixed in the same commit: a back control whose two
   declarations against stretching could neither of them work (`flex-basis` is the main size

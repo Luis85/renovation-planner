@@ -40,6 +40,27 @@ describe('ProjectDetail', () => {
 	 * PLACE of this component would fail criteria 5 and 11 on the most common detail state
 	 * there is. Reported by a review bot against the plan.
 	 */
+	/**
+	 * **The heading LEVEL, in the branch a just-created project always lands in.** Task 7 added
+	 * a heading-order case for the POPULATED branch — `Plans` is an `<h3>` under the project's
+	 * `<h2>` — and the empty branch was left drawing `EmptyState`'s hard-coded `<h2>`, which
+	 * announces "No plans yet" as a PEER of the project rather than as content of its plans
+	 * region. A check written for the case its author had in mind, with the defect in the one
+	 * beside it; reported by a review bot.
+	 *
+	 * Asserted as the TAG rather than through an axe scan on purpose: Task 10's scan would
+	 * catch it, three tasks later, as a heading-order violation whose cause is in this
+	 * component. The tag is the smaller, closer question.
+	 */
+	it('gives the no-plans empty state the plans subsection heading level', () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [], emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+		});
+
+		expect(wrapper.get('.rp-empty-state__headline').element.tagName).toBe('H3');
+		expect(wrapper.get('.rp-project-detail__name').element.tagName).toBe('H2');
+	});
+
 	it('keeps back and open note when the project has no plans', () => {
 		const wrapper = mount(ProjectDetail, {
 			props: { project: PROJECT, plans: [], emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },

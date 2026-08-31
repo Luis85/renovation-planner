@@ -3,9 +3,16 @@
  * One project (design slice 21): who it is, a way back, a way to its own note, and its plans.
  *
  * It draws only what it is given and emits intents — the row/emit division `ProjectList`
- * already states. `openNote` is a SECONDARY action rather than the row's behaviour: the row
- * navigates now, and `Project.md` stays reachable because the plugin would otherwise have no
- * route to a project's own metadata.
+ * already states. `openNote` is a SECONDARY action rather than the row's behaviour, which is
+ * what design slice 21 is for: criterion 1 replaces the project row's open-the-note behaviour
+ * with navigation into this state, and `Project.md` then stays reachable from here because the
+ * plugin would otherwise have no route to a project's own metadata.
+ *
+ * **Task 8 is what makes that true of the row, and it has not landed as this file is written.**
+ * `ViewRoot` still routes a row click to `context.openProject`. The sentence above used to say
+ * "the row navigates now", which was a claim about a commit that did not exist — this
+ * repository's own "write the guarantee to the check, never ahead of it", broken in a docblock
+ * describing the very change that would make it true. Found by this task's reviewer.
  *
  * The status reuses the shared `statusLabel`, which moved out of `ProjectList.vue` at this
  * second consumer.
@@ -55,9 +62,16 @@ defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []
 				{{ tr('view.project.open-note') }}
 			</button>
 		</div>
+		<!--
+			`heading-level="3"` because this empty state is EMBEDDED in the plans region rather
+			than replacing the view: the project's own name above is an `<h2>`, and the populated
+			branch gives `Plans` an `<h3>`, so the empty branch has to sit at the same level or a
+			just-created project announces "No plans yet" as a peer of the project itself.
+		-->
 		<EmptyState
 			v-if="emptyState !== null"
 			v-bind="emptyState"
+			:heading-level="3"
 			@action="$emit('createPlan')"
 		/>
 		<PlanList

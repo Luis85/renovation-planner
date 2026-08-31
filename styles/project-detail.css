@@ -9,9 +9,20 @@
  * Every colour is an Obsidian variable (SDD §84) — the build refuses a literal, including a
  * bare word like `red`, so a themed vault stays themed.
  */
+/*
+ * `flex: 1` is what makes this a SHELL rather than a block that happens to be at the top of the
+ * pane. `.renovation-planner-view` is a column flexbox of `height: 100%`, and a flex item
+ * defaults to `flex: 0 1 auto` — intrinsic height — so without this the detail state occupied
+ * only as much of the leaf as its content needed. The visible cost was the no-plans state:
+ * `.rp-empty-state` asks for `flex: 1` and there was no free height for it to claim, so the one
+ * screen every just-created project lands on drew its panel jammed under the header instead of
+ * centred in the pane. Reported by a review bot; jsdom lays nothing out, so no test here could
+ * have seen it, and the pinned Chromium is absent from this container so no capture could either.
+ */
 .rp-project-detail {
 	display: flex;
 	flex-direction: column;
+	flex: 1;
 	min-height: 0;
 }
 
@@ -103,9 +114,25 @@
 	outline-offset: 2px;
 }
 
+/*
+ * The list scrolls and the header does not. `PlanList` is a FRAGMENT — its header `div` and
+ * this `ul` are both direct children of `.rp-project-detail` — so giving the `ul` alone the
+ * free height is what pins `Plans` and its `New plan` button in place while the rows move
+ * under them. `min-height: 0` is the half that is easy to omit: a flex item's default minimum
+ * is its content, so `overflow-y` on its own would be inert and the shell would grow instead.
+ *
+ * `.rp-project-list` has no equivalent and can still grow its own pane. That is a pre-existing
+ * shape rather than something this slice introduced, and it is left alone deliberately: it is
+ * a different component on a different surface, and changing how an existing pane scrolls is
+ * not a change to make blind — the pinned Chromium is absent here, so neither could be looked
+ * at. Written down rather than fixed in passing.
+ */
 .rp-plan-list {
 	margin: 0;
 	padding: 0;
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
 	list-style: none;
 }
 

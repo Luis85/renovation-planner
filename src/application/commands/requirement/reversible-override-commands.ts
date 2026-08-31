@@ -1,5 +1,5 @@
+import type { DispatchResult } from '../DispatchOutcome';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
-import type { DispatchOutcome } from '../DispatchOutcome';
 import type { AppError } from '../../../core/errors/AppError';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
@@ -56,7 +56,7 @@ abstract class ReversibleOverrideBase<TInput> {
 		Result<{ requirement: Requirement; version: EntityVersion }, AppError>
 	>;
 
-	async execute(input: TInput): Promise<Result<DispatchOutcome, AppError>> {
+	async execute(input: TInput): Promise<DispatchResult> {
 		if (!this.snapshot) {
 			const before = await this.requirements.getById(this.requirementIdOf(input));
 			if (isErr(before)) return err(before.error);
@@ -79,7 +79,7 @@ abstract class ReversibleOverrideBase<TInput> {
 		return ok('wrote');
 	}
 
-	async undo(): Promise<Result<DispatchOutcome, AppError>> {
+	async undo(): Promise<DispatchResult> {
 		const captured = this.snapshot;
 		if (!captured) {
 			return err({ category: 'Domain', code: 'undo.before-execute', message: 'Nothing to undo yet.' });

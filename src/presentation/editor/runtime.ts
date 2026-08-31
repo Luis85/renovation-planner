@@ -2,11 +2,9 @@ import { inject, provide, reactive, ref, watch, type InjectionKey, type Ref } fr
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
-import type { DispatchOutcome, DispatchResult } from '../../application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import { createInspector } from './inspector-wiring';
-import type { AppError } from '../../core/errors/AppError';
 import type { Logger } from '../../application/ports/Logger';
-import type { Result } from '../../core/result/Result';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
@@ -322,7 +320,7 @@ function watchAssetOptions(
 function createDeleteZoneAction(
 	context: PlanEditorContext,
 	dialogs: ReturnType<typeof useDialogStore>,
-	inspector: { commit(edit: InspectorEdit): Promise<Result<DispatchOutcome, AppError>> },
+	inspector: { commit(edit: InspectorEdit): Promise<DispatchResult> },
 	selection: ReturnType<typeof useSelectionStore>,
 ): (zoneId: ZoneId, zoneName: string) => Promise<void> {
 	const deps: DeleteZoneFlowDeps = {

@@ -8,6 +8,7 @@ import { createApp } from 'vue';
 import { reseedFixture, seedFixture, harnessEditorContext } from './fixture';
 import { DialogStackingError, useDialogStore } from '../../src/presentation/dialogs/dialog-store';
 import { settle } from '../helpers/editor';
+import { toPosix } from '../helpers/posix';
 import {
 	PLAN_EDITOR_CONTEXT,
 	usePlanEditorContext,
@@ -119,7 +120,7 @@ describe('the harness fixture', () => {
 			.filter((file) => readFileSync(file, 'utf8').includes('.inspectorDto'))
 			// Posix-normalized before the comparison below: `path.join` above emits `\` on the
 			// Windows CI leg, and this assertion names a literal path.
-			.map((file) => file.replaceAll(path.sep, '/'));
+			.map((file) => toPosix(file));
 
 		expect(readers).toEqual(['src/presentation/editor/shell/InspectorPanel.vue']);
 	});

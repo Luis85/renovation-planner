@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { isPlantedProbe, plantedProbePath } from '../helpers/plantedProbe';
-
-const REPO = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+import { REPO } from '../helpers/repo';
 
 /**
  * The exclusion three files depend on, asked of itself.

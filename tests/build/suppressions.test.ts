@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ESLINT_BOOT_MS, resolveConfig, warmUpEslint } from '../helpers/eslint';
-import { REPO, lintOne, lintedFiles } from '../helpers/oxlint';
+import { lintOne, lintedFiles } from '../helpers/oxlint';
+import { REPO } from '../helpers/repo';
 
 // The ESLint boot, paid once here rather than by whichever test ran first — see
 // ESLINT_BOOT_MS in tests/helpers/eslint.ts for the measurement.

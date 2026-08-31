@@ -365,6 +365,40 @@ it('leaves an asset filed outside the library where it is', async () => {
 });
 
 /**
+ * A library configured at the vault ROOT — reachable through a hand-edited `data.json`,
+ * since `folderFrom` refuses an empty string but accepts `"/"`.
+ *
+ * A review bot read the enumeration and reported a silent success here: `catalogueNotesIn`
+ * builds a `${folder}/` prefix, which for the root is `'/'` (or `'//'` through the real
+ * `normalizePath`), and no Obsidian path carries a leading slash — so no catalogue note
+ * would match, and the migration would persist the destination having moved nothing.
+ *
+ * The prefix arithmetic is exactly as described. **The consequence is not reachable**, and
+ * this case is what says so rather than a comment: `foldersOverlap` treats the root as
+ * containing every folder, so the destination-overlaps-source refusal fires FIRST, at every
+ * destination there is. `deps.catalogueNotes` is never called, and `catalogueNotesIn` has no
+ * other production caller.
+ *
+ * So the honest state is a REFUSAL, not a silent success — and the cost is that a root
+ * library can never be moved anywhere, which this case also pins. Guarding the enumeration
+ * against a folder it cannot receive would be a branch nothing can drive, against a coverage
+ * budget of about two.
+ */
+it('refuses to move a library configured at the vault root, rather than silently moving nothing', async () => {
+	const files = [noteAt('Assets/Tiles.md')];
+	const persistence = stackOver([entry('a1', 'renovation-asset', 'Assets/Tiles.md')]);
+	const rig = harness({ catalogueNotes: (from) => catalogueNotesIn(persistence, files, from) });
+
+	const result = await migrateLibraryFolder(rig.deps, '/', DESTINATION);
+
+	// The refusal, not the no-op: asserted on the CODE, because "moved nothing" is equally
+	// true of the silent success the report describes.
+	expect(isErr(result) && result.error.code).toBe('settings.library-overlaps-source');
+	expect(rig.renamed).toEqual([]);
+	expect(rig.persistedFolder()).toBeUndefined();
+});
+
+/**
  * The commonest path of all, and the one a blunt existence check breaks: a fresh vault.
  *
  * The default `Renovation/Library` is created LAZILY, by the asset repository, on the first

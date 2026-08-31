@@ -5,6 +5,7 @@ import { ok } from '../../../src/core/result/Result';
 import { fakeQueries, mountPlanEditor, settle, settleUntil as until } from '../../helpers/editor';
 import { click, rig, toolbarButton } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
+import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
 import { makeAsset } from '../../helpers/entities';
 
 /**
@@ -82,6 +83,55 @@ describe('the assign picker options', () => {
 		harness.changeCatalogue();
 		await settle();
 		expect(reads).toBe(2);
+	});
+
+	/**
+	 * A BURST collapses into one further read, and the burst is not hypothetical: a library
+	 * migration renames every catalogue note one at a time, `VaultChangeAdapter.onRename`
+	 * upserts each one and announces `ProjectIndexEntryChanged`, and this source subscribes to
+	 * exactly that filtered to `renovation-asset`. So moving N assets fired N vault-wide
+	 * `listAll()` scans in every open editor — quadratic read work for a change of paths.
+	 *
+	 * A regression introduced by giving the picker its own door: `onPlanChanged` never carried
+	 * `ProjectIndexEntryChanged`, so the old wiring could not see a migration at all. Reported
+	 * in review against the commit that made it.
+	 *
+	 * Coalescing subsumes the second half of that report — with never more than one read in
+	 * flight, an older scan cannot finish after a newer one and put a deleted asset back. The
+	 * counts are exact rather than bounded because "fewer than N" would pass against a build
+	 * that merely got luckier.
+	 */
+	it('coalesces a burst of catalogue events into exactly one further read', async () => {
+		const release: (() => void)[] = [];
+		let reads = 0;
+		const queries = {
+			...fakeQueries(null),
+			listAssets: () => {
+				reads += 1;
+				return new Promise<Awaited<ReturnType<PlanEditorQueryServices['listAssets']>>>((resolve) => {
+					release.push(() => resolve(ok([])));
+				});
+			},
+		};
+		const harness = await mountPlanEditor({ plan: null, queries });
+		expect(reads).toBe(1);
+
+		// Three events while the mount read is still in flight — the migration's shape.
+		harness.changeCatalogue();
+		harness.changeCatalogue();
+		harness.changeCatalogue();
+		await settle();
+		expect(reads).toBe(1);
+
+		release[0]?.();
+		await settle();
+		expect(reads).toBe(2);
+
+		release[1]?.();
+		await settle();
+		expect(reads).toBe(2);
+
+		harness.unmount();
 	});
 
 	/**

@@ -307,15 +307,49 @@ function wrapDispatcher(
  * leaf, the three asset commands, and an index entry change filtered to `renovation-asset`
  * for a note added by hand or arriving through sync. The picker now hears what it is
  * about and nothing else.
+ *
+ * **COALESCED, because hearing the right events is not the same as hearing few of them.**
+ * A library migration renames every catalogue note one at a time and `VaultChangeAdapter`
+ * announces each rename, so moving N assets delivers N events — and an unconditional read
+ * per event is N vault-wide scans in every open editor, for a change of paths. Never more
+ * than one read is in flight; a burst arriving during one collapses into exactly one more
+ * after it. That the reads cannot OVERLAP is the second property, and it is what removes
+ * the stale-overwrite race this repository has already recorded twice (`ProjectStore.hydrate`
+ * and `InspectorStore` both carry a request ticket for it): an older scan cannot finish
+ * after a newer one and put a deleted asset back, because there is never an older scan
+ * still running. Both halves were reported in review against the commit that introduced
+ * the first — `onPlanChanged` did not carry the entry event, so the old wiring could not
+ * see a migration at all.
+ *
+ * The trailing read is a REQUEST rather than a queue: ten events during one scan buy one
+ * more scan, not ten. What that gives up is knowing which event the final read answers,
+ * which nothing here needs — the read is a full catalogue snapshot either way.
  */
-function loadAssetOptions(
+function createAssetOptionsLoader(
 	context: PlanEditorContext,
 	assetOptionsRef: Ref<readonly { readonly id: string; readonly name: string }[]>,
-): void {
-	void (async () => {
-		const options = await context.queries.listAssets();
-		if (options.ok) assetOptionsRef.value = options.value;
-	})();
+): () => void {
+	let running = false;
+	let requestedAgain = false;
+	const run = async (): Promise<void> => {
+		running = true;
+		try {
+			do {
+				requestedAgain = false;
+				const options = await context.queries.listAssets();
+				if (options.ok) assetOptionsRef.value = options.value;
+			} while (requestedAgain);
+		} finally {
+			running = false;
+		}
+	};
+	return (): void => {
+		if (running) {
+			requestedAgain = true;
+			return;
+		}
+		void run();
+	};
 }
 
 /**
@@ -554,12 +588,9 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	// `PlanEditorRoot`'s `hydrate`: Obsidian reuses a view, so a listener outliving its Vue
 	// tree writes into a retired one.
 	const assetOptionsRef = ref<readonly { readonly id: string; readonly name: string }[]>([]);
-	loadAssetOptions(context, assetOptionsRef);
-	onBeforeUnmount(
-		context.onCatalogueChanged(() => {
-			loadAssetOptions(context, assetOptionsRef);
-		}),
-	);
+	const reloadAssetOptions = createAssetOptionsLoader(context, assetOptionsRef);
+	reloadAssetOptions();
+	onBeforeUnmount(context.onCatalogueChanged(reloadAssetOptions));
 
 	return {
 		dispatcher: wrappedDispatcher,

@@ -37,23 +37,30 @@ export interface Dimensions {
  * the default anchor `{ x: 0, y: 0 }` mean the middle of the object rather than a corner
  * nobody chose. Millimetres (ADR-009), like every world coordinate here.
  *
- * The finiteness half of the guard is not redundant with `createPolygon`'s own: it runs
- * BEFORE the polygon is built, so a NaN dimension is refused as a dimension rather than
- * reported as four bad vertices. That ordering is what leaves `createPolygon` unable to
- * fail here at all — every point below is finite by the time it is handed over — so its
- * `Result` is unwrapped with an explicit refusal rather than trusted silently, and the
- * refusal is a `Result` this function cannot demonstrate reaching.
+ * ONE GATE PER QUESTION, both arms reachable. This guard asks only about SIGN, because
+ * that is the question `createPolygon` cannot answer: it validates vertex count and
+ * finiteness and accepts a zero-area rectangle happily, so a width of 0 has to be refused
+ * here or not at all. Finiteness is the opposite case and is left to `createPolygon`,
+ * which already refuses it — a NaN or Infinity fails `value <= 0` (NaN comparisons are
+ * always false), reaches the polygon, and is refused there as a non-finite coordinate.
+ *
+ * An earlier draft asked both questions here, which made `createPolygon` unable to fail
+ * and left its refusal arm below unreachable — the `boundsOfZones` shape CLAUDE.md
+ * records, where a redundant pre-check turns a real guard into dead code no test can
+ * cover. The cost of the split is that a non-finite dimension answers
+ * `asset.invalid-footprint` rather than `asset.non-positive-dimension`, which is the more
+ * honest of the two anyway: NaN is not a non-positive number.
  */
 export function footprintFromDimensions(
 	width: number,
 	depth: number,
 ): Result<Polygon, ValidationError> {
 	for (const value of [width, depth]) {
-		if (!Number.isFinite(value) || value <= 0) {
+		if (value <= 0) {
 			return err(
 				assetError(
 					'non-positive-dimension',
-					`A dimension must be a positive, finite number of millimetres; got ${String(value)}.`,
+					`A dimension must be a positive number of millimetres; got ${String(value)}.`,
 				),
 			);
 		}

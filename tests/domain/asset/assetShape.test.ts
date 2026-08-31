@@ -47,8 +47,19 @@ describe('footprintFromDimensions', () => {
 		expect(result.error.code).toBe('asset.non-positive-dimension');
 	});
 
-	it('refuses a non-finite dimension before it reaches the polygon validator', () => {
-		expect(isErr(footprintFromDimensions(Number.NaN, 800))).toBe(true);
+	it('refuses a non-finite dimension AT the polygon validator, which is the one gate for it', () => {
+		// Asserting the code, not merely `isErr`: NaN passes the sign guard (every NaN
+		// comparison is false) and is refused by `createPolygon`, which is what keeps that
+		// refusal arm reachable instead of dead.
+		const nan = footprintFromDimensions(Number.NaN, 800);
+		expect(isErr(nan) && nan.error.code).toBe('asset.invalid-footprint');
+		const infinite = footprintFromDimensions(Number.POSITIVE_INFINITY, 800);
+		expect(isErr(infinite) && infinite.error.code).toBe('asset.invalid-footprint');
+	});
+
+	it('still refuses a NEGATIVE infinity as a sign error, since that guard sees it first', () => {
+		const result = footprintFromDimensions(Number.NEGATIVE_INFINITY, 800);
+		expect(isErr(result) && result.error.code).toBe('asset.non-positive-dimension');
 	});
 
 	it('checks the second dimension too, not only the first', () => {

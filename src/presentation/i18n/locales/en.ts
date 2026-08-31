@@ -227,6 +227,11 @@ export const en = {
 	'view.project.open-note': 'Open note',
 	'view.project.plans-title': 'Plans',
 	'view.project.create-plan': 'New plan',
+	// Design slice 21's creation form. One field, so one label — `background` and `layers` are
+	// both optional on `CreatePlanInput` and this form sends neither: slice 5's background is
+	// its own command, and a plan without one is a state the editor already draws.
+	'form.new-plan.title': 'New plan',
+	'form.new-plan.name': 'Name',
 	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
 	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
 	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is
@@ -247,6 +252,16 @@ export const en = {
 	'project.unknown-status': 'Choose a status from the list.',
 	'project.target-before-start': 'Target completion must be on or after the start date.',
 	'project.invalid-date': 'Enter a real calendar date.',
+	// Design slice 21's New plan form, keyed by the exact code `Plan.create` raises — minted
+	// through `planError`'s `plan.${code}` template (`src/domain/plan/Plan.errors.ts`), so a
+	// grep for the whole string finds nothing. A missing entry here does not degrade to
+	// silence, it degrades to the generic Validation sentence under a field the user can see.
+	//
+	// `plan.project-not-found` gets no entry and needs none: `NewPlanForm` never routes it to
+	// a field or to a banner — the project is gone, so the form emits `projectGone` and the
+	// view notifies and navigates. The three background codes `Plan.create` also mints have no
+	// entry for the plainer reason: that form sends no background.
+	'plan.empty-name': 'A plan needs a name.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

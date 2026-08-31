@@ -483,3 +483,30 @@ describe('the list and detail states', () => {
 		expect(mounted).toEqual([null, 'project-01JAAA', 'project-01JAAA']);
 	});
 });
+
+/**
+ * The DEFAULT bundle's own honesty, which nothing else here reads. `makeRenovationProjectView`
+ * claims its `commands.createPlan` writes into the same repository `queries.listPlansByProject`
+ * reads back — the harness page's whole ability to seed a plan by hand and watch the detail
+ * state redraw rests on it, and CLAUDE.md's fifth fake-instance lesson is about exactly this
+ * direction: a stand-in wired to a second, empty repository answers a different world with
+ * every case in this suite still green. Measured, not asserted — swapping that constructor
+ * argument for a fresh `InMemoryPlanRepository` leaves 15 files and 141 tests passing without
+ * this one.
+ */
+describe('the default renovation project deps', () => {
+	it('creates a plan through the same repository the plan list reads', async () => {
+		const deps = defaultRenovationProjectDeps();
+		const project = await deps.commands.createProject.execute({ name: 'Hallway' });
+		if (!project.ok) throw new Error('expected the default bundle to create a project');
+
+		const created = await deps.commands.createPlan.execute({
+			projectId: project.value.project.entity.id,
+			name: 'Ground floor',
+		});
+		const plans = await deps.queries.listPlansByProject(project.value.project.entity.id);
+
+		expect(created.ok).toBe(true);
+		expect(plans.ok && plans.value?.map((plan) => plan.name)).toEqual(['Ground floor']);
+	});
+});

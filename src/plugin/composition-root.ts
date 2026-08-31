@@ -649,7 +649,7 @@ export function renovationProjectDeps(
 			? createRenovationProjectQueries(persistence.listProjects, persistence.queries.getProject, persistence.listPlansByProject)
 			: unavailableRenovationProjectQueries(),
 		commands: persistence
-			? { createProject: persistence.createProject, logger: root.logger }
+			? { createProject: persistence.createProject, createPlan: persistence.createPlan, logger: root.logger }
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
 			? renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)

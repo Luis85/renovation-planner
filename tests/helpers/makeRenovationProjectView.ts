@@ -42,6 +42,7 @@
  * `FakeWorkspace` cannot reopen this by accident.
  */
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
+import { CreatePlanCommand } from '../../src/application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
 import { GetProject } from '../../src/application/queries/GetProject';
 import { ListPlansByProject } from '../../src/application/queries/ListPlansByProject';
@@ -92,7 +93,13 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
  * says so.
  *
  * `commands.createProject` ANSWERS, for the same repository, rather than the
- * refusal bundle it used to default to. Design slice 16 gave the empty state's button a real
+ * refusal bundle it used to default to, and design slice 21's `commands.createPlan` ANSWERS
+ * beside it for the same reason and against the same two repositories — a plan created through
+ * this default is one `queries.listPlansByProject` then reads back, so the harness page can
+ * seed a plan by hand and watch the detail state redraw. It is the exact forward risk
+ * CLAUDE.md's fifth fake-instance lesson names, in its other direction: a stand-in that
+ * REFUSES what production answers turns a tool built for looking into one that shows a false
+ * picture. Design slice 16 gave the empty state's button a real
  * hand-off (`ViewRoot` opens `NewProjectForm` and dispatches through it), which is the exact
  * forward risk CLAUDE.md's fifth fake-instance lesson names: a stand-in that REFUSES what
  * production would answer turns a tool built for looking into one that shows a false
@@ -127,9 +134,9 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
 export const defaultRenovationProjectDeps = (): RenovationProjectDeps => {
 	const projects = new InMemoryProjectRepository();
 	// Beside `projects` rather than inline in `ListPlansByProject`'s constructor: `commands`
-	// grows a `createPlan` member of its own once Task 8 lands, and it needs the SAME
-	// repository this file's `queries` reads through, not a second empty one silently
-	// answering a different world.
+	// carries a `createPlan` of its own since Task 8, and it needs the SAME repository this
+	// file's `queries` reads through, not a second empty one silently answering a different
+	// world.
 	const plans = new InMemoryPlanRepository();
 	const events = new RecordingEventBus();
 
@@ -139,7 +146,11 @@ export const defaultRenovationProjectDeps = (): RenovationProjectDeps => {
 	// requires a `logger` beside it.
 	const defaults: RenovationProjectDeps = {
 		queries: createRenovationProjectQueries(new ListProjects(projects), new GetProject(projects), new ListPlansByProject(plans)),
-		commands: { createProject: new CreateProjectCommand(projects, events), logger: recorder },
+		commands: {
+			createProject: new CreateProjectCommand(projects, events),
+			createPlan: new CreatePlanCommand(plans, projects, events),
+			logger: recorder,
+		},
 		openProject: () => Promise.resolve('opened'),
 		onProjectsChanged: () => () => undefined,
 		// The LIST state, which is what a harness mount with no query string draws and what

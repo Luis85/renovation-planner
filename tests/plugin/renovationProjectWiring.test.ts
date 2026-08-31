@@ -60,6 +60,20 @@ const vaultStack = () =>
 		metadataCache: { getFileCache: () => null },
 	}) as never;
 
+/**
+ * The bundle a session whose settings never recovered gets. Shared by the two write cases
+ * below rather than spelled twice: they assert the SAME refusal about two different members,
+ * and two hand-built compositions of one state is how the two come to disagree about it.
+ */
+function refusingDeps(): RenovationProjectDeps {
+	const root = createCompositionRoot(null, recorder, vaultStack());
+	return renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault, {
+		projectId: null,
+		navigate: () => undefined,
+		indexScanCompleted: () => true,
+	});
+}
+
 /** A real composed root with settings recovered, beside a fresh workspace and vault. */
 function composedRoot(): { root: CompositionRoot; workspace: FakeWorkspace; vault: unknown } {
 	const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
@@ -183,15 +197,48 @@ describe('the renovation project dependencies', () => {
 		expect(deps.commands.createProject).toBe(root.persistence?.createProject);
 	});
 
-	it('hands over a refusing createProject command when settings were never recovered', async () => {
-		const root = createCompositionRoot(null, recorder, vaultStack());
+	/**
+	 * Design slice 21's write side, asserted the way the detail-state READS above are and not
+	 * the way `createProject` is: identity says the view got the root's own guarded command
+	 * rather than a second one, and the round trip says that command reaches the same vault the
+	 * view then reads back through. A composition that forgets a dependency compiles and passes
+	 * everything else, and identity alone would still pass a root whose `createPlan` was
+	 * composed against a different repository from `listPlansByProject`.
+	 */
+	it('hands over the guarded createPlan command, which writes a plan the view then reads', async () => {
+		const stack = createRepositoryStack();
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, stack as never);
+		const persistence = root.persistence;
+		if (persistence === null) throw new Error('expected a composed persistence stack');
+		const project = expectOk(await persistence.projects.save(makeProject({ name: 'Hallway' }), 'absent'));
 
-		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault, {
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, stack.vault as never, {
 			projectId: null,
 			navigate: () => undefined,
 			indexScanCompleted: () => true,
 		});
-		const result = await deps.commands.createProject.execute({ name: 'Kitchen' });
+		const created = await deps.commands.createPlan.execute({ projectId: project.entity.id, name: 'Ground floor' });
+		const plans = await deps.queries.listPlansByProject(project.entity.id);
+
+		expect(deps.commands.createPlan).toBe(persistence.createPlan);
+		expect(created.ok).toBe(true);
+		expect(plans.ok && plans.value?.map((plan) => plan.name)).toEqual(['Ground floor']);
+	});
+
+	it('hands over a refusing createPlan command when settings were never recovered', async () => {
+		// A real `ProjectId` is not needed and would say nothing extra: the refusal is decided
+		// before any repository is reached, which is the whole property.
+		const result = await refusingDeps().commands.createPlan.execute({
+			projectId: 'project-1' as never,
+			name: 'Ground floor',
+		});
+
+		expect(result.ok).toBe(false);
+		expect(!result.ok && result.error.code).toBe('settings.unrecovered');
+	});
+
+	it('hands over a refusing createProject command when settings were never recovered', async () => {
+		const result = await refusingDeps().commands.createProject.execute({ name: 'Kitchen' });
 
 		expect(result.ok).toBe(false);
 		expect(!result.ok && result.error.code).toBe('settings.unrecovered');

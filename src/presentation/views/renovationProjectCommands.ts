@@ -1,13 +1,23 @@
 import { err, type Result } from '../../core/result/Result';
 import type { PersistenceError } from '../../core/errors/AppError';
 import type { Command } from '../../application/commands/Command';
+import type { CreatePlanError, CreatePlanInput } from '../../application/commands/plan/CreatePlan';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 import type { Logger } from '../../application/ports/Logger';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { Loaded } from '../../application/ports/versioning';
+import type { Plan } from '../../domain/plan/Plan';
 import type { Project } from '../../domain/project/Project';
 
 type CreateProjectResult = Result<{ project: Loaded<Project> }, RepositoryError>;
+
+/**
+ * `CreatePlanError` rather than `RepositoryError`: `CreatePlanCommand` refuses a project that
+ * is not there with a `ReferenceError` of its own, which is the one refusal `NewPlanForm`
+ * treats as neither a field nor a banner. Widening the alias here is what keeps that code
+ * inside the type the form narrows on.
+ */
+type CreatePlanResult = Result<{ plan: Loaded<Plan> }, CreatePlanError>;
 
 /**
  * The write side of the Renovation Project view — the mirror of
@@ -21,6 +31,12 @@ type CreateProjectResult = Result<{ project: Loaded<Project> }, RepositoryError>
  */
 export interface RenovationProjectCommandServices {
 	readonly createProject: Command<CreateProjectInput, CreateProjectResult>;
+	/**
+	 * Design slice 21's detail state, which is the first surface with a Plan to create from.
+	 * REQUIRED, like its sibling: an optional member would let a composition forget it and
+	 * still compile, which is the self-declared shape this repository refuses everywhere else.
+	 */
+	readonly createPlan: Command<CreatePlanInput, CreatePlanResult>;
 	/**
 	 * The composition root's logger, reaching this view — the same member
 	 * `PlanEditorCommandServices` carries, for the same reason and with the same limit.
@@ -57,6 +73,13 @@ export function unavailableRenovationProjectCommands(): RenovationProjectCommand
 		createProject: {
 			execute(): Promise<CreateProjectResult> {
 				return Promise.resolve(err(persistenceFailure()) as CreateProjectResult);
+			},
+		},
+		// ONE refusal function behind both, so the shared `settings.unrecovered` code cannot
+		// drift into two spellings of the same state.
+		createPlan: {
+			execute(): Promise<CreatePlanResult> {
+				return Promise.resolve(err(persistenceFailure()) as CreatePlanResult);
 			},
 		},
 		// A logger member that records nothing, exactly as `unavailablePlanEditorCommands`'s

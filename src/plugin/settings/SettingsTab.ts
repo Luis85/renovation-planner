@@ -5,7 +5,7 @@ import { surfaceError } from '../../presentation/errors/surfaceError';
 import { isErr } from '../../core/result/Result';
 import { ensureFolder, renameNote } from '../../infrastructure/obsidian/repositories/noteIo';
 import { runDetached } from '../runDetached';
-import { DEFAULT_SETTINGS, UNITS, type RenovationPlannerSettings } from './settings';
+import { CURRENCIES, DEFAULT_SETTINGS, UNITS, type RenovationPlannerSettings } from './settings';
 import {
 	catalogueNotesIn,
 	libraryDestinations,
@@ -187,6 +187,16 @@ export class SettingsTab extends PluginSettingTab {
 				disabled: () => this.migrating,
 				action: () => {
 					this.startLibraryMove(settings.libraryFolder);
+				},
+			},
+			{
+				name: tr('settings.default-currency.name'),
+				desc: tr('settings.default-currency.desc'),
+				control: {
+					type: 'dropdown',
+					options: Object.fromEntries(CURRENCIES.map((code) => [code, code])),
+					key: 'defaultCurrency',
+					defaultValue: DEFAULT_SETTINGS.defaultCurrency,
 				},
 			},
 			{

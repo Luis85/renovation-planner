@@ -16,9 +16,24 @@
  * this file declares, each with a value it recognises.
  */
 
+import { currencyOf, type Currency } from '../../core/money/Money';
+
 /** The vocabulary, and the single place it is written down. */
 export const UNITS = ['metric', 'imperial'] as const;
 export type Units = (typeof UNITS)[number];
+
+/**
+ * The vocabulary, and the single place it is written down — the same shape as `UNITS`.
+ *
+ * **Two minor units, every one of them.** `Money.round` finalizes at two decimal places
+ * (`MINOR_UNIT_PLACES`), so a zero-minor-unit currency such as JPY would round every total
+ * wrong. This list is the bound on the DEFAULT and not on a hand-written note: an asset
+ * note's own `currency` passes `/^[A-Z]{3}$/` and is outside what this constrains.
+ *
+ * Minted through `currencyOf`, so the brand has exactly one origin and this file holds no
+ * cast of its own.
+ */
+export const CURRENCIES: readonly Currency[] = ['CHF', 'EUR', 'GBP', 'USD'].map((code) => currencyOf(code));
 
 /**
  * The root a NEW project's folder is created under, not the folder every entity lives in
@@ -62,6 +77,17 @@ export interface RenovationPlannerSettings {
 	 */
 	libraryFolder: string;
 	/**
+	 * The currency a NEW project starts from (§83), and the value a project note with no
+	 * `currency:` key reads as. It is a default with a project counterpart, which is the
+	 * test [[Settings and configuration]] states for which settings are defaults.
+	 *
+	 * **A project that never stated one FOLLOWS this value** until something saves that
+	 * note, at which point `projectToPersistence` writes it and it stops floating. For a
+	 * single-currency vault that is the feature; for a two-currency vault it is a footgun,
+	 * and `GetRequirementsForZone`'s backstop is what makes it visible.
+	 */
+	defaultCurrency: Currency;
+	/**
 	 * Verbose logging (slice 11): drops the console logger's floor from `info` to
 	 * `debug`. Diagnostics, not telemetry — everything stays in the local console
 	 * (SDD §67), this only widens what reaches it.
@@ -90,6 +116,7 @@ export const DEFAULT_SETTINGS: RenovationPlannerSettings = {
 	units: 'metric',
 	projectFolder: DEFAULT_PROJECT_FOLDER,
 	libraryFolder: DEFAULT_LIBRARY_FOLDER,
+	defaultCurrency: currencyOf('EUR'),
 	verboseLogging: false,
 };
 
@@ -101,6 +128,16 @@ export const DEFAULT_SETTINGS: RenovationPlannerSettings = {
  */
 function unitsFrom(value: unknown): Units {
 	return UNITS.find((unit) => unit === value) ?? DEFAULT_SETTINGS.units;
+}
+
+/**
+ * The one gate a currency value passes through, whether it came from `data.json` or from
+ * the pane — `unitsFrom`'s shape exactly. Not `parseCurrency`: the question here is not
+ * "is this a well-formed code" but "is this one of the codes this pane offers", which is
+ * strictly narrower and is what keeps a JPY in `data.json` from reaching `round`.
+ */
+function currencyFrom(value: unknown): Currency {
+	return CURRENCIES.find((code) => code === value) ?? DEFAULT_SETTINGS.defaultCurrency;
 }
 
 /**
@@ -150,6 +187,7 @@ export function settingsFrom(raw: unknown): RenovationPlannerSettings {
 		units: unitsFrom(stored.units),
 		projectFolder: folderFrom(stored.projectFolder, DEFAULT_SETTINGS.projectFolder),
 		libraryFolder: folderFrom(stored.libraryFolder, DEFAULT_SETTINGS.libraryFolder),
+		defaultCurrency: currencyFrom(stored.defaultCurrency),
 		verboseLogging: verboseLoggingFrom(stored.verboseLogging),
 	};
 }

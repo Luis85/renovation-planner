@@ -246,13 +246,14 @@ describe('a fresh install, which is the opposite outcome', () => {
 		const tab = plugin.settingTabs[0] as unknown as SettingsTab;
 
 		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS });
-		// Five definitions, three of them controls: units, the slice-4 project folder (the one
-		// location field) and slice 11's verbose-logging toggle, plus slice 19's PAIR of
-		// library rows — one a name and a description that binds no control, because writing
-		// that setting without moving the notes first strands the catalogue, and one an action
-		// that runs the migration which moves them and persists the setting last.
-		expect(tab.getSettingDefinitions()).toHaveLength(5);
-		expect(tab.getSettingDefinitions().filter((item) => 'control' in item && item.control !== undefined)).toHaveLength(3);
+		// Six definitions, four of them controls: units, the slice-4 project folder (the one
+		// location field), slice 11's verbose-logging toggle and this slice's default-currency
+		// dropdown, plus slice 19's PAIR of library rows — one a name and a description that
+		// binds no control, because writing that setting without moving the notes first strands
+		// the catalogue, and one an action that runs the migration which moves them and
+		// persists the setting last.
+		expect(tab.getSettingDefinitions()).toHaveLength(6);
+		expect(tab.getSettingDefinitions().filter((item) => 'control' in item && item.control !== undefined)).toHaveLength(4);
 
 		await plugin.saveSettings({ units: 'imperial' });
 

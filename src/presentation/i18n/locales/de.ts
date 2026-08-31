@@ -37,6 +37,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-persist-failed':
 		'Der Katalog wurde verschoben, aber die Einstellung konnte nicht gespeichert werden. Bitte den Bibliotheksordner auf den neuen Ort setzen.',
 	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
+	'settings.default-currency.name': 'Standardwährung',
+	'settings.default-currency.desc':
+		'Die Währung, in der ein neues Projekt kalkuliert wird. Ein Projekt ohne eigene Währung folgt dieser Einstellung.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
 	'settings.verbose-logging.desc': 'Debug-Meldungen in der Entwicklerkonsole anzeigen. Alles bleibt auf diesem Gerät.',
 	'view.geometry.name': 'Geometrie-Seitendatei',

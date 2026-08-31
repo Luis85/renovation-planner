@@ -19,6 +19,9 @@ export const en = {
 	'settings.library-folder.current': 'Currently {folder}. Changing this moves the notes.',
 	'settings.library-folder.move.name': 'Move the library',
 	'settings.library-folder.move.desc': 'Choose a new folder and move the catalogue into it.',
+	'settings.default-currency.name': 'Default currency',
+	'settings.default-currency.desc':
+		'The currency a new project is priced in. A project that has not recorded one follows this setting.',
 	'settings.verbose-logging.name': 'Verbose logging',
 	'settings.verbose-logging.desc': 'Show debug-level messages in the developer console. Everything stays on this device.',
 	'view.geometry.name': 'Geometry sidecar',

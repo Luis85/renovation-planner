@@ -70,11 +70,19 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
  * `viewRootFailure.test.ts`, `viewRoot.test.ts`. All four spread this now.
  * THREE put theirs into `mount(ViewRoot, { global: { provide } })`, whose value type is
  * `unknown` — `viewRootIndexRebuild`, `viewRootCreateProject` and `viewRootOpenProject` — so
- * no compiler sees their shape at all and the gate stayed green over them. They are correct
- * today only because `ViewRoot` reads four members; the task that makes it read `projectId`
- * hands those three an `undefined` with nothing to say so. Left as they are on purpose — each
- * needs a controlled or observable `listProjects` spy that a full annotation would fight — and
- * written down here rather than left to be rediscovered.
+ * no compiler sees their shape at all and the gate stayed green over them. They keep their
+ * hand-built literals on purpose, because each needs a controlled or observable `listProjects`
+ * spy that a full annotation would fight.
+ *
+ * **What they do NOT keep is the silence.** Those three were correct only because `ViewRoot`
+ * reads four members, and design slice 21 gives it a `projectId` to branch on — at which point
+ * an omitted key arrives as `undefined` with no compiler and no failing test to say so, and
+ * every case in those files is about the LIST, so they would go on passing for the wrong
+ * reason. All five of their literals now state `projectId: null` explicitly. That is the whole
+ * remedy an annotation would have bought for this member, at none of its cost, and it is a
+ * fact a reader can check rather than a caveat they have to remember. It was first recorded
+ * here as a residue to be inherited; a residue whose bound expires in the next task of the
+ * same plan is one to close, not to write down.
  *
  * A caller spreads this and overrides
  * the one or two members its own cases actually vary — `{ ...defaultRenovationProjectDeps(),

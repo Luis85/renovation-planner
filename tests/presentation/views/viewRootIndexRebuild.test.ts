@@ -51,6 +51,15 @@ async function mountBeforeTheScan() {
 					queries: { listProjects },
 					commands: unavailableRenovationProjectCommands(),
 					openProject: () => Promise.resolve('opened'),
+					// `projectId: null` is the LIST state, and it is here because nothing type-checks
+					// this literal: a `provide` value is `unknown`, so this context satisfies no
+					// interface and is green only because `ViewRoot` happens to read exactly the
+					// members it spells. Design slice 21 gives `ViewRoot` a `projectId` to branch
+					// on, at which point an omitted key is an `undefined` no compiler and no test
+					// would report — and these cases are about the LIST, so they would go on
+					// passing for the wrong reason. Cheaper than the full annotation these files
+					// deliberately avoid; see `defaultRenovationProjectDeps`'s docblock.
+					projectId: null,
 					onProjectsChanged,
 				},
 			},
@@ -103,6 +112,15 @@ describe('ViewRoot, and an index built after the pane was restored', () => {
 						queries: { listProjects },
 						commands: unavailableRenovationProjectCommands(),
 						openProject: () => Promise.resolve('opened'),
+						// `projectId: null` is the LIST state, and it is here because nothing type-checks
+						// this literal: a `provide` value is `unknown`, so this context satisfies no
+						// interface and is green only because `ViewRoot` happens to read exactly the
+						// members it spells. Design slice 21 gives `ViewRoot` a `projectId` to branch
+						// on, at which point an omitted key is an `undefined` no compiler and no test
+						// would report — and these cases are about the LIST, so they would go on
+						// passing for the wrong reason. Cheaper than the full annotation these files
+						// deliberately avoid; see `defaultRenovationProjectDeps`'s docblock.
+						projectId: null,
 						onProjectsChanged: (listener: () => void) => {
 							listeners.push(listener);
 							return () => undefined;

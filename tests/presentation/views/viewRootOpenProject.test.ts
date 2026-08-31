@@ -41,6 +41,11 @@ async function mountWithOneProject(outcome: ProjectOpenOutcome) {
 					queries: { listProjects },
 					commands: unavailableRenovationProjectCommands(),
 					openProject,
+					// The LIST state, stated rather than omitted: a `provide` value is `unknown`,
+					// so an absent key would reach `ViewRoot` as `undefined` once slice 21 gives
+					// it a `projectId` to branch on, with nothing to report it. See
+					// `viewRootIndexRebuild.test.ts` for the whole argument.
+					projectId: null,
 					// No index rebuild is published here — this file is about the row's own click.
 					onProjectsChanged: () => () => undefined,
 				},

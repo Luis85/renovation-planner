@@ -190,7 +190,13 @@ interface VaultEquipment {
 function equipVault(plugin: RenovationPlannerPlugin, equipment: VaultEquipment): { renamed: string[] } {
 	const renamed: string[] = [];
 	const vault = plugin.app.vault as unknown as Record<string, unknown>;
-	vault.getAllFolders = (): { path: string }[] => (equipment.folders ?? []).map((path) => ({ path }));
+	// The library's own folder, in front of whatever the case adds. `folderExists` reads this
+	// same list — the migration refuses a source the vault does not hold — so a fixture that
+	// omitted it would refuse every move here for a reason no case is about. The picker does
+	// not gain an entry from it: `libraryDestinations` drops the source, which is the end-to-end
+	// half of that filter.
+	const folders = ['Renovation/Library', ...(equipment.folders ?? [])];
+	vault.getAllFolders = (): { path: string }[] => folders.map((path) => ({ path }));
 	vault.getFiles = (): { path: string }[] => (equipment.files ?? []).map((path) => ({ path }));
 	vault.createFolder = (): Promise<void> => Promise.resolve();
 	(plugin.app.fileManager as unknown as Record<string, unknown>).renameFile =
@@ -413,6 +419,65 @@ describe('moving the library', () => {
 			'Shared/Catalogue',
 			'Shared/Catalogue',
 		]);
+	});
+
+	/**
+	 * Two ordinary control writes issued before the queue drains, which is the same window
+	 * the case above describes and the one this whole chain exists for.
+	 *
+	 * Serializing the writes is not enough on its own: a caller that composed a COMPLETE
+	 * settings object at call time replays the state as it was then, so the second write
+	 * puts the first one's key back. Measured with the two controls a user is likeliest to
+	 * change together — the units revert to `metric` while the toggle lands.
+	 *
+	 * The remedy is that a write says what it CHANGES and the chain composes the rest at
+	 * execution time. Both halves are asserted: the file and the session, since a build that
+	 * applied the change without writing it would satisfy one alone.
+	 */
+	it('keeps both changes when two controls are written before the queue drains', async () => {
+		const { plugin, tab } = await withStored(null);
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const write = plugin.saveData.bind(plugin);
+		plugin.saveData = async (data: unknown): Promise<void> => {
+			await gate;
+			await write(data);
+		};
+
+		const first = tab.setControlValue('units', 'imperial');
+		const second = tab.setControlValue('verboseLogging', true);
+		release();
+		await first;
+		await second;
+
+		const expected = { ...DEFAULT_SETTINGS, units: 'imperial', verboseLogging: true };
+		expect(plugin.root.settings).toEqual(expected);
+		expect(plugin.saved.at(-1)).toEqual(expected);
+	});
+
+	/**
+	 * The chain's own recovery, which nothing discriminated before: a write that rejects
+	 * must not wedge every later one for the session.
+	 *
+	 * `swallow` is registered on BOTH arms of the tail for exactly this, and merely
+	 * EXECUTING the reject arm proves nothing — dropping it, and wedging the chain outright,
+	 * both leave every other case in this directory green. This one fails a write and then
+	 * makes a successful one, so the recovery is pinned by an assertion rather than by a
+	 * line having run.
+	 */
+	it('carries on writing after one has failed, rather than wedging the chain', async () => {
+		const { plugin } = await loadedPlugin(null);
+		const write = plugin.saveData.bind(plugin);
+		plugin.saveData = (): Promise<void> => Promise.reject(new Error('data.json is read-only'));
+
+		await expect(plugin.persistLibraryFolder('Shared/Catalogue')).rejects.toThrow('read-only');
+		plugin.saveData = write;
+		await plugin.saveSettings({ units: 'imperial' });
+
+		expect(plugin.saved).toEqual([{ ...DEFAULT_SETTINGS, units: 'imperial' }]);
+		expect(plugin.root.settings?.units).toBe('imperial');
 	});
 
 	/**

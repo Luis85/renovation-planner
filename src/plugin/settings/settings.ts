@@ -62,6 +62,23 @@ export interface RenovationPlannerSettings {
 	verboseLogging: boolean;
 }
 
+/**
+ * What a settings write CHANGES, rather than what the settings become.
+ *
+ * A complete settings object composed by the caller is a SNAPSHOT, and a snapshot is stale
+ * for as long as any other write is in flight — which is the whole of the library
+ * migration's window, since it persists LAST and swaps the running root only afterwards. A
+ * patch says the one thing its caller meant and lets the write chain compose the rest at
+ * execution time, so two changes made in that window both survive and neither replays a
+ * folder the catalogue has left.
+ *
+ * Values are `unknown` because the settings pane is keyed generically — a control's value is
+ * whatever Obsidian hands `setControlValue` — and `settingsFrom` is the gate every one of
+ * them passes through. Typing them tighter would put a cast at the one door that exists so
+ * there is no cast.
+ */
+export type SettingsPatch = Readonly<Partial<Record<keyof RenovationPlannerSettings, unknown>>>;
+
 export const DEFAULT_SETTINGS: RenovationPlannerSettings = {
 	units: 'metric',
 	projectFolder: DEFAULT_PROJECT_FOLDER,

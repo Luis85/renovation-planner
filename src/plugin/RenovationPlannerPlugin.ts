@@ -24,7 +24,7 @@ import {
 	type VaultStack,
 } from './composition-root';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
-import { isDataAbsent, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
+import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type SettingsPatch } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
@@ -320,19 +320,22 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/**
 	 * The one write path for settings, so no control has to know how they are persisted.
-	 * `saveData` replaces the whole file, which is why this takes the complete next settings
-	 * object rather than a patch — and why the root is REPLACED rather than mutated: its
+	 * `saveData` replaces the whole file, and the root is REPLACED rather than mutated — its
 	 * fields are readonly, so there is exactly one way state changes here.
 	 *
-	 * `libraryFolder` is the one field it does NOT take from its caller, and that is the
-	 * composed-at-write-time half of the guarantee above. The library row binds no control,
-	 * so this door is never a legitimate writer of it — every caller merely carries it along
-	 * from the snapshot it spread, and that snapshot is stale for exactly as long as a
-	 * migration's own write is in flight. Reading it from the state current at the WRITE is
-	 * what makes an ordinary settings change during a move harmless in both directions: the
-	 * user's change lands, and the folder it was never about is left alone.
+	 * It takes a PATCH and composes the rest at execution time, which is the half
+	 * serialization alone does not buy. A caller handing over a complete settings object
+	 * hands over a SNAPSHOT, and a snapshot is stale for as long as any other write is in
+	 * flight — so two controls changed before the queue drains lost the earlier one
+	 * outright, and one changed during a library move replayed the folder the catalogue had
+	 * just left. Both are the same defect, and taking the whole object from `this.root` at
+	 * the moment of the write is the one shape that closes them together.
+	 *
+	 * `settingsFrom` is still the gate: it drops a key this version does not declare and
+	 * falls back on a value outside the vocabulary, so a patch is validated exactly as a
+	 * whole object was.
 	 */
-	saveSettings(next: RenovationPlannerSettings): Promise<void> {
+	saveSettings(patch: SettingsPatch): Promise<void> {
 		return this.queueSettingsWrite(async () => {
 			// Refused for the whole SESSION, not only at bootstrap: a transient read failure
 			// must not stamp defaults over a `data.json` that is sitting there intact. The tab
@@ -340,7 +343,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			const current = this.root.settings;
 			if (current === null) return;
 
-			const composed = settingsFrom({ ...next, libraryFolder: current.libraryFolder });
+			const composed = settingsFrom({ ...current, ...patch, libraryFolder: current.libraryFolder });
 			this.applySettings(composed);
 			await this.saveData(composed);
 		});

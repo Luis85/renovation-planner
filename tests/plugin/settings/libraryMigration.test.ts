@@ -45,6 +45,9 @@ function harness(overrides: Partial<LibraryMigrationDeps> = {}): Harness {
 	};
 	const deps: LibraryMigrationDeps = {
 		projectFolders: () => ['Renovation/Kitchen refit'],
+		// The source is there unless a case says otherwise — every other case is about what
+		// happens once it is.
+		folderExists: (path) => path === SOURCE,
 		catalogueNotes: (from) => [noteAt(`${from}/Assets/Tiles.md`), noteAt(`${from}/Assets/Paint.md`)],
 		ensureFolder: (path) => {
 			ensured.push(path);
@@ -267,29 +270,49 @@ describe('libraryDestinations', () => {
 });
 
 /**
- * A source whose CASE differs from the vault's own paths — reachable after a case-only
- * external rename, or a hand edit of `data.json` on a Windows or macOS vault, where two
- * casings are one folder on disk.
+ * A source that does not resolve to a folder in the vault — a case-only external rename on a
+ * case-SENSITIVE filesystem, or a hand-edited `data.json`.
  *
- * `foldersOverlap` folds case deliberately and says so at length; the enumeration did not,
- * so the guard and the selection disagreed about what "the same folder" means. The
- * consequence is the worst shape any arm of this migration has: zero notes selected, no
- * failure to report, and the destination persisted as though the move had succeeded — the
- * catalogue left behind while every future asset is written to the new root, and the user
- * told it worked.
+ * The enumeration is exact, so such a source selects nothing. Without this refusal that is
+ * the worst shape any arm of this migration has: zero notes moved, no failure reported, and
+ * the destination persisted as though the move had succeeded — the catalogue left behind
+ * while every future asset is written to the new root, and the user told it worked.
  *
- * Asserted on what MOVED rather than on `ok`, because `ok` is exactly what the defect
- * answers.
+ * The remedy is a REFUSAL rather than a wider match. Widening the enumeration to fold case
+ * was tried and is wrong in the destructive direction: see the sibling case below.
  */
-it('moves the catalogue when the configured source differs from the vault only in case', async () => {
+it('refuses when the configured source is not a folder in the vault, and moves nothing', async () => {
 	const files = [noteAt('Renovation/Library/Assets/Tiles.md')];
-	const rig = harness({ catalogueNotes: (from) => catalogueNotesIn(files, from) });
+	const rig = harness({
+		catalogueNotes: (from) => catalogueNotesIn(files, from),
+		folderExists: (path) => path === 'Renovation/Library',
+	});
 
 	const result = await migrateLibraryFolder(rig.deps, 'renovation/library', DESTINATION);
 
+	expect(isErr(result) && result.error.code).toBe('settings.library-source-missing');
+	expect(rig.renamed).toEqual([]);
+	expect(rig.persistedFolder()).toBeUndefined();
+});
+
+/**
+ * The reason the enumeration must NOT fold case, and why this is the opposite trade from
+ * `foldersOverlap`'s.
+ *
+ * For the PREDICATE, over-refusing is the safe direction: it costs a user one rename, while
+ * under-refusing costs every project's catalogue. For the ENUMERATION the asymmetry
+ * REVERSES — over-selecting MOVES UNRELATED FILES, which is destructive, while
+ * under-selecting merely finds nothing, which the refusal above now reports. A case-sensitive
+ * Linux vault can hold `Renovation/Library` and `Renovation/library` as two real folders, and
+ * a folded match relocates the second one's notes into the destination.
+ */
+it('leaves a sibling folder differing only in case untouched', async () => {
+	const files = [noteAt('Renovation/Library/Assets/Tiles.md'), noteAt('Renovation/library/Assets/Paint.md')];
+	const rig = harness({ catalogueNotes: (from) => catalogueNotesIn(files, from) });
+
+	const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
 	expect(isOk(result)).toBe(true);
-	// The relative path survives because case folding preserves LENGTH, so the slice that
-	// strips the old root strips exactly the old root however it was spelled.
 	expect(rig.renamed).toEqual([
 		{ from: 'Renovation/Library/Assets/Tiles.md', to: 'Shared/Catalogue/Assets/Tiles.md' },
 	]);
@@ -310,18 +333,17 @@ describe('catalogueNotesIn', () => {
 	});
 
 	/**
-	 * The same segment boundary, folded — the rule `foldersOverlap` already applies, so the
-	 * guard and the enumeration cannot disagree about which notes "the same folder" holds.
-	 * The prefix trap is asserted again from the folded side: a case-insensitive match that
-	 * had been weakened into a bare `startsWith` would take `Renovation/LibraryOld` too.
+	 * CASE-SENSITIVE, deliberately, and the opposite of what `foldersOverlap` does three
+	 * imports away. Obsidian's paths are case-sensitive and a Linux vault really can hold
+	 * both spellings, so folding here would take the other folder's notes with it.
 	 */
-	it('takes them case-insensitively, still at the segment boundary', () => {
+	it('takes them case-sensitively', () => {
 		const files = [
 			noteAt('Renovation/Library/Assets/Tiles.md'),
-			noteAt('Renovation/LibraryOld/Assets/Paint.md'),
+			noteAt('Renovation/library/Assets/Paint.md'),
 		];
 
-		expect(catalogueNotesIn(files, 'renovation/LIBRARY').map((file) => file.path)).toEqual([
+		expect(catalogueNotesIn(files, SOURCE).map((file) => file.path)).toEqual([
 			'Renovation/Library/Assets/Tiles.md',
 		]);
 	});

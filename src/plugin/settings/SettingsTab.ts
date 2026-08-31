@@ -5,7 +5,7 @@ import { surfaceError } from '../../presentation/errors/surfaceError';
 import { isErr } from '../../core/result/Result';
 import { ensureFolder, renameNote } from '../../infrastructure/obsidian/repositories/noteIo';
 import { runDetached } from '../runDetached';
-import { DEFAULT_SETTINGS, UNITS, settingsFrom, type RenovationPlannerSettings } from './settings';
+import { DEFAULT_SETTINGS, UNITS, type RenovationPlannerSettings } from './settings';
 import {
 	catalogueNotesIn,
 	libraryDestinations,
@@ -208,13 +208,20 @@ export class SettingsTab extends PluginSettingTab {
 	}
 
 	/**
-	 * And where it writes. Through `settingsFrom` — the same gate `loadData` passes through —
-	 * so every value a control can produce is validated by one function, an unrecognised one
-	 * falls back to the default instead of reaching the file, and a key this version does not
-	 * declare is dropped rather than persisted forever.
+	 * And where it writes. Through `saveSettings`, which composes the patch over the live
+	 * settings and passes the result through `settingsFrom` — the same gate `loadData` passes
+	 * through — so every value a control can produce is validated by one function, an
+	 * unrecognised one falls back to the default instead of reaching the file, and a key this
+	 * version does not declare is dropped rather than persisted forever.
 	 */
 	setControlValue(key: string, value: unknown): Promise<void> {
-		return this.host.saveSettings(settingsFrom({ ...this.host.root.settings, [key]: value }));
+		// The ONE key this control changed, never a whole settings object built from
+		// `this.host.root.settings` here. That spread is a snapshot, and it is stale for as
+		// long as any other write is in flight — a second control changed before the queue
+		// drains would replay this one's old value, and one changed during a library move
+		// would replay the folder the catalogue has just left. `saveSettings` composes the
+		// rest when it writes, and `settingsFrom` still validates every key there.
+		return this.host.saveSettings({ [key]: value });
 	}
 
 	/**
@@ -277,6 +284,10 @@ export class SettingsTab extends PluginSettingTab {
 		const { vault, fileManager } = this.app;
 		return {
 			projectFolders: () => projectFolderPaths(this.host.root.persistence),
+			// Through the same enumeration the picker's own list comes from, so "a folder the
+			// vault has" means one thing in this pane. Exact, like `catalogueNotesIn` below and
+			// for its reason: two spellings differing only in case are two folders here.
+			folderExists: (path) => vault.getAllFolders(false).some((folder) => folder.path === path),
 			catalogueNotes: (from) => catalogueNotesIn(vault.getFiles(), from),
 			ensureFolder: (path) => ensureFolder(vault, path),
 			renameFile: (file, to) => renameNote(fileManager, file, to),

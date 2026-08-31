@@ -290,31 +290,23 @@ function wrapDispatcher(
  * catalogue view, not a figure), and a stale option that no longer resolves fails the
  * assignment command loudly rather than silently.
  *
- * **Read at mount AND on every `onPlanChanged`, which is not the same thing as "once per
- * leaf".** Design slice 19 replaced design slice 8's watch on the plan's project with a
+ * **Read at mount AND on every `onCatalogueChanged`, which is not the same thing as "once
+ * per leaf".** Design slice 19 replaced design slice 8's watch on the plan's project with a
  * single read — correct in itself, since the catalogue left the project and there is no
  * longer a `projectId` to wait for — and judged that unchanged behaviour. It was not: the
  * watch had a second effect nobody had named, which is that it re-fired when the store
  * re-hydrated. `PlanEditorView.sync()` mounts on the RESTORED VIEW STATE rather than on a
  * resolved plan, and Obsidian restores its leaves before `onLayoutReady`, so on the
  * ordinary restart path this read lands against a still-empty project index and answers
- * an empty catalogue. `PlanEditorRoot` already subscribes its own `hydrate` to
- * `onPlanChanged` — which carries `ProjectIndexRebuilt` — so the PLAN recovered and the
- * options did not, leaving the picker permanently empty in a restored leaf.
+ * an empty catalogue — leaving the picker empty for the life of that leaf.
  *
- * **What that borrowed event costs, named rather than left as surveyed ground.**
- * `ProjectIndexRebuilt` is the ONE member of `planChangeSource`'s two lists this read has
- * any business hearing; the other five — `PlanBackgroundChanged`, `PlanCalibrated`,
- * `ZoneCreated`, `ZoneGeometryChanged`, `ZoneDeleted` — say nothing about the catalogue and
- * re-read every asset note in the vault anyway, once per zone gesture in an open editor.
- * Correct and wasteful, which is the honest reading: no asset-change event source exists
- * (`AssetCreated`/`AssetUpdated`/`AssetDeleted` are published and nothing filters them into
- * a per-leaf subscription), and `PlanEditorContext` exposes exactly two listener doors,
- * neither of which is about assets. Closing it is a THIRD door on that context plus a
- * sibling to `planChangeSource`, which is a widening of the editor's own seam rather than a
- * change to this function — so it is written here rather than worked around, and the bound
- * is per GESTURE and not per pointer move, because every one of those five is published on
- * commit.
+ * The recovery was first bought by borrowing `onPlanChanged`, which carries
+ * `ProjectIndexRebuilt` and therefore worked, and which also carries five events that say
+ * nothing about the catalogue — so a zone gesture re-read every asset note in the vault.
+ * `createAssetCatalogueChangeSource` is the narrowing: the rebuild that fixes the restored
+ * leaf, the three asset commands, and an index entry change filtered to `renovation-asset`
+ * for a note added by hand or arriving through sync. The picker now hears what it is
+ * about and nothing else.
  */
 function loadAssetOptions(
 	context: PlanEditorContext,
@@ -557,14 +549,14 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
 
-	// The assign picker's options, hydrated at mount and re-read on the SAME event the root
-	// re-hydrates the plan on — the shape `PlanEditorRoot` already uses for `hydrate`, and
-	// the disposal matters for the same reason it does there: Obsidian reuses a view, so a
-	// listener outliving its Vue tree writes into a retired one.
+	// The assign picker's options, hydrated at mount and re-read on the catalogue's OWN
+	// subscription rather than on the plan's. The disposal matters for the reason it does at
+	// `PlanEditorRoot`'s `hydrate`: Obsidian reuses a view, so a listener outliving its Vue
+	// tree writes into a retired one.
 	const assetOptionsRef = ref<readonly { readonly id: string; readonly name: string }[]>([]);
 	loadAssetOptions(context, assetOptionsRef);
 	onBeforeUnmount(
-		context.onPlanChanged(() => {
+		context.onCatalogueChanged(() => {
 			loadAssetOptions(context, assetOptionsRef);
 		}),
 	);

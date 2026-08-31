@@ -4,6 +4,7 @@ import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
+import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
 import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
 import type { CreatePlanInput, CreatePlanError } from '../application/commands/plan/CreatePlan';
@@ -476,6 +477,7 @@ export function planEditorDeps(
 		vault,
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
+		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
 	};
 }
 

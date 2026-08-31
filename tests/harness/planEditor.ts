@@ -207,6 +207,9 @@ export function harnessDeps(): PlanEditorDeps {
 		},
 		// Nothing writes on this page, so nothing ever changes a plan under it.
 		onPlanChanged: () => () => undefined,
+		// The harness holds a fixed fixture and publishes no domain events, so both change
+		// doors are honestly inert here rather than merely unimplemented.
+		onCatalogueChanged: () => () => undefined,
 	};
 }
 

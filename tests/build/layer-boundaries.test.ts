@@ -169,7 +169,7 @@ const EXTENSIONS = ['ts', 'vue', 'js', 'jsx', 'mjs', 'cjs'] as const;
  * Derived rather than corrected, because correcting four values leaves the fifth to be got
  * wrong by the next author.
  */
-const toSrc = (path: string): string => `${relative(dirname(path), 'src').split(sep).join('/')}/`;
+const toSrc = (path: string): string => `${relative(dirname(path), 'src').replaceAll(sep, '/')}/`;
 
 /** Every shape a group glob can protect. `**\/${g}` alone matches the barrel. */
 const layerShapes = (layer: string, depth: string): readonly Planted[] => [

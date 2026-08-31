@@ -119,7 +119,7 @@ describe('the harness fixture', () => {
 			.filter((file) => readFileSync(file, 'utf8').includes('.inspectorDto'))
 			// Posix-normalized before the comparison below: `path.join` above emits `\` on the
 			// Windows CI leg, and this assertion names a literal path.
-			.map((file) => file.split(path.sep).join('/'));
+			.map((file) => file.replaceAll(path.sep, '/'));
 
 		expect(readers).toEqual(['src/presentation/editor/shell/InspectorPanel.vue']);
 	});

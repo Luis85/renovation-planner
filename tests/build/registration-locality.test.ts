@@ -56,7 +56,7 @@ function modulesRegistering(): string[] {
 			const source = readFileSync(path, 'utf8');
 			return REGISTRATION_MEMBERS.some((member) => source.includes(member));
 		})
-		.map((path) => path.split(sep).join('/'))
+		.map((path) => path.replaceAll(sep, '/'))
 		.toSorted();
 }
 

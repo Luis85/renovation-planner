@@ -139,8 +139,8 @@ describe('the two writers, refused independently', () => {
 	 */
 	it('declares no display override of its own', () => {
 		// `Object.prototype.hasOwnProperty.call`, not `Object.hasOwn`: the latter is ES2022 and
-		// this project's `lib` is ES2020 — raising it would change what `src/` may reach for,
-		// which is a decision about the plugin rather than about this assertion.
+		// this project's `lib` is ES2021 — raising it further would change what `src/` may reach
+		// for, which is a decision about the plugin rather than about this assertion.
 		expect(Object.prototype.hasOwnProperty.call(SettingsTab.prototype, 'display')).toBe(false);
 	});
 

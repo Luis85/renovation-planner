@@ -131,8 +131,14 @@ export type FootprintOrigin = 'typed' | 'traced';
 export interface AssetShape {
 	readonly footprint: Polygon;
 	readonly footprintOrigin: FootprintOrigin;
-	/** Captured on an uncalibrated surface and still awaiting a scale. Typed geometry is never pending. */
-	readonly pendingScale: boolean;
+	/**
+	 * One flag per coordinate group that can be captured on its own, each set at THAT
+	 * attribute's capture on an uncalibrated surface and cleared by the calibration that
+	 * converts it. Typed geometry is never pending, which is why no rule has to name it.
+	 */
+	readonly footprintPending: boolean;
+	readonly clearancePending: boolean;
+	readonly anchorPending: boolean;
 	readonly clearance: Polygon | null;
 	readonly anchor: Point;
 	/** Radians, measured anticlockwise from +x, normalised to [0, 2π). */
@@ -224,8 +230,14 @@ export type FootprintOrigin = 'typed' | 'traced';
 export interface AssetShape {
 	readonly footprint: Polygon;
 	readonly footprintOrigin: FootprintOrigin;
-	/** Captured on an uncalibrated surface and still awaiting a scale. Typed geometry is never pending. */
-	readonly pendingScale: boolean;
+	/**
+	 * One flag per coordinate group that can be captured on its own, each set at THAT
+	 * attribute's capture on an uncalibrated surface and cleared by the calibration that
+	 * converts it. Typed geometry is never pending, which is why no rule has to name it.
+	 */
+	readonly footprintPending: boolean;
+	readonly clearancePending: boolean;
+	readonly anchorPending: boolean;
 	readonly clearance: Polygon | null;
 	readonly anchor: Point;
 	readonly facing: number;
@@ -310,7 +322,9 @@ export function shapeFromDimensions(width: number, depth: number): Result<AssetS
 	return ok({
 		footprint: footprint.value,
 		footprintOrigin: 'typed',
-		pendingScale: false,
+		footprintPending: false,
+		clearancePending: false,
+		anchorPending: false,
 		clearance: null,
 		anchor: { x: 0, y: 0 },
 		facing: 0,
@@ -386,7 +400,9 @@ const valid = {
 	shape: {
 		footprint: { points: [[-600, -400], [600, -400], [600, 400], [-600, 400]] },
 		footprintOrigin: 'typed',
-		pendingScale: false,
+		footprintPending: false,
+		clearancePending: false,
+		anchorPending: false,
 		clearance: null,
 		anchor: { x: 0, y: 0 },
 		facing: 0,
@@ -459,7 +475,9 @@ export const AssetShapeSchemaV1 = z.object({
 	 * repair. (`revision` keeps `.catch(0)` because a bad counter costs a conflict, not a
 	 * silent misreading.)
 	 */
-	pendingScale: z.boolean().default(false),
+	footprintPending: z.boolean().default(false),
+	clearancePending: z.boolean().default(false),
+	anchorPending: z.boolean().default(false),
 	clearance: z.object({ points: z.array(pointTuple) }).nullable(),
 	anchor: z.object({ x: z.number(), y: z.number() }),
 	facing: z.number(),
@@ -715,14 +733,14 @@ describe('SetAssetFootprint', () => {
 		await traceCommand.execute({ assetId, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 }] });
 		const stored = await sidecar.read(assetId);
 		expect(isOk(stored) && stored.value.document.shape?.footprintOrigin).toBe('traced');
-		expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(true);
+		expect(isOk(stored) && stored.value.document.shape?.footprintPending).toBe(true);
 	});
 
 	it('marks a trace taken on a CALIBRATED surface as already scaled', async () => {
 		await seedCalibration();
 		await traceCommand.execute({ assetId, points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 }] });
 		const stored = await sidecar.read(assetId);
-		expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(false);
+		expect(isOk(stored) && stored.value.document.shape?.footprintPending).toBe(false);
 	});
 
 	it('refuses a two-point outline through the one polygon validator', async () => {
@@ -755,6 +773,10 @@ Each: read the sidecar, build or validate the shape, merge it over the existing 
 *Preservation*: setting a footprint must never clear a clearance, an anchor or a facing. That is
 what test 3 pins, and it is why these commands read before they write rather than composing a fresh
 document.
+
+*Provenance and pending*: a traced footprint sets `footprintOrigin: 'traced'` and sets
+`footprintPending` from whether the surface is calibrated at capture; the typed command sets
+`'typed'` and leaves `footprintPending` clear. Neither touches `clearancePending` or `anchorPending`.
 
 *Conditioning*: the write passes **`input.expected ?? snapshot.version`** — the version this command
 just read — never `undefined`. An unconditional whole-document replace is a lost update the moment
@@ -835,6 +857,24 @@ Plus: a non-finite anchor refuses; a non-finite facing refuses; a two-point clea
 - [ ] **Step 2: Run, watch fail, implement the three commands**
 
 Each reads, validates through `validateAssetShape`, compares against the stored value (`coincident` for the anchor, not `===`), writes only on a real change, and returns `'no-write'` otherwise.
+
+**Each sets its OWN pending flag at capture**, and only its own: `SetAssetClearance` sets
+`clearancePending` from whether the surface is calibrated at that moment, `SetAssetAnchor` sets
+`anchorPending`, and neither touches the other's or the footprint's. That is the whole of what the
+per-attribute model asks of these commands, and it is why B6 needs no conjunction. Add the case:
+
+```typescript
+it('sets only its own pending flag, leaving a measured footprint measured', async () => {
+	await seedShape({ footprintOrigin: 'traced', footprintPending: false });   // already calibrated once
+	await clearFlagsBySeedingUncalibratedSurface();
+	await clearance.execute({ assetId, points: square });
+	const stored = await sidecar.read(assetId);
+	const shape = isOk(stored) ? stored.value.document.shape : null;
+	expect(shape?.clearancePending).toBe(true);
+	expect(shape?.footprintPending).toBe(false);
+	expect(shape?.anchorPending).toBe(false);
+});
+```
 
 - [ ] **Step 3: Run, gate, commit**
 
@@ -924,7 +964,7 @@ export interface AssetDesignDto {
 	readonly shape: AssetShape | null;
 	/** Null when there is no footprint to measure. */
 	readonly dimensions: Dimensions | null;
-	/** `shape.pendingScale` — a stored fact about capture, never a join of live state. */
+	/** `shape.footprintPending` — a stored fact about the footprint's own capture, never a join. */
 	readonly dimensionsUnscaled: boolean;
 	readonly version: EntityVersion;
 }
@@ -941,14 +981,14 @@ it.each([
 	['typed',  true,  false], // the mixed case: a typed outline with a clearance awaiting a scale.
 	['traced', false, false],
 	['traced', true,  true ],
-])('origin %s with pendingScale %s reports unscaled=%s', async (origin, pendingScale, expected) => {
-	await seed({ origin, pendingScale });
+])('origin %s with footprintPending %s reports unscaled=%s', async (origin, footprintPending, expected) => {
+	await seed({ origin, footprintPending });
 	const dto = await query.execute(assetId);
 	expect(isOk(dto) && dto.value.dimensionsUnscaled).toBe(expected);
 });
 
 it('keeps a measured outline measured when its background is replaced', async () => {
-	await seed({ origin: 'traced', pendingScale: false, calibration: 'calibrated' });
+	await seed({ origin: 'traced', footprintPending: false, calibration: 'calibrated' });
 	await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
 	const dto = await query.execute(assetId);
 	expect(isOk(dto) && dto.value.calibration).toBeNull();
@@ -1476,13 +1516,13 @@ it('restores the exact document the forward write replaced', async () => {
 });
 
 it('restores a calibration undo including every coordinate it rescaled', async () => {
-	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', pendingScale: true });
+	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', footprintPending: true });
 	const command = reversible.calibrate({ assetId, pointA: a, pointB: b, knownDistance: 200 });
 	await command.execute();
 	await command.undo();
 	const after = await sidecar.read(assetId);
 	expect(isOk(after) && after.value.document.shape?.footprint.points[2]).toEqual({ x: 100, y: 60 });
-	expect(isOk(after) && after.value.document.shape?.pendingScale).toBe(true);
+	expect(isOk(after) && after.value.document.shape?.footprintPending).toBe(true);
 });
 
 it('records every write into the ledger, restores included, so the next expectation is the history\'s', async () => {
@@ -1704,7 +1744,7 @@ git commit -m "The designer's tools, and a toolbar that reaches all of them"
 
 ```typescript
 it('rescales the coordinates that came off the background, its own calibration pair included', async () => {
-	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', pendingScale: true, anchor: { x: 10, y: 10 }, clearance: rect(120, 80) });
+	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', footprintPending: true, clearancePending: true, anchorPending: true, anchor: { x: 10, y: 10 }, clearance: rect(120, 80) });
 	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
 	const stored = await sidecar.read(assetId);
 	// scaleCorrection is 2: the drawn 100 units are really 200 mm.
@@ -1722,8 +1762,8 @@ it('touches no plan and no other asset', async () => {
 	expect(await planSidecar.read(planId)).toEqual(planBefore);
 });
 
-it('leaves a TYPED footprint alone, because it was authored in millimetres', async () => {
-	await seedShape({ footprint: rect(1200, 800), footprintOrigin: 'typed', pendingScale: true, clearance: rect(1400, 1000) });
+it('converts a pending clearance and leaves a typed footprint alone, with no rule naming the footprint', async () => {
+	await seedShape({ footprint: rect(1200, 800), footprintOrigin: 'typed', footprintPending: false, clearance: rect(1400, 1000), clearancePending: true });
 	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
 	const stored = await sidecar.read(assetId);
 	const shape = isOk(stored) ? stored.value.document.shape : null;
@@ -1732,21 +1772,39 @@ it('leaves a TYPED footprint alone, because it was authored in millimetres', asy
 	expect(shape?.clearance?.points[2]).toEqual({ x: 1400, y: 1000 });
 });
 
-it('clears pendingScale, because the coordinates it just converted are millimetres now', async () => {
-	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', pendingScale: true });
+it('clears each flag it converts, and only those', async () => {
+	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', footprintPending: true, clearance: rect(120, 80), clearancePending: false });
 	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
 	const stored = await sidecar.read(assetId);
-	expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(false);
+	const shape = isOk(stored) ? stored.value.document.shape : null;
+	expect(shape?.footprintPending).toBe(false);
+	expect(shape?.clearance?.points[2]).toEqual({ x: 120, y: 80 });   // not pending, so not converted
+});
+
+it('converts a NEW trace on a replaced background without re-multiplying the measured geometry', async () => {
+	// The case one shape-level flag could not express: a measured asset, its background replaced
+	// (Decision 5), a fresh clearance traced on the new document before it is calibrated.
+	await seedShape({
+		footprint: rect(1200, 800), footprintOrigin: 'traced', footprintPending: false,
+		anchor: { x: 10, y: 10 }, anchorPending: false,
+		clearance: rect(100, 60), clearancePending: true,
+	});
+	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
+	const stored = await sidecar.read(assetId);
+	const shape = isOk(stored) ? stored.value.document.shape : null;
+	expect(shape?.clearance?.points[2]).toEqual({ x: 100, y: 60 });   // doubled from 50 x 30
+	expect(shape?.footprint.points[2]).toEqual({ x: 600, y: 400 });   // untouched
+	expect(shape?.anchor).toEqual({ x: 10, y: 10 });                  // untouched
 });
 
 it('rescales nothing on a second calibration, because those coordinates are already millimetres', async () => {
 	// trace -> calibrate -> replace the background (Decision 5) -> calibrate the new document.
-	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', pendingScale: false, clearance: rect(120, 80) });
+	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', footprintPending: false, clearance: rect(120, 80), clearancePending: false });
 	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
 	const stored = await sidecar.read(assetId);
 	const shape = isOk(stored) ? stored.value.document.shape : null;
-	// footprintOrigin is still 'traced' and always will be. pendingScale is what says these
-	// coordinates were already converted; gating on the first alone doubles a measured oven.
+	// footprintOrigin is still 'traced' and always will be. The pending flags are what say these
+	// coordinates were already converted; gating on provenance alone doubles a measured oven.
 	expect(shape?.footprint.points[2]).toEqual({ x: 50, y: 30 });
 	expect(shape?.clearance?.points[2]).toEqual({ x: 60, y: 40 });
 	// The calibration itself is still recorded — the command did its job, it just rescaled nothing.
@@ -1755,7 +1813,7 @@ it('rescales nothing on a second calibration, because those coordinates are alre
 
 it('rescales its own calibration pair even when no geometry awaits a scale', async () => {
 	// The ordinary first calibration: a background, nothing traced on it yet.
-	await seedShape({ footprint: rect(1200, 800), footprintOrigin: 'typed', pendingScale: false });
+	await seedShape({ footprint: rect(1200, 800), footprintOrigin: 'typed', footprintPending: false });
 	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
 	const stored = await sidecar.read(assetId);
 	const c = isOk(stored) ? stored.value.document.calibration : null;
@@ -1784,25 +1842,34 @@ The second case is the epic's central separation — the calibration a designer 
 
 Derive, then rescale in two steps, because they are gated differently.
 
-**Always** apply `scaleCorrection` to the calibration's **own pair**, whatever `pendingScale` says.
-The at-rest invariant asserted below is definitional, and the flag is clear on the ordinary first
+**Always** apply `scaleCorrection` to the calibration's **own pair**, gated on nothing. The at-rest
+invariant asserted below is definitional, and every pending flag is clear on the ordinary first
 calibration — a background calibrated before any geometry is drawn — so gating the pair stores the
 picked points unconverted: a 100-unit pair claiming a known distance of 200.
 
-**Only when `pendingScale` is set**, apply `scaleShape(…, scaleCorrection, origin)` to the GEOMETRY
-that came off the background: the clearance, the anchor, and the footprint **only when
-`footprintOrigin === 'traced'`**. Then clear `pendingScale`. Write the whole document once. When the
-flag is already clear, no geometry is converted and only the new calibration is recorded.
+**Then rescale each coordinate group whose own flag is set, independently** — `footprintPending`,
+`clearancePending`, `anchorPending` — clearing each flag as it converts that group. Write the whole
+document once. A group whose flag is clear is already in millimetres and is left alone; when none is
+set, only the new calibration is recorded.
 
-**Both conditions are necessary and neither is sufficient**, which is the owner's ruling on the one
-question this plan left open. `footprintOrigin` stays `'traced'` for the life of the outline, so
-gating on it alone rescales a trace an earlier calibration already converted — the
-replace-the-background path of Decision 5 — multiplying millimetres by a correction that answers a
-question about pixels. Gating on `pendingScale` alone rescales a *typed* footprint whenever a later
-trace is awaiting a scale, which is the mixed case Decision 6's known limitation names. The
-second-calibration test above is the regression for the first; the typed-footprint test is the
-regression for the second. **The accepted cost:** correcting a calibration no longer retroactively
-repairs an earlier trace, so the user re-traces.
+**There is no conjunction, and that is the owner's ruling on the one question this plan left open.**
+Three earlier gates each failed at a different point, and the tests above are their regressions:
+
+- **Provenance alone** (`footprintOrigin === 'traced'`) rescales a trace an earlier calibration
+  already converted — the replace-the-background path of Decision 5 — multiplying millimetres by a
+  correction that answers a question about pixels. `footprintOrigin` stays `'traced'` for the life
+  of the outline, so it cannot answer a question about what has already happened to the coordinates.
+- **A shape-level `pendingScale` alone** rescales a *typed* footprint whenever any later trace is
+  awaiting a scale.
+- **The two conjoined** patched the footprint out of that and left the anchor and the clearance
+  still sharing one flag — so tracing a new clearance on a replaced background either re-multiplied
+  the measured footprint and anchor or never converted the new clearance at all. The same defect one
+  level down.
+
+**One flag per thing that can be captured on its own** removes the question rather than answering
+it: a typed footprint is never pending, so nothing has to name it, and `footprintOrigin` reverts to
+pure provenance for the inspector and the retype rule. **The accepted cost is unchanged:** correcting
+a calibration no longer retroactively repairs an earlier trace, so the user re-traces.
 
 **This is the one place slice 7's plan rule may not be copied**, and it is worth reading
 `ReversibleCalibratePlan` with that in mind rather than transcribing it. That command rescales
@@ -1910,11 +1977,11 @@ it('clears the calibration, because two points on the old document name nothing 
 });
 
 it('does NOT re-flag an already-measured outline: the object did not change size', async () => {
-	await seedShape({ footprintOrigin: 'traced', pendingScale: false });
+	await seedShape({ footprintOrigin: 'traced', footprintPending: false });
 	await seedCalibration();
 	await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
 	const stored = await sidecar.read(assetId);
-	expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(false);
+	expect(isOk(stored) && stored.value.document.shape?.footprintPending).toBe(false);
 });
 
 it('leaves neither half applied when the write fails', async () => {
@@ -2075,7 +2142,7 @@ it('retypes a TRACED footprint as typed, since the numbers are now authored rath
 	await editDimensionsOn({ footprintOrigin: 'traced' });
 	const stored = await sidecar.read(openAssetId);
 	expect(isOk(stored) && stored.value.document.shape?.footprintOrigin).toBe('typed');
-	expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(false);
+	expect(isOk(stored) && stored.value.document.shape?.footprintPending).toBe(false);
 });
 ```
 

@@ -110,7 +110,7 @@ Following `Plan`'s split exactly, because the reasons are the same ones:
 | | `Plan` today | `Asset`, this increment |
 | --- | --- | --- |
 | note frontmatter | `background-path`, `background-kind`, `background-page` | the same three keys, plus `height` |
-| sidecar | `calibration`, `objects[]` | `calibration`, `footprint`, `clearance`, `anchor`, `facing`, `footprintOrigin`, `pendingScale` |
+| sidecar | `calibration`, `objects[]` | `calibration`, `footprint`, `clearance`, `anchor`, `facing`, `footprintOrigin`, and one pending flag per coordinate group |
 
 `height` is frontmatter because it is a scalar a human should read with the plugin uninstalled
 (§3.2) and nothing in the coordinate space depends on it. The **anchor is sidecar** because it is
@@ -133,35 +133,39 @@ the defect slice 7 shipped and a human found — so its derived dimensions must 
 But a typed 120 × 80 involves no background at all and is exact millimetres, so marking *those*
 unscaled is the same lie pointed the other way.
 
-So the sidecar records two facts about how the coordinates came to exist:
+So the sidecar records, **per coordinate group**, whether that group is still awaiting a scale:
 
-- `footprintOrigin: 'typed' | 'traced'` — whether the outline was authored in millimetres or taken
-  off the background. This decides whether the footprint is among what a calibration rescales, and
-  never on its own whether a calibration rescales at all (Decision 6).
-- `pendingScale: boolean` — whether the traced coordinates are still awaiting a scale, set at the
-  moment of capture and cleared by the calibration that converts them. This is what gates rescaling
-  at all (Decision 6), and it is the half that moves.
+- `footprintPending`, `clearancePending`, `anchorPending` — each set at that attribute's own
+  capture, on an uncalibrated surface, and cleared by the calibration that converts it.
+- `footprintOrigin: 'typed' | 'traced'` — pure provenance, kept for the inspector and for the
+  retype rule. It is **not** load-bearing in the calibration path.
 
-`dimensionsUnscaled` is `pendingScale && footprintOrigin === 'traced'`, and the stored half of that
-is a **correction to this document's own first draft**, which derived the whole of it as
-`traced && calibration === null`. That derivation asks a question
-about the PAST — was there a scale when these coordinates were captured — out of LIVE state, so it
-answers wrongly the moment either input moves: replacing a background (Decision 5) would re-flag an
-outline that really was measured, and the answer would change without the geometry changing. It is
-the "a phase test cannot answer a question about the past" shape this repository has recorded
-repeatedly, and writing it down as a stored fact is what makes the staleness unrepresentable rather
-than refreshed on one more event.
+`dimensionsUnscaled` is `footprintPending`. The dimensions are the footprint's bounding box, so they
+are unscaled exactly when the footprint is, and no other attribute can speak for it.
 
-**Why a conjunction rather than `pendingScale` alone.** The dimensions are the *footprint's*
-bounding box, so they are unscaled exactly when the footprint is — while `pendingScale` is a fact
-about the whole shape, which may hold a typed footprint beside a clearance still awaiting a scale
-(Decision 6's known limitation). Reading the flag by itself would report an exact typed 1200 × 800
-as unscaled, which is the lie this section opened by refusing, pointed a third way. This is also why
-`footprintOrigin: 'typed'` with `pendingScale: true` is a **legal** state rather than one a schema
-refinement should refuse: it is the mixed case, and refusing it would forbid tracing a clearance
-around a typed outline.
+**Per-attribute, and this document reached it in three corrections rather than one.** The first
+draft derived the answer as `traced && calibration === null` — a question about the PAST asked of
+LIVE state, so replacing a background re-flagged an outline that really was measured. Making it a
+stored fact fixed that and introduced a shape-level `pendingScale`. That in turn could not describe
+three attributes a user edits independently: on a measured asset whose background is replaced,
+tracing a **new** clearance had only two reachable states, both wrong — set the flag and the next
+calibration re-multiplies the already-measured footprint and anchor, or leave it clear and the new
+clearance is never converted at all. A conjunction with `footprintOrigin` patched the footprint out
+of that and left the anchor and clearance sharing one flag, which is the same defect one level down.
 
-Neither field is derivable from the geometry, so neither is duplicate data under §88.
+**One flag per thing that can be captured on its own** is what makes the question local, and it
+**simplifies**: the conjunction disappears, because a typed footprint is simply never pending, so
+`footprintPending` alone says what `pendingScale && footprintOrigin === 'traced'` used to; and
+`dimensionsUnscaled` stops being a join at all. The cost is two extra booleans in a schema nobody
+has written yet.
+
+**The general shape, which this repository already had a rule for:** a value derived from two
+inputs goes stale when either moves, and the remedy is to make the staleness unrepresentable rather
+than to refresh it — but a stored fact only helps if it is stored at the granularity of the thing it
+describes. One fact standing for three independently-editable groups is a derivation wearing a
+stored fact's clothes.
+
+None of these fields is derivable from the geometry, so none is duplicate data under §88.
 
 ### 4. ADR-0014 — asset geometry lives in the library's own `Geometry/`
 
@@ -199,27 +203,32 @@ scale belongs to the old document and the picture is the new one is one no reade
 
 What it deliberately does **not** do is re-flag existing geometry. Coordinates already converted to
 millimetres are measurements of a real object, and the object did not change size because the
-drawing of it did; `pendingScale` is untouched. What the clearing prevents is the next trace
+drawing of it did; every pending flag is untouched. A **new** trace on the replaced background sets
+its OWN flag at capture, which is what the per-attribute model buys here — the next calibration
+converts that one group and leaves the measured ones alone. What the clearing prevents is the next trace
 silently inheriting the previous document's scale, and the designer says the surface is
 uncalibrated again, which is the epic's own inherited rule doing the work.
 
 ### 6. Calibration rescales what came off the background, and nothing else
 
-`CalibrateAsset` multiplies by `scaleCorrection` **only the coordinates that came from the
-background and have not yet been converted** — the clearance, the anchor and a `traced` footprint —
-and never a `typed` footprint.
+`CalibrateAsset` multiplies by `scaleCorrection` **exactly the coordinate groups whose own pending
+flag is set** — `footprintPending`, `clearancePending`, `anchorPending`, each independently — and
+clears each flag it converts. A typed footprint is never pending, so it is never rescaled without
+any rule having to name it.
 
 **Its own calibration pair is the exception, and is ALWAYS rescaled and finite-checked**, gated on
 nothing. The at-rest invariant `distance(pointA, pointB) === knownDistance` is definitional: it is
-what makes a stored calibration mean anything. Gating the pair on `pendingScale` persists the picked
-points unconverted whenever the flag is already clear — which includes the *ordinary* first
+what makes a stored calibration mean anything. Gating the pair on any pending flag persists the picked
+points unconverted whenever that flag is already clear — which includes the *ordinary* first
 calibration, a background calibrated before any geometry exists — storing a 100-unit pair that
 claims a known distance of 200 and rendering the background at a scale inconsistent with its own
 calibration.
 
-**`pendingScale` gates whether a calibration rescales the GEOMETRY at all; `footprintOrigin` decides
-whether the footprint is among it.** Both are necessary and neither is sufficient, so the geometry
-rule is a conjunction rather than one flag.
+**One flag per group, asked independently.** An earlier draft gated the geometry on a shape-level
+`pendingScale` conjoined with `footprintOrigin`; that patched the footprint out of the double-rescale
+and left the anchor and the clearance sharing one flag, which is the same defect one level down.
+There is no conjunction now, and nothing to be sufficient or insufficient: each group answers for
+itself.
 
 This is the one place slice 7's plan rule may not be copied, and the first draft of this document
 copied it. `ReversibleCalibratePlan` rescales *every* coordinate the plan owns, which is correct
@@ -228,20 +237,18 @@ has a coordinate source a plan never had: a typed 1200 × 800 is authored in tru
 was never in the background's space at all. Rescaling it would turn an exact oven into an arbitrary
 one — silently, since the number would still look like a plausible oven.
 
-`footprintOrigin` is what makes that distinction expressible, which is the second job that field
-does and the reason it is worth its byte. It is **not** sufficient alone, and gating on it alone was
-this document's rule until the owner ruled otherwise: `footprintOrigin` stays `'traced'` for the life
-of the outline, while the coordinates it describes stop being background pixels the moment the first
-calibration converts them. So a trace that was calibrated, then had its background **replaced**
-(Decision 5), then had the new document calibrated, was rescaled a second time — multiplying
-millimetres by a correction that answers a question about pixels, and silently, since the result
-still looks like a plausible oven. `pendingScale` is the fact that moves: set at capture, cleared by
-the calibration that converts, so a second calibration over already-converted coordinates rescales
-nothing.
+**Provenance cannot gate this, which is what two corrections established.** `footprintOrigin` stays
+`'traced'` for the life of an outline, while the coordinates it describes stop being background
+pixels the moment the first calibration converts them. So gating on provenance rescaled a calibrated
+trace a second time after its background was replaced — multiplying millimetres by a correction that
+answers a question about pixels, silently, since the result still looks like a plausible oven. A
+pending flag is the fact that *moves*: set at capture, cleared by the calibration that converts it.
+`footprintOrigin` survives as pure provenance, for the inspector and the retype rule, and answers
+nothing about scale.
 
 **What that costs, accepted rather than hidden:** correcting a calibration no longer retroactively
-repairs an earlier trace, because the first calibration has already cleared `pendingScale`. The user
-re-traces. That is affordable for one footprint and one clearance and would not be for a plan full of
+repairs an earlier trace, because the first calibration has already cleared that group's flag. The
+user re-traces. That is affordable for one footprint and one clearance and would not be for a plan full of
 zones — which is exactly why the plan editor keeps slice 7's rule and the designer does not.
 
 **The known limitation, stated rather than discovered:** a typed footprint and a trace taken before
@@ -250,10 +257,10 @@ not agree with itself in between. Calibrating repairs it. Refusing the mix outri
 alternative, and it is rejected because the epic's whole "usable before it is accurate" ladder is
 built on letting a renovator start before the surface is exact.
 
-**This case is also why the gate is a conjunction and not `pendingScale` alone.** Here the shape
-carries a typed footprint *and* a trace awaiting a scale, so `pendingScale` is set; rescaling on that
-flag by itself would multiply the typed footprint too, which is the precise defect Decision 6 exists
-to prevent, reintroduced under a different flag.
+**The mixed case is where a shape-level flag failed and per-attribute flags simply do not arise.**
+A typed footprint beside a clearance awaiting a scale sets `clearancePending` and leaves
+`footprintPending` clear, so the calibration converts the clearance and does not touch the rectangle
+— no conjunction, no exception, and no state in which the two questions have to share an answer.
 
 ### 7. ADR-0015 — the designer is a per-asset view type
 
@@ -314,11 +321,10 @@ that `Asset.withChanges` exists to re-run, and undo granularity is per gesture: 
 clearance and regrets it should not lose their anchor with it.
 
 `CalibrateAsset` borrows `ReversibleCalibratePlan`'s machinery and **not** its rule: it always
-rescales its own calibration pair, and when `pendingScale` is set it also rescales the clearance, the
-anchor and a `traced` footprint, leaving a `typed` one alone; when the flag is clear it converts no
-geometry (Decision 6). It clears `pendingScale`, since the coordinates it just converted are
-millimetres now. Recalibrating an oven rescales that oven and nothing else on any plan, which is
-the whole reason the epic gives the designer a calibration of its own.
+rescales its own calibration pair, and rescales each coordinate group whose own pending flag is set,
+clearing that flag as it converts (Decision 6). A group whose flag is clear is already in
+millimetres and is left alone. Recalibrating an oven rescales that oven and nothing else on any
+plan, which is the whole reason the epic gives the designer a calibration of its own.
 
 `SetAssetBackground` clears the calibration in the same write (Decision 5).
 

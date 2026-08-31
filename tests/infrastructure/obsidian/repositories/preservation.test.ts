@@ -6,7 +6,7 @@ import {
 	type RepositoryStack,
 } from '../../../helpers/vault';
 import { writeOwnedFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
-import { expectOk } from '../../../helpers/domain';
+import { expectFound, expectOk } from '../../../helpers/domain';
 import {
 	makeAsset,
 	makePlan,
@@ -94,7 +94,7 @@ const PRESERVATION_CASES: ReadonlyArray<{
 		reads: 'Renamed plan',
 		drive: async (stack) => {
 			const { projectId, planId } = await seedPlan(stack);
-			const read = expectOk(await stack.plans.getById(planId));
+			const read = expectFound(await stack.plans.getById(planId));
 			await expectTargetedUpdatePreservesUserContent({
 				stack,
 				id: planId,

@@ -179,6 +179,8 @@ describe('the plan editor empty states', () => {
 		harness = await mountPlanEditor({ plan: null, zones: [] });
 
 		expect(overlay(harness).exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-editor-canvas-message').exists()).toBe(true);
+		// Slice 17 replaced this region with the shared `ViewFailure` for the two states that have
+		// a reason; the loading line keeps `.rp-editor-canvas-message`.
+		expect(harness.wrapper.find('.rp-view-failure').exists()).toBe(true);
 	});
 });

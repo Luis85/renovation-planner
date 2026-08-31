@@ -1,6 +1,7 @@
 import { FuzzySuggestModal, PluginSettingTab, type App, type SettingDefinitionItem } from 'obsidian';
 import { tr } from '../../presentation/i18n/strings';
-import { notifyError } from '../../presentation/notices/notify';
+import { noticeOnlySinks } from '../../presentation/notices/notify';
+import { surfaceError } from '../../presentation/errors/surfaceError';
 import { isErr } from '../../core/result/Result';
 import { ensureFolder, renameNote } from '../../infrastructure/obsidian/repositories/noteIo';
 import { runDetached } from '../runDetached';
@@ -250,7 +251,17 @@ export class SettingsTab extends PluginSettingTab {
 			if (to === null) return;
 
 			const migrated = await migrateLibraryFolder(this.libraryMigrationDeps(), from, to);
-			if (isErr(migrated)) notifyError(migrated.error);
+			// Through the surface policy (SDD §66's last step), like every other plugin command:
+			// the site declares WHERE the failure came from and the table decides the container.
+			// Moving the library is an operation the user invoked from this pane and confirmed
+			// with a destination picker, so the origin is `explicit-operation` — not
+			// `autosave-write`, which no gesture here is, and not `decision-required`, since the
+			// decision is the picker ABOVE and it already succeeded. `noticeOnlySinks` is the
+			// honest sink set: a settings tab has no view of its own to fail in place, no form
+			// banner and no save indicator.
+			if (isErr(migrated)) {
+				surfaceError(migrated.error, { kind: 'explicit-operation' }, noticeOnlySinks);
+			}
 		} finally {
 			this.migrating = false;
 			this.update();

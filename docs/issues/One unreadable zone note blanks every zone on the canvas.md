@@ -1,17 +1,30 @@
 ---
 type: Issue
 parent: "[[Plan editor and canvas]]"
-order: 50
+order: 5
 status: New
 started: ""
 finished: ""
-horizon: "MVP"
+horizon: Now
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
 ---
 
 # One unreadable zone note blanks every zone on the canvas

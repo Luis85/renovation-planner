@@ -86,8 +86,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	// it has to say — `Shift` is the legend printed on many keyboards but not the word.
 	'editor.hint.constrain-angle': 'Umschalttaste beschränkt den Winkel',
 	'editor.loading': 'Grundriss wird geladen …',
-	'editor.plan-missing': 'Diesen Grundriss gibt es nicht mehr.',
-	'editor.plan-failed': 'Dieser Grundriss konnte nicht aus dem Vault gelesen werden.',
 	'editor.background-missing': 'Die Hintergrunddatei dieses Grundrisses fehlt.',
 	'editor.background-failed': 'Der Hintergrund dieses Grundrisses konnte nicht gezeichnet werden.',
 	'editor.layer.background': 'Hintergrund',
@@ -182,6 +180,15 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.plan.no-zones.headline': 'Noch keine Zonen',
 	'empty.plan.no-zones.body': 'Zeichnen Sie die erste Zone auf diesem Plan. Ihre Fläche wird aus dem Umriss gemessen und bestimmt Mengen und Kosten für alles, was Sie ihr zuweisen.',
 	'empty.plan.no-zones.action': 'Zone zeichnen',
+	// Design slice 17: die Fehlerzustände, die den Inhalt einer Ansicht ersetzen.
+	'view.failure.retry': 'Erneut versuchen',
+	'view.project.failed.headline': 'Projekte konnten nicht geladen werden',
+	'editor.plan-failed.headline': 'Dieser Grundriss konnte nicht geladen werden',
+	'editor.refresh-failed': 'Dieser Grundriss konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
+	'editor.plan-missing.headline': 'Diesen Grundriss gibt es nicht mehr',
+	'editor.plan-missing.body': 'Dieser Tab verweist auf einen Grundriss, der nicht mehr im Vault ist.',
+	'editor.plan-missing.action': 'Tab schließen',
+	'view.session-failure.headline': 'Renovation Planner konnte nicht gestartet werden',
 	'view.project.loading': 'Projekte werden geladen …',
 	// Kein zweiter Satz über einen Diagnosebericht: den gibt es in diesem Build nicht — siehe
 	// den Kommentar am gleichen Schlüssel in `en.ts`.

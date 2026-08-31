@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
-import { err } from '../../../src/core/result/Result';
+import { err, type Result } from '../../../src/core/result/Result';
+import type { AppError } from '../../../src/core/errors/AppError';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryAssetRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
 import { DeleteAssetCommand } from '../../../src/application/commands/asset/DeleteAsset';
-import type { Loaded } from '../../../src/application/ports/versioning';
+import type { EntityVersion, Loaded } from '../../../src/application/ports/versioning';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset, makeRequirement, makeZone } from '../../helpers/entities';
 import type { Zone } from '../../../src/domain/zone/Zone';
@@ -20,7 +21,14 @@ import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
  * was empty and this success path never ran.
  */
 
-function failOnceDelete<R extends InMemoryZoneRepository | InMemoryAssetRepository>(repo: R): R {
+// Generic over the ID as well as the repository, and constrained STRUCTURALLY on the one
+// method this touches. Constraining to the union of the two concrete repositories made
+// `repo.delete` a union of function types, and a call through one of those accepts only the
+// INTERSECTION of its parameters — `never` for two differently-branded ids — so the
+// pass-through could not be written at all.
+function failOnceDelete<TId, R extends { delete(id: TId, expected: EntityVersion): Promise<Result<void, AppError>> }>(
+	repo: R,
+): R {
 	const inner = repo.delete.bind(repo);
 	let armed = true;
 	repo.delete = ((id: Parameters<typeof inner>[0], expected: Parameters<typeof inner>[1]) => {

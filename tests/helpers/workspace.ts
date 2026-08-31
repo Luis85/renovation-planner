@@ -56,6 +56,8 @@ export class FakeLeaf implements WorkspaceLeaf {
 
 	/** Every file `openProjectNote` (or anything else) opened on this leaf, in order. */
 	readonly opened: TFile[] = [];
+	/** How many times `detach` was called — the leaf-closing action's only observable. */
+	detached = 0;
 
 	/**
 	 * Sets the leaf's own view state, because the real call does. Obsidian gives a leaf it
@@ -79,6 +81,18 @@ export class FakeLeaf implements WorkspaceLeaf {
 		this.opened.push(file);
 		await Promise.resolve();
 		this.state = { type: 'markdown', state: { file: file.path } };
+	}
+
+	/**
+	 * Closes this leaf, which in Obsidian means it stops answering `getLeavesOfType` — so the
+	 * state goes with it rather than the fake merely counting the call. A leaf that recorded
+	 * `detached` and kept its state would still be found by the very lookup "is this view
+	 * already open" is built on, which is the thin-fake defect `openFile` above already paid
+	 * for once.
+	 */
+	detach(): void {
+		this.detached += 1;
+		this.state = undefined;
 	}
 }
 

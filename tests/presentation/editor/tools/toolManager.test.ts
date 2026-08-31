@@ -358,7 +358,7 @@ function readSource(relative: string): string {
 /** Block and line comments removed. The `[^:]` guard keeps a `://` inside a URL from
  * reading as a line comment; a `//` inside any other string literal still would. */
 function withoutComments(source: string): string {
-	return source.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/(^|[^:])\/\/.*$/gm, '$1');
+	return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 }
 
 /** Every member of `editor-tool.ts`'s `ToolId` union, read from the union itself. */

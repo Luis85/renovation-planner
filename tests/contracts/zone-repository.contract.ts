@@ -3,7 +3,8 @@ import type { ZoneRepository } from '../../src/application/ports/ZoneRepository'
 import type { EntityVersion } from '../../src/application/ports/versioning';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { PlanId } from '../../src/domain/plan/PlanId';
-import type { Zone, ZoneId } from '../../src/domain/zone/Zone';
+import type { Zone } from '../../src/domain/zone/Zone';
+import type { ZoneId } from '../../src/domain/zone/ZoneId';
 import { expectErr, expectOk } from '../helpers/domain';
 import { expectIdKeyedUpsert } from './upsert';
 

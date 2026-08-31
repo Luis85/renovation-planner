@@ -58,10 +58,22 @@ export interface EditorHarness {
 	readonly changePlan: () => void;
 	/** How many theme listeners are still registered — the unmount leak check. */
 	readonly themeListeners: () => number;
+	/** How many times the tree asked to close this leaf (`PlanEditorContext.closeLeaf`). */
+	readonly closedLeaf: () => number;
 	readonly unmount: () => void;
 }
 
-function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[]): PlanEditorQueryServices {
+/**
+ * The full query stack, exported so a case that wants ONE member to behave differently
+ * overrides that member rather than hand-rolling a stack.
+ *
+ * Hand-rolled partial stacks are this repository's fake-too-thin rule waiting to happen, and
+ * it happened: design slice 17's first draft of `planEditorFailure.test.ts` declared two
+ * members, one of them under a name (`listZonesForPlan`) the real interface does not have, and
+ * every mount logged `context.queries.listAssets is not a function` while the assertions
+ * passed. Spreading this keeps a new member reaching every caller the day it is written.
+ */
+export function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[] = []): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(plan)),
 		findZonesByPlan: () => Promise.resolve(ok(zones)),
@@ -91,8 +103,15 @@ export async function settle(): Promise<void> {
 	});
 }
 
-/** How many `settle()` rounds `settleUntil` will spend before giving up. */
-const SETTLE_ROUNDS = 50;
+/**
+ * How long `settleUntil` will wait before giving up.
+ *
+ * **A DEADLINE and not a round count, which is the whole fix**; the number below is chosen to
+ * sit under vitest's 5000 ms default so a genuine regression still fails as this helper's own
+ * named error rather than as an anonymous test timeout — the property the round bound was
+ * really protecting.
+ */
+const SETTLE_BUDGET_MS = 4_000;
 
 /**
  * `settle()` until something is TRUE, rather than a fixed number of times.
@@ -108,21 +127,46 @@ const SETTLE_ROUNDS = 50;
  * Bounded and NAMED on failure, both deliberately: an unbounded loop turns a real
  * regression into a hung suite, and "condition never held" with no subject is the least
  * useful failure a test can produce.
+ *
+ * **The bound was a round COUNT for four slices, and a count is the same mistake this
+ * function exists to correct, moved up one level.** A round is four microtasks and one
+ * `setTimeout(0)`, which Node clamps to about a millisecond — so fifty rounds is roughly
+ * fifty milliseconds of wall clock, whatever the machine, while the work being waited on is
+ * a cold Vite transform whose duration is entirely the machine's business. Measured rather
+ * than reasoned: `openIndex('entry=prototype:ZonePanel')` settles in four to six rounds
+ * locally, which reads as a tenfold margin and is nothing of the sort — it is five
+ * milliseconds against fifty, and `verify (ubuntu-latest, 26)` spent all fifty and failed
+ * while the three prototypes scanned before it passed.
+ *
+ * **Warming the entry module first was tried and is NOT sufficient**, which is what settled
+ * the fix as a deadline rather than a pre-load. `HarnessEntry.component` is a real loader, so
+ * awaiting it moves that one transform out of the polled window — and with the budget starved
+ * to a single round `ZonePanel` still failed, because it is a template-only mock composing a
+ * real `<StatusBar />` that the index registers through `defineAsyncComponent`. The nested
+ * component resolves lazily, INSIDE the window, and no list of things to warm stays correct as
+ * mocks compose more of them. A deadline needs no such list.
+ *
+ * `Date.now()` rather than `performance.now()`: this is a coarse bound on real work, the
+ * numbers are milliseconds apart from each other, and jsdom gives the former unconditionally.
  */
 export async function settleUntil(
 	condition: () => boolean | Promise<boolean>,
 	what: string,
 ): Promise<void> {
 	// The predicate may be ASYNC: the slice-8 e2e rig waits on vault reads, and it grew its
-	// own second copy of this loop — with a different round budget and different failure
+	// own second copy of this loop — with a different budget and different failure
 	// text — because the signature did not allow one. A flake fixed by raising the budget
 	// here has to reach every caller, so there is one budget.
-	for (let round = 0; round < SETTLE_ROUNDS; round += 1) {
+	const deadline = Date.now() + SETTLE_BUDGET_MS;
+	for (;;) {
+		// Asked BEFORE the deadline test, so a condition that became true during the final
+		// `settle()` still returns rather than being thrown away by the clock — the same
+		// re-check the round-bounded version made after its loop.
 		if (await condition()) return;
+		if (Date.now() >= deadline) {
+			throw new Error(`Timed out after ${SETTLE_BUDGET_MS}ms waiting for: ${what}`);
+		}
 		await settle();
-	}
-	if (!(await condition())) {
-		throw new Error(`Timed out after ${SETTLE_ROUNDS} settle rounds waiting for: ${what}`);
 	}
 }
 
@@ -141,6 +185,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	installEditorEnvironment();
 
 	const themeListeners = new Set<() => void>();
+	let closedLeaf = 0;
 	const planListeners = new Set<() => void>();
 
 	// `plan` is `PlanDto | null | undefined` here: `undefined` means the option was
@@ -160,6 +205,9 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		onPlanChanged: (listener) => {
 			planListeners.add(listener);
 			return () => planListeners.delete(listener);
+		},
+		closeLeaf: () => {
+			closedLeaf += 1;
 		},
 	};
 
@@ -200,6 +248,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 			for (const listener of planListeners) listener();
 		},
 		themeListeners: () => themeListeners.size,
+		closedLeaf: () => closedLeaf,
 		unmount: () => {
 			wrapper.unmount();
 			host.remove();

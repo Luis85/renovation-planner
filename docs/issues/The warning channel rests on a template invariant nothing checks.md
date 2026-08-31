@@ -5,13 +5,26 @@ order: 70
 status: Done
 started: 2026-08-26
 finished: 2026-08-26
-horizon: "MVP"
+horizon: Now
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
 ---
 
 # The warning channel rests on a template invariant nothing checks

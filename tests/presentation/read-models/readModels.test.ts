@@ -182,7 +182,7 @@ describe('the plan editor query boundary', () => {
 		for (const refused of [
 			await queries.findZonesByPlan('plan-1'),
 			await queries.getRequirementsForZone('zone-1'),
-			await queries.listAssets('project-1'),
+			await queries.listAssets(),
 			await queries.listRequirementsReferencing('zone-1'),
 			await queries.listReassignmentTargets('zone-1'),
 		]) {
@@ -207,7 +207,7 @@ describe('the plan editor query boundary', () => {
 			},
 		} as never);
 
-		expect(expectErr(await failing.listAssets('project-1'))).toMatchObject({ category: 'Persistence' });
+		expect(expectErr(await failing.listAssets())).toMatchObject({ category: 'Persistence' });
 	});
 
 	it('answers empty for a slice-10 query the composition omitted', async () => {
@@ -217,7 +217,7 @@ describe('the plan editor query boundary', () => {
 		} as never);
 
 		expect(expectOk(await bare.getRequirementsForZone('zone-1'))).toEqual([]);
-		expect(expectOk(await bare.listAssets('project-1'))).toEqual([]);
+		expect(expectOk(await bare.listAssets())).toEqual([]);
 		expect(expectOk(await bare.listRequirementsReferencing('zone-1'))).toEqual([]);
 		expect(expectOk(await bare.listReassignmentTargets('zone-1'))).toEqual([]);
 	});

@@ -27,7 +27,12 @@ describe('RenderState', () => {
 		state.measurement = { start: { x: 0, y: 0 }, end: { x: 1000, y: 0 } };
 		state.polygonSketch = {
 			vertices: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }],
-			cursor: { x: 4, y: 4 },
+			// `pointer` and `nextVertex`, equal here because no angle constraint is holding them
+			// apart. This literal said `cursor` until `tests/**` was type-checked — the field
+			// `PolygonSketch`'s own docblock records being SPLIT into these two, because one
+			// value cannot be both where a vertex lands and where the close is judged from.
+			pointer: { x: 4, y: 4 },
+			nextVertex: { x: 4, y: 4 },
 		};
 
 		state.reset();

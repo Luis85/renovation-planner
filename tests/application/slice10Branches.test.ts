@@ -17,7 +17,7 @@ import { DeleteZoneCommand } from '../../src/application/commands/zone/DeleteZon
 import { registerOnZoneGeometryChanged } from '../../src/application/event-handlers/requirement/onZoneGeometryChanged';
 import { registerOnAssetUpdated } from '../../src/application/event-handlers/requirement/onAssetUpdated';
 import type { RequirementRepository } from '../../src/application/ports/RequirementRepository';
-import { expectErr, expectOk } from '../helpers/domain';
+import { expectErr, expectFound, expectOk } from '../helpers/domain';
 import { recorder as logger } from '../helpers/logger';
 import { makeAsset, makeRequirement, makeZone } from '../helpers/entities';
 import { of as moneyOf } from '../../src/core/money/Money';
@@ -113,7 +113,11 @@ describe('handler list-failure branches', () => {
 			requirements: failingLists(w.requirements),
 			events: w.events,
 			logger,
-			recalculate: w.recalculate,
+			// The lambda the composition root passes, not the command object. `CascadeDeps`
+			// declares `recalculate` as a METHOD taking the input, so the bare instance would
+			// have been `deps.recalculate is not a function` — invisible here only because
+			// this case aborts at the failing list step and never reaches it.
+			recalculate: (input) => w.recalculate.execute({ requirementId: input.requirementId as never }),
 			notify: { cascadeAborted: (id) => notified.push(id), staleMarkerFailed: () => undefined },
 		});
 		await w.events.publish({
@@ -131,7 +135,8 @@ describe('handler list-failure branches', () => {
 			assets: w.assets,
 			events: w.events,
 			logger,
-			recalculate: w.recalculate,
+			// See the sibling case above: a method, not the command object.
+			recalculate: (input) => w.recalculate.execute({ requirementId: input.requirementId as never }),
 			notify: { cascadeAborted: (id) => notified.push(id), staleMarkerFailed: () => undefined },
 		});
 		await w.events.publish({
@@ -283,7 +288,7 @@ describe('ReversibleAssignAssetCommand guards', () => {
 		expectOk(await adapter.undo());
 
 		// Delete the asset out from under the redo.
-		const version = expectOk(await w.assets.getById(assetEntity.entity.id)).version;
+		const version = expectFound(await w.assets.getById(assetEntity.entity.id)).version;
 		expectOk(await w.assets.delete(assetEntity.entity.id, version));
 
 		const redo = await adapter.execute();
@@ -309,8 +314,11 @@ describe('ReversibleAssignAssetCommand guards', () => {
 		expectOk(await adapter.execute());
 		expectOk(await adapter.undo());
 
-		// Move the ZONE to another project through a direct conditional save.
-		const current = expectOk(await w.zones.getById(zoneEntity.entity.id));
+		// Move the ZONE to another project through a direct conditional save. `Zone` has no
+		// `withChanges`, so the two lines that stood here — an optional call on a method that
+		// does not exist, its result immediately `void`ed — did nothing at all; the assign
+		// and the save below are the whole of the move, and always were.
+		const current = expectFound(await w.zones.getById(zoneEntity.entity.id));
 		Object.assign(current.entity, { projectId: 'project-other' });
 		expectOk(await w.zones.save(current.entity, current.version));
 
@@ -410,7 +418,7 @@ describe('asset-cascade isolation arms', () => {
 		await w.assign.execute({ zoneId, assetId: assetEntity.entity.id });
 		// The geometry edit cascades; by recalculation time the asset is gone, so the
 		// requirement stays visibly stale and NO success event may fire for it.
-		const asset = expectOk(await w.assets.getById(assetEntity.entity.id));
+		const asset = expectFound(await w.assets.getById(assetEntity.entity.id));
 		expectOk(await w.assets.delete(assetEntity.entity.id, asset.version));
 
 		await w.events.publish({
@@ -436,7 +444,7 @@ describe('asset-cascade isolation arms', () => {
 		const zoneId = (await wiredZoneFor(w)).zoneId;
 		await w.assign.execute({ zoneId, assetId: assetEntity.entity.id });
 		// The update event arrives; by the time the handler looks, the asset is gone.
-		expectOk(await w.assets.delete(assetEntity.entity.id, (expectOk(await w.assets.getById(assetEntity.entity.id))).version));
+		expectOk(await w.assets.delete(assetEntity.entity.id, expectFound(await w.assets.getById(assetEntity.entity.id)).version));
 
 		await w.events.publish({
 			type: 'AssetUpdated',

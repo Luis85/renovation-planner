@@ -10,7 +10,7 @@ import {
 } from '../../../../src/application/commands/requirement/deriveRequirementFigures';
 import { ListReassignmentTargets } from '../../../../src/application/queries/ListReassignmentTargets';
 import { of as moneyOf } from '../../../../src/core/money/Money';
-import { expectErr, expectOk, injectedPersistenceError } from '../../../helpers/domain';
+import { expectErr, expectFound, expectOk, injectedPersistenceError } from '../../../helpers/domain';
 import { makeAsset, makeRequirement } from '../../../helpers/entities';
 import { requirementFixture } from '../../../helpers/slice10';
 import {
@@ -42,7 +42,7 @@ describe('RecalculateRequirementCommand refusals', () => {
 
 	it('wraps a vanished zone as requirement.zone-gone', async () => {
 		const w = await wiredWithLink();
-		const zone = expectOk(await w.zones.getById(w.zoneId));
+		const zone = expectFound(await w.zones.getById(w.zoneId));
 		expectOk(await w.zones.delete(w.zoneId, zone.version));
 		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
 		expect(error.category).toBe('Calculation');
@@ -51,7 +51,7 @@ describe('RecalculateRequirementCommand refusals', () => {
 
 	it('wraps a vanished asset as requirement.asset-gone', async () => {
 		const w = await wiredWithLink();
-		const asset = expectOk(await w.assets.getById(w.assetId));
+		const asset = expectFound(await w.assets.getById(w.assetId));
 		expectOk(await w.assets.delete(w.assetId, asset.version));
 		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
 		expect((error as { code: string }).code).toBe('requirement.asset-gone');
@@ -59,7 +59,7 @@ describe('RecalculateRequirementCommand refusals', () => {
 
 	it('wraps a failing area computation as requirement.area-failed', async () => {
 		const w = await wiredWithLink();
-		const stored = expectOk(await w.zones.getById(w.zoneId));
+		const stored = expectFound(await w.zones.getById(w.zoneId));
 		Object.assign(stored?.entity as object, {
 			area: () => ({ ok: false, error: { category: 'Calculation', code: 'test.no-area', message: 'x' } }),
 		});
@@ -169,7 +169,6 @@ describe('CreateAssetCommand save refusals', () => {
 		});
 		const error = expectErr(
 			await new CreateAssetCommand(assets, w.events).execute({
-				projectId: w.project.entity.id,
 				name: 'Grout',
 				category: 'material',
 				unit: 'piece',

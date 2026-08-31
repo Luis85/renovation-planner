@@ -64,10 +64,20 @@ export interface StyleRule {
 }
 
 /** A pseudo-class node's argument list, or `[]` when it has none. */
-export const argumentsOf = (component: SelectorComponent): SelectorList =>
-	component.type === 'pseudo-class' && 'selectors' in component && Array.isArray(component.selectors)
-		? component.selectors
-		: [];
+export const argumentsOf = (component: SelectorComponent): SelectorList => {
+	if (component.type !== 'pseudo-class' || !('selectors' in component)) return [];
+
+	// Discriminated on `kind`, which is what lightningcss actually keys these on, because
+	// `Array.isArray` CANNOT tell them apart: `Selector` is itself `SelectorComponent[]`, so
+	// the old guard answered true for every variant. `:host` is the one whose `selectors` is a
+	// single `Selector` — `:not`, `:is`, `:where`, `:any` and `:has` all carry `Selector[]` —
+	// so that arm was handing a lone selector back as if it were a list of them, and
+	// `specificityOf` would then have read each COMPONENT as a whole selector. Unreachable in
+	// this repository's own sheets, which use no shadow DOM, and wrong for anything that does.
+	if (component.kind === 'host') return component.selectors ? [component.selectors] : [];
+
+	return component.selectors;
+};
 
 /**
  * Does any part of this selector refer to a parent rule — the `&` of CSS nesting?

@@ -56,10 +56,14 @@ export class InMemoryPlanGeometrySidecar implements PlanGeometrySidecar {
 		if (!entry) throw new Error(`nothing seeded under ${planId}`);
 		const document = structuredClone(entry.document);
 		const first = document.objects[0];
-		if (first) {
-			document.objects = [{ ...first, points: [{ x: 999, y: 999 }, ...first.points.slice(1)] }];
-		}
-		entry.document = document;
+
+		// A NEW document rather than an assignment into the cloned one: `objects` is `readonly`
+		// on `PlanGeometryDocument`, so the assignment was writing through a type that forbids
+		// it — legal at runtime because `structuredClone` hands back a plain mutable object, and
+		// invisible until `tests/**` was type-checked.
+		entry.document = first
+			? { ...document, objects: [{ ...first, points: [{ x: 999, y: 999 }, ...first.points.slice(1)] }] }
+			: document;
 	}
 
 	read(planId: PlanId): Promise<Result<PlanGeometrySnapshot, PersistenceError | ValidationError>> {

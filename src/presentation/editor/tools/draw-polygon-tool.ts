@@ -22,11 +22,23 @@ export interface DrawPolygonToolDeps {
 	 */
 	readonly nextZoneName: () => string;
 	/**
-	 * Where "the polygon could not close" reaches the user. The tool states the seam
-	 * instead of reaching into a UI — the same shape `CalibrateTool`'s
-	 * `KnownDistanceSupplier` takes for its prompt.
+	 * Where a DISPATCHED refusal reaches the user. The tool states the seam instead of
+	 * reaching into a UI — the same shape `CalibrateTool`'s `KnownDistanceSupplier` takes for
+	 * its prompt.
 	 */
 	readonly reportRejected: (error: AppError) => void;
+	/**
+	 * Where a refusal this tool made ITSELF reaches the user — one it raised before building a
+	 * command, so `commandDispatcher.run` was never entered and nothing downstream heard about
+	 * it.
+	 *
+	 * A separate door from `reportRejected` rather than a parameter, because which of the two a
+	 * call site holds is a fact about that line and is what a reader has to be able to see.
+	 * Design slice 17 routes a dispatched refusal to the save indicator (which
+	 * `withSaveStateTracking` has already set) and this one to a notice — one shared door made
+	 * every pre-dispatch refusal silent.
+	 */
+	readonly reportInvalidInput: (error: AppError) => void;
 }
 
 /**
@@ -240,7 +252,9 @@ export class DrawPolygonTool implements EditorTool {
 		try {
 			const polygonResult = createPolygon(this.buffer);
 			if (!polygonResult.ok) {
-				this.deps.reportRejected(polygonResult.error);
+				// Pre-dispatch: "the polygon could not close" is this tool's own refusal, and no
+				// command was built for an indicator to have carried it.
+				this.deps.reportInvalidInput(polygonResult.error);
 				return; // buffer intact — keep the user's in-progress work
 			}
 			const geometry: Polygon = polygonResult.value;

@@ -55,7 +55,15 @@ async function wired(projectName = 'Renovation') {
 	};
 }
 
-async function seedBathroom(w: ReturnType<typeof wired>): Promise<ZoneId> {
+/**
+ * What `wired` hands back, AWAITED. `ReturnType<typeof wired>` is the `Promise`, not the
+ * value: `wired` is async, so the bare spelling typed every helper below to take a promise
+ * nobody ever passes one to. Sixteen errors from one alias, invisible until `tests/**` was
+ * type-checked — and harmless at runtime, which is exactly why nothing found it.
+ */
+type Wired = Awaited<ReturnType<typeof wired>>;
+
+async function seedBathroom(w: Wired): Promise<ZoneId> {
 	const zone = expectOk(
 		await w.zones.save(
 			expectOk(
@@ -73,7 +81,7 @@ async function seedBathroom(w: ReturnType<typeof wired>): Promise<ZoneId> {
 
 /** A second project, with its own plan and zone, in the SAME repositories. */
 async function seedSecondProject(
-	w: Awaited<ReturnType<typeof wired>>,
+	w: Wired,
 ): Promise<{ projectId: ReturnType<typeof makeProject>['id']; zoneId: ZoneId }> {
 	const project = expectOk(await w.projects.save(makeProject({ name: 'Loft' }), 'absent'));
 	const plan = expectOk(
@@ -94,7 +102,7 @@ async function seedSecondProject(
 	return { projectId: project.entity.id, zoneId: zone.entity.id };
 }
 
-function makeCommand(w: ReturnType<typeof wired>) {
+function makeCommand(w: Wired) {
 	return new AssignAssetCommand(
 		w.zones,
 		w.assets,

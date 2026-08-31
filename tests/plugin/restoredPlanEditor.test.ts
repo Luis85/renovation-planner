@@ -71,10 +71,10 @@ describe('a Plan Editor leaf restored before the index scan', () => {
 
 		// It says so at first, and that much is honest: with an empty index the read really
 		// did answer "nothing here". What was wrong is that it stayed that way.
-		expect(textOf(view)).toContain(t('en', 'editor.plan-missing'));
+		expect(textOf(view)).toContain(t('en', 'editor.plan-missing.headline'));
 
 		workspace.layoutReady();
-		await settleUntil(() => !textOf(view).includes(t('en', 'editor.plan-missing')), 'the restored plan to load');
+		await settleUntil(() => !textOf(view).includes(t('en', 'editor.plan-missing.headline')), 'the restored plan to load');
 
 		expect(textOf(view)).toContain(planName);
 		await view.onClose();
@@ -93,7 +93,7 @@ describe('a Plan Editor leaf restored before the index scan', () => {
 		const view = await restoreLeaf(plugin, planId);
 		await settleUntil(() => textOf(view).includes(planName), 'the plan to load');
 
-		expect(textOf(view)).not.toContain(t('en', 'editor.plan-missing'));
+		expect(textOf(view)).not.toContain(t('en', 'editor.plan-missing.headline'));
 		await view.onClose();
 	});
 
@@ -108,9 +108,9 @@ describe('a Plan Editor leaf restored before the index scan', () => {
 		workspace.layoutReady();
 
 		const view = await restoreLeaf(plugin, 'plan-that-was-deleted');
-		await settleUntil(() => textOf(view).includes(t('en', 'editor.plan-missing')), 'the missing-plan message');
+		await settleUntil(() => textOf(view).includes(t('en', 'editor.plan-missing.headline')), 'the missing-plan message');
 
-		expect(textOf(view)).toContain(t('en', 'editor.plan-missing'));
+		expect(textOf(view)).toContain(t('en', 'editor.plan-missing.headline'));
 		await view.onClose();
 	});
 });

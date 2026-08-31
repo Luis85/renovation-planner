@@ -5,13 +5,27 @@ order: 40
 status: ""
 started: ""
 finished: ""
-horizon: "V1"
+horizon:
 start: ""
 due: ""
 risk: ""
 priority: ""
 assignee: ""
 iteration: ""
+strategic-alignment: ""
+customer-value: ""
+business-impact: ""
+reach: ""
+risk-reduction: ""
+compliance: ""
+time-criticality: ""
+enablement: ""
+confidence: ""
+effort: ""
+complexity: ""
+business-value: ""
+business-value-model: ""
+release: "[[Mighty Dragon]]"
 ---
 
 # Evidence timeline

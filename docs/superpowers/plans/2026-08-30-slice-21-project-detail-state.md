@@ -126,8 +126,11 @@ exactly as they are:
 | new, this slice | `open-project-detail` | `command.open-project-detail` | reveal the pane, then pick a project and navigate into it |
 
 Everything else in decision 6 is implemented as written — the two-step reveal-then-navigate,
-the latest-request ticket, the `Promise<boolean>` from `revealView`, and revealing the LIST
-rather than a picker or a notice in an empty vault. If the reviewer prefers a different name
+the latest-request ticket, and revealing the LIST rather than a picker or a notice in an empty
+vault. **One thing is implemented DIFFERENTLY and this sentence named it as written for a
+round**: decision 6's `Promise<boolean>` from `revealView` became
+`Promise<WorkspaceLeaf | undefined>` in `15f39cf`. See Task 11's amendment for why a boolean
+could not close the defect it was written to close. If the reviewer prefers a different name
 for the new command, only Task 12's id string and its two locale entries change.
 
 ---
@@ -211,7 +214,7 @@ implicitly include this section.
 | `src/presentation/emptyStates/content.ts` | `renovationProject.noPlans`, with an `actionLabel`. |
 | `src/presentation/emptyStates/selectors.ts` | `selectProjectDetailEmptyState`. |
 | `src/presentation/i18n/locales/en.ts`, `de.ts` | Nine new keys (Task 7/8/10/12). |
-| `src/infrastructure/obsidian/workspace/revealView.ts` | Returns `Promise<boolean>`. |
+| `src/infrastructure/obsidian/workspace/revealView.ts` | Returns `Promise<WorkspaceLeaf \| undefined>` — the LEAF, not a boolean; see Task 11's amendment. |
 | `src/plugin/composition-root.ts` | Wires the two new queries and the four new deps members. |
 | `src/plugin/RenovationPlannerPlugin.ts` | The `open-project-detail` command; the index-scan flag. |
 | `src/plugin/sampleProject.ts` | The docblock whose stated trigger this slice fires. |
@@ -3547,10 +3550,41 @@ rather than deleted — the argument it was making is still the right one.
 - Consumes: `revealCandidate(deps: RevealDeps, type, candidates, state?)`; `RevealDeps` already
   carries `reportFault`, so the fault door needs no new seam.
 - Produces:
-  - `revealView(deps: RevealDeps, type: string): Promise<boolean>`
+  - `revealView(deps: RevealDeps, type: string): Promise<WorkspaceLeaf | undefined>` (AMENDED — the boolean below is superseded)
   - `navigateToProject(deps: RevealDeps, type: string, projectId: string | null): Promise<void>`
 
-- [ ] **Step 1: Make `revealView` answer**
+> ### Amendment (post-execution): `revealView` answers the LEAF, not a boolean
+>
+> **Everything below that says `Promise<boolean>` is SUPERSEDED. Do not implement it.** The
+> shipped contract is `revealView(deps, type): Promise<WorkspaceLeaf | undefined>` — the leaf on
+> success, `undefined` on a reported fault — landed in `15f39cf`.
+>
+> The boolean was not merely narrower, it could not close the defect this task exists to close.
+> `navigateToProject` reveals and then writes, and with a boolean it had to find the leaf again
+> after the `await` by way of a fresh `getLeavesOfType`. That is a second derivation of "which
+> leaf" across a suspension point, so a workspace that changed during the reveal — a split, a
+> close, another activation — sent the write to a different pane than the one just revealed. It
+> is the fourth instalment of this branch's own recurring sentence, **a value re-derived after
+> an `await` is a value that may have changed**, and the first three are in the PR description.
+> Returning the leaf makes the second derivation impossible rather than merely unlikely.
+>
+> What that changes below, so a worker does not have to diff it out of the prose: the signature
+> and the snippet in Step 1; `revealCandidate` and the `activating` map carry
+> `WorkspaceLeaf | undefined` rather than `boolean`; the two existing fault cases become
+> `resolves.toBeUndefined()` (which is where they started — the boolean plan had moved them to
+> `resolves.toBe(false)`, and the amended contract moves them back, for a different reason than
+> the one they originally held); the added `answers false …` case asserts `toBeUndefined()`; and
+> the `answers true on a successful reveal` case asserts the returned leaf rather than `true`.
+> `tests/infrastructure/obsidian/workspace/revealView.test.ts` is the shipped version of all of
+> them and is the thing to read, not this block.
+>
+> Recorded here rather than by rewriting the steps, because a plan rewritten to match its outcome
+> stops being evidence of what was decided when. Reported by a review bot against the completed
+> plan, whose point was the right one: a worker reusing these instructions would implement the
+> pre-fix contract and reintroduce the race.
+
+- [ ] **Step 1: Make `revealView` answer** — ⚠️ see the amendment above; the snippet's return
+  type is superseded
 
 ```ts
 /**

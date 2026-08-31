@@ -150,7 +150,7 @@ export const en = {
 	// names the RELATIONSHIP rather than the two currencies, because `toUserMessage` takes no
 	// params — the developer message in the raised error is where GBP and EUR actually appear.
 	'cost.currency-mismatch':
-		"This asset's price is not in this project's currency, so no estimate can be produced. Change the project's currency or price the asset in it.",
+		"This asset's price is not in this project's currency, so no estimate can be produced. Open the asset's note and price it in this project's currency.",
 	'requirement.project-not-found': 'That zone belongs to a project that is no longer there.',
 	'requirement.project-gone': 'That requirement belongs to a project that is no longer there.',
 	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`

@@ -2585,14 +2585,19 @@ that came out of it:
   reassurance (the under-report). A design that dissolves work is worth re-deriving even when the
   work is specified: the sentence that justified all four had never been checked against the
   persistence layer it was a claim about.
-- **Two callers of one predicate were asking two questions, and only one of them needed the new
-  read.** `assetMatchesCalculatedFrom` — the cascade-skip test behind `onAssetUpdated` — is
-  **untouched**: its question is about the ASSET, it already compares `asset.unitCost.currency`,
-  and a project read there would cost one read per project across a shared asset's whole fan-out
-  to answer a question nobody asked. `inputsStillMatch` — the read-model backstop — is where the
-  project comparison went, one read per call, with the zone supplying the `projectId`. Leaving a
-  predicate alone is a decision, so it is pinned by a regression test rather than left as *"we did
-  not touch it"*, which is equally true of a build that broke it.
+- **`assetMatchesCalculatedFrom`'s own docblock called itself shared by two callers before it had
+  a second one.** `inputsStillMatch` — the read-model backstop — hand-spelled the same three
+  comparisons (asset amount, asset currency, asset unit) rather than calling it, so the docblock's
+  "the cascade-skip test AND the read model's staleness backstop share it" was false: they were
+  two copies of one predicate, not one predicate with two callers, and a field added where the
+  docblock pointed would have left the backstop comparing the old three. `inputsStillMatch` calls
+  it now, adding only the two conjuncts specific to a read model — the zone's own area and the
+  project's currency, the latter needing no new field because the requirement note carries one
+  `currency` key for both the recorded unit cost and the project it was priced against, so a
+  project whose currency has moved no longer matches what its own figures were derived from — which
+  is what makes the docblock's claim true rather than merely stated. Leaving the duplication alone
+  was the wrong call, not a decision to pin; it is pinned by a regression test now that there is one
+  function to regress.
 - **A settings control's vocabulary was decided by `MINOR_UNIT_PLACES`, not by taste.**
   `Money.round` finalizes at two decimal places, so a zero-minor-unit currency rounds every total
   wrong, and `CURRENCIES` is therefore the two-minor-unit codes (`CHF`, `EUR`, `GBP`, `USD`) with
@@ -2633,8 +2638,14 @@ that came out of it:
   user out entirely, since `RecalculateRequirementCommand` refuses on the same mismatch. **The
   residue is real and is pinned by a test rather than described**: a project note with no
   `currency:` key follows the plugin's `defaultCurrency`, so changing that setting re-denominates
-  every legacy project, after which this override path is the one write of an estimate the
-  invariant does not reach. A required parameter makes every caller a compile error, which is what
+  every legacy project, after which this override path writes an estimate the invariant does not
+  reach. **It is not the only such door, and the unnamed one is less guarded**:
+  `SetRequirementCostOverrideCommand.write` writes `estimatedCost.override` — the estimate
+  `effectiveValue` actually renders — from a caller-supplied `Money` with no currency comparison at
+  all, `Requirement` performs none either, and the same scenario reproduces there through
+  `RequirementRow.vue`'s cost override, which mints its `Money` in the row's own — possibly
+  stale — currency. Neither is guarded, for one reason: "recalculate first" is not a remedy once
+  recalculate refuses too. A required parameter makes every caller a compile error, which is what
   found the two the design predicted; it does not make the third one WRONG, and only reading it
   said whether it was.
 - **A failed READ and an ABSENT referent collapsed into one code, for the fourth recorded time —

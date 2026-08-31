@@ -179,16 +179,20 @@ by construction the project's currency at calculation time. So: `CalculatedFrom`
 schema key, no `REQUIREMENT_MIGRATIONS` step, no under-report, and one Definition-of-Done item and
 one Persistence-Impact bullet dissolve rather than being deferred.
 
-The remaining comparison is split by which question each caller asks, which the shared predicate
-conflated:
+The remaining comparison is split by which question each caller asks — and the two callers were
+never a shared predicate to begin with. `inputsStillMatch` hand-spelled the same three asset
+comparisons `assetMatchesCalculatedFrom` already made, rather than calling it, so "the shared
+predicate" describing them was a false claim about the code: they were two copies, not one
+function with two callers. The final pass makes them one:
 
 - **The cascade-skip test** — `assetMatchesCalculatedFrom`, used by `onAssetUpdated` — is
   **unchanged**. It already compares `asset.unitCost.currency`, so an asset re-denominated already
   invalidates. Adding a project read here costs one read per project across a shared asset's whole
   fan-out, to answer a question that is not about the asset.
-- **The read-model backstop** — `inputsStillMatch` in `GetRequirementsForZone` — gains exactly one
-  comparison, `project.currency === recordedFrom.unitCost.currency`, and the query gains a
-  `ProjectRepository`. One read per call; the zone supplies the `projectId`.
+- **The read-model backstop** — `inputsStillMatch` in `GetRequirementsForZone` — now **calls**
+  `assetMatchesCalculatedFrom` for the asset half instead of restating it, and gains exactly one
+  comparison beside it, `project.currency === recordedFrom.unitCost.currency`, and the query gains
+  a `ProjectRepository`. One read per call; the zone supplies the `projectId`.
 
 **What this reads on upgrade is better than either option the document weighed**, which is the
 argument for it rather than its cheapness: `stale` for exactly the Requirements really denominated

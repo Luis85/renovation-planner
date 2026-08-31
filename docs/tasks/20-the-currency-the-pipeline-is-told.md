@@ -609,7 +609,17 @@ the increment measured that corrects this document, its plan, or both.
   `RecalculateRequirementCommand` refuses on the same mismatch. **The residue is real and is pinned
   by a test**: a project note with no `currency:` key takes the plugin's `defaultCurrency`
   (item 3), so changing that setting re-denominates every legacy project — after which this
-  override path is the one write of an estimate that the invariant does not reach.
+  override path writes an estimate the invariant does not reach. **It is not the only such
+  door, and the unnamed one is less guarded**: `SetRequirementCostOverrideCommand.write` writes
+  `estimatedCost.override` — the estimate `effectiveValue` actually renders — from a
+  caller-supplied `Money`, with no currency comparison at all, and `Requirement` performs none
+  either; the same scenario reproduces there through `RequirementRow.vue`'s cost override, which
+  mints its `Money` in the row's own — possibly stale — currency, and it can additionally accept
+  a genuinely foreign currency from any application-layer caller. Neither is guarded, for the
+  same reason: "recalculate first" is not a remedy once recalculate refuses too. The hazard
+  beneath both — `requirementMapper` writes one `currency` key for all three money fields, so a
+  foreign override is silently re-denominated on reload — is pre-existing and belongs to
+  whichever increment reconciles a Requirement's currency against its Project's.
 
 - **`isStaleReading`'s `projectCurrency === null` arm does not discriminate under mutation, and it
   stays.** Removing it changes no behaviour: a null project currency cannot equal a recorded one,
@@ -619,6 +629,34 @@ the increment measured that corrects this document, its plan, or both.
   this repository deletes, which was unreachable; this one is reachable. *Uniformity is a reason,
   and it is not the same reason as necessity* — so the two reasons are written down separately
   rather than the arm being defended as consistent with its neighbours.
+
+**Three more are not corrections at all — the branch shipping something better or narrower than
+the design said, recorded so a later reader does not read the divergence as drift.**
+
+- **`parseCurrency` is not the door the spec assigned it.** Decision 1 says it is "the one door"
+  for the two boundaries that begin with untrusted text, `settingsFrom` and the project
+  frontmatter schema. Neither uses it. `settingsFrom`'s `currencyFrom` is a `CURRENCIES.find`
+  instead — narrower than `parseCurrency`, and deliberately so: the question there is not "is
+  this a well-formed code" but "is this one of the codes this pane offers," which is what keeps
+  a hand-edited `JPY` in `data.json` out of `round`, where `parseCurrency` would have let it
+  through. The project frontmatter schema uses a zod `.regex(/^[A-Z]{3}$/).nullable().catch(null)`
+  with `currencyOf` in the mapper instead — also correct, because `.catch(null)` is what lets an
+  absent key take the project's default rather than refusing the whole note, which `parseCurrency`
+  returning a `Result` cannot express at a zod boundary. `parseCurrency`'s only production caller
+  is `createMoney`. Both shipped choices are better than routing through the door the spec named.
+- **The brand-assignability test covered two of three constructors.** `currency.test.ts` asserted
+  `of` and `zero` produce a `Money` whose `currency` satisfies the brand; `createMoney`'s result
+  was asserted nowhere against it. Closed in the same pass with one added case.
+- **`.fallowrc.json`'s enumeration justification is half fiction.** Its comment says the seven
+  `*.test-d.ts` files are named one at a time rather than globbed because a glob "would absorb one
+  whose tsconfig `include` entry had been forgotten." There is no per-file `include` entry to
+  forget: `tsconfig.json`'s `include` is `tests/**/*.ts`, already a glob that reaches every one of
+  them automatically, so nothing about adding a file there requires a second edit anywhere. The
+  general half still stands on its own — "a glob absorbs the next file and tells nobody" is a real
+  reason to enumerate, because it forces a reviewable decision each time one is added — so the
+  enumeration is still the right call, for one real reason and one dead one. Recorded so the next
+  editor does not re-derive the dead half and re-justify the same choice for a reason that is not
+  true.
 
 **Six minors were deferred rather than fixed, and they are listed here because the only other
 place they exist is an execution ledger under `.superpowers/`, which is a working artefact rather

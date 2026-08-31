@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { currencyOf, of, parseCurrency, zero } from '../../../src/core/money/Money';
+import { createMoney, currencyOf, of, parseCurrency, zero } from '../../../src/core/money/Money';
 import { expectErr, expectOk } from '../../helpers/domain';
 
 describe('parseCurrency', () => {
@@ -33,5 +33,9 @@ describe('a Money carries a validated Currency', () => {
 
 	it('through `zero`', () => {
 		expect(zero('USD').currency).toBe('USD');
+	});
+
+	it('through `createMoney`', () => {
+		expect(expectOk(createMoney('1.00', 'GBP')).currency).toBe('GBP');
 	});
 });

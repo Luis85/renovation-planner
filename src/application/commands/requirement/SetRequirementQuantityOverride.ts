@@ -89,12 +89,25 @@ async function applyQuantityOverride(
 	// re-denominates every legacy project in one stroke. After such a change, `AssignAsset`
 	// and `RecalculateRequirement` both refuse every affected Requirement — but THIS door does
 	// not: it writes a fresh `estimatedCost` in the OLD, `calculatedFrom.unitCost`'s currency,
-	// because it never asks what the project's currency is NOW. It is the one write of an
-	// estimate the invariant does not reach. Pinned as behaviour in `currencyMismatch.test.ts`
-	// ('the quantity override still writes in the old currency after the project is
-	// re-denominated') rather than left as a paragraph, so the read model that eventually has
-	// to reconcile a Requirement's currency against its Project's fails a test rather than
-	// finding this by surprise.
+	// because it never asks what the project's currency is NOW. Pinned as behaviour in
+	// `currencyMismatch.test.ts` ('the quantity override still writes in the old currency
+	// after the project is re-denominated') rather than left as a paragraph, so the read
+	// model that eventually has to reconcile a Requirement's currency against its Project's
+	// fails a test rather than finding this by surprise.
+	//
+	// **This is not the only such door, and the other one is less guarded.**
+	// `SetRequirementCostOverrideCommand.write` writes `estimatedCost.override` — which
+	// `effectiveValue` makes the estimate the Inspector actually renders — straight from a
+	// caller-supplied `Money`, with no currency comparison at all; `Requirement` performs
+	// none either. The same scenario reproduces there (`RequirementRow.vue`'s cost override
+	// mints its `Money` in the ROW's own currency, which is stale the moment the project has
+	// re-denominated underneath it), and it additionally accepts a genuinely foreign
+	// currency from any application-layer caller, not only a stale one. Neither door is
+	// guarded, for the same reason: "recalculate first" is not a remedy once recalculate
+	// refuses too, so a guard on either would only lock the user out. The hazard beneath
+	// both — `requirementMapper` writes one `currency` key for all three money fields, so a
+	// foreign override is silently re-denominated on reload — is pre-existing and belongs to
+	// whichever increment reconciles a Requirement's currency against its Project's.
 	const cost = computeEstimatedCost({
 		quantity: effectiveValue(updated.value.quantity),
 		unitPrice: updated.value.calculatedFrom.unitCost,

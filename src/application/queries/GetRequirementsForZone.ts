@@ -15,6 +15,7 @@ import type { Zone } from '../../domain/zone/Zone';
 import type { ZoneRepository } from '../ports/ZoneRepository';
 import type { Query } from './Query';
 import { toMeasuredQuantity } from '../../domain/cost/quantityEngine';
+import { assetMatchesCalculatedFrom } from '../commands/requirement/deriveRequirementFigures';
 
 /**
  * The row the Requirements panel renders. `assetName: string | null` and
@@ -55,9 +56,12 @@ export interface RequirementInspectorDTO {
  * The read-model backstop, on PERSISTED values: the area is recomputed through the same
  * pipeline step (`toMeasuredQuantity`) and rounding that produced the stored figure — a
  * comparison at a finer precision than the pipeline uses would report drift the pipeline
- * could not have produced, and every requirement would read permanently stale. The unit
- * compares by SYMBOL against `calculatedFrom.assetUnit`: it fixes the figures' dimension,
- * which is exactly what an `m2 → m` hand edit changes while leaving the numbers alone.
+ * could not have produced, and every requirement would read permanently stale. The asset
+ * half of the comparison is `assetMatchesCalculatedFrom` itself, called rather than
+ * re-spelled, so a pipeline that starts reading another Asset field has exactly one place
+ * to add it and this backstop cannot silently fall behind. What this function adds beside
+ * that call is the two conjuncts specific to a READ MODEL rather than to an Asset: the
+ * zone's own area, and the project's currency.
  */
 function inputsStillMatch(
 	recordedFrom: CalculatedFrom,
@@ -70,9 +74,7 @@ function inputsStillMatch(
 	if (!measured.ok) return false;
 	return (
 		measured.value.value.equals(recordedFrom.zoneArea.value) &&
-		asset.unit === recordedFrom.assetUnit &&
-		asset.unitCost.amount === recordedFrom.unitCost.amount &&
-		asset.unitCost.currency === recordedFrom.unitCost.currency &&
+		assetMatchesCalculatedFrom(recordedFrom, asset) &&
 		// The project's currency at calculation time IS the recorded unit cost's — the
 		// requirement note carries one `currency` key for both. So this needs no new field
 		// and no migration: a project whose currency moved no longer matches what its own

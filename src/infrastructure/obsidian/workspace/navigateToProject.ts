@@ -4,42 +4,57 @@ import type { RevealDeps } from './reveal';
 
 /**
  * A ticket and its write chain, kept together because they answer one question — "is this
- * still the latest navigation for THIS target" — and a ticket read from one object while its
- * chain lives in another could disagree about which target either belongs to.
+ * still the latest navigation for THIS leaf" — and a ticket read from one object while its
+ * chain lives in another could disagree about which leaf either belongs to.
  *
- * **Scoped per target, and that scoping is the whole fix for a defect two reviewers found
- * independently on this module's first version.** Before `targetLeaf` existed there was one
- * lane for the whole module, which was correct: every call resolved to the same singleton
- * leaf, so "the latest call wins" was right by construction. `targetLeaf` was added
- * specifically so two split panes navigate INDEPENDENTLY — and a single shared lane made that
- * false the moment two targets were in flight at once: a navigation issued for leaf A,
- * followed (before A's queued write ran) by an unrelated navigation for leaf B, bumped the one
- * shared ticket and made A's own check see itself as superseded. A's write was silently
- * dropped down the same path a legitimate supersession takes — `reportFault` is never called,
- * because nothing actually faulted — so the user's click in the first pane did nothing, with
- * no error anywhere to say why. One chain per target is what makes that check ask "superseded
- * BY THIS TARGET'S OWN LATER CALL" rather than "superseded by anything at all".
+ * **Scoped per LEAF, and getting that scope right took three goes, each fix creating the
+ * next.** The chain is worth reading as that sequence rather than as a static design:
+ *
+ * 1. **One module-wide lane.** Correct while the view was a singleton by construction: every
+ *    call resolved to the same leaf, so "the latest call wins" was right for the whole module.
+ * 2. **`targetLeaf` made two split panes navigate INDEPENDENTLY, and the single lane became
+ *    cross-target ticket contamination.** A navigation issued for leaf A, followed (before A's
+ *    queued write ran) by an unrelated navigation for leaf B, bumped the one shared ticket and
+ *    made A's own check see itself as superseded. A's write was silently dropped down the same
+ *    path a legitimate supersession takes — `reportFault` is never called, because nothing
+ *    actually faulted — so the user's click in the first pane did nothing, with no error
+ *    anywhere to say why. Found independently by two reviewers.
+ * 3. **Per-target lanes fixed that and left the palette's lane blind to the leaf it resolves
+ *    to.** A call with no `targetLeaf` was keyed on a module-level sentinel object, while an
+ *    in-view call naming the very leaf that call reveals was keyed on the leaf — two lanes for
+ *    one physical pane, and two lanes are not serialized against each other. So a palette
+ *    navigation mid-write, plus a row click or Back in that same pane, issued concurrent
+ *    `setViewState` calls, and the earlier palette write could settle LAST and overwrite the
+ *    user's later, in-pane choice. Neither the ticket nor the chain could see the other lane.
+ *
+ * The lane is therefore keyed on the leaf a call actually RESOLVES to, never on how the call
+ * was raised — which is why `navigateToProject` resolves its leaf first and queues second, and
+ * why there is no sentinel key any more. Every key in `chains` is a real `WorkspaceLeaf`, so
+ * two calls share a lane exactly when they would write to the same pane, which is the only
+ * thing "supersedes" and "queues behind" have ever meant here.
  */
 interface NavigationChain {
 	/**
-	 * The latest navigation THIS lane was asked for — the per-target twin of what used to be a
-	 * single module-scoped counter. Read and bumped exactly the way the old single counter was;
-	 * only the SCOPE changed.
+	 * The highest ISSUE NUMBER any call that resolved to this lane has been given — see
+	 * `issued` for why the number is taken at arrival and only compared within a lane. Raised
+	 * with a MAX rather than an increment, because a call's issue number is fixed before its
+	 * lane is known: two calls can join this lane in the opposite order to the one they arrived
+	 * in, and the earlier arrival must not be able to lower what the later one recorded.
 	 */
 	ticket: number;
 	/**
-	 * This lane's writes, in issue order.
+	 * This lane's writes, in the order they joined it.
 	 *
 	 * The ticket alone is not enough, and the spec's own version stopped one step short. It is
 	 * read once, before `setViewState`, so it can only drop a request that was superseded
 	 * BEFORE its write began — the same-tick case. A request that passed the check and is
-	 * mid-write when a later one arrives (for the SAME target) is not dropped and not ordered:
+	 * mid-write when a later one arrives (for the SAME leaf) is not dropped and not ordered:
 	 * both writes are in flight, and the earlier one can settle LAST and restore the project the
 	 * user has already navigated away from. Reported by a review bot against this plan, and the
 	 * window is real rather than theoretical: `setViewState` on a live leaf runs the registered
 	 * factory and the view's `onOpen`, which mounts a Vue app and issues a query.
 	 *
-	 * Chaining makes "the latest request for this target wins" true of the WRITES rather than
+	 * Chaining makes "the latest request for this leaf wins" true of the WRITES rather than
 	 * of the intentions: the earlier write completes first because it was queued first, and the
 	 * later one lands on top of it. The ticket check stays, INSIDE the chained step, because it
 	 * is still what stops a superseded request writing at all — a chain alone would remount to
@@ -53,20 +68,8 @@ function freshChain(): NavigationChain {
 }
 
 /**
- * The command palette's own lane: navigation with no originating leaf, which has no `Object`
- * to key a per-target lane on. A plain object rather than a `Symbol` — this repository's `lib`
- * target (`ES2020` plus a few named additions, no `ES2023.Collection`) does not admit a symbol
- * as a `WeakMap` key, and an ordinary object needs nothing more than identity.
- *
- * Held in `chains` exactly like a real leaf, referenced permanently by this module-level
- * constant — so, unlike a leaf's own entry, it can never become collectible and behaves as the
- * single persistent lane every no-`targetLeaf` call shared before per-target scoping existed.
- */
-const PALETTE_LANE: object = {};
-
-/**
- * One chain per navigation target, `PALETTE_LANE` standing in for "no leaf" — a `WeakMap`
- * rather than a `Map`, and that is a decision rather than a default.
+ * One chain per leaf navigated — a `WeakMap` rather than a `Map`, and that is a decision
+ * rather than a default.
  *
  * A `WorkspaceLeaf` is a real Obsidian object the user can close, and a plain `Map` would hold
  * a strong reference to every leaf this module has ever navigated for the life of the plugin —
@@ -74,26 +77,93 @@ const PALETTE_LANE: object = {};
  * leak for the rest of the session. A `WeakMap` lets a closed leaf's entry go with it: once
  * nothing else references that leaf, this map cannot either, and there is nothing to lose by
  * letting the entry go, because a closed leaf can never source another navigation request —
- * nothing will ever look this entry up again. `PALETTE_LANE` is the one key that is meant to
- * live forever, and it does, for the reason its own comment gives.
+ * nothing will ever look this entry up again. Every key is a leaf, so there is no entry here
+ * that is meant to outlive the pane it describes.
  *
  * Module state, and reset only implicitly by the tests that need isolation
- * (`vi.resetModules()` in a `beforeEach`) rather than by a test-only export — `activating` in
- * `reveal.ts` carries the same hazard and the same choice: neither module exposes a reset door,
- * and every case here either drives a fresh chain through a re-imported module or is written so
- * a chain's absolute ticket value does not matter, only its ordering relative to the calls
- * inside that one test.
+ * (`vi.resetModules()` in a `beforeEach`) rather than by a test-only export — `issued` below
+ * and `activating` in `reveal.ts` carry the same hazard and the same choice: no module exposes
+ * a reset door, and every case here either drives a fresh chain through a re-imported module or
+ * is written so a chain's absolute ticket value does not matter, only its ordering relative to
+ * the calls inside that one test.
  */
-const chains = new WeakMap<object, NavigationChain>();
+const chains = new WeakMap<WorkspaceLeaf, NavigationChain>();
 
-/** This target's chain, creating one on first use. */
-function chainFor(targetLeaf: WorkspaceLeaf | undefined): NavigationChain {
-	const key: object = targetLeaf ?? PALETTE_LANE;
-	const existing = chains.get(key);
+/** This leaf's chain, creating one on first use. */
+function chainFor(leaf: WorkspaceLeaf): NavigationChain {
+	const existing = chains.get(leaf);
 	if (existing !== undefined) return existing;
 	const chain = freshChain();
-	chains.set(key, chain);
+	chains.set(leaf, chain);
 	return chain;
+}
+
+/**
+ * Issue numbers, taken at ARRIVAL and shared by every lane — which is where supersession order
+ * is fixed, and it is a decision rather than a leftover.
+ *
+ * The lane cannot be chosen until the leaf is known, and for a palette call the leaf is only
+ * known after the reveal resolves. So a per-lane counter would have to be bumped after that
+ * `await`, making supersession order RESUME order — and resume order is NOT arrival order. Two
+ * ways it is not, and only the second is subtle:
+ *
+ * - `revealCandidate` coalesces its CREATE path alone. Revealing a leaf that is ALREADY open —
+ *   the normal case for a singleton view — is an ordinary `await revealLeaf(...)` per call, and
+ *   two of those settle in whatever order the workspace finishes them. Nothing orders them, and
+ *   the real call activates a tab and may expand a collapsed sidebar to do it.
+ * - Two calls that DO join one coalesced activation resume in the order their reactions were
+ *   attached, which is arrival order today by construction rather than by any promise the
+ *   platform makes — and stops being arrival order the moment one of the two paths through
+ *   `revealCandidate` grows a microtask hop the other does not have.
+ *
+ * Under a per-lane increment, an inverted resume hands the LOWER ticket to the call the user
+ * made SECOND and writes the project they had just navigated away from — the exact defect the
+ * ticket exists to prevent, arrived at from the other side. Measured rather than argued: the
+ * suite's 'ends on the later-issued project when an earlier call reveals more slowly' drives the
+ * first of those two ways, and is red both against that design and against a plain
+ * `chain.ticket = issue` in place of the MAX.
+ *
+ * A single monotonic counter read before the first `await` makes the order a fact about when
+ * each call was asked for, which is what "the latest navigation" has always meant here and what
+ * it meant before the reveal moved. Sharing one counter across lanes costs nothing, because an
+ * issue number is only ever COMPARED against the ticket of the one lane its own call resolved
+ * to: another lane's call raises this number without touching that lane's ticket, so the
+ * cross-target contamination step 2 of `NavigationChain`'s history describes cannot come back
+ * through it.
+ */
+let issued = 0;
+
+/**
+ * The leaf a call with no `targetLeaf` resolves to: reveal the view, then read back the leaf
+ * the reveal guarantees. `undefined` means there is nothing to navigate, and the three ways
+ * that happens are kept apart here rather than collapsed at the call site, because each is
+ * already ANSWERED where it happens:
+ *
+ * - the reveal itself failed, which `revealCandidate` has already reported through
+ *   `deps.reportFault` — once per activation rather than once per joined click, which is why
+ *   this must not report it again;
+ * - the candidate lookup THREW. `getLeavesOfType` is a synchronous call into Obsidian that can
+ *   throw, and `revealCandidate` next door already treats exactly that as a real workspace
+ *   fault — its own comment records the round where a candidate lookup "sat one call out" and
+ *   escaped the boundary. Uncaught, it would leave `navigateToProject` rejecting with nothing
+ *   reported, which is the contract every door in this directory keeps;
+ * - the reveal succeeded and answered no leaf: a successful activation whose leaf has since
+ *   gone, and the create path having produced none. The boolean cannot cover that, because it
+ *   describes the activation and not what `getLeavesOfType` says a moment later.
+ *
+ * All three predate the lane change and all three still return before anything is queued — the
+ * difference is that the lookup now sits OUTSIDE the write chain, so a throw here can no longer
+ * settle a chain rejected. That hazard has not moved somewhere else; it has stopped existing on
+ * this path.
+ */
+async function revealedLeaf(deps: RevealDeps, type: string): Promise<WorkspaceLeaf | undefined> {
+	if (!(await revealView(deps, type))) return undefined;
+	try {
+		return deps.workspace.getLeavesOfType(type)[0];
+	} catch (cause) {
+		deps.reportFault(cause);
+		return undefined;
+	}
 }
 
 /**
@@ -121,8 +191,20 @@ function chainFor(targetLeaf: WorkspaceLeaf | undefined): NavigationChain {
  * what decides. Superseded calls DROP their write rather than queueing behind it, which is the
  * difference between a ticket and a chain and is the right one here: a user who picked twice
  * wants the second project, not a remount to the first followed by a remount to the second.
- * **And "the later call" now means the later call FOR THIS TARGET** — see `NavigationChain`'s
- * own comment for the defect that scoping closes.
+ *
+ * **The two steps that make that work are taken at different moments, on purpose.** The issue
+ * number is taken at ARRIVAL, before any `await`, so "which call is later" is decided by when
+ * the user asked; the LANE is chosen once the leaf is known, so a palette call and an in-view
+ * call naming the same pane are the same lane and can supersede and serialize against each
+ * other. See `issued` for the first and `NavigationChain` for the second.
+ *
+ * A resolved leaf is held across the queue wait, which is what the `targetLeaf` path has always
+ * done and is now what both paths do rather than one per path. If the user closes that pane
+ * while this write is queued, the write lands on a detached leaf — and that is STATED rather
+ * than bounded: the ticket does not save it, since a lone latest call is superseded by nothing,
+ * and re-reading `getLeavesOfType` at write time would answer a DIFFERENT pane of the same type,
+ * which is the ambiguity `targetLeaf` exists to refuse. What answers it is the step's own
+ * boundary below, which reports whatever `setViewState` does about a leaf that is gone.
  *
  * It lives in `infrastructure/obsidian/workspace/` beside its siblings, because `plugin/`
  * composing the two steps for itself would be the second activation path decision 6 refuses —
@@ -139,47 +221,37 @@ export async function navigateToProject(
 	// split genuinely has two. Writing to the first one regardless would let a click in the
 	// SECOND pane silently retarget the first, leaving the pane the user actually clicked in
 	// showing its stale state. Absent — the command palette's case, where there is no
-	// originating leaf — falls back to the type lookup exactly as before, and shares
-	// `PALETTE_LANE`'s own chain rather than a per-leaf one.
+	// originating leaf — the type lookup answers, exactly as before, and the leaf it answers
+	// is what picks the lane: an in-view call naming that same leaf shares it.
 	targetLeaf?: WorkspaceLeaf,
 ): Promise<void> {
-	const chain = chainFor(targetLeaf);
-	const ticket = ++chain.ticket;
+	// Before the first `await`, so this is arrival order and not resume order.
+	const issue = ++issued;
 	// A target leaf is already the one the user is looking at — it is where the gesture that
 	// asked for this navigation came from — so there is nothing to REVEAL: no candidate lookup
 	// to run and no leaf to create. Revealing anyway would risk activating a different leaf of
-	// the same type (the type lookup below is exactly the ambiguity a split pane introduces)
-	// while claiming to have shown the one already on screen.
-	if (targetLeaf === undefined && !(await revealView(deps, type))) return;
+	// the same type (the type lookup is exactly the ambiguity a split pane introduces) while
+	// claiming to have shown the one already on screen. `??` short-circuits, so that path takes
+	// neither half of `revealedLeaf` and never suspends here at all.
+	const leaf = targetLeaf ?? (await revealedLeaf(deps, type));
+	if (leaf === undefined) return;
 
+	const chain = chainFor(leaf);
+	chain.ticket = Math.max(chain.ticket, issue);
 	chain.writes = chain.writes.then(async () => {
-		// The `try` wraps the WHOLE step, not just the write, and both halves of that matter.
-		//
-		// `getLeavesOfType` is a synchronous call into Obsidian that can throw, and
-		// `revealCandidate` next door already treats exactly that as a real workspace fault —
-		// its own comment records the round where a candidate lookup "sat one call out" and
-		// escaped the boundary. A throw here would leave this helper rejecting with nothing
-		// reported, which is the contract every door in this directory keeps.
-		//
-		// And the second consequence is worse than the first: an uncaught throw settles this
-		// CHAIN's `writes` REJECTED, and a rejected promise makes every later `.then(step)` on
-		// that same chain skip its callback — so one bad lookup would kill navigation for this
-		// one target for the rest of the session, silently, while every other target's chain is
-		// unaffected. Catching inside the callback is what makes the stored promise always
-		// FULFIL, so the chain recovers by construction rather than by anyone remembering to
-		// reset it. Reported by a review bot against this plan.
+		// The stored promise must always FULFIL. An uncaught throw here settles this lane's
+		// `writes` REJECTED, and a rejected promise makes every later `.then(step)` on that
+		// same chain skip its callback — so one failed write would kill navigation for this one
+		// pane for the rest of the session, silently, while every other lane is unaffected.
+		// Catching inside the callback is what makes the chain recover by construction rather
+		// than by anyone remembering to reset it. Reported by a review bot against this plan;
+		// the lookup that used to share this boundary is answered in `revealedLeaf` now, which
+		// is outside the chain and so cannot poison it at all.
 		try {
-			// Read INSIDE the chain, not before it: a request superseded — by a LATER call to
-			// this same target — while it waited its turn must not write at all, and by here
-			// this chain's ticket reflects everything that has arrived for this target.
-			if (ticket !== chain.ticket) return;
-			// A given target skips the type lookup entirely, not only the reveal above: it
-			// names the exact leaf to write to, and asking `getLeavesOfType` again could answer
-			// a DIFFERENT one of two split leaves of the same type.
-			const leaf = targetLeaf ?? deps.workspace.getLeavesOfType(type)[0];
-			// The case the boolean does not cover: a successful activation whose leaf has
-			// since gone, and the create path having produced none.
-			if (leaf === undefined) return;
+			// Read INSIDE the chain, not before it: a request superseded — by a LATER call for
+			// this same leaf — while it waited its turn must not write at all, and by here this
+			// lane's ticket reflects every call that has resolved to this leaf.
+			if (issue !== chain.ticket) return;
 			await leaf.setViewState({ type, active: true, state: { projectId: projectId ?? '' } });
 			return;
 		} catch (cause) {

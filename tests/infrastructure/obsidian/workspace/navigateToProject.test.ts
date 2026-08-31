@@ -15,10 +15,10 @@ import type { navigateToProject as NavigateToProject } from '../../../../src/inf
 const TYPE = 'renovation-project';
 
 /**
- * `chains` (and its `PALETTE_LANE` entry) are module state in `navigateToProject.ts` — a
- * `WeakMap` of per-target tickets and write chains since the split-pane supersession fix, but
- * still module-scoped state for the same reason `activating` next door is, and the module's
- * own comment says so — so a case left holding a previous case's ticket or a rejected write
+ * `chains` and `issued` are module state in `navigateToProject.ts` — a `WeakMap` of per-leaf
+ * write chains, and the monotonic counter that fixes supersession order at arrival — module
+ * scoped for the same reason `activating` next door is, and the module's own comments say so —
+ * so a case left holding a previous case's ticket or a rejected write
  * chain would make the next case's result a fact about test ORDER rather than about that
  * case's own scenario — measured while writing this file: a case that poisons the chain on
  * purpose (see below) turned the very next `it` here red too, for a reason that had nothing to
@@ -34,7 +34,8 @@ type NavigateArgs = Parameters<typeof NavigateToProject>;
  * The fake's shape is the real one's; the cast is the module boundary the mock stands in for.
  * ONE cast, in one place, named for what it is — the idiom `revealView.test.ts` next door
  * already uses for the same `FakeWorkspace` against the same `RevealDeps`, rather than an
- * `as never` at each of this file's fifteen call sites.
+ * `as never` at every call site here — stated as the rule rather than as a count, because the
+ * count was written as "fifteen" and was eighteen by the time anyone read it again.
  *
  * It builds the whole `RevealDeps` rather than just the workspace, for that file's own
  * reason: `reportFault` is REQUIRED, so a case that left it out would pass until something
@@ -202,11 +203,13 @@ describe('navigateToProject', () => {
 	/**
 	 * **The case the boolean does not cover**, in the implementation's own words: a
 	 * successful activation whose leaf has since gone, and the create path having produced
-	 * none. `revealView` answers `true` — the reveal itself worked — but the write step's
-	 * own re-read of `getLeavesOfType` is a SEPARATE call, made after an `await`, and nothing
-	 * guarantees the leaf it found a moment ago is still there when it asks again.
+	 * none. `revealView` answers `true` — the reveal itself worked — but `revealedLeaf`'s own
+	 * read of `getLeavesOfType` is a SEPARATE call, made after an `await`, and nothing
+	 * guarantees the leaf it found a moment ago is still there when it asks again. That read
+	 * moved OUT of the write step when the lane began being keyed on the leaf a call resolves
+	 * to; the arm it guards, and this case, are unchanged by the move.
 	 */
-	it('writes nothing when the leaf is gone by the time the write step re-reads it', async () => {
+	it('writes nothing when the reveal succeeds but no leaf resolves', async () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.withOpen(TYPE);
 		const reportFault = vi.fn<(cause: unknown) => void>();
@@ -215,7 +218,7 @@ describe('navigateToProject', () => {
 		workspace.getLeavesOfType = (type: string) => {
 			calls += 1;
 			// Call 1 is `revealView`'s own candidate lookup, which finds the leaf and
-			// succeeds; call 2 is the write step's own re-read, answered as empty.
+			// succeeds; call 2 is `revealedLeaf`'s own read, answered as empty.
 			return calls === 1 ? original(type) : [];
 		};
 
@@ -252,22 +255,26 @@ describe('navigateToProject', () => {
 	});
 
 	/**
-	 * **The case above does not actually discriminate the invariant its own docblock names**,
+	 * **The case above does not actually discriminate the boundary its own docblock names**,
 	 * measured by running Step 4's third mutation against it: `getLeavesOfType` throws
 	 * unconditionally there, so `revealView`'s OWN candidate lookup — the exact same function,
 	 * called FIRST — already reports the fault and answers `false`, and `navigateToProject`
-	 * returns before `navigationWrites` is ever touched. The write step's own `try` is never
-	 * reached either way, mutated or not, so that case stays green against the mutation it was
-	 * written to catch.
+	 * returns before anything of its own is reached. `revealedLeaf`'s `try` is never entered
+	 * either way, mutated or not, so that case stays green against the mutation it was written
+	 * to catch.
 	 *
 	 * This one lets `revealView`'s own lookup succeed (the leaf is already open, so its single
-	 * candidate call passes) and throws only on the SECOND `getLeavesOfType` call — the write
-	 * step's own re-read, the one `if (leaf === undefined)` exists to guard and the one the
-	 * class docblock is actually about. Watched against the mutation: both this call and the
-	 * next one throw uncaught, which is the "dead for the rest of the session" the docblock
-	 * describes, since `navigationWrites` stays rejected across calls.
+	 * candidate call passes) and throws only on the SECOND `getLeavesOfType` call —
+	 * `revealedLeaf`'s own read, the one that decides both which lane this call joins and which
+	 * leaf it writes to. Without its `try` the throw escapes `navigateToProject` as a rejection
+	 * with nothing reported, which is the one thing every door in this directory promises not to
+	 * do. That read used to sit INSIDE the write step, where a throw also settled the lane's
+	 * chain rejected and killed navigation for the pane for the session; it is outside the chain
+	 * now, so this case pins the report and the second call's success, and the chain's own
+	 * recovery is pinned where a throw can still reach it — the rejecting-`setViewState` case
+	 * below.
 	 */
-	it('reports a throwing leaf lookup from the write step itself, and recovers on the next call', async () => {
+	it('reports a throwing leaf lookup from lane resolution, and navigates on the next call', async () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.withOpen(TYPE);
 		const reportFault = vi.fn<(cause: unknown) => void>();
@@ -277,7 +284,7 @@ describe('navigateToProject', () => {
 		workspace.getLeavesOfType = (type: string) => {
 			calls += 1;
 			// Call 1 is `revealView`'s own candidate lookup (the leaf is already open, so it
-			// succeeds); call 2 is the write step's own re-read, which is the one this case
+			// succeeds); call 2 is `revealedLeaf`'s own read, which is the one this case
 			// exists to fault.
 			if (calls === 2) throw new Error('boom');
 			return healthy(type);
@@ -341,16 +348,114 @@ describe('navigateToProject', () => {
 		expect(second.getViewState().state).toEqual({ projectId: 'project-b' });
 	});
 
-	/** A door in this directory that REJECTS has no one to catch it. */
-	it('reports a rejecting setViewState and still resolves', async () => {
+	/**
+	 * **The third link in that chain, and the one per-target lanes created.** Keying the lane on
+	 * `targetLeaf` gave a call with no leaf — the command palette's case — a module-level
+	 * sentinel lane of its own, while an in-view call naming the very leaf that call reveals was
+	 * keyed on the leaf. Two lanes for ONE physical pane, and two lanes are not serialized
+	 * against each other: neither the ticket nor the chain could see the other. So a palette
+	 * navigation mid-write, plus a row click or Back in that same pane, issued CONCURRENT
+	 * `setViewState` calls, and the earlier palette write could settle last and overwrite the
+	 * user's later, in-pane choice — the exact window the write chain closes for two calls that
+	 * do share a lane.
+	 *
+	 * **Both assertions discriminate, and they discriminate differently**, which is why the
+	 * recorder is installed BEFORE the hold: `slowSetViewState` then wraps it, so what `written`
+	 * records is the order the writes actually REACHED the leaf rather than the order they were
+	 * requested. Requested order is `['project-1', 'project-2']` in both builds and pins
+	 * nothing. Against the two-lane build the in-view write runs while the palette write is
+	 * still held, so the leaf sees `['project-2', 'project-1']` and ends on `project-1` — the
+	 * reported symptom. Against this one the in-view call joins the palette call's own lane and
+	 * cannot start until it finishes, so the leaf sees them in issue order and ends where the
+	 * user last asked to be. Watched red both ways before this case was kept.
+	 */
+	it('ends on the in-view project when it is issued while a palette write is held', async () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.withOpen(TYPE);
+		const written = recordSetViewState(leaf);
+		const writes = slowSetViewState(leaf); // wraps the recorder: holds the first write
+		const deps = depsFor(workspace, vi.fn<(cause: unknown) => void>());
+
+		const palette = navigateToProject(deps, TYPE, 'project-1');
+		await writes.firstWriteStarted;
+		const inView = navigateToProject(deps, TYPE, 'project-2', targetOf(leaf));
+		writes.releaseFirst();
+		await Promise.all([palette, inView]);
+
+		expect(written.map((state) => state.projectId)).toEqual(['project-1', 'project-2']);
+		expect(leaf.getViewState().state).toEqual({ projectId: 'project-2' });
+	});
+
+	/**
+	 * **Which call is LATER is decided at arrival, and this is the case that says so.** Choosing
+	 * the lane from the resolved leaf means a palette call cannot take a lane's ticket until its
+	 * reveal has settled — so a per-lane `++chain.ticket` taken there would make supersession
+	 * order RESUME order, and resume order is not arrival order. `revealCandidate` coalesces
+	 * only its CREATE path; revealing a leaf that is already open is an ordinary
+	 * `await workspace.revealLeaf(...)` per call, and two of those can settle in either order,
+	 * because the real one activates a tab and may expand a collapsed sidebar to do it.
+	 *
+	 * Driven exactly that way: the FIRST navigation's reveal is held (it reaches `revealLeaf`
+	 * synchronously, so it is the one that gets the hold), the second's resolves at once and
+	 * completes its whole write, and only then does the first resume. The user asked for
+	 * `project-2` last, so `project-2` is where the pane must end — and the earlier call must
+	 * write NOTHING rather than remount on top of it.
+	 *
+	 * **It is the only case here that discriminates two designs the rest of the file cannot
+	 * see**, both measured green against the other thirteen: a per-lane increment taken after the
+	 * reveal hands the LOWER ticket to the call the user made SECOND, and a plain
+	 * `chain.ticket = issue` instead of the MAX lets the late-resuming earlier call lower what
+	 * the later one already recorded. Both end on `project-1`.
+	 */
+	it('ends on the later-issued project when an earlier call reveals more slowly', async () => {
+		const workspace = new FakeWorkspace();
+		const leaf = workspace.withOpen(TYPE);
+		const written = recordSetViewState(leaf);
+		const deps = depsFor(workspace, vi.fn<(cause: unknown) => void>());
+		let releaseReveal: (() => void) | undefined;
+		const heldReveal = new Promise<void>((resolve) => {
+			releaseReveal = resolve;
+		});
+		let firstReveal = true;
+		workspace.revealLeaf = () => {
+			if (!firstReveal) return Promise.resolve();
+			firstReveal = false;
+			return heldReveal;
+		};
+
+		const first = navigateToProject(deps, TYPE, 'project-1');
+		const second = navigateToProject(deps, TYPE, 'project-2');
+		await second;
+		releaseReveal?.();
+		await first;
+
+		expect(written.map((state) => state.projectId)).toEqual(['project-2']);
+		expect(leaf.getViewState().state).toEqual({ projectId: 'project-2' });
+	});
+
+	/**
+	 * A door in this directory that REJECTS has no one to catch it — and the SECOND half is
+	 * what pins the chain's own recovery. An uncaught throw inside the chained step settles
+	 * that lane's `writes` REJECTED, after which every later `.then(step)` skips its callback
+	 * and navigation is dead for this pane for the rest of the session, silently. `setViewState`
+	 * is now the only thing inside that boundary — the candidate lookup that used to share it
+	 * moved out with the lane change — so this is the case that would go red if the `try` were
+	 * dropped, and reporting the fault is equally true of a build whose chain never recovers.
+	 */
+	it('reports a rejecting setViewState, still resolves, and navigates afterwards', async () => {
+		const workspace = new FakeWorkspace();
+		const leaf = workspace.withOpen(TYPE);
+		const healthy = leaf.setViewState.bind(leaf);
 		leaf.setViewState = () => Promise.reject(new Error('boom'));
 		const reportFault = vi.fn<(cause: unknown) => void>();
+		const deps = depsFor(workspace, reportFault);
 
-		await expect(
-			navigateToProject(depsFor(workspace, reportFault), TYPE, 'project-1'),
-		).resolves.toBeUndefined();
+		await expect(navigateToProject(deps, TYPE, 'project-1')).resolves.toBeUndefined();
 		expect(reportFault).toHaveBeenCalledTimes(1);
+
+		leaf.setViewState = healthy;
+		await navigateToProject(deps, TYPE, 'project-2');
+
+		expect(leaf.getViewState().state).toEqual({ projectId: 'project-2' });
 	});
 });

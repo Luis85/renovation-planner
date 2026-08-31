@@ -207,7 +207,7 @@ list rather than a text field. Two reasons, the second measured:
   half-typed prefix and `settingsFrom` drops each one back to the default. This is not the
   `libraryFolder` case — nothing moves and nothing is stranded — so a control is legal here; it is
   simply a poor one.
-- `MINOR_UNITS` finalizes `round` at **two** places (`Money.ts:111-112`, whose own comment says
+- `MINOR_UNIT_PLACES` finalizes `round` at **two** places (`Money.ts:152`, whose own comment says
   *"every currency this plugin prices in today (USD/EUR/…) has two"*). A zero-minor-unit currency
   rounds wrong. The list is currencies with two minor units, and that constraint is written where
   the list is rather than in this document.
@@ -294,6 +294,6 @@ It belongs to the override increment.
 - **No `Quote` lines, and no tax, discount or shipping work.** §51's, and no-ops today.
 - **A hand-written asset note with `currency: JPY`** passes `/^[A-Z]{3}$/` and rounds at two
   places. **Pre-existing** — `dto/assetFrontmatter.ts:28` has carried that pattern since slice 10
-  and `MINOR_UNITS` has been two since slice 9 — and out of scope here. Recorded so that it stops
+  and `MINOR_UNIT_PLACES` has been two since slice 9 — and out of scope here. Recorded so that it stops
   being invisible; the settings list is narrowed to two-minor-unit currencies, which bounds the
   *default* and not a hand-edited note.

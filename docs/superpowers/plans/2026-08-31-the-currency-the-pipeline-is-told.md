@@ -313,7 +313,7 @@ git commit -m "feat(core): a Currency is minted by the doors that already valida
   - `RenovationPlannerSettings.defaultCurrency: Currency`.
   - `DEFAULT_SETTINGS.defaultCurrency` — `EUR`.
 
-**Why a dropdown and not a text field, and why this list:** `setControlValue` writes through `saveSettings` on **every** change, so a text field persists every half-typed prefix and `settingsFrom` drops each one back to the default. That alone is only untidy. The deciding reason is `MINOR_UNITS` in `Money.ts`, whose own comment says *"every currency this plugin prices in today (USD/EUR/…) has two"* — `round` finalizes at two decimal places, so a zero-minor-unit currency (JPY) rounds **wrong**. The list is currencies with two minor units, and that constraint is stated where the list is.
+**Why a dropdown and not a text field, and why this list:** `setControlValue` writes through `saveSettings` on **every** change, so a text field persists every half-typed prefix and `settingsFrom` drops each one back to the default. That alone is only untidy. The deciding reason is `MINOR_UNIT_PLACES` in `Money.ts`, whose own comment says *"every currency this plugin prices in today (USD/EUR/…) has two"* — `round` finalizes at two decimal places, so a zero-minor-unit currency (JPY) rounds **wrong**. The list is currencies with two minor units, and that constraint is stated where the list is.
 
 This is **not** the `libraryFolder` case: nothing moves and nothing is stranded, so a control is legal here.
 
@@ -373,7 +373,7 @@ import { currencyOf, type Currency } from '../../core/money/Money';
  * The vocabulary, and the single place it is written down — the same shape as `UNITS`.
  *
  * **Two minor units, every one of them.** `Money.round` finalizes at two decimal places
- * (`MINOR_UNITS`), so a zero-minor-unit currency such as JPY would round every total
+ * (`MINOR_UNIT_PLACES`), so a zero-minor-unit currency such as JPY would round every total
  * wrong. This list is the bound on the DEFAULT and not on a hand-written note: an asset
  * note's own `currency` passes `/^[A-Z]{3}$/` and is outside what this constrains.
  *
@@ -1588,7 +1588,7 @@ Three passages are now false, and this file's own rules are what make each worth
    - **A `Result`-returning door forces an unreachable error arm at every program literal**, which is why `currencyOf` throws — the split `createMoney`/`of` already had, applied to a second value type.
    - **"Not recoverable" was a claim about the DOMAIN made without reading the NOTE.** The requirement note's one `currency` key made a new provenance field, a schema bump, a migration and a deliberate under-report all unnecessary — and the version that read the note is *truer*, flagging exactly the wrong-currency Requirements rather than blanket-marking or blanket-forgiving them.
    - **Two callers of one predicate were asking two questions.** The cascade-skip test is about the ASSET and needed no project read; only the read model needed one.
-   - **A settings control's vocabulary was decided by `MINOR_UNITS`, not by taste.** `round` finalizes at two places, so the list is currencies with two minor units — and that bounds the default and not a hand-written note, which is a residue recorded rather than closed.
+   - **A settings control's vocabulary was decided by `MINOR_UNIT_PLACES`, not by taste.** `round` finalizes at two places, so the list is currencies with two minor units — and that bounds the default and not a hand-written note, which is a residue recorded rather than closed.
 
 - [ ] **Step 6: Full gate, then commit**
 

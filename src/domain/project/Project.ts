@@ -1,6 +1,6 @@
 import { err, ok, type Result } from '../../core/result/Result';
 import type { ValidationError } from '../../core/errors/AppError';
-import { isNegative, type Money } from '../../core/money/Money';
+import { isNegative, type Currency, type Money } from '../../core/money/Money';
 import { isProjectStatus, type ProjectStatus } from './ProjectStatus';
 import type { ProjectId } from './ProjectId';
 import { projectError } from './Project.errors';
@@ -15,6 +15,7 @@ export interface CreateProjectProps {
 	readonly budget?: Money | null;
 	readonly contingency?: Money | null;
 	readonly locationDescription?: string | null;
+	readonly currency: Currency;
 }
 
 /**
@@ -39,6 +40,29 @@ function negativeAmount(field: string, value: Money | null | undefined): Validat
 	return projectError(
 		'negative-amount',
 		`A project ${field} cannot be negative; got ${value.amount} ${value.currency}.`,
+	);
+}
+
+/**
+ * A project has ONE currency, and this is the boundary that says so. `budget` and
+ * `contingency` are `Money`, so each carries a currency of its own — without this guard
+ * `Project.currency` would be a THIRD answer to "what currency is this project in" on an
+ * entity that already held two.
+ *
+ * The same reasoning as `negativeAmount` above, and the same shape: the constructor is
+ * private, so this is the one place every `Project` passes; neither field is persisted
+ * yet, so there is no schema to state it at; and one code with the field NAMED in the
+ * message, because two codes would read as two rules.
+ */
+function mismatchedCurrency(
+	field: string,
+	value: Money | null | undefined,
+	currency: Currency,
+): ValidationError | null {
+	if (!value || value.currency === currency) return null;
+	return projectError(
+		'currency-mismatch',
+		`A project ${field} must be in the project's currency (${currency}); got ${value.currency}.`,
 	);
 }
 
@@ -92,6 +116,19 @@ function invalidDates(props: CreateProjectProps): ValidationError | null {
  * plans" is deliberately NOT stored here; it is resolved by querying
  * `PlanRepository.listByProject` (see design slice 3, "Denormalization decision").
  */
+interface ProjectFields {
+	readonly id: ProjectId;
+	readonly name: string;
+	readonly description: string | null;
+	readonly status: ProjectStatus;
+	readonly start: Date | null;
+	readonly targetCompletion: Date | null;
+	readonly budget: Money | null;
+	readonly contingency: Money | null;
+	readonly locationDescription: string | null;
+	readonly currency: Currency;
+}
+
 export class Project {
 	readonly id: ProjectId;
 	readonly name: string;
@@ -102,18 +139,9 @@ export class Project {
 	readonly budget: Money | null;
 	readonly contingency: Money | null;
 	readonly locationDescription: string | null;
+	readonly currency: Currency;
 
-	private constructor(fields: {
-		readonly id: ProjectId;
-		readonly name: string;
-		readonly description: string | null;
-		readonly status: ProjectStatus;
-		readonly start: Date | null;
-		readonly targetCompletion: Date | null;
-		readonly budget: Money | null;
-		readonly contingency: Money | null;
-		readonly locationDescription: string | null;
-	}) {
+	private constructor(fields: ProjectFields) {
 		this.id = fields.id;
 		this.name = fields.name;
 		this.description = fields.description;
@@ -123,6 +151,7 @@ export class Project {
 		this.budget = fields.budget;
 		this.contingency = fields.contingency;
 		this.locationDescription = fields.locationDescription;
+		this.currency = fields.currency;
 	}
 
 	static create(props: CreateProjectProps): Result<Project, ValidationError> {
@@ -138,6 +167,10 @@ export class Project {
 		if (negative) {
 			return err(negative);
 		}
+		const mismatch =
+			mismatchedCurrency('budget', props.budget, props.currency)
+			?? mismatchedCurrency('contingency', props.contingency, props.currency);
+		if (mismatch) return err(mismatch);
 		const dates = invalidDates(props);
 		if (dates) {
 			return err(dates);
@@ -153,7 +186,30 @@ export class Project {
 				budget: props.budget ?? null,
 				contingency: props.contingency ?? null,
 				locationDescription: props.locationDescription ?? null,
+				currency: props.currency,
 			}),
 		);
+	}
+
+	/**
+	 * Re-validates, so `mismatchedCurrency` runs on the NEW value: a project holding a
+	 * £10,000 budget cannot become an EUR project without the budget moving too.
+	 */
+	// Still unconsumed in src/ — Task 5 of this plan is its first caller. Suppressed rather
+	// than deleted: deleting it is how a declared capability rots.
+	// fallow-ignore-next-line unused-class-member
+	withCurrency(currency: Currency): Result<Project, ValidationError> {
+		return Project.create({
+			id: this.id,
+			name: this.name,
+			description: this.description,
+			status: this.status,
+			start: this.start,
+			targetCompletion: this.targetCompletion,
+			budget: this.budget,
+			contingency: this.contingency,
+			locationDescription: this.locationDescription,
+			currency,
+		});
 	}
 }

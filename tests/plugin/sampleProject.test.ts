@@ -18,6 +18,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 // the same statics — proven, not assumed — and the import now says which surface it
 // wants.
 import { Notice } from '../helpers/obsidian-mock';
+import { currencyOf } from '../../src/core/money/Money';
 import { registerSampleProjectCommand, seedSampleProject } from '../../src/plugin/sampleProject';
 import type { PluginCommandHost } from '../../src/plugin/commandHost';
 import type { PersistenceServices } from '../../src/plugin/composition-root';
@@ -57,7 +58,7 @@ function wired(refusing: { projects?: ProjectRepository; plans?: PlanRepository;
 	const projects = refusing.projects ?? stack.projects;
 	const plans = refusing.plans ?? stack.plans;
 	const services = {
-		createProject: new CreateProjectCommand(projects, events),
+		createProject: new CreateProjectCommand(projects, events, currencyOf('EUR')),
 		// `stack.plans` for the READ side even when the write side is refusing: the plan a
 		// zone create resolves its project through has to be findable, or the zone would fail
 		// on the reference rather than on the save under test.

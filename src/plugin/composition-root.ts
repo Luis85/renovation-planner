@@ -1,5 +1,6 @@
 import type { FileManager, MetadataCache, Vault, Workspace } from 'obsidian';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
+import type { Currency } from '../core/money/Money';
 import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
@@ -252,7 +253,13 @@ export interface SessionCollaborators {
 	readonly markers?: SequenceMarkerStore;
 }
 
-function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectRoot: string, libraryFolder: string) {
+function composeRepositories(
+	deps: NoteVaultDeps,
+	vault: VaultStack,
+	newProjectRoot: string,
+	libraryFolder: string,
+	defaultCurrency: Currency,
+) {
 	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
 	return {
 		geometryStore,
@@ -262,7 +269,7 @@ function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectR
 		// argument rather than through the shared `NoteVaultDeps` field. That field is what
 		// Task 7 deletes; reading it here would have left this call site needing a second
 		// edit the day it goes.
-		projects: new ObsidianProjectRepository(deps, newProjectRoot, libraryFolder),
+		projects: new ObsidianProjectRepository(deps, newProjectRoot, libraryFolder, defaultCurrency),
 		plans: new ObsidianPlanRepository(deps, geometryStore),
 		zones: new ObsidianZoneRepository(deps, geometryStore),
 		assets: new ObsidianAssetRepository(deps, libraryFolder),
@@ -273,6 +280,10 @@ function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectR
 		// argument to `composeGuarded`, which already sits at `max-params`: this is the
 		// bundle built from `deps.index` and the library setting, and both are already here.
 		overlaps: new IndexLibraryOverlaps(deps.index, libraryFolder),
+		// The CreateProjectCommand's own currency argument. Bundled into this return rather
+		// than a sixth composeGuarded parameter — composeGuarded already takes `repositories`
+		// whole and destructures it, the same grouping SessionCollaborators argues for above.
+		defaultCurrency,
 	};
 }
 
@@ -289,7 +300,7 @@ function composeGuarded(
 	files: VaultFileProbe,
 	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
 ) {
-	const { projects, plans, zones, requirements, overlaps } = repositories;
+	const { projects, plans, zones, requirements, overlaps, defaultCurrency } = repositories;
 	const { events: eventBus, logger, recalculate, locks, markers } = wiring;
 	const map = VAULT_EXCEPTION_MAPPER;
 	const deleteZone = new DeleteZoneCommand({
@@ -310,7 +321,7 @@ function composeGuarded(
 	return {
 		...editor,
 		...guardSlice10(slice10, recalculate, logger, map),
-		createProject: guardCommand(new CreateProjectCommand(projects, eventBus), 'command.createProject.failed', logger, map),
+		createProject: guardCommand(new CreateProjectCommand(projects, eventBus, defaultCurrency), 'command.createProject.failed', logger, map),
 		createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, map),
 		createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, map),
 		reversibleSetPlanBackground: guardCommand(
@@ -357,7 +368,13 @@ export function createCompositionRoot(
 		logger,
 		ledger,
 	};
-	const repositories = composeRepositories(deps, vault, settings.projectFolder, settings.libraryFolder);
+	const repositories = composeRepositories(
+		deps,
+		vault,
+		settings.projectFolder,
+		settings.libraryFolder,
+		settings.defaultCurrency,
+	);
 	const { geometryStore, projects, plans, zones, assets, requirements } = repositories;
 
 	// One lock set per plugin: assignment, unit changes and delete resolutions across

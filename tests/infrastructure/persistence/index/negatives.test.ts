@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { currencyOf } from '../../../../src/core/money/Money';
 import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
@@ -499,7 +500,7 @@ describe('duplicate sidecar basenames', () => {
 
 describe('mapper parse failures return before construction', () => {
 	it('project mapper refuses schema-invalid raw frontmatter', () => {
-		expect(projectFromPersistence({ type: 'renovation-project' }).ok).toBe(false);
+		expect(projectFromPersistence({ type: 'renovation-project' }, currencyOf('EUR')).ok).toBe(false);
 	});
 
 	it('plan mapper refuses schema-invalid raw frontmatter', () => {

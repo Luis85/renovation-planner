@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { currencyOf } from '../../../src/core/money/Money';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import { injectedPersistenceError, RecordingEventBus } from '../../helpers/domain';
 import { guardCommand, guardQuery } from '../../../src/application/errors/guardAgainstThrowing';
@@ -180,7 +181,7 @@ function editorServices(): Fixture[] {
 		map,
 	);
 	return [
-		commandCase('CreateProjectCommand', new CreateProjectCommand(projects, events) as never, 'command.createProject.failed', {
+		commandCase('CreateProjectCommand', new CreateProjectCommand(projects, events, currencyOf('EUR')) as never, 'command.createProject.failed', {
 			name: 'Kitchen',
 		}),
 		commandCase('CreatePlanCommand', new CreatePlanCommand(plans, projects, events) as never, 'command.createPlan.failed', {

@@ -198,7 +198,7 @@ export const defaultRenovationProjectDeps = (
 			overlaps,
 		),
 		commands: {
-			createProject: new CreateProjectCommand(projects, events),
+			createProject: new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency),
 			createPlan: new CreatePlanCommand(plans, projects, events),
 			logger: recorder,
 		},

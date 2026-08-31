@@ -50,6 +50,17 @@ export const ProjectFrontmatterSchemaV1 = z.object({
 	description: z.string().nullable().catch(null),
 	start: DATE_ONLY,
 	'target-completion': DATE_ONLY,
+	/**
+	 * Optional, and the schema stays at version 1 — slice 19's Asset precedent. `.catch(null)`
+	 * runs LAST, so a malformed value reads as ABSENT rather than refusing the whole note,
+	 * and an absent currency is answered by the caller's `defaultCurrency`. A note that has
+	 * never stated one therefore follows the setting until its next save writes it down.
+	 */
+	currency: z
+		.string()
+		.regex(/^[A-Z]{3}$/)
+		.nullable()
+		.catch(null),
 });
 
 export type ProjectFrontmatterDTO = z.infer<typeof ProjectFrontmatterSchemaV1>;

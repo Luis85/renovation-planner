@@ -1,12 +1,17 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { currencyOf } from '../../../../src/core/money/Money';
 import { Project } from '../../../../src/domain/project/Project';
-import type { ProjectId } from '../../../../src/domain/project/ProjectId';
+import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { PROJECT_TYPE } from '../../../../src/infrastructure/persistence/dto/projectFrontmatter';
+import { PROJECT_MIGRATIONS } from '../../../../src/infrastructure/persistence/migration/project/project.migrations';
 import {
 	projectFromPersistence,
 	projectToPersistence,
 } from '../../../../src/infrastructure/persistence/mappers/projectMapper';
 import { expectOk } from '../../../helpers/domain';
+
+const EUR = currencyOf('EUR');
+const GBP = currencyOf('GBP');
 
 /** A fully-populated v1 project note, the base every malformed-date row mutates one key of. */
 const VALID_PROJECT_FRONTMATTER = {
@@ -61,6 +66,7 @@ describe('projectMapper: description, start and targetCompletion', () => {
 			Project.create({
 				id: 'p1' as ProjectId,
 				name: 'Kitchen',
+				currency: EUR,
 				description: 'Full refit',
 				start: new Date('2026-03-01T00:00:00Z'),
 				targetCompletion: new Date('2026-09-30T00:00:00Z'),
@@ -68,7 +74,7 @@ describe('projectMapper: description, start and targetCompletion', () => {
 		);
 
 		const raw = projectToPersistence(created, 1);
-		const back = expectOk(projectFromPersistence(raw));
+		const back = expectOk(projectFromPersistence(raw, EUR));
 
 		expect(back.description).toBe('Full refit');
 		expect(back.start?.toISOString()).toBe('2026-03-01T00:00:00.000Z');
@@ -81,6 +87,7 @@ describe('projectMapper: description, start and targetCompletion', () => {
 			Project.create({
 				id: 'p1' as ProjectId,
 				name: 'Kitchen',
+				currency: EUR,
 				start: new Date('2026-03-01T00:00:00Z'),
 			}),
 		);
@@ -104,7 +111,7 @@ describe('projectMapper: description, start and targetCompletion', () => {
 	])('reads %s as absent rather than as a date', (stored) => {
 		const raw = { ...VALID_PROJECT_FRONTMATTER, start: stored };
 
-		const back = expectOk(projectFromPersistence(raw));
+		const back = expectOk(projectFromPersistence(raw, EUR));
 
 		expect(back.start).toBeNull();
 	});
@@ -114,7 +121,7 @@ describe('projectMapper: description, start and targetCompletion', () => {
 		// a hand-written regex clever enough to reject 2026-02-30 usually rejects this too.
 		const raw = { ...VALID_PROJECT_FRONTMATTER, start: '2028-02-29' };
 
-		const back = expectOk(projectFromPersistence(raw));
+		const back = expectOk(projectFromPersistence(raw, EUR));
 
 		expect(back.start?.toISOString()).toBe('2028-02-29T00:00:00.000Z');
 	});
@@ -122,9 +129,55 @@ describe('projectMapper: description, start and targetCompletion', () => {
 	it('reads a note written before these keys existed', () => {
 		// `.catch(null)` is what makes this additive rather than a migration. Without it,
 		// every project note in every existing vault fails to parse.
-		const back = expectOk(projectFromPersistence(VALID_PROJECT_FRONTMATTER_V1_WITHOUT_OPTIONAL_KEYS));
+		const back = expectOk(projectFromPersistence(VALID_PROJECT_FRONTMATTER_V1_WITHOUT_OPTIONAL_KEYS, EUR));
 
 		expect(back.description).toBeNull();
 		expect(back.start).toBeNull();
+	});
+});
+
+describe("a project note's currency", () => {
+	it('takes the default when the key is absent', () => {
+		const raw = { ...VALID_PROJECT_FRONTMATTER_V1_WITHOUT_OPTIONAL_KEYS };
+		expect(expectOk(projectFromPersistence(raw, GBP)).currency).toBe('GBP');
+	});
+
+	it('honours a stated key over the default', () => {
+		const raw = { ...VALID_PROJECT_FRONTMATTER_V1_WITHOUT_OPTIONAL_KEYS, currency: 'CHF' };
+		expect(expectOk(projectFromPersistence(raw, GBP)).currency).toBe('CHF');
+	});
+
+	it('falls back to the default for a malformed value, rather than refusing the note', () => {
+		const raw = { ...VALID_PROJECT_FRONTMATTER_V1_WITHOUT_OPTIONAL_KEYS, currency: 'eur' };
+		expect(expectOk(projectFromPersistence(raw, EUR)).currency).toBe('EUR');
+	});
+
+	it('round-trips, so the value stops floating once the note is saved', () => {
+		const created = expectOk(
+			Project.create({ id: createProjectId(), name: 'Kitchen refit', currency: GBP }),
+		);
+		const raw = projectToPersistence(created, 1);
+		expect(raw['currency']).toBe('GBP');
+		// The default is EUR here and loses to the written key: the point of the round trip.
+		expect(expectOk(projectFromPersistence(raw, EUR)).currency).toBe('GBP');
+	});
+
+	/**
+	 * The cost of Decision 2, pinned as BEHAVIOUR rather than described. A project that
+	 * never stated a currency follows the setting. A later reader who "fixes" this fails
+	 * here instead of making the spec quietly wrong.
+	 */
+	it('FLOATS: an un-stated currency follows whatever default it is read with', () => {
+		const raw = { ...VALID_PROJECT_FRONTMATTER_V1_WITHOUT_OPTIONAL_KEYS };
+		expect(expectOk(projectFromPersistence(raw, EUR)).currency).toBe('EUR');
+		expect(expectOk(projectFromPersistence(raw, GBP)).currency).toBe('GBP');
+	});
+
+	it('the schema stays at version 1 — no migration is registered', () => {
+		expect(projectToPersistence(
+			expectOk(Project.create({ id: createProjectId(), name: 'K', currency: EUR })),
+			1,
+		)['schema-version']).toBe(1);
+		expect(PROJECT_MIGRATIONS).toHaveLength(0);
 	});
 });

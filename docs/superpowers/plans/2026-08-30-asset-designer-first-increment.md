@@ -312,6 +312,22 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 	if (!Number.isFinite(shape.facing)) {
 		return err(assetError('invalid-facing', 'A facing must be a finite angle in radians.'));
 	}
+	if (shape.footprintOrigin === 'typed' && shape.footprintPending) {
+		return err(
+			assetError(
+				'typed-footprint-cannot-be-pending',
+				'A typed footprint is authored in millimetres and never awaits a scale.',
+			),
+		);
+	}
+	if (shape.clearance === null && shape.clearancePending) {
+		return err(
+			assetError(
+				'absent-clearance-cannot-be-pending',
+				'A shape with no clearance has no clearance coordinates awaiting a scale.',
+			),
+		);
+	}
 	return ok({ ...shape, facing: normaliseFacing(shape.facing) });
 }
 
@@ -342,7 +358,24 @@ Expected: PASS, 6 tests.
 
 - [ ] **Step 5: Add the `validateAssetShape` cases**
 
-Three more `it` blocks, each asserting the code rather than the message: a two-point footprint refuses `asset.invalid-footprint`, a `NaN` anchor refuses `asset.invalid-anchor`, and a `facing` of `2π` comes back as `0` from the ok arm — that last one proves normalisation happens on the way through the validator and not only in `normaliseFacing`'s own test.
+Two of them are the states the per-attribute model makes incoherent, and they are refused rather
+than repaired for the same reason A4 refuses a two-vertex polygon: no command can produce either, so
+one in a sidecar is a hand edit, and reading it as "already measured" suppresses the unscaled
+warning over placeholder-space geometry.
+
+```typescript
+it('refuses a typed footprint marked as awaiting a scale', () => {
+	const result = validateAssetShape({ ...typedShape, footprintPending: true });
+	expect(isErr(result) && result.error.code).toBe('asset.typed-footprint-cannot-be-pending');
+});
+
+it('refuses a pending clearance on a shape that has no clearance', () => {
+	const result = validateAssetShape({ ...typedShape, clearance: null, clearancePending: true });
+	expect(isErr(result) && result.error.code).toBe('asset.absent-clearance-cannot-be-pending');
+});
+```
+
+Then three more `it` blocks, each asserting the code rather than the message: a two-point footprint refuses `asset.invalid-footprint`, a `NaN` anchor refuses `asset.invalid-anchor`, and a `facing` of `2π` comes back as `0` from the ok arm — that last one proves normalisation happens on the way through the validator and not only in `normaliseFacing`'s own test.
 
 - [ ] **Step 6: Full gate, then commit**
 
@@ -829,12 +862,15 @@ it('refuses a clearance on an asset with no footprint, because a boundary is rel
 	expect(isErr(result) && result.error.code).toBe('asset.no-footprint');
 });
 
-it('clears the clearance when given null, and reports that it wrote', async () => {
-	await clearance.execute({ assetId, points: square });
+it('clears the clearance when given null, and clears its pending flag with it', async () => {
+	await seedUncalibratedSurface();
+	await clearance.execute({ assetId, points: square });   // captures with clearancePending: true
 	const result = await clearance.execute({ assetId, points: null });
 	expect(isOk(result) && result.value).toBe('wrote');
 	const stored = await sidecar.read(assetId);
-	expect(isOk(stored) && stored.value.document.shape?.clearance).toBeNull();
+	const shape = isOk(stored) ? stored.value.document.shape : null;
+	expect(shape?.clearance).toBeNull();
+	expect(shape?.clearancePending).toBe(false);
 });
 
 it('normalises a facing given as 2π to 0, so two spellings of north cannot be stored', async () => {
@@ -860,7 +896,13 @@ Each reads, validates through `validateAssetShape`, compares against the stored 
 
 **Each sets its OWN pending flag at capture**, and only its own: `SetAssetClearance` sets
 `clearancePending` from whether the surface is calibrated at that moment, `SetAssetAnchor` sets
-`anchorPending`, and neither touches the other's or the footprint's. That is the whole of what the
+`anchorPending`, and neither touches the other's or the footprint's.
+
+**Removal is not a capture.** `SetAssetClearance` with `points: null` sets `clearancePending` to
+**false** unconditionally — there are no coordinates left to convert, and a flag saying otherwise
+hands B6 a group to rescale that does not exist. `validateAssetShape` refuses that state (Task A2),
+so a build that derives the flag from calibration alone fails at the write rather than persisting
+something the reader would have to interpret. That is the whole of what the
 per-attribute model asks of these commands, and it is why B6 needs no conjunction. Add the case:
 
 ```typescript
@@ -971,14 +1013,20 @@ export interface AssetDesignDto {
 export class GetAssetDesignQuery implements Query<AssetId, Result<AssetDesignDto, AppError>> {}
 ```
 
-- [ ] **Step 1: Write the failing tests — the provenance truth table**
+- [ ] **Step 1: Write the failing tests — the pending truth table**
 
-This is the query's real subject, so drive all four rows:
+`dimensionsUnscaled` **is** `footprintPending`, with no second term. An earlier draft of this table
+carried a fourth row — typed with `footprintPending: true`, expecting no warning — which quietly
+reinstated the conjunction the per-attribute model exists to remove, and described a state no
+command can produce: `footprintPending` is about the FOOTPRINT, so a typed outline never sets it.
+The mixed case it was reaching for is a typed footprint beside a pending *clearance*, and that is
+the separate case below. The incoherent state is refused at the boundary instead (Task A2).
+
+Three reachable rows, then:
 
 ```typescript
 it.each([
 	['typed',  false, false],
-	['typed',  true,  false], // the mixed case: a typed outline with a clearance awaiting a scale.
 	['traced', false, false],
 	['traced', true,  true ],
 ])('origin %s with footprintPending %s reports unscaled=%s', async (origin, footprintPending, expected) => {
@@ -1888,7 +1936,10 @@ writing and refuse the calibration instead:
 
 ```typescript
 it('refuses a calibration whose rescaled coordinates would overflow, rather than writing nulls', async () => {
-	await seedShape({ footprint: rect(1e300, 1e300), footprintOrigin: 'traced' });
+	// `footprintPending` is load-bearing here: without it the per-coordinate gate leaves the
+	// footprint alone, only the calibration pair rescales, the command SUCCEEDS, and this case
+	// passes against a build with no finite guard at all.
+	await seedShape({ footprint: rect(1e300, 1e300), footprintOrigin: 'traced', footprintPending: true });
 	const result = await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 1e-302, y: 0 }, knownDistance: 3200 });
 	expect(isErr(result)).toBe(true);
 	const stored = await sidecar.read(assetId);

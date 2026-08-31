@@ -148,13 +148,29 @@ export function length(shape: LineSegment | Polyline): number {
 	return isSegment(shape) ? distance(shape.start, shape.end) : chainLength(shape.points);
 }
 
-/** Unsigned magnitude (shoelace formula). Winding order is deliberately invisible here. */
+/**
+ * Unsigned magnitude (shoelace formula). Winding order is deliberately invisible here.
+ *
+ * ZERO is a legitimate answer — a collinear vertex set is a legal polygon (SDD §26 files
+ * degeneracy under "Future") and its area really is nothing. `Infinity` is not: every
+ * coordinate can be finite while their PRODUCTS overflow, and this function's output is a
+ * Requirement's quantity and therefore its cost, through `Zone.area()`. A measurement that
+ * cannot be represented is refused rather than reported, which is the rule `dimensionsOf`
+ * already keeps one axis over.
+ */
 export function area(polygon: Polygon): Result<number, GeometryError> {
 	const checked = validatePolygonPoints(polygon.points);
 	if (!checked.ok) {
 		return checked;
 	}
-	return ok(Math.abs(signedAreaSum(polygon.points)) / 2);
+	const sum = signedAreaSum(polygon.points);
+	if (!Number.isFinite(sum)) {
+		return geometryErr(
+			'polygon-area-overflow',
+			'These vertices are finite but the area they enclose is not representable.',
+		);
+	}
+	return ok(Math.abs(sum) / 2);
 }
 
 /**
@@ -175,9 +191,20 @@ export function area(polygon: Polygon): Result<number, GeometryError> {
  *
  * Unsigned and undivided: `Math.abs(sum) / 2 > 0` and `Math.abs(sum) > 0` answer identically,
  * so the halving is dropped rather than carried for a comparison that cannot see it.
+ *
+ * **A REPRESENTABLE area, which is two questions and not one.** The shoelace sum of finite
+ * coordinates can overflow — (0,0), (1e308,0), (0,1e308) sums to `Infinity` — and `Math.abs`
+ * of that is greater than zero, so a bare magnitude test read an overflow as a real area and
+ * `validateAssetShape` persisted the footprint. Both failures answer `false` here because both
+ * mean the same thing to a caller asking whether there is an area to work with; the two are
+ * kept DISTINGUISHABLE at `area` and `centroid`, which have a `Result` to say which happened
+ * in. `Number.isFinite` also excludes `NaN`, which no finite coordinate set produces (0 x
+ * Infinity is the only route and there are no infinite coordinates) and which would otherwise
+ * pass a `> 0` test by being incomparable rather than by being large.
  */
 export function enclosesArea(polygon: Polygon): boolean {
-	return Math.abs(signedAreaSum(polygon.points)) > 0;
+	const sum = signedAreaSum(polygon.points);
+	return Number.isFinite(sum) && Math.abs(sum) > 0;
 }
 
 export function perimeter(polygon: Polygon): Result<number, GeometryError> {
@@ -208,6 +235,16 @@ export function centroid(polygon: Polygon): Result<Point, GeometryError> {
 	const cross = signedAreaSum(polygon.points);
 	if (cross === 0) {
 		return geometryErr('polygon-zero-area', 'Cannot weight a centroid by a zero area.');
+	}
+	// The other end of the same range, and the one that used to answer rather than refuse:
+	// dividing infinite accumulators by an infinite weight is `NaN`, handed back inside a
+	// confident `ok`. A separate code from the zero case on purpose — "cannot weight by a
+	// zero area" over a triangle with three corners would be a false account of the refusal.
+	if (!Number.isFinite(cross)) {
+		return geometryErr(
+			'polygon-area-overflow',
+			'Cannot weight a centroid by an area that is not representable.',
+		);
 	}
 	// Accumulated relative to the first vertex for the reason `signedAreaSum` gives, and then
 	// shifted back. A centroid is not translation-INVARIANT the way an area is, but it is

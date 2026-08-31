@@ -177,6 +177,37 @@ describe('NewAssetForm', () => {
 		expect(wrapper.emitted('submit')).toBeUndefined();
 	});
 
+	/**
+	 * The preflight has to run the COMPLETE shape validation the command runs, not the half of
+	 * it that happens to be about the two numbers.
+	 *
+	 * `Number.MIN_VALUE * 2` survives every guard `footprintFromDimensions` owns: it is
+	 * positive, and its half is `Number.MIN_VALUE`, which is positive too. What it does not
+	 * survive is `validateAssetShape`, because the shoelace products of four vertices that
+	 * small all underflow to zero — so a preflight calling only the first of the two committed
+	 * the asset note and THEN had the footprint refused, which is exactly the guarantee this
+	 * form's header makes and the one its own header names as the sequence's real hazard.
+	 *
+	 * `createAsset` not having been called is the whole assertion: a build that dispatched and
+	 * merely reported the refusal afterwards shows the same message.
+	 */
+	it('refuses a rectangle whose vertices collapse, before creating anything', async () => {
+		const createAsset = createOk();
+		const setFootprintFromDimensions = footprintOk();
+		const subnormal = String(Number.MIN_VALUE * 2);
+
+		const wrapper = await mountAndSubmit(
+			{ createAsset, setFootprintFromDimensions },
+			{ width: subnormal, depth: subnormal },
+		);
+
+		expect(createAsset).not.toHaveBeenCalled();
+		expect(setFootprintFromDimensions).not.toHaveBeenCalled();
+		expect(messages(wrapper)).toEqual([sentence('asset.degenerate-footprint')]);
+		expect(wrapper.get('[data-field="width"]').attributes('aria-invalid')).toBe('true');
+		expect(wrapper.get('[data-field="depth"]').attributes('aria-invalid')).toBe('true');
+	});
+
 	it('refuses one dimension given without the other, since a rectangle needs both', async () => {
 		const createAsset = createOk();
 		const setFootprintFromDimensions = footprintOk();
@@ -290,6 +321,54 @@ describe('NewAssetForm', () => {
 		expect(setFootprintFromDimensions).toHaveBeenCalledTimes(2);
 		expect(setFootprintFromDimensions.mock.calls[1][0].assetId).toBe(asset.id);
 		expect(wrapper.emitted('submit')).toEqual([[asset.id]]);
+	});
+
+	/**
+	 * **The other half of the retry rule, and the one it created.** Keeping the created id is
+	 * what stops a second catalogue entry — and it also means every later submit SKIPS
+	 * `createAsset` entirely, so a user who corrects the name before retrying watched the
+	 * dialog succeed and close over an asset that still carries the old one. An edit accepted
+	 * by an input and discarded by the code behind it is worse than an edit refused.
+	 *
+	 * The five catalogue fields are frozen once the note exists, which says the true thing:
+	 * the entry is in the vault, and what this dialog has left to do is its footprint. The two
+	 * dimensions stay live, because they are exactly what the retry re-dispatches.
+	 */
+	it('freezes the catalogue fields once the asset exists, and says why', async () => {
+		const createAsset = createOk();
+		const setFootprintFromDimensions = vi
+			.fn<SetFootprint>()
+			.mockResolvedValueOnce(err(refusal('Persistence', 'vault.unexpected-failure')))
+			.mockResolvedValueOnce(ok('wrote'));
+
+		const wrapper = await mountAndSubmit(
+			{ createAsset, setFootprintFromDimensions },
+			{ width: '1200', depth: '800' },
+		);
+
+		for (const field of ['name', 'category', 'unit', 'unitCostAmount', 'currency']) {
+			expect(wrapper.get(`[data-field="${field}"]`).attributes('disabled')).toBeDefined();
+		}
+		for (const field of ['width', 'depth']) {
+			expect(wrapper.get(`[data-field="${field}"]`).attributes('disabled')).toBeUndefined();
+		}
+		expect(wrapper.find('.rp-new-asset__created').exists()).toBe(true);
+	});
+
+	it('leaves every field editable while nothing has been created', async () => {
+		const wrapper = mount(NewAssetForm, {
+			props: {
+				createAsset: createOk(),
+				setFootprintFromDimensions: footprintOk(),
+				logger: recorder,
+			},
+		});
+		await fill(wrapper, {});
+
+		for (const field of ['name', 'category', 'unit', 'unitCostAmount', 'currency']) {
+			expect(wrapper.get(`[data-field="${field}"]`).attributes('disabled')).toBeUndefined();
+		}
+		expect(wrapper.find('.rp-new-asset__created').exists()).toBe(false);
 	});
 
 	/**

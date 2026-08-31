@@ -1789,6 +1789,44 @@ git commit -m "Create an asset, optionally with a width and a depth"
 
 **Phase A is now shippable.** Confirm it end to end in a real vault before starting Phase B: `npm run test-build`, then create an asset with dimensions and read the `.rpgeo` file the plugin wrote.
 
+#### Amendment 1 — what the review round after A10 landed found, 2026-08-31
+
+Three findings, and two of them are the same shape: **a guarantee written in a docblock that the
+code beside it does not keep.**
+
+1. **The preflight ran half the validation the command runs.** Step 3's rule 1 promises that
+   "everything purely checkable is checked before anything is written", and the form called
+   `footprintFromDimensions` while the command composes a whole shape and runs
+   `validateAssetShape`. `Number.MIN_VALUE * 2` passes the first and fails the second — four
+   distinct vertices whose shoelace products all underflow — so the asset note was committed and
+   only then was its footprint refused as degenerate. The preflight is `shapeFromDimensions` now,
+   which composes exactly what the command composes for an asset with no current shape, so the
+   two cannot disagree in either direction. `asset.degenerate-footprint` became reachable from
+   the form by that move and joins the three codes routing to the dimension pair.
+
+2. **The retry rule silently discarded catalogue edits.** Rule 2 keeps the created id so a vault
+   fault cannot make two entries — and every later submit therefore skips `createAsset`, so a
+   user who corrected the name before retrying watched the dialog succeed over an asset still
+   carrying the old one. The five catalogue fields are frozen once the note exists, with a line
+   saying why. **Frozen rather than re-sent**: persisting them means `UpdateAssetCommand`, a
+   second dependency and a second write in the one sequence whose whole difficulty is already
+   that it has two, for a gesture the catalogue owns anyway. `disabled` rather than `readonly`,
+   because two of the five are `<select>`s and `readonly` does nothing to those at all.
+
+3. **A finite vertex set can have a non-finite area, and three consumers each read it as a
+   number.** `(0,0)`, `(1e308,0)`, `(0,1e308)` passes `createPolygon` and sums to `Infinity`:
+   `enclosesArea` read that as a real area and let the footprint persist, `centroid` divided
+   infinite accumulators by it and answered a confident `ok` carrying `NaN`, and `area` reported
+   `Infinity` as a measurement — which is a Requirement's quantity and its cost, since
+   `Zone.area()` is the same call. The report named `enclosesArea`; all three are fixed, because
+   fixing the one in the report is how this repository has twice shipped a partial fix that reads
+   like a complete one. `polygon-area-overflow` is a SEPARATE code from `polygon-zero-area`, so
+   "cannot weight a centroid by a zero area" is never printed over a triangle with three corners.
+
+Seven mutations run across the three, every one reddening exactly the cases it should — including
+the two that prove a PARTIAL fix is caught: freezing the three inputs and not the two selects, and
+guarding `enclosesArea` while leaving `area` and `centroid` alone.
+
 ---
 
 # Phase B — the designer

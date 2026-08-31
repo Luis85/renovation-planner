@@ -284,6 +284,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'form.new-asset.currency': 'Währung',
 	'form.new-asset.width': 'Breite in Millimetern (optional)',
 	'form.new-asset.depth': 'Tiefe in Millimetern (optional)',
+	'form.new-asset.already-created':
+		'Das Objekt ist gespeichert. Seine Angaben lassen sich im Katalog bearbeiten; nur die Maße unten stehen noch aus.',
 	'form.new-asset.category.material': 'Baustoff',
 	'form.new-asset.category.furniture': 'Möbel',
 	'form.new-asset.category.fixture': 'Einbauteil',

@@ -16,6 +16,7 @@ import {
 	COINCIDENT_TOLERANCE_MM,
 	contains,
 	distance,
+	enclosesArea,
 	intersect,
 	length,
 	perimeter,
@@ -119,6 +120,80 @@ describe('a small polygon far from the origin', () => {
 		expect(FAR.ok && centroid(FAR.value)).toEqual({
 			ok: true,
 			value: { x: 1e8 + 0.5, y: 1e8 + 0.5 },
+		});
+	});
+});
+
+/**
+ * The OPPOSITE end of the same helper's range, and the reason the finiteness question is asked
+ * of all three consumers rather than of the one a review pointed at.
+ *
+ * Every coordinate here is finite, so `createPolygon` accepts the triangle — and the shoelace
+ * PRODUCTS overflow: 1e308 x 1e308 is `Infinity`, and the translation that rescues the
+ * cancelling case above cannot help, because there is nothing to cancel. Each consumer then
+ * treated that as an ordinary number: `enclosesArea` read it as a real area and let
+ * `validateAssetShape` persist the footprint, `centroid` divided infinite accumulators by it and
+ * answered a confident `ok` carrying `NaN`, and `area` reported `Infinity` as a measurement —
+ * which reaches a Requirement's quantity and its cost, since `Zone.area()` is the same call.
+ *
+ * A finite EXTENT does not mean a finite PRODUCT, which is `dimensionsOf`'s own recorded lesson
+ * one axis over.
+ */
+describe('a polygon whose vertices are finite and whose area is not', () => {
+	const OVERFLOWING = createPolygon([
+		{ x: 0, y: 0 },
+		{ x: 1e308, y: 0 },
+		{ x: 0, y: 1e308 },
+	]);
+
+	it('is accepted as a polygon, because every coordinate is finite', () => {
+		expect(OVERFLOWING.ok).toBe(true);
+	});
+
+	it('does not enclose a representable area', () => {
+		expect(OVERFLOWING.ok && enclosesArea(OVERFLOWING.value)).toBe(false);
+	});
+
+	it('refuses to report an area rather than reporting an infinite one', () => {
+		expect(OVERFLOWING.ok && area(OVERFLOWING.value)).toEqual({
+			ok: false,
+			error: expect.objectContaining({ code: 'polygon-area-overflow' }),
+		});
+	});
+
+	it('refuses to weight a centroid rather than answering NaN', () => {
+		expect(OVERFLOWING.ok && centroid(OVERFLOWING.value)).toEqual({
+			ok: false,
+			error: expect.objectContaining({ code: 'polygon-area-overflow' }),
+		});
+	});
+});
+
+/**
+ * The degenerate case keeps its OWN code, so the two refusals stay distinguishable: a
+ * collinear vertex set encloses nothing, and an overflowing one encloses something nobody can
+ * represent. Collapsing them would put "these vertices are collinear" over a triangle with
+ * three corners.
+ */
+describe('a collinear polygon', () => {
+	const COLLINEAR = createPolygon([
+		{ x: 0, y: 0 },
+		{ x: 10, y: 10 },
+		{ x: 20, y: 20 },
+	]);
+
+	it('does not enclose an area', () => {
+		expect(COLLINEAR.ok && enclosesArea(COLLINEAR.value)).toBe(false);
+	});
+
+	it('still reports an area of zero rather than refusing', () => {
+		expect(COLLINEAR.ok && area(COLLINEAR.value)).toEqual({ ok: true, value: 0 });
+	});
+
+	it('refuses a centroid under the zero-area code', () => {
+		expect(COLLINEAR.ok && centroid(COLLINEAR.value)).toEqual({
+			ok: false,
+			error: expect.objectContaining({ code: 'polygon-zero-area' }),
 		});
 	});
 });

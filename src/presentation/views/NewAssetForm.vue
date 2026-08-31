@@ -20,8 +20,13 @@
  * reason this file is longer than its siblings:
  *
  *  1. **Everything purely checkable is checked before anything is written.**
- *     `footprintFromDimensions` and `createMoney` are both pure, so a zero, a negative, a
+ *     `shapeFromDimensions` and `createMoney` are both pure, so a zero, a negative, a
  *     malformed amount and a malformed currency are all caught with the vault untouched.
+ *     The preflight runs the WHOLE shape validation, not the half of it about the two
+ *     numbers: `footprintFromDimensions` alone accepts `Number.MIN_VALUE * 2`, whose four
+ *     vertices are distinct and whose shoelace products all underflow, so the note was
+ *     committed and only then was the footprint refused as degenerate — this rule broken by
+ *     the code claiming it.
  *  2. **The created id is kept and reused on retry.** The note is committed before the
  *     sidecar is opened, so a vault fault in between leaves an asset that exists and has no
  *     footprint — usable, simply undesigned. Re-creating it on the retry would turn one
@@ -38,7 +43,7 @@
  * than `of`'s `LITERAL_PATTERN`, and the currency pattern is the same one), so a value that
  * passes here cannot throw there.
  */
-import { ref, type Ref } from 'vue';
+import { computed, ref, type Ref } from 'vue';
 import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
 import { useInvalidFieldFocus } from '../composables/use-invalid-field-focus';
@@ -47,7 +52,7 @@ import type { FieldErrorMap } from '../errors/route-error';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError, ValidationError } from '../../core/errors/AppError';
 import { createMoney } from '../../core/money/Money';
-import { footprintFromDimensions } from '../../domain/asset/AssetShape';
+import { shapeFromDimensions } from '../../domain/asset/AssetShape';
 import type { Asset } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
@@ -84,7 +89,7 @@ const emit = defineEmits<{ submit: [assetId: AssetId] }>();
 /**
  * What the user types. The two dimensions are STRINGS rather than numbers because "not
  * given" is a state a `number` cannot hold: `Number('')` is `0`, which
- * `footprintFromDimensions` correctly refuses as non-positive — so a form that parsed
+ * `shapeFromDimensions` correctly refuses as non-positive — so a form that parsed
  * eagerly would refuse the perfectly ordinary case of creating a catalogue entry with no
  * geometry yet. Blank-versus-typed is decided on the raw text, once, in `parseDimensions`.
  */
@@ -125,15 +130,19 @@ function dimensionsIncomplete(): ValidationError {
  * (`src/domain/asset/Asset.errors.ts`), so a grep for the whole string finds nothing; the two
  * `money.*` entries are `createMoney`'s own, in `src/core/money/Money.ts`.
  *
- * **Three codes route to the PAIR, and that is the codes' own doing rather than a choice.**
+ * **Four codes route to the PAIR, and that is the codes' own doing rather than a choice.**
  * `asset.non-positive-dimension` is minted inside a loop over `[width, depth]` and names
- * neither in anything but developer English; `asset.dimension-underflow` and
- * `asset.invalid-footprint` are each about the rectangle the two produce together. Routing any
- * of them to `width` alone would be a second answer to which field is wrong, and a wrong one
- * half the time.
+ * neither in anything but developer English; `asset.dimension-underflow`,
+ * `asset.invalid-footprint` and `asset.degenerate-footprint` are each about the rectangle the
+ * two produce together. Routing any of them to `width` alone would be a second answer to which
+ * field is wrong, and a wrong one half the time.
+ *
+ * `asset.degenerate-footprint` became reachable from this form only when the preflight moved
+ * from `footprintFromDimensions` to `shapeFromDimensions`; before that it could arrive from the
+ * COMMAND, after a write, which is the defect that move closed.
  *
  * **What is deliberately ABSENT**, so the gaps read as decisions rather than omissions. The
- * eleven other codes `AssetShape.ts` mints — the clearance, anchor, facing and pending-flag
+ * other codes `AssetShape.ts` mints — the clearance, anchor, facing and pending-flag
  * refusals, and `asset.no-footprint` — are about attributes this form does not render and
  * cannot send; `asset.invalid-height` and `asset.negative-height` likewise, height being
  * `SetAssetHeightCommand`'s field. `asset.not-found` cannot arise from a form that has just
@@ -152,6 +161,7 @@ const NEW_ASSET_ERRORS: FieldErrorMap<NewAssetValues> = {
 	'asset.non-positive-dimension': ['width', 'depth'],
 	'asset.dimension-underflow': ['width', 'depth'],
 	'asset.invalid-footprint': ['width', 'depth'],
+	'asset.degenerate-footprint': ['width', 'depth'],
 };
 
 /**
@@ -192,6 +202,28 @@ function parseDimensions(
 const createdAssetId = ref<AssetId | null>(null);
 
 /**
+ * The five CATALOGUE fields are frozen once the note exists, and the two dimensions are not.
+ *
+ * This is the cost of rule 2 above rather than an independent decision: keeping the created
+ * id is what stops a retry making a second entry, and it also means every later submit skips
+ * `createAsset` — so an edit to the name, the category, the unit, the cost or the currency was
+ * accepted by the input, discarded by the code behind it, and the dialog then closed reporting
+ * success over an asset still carrying the old values. An edit silently ignored is worse than
+ * one refused.
+ *
+ * **Frozen rather than persisted**, which is the choice the other remedy would have taken.
+ * Sending them again means `UpdateAssetCommand` — a second dependency, a second write in a
+ * sequence whose whole difficulty is already that it has two — for a gesture this dialog has
+ * no reason to own: the entry exists and is editable everywhere an asset is. What is left of
+ * this form's job is the footprint, so what stays live is exactly what a retry re-dispatches.
+ *
+ * `disabled` rather than `readonly`, because two of the five are `<select>`s, which `readonly`
+ * does nothing to at all — a rule kept on the three inputs alone would look identical in the
+ * markup and be false for the halves that matter most.
+ */
+const catalogueFrozen = computed(() => createdAssetId.value !== null);
+
+/**
  * The whole sequence, as `useFormCommit`'s single `dispatch`. Ordered so that everything
  * checkable without a write happens first — see this component's own header for why that
  * ordering is load-bearing rather than tidy.
@@ -203,13 +235,20 @@ async function createAssetAndFootprint(
 	if (isErr(dimensions)) return dimensions;
 	const money = createMoney(values.unitCostAmount, values.currency);
 	if (isErr(money)) return money;
-	// The pure half of the footprint, run for its REFUSAL rather than for its polygon: the
+	// The pure half of the footprint, run for its REFUSAL rather than for its shape: the
 	// command re-derives the rectangle itself from the same two numbers, so what is thrown
-	// away here is a repeat of work that costs nothing, and what is bought is that a zero or
-	// a negative is refused with the vault untouched.
+	// away here is a repeat of work that costs nothing, and what is bought is that every
+	// refusal the numbers alone can earn is taken with the vault untouched.
+	//
+	// `shapeFromDimensions` rather than `footprintFromDimensions`, because the command's own
+	// path is `withFootprint(current, …)` followed by `validateAssetShape` — and for an asset
+	// this form has just created there IS no current shape, so what it validates is exactly
+	// `UNDESIGNED` plus the typed rectangle, which is what `shapeFromDimensions` composes.
+	// The two are the same shape by construction, so this preflight cannot refuse something
+	// the command would accept, nor accept something it would refuse.
 	if (dimensions.value !== null) {
-		const footprint = footprintFromDimensions(dimensions.value.width, dimensions.value.depth);
-		if (isErr(footprint)) return footprint;
+		const shape = shapeFromDimensions(dimensions.value.width, dimensions.value.depth);
+		if (isErr(shape)) return shape;
 	}
 
 	let assetId = createdAssetId.value;
@@ -309,6 +348,12 @@ async function onSubmit(): Promise<void> {
 		@submit.prevent="onSubmit"
 	>
 		<FormBanner :message="form.banner.value" />
+		<p
+			v-if="catalogueFrozen"
+			class="rp-new-asset__created"
+		>
+			{{ tr('form.new-asset.already-created') }}
+		</p>
 		<FieldError
 			v-slot="{ inputId, aria }"
 			:message="form.fieldErrors.value.get('name') ?? null"
@@ -325,6 +370,7 @@ async function onSubmit(): Promise<void> {
 					data-field="name"
 					:value="form.values.value.name"
 					:readonly="form.submitting.value"
+					:disabled="catalogueFrozen"
 					@input="onFieldInput('name', $event)"
 				>
 			</label>
@@ -344,6 +390,7 @@ async function onSubmit(): Promise<void> {
 					data-field="category"
 					:value="form.values.value.category"
 					:aria-disabled="form.submitting.value"
+					:disabled="catalogueFrozen"
 					@change="onFieldInput('category', $event)"
 				>
 					<option
@@ -371,6 +418,7 @@ async function onSubmit(): Promise<void> {
 					data-field="unit"
 					:value="form.values.value.unit"
 					:aria-disabled="form.submitting.value"
+					:disabled="catalogueFrozen"
 					@change="onFieldInput('unit', $event)"
 				>
 					<option
@@ -400,6 +448,7 @@ async function onSubmit(): Promise<void> {
 					data-field="unitCostAmount"
 					:value="form.values.value.unitCostAmount"
 					:readonly="form.submitting.value"
+					:disabled="catalogueFrozen"
 					@input="onFieldInput('unitCostAmount', $event)"
 				>
 			</label>
@@ -420,6 +469,7 @@ async function onSubmit(): Promise<void> {
 					data-field="currency"
 					:value="form.values.value.currency"
 					:readonly="form.submitting.value"
+					:disabled="catalogueFrozen"
 					@input="onFieldInput('currency', $event)"
 				>
 			</label>

@@ -218,6 +218,15 @@ export const en = {
 	'empty.project.no-projects.action': 'Create a project',
 	'view.project.list-title': 'Renovation projects',
 	'view.project.create': 'New project',
+	// Design slice 21's detail state. `Back to projects` names its DESTINATION rather than
+	// saying `Back`: this pane has one other state and a label that says which one it returns to
+	// is what stops the control reading as browser history. `Open note` is the secondary action —
+	// the row itself navigates now, and `Project.md` stays reachable because nothing else routes
+	// to a project's own metadata.
+	'view.project.back': 'Back to projects',
+	'view.project.open-note': 'Open note',
+	'view.project.plans-title': 'Plans',
+	'view.project.create-plan': 'New plan',
 	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
 	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
 	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is

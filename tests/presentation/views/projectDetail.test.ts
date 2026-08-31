@@ -1,0 +1,109 @@
+/**
+ * @vitest-environment jsdom
+ *
+ * One project's detail state (design slice 21) — who it is, a way back, a way to its own
+ * note, and its plans. It draws only what it is given and emits intents; `ViewRoot` owns
+ * every handler.
+ */
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { mount } from '@vue/test-utils';
+import ProjectDetail from '../../../src/presentation/views/ProjectDetail.vue';
+import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
+import { t } from '../../../src/presentation/i18n/strings';
+
+const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Hallway', status: 'IDEA' };
+
+describe('ProjectDetail', () => {
+	it('names the project and renders its status through the shared label', () => {
+		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], emptyState: null } });
+
+		expect(wrapper.get('.rp-project-detail__name').text()).toBe('Hallway');
+		expect(wrapper.get('.rp-project-detail__status').text()).toBe(t('en', 'form.new-project.status.idea'));
+	});
+
+	it('emits back, openNote and createPlan from the header', async () => {
+		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], emptyState: null } });
+
+		await wrapper.get('.rp-project-detail__back').trigger('click');
+		await wrapper.get('.rp-project-detail__open-note').trigger('click');
+		await wrapper.get('.rp-plan-list__create').trigger('click');
+
+		expect(wrapper.emitted('back')).toHaveLength(1);
+		expect(wrapper.emitted('openNote')).toHaveLength(1);
+		expect(wrapper.emitted('createPlan')).toHaveLength(1);
+	});
+
+	/**
+	 * **The header survives an empty project**, which is every project a user has just
+	 * created. Back and Open note live here and nowhere else, so an empty state drawn in
+	 * PLACE of this component would fail criteria 5 and 11 on the most common detail state
+	 * there is. Reported by a review bot against the plan.
+	 */
+	it('keeps back and open note when the project has no plans', () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [], emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+		});
+
+		expect(wrapper.find('.rp-project-detail__back').exists()).toBe(true);
+		expect(wrapper.find('.rp-project-detail__open-note').exists()).toBe(true);
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
+		expect(wrapper.find('.rp-plan-list').exists()).toBe(false);
+	});
+
+	/**
+	 * The empty state's action is the SAME intent the plan list's header button carries, so a
+	 * project with no plans is not a project with no way to make one. Asserted on the emit
+	 * rather than on the button's presence: a rendered action wired to nothing is exactly the
+	 * "live control that does nothing" slice 14's amendment refuses.
+	 */
+	it('emits createPlan from the empty state’s own action', async () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [], emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+		});
+
+		await wrapper.get('.rp-empty-state__action').trigger('click');
+
+		expect(wrapper.emitted('createPlan')).toHaveLength(1);
+	});
+
+	/**
+	 * The re-emit is what criterion 2 travels through: `PlanList` emits an id, this component
+	 * carries it up, and `ViewRoot` calls `context.openPlan`. A component that swallowed it
+	 * would compile and do nothing.
+	 */
+	it('carries a plan row’s id up from PlanList', async () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], emptyState: null },
+		});
+
+		await wrapper.get('.rp-plan-list__row').trigger('click');
+
+		expect(wrapper.emitted('openPlan')).toEqual([['plan-1']]);
+	});
+
+	/**
+	 * The sibling of `planList.test.ts`'s own case, and the same hole: jsdom resolves no CSS,
+	 * so a class this template emits and `styles/project-detail.css` never declares draws
+	 * nothing while every assertion above stays green. Harvested from the DOM, never
+	 * transcribed.
+	 */
+	it('declares a rule for every class it actually emits', () => {
+		const css = readFileSync('styles/project-detail.css', 'utf8');
+		const wrapper = mount(ProjectDetail, {
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], emptyState: null },
+		});
+
+		const emitted = new Set(
+			wrapper
+				.findAll('[class]')
+				.flatMap((el) => [...el.element.classList])
+				.filter((name) => name.startsWith('rp-project-detail')),
+		);
+
+		expect(emitted.size).toBeGreaterThan(4);
+		// A trailing boundary, not `toContain`: every class here is a PREFIX of a longer one, so
+		// a plain substring test would credit `.rp-x` to a sheet declaring only `.rp-x__row`.
+		for (const name of emitted) expect(css).toMatch(new RegExp(`\\.${name}(?![\\w-])`));
+	});
+});

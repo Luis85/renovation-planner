@@ -201,6 +201,12 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.project.no-projects.action': 'Projekt erstellen',
 	'view.project.list-title': 'Renovierungsprojekte',
 	'view.project.create': 'Neues Projekt',
+	// `Grundriss`/`Grundrisse` is this file's own word for a plan ('command.open-plan-editor':
+	// 'Grundriss-Editor öffnen') — the vocabulary comes from the file, never from a dictionary.
+	'view.project.back': 'Zurück zu den Projekten',
+	'view.project.open-note': 'Notiz öffnen',
+	'view.project.plans-title': 'Grundrisse',
+	'view.project.create-plan': 'Neuer Grundriss',
 	'project.empty-name': 'Ein Projekt braucht einen Namen.',
 	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',

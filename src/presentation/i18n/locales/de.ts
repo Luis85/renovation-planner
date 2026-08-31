@@ -220,6 +220,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.project.no-projects.action': 'Projekt erstellen',
 	'view.project.list-title': 'Renovierungsprojekte',
 	'view.project.create': 'Neues Projekt',
+	// 'überlappt', the verb `settings.library-overlaps-source` already uses for the same
+	// relation — one noun and one verb per concept, which is the rule the 'Material'/'Objekt'
+	// correction was made for.
+	'view.project.library-overlap': 'Überlappt den Bibliotheksordner',
 	'project.empty-name': 'Ein Projekt braucht einen Namen.',
 	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',

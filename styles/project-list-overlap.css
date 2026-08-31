@@ -1,0 +1,53 @@
+/*
+ * The §83 library-overlap marker on a project row.
+ *
+ * Its own partial rather than three more rules at the end of `forms.css`: that file is named
+ * for the creation form and already carries the list's header, rows, name and status, and
+ * this is a different claim from any of them — a warning about a folder relationship the app
+ * cannot refuse, which is the one thing on the row that is not simply a fact about the
+ * project. The order of the import is not load-bearing; nothing else in the sheet declares
+ * `.rp-project-list__overlap` at any specificity, measured rather than assumed.
+ *
+ * A MARK AND A WORD, both, always, never one (`docs/components/Save-state indicator.md`, and
+ * SDD §85's refusal of status carried by colour alone). The word is the element's own text —
+ * `view.project.library-overlap`, translated — and the mark is the `::before` below, so a
+ * reader who cannot see the colour still has the glyph and one who cannot see the glyph
+ * still has the sentence.
+ *
+ * Every colour is an Obsidian variable (SDD §84), so a themed vault stays themed. The build
+ * refuses a literal one at any nesting depth, a bare colour WORD included, which is what
+ * makes this a habit rather than a rule somebody has to remember.
+ */
+.rp-project-list__overlap {
+	/* The row is a flex container and the name is the item that gives way (`forms.css`), so
+	   this must not be the one that shrinks: a truncated warning is a warning that no longer
+	   says what it is about. */
+	flex-shrink: 0;
+	display: inline-flex;
+	align-items: center;
+	border: 1px solid var(--text-warning);
+	border-radius: var(--radius-s);
+	padding: 0 var(--size-2-2);
+	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * The MARK half. A triangle drawn out of borders — no asset, no `setIcon`, nothing to load.
+ *
+ * `border-bottom` is what makes it visible: the box is zero-sized and the content is empty,
+ * so the whole glyph IS the three border edges, two of them transparent. A rule declaring
+ * nothing but `content: ''` satisfies "the stylesheet declares this class" and draws
+ * absolutely nothing — the first draft of this block was exactly that, which is why
+ * `projectListOverlap.test.ts` asserts this declaration rather than the selector.
+ */
+.rp-project-list__overlap::before {
+	content: '';
+	display: inline-block;
+	width: 0;
+	height: 0;
+	margin-right: var(--size-2-2);
+	border-right: var(--size-2-2) solid transparent;
+	border-bottom: var(--size-2-3) solid var(--text-warning);
+	border-left: var(--size-2-2) solid transparent;
+}

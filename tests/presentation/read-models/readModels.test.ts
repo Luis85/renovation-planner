@@ -97,11 +97,24 @@ describe('mapping an entity to a read model', () => {
 	it('summarises a project down to what a header needs', () => {
 		const project = makeProject({ name: 'Barn conversion' });
 
-		expect(toProjectSummaryDto(project)).toEqual({
+		expect(toProjectSummaryDto(project, false)).toEqual({
 			id: project.id,
 			name: 'Barn conversion',
 			status: project.status,
+			libraryOverlap: false,
 		});
+	});
+
+	/**
+	 * §83's flag is an ARGUMENT, not something read off the entity — a `Project` cannot know
+	 * whether its derived folder overlaps a configured library folder. Asserted in both
+	 * directions, because a mapper that hard-coded `false` would satisfy the case above.
+	 */
+	it('carries the caller own overlap answer rather than deriving one', () => {
+		const project = makeProject({ name: 'Barn conversion' });
+
+		expect(toProjectSummaryDto(project, true).libraryOverlap).toBe(true);
+		expect(toProjectSummaryDto(project, false).libraryOverlap).toBe(false);
 	});
 });
 
@@ -287,9 +300,35 @@ describe('the renovation project query boundary', () => {
 
 		const found = expectOk(await queries.listProjects());
 
-		expect(found.projects).toEqual([toProjectSummaryDto(project)]);
+		expect(found.projects).toEqual([toProjectSummaryDto(project, false)]);
 		// Flat and serializable all the way down — no domain method survived the boundary.
 		expect(JSON.parse(JSON.stringify(found))).toEqual(found);
+	});
+
+	/**
+	 * The §83 mapping, which the `NO_OVERLAPS` port above cannot reach: it answers `[]`, so
+	 * every case in this block would be equally green against a boundary that dropped
+	 * `overlapping` entirely — which is exactly what this boundary did until design slice 19.
+	 *
+	 * Both directions in ONE read, over two projects, because that is the claim: the flag
+	 * lands on the project the port NAMED and on no other. A mapping that set every row's
+	 * flag from `overlapping.length > 0` would pass a single-project case in both directions.
+	 */
+	it('marks the projects the overlap port names, and only those', async () => {
+		const projects = new InMemoryProjectRepository();
+		const overlapping = makeProject({ name: 'Barn conversion' });
+		const ordinary = makeProject({ name: 'Loft conversion' });
+		expectOk(await projects.save(overlapping, 'absent'));
+		expectOk(await projects.save(ordinary, 'absent'));
+		const queries = createRenovationProjectQueries(
+			new ListProjects(projects, { overlapping: () => [overlapping.id] }),
+		);
+
+		const found = expectOk(await queries.listProjects());
+
+		expect(
+			Object.fromEntries(found.projects.map((project) => [project.name, project.libraryOverlap])),
+		).toEqual({ 'Barn conversion': true, 'Loft conversion': false });
 	});
 
 	it('answers an empty vault with an empty list and no refusals, not an error', async () => {

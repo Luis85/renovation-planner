@@ -227,6 +227,12 @@ export const en = {
 	'empty.project.no-projects.action': 'Create a project',
 	'view.project.list-title': 'Renovation projects',
 	'view.project.create': 'New project',
+	// PRD §83's third enforcement site, and the only one with no door to refuse at: a
+	// project's folder is DERIVED from where its own note sits (ADR-0013), so a user moves
+	// it by dragging in Obsidian's file explorer and no command is dispatched. This row is
+	// the whole of what they are told, so it states the FACT rather than an instruction —
+	// the remedy is to move one of the two folders, and which one is theirs to decide.
+	'view.project.library-overlap': 'Overlaps the library folder',
 	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
 	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
 	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is

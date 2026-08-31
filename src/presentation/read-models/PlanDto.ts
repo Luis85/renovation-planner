@@ -54,6 +54,23 @@ export interface ProjectSummaryDto {
 	readonly id: string;
 	readonly name: string;
 	readonly status: string;
+	/**
+	 * PRD §83: this project's DERIVED folder is the library folder, contains it, or sits
+	 * inside it.
+	 *
+	 * It is on the summary rather than looked up by the row, because a `ProjectSummaryDto`
+	 * carries no path and the comparison needs one — the same reason `openProject` takes an
+	 * id and the composition root resolves the note. Required rather than optional: an
+	 * absent flag and a `false` one read identically at the `v-if` that renders the marker,
+	 * so every producer of a summary states the answer instead of one of them silently
+	 * meaning "not asked".
+	 *
+	 * A fact about the read that produced it and never a stored one: ADR-0013 derives the
+	 * folder from where the project's own note sits, so a user who drags that folder back is
+	 * simply absent from the next answer — which is what makes staleness and retraction
+	 * unrepresentable rather than handled.
+	 */
+	readonly libraryOverlap: boolean;
 }
 
 export function toPlanDto(plan: Plan): PlanDto {
@@ -81,6 +98,12 @@ export function toZoneDto(zone: Zone): ZoneDto {
 	};
 }
 
-export function toProjectSummaryDto(project: Project): ProjectSummaryDto {
-	return { id: project.id, name: project.name, status: project.status };
+/**
+ * `libraryOverlap` is a PARAMETER rather than something read off the entity, because a
+ * `Project` does not know it: §83's answer is derived per read from the project index and the
+ * configured library folder (`LibraryOverlaps`), and an entity carrying it would be an entity
+ * carrying a fact about a setting.
+ */
+export function toProjectSummaryDto(project: Project, libraryOverlap: boolean): ProjectSummaryDto {
+	return { id: project.id, name: project.name, status: project.status, libraryOverlap };
 }

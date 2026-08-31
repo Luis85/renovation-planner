@@ -443,6 +443,11 @@ const SVG_CLASS_TOKENS = [
  * text, so it has nothing to translate and is exempt rather than flagged.
  */
 const TEXT_KEY = ":matches(Property[key.name='text'], Property[key.value='text'])";
+/**
+ * `addCommand`'s own copy key, spelled both ways for the reason `TEXT_KEY` is: an object
+ * literal may write `name:` or `'name':`, and the two are different AST shapes.
+ */
+const NAME_KEY = ":matches(Property[key.name='name'], Property[key.value='name'])";
 const I18N_LITERAL_BAN = [
 	{
 		selector: "CallExpression[callee.property.name='setText'] > Literal[value=/\\S/]",
@@ -454,6 +459,42 @@ const I18N_LITERAL_BAN = [
 		message:
 			"createEl/createDiv/createSpan's text option received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md).",
 	},
+	/**
+	 * The two REGISTRATION doors, added by design slice 21's improvement pass. Its own task
+	 * document had recorded `addCommand({ name })` as a gap this rule could not see —
+	 * measured, a raw English literal there reported nothing but the fixture's own
+	 * `no-unsafe-*` noise — and left it on the grounds that widening "touches every existing
+	 * call site's evidence". Re-measured: it touches none. All five `addCommand` calls and the
+	 * one `addRibbonIcon` in `src/` already pass `tr(...)`, which is a `CallExpression` and not
+	 * a `Literal` at the position these check, so the widening is green on the tree it lands
+	 * on and refuses the next author who forgets.
+	 *
+	 * A command's `name` and a ribbon's title are the two user-visible strings Obsidian's own
+	 * registration API takes, and they are the two most likely to be written as English by
+	 * somebody adding a command: neither goes through a DOM helper, so neither is reachable
+	 * from the four call sites above. `id` is deliberately NOT covered — a command id is DATA
+	 * a user's hotkey binds to, so a literal there is correct.
+	 *
+	 * The ribbon selector keys on the ARGUMENT LIST rather than on a position, because
+	 * `addRibbonIcon(icon, title, callback)` takes its icon as a literal too: `[arguments.0]`
+	 * pins the icon and `[arguments.1]` is what this refuses, so the two cannot be confused by
+	 * a selector that merely says "a literal somewhere in this call".
+	 *
+	 * Blind spots, the same three every selector in this file has and asserted as such in
+	 * `tests/build/i18n-literal-boundary.test.ts`: a literal held in a variable first, a
+	 * TEMPLATE literal (a different node type), and a call reached through a name other than
+	 * these two.
+	 */
+	{
+		selector: `CallExpression[callee.property.name='addCommand'] > ObjectExpression.arguments > ${NAME_KEY} > Literal.value[value=/\\S/]`,
+		message:
+			"addCommand's name received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md). The command's id is data and stays a literal.",
+	},
+	{
+		selector: "CallExpression[callee.property.name='addRibbonIcon'] > Literal.arguments:nth-child(2)[value=/\\S/]",
+		message:
+			"addRibbonIcon's title received a literal string. Route user-visible text through t/tr in src/presentation/i18n/ (see docs/requirements/Multilanguage.md). The icon name beside it is data and stays a literal.",
+	},
 ];
 
 /**
@@ -464,9 +505,10 @@ const I18N_LITERAL_BAN = [
  * > literal or by `AppError.message`.
  *
  * Nothing checked that. `notify(message: string)` accepts any string, and
- * `I18N_LITERAL_BAN` above reaches exactly four call sites — `.setText`, and the `text:`
- * option of `createEl`/`createDiv`/`createSpan` — of which a `notify(...)` argument is
- * none. So the whole notice door sat outside every gate: two raw `Error.message` notices
+ * `I18N_LITERAL_BAN` above reaches exactly six call sites — `.setText`, the `text:` option of
+ * `createEl`/`createDiv`/`createSpan`, `addCommand`'s `name` and `addRibbonIcon`'s title — of
+ * which a `notify(...)` argument is none. (It was FOUR when this paragraph was written; the
+ * last two arrived with design slice 21's improvement pass and neither is a notice either.) So the whole notice door sat outside every gate: two raw `Error.message` notices
  * shipped, and design slice 10's twenty-odd error codes reached users as the wrong
  * category sentence, with `npm run check` green throughout. It is a category invariant —
  * "no developer text reaches a Notice" cannot be verified by driving the call sites

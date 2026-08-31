@@ -114,9 +114,11 @@ describe('open-project-detail', () => {
 	 * **What it catches and what it cannot**, measured rather than assumed. It catches the
 	 * command being named from the WRONG key, which is a live risk with two keys this close
 	 * together: `tr('command.open-project')` here turns it red. It does NOT catch a raw
-	 * English literal whose text happens to match — measured green — and no gate does either,
-	 * since `I18N_LITERAL_BAN` reaches four call sites and `addCommand({ name })` is none of
-	 * them. Stated so the assertion is not read as wider than it is.
+	 * English literal whose text happens to match — measured green — and for one slice no gate
+	 * did either. `I18N_LITERAL_BAN` reaches `addCommand({ name })` since the improvement pass,
+	 * so a literal there is now refused at the CALL; what stays uncovered here is the narrower
+	 * thing, a literal whose text equals the resolved key. Stated so the assertion is not read
+	 * as wider than it is.
 	 */
 	it('carries an unprefixed id of its own and a translated name', () => {
 		expect(openProjectDetail().name).toBe(t('en', 'command.open-project-detail'));

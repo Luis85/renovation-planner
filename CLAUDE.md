@@ -1150,7 +1150,7 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   `t()`. Only the two label DEFAULTS are resolved inside the framework, from `StringKey`s —
   `confirmLabel ?? 'Confirm'` would have been the one untranslated string every confirmation
   in the plugin flowed through. Neither half is caught by lint: `I18N_LITERAL_BAN` fires at
-  four call sites and a descriptor's `title:` is none of them, so both rest on review.
+  six call sites and a descriptor's `title:` is none of them, so both rest on review.
   What IS checked is that `de.ts` translates every key `en.ts` declares
   (`tests/presentation/i18n/strings.test.ts`) — the type permits the gap on purpose, so an
   incomplete locale is safe, and the fallback then hides a forgotten key from everyone but
@@ -2348,9 +2348,19 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `I18N_LITERAL_BAN` (`eslint.config.mjs` — `docs/requirements/Multilanguage.md`'s rule)
   and `NOTICE_TEXT_BAN` — not prose. `I18N_LITERAL_BAN` is narrower than "every
   user-visible string": it refuses a
-  literal at exactly FOUR call sites — `.setText(...)`, and the `text:` option of
-  `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)` — and passes a call to `t`/`tr`
+  literal at exactly SIX call sites — `.setText(...)`, the `text:` option of
+  `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`, `addCommand`'s `name` and
+  `addRibbonIcon`'s title — and passes a call to `t`/`tr`
   untouched, since that is a `CallExpression`, not a `Literal`, at the position it checks.
+  The last two arrived with design slice 21's improvement pass, and what made them cheap is
+  what the widening MEASURED rather than assumed: `docs/tasks/21` had declined to close that
+  gap because widening "touches every existing call site's evidence", and it touches none —
+  every one of them already passes `tr(...)`. `tests/build/i18n-literal-boundary.test.ts` is
+  that rule's first instrument in fifteen slices, and it is a whole selector's blind spots
+  read back for the first time: `id` stays a literal because a command id is DATA a hotkey
+  binds to, and the ribbon selector keys on the ARGUMENT POSITION because the icon beside the
+  title is a literal too — widen it to "a literal anywhere in the call" and two allow-cases go
+  red, measured.
   **`NOTICE_TEXT_BAN` is the notice door, and it is a SECOND rule rather than a widening of
   that one**: it refuses a `.message`/`.stack` read anywhere inside a `notify(...)`,
   `notifySuccess(...)`, `notifyWarning(...)` or `new Notice(...)` call, and a bare string
@@ -2367,13 +2377,16 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   paths, blind spots included, and drives BOTH blocks that carry the rule — dropping the
   repeat in the `infrastructure/obsidian/` block turns exactly two of its cases red,
   measured.
-  `I18N_LITERAL_BAN` still does not reach `addCommand({ name: '…' })`,
-  `addRibbonIcon(icon, 'title', …)`, a `title` or `attr:` value, `el.textContent = '…'`, or
-  a literal held in a variable first — today's actual UI text (settings `name`/`desc`, the
-  command name, the ribbon title, `getDisplayText`) reaches none of those four call sites,
-  so it is compliant by convention rather than by this gate — the same way the write
+  `I18N_LITERAL_BAN` reaches `addCommand({ name: '…' })` and
+  `addRibbonIcon(icon, 'title', …)` since slice 21's improvement pass, and still does not
+  reach a `title` or `attr:` value, `el.textContent = '…'`, a TEMPLATE literal, a
+  registration reached as a bare function, or a literal held in a variable first — so the UI
+  text that is left (settings `name`/`desc`, `getDisplayText`) is compliant by convention
+  rather than by this gate, the same way the write
   boundary below names the spellings its selectors see and the ones they cannot, rather
-  than claiming to see more. It also runs the Obsidian plugin guidelines
+  than claiming to see more. Every one of those blind spots is asserted AS a blind spot in
+  `tests/build/i18n-literal-boundary.test.ts`, because a rule that had narrowed further
+  would read exactly the same. It also runs the Obsidian plugin guidelines
   and the size and complexity budgets. Warnings fail too (`--max-warnings 0`) — the
   mobile-safety rule reports as a warning, and `isDesktopOnly: false` is a promise.
   `manifest.json` itself is linted

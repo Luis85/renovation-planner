@@ -142,7 +142,7 @@ async function onCreatePlan(): Promise<void> {
 	const result = await dialogs.openDialog({
 		kind: 'form',
 		// Resolved by the CALLER, never by the dialog — slice 15's rule, and neither half of it
-		// is caught by lint, since a descriptor's `title:` is none of `I18N_LITERAL_BAN`'s four
+		// is caught by lint, since a descriptor's `title:` is none of `I18N_LITERAL_BAN`'s
 		// call sites.
 		title: tr('form.new-plan.title'),
 		component: NewPlanForm,

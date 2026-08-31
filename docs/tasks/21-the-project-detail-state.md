@@ -290,11 +290,15 @@ the mutation printed.
   ordering needs a deferred, coalescing mount, which turns a synchronous mount asynchronous
   for every caller and every case in that file. That is an increment with its own argument.
   A build that starts coalescing fails at that assertion and has to come and say so.
-- **A command's `name:` literal is caught by no gate.** `I18N_LITERAL_BAN` reaches four call
-  sites and `addCommand({ name })` is none of them; measured, a raw English literal there
-  stays green. Recorded in `openProjectDetail.test.ts`'s own docblock rather than fixed
-  inside this slice, because widening that selector touches every existing call site's
-  evidence.
+- ~~**A command's `name:` literal is caught by no gate.**~~ **Closed by the improvement
+  pass.** The deferral's own reason was wrong and re-measuring is what showed it: widening
+  "touches every existing call site's evidence" — it touches none. All five `addCommand` calls
+  in `src/` and the one `addRibbonIcon` already pass `tr(...)`, which is a `CallExpression`
+  and not a `Literal` at the position the selector checks, so the widening is green on the
+  tree it lands on. `I18N_LITERAL_BAN` reaches six call sites now, and the two it gained are
+  Obsidian's own registration API — the two user-visible strings that go through no DOM helper
+  and were therefore unreachable from the other four. `id` is deliberately not covered: a
+  command id is data a user's hotkey binds to. See the improvement-pass section above.
 - **`NewPlanForm.onSubmit`'s own `submitting` guard is a second, local statement of a refusal
   `useFormCommit` already makes**, kept for the narrower reason its comment gives: a refused
   press must not also run the focus move onto a control carrying the in-flight submit's error.

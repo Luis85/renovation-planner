@@ -706,7 +706,7 @@ reader it is wrong for. Modelled on the keys the sibling components already use
 
 Two of those are worth their row for a reason beyond completeness. `form.new-plan.title` is
 resolved by the caller and not by the dialog — slice 15's rule, and neither half of it is
-caught by lint, since a descriptor's `title:` is none of `I18N_LITERAL_BAN`'s four call sites.
+caught by lint, since a descriptor's `title:` is none of `I18N_LITERAL_BAN`'s call sites.
 And **the detail header's status reuses `PROJECT_STATUS_LABELS`**, which is not a new key at
 all: `ProjectList` already renders it through a local `statusLabel` helper, so the second
 consumer is the moment that helper becomes shared rather than copied — two expressions of one

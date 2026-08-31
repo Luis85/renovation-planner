@@ -44,7 +44,7 @@ grep -n "params" src/presentation/i18n/strings.ts        # expect: t takes a thi
 | `src/domain/asset/AssetShape.ts` | the shape value type; `footprintFromDimensions`, `dimensionsOf`, `validateAssetShape` |
 | `src/application/ports/AssetGeometrySidecar.ts` | read/write one asset's geometry document, conditional on a version |
 | `src/infrastructure/persistence/dto/assetGeometry.ts` | `AssetGeometrySchemaV1` and its mapper |
-| `src/infrastructure/persistence/geometry/AssetGeometryStore.ts` | the concrete `.rpgeo` store |
+| `src/infrastructure/obsidian/repositories/AssetGeometryStore.ts` | the concrete `.rpgeo` store |
 | `src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar.ts` | the port's adapter |
 | `src/application/commands/asset/SetAssetFootprint.ts` | traced polygon, and the typed-dimensions sibling |
 | `src/application/commands/asset/SetAssetClearance.ts` | clearance boundary |
@@ -637,7 +637,11 @@ git commit -m "The asset geometry sidecar: its schema and its port"
 ### Task A4: the store, the path, and the adapter
 
 **Files:**
-- Create: `src/infrastructure/persistence/geometry/AssetGeometryStore.ts`
+- Create: `src/infrastructure/obsidian/repositories/AssetGeometryStore.ts` — **not**
+  `persistence/geometry/`, which two earlier drafts of this plan named. The store imports `TFile`,
+  `FileManager` and `Vault` from `obsidian` directly, so it belongs beside its siblings in
+  `obsidian/repositories/`; the other path would either put Obsidian-specific code in a layer that
+  does not name Obsidian, or produce a second implementation beside the landed one
 - Create: `src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar.ts`
 - Modify: `src/infrastructure/obsidian/repositories/paths.ts` (add `libraryGeometryFolderFor`, `assetSidecarPathFor`)
 - Test: `tests/infrastructure/obsidian/repositories/assetGeometrySidecar.test.ts`
@@ -1463,7 +1467,22 @@ git commit -m "Read an asset's design, and say when its dimensions are unscaled"
 
 - [ ] **Step 1: Construct the sidecar and the commands at the root**
 
-The store takes the `libraryFolder` setting, resolved the same way slice 19's asset repository resolves it. **Do not cache the folder in a constructor** — slice 18's rule: resolve the folder per write from the entity being saved, and refuse with a `PersistenceError` rather than defaulting when it resolves to nothing.
+The store takes the `libraryFolder` setting **in its constructor**, resolved the same way slice
+19's asset repository resolves it, and derives each path through `assetSidecarPathFor`.
+
+**An earlier draft said the opposite in the very next sentence** — "do not cache the folder in a
+constructor; resolve it per write from the entity being saved" — which contradicted the line above
+it and the landed store both. That is slice 18's rule and it belongs to slice 18's regime: a
+PROJECT-scoped entity whose folder is derived from where its `Project.md` sits (ADR-0013), so
+there is an entity to resolve from and a refusal to make when it resolves to nothing.
+
+An Asset is LIBRARY-scoped — slice 19's whole change — and since then carries no project and no
+folder at all. A sidecar operation receives an `assetId` and nothing else, so there is no
+entity-derived folder to resolve; following the deleted instruction would force a dependency that
+does not exist or replace the correct setting-based rule with a broken one. Nothing goes stale
+either, which is what that rule exists to prevent: `saveSettings` swaps the composition root, so a
+library migration rebuilds the store against the new folder rather than leaving a cached one
+behind.
 
 - [ ] **Step 2: Guard every door**
 

@@ -8,11 +8,12 @@
  * with navigation into this state, and `Project.md` then stays reachable from here because the
  * plugin would otherwise have no route to a project's own metadata.
  *
- * **Task 8 is what makes that true of the row, and it has not landed as this file is written.**
- * `ViewRoot` still routes a row click to `context.openProject`. The sentence above used to say
- * "the row navigates now", which was a claim about a commit that did not exist — this
- * repository's own "write the guarantee to the check, never ahead of it", broken in a docblock
- * describing the very change that would make it true. Found by this task's reviewer.
+ * **The row navigates as of Task 9**, which wired `@open` to `context.navigate`. This paragraph
+ * has now been wrong in BOTH directions and is worth keeping as the record: it first claimed the
+ * navigation as present fact before any commit did it, and was corrected to say Task 8 would
+ * make it so — then Task 9 made it so and the correction went stale in its turn. A sentence
+ * about another commit's behaviour needs re-reading by whoever lands that commit, which is the
+ * narrower lesson than "write the guarantee to the check".
  *
  * The status reuses the shared `statusLabel`, which moved out of `ProjectList.vue` at this
  * second consumer.

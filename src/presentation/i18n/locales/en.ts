@@ -235,8 +235,10 @@ export const en = {
 	// Design slice 21's detail state, its one empty state and its one refusal that reaches the
 	// user as a notice rather than as a banner. `No plans yet` is deliberately distinct copy from
 	// `empty.project.no-projects.*`: a project with no plans is a later stage of the same
-	// onboarding than a vault with no projects, and `content.test.ts` asserts the distinctness
-	// because a registry pointing two entries at one key would type-check perfectly.
+	// onboarding than a vault with no projects. **Nothing checks that distinctness**, and an
+	// earlier draft of this comment said `content.test.ts` did: its only distinctness case is
+	// scoped to the two `planEditor` entries, and Task 10 as planned adds none for these two.
+	// A registry pointing both at one key would type-check perfectly and no gate would notice.
 	'empty.project.no-plans.headline': 'No plans yet',
 	'empty.project.no-plans.body': 'Add a plan to start drawing zones and working out quantities.',
 	// The same words as `view.project.create-plan`, and the same gesture: the plans region draws

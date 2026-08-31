@@ -9,8 +9,11 @@
  * the detail header and the cases moved with it — `viewRootProjectDetail.test.ts` is what pins
  * that a row navigates and does not open a note. The `'missing'` behaviour itself is unchanged
  * and still real: a project note deleted after the pane was opened drops out of the Project
- * Index silently (`VaultChangeAdapter` publishes nothing for it), so nothing else would tell
- * this pane, and the user would sit on a project that is gone.
+ * Index, and the pane needs telling. **Not because nothing announces it** — an earlier draft of
+ * this header said `VaultChangeAdapter` "publishes nothing for it", which
+ * `projectListChangeSource.ts` itself records as a sentence it retired:
+ * `ProjectIndexEntryChanged` reaches this pane through `onProjectsChanged`. What that refresh
+ * cannot do is answer the CLICK the user just made, which is what the `'missing'` arm is for.
  *
  * What DID change is which read corrects it. The list state has no caller for this handler any
  * more, so the re-read is `ProjectDetailState`'s own: it answers `ok(null)`, settles `'gone'`,

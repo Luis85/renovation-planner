@@ -253,8 +253,9 @@ if (openProjectId === null) {
 			</div>
 		</template>
 		<!--
-			The whole detail state, in its own component: `ViewRoot` measured 414 lines with it
-			inline, and `projectId` is `string | null` here — `vue-tsc` narrows a `v-if` for a
+			The whole detail state, in its own component. NOT for the line cap — `max-lines` skips
+			blanks and comments and neither file is near it; see `ProjectDetailState`'s own header.
+			`projectId` is `string | null` here — `vue-tsc` narrows a `v-if` for a
 			direct binding but not inside a template arrow function, so every handler over there
 			would have needed an assertion the compiler cannot check. A prop is `string`.
 		-->

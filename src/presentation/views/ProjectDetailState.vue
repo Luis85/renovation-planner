@@ -4,10 +4,15 @@
  * the four intents that state raises — back to the list, open the project's note, open a plan,
  * create a plan.
  *
- * **Extracted from `ViewRoot` rather than written beside it, and both reasons are measurable.**
- * The combined file measured 414 lines against `max-lines`'s 400, which the brief for this task
- * named as the trigger for exactly this extraction rather than for shaving lines. And the
- * detail state's `projectId` is a `string | null` on `ViewRoot`: `vue-tsc` narrows a `v-if` for
+ * **Extracted from `ViewRoot` rather than written beside it, and the reason is the COMPILER, not
+ * the line count.** An earlier draft of this comment said the combined file "measured 414 lines
+ * against `max-lines`'s 400". That was `wc -l`, and `max-lines` is configured with
+ * `skipBlankLines` and `skipComments` — these two files measure 77 and 98 EFFECTIVE lines, so
+ * the cap was never close and the extraction cannot rest on it. Found by this task's reviewer,
+ * and it is the ordinary shape of a false claim: a real number, measured with the wrong
+ * instrument, attributed to a rule that counts something else.
+ *
+ * What does hold: the detail state's `projectId` is a `string | null` on `ViewRoot`: `vue-tsc` narrows a `v-if` for
  * a direct binding but not inside a template's arrow function, so every handler there needed a
  * non-null assertion the compiler could not check. A PROP is `string`, so the assertions
  * disappear rather than being written down — which is the same trade `PlanEditorRoot` makes

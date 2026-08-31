@@ -3435,7 +3435,7 @@ it('reports no semantic violations on the project detail state and its action', 
 	await view.setState({ projectId: 'project-1' }, {} as ViewStateResult);
 	await flushPromises();
 
-	const results = await axe.run(view.contentEl, AXE_OPTIONS);
+	const results = await axe.run(view.contentEl, runOptions);
 
 	expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
 	expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
@@ -3453,14 +3453,17 @@ it('reports no semantic violations on a project with plans', async () => {
 	await view.setState({ projectId: 'project-1' }, {} as ViewStateResult);
 	await flushPromises();
 
-	const results = await axe.run(view.contentEl, AXE_OPTIONS);
+	const results = await axe.run(view.contentEl, runOptions);
 
 	expect(view.contentEl.querySelector('.rp-project-detail')).not.toBeNull();
 	expect(results.violations).toEqual([]);
 });
 ```
 
-Copy `AXE_OPTIONS` and the `makeView(...)` idiom from the cases already in that file.
+The constant is `runOptions` (`accessibility.test.ts:145`), not `AXE_OPTIONS` — an earlier draft
+named a constant that exists nowhere in the repository, and following it would have failed this
+task's own mandatory run. Copy `runOptions` and the `makeView(...)` idiom from the cases already
+in that file rather than restating either.
 Write `detailDeps` out at the top of that file — an earlier draft only said *"`detailDeps` is
 a local factory there"*, which is a description of something that does not exist:
 
@@ -4146,12 +4149,33 @@ Create `docs/tests/cases/Navigate into a project and back.md`, modelled on
 
 - [ ] **Step 4: Capture it**
 
-The harness index discovers entries from `src/presentation/**/*.vue`, so `ProjectDetail.vue`
-and `PlanList.vue` are registered with no step to remember. Capture and LOOK:
+**Capture the VIEW, not the component entry.** The harness index does discover
+`ProjectDetail.vue` and `PlanList.vue` from `src/presentation/**/*.vue` — and mounting either
+one there is useless: `IndexPage.vue` renders `<component :is="openComponent" />` BARE, while
+`ProjectDetail` requires `project`, `plans` and `emptyState` and reads `project.name`
+immediately, so the capture would photograph the harness's own failure card. Task 7's
+implementer disclosed exactly this when it could not look at its own work, and an earlier draft
+of this step prescribed the useless command anyway.
+
+It also would not show the thing most worth looking at. `.rp-project-detail` carries `flex: 1`
+so the shell fills its pane, and `.rp-plan-list` scrolls inside it — both are properties of the
+component's PLACE in `.renovation-planner-view`, and a bare mount has no pane for them to be
+about.
+
+So this step first gives the harness page a way to reach the detail state, which it has none of
+today: `tests/harness/mount.ts` calls `makeView()` with no `deps`, and that default is
+`projectId: null` — the list. Add a `?project=<id>` parameter beside the existing `?view=`,
+`?theme=`, `?phone=` and `?index` knobs in `tests/harness/page.ts`, and when it is present have
+`mount.ts` pass a `deps` built from `defaultRenovationProjectDeps()` with that `projectId` and a
+few representative plans. **Leave the no-parameter path calling `makeView()` with no argument** —
+`makeRenovationProjectView.ts`'s docblock states why the bare harness root takes the untouched
+default, and the empty state is what that root exists to show.
+
+Then capture and LOOK:
 
 ```bash
-npm run harness-shot component:views/ProjectDetail
-npm run harness-shot component:views/ProjectDetail -- --width=460
+npm run harness-shot '?project=project-1'
+npm run harness-shot '?project=project-1' -- --width=460
 ```
 
 `--width=460` is the width an Obsidian sidebar leaf actually has and has already hidden a

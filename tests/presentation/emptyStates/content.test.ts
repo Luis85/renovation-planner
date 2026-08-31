@@ -40,6 +40,25 @@ describe('the empty-state content registry', () => {
 	});
 
 	/**
+	 * The same assertion for design slice 21's entry, and it is the same SHAPE rather than the
+	 * same story: `noProjects` grew its button a slice after it shipped, while `noPlans` carried
+	 * one from its first commit — `ProjectDetail` hands `EmptyState`'s `action` straight to
+	 * `ProjectDetailState.onCreatePlan`, which opens `NewPlanForm` and dispatches the real
+	 * `CreatePlanCommand`. So this is not a flip of an earlier absence; it is the assertion that
+	 * REMOVING the label has to face, since slice 14's Amendment 1 makes a button here a
+	 * deliberate, tested decision in either direction.
+	 */
+	it('gives the no-plans state an action, because slice 21 built what it hands off to', () => {
+		const content = EMPTY_STATE_CONTENT.renovationProject.noPlans;
+
+		expect(content.actionLabel).toBeDefined();
+		// Non-empty resolved copy, not just a declared key: `''` would render a nameless button,
+		// which is both a control that says nothing and an axe `button-name` failure — the exact
+		// rule `tests/harness/accessibility.test.ts` grades this button against.
+		expect(t('en', content.actionLabel)).not.toBe('');
+	});
+
+	/**
 	 * Amendment 1 covers `noBackground` too, unchanged from slice 14: its hand-off is slice
 	 * 5's `set-plan-background` plugin command, which is not a member of
 	 * `PlanEditorCommandServices` — the editor's Vue tree cannot reach it without either
@@ -69,6 +88,11 @@ describe('the empty-state content registry', () => {
 	it.each(LANGUAGES)('resolves every declared key to a non-empty string in %s', (language) => {
 		const entries = [
 			EMPTY_STATE_CONTENT.renovationProject.noProjects,
+			// Design slice 21. Listed here rather than left to the roll call above, which counts
+			// KEYS: an entry can be named there and still point at a locale key `de.ts` renders
+			// as `''`, and `strings.test.ts`'s completeness check reads the key SET rather than
+			// the values it resolves to.
+			EMPTY_STATE_CONTENT.renovationProject.noPlans,
 			EMPTY_STATE_CONTENT.planEditor.noBackground,
 			EMPTY_STATE_CONTENT.planEditor.noZones,
 		];
@@ -78,8 +102,13 @@ describe('the empty-state content registry', () => {
 			expect(t(language, entry.body).length).toBeGreaterThan(0);
 		}
 
-		// noZones is the one entry whose `actionLabel` is present in the literal type (not
-		// optional), so this is unconditional rather than a re-check of the branch above.
+		// The three entries whose `actionLabel` is present in the literal type (not optional), so
+		// these are unconditional rather than a re-check of the branch above. `noPlans` is here
+		// as well as in its own case above, because that one asks `en` alone — a German action
+		// label resolving to `''` would draw a nameless button for exactly the users this plugin
+		// ships a `de.ts` for.
 		expect(t(language, EMPTY_STATE_CONTENT.planEditor.noZones.actionLabel).length).toBeGreaterThan(0);
+		expect(t(language, EMPTY_STATE_CONTENT.renovationProject.noProjects.actionLabel).length).toBeGreaterThan(0);
+		expect(t(language, EMPTY_STATE_CONTENT.renovationProject.noPlans.actionLabel).length).toBeGreaterThan(0);
 	});
 });

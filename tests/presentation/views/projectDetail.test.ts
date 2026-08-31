@@ -48,9 +48,14 @@ describe('ProjectDetail', () => {
 	 * region. A check written for the case its author had in mind, with the defect in the one
 	 * beside it; reported by a review bot.
 	 *
-	 * Asserted as the TAG rather than through an axe scan on purpose: Task 10's scan would
-	 * catch it, three tasks later, as a heading-order violation whose cause is in this
-	 * component. The tag is the smaller, closer question.
+	 * Asserted as the TAG, and it is the ONLY instrument for this decision rather than the
+	 * smaller of two. This case first said Task 10's axe scan "would catch it, three tasks
+	 * later, as a heading-order violation"; Task 10 measured that false. axe's `heading-order`
+	 * reports a SKIPPED level, and the defect here is a PEER one — `<h2>` under `<h2>` — so
+	 * with `:heading-level="3"` deleted from `ProjectDetail`, every case in
+	 * `tests/harness/accessibility.test.ts` stays green, including the two that scan this
+	 * component's own two branches. A claim about what another check will catch is worth
+	 * exactly as much as the run that measured it.
 	 */
 	it('gives the no-plans empty state the plans subsection heading level', () => {
 		const wrapper = mount(ProjectDetail, {

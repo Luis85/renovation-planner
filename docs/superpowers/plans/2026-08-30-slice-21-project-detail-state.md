@@ -54,7 +54,8 @@ here rather than only in the (git-ignored) SDD ledger, so the branch itself reco
 | 7 — `PlanList`, `ProjectDetail`, `statusLabel` | ✅ complete — `745669c`, amended by `fd605b3`; review clean |
 | 8 — `NewPlanForm.vue` | ✅ complete — `236cc36`, review clean |
 | 9 — `ViewRoot` draws the detail state | ✅ complete — commit *"Draw the detail state from ViewRoot and wire its four intents"*. No sha: a commit cannot carry its own hash, and an amended one records a sha the branch no longer holds — the subject is what identifies it until something else touches this table |
-| 10, 12–13 | not started — **10 is next** |
+| 10 — the axe scan that grades `noPlans`'s button | ✅ complete — commit *"Grade the no-plans empty state with axe, and make this file's presence assertions able to fail"*. No sha, for the reason Task 9's row gives. **The subject is not the one this task's Step 4 prescribed** (*"Give a project with no plans an actionable empty state, graded by axe"*): Task 9 already gave that empty state its action, so a commit adding two checks cannot honestly claim to have added it |
+| 12–13 | not started — **12 is next** |
 
 **Amendments and branch-wide work since, in commit order** — kept here because several amend a
 task that is already ticked above, and a table listing only first commits would report a tree

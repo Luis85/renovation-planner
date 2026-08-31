@@ -302,9 +302,11 @@ export function normaliseFacing(radians: number): number {
 export function validateAssetShape(shape: AssetShape): Result<AssetShape, ValidationError> {
 	const footprint = createPolygon(shape.footprint.points);
 	if (isErr(footprint)) return err(assetError('invalid-footprint', footprint.error.message));
+	let clearance: Polygon | null = null;
 	if (shape.clearance !== null) {
-		const clearance = createPolygon(shape.clearance.points);
-		if (isErr(clearance)) return err(assetError('invalid-clearance', clearance.error.message));
+		const validated = createPolygon(shape.clearance.points);
+		if (isErr(validated)) return err(assetError('invalid-clearance', validated.error.message));
+		clearance = validated.value;
 	}
 	if (!Number.isFinite(shape.anchor.x) || !Number.isFinite(shape.anchor.y)) {
 		return err(assetError('invalid-anchor', 'An anchor must have finite coordinates.'));
@@ -328,7 +330,16 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 			),
 		);
 	}
-	return ok({ ...shape, facing: normaliseFacing(shape.facing) });
+	// Every reference-typed field is DETACHED from the caller: the validated polygons
+	// rather than the input's, and a copied anchor. A mutation after a successful
+	// validation must not be able to break what was just validated.
+	return ok({
+		...shape,
+		footprint: footprint.value,
+		clearance,
+		anchor: { x: shape.anchor.x, y: shape.anchor.y },
+		facing: normaliseFacing(shape.facing),
+	});
 }
 
 /** Every shape starts here: the rectangle, centred, facing +x, with no clearance. */

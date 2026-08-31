@@ -203,4 +203,20 @@ describe('validateAssetShape', () => {
 		expect(result.value.footprint.points).toHaveLength(4);
 		expect(result.value.clearance?.points).toHaveLength(4);
 	});
+
+	it('detaches the ANCHOR too, which the polygon fix alone left aliased', () => {
+		// The same defect class as the polygons, in the one field a reader is least likely
+		// to look at: `{ ...shape }` carries the caller's anchor object by reference, so a
+		// write through their own mutable-typed handle invalidates a validated shape without
+		// crossing this boundary again. Point.x is readonly, which stops the write through
+		// THIS type and not through the reference the caller kept.
+		const anchor = { x: 10, y: 20 };
+		const result = validateAssetShape({ ...typedShape, anchor });
+		expect(isOk(result)).toBe(true);
+		if (!isOk(result)) return;
+
+		anchor.x = Number.NaN;
+
+		expect(result.value.anchor).toEqual({ x: 10, y: 20 });
+	});
 });

@@ -100,6 +100,14 @@ export function normaliseFacing(radians: number): number {
 }
 
 /**
+ * DETACHED FROM THE CALLER on the way out: the validated polygon copies are returned
+ * rather than the input's, and the anchor is copied too. Every other field is a primitive
+ * and copies by value. The rule is the one `createPolygon` states for its own buffer — a
+ * mutation after a successful validation must not be able to break what was just
+ * validated — and it holds for a shape only if EVERY reference-typed field obeys it.
+ * `Point.x` and `Point.y` are `readonly`, which stops a mutation through THIS type and
+ * not through a caller that kept a mutable-typed reference to the same object.
+ *
  * The shape's own smart constructor: both polygons must be valid, the anchor's
  * coordinates finite, and the facing finite — and it NORMALISES the facing on the way
  * through, so a shape that has been through this function has one spelling per direction
@@ -146,6 +154,7 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 		...shape,
 		footprint: footprint.value,
 		clearance,
+		anchor: { x: shape.anchor.x, y: shape.anchor.y },
 		facing: normaliseFacing(shape.facing),
 	});
 }

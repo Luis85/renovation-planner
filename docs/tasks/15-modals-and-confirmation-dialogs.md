@@ -136,7 +136,12 @@ Two corrections to the item text above rather than silent drift. The keys are
 `reference.row.project` (`'{name}'`) and `reference.row.project-at-path`
 (`'{name} — {path}'`), not the `entity.requirement.plural.in-project*` pair this document
 spelled: the row names the project and no longer names the entity type, so
-`entity.requirement.plural` had no caller left and was removed from both locales. And
+`entity.requirement.plural` had no caller left and was removed from both locales. **Design
+slice 19's closing pass corrected the two places where that old spelling sat in a CRITERION
+or a test description** — Definition of Done item 6 and the same-name test below it — and
+deliberately left it standing in the two illustrative code sketches further down, which are
+this document's own draft of a design and are covered by this paragraph rather than being
+claims about shipped code. A key name inside a ticked box is the one that misleads. And
 `ListRequirementsReferencing` answers the groups — the flat referent set the command
 compares is derived from them inside the flow, so the ambiguity decision stays the query's
 and is made once.
@@ -956,7 +961,7 @@ contract ends at the typed result, before any write occurs.
   safe by design, a *mis-holed* one renders a brace to exactly one language's users.
 - **Same-name test**, which the grouped-rows test does not reach either: a double returning
   two groups **whose `projectName` is the same string** produces two rows carrying
-  `entity.requirement.plural.in-project-at` with each group's own `projectPath`, and a
+  `reference.row.project-at-path` with each group's own `projectPath`, and a
   third group with a distinct name in the same set still carries the plain key. Three
   assertions, because the rule has three halves and dropping any one of them still passes
   the other two: **both** colliding rows are qualified (not just the second), the
@@ -1018,7 +1023,7 @@ contract ends at the typed result, before any write occurs.
    Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly **one**
    row counting 2, its label naming the owning project through a single localized key
    per label — the plain form here, since one group's name cannot collide with another's,
-   and `entity.requirement.plural.in-project-at` carrying `projectPath` for **each** row
+   and `reference.row.project-at-path` carrying `projectPath` for **each** row
    whose `projectName` is not unique among the groups on screen, which a separate
    row-mapping test drives with two same-named groups plus a third distinct one —
    sourced from slice 10's `ListRequirementsReferencing` query, verified by an

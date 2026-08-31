@@ -139,15 +139,28 @@ the asset schema stays at version 1. The version is DERIVED from the registered 
 (`MigrationRunner.latestVersions`), so "stays at 1" is a consequence of adding no step rather
 than a constant left alone.
 
-The justification is a fact rather than a preference: **slice 10 has never been merged to
-`main`** (`git log main..HEAD` at the time of writing shows the whole slice unmerged), so
-`schema-version: 1` for Asset has never been released. There is no user vault holding one. A
-v1→v2 step would migrate developer vaults and this repository's own test vault and nothing else,
-and it would spend a schema version on a shape nobody ever read.
+The justification is a fact rather than a preference: **no release exists at all.** Measured on
+2026-08-31 against the REMOTE rather than against a clone — `git ls-remote --tags origin` prints
+nothing, so this project has never cut a tag and no built plugin has ever reached a user's vault.
+`schema-version: 1` for Asset has therefore never been released; there is no user vault holding
+one. A v1→v2 step would migrate developer vaults and this repository's own test vault and nothing
+else, and it would spend a schema version on a shape nobody ever read.
 
-**The check that keeps this honest is `tests/release/`** — the manifest/tag pairing and the
-CHANGELOG section — plus `git log main..`. If either says an Asset schema reached a release, this
-paragraph is wrong and the bump is mandatory. It is written as a conditional for that reason.
+**Amendment (2026-08-31): the first version of this paragraph rested on `git log main..HEAD`
+showing slice 10 unmerged, and both halves of that were the wrong instrument.** Slice 10 has
+since merged, so the clause would have gone stale on its own — and `git log main..` answers a
+question about a BRANCH, while "has this shape been released" is a question about a TAG. A local
+`main` is also a clone's `main`: it says what this machine last fetched, not what the remote
+holds. The `git log main..` clause is dropped rather than reworded.
+
+**The falsifier is FORWARD-LOOKING, because the fact it rests on can stop being true after this
+is written.** The condition is not "was a release cut before 2026-08-31" — that is now settled —
+but: *if a release is cut before this slice's asset shape reaches `main`, ask THAT TAG'S TREE
+whether `src/infrastructure/persistence/dto/assetFrontmatter.ts` exists in it and declares a
+`project` key* (`git show <tag>:src/infrastructure/persistence/dto/assetFrontmatter.ts`). If it
+does, a released vault can hold an Asset note carrying `project:` at `schema-version: 1`, this
+paragraph is wrong, and a v1→v2 migration step is mandatory rather than optional. `tests/release/`
+— the manifest/tag pairing and the dated CHANGELOG section — is what makes such a tag visible.
 
 `z.object` is non-strict, so a developer-vault note still carrying `project:` parses fine and the
 key is simply ignored. That is not good enough on its own: the rule's sentence is about the
@@ -196,8 +209,21 @@ export interface RenovationPlannerSettings {
 
 Both ends through `settingsFrom`, like every other field — `data.json` is a trust boundary, and a
 path that arrives empty falls back to the default on the way in **and** on the way out.
-`SettingsTab` gains one more definition and needs no new branch, because `getControlValue` /
-`setControlValue` are keyed generically.
+
+**Amendment (2026-08-31): this paragraph said `SettingsTab` "gains one more definition and needs
+no new branch, because `getControlValue` / `setControlValue` are keyed generically", and that is
+true of a PREFERENCE and false of a MIGRATION.** `setControlValue` writes through `saveSettings`
+on every control change, so ANY control bound to `libraryFolder` — a `text` one per keystroke, a
+folder picker once, and once is enough — persists the new value with no notes moved; the
+migration then reads the just-persisted value as the folder to move FROM, searches an empty
+directory and strands the catalogue at the old path. The generic keying is not the hazard and
+picking a different control type does not escape it, which is why the answer was to bind no
+control at all. What shipped is **two rows and neither is a control**: an informational row
+naming the current library folder (`settings.library-folder.current`, no `control` key), and a
+separate ACTION row that opens the migration's own folder prompt. The only writer of this
+setting is the migration, through `persistLibraryFolder`, which persists LAST. The passage is
+corrected here rather than deleted because leaving it would invite the next author to re-add a
+control, and `SettingsTab.getSettingDefinitions` carries the same reasoning beside the two rows.
 
 The default is `Renovation/Library`, which is PRD §36's drawing. **It is only legal because slice
 18 landed first**: under the pre-18 shape `Renovation` *is* the project folder and
@@ -223,9 +249,30 @@ project resolving an empty library while the notes sit at the old path, which is
 [[Settings and configuration]] names in its own words.
 
 The overlap check runs **in both directions**, because either path can be the one that moves:
-creating a project and changing a project's folder (slice 18's two sites) test the new project
-folder against the library; moving the library tests it against every project folder. All three
-call `foldersOverlap`, so there is one predicate and three refusals, not three predicates.
+creating a project tests the new project folder against the library; moving the library tests the
+destination against every project folder — and against the SOURCE, which is the case that costs
+data. Both sites call `foldersOverlap`, and it is symmetric, so "in both directions" is a
+property of the predicate rather than something each caller has to remember: **one predicate, two
+refusals, and no second copy of the rule.**
+
+**Amendment (2026-08-31), three corrections to the paragraph above, which said "creating a
+project and changing a project's folder (slice 18's two sites)" and "three refusals".**
+
+- **`foldersOverlap` did not exist.** This paragraph and the Design section above it named it as
+  though it were a predicate slice 18 had already written and left uncalled. It had not: slice 18
+  discussed the predicate and shipped none, so slice 19 WRITES it
+  (`src/infrastructure/obsidian/repositories/foldersOverlap.ts`) — symmetric, compared at the
+  segment boundary so `Renovation/Library` and `Renovation/Library Notes` are siblings, and
+  case-folded, because the two directions of that error are not symmetric: under-refusing permits
+  the exact state the guard exists to prevent, while over-refusing costs a rename.
+- **Slice 18 has ONE such site, not two.** ADR-0013 made a project's folder DERIVED from where
+  its `Project.md` sits, so there is no command that changes a project's folder — the insert is
+  the only door. See the Definition of Done item below for what stands in for the site that has
+  no door.
+- **`Renovation/Library` is not the only overlap the migration refuses**, and this list omitted
+  the one that costs data: a destination overlapping the SOURCE moves notes into a subtree of
+  the folder being emptied. `migrateLibraryFolder` tests the destination against the source
+  first, then against every project folder.
 
 **Partial moves are not compensated**, identically to slice 18's migration and for the same
 reason: a reverse move can fail the same way and leave no coherent shape. A diagnostic names
@@ -285,15 +332,15 @@ locale files rather than about these labels.
 
 ```ts
 // application/ports/AssetRepository.ts
--	listByProject(projectId: ProjectId): Promise<Result<Loaded<Asset>[], PersistenceError>>;
-+	listAll(): Promise<Result<Loaded<Asset>[], PersistenceError>>;
+-	listByProject(projectId: ProjectId): Promise<Result<Loaded<Asset>[], RepositoryError>>;
++	listAll(): Promise<Result<Loaded<Asset>[], RepositoryError>>;
 
 // application/queries/ListAssets.ts — the picker lists the vault's catalogue
 -	execute(projectId: ProjectId): …
 +	execute(): …
 
 // application/queries/ListRequirementsReferencing.ts
-	execute(target: ReferencedTarget): Promise<Result<readonly ReferencingGroup[], PersistenceError>>;
+	execute(target: ReferencedTarget): Promise<Result<readonly ReferencingGroup[], RepositoryError>>;
 
 // presentation/read-models/planEditorQueries.ts
 -	listAssets(projectId: string): …
@@ -366,39 +413,123 @@ are this slice's criteria and are not restated here — restating them is the se
 this project keeps deleting, and they would disagree the day one is edited. What follows is what
 this slice owes **beyond** them.
 
-- [ ] `Asset` declares no `projectId`, `AssetEventPayload` carries none, and
-      `AssetFrontmatterSchemaV1` has no `project` key — checked by the type and by
-      `tests/build/` finding no `asset` module naming `ProjectId`.
-- [ ] `ASSET_MIGRATIONS` is still empty and the snapshot's `schemaVersions.asset` is still 1,
-      **and `git log main..` plus `tests/release/` confirm no
-      Asset schema has been released.** If either says otherwise this box cannot be ticked and a
-      v1→v2 migration is required instead — the criterion carries its own falsifier because the
-      justification is a fact about history, not a judgement.
-- [ ] A note carrying a leftover `project:` key parses, and round-trips to a note that does not.
-      **Narrow claim**: a note nobody saves again keeps the key; there is no sweep.
-- [ ] `saveNoteBackedEntity`'s constraint no longer requires `projectId`, and an Asset entry is
-      upserted without one — asserted by `getIdsByProject` returning no asset ids for a project
-      whose assets the vault holds, and `getIdsByType('renovation-asset')` returning them all.
-- [ ] `libraryFolder` round-trips through `settingsFrom` in both directions, falls back to the
-      default for an empty or non-string value, and an undeclared key in `data.json` is dropped.
-- [ ] Changing `libraryFolder` **moves the notes, rebuilds the index, and persists only then** —
-      asserted by failing the move at step 2 and checking `data.json` still holds the old value.
-      A partial move reports a diagnostic naming what moved and attempts no reverse move.
-- [ ] `foldersOverlap` refuses in **both** directions at all three sites §83 names — creating a
+Every box below is ticked against a NAMED test — file and case — that asserts it, or says in
+its own text which instrument does when no test can. Two were rewritten rather than ticked as
+they stood, and both rewrites are marked *(amended 2026-08-31)*: a criterion that quietly keeps
+its old wording is how the gap between promise and check reopens.
+
+- [x] `Asset` declares no `projectId`, `AssetEventPayload` carries none, and
+      `AssetFrontmatterSchemaV1` has no `project` key.
+      *(amended 2026-08-31: this item named a `tests/build/` check "finding no `asset` module
+      naming `ProjectId`". No such check was written and none is proposed — `src/domain/asset/`
+      mentions `ProjectId` in exactly one place today, a sentence of PROSE explaining the
+      absence, which a text scan would have to tolerate and would then tolerate a re-added
+      field beside. The clause is replaced by the instruments that exist.)*
+      The entity and the payload are held by the TYPE (`vue-tsc` in `npm run build`): every
+      construction site would fail to compile against a re-added required member. The schema's
+      missing key is held behaviourally by
+      `tests/infrastructure/obsidian/repositories/preservation.test.ts` › *round-trips a note
+      carrying a leftover project key to a note that does not*, and the entity's missing project
+      is observable in
+      `tests/application/commands/requirement/assignAsset.test.ts` › *assigns one asset into
+      zones from two different projects*. **Narrow claim**: nothing subscribes to
+      `AssetEventPayload.projectId`, so a re-added OPTIONAL member would compile and no test
+      here would see it.
+- [x] `ASSET_MIGRATIONS` is still empty and the snapshot's `schemaVersions.asset` is still 1 —
+      `tests/plugin/persistence-wiring.test.ts` › *wires the diagnostics snapshot to the real
+      migration runner*, which asserts the whole kind set with `toEqual` so a bumped asset
+      version fails there. **And no Asset schema has been released**: measured on 2026-08-31
+      against the REMOTE — `git ls-remote --tags origin` prints nothing, so no tag and no
+      release exists at all. The falsifier is forward-looking and is written out in *The schema:
+      version 1 is redefined, not bumped* above: if a release is cut before this shape reaches
+      `main`, ask that TAG'S TREE for `assetFrontmatter.ts` and a `project` key in it; a hit
+      makes a v1→v2 step mandatory. `tests/release/` is what makes such a tag visible.
+- [x] A note carrying a leftover `project:` key parses, and round-trips to a note that does not —
+      `tests/infrastructure/obsidian/repositories/preservation.test.ts` › *round-trips a note
+      carrying a leftover project key to a note that does not*.
+      **Narrow claim**: a note nobody saves again keeps the key; there is no sweep, and that
+      case asserts the retirement on a SAVE for exactly that reason.
+- [x] `saveNoteBackedEntity`'s constraint no longer requires `projectId`, and an Asset entry is
+      upserted without one —
+      `tests/infrastructure/obsidian/repositories/perProjectFolders.test.ts` › *keeps assets off
+      the project axis and on the type axis*, which asserts both halves the item names
+      (`getIdsByProject` holding the requirement and not the asset, `getIdsByType` holding the
+      asset) with a Requirement in the same vault as the contrast.
+- [x] `libraryFolder` round-trips through `settingsFrom` in both directions, falls back to the
+      default for an empty or non-string value, and an undeclared key in `data.json` is dropped
+      — `tests/plugin/settings/settings.test.ts` › *round-trips libraryFolder through
+      settingsFrom*, *falls back to the default for an empty or non-string libraryFolder*, and
+      *drops a key this version does not declare, on the way out as well as in*.
+- [x] Changing `libraryFolder` **moves the notes, rebuilds the index, and persists only then** —
+      `tests/plugin/settings/libraryMigration.test.ts` › *moves every catalogue note, then
+      rebuilds, then persists — in that order*. The failure half, including that a partial move
+      names what it had already moved and attempts no reverse move, is that file's *leaves
+      data.json untouched when a move fails, and names what it had already moved*.
+- [x] **§83's overlap rule: TWO refusals and one marker, not three refusals.**
+      *(amended 2026-08-31, and this criterion has now been narrowed three times and re-surfaced
+      twice.)* It read *"refuses in both directions at all three sites §83 names — creating a
       project, changing a project's folder, moving the library — each with its own error naming
-      what the user did. One predicate, three refusals.
-- [ ] Only `Assets/` is created under the library folder. `Suppliers/` and `Trades/` are not,
-      and the setting's own comment says why: a folder with nothing that can live in it is a
-      promise, not a structure.
-- [ ] `ListReassignmentTargets`'s header no longer claims the picker cannot offer a target that
-      fails validation. **Checked by review, not by a gate** — a narrowed comment is not
-      something lint can see, and saying so is the honest form of this item.
-- [ ] `t(language, key, params?)` fills holes in one pass, leaves an unmatched hole standing, and
-      leaves every existing two-argument call unchanged. `de.ts`'s translation of **any** key
-      names the same holes as `en.ts`'s, asserted per key rather than for the keys added here.
-- [ ] Slice 15's items 6 and 6a are ticked in **its** document, by this slice, with a dated note
-      saying so — the same shape slice 10 used when it closed 8 and 8a.
-- [ ] `npm run check` passes, and `vitest.config.ts` records a fresh measurement.
+      what the user did. One predicate, three refusals."* **§83's third site has no door.**
+      ADR-0013 made a project's folder DERIVED from where its `Project.md` sits, so a user moves
+      a project by dragging a folder in Obsidian's file explorer and there is no command for a
+      refusal to live in — and slice 18 has ONE folder site, the insert, not the two this
+      document's Design section also claimed. So what shipped is:
+      - **Creating a project** whose folder would overlap the library is refused with
+        `project.folder-overlaps-library`, creating neither the folder nor the root it would
+        have needed —
+        `tests/infrastructure/obsidian/repositories/folderCompensation.test.ts` › *is refused,
+        and creates neither the folder nor the root it would have needed*, paired with *leaves a
+        sibling of the library alone* so the refusal is about the OVERLAP rather than about the
+        library being configured at all.
+      - **Moving the library** onto a project folder is refused with
+        `settings.library-overlaps-project`, moving nothing —
+        `tests/plugin/settings/libraryMigration.test.ts` › *refuses a destination overlapping
+        any project folder, and moves nothing*.
+      - **The site with no door gets a MARKER instead of a refusal**: a project whose derived
+        folder overlaps the library is reported on its own row in the project list, with a mark
+        AND a word (§85) — `tests/presentation/views/projectListOverlap.test.ts` › *marks the
+        overlapping row and not its neighbour*, *carries a word beside the mark, not a colour
+        alone* and *draws a mark, not only a styled word*; derived per read by
+        `tests/application/queries/listProjectsOverlaps.test.ts` › *reports a project whose
+        derived folder contains the library* and *stops reporting once the folder is moved
+        clear*; wired to the real composed root by
+        `tests/plugin/libraryOverlapWiring.test.ts` › *reports a project whose folder the user
+        dragged inside the library*.
+      One predicate underneath all of it, and it is WRITTEN by this slice rather than inherited:
+      `foldersOverlap` is symmetric, compared at the segment boundary and case-folded —
+      `tests/infrastructure/obsidian/repositories/foldersOverlap.test.ts` › *is true when the
+      first contains the second*, *is true when the second contains the first*, *is false for a
+      shared name prefix that is not a folder boundary* and *refuses a case-folded overlap,
+      because the directions are not symmetric*.
+- [x] Only `Assets/` is created under the library folder, and the setting's own comment says why.
+      The positive half is asserted —
+      `tests/infrastructure/obsidian/repositories/perProjectFolders.test.ts` › *writes two
+      projects' requirements into two folders and both assets into one library*, which pins the
+      path as `Library/Assets/<name>.md`. **The negative half is checked by REVIEW and by the
+      import graph, not by a test**, and saying so is the honest form of it: an assertion that
+      `Library/Suppliers` does not exist passes in both worlds, since nothing in `src/` can
+      create it — `grep -rn "Suppliers\|Trades" src/` prints three COMMENT lines and no code.
+      `RenovationPlannerSettings.libraryFolder`'s docblock carries the reason (a folder with
+      nothing that can live in it is a promise, not a structure), which is what this item asks
+      for and which was added by the pass that ticked it.
+- [x] `ListReassignmentTargets`'s header no longer claims the picker cannot offer a target that
+      fails validation — it now names the three filters it really applies (area-kind, not-self,
+      and same-project for a ZONE target) and says why an ASSET target has no project half left.
+      **Checked by review, not by a gate** — a narrowed comment is not something lint or the
+      suite can see, and saying so is the honest form of this item.
+- [x] `t(language, key, params?)` fills holes in one pass, leaves an unmatched hole standing, and
+      leaves every existing two-argument call unchanged; `de.ts`'s translation of **any** key
+      names the same holes as `en.ts`'s, per key — `tests/presentation/i18n/strings.test.ts` ›
+      *fills a hole from params*, *leaves an unmatched hole standing rather than blanking it*,
+      *is unchanged for a two-argument call*, and *requires de.ts to name the same holes as
+      en.ts, per key*.
+- [x] Slice 15's items 6 and 6a are ticked in **its** document, by this slice, with a dated note
+      saying so — `docs/tasks/15-modals-and-confirmation-dialogs.md`, under *Items 6 and 6a were
+      met by slice 19 (2026-08-31)*, which also corrects the two key names that document spelled
+      (`reference.row.project` and `reference.row.project-at-path`, not the
+      `entity.requirement.plural.in-project*` pair).
+- [x] `npm run check` passes, and `vitest.config.ts` records a fresh measurement — taken at this
+      slice's close, with the arithmetic and what did and did not ratchet written in that file.
 
 ## References
 

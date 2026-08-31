@@ -774,6 +774,58 @@ export default defineConfig({
 			// (`command.execute()`) never reaches, and the cost field's `@keydown.esc` handler,
 			// whose quantity-field twin IS driven. They are this branch's own, not the merge's,
 			// and they are three of the ten uncovered functions the whole tree has.
+			// Measured 2026-08-31 at the end of design slice 19 — the Asset catalogue leaving
+			// the project: `Asset` losing `projectId` across the entity, the events, the Zod
+			// schema, the mapper, `saveNoteBackedEntity`'s constraint and the index axis;
+			// `listByProject` → `listAll`; `foldersOverlap`/`folderContains`; the
+			// `libraryFolder` setting, its informational row, its action row and
+			// `migrateLibraryFolder` (validate → move → rebuild → persist LAST) with the
+			// serialized settings-write chain under it; `ListRequirementsReferencing`
+			// answering per-project groups; `t(language, key, params?)`; the `LibraryOverlaps`
+			// port, `IndexLibraryOverlaps` and the §83 marker on a project row:
+			// 5610/5654 statements, 2780/2835 branches, 1432/1445 functions, 4991/5018 lines —
+			// 99.22 / 98.05 / 99.10 / 99.46.
+			//
+			// NOTHING RATCHETS, which was predicted rather than discovered: rounded down these
+			// are 99 / 98 / 99 / 99, exactly the floors already in force, as slices 5, 11, 13,
+			// 15, 16 and 18 also measured. Branches hovered at 98.05–98.06 through the whole
+			// slice and end where they started.
+			//
+			// **The headroom is ONE covered unit on branches and ONE on functions, which is
+			// the tightest either metric has ever been here** — read in UNITS, not in
+			// percentage points, because a unit is what an untested arm actually costs. The
+			// arithmetic, so the next increment does not have to redo it: the branch floor
+			// needs `ceil(0.98 × 2835) = 2779` covered and 2780 are, so exactly one may be
+			// lost; the function floor needs `ceil(0.99 × 1445) = 1431` and 1432 are. One
+			// branch is 0.035pp and one function 0.069pp — both far below the hundredth a
+			// summary line prints, so **a passing gate is not evidence a new arm was tested**
+			// and neither is a figure that did not visibly move. Statements have 12 units of
+			// headroom and lines 23. At this margin, plan the test with the code: an untested
+			// arm in either tight metric fails the gate outright, and an untested arm in a
+			// slack one hides completely.
+			//
+			// Every file this slice created or rewrote measures 100% of all four, read out of
+			// `coverage/coverage-final.json` rather than assumed: `foldersOverlap.ts`,
+			// `libraryMigration.ts`, `SettingsTab.ts`, `IndexLibraryOverlaps.ts`,
+			// `ListProjects.ts`, `ListRequirementsReferencing.ts`, `ListReassignmentTargets.ts`,
+			// `ObsidianAssetRepository.ts`, `noteEntityWrite.ts`, `assetFrontmatter.ts`,
+			// `Asset.ts`, `settings.ts`, `strings.ts`, `deleteZoneFlow.ts` and
+			// `ProjectList.vue`. Three files this slice TOUCHED carry uncovered positions and
+			// all three are inherited rather than new — named here so the next reader does not
+			// go hunting: `assetMapper.ts`'s `if (!unitCost.ok) return unitCost;` (slice 10's,
+			// a `createMoney` refusal the schema has already vouched against),
+			// `RenovationPlannerPlugin.ts`'s three Obsidian-runtime arms (`openProject`'s
+			// `reportFault` closure and two inside `startPersistence`), and one
+			// location-less phantom branch in `notify.ts` that no test can execute.
+			//
+			// Slice 19 also DELETED three refusals, which removes arms from the numerator and
+			// the denominator together — the slice document predicted that would leave the
+			// ratio level, and it did, to within a hundredth of a point.
+			//
+			// One thing this entry cannot say, and the omission is the point: there is no
+			// slice-12 and no slice-17 entry above it. Both landed on `main` without adding
+			// one, so the previous measurement here is slice 16's merged tree and the jump in
+			// every denominator between that entry and this one is two slices wide, not one.
 			thresholds: {
 				statements: 99,
 				functions: 99,

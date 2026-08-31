@@ -7,14 +7,23 @@ import type { AssetRepository } from '../ports/AssetRepository';
 import type { ZoneRepository } from '../ports/ZoneRepository';
 
 /**
- * The eligible reassignment targets, already filtered by every rule the delete command
- * would otherwise reject the choice for — so slice 15's picker cannot OFFER a target that
- * fails validation. Zone case: every other zone in the same project. Asset case: every
- * other area-kind asset in the VAULT, since design slice 19 gave the catalogue no project
- * to be narrowed by. Both exclude the entity being deleted.
+ * The eligible reassignment targets. Zone case: every other zone in the same project.
+ * Asset case: every other area-kind asset in the VAULT, since design slice 19 gave the
+ * catalogue no project to be narrowed by. Both exclude the entity being deleted.
+ *
+ * **That is the whole of the filtering, and the header used to promise more.** It read
+ * "already filtered by every rule the delete command would otherwise reject the choice for
+ * — so slice 15's picker cannot OFFER a target that fails validation", which stopped being
+ * true when the catalogue left the project: this query is handed a `ReferencedTarget`, an
+ * asset id with NO project, so for an asset it cannot know which projects' rules a
+ * candidate would have to satisfy, and it does not try. What it still does is the three
+ * things above — area-kind, not-self, and same-project for a ZONE target, which has a
+ * project to be narrowed by.
  *
  * Validation still runs in the command regardless; eligibility here is UX narrowing, not
- * enforcement.
+ * enforcement — and it is narrowing over a SUBSET of the command's rules rather than all
+ * of them, which is the difference the old sentence hid. Checked by review: a narrowed
+ * comment is not something lint or the suite can see.
  */
 export class ListReassignmentTargets {
 	constructor(

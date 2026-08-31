@@ -81,6 +81,22 @@ describe('the Requirements panel', () => {
 		const text = r.harness.wrapper.text();
 		expect(text).toContain('m2');
 		expect(text).toContain('EUR');
+
+		// And the gesture is UNDOABLE, which is the half of slice 10's criterion that is
+		// about the WIRING rather than about the adapter: `ReversibleAssignAssetCommand` is
+		// what the Inspector dispatches. Its own undo/redo/idempotent behaviour is asserted
+		// at the adapter's door in
+		// `tests/application/commands/requirement/reversibleAssign.test.ts`; what only THIS
+		// mount can say is that the assign edit reaches that adapter at all. Without it the
+		// case passes identically against an `inspector-wiring.ts` that dispatched the plain
+		// `AssignAssetCommand` — the row appears either way, and nothing else here would
+		// notice the requirement becoming unrecoverable.
+		toolbarButton(r.harness, 'Undo').click();
+		await until(
+			() => r.harness.wrapper.text().includes('No requirements reference this zone yet.'),
+			'the assignment is undone',
+		);
+		expect(expectOk(await r.requirementsRepo.listByZone('zone-a' as never))).toEqual([]);
 		r.harness.unmount();
 	});
 

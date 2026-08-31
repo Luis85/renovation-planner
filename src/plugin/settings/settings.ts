@@ -52,6 +52,13 @@ export interface RenovationPlannerSettings {
 	 * catalogue IS, so changing it MOVES the notes. ADR-011 priced a configurable path as
 	 * something to avoid where it can be avoided; here it cannot, because a shared library
 	 * has no project folder to derive its location from.
+	 *
+	 * **`Assets/` is the only thing under it, and `Suppliers/`/`Trades/` are deliberately
+	 * NOT created**: the rule names three catalogues and two of them do not exist as
+	 * entities — `Asset.supplier` is free text and `Trade` is Epic 8 — so a folder with
+	 * nothing that can live in it is a promise rather than a structure. The field is named
+	 * for the LIBRARY rather than for assets for that reason: those two arrive by adding a
+	 * repository that resolves its own subfolder from this root, not by moving this one.
 	 */
 	libraryFolder: string;
 	/**

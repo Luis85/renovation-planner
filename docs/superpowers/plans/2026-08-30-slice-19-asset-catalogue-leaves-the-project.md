@@ -51,7 +51,7 @@
 | `src/presentation/i18n/locales/en.ts`, `de.ts` | New keys: the grouped row label, the library-folder setting, the overlap marker, the three refusals. |
 | `src/plugin/settings/settings.ts` | `libraryFolder` field, its validator, its default, both ends of `settingsFrom`. |
 | `src/plugin/settings/SettingsTab.ts` | One more definition. |
-| `src/plugin/RenovationPlannerPlugin.ts` | `saveSettings` routes a `libraryFolder` change through the migration. |
+| `src/plugin/RenovationPlannerPlugin.ts` | **Corrected 2026-08-31:** this row said `saveSettings` routes a `libraryFolder` change through the migration, and that is exactly the wiring Task 4 refused to build. `saveSettings` swaps the composition root and rebinds the views BEFORE its own `saveData` settles — right for a preference, destructive here, since a rejecting write would leave the session composed against the DESTINATION while `data.json` still named the SOURCE. What shipped is a dedicated write-then-swap door, `persistLibraryFolder`, on the same serialized settings-write chain, plus `rebuildProjectIndex` as the door the migration reaches for step 3. |
 | `src/domain/asset/Asset.ts` | `projectId` gone from `CreateAssetProps`, `AssetFields`, the class, and `withChanges`'s `Omit`. |
 | `src/domain/asset/Asset.events.ts` | `AssetEventPayload` loses `projectId`. |
 | `src/infrastructure/persistence/dto/assetFrontmatter.ts` | `project` key removed. |

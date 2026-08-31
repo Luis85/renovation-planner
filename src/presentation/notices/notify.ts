@@ -405,10 +405,17 @@ export function notifyWarning(message: string): void {
  * what lets a `Geometry` refusal and a background stale-marker failure arrive as warnings —
  * both quieter than an error by the table's own reasoning, and neither expressible before.
  *
- * `grep -rn "notifyError" src/` prints eleven lines that are not comments: this definition,
- * `notifyFault` below it, and nine call sites across the editor, the Inspector row and two
- * plugin commands. The eleventh — `notifyFault`'s — is the one this slice's own spec table
- * missed, because that table was measured with a grep that excluded this file.
+ * `grep -rn "notifyError" src/` prints FOUR lines that are not comments, all of them in
+ * this file: this definition, `noticeOnlySinks`'s two members, and `notifyFault`. Every
+ * other site reaches a toast through `surfaceError(..., noticeOnlySinks)` instead, which
+ * is the sinks door doing its job — so the count is a fact about the ROUTING and moves
+ * whenever the routing does. **This sentence said "eleven lines … and nine call sites" from
+ * the slice-17 commit that wrote it until design slice 19's closing pass, and it was false
+ * for all of it** — which is this repository's own "a docblock that says 'the only place X'
+ * gets a grep in the SAME edit" broken in the file that door lives in. Measured rather than
+ * remembered, on 2026-08-31.
+ * `notifyFault`'s own line is still the one slice 17's spec table missed, because that
+ * table was measured with a grep that excluded this file.
  */
 export function notifyError(error: AppError, routed: ToastSurface): void {
 	queue?.push(routed.level, trError(error));

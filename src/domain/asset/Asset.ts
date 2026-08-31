@@ -18,6 +18,8 @@ export interface CreateAssetProps {
 	/** Fraction in [0, 1] (`0.10` = 10% waste); defaults to 0. */
 	readonly wasteFactorDefault?: Decimal;
 	readonly notes?: string | null;
+	/** Millimetres (ADR-009), or `null` for an asset that says nothing about how tall it is. */
+	readonly height?: number | null;
 }
 
 interface AssetFields {
@@ -30,6 +32,7 @@ interface AssetFields {
 	readonly unitCost: Money;
 	readonly wasteFactorDefault: Decimal;
 	readonly notes: string | null;
+	readonly height: number | null;
 }
 
 /**
@@ -61,6 +64,38 @@ export function checkWasteFraction(
 }
 
 /**
+ * TWO GATES, TWO QUESTIONS, and neither can stand in for the other.
+ *
+ * A height is millimetres, so a NEGATIVE one is incoherent — an object cannot be minus nine
+ * hundred millimetres tall. Zero is not: a flat thing is a real answer, and refusing it would
+ * invent a rule nobody asked for. That is the sign gate, and it is the one the plan named.
+ *
+ * FINITENESS is the other question, and the loss it prevents is silent rather than merely
+ * odd. `z.number()` refuses a non-finite value, so `AssetFrontmatterSchemaV1`'s `.catch(null)`
+ * turns one into `null` on the way back IN — while `serializeFrontmatter` writes `String(v)`
+ * on the way OUT, which for `Infinity` is a bare word no YAML number grammar accepts. Without
+ * this gate the write reports success, the note carries `height: Infinity`, and the value is
+ * gone at the next read having refused nothing. `Number.NaN` takes the same path, and it is
+ * one bad parse away from a numeric input field.
+ *
+ * They are separate codes because `NaN < 0` is false and "a height cannot be negative; got
+ * NaN" is a sentence that is not true — the same distinction `footprintFromDimensions` draws
+ * when it leaves finiteness to `createPolygon` rather than folding it into its sign guard.
+ */
+function checkHeight(value: number | null): Result<number | null, ValidationError> {
+	if (value === null) return ok(null);
+	if (!Number.isFinite(value)) {
+		return err(
+			assetError('invalid-height', `A height must be a finite number of millimetres; got ${String(value)}.`),
+		);
+	}
+	if (value < 0) {
+		return err(assetError('negative-height', `A height cannot be negative; got ${String(value)}.`));
+	}
+	return ok(value);
+}
+
+/**
  * A reusable catalog item (PRD §8 "Asset", Epic 6) — the INPUT of the quantity/cost
  * pipeline, never itself derived data: nothing about an Asset's own fields is calculated
  * from geometry. Immutable, like every entity here; edits go through `withChanges`, which
@@ -87,6 +122,19 @@ export class Asset {
 	readonly unitCost: Money;
 	readonly wasteFactorDefault: Decimal;
 	readonly notes: string | null;
+	/**
+	 * How tall this thing is, in millimetres — the one asset scalar that is NOT geometry.
+	 * The footprint, the clearance, the anchor and the facing live in the geometry sidecar
+	 * because they are coordinates a designer draws; a height is a single number nobody
+	 * draws, so it lives in the note, where a reader with no plugin can see it.
+	 *
+	 * Nothing computes with it. It is not an input to a quantity, a cost or an area, and it
+	 * is deliberately absent from `calculatedFrom` — which is what makes a height edit a
+	 * DESIGN change rather than a catalogue one, and why its command announces
+	 * `AssetDesignChanged` rather than the `AssetUpdated` slice 10's recalculation cascade
+	 * subscribes to.
+	 */
+	readonly height: number | null;
 
 	private constructor(fields: AssetFields) {
 		this.id = fields.id;
@@ -98,6 +146,7 @@ export class Asset {
 		this.unitCost = fields.unitCost;
 		this.wasteFactorDefault = fields.wasteFactorDefault;
 		this.notes = fields.notes;
+		this.height = fields.height;
 	}
 
 	static create(props: CreateAssetProps): Result<Asset, ValidationError> {
@@ -119,6 +168,8 @@ export class Asset {
 				),
 			);
 		}
+		const heightCheck = checkHeight(props.height ?? null);
+		if (!heightCheck.ok) return heightCheck;
 		const wasteCheck = checkWasteFraction(
 			props.wasteFactorDefault ?? new Decimal(0),
 			'waste-factor-default',
@@ -137,6 +188,7 @@ export class Asset {
 				unitCost: props.unitCost,
 				wasteFactorDefault: props.wasteFactorDefault ?? new Decimal(0),
 				notes: props.notes ?? null,
+				height: heightCheck.value,
 			}),
 		);
 	}
@@ -158,6 +210,7 @@ export class Asset {
 			unitCost: changes.unitCost ?? this.unitCost,
 			wasteFactorDefault: changes.wasteFactorDefault ?? this.wasteFactorDefault,
 			notes: 'notes' in changes ? (changes.notes ?? null) : this.notes,
+			height: 'height' in changes ? (changes.height ?? null) : this.height,
 		});
 	}
 

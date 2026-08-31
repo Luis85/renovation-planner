@@ -36,4 +36,17 @@ export const AssetFrontmatterSchemaV1 = z.object({
 		.nullable()
 		.catch(null),
 	notes: z.string().nullable().catch(null),
+	/**
+	 * Millimetres, as a plain YAML number — NOT an ADR-010 decimal string, because a height
+	 * is not money: nothing multiplies it, nothing sums it, and the exactness ADR-010 buys
+	 * has nothing here to protect. A quoted string would cost a reader with no plugin the
+	 * one thing this key exists for.
+	 *
+	 * Additive, so NO SCHEMA VERSION BUMP IS OWED and none is taken: `.catch(null)` reads an
+	 * absent key and a garbage value alike as "this asset says nothing about how tall it is",
+	 * which is what a note written before this key existed means. Beyond that the schema
+	 * stops — `z.number()` types the field and refuses a non-finite one, and only
+	 * `Asset.create` can see that `-10` is not a height.
+	 */
+	height: z.number().nullable().catch(null),
 });

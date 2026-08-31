@@ -27,6 +27,7 @@ export function assetToPersistence(asset: Asset, revision: number): Record<strin
 		currency: asset.unitCost.currency,
 		'waste-factor-default': asset.wasteFactorDefault.toString(),
 		notes: asset.notes,
+		height: asset.height,
 	};
 }
 
@@ -50,6 +51,10 @@ export function assetFromPersistence(rawFrontmatter: unknown): Result<Asset, Val
 		wasteFactorDefault:
 			dto['waste-factor-default'] === null ? undefined : new Decimal(dto['waste-factor-default']),
 		notes: dto.notes ?? null,
+		// No `?? null` here, and the difference is not cosmetic: the schema's own
+		// `.nullable().catch(null)` has already answered for every absent and unparseable
+		// value, so a second coalesce would be a branch nothing can drive.
+		height: dto.height,
 	});
 	if (!created.ok) return created;
 	return ok(created.value);

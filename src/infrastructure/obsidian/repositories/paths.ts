@@ -176,11 +176,35 @@ const EDGE_DOT_OR_SPACE = /^[\s.]|[\s.]$/;
 const RESERVED_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 
 /**
+ * The filename-component limit ext4 and APFS enforce, in BYTES.
+ *
+ * Bytes and not characters, which is the half a length check gets wrong: `'é'.repeat(130)` is 130
+ * characters and 260 bytes, so a character bound passes it and the filesystem still refuses — the
+ * same defect one encoding over. Windows' limit is 255 CHARACTERS of a path component, which is
+ * looser for non-ASCII and identical for ASCII, so the byte rule covers both.
+ */
+const MAX_FILENAME_BYTES = 255;
+
+/**
+ * UTF-8 byte length, through `TextEncoder` rather than through Node's `Buffer`.
+ *
+ * `Buffer` is a NODE global and this plugin's manifest declares `isDesktopOnly: false`, so on
+ * Obsidian mobile there is no Node and `Buffer.byteLength` is a `ReferenceError` — raised at
+ * every sidecar path derivation, on exactly the platform the manifest promises. `TextEncoder`
+ * is a web standard and is present in both. Caught by the mobile-safety lint rule, which
+ * reports as a warning and is failed by `--max-warnings 0`; nothing in the suite could have
+ * seen it, because the tests run under Node.
+ */
+function utf8Bytes(value: string): number {
+	return new TextEncoder().encode(value).length;
+}
+
+/**
  * CAN THIS STRING BE A FILENAME — asked of an ENTITY ID, which is interpolated into a path
  * rather than cleaned into one, so there is nothing to strip and the only answer is yes or no.
  *
- * Three rules, and the third arrived a round after the first two: the forbidden characters, the
- * edge dots and spaces, and the reserved device names. `.` and `..` are refused as whole strings
+ * Four rules, the last two each arriving a round after the ones before: the forbidden characters,
+ * the edge dots and spaces, the reserved device names, and the LENGTH. `.` and `..` are refused as whole strings
  * rather than by the character class, because a name merely CONTAINING a dot is fine.
  *
  * **Where this is asked is the part that took three attempts.** It belongs at the site that
@@ -195,8 +219,9 @@ const RESERVED_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
  * insert paths — recorded here rather than fixed, because widening this change again is how the
  * previous two attempts went wrong.
  */
-export function usableAsFilename(id: string): boolean {
+export function usableAsFilename(id: string, extensionBytes = 0): boolean {
 	if (FORBIDDEN_IN_FILENAME.test(id) || EDGE_DOT_OR_SPACE.test(id)) return false;
+	if (utf8Bytes(id) + extensionBytes > MAX_FILENAME_BYTES) return false;
 	return id !== '.' && id !== '..' && !RESERVED_DEVICE_NAME.test(id);
 }
 

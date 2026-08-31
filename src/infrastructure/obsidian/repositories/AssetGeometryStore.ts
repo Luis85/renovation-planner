@@ -12,6 +12,13 @@ import { KeyedQueues } from './KeyedQueues';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
 import { observeSidecar } from './digest';
 
+/**
+ * `.rpgeo`, as the byte count `usableAsFilename`'s length rule needs. ASCII, so its byte count
+ * is its character count — written as a literal rather than measured, since measuring it would
+ * need the same `TextEncoder` that module keeps private for the reason its own header gives.
+ */
+const SIDECAR_EXTENSION_BYTES = '.rpgeo'.length;
+
 /** Key order follows construction order, which the schema fixes — deterministic writes. */
 function canonicalJson(dto: AssetGeometryDTO): string {
 	return JSON.stringify(dto, null, '\t');
@@ -193,7 +200,9 @@ export class AssetGeometryStore {
 	 * rather than a rewrite of the read path.
 	 */
 	private pathFor(assetId: AssetId): Result<string, RepositoryError> {
-		if (!usableAsFilename(assetId)) {
+		// The extension is passed in rather than assumed, because the LENGTH rule is about the
+		// whole filename and this store is what knows the suffix it appends.
+		if (!usableAsFilename(assetId, SIDECAR_EXTENSION_BYTES)) {
 			return err(
 				persistenceError(
 					'asset-geometry.unusable-id',

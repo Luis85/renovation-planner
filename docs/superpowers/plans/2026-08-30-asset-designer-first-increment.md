@@ -1599,20 +1599,40 @@ git commit -m "Compose and guard the asset geometry commands"
 ### Task A10: creating an asset, with dimensions
 
 **Files:**
-- Create: `src/presentation/dialogs/kinds/NewAssetForm.vue`
-- Modify: `src/presentation/dialogs/` descriptor types (`DialogResultByKind`, `DialogHost`'s branch, `cancelResultFor`)
-- Modify: `src/presentation/i18n/en.ts`, `src/presentation/i18n/de.ts`
-- Modify: `src/plugin/` command registration (a `create-asset` command)
-- Test: `tests/presentation/dialogs/newAssetForm.test.ts`
+- Create: `src/presentation/views/NewAssetForm.vue` — **not** `dialogs/kinds/`, which does not
+  exist; both sibling forms live in `views/`
+- Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
+- Modify: the view that HOSTS the form — see the correction to Step 5 below
+- Test: `tests/presentation/views/newAssetForm.test.ts`
 - Test: `tests/presentation/i18n/strings.test.ts` (already asserts locale completeness — no edit needed unless it fails)
 
 **Interfaces:**
 - Consumes: `useFormCommit` (`presentation/forms/`), `routeError`, `FieldError`, `FormBanner`, `openDialog`, and A9's guarded `createAsset` + `setFootprintFromDimensions`.
-- Produces: a dialog kind `'new-asset'` resolving `{ assetId: string } | null`.
+- Produces: **no new dialog KIND.** An earlier draft asked for `'new-asset'` and for edits to
+  `DialogResultByKind`, `DialogHost`'s branch and `cancelResultFor` — and that contradicts the
+  framework's own design, which `NewPlanForm` states outright: *"No new dialog KIND … so none of
+  the five edits a new kind costs apply."* `dialog-store.ts` says a form "lives with whoever owns
+  the form, never in this directory", and a `'new-asset'` kind would put field knowledge inside a
+  directory forbidden from importing `application/`.
+
+**Two shapes this task must get right, both of which its own snippets got wrong:**
+
+- `CreateAssetInput` requires `category`, `unit`, `unitCostAmount` and `currency` besides the name.
+  Render all of them. Defaulting the currency would price an asset in one nobody chose.
+- `CreateAssetCommand` resolves `Result<Asset, RepositoryError>` and hands back the **`Asset`** —
+  not `{ assetId }`, not a `Loaded<Asset>` — while `SetAssetFootprintFromDimensionsCommand`
+  resolves `DispatchResult`. This form's submit is a SEQUENCE across those two shapes, which is
+  what makes it the first of its kind here.
 
 - [ ] **Step 1: Read the form this one mirrors**
 
-`src/presentation/dialogs/kinds/NewProjectForm.vue` and its test. Adding a dialog kind is five edits, four of which are build failures — let `vue-tsc` find them rather than hunting.
+`src/presentation/views/NewProjectForm.vue` and `src/presentation/views/NewPlanForm.vue`, with
+their tests. Both live in `views/`, not in `dialogs/kinds/`, which does not exist — and the
+sentence this step used to carry, *"adding a dialog kind is five edits, four of which are build
+failures"*, is about a `DialogResultByKind` entry this form does not add. Read those five edits
+in `DialogHost`'s own header if you want to know what they are; **none of them is owed here.**
+What to copy from the two siblings is the FORM shape: `useFormCommit`, a `FieldErrorMap`, one
+`FieldError` per input, a `FormBanner` for what routes to no field, and `useDialogFormBusy`.
 
 - [ ] **Step 2: Write the failing tests**
 
@@ -1631,10 +1651,15 @@ it('creates the asset with no footprint when dimensions are left empty', async (
 	expect(setFootprintFromDimensions).not.toHaveBeenCalled();
 });
 
-it('routes a refused dimension to the field it is about and keeps what the user typed', async () => {
+// CORRECTED after building it: `asset.non-positive-dimension` routes to BOTH dimension
+// fields, never to `width` alone. `footprintFromDimensions` mints it inside a loop over
+// `[width, depth]` and names neither in a way the code carries, so a map routing it to one
+// field would be a second answer to which field is wrong — and wrong half the time.
+it('routes a refused dimension to both dimension fields and keeps what the user typed', async () => {
 	setFootprintFromDimensions.mockResolvedValue(err({ category: 'Validation', code: 'asset.non-positive-dimension', message: 'x' }));
 	await fillAndSubmit({ name: 'Island', width: '0', depth: '800' });
 	expect(fieldErrorFor('width')).not.toBeNull();
+	expect(fieldErrorFor('depth')).not.toBeNull();
 	expect(inputValue('width')).toBe('0');
 });
 
@@ -1709,25 +1734,56 @@ slice 11's own recorded defect. Read the list as a floor that has already gone s
 trust what the grep prints over what this paragraph says.
 
 **Copy the table from the RAISE SITES, not from `en.ts`.** A table derived from the locale file
-agrees with a typo. Find them with:
+agrees with a typo.
+
+**And the grep this step used to give was itself too narrow, which is the same defect one level
+up.** It read `grep -rn "assetError(" src/domain/asset src/application/commands/asset`, so it
+could see neither a code minted anywhere else nor one minted without that helper. **A10 added two
+of both kinds**: `asset.dimension-underflow`, raised from `AssetShape.ts` through a spelling this
+needle misses, and `asset.dimensions-incomplete`, minted in `NewAssetForm.vue` — a presentation
+file, outside both named directories, because "one dimension without the other" is a fact about
+the FORM's two inputs and no command has a shape to refuse it in. **Enumerate the codes, not the
+call sites**, over the whole of `src/`:
 
 ```bash
-grep -rn "assetError(" src/domain/asset src/application/commands/asset
+grep -rhoE "'asset\.[a-z-]+'" src/ | sort -u
 ```
+
+That prints **24** codes at this increment's close, against the ten this step's own list names.
+Not all 24 are this increment's to translate — `asset.not-found` and friends predate it — but
+every one it ADDED is in that output, and none of them was in the old command's.
 
 A code with no entry does not degrade to silence — it degrades to the wrong sentence, which is how
 two refusals once told a user "that entry no longer exists" about an entry whose existence was the
 reason for the refusal.
 
-- [ ] **Step 5: Register the command, and reach it from the picker later**
+- [ ] **Step 5: Reach the form from a surface that already hosts a dialog**
 
-`create-asset` as a plain callback (never `checkCallback`), opening the dialog through `runDetached` so a fault maps, logs and notifies rather than vanishing.
+**Corrected after building it — the step as first written is UNBUILDABLE, and the reason is
+structural rather than a detail.** It asked for a `create-asset` plugin COMMAND opening the
+dialog through `runDetached`. `openDialog` writes into `DialogStore`, which is a Pinia store
+scoped to ONE `createApp` — slice 15's `DialogHost` mounts once per ItemView-scoped Vue app —
+so a plugin command, which runs outside every Vue tree, has no store to write into and nothing
+would open. `runDetached` is the right door for a command's FAULT and answers a different
+question; it cannot supply the missing host.
+
+Every form in this plugin is opened from INSIDE a view's tree, and Phase A builds no view of
+its own — so the host has to be one that already exists. **A10 shipped it from `ProjectList`'s
+own header**, beside the `New project` button slice 16 put there, which is where the user is
+when they are looking at the vault rather than at one plan:
+`ProjectList` emits `create-asset`, `ViewRoot.onCreateAsset` opens the descriptor, and
+`newAssetBusy` is the shared ref `FormDialog` disables Cancel against.
+
+A palette command is still worth having and is NOT this step: it would have to reveal the view
+first and then ask the mounted tree to open the form, which is a second seam
+(`RenovationProjectView` → its Vue app) that nothing in Phase A needs. Left for the increment
+that wants it.
 
 - [ ] **Step 6: Gate and commit**
 
 ```bash
 npm run check
-git add src/presentation src/plugin tests/presentation
+git add src/presentation tests/presentation
 git commit -m "Create an asset, optionally with a width and a depth"
 ```
 

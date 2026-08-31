@@ -369,6 +369,33 @@ describe('ObsidianAssetGeometrySidecar', () => {
 	 * device name is its whole stem. Measured, because widening the match to a substring would
 	 * pass every case above while rejecting legitimate ids.
 	 */
+	/**
+	 * LENGTH, measured in BYTES rather than characters — which is the half a character count
+	 * gets wrong. `.rpgeo` is 6 bytes, so a 250-character ASCII id yields a 256-byte filename
+	 * against the 255-byte component limit on ext4 and APFS; and `'é'.repeat(130)` is 130
+	 * CHARACTERS and 260 BYTES, so a character bound passes it and the filesystem still
+	 * refuses. Same defect one encoding over.
+	 *
+	 * Honest about what this buys, because it is less than it looks: without the bound the
+	 * write still fails — `vault.create` refuses and the store maps it — so what changes is
+	 * WHICH error. A coded `asset-geometry.unusable-id` naming the id is diagnosable; an opaque
+	 * vault failure is not.
+	 */
+	it('refuses an id whose filename would exceed the component limit, counting bytes', async () => {
+		const { sidecar } = seeded();
+		for (const raw of ['a'.repeat(250), 'é'.repeat(130)]) {
+			const id = raw as unknown as Parameters<typeof sidecar.read>[0];
+			expect(expectErr(await sidecar.read(id)).code).toBe('asset-geometry.unusable-id');
+		}
+	});
+
+	it('accepts an id right at the limit, so the bound is off by nothing', async () => {
+		const { sidecar } = seeded();
+		// 249 bytes + `.rpgeo` is exactly 255.
+		const id = 'a'.repeat(249) as unknown as Parameters<typeof sidecar.read>[0];
+		expect(expectOk(await sidecar.read(id)).document.shape).toBeNull();
+	});
+
 	it('accepts an id that merely contains a device name', async () => {
 		const { sidecar } = seeded();
 		for (const raw of ['console', 'console.log', 'my.CON', 'a.b']) {

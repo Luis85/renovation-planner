@@ -40,6 +40,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	// „Zonen“, nicht „Bereiche“: die deutsche Oberfläche nennt eine Zone überall sonst so
 	// (`editor.zone.default-name`, `editor.inspector.delete-zone.reassign-title`).
 	// „Vault“ bleibt unübersetzt — Obsidians eigener Name dafür, was `strings.test.ts` prüft.
+	'command.show-diagnostics-report': 'Diagnosebericht anzeigen',
+	'settings.diagnostics.name': 'Diagnosebericht',
+	'settings.diagnostics.desc':
+		'Versionen, Schemaversionen und die Notizen, die das Laden in dieser Sitzung verweigert haben.',
 	'diagnostics.title': 'Diagnosebericht',
 	'diagnostics.no-issues': 'In dieser Sitzung hat keine Notiz das Laden verweigert.',
 	'diagnostics.session-only':

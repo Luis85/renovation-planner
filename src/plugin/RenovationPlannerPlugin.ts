@@ -31,6 +31,8 @@ import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type Settin
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
+import { runDetached } from './runDetached';
+import { showDiagnosticsReport } from './diagnostics/showDiagnosticsReport';
 
 /**
  * The floor bootstrap starts at, before settings can say otherwise: `loadSettings`
@@ -259,6 +261,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 			name: tr('command.open-project-detail'),
 			callback: () => {
 				this.openProjectDetail();
+			},
+		});
+
+		this.addCommand({
+			id: 'show-diagnostics-report',
+			name: tr('command.show-diagnostics-report'),
+			callback: () => {
+				this.openDiagnosticsReport();
 			},
 		});
 
@@ -731,6 +741,16 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * `navigateToProject` and is deliberately not restated here: a guard spelled at this call
 	 * site would be a second, narrower answer to a question that module already owns.
 	 */
+	/**
+	 * Both doors into the diagnostics report land here, and this is the whole of what either
+	 * one does — the command above and `SettingsTab`'s action row, which reaches it through
+	 * the same public method. `runDetached` rather than a bare `void`: an Obsidian command
+	 * handler returns nothing, so a rejection would otherwise reach nobody.
+	 */
+	openDiagnosticsReport(): void {
+		runDetached(showDiagnosticsReport(this), this.root.logger, 'diagnostics.report.failed');
+	}
+
 	private openProjectDetail(): void {
 		const projects = entriesOfType(this.root.persistence?.index, 'renovation-project');
 		const deps = {

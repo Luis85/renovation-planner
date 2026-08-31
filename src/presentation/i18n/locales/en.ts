@@ -350,6 +350,10 @@ export const en = {
 	// The diagnostics report. `session-only` is the first of this increment's two recorded
 	// limitations, put on the surface where the user meets it rather than only in a docblock:
 	// the ledger is in-memory, so reopening the vault empties the report.
+	'command.show-diagnostics-report': 'Show diagnostics report',
+	'settings.diagnostics.name': 'Diagnostics report',
+	'settings.diagnostics.desc':
+		'Versions, schema versions, and the notes that refused to load in this session.',
 	'diagnostics.title': 'Diagnostics report',
 	'diagnostics.no-issues': 'No notes have refused to load in this session.',
 	'diagnostics.session-only':

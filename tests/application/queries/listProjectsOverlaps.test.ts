@@ -11,6 +11,12 @@
  * condition being DERIVED PER READ: nothing is recorded, so nothing has to be retracted,
  * counted, capped or expired. The third case is the one that proves it — a folder moved
  * clear is simply absent from the next answer.
+ *
+ * **Per read is not the same as prompt, and these cases cannot show the difference.** They
+ * move a folder by moving its INDEX entry, which is exactly what a real drag in Obsidian's
+ * file explorer does NOT do: the vault listeners filter to `TFile`, so the index is never
+ * told and only learns at its next rebuild. `IndexLibraryOverlaps`'s docblock carries the
+ * mechanism and where closing it belongs.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { ListProjects } from '../../../src/application/queries/ListProjects';

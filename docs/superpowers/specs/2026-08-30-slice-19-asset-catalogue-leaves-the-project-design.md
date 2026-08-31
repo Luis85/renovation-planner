@@ -142,6 +142,13 @@ affected project says so where a user already looks*, rather than to a refusal o
 being interrupted. The Definition of Done item is rewritten to that rather than left promising
 three refusals.
 
+**Narrowed once more (2026-08-31), because "says so" read as "says so at once".** The row says
+so *from the Project Index*, and the drag it reports is not reported to that index at all: the
+vault listeners filter to `TFile`, so Obsidian's `TFolder` for a folder move never reaches
+`VaultChangeAdapter` and the index keeps the note's old path. The marker therefore appears —
+and disappears — at the next full index rebuild, at load or after a settings save, rather than
+as the folder lands. See *When the marker updates* below.
+
 Two alternatives were weighed and are recorded so they are not re-proposed:
 
 - **Two refusals, third site written down as an exposure.** Cheapest, and it keeps the whole
@@ -194,7 +201,7 @@ every property the other two lacked falls out of it rather than being engineered
 
 | Hazard | Why it cannot arise here |
 | --- | --- |
-| Stale after the user fixes it | Derived per render from the current index and setting |
+| Stale after the user fixes it | Derived per read from the current index and setting — never cached, though *current index* is doing real work here: see *When the marker updates* |
 | Counting, `(×N)`, dedup | Per-row; nothing aggregates |
 | Retraction | Nothing was recorded to retract |
 | Slot cap, preemption | Not a notice |
@@ -205,6 +212,27 @@ That last row is the one to read twice. `docs/tasks/11` forbids *"a human-readab
 zone name"* in the diagnostics snapshot because it may be copied or exported; a project list on
 screen is already showing those names as its entire purpose. The rule is about the payload, not
 about the word.
+
+### When the marker updates
+
+The derivation is not cached — that half is true and mutation-pinned. What it is derived FROM
+is the Project Index, and **the gesture this marker exists to cover is the one gesture the
+index is not told about**: `RenovationPlannerPlugin` filters the vault's create, modify, delete
+and rename events to `TFile`, so the `TFolder` Obsidian reports for a folder move is dropped,
+`VaultChangeAdapter` never hears it, and the index keeps the project note's old path.
+`projectFolderOf` then derives the old folder and the row is unchanged.
+
+So the honest statement of the guarantee is: **the affected project says so where a user
+already looks, from the next index rebuild onwards** — at `onLayoutReady`, so a reload, or
+after a settings save — rather than as the drag lands. The same applies in reverse: a user who
+drags the folder back keeps the marker until the index is rebuilt.
+
+**This is PRE-EXISTING and is not slice 19's to fix.** That `instanceof TFile` filter dates
+from design slice 4's persistence pipeline (`f15909c`) and is an ancestor of `main`; slice 19
+adds the first consumer that makes it visible. Closing it means forwarding folder renames
+through the vault-change pipeline, which every index consumer inherits — slice 4/18 territory,
+not a marker's. `docs/tests/cases/Move the Library.md` steps 12 and 12b require the reload for
+this reason and say so.
 
 ### What it must be, per this repository's own rules
 
@@ -223,6 +251,12 @@ A user who never opens the Renovation Project view is not told — but that view
 front door and its ribbon button, which is a different claim from a report with no opener. And
 nothing is *interrupted*: a user who does not look at the row does not learn the state. That is
 the accepted price of a site §83 gave no door to refuse at.
+
+**And it is not prompt.** The marker follows the Project Index, which is not told about a
+folder moved in the file explorer, so a user who performs the drag and looks straight at the
+list sees no marker until the index is rebuilt — at load, or after a settings save. That is a
+second accepted price, pre-existing rather than introduced here; *When the marker updates*
+above has the mechanism and where it lives.
 
 ### The seven rounds, compressed, because the shape is the lesson
 
@@ -269,8 +303,9 @@ on a document, not on a mechanism, and it runs in the direction the slice number
   sites)"* — slice 18 has one such site, not two.
 - The Definition of Done's three-refusals item, split: **two refusals** at the sites that have a
   door, plus a **`libraryOverlap` marker on the affected project's row** for the site that does
-  not. The guarantee is that the affected project says so where a user already looks — not a
-  refusal, not a notification, not a report. This criterion has now been narrowed three times
+  not. The guarantee is that the affected project says so where a user already looks, from the
+  next index rebuild onwards — not a refusal, not a notification, not a report, and not
+  immediate: a folder move is not reported to the Project Index (*When the marker updates*). This criterion has now been narrowed three times
   and re-surfaced twice; a criterion that quietly keeps its old wording is how the gap between
   promise and check reopens, which is the whole reason this list exists.
 - `PersistenceError` → `RepositoryError` in the `Interfaces & Contracts` snippets.

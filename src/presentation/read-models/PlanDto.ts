@@ -68,7 +68,11 @@ export interface ProjectSummaryDto {
 	 * A fact about the read that produced it and never a stored one: ADR-0013 derives the
 	 * folder from where the project's own note sits, so a user who drags that folder back is
 	 * simply absent from the next answer — which is what makes staleness and retraction
-	 * unrepresentable rather than handled.
+	 * unrepresentable rather than handled. **The next answer, not the next moment**: that
+	 * read goes through the Project Index, which is not told about a folder moved in
+	 * Obsidian's file explorer (the vault listeners filter to `TFile`, since slice 4), so the
+	 * flag flips at the next index rebuild — at load, or after a settings save — rather than
+	 * as the drag lands. `IndexLibraryOverlaps` carries the mechanism.
 	 */
 	readonly libraryOverlap: boolean;
 }

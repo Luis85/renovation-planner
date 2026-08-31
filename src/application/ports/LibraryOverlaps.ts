@@ -16,6 +16,13 @@ import type { ProjectId } from '../../domain/project/ProjectId';
  * lifetime unrepresentable rather than handled. A user who drags the folder back is simply
  * absent from the next answer, and there is nothing to retract because nothing was kept.
  *
+ * **Per read bounds the staleness to the INDEX, not to the vault.** A folder moved in
+ * Obsidian's file explorer is not reported to the Project Index — the vault listeners filter
+ * to `TFile`, as they have since slice 4 — so the answer changes at the next index rebuild,
+ * at load or after a settings save, rather than as the drag lands. `IndexLibraryOverlaps`
+ * carries the mechanism and why closing that gap is the vault-change pipeline's, not this
+ * port's.
+ *
  * SYNCHRONOUS by construction. The answer is a fact about the Project Index — SDD §47's
  * single answer to "where is entity X" — which is already in memory, so there is no read to
  * await and therefore no second failure mode for a caller to have a policy about.

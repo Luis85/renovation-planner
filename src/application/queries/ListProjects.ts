@@ -24,6 +24,13 @@ export interface ProjectListResult {
 	 * Derived on every read and never recorded, which is what makes staleness, counting,
 	 * retraction and session lifetime unrepresentable rather than handled: a user who drags
 	 * the folder back is simply absent from the next answer.
+	 *
+	 * **The next answer, not the next moment.** The derivation reads the Project Index, and a
+	 * folder moved in Obsidian's file explorer is not reported to that index — the vault
+	 * listeners filter to `TFile`, as they have since slice 4 — so a row gains or loses the
+	 * marker at the next index rebuild, at load or after a settings save, rather than as the
+	 * drag lands. `IndexLibraryOverlaps`'s docblock carries the mechanism and why widening it
+	 * belongs to the vault-change pipeline rather than to this query.
 	 */
 	readonly overlapping: readonly ProjectId[];
 }

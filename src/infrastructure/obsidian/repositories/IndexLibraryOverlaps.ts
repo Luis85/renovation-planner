@@ -10,6 +10,17 @@ import { projectFolderOf } from './paths';
  * explorer — there is no command to refuse. This answers which projects are currently in
  * that state, PER READ, so a user who fixes it simply stops being reported.
  *
+ * **Per read is not the same as promptly, and the difference belongs to this very gesture.**
+ * The answer is derived from the Project Index, and a folder dragged in Obsidian's file
+ * explorer is never reported to that index: `RenovationPlannerPlugin` filters the vault's
+ * create/modify/delete and rename events to `TFile`, so the `TFolder` Obsidian hands it is
+ * dropped and the index keeps the note's OLD path. `projectFolderOf` then derives the old
+ * folder, and the row gains or loses its marker at the next full index REBUILD — at
+ * `onLayoutReady`, so a reload, or after a settings save — rather than as the drag lands.
+ * PRE-EXISTING and not this class's to fix: that filter dates from design slice 4's
+ * persistence pipeline and this is the first consumer that makes it visible. Forwarding a
+ * folder rename is a change to the vault-change pipeline that every index consumer inherits.
+ *
  * Here rather than in `application/`: it is built from `projectFolderOf` and
  * `foldersOverlap`, the two modules that already own how a vault path is taken apart and
  * how §83's rule is spelled, and duplicating either of them one layer up is how one rule

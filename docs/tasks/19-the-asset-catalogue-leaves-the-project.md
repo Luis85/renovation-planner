@@ -268,7 +268,8 @@ project and changing a project's folder (slice 18's two sites)" and "three refus
 - **Slice 18 has ONE such site, not two.** ADR-0013 made a project's folder DERIVED from where
   its `Project.md` sits, so there is no command that changes a project's folder — the insert is
   the only door. See the Definition of Done item below for what stands in for the site that has
-  no door.
+  no door — and for when that marker actually updates, which is at the next index rebuild and
+  not as the folder lands, because a folder move is not reported to the Project Index at all.
 - **`Renovation/Library` is not the only overlap the migration refuses**, and this list omitted
   the one that costs data: a destination overlapping the SOURCE moves notes into a subtree of
   the folder being emptied. `migrateLibraryFolder` tests the destination against the source
@@ -500,6 +501,19 @@ its old wording is how the gap between promise and check reopens.
         clear*; wired to the real composed root by
         `tests/plugin/libraryOverlapWiring.test.ts` › *reports a project whose folder the user
         dragged inside the library*.
+
+        **What "derived per read" does and does not promise.** The derivation reads the
+        Project Index, and the very gesture the marker exists to report is not reported TO
+        that index: `RenovationPlannerPlugin` filters the vault's create/modify/delete and
+        rename events to `TFile`, so the `TFolder` Obsidian hands it for a folder move is
+        dropped, `VaultChangeAdapter` is never told, and the index keeps the note's old
+        path. The row therefore gains or loses the marker at the next full index REBUILD —
+        at `onLayoutReady`, so a reload, or after a settings save — rather than as the
+        folder lands. **PRE-EXISTING**: that filter dates from design slice 4's persistence
+        pipeline and this slice is the first consumer that makes it visible; forwarding a
+        folder rename is a change to the vault-change pipeline that every index consumer
+        inherits, not to this marker. `docs/tests/cases/Move the Library.md` steps 12 and
+        12b require the reload for exactly this reason.
       One predicate underneath all of it, and it is WRITTEN by this slice rather than inherited:
       `foldersOverlap` is symmetric, compared at the segment boundary and case-folded —
       `tests/infrastructure/obsidian/repositories/foldersOverlap.test.ts` › *is true when the

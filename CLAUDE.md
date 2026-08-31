@@ -1501,9 +1501,22 @@ rules that came out of it:
   moves a project by dragging a folder in Obsidian's file explorer and there is no command to
   refuse. Creating a project and moving the library are the two real refusals; the third site is
   answered by `libraryOverlap` on the project's own row — a mark AND a word (§85), derived per
-  read from the index rather than stored, so it stops being true the moment the folder moves
-  clear. A criterion promising "three refusals" was rewritten rather than ticked: **a criterion
+  read from the index rather than stored, so nothing is cached and nothing has to be retracted.
+  A criterion promising "three refusals" was rewritten rather than ticked: **a criterion
   that quietly keeps its old wording is how the gap between promise and check reopens.**
+- **Derived per read is a claim about CACHING, and it was read as a claim about PROMPTNESS.**
+  The marker follows the Project INDEX, and the gesture it exists to report is the one the
+  index is never told about: `RenovationPlannerPlugin` filters the vault's create/modify/delete
+  and rename events to `TFile`, so the `TFolder` Obsidian reports for a folder move is dropped,
+  `VaultChangeAdapter` never hears it, and the index keeps the note's old path. The row gains
+  or loses its marker at the next full index REBUILD — at `onLayoutReady`, so a reload, or
+  after a settings save — rather than as the drag lands, and the same holds in reverse for a
+  user who drags the folder back. **PRE-EXISTING**: that filter dates from design slice 4 and
+  is an ancestor of `main`; slice 19 only added the first consumer that makes it visible, and
+  closing it is a change to the vault-change pipeline every index consumer inherits rather than
+  to this marker. Narrowed in the documents rather than fixed in the code, per this file's own
+  first Claims rule; `docs/tests/cases/Move the Library.md` steps 12 and 12b require the reload
+  for exactly this reason and say why.
 - **A wiring test has to assert ABOVE the layer that erases the field.** Replacing the composed
   root's `libraryFolder` with a wrong one left 1594 tests green, because the only case reading
   the project list read it through `createRenovationProjectQueries`, which maps `projects` and

@@ -1,4 +1,4 @@
-import { inject, provide, reactive, ref, type InjectionKey, type Ref } from 'vue';
+import { inject, onBeforeUnmount, provide, reactive, ref, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
@@ -285,15 +285,22 @@ function wrapDispatcher(
 }
 
 /**
- * The assign picker's options, read once per leaf: the vault's asset catalogue changes
- * only through this same app (whose own dispatches refresh nothing about THIS list
- * because the picker is a catalogue view, not a figure), and a stale option that no
- * longer resolves fails the assignment command loudly rather than silently.
+ * The assign picker's options: the vault's asset catalogue changes only through this same
+ * app (whose own dispatches refresh nothing about THIS list because the picker is a
+ * catalogue view, not a figure), and a stale option that no longer resolves fails the
+ * assignment command loudly rather than silently.
  *
- * A single read rather than design slice 8's watch on the plan's project: the catalogue
- * left the project in design slice 19, so there is no longer an input to wait for — the
- * watch existed because at build time there was no `projectId` yet, and that is the whole
- * of what it was for.
+ * **Read at mount AND on every `onPlanChanged`, which is not the same thing as "once per
+ * leaf".** Design slice 19 replaced design slice 8's watch on the plan's project with a
+ * single read — correct in itself, since the catalogue left the project and there is no
+ * longer a `projectId` to wait for — and judged that unchanged behaviour. It was not: the
+ * watch had a second effect nobody had named, which is that it re-fired when the store
+ * re-hydrated. `PlanEditorView.sync()` mounts on the RESTORED VIEW STATE rather than on a
+ * resolved plan, and Obsidian restores its leaves before `onLayoutReady`, so on the
+ * ordinary restart path this read lands against a still-empty project index and answers
+ * an empty catalogue. `PlanEditorRoot` already subscribes its own `hydrate` to
+ * `onPlanChanged` — which carries `ProjectIndexRebuilt` — so the PLAN recovered and the
+ * options did not, leaving the picker permanently empty in a restored leaf.
  */
 function loadAssetOptions(
 	context: PlanEditorContext,
@@ -536,9 +543,17 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
 
-	// The assign picker's options, hydrated once per leaf.
+	// The assign picker's options, hydrated at mount and re-read on the SAME event the root
+	// re-hydrates the plan on — the shape `PlanEditorRoot` already uses for `hydrate`, and
+	// the disposal matters for the same reason it does there: Obsidian reuses a view, so a
+	// listener outliving its Vue tree writes into a retired one.
 	const assetOptionsRef = ref<readonly { readonly id: string; readonly name: string }[]>([]);
 	loadAssetOptions(context, assetOptionsRef);
+	onBeforeUnmount(
+		context.onPlanChanged(() => {
+			loadAssetOptions(context, assetOptionsRef);
+		}),
+	);
 
 	return {
 		dispatcher: wrappedDispatcher,

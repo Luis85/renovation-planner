@@ -204,7 +204,13 @@ describe('mount and unmount', () => {
 	it('leaves no app, stage, listener or markup behind on close', async () => {
 		const view = await opened();
 		expect(themeListeners).toBe(1);
-		expect(planListeners).toBe(1);
+		// TWO plan listeners, not one: `PlanEditorRoot` subscribes `hydrate`, and `runtime.ts`
+		// subscribes the assign picker's catalogue read beside it — a restored leaf mounts
+		// before the project index exists, so the options need the same recovery the plan has.
+		// The number is asserted rather than loosened to "at least one" because it is the half
+		// this case exists for: the count going UP is a subscription added without a disposal,
+		// which is exactly the leak the assertions below measure.
+		expect(planListeners).toBe(2);
 
 		await view.onClose();
 		await settle();

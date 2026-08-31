@@ -826,6 +826,18 @@ export default defineConfig({
 			// slice-12 and no slice-17 entry above it. Both landed on `main` without adding
 			// one, so the previous measurement here is slice 16's merged tree and the jump in
 			// every denominator between that entry and this one is two slices wide, not one.
+			//
+			// AMENDED by slice 19's final fix wave, and the amendment is to the COUNTS rather
+			// than to any percentage: re-subscribing the assign picker's catalogue read to
+			// `onPlanChanged` (`runtime.ts`) added two statements, one function and two lines,
+			// every one of them covered, and NO branch at all. Re-measured
+			// 5612/5656 statements, 2780/2835 branches, 1433/1446 functions, 4993/5020 lines —
+			// 99.22 / 98.05 / 99.10 / 99.46, to the hundredth the same four figures as above,
+			// which is exactly why the counts are written out and not only the percentages.
+			// The headroom is unchanged in UNITS and both denominators had to be re-checked to
+			// say so: the branch floor still needs `ceil(0.98 × 2835) = 2779` against 2780
+			// covered, and the function floor now needs `ceil(0.99 × 1446) = 1432` against
+			// 1433 — one unit each, still the tightest either metric has been.
 			thresholds: {
 				statements: 99,
 				functions: 99,

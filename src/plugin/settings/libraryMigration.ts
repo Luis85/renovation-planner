@@ -57,6 +57,17 @@ export interface LibraryMigrationDeps {
  * diagnostic names how many notes moved, the setting is not persisted, and this is the
  * documented cost rather than a bug — the notes that did move are still readable, and the
  * setting still names the folder the rest of them are in.
+ *
+ * **The late-arrival window is smaller than it looks, and the honest name for it is not "a
+ * split catalogue".** `catalogueNotes(source)` is read once, before step 4's awaited rename
+ * loop, so an asset note created or dragged into the source WHILE that loop runs is not
+ * moved. What it is NOT is a catalogue in two halves: since design slice 18 the index is
+ * bounded by what a note DECLARES rather than by where it sits, and
+ * `ObsidianAssetRepository.listAll` reads the TYPE axis (`getIdsByType('renovation-asset')`)
+ * rather than a folder — so that note stays discoverable, readable and updatable, and an
+ * update writes where the note already sits. The whole outcome is one asset filed outside
+ * the library, which is exactly the state Task 5's open question 3 already declares legal
+ * for an asset the user filed there deliberately. Only INSERTS go to the library folder.
  */
 export async function migrateLibraryFolder(
 	deps: LibraryMigrationDeps,
@@ -223,6 +234,13 @@ export async function migrateLibraryFolder(
  * a tab with unrecovered settings declares one text-only row and no action — so a caller
  * that asked it would carry a branch nothing could ever drive. Answering "no project
  * folders" is the honest reading of having no index to ask.
+ *
+ * `parentOf(entry.path)` rather than `paths.projectFolderOf`, which spells that same
+ * derivation for ONE id. Reaching it from here means `getPath` per id, which is the
+ * pairwise form `catalogueNotesIn` below argues against — and its reason applies
+ * identically: it adds an `undefined` arm no honest fixture can drive, because both
+ * answers come from the one entry list, in which an id always has a path. A shared
+ * one-line derivation is not worth a branch nothing can reach.
  */
 export function projectFolderPaths(persistence: { index: ProjectIndex } | null): string[] {
 	if (persistence === null) return [];

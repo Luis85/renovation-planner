@@ -104,6 +104,7 @@ import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
+import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
 import { defaultRenovationProjectDeps, makeView } from '../helpers/makeRenovationProjectView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
@@ -351,11 +352,12 @@ describe('axe against the mounted view', () => {
 	/**
 	 * The DETAIL state with no plans, scanned WITH its action button — design slice 21.
 	 *
-	 * CLAUDE.md records `planEditor.noZones` as the one action-carrying empty state no axe scan
-	 * in this repository reaches, and this slice must not make that two:
+	 * CLAUDE.md recorded `planEditor.noZones` as the one action-carrying empty state no axe scan
+	 * in this repository reached, and this slice must not make that two:
 	 * `renovationProject.noPlans` carries a button from its first commit, so it is graded here
-	 * rather than joining that gap. It is the third button-carrying empty state to exist and the
-	 * second this file scans.
+	 * rather than joining that gap. It is the third button-carrying empty state to exist, and
+	 * all three are scanned in this file since the improvement pass closed `noZones` with a
+	 * fixture — see the last case in this block.
 	 *
 	 * `flushPromises()` before scanning is load-bearing, and this file has already been burned by
 	 * its absence: the mount is synchronous while `ProjectDetailStore.hydrate` settles a tick
@@ -440,6 +442,44 @@ describe('axe against the mounted view', () => {
 			mounted = await mountPlanEditor();
 
 			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * **The last action-carrying empty state no axe scan reached, and closing it needed a
+	 * FIXTURE rather than an assertion.** CLAUDE.md recorded `planEditor.noZones` as the
+	 * remaining gap with exactly that reason: the case above mounts the default fixture, whose
+	 * plan carries no background, so `selectPlanEditorEmptyState` answers `noBackground` — the
+	 * buttonless entry — and `noZones`'s button was exercised by `emptyStateOverlay.test.ts`
+	 * alone, which asserts behaviour and grades no semantics.
+	 *
+	 * A plan WITH a background and no zones is the one input that reaches `noZones`; it is the
+	 * fixture `emptyStateOverlay.test.ts` already spells, for the same reason.
+	 *
+	 * `.rp-empty-state__action` is asserted PRESENT before the scan, for the reason every
+	 * empty-state case in this file gives: axe over a subtree that does not contain the control
+	 * passes exactly like axe over one that does, so a fixture drifting back to `noBackground`
+	 * would leave a green case grading nothing. Measured — restoring the default fixture fails
+	 * at that assertion rather than at the scan. The overlay also yields to an ACTIVE TOOL, so
+	 * that is a second way this case could quietly stop scanning what it names, and the same
+	 * assertion covers it.
+	 */
+	it('reports no semantic violations on the plan editor’s no-zones action', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor({
+				plan: { ...FIXTURE_PLAN, background: { path: 'Plans/ground.png', kind: 'image' } },
+				zones: [],
+			});
+			const root = mounted.wrapper.element as HTMLElement;
+			expect(root.querySelector('.rp-empty-state')).not.toBeNull();
+			expect(root.querySelector('.rp-empty-state__action')).not.toBeNull();
+
+			const results = await axe.run(root, runOptions);
 
 			expect(results.violations).toEqual([]);
 		} finally {

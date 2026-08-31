@@ -316,16 +316,22 @@ already hydrates. Rules that came out of it:
   scan. Design slice 16 gave `renovationProject.noProjects` its action button and this
   file's own case now scans it, asserting `.rp-empty-state__action` is present the same
   way it already asserted `.rp-empty-state` — that slice's own section below has the rest.
-  **THREE entries carry an action now and this file scans two of them**: design slice 21's
-  `renovationProject.noPlans` arrived with its button already wired
-  (`ProjectDetailState.onCreatePlan`), and it is graded here rather than joining the gap —
-  the detail state's no-plans case asserts `.rp-empty-state`, `.rp-empty-state__action` and
-  `.rp-project-detail__back` are all in the scanned DOM, and the last of those is what makes
-  it a scan of the surface rather than of a component, since that empty state sits INSIDE the
-  detail shell rather than replacing it. `planEditor.noZones` is the one that remains
-  unscanned, and its reason is unchanged: the Plan Editor case's default fixture resolves to
-  `planEditor.noBackground`, which carries no button, so reaching `noZones` means a second
-  fixture rather than an assertion. It is exercised by `emptyStateOverlay.test.ts` alone.
+  **THREE entries carry an action and this file scans all three**, which it did not until
+  slice 21's improvement pass. Design slice 21's `renovationProject.noPlans` arrived with its
+  button already wired (`ProjectDetailState.onCreatePlan`) and was graded from its first
+  commit — the detail state's no-plans case asserts `.rp-empty-state`,
+  `.rp-empty-state__action` and `.rp-project-detail__back` are all in the scanned DOM, and the
+  last of those is what makes it a scan of the surface rather than of a component, since that
+  empty state sits INSIDE the detail shell rather than replacing it. `planEditor.noZones` was
+  the one that stayed unscanned for seven slices, and its reason was never an oversight but a
+  FIXTURE: the Plan Editor case's default plan carries no background, so the selector answers
+  `noBackground`, the buttonless entry. Closing it is one more mount with a plan that HAS a
+  background and no zones — the fixture `emptyStateOverlay.test.ts` already spells — plus the
+  same `.rp-empty-state__action` assertion, which is what stops the case from silently
+  grading `noBackground` again if that fixture drifts, or grading nothing if the overlay
+  yields to an active tool. Both mutations measured: the default fixture fails at the
+  assertion rather than at the scan, and stripping the action button's accessible name
+  reddens this case beside the other two.
 
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
 are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
@@ -943,8 +949,11 @@ check. Rules that came out of it:
   standard gesture for pressing it, while the camera armed behind it. `event.target ===
   container` is the whole fix, tested against the container rather than by sniffing for
   interactive tag names, so the rule stays true for whatever that slot holds next. Worth
-  pairing with the accessibility note in the slice 14 section: no empty state carrying a
-  button is graded by any axe scan, so nothing else here was watching this control.
+  pairing with the accessibility note in the slice 14 section: when this defect shipped, no
+  empty state carrying a button was graded by any axe scan, so nothing else here was watching
+  this control. `planEditor.noZones` is scanned since slice 21's improvement pass — which does
+  not reach the keyboard question this bullet is about, since jsdom dispatches no native
+  activation, but does mean the control is no longer unwatched by every instrument at once.
 - **`pointercancel` was the one door that broke this design's own central claim.** It
   cancelled the ACTIVE TOOL unconditionally — so a user mid-polygon who held space to pan and
   then alt-tabbed lost their vertices, which is precisely what routing the pan around

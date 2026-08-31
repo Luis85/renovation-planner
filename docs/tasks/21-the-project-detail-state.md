@@ -278,6 +278,16 @@ the mutation printed.
   in a vault. Withdrawal was available and the previous two slices each used it, which is worth
   stating plainly; so is the correction, because this sentence read "and the fourteenth is
   walked" and that was not true of anything that had happened.
+- **`planEditor.noZones` is scanned by axe now**, which is not this slice's own gap but was the
+  last of its kind and one fixture away. It stayed unscanned for seven slices because the Plan
+  Editor's accessibility case mounts the default fixture, whose plan carries no background, so
+  the selector answers `noBackground` — the buttonless entry — and `noZones`'s button was
+  exercised by `emptyStateOverlay.test.ts` alone, which asserts behaviour and grades no
+  semantics. A plan with a background and no zones reaches it; the case asserts
+  `.rp-empty-state__action` is present before scanning, because a scan of a subtree without
+  the control passes exactly like a scan of one with it. Both mutations measured: restoring
+  the default fixture fails at that assertion rather than at the scan, and stripping the
+  action button's accessible name reddens this case alongside the two already-scanned ones.
 - **The notice on the vanished-project path is dropped rather than deferred.** It is not a
   gap waiting for someone: two surfaces resolving one key at one instant is a double report,
   and the surviving surface is the one that persists and carries a way out. If a future round

@@ -1,20 +1,15 @@
-import { isErr, ok, type Result } from '../../../core/result/Result';
-import type { ValidationError } from '../../../core/errors/AppError';
+import { isErr, ok } from '../../../core/result/Result';
 import type { Point } from '../../../core/geometry/Point';
 import type { Polygon } from '../../../core/geometry/Polygon';
-import { coincident } from '../../../core/geometry/operations';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
-import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import type { AssetShape, FootprintOrigin } from '../../../domain/asset/AssetShape';
-import { footprintFromDimensions, validateAssetShape } from '../../../domain/asset/AssetShape';
+import { footprintFromDimensions } from '../../../domain/asset/AssetShape';
 import type { Command } from '../Command';
 import type { DispatchResult } from '../DispatchOutcome';
-import type {
-	AssetGeometryDocument,
-	AssetGeometrySidecar,
-} from '../../ports/AssetGeometrySidecar';
+import type { AssetGeometrySidecar } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
+import { samePolygon, updateAssetShape } from './updateAssetShape';
 
 export interface SetAssetFootprintFromDimensionsInput {
 	readonly assetId: AssetId;
@@ -54,17 +49,6 @@ const UNDESIGNED: InheritedShape = {
 	facing: 0,
 };
 
-/**
- * The candidate a command proposes, given what is stored and whether the surface it was
- * captured on carries a scale. Unvalidated on purpose — `setFootprint` below runs every
- * candidate through `validateAssetShape`, so the polygon rules and the incoherent-state
- * rules are asked in ONE place for both commands rather than once per command.
- */
-type FootprintChange = (
-	current: AssetShape | null,
-	calibrated: boolean,
-) => Result<AssetShape, ValidationError>;
-
 function withFootprint(
 	current: AssetShape | null,
 	footprint: Polygon,
@@ -81,76 +65,17 @@ function withFootprint(
  * from the stored shape unchanged, and the facing is already normalised, having come back
  * through `validateAssetShape` at the read.
  *
- * `coincident` rather than `===`, for the same reason the anchor uses it: a coordinate
- * that has been through the camera's inverse is never bitwise what it should be, and a
- * re-trace landing a nanometre away is the same outline. Provenance and the pending flag
- * are compared too — a traced outline retraced at the identical coordinates on a
+ * The coordinates go through `samePolygon`, which is `coincident` rather than `===` for the
+ * same reason `SetAssetAnchor` gives. Provenance and the pending flag are compared too — a traced outline retraced at the identical coordinates on a
  * now-calibrated surface really has changed, and a comparison over coordinates alone
  * would leave it flagged as awaiting a scale forever.
  */
 function sameFootprint(current: AssetShape, next: AssetShape): boolean {
-	const a = current.footprint.points;
-	const b = next.footprint.points;
 	return (
 		current.footprintOrigin === next.footprintOrigin &&
 		current.footprintPending === next.footprintPending &&
-		a.length === b.length &&
-		a.every((point, index) => coincident(point, b[index]))
+		samePolygon(current.footprint, next.footprint)
 	);
-}
-
-/**
- * The one write path both commands take (SDD §40): read the whole document, let the
- * command propose a footprint over what is already there, validate the WHOLE shape, and
- * replace the document conditionally.
- *
- * **`expected ?? version` and never `undefined`.** An unconditional whole-document
- * replace is a lost update the moment two designer leaves show one asset: both read
- * revision N, one sets the anchor, the other the facing, and the later write restores the
- * earlier attribute out of its own stale snapshot with nothing reporting anything. The
- * version this command's own read returned is the weakest honest condition — it refuses
- * exactly the writes that landed since it looked.
- *
- * **`no-write` is a report, not an optimisation.** `ok` is not evidence that anything was
- * written and the save-state indicator infers nothing from it, so a repeated identical
- * footprint has to say so or a "Saved" badge claims a write that did not happen. It
- * returns before the port is reached, which is why a stale `expected` over an unchanged
- * footprint is not a conflict: there is no field this command owns left to lose.
- *
- * **`AssetDesignChanged` is announced here and nowhere else in this module** — measured
- * rather than asserted: grepping this file for `events\.publish` prints exactly one line, the
- * one below. (The narrower pattern rather than the bare word, which this paragraph matches
- * too.) Both commands announce through it because both WRITE through it, so a third
- * design command added to this file cannot forget; and it sits on the `'wrote'` arm alone,
- * BELOW the no-write return and BELOW the port's own answer, because the event means "the
- * stored design changed" rather than "somebody pressed something". A peer designer leaf
- * re-reads on it, and a refresh triggered by an idle re-submit or by a write that refused is
- * a re-read of a document nothing moved.
- */
-async function setFootprint(
-	sidecar: AssetGeometrySidecar,
-	events: EventBus,
-	input: { readonly assetId: AssetId; readonly expected?: EntityVersion },
-	change: FootprintChange,
-): Promise<DispatchResult> {
-	const snapshot = await sidecar.read(input.assetId);
-	if (isErr(snapshot)) return snapshot;
-	const { document, version } = snapshot.value;
-
-	const candidate = change(document.shape, document.calibration !== null);
-	if (isErr(candidate)) return candidate;
-	const shape = validateAssetShape(candidate.value);
-	if (isErr(shape)) return shape;
-
-	if (document.shape !== null && sameFootprint(document.shape, shape.value)) {
-		return ok('no-write');
-	}
-
-	const next: AssetGeometryDocument = { ...document, shape: shape.value };
-	const written = await sidecar.write(input.assetId, next, input.expected ?? version);
-	if (isErr(written)) return written;
-	await events.publish(assetDesignChanged({ assetId: input.assetId }));
-	return ok('wrote');
 }
 
 /**
@@ -174,11 +99,11 @@ export class SetAssetFootprintFromDimensionsCommand
 	) {}
 
 	execute(input: SetAssetFootprintFromDimensionsInput): Promise<DispatchResult> {
-		return setFootprint(this.sidecar, this.events, input, (current) => {
+		return updateAssetShape(this.sidecar, this.events, input, (current) => {
 			const footprint = footprintFromDimensions(input.width, input.depth);
 			if (isErr(footprint)) return footprint;
 			return ok(withFootprint(current, footprint.value, 'typed', false));
-		});
+		}, sameFootprint);
 	}
 }
 
@@ -204,8 +129,13 @@ export class SetAssetFootprintCommand
 	) {}
 
 	execute(input: SetAssetFootprintInput): Promise<DispatchResult> {
-		return setFootprint(this.sidecar, this.events, input, (current, calibrated) =>
-			ok(withFootprint(current, { points: input.points }, 'traced', !calibrated)),
+		return updateAssetShape(
+			this.sidecar,
+			this.events,
+			input,
+			(current, calibrated) =>
+				ok(withFootprint(current, { points: input.points }, 'traced', !calibrated)),
+			sameFootprint,
 		);
 	}
 }

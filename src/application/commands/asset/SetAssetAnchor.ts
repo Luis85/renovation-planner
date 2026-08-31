@@ -1,0 +1,68 @@
+import { isErr, ok } from '../../../core/result/Result';
+import type { Point } from '../../../core/geometry/Point';
+import { coincident } from '../../../core/geometry/operations';
+import type { EventBus } from '../../../core/events/EventBus';
+import type { AssetId } from '../../../domain/asset/AssetId';
+import type { AssetShape } from '../../../domain/asset/AssetShape';
+import type { Command } from '../Command';
+import type { DispatchResult } from '../DispatchOutcome';
+import type { AssetGeometrySidecar } from '../../ports/AssetGeometrySidecar';
+import type { EntityVersion } from '../../ports/versioning';
+import { requireShape, updateAssetShape } from './updateAssetShape';
+
+export interface SetAssetAnchorInput {
+	readonly assetId: AssetId;
+	readonly anchor: Point;
+	readonly expected?: EntityVersion;
+}
+
+/**
+ * Would this write change anything? Asked of the two fields this command OWNS.
+ *
+ * **`coincident` and never `===`.** The anchor is the one attribute here a user places by
+ * pointing at it, so its coordinates arrive through the camera's inverse — and a value that
+ * has been through that arithmetic is never bitwise what it should be. Under `===` a re-place
+ * a nanometre away buys a revision, an event every peer designer leaf re-reads on, and a
+ * "Saved" badge for a move nobody made. Eight orders of magnitude above floating-point dust
+ * and five below anything a pointer can express at the tightest zoom, so no two anchors a
+ * user MEANT to be distinct can collide.
+ */
+function sameAnchor(current: AssetShape, next: AssetShape): boolean {
+	return current.anchorPending === next.anchorPending && coincident(current.anchor, next.anchor);
+}
+
+/**
+ * The anchor: the point of the object that lands where a user drops it on a plan (§88).
+ *
+ * A shape nobody has anchored carries `{ x: 0, y: 0 }`, which is the CENTRE of a typed
+ * rectangle rather than a corner nobody chose — `footprintFromDimensions` centres on the
+ * origin precisely so that default means something.
+ *
+ * **`anchorPending` is recorded AT CAPTURE**, like every other flag here: an anchor pointed
+ * at on an uncalibrated surface is in placeholder coordinates awaiting a scale, and that is a
+ * fact about the moment it was placed rather than about whether a calibration exists now.
+ * This command sets its own flag and neither of the other two.
+ *
+ * The coordinates cross into the domain unvalidated and are refused for finiteness by
+ * `validateAssetShape`, so the one anchor rule lives at the one place that states it.
+ */
+export class SetAssetAnchorCommand implements Command<SetAssetAnchorInput, DispatchResult> {
+	constructor(
+		private readonly sidecar: AssetGeometrySidecar,
+		private readonly events: EventBus,
+	) {}
+
+	execute(input: SetAssetAnchorInput): Promise<DispatchResult> {
+		return updateAssetShape(
+			this.sidecar,
+			this.events,
+			input,
+			(current, calibrated) => {
+				const shape = requireShape(current);
+				if (isErr(shape)) return shape;
+				return ok({ ...shape.value, anchor: input.anchor, anchorPending: !calibrated });
+			},
+			sameAnchor,
+		);
+	}
+}

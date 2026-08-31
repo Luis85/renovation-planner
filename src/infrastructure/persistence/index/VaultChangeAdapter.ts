@@ -204,6 +204,23 @@ export class VaultChangeAdapter {
 		// the session; the mapping it would have re-affirmed is already the one it holds.
 		if (this.deps.echo.knows(path)) return;
 
+		// An ASSET's sidecar, which this door used to call an orphan. The id lookup above
+		// SUCCEEDS for one — it is a real catalogue entry — so the type test below reported
+		// "no indexed plan carries this id", which is false twice over: an indexed asset
+		// carries it, and nothing about the file is wrong. Every hand move, every sync and
+		// every restore of an asset sidecar produced that line.
+		//
+		// Nothing to DO, rather than nothing to say: ADR-0014 gives an asset's sidecar one
+		// derived home under `<libraryFolder>/Geometry/`, so this index stores no mapping for
+		// it and none can go stale. The same ADR also asks that resolution go through this
+		// index as it does for plans — which is NOT built, because an asset's path derives
+		// from a SETTING rather than from its note's own folder, so the scan would have to
+		// take `libraryFolder`. Recorded as a residual in
+		// `docs/superpowers/plans/2026-08-30-asset-designer-first-increment.md`, where the
+		// increment that closes it inherits the argument, rather than left implied by a
+		// diagnostic naming the wrong kind.
+		if (planEntry?.type === 'renovation-asset') return;
+
 		if (!planEntry || planEntry.type !== 'renovation-plan') {
 			this.deps.logger.warn('persistence.pipeline.sidecar-skipped', {
 				path,

@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
-import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
+import { makeAsset as makeAssetEntity, makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
+import { createAssetId } from '../../../../src/domain/asset/AssetId';
 import { createEventBus } from '../../../../src/core/events/EventBus';
 import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
 import { buildProjectIndexEntries } from '../../../../src/infrastructure/persistence/index/buildProjectIndexEntries';
@@ -111,6 +112,46 @@ describe('pipeline negatives', () => {
 		adapter.flush();
 		expect(stack.logged.some((line) => line.event === 'persistence.pipeline.sidecar-skipped')).toBe(true);
 		expect(stack.index.getGeometrySidecarPath(planId)).toContain('.rpgeo');
+	});
+
+	/**
+	 * An ASSET's sidecar arriving out of band, which this door used to call an orphan.
+	 *
+	 * `processSidecar` recovers an id from the basename and asks the index for it (ADR-011).
+	 * For an asset that lookup SUCCEEDS — the id is a real catalogue entry — and the type test
+	 * below it then reported `reason: 'no indexed plan carries this id'`, which is false twice
+	 * over: an indexed ASSET carries it, and nothing about the file is wrong. Every hand move,
+	 * every sync, every restore of an asset sidecar produced that line.
+	 *
+	 * Silence rather than a corrected warning, because there is nothing here to do TODAY:
+	 * ADR-0014 gives an asset's sidecar one derived home, so no mapping is stored for it and
+	 * none can go stale. What the ADR ALSO asks for — resolution through the index, as plans
+	 * have — is not built, and is recorded as a residual in this increment's plan rather than
+	 * left implied by a diagnostic nobody can act on.
+	 *
+	 * The genuine orphan above keeps its warning, which is what stops this from being a
+	 * silencing: measured, returning early for every non-plan entry leaves that case green
+	 * only because a stray `.rpgeo` resolves to no entry at all.
+	 */
+	it('says nothing about an asset sidecar arriving out of band, since nothing is wrong with it', async () => {
+		const stack = createRepositoryStack();
+		await seed(stack);
+		const assetId = createAssetId();
+		expectOk(await stack.assets.save(makeAssetEntity({ id: assetId }), 'absent'));
+		const adapter = adapterOf(stack);
+
+		// Written straight into the vault rather than through the store, so the echo window
+		// does not know it — an echoed path returns two lines earlier and would pass here
+		// whatever the type test did.
+		const sidecarPath = `${stack.libraryFolder}/Geometry/${assetId}.rpgeo`;
+		stack.vault.entries.set(sidecarPath, '{}');
+		const before = stack.logged.length;
+		adapter.onModify(stack.vault.getAbstractFileByPath(sidecarPath) as never);
+		adapter.flush();
+
+		expect(
+			stack.logged.slice(before).some((line) => line.event === 'persistence.pipeline.sidecar-skipped'),
+		).toBe(false);
 	});
 
 	/**

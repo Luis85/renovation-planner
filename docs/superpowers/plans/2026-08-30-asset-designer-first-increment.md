@@ -1893,6 +1893,30 @@ property that would let the overlap guard narrow honestly rather than by carve-o
 one of them to a guard four separate findings have already refined, which is why it is not a
 review-round line.
 
+**4. An asset's sidecar is resolved by DERIVATION and not through the Project Index, which is
+what ADR-0014 asks for.** That ADR's Consequences say it plainly — *"Resolution goes through the
+Project Index, as it does for plan sidecars: derivability is a repair path for a damaged index,
+not a second lookup mechanism for normal reads"* — and Task A4 shipped `pathFor` deriving
+`<libraryFolder>/Geometry/<assetId>.rpgeo` every time. So a user who moves a `.rpgeo` in the file
+explorer has hidden that asset's design: the next read finds nothing, `AssetGeometryStore` answers
+a shapeless asset rather than an error, and the next write creates a second sidecar at the derived
+path. A plan survives the same gesture, because its mapping lives in the index and
+`processSidecar` maintains it.
+
+*What ships from this round is the half that was actively wrong*: `processSidecar` recovered the
+id from the basename, found the ASSET entry, and warned `sidecar-skipped` with
+`reason: 'no indexed plan carries this id'` — false twice over, since an indexed asset carries it
+and nothing about the file is wrong. It recognises an asset entry and returns quietly now, with
+the genuine orphan keeping its warning (measured: widening the arm to every non-plan entry reddens
+three cases).
+
+*The remedy*: `ProjectIndexEntry.geometrySidecarPath` already exists and is plan-only. Extending
+it to assets means `buildProjectIndexEntries` taking `libraryFolder` — an asset's sidecar path
+derives from a SETTING, where a plan's derives from its own note's folder — plus an asset arm in
+`sidecarMappingFor` so both scan doors adjudicate identically, plus `AssetGeometryStore.pathFor`
+reading the index with derivation as the repair path. **The ADR's decision stands; what is missing
+is its implementation**, so nothing in it is narrowed — this residual is the record of the gap.
+
 ---
 
 # Phase B — the designer

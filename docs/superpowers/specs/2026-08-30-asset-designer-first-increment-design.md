@@ -136,9 +136,11 @@ unscaled is the same lie pointed the other way.
 So the sidecar records two facts about how the coordinates came to exist:
 
 - `footprintOrigin: 'typed' | 'traced'` — whether the outline was authored in millimetres or taken
-  off the background. This is what decides whether calibration may rescale it (Decision 6).
+  off the background. This decides whether the footprint is among what a calibration rescales, and
+  never on its own whether a calibration rescales at all (Decision 6).
 - `pendingScale: boolean` — whether the traced coordinates are still awaiting a scale, set at the
-  moment of capture and cleared by the calibration that converts them.
+  moment of capture and cleared by the calibration that converts them. This is what gates rescaling
+  at all (Decision 6), and it is the half that moves.
 
 `dimensionsUnscaled` is `pendingScale`, and that is a **correction to this document's own first
 draft**, which derived it as `traced && calibration === null`. That derivation asks a question
@@ -194,8 +196,12 @@ uncalibrated again, which is the epic's own inherited rule doing the work.
 ### 6. Calibration rescales what came off the background, and nothing else
 
 `CalibrateAsset` multiplies by `scaleCorrection` **only the coordinates that came from the
-background** — a `traced` footprint, the clearance, the anchor, and its own calibration pair — and
-never a `typed` footprint.
+background and have not yet been converted** — the clearance, the anchor, its own calibration pair
+and a `traced` footprint — and never a `typed` footprint.
+
+**`pendingScale` gates whether a calibration rescales anything at all; `footprintOrigin` decides
+whether the footprint is among what it rescales.** Both are necessary and neither is sufficient, so
+the rule is a conjunction rather than one flag.
 
 This is the one place slice 7's plan rule may not be copied, and the first draft of this document
 copied it. `ReversibleCalibratePlan` rescales *every* coordinate the plan owns, which is correct
@@ -204,14 +210,32 @@ has a coordinate source a plan never had: a typed 1200 × 800 is authored in tru
 was never in the background's space at all. Rescaling it would turn an exact oven into an arbitrary
 one — silently, since the number would still look like a plausible oven.
 
-`footprintOrigin` is what makes the distinction expressible, which is the second job that field
-does and the reason it is worth its byte.
+`footprintOrigin` is what makes that distinction expressible, which is the second job that field
+does and the reason it is worth its byte. It is **not** sufficient alone, and gating on it alone was
+this document's rule until the owner ruled otherwise: `footprintOrigin` stays `'traced'` for the life
+of the outline, while the coordinates it describes stop being background pixels the moment the first
+calibration converts them. So a trace that was calibrated, then had its background **replaced**
+(Decision 5), then had the new document calibrated, was rescaled a second time — multiplying
+millimetres by a correction that answers a question about pixels, and silently, since the result
+still looks like a plausible oven. `pendingScale` is the fact that moves: set at capture, cleared by
+the calibration that converts, so a second calibration over already-converted coordinates rescales
+nothing.
+
+**What that costs, accepted rather than hidden:** correcting a calibration no longer retroactively
+repairs an earlier trace, because the first calibration has already cleared `pendingScale`. The user
+re-traces. That is affordable for one footprint and one clearance and would not be for a plan full of
+zones — which is exactly why the plan editor keeps slice 7's rule and the designer does not.
 
 **The known limitation, stated rather than discovered:** a typed footprint and a trace taken before
 calibrating are not in one space until the calibration lands, so the two draw a picture that does
 not agree with itself in between. Calibrating repairs it. Refusing the mix outright was the
 alternative, and it is rejected because the epic's whole "usable before it is accurate" ladder is
 built on letting a renovator start before the surface is exact.
+
+**This case is also why the gate is a conjunction and not `pendingScale` alone.** Here the shape
+carries a typed footprint *and* a trace awaiting a scale, so `pendingScale` is set; rescaling on that
+flag by itself would multiply the typed footprint too, which is the precise defect Decision 6 exists
+to prevent, reintroduced under a different flag.
 
 ### 7. ADR-0015 — the designer is a per-asset view type
 
@@ -271,9 +295,10 @@ designer's undo must reach it:
 that `Asset.withChanges` exists to re-run, and undo granularity is per gesture: a user who traces a
 clearance and regrets it should not lose their anchor with it.
 
-`CalibrateAsset` borrows `ReversibleCalibratePlan`'s machinery and **not** its rule: it rescales
-the clearance, the anchor, its own calibration pair and a `traced` footprint, and leaves a `typed`
-one alone (Decision 6). It clears `pendingScale`, since the coordinates it just converted are
+`CalibrateAsset` borrows `ReversibleCalibratePlan`'s machinery and **not** its rule: when
+`pendingScale` is set it rescales the clearance, the anchor, its own calibration pair and a `traced`
+footprint, leaving a `typed` one alone; when it is not, it rescales nothing and merely records the
+new calibration (Decision 6). It clears `pendingScale`, since the coordinates it just converted are
 millimetres now. Recalibrating an oven rescales that oven and nothing else on any plan, which is
 the whole reason the epic gives the designer a calibration of its own.
 

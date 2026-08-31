@@ -65,7 +65,7 @@ grep -n "params" src/presentation/i18n/strings.ts        # expect: t takes a thi
 | `src/presentation/designer/layers/*.ts` | background, footprint, clearance, anchor and facing |
 | `src/presentation/designer/tools/*.ts` | the designer's tool registrations |
 | `src/presentation/designer/inspector/DesignerInspector.vue` | derived dimensions, the unscaled marker, the height field |
-| `src/application/commands/asset/CalibrateAsset.ts` | the object's own calibration, rescaling everything it owns |
+| `src/application/commands/asset/CalibrateAsset.ts` | the object's own calibration, rescaling only what came off the background and still awaits a scale |
 | `src/plugin/assetDesignerCommands.ts` | `open-asset-designer` and its picker |
 
 ---
@@ -1703,7 +1703,7 @@ git commit -m "The designer's tools, and a toolbar that reaches all of them"
 
 ```typescript
 it('rescales the coordinates that came off the background, its own calibration pair included', async () => {
-	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', anchor: { x: 10, y: 10 }, clearance: rect(120, 80) });
+	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', pendingScale: true, anchor: { x: 10, y: 10 }, clearance: rect(120, 80) });
 	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
 	const stored = await sidecar.read(assetId);
 	// scaleCorrection is 2: the drawn 100 units are really 200 mm.
@@ -1722,7 +1722,7 @@ it('touches no plan and no other asset', async () => {
 });
 
 it('leaves a TYPED footprint alone, because it was authored in millimetres', async () => {
-	await seedShape({ footprint: rect(1200, 800), footprintOrigin: 'typed', clearance: rect(1400, 1000) });
+	await seedShape({ footprint: rect(1200, 800), footprintOrigin: 'typed', pendingScale: true, clearance: rect(1400, 1000) });
 	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
 	const stored = await sidecar.read(assetId);
 	const shape = isOk(stored) ? stored.value.document.shape : null;
@@ -1736,6 +1736,20 @@ it('clears pendingScale, because the coordinates it just converted are millimetr
 	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
 	const stored = await sidecar.read(assetId);
 	expect(isOk(stored) && stored.value.document.shape?.pendingScale).toBe(false);
+});
+
+it('rescales nothing on a second calibration, because those coordinates are already millimetres', async () => {
+	// trace -> calibrate -> replace the background (Decision 5) -> calibrate the new document.
+	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', pendingScale: false, clearance: rect(120, 80) });
+	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
+	const stored = await sidecar.read(assetId);
+	const shape = isOk(stored) ? stored.value.document.shape : null;
+	// footprintOrigin is still 'traced' and always will be. pendingScale is what says these
+	// coordinates were already converted; gating on the first alone doubles a measured oven.
+	expect(shape?.footprint.points[2]).toEqual({ x: 50, y: 30 });
+	expect(shape?.clearance?.points[2]).toEqual({ x: 60, y: 40 });
+	// The calibration itself is still recorded — the command did its job, it just rescaled nothing.
+	expect(isOk(stored) && stored.value.document.calibration).not.toBeNull();
 });
 
 it('refuses two coincident points, which is a division by zero', async () => {
@@ -1755,9 +1769,21 @@ The second case is the epic's central separation — the calibration a designer 
 
 - [ ] **Step 2: Implement**
 
-Derive, then apply `scaleShape(…, scaleCorrection, origin)` to **the coordinates that came off the
-background** — the clearance, the anchor, the calibration's own pair, and the footprint **only when
-`footprintOrigin === 'traced'`** — then clear `pendingScale` and write the whole document once.
+Derive, then — **only when `pendingScale` is set** — apply `scaleShape(…, scaleCorrection, origin)`
+to the coordinates that came off the background: the clearance, the anchor, the calibration's own
+pair, and the footprint **only when `footprintOrigin === 'traced'`**. Then clear `pendingScale` and
+write the whole document once. When `pendingScale` is already clear, rescale nothing and record the
+new calibration alone.
+
+**Both conditions are necessary and neither is sufficient**, which is the owner's ruling on the one
+question this plan left open. `footprintOrigin` stays `'traced'` for the life of the outline, so
+gating on it alone rescales a trace an earlier calibration already converted — the
+replace-the-background path of Decision 5 — multiplying millimetres by a correction that answers a
+question about pixels. Gating on `pendingScale` alone rescales a *typed* footprint whenever a later
+trace is awaiting a scale, which is the mixed case Decision 6's known limitation names. The
+second-calibration test above is the regression for the first; the typed-footprint test is the
+regression for the second. **The accepted cost:** correcting a calibration no longer retroactively
+repairs an earlier trace, so the user re-traces.
 
 **This is the one place slice 7's plan rule may not be copied**, and it is worth reading
 `ReversibleCalibratePlan` with that in mind rather than transcribing it. That command rescales

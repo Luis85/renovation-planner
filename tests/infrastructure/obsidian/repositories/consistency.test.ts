@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, parseFrontmatter, type RepositoryStack } from '../../../helpers/vault';
-import { expectErr, expectOk } from '../../../helpers/domain';
+import { expectErr, expectFound, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity, squareAt } from '../../../helpers/entities';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
@@ -178,7 +178,7 @@ describe('compensated sequences', () => {
 		const before = planNotePath ? stack.vault.entries.get(planNotePath) : undefined;
 
 		stack.vault.failures.add(`delete:${sidecarPathOf(stack, projectId, planId)}`);
-		const read = expectOk(await stack.plans.getById(planId));
+		const read = expectFound(await stack.plans.getById(planId));
 		const result = await stack.plans.delete(planId, read.version);
 
 		expect(expectErr(result).code).toBe('plan.delete-failed');
@@ -200,7 +200,7 @@ describe('conditional writes against real files', () => {
 		parsed.frontmatter['name'] = 'Hand edited';
 		stack.vault.entries.set(path, `${serializeFrontmatter(parsed.frontmatter)}${parsed.body}`);
 
-		const secondRead = expectOk(await stack.zones.getById(zoneId));
+		const secondRead = expectFound(await stack.zones.getById(zoneId));
 		expect(secondRead?.entity.name).toBe('Hand edited');
 
 		// An implementation keeping one CURRENT digest per entity would let this through.
@@ -264,7 +264,7 @@ describe('conditional writes against real files', () => {
 		const sidecar = JSON.parse(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId)) ?? '{}');
 		expect(sidecar.revision).toBe(2);
 
-		const reread = expectOk(await stack.zones.getById(zoneId));
+		const reread = expectFound(await stack.zones.getById(zoneId));
 		expect(reread.version.revision).toBe(1);
 	});
 });
@@ -352,17 +352,17 @@ describe('unload and reload (Increment 3)', () => {
 		const zone = makeZoneEntity({ id: zoneId, projectId, planId, name: 'Bathroom' });
 		expectOk(await stack.zones.save(zone, 'absent'));
 
-		const beforeProject = expectOk(await stack.projects.getById(projectId));
-		const beforePlan = expectOk(await stack.plans.getById(planId));
-		const beforeZone = expectOk(await stack.zones.getById(zoneId));
+		const beforeProject = expectFound(await stack.projects.getById(projectId));
+		const beforePlan = expectFound(await stack.plans.getById(planId));
+		const beforeZone = expectFound(await stack.zones.getById(zoneId));
 
 		// Unload: the index is pure derived data — drop it entirely, rebuild from the Vault.
 		stack.index.rebuild([]);
 		stack.rebuildIndex();
 
-		const afterProject = expectOk(await stack.projects.getById(projectId));
-		const afterPlan = expectOk(await stack.plans.getById(planId));
-		const afterZone = expectOk(await stack.zones.getById(zoneId));
+		const afterProject = expectFound(await stack.projects.getById(projectId));
+		const afterPlan = expectFound(await stack.plans.getById(planId));
+		const afterZone = expectFound(await stack.zones.getById(zoneId));
 
 		expect(afterProject?.entity).toEqual(beforeProject?.entity);
 		expect(afterPlan?.entity).toEqual(beforePlan?.entity);

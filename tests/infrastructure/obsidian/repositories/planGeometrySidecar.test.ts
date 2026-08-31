@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack } from '../../../helpers/vault';
-import { expectErr, expectOk, RecordingEventBus } from '../../../helpers/domain';
+import { expectErr, expectFound, expectOk, RecordingEventBus } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import type { Zone } from '../../../../src/domain/zone/Zone';
@@ -112,7 +112,7 @@ describe('calibration undo against the real sidecar (design slice 7, DoD 3)', ()
 	it('refuses when a zone moved through its own repository between calibrate and undo', async () => {
 		const { stack, zones, planId, command, sidecar } = await calibrated();
 
-		const loaded = expectOk(await stack.zones.getById(zones[0].id));
+		const loaded = expectFound(await stack.zones.getById(zones[0].id));
 		const moved = loaded.entity.withGeometry({
 			points: [{ x: 500, y: 500 }, { x: 600, y: 500 }, { x: 600, y: 600 }],
 		});

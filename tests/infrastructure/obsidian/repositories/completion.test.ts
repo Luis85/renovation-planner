@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, parseFrontmatter, type RepositoryStack } from '../../../helpers/vault';
-import { expectErr, expectOk } from '../../../helpers/domain';
+import { expectErr, expectFound, expectOk, observationToken } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
@@ -45,7 +45,7 @@ describe('plan repository: calibration sync and listing', () => {
 	it('an update whose note write fails reports plan.write-failed', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
-		const read = expectOk(await stack.plans.getById(planId));
+		const read = expectFound(await stack.plans.getById(planId));
 		stack.vault.failures.add(`modify:${notePathOf(stack, planId)}`);
 		expect(
 			expectErr(await stack.plans.save(makePlanEntity({ id: planId, projectId, name: 'X' }), read.version)).code,
@@ -55,7 +55,7 @@ describe('plan repository: calibration sync and listing', () => {
 	it('delete refuses when the sidecar snapshot cannot be taken', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
-		const read = expectOk(await stack.plans.getById(planId));
+		const read = expectFound(await stack.plans.getById(planId));
 		stack.vault.failures.add(`read:${sidecarPathOf(stack, projectId, planId)}`);
 		expect(expectErr(await stack.plans.delete(planId, read.version)).code).toBe('plan.delete-failed');
 	});
@@ -63,7 +63,7 @@ describe('plan repository: calibration sync and listing', () => {
 	it('a save-update re-points the index entry and keeps the mapping through unchanged', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
-		const read = expectOk(await stack.plans.getById(planId));
+		const read = expectFound(await stack.plans.getById(planId));
 		const mappingBefore = stack.index.getGeometrySidecarPath(planId);
 
 		const saved = expectOk(
@@ -224,9 +224,9 @@ describe('token and filename edges', () => {
 	});
 
 	it('checkExpectedVersion distinguishes absent-refusal from stale-revision', () => {
-		const current = { revision: 2, observed: 't' as never };
+		const current = { revision: 2, observed: observationToken('t') };
 		expect(checkExpectedVersion('zone', 'z', current, 'absent')?.code).toBe('zone.revision-conflict');
-		expect(checkExpectedVersion('zone', 'z', current, { revision: 2, observed: 't' })).toBeNull();
+		expect(checkExpectedVersion('zone', 'z', current, { revision: 2, observed: observationToken('t') })).toBeNull();
 	});
 
 	it('fileNameFor trims forbidden characters and edge dots', () => {
@@ -266,12 +266,12 @@ describe('calibration is read-only through the plan repository', () => {
 	it('getById merges the sidecar calibration into the entity', async () => {
 		const stack = createRepositoryStack();
 		const { planId } = await seed(stack);
-		expect(expectOk(await stack.plans.getById(planId)).entity.calibration).toBeNull();
+		expect(expectFound(await stack.plans.getById(planId)).entity.calibration).toBeNull();
 
 		const sidecar = new ObsidianPlanGeometrySidecar(stack.store);
 		expectOk(await sidecar.write(planId, { calibration: CALIBRATION, objects: [] }));
 
-		const after = expectOk(await stack.plans.getById(planId)).entity;
+		const after = expectFound(await stack.plans.getById(planId)).entity;
 		expect(after.calibration).toEqual(CALIBRATION);
 	});
 
@@ -287,14 +287,14 @@ describe('calibration is read-only through the plan repository', () => {
 		// in the note, so the note's revision never moved and `checkExpectedVersion` passes
 		// — the only thing standing between that save and the sidecar is that the
 		// repository no longer writes it.
-		const loaded = expectOk(await stack.plans.getById(planId));
+		const loaded = expectFound(await stack.plans.getById(planId));
 		expectOk(await stack.plans.save(
 			makePlanEntity({ id: planId, projectId, name: 'Renamed' }),
 			loaded.version,
 		));
 
 		expect(stack.vault.entries.get(sidecarPathOf(stack, projectId, planId))).toBe(untouched);
-		expect(expectOk(await stack.plans.getById(planId)).entity.calibration).toEqual(CALIBRATION);
+		expect(expectFound(await stack.plans.getById(planId)).entity.calibration).toEqual(CALIBRATION);
 	});
 
 	it('refuses to load a plan whose sidecar holds a calibration the derivation could not produce', async () => {

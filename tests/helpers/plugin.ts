@@ -1,5 +1,6 @@
 import type { FileManager, MetadataCache, TAbstractFile, TFile, Vault } from 'obsidian';
 import RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
+import type { Plugin as MockPlugin } from './obsidian-mock';
 import { FakeWorkspace } from './workspace';
 
 /**
@@ -61,6 +62,37 @@ export interface VaultSurface {
 	fileManager: Pick<FileManager, 'processFrontMatter' | 'trashFile'>;
 	metadataCache: Pick<MetadataCache, 'getFileCache'>;
 }
+
+/**
+ * The plugin as a TEST sees it: the real class, plus the members the module mock's `Plugin`
+ * base class records and Obsidian's own does not.
+ *
+ * `RenovationPlannerPlugin extends Plugin`, and which `Plugin` that is depends on who is
+ * asking. `vitest.config.ts` aliases `obsidian` to `obsidian-mock.ts`, so at RUN time the base
+ * class is the recorder — `views`, `ribbon`, `commands`, `extensions`, `settingTabs`, `saved`,
+ * `data`, `loadFailure`. `tsconfig.tests.json` deliberately keeps that alias out of the
+ * compiler (its header says why), so at CHECK time the base class is Obsidian's, which declares
+ * none of them and where `addCommand` returns without keeping anything.
+ *
+ * Naming them here is the honest bridge, and it is the spelling that file asks for: a mock-only
+ * member is reached through an import of the MOCK, by name, rather than by widening the real
+ * type or by a cast at each of the fifty call sites that read one. `Pick` rather than the whole
+ * class, so `app` and `manifest` — which BOTH base classes declare, differently — keep the real
+ * ones and a member added to the mock does not silently join this surface.
+ */
+export type LoadedPlugin = RenovationPlannerPlugin &
+	Pick<
+		MockPlugin,
+		| 'commands'
+		| 'data'
+		| 'eventRefs'
+		| 'extensions'
+		| 'loadFailure'
+		| 'ribbon'
+		| 'saved'
+		| 'settingTabs'
+		| 'views'
+	>;
 
 /** The plugin id the manifest declares, and what the data-file path is built from. */
 const PLUGIN_ID = 'renovation-planner';
@@ -140,14 +172,13 @@ export async function loadedPlugin(
 	// `RenovationPlannerPlugin extends Plugin` resolves against the REAL `obsidian` package's
 	// types here — `vitest.config.ts`'s alias to `obsidian-mock.ts` is a vitest-only module
 	// resolution, invisible to `vue-tsc` — so the real `Plugin` constructor wants a full
-	// `PluginManifest` and carries no `data`/`loadFailure` fields at all; the mock's `Plugin`
-	// carries both (`obsidian-mock.ts`). One cast for the constructor's second argument and
-	// one for the instance, rather than widening either the real type or the mock's runtime
-	// shape, since both are honest as they stand and only this bridge needs to say so.
-	const plugin = new RenovationPlannerPlugin(app as never, { id: PLUGIN_ID } as never) as RenovationPlannerPlugin & {
-		data: unknown;
-		loadFailure: unknown;
-	};
+	// `PluginManifest`. One cast for the constructor's second argument and one for the
+	// instance, rather than widening either the real type or the mock's runtime shape, since
+	// both are honest as they stand and only this bridge needs to say so. `LoadedPlugin` above
+	// is what the second cast lands on, and it names the mock's recording members instead of
+	// the two this line used to carry — every caller reading `plugin.commands` or
+	// `plugin.views` was reaching for a member the compiler could not see.
+	const plugin = new RenovationPlannerPlugin(app as never, { id: PLUGIN_ID } as never) as LoadedPlugin;
 	plugin.data = stored;
 	plugin.loadFailure = loadFailure;
 	await plugin.onload();

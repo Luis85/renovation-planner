@@ -40,7 +40,16 @@ export class MoveSpatialObjectCommand
 		private readonly events: EventBus,
 	) {}
 
-	async execute(input: MoveSpatialObjectInput) {
+	// The return type is ANNOTATED, not inferred, and this is the one command in
+	// `application/commands/` that was not. Inference produces a union of `Result`s — one arm
+	// per error type the body can return — which is not the same type as one `Result` over a
+	// union of errors, and the `implements` clause above cannot catch the difference: the
+	// union of arms IS assignable to the single `Result`, so the class checks out while every
+	// CALLER gets the wider shape. `SetPlanBackground` states the same rule at its own
+	// `execute`; what it cost here is a caller unable to name the error type at all.
+	async execute(
+		input: MoveSpatialObjectInput,
+	): Promise<Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>> {
 		const loaded = await loadZone(this.zones, input.zoneId);
 		if (isErr(loaded)) {
 			return loaded;

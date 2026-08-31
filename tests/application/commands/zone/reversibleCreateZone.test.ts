@@ -10,6 +10,7 @@ import { expectErr, expectOk, injectedPersistenceError, RecordingEventBus } from
 import { makePlan, squareAt } from '../../../helpers/entities';
 import { createPolygon } from '../../../../src/core/geometry/Polygon';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
+import type { ZoneId } from '../../../../src/domain/zone/ZoneId';
 import { CommandHistory } from '../../../../src/presentation/editor/tools/command-history';
 import { ReversibleMoveZoneCommand } from '../../../../src/presentation/editor/tools/reversible-move-zone-command';
 
@@ -38,7 +39,13 @@ async function wired() {
 	return { zones, ledger, makeCommand };
 }
 
-function expectId(id: string | null): string {
+/**
+ * `ReversibleCreateZoneCommand.createdZoneId` is a `ZoneId | null`, and it is the branded id
+ * every read below then passes to `zones.getById`. Typed as `string | null` this helper
+ * silently un-branded it — which nothing could notice while `tests/**` went unchecked, and
+ * which is the whole reason the brand exists.
+ */
+function expectId(id: ZoneId | null): ZoneId {
 	if (id === null) throw new Error('expected the command to have created its zone');
 	return id;
 }

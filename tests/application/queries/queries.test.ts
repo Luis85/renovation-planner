@@ -53,17 +53,17 @@ describe('the three read queries', () => {
 	it('pass a failed read straight through, keeping "no entity" distinguishable', async () => {
 		class FailingProjects extends InMemoryProjectRepository {
 			override getById() {
-				return injectedReadFailure();
+				return Promise.resolve(injectedReadFailure());
 			}
 		}
 		class FailingPlans extends InMemoryPlanRepository {
 			override getById() {
-				return injectedReadFailure();
+				return Promise.resolve(injectedReadFailure());
 			}
 		}
 		class FailingZones extends InMemoryZoneRepository {
 			override getById() {
-				return injectedReadFailure();
+				return Promise.resolve(injectedReadFailure());
 			}
 		}
 		const projectError = await new GetProject(new FailingProjects()).execute({ projectId: 'project-y' as never });
@@ -103,7 +103,7 @@ describe('GetZoneInspector', () => {
 	it('passes a failed read straight through', async () => {
 		class FailingZones extends InMemoryZoneRepository {
 			override getById() {
-				return injectedReadFailure();
+				return Promise.resolve(injectedReadFailure());
 			}
 		}
 

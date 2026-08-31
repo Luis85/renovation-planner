@@ -2449,9 +2449,12 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 
 **`npm run typecheck:tests` is a FIFTH gate and is deliberately not in `check` yet** — it
 runs `vue-tsc` a second time, over `tests/**`, which is about 8 seconds on each of the four
-CI legs, and while its baseline still holds a hundred files it is buying a regression check
-rather than a clean tree. It joins `check` when that list is short enough that the second
-compile earns its place. The Testing section below has the mechanism.
+CI legs, and while its baseline still holds files it is buying a regression check rather than
+a clean tree. It joins `check` when that list is short enough that the second compile earns
+its place. The Testing section below has the mechanism. **Read the baseline itself for how
+many files are left rather than a figure here**: this sentence said "a hundred files" for
+three increments after the list had fallen past fifty, which is the shape this file's own
+Claims section refuses — a number written into prose is one nothing re-measures.
 
 `npm audit` is deliberately NOT in `check`: an advisory with no patched version is a red
 nobody can clear, and a gate people learn to ignore protects nothing. It is its own CI job.

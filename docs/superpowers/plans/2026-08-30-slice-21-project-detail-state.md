@@ -1506,22 +1506,29 @@ Then `projectViewDeps()` grows:
 ```
 
 **Read `registerView` and `rebindOpenViews` before writing this.** The factory currently calls
-`projectViewDeps()` with no arguments; it now needs `projectId`, which the VIEW owns. It no
-longer needs the LEAF — routing `navigate` through `navigateToProject` means the singleton is
-resolved by view type rather than captured, which is one fewer thing for the factory to carry. The cleanest shape that keeps `projectId` the view's own
-field is to hand the view a FACTORY rather than a bundle:
+`projectViewDeps()` with no arguments; it now needs `projectId`, which the VIEW owns.
+
+> **SETTLED when this task ran — do not re-open it.** This step used to present a choice
+> between handing the view a `(projectId) => deps` FACTORY and keeping `deps` a BUNDLE, and
+> asked the executor to say which they took. **The bundle was taken** (`13f021a`), and Task 6
+> and Task 13 are written to it. `RenovationProjectView` keeps a plain `RenovationProjectDeps`,
+> `projectViewDeps(projectId, leaf)` stays the one place both `registerView` and
+> `rebindOpenViews` build it, and `mount` writes this mount's id over the bundle
+> (`{ ...this.deps, projectId }`) — which is `PlanEditorView`'s own pattern and keeps
+> `projectId` the view's own field, the property the factory was wanted for.
+>
+> The step also used to claim the leaf was no longer needed, "because the singleton is resolved
+> by view type rather than captured". That is FALSE and was corrected in the same task:
+> Obsidian's split duplicates a leaf with its view state intact, so a type lookup drives the
+> wrong pane. `projectViewDeps` captures its own leaf and passes it to `navigateToProject` as
+> `targetLeaf`.
 
 ```ts
 this.registerView(
 	RENOVATION_PROJECT_VIEW,
-	(leaf) => new RenovationProjectView(leaf, (projectId) => this.projectViewDeps(projectId, leaf)),
+	(leaf) => new RenovationProjectView(leaf, this.projectViewDeps(projectIdOfLeaf(leaf), leaf)),
 );
 ```
-
-and `rebind` then takes the same factory type. Task 6 spells the view side. If that shape
-turns out to fight `rebindOpenViews`, the alternative — keeping `deps` a bundle and giving the
-view a `navigate` that closes over `this.leaf` — is equally acceptable, but say which you
-took in the commit message: it is the one structural choice this task makes.
 
 - [ ] **Step 4: Fill the seams in `renovationProjectDeps`**
 
@@ -1868,23 +1875,37 @@ describe('the list and detail states', () => {
 		expect(mounted).toEqual([null, 'project-01JAAA', 'project-01JBBB']);
 	});
 
-	/** Criterion 7: `projectId` is the view's own field and a remount never touches it. */
+	/**
+	 * Criterion 7: `projectId` is the VIEW's own field, so a rebind that replaces every
+	 * dependency must not disturb it. `rebind` takes a `RenovationProjectDeps` BUNDLE — Task 5
+	 * chose that over a `(projectId) => deps` factory and its commit body says why — so this
+	 * case hands it a second, genuinely different bundle rather than the one the view already
+	 * holds. `defaultRenovationProjectDeps()` is exported from `makeRenovationProjectView.ts`
+	 * for exactly this; calling it twice gives two bundles over two independent in-memory
+	 * repositories, which is what makes the assertion mean "survived a real swap".
+	 */
 	it('keeps the open project across a rebind', async () => {
 		const view = makeView();
 		await view.onOpen();
 		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
 
-		view.rebind(/* the same factory shape Task 5 chose */);
+		view.rebind(defaultRenovationProjectDeps());
 
 		expect(view.getState()).toEqual({ projectId: 'project-01JAAA' });
 	});
 });
 ```
 
-`makeViewRecordingMounts` is a local helper in this file that hands the view a deps factory
-recording each `projectId` it is asked for — the same shape as `makeView` but with the
-factory captured. Write it beside the cases rather than in `tests/helpers/`: it exists to
-observe this one class.
+`makeViewRecordingMounts` is a local helper in this file. It builds a view whose `deps` is
+`defaultRenovationProjectDeps()` and observes the `projectId` each mount actually provides —
+by spying on the Vue app's `provide`, or by reading `view.getState()` inside a wrapped
+`onOpen`, whichever the view's final shape makes honest. **It does NOT capture a deps
+factory**: Task 5 settled on a bundle, `mount` writes this mount's `projectId` over it
+(`{ ...this.deps, projectId }`), and there is no factory to observe. Write it beside the cases
+rather than in `tests/helpers/` — it exists to observe this one class.
+
+Import `defaultRenovationProjectDeps` alongside `makeView` from
+`../../helpers/makeRenovationProjectView`.
 
 - [ ] **Step 2: Run and watch them fail**
 
@@ -2673,6 +2694,8 @@ The seam where every piece so far meets. `ViewRoot` reads `context.projectId` ON
 
 **Files:**
 - Modify: `src/presentation/views/ViewRoot.vue`
+- Modify: `src/presentation/emptyStates/content.ts` (Step 1, moved here from Task 10)
+- Modify: `src/presentation/i18n/locales/en.ts`, `de.ts` (Step 1, likewise)
 - Create: `tests/presentation/views/viewRootProjectDetail.test.ts`
 - Modify: `tests/presentation/views/viewRoot.test.ts` (the list state must go on drawing)
 - Modify: `tests/presentation/views/viewRootOpenProject.test.ts` — **it asserts the behaviour
@@ -2684,7 +2707,60 @@ The seam where every piece so far meets. `ViewRoot` reads `context.projectId` ON
 - Consumes: everything from Tasks 3–8.
 - Produces: no new exports; four new handlers inside `ViewRoot`.
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Add the empty-state entry Task 9's lookup needs**
+
+**This step moved here from Task 10** because Task 9 is what reads it. `ViewRoot`'s
+`EMPTY_STATE_CONTENT.renovationProject[detailEmptyKey]` cannot compile while that object holds
+`noProjects` alone — `selectProjectDetailEmptyState` already returns `'noPlans' | null`, so
+`vue-tsc` refuses the indexed access and this task's own mandatory `npm run check` fails.
+Reported by a review bot against this plan. Task 10 keeps the two CHECKS over this entry (the
+content assertion and the axe scan); only the entry itself is here, because only the compiler
+cares where it lands.
+
+**Files for this step:**
+- Modify: `src/presentation/emptyStates/content.ts`
+- Modify: `src/presentation/i18n/locales/en.ts`, `de.ts`
+
+**New locale keys:**
+
+| key | en | de |
+|---|---|---|
+| `empty.project.no-plans.headline` | `No plans yet` | `Noch keine Grundrisse` |
+| `empty.project.no-plans.body` | `Add a plan to start drawing zones and working out quantities.` | `Füge einen Grundriss hinzu, um Zonen zu zeichnen und Mengen zu ermitteln.` |
+| `empty.project.no-plans.action` | `New plan` | `Neuer Grundriss` |
+
+Copy is DISTINCT from `noProjects` — `content.test.ts` asserts distinctness, because a
+registry pointing two entries at one key would type-check perfectly.
+
+```ts
+	renovationProject: {
+		noProjects: { /* unchanged */ },
+		/**
+		 * Design slice 21. It carries an `actionLabel` from the day it ships, unlike
+		 * `noProjects`, whose hand-off did not exist until slice 16: `ViewRoot.onCreatePlan`
+		 * opens `NewPlanForm` in slice 15's `FormDialog` and dispatches the real
+		 * `CreatePlanCommand`, so the button is a live control from the first commit rather
+		 * than the dead one slice 14's Amendment 1 refuses.
+		 */
+		noPlans: {
+			headline: 'empty.project.no-plans.headline',
+			body: 'empty.project.no-plans.body',
+			actionLabel: 'empty.project.no-plans.action',
+		},
+	},
+```
+
+`EMPTY_STATE_CONTENT.renovationProject` is keyed to match the selector's return type, so
+`selectProjectDetailEmptyState` returning `'noPlans'` and this entry existing are checked
+against each other by the compiler at `ViewRoot`'s lookup.
+
+Also update `EmptyStateContent.actionLabel`'s docblock: it currently says
+`planEditor.noBackground` is "the only reason the field is optional rather than the exception
+to it", which stays true — but the sentence naming which entries carry a button needs
+`noPlans` added, or it becomes the stale-comment defect this repository keeps paying for.
+
+
+- [ ] **Step 1a: Write the failing tests**
 
 `tests/presentation/views/viewRootProjectDetail.test.ts`. Build `deps` by hand, the way
 `viewRootCreateProject.test.ts` does, because these cases need controlled dispatches and a
@@ -3135,45 +3211,12 @@ action-carrying empty state no axe scan reaches — **this slice must not make t
 - Modify: `tests/presentation/emptyStates/content.test.ts`
 - Modify: `tests/harness/accessibility.test.ts`
 
-**New locale keys:**
-
-| key | en | de |
-|---|---|---|
-| `empty.project.no-plans.headline` | `No plans yet` | `Noch keine Grundrisse` |
-| `empty.project.no-plans.body` | `Add a plan to start drawing zones and working out quantities.` | `Füge einen Grundriss hinzu, um Zonen zu zeichnen und Mengen zu ermitteln.` |
-| `empty.project.no-plans.action` | `New plan` | `Neuer Grundriss` |
-
-Copy is DISTINCT from `noProjects` — `content.test.ts` asserts distinctness, because a
-registry pointing two entries at one key would type-check perfectly.
-
-- [ ] **Step 1: Add the entry**
-
-```ts
-	renovationProject: {
-		noProjects: { /* unchanged */ },
-		/**
-		 * Design slice 21. It carries an `actionLabel` from the day it ships, unlike
-		 * `noProjects`, whose hand-off did not exist until slice 16: `ViewRoot.onCreatePlan`
-		 * opens `NewPlanForm` in slice 15's `FormDialog` and dispatches the real
-		 * `CreatePlanCommand`, so the button is a live control from the first commit rather
-		 * than the dead one slice 14's Amendment 1 refuses.
-		 */
-		noPlans: {
-			headline: 'empty.project.no-plans.headline',
-			body: 'empty.project.no-plans.body',
-			actionLabel: 'empty.project.no-plans.action',
-		},
-	},
-```
-
-`EMPTY_STATE_CONTENT.renovationProject` is keyed to match the selector's return type, so
-`selectProjectDetailEmptyState` returning `'noPlans'` and this entry existing are checked
-against each other by the compiler at `ViewRoot`'s lookup.
-
-Also update `EmptyStateContent.actionLabel`'s docblock: it currently says
-`planEditor.noBackground` is "the only reason the field is optional rather than the exception
-to it", which stays true — but the sentence naming which entries carry a button needs
-`noPlans` added, or it becomes the stale-comment defect this repository keeps paying for.
+This task now begins at what it is really about. **Its registry entry and locale keys moved
+into Task 9**, which is the task that READS them: Task 9's `EMPTY_STATE_CONTENT` lookup cannot
+compile until `noPlans` exists, and Task 9 runs first. A registry entry separated from its only
+consumer by a task boundary is what produced that, and the entry has no meaning without
+something reading it. What stays here is the pair of checks — the content assertion, and the
+axe scan that is this task's actual subject.
 
 - [ ] **Step 2: Flip the content assertion**
 
@@ -3929,11 +3972,14 @@ every task's own steps, plus Task 10's axe cases.
   substantial. The extraction (`ProjectDetailState.vue`) is named in that task rather than
   planned, because whether it is needed depends on how the branch actually lands. It is a
   decision the executor makes with `wc -l` in hand, not one this plan can make blind.
-- **Task 5 Step 3's deps-factory shape.** Handing the view a `(projectId) => deps` factory
-  rather than a bundle is the cleanest way to keep `projectId` the view's own field while the
-  bundle stays composed in `plugin/`, but it changes `registerView` and `rebindOpenViews`.
-  The alternative is named there. This is the one structural choice the plan leaves open, and
-  it asks for the answer in a commit message rather than pretending there is only one.
+- **Task 5 Step 3's dependency shape is SETTLED and is not a gap** — it is listed here only
+  because this section is where a reader looks for it. The plan left a choice between a
+  `(projectId) => deps` factory and a bundle; Task 5 took the **bundle** (`13f021a`) and its
+  commit body says why. Write up what was chosen, not the choice: `RenovationProjectView`
+  holds a plain `RenovationProjectDeps`, `mount` writes this mount's id over it, and
+  `projectId` stays the view's own field — which is `PlanEditorView`'s existing pattern rather
+  than a new one. Recording the abandoned factory here would put it in the most durable place
+  it could be wrong.
 - **`FormDialog`'s prop forwarding for `onProjectGone`** (Task 9 Step 3) was not verified
   against that component; the task says to check it and to fix the framework in the same edit
   if it does not forward `on*` props.

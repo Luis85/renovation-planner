@@ -53,7 +53,7 @@ async function wiredRecalculate() {
 		zoneId: zoneEntity.entity.id,
 		zoneVersion: zoneEntity.version,
 		assetId: assetEntity.entity.id,
-		recalculate: new RecalculateRequirementCommand(w.requirements, w.zones, w.assets, w.events),
+		recalculate: new RecalculateRequirementCommand(w.requirements, w.zones, w.assets, w.events, w.projects),
 	};
 }
 

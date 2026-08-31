@@ -72,7 +72,14 @@ describe('two commands racing for the same reference lock', () => {
 	it('an assignment during a unit-changing asset update cannot leave a non-area link', async () => {
 		const w = await linkedFixture();
 		const update = new UpdateAssetCommand(w.assets, w.requirements, w.events, w.locks);
-		const assign = new AssignAssetCommand(w.zones, w.assets, w.requirements, w.events, w.locks);
+		const assign = new AssignAssetCommand({
+			zones: w.zones,
+			assets: w.assets,
+			requirements: w.requirements,
+			events: w.events,
+			locks: w.locks,
+			projects: w.projects,
+		});
 
 		// The asset has NO referents yet, so the unit change is legal at the moment it starts.
 		// Dispatched WITHOUT awaiting, then the assignment on top of it.

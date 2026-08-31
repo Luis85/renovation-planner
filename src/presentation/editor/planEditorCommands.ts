@@ -221,7 +221,14 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 			},
 		}),
 		requirementEdits: {
-			assignAsset: new AssignAssetCommand(refusingPort(), refusingPort(), refusingPort(), events, locks),
+			assignAsset: new AssignAssetCommand({
+				zones: refusingPort(),
+				assets: refusingPort(),
+				requirements: refusingPort(),
+				events,
+				locks,
+				projects: refusingPort(),
+			}),
 			setQuantityOverride: new SetRequirementQuantityOverrideCommand(refusingPort(), events, locks),
 			setCostOverride: new SetRequirementCostOverrideCommand(refusingPort(), events, locks),
 			requirements: refusingPort(),

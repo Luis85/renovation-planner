@@ -157,6 +157,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
+	'cost.currency-mismatch':
+		'Der Preis dieses Objekts ist nicht in der Währung dieses Projekts, daher kann keine Schätzung erstellt werden. Ändern Sie die Währung des Projekts oder erfassen Sie den Preis in dieser Währung.',
+	'requirement.project-not-found': 'Diese Zone gehört zu einem Projekt, das nicht mehr vorhanden ist.',
+	'requirement.project-gone': 'Dieser Bedarf gehört zu einem Projekt, das nicht mehr vorhanden ist.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.suffix.schema-version-unsupported':

@@ -80,8 +80,8 @@ async function wired() {
 	);
 
 	const locks = new ReferenceLocks();
-	const assign = new AssignAssetCommand(zones, assets, requirements, events, locks);
-	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events);
+	const assign = new AssignAssetCommand({ zones, assets, requirements, events, locks, projects });
+	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events, projects);
 	const deps = {
 		requirements,
 		events,

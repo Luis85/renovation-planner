@@ -146,6 +146,13 @@ export const en = {
 	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
 	'requirement.negative-quantity': 'A quantity cannot be negative.',
+	// The currency invariant (design increment "the currency the pipeline is told"): the copy
+	// names the RELATIONSHIP rather than the two currencies, because `toUserMessage` takes no
+	// params — the developer message in the raised error is where GBP and EUR actually appear.
+	'cost.currency-mismatch':
+		"This asset's price is not in this project's currency, so no estimate can be produced. Change the project's currency or price the asset in it.",
+	'requirement.project-not-found': 'That zone belongs to a project that is no longer there.',
+	'requirement.project-gone': 'That requirement belongs to a project that is no longer there.',
 	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`
 	// and a malformed money literal never reach a dispatch, so there is no raised code for
 	// `routeError` to place. Keyed by the field rather than by any code for that reason.

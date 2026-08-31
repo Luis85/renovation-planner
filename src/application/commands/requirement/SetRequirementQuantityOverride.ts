@@ -76,10 +76,16 @@ async function applyQuantityOverride(
 	}
 
 	// The pipeline stage an override edit owes the estimate: cost off the NEW effective.
+	// `expectedCurrency` is the SAME `unitCost` this call also passes as `unitPrice` — not a
+	// fresh read of the project's currency — because this re-prices against the snapshot
+	// `calculatedFrom` already recorded rather than against a live Asset; the guard can only
+	// ever agree with itself here, and the alternative (reading the project again) would be a
+	// second answer to a currency this figure was already derived against.
 	const cost = computeEstimatedCost({
 		quantity: effectiveValue(updated.value.quantity),
 		unitPrice: updated.value.calculatedFrom.unitCost,
 		pricedPer: updated.value.calculatedFrom.assetUnit,
+		expectedCurrency: updated.value.calculatedFrom.unitCost.currency,
 	});
 	if (!cost.ok) {
 		return err({ category: 'Domain', code: cost.error.code, message: cost.error.message });

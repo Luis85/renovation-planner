@@ -3,7 +3,7 @@ import { Decimal } from 'decimal.js';
 import { computeEstimatedCost, type CostPipelineInput } from '../../../src/domain/cost/costPipeline';
 import { runQuantityEngine } from '../../../src/domain/cost/quantityEngine';
 import { effectiveValue } from '../../../src/core/derived/DerivedValue';
-import { of as moneyOf, type Money } from '../../../src/core/money/Money';
+import { currencyOf, of as moneyOf, type Money } from '../../../src/core/money/Money';
 import { expectErr, expectOk } from '../../helpers/domain';
 
 function d(value: string): Decimal {
@@ -25,7 +25,11 @@ function workedExampleQuantity() {
 }
 
 function baseInput(): CostPipelineInput {
-	return { quantity: workedExampleQuantity(), unitPrice: moneyOf('12.50', 'USD') };
+	return {
+		quantity: workedExampleQuantity(),
+		unitPrice: moneyOf('12.50', 'USD'),
+		expectedCurrency: currencyOf('USD'),
+	};
 }
 
 describe('computeEstimatedCost', () => {
@@ -58,7 +62,11 @@ describe('computeEstimatedCost', () => {
 		const calculated = workedExampleQuantity();
 		const overridden = effectiveValue({ calculated, override: { value: d('18'), unit: 'm2' as const } });
 		const result = expectOk(
-			computeEstimatedCost({ quantity: overridden, unitPrice: moneyOf('12.50', 'USD') }),
+			computeEstimatedCost({
+				quantity: overridden,
+				unitPrice: moneyOf('12.50', 'USD'),
+				expectedCurrency: currencyOf('USD'),
+			}),
 		);
 		expect(sameAmount(result.calculated, '225.00')).toBe(true);
 	});
@@ -95,6 +103,7 @@ describe('computeEstimatedCost', () => {
 			computeEstimatedCost({
 				quantity: workedExampleQuantity(),
 				unitPrice: moneyOf('12.50', 'USD'),
+				expectedCurrency: currencyOf('USD'),
 				discount: { percent: d('5') },
 			}),
 		);
@@ -107,6 +116,7 @@ describe('computeEstimatedCost', () => {
 			computeEstimatedCost({
 				quantity: { value: d('10'), unit: 'piece' },
 				unitPrice: moneyOf('7.05', 'EUR'),
+				expectedCurrency: currencyOf('EUR'),
 			}),
 		);
 		expect(sameAmount(bare.calculated, '70.50')).toBe(true);
@@ -168,6 +178,7 @@ describe('computeEstimatedCost', () => {
 			computeEstimatedCost({
 				quantity: { value: d('1'), unit: 'piece' },
 				unitPrice: moneyOf('10.00', 'USD'),
+				expectedCurrency: currencyOf('USD'),
 				taxRate: d('150'),
 			}),
 		);
@@ -179,6 +190,7 @@ describe('computeEstimatedCost', () => {
 			computeEstimatedCost({
 				quantity: { value: d('-3'), unit: 'piece' },
 				unitPrice: moneyOf('12.50', 'USD'),
+				expectedCurrency: currencyOf('USD'),
 			}),
 		);
 		expect(error.category).toBe('Calculation');
@@ -218,6 +230,7 @@ describe('computeEstimatedCost', () => {
 			computeEstimatedCost({
 				quantity: { value: d('3'), unit: 'piece' },
 				unitPrice: moneyOf('0', 'USD'),
+				expectedCurrency: currencyOf('USD'),
 				shipping: moneyOf('0', 'USD'),
 				surcharge: moneyOf('0', 'USD'),
 			}),
@@ -230,6 +243,7 @@ describe('computeEstimatedCost', () => {
 			computeEstimatedCost({
 				quantity: { value: d('0'), unit: 'piece' },
 				unitPrice: moneyOf('12.50', 'USD'),
+				expectedCurrency: currencyOf('USD'),
 				shipping: moneyOf('25.00', 'USD'),
 			}),
 		);
@@ -248,6 +262,7 @@ describe('computeEstimatedCost', () => {
 			const input = {
 				quantity: { value: new Decimal('2'), unit: 'm2' as const },
 				unitPrice: moneyOf('10.00', 'USD'),
+				expectedCurrency: currencyOf('USD'),
 				...(field === 'taxRate'
 					? { taxRate: negativeZero }
 					: { discount: { kind: 'percent' as const, percent: negativeZero } }),

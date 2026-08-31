@@ -380,7 +380,7 @@ export function createCompositionRoot(
 	// One lock set per plugin: assignment, unit changes and delete resolutions across
 	// every view serialize against the same keys.
 	const locks = new ReferenceLocks();
-	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, eventBus);
+	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, eventBus, projects);
 	const wiring: Slice10Wiring = {
 		zones,
 		assets,

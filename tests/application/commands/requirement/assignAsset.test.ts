@@ -103,13 +103,14 @@ async function seedSecondProject(
 }
 
 function makeCommand(w: Wired) {
-	return new AssignAssetCommand(
-		w.zones,
-		w.assets,
-		w.requirements,
-		w.events,
-		w.locks,
-	);
+	return new AssignAssetCommand({
+		zones: w.zones,
+		assets: w.assets,
+		requirements: w.requirements,
+		events: w.events,
+		locks: w.locks,
+		projects: w.projects,
+	});
 }
 
 function porcelainTile(overrides?: { unit?: MeasurementUnit }) {

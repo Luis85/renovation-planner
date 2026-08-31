@@ -19,7 +19,7 @@ import { registerOnAssetUpdated } from '../../src/application/event-handlers/req
 import type { RequirementRepository } from '../../src/application/ports/RequirementRepository';
 import { expectErr, expectFound, expectOk } from '../helpers/domain';
 import { recorder as logger } from '../helpers/logger';
-import { makeAsset, makeRequirement, makeZone } from '../helpers/entities';
+import { makeAsset, makeProject, makeRequirement, makeZone } from '../helpers/entities';
 import { of as moneyOf } from '../../src/core/money/Money';
 import { requirementFixture, TEN_SQUARE_METERS } from '../helpers/slice10';
 
@@ -251,7 +251,14 @@ describe('override command refusals', () => {
 });
 
 function makeAdapter(w: Awaited<ReturnType<typeof requirementFixture>> & { zoneId: string; assetId: string }) {
-	const assign = new AssignAssetCommand(w.zones, w.assets, w.requirements, w.events, w.locks);
+	const assign = new AssignAssetCommand({
+		zones: w.zones,
+		assets: w.assets,
+		requirements: w.requirements,
+		events: w.events,
+		locks: w.locks,
+		projects: w.projects,
+	});
 	return new ReversibleAssignAssetCommand(
 		assign,
 		{ requirements: w.requirements, zones: w.zones, assets: w.assets, locks: w.locks },
@@ -318,8 +325,15 @@ describe('ReversibleAssignAssetCommand guards', () => {
 		// `withChanges`, so the two lines that stood here — an optional call on a method that
 		// does not exist, its result immediately `void`ed — did nothing at all; the assign
 		// and the save below are the whole of the move, and always were.
+		//
+		// The other project has to be a REAL, saved one and not a bare string id: the
+		// currency invariant added since means `AssignAssetCommand` now reads the zone's
+		// project to learn what currency to derive against, so a dangling `projectId` would
+		// refuse with `requirement.project-not-found` rather than exercise the cross-project
+		// redo this case is actually about.
+		const otherProject = expectOk(await w.projects.save(makeProject({ name: 'Second project' }), 'absent'));
 		const current = expectFound(await w.zones.getById(zoneEntity.entity.id));
-		Object.assign(current.entity, { projectId: 'project-other' });
+		Object.assign(current.entity, { projectId: otherProject.entity.id });
 		expectOk(await w.zones.save(current.entity, current.version));
 
 		const redo = expectOk(await adapter.execute());
@@ -330,7 +344,7 @@ describe('ReversibleAssignAssetCommand guards', () => {
 describe('recalculation against a hand-tampered record', () => {
 	it('refuses an unsupported origin kind instead of guessing a rule', async () => {
 		const w = await requirementFixture();
-		const recalculate = new RecalculateRequirementCommand(w.requirements, w.zones, w.assets, w.events);
+		const recalculate = new RecalculateRequirementCommand(w.requirements, w.zones, w.assets, w.events, w.projects);
 		const requirement = makeRequirement({
 			projectId: w.project.entity.id,
 			assetId: 'asset-x' as never,

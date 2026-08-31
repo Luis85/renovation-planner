@@ -296,13 +296,13 @@ function slice10Services(): Fixture[] {
 		),
 		commandCase(
 			'AssignAssetCommand',
-			new AssignAssetCommand(zones, assets, requirements, events, locks) as never,
+			new AssignAssetCommand({ zones, assets, requirements, events, locks, projects }) as never,
 			'command.assignAsset.failed',
 			{ zoneId: zone.id, assetId: asset.id },
 		),
 		commandCase(
 			'RecalculateRequirementCommand',
-			new RecalculateRequirementCommand(requirements, zones, assets, events) as never,
+			new RecalculateRequirementCommand(requirements, zones, assets, events, projects) as never,
 			'command.recalculateRequirement.failed',
 			{ requirementId: requirement.id },
 		),

@@ -82,8 +82,15 @@ state**, not in Pinia — `rebind` remounts the Vue tree on a settings save, and
 Pinia-held selection would throw the user out of the project they are in. Navigation goes
 through `leaf.setViewState` and sets `ViewStateResult.history`, so the leaf's back arrow walks
 it. `vue-router` is refused with a recorded trigger. The note stays reachable as an
-**Open note** action in the detail header. An `open-project` palette command reaches the same
-state transition, and with an empty vault reveals the **list** rather than a zero-row picker.
+**Open note** action in the detail header. An `open-project-detail` palette command reaches the
+same state transition, and with an empty vault reveals the **list** rather than a zero-row
+picker.
+
+This paragraph named `open-project` until a review bot read it against criteria 9 and 10, which
+had been corrected to the built id one round earlier. That id belongs to the command that merely
+REVEALS the pane and has since slice 1; the deviation and its reason are two sections down. A
+summary contradicting the criteria in its own document is worse than either being wrong alone —
+an implementer reads the approach first.
 
 ## Acceptance criteria
 
@@ -129,8 +136,16 @@ state transition, and with an empty vault reveals the **list** rather than a zer
    state; it does not read the legitimate `ok(null)` as a deleted project and navigate away,
    which would discard the `projectId` this criterion is about and no later read could
    restore it. **And it holds only until the scan COMPLETES, zero entries included** — a vault
-   whose last project note was deleted while Obsidian was closed reaches the list, rather than
-   spinning for the session waiting for an index that will never have entries in it.
+   whose last project note was deleted while Obsidian was closed settles `'gone'` and draws the
+   screen that says so, rather than spinning for the session waiting for an index that will
+   never have entries in it.
+
+   That sentence said "reaches the list" until a review bot caught it. It was true of the build
+   that shipped first, where a `watch(status)` navigated on `'gone'`; the improvement pass
+   retired that redirect precisely because an automatic navigation records a history entry
+   nobody asked for, and criterion 6 was rewritten with it. This line was not, so the document
+   described a mechanism its own criteria had removed — which is how a later worker
+   reintroduces one.
 9. The `open-project-detail` command reaches the same state transition as a row click —
    **including when a Renovation project leaf is already open**, which is the normal case; with
    no projects in the vault it reveals the list state, not a picker.

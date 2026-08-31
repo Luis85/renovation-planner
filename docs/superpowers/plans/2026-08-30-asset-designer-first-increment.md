@@ -876,6 +876,116 @@ git add src/application/commands/asset/SetAssetFootprint.ts src/domain/asset/Ass
 git commit -m "Set an asset's footprint, typed or traced"
 ```
 
+#### Amendment 1 — executed 2026-08-31 as `e748d4c`, and what it did NOT do
+
+**Shipped:** both commands and sixteen cases, two files, `npm run check` green (290 files,
+4161 passed, statements 99.28%, the new file at zero uncovered statements, functions and
+branches). Every guard was mutated out one at a time and each reddened exactly its intended
+case.
+
+**NOT shipped: the event.** Step 3 above requires `assetDesignChanged` and an addition to
+`src/domain/asset/Asset.events.ts`; Step 4's `git add` names that file. The task's own
+**Interfaces** block names no `EventBus` at all, and the instruction was two files. The
+executing agent shipped neither the event nor a bus, and said so rather than substituting
+`assetUpdated` — which has live subscribers (slice 10's recalculation cascade re-reads every
+Requirement referencing the asset), so publishing it on a footprint edit would have been a
+behaviour decision wearing a stand-in's clothes.
+
+**The consequence is scheduled rather than left to be discovered.** `AssetDesignChanged` does
+not exist, so Task A9's wiring case
+(`root.eventBus.subscribe('AssetDesignChanged', …)`, line ~1138) and Task B3a cannot pass. It
+is **Task A5a** below, and it lands before A6 so that A6's three commands copy an established
+pattern rather than inventing one — and so that the retrofit of A5's two commands is explicit
+in its own commit rather than buried inside a task about clearance.
+
+**Three corrections to this task's own text, found by executing it:**
+
+1. **`shapeFromDimensions` is unusable here** and the Consumes block names it. It composes a
+   WHOLE fresh shape (clearance `null`, anchor `{0,0}`, facing `0`), so using it destroys
+   exactly what the *Preservation* rule protects and test 3 fails. What A5 actually consumes
+   is `footprintFromDimensions` plus a merge over the stored shape. Task A6's "exactly what
+   Task A5 consumes" inherits this correction.
+2. **The stale-version fixture does not compile.** `const stale = { revision: 0, digest:
+   'stale' }` — `EntityVersion` is `{ revision, observed: ObservationToken }`, a branded
+   string, and `tests/**` is type-checked by `build`. Take a real earlier version from a prior
+   read instead, which is also the stronger fixture: it proves the file was not overwritten.
+3. **The Conditioning case above only exercises the `expected` a caller passed.** Mutating
+   `input.expected ?? snapshot.version` to `input.expected` leaves it green — the `??` half is
+   unobservable through the port with a single writer. An interposing sidecar that lands a
+   competing write between the command's read and its write is what reddens it, and that is
+   the case as shipped.
+4. **`seedCalibration()` implies a command that does not exist** in this increment. The test
+   seeds the document straight through the port, and `AssetGeometryDocument` is written whole,
+   so seeding is `sidecar.write` rather than a helper.
+
+**One judgement call, pinned as behaviour rather than left implicit:** a stale `expected` over
+an *identical* footprint returns `no-write` rather than a conflict, because the command returns
+before reaching the port — no field it owns would change, so there is nothing to lose. It has a
+case and a paragraph in the docblock.
+
+---
+
+### Task A5a: `AssetDesignChanged`, and the bus both A5 commands owe it
+
+**Why it is its own task.** The event is named in five places (this plan's A5 Step 3, A9's
+wiring case, B3a, the undo section, and the spec's §371) and defined in none. Task A5 shipped
+without it for the reason its Amendment 1 records; Task A6's text does not mention it at all,
+so left alone the gap reaches A9 as a failing wiring test with three tasks' worth of commands
+to retrofit at once.
+
+**Files:**
+- Modify: `src/domain/asset/Asset.events.ts` — add the event following `assetCreated`'s shape
+- Modify: `src/application/commands/asset/SetAssetFootprint.ts` — an `EventBus` constructor
+  argument on both commands, published on the `'wrote'` path only
+- Test: `tests/application/commands/asset/setAssetFootprint.test.ts` — extend
+
+**Interfaces:**
+- Consumes: `EventBus` (`src/application/ports/EventBus.ts`), `AssetId`.
+- Produces: `AssetDesignChanged { assetId }` — ONE event for every design command in this
+  increment, never a per-field family. B3a depends on that being one name.
+
+- [ ] **Step 1: Write the failing cases**
+
+Two, and the second is the one that discriminates:
+
+```typescript
+it('announces a footprint that was written', async () => {
+	const heard: AssetId[] = [];
+	bus.subscribe('AssetDesignChanged', (e) => heard.push(e.assetId));
+	await typed.execute({ assetId, width: 120, depth: 80 });
+	expect(heard).toEqual([assetId]);
+});
+
+it('announces nothing when the write was a no-write', async () => {
+	await typed.execute({ assetId, width: 120, depth: 80 });
+	const heard: AssetId[] = [];
+	bus.subscribe('AssetDesignChanged', (e) => heard.push(e.assetId));
+	await typed.execute({ assetId, width: 120, depth: 80 });
+	expect(heard).toEqual([]);
+});
+```
+
+**The second is not a nicety.** `no-write` returns before the port is reached, and a command
+that announced regardless would tell every open designer leaf to re-read on every idle
+re-submit — and would make the event mean "somebody pressed something" rather than "the stored
+design changed", which is not a signal a subscriber can act on. A refusal announces nothing
+either, for the same reason and by the same `'wrote'` gate.
+
+- [ ] **Step 2: Run, watch fail, implement**
+
+Publish inside `setFootprint`'s `'wrote'` arm, so both commands announce through one line and a
+third design command added to that file cannot forget. **Mutate the gate out** — announce
+unconditionally — and watch case two go red on its own.
+
+- [ ] **Step 3: Run, gate, commit**
+
+```bash
+npx vitest run tests/application/commands/asset
+npm run check
+git add src/domain/asset/Asset.events.ts src/application/commands/asset tests/application/commands/asset
+git commit -m "Announce a changed asset design"
+```
+
 ---
 
 ### Task A6: clearance, anchor and facing
@@ -887,7 +997,12 @@ git commit -m "Set an asset's footprint, typed or traced"
 - Test: `tests/application/commands/asset/setAssetAttributes.test.ts`
 
 **Interfaces:**
-- Consumes: exactly what Task A5 consumes.
+- Consumes: exactly what Task A5 consumes **as corrected by its Amendment 1** —
+  `footprintFromDimensions` and a merge, never `shapeFromDimensions`, which composes a whole
+  fresh shape and destroys the very attributes the *Preservation* rule protects — plus the
+  `EventBus` Task A5a threads through. All three commands here take it and publish
+  `AssetDesignChanged` on the `'wrote'` path only, copying `setFootprint`'s single publish
+  point rather than each announcing for itself.
 - Produces: `SetAssetClearanceCommand` (input `{ assetId, points: readonly Point[] | null, expected? }`), `SetAssetAnchorCommand` (`{ assetId, anchor: Point, expected? }`), `SetAssetFacingCommand` (`{ assetId, facing: number, expected? }`), all resolving `Result<DispatchOutcome, AppError>`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -964,6 +1079,9 @@ npm run check
 git add src/application/commands/asset tests/application/commands/asset
 git commit -m "Set an asset's clearance, anchor and facing"
 ```
+
+Each of the three needs the `no-write`-does-not-announce case Task A5a pins, or the gate is
+kept in one command out of five by memory rather than by a shared publish point.
 
 ---
 

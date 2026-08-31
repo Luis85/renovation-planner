@@ -28,7 +28,7 @@ const PROTECTED_DIRECTORIES = ['tests/core/', 'tests/domain/', 'tests/applicatio
 /** The regex Vitest itself matches with, read out of the installed package, not assumed. */
 const ENVIRONMENT_DIRECTIVE = /@(?:vitest|jest)-environment\s+([\w-]+)\b/u;
 
-const posix = (path: string): string => relative(REPO, path).split(sep).join('/');
+const posix = (path: string): string => relative(REPO, path).replaceAll(sep, '/');
 
 /**
  * Relative import specifiers — STATIC and DYNAMIC both, because both are graph edges.

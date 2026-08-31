@@ -10,7 +10,7 @@
     "isolatedModules": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "lib": ["DOM", "ES2020", "ES2021.Intl", "ES2023.Array"],
+    "lib": ["DOM", "ES2021", "ES2023.Array"],
     "types": ["node"]
   },
   "include": [

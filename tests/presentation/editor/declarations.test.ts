@@ -52,7 +52,7 @@ function declarationPattern(name: string): RegExp {
 }
 
 function sourceFiles(): string[] {
-	return globSync('**/*.{ts,vue}', { cwd: SRC }).map((file) => file.replace(/\\/g, '/'));
+	return globSync('**/*.{ts,vue}', { cwd: SRC }).map((file) => file.replaceAll('\\', '/'));
 }
 
 function read(relative: string): string {

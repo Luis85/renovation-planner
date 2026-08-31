@@ -62,6 +62,9 @@ export default defineConfig(({ mode }) => ({
 		 * which read a path.
 		 */
 		outDir: 'dist',
+		// The SYNTAX floor, which is not `tsconfig.json`'s `lib`: that is ES2021 and says
+		// which APIs exist. A method call is not downlevelled and esbuild polyfills
+		// nothing, so the two move independently — see CLAUDE.md's Gotchas.
 		target: 'es2020',
 		minify: mode !== 'development',
 		// Inline, so a stack trace in Obsidian's console points at the TypeScript rather

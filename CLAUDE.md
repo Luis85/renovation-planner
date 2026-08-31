@@ -2447,14 +2447,21 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
 
-**`npm run typecheck:tests` is a FIFTH gate and is deliberately not in `check` yet** — it
-runs `vue-tsc` a second time, over `tests/**`, which is about 8 seconds on each of the four
-CI legs, and while its baseline still holds files it is buying a regression check rather than
-a clean tree. It joins `check` when that list is short enough that the second compile earns
-its place. The Testing section below has the mechanism. **Read the baseline itself for how
-many files are left rather than a figure here**: this sentence said "a hundred files" for
-three increments after the list had fallen past fifty, which is the shape this file's own
-Claims section refuses — a number written into prose is one nothing re-measures.
+**`tests/**` is type-checked by the `build` step, like `src/`** — `tsconfig.json`'s `include`
+is `src/**` plus `tests/**`, and there is no second program and no fifth gate. That was not
+free and the cost is worth knowing: `vue-tsc` goes from about 8 seconds to about 16, on each
+of the four CI legs.
+
+It arrived through a RATCHET that no longer exists. Turning the compiler on reported 562
+errors across 114 of 307 files, so the debt was held as a baseline of files permitted to
+fail, cleared over five increments, and the script and its baseline deleted when the list
+emptied. What that bought is in the Testing section below; what it cost is the eight seconds.
+
+**One thing the ratchet proved before it was retired, and the reason this now sits inside
+`check` rather than beside it:** while it was a separate command nobody ran, four files
+silently stopped type-checking between two merges — a deps type that grew a member, a
+function that grew a parameter, two new test files. A gate outside `npm run check` is a gate
+that reports only when somebody remembers to ask it.
 
 `npm audit` is deliberately NOT in `check`: an advisory with no patched version is a red
 nobody can clear, and a gate people learn to ignore protects nothing. It is its own CI job.
@@ -2836,66 +2843,74 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-`npm run build` type-checks `tests/**` only through **seven entries in `tsconfig.json`'s
-`include`** (vitest itself transpiles without checking), each there for its own reason. Seven,
-counted in the file rather than remembered: slice 11 added the third and this sentence said
-"two" for a slice, slice 16's review pass added the fourth, slice 12 added the fifth, and
-slice 17 added the sixth and — in a review round on its own pull request — the seventh; this
-sentence
-narrated exactly that failure mode ("counted … rather than remembered") one slice before
-falling into it itself, sitting at "four" through slice 12's own thirteen tasks until its
-final review round re-counted the file.
+**`npm run build` type-checks `tests/**` in full** — `tsconfig.json`'s `include` is `src/**`
+plus `tests/**`, with no `paths` mapping, so a test is checked against the same types `src/`
+is. Vitest still transpiles without checking; the compiler that matters runs in `build`.
 
-**The REST of `tests/**` is type-checked too now, by a second program behind a RATCHET, and
-that is a different mechanism rather than a sixth entry.** `npm run typecheck:tests` runs
-`vue-tsc` over `tsconfig.tests.json` and holds the result to
-`scripts/typecheck-tests-baseline.json` — the files permitted to fail, a list that ONLY
-SHRINKS. It refuses three things: an error in a file not on the list, an entry that has
-become clean (which must be removed in the commit that earned it, or a carve-out for a file
-that no longer needs one goes on reading as a live exception), and an entry naming a path
-that does not exist. It started at 562 errors across 114 of 307 files, which is what kept it
-out of `tsconfig.json`; **193 files were already clean**, which is what makes the ratchet
-worth more than a one-shot cleanup — a NEW test file is checked from the day it is written.
-The end state is an empty list, `tests/**` folded into `tsconfig.json`, and both that script
-and its baseline deleted.
+**It arrived through a ratchet, and the ratchet is gone.** For a long time this said "two
+entries", then four, five, six, seven — one file at a time, each admitted because a specific
+proof needed a compiler and each paying for itself on its first run. Turning the whole tree on
+reported **562 errors across 114 of 307 files**, so the rest was held as a baseline of files
+permitted to fail (`scripts/typecheck-tests-baseline.json`, enforced by
+`scripts/typecheck-tests.mjs`), cleared over five increments, and both deleted with the list.
+What is worth carrying is not the mechanism but what it found, because every one of these was
+green in all four gates beforehand:
 
-Three things about it are worth carrying:
+- **A command bundle missing `calibratePlan` entirely**, so slice 15's calibrate button would
+  have TypeErrored in the e2e rig rather than refusing or working.
+- **Two cascade registrations passing the command OBJECT** where `CascadeDeps` declares a
+  METHOD — `deps.recalculate({…})` would have been "not a function", unreached only because
+  both cases abort at a failing list step.
+- **A `createZoneId()` handed to `InMemoryRequirementRepository.poke`**, which takes a
+  `RequirementId` — a foreign brand reaching a method, in the file that tests that repository.
+- **`saveSettings({ …, projectsFolder })` where the setting is `projectFolder`.** `settingsFrom`
+  is a trust boundary that drops a key this version does not declare, so six cases certified a
+  rebind on a settings change that never happened. **A SEVENTH was living on an open branch and
+  arrived at the merge**, in design slice 21's `rootSwapRebind.test.ts` — invisible to the sweep
+  that found the other six, because that file did not exist on `main` when the sweep ran. It
+  cost nothing behaviourally, and saying why is the point: `saveSettings` calls
+  `rebindOpenViews()` unconditionally rather than comparing old settings against new, so the
+  rebind those cases are about really did happen. What it cost is that the case reads as
+  changing a setting and does not — and it would go on passing on the day `saveSettings` learns
+  to short-circuit an unchanged save. **This is the argument for the gate being PERMANENT rather
+  than a sweep**: a one-off cleanup measures the tree in front of it, and every open branch is a
+  tree it cannot see.
+- **A confirm dialog handed `body:` where `ConfirmDescriptor` declares `message`** — an excess
+  property, so that fixture's dialog rendered no message at all.
+- **`argumentsOf` guarding a lightningcss pseudo-class with `Array.isArray`**, which cannot
+  discriminate there: `Selector` is itself `SelectorComponent[]`, so the guard answered true
+  for every variant and handed `:host`'s single selector back as a LIST of them.
+- **Dead code that read as belt and braces** — `zone.withChanges?.({})` on a `Zone` with no
+  such member, immediately `void`ed, under a comment describing the two lines below it.
+- **A local `type ResultLike<T> = { ok: true; value: T }`** asserting that a validating call
+  cannot refuse.
+- **`withConflictingReads` typed to a port while calling `poke`**, which no port declares.
+  That one is also its own lesson: narrowing to `InMemoryRequirementRepository` was the
+  obvious next answer and was wrong in the OTHER direction, since a second call site wraps the
+  ASSET repository — a fix written against the case in front of the author rather than the
+  class, caught only because the compiler was still running.
 
-- **It does NOT map `obsidian` to the mock, and that is the load-bearing decision.** A
-  compiler has one resolution per program, so mapping the specifier would give `src/` the
-  mock too — measured, 77 errors, since `tests/helpers/obsidian-mock.ts` exports 13 members
-  against a real surface holding `Vault`, `Workspace`, `MetadataCache`, `FileManager`, `App`
-  and `TAbstractFile` among others. So a test importing from `'obsidian'` is checked against
-  the REAL types, which is this file's own fake-must-not-be-thinner rule finally pointed at a
-  compiler; 118 of the 562 errors are exactly that, and the honest spelling for a mock-only
-  member (`Notice.shown`, `FuzzySuggestModal.opened`) is an import naming the mock.
-  `tests/build/typecheckRatchet.test.ts` pins the absent mapping, because the obvious way to
-  clear those 118 is to add it.
-- **The rules are a PURE module** (`scripts/typecheck-baseline.mjs`) so the test drives them
-  in milliseconds; `vue-tsc` over that program costs about 15 seconds, and
-  `tests/build/chromium.test.ts`'s header already records what synchronous multi-second bursts
-  do to a two-core runner beside files that wait in TICKS.
-- **Its own continuation-line case did not discriminate on the first attempt**, which is this
-  file's watch-it-fail rule paying out again: the fixture's indented lines carried no
-  parenthesis, so a pattern keyed on the path shape alone passed all twelve cases. Real
-  output with `() =>`, `getById(...)` and `element(s)` in it is what makes that case mean
-  something — measured, the looser pattern counts 130 files where there are 114. And the gate
-  caught its own author on its first real run: `replaceAll` is not in this project's `lib`, in
-  a line copied from a file outside the type-checked set.
+Three rules came out of the exercise and outlive it:
 
-**What the first two passes over that debt found is the argument for the whole thing**, since
-every one had been green in all four gates: `planEditorRig`'s command bundle missing
-`calibratePlan` ENTIRELY, so slice 15's calibrate button would have TypeErrored in the e2e
-rig; two cascade registrations passing the command OBJECT where `CascadeDeps` declares a
-METHOD, unreached only because both cases abort at a failing list step; a dead
-`withChanges?.({})` on a `Zone` that has no such member, immediately `void`ed, under a comment
-describing the two lines below it; a local `type ResultLike<T> = { ok: true; value: T }`
-asserting that a validating call cannot refuse; and `withConflictingReads` typed to a port
-while calling `poke`, which no port declares. That last one is also the round's own lesson:
-narrowing it to `InMemoryRequirementRepository` was the obvious next answer and was wrong in
-the OTHER direction, since a second call site wraps the ASSET repository with it — a fix
-written against the case in front of the author rather than the class, caught only because
-the compiler was still running.
+- **A fixture is usually behind a change it was the REASON for.** `PolygonSketch`'s docblock
+  records `cursor` being split into `pointer` and `nextVertex`, and a fixture still wrote
+  `cursor`; `flattenedWithoutRing` declared `Map<string, string>` while its body built a list
+  of sites per class, for a defect its own comment explains. Prose recorded both changes.
+  Nothing checked them.
+- **`as never` over a whole double hides which members it stands in for**, and makes every
+  read through it an error the moment anything asks. Two `vaultStack()` helpers were `as never`;
+  `never` has no properties.
+- **A local assigned inside a callback narrows to `null` at every later read.** Four separate
+  `let settle: (() => void) | null = null` locals stopped being callable. The house spelling is
+  a definite assignment (`let settle!: () => void`), which `drawPolygonTool.test.ts` already used.
+
+**And the argument for it living in `build` rather than beside it:** while the gate was a
+separate command, four files silently stopped type-checking between two merges, and nothing
+reported it until somebody ran it by hand. The eight seconds it adds to `vue-tsc` is what that
+costs.
+
+The seven entries that were admitted one at a time are still worth reading for WHY each was
+worth a compiler, since the same reasons apply to the next proof somebody needs:
 
 `tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
 `IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is

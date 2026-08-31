@@ -15,7 +15,7 @@ import { Notice } from '../helpers/obsidian-mock';
 import { Decimal } from 'decimal.js';
 import { loadedPlugin } from '../helpers/plugin';
 import { createRepositoryStack } from '../helpers/vault';
-import { expectOk } from '../helpers/domain';
+import { expectFound, expectOk } from '../helpers/domain';
 import { of as moneyOf } from '../../src/core/money/Money';
 import {
 	makeAsset,
@@ -122,7 +122,7 @@ describe('slice-10 cascade wiring', () => {
 		// A price edit that has not announced itself yet: after it lands, the link no
 		// longer matches what its figures were computed FROM, so the cascade must
 		// recalculate for real rather than skip.
-		const storedAsset = expectOk(await stack.assets.getById(asset.entity.id));
+		const storedAsset = expectFound(await stack.assets.getById(asset.entity.id));
 		const repriced = expectOk(
 			storedAsset.entity.withChanges({ unitCost: moneyOf('50.00', 'EUR') }),
 		);
@@ -226,7 +226,9 @@ describe('slice-10 cascade wiring', () => {
 
 		const rename = vaultHandlers[3];
 		expect(rename).toBeInstanceOf(Function);
-		rename(movedFile, oldPath);
+		// `as never` because `vaultHandlers` declares its file parameter that way on purpose:
+		// every caller has to say what it is handing the handler rather than inheriting a guess.
+		rename(movedFile as never, oldPath);
 		plugin.root.persistence?.changeAdapter.flush();
 
 		expect(plugin.root.persistence?.index.getPath(plan.entity.id)).toBe(newPath);

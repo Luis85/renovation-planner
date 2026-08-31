@@ -196,7 +196,7 @@ describe('undoing a background import', () => {
 		const loaded = await storedPlan(plans);
 
 		expectOk(await reversible.execute({ planId: loaded.entity.id, background: GROUND_PNG }));
-		events.published.length = 0;
+		events.clear();
 		expectOk(await reversible.undo());
 
 		expect(events.published).toHaveLength(0);

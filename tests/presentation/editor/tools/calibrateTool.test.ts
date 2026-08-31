@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import { CalibrateTool } from '../../../../src/presentation/editor/tools/calibrate-tool';
 import {
 	at,
@@ -175,6 +176,8 @@ describe('CalibrateTool', () => {
 			hasSpatialObjects: h.hasSpatialObjects,
 			confirmRecalibration: h.confirmRecalibration,
 			reportRejected: h.reportRejected,
+			// Slice 17 split this door from `reportRejected`; both literals here omitted it.
+			reportInvalidInput: h.reportInvalidInput,
 		});
 		tool.pointerDown(at(1, 1));
 		tool.pointerDown(at(2, 2));
@@ -356,6 +359,7 @@ function makeTool(overrides: Pick<Harness, 'hasSpatialObjects' | 'confirmRecalib
 		hasSpatialObjects: overrides.hasSpatialObjects,
 		confirmRecalibration: overrides.confirmRecalibration,
 		reportRejected: h.reportRejected,
+		reportInvalidInput: h.reportInvalidInput,
 	});
 	tool.activate(h.context);
 	return { tool, dispatched: h.dispatched, distancePrompts: () => distancePromptCount };
@@ -435,7 +439,9 @@ describe('the recalibration gate', () => {
 	 * reintroduced by adding an await above it.
 	 */
 	it('drops a confirmation that resolves after the gesture was cancelled', async () => {
-		let release: ((confirmed: boolean) => void) | null = null;
+		// Definite assignment: the write happens inside the promise executor, which control flow
+		// cannot see run, so a `| null` union narrows to `null` at every later read.
+		let release!: (confirmed: boolean) => void;
 		const { tool, dispatched, distancePrompts } = makeTool({
 			hasSpatialObjects: () => true,
 			confirmRecalibration: () =>
@@ -447,7 +453,7 @@ describe('the recalibration gate', () => {
 		const gesture = calibrate(tool);
 		await Promise.resolve();
 		tool.cancel();
-		release?.(true);
+		release(true);
 		await gesture;
 
 		expect(dispatched).toEqual([]);

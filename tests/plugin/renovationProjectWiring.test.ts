@@ -17,7 +17,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // wants.
 import { Notice } from '../helpers/obsidian-mock';
 import { activateNotices } from '../../src/presentation/notices/notify';
-import { createCompositionRoot, renovationProjectDeps, type CompositionRoot } from '../../src/plugin/composition-root';
+import {
+	createCompositionRoot,
+	renovationProjectDeps,
+	type CompositionRoot,
+	type VaultStack,
+} from '../../src/plugin/composition-root';
 import { projectIndexRebuilt } from '../../src/application/events/projectIndex.events';
 import { planCreated } from '../../src/domain/plan/Plan.events';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
@@ -53,12 +58,15 @@ beforeEach(() => {
 	activateNotices();
 });
 
-const vaultStack = () =>
+// Typed as `VaultStack`, not `as never`: the cast made every `.vault` read below an error,
+// because `never` has no properties. `as never` on a whole double is the spelling that hides
+// which members it is actually standing in for.
+const vaultStack = (): VaultStack =>
 	({
 		vault: { getAbstractFileByPath: () => null, getFiles: () => [] },
 		fileManager: {},
 		metadataCache: { getFileCache: () => null },
-	}) as never;
+	}) as unknown as VaultStack;
 
 /**
  * The bundle a session whose settings never recovered gets. Shared by the two write cases
@@ -74,8 +82,15 @@ function refusingDeps(): RenovationProjectDeps {
 	});
 }
 
-/** A real composed root with settings recovered, beside a fresh workspace and vault. */
-function composedRoot(): { root: CompositionRoot; workspace: FakeWorkspace; vault: unknown } {
+/**
+ * A real composed root with settings recovered, beside a fresh workspace and vault.
+ *
+ * `vault` is typed as the member it IS rather than as `unknown`, for the reason `vaultStack`'s
+ * own comment gives one screen up: a widened type on a whole double hides which members it is
+ * standing in for, and here it also made every `renovationProjectDeps(…, vault, …)` call below
+ * an error the moment `tests/**` entered the type-checked program.
+ */
+function composedRoot(): { root: CompositionRoot; workspace: FakeWorkspace; vault: VaultStack['vault'] } {
 	const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
 	return { root, workspace: new FakeWorkspace(), vault: vaultStack().vault };
 }

@@ -17,6 +17,17 @@ import { renderPdfPage } from '../../../src/presentation/editor/layers/backgroun
 import { t } from '../../../src/presentation/i18n/strings';
 import { installObsidianDom } from '../../helpers/dom';
 import { pdfFixture } from '../../helpers/backgroundFixtures';
+import type { FuzzySuggestModal as FuzzySuggestModalMock } from '../../helpers/obsidian-mock';
+
+/**
+ * The mock's own view of a suggest modal.
+ *
+ * `placeholder` is a field the MOCK keeps — the real `FuzzySuggestModal` has `setPlaceholder`
+ * and no such property, so reading it through the class's declared base is an error. These
+ * pickers extend the real type and run against the mock, and this names which of the two the
+ * assertion is asking. One helper rather than a cast per call site.
+ */
+const asMockModal = (modal: object): FuzzySuggestModalMock<unknown> => modal as FuzzySuggestModalMock<unknown>;
 
 installObsidianDom();
 
@@ -67,7 +78,7 @@ describe('the background file picker', () => {
 	it('names itself from the string table', () => {
 		const picker = new PlanBackgroundSuggestModal({} as never, files, () => undefined);
 
-		expect(picker.placeholder).toBe(t('en', 'command.set-plan-background'));
+		expect(asMockModal(picker).placeholder).toBe(t('en', 'command.set-plan-background'));
 	});
 });
 
@@ -110,7 +121,7 @@ describe('the plan picker', () => {
 	it('names itself from the string table', () => {
 		const picker = new PlanSuggestModal({} as never, plans, () => undefined);
 
-		expect(picker.placeholder).toBe(t('en', 'command.open-plan-editor'));
+		expect(asMockModal(picker).placeholder).toBe(t('en', 'command.open-plan-editor'));
 	});
 });
 

@@ -97,7 +97,7 @@ Create `tests/core/money/currency.test.ts`:
 ```ts
 import { describe, expect, it } from 'vitest';
 import { currencyOf, of, parseCurrency, zero } from '../../../src/core/money/Money';
-import { expectOk } from '../../helpers/result';
+import { expectOk } from '../../helpers/domain';
 
 describe('parseCurrency', () => {
 	it('accepts an uppercase ISO 4217 alpha-3 code', () => {
@@ -269,14 +269,15 @@ void asString;
 
 - [ ] **Step 7: Register both new `.test-d.ts` files with fallow**
 
-In `.fallowrc.json`'s `manualEntryPoints` array, add — individually, never as a glob, for the reason that array's own comment gives:
+In `.fallowrc.json`'s `manualEntryPoints` array, add **this one line only** — individually, never as a glob, for the reason that array's own comment gives:
 
 ```json
 		"tests/core/money/currency.test-d.ts",
-		"tests/domain/cost/costPipelineInput.test-d.ts",
 ```
 
-`tests/domain/cost/costPipelineInput.test-d.ts` is created in Task 4. Registering it now means one edit to this file rather than two; if Task 4 has not run yet fallow reports it as missing, so **add only the currency line in this task** and the second line in Task 4.
+Task 4 registers its own `costPipelineInput.test-d.ts` entry in the same array. Adding it here instead would name a file that does not exist yet, and fallow reports a missing entry point as an error — so each task registers only the file it creates.
+
+Also extend that array's preceding comment, which currently counts *"The five `*.test-d.ts` files"*: it is six after this task and seven after Task 4. Update it to the count that is true when you commit — a count is a fact about the tree at the moment of the edit.
 
 - [ ] **Step 8: Verify the type test discriminates**
 
@@ -1408,7 +1409,7 @@ Run: `npm run check`
 Expected: PASS.
 
 ```bash
-git add src/application/queries/GetRequirementsForZone.ts src/domain/project/Project.ts src/plugin/composition-root.ts tests/
+git add src/application/queries/GetRequirementsForZone.ts src/plugin/composition-root.ts tests/
 git commit -m "feat(requirement): a project whose currency moved reads stale"
 ```
 

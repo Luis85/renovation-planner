@@ -1071,7 +1071,7 @@ contract ends at the typed result, before any write occurs.
     in a dialog is authored outside `presentation/dialogs/`.
 
     **Neither half is caught by lint, and the honest sentence is that both rest on
-    review.** `I18N_LITERAL_BAN` fires at exactly four call sites — `.setText(...)` and
+    review.** `I18N_LITERAL_BAN` fires at exactly six call sites — `.setText(...)` and
     the `text:` option of `.createEl`/`.createDiv`/`.createSpan` — and a descriptor's
     `title:` or `label:` property is none of them; a Vue template's interpolation is not
     either. What can be checked cheaply is the *inverse*: every `StringKey` the dialogs

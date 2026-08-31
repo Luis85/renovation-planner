@@ -17,9 +17,21 @@ import type { ProjectSummaryDto } from '../../../src/presentation/read-models/Pl
 const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', libraryOverlap: false };
 const READ_FAILED = { category: 'Persistence', code: 'settings.unrecovered', message: 'boom' } as const;
 
+/**
+ * `getProject` and `listPlansByProject` are design slice 21's detail-state doors, and this
+ * store never calls either — `RenovationProjectStore` holds the LIST, and the detail state is
+ * `ProjectDetailStore`'s. They ANSWER rather than refuse for CLAUDE.md's fifth
+ * fake-instance reason: a stand-in that refuses what production would answer shows a false
+ * picture, and there is no unavailable session being modelled here — every case in this file
+ * that wants a refusal spells it on `listProjects`, which is the door it is about.
+ * `ok(null)` is "no such project", which is the answer this bundle's own one-project vault
+ * gives for any id but `PROJECT`'s.
+ */
 function queries(overrides: Partial<RenovationProjectQueryServices> = {}): RenovationProjectQueryServices {
 	return {
 		listProjects: () => Promise.resolve(ok({ projects: [PROJECT], unreadable: 0 })),
+		getProject: () => Promise.resolve(ok(null)),
+		listPlansByProject: () => Promise.resolve(ok([])),
 		...overrides,
 	};
 }

@@ -10,9 +10,11 @@
  */
 import { describe, expect, it } from 'vitest';
 import { err, ok } from '../../../src/core/result/Result';
+import type { Result } from '../../../src/core/result/Result';
+import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
 import { t } from '../../../src/presentation/i18n/strings';
 import { installObsidianDom } from '../../helpers/dom';
-import { makeView } from '../../helpers/makeRenovationProjectView';
+import { defaultRenovationProjectDeps, makeView } from '../../helpers/makeRenovationProjectView';
 import { useRenovationProjectStore } from '../../../src/presentation/stores/RenovationProjectStore';
 import { unavailableRenovationProjectCommands } from '../../../src/presentation/views/renovationProjectCommands';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
@@ -20,14 +22,28 @@ import type { RenovationProjectQueryServices } from '../../../src/presentation/r
 
 /**
  * Every case here is about the read side's empty/loading/failed states, never about the
- * write side — so `commands` and `openProject` are the same refusal bundle and no-op
- * `makeView`'s own default uses, spelled out here because `queries` is the one field each
- * case actually varies.
+ * write side — so `commands` is the refusal bundle, spelled out because `makeView`'s own
+ * default ANSWERS through a real `CreateProjectCommand` and no case here dispatches.
+ * Everything else this file has no opinion about is spread from the factory's defaults, so
+ * a member `RenovationProjectDeps` grows next is decided once there rather than guessed here
+ * — which is exactly what did NOT happen when design slice 21 grew it by five.
+ *
+ * `openProject` and `onProjectsChanged` are the factory's own no-ops (no index rebuild is
+ * published here; `viewRootIndexRebuild.test.ts` is what drives one).
  */
 const commands = unavailableRenovationProjectCommands();
-const openProject = (): Promise<'opened'> => Promise.resolve('opened');
-/** No index rebuild is published here; `viewRootIndexRebuild.test.ts` is what drives it. */
-const onProjectsChanged = (): (() => void) => () => undefined;
+
+/**
+ * Design slice 21's two detail-state doors, answering emptily. Every case in this file draws
+ * the LIST (`projectId` is the factory's `null`), so neither is reached — and they ANSWER
+ * rather than refuse for CLAUDE.md's fifth fake-instance reason: `refusing()` below models a
+ * session whose reads are genuinely unavailable, and using that same shape where the read
+ * side works would be a fake harsher than the real thing.
+ */
+const detailDoors = {
+	getProject: () => Promise.resolve(ok(null)),
+	listPlansByProject: () => Promise.resolve(ok([])),
+} satisfies Pick<RenovationProjectQueryServices, 'getProject' | 'listPlansByProject'>;
 
 const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', libraryOverlap: false };
 
@@ -36,11 +52,23 @@ const answering = (
 	unreadable = 0,
 ): RenovationProjectQueryServices => ({
 	listProjects: () => Promise.resolve(ok({ projects, unreadable })),
+	...detailDoors,
 });
 
+/**
+ * A session with unrecovered settings, and ALL THREE doors refuse — which is what production
+ * does (`unavailableRenovationProjectQueries` builds every member out of one `refuseUnrecovered`).
+ * A bundle whose `listProjects` refused while `getProject` answered would be the mirror of
+ * the fifth fake-instance lesson: kinder than the real thing, in the one session where there
+ * is genuinely nothing to read.
+ */
+const refuseUnrecovered = (): Promise<Result<never, RepositoryError>> =>
+	Promise.resolve(err({ category: 'Persistence', code: 'settings.unrecovered', message: 'no' }));
+
 const refusing = (): RenovationProjectQueryServices => ({
-	listProjects: () =>
-		Promise.resolve(err({ category: 'Persistence', code: 'settings.unrecovered', message: 'no' })),
+	listProjects: refuseUnrecovered,
+	getProject: refuseUnrecovered,
+	listPlansByProject: refuseUnrecovered,
 });
 
 /** The view hydrates on open; the same settle shape the editor harness uses. */
@@ -53,7 +81,7 @@ async function settle(): Promise<void> {
 
 async function open(queries: RenovationProjectQueryServices) {
 	installObsidianDom();
-	const view = makeView({ queries, commands, openProject, onProjectsChanged });
+	const view = makeView({ ...defaultRenovationProjectDeps(), queries, commands });
 	await view.onOpen();
 	await settle();
 	return view;
@@ -198,10 +226,9 @@ describe('the renovation project view', () => {
 	it('says it is loading before the query resolves', async () => {
 		installObsidianDom();
 		const view = makeView({
-			queries: { listProjects: () => new Promise(() => {}) },
+			...defaultRenovationProjectDeps(),
+			queries: { listProjects: () => new Promise(() => {}), ...detailDoors },
 			commands,
-			openProject,
-			onProjectsChanged,
 		});
 		await view.onOpen();
 		await Promise.resolve();

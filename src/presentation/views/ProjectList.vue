@@ -6,33 +6,20 @@
  * — whose document is the error-surfacing decision table and never mentions one. The list was
  * owned by no slice; it is owned here.
  *
- * It DISPATCHES nothing and opens nothing: it emits an id, and the view calls
- * `context.openProject`, which the composition root supplied because `presentation/` may not
- * reach Obsidian's vault and a `ProjectSummaryDto` carries no path.
+ * It DISPATCHES nothing and opens nothing: it emits an id and the VIEW decides what that
+ * means. Since design slice 21 that is `context.navigate(id)` — criterion 1 is precisely that
+ * a row no longer opens `Project.md` but enters the detail state, from which `Project.md` is
+ * a secondary action. This sentence named `context.openProject` for a slice after that
+ * stopped being true, which is the defect `ProjectDetail.vue` records having made twice about
+ * this same change: a sentence about another commit's behaviour needs re-reading by whoever
+ * lands that commit, and the component the sentence is ABOUT is the one nobody re-read.
  */
 import type { ProjectSummaryDto } from '../read-models/PlanDto';
-import { isProjectStatus } from '../../domain/project/ProjectStatus';
-import { PROJECT_STATUS_LABELS } from './projectStatusLabels';
+import { statusLabel } from './statusLabel';
 import { tr } from '../i18n/strings';
 
 defineProps<{ projects: readonly ProjectSummaryDto[] }>();
 defineEmits<{ open: [projectId: string]; create: [] }>();
-
-/**
- * `ProjectSummaryDto.status` is typed `string`, not `ProjectStatus` — a project note this
- * build cannot recognise the lifecycle stage of is still a project this list must draw a row
- * for, so this cannot refuse the way `PROJECT_STATUS_LABELS[status]` alone would (an index
- * outside `Record<ProjectStatus, StringKey>`'s domain, `undefined` at runtime through the
- * type system's back). A recognised status resolves through the same label table
- * `NewProjectForm` uses, via `tr`; an unrecognised one renders as the raw value it actually
- * is, deliberately, rather than inventing a locale key for a value nothing in the domain
- * can produce today (`Project.create` refuses any `status` that fails `isProjectStatus`) —
- * the fallback exists for a note this build cannot fully make sense of, not for a value this
- * build itself would ever write.
- */
-function statusLabel(status: string): string {
-	return isProjectStatus(status) ? tr(PROJECT_STATUS_LABELS[status]) : status;
-}
 </script>
 
 <template>

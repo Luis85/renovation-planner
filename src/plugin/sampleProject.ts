@@ -26,20 +26,35 @@ import type { PluginCommandHost } from './commandHost';
  * zones drawn by type and status, layer toggling, pan and zoom, a rendered background —
  * had never been seen in the app. The suite passing is exactly why that went unnoticed.
  *
- * **What replaces it, so this does not become permanent by default — and design slice 16,
- * now landed, does NOT retire it, which an earlier draft of this comment predicted it
- * would.** Slice 16 built HALF of the pair: `NewProjectForm` dispatches the real
- * `CreateProjectCommand`, reachable from `renovationProject.noProjects`'s action button
- * (design slice 14's empty state, wired in slice 16) and from `ProjectList`'s own header
- * button once a project exists. A user can create a PROJECT without this module now. They
- * still cannot create a PLAN: nothing in `presentation/` calls `CreatePlanCommand`,
- * `context.openProject` opens only the project's raw note (there is no in-plugin
- * project-detail surface a "new plan" action could live on), and this module is therefore
- * still the only way a Plan exists to open at all. What retires it is a plan-creation form
- * plus a surface to reach one from — neither exists yet. Zones are NOT what is missing:
- * `DrawPolygonTool` (slices 6 and 8) has let a user draw one by hand for slices now, so a
- * seeded flat's real remaining job is handing over a PLAN with something already on it, not
- * the zones themselves.
+ * **It is no longer the only source of anything, and this comment used to say it was.** For
+ * several slices the sentence here read "there is no project-detail surface a 'new plan'
+ * action could live on", offered as the reason nothing but this command could produce a
+ * Plan. Design slice 21 built that surface: `ProjectDetail`'s plans region carries a
+ * `New plan` button, `ProjectDetailState.onCreatePlan` opens `NewPlanForm` in slice 15's
+ * `FormDialog`, and it dispatches the real `CreatePlanCommand`. Slice 16 had already done the
+ * same for the project half (`NewProjectForm`, reached from `renovationProject.noProjects`'s
+ * action button and from `ProjectList`'s own header), and slices 6 and 8 for zones
+ * (`DrawPolygonTool`). Every entity this command seeds is now reachable by hand.
+ *
+ * **What is left is the honest, smaller reason it was written for in the first place**, which
+ * is the sentence three paragraphs up: it is the vault-side equivalent of `npm run harness`.
+ * One gesture produces a scene worth LOOKING AT — a project, a plan, and five zones covering
+ * three types and all three statuses — where assembling the same scene by hand is a project
+ * form, a navigation, a plan form, another navigation and then five polygons drawn vertex by
+ * vertex. That is work a reviewer skips, and skipping it is how a rendering defect goes
+ * unlooked-at. A convenience for whoever is about to open the canvas, not a capability the
+ * plugin lacks.
+ *
+ * **Its trigger is therefore that it stops being USED**: nobody reaches for it when opening a
+ * vault to look at the canvas, because getting there by hand has become quick enough. That is
+ * a fact about a habit rather than about the tree, so no gate can report it and no later slice
+ * fires it by landing.
+ *
+ * What it seeds is exactly three commands — one project, one plan, and the five entries in
+ * `SAMPLE_ZONES`. No asset and no requirement, which is worth stating because a reader
+ * reasoning from "the loop the plugin exists for" would expect them: slice 10 closed
+ * `Zone Geometry -> Area -> Requirement -> Cost`, and this command seeds the geometry end of
+ * it and stops there.
  *
  * It goes through the REAL commands, never the vault: writing notes here would prove
  * nothing about the persistence layer and would breach `WRITE_BOUNDARY` besides. So a
@@ -52,9 +67,10 @@ import type { PluginCommandHost } from './commandHost';
  *
  * Deliberately NOT shared with `tests/harness/planEditor.ts`, which describes a similar
  * flat for the browser harness. The two have different lifetimes — that fixture is slice
- * 5's and stays; this table is scaffolding and goes with the whole module, at slice 16
- * (not slice 14, which shipped no action that could have deleted it — see the module
- * docblock above) — and a shared literal would make deleting one a change to the other.
+ * 5's and stays; this table is scaffolding and goes whenever the module does, which is no
+ * longer a slice anybody can name (see the module docblock: the trigger is that nobody
+ * reaches for the command any more) — and a shared literal would make deleting one a change
+ * to the other.
  */
 interface SampleZone {
 	readonly nameKey: StringKey;

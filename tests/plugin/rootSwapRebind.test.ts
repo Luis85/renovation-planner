@@ -25,6 +25,7 @@ import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/P
 import { loadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
 import { resetRecorder } from '../helpers/logger';
+import { settle } from '../helpers/async';
 import type RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
 
 vi.mock('../../src/infrastructure/logging/consoleLogger', async () => (await import('../helpers/logger')).consoleLoggerMock());
@@ -73,6 +74,54 @@ describe('a view already open when the root is replaced', () => {
 		// The whole bundle, not one member: `commands`, `queries`, `openProject` and the
 		// rebuild subscription all come from the root this object was built from.
 		expect(view.deps).not.toBe(before);
+	});
+
+	/**
+	 * A settings swap must not silently return a detail-state pane to the list. `navigate`
+	 * writes that state through the real `navigateToProject` (Task 11), so this drives the
+	 * whole path a user's own click would: navigate, then swap settings, then ask which project
+	 * the view still holds.
+	 *
+	 * **Not "what the pane is showing", which is what this sentence said for one round.**
+	 * `getState()` reads `this.projectId`; a rebind that kept the field and drew the LIST anyway
+	 * would leave this case green. That gap is covered — `renovationProjectView.test.ts`'s
+	 * 'remounts the open project on the new bundle' reddens against exactly that mutation, and
+	 * this case reddens against blanking the field — so the pair holds criterion 7 and neither
+	 * half holds it alone.
+	 *
+	 * **It asks the VIEW's own state, and the first version asked the rebound bundle's
+	 * `projectId` instead — the wrong side of the seam.** That member is dead:
+	 * `RenovationProjectView.mount` provides `{ ...this.deps, projectId }` with its own field
+	 * last, so nothing renders what the bundle carries, and the case certified a value no
+	 * pane could draw. It went red against the mutation of the day (deleting the plugin's
+	 * `projectIdOfLeaf` read), which is exactly what makes a wrongly-pinned case hard to
+	 * spot: discriminating and pointed at the wrong thing are not exclusive. `getState()`
+	 * reads `this.projectId`, the one field `sync`/`mount` consult — the same assertion the
+	 * Plan Editor's sibling case below already made about `planId`, arrived at from the
+	 * report of the whole-branch review rather than from the symmetry that was there to see.
+	 *
+	 * **And re-pointing it required widening the FAKE, which is why the two defects were
+	 * one.** `FakeLeaf.setViewState` recorded the state and did not call the view's
+	 * `setState`, where Obsidian's does — so this `navigate` moved the leaf and left the view
+	 * deaf, and the recorded state reachable only through the dead bundle member was the ONLY
+	 * thing the case could have asked. A thin fake does not merely fail to catch a defect; it
+	 * shapes the assertion somebody then writes against it. Both halves are watched red:
+	 * a `setViewState` that stops routing into the view, and a `rebind` that blanks
+	 * `this.projectId`.
+	 */
+	it('rebinds with the project a leaf had already navigated to, not the list', async () => {
+		resetRecorder();
+		const { plugin, workspace } = await loadedPlugin();
+		const { view } = await openViewOnLeaf(plugin, workspace, RENOVATION_PROJECT_VIEW);
+
+		(view.deps as never as { navigate: (id: string | null) => void }).navigate('project-1');
+		await settle();
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		expect((view as never as { getState: () => Record<string, unknown> }).getState()).toEqual({
+			projectId: 'project-1',
+		});
 	});
 
 	it('rebinds the plan editor too, which was never the reported half', async () => {

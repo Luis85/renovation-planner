@@ -12,6 +12,7 @@ import { createVaultExceptionMapper } from '../application/errors/exceptionMappe
 import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { GetProject, type GetProjectInput } from '../application/queries/GetProject';
+import { ListPlansByProject, type ListPlansByProjectInput } from '../application/queries/ListPlansByProject';
 import { ListProjects } from '../application/queries/ListProjects';
 import type { ProjectListResult } from '../application/queries/ListProjects';
 import { GetPlan, type GetPlanInput } from '../application/queries/GetPlan';
@@ -143,6 +144,12 @@ export interface GuardedEditorServices {
 	 * root, unlike `planEditorQueries`'s, and guarding it here does not change where.
 	 */
 	readonly listProjects: Query<void, Result<ProjectListResult, RepositoryError>>;
+	/**
+	 * Design slice 21's detail-state read, guarded like every other door here (design slice
+	 * 11) rather than composed raw — a bare application class leaving the root is exactly what
+	 * `tests/plugin/guardCategory.test.ts` was built to catch.
+	 */
+	readonly listPlansByProject: Query<ListPlansByProjectInput, Result<Plan[], RepositoryError>>;
 }
 
 /** Design slice 10's write and read side, guarded — the same seam, one slice later. */
@@ -256,6 +263,7 @@ export function guardedEditorServices(
 	);
 	const zoneInspector = guardQuery(new GetZoneInspector(zones), 'query.zoneInspector.failed', logger, map);
 	const listProjects = guardQuery(new ListProjects(projects, overlaps), 'query.listProjects.failed', logger, map);
+	const listPlansByProject = guardQuery(new ListPlansByProject(plans), 'query.listPlansByProject.failed', logger, map);
 
 	return {
 		queries: { getProject, getPlan, getZone, findZonesByPlan, diagnostics },
@@ -264,6 +272,7 @@ export function guardedEditorServices(
 		moveZone,
 		zoneInspector,
 		listProjects,
+		listPlansByProject,
 	};
 }
 

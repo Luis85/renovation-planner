@@ -2,10 +2,11 @@
  * The bundle's entry point. Everything real is in `mount.ts`, `planEditor.ts` and
  * `IndexPage.vue`, each of which a test can drive.
  *
- * `?view=plan-editor` opens the Plan Editor instead of the project surface, and `?index` (or
- * an `?entry=`) opens the harness index. A query parameter rather than a second page, for the
- * same reason `?theme` and `?phone` are ones: a headless screenshot needs a URL and nothing to
- * click.
+ * `?view=plan-editor` opens the Plan Editor instead of the project surface, `?project=<id>`
+ * opens the Renovation Project view's DETAIL state on a seeded project of that id rather than
+ * its list, and `?index` (or an `?entry=`) opens the harness index. A query parameter rather
+ * than a second page, for the same reason `?theme` and `?phone` are ones: a headless
+ * screenshot needs a URL and nothing to click.
  */
 import { createApp } from 'vue';
 import VueKonva from 'vue-konva';
@@ -29,10 +30,16 @@ const params = new URLSearchParams(window.location.search);
  * The index is OPT-IN, and that is a decision rather than an accident.
  *
  * `?view=plan-editor` keeps the Plan Editor and everything else keeps the project view,
- * because `scripts/harness-shot.mjs`'s three fixed shots address the project surface with no
- * `view` parameter at all — `''`, `?theme=light`, `?phone`. Making a bare URL mean "index"
- * would break all three, and the test in Task 6 that asserts the fixed shots still exist
- * would keep passing while the captures timed out.
+ * because `scripts/harness-shot.mjs`'s FIVE fixed shots address the project surface with no
+ * `view` parameter at all — `''`, `?theme=light`, `?phone`, and design slice 21's
+ * `?project=project-1` at both widths. Making a bare URL mean "index" would break all five, and
+ * the test in Task 6 that asserts the fixed shots still exist would keep passing while the
+ * captures timed out.
+ *
+ * This sentence said THREE and named the first three until slice 21 added the other two — a
+ * count that goes stale in the direction of a WEAKER argument, which is the quiet kind. Found
+ * while acting on a review finding about its neighbours rather than by any gate: nothing reads
+ * a prose enumeration against the list it describes.
  *
  * The PBI leaves "does the index displace the current root" open. This answers it: it does
  * not, because displacing it costs a working workflow to save one query parameter.
@@ -122,7 +129,15 @@ if (wantsIndex) {
 
 	app.mount(root);
 } else {
-	view = wantsPlanEditor ? mountPlanEditorHarness(document.body).view : mountHarness(document.body).view;
+	/**
+	 * `params.get('project')` is `null` when the parameter is absent, which is exactly the
+	 * value `mountHarness` reads as "the list" — the same sentinel `RenovationProjectDeps.
+	 * projectId` uses, so no translation happens here and a bare root keeps taking the
+	 * untouched default.
+	 */
+	view = wantsPlanEditor
+		? mountPlanEditorHarness(document.body).view
+		: mountHarness(document.body, params.get('project')).view;
 }
 
 // After the mount: the toggle is the harness's own furniture and is appended to the body,

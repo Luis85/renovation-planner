@@ -116,6 +116,12 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['project.unknown-status', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 	['project.target-before-start', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 	['project.invalid-date', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
+	// Design slice 21's New plan form. `plan.project-not-found` is deliberately absent: it is
+	// the one refusal `NewPlanForm` routes to neither a field nor the user-facing banner — the
+	// view notifies and navigates on it — so no copy of its own is owed. The three background
+	// codes `Plan.create` also mints are absent for the plainer reason that no form sends a
+	// background.
+	['plan.empty-name', 'Validation', 'error.category.validation', 'domain/plan/Plan.ts'],
 	// Design slice 19's §83 overlap guard. A `Persistence` refusal rather than a `Validation`
 	// one, because it is `persistenceError` at the repository that mints it — and that is
 	// precisely why the row earns its place: the generic Persistence sentence is "reading or

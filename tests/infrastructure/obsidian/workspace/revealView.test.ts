@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { revealView } from '../../../../src/infrastructure/obsidian/workspace/revealView';
-import { FakeWorkspace } from '../../../helpers/workspace';
+import { FakeLeaf, FakeWorkspace } from '../../../helpers/workspace';
 
 /**
  * Every cause the activation answered, which is how "reported ONCE" is asked as a count
@@ -166,6 +166,11 @@ describe('revealing a view', () => {
 			revealLeaf: () => Promise.reject(new Error('reveal exploded')),
 		};
 
+		// `toBeUndefined` rather than the `toBe(false)` this asserted before the signature
+		// widened, and it is a STRENGTHENING: `false` said the fault was absorbed and reported,
+		// and `undefined` says that AND that no leaf is being offered to the caller to write
+		// into. A build answering the existing leaf here would satisfy the old assertion's
+		// intent and fail this one.
 		await expect(revealView(workspaceFor(failing), TYPE)).resolves.toBeUndefined();
 
 		expect(faults).toHaveLength(1);
@@ -217,9 +222,88 @@ describe('revealing a view', () => {
 			},
 		};
 
+		// `toBeUndefined` for the reason the reuse-path case above gives: absorbed, reported, and
+		// no leaf on offer.
 		await expect(revealView(workspaceFor(exploding), TYPE)).resolves.toBeUndefined();
 
 		expect(faults).toHaveLength(1);
 		expect((faults[0] as Error).message).toBe('lookup exploded');
+	});
+
+	/**
+	 * **It ANSWERS the leaf**, and leaf EXISTENCE could not have answered even the narrower
+	 * question the boolean used to: `revealCandidate` reports a failed reveal of an EXISTING
+	 * leaf and RESOLVES, leaving that leaf in `getLeavesOfType` — so a caller inferring success
+	 * from the lookup would go on to act as though a failed reveal had worked. Both halves are
+	 * asserted together for that reason: the leaf is demonstrably still there, and this still
+	 * answers nothing.
+	 */
+	it('answers no leaf when revealing an existing leaf faults, though the leaf is still there', async () => {
+		const fake = new FakeWorkspace();
+		const leaf = fake.withOpen(TYPE);
+		fake.revealLeaf = () => Promise.reject(new Error('boom'));
+
+		const answered = await revealView(workspaceFor(fake), TYPE);
+
+		expect(answered).toBeUndefined();
+		expect(fake.getLeavesOfType(TYPE)).toContain(leaf);
+		expect(faults).toHaveLength(1);
+	});
+
+	/**
+	 * The reuse path answers the leaf it revealed, by IDENTITY — `toBe`, not a truthiness check,
+	 * because "which leaf" is the whole of what the widening buys over `true`.
+	 */
+	it('answers the existing leaf on a successful reveal', async () => {
+		const fake = new FakeWorkspace();
+		const open = fake.withOpen(TYPE);
+
+		expect(await revealView(workspaceFor(fake), TYPE)).toBe(open);
+	});
+
+	/** And the CREATE path answers the leaf it made, which is the other of the two arms. */
+	it('answers the leaf it created when none was open', async () => {
+		const fake = new FakeWorkspace();
+
+		expect(await revealView(workspaceFor(fake), TYPE)).toBe(fake.leaves[0]);
+	});
+
+	/**
+	 * A joined activation answers whatever the one it joined answered — the same leaf, by
+	 * identity. Correct rather than incidental: `requestKey` is the type plus the state that
+	 * would be set, so two calls that coalesced are asking for a leaf neither could tell from
+	 * the other's.
+	 *
+	 * **A leaf of the type arrives DURING the activation, which is what makes this case
+	 * discriminate at all.** Both halves must answer the leaf the activation created, and a
+	 * build that re-derived it — `await inFlight` then `candidates()[0]`, which is exactly the
+	 * shape `navigateToProject` has just stopped using — answers the intruder to both. Measured
+	 * as two mutations: answering `undefined` on the joined path reddens this, and so does the
+	 * re-derivation; without the intruder the second of those stays green, because a fresh
+	 * lookup happens to name the created leaf.
+	 */
+	it('answers the created leaf to both halves of a coalesced double click', async () => {
+		const fake = new FakeWorkspace();
+		const getLeaf = fake.getLeaf.bind(fake);
+		let created: FakeLeaf | undefined;
+		fake.getLeaf = (kind?: unknown) => (created = getLeaf(kind));
+		const intruder = new FakeLeaf();
+		const revealLeaf = fake.revealLeaf.bind(fake);
+		fake.revealLeaf = async (leaf) => {
+			await revealLeaf(leaf);
+			// Another leaf of the type appears while the activation is in flight — a synced
+			// workspace, a second window, a restore. `getLeavesOfType(TYPE)[0]` is this one now.
+			intruder.state = { type: TYPE };
+			fake.leaves.unshift(intruder);
+		};
+
+		const [first, second] = await Promise.all([
+			revealView(workspaceFor(fake), TYPE),
+			revealView(workspaceFor(fake), TYPE),
+		]);
+
+		expect(fake.getLeavesOfType(TYPE)[0]).toBe(intruder);
+		expect(first).toBe(created);
+		expect(second).toBe(created);
 	});
 });

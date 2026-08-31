@@ -1,0 +1,55 @@
+/**
+ * The flattened button both list rows are drawn as.
+ *
+ * `.rp-project-list__row` (design slice 16) and `.rp-plan-list__row` (design slice 21) declared
+ * the same ten properties each, which `npm run analyze` reported as a clone group once `main`
+ * drove duplication to zero — and the sameness is INTENT rather than coincidence: both are one
+ * entity per row, edge-to-edge in a pane, a `<button>` stripped of its button-ness so the row
+ * reads as a row and still answers the keyboard. A designer changing what a row looks like
+ * means both.
+ *
+ * A SELECTOR LIST rather than a shared class in the markup, for the reason `message-panel.css`
+ * gives: it buys the same single definition and costs no template change, so every existing
+ * assertion and every reader keeps the class names they already expect.
+ *
+ * **The descendant selectors are load-bearing and must not be collapsed to the bare classes.**
+ * Obsidian's own `button:not(.clickable-icon)` is (0,1,1) and sets `background-color` and
+ * `color`; a single class is (0,1,0) and loses silently, with no warning and no failing build.
+ * `tests/build/buttonSpecificity.test.ts` is the category check for that, and it reads
+ * selectors from every shipping sheet rather than naming files — so this partial is inside its
+ * scope exactly as the two component sheets were.
+ *
+ * **What each file keeps, because it genuinely differs:** `justify-content` — `space-between`
+ * for the project row, which has two children to push apart, and `flex-start` for the plan row,
+ * which has one and whose first capture showed twelve plan names centred in the pane. And the
+ * focus ring, whose offset is negative on the plan row for a reason that file states.
+ *
+ * `text-align: left` is shared and is INERT on both, which is written down rather than quietly
+ * dropped: it positions inline content and a flex item is not inline content —
+ * `project-detail.css` records finding exactly that. It is kept because removing it is a
+ * behaviour question rather than a duplication one, and this extraction is meant to preserve
+ * behaviour exactly.
+ *
+ * Imported BEFORE both component partials in `index.css`, so either can still override a
+ * property from its own file at equal specificity when one needs to differ.
+ */
+.rp-project-list .rp-project-list__row,
+.rp-plan-list .rp-plan-list__row {
+	display: flex;
+	width: 100%;
+	/* WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
+	   photographing the page rather than by any gate. */
+	min-height: var(--size-4-6);
+	padding: var(--size-2-2) var(--size-4-2);
+	border: none;
+	border-radius: var(--radius-s);
+	background-color: transparent;
+	color: var(--text-normal);
+	text-align: left;
+	cursor: pointer;
+}
+
+.rp-project-list .rp-project-list__row:hover,
+.rp-plan-list .rp-plan-list__row:hover {
+	background-color: var(--background-modifier-hover);
+}

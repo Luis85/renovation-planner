@@ -17,7 +17,9 @@
  * could never reopen it to show one. `submit` is therefore emitted only once `dispatch` has
  * actually succeeded.
  */
-import { nextTick, ref, watchEffect, type Ref } from 'vue';
+import { nextTick, ref, type Ref } from 'vue';
+import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
+import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
 import { useFormCommit } from '../composables/use-form-commit';
 import type { FieldErrorMap } from '../errors/route-error';
 import type { Result } from '../../core/result/Result';
@@ -96,24 +98,10 @@ const form = useFormCommit<CreateProjectInput, { project: Loaded<Project> }>({
 	logger: props.logger,
 });
 
-/**
- * `vue/no-mutating-props` flags any write reachable through a props-derived expression,
- * including this one — but `busy` is a `Ref` the caller handed over specifically so this
- * component could write into it (`FormDescriptor.busy`'s own doc comment); writing its
- * `.value` is the entire reason it is accepted, not a mutation of the PROP BINDING itself
- * (that would be `props.busy = someOtherRef`, which stays a real error). Routed through a
- * plain function so the write is not syntactically `props.busy.value = …`, which is all the
- * rule actually looks for.
- */
-function writeBusy(target: Ref<boolean> | undefined, value: boolean): void {
-	if (target) target.value = value;
-}
-
-// Written FROM the composable's own state — see `busy`'s own doc comment above for why
-// this is the only direction data flows between the two.
-watchEffect(() => {
-	writeBusy(props.busy, form.submitting.value);
-});
+// `writeBusy`, the busy `watchEffect` and `refuseWhileSubmitting` were byte-identical
+// in this file and its sibling creation form; `useDialogFormBusy` is the one statement
+// of both, and its docblock carries the two invariants they each spelled out.
+const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
 
 /**
  * `Project.start`/`targetCompletion` on the wire: date-only, UTC, always — the SAME rule
@@ -130,40 +118,6 @@ function fromDateInputValue(value: string): Date | null {
 	return value === '' ? null : new Date(`${value}T00:00:00Z`);
 }
 
-/**
- * WHILE A WRITE IS IN FLIGHT NO CONTROL IS `:disabled`, and that is a FOCUS rule rather than
- * a styling preference — `FormDialog.vue`'s own docblock already states it as an invariant of
- * the framework, and this form is where it has to hold for the fields too.
- *
- * Chromium moves focus to `<body>` when the element holding it is disabled, and `<body>` is
- * not inside `.rp-dialog`, which is where `DialogHost` binds its `keydown` listener. So
- * disabling the focused control — the submit button on a click, or the text field the user
- * pressed Enter in — took `Escape` and the entire Tab trap out for exactly the duration of
- * the write: the very window `busy` exists to make `Escape` refuse DELIBERATELY, refusing it
- * by accident instead and handing the key to Obsidian's own keymap. It also left focus on
- * `<body>` after a banner-routed rejection, which is precisely what `focusFirstInvalidControl`
- * below promises does not happen.
- *
- * So the controls stay focusable and are made INOPERATIVE instead, by whichever mechanism
- * that control actually has: `readonly` where the platform offers it (the text, textarea and
- * date inputs), announced as read-only and enforced by the browser; `aria-disabled` where it
- * does not (`<select>` has no `readonly`, and a `<button>` has nothing but `disabled`), with
- * the refusal made real by this function. Obsidian's own sheet already dims
- * `button[aria-disabled="true"]` exactly as it dims `button[disabled]`; `styles/dialogs.css`
- * supplies the same affordance for the other two.
- *
- * It RESTORES the control's own DOM value on the way out rather than merely returning. A
- * refused write leaves `values` unchanged, so nothing re-renders — and the character the
- * browser has already put in the field would then sit there as a value the form does not
- * hold, which is a lie about state rather than a refusal of it. `readonly` means this arm is
- * unreachable for most of them; the date picker is the one Chromium still operates on a
- * readonly input, which is why the guard is not left to `readonly` alone.
- */
-function refuseWhileSubmitting(control: HTMLElement & { value: string }, rendered: string): boolean {
-	if (!form.submitting.value) return false;
-	control.value = rendered;
-	return true;
-}
 
 /**
  * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight
@@ -252,12 +206,14 @@ async function focusFirstInvalidControl(): Promise<void> {
  * nothing, focus stays where the user left it, and `role="alert"` is what announces.
  */
 async function onSubmit(): Promise<void> {
-	// The press the `aria-disabled` submit button below announces as refused, actually refused.
-	// `form.submit()` drops a second concurrent submit on its own, so this is not what keeps
-	// one form from creating two projects — it is what keeps a refused press from ALSO running
-	// the focus move, which would drag the keyboard to whichever control still carries an error
-	// from the submit that is currently in flight.
-	if (form.submitting.value) return;
+	// **No `if (form.submitting.value) return;` here**, for the reason `NewPlanForm.onSubmit`
+	// states at length and measured on both: `useFormCommit.submit` clears `fieldErrors` before
+	// it sets `submitting`, and `focusFirstInvalidControl` awaits `nextTick` and re-queries, so
+	// the focus move a refused press would run finds no `aria-invalid` control. Removed from
+	// both forms in one edit rather than from the one it was reported against — the comment was
+	// identical in both, so fixing one would have left the same false claim standing next door.
+	// `form.submit()` drops the concurrent press itself, which is what keeps one form from
+	// creating two projects.
 	if (await form.submit()) {
 		emit('submit', form.values.value);
 		return;
@@ -379,14 +335,6 @@ async function onSubmit(): Promise<void> {
 				>
 			</label>
 		</FieldError>
-		<div class="rp-dialog-actions">
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="form.submitting.value"
-			>
-				{{ tr('dialog.form.submit') }}
-			</button>
-		</div>
+		<FormSubmitRow :submitting="form.submitting.value" />
 	</form>
 </template>

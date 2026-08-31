@@ -6,6 +6,7 @@
  */
 export const en = {
 	'command.open-project': 'Open renovation project',
+	'command.open-project-detail': 'Go to renovation project',
 	'view.project.name': 'Renovation project',
 	'settings.units.name': 'Units',
 	'settings.units.desc': 'Measurement system for quantities and dimensions.',
@@ -227,6 +228,43 @@ export const en = {
 	'empty.project.no-projects.action': 'Create a project',
 	'view.project.list-title': 'Renovation projects',
 	'view.project.create': 'New project',
+	// Design slice 21's detail state. `Back to projects` names its DESTINATION rather than
+	// saying `Back`: this pane has one other state and a label that says which one it returns to
+	// is what stops the control reading as browser history. `Open note` is the secondary action —
+	// the row itself navigates now, and `Project.md` stays reachable because nothing else routes
+	// to a project's own metadata.
+	'view.project.back': 'Back to projects',
+	'view.project.open-note': 'Open note',
+	'view.project.plans-title': 'Plans',
+	'view.project.create-plan': 'New plan',
+	// Design slice 21's creation form. One field, so one label — `background` and `layers` are
+	// both optional on `CreatePlanInput` and this form sends neither: slice 5's background is
+	// its own command, and a plan without one is a state the editor already draws.
+	'form.new-plan.title': 'New plan',
+	'form.new-plan.name': 'Name',
+	// Design slice 21's detail state, its one empty state and its one refusal that reaches the
+	// user as a notice rather than as a banner. `No plans yet` is deliberately distinct copy from
+	// `empty.project.no-projects.*`: a project with no plans is a later stage of the same
+	// onboarding than a vault with no projects. **Nothing checks that distinctness**, and an
+	// earlier draft of this comment said `content.test.ts` did: its only distinctness case is
+	// scoped to the two `planEditor` entries, and Task 10 as planned adds none for these two.
+	// A registry pointing both at one key would type-check perfectly and no gate would notice.
+	'empty.project.no-plans.headline': 'No plans yet',
+	'empty.project.no-plans.body': 'Add a plan to start drawing zones and working out quantities.',
+	// The same words as `view.project.create-plan`, and the same gesture: the plans region draws
+	// exactly one of the two controls, so a user never sees both at once.
+	'empty.project.no-plans.action': 'New plan',
+	// The HEADLINE of the screen a project that is not there draws — reached from a read that
+	// missed once the index scan has run, from `CreatePlanCommand`'s `plan.project-not-found`
+	// while its New plan form was open, and from a back-arrow restore of a project since
+	// deleted. It was ALSO a notice on the second of those, back when that path redirected to
+	// the list and a banner had nowhere to live; the redirect is retired and the notice with
+	// it, since the two resolved this same key and would have said one sentence twice at once.
+	'view.project.gone': 'This project no longer exists.',
+	// The BODY beneath that headline. It exists because a `'gone'` status used to render the
+	// loading line — a false sentence with no Back and no retry, recoverable only by closing
+	// the leaf — which is what the screen replaced.
+	'view.project.gone-body': 'It may have been deleted or moved out of this vault. Go back to the project list.',
 	// PRD §83's third enforcement site, and the only one with no door to refuse at: a
 	// project's folder is DERIVED from where its own note sits (ADR-0013), so a user moves
 	// it by dragging in Obsidian's file explorer and no command is dispatched. This row is
@@ -253,6 +291,16 @@ export const en = {
 	'project.unknown-status': 'Choose a status from the list.',
 	'project.target-before-start': 'Target completion must be on or after the start date.',
 	'project.invalid-date': 'Enter a real calendar date.',
+	// Design slice 21's New plan form, keyed by the exact code `Plan.create` raises — minted
+	// through `planError`'s `plan.${code}` template (`src/domain/plan/Plan.errors.ts`), so a
+	// grep for the whole string finds nothing. A missing entry here does not degrade to
+	// silence, it degrades to the generic Validation sentence under a field the user can see.
+	//
+	// `plan.project-not-found` gets no entry and needs none: `NewPlanForm` never routes it to
+	// a field or to a banner — the project is gone, so the form emits `projectGone` and the
+	// view notifies and navigates. The three background codes `Plan.create` also mints have no
+	// entry for the plainer reason: that form sends no background.
+	'plan.empty-name': 'A plan needs a name.',
 	// Slice 19's coded refusals. Keyed by the exact `AppError.code`, for the reason the slice
 	// 16 block above states: `toUserMessage`'s lookup is `error.code in en`, so an
 	// `error.`-prefixed key would never resolve and each of these would silently fall through

@@ -99,25 +99,12 @@
  * `.rp-dialog-button-danger` (design slice 15) is written `.rp-dialog .rp-dialog-button-danger`.
  */
 .rp-project-list .rp-project-list__row {
-	display: flex;
+	/* Everything a list row shares with the plan list is in `list-row.css`; these two are
+	   this row's own. `space-between` because it has TWO children to push apart. */
 	justify-content: space-between;
 	gap: var(--size-4-2);
-	width: 100%;
-	/* WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
-	   photographing the page rather than by any gate. */
-	min-height: var(--size-4-6);
-	padding: var(--size-2-2) var(--size-4-2);
-	border: none;
-	border-radius: var(--radius-s);
-	background-color: transparent;
-	color: var(--text-normal);
-	text-align: left;
-	cursor: pointer;
 }
 
-.rp-project-list .rp-project-list__row:hover {
-	background-color: var(--background-modifier-hover);
-}
 
 /* The vendored app.css reduction carries `a { outline: none }` and puts nothing back, so a
    focus ring is stated here rather than inherited. WCAG 2.4.7. */

@@ -14,10 +14,11 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the ten fixed surfaces (the project
- * view's dark scheme, light scheme and `?phone`, the Plan Editor's dark and light schemes,
- * and the harness index at rest in both schemes, focused, and showing its failure card) or, given an entry id, one named prototype or component
- * in both schemes — for a
+ * Headless capture of the browser harness — either the twelve fixed surfaces (the project
+ * view's list state in its dark scheme, light scheme and `?phone`; its detail state wide and
+ * at a sidebar's width; the Plan Editor's dark and light schemes; and the harness index at
+ * rest in both schemes, focused, focused on the current row, and showing its failure card) —
+ * or, given an entry id, one named prototype or component in both schemes — for a
  * look nobody has to open a browser for. This is how a real layout defect was found earlier
  * in this plan (the view collapsing to 39px of a 700px pane): nothing in the suite could see
  * it because jsdom draws nothing, and a screenshot is the only artifact that shows it.
@@ -103,6 +104,35 @@ const SHOTS = [
 	{ name: 'dark', query: '', selector: PROJECT_VIEW },
 	{ name: 'light', query: '?theme=light', selector: PROJECT_VIEW },
 	{ name: 'phone', query: '?phone', selector: PROJECT_VIEW },
+	// The project view's DETAIL state (design slice 21), which the harness index cannot
+	// photograph: it mounts a component bare, and `ProjectDetail` requires three props and
+	// reads `project.name` immediately, so the picture would be the index's own failure card.
+	// `?project=<id>` seeds a project of that id and opens the view on it — see
+	// `tests/harness/mount.ts` for what the fixture holds and why twelve plans were not enough.
+	//
+	// A FIXED shot rather than a `--width` invocation, and that is a fact about this script
+	// rather than a preference: `resolveShots` reads a positional argument as a harness-index
+	// ENTRY id, and refuses `--width` with no entry beside it because "the fixed shots carry
+	// their own". Every other shot with a query string lives here for the same reason.
+	{ name: 'project-detail', query: '?project=project-1', selector: PROJECT_VIEW },
+	// 460 is the width an Obsidian sidebar leaf actually has, and the one that has already
+	// hidden a layout defect the default 1280 could not show — the header's three items on one
+	// row, with the name ellipsing rather than pushing its neighbours off, are decided there and
+	// nowhere else.
+	//
+	// AND IT IS THE LIGHT ONE, so two shots hold both palettes rather than three shots holding
+	// one twice — the same trade the four index shots make, and made the same way: by
+	// measurement. The only element on this surface with a colour of its own is the status
+	// label, `--text-muted` on `--background-primary`, which measures 6.69:1 in light against
+	// 8.13:1 in dark, so light is the scheme a regression toward 1.4.3's 4.5:1 floor would
+	// breach first. Width and scheme are independent here — nothing about the wrapping changes
+	// with the palette — so confounding them costs nothing that a separate shot would buy.
+	{
+		name: 'project-detail-narrow',
+		query: '?project=project-1&theme=light',
+		selector: PROJECT_VIEW,
+		width: 460,
+	},
 	// The Plan Editor in both schemes: it is the first surface with real content, and the
 	// only place the layered Konva scene can be looked at outside a vault. No phone shot —
 	// SDD §61 scopes the MVP to desktop, and a canvas editor is the least mobile of the
@@ -274,7 +304,7 @@ function skipReason({ name, entry }, missing) {
  * capture, which is never a reason to skip anything. */
 const isMissingEntry = ({ entry }, kind) => entry !== undefined && kind === UNKNOWN_ENTRY;
 
-/** Every shot in the list — five for a bare run, two for a named entry — and the errors any
+/** Every shot in the list — twelve for a bare run, two for a named entry — and the errors any
  * of them raised, collected rather than thrown, so one bad shot does not cost the rest of
  * the run its PNGs.
  *
@@ -323,7 +353,7 @@ async function run() {
 	// argument is the entry's qualified id (`entries.ts`), not its basename: the index shows
 	// the label, but the URL and this command both take the id, since a mock and the real
 	// component it stands in for share a basename and need to stay reachable as two entries.
-	// With no argument, the ten fixed surfaces, exactly as before. `resolveShots` is what
+	// With no argument, the twelve fixed surfaces, exactly as before. `resolveShots` is what
 	// actually reads `argv[2]` — lifted out of this line so a test can drive it directly
 	// rather than reading this file's source text to check which index it uses.
 	const shots = resolveShots(process.argv, SHOTS, process.env);

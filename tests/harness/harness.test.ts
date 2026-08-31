@@ -12,6 +12,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { transform } from 'lightningcss';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { flushPromises } from '@vue/test-utils';
 import { mountHarness } from '../harness/mount';
 import { mountPlanEditorHarness } from '../harness/planEditor';
 import { installCanvas } from '../helpers/canvas';
@@ -134,6 +135,60 @@ describe('the browser harness', () => {
 		const matching = harnessGrowthSelectors().filter((selector) => view.contentEl.matches(selector));
 
 		expect(matching.length).toBeGreaterThan(0);
+	});
+
+	/**
+	 * The `?project=` knob (design slice 21), which is the only way this harness reaches the
+	 * view's DETAIL state at all — the index cannot mount `ProjectDetail` usefully, since it
+	 * renders an entry bare and that component requires three props and reads `project.name`
+	 * immediately.
+	 *
+	 * Driven here rather than left to `npm run harness-shot` alone, because the two shots that
+	 * use it are outside `npm run check`: a seed that stopped seeding, or a `projectId` that
+	 * stopped being passed, would leave both captures photographing the LIST state — the
+	 * selector they wait on (`.renovation-planner-view`) matches either one, so the run would
+	 * write two PNGs and exit 0.
+	 *
+	 * `flushPromises` and not a tick count: `onOpen` mounts synchronously and the store's read
+	 * settles afterwards, so a fixed number of turns is a fact about today's call chain.
+	 *
+	 * **What this does NOT drive is `page.ts`'s `params.get('project')`** — it calls
+	 * `mountHarness` with the id directly, so the one line that turns a URL into that argument
+	 * is exercised by nothing here. A build that stopped reading the parameter would keep this
+	 * case green and photograph the list twice. Stated rather than closed: `page.ts` mounts at
+	 * module scope, so driving it means importing a module for its side effects under a
+	 * rewritten `location`, which is a test harness of its own rather than a case. Reported by
+	 * this task's reviewer.
+	 */
+	it('opens the detail state on a seeded project when given one, plans and all', async () => {
+		const { view } = mountHarness(document.body, 'project-1');
+
+		await flushPromises();
+
+		const detail = view.contentEl.querySelector('.rp-project-detail');
+
+		expect(detail).not.toBeNull();
+		expect(detail?.querySelector('.rp-project-detail__name')?.textContent?.trim()).toBe(
+			'Maple Street, ground floor refit',
+		);
+		// Enough rows that `.rp-plan-list`'s own scrolling is a thing a capture can show. A
+		// list that fits its pane looks identical with the rule deleted.
+		expect(detail?.querySelectorAll('.rp-plan-list__row').length).toBeGreaterThan(8);
+	});
+
+	/**
+	 * The other half, and the half a wrong default would break silently: with no parameter the
+	 * bare harness root still takes `makeView()`'s untouched default, which is the EMPTY project
+	 * list — the state `makeRenovationProjectView.ts`'s docblock says that root exists to show,
+	 * and the one the three fixed project-view shots photograph.
+	 */
+	it('still opens the list state when no project is named', async () => {
+		const { view } = mountHarness(document.body);
+
+		await flushPromises();
+
+		expect(view.contentEl.querySelector('.rp-project-detail')).toBeNull();
+		expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
 	});
 
 	it('empties the root, so a second mount does not stack', () => {

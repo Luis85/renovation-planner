@@ -332,10 +332,13 @@ export class ObsidianZoneRepository {
 	}
 
 	listByProject(projectId: ProjectId): Promise<Result<Loaded<Zone>[], RepositoryError>> {
-		// One map per project holds every entity kind; zones carry the zone- prefix.
-		const ids = this.deps.index
-			.getIdsByProject(projectId)
-			.filter((id) => String(id).startsWith('zone-')) as ZoneId[];
+		// Narrowed by the index's TYPE rather than by how the id is spelled — see
+		// `ObsidianPlanRepository.listByProject`, which carries the full account. This is the
+		// SECOND of exactly two instances of that shape (grepped: no other id-prefix filter
+		// exists in `src/`), fixed with its sibling rather than left as the one the report did
+		// not happen to name.
+		const zones = new Set<string>(this.deps.index.getIdsByType('renovation-zone').map(String));
+		const ids = this.deps.index.getIdsByProject(projectId).filter((id) => zones.has(String(id))) as ZoneId[];
 		return this.list(ids);
 	}
 

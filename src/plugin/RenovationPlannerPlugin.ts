@@ -1,8 +1,9 @@
-import { apiVersion, Plugin, TFile, type TAbstractFile } from 'obsidian';
+import { apiVersion, Plugin, TFile, type TAbstractFile, type WorkspaceLeaf } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../presentation/views/GeometrySidecarView';
 import { tr } from '../presentation/i18n/strings';
 import { revealView } from '../infrastructure/obsidian/workspace/revealView';
+import { navigateToProject } from '../infrastructure/obsidian/workspace/navigateToProject';
 import type { LogLevel, Logger } from '../application/ports/Logger';
 import type { PluginDataProbe } from '../application/ports/PluginDataProbe';
 import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
@@ -12,6 +13,8 @@ import { buildProjectIndexEntries } from '../infrastructure/persistence/index/bu
 import { projectIndexRebuilt } from '../application/events/projectIndex.events';
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presentation/views/PlanEditorView';
+import { ProjectSuggestModal } from '../presentation/modals/ProjectSuggestModal';
+import { entriesOfType } from './indexEntries';
 import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
@@ -93,6 +96,7 @@ function onNoteFile(adapterOf: () => VaultChangeAdapter | undefined, method: 'on
 		if (file instanceof TFile) adapterOf()?.[method](file);
 	};
 }
+
 export default class RenovationPlannerPlugin extends Plugin {
 	/**
 	 * One field, not a bare `settings` one: a view or the settings tab reaches persisted
@@ -118,6 +122,20 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** What `onunload` has to undo, in the order it was claimed. */
 	private readonly disposers: (() => void)[] = [];
+
+	/**
+	 * Has the initial index scan completed — zero entries included.
+	 *
+	 * Set in `startPersistence` beside the `projectIndexRebuilt()` publish, which is
+	 * unconditional after `index.rebuild(...)`: a completed EMPTY rebuild announces itself
+	 * exactly like a completed full one, and the difference matters — see
+	 * `RenovationProjectDeps.indexScanCompleted`, whose docblock carries why "populated" was
+	 * the wrong question.
+	 *
+	 * Never goes back to false. A settings swap re-runs the scan against a new root, and the
+	 * fact this records — that a scan has happened in this session — stays true.
+	 */
+	private indexScanCompleted = false;
 
 	async onload(): Promise<void> {
 		// FIRST, ahead of even the logger: importing this bundle has ALREADY put Konva on
@@ -187,7 +205,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// view already on screen kept the previous root indefinitely. `rebindOpenViews` is the
 		// other half, and the two share ONE spelling of each bundle below so a rebind can
 		// never hand a view something different from what its factory would have built.
-		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps()));
+		// `projectId: null` — the LIST state — is every fresh leaf's initial bundle: a leaf
+		// Obsidian is constructing has no view state to read yet, and the view learning its
+		// own restored `projectId` and rebuilding against it is the next task's mechanism.
+		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps(leaf)));
 		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
 		// view many times.
 		this.registerView(PLAN_EDITOR_VIEW, (leaf) => new PlanEditorView(leaf, this.planEditorViewDeps()));
@@ -212,6 +233,32 @@ export default class RenovationPlannerPlugin extends Plugin {
 			name: tr('command.open-project'),
 			callback: () => {
 				this.openProject();
+			},
+		});
+
+		/**
+		 * Design slice 21: reveal the pane, then go INTO a project.
+		 *
+		 * A second command rather than behaviour behind the existing `open-project` id, and
+		 * the spec's own argument for treating an id as data is the argument for it: a user
+		 * whose hotkey means "show me the pane" must not suddenly get a fuzzy picker. The
+		 * ribbon shares `open-project`'s copy, so repurposing it would also split the two ways
+		 * in that the comment above insists call one function.
+		 *
+		 * **With no projects in the vault this reveals the LIST**, not a picker and not a
+		 * notice — deliberately unlike `open-plan-editor`, which answers `notify(tr('plan.none'))`.
+		 * The reason is a property of the surfaces: a Plan Editor with no plan draws nothing,
+		 * so a notice is all that command can usefully do, while this view HAS a list state
+		 * whose empty state carries a Create button — so revealing it puts the user one click
+		 * from the thing they were trying to reach. A zero-row fuzzy picker would be the worst
+		 * of the three. Stated here so that nobody later "fixes" the inconsistency by adding a
+		 * `project.none` notice and quietly removing the better behaviour.
+		 */
+		this.addCommand({
+			id: 'open-project-detail',
+			name: tr('command.open-project-detail'),
+			callback: () => {
+				this.openProjectDetail();
 			},
 		});
 
@@ -422,9 +469,66 @@ export default class RenovationPlannerPlugin extends Plugin {
 		this.rebindOpenViews();
 	}
 
-	/** ONE spelling of the Renovation Project view's bundle, for the factory and the rebind. */
-	private projectViewDeps(): RenovationProjectDeps {
-		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault);
+	/**
+	 * ONE spelling of the Renovation Project view's bundle, for the factory and the rebind.
+	 *
+	 * `leaf` is the leaf THIS bundle belongs to, and `navigate` is bound to it: a click inside
+	 * this pane must write to this pane, never to whichever leaf `getLeavesOfType` happens to
+	 * answer first — a fact that only bites once the pane is split, since Obsidian's own split
+	 * action duplicates a leaf with its view state intact and this view is a singleton only by
+	 * the plugin's own construction. `navigateToProject`'s own `targetLeaf` parameter is what
+	 * closes that; see its docblock for the split-pane scenario this exists for.
+	 *
+	 * **The bundle's own `projectId` is inert, and this method takes no parameter for it
+	 * BECAUSE it is.** `RenovationProjectView.mount` provides `{ ...this.deps, projectId }`
+	 * with the VIEW's own field written last, so whatever a caller put in the bundle is
+	 * shadowed at the one place the Vue tree reads it. It was a parameter for two tasks,
+	 * and `rebindOpenViews` passed a `projectIdOfLeaf(leaf)` reading of `leaf.getViewState()`
+	 * into it under a comment naming that read as what keeps a detail-state pane off the list
+	 * across a settings swap — a value nothing could read, a claim the code beside it did not
+	 * hold, and an unguarded `getViewState()` inside a loop that rebinds every open view, all
+	 * for one member of one bundle. What actually holds that guarantee is
+	 * `RenovationProjectView.rebind` never touching `this.projectId`, which is where the
+	 * rebind's own docblock already states it and where `rootSwapRebind.test.ts` now asserts
+	 * it. `null` is the member's honest value here: the type declares it because the
+	 * CONTEXT needs one, and the context gets its own.
+	 *
+	 * Found by the whole-branch review. Nothing in `npm run check` can see a parameter whose
+	 * value is shadowed at the point of use — `fallow` reports unimported files and dead
+	 * exports, not a dead argument.
+	 */
+	private projectViewDeps(leaf: WorkspaceLeaf): RenovationProjectDeps {
+		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
+			projectId: null,
+			// Through `navigateToProject` (Task 11), NOT a raw `setViewState`, and it closes
+			// two holes at once. A bare `void` on a rejecting `setViewState` is an unhandled
+			// rejection reaching nobody — the shape `runDetached` exists to close, and the
+			// palette command's own door already answers it through `reportFault`. And two
+			// row clicks before the first write settles issue CONCURRENT writes, where the
+			// earlier one can settle last and reopen the project the user has navigated away
+			// from: the same window Task 11's write chain closes, on the door a user is far
+			// more likely to double-fire than a palette command. Both reported by a review
+			// bot against this plan.
+			//
+			// It is also this repository's own "one action, every input" rule: the row, the
+			// Back action and the palette command now reach ONE door rather than two that
+			// have to be kept in step. `leaf` is passed as the target: see this method's own
+			// docblock for why the type-lookup fallback is not this door's answer.
+			navigate: (next) => {
+				void navigateToProject(
+					{
+						workspace: this.app.workspace,
+						reportFault: (cause: unknown): void => {
+							notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+						},
+					},
+					RENOVATION_PROJECT_VIEW,
+					next,
+					leaf,
+				);
+			},
+			indexScanCompleted: () => this.indexScanCompleted,
+		});
 	}
 
 	/** ONE spelling of the Plan Editor's bundle, for the factory and the rebind. */
@@ -459,7 +563,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// property access, so a `rebind` reached only via `instanceof` is reported as an
 			// unused class member. Measured — both views were, before this line existed.
 			const view: RenovationProjectView = leaf.view;
-			view.rebind(this.projectViewDeps());
+			// A settings swap must not silently return a detail-state pane to the list, and
+			// what holds that is `rebind` never touching the view's own `projectId` — not
+			// anything passed in here. See `projectViewDeps`, which used to take a reading of
+			// this leaf's view state under a comment claiming otherwise.
+			view.rebind(this.projectViewDeps(leaf));
 		}
 		for (const leaf of this.app.workspace.getLeavesOfType(PLAN_EDITOR_VIEW)) {
 			if (!(leaf.view instanceof PlanEditorView)) continue;
@@ -519,6 +627,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 				logger: this.root.logger,
 			}),
 		);
+
+		// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
+		// completed scan. Announcing first would leave the very re-read this flag exists for
+		// asking a question the flag still answers `false` to.
+		this.indexScanCompleted = true;
 
 		// Announced, because a surface that already read through the index has read a
 		// DIFFERENT index. Obsidian restores its leaves before `onLayoutReady`, so a Plan
@@ -600,5 +713,39 @@ export default class RenovationPlannerPlugin extends Plugin {
 			},
 			RENOVATION_PROJECT_VIEW,
 		);
+	}
+
+	/**
+	 * The palette's way into the detail state: pick a project, then go there.
+	 *
+	 * Detached like every other Obsidian handler, and it spells no detachment itself:
+	 * `navigateToProject` answers its own faults through `reportFault` and does not reject,
+	 * which is `revealView`'s contract carried one step further. The bare `void` is honest for
+	 * exactly the reason `openProject`'s docblock gives, and `runDetached` would be wrong here
+	 * for the same reason it is wrong there.
+	 *
+	 * **This is the first production call that passes no `targetLeaf`**, which is the whole
+	 * point of the parameter being optional: the palette has no originating leaf, so the leaf
+	 * is the one `revealView` ANSWERS. Every mechanism that then applies — the arrival-order
+	 * ticket, and the per-leaf write lane a row click in that same pane shares — lives in
+	 * `navigateToProject` and is deliberately not restated here: a guard spelled at this call
+	 * site would be a second, narrower answer to a question that module already owns.
+	 */
+	private openProjectDetail(): void {
+		const projects = entriesOfType(this.root.persistence?.index, 'renovation-project');
+		const deps = {
+			workspace: this.app.workspace,
+			reportFault: (cause: unknown): void => {
+				notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+			},
+		};
+		if (projects.length === 0) {
+			// The list, not a picker: see the command's own docblock.
+			void navigateToProject(deps, RENOVATION_PROJECT_VIEW, null);
+			return;
+		}
+		new ProjectSuggestModal(this.app, projects, (project) => {
+			void navigateToProject(deps, RENOVATION_PROJECT_VIEW, project.id);
+		}).open();
 	}
 }

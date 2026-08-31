@@ -2,12 +2,15 @@
 // jsdom: the plugin shell touches the DOM through the module mock, exactly as
 // tests/plugin/persistence-wiring.test.ts does.
 import { beforeEach, describe, expect, it } from 'vitest';
+import { TFile } from 'obsidian';
 // Mock-only surface, imported BY NAME. `Notice` carries members
 // the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
 // `'obsidian'` specifier type-checks against a surface that has no such thing. The
 // vitest alias points that specifier at this very file, so this is the SAME class and
 // the same statics — proven, not assumed — and the import now says which surface it
-// wants.
+// wants. `TFile` stays on the `obsidian` specifier above: it is a REAL member of that
+// module, and this file uses it only as the class the rename handler's guard tests
+// against, which is exactly the surface `obsidian` declares.
 import { Notice } from '../helpers/obsidian-mock';
 import { Decimal } from 'decimal.js';
 import { loadedPlugin } from '../helpers/plugin';
@@ -184,7 +187,22 @@ describe('slice-10 cascade wiring', () => {
 		await plugin.onunload();
 	});
 
-	it('vault events that are not notes pass the rename handler untouched, and unloading with no persistence disposes nothing', async () => {
+	/**
+	 * The TRUE arm of `if (file instanceof TFile)` in the registered rename handler — a
+	 * renamed NOTE must reach `VaultChangeAdapter.onRename` and move the index entry to its
+	 * new path. This case used to read `plan.id` where `stack.plans.save` resolves to
+	 * `{ entity, version }`, so `plan.id` was `undefined`, `index.getPath(undefined)` was
+	 * `undefined`, and `stack.vault.getAbstractFileByPath(undefined)` answered `null` —
+	 * `null instanceof TFile` is `false`, so this "positive" case was silently exercising the
+	 * handler's FALSE arm (already covered by `persistence-wiring.test.ts`'s "tolerate events
+	 * that are not notes") while its own assertion (`undefined === undefined`) stayed green
+	 * throughout. Fixed to `plan.entity.id`, and strengthened: the OLD assertion — the index
+	 * still answering the SAME path — would have stayed true even under a guard inverted to
+	 * always skip a real TFile, since a skipped rename simply leaves the existing mapping
+	 * alone. Asserting the entry followed the file to a genuinely NEW path is what a skipped
+	 * guard cannot produce.
+	 */
+	it('forwards a renamed note to the change adapter and moves its index entry', async () => {
 		const stack = createRepositoryStack();
 		const project = expectOk(await stack.projects.save(makeProject(), 'absent'));
 		const plan = expectOk(await stack.plans.save(makePlan({ projectId: project.entity.id }), 'absent'));
@@ -193,13 +211,26 @@ describe('slice-10 cascade wiring', () => {
 		const { plugin, workspace, vaultHandlers } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
 		workspace.layoutReady();
 
-		// Obsidian hands TAbstractFile to `rename`; only notes interest the pipeline.
-		const planPath = plugin.root.persistence?.index.getPath(plan.entity.id) as string;
+		const oldPath = plugin.root.persistence?.index.getPath(plan.entity.id) as string;
+		const movedFile = stack.vault.getAbstractFileByPath(oldPath) as InstanceType<typeof TFile>;
+		expect(movedFile).toBeInstanceOf(TFile);
+		const newPath = 'Renovation/Renamed Plan.md';
+		// Obsidian moves the FILE, bytes included — the handler is only handed the file at its
+		// new path, so the vault has to answer at that path too, or the reprocessing `onRename`
+		// itself triggers (via `enqueue`) would find nothing there and remove the very entry it
+		// just moved.
+		stack.vault.entries.set(newPath, stack.vault.entries.get(oldPath) as string);
+		stack.vault.entries.delete(oldPath);
+		movedFile.path = newPath;
+
 		const rename = vaultHandlers[3];
 		expect(rename).toBeInstanceOf(Function);
-		rename(stack.vault.getAbstractFileByPath(planPath) as never, 'Renovation/old-name.md');
+		// `as never` because `vaultHandlers` declares its file parameter that way on purpose:
+		// every caller has to say what it is handing the handler rather than inheriting a guess.
+		rename(movedFile as never, oldPath);
 		plugin.root.persistence?.changeAdapter.flush();
-		expect(plugin.root.persistence?.index.getPath(plan.entity.id)).toBe(planPath);
+
+		expect(plugin.root.persistence?.index.getPath(plan.entity.id)).toBe(newPath);
 
 		await plugin.onunload();
 	});

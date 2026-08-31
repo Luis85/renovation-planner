@@ -19,6 +19,20 @@ describe('unavailableRenovationProjectCommands', () => {
 		expect(isErr(result) && result.error.category).toBe('Persistence');
 	});
 
+	it('refuses createPlan with that same shape, from the same refusal function', async () => {
+		// ONE `persistenceFailure()` behind both members, which is what stops the two writes in
+		// this bundle answering two spellings of one state. Asserted per member rather than by
+		// comparing the two results to each other: two calls that agree with each other would
+		// agree just as well if both drifted.
+		const commands = unavailableRenovationProjectCommands();
+
+		const result = await commands.createPlan.execute({ projectId: 'project-1' as never, name: 'Ground floor' });
+
+		expect(isErr(result)).toBe(true);
+		expect(isErr(result) && result.error.code).toBe('settings.unrecovered');
+		expect(isErr(result) && result.error.category).toBe('Persistence');
+	});
+
 	it('resolves a failed Result rather than throwing', async () => {
 		const commands = unavailableRenovationProjectCommands();
 

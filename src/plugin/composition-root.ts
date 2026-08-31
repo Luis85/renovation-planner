@@ -6,6 +6,7 @@ import type { Command } from '../application/commands/Command';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
 import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
+import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
 import type { CreatePlanInput, CreatePlanError } from '../application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../application/commands/project/CreateProject';
@@ -22,6 +23,7 @@ import type {
 	SetPlanBackgroundError,
 } from '../application/commands/plan/SetPlanBackground';
 import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
+import type { LibraryOverlaps } from '../application/ports/LibraryOverlaps';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
@@ -41,8 +43,7 @@ import {
 } from '../presentation/read-models/renovationProjectQueries';
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
-import { openProjectNote } from '../infrastructure/obsidian/workspace/openNote';
-import { notifyFault } from '../presentation/notices/notify';
+import { renovationProjectOpenPlan, renovationProjectOpenProject } from './renovationProjectOpenSeams';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
@@ -171,6 +172,14 @@ export interface PersistenceServices extends GuardedEditorServices, GuardedSlice
 	readonly queries: QueryServices;
 	/** Does a raw Vault file exist — what `SetPlanBackgroundCommand` validates through. */
 	readonly files: VaultFileProbe;
+	/**
+	 * §83's overlap answer, exposed because TWO read surfaces need it and neither can derive
+	 * it: `ListProjects` takes it as a collaborator for the list's own marker, and
+	 * `createRenovationProjectQueries` takes it so the single-project door answers the same
+	 * `ProjectSummaryDto` truthfully rather than fabricating a `false` for a folder it never
+	 * compared. One instrument, so the two surfaces cannot disagree about one project.
+	 */
+	readonly overlaps: LibraryOverlaps;
 	/**
 	 * The read side the Plan Editor actually consumes: slice 4's queries mapped into
 	 * presentation read models. Composed here rather than in the view, so the view is handed
@@ -393,6 +402,7 @@ export function createCompositionRoot(
 			requirements,
 			locks,
 			files,
+			overlaps: repositories.overlaps,
 			...guarded,
 			planEditorQueries: createPlanEditorQueries({
 				...guarded.queries,
@@ -510,37 +520,47 @@ export function planEditorDeps(
  * is. A `.catch` at this end reported once per CLICK, and a double click is two clicks sharing
  * one open: two notices and two identical log lines for one operation, which is the defect a
  * review round found in the shape this replaced.
+ *
+ * `options` carries what only the CALLER can know — `projectId` is the view's own field,
+ * `navigate` is bound to `navigateToProject` one caller up (this function may not import
+ * Obsidian's own `notifyFault`-mapped `reportFault` shape twice), and `indexScanCompleted`
+ * reads a session-scoped flag the plugin owns. A default here would let a composition forget
+ * one and still compile — the same self-declared shape this repository already refuses, and
+ * the reason Task 3's own wiring case grows an explicit fourth argument instead.
  */
 export function renovationProjectDeps(
 	root: CompositionRoot,
 	workspace: Workspace,
 	vault: Vault,
+	options: {
+		projectId: string | null;
+		navigate: (projectId: string | null) => void;
+		indexScanCompleted: () => boolean;
+	},
 ): RenovationProjectDeps {
 	const persistence = root.persistence;
 	return {
+		projectId: options.projectId,
+		navigate: options.navigate,
+		indexScanCompleted: options.indexScanCompleted,
+		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve(),
+		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
+		// `onProjectsChanged` states three lines down: the bus is the root's own and exists
+		// either way, and a refusal bundle re-reading simply refuses again.
+		onPlansChanged: createProjectPlansChangeSource(root.eventBus),
 		queries: persistence
-			? createRenovationProjectQueries(persistence.listProjects)
+			? createRenovationProjectQueries(
+					persistence.listProjects,
+					persistence.queries.getProject,
+					persistence.listPlansByProject,
+					persistence.overlaps,
+				)
 			: unavailableRenovationProjectQueries(),
 		commands: persistence
-			? { createProject: persistence.createProject, logger: root.logger }
+			? { createProject: persistence.createProject, createPlan: persistence.createPlan, logger: root.logger }
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
-			? (projectId) =>
-					openProjectNote(
-						{
-							workspace,
-							vault,
-							index: persistence.index,
-							// The fault answers `'failed'` down there and never `'missing'`: the id DID
-							// resolve and the open faulted, so the list behind the row is not stale and a
-							// vault-wide re-read would answer a question nobody asked. This notice is
-							// what the user acts on.
-							reportFault: (cause: unknown): void => {
-								notifyFault(cause, root.logger, 'view.project.open-failed');
-							},
-						},
-						projectId,
-					)
+			? renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)
 			: () => Promise.resolve('failed'),
 		// Wired from the bus UNCONDITIONALLY, persistence or not, and that is the honest
 		// shape rather than a convenience: the bus is the root's own and exists either way,

@@ -8,6 +8,7 @@ import type { StringKey } from './en';
 
 export const de: Partial<Record<StringKey, string>> = {
 	'command.open-project': 'Renovierungsprojekt öffnen',
+	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.name': 'Renovierungsprojekt',
 	'settings.units.name': 'Einheiten',
 	'settings.units.desc': 'Maßsystem für Mengen und Abmessungen.',
@@ -222,6 +223,23 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.project.no-projects.action': 'Projekt erstellen',
 	'view.project.list-title': 'Renovierungsprojekte',
 	'view.project.create': 'Neues Projekt',
+	// `Grundriss`/`Grundrisse` is this file's own word for a plan ('command.open-plan-editor':
+	// 'Grundriss-Editor öffnen') — the vocabulary comes from the file, never from a dictionary.
+	'view.project.back': 'Zurück zu den Projekten',
+	'view.project.open-note': 'Notiz öffnen',
+	'view.project.plans-title': 'Grundrisse',
+	'view.project.create-plan': 'Neuer Grundriss',
+	'form.new-plan.title': 'Neuer Grundriss',
+	'form.new-plan.name': 'Name',
+	// SIEZEN, wie jeder andere Fließtext in dieser Datei ('Erstellen Sie eines, um zu beginnen.',
+	// 'Zeichnen Sie die erste Zone auf diesem Plan.'): die englische Vorlage kennt diese
+	// Unterscheidung nicht, und zwei Anreden in einer Oberfläche sind derselbe Fehler wie zwei
+	// Namen für eine Sache.
+	'empty.project.no-plans.headline': 'Noch keine Grundrisse',
+	'empty.project.no-plans.body': 'Fügen Sie einen Grundriss hinzu, um Zonen zu zeichnen und Mengen zu ermitteln.',
+	'empty.project.no-plans.action': 'Neuer Grundriss',
+	'view.project.gone': 'Dieses Projekt existiert nicht mehr.',
+	'view.project.gone-body': 'Es wurde möglicherweise gelöscht oder aus diesem Vault verschoben. Gehen Sie zurück zur Projektliste.',
 	// 'überlappt', the verb `settings.library-overlaps-source` already uses for the same
 	// relation — one noun and one verb per concept, which is the rule the 'Material'/'Objekt'
 	// correction was made for.
@@ -230,6 +248,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',
 	'project.invalid-date': 'Geben Sie ein echtes Kalenderdatum ein.',
+	'plan.empty-name': 'Ein Grundriss braucht einen Namen.',
 	'save-state.saved': 'Gespeichert',
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',

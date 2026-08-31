@@ -3013,9 +3013,67 @@ describe('ViewRoot in the detail state', () => {
 });
 ```
 
-`mountRoot` is a local factory in this file assembling a `RenovationProjectDeps` from the
-overrides each case cares about; `openTheFormAndSubmit` clicks `.rp-plan-list__create`, waits
-for the dialog, fills `[data-field="name"]` and submits. Write both at the top of the file.
+Write both helpers at the top of the file, verbatim — an earlier draft of this task
+DESCRIBED them instead, which is the plan-skill failure *steps that describe what to do
+without showing how* and would have detonated inside this task's own `npm run check`:
+
+```ts
+/**
+ * A `RenovationProjectDeps` for one case, over `defaultRenovationProjectDeps()` rather than a
+ * hand-built literal — that factory is exported from `makeRenovationProjectView.ts` and is the
+ * one place this repository states what an honest default for each member is, so a member added
+ * to the interface reaches every case here on the day it is written rather than arriving as an
+ * `undefined` nothing reports. Each case overrides only what it is about.
+ */
+function mountRoot(over: {
+	projectId: string | null;
+	projects?: readonly ProjectSummaryDto[];
+	plans?: readonly PlanSummaryDto[];
+	navigate?: (projectId: string | null) => void;
+	openProject?: (projectId: string) => Promise<ProjectOpenOutcome>;
+	openPlan?: (planId: string) => Promise<void>;
+}) {
+	const base = defaultRenovationProjectDeps();
+	const context: RenovationProjectDeps = {
+		...base,
+		projectId: over.projectId,
+		navigate: over.navigate ?? base.navigate,
+		openProject: over.openProject ?? base.openProject,
+		openPlan: over.openPlan ?? base.openPlan,
+		queries: {
+			...base.queries,
+			listProjects: () => Promise.resolve(ok({ projects: over.projects ?? [], unreadable: 0 })),
+			getProject: (id) =>
+				Promise.resolve(ok(over.projects?.find((p) => p.id === id) ?? PROJECT)),
+			listPlansByProject: () => Promise.resolve(ok(over.plans ?? [])),
+		},
+	};
+	setActivePinia(createPinia());
+	return mount(ViewRoot, {
+		global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+	});
+}
+
+/**
+ * The create-a-plan gesture, end to end, because four cases need it and a gesture spelled out
+ * four times is four chances to spell it differently. It drives the REAL controls rather than
+ * emitting on the component: a case that reaches the form by any other route would pass against
+ * a build whose button is not wired.
+ */
+async function openTheFormAndSubmit(wrapper: VueWrapper, name = 'Ground floor') {
+	await wrapper.get('.rp-plan-list__create').trigger('click');
+	await flushPromises();
+	await wrapper.get('input[data-field="name"]').setValue(name);
+	await wrapper.get('form').trigger('submit');
+	await flushPromises();
+}
+```
+
+`PROJECT` is this file's own `ProjectSummaryDto` fixture. Import `ok` from
+`src/core/result/Result`, `defaultRenovationProjectDeps` from
+`tests/helpers/makeRenovationProjectView`, `RENOVATION_PROJECT_CONTEXT` and the two types from
+`src/presentation/views/RenovationProjectContext`, and `VueWrapper` plus `flushPromises` from
+`@vue/test-utils`.
 
 For the notice assertion, use whatever `tests/presentation/notices/` already installs as the
 `NoticeHost` — read `tests/helpers/` for it rather than reaching for `new Notice`.
@@ -3339,7 +3397,38 @@ it('reports no semantic violations on a project with plans', async () => {
 ```
 
 Copy `AXE_OPTIONS` and the `makeView(...)` idiom from the cases already in that file.
-`detailDeps` is a local factory there.
+Write `detailDeps` out at the top of that file — an earlier draft only said *"`detailDeps` is
+a local factory there"*, which is a description of something that does not exist:
+
+```ts
+/**
+ * A view already in the detail state, for the two scans below. Over
+ * `defaultRenovationProjectDeps()` for the reason `mountRoot` gives in Task 9: it is the one
+ * place an honest default per member is stated, so a widened interface meets this file at once.
+ */
+function detailDeps(over: { projectId: string; plans: readonly PlanSummaryDto[] }): RenovationProjectDeps {
+	const base = defaultRenovationProjectDeps();
+	return {
+		...base,
+		projectId: over.projectId,
+		queries: {
+			...base.queries,
+			getProject: () => Promise.resolve(ok({ id: over.projectId, name: 'Hallway', status: 'IDEA' })),
+			listPlansByProject: () => Promise.resolve(ok(over.plans)),
+		},
+	};
+}
+```
+
+Both cases `await view.onOpen()` and then `await flushPromises()` BEFORE scanning, for the
+reason this file's own slice 14 case records: `mountHarness` is synchronous and `void`s
+`onOpen`, so a scan taken one tick early found zero elements under every rule bucket — a pass
+true of an empty subtree and indistinguishable from a pass on compliant markup. Assert
+`.rp-project-detail` is present in the scanned DOM for the same reason.
+
+`tests/harness/accessibility.test.ts` needs `import type { ViewStateResult } from 'obsidian';`
+added — it has none today, and both cases drive `view.setState(...)`. Import `ok`,
+`defaultRenovationProjectDeps`, `RenovationProjectDeps` and `PlanSummaryDto` beside it.
 
 **Expect the second case to find something.** The heading order (`<h2>` for the project name,
 `<h3>` for the plans title) is exactly what this scan grades, and the first run of this scan
@@ -3359,13 +3448,23 @@ git commit -m "Give a project with no plans an actionable empty state, graded by
 
 ### Task 11: `revealView` answers, and `navigateToProject` reveals then navigates
 
-Decision 6's remedy, and **it leaves `reveal.ts` untouched**, which is most of the argument
-for it. Three cases pin that module's coalescing, its release and its one-report-per-failure,
-and its key derivation is load-bearing for `revealPlanEditor`, where two plans genuinely are
-two leaves.
+Decision 6's remedy, and the argument for it is what it leaves ALONE in `reveal.ts`: the
+coalescing, the release in its `finally`, and the one-report-per-failure the in-flight map buys
+by holding the ANSWERED activation. Three cases pin those, and the key derivation beneath them
+is load-bearing for `revealPlanEditor`, where two plans genuinely are two leaves. **All four
+survive this task untouched** — what changes in that module is only the type flowing through
+them, since `revealView` now answers a boolean and delegates to `revealCandidate`.
+
+An earlier draft of this paragraph said the task "leaves `reveal.ts` untouched", full stop, and
+the Files list omitted the file. Measured false by a review bot: `4d1245d` changes it by +15/-5.
+The claim was true of the MECHANISMS and false as written, so it is narrowed to the mechanisms
+rather than deleted — the argument it was making is still the right one.
 
 **Files:**
 - Modify: `src/infrastructure/obsidian/workspace/revealView.ts`
+- Modify: `src/infrastructure/obsidian/workspace/reveal.ts` (`revealCandidate` and the
+  `activating` map both carry `boolean` where they carried `void`; every return path gains a
+  value)
 - Create: `src/infrastructure/obsidian/workspace/navigateToProject.ts`
 - Modify: `tests/infrastructure/obsidian/workspace/revealView.test.ts` (find the real path
   with `find tests -name 'revealView*'`)

@@ -14,8 +14,6 @@ import { ReferenceLocks } from '../../../src/application/reference/ReferenceLock
 import { assetUpdated } from '../../../src/domain/asset/Asset.events';
 import { zoneGeometryChanged } from '../../../src/domain/zone/Zone.events';
 import { of as moneyOf } from '../../../src/core/money/Money';
-import type { DomainEvent, EventBus } from '../../../src/core/events/EventBus';
-import { createEventBus } from '../../../src/core/events/EventBus';
 import { expectOk } from '../../helpers/domain';
 import { dispatchingEventBus, failMarkStaleOnce } from '../../helpers/slice10';
 import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entities';

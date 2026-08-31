@@ -55,7 +55,7 @@ function referent(id: RequirementId): Loaded<Requirement> {
  * The referent ids, BRANDED — `ResolutionInput.resolvedReferents` is `readonly
  * RequirementId[]`, not `string[]`. One cast, here, rather than at fourteen call sites.
  */
-const REQUIREMENT_IDS = ['requirement-1', 'requirement-2'] as readonly RequirementId[];
+const REQUIREMENT_IDS = ['requirement-1', 'requirement-2'] as unknown as readonly RequirementId[];
 /** The single-referent cases all name the first of them. */
 const FIRST_REQUIREMENT = REQUIREMENT_IDS[0];
 

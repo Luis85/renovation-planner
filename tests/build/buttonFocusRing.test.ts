@@ -48,7 +48,9 @@ describe('a flattened button and its focus ring', () => {
 			buttonClassGroups(),
 		);
 
-		expect(offenders.values().toArray().flat().map((site) => site.where)).toEqual([]);
+		// Spread rather than `Iterator.toArray()`: that method is ES2025 and this project's `lib`
+		// stops at ES2023.Array, so it typed as `any` and took the callback's parameter with it.
+		expect([...offenders.values()].flat().map((site) => site.where)).toEqual([]);
 		expect(seen).toBeGreaterThan(2);
 	});
 

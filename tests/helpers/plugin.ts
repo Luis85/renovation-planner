@@ -70,7 +70,7 @@ export interface VaultSurface {
  * `RenovationPlannerPlugin extends Plugin`, and which `Plugin` that is depends on who is
  * asking. `vitest.config.ts` aliases `obsidian` to `obsidian-mock.ts`, so at RUN time the base
  * class is the recorder — `views`, `ribbon`, `commands`, `extensions`, `settingTabs`, `saved`,
- * `data`, `loadFailure`. `tsconfig.tests.json` deliberately keeps that alias out of the
+ * `data`, `loadFailure`. `tsconfig.json` deliberately keeps that alias out of the
  * compiler (its header says why), so at CHECK time the base class is Obsidian's, which declares
  * none of them and where `addCommand` returns without keeping anything.
  *
@@ -132,7 +132,15 @@ export async function loadedPlugin(
 	};
 	const asked: string[] = [];
 	/** Vault event handlers the plugin registered — tests fire these directly. */
-	const vaultHandlers: ((...args: never[]) => void)[] = [];
+	/**
+	 * The vault-event handlers the plugin registered, in registration order.
+	 *
+	 * Typed on what Obsidian PASSES — a file, and for `rename` the old path — rather than
+	 * `(...args: never[])`, which accepts any handler at the `push` and then makes the array
+	 * uncallable: nothing is assignable to `never`, so a test driving a recorded handler could
+	 * not pass it the file the pipeline is about.
+	 */
+	const vaultHandlers: ((file: never, oldPath?: string) => void)[] = [];
 	const vault = {
 		configDir: '.obsidian',
 		adapter: {
@@ -160,7 +168,7 @@ export async function loadedPlugin(
 		modify: (file: TFile, data: string): Promise<void> => mustHaveSurface().modify(file, data),
 		delete: (file: TFile): Promise<void> => mustHaveSurface().delete(file),
 		createFolder: (path: string): Promise<unknown> => mustHaveSurface().createFolder(path),
-		on: (_event: string, handler: (...args: never[]) => void): { off(): void } => {
+		on: (_event: string, handler: (file: never, oldPath?: string) => void): { off(): void } => {
 			vaultHandlers.push(handler);
 			return { off: () => undefined };
 		},

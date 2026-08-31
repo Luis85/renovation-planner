@@ -14,7 +14,6 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
-		"typecheck:tests": "node scripts/typecheck-tests.mjs",
 		"lint": "oxlint --deny-warnings && eslint . --max-warnings 0",
 		"analyze": "fallow",
 		"audit": "npm audit --omit=dev --audit-level=high",

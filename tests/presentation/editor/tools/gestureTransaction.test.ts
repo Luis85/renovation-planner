@@ -111,6 +111,10 @@ function stubViewport(): EditorContext['viewport'] {
 	return {
 		worldToScreen: (p: Point): ScreenPoint => screenPoint(p.x, p.y),
 		screenToWorld: (p: ScreenPoint): Point => ({ x: p.x, y: p.y }),
+		// One world unit per screen pixel, matching the identity projection above. The third and
+		// fourth stub viewport to omit this member — the one `tool-context.ts`'s header names as
+		// exactly the omission that leaves a suite exercising the old shape with nothing to say so.
+		worldPerScreenPixel: () => 1,
 		setPan: () => undefined,
 		setZoom: () => undefined,
 	};
@@ -210,6 +214,13 @@ function fakeGestureTool(
 			tool.pendingRun = context.commandDispatcher.run(buildCommand());
 		},
 		cancel: (): void => {
+			context.renderState.reset();
+		},
+		// Required since interruptions were split from deliberate cancels: `cancel()` is Escape
+		// or a tool switch and throws the accumulation away, `abandonGesture()` is the OS taking
+		// the pointer and must abandon only what the missing release would have completed. This
+		// fake has one gesture and no buffer, so the two coincide.
+		abandonGesture: (): void => {
 			context.renderState.reset();
 		},
 	};
@@ -330,7 +341,7 @@ describe('gesture -> command transaction (design slice 6)', () => {
 		// "slow" one); command2's resolves the instant it is invoked (deliberately the
 		// "fast" one) — so completion order would disagree with dispatch order here if
 		// CommandHistory did not serialize run() calls against one another.
-		let resolveFirst!: (result: Result<void, AppError>) => void;
+		let resolveFirst!: (result: Result<DispatchOutcome, AppError>) => void;
 		const firstCascade = new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
 			resolveFirst = resolve;
 		});
@@ -363,7 +374,7 @@ describe('gesture -> command transaction (design slice 6)', () => {
 		expect(command1.execute).toHaveBeenCalledTimes(1);
 		expect(command2.execute).not.toHaveBeenCalled();
 
-		resolveFirst(ok(undefined));
+		resolveFirst(ok('wrote'));
 		await firstRun;
 		await secondRun;
 

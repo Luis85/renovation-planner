@@ -99,6 +99,10 @@ function stubViewport(): EditorContext['viewport'] {
 	return {
 		worldToScreen: (p: Point): ScreenPoint => screenPoint(p.x, p.y),
 		screenToWorld: (p: ScreenPoint): Point => ({ x: p.x, y: p.y }),
+		// One world unit per screen pixel, matching the identity projection above. The third and
+		// fourth stub viewport to omit this member — the one `tool-context.ts`'s header names as
+		// exactly the omission that leaves a suite exercising the old shape with nothing to say so.
+		worldPerScreenPixel: () => 1,
 		setPan: () => undefined,
 		setZoom: () => undefined,
 	};

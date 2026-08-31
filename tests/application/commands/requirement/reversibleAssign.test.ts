@@ -171,7 +171,7 @@ describe('ReversibleAssignAssetCommand', () => {
 	it.each([
 		['zones', 'the zone read'],
 		['assets', 'the asset read'],
-	] as const)('surfaces a repository fault from %s during redo as itself, not as a missing referent', async (endpoint) => {
+	] as const)('surfaces a repository fault from %s during redo as itself, not as a missing referent', async (endpoint, _what) => {
 		const w = await wired();
 		const adapter = makeAdapter(w);
 		expectOk(await adapter.execute());

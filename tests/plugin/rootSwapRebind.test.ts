@@ -45,7 +45,10 @@ async function openViewOnLeaf(
 ) {
 	const leaf = new FakeLeaf();
 	await leaf.setViewState({ type, state });
-	const view = plugin.views.get(type)?.(leaf as never) as never as {
+	// `views` is the plugin's own registry and not part of its public surface — reached here on
+	// purpose, because a rebind test has to get at the view instance the plugin built.
+	const views = (plugin as unknown as { views: Map<string, (leaf: never) => unknown> }).views;
+	const view = views.get(type)?.(leaf as never) as never as {
 		onOpen: () => Promise<void>;
 		setState?: (state: unknown, result: unknown) => Promise<void>;
 		deps: Record<string, unknown>;

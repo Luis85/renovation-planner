@@ -3256,6 +3256,30 @@ that was fixing the previous instance.
   `JSON.parse` refuses one — a BOM'd `manifest.json` broke every lint run here once, with
   an error pointing nowhere near the cause. Write files with node or an editor;
   `tests/build/encoding.test.ts` refuses the BOM either way.
+- **`private-type-leaks` is an `error` now, and it was ratcheted the way every floor here is:
+  cleared to zero first.** Nineteen had accumulated under `warn` — an exported signature
+  naming a type its own module does not export, so no caller can annotate one. That matters
+  more since `tests/**` type-checks: a test cannot name a type it cannot import, and an
+  explicit annotation is exactly what the rule above needs to resolve a member. **Two of the
+  nineteen must NOT be cleared the way the report's first action says**, and each says so
+  where its suppression is. `Routed` is a `unique symbol` its module deliberately never
+  exports, so exporting it would let a call site hand-build a toast surface and reach
+  `notifyError` without asking `surfaceFor` — the guarantee `errorSurfacePolicy.test-d.ts`
+  proves with three `@ts-expect-error` directives, undone by taking the advice. And exporting
+  `ReversibleOverrideBase` traded its two leaks for an `unused-exports` finding, because
+  nothing outside its module extends or imports it: there the report contradicts ITSELF, which
+  is only visible by making the change and re-running. **A static analyser's suggested fix is
+  a hypothesis, and this one was wrong twice in nineteen.**
+- **`fallow-ignore-next-line` means the next line LITERALLY, and the line it must sit above is
+  where the type is NAMED — not where the exported symbol begins.** Both mistakes were made
+  here in turn: an explanatory paragraph between the directive and the code silenced nothing,
+  and so did placing it above `export type ErrorSurface =` when the leak is reported on the
+  first union member three lines down. Each time fallow reported the suppression as STALE
+  while going on counting the leak — which is the good failure mode, and the only reason
+  either was caught.
+- **Clearing a leak can uncover the one beneath it.** Exporting `MoveCommand` made
+  `MoveError` — private, and named in that very signature — reportable for the first time. A
+  count taken before a fix is not the size of the job.
 - Fallow resolves an interface's members through an **explicit type annotation**, not a
   property access: annotate the local (`const x: PortType = …`) rather than reaching for
   `usedClassMembers`, which is for members a framework invokes and would hide a dead one.

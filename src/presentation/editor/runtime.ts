@@ -2,7 +2,7 @@ import { inject, provide, reactive, ref, watch, type InjectionKey, type Ref } fr
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
-import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
+import type { DispatchOutcome, DispatchResult } from '../../application/commands/DispatchOutcome';
 import { createInspector } from './inspector-wiring';
 import type { AppError } from '../../core/errors/AppError';
 import type { Logger } from '../../application/ports/Logger';
@@ -178,8 +178,6 @@ function registerEditorTools(
 		}),
 	);
 }
-
-type DispatchResult = Result<DispatchOutcome, AppError>;
 
 /**
  * The last stop for an UNEXPECTED technical fault on a dispatch (SDD §65 reserves throws

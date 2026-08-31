@@ -15,8 +15,8 @@ import type { Loaded } from '../../../application/ports/versioning';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { UndoableCommand } from './undoable-command';
 
-type MoveError = ReferenceError | GeometryError | RepositoryError;
-type MoveCommand = Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, MoveError>>;
+export type MoveError = ReferenceError | GeometryError | RepositoryError;
+export type MoveCommand = Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, MoveError>>;
 
 /**
  * A reversible editor gesture wrapping slice 3's `MoveSpatialObjectCommand` (design

@@ -1,3 +1,4 @@
+import type { Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 
 /**
@@ -51,6 +52,22 @@ import type { AppError } from '../../core/errors/AppError';
  * and satisfies this structurally.
  */
 export type DispatchOutcome = 'wrote' | 'no-write';
+
+/**
+ * What a dispatch resolves to, on both channels — declared once beside the outcome it
+ * carries.
+ *
+ * It was a private `type DispatchResult = Result<DispatchOutcome, AppError>` in BOTH
+ * `presentation/editor/runtime.ts` and `presentation/editor/tools/command-history.ts`,
+ * byte-identical, which `npm run analyze` could see only as two `private-type-leak`
+ * findings — one line each is under the clone detector's floor, so nothing else could have
+ * noticed them drifting.
+ *
+ * Here rather than in `presentation/`, because `application/` may not import that layer and
+ * the reversible adapters resolve the same shape. Twenty-six sites still spell it inline;
+ * converting those is a sweep of its own and is not this one.
+ */
+export type DispatchResult = Result<DispatchOutcome, AppError>;
 
 /**
  * The same question on the OTHER channel of the same `Result`: a refusal that left writes

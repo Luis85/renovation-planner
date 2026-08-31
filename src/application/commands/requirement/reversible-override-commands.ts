@@ -40,6 +40,11 @@ type Snapshot = { readonly entity: Requirement; readonly postVersion: EntityVers
  * re-reading what undo just wrote — a snapshot-on-every-execute adapter drifts on the
  * second undo/redo round while looking right on the first.
  */
+// Internal by construction: the two exported adapters below are its only subclasses, and
+// `export`ing it to clear the leak traded those two findings for an `unused-exports` one —
+// measured by making the change and re-running `npm run analyze`, not predicted. So the
+// report contradicts itself here rather than contradicting a design rule, and the two
+// suppressions live on the subclasses, which is where the leak is REPORTED.
 abstract class ReversibleOverrideBase<TInput> {
 	protected snapshot: Snapshot | undefined;
 
@@ -90,6 +95,7 @@ abstract class ReversibleOverrideBase<TInput> {
 	protected abstract requirementIdOf(input: TInput): RequirementId;
 }
 
+// fallow-ignore-next-line private-type-leak
 export class ReversibleSetRequirementQuantityOverrideCommand extends ReversibleOverrideBase<SetRequirementQuantityOverrideInput> {
 	constructor(
 		private readonly setCommand: SetRequirementQuantityOverrideDoor,
@@ -109,6 +115,7 @@ export class ReversibleSetRequirementQuantityOverrideCommand extends ReversibleO
 	}
 }
 
+// fallow-ignore-next-line private-type-leak
 export class ReversibleSetRequirementCostOverrideCommand extends ReversibleOverrideBase<SetRequirementCostOverrideInput> {
 	constructor(
 		private readonly setCommand: SetRequirementCostOverrideDoor,

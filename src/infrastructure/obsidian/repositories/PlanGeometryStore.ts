@@ -28,7 +28,7 @@ function schemaVersionOf(parsed: unknown): number {
 }
 
 /** What a sidecar read can refuse with — the same vocabulary a note read carries. */
-type SidecarReadError = PersistenceError | ValidationError | MigrationError;
+export type SidecarReadError = PersistenceError | ValidationError | MigrationError;
 
 /** What a sidecar read hands back: the parsed document plus the version to write against. */
 export interface SidecarSnapshot {

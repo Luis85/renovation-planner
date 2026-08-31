@@ -42,7 +42,7 @@ export interface ReversibleAssignResult {
 	readonly outcome: DispatchOutcome;
 }
 
-type AdapterErrors = DomainError | CalculationError | ReferenceError | RepositoryError;
+export type AdapterErrors = DomainError | CalculationError | ReferenceError | RepositoryError;
 
 /**
  * The adapter the Inspector's "Assign Asset" control actually dispatches.

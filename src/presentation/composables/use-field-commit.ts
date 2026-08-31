@@ -7,7 +7,7 @@ import { faultError } from '../notices/notify';
 import { routeError, type FieldErrorMap } from '../errors/route-error';
 
 /** What `CommandHistory.run` takes: anything with the two halves of a reversible write. */
-interface RunnableCommand {
+export interface RunnableCommand {
 	execute(): Promise<Result<DispatchOutcome, AppError>>;
 	undo(): Promise<Result<DispatchOutcome, AppError>>;
 }

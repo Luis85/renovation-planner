@@ -29,7 +29,7 @@ business-value-model: ""
 
 # An asset filed outside the library is left behind by every move
 
-The source intersection is deliberate and the silence around it is not. A library move can
+The behaviour is what Task 5 built, and whether it is right was never decided. A library move can
 split a catalogue in two with nothing reporting it.
 
 ## The question
@@ -47,10 +47,18 @@ nothing, which is the hazard `catalogueNotesIn`'s own docblock names for a diffe
 
 ## What is true today
 
-- **The intersection is the rule, not an oversight.** It preserves Task 5's documented
-  behaviour that an asset filed outside the library is not relocated: updates write where the
-  note already sits, and only *inserts* go to the library folder. Enumerating by entity type
-  alone would change that silently.
+- **The intersection implements what Task 5 built — but "the rule" overstates it, and an
+  earlier draft of this note did.** Updates write where the note already sits and only
+  *inserts* go to the library, so such a note never moves. Enumerating by entity type alone
+  would change that silently, which is why the intersection is there.
+- **It was never decided, and it was never written down.** The status lives in the slice plan's
+  *Open questions*, under a header reading *"These need a decision and I have not taken them"* —
+  item 3, which closes *"Worth stating in `docs/tasks/19` rather than discovering later."* That
+  statement was never made: `grep -n "outside the library" docs/tasks/19*.md` returns nothing.
+  So this is a behaviour that shipped, was flagged as needing a decision, and then lost its
+  flag. A first draft of this note cited `docs/tasks/19` for a rule that is not in it, and
+  presented the open question as settled — which would have made "report it" look like the
+  small option on top of an agreed position rather than one of two live answers.
 - **The catalogue is not broken by it.** Since design slice 18 the index is bounded by what a
   note declares, and `listAll` reads the type axis rather than a folder, so a stray asset stays
   discoverable, readable and updatable.
@@ -61,15 +69,15 @@ nothing, which is the hazard `catalogueNotesIn`'s own docblock names for a diffe
 
 - **Report the count without moving anything.** "N asset notes are filed outside the library",
   on the settings row or in the migration's result. The smallest thing that stops the split
-  being invisible, it forecloses nothing, and it respects the existing rule rather than
-  overriding a user's deliberate filing.
+  being invisible, and it forecloses neither of the others. **Not** presented here as the
+  preferred answer, which an earlier draft did on the strength of a decision nobody had taken.
 - **Offer to include the strays.** Ask, and move them too when the user says yes. Needs a
   surface, and needs care that the existing code does not: `deps.renameFile` collisions become
   possible the moment two strays share a leaf name, and the move's relative-path arithmetic
   (`note.path.slice(source.length + 1)`) has no meaning for a note outside the source at all.
 - **Keep silent.** Defensible if filing an asset elsewhere is an explicit choice that a
-  folder-setting change should not second-guess. It is the current behaviour, and this note
-  exists so that it is a decision rather than an omission.
+  folder-setting change should not second-guess. It is the current behaviour, reached by
+  omission rather than by decision — which is the whole reason this note exists.
 
 ## Why no gate saw it
 
@@ -103,5 +111,8 @@ during a move.
 
 - `src/plugin/settings/libraryMigration.ts` — `catalogueNotesIn` and its docblock on the
   source intersection, and the case-mismatch refusal for the contrast.
-- `docs/tasks/19` — Task 5's open question 3, which declares the stray legal.
+- `docs/superpowers/plans/2026-08-30-slice-19-asset-catalogue-leaves-the-project.md` — *Open
+  questions*, item 3. Note the header: undecided, not decided.
+- `docs/tasks/19-the-asset-catalogue-leaves-the-project.md` — where item 3 says this should
+  have been recorded, and is not.
 - PR #41.

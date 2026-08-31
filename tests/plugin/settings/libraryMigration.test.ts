@@ -270,6 +270,70 @@ describe('libraryDestinations', () => {
 });
 
 /**
+ * The finding that changed the QUESTION rather than adding a fifth refinement to the answer.
+ *
+ * §83 forbids a project folder inside the library, and Tasks 8 and 9 exist to MARK that state
+ * — so this slice already grants it happens. A project dragged to `Renovation/Library/Kitchen`
+ * puts its note, its zones and its geometry sidecar under the library, and an enumeration that
+ * asks "every file under this folder" sweeps all of them into the destination: moving the
+ * library to `Shared` relocates the whole project to `Shared/Kitchen`.
+ *
+ * The catalogue is not "the files under a folder". It is the ASSET notes, which the Project
+ * Index already knows — SDD §47 makes it the single answer to where an entity is, and every
+ * other read in this plugin resolves through it.
+ *
+ * BOTH halves are asserted. A case checking only that the catalogue moved passes against the
+ * defect, since the defect moves the catalogue too — it just takes the project with it.
+ */
+it('moves the catalogue and leaves a project filed under the library where it is', async () => {
+	const files = [
+		noteAt('Renovation/Library/Assets/Tiles.md'),
+		noteAt('Renovation/Library/Kitchen/Project.md'),
+		noteAt('Renovation/Library/Kitchen/Zones/Kitchen.md'),
+		// Not an index ENTRY of its own — a plan's sidecar path rides on the plan's entry — so
+		// it is a file under the library that no entity type claims. It must not move either.
+		noteAt('Renovation/Library/Kitchen/Geometry/p1.rpgeo'),
+	];
+	const persistence = stackOver([
+		entry('a1', 'renovation-asset', 'Renovation/Library/Assets/Tiles.md'),
+		entry('p1', 'renovation-project', 'Renovation/Library/Kitchen/Project.md'),
+		entry('z1', 'renovation-zone', 'Renovation/Library/Kitchen/Zones/Kitchen.md'),
+	]);
+	const rig = harness({
+		projectFolders: () => ['Renovation/Library/Kitchen'],
+		catalogueNotes: (from) => catalogueNotesIn(persistence, files, from),
+	});
+
+	const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+	expect(isOk(result)).toBe(true);
+	expect(rig.renamed).toEqual([
+		{ from: 'Renovation/Library/Assets/Tiles.md', to: 'Shared/Catalogue/Assets/Tiles.md' },
+	]);
+});
+
+/**
+ * Task 5's documented behaviour, and the reason the enumeration is an INTERSECTION rather
+ * than a bare "every asset the index knows": an asset filed outside the library is not
+ * relocated (an update writes where the note already sits; only an insert goes to the
+ * library). Enumerating by type alone would silently change that.
+ */
+it('leaves an asset filed outside the library where it is', async () => {
+	const files = [noteAt('Renovation/Library/Assets/Tiles.md'), noteAt('Elsewhere/Paint.md')];
+	const persistence = stackOver([
+		entry('a1', 'renovation-asset', 'Renovation/Library/Assets/Tiles.md'),
+		entry('a2', 'renovation-asset', 'Elsewhere/Paint.md'),
+	]);
+	const rig = harness({ catalogueNotes: (from) => catalogueNotesIn(persistence, files, from) });
+
+	await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+	expect(rig.renamed).toEqual([
+		{ from: 'Renovation/Library/Assets/Tiles.md', to: 'Shared/Catalogue/Assets/Tiles.md' },
+	]);
+});
+
+/**
  * The commonest path of all, and the one a blunt existence check breaks: a fresh vault.
  *
  * The default `Renovation/Library` is created LAZILY, by the asset repository, on the first
@@ -303,8 +367,9 @@ it('moves an empty library when the source folder does not exist at all', async 
  */
 it('refuses when the source exists only under another spelling, and moves nothing', async () => {
 	const files = [noteAt('Renovation/Library/Assets/Tiles.md')];
+	const persistence = stackOver([entry('a1', 'renovation-asset', 'Renovation/Library/Assets/Tiles.md')]);
 	const rig = harness({
-		catalogueNotes: (from) => catalogueNotesIn(files, from),
+		catalogueNotes: (from) => catalogueNotesIn(persistence, files, from),
 		vaultFolders: () => ['Renovation/Library'],
 	});
 
@@ -316,23 +381,26 @@ it('refuses when the source exists only under another spelling, and moves nothin
 });
 
 /**
- * The reason the enumeration must NOT fold case, and why this is the opposite trade from
- * `foldersOverlap`'s.
+ * Two genuinely distinct folders differing only in case, BOTH holding indexed assets — which
+ * is what makes this the Linux case rather than the misspelling above, and what makes it
+ * still worth having after the enumeration became index-driven.
  *
- * For the PREDICATE, over-refusing is the safe direction: it costs a user one rename, while
- * under-refusing costs every project's catalogue. For the ENUMERATION the asymmetry
- * REVERSES — over-selecting MOVES UNRELATED FILES, which is destructive, while
- * under-selecting merely finds nothing, which the refusal above now reports. A case-sensitive
- * Linux vault can hold `Renovation/Library` and `Renovation/library` as two real folders, and
- * a folded match relocates the second one's notes into the destination.
+ * The index half does not save this one: both notes are assets, so only the source
+ * INTERSECTION separates them. Folding it would relocate an asset the user filed in the other
+ * folder, which Task 5 says stays where it is. For a GUARD over-refusing is the safe
+ * direction — `foldersOverlap` folds for that reason — and for an ENUMERATION the asymmetry
+ * REVERSES, because over-selecting moves files.
  */
-it('leaves a sibling folder differing only in case untouched', async () => {
+it('leaves an asset in a sibling folder differing only in case untouched', async () => {
 	const files = [noteAt('Renovation/Library/Assets/Tiles.md'), noteAt('Renovation/library/Assets/Paint.md')];
-	// BOTH are real folders here, which is what makes this the Linux case rather than the
-	// misspelling above: the source resolves exactly, so the guard does not fire and the
-	// question is purely what the enumeration selects.
+	const persistence = stackOver([
+		entry('a1', 'renovation-asset', 'Renovation/Library/Assets/Tiles.md'),
+		entry('a2', 'renovation-asset', 'Renovation/library/Assets/Paint.md'),
+	]);
+	// The source resolves EXACTLY here, so the spelling guard does not fire and the question
+	// is purely what the enumeration selects.
 	const rig = harness({
-		catalogueNotes: (from) => catalogueNotesIn(files, from),
+		catalogueNotes: (from) => catalogueNotesIn(persistence, files, from),
 		vaultFolders: () => [SOURCE, 'Renovation/library'],
 	});
 
@@ -345,15 +413,21 @@ it('leaves a sibling folder differing only in case untouched', async () => {
 });
 
 describe('catalogueNotesIn', () => {
+	/**
+	 * Every file here is an indexed ASSET, so the index half admits all three and only the
+	 * source intersection separates them — which is what keeps the segment boundary a
+	 * property of this function rather than an accident of the fixture. The prefix trap:
+	 * `Renovation/LibraryOld` is not inside `Renovation/Library`.
+	 */
 	it('takes the files under the folder, at the segment boundary', () => {
 		const files = [
 			noteAt('Renovation/Library/Assets/Tiles.md'),
 			noteAt('Renovation/Library.md'),
-			// The prefix trap: `Renovation/LibraryOld` is not inside `Renovation/Library`.
 			noteAt('Renovation/LibraryOld/Assets/Paint.md'),
 		];
+		const persistence = stackOver(files.map((file, index) => entry(`a${index}`, 'renovation-asset', file.path)));
 
-		expect(catalogueNotesIn(files, SOURCE).map((file) => file.path)).toEqual([
+		expect(catalogueNotesIn(persistence, files, SOURCE).map((file) => file.path)).toEqual([
 			'Renovation/Library/Assets/Tiles.md',
 		]);
 	});
@@ -361,16 +435,49 @@ describe('catalogueNotesIn', () => {
 	/**
 	 * CASE-SENSITIVE, deliberately, and the opposite of what `foldersOverlap` does three
 	 * imports away. Obsidian's paths are case-sensitive and a Linux vault really can hold
-	 * both spellings, so folding here would take the other folder's notes with it.
+	 * both spellings, so folding here would relocate an asset filed in the other one.
 	 */
 	it('takes them case-sensitively', () => {
 		const files = [
 			noteAt('Renovation/Library/Assets/Tiles.md'),
 			noteAt('Renovation/library/Assets/Paint.md'),
 		];
+		const persistence = stackOver(files.map((file, index) => entry(`a${index}`, 'renovation-asset', file.path)));
 
-		expect(catalogueNotesIn(files, SOURCE).map((file) => file.path)).toEqual([
+		expect(catalogueNotesIn(persistence, files, SOURCE).map((file) => file.path)).toEqual([
 			'Renovation/Library/Assets/Tiles.md',
 		]);
+	});
+
+	/**
+	 * A file under the library that the index does not know as an asset is not the catalogue,
+	 * whatever it is — a project note, a zone, a geometry sidecar, or a note the user simply
+	 * filed there. This is the half that makes the §83 violation dissolve instead of needing
+	 * a refusal.
+	 */
+	it('takes only what the index knows as an asset', () => {
+		const files = [
+			noteAt('Renovation/Library/Assets/Tiles.md'),
+			noteAt('Renovation/Library/Kitchen/Project.md'),
+			noteAt('Renovation/Library/Notes.md'),
+		];
+		const persistence = stackOver([
+			entry('a1', 'renovation-asset', 'Renovation/Library/Assets/Tiles.md'),
+			entry('p1', 'renovation-project', 'Renovation/Library/Kitchen/Project.md'),
+		]);
+
+		expect(catalogueNotesIn(persistence, files, SOURCE).map((file) => file.path)).toEqual([
+			'Renovation/Library/Assets/Tiles.md',
+		]);
+	});
+
+	/**
+	 * With settings unrecovered there is no persistence stack and therefore no index to ask.
+	 * The same arm `projectFolderPaths` carries, asked here rather than spelled as an `?.` at
+	 * the one call site — and unreachable from the pane, which declares no action row in that
+	 * state.
+	 */
+	it('answers nothing when there is no index to ask', () => {
+		expect(catalogueNotesIn(null, [noteAt('Renovation/Library/Assets/Tiles.md')], SOURCE)).toEqual([]);
 	});
 });

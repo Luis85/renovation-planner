@@ -205,6 +205,13 @@ function equipVault(plugin: RenovationPlannerPlugin, equipment: VaultEquipment):
 			renamed.push(`${file.path} -> ${to}`);
 			return Promise.resolve();
 		});
+	// The catalogue is what the INDEX says it is, not what sits under the folder — see
+	// `catalogueNotesIn`, which asks the index first so that a project filed under the library
+	// is not swept into the destination. A fixture that planted files without indexing them
+	// would enumerate nothing, and every move case here would pass over an empty catalogue.
+	for (const [position, path] of (equipment.files ?? []).entries()) {
+		plugin.root.persistence?.index.upsert({ id: `a${position}` as never, type: 'renovation-asset', path });
+	}
 	return { renamed };
 }
 

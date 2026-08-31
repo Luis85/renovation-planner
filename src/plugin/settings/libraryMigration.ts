@@ -233,23 +233,61 @@ export function libraryDestinations(
 }
 
 /**
- * The files under the library folder — at the SEGMENT boundary, never as a string prefix, so
- * `Renovation/LibraryOld` is not read as part of `Renovation/Library`.
+ * WHICH NOTES ARE THE CATALOGUE — asked of the Project Index, then intersected with the
+ * source folder.
  *
- * CASE-SENSITIVE, and this is the one place in the slice that deliberately does NOT reuse
- * `foldersOverlap`. That predicate folds case and argues for it at length, because for a
- * GUARD over-refusing costs a user one rename while under-refusing costs every project's
- * catalogue. For an ENUMERATION the asymmetry REVERSES: over-selecting MOVES UNRELATED
- * FILES, and a case-sensitive Linux vault really can hold `Renovation/Library` and
- * `Renovation/library` as two folders, so a folded match relocates the second one's notes
- * into the destination. Under-selecting merely finds nothing, and `migrateLibraryFolder`'s
- * source-existence guard is what turns that into a refusal the user can act on rather than a
- * move that silently did nothing.
+ * It used to ask "every file under the library folder", and that premise produced four
+ * separate findings before it was replaced: a destination nested inside the source that got
+ * re-enumerated on a retry, a case-variant missed so the migration reported success having
+ * moved nothing, a case-variant swept so unrelated files were relocated, and finally a whole
+ * PROJECT swept — §83 forbids a project folder inside the library and Tasks 8 and 9 exist to
+ * MARK that state, so a project at `Renovation/Library/Kitchen` is a state this slice already
+ * grants, and moving the library took its note, its zones and its geometry sidecar to
+ * `Shared/Kitchen`. Four fixes each refined the prefix match; the prefix match was the wrong
+ * question. A fix that keeps needing another fix is answering the wrong one.
  *
- * Two predicates that look alike are not automatically duplication — consolidating them here
- * would replace a narrow correct behaviour with a uniform destructive one.
+ * BOTH halves are load-bearing, and neither is a tidying of the other:
+ *
+ * - **The index half** is what makes a project note not a catalogue note. SDD §47 makes the
+ *   index the single answer to "where is entity X", and every other read in this plugin
+ *   already resolves through it, so this stops being a second mechanism for finding notes.
+ *   The §83 violation then DISSOLVES rather than being refused: the project stays where it
+ *   is, only the catalogue moves, and the user is asked for nothing.
+ * - **The source intersection** preserves Task 5's documented behaviour that an asset filed
+ *   outside the library is NOT relocated — updates write where the note already sits, and
+ *   only inserts go to the library (its open question 3). Enumerating by type alone would
+ *   change that silently.
+ *
+ * The intersection is at the SEGMENT boundary and CASE-SENSITIVE, so `Renovation/LibraryOld`
+ * is not read as part of `Renovation/Library` and an asset under a case-variant folder counts
+ * as filed outside the library, which is what Task 5's rule says it is. `foldersOverlap`
+ * folds and this does not, deliberately: for a GUARD over-refusing is the safe direction,
+ * while for an ENUMERATION over-selecting MOVES FILES. Two predicates that look alike are not
+ * automatically duplication.
+ *
+ * Read through `entries()` rather than `getIdsByType` + `getPath` per id, which is the same
+ * authority answering the same question — and it is the sibling `projectFolderPaths` above
+ * already spells. The pairwise form would add a `getPath` returned `undefined` arm that no
+ * honest fixture can drive: both answers derive from one entry list, so an id from
+ * `getIdsByType` always has a path, and a fake that produced one would be a fake modelling a
+ * state the real index cannot be in.
+ *
+ * Takes the persistence stack rather than the index for the reason `projectFolderPaths`
+ * states: a session with settings unrecovered composes no persistence at all, so the arm is
+ * asked HERE instead of being spelled as an `?.` at the call site.
  */
-export function catalogueNotesIn(files: readonly TFile[], folder: string): TFile[] {
+export function catalogueNotesIn(
+	persistence: { index: ProjectIndex } | null,
+	files: readonly TFile[],
+	folder: string,
+): TFile[] {
+	if (persistence === null) return [];
+	const catalogue = new Set(
+		persistence.index
+			.entries()
+			.filter((entry) => entry.type === 'renovation-asset')
+			.map((entry) => entry.path),
+	);
 	const root = `${normalizeFolder(folder)}/`;
-	return files.filter((file) => file.path.startsWith(root));
+	return files.filter((file) => catalogue.has(file.path) && file.path.startsWith(root));
 }

@@ -289,7 +289,10 @@ export class SettingsTab extends PluginSettingTab {
 			// has to tell a folder that is simply absent from one that is present under another
 			// spelling, and a yes/no has already collapsed the two.
 			vaultFolders: () => vault.getAllFolders(false).map((folder) => folder.path),
-			catalogueNotes: (from) => catalogueNotesIn(vault.getFiles(), from),
+			// The INDEX decides which notes are the catalogue and the folder only narrows it —
+			// see `catalogueNotesIn`. Asking the folder alone swept a project filed under the
+			// library into the destination.
+			catalogueNotes: (from) => catalogueNotesIn(this.host.root.persistence, vault.getFiles(), from),
 			ensureFolder: (path) => ensureFolder(vault, path),
 			renameFile: (file, to) => renameNote(fileManager, file, to),
 			rebuildIndex: () => {

@@ -2141,9 +2141,16 @@ Restore all three.
 
 ```bash
 npm run check
-git add src/presentation/views/RenovationProjectView.ts tests/presentation/views/renovationProjectView.test.ts src/plugin/RenovationPlannerPlugin.ts
+git add src/presentation/views/RenovationProjectView.ts tests/presentation/views/renovationProjectView.test.ts
 git commit -m "Give the project view a list state and a detail state in its own view state"
 ```
+
+`src/plugin/RenovationPlannerPlugin.ts` is deliberately NOT staged, and this line used to name
+it. Tasks 5 and 11 had already landed everything this task needs on the plugin side — the
+`registerView` factory, `projectViewDeps(projectId, leaf)` and the `indexScanCompleted` flag —
+so staging it here would have added nothing and, on a dirty tree, could have swept an unrelated
+change into this commit. Task 6's implementer verified the file needed no edit and its reviewer
+confirmed that against the pre-task base rather than taking it on report.
 
 ---
 

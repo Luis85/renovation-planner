@@ -209,6 +209,14 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.project.create-plan': 'Neuer Grundriss',
 	'form.new-plan.title': 'Neuer Grundriss',
 	'form.new-plan.name': 'Name',
+	// SIEZEN, wie jeder andere Fließtext in dieser Datei ('Erstellen Sie eines, um zu beginnen.',
+	// 'Zeichnen Sie die erste Zone auf diesem Plan.'): die englische Vorlage kennt diese
+	// Unterscheidung nicht, und zwei Anreden in einer Oberfläche sind derselbe Fehler wie zwei
+	// Namen für eine Sache.
+	'empty.project.no-plans.headline': 'Noch keine Grundrisse',
+	'empty.project.no-plans.body': 'Fügen Sie einen Grundriss hinzu, um Zonen zu zeichnen und Mengen zu ermitteln.',
+	'empty.project.no-plans.action': 'Neuer Grundriss',
+	'view.project.gone': 'Dieses Projekt existiert nicht mehr.',
 	'project.empty-name': 'Ein Projekt braucht einen Namen.',
 	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',

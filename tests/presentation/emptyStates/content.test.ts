@@ -13,8 +13,14 @@ import { t } from '../../../src/presentation/i18n/strings';
 const LANGUAGES = ['en', 'de'] as const;
 
 describe('the empty-state content registry', () => {
-	it('holds exactly the three entries the slice names', () => {
-		expect(Object.keys(EMPTY_STATE_CONTENT.renovationProject)).toEqual(['noProjects']);
+	/**
+	 * Design slice 21 added the fourth entry, `renovationProject.noPlans`. Only the ROLL CALL
+	 * moves here: the assertion that its action label is present, and the axe scan that grades
+	 * the button, are Task 10's — this case exists so that an entry cannot arrive without any
+	 * test naming it at all.
+	 */
+	it('holds exactly the four entries the slices name', () => {
+		expect(Object.keys(EMPTY_STATE_CONTENT.renovationProject)).toEqual(['noProjects', 'noPlans']);
 		expect(Object.keys(EMPTY_STATE_CONTENT.planEditor)).toEqual(['noBackground', 'noZones']);
 	});
 

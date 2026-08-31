@@ -53,7 +53,8 @@ here rather than only in the (git-ignored) SDD ledger, so the branch itself reco
 | 6 — the view's state machine | ✅ complete — `bf648c3`, review clean |
 | 7 — `PlanList`, `ProjectDetail`, `statusLabel` | ✅ complete — `745669c`, amended by `fd605b3`; review clean |
 | 8 — `NewPlanForm.vue` | ✅ complete — `236cc36`, review clean |
-| 9–10, 12–13 | not started — **9 is next** |
+| 9 — `ViewRoot` draws the detail state | ✅ complete — commit *"Draw the detail state from ViewRoot and wire its four intents"*. No sha: a commit cannot carry its own hash, and an amended one records a sha the branch no longer holds — the subject is what identifies it until something else touches this table |
+| 10, 12–13 | not started — **10 is next** |
 
 **Amendments and branch-wide work since, in commit order** — kept here because several amend a
 task that is already ticked above, and a table listing only first commits would report a tree
@@ -71,6 +72,7 @@ that no longer exists:
 | `20c0006` | Task 6's commit step staged a file the task does not touch |
 | `d7f207f` | Plan text — the sweep: three helpers described but never defined, and Task 11's Files list |
 | `15f39cf` | **Amends Task 11**: `revealCandidate` answers the leaf it revealed, so the write path stops re-deriving it after the `await` |
+| Task 9's own commit | **Amends Task 9's own text** (three lines below, in its section) and records three deviations from it: `ProjectDetailState.vue` is EXTRACTED — `ViewRoot` measured 414 lines with the detail state inline, and `vue-tsc` narrows a template `v-if` for a direct binding but not inside a template arrow function, so every handler needed an assertion the compiler could not check; `onOpenProject`'s list arm is GONE rather than kept, because a row click no longer reaches it and an unreachable branch costs a branch of a floor with about two to spare; and `mountRoot`'s `listPlansByProject` returns a COPY, because the live array the step specified cannot make the creation case pass against a correct build (a `ref` assigned the array it already holds does not re-render — measured both ways) |
 
 Task 4's review found its two completed-scan cases byte-identical at the store layer; the
 duplicate is retired and the real discrimination moved to Task 5's Step 6a, where the flag is
@@ -2927,7 +2929,7 @@ describe('ViewRoot in the detail state', () => {
 		const wrapper = mountRoot({
 			projectId: 'project-1',
 			plansRef: plans,
-			createPlan: async (input) => { plans.push({ id: 'plan-9', name: input.name }); return ok({ plan: { entity: makePlan(), version: 1 } }); },
+			createPlan: async (input) => { plans.push({ id: 'plan-9', name: input.name }); return ok({ plan: { entity: makePlan({ projectId }), version: { revision: 1, observed } } }); },
 		});
 		await flushPromises();
 
@@ -3055,7 +3057,10 @@ function mountRoot(over: {
 	openProject?: (projectId: string) => Promise<ProjectOpenOutcome>;
 	openPlan?: (planId: string) => Promise<void>;
 	/** Wired into `commands`, NOT `queries` — see the note below. */
-	createPlan?: (input: CreatePlanInput) => Promise<Result<CreatePlanResult, AppError>>;
+	// `CreatePlanResult` is NOT exported and is ALREADY a `Result`, so the line this replaces
+	// both failed to import and double-wrapped. The bundle's own method type cannot drift
+	// from `createPlan.execute` and needs no new export.
+	createPlan?: RenovationProjectCommandServices['createPlan']['execute'];
 	getProject?: (projectId: string) => Promise<Result<ProjectSummaryDto | null, RepositoryError>>;
 	indexScanCompleted?: () => boolean;
 	onPlansChanged?: (projectId: string, listener: () => void) => () => void;
@@ -3079,7 +3084,11 @@ function mountRoot(over: {
 			...base.queries,
 			listProjects: () => Promise.resolve(ok({ projects: over.projects ?? [], unreadable: 0 })),
 			getProject: over.getProject ?? (() => Promise.resolve(ok(PROJECT))),
-			listPlansByProject: () => Promise.resolve(ok(over.plansRef ?? over.plans ?? [])),
+			// A COPY per call, never the caller's own array: `createRenovationProjectQueries` maps
+		// into a fresh array on every read, and a `ref` assigned the array it already holds
+		// does not re-render — so handing back one live array makes the creation case fail
+		// against a CORRECT build. Measured both ways when Task 9 ran.
+		listPlansByProject: () => Promise.resolve(ok([...(over.plansRef ?? over.plans ?? [])])),
 		},
 	};
 	setActivePinia(createPinia());
@@ -3110,9 +3119,11 @@ async function openTheFormAndSubmit(wrapper: VueWrapper, name = 'Ground floor') 
 failure cases) from `src/core/result/Result`, `defaultRenovationProjectDeps` from
 `tests/helpers/makeRenovationProjectView`, `RENOVATION_PROJECT_CONTEXT` plus
 `RenovationProjectDeps` and `ProjectOpenOutcome` from
-`src/presentation/views/RenovationProjectContext`, `CreatePlanInput`/`CreatePlanResult` from the
-command module Task 8 wired, `AppError` and `RepositoryError` from their own modules, and
-`VueWrapper` plus `flushPromises` from `@vue/test-utils`.
+`src/presentation/views/RenovationProjectContext`, `RenovationProjectCommandServices` (type-only) from
+`src/presentation/views/renovationProjectCommands` and `RenovationProjectQueryServices` from
+`renovationProjectQueries` — the two bundles the overrides are typed OFF rather than restated —
+and `VueWrapper` plus `flushPromises` from `@vue/test-utils`. `EntityVersion` is a PAIR
+(`{ revision, observed }`), so a `Loaded<Plan>` fixture cannot carry a bare `version: 1`.
 
 **Every override is CONSUMED, and that is the half a weakened type would not have bought.**
 `createPlan` reaches `commands` rather than `queries` — it is a write, and `ViewRoot` dispatches

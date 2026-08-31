@@ -232,6 +232,20 @@ export const en = {
 	// its own command, and a plan without one is a state the editor already draws.
 	'form.new-plan.title': 'New plan',
 	'form.new-plan.name': 'Name',
+	// Design slice 21's detail state, its one empty state and its one refusal that reaches the
+	// user as a notice rather than as a banner. `No plans yet` is deliberately distinct copy from
+	// `empty.project.no-projects.*`: a project with no plans is a later stage of the same
+	// onboarding than a vault with no projects, and `content.test.ts` asserts the distinctness
+	// because a registry pointing two entries at one key would type-check perfectly.
+	'empty.project.no-plans.headline': 'No plans yet',
+	'empty.project.no-plans.body': 'Add a plan to start drawing zones and working out quantities.',
+	// The same words as `view.project.create-plan`, and the same gesture: the plans region draws
+	// exactly one of the two controls, so a user never sees both at once.
+	'empty.project.no-plans.action': 'New plan',
+	// The project vanished while its New plan form was open — the one `CreatePlanCommand`
+	// refusal that reaches the user through neither of `useFormCommit`'s doors, because
+	// navigating back to the list destroys the form a banner would have lived in.
+	'view.project.gone': 'This project no longer exists.',
 	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
 	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
 	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is

@@ -24,7 +24,12 @@ export interface EmptyStateContent {
 	 * refused. `renovationProject.noProjects` is NOT an example of this any more — design
 	 * slice 16 built the form it hands off to, so it keeps the field like `planEditor.noZones`
 	 * does, whose hand-off (`activeToolId = 'draw-polygon'`) already existed and was reachable
-	 * from here.
+	 * from here. Design slice 21's `renovationProject.noPlans` is the third entry that carries
+	 * one, and it carried one from its first commit: `ViewRoot.onCreatePlan` opens `NewPlanForm`
+	 * in slice 15's `FormDialog` and dispatches the real `CreatePlanCommand`, so its button was
+	 * never the dead control slice 14's Amendment 1 refuses. THREE entries carry a label and one
+	 * does not — this sentence is that list, so an entry added without appearing in it is the
+	 * stale-comment defect this repository keeps paying for.
 	 */
 	readonly actionLabel?: StringKey;
 }
@@ -41,6 +46,22 @@ export const EMPTY_STATE_CONTENT = {
 			headline: 'empty.project.no-projects.headline',
 			body: 'empty.project.no-projects.body',
 			actionLabel: 'empty.project.no-projects.action',
+		},
+		/**
+		 * Design slice 21, and the entry that arrives WITH its action rather than growing one a
+		 * slice later: `ViewRoot.onCreatePlan` opens `NewPlanForm` in slice 15's `FormDialog` and
+		 * dispatches the real `CreatePlanCommand`, so the button is a live control from the first
+		 * commit rather than the dead one slice 14's Amendment 1 refuses.
+		 *
+		 * It is drawn INSIDE `ProjectDetail`'s plans region rather than in place of the detail
+		 * state, which is what lets it carry an action at all without taking the Back and Open note
+		 * controls away with it — slice 14's own rule that an empty state replacing a region hides
+		 * the thing the region exists to show.
+		 */
+		noPlans: {
+			headline: 'empty.project.no-plans.headline',
+			body: 'empty.project.no-plans.body',
+			actionLabel: 'empty.project.no-plans.action',
 		},
 	},
 	planEditor: {

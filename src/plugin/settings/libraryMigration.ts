@@ -166,6 +166,33 @@ export async function migrateLibraryFolder(
 		});
 	}
 
+	// 2a. The SOURCE being the vault root, ahead of the generic overlap guard below, because
+	// that guard reports the wrong END for it.
+	//
+	// `normalizeFolder` reduces a hand-edited `libraryFolder` of `/` to `''` (`folderFrom`
+	// keeps `'/'`, since it is non-empty after trimming), and the root contains every folder
+	// there is — so `foldersOverlap(destination, '')` is true for every destination a user
+	// could pick, and its sentence, "That folder overlaps the current library folder", blames
+	// the folder they just chose. They pick another, are refused again, and nothing names the
+	// state. The overlap guard is right about the FACT and wrong about the subject; this says
+	// which end is broken.
+	//
+	// **It is a refusal rather than a carve-out, and the reason is a second defect it stands
+	// in front of.** Step 4 derives a note's new path as `note.path.slice(source.length + 1)`,
+	// which with an empty source strips the first CHARACTER: `Assets/Tiles.md` would be
+	// relocated to `<destination>/ssets/Tiles.md` — measured, not reasoned. And the retry
+	// hazard the guard below describes is at its worst here, since every destination is
+	// inside the root. Making a root library movable is those two things plus an idempotent
+	// enumeration, and it is written up as a residual in this increment's plan rather than
+	// taken as a review-round line.
+	if (source === '') {
+		return err({
+			category: 'Validation',
+			code: 'settings.library-source-is-vault-root',
+			message: 'The library folder is the vault root, which cannot be moved from here.',
+		});
+	}
+
 	// 2. Validate against the SOURCE, before any project folder, because this is the one
 	// overlap that makes the move itself incoherent rather than merely ill-placed.
 	//
@@ -400,15 +427,8 @@ export function catalogueNotesIn(
 }
 
 /**
- * An asset sidecar is named after its asset's whole id (`assetSidecarPathFor`), and
- * `createEntityId` mints `<prefix>-<ULID>` — so the prefix is what tells an asset's sidecar
- * from a plan's, and tells them apart exactly rather than by depth.
- */
-const ASSET_SIDECAR_PREFIX = 'asset-';
-
-/**
- * WHICH `.rpgeo` FILES ARE THE LIBRARY'S — the DIRECT children of its own `Geometry/`
- * folder, and nothing deeper.
+ * WHICH `.rpgeo` FILES ARE THE LIBRARY'S — the sidecars of the CATALOGUE's own assets,
+ * sitting as direct children of the library's `Geometry/` folder.
  *
  * Deliberately not "every `.rpgeo` under the source", which is the prefix premise
  * `catalogueNotesIn` above records four separate findings against. §83 forbids a project
@@ -418,40 +438,62 @@ const ASSET_SIDECAR_PREFIX = 'asset-';
  * project's geometry with a catalogue it has nothing to do with, and leave every plan on it
  * with an index mapping pointing at a file that is no longer there.
  *
- * Depth is MOST of what separates the two: ADR-0014's layout puts every asset sidecar as an
- * immediate child of `<libraryFolder>/Geometry/`, and any project NESTED in the library
- * contributes at least one more segment. The `.rpgeo` test is the second half — a README or
- * a note a user filed in that folder is not ours to relocate.
+ * **The id PREFIX was the third test and it was the wrong question, which is
+ * `catalogueNotesIn`'s own recorded lesson arriving one function later.** `asset-` is a fact
+ * about how `createEntityId` MINTS an id, and `entityRefOf` enforces nothing of the sort — a
+ * hand-authored note carrying `id: cabinet-1` is indexed, readable and designable, and
+ * `assetSidecarPathFor` names its sidecar after that whole id. So every library move took the
+ * note and left the geometry, persisted the new folder, and the designed asset read back as
+ * shapeless. Four fixes had each refined a prefix match; a fix that keeps needing another fix
+ * is answering the wrong question.
  *
- * **Depth alone was not enough, and the case it misses is the one it cannot see: a project
- * whose folder IS the library folder.** That project contributes no extra segment at all, so
- * its `plan-*.rpgeo` sit as direct children here and satisfied every test above — and moving
- * the library relocated a project's plan geometry while leaving the project and its note
- * behind, breaking the folder-scoped layout ADR-011 derives its recovery path from. It is
- * reachable without any command refusing it: §83's guards cover project CREATION and this
- * migration's DESTINATION, and neither compares the SOURCE against a project folder, while
- * ADR-0013 derives a project's folder from where its `Project.md` sits — so dragging that
- * note into the library root produces the state by hand, and slice 19 MARKS an overlap
- * rather than refusing it.
+ * So the third test asks the INDEX, exactly as its sibling does: a `.rpgeo` whose basename is
+ * the id of a `renovation-asset` entry. That separates an asset's sidecar from a co-located
+ * project's plan sidecars MORE exactly than the prefix did — it rests on what the catalogue
+ * holds rather than on a spelling convention — and it is the same authority SDD §47 makes the
+ * single answer to "where is entity X".
  *
- * So the id PREFIX is the third test, and it is the one that separates them exactly. An
- * asset sidecar is named after the whole asset id and `createEntityId` mints
- * `<prefix>-<ULID>`, so `asset-` and `plan-` are disjoint by construction and no depth
- * argument is being relied on to hold.
+ * Three tests, and each is load-bearing:
  *
- * Asked of the LAYOUT rather than of the index, unlike its sibling, because there is nothing
- * to ask: a sidecar has no frontmatter, no `type` and no entry of its own. That asymmetry is
- * the reason this is a separate function rather than a widening of `catalogueNotesIn`, and
- * it takes no `persistence` parameter for the same reason.
+ * - **A direct child of `<libraryFolder>/Geometry/`**, so a nested project's own `Geometry/`
+ *   is out of reach whatever it contains.
+ * - **`.rpgeo`**, so a README a user filed there is not ours to relocate.
+ * - **A catalogue id**, which is what makes a project whose folder IS the library folder
+ *   safe: that project contributes no extra segment, so its `plan-*.rpgeo` are direct
+ *   children here and the depth rule alone cannot see them. Reachable without any command
+ *   refusing it — §83's guards cover project CREATION and this migration's DESTINATION, and
+ *   neither compares the SOURCE against a project folder, while ADR-0013 derives a project's
+ *   folder from where its `Project.md` sits.
+ *
+ * **What it deliberately leaves behind**: a sidecar whose asset note is in no index. That is
+ * an orphan rather than the catalogue's, and moving it to the new library is how it would
+ * stop looking like one. Stated because the prefix version DID move it, so this is a
+ * narrowing with a reason and not an oversight.
+ *
+ * It takes the persistence stack rather than the index for the reason `catalogueNotesIn` and
+ * `projectFolderPaths` both state: a session with settings unrecovered composes no
+ * persistence at all, so the arm is asked HERE instead of being spelled as an `?.` at the
+ * call site.
  *
  * CASE-SENSITIVE and at the segment boundary, matching `catalogueNotesIn` exactly: for an
  * ENUMERATION that decides what MOVES, over-selecting is the unsafe direction.
  */
-export function libraryGeometryIn(files: readonly TFile[], folder: string): TFile[] {
+export function libraryGeometryIn(
+	persistence: { index: ProjectIndex } | null,
+	files: readonly TFile[],
+	folder: string,
+): TFile[] {
+	if (persistence === null) return [];
+	const assetIds = new Set(
+		persistence.index
+			.entries()
+			.filter((entry) => entry.type === 'renovation-asset')
+			.map((entry) => String(entry.id)),
+	);
 	const root = `${libraryGeometryFolderFor(folder)}/`;
 	return files.filter((file) => {
 		if (!file.path.startsWith(root) || !file.path.endsWith('.rpgeo')) return false;
 		const name = file.path.slice(root.length);
-		return !name.includes('/') && name.startsWith(ASSET_SIDECAR_PREFIX);
+		return !name.includes('/') && assetIds.has(name.slice(0, -'.rpgeo'.length));
 	});
 }

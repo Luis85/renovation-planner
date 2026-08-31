@@ -299,9 +299,12 @@ export class SettingsTab extends PluginSettingTab {
 			// see `catalogueNotesIn`. Asking the folder alone swept a project filed under the
 			// library into the destination.
 			catalogueNotes: (from) => catalogueNotesIn(this.host.root.persistence, vault.getFiles(), from),
-			// The same `getFiles()` list, asked a different question — see `libraryGeometryIn`
-			// for why a sidecar cannot be found the way a catalogue note is.
-			geometrySidecars: (from) => libraryGeometryIn(vault.getFiles(), from),
+			// The same `getFiles()` list and the same INDEX, asked a different question — a
+			// catalogue note is found by its own entry's path, a sidecar by its basename being
+			// a catalogue id. See `libraryGeometryIn` for why the id and not the `asset-`
+			// prefix, which is a fact about how ids are minted and not about which are valid.
+			geometrySidecars: (from) =>
+				libraryGeometryIn(this.host.root.persistence, vault.getFiles(), from),
 			ensureFolder: (path) => ensureFolder(vault, path),
 			renameFile: (file, to) => renameNote(fileManager, file, to),
 			rebuildIndex: () => {

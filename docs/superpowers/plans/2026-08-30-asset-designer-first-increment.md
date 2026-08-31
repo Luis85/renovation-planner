@@ -1872,6 +1872,27 @@ does not close the class**: the marker write is itself a file operation, so a cr
 note trash and the marker update leaves the same shape one step over. The honest bound is *two
 failures where one used to do*, never atomicity.
 
+**3. A library configured at the vault ROOT still cannot be moved out of it.** The refusal is
+right and its MESSAGE was not, which is what the same round fixed: `foldersOverlap(destination,
+'')` is true for every destination, so the generic `settings.library-overlaps-source` sentence —
+*"That folder overlaps the current library folder"* — blamed the folder the user had just chosen,
+and they could pick another forever with nothing naming the state.
+`settings.library-source-is-vault-root` says which END is wrong, and ships.
+
+*Why the refusal stays*, and this is the part that was measured rather than assumed: it stands in
+front of a second defect. Step 4 derives a note's new path as `note.path.slice(source.length + 1)`,
+which with an empty source strips the first CHARACTER — `Assets/Tiles.md` would be relocated to
+`<destination>/ssets/Tiles.md`. And the retry hazard the overlap guard exists for is at its worst
+here, since every destination is inside the root, so a persist failure followed by a retry
+re-nests everything it has already moved.
+
+*The remedy*, for the increment that wants a movable root library: a relative-path helper that is
+correct for an empty source, plus an enumeration that excludes what already sits under the
+destination — which makes the migration idempotent for EVERY source, not only the root, and is the
+property that would let the overlap guard narrow honestly rather than by carve-out. Three changes,
+one of them to a guard four separate findings have already refined, which is why it is not a
+review-round line.
+
 ---
 
 # Phase B — the designer

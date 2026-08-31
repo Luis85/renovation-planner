@@ -26,6 +26,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-folder-empty': 'Ein Bibliotheksordner darf nicht leer sein.',
 	'settings.library-overlaps-project': 'Dieser Ordner liegt in einem Projektordner oder enthält einen.',
 	'settings.library-overlaps-source': 'Dieser Ordner überlappt den aktuellen Bibliotheksordner.',
+	'settings.library-source-is-vault-root':
+		'Der Bibliotheksordner ist derzeit der gesamte Vault, es gibt also nichts, woraus er verschoben werden könnte. Setze ihn zuerst in der data.json auf einen echten Ordner.',
 	'settings.library-source-case-mismatch':
 		'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
 	'settings.library-refresh-failed':

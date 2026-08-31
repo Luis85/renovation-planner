@@ -639,17 +639,24 @@ describe('deleting an asset takes its geometry sidecar with it', () => {
 	});
 
 	/**
-	 * The consequence made checkable rather than argued: `libraryGeometryIn` is what a
-	 * library migration MOVES, so an orphan is what it would carry to the new folder forever.
+	 * The consequence made checkable rather than argued — and asserted on the VAULT rather
+	 * than through `libraryGeometryIn`, which is the correction this case needed when that
+	 * function started asking the index.
+	 *
+	 * Selecting by catalogue id means a deleted asset's sidecar is excluded from a migration
+	 * whether the file survived or not, so `libraryGeometryIn(...) === []` after the delete is
+	 * true in both worlds and pins nothing. What the delete actually owes is that the FILE is
+	 * gone, which is what the last line asks. The migration's own claim — that it carries no
+	 * orphan — is `libraryMigration.test.ts`'s to make, over an index it controls.
 	 */
-	it('leaves a library migration nothing orphaned to carry', async () => {
+	it('removes the sidecar with the note, leaving a migration nothing orphaned to carry', async () => {
 		const { stack, asset, version, path, sidecar } = await savedAsset();
 		expectOk(await sidecar.write(asset.id, { calibration: null, shape: rectangle() }));
-		expect(libraryGeometryIn(stack.vault.getFiles(), stack.libraryFolder).map((file) => file.path))
-			.toEqual([path]);
+		expect(libraryGeometryIn({ index: stack.index }, stack.vault.getFiles(), stack.libraryFolder)
+			.map((file) => file.path)).toEqual([path]);
 
 		expectOk(await stack.assets.delete(asset.id, version));
 
-		expect(libraryGeometryIn(stack.vault.getFiles(), stack.libraryFolder)).toEqual([]);
+		expect(stack.vault.getFiles().map((file) => file.path)).not.toContain(path);
 	});
 });

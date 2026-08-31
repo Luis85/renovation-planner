@@ -400,6 +400,10 @@ export const en = {
 	'settings.library-folder-empty': 'A library folder cannot be empty.',
 	'settings.library-overlaps-project': 'That folder is inside a project folder, or contains one.',
 	'settings.library-overlaps-source': 'That folder overlaps the current library folder.',
+	// Names the SOURCE, because the overlap sentence above names the destination and would
+	// send a user round the folder picker forever: the vault root overlaps everything.
+	'settings.library-source-is-vault-root':
+		'The library folder is currently the whole vault, so there is nothing to move it out of. Set it to a real folder in data.json first.',
 	'settings.library-source-case-mismatch':
 		'The library folder does not exist at the spelling this setting names, though a similarly named folder does. Rename that folder to match before moving.',
 	// The REFRESH failure is step 0's, and its sentence is the only one in this group that

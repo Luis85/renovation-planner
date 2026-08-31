@@ -227,6 +227,16 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.validation',
 		'plugin/settings/libraryMigration.ts',
 	],
+	// The SOURCE being the vault root, and it is a third row rather than a synonym of the
+	// second for the same reason the second is not a synonym of the first: the overlap
+	// sentence names the DESTINATION, and the root overlaps every folder there is, so a user
+	// reading it picks another folder and is refused again with nothing naming the state.
+	[
+		'settings.library-source-is-vault-root',
+		'Validation',
+		'error.category.validation',
+		'plugin/settings/libraryMigration.ts',
+	],
 	// The source SPELLING refusal — narrower than the existence check it replaced, which
 	// refused a fresh vault whose library folder had simply not been created yet.
 	// `settings.library-move-failed` was read before minting this and is not honest for it:

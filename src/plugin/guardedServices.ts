@@ -57,7 +57,11 @@ import type {
 } from '../application/commands/requirement/DeleteRequirement';
 import type { GetRequirementsForZone, RequirementInspectorDTO } from '../application/queries/GetRequirementsForZone';
 import type { ListAssets } from '../application/queries/ListAssets';
-import type { ListRequirementsReferencing, ReferencedTarget } from '../application/queries/ListRequirementsReferencing';
+import type {
+	ListRequirementsReferencing,
+	ReferencedTarget,
+	ReferencingGroup,
+} from '../application/queries/ListRequirementsReferencing';
 import type { ListReassignmentTargets } from '../application/queries/ListReassignmentTargets';
 import type { ReassignmentTargetDto } from '../application/queries/reassignmentTypes';
 import type { ResolvedSequence } from '../application/reference/deleteResolution';
@@ -163,7 +167,7 @@ export interface GuardedSlice10Services {
 	readonly requirementQueries: {
 		readonly getRequirementsForZone: Query<ZoneId, Result<readonly RequirementInspectorDTO[], RepositoryError>>;
 		readonly listAssets: Query<void, Result<readonly Asset[], RepositoryError>>;
-		readonly listRequirementsReferencing: Query<ReferencedTarget, Result<readonly RequirementId[], RepositoryError>>;
+		readonly listRequirementsReferencing: Query<ReferencedTarget, Result<readonly ReferencingGroup[], RepositoryError>>;
 		readonly listReassignmentTargets: Query<ReferencedTarget, Result<readonly ReassignmentTargetDto[], RepositoryError>>;
 	};
 }

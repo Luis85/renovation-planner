@@ -6,6 +6,8 @@ import { ListAssets } from '../../../src/application/queries/ListAssets';
 import { ListRequirementsReferencing } from '../../../src/application/queries/ListRequirementsReferencing';
 import { ListReassignmentTargets } from '../../../src/application/queries/ListReassignmentTargets';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
+import type { RequirementRepository } from '../../../src/application/ports/RequirementRepository';
+import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { expectErr, expectFound, expectOk } from '../../helpers/domain';
 import { makeAsset, makeZone } from '../../helpers/entities';
 import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
@@ -22,6 +24,20 @@ function injectedPersistenceError(): PersistenceError {
 
 function overridePort<T extends object>(inner: T, patch: Record<string, unknown>): T {
 	return Object.assign(Object.create(Object.getPrototypeOf(inner)), inner, patch) as T;
+}
+
+/**
+ * Slice 19's grouping gave this query two more collaborators. Neither is reached on the
+ * arm under test here — the requirement listing fails before any project is named — so
+ * they are supplied as the narrowest things that satisfy the signature, and the grouping's
+ * own behaviour is asserted in `listRequirementsReferencing.test.ts`.
+ */
+function referencingQuery(requirements: RequirementRepository): ListRequirementsReferencing {
+	return new ListRequirementsReferencing(
+		requirements,
+		new InMemoryProjectRepository(),
+		() => undefined,
+	);
 }
 
 async function wiredWithLink() {
@@ -170,7 +186,7 @@ describe('picker query refusals', () => {
 			listByZone: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const zoneError = expectErr(
-			await new ListRequirementsReferencing(failingZones).execute({ kind: 'zone', zoneId: w.zoneId }),
+			await referencingQuery(failingZones).execute({ kind: 'zone', zoneId: w.zoneId }),
 		);
 		expect(zoneError.code).toBe('test.injected-failure');
 
@@ -178,7 +194,7 @@ describe('picker query refusals', () => {
 			listByAsset: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const assetError = expectErr(
-			await new ListRequirementsReferencing(failingAssets).execute({ kind: 'asset', assetId: w.assetId }),
+			await referencingQuery(failingAssets).execute({ kind: 'asset', assetId: w.assetId }),
 		);
 		expect(assetError.code).toBe('test.injected-failure');
 	});

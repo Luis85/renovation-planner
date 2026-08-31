@@ -24,20 +24,7 @@ import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
-import { CreateAssetCommand } from '../application/commands/asset/CreateAsset';
-import { UpdateAssetCommand } from '../application/commands/asset/UpdateAsset';
-import { DeleteAssetCommand } from '../application/commands/asset/DeleteAsset';
-import { AssignAssetCommand } from '../application/commands/requirement/AssignAsset';
 import { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
-import { SetRequirementQuantityOverrideCommand } from '../application/commands/requirement/SetRequirementQuantityOverride';
-import { SetRequirementCostOverrideCommand } from '../application/commands/requirement/SetRequirementCostOverride';
-import { DeleteRequirementCommand } from '../application/commands/requirement/DeleteRequirement';
-import { GetRequirementsForZone } from '../application/queries/GetRequirementsForZone';
-import { ListAssets } from '../application/queries/ListAssets';
-import { ListRequirementsReferencing } from '../application/queries/ListRequirementsReferencing';
-import { ListReassignmentTargets } from '../application/queries/ListReassignmentTargets';
-import { registerOnZoneGeometryChanged } from '../application/event-handlers/requirement/onZoneGeometryChanged';
-import { registerOnAssetUpdated } from '../application/event-handlers/requirement/onAssetUpdated';
 import { ObsidianAssetRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetRepository';
 import { ObsidianRequirementRepository } from '../infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import {
@@ -54,8 +41,7 @@ import {
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { openProjectNote } from '../infrastructure/obsidian/workspace/openNote';
-import { notifyWarning, notifyFault } from '../presentation/notices/notify';
-import { tr } from '../presentation/i18n/strings';
+import { notifyFault } from '../presentation/notices/notify';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
@@ -92,24 +78,8 @@ import {
 	type QueryServices,
 	type UnguardedSlice10Services,
 } from './guardedServices';
+import { composeSlice10, sequenceNotices, type Slice10Wiring } from './slice10Composition';
 import type { RenovationPlannerSettings } from './settings/settings';
-
-/**
- * The one notice both delete commands raise, at module scope because the two are built in
- * different functions and a second literal is a second answer to what this failure says.
- *
- * **WARNING rather than the `info` default, for `cascadeNotices`' reason and one of its
- * own.** Slice 13 gives `warning` no auto-dismiss, and this one arrives at the end of a
- * gesture the user is watching: the delete they asked for SUCCEEDED, so the save indicator
- * says `Saved` and every other surface agrees. This sentence is the only thing that says
- * the vault also kept a recovery record it should not have. Six seconds is not long enough
- * to read a caveat attached to something that otherwise looks finished.
- */
-const sequenceNotices = {
-	markerClearFailed: () => {
-		notifyWarning(tr('sequence.marker-clear-failed'));
-	},
-};
 
 /**
  * The ONE place dependencies are composed (SDD §10). At this slice it composes two things,
@@ -271,102 +241,6 @@ export interface SessionCollaborators {
 	readonly markers?: SequenceMarkerStore;
 }
 
-interface Slice10Wiring {
-	readonly zones: ZoneRepository;
-	readonly assets: AssetRepositoryPort;
-	readonly requirements: RequirementRepositoryPort;
-	readonly recalculate: RecalculateRequirementCommand;
-	readonly events: EventBus;
-	readonly locks: ReferenceLocks;
-	readonly logger: Logger;
-	readonly markers?: SequenceMarkerStore;
-}
-
-/**
- * Design slice 10's write side, read side, and cascade handlers, composed as ONE block —
- * the same seam discipline as every other service here, kept out of
- * `createCompositionRoot`'s own body only by the size budget every function shares.
- *
- * Nothing this returns is guarded: it is the raw composition, and `guardSlice10` wraps the
- * copy that LEAVES the root. `recalculate` reaches `DeleteAssetCommand` and both cascade
- * handlers unguarded on purpose — those uses are INSIDE the application layer, which is
- * not the boundary the guard defends.
- */
-function composeSlice10(
-	wiring: Slice10Wiring,
-): UnguardedSlice10Services & { subscriptions: { dispose(): void }[] } {
-	const { zones, assets, requirements, recalculate, events, locks, logger, markers } = wiring;
-
-	/**
-	 * The cascade runs in the BACKGROUND — nothing the user clicked is waiting on it — so a
-	 * failure inside it reaches nobody unless it is announced. That matters most for exactly
-	 * the case this port is named after: the durable marker that lets a later reader see
-	 * "these figures are out of date" is itself the write that failed, so silence here means
-	 * a wrong figure presented as current. The port is optional on `CascadeDeps` for the
-	 * suite's benefit; production always passes it, and this is the caller that makes the
-	 * whole port more than a tested no-op.
-	 *
-	 * **WARNING rather than the `info` default, and for the same reason the port exists.**
-	 * Slice 13 gives `warning` no auto-dismiss: it stays until the user dismisses it, while
-	 * `info` goes after six seconds. These two run with nothing the user clicked waiting on
-	 * them, so a six-second notice about figures that may be wrong is one the user is most
-	 * likely to be looking elsewhere for — the same silence this port was added to break,
-	 * only slower.
-	 */
-	const cascadeNotices = {
-		cascadeAborted: () => {
-			notifyWarning(tr('cascade.aborted'));
-		},
-		staleMarkerFailed: () => {
-			notifyWarning(tr('cascade.stale-marker-failed'));
-		},
-	};
-
-	const subscriptions: { dispose(): void }[] = [
-		registerOnZoneGeometryChanged(events, {
-			requirements,
-			events,
-			logger,
-			notify: cascadeNotices,
-			recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
-		}),
-		registerOnAssetUpdated(events, {
-			requirements,
-			assets,
-			events,
-			logger,
-			notify: cascadeNotices,
-			recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
-		}),
-	];
-
-	return {
-		createAsset: new CreateAssetCommand(assets, events),
-		updateAsset: new UpdateAssetCommand(assets, requirements, events, locks),
-		deleteAsset: new DeleteAssetCommand({
-			assets,
-			requirements,
-			recalculate,
-			events,
-			locks,
-			logger,
-			markers,
-			notify: sequenceNotices,
-		}),
-		assignAsset: new AssignAssetCommand(zones, assets, requirements, events, locks),
-		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
-		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events, locks),
-		deleteRequirement: new DeleteRequirementCommand(requirements),
-		queries: {
-			getRequirementsForZone: new GetRequirementsForZone(requirements, zones, assets),
-			listAssets: new ListAssets(assets),
-			listRequirementsReferencing: new ListRequirementsReferencing(requirements),
-			listReassignmentTargets: new ListReassignmentTargets(zones, assets),
-		},
-		subscriptions,
-	};
-}
-
 function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectRoot: string, libraryFolder: string) {
 	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
 	return {
@@ -473,7 +347,18 @@ export function createCompositionRoot(
 	// every view serialize against the same keys.
 	const locks = new ReferenceLocks();
 	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, eventBus);
-	const wiring: Slice10Wiring = { zones, assets, requirements, recalculate, events: eventBus, locks, logger, markers };
+	const wiring: Slice10Wiring = {
+		zones,
+		assets,
+		requirements,
+		projects,
+		index,
+		recalculate,
+		events: eventBus,
+		locks,
+		logger,
+		markers,
+	};
 	const slice10 = composeSlice10(wiring);
 
 	const files = createVaultFileProbe(vault.vault);

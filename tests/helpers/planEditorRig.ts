@@ -38,7 +38,10 @@ import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryAssetRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryRequirementRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
-import { makePlan, makeZone } from './entities';
+import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
+import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
+import { projectFolderOf } from '../../src/infrastructure/obsidian/repositories/paths';
+import { makePlan, makeProject, makeZone } from './entities';
 import type { PlanId } from '../../src/domain/plan/PlanId';
 import { createProjectId } from '../../src/domain/project/ProjectId';
 import type { ZoneId } from '../../src/domain/zone/ZoneId';
@@ -84,6 +87,20 @@ export async function rig(seed?: (repos: {
 	zones: InMemoryZoneRepository;
 }) => Promise<void>): Promise<Rig> {
 	const plans = new InMemoryPlanRepository();
+	// The project this rig's plan belongs to, seeded and INDEXED the way the composition root
+	// has both: since slice 19 `ListRequirementsReferencing` names each referent group after
+	// its project and resolves that project's folder, so a rig with neither would be a fake
+	// thinner than the app it stands for.
+	const projects = new InMemoryProjectRepository();
+	const project = makeProject({ id: PROJECT_ID, name: 'Kitchen refit' });
+	await projects.save(project, 'absent');
+	const index = new InMemoryProjectIndex();
+	index.upsert({
+		id: PROJECT_ID,
+		type: 'renovation-project',
+		path: 'Renovation/Kitchen refit/Project.md',
+		projectId: PROJECT_ID,
+	});
 	const plan = makePlan({ projectId: PROJECT_ID, id: PLAN_DTO.id as PlanId });
 	await plans.save(plan, 'absent');
 	const zonesRepo = new InMemoryZoneRepository();
@@ -130,7 +147,11 @@ export async function rig(seed?: (repos: {
 		findZonesByPlan: new FindZonesByPlan(zonesRepo),
 		getRequirementsForZone: new GetRequirementsForZone(requirementsRepo, zonesRepo, assetsRepo),
 		listAssets: new ListAssets(assetsRepo),
-		listRequirementsReferencing: new ListRequirementsReferencing(requirementsRepo),
+		listRequirementsReferencing: new ListRequirementsReferencing(
+			requirementsRepo,
+			projects,
+			(projectId) => projectFolderOf(index, projectId),
+		),
 		listReassignmentTargets: new ListReassignmentTargets(zonesRepo, assetsRepo),
 	});
 	const commands = {

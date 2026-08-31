@@ -7,7 +7,10 @@ import type { Query } from '../../application/queries/Query';
 import type { FindZonesByPlanInput } from '../../application/queries/FindZonesByPlan';
 import type { GetPlanInput } from '../../application/queries/GetPlan';
 import type { RequirementInspectorDTO } from '../../application/queries/GetRequirementsForZone';
-import type { ReferencedTarget } from '../../application/queries/ListRequirementsReferencing';
+import type {
+	ReferencedTarget,
+	ReferencingGroup,
+} from '../../application/queries/ListRequirementsReferencing';
 import type { ReassignmentTargetDto } from '../../application/queries/reassignmentTypes';
 import type { Asset } from '../../domain/asset/Asset';
 import type { Plan as PlanEntity } from '../../domain/plan/Plan';
@@ -52,6 +55,9 @@ export interface PlanEditorQueryServices {
 	/**
 	 * What the delete flow shows the user BEFORE the dialog, and owes back to the command
 	 * as `resolvedReferents`. IDs rather than a count, because the command compares sets.
+	 *
+	 * FLAT, over a query that now answers groups: a Zone belongs to one project, so every
+	 * referent of one is in that project and the grouping has nothing to say here.
 	 */
 	listRequirementsReferencing(zoneId: string): Promise<Result<readonly RequirementId[], RepositoryError>>;
 	/** The Reassign picker's candidates, already narrowed to what the command would accept. */
@@ -121,7 +127,7 @@ export function createPlanEditorQueries(queries: {
 	 * test rigs that mount no Requirements panel content, which then answer empty. */
 	readonly getRequirementsForZone?: Query<ZoneId, Result<readonly RequirementInspectorDTO[], RepositoryError>>;
 	readonly listAssets?: Query<void, Result<readonly Asset[], RepositoryError>>;
-	readonly listRequirementsReferencing?: Query<ReferencedTarget, Result<readonly RequirementId[], RepositoryError>>;
+	readonly listRequirementsReferencing?: Query<ReferencedTarget, Result<readonly ReferencingGroup[], RepositoryError>>;
 	readonly listReassignmentTargets?: Query<ReferencedTarget, Result<readonly ReassignmentTargetDto[], RepositoryError>>;
 }): PlanEditorQueryServices {
 	return {
@@ -150,7 +156,13 @@ export function createPlanEditorQueries(queries: {
 		async listRequirementsReferencing(zoneId) {
 			const listed = queries.listRequirementsReferencing;
 			if (!listed) return ok([]);
-			return await listed.execute({ kind: 'zone', zoneId: zoneId as ZoneId });
+			const found = await listed.execute({ kind: 'zone', zoneId: zoneId as ZoneId });
+			if (isErr(found)) return found;
+			// Flattened here and nowhere else: a Zone belongs to ONE project, so the query's
+			// grouping collapses to a single group and the delete flow's `resolvedReferents`
+			// is the same set it has always been. The GROUPS are what the asset-side dialog
+			// needs, and the seam that carries them up is the next task's, not this one's.
+			return ok(found.value.flatMap((group) => group.requirementIds));
 		},
 		async listReassignmentTargets(zoneId) {
 			const listed = queries.listReassignmentTargets;

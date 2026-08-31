@@ -163,15 +163,22 @@ describe('the picker queries', () => {
 		expect(assigned.requirement.projectId).toBe(secondProject.entity.id);
 	});
 
-	it('ListRequirementsReferencing answers IDs for both ends of the reference', async () => {
+	it('ListRequirementsReferencing answers one named group per project for both ends', async () => {
+		// Since slice 19 the answer is GROUPED: an Asset belongs to no project, so its
+		// referents can sit in several, and the group names the one each referent is in.
+		// One project here, so both ends answer one group — the Zone flow's row is unchanged
+		// in appearance and changed in derivation.
 		const w = await wiredWithLink();
-		const query = new ListRequirementsReferencing(w.requirements);
-		expect(expectOk(await query.execute({ kind: 'zone', zoneId: w.zoneId }))).toEqual([
-			w.requirementId,
-		]);
-		expect(expectOk(await query.execute({ kind: 'asset', assetId: w.assetId }))).toEqual([
-			w.requirementId,
-		]);
+		const query = new ListRequirementsReferencing(w.requirements, w.projects, () => undefined);
+		const expected = [
+			{
+				projectId: w.project.entity.id,
+				projectName: w.project.entity.name,
+				requirementIds: [w.requirementId],
+			},
+		];
+		expect(expectOk(await query.execute({ kind: 'zone', zoneId: w.zoneId }))).toEqual(expected);
+		expect(expectOk(await query.execute({ kind: 'asset', assetId: w.assetId }))).toEqual(expected);
 	});
 
 	it('ListReassignmentTargets excludes the deleted entity and non-area assets', async () => {

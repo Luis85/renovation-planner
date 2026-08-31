@@ -210,6 +210,44 @@ describe('the plan editor query boundary', () => {
 		expect(expectErr(await failing.listAssets())).toMatchObject({ category: 'Persistence' });
 	});
 
+	/**
+	 * Since slice 19 this member flattens GROUPS into the flat referent set the Zone delete
+	 * flow owes the command, so it has a failure arm of its own between the query and the
+	 * flattening — and a read that refuses must not reach the flow as an empty set, which is
+	 * exactly the picture "this zone has no referents" produces.
+	 */
+	it('surfaces a failed referent read rather than an empty referent set', async () => {
+		const failing = createPlanEditorQueries({
+			getPlan: { execute: () => Promise.resolve(ok(null)) },
+			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
+			listRequirementsReferencing: {
+				execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })),
+			},
+		} as never);
+
+		expect(expectErr(await failing.listRequirementsReferencing('zone-1'))).toMatchObject({
+			category: 'Persistence',
+		});
+	});
+
+	it('flattens the referent groups a shared asset would spread across projects', async () => {
+		const grouped = createPlanEditorQueries({
+			getPlan: { execute: () => Promise.resolve(ok(null)) },
+			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
+			listRequirementsReferencing: {
+				execute: () =>
+					Promise.resolve(
+						ok([
+							{ projectId: 'p-1', projectName: 'Kitchen', requirementIds: ['r-1', 'r-2'] },
+							{ projectId: 'p-2', projectName: 'Bathroom', requirementIds: ['r-3'] },
+						]),
+					),
+			},
+		} as never);
+
+		expect(expectOk(await grouped.listRequirementsReferencing('zone-1'))).toEqual(['r-1', 'r-2', 'r-3']);
+	});
+
 	it('answers empty for a slice-10 query the composition omitted', async () => {
 		const bare = createPlanEditorQueries({
 			getPlan: { execute: () => Promise.resolve(ok(null)) },

@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { REPO } from '../helpers/oxlint';
+import { REPO } from '../helpers/repo';
 
 /**
  * The headless capture script's wiring — the shape `lint-edited.test.ts` checks for the

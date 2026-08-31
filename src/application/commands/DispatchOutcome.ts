@@ -1,3 +1,4 @@
+import type { Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 
 /**
@@ -51,6 +52,27 @@ import type { AppError } from '../../core/errors/AppError';
  * and satisfies this structurally.
  */
 export type DispatchOutcome = 'wrote' | 'no-write';
+
+/**
+ * What a dispatch resolves to, on both channels — declared once beside the outcome it
+ * carries.
+ *
+ * It was a private `type DispatchResult = Result<DispatchOutcome, AppError>` in SEVEN
+ * places — four under `src/`, three under `tests/` — byte-identical in every one, plus
+ * sixty-odd sites spelling the same thing inline. One line is under the clone detector's
+ * floor, so nothing could see the copies at all.
+ *
+ * **`private-type-leak` showed two of the seven, and that is the lesson worth keeping.** The
+ * rule reports an exported signature naming a private type, so it found the two aliases that
+ * reached one and was silent about the five that did not. A static-analysis category is a
+ * LENS, not a census: it answers the question it was written to ask, and the count it returns
+ * is not the size of the thing it points at. The other five turned up only because clearing
+ * those two meant grepping for the shape.
+ *
+ * Here rather than in `presentation/`, because `application/` may not import that layer and
+ * the reversible adapters resolve the same shape.
+ */
+export type DispatchResult = Result<DispatchOutcome, AppError>;
 
 /**
  * The same question on the OTHER channel of the same `Result`: a refusal that left writes

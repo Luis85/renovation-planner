@@ -27,7 +27,7 @@ export interface DeleteZoneInput {
 	 * Absent for a user-initiated delete (the handler deletes with the version its own
 	 * load returned); slice 8's undo-a-creation supplies it.
 	 */
-	readonly expected?: EntityVersionInput;
+	readonly expected?: EntityVersion;
 	/**
 	 * Slice 10's three reference-resolution fields, all optional so every existing caller
 	 * still compiles and a caller that omits them gets the SAFE behaviour — refuse while
@@ -39,8 +39,6 @@ export interface DeleteZoneInput {
 	readonly reassignTo?: ZoneId;
 	readonly resolvedReferents?: readonly RequirementId[];
 }
-
-type EntityVersionInput = EntityVersion;
 
 export interface DeleteZoneDeps {
 	readonly zones: ZoneRepository;

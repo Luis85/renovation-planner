@@ -9,15 +9,23 @@ import type { Loaded } from '../../application/ports/versioning';
 import type { Plan } from '../../domain/plan/Plan';
 import type { Project } from '../../domain/project/Project';
 
-type CreateProjectResult = Result<{ project: Loaded<Project> }, RepositoryError>;
+export type CreateProjectResult = Result<{ project: Loaded<Project> }, RepositoryError>;
 
 /**
  * `CreatePlanError` rather than `RepositoryError`: `CreatePlanCommand` refuses a project that
  * is not there with a `ReferenceError` of its own, which is the one refusal `NewPlanForm`
  * treats as neither a field nor a banner. Widening the alias here is what keeps that code
  * inside the type the form narrows on.
+ *
+ * EXPORTED, like `CreateProjectResult` above, and the asymmetry it replaces was arbitrary:
+ * neither alias has an importer outside this file, and both are named by an exported
+ * signature. `private-type-leaks` was `warn` when this was written and became `error` on
+ * `main`, so the merge is what surfaced it. Exporting rather than suppressing, because the two
+ * cases that must NOT be exported have a reason (`Routed`'s unique-symbol access lock,
+ * `ReversibleOverrideBase` trading its leak for an unused export) and this one has none —
+ * measured: analyze reports no unused export for either alias afterwards.
  */
-type CreatePlanResult = Result<{ plan: Loaded<Plan> }, CreatePlanError>;
+export type CreatePlanResult = Result<{ plan: Loaded<Plan> }, CreatePlanError>;
 
 /**
  * The write side of the Renovation Project view — the mirror of

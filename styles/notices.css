@@ -4,9 +4,12 @@
  * what this plugin puts inside one.
  *
  * Every colour is an Obsidian variable (SDD §84), so a themed vault stays themed. The
- * severity colour is deliberately NOT the only carrier of severity: a translated word sits
- * beside it, which is what SDD §85's "status not colour-only" asks for and what makes an
- * icon unnecessary.
+ * severity colour is deliberately NOT the only carrier of severity: a translated word and a
+ * CSS-drawn mark both sit beside it. The word alone is what SDD §85's "status not colour-only"
+ * asks for; `docs/components/Toast.md` asks for more than SDD §85 does — "each variant owes a
+ * mark as well as a colour" — and the mark is what discharges that. Neither needs `setIcon`,
+ * which is the claim an earlier draft of this paragraph was making when it said the word "makes
+ * an icon unnecessary": true of the icon CALL, and not of the contract.
  *
  * NOT verifiable by the browser harness: `tests/harness/obsidian.css` carries no `.notice`
  * rules at all — its reduction came from another plugin's driven states and that plugin
@@ -25,8 +28,9 @@
  *
  * `.rp-notice` and `.rp-notice-<severity>` appear here only as ANCESTORS, and they are that
  * same `messageEl` — `notify.ts` moved them off `containerEl`, whose identity Obsidian's
- * typings do not settle, and every rule below survives that because all four descendants are
- * appended into it. See that module's header for the whole argument.
+ * typings do not settle, and every rule below survives that because all five styled
+ * descendants are appended into it: the label, the message and the dismiss button directly,
+ * and the severity mark inside the label. See that module's header for the whole argument.
  *
  * This repository has that exact rendering defect in its ledger already — the harness index's
  * rows read `ZonePanelprototype` because Vue's whitespace handling removed the separator
@@ -90,6 +94,92 @@
 
 .rp-notice-error .rp-notice-severity {
 	color: var(--text-error);
+}
+
+/*
+ * **The severity MARK — `docs/components/Toast.md`: "each variant owes a mark as well as a
+ * colour".** A translated word plus a colour satisfies SDD §85's status-not-colour-only rule,
+ * since a word is not a colour, and does not satisfy that sentence. The header above said the
+ * word "is what makes an icon unnecessary" for a slice and a half; it made `setIcon`
+ * unnecessary, which is a different claim, and the mark below is what closes the real one.
+ *
+ * The exact fix `docs/tasks/13` predicted for the sibling surface and took there first: "a
+ * CSS-drawn glyph would discharge the contracts without introducing `setIcon`". Every rule
+ * here is a box and a `clip-path`; `styles/editor-status.css`'s `.rp-save-state-mark` is the
+ * precedent, and the two differ only in that this one's four shapes are all cut from one
+ * filled box while that one's are borders.
+ *
+ * `currentColor` throughout, so each mark takes the colour rule its severity already has
+ * directly above and no colour literal appears here — which is what SDD §84's check, run over
+ * the assembled sheet's parsed tree, forbids. The mark is a CHILD of `.rp-notice-severity`
+ * rather than a fourth flex item on `.rp-notice-body`, which is what lets that one `color`
+ * declaration per severity reach both: a sibling would have needed its own list of four
+ * severity selectors, and two lists of the same four are two lists that drift.
+ *
+ * Sized in `em`, so the mark tracks the `var(--font-smallest)` word beside it rather than a
+ * fixed step that would drift away from it at any other font scale — the same reasoning the
+ * save-state mark's own comment gives.
+ *
+ * **NOT verifiable by anything automated here, and more completely so than the rules above.**
+ * `tests/harness/obsidian.css` declares no `.notice` and no `.notice-container` at all, so
+ * `npm run harness` and `harness-shot` cannot draw a notice to photograph; jsdom resolves no
+ * CSS, so a selector one word short of what `notify.ts` emits would match nothing with every
+ * test still green — which is the defect `styles/editor-status.css` has in its own ledger
+ * (`rp-save-state-error` against a template emitting `rp-save-state-save-error`).
+ * `notify.test.ts` closes that one half by BUILDING `.rp-notice-${severity} .rp-notice-mark`
+ * from the same expression this host interpolates and asserting this file declares it. What
+ * no gate reaches is whether the four shapes are DISTINGUISHABLE, which is a judgement about
+ * a rendered picture: `docs/tests/cases/Notices and save state.md` step 7a is the instrument.
+ */
+.rp-notice-mark {
+	display: inline-block;
+	box-sizing: border-box;
+	width: 0.7em;
+	height: 0.7em;
+	margin-right: 0.4em;
+	vertical-align: baseline;
+	background-color: currentColor;
+}
+
+/*
+ * Four silhouettes rather than four colours: round, tick, triangle, cross. Chosen to differ in
+ * OUTLINE and not only in detail, because at 0.7em of the smallest UI font the detail is the
+ * first thing to go — and because the mark exists precisely for the reader for whom the colour
+ * is not a channel.
+ *
+ * `info` is the plain box the base rule already draws, rounded — the neutral one, and the only
+ * severity whose colour is `--text-muted` rather than a status colour. Recorded as a rule of
+ * its own rather than left to the base, because an absent selector and a deliberate one look
+ * identical from the selector test that walks all four.
+ */
+.rp-notice-info .rp-notice-mark {
+	border-radius: 50%;
+}
+
+/*
+ * A tick — the long stroke running up to the right, which is the direction a check mark has in
+ * every icon set. Verified by rasterizing the polygon rather than by reading it: a clip-path
+ * whose points are one transposition apart from a tick draws a shape nothing here can see.
+ */
+.rp-notice-success .rp-notice-mark {
+	clip-path: polygon(14% 44%, 0% 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+}
+
+/* A triangle, pointing up — the shape a warning has on a road sign and in every icon set. */
+.rp-notice-warning .rp-notice-mark {
+	clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+}
+
+/*
+ * A cross. The Design System's *Error* row asks for a mark rather than a differently-coloured
+ * dot, for the reason the save-state indicator's own comment gives: a shape survives being the
+ * only channel a user has, and a red disc beside a red word does not.
+ */
+.rp-notice-error .rp-notice-mark {
+	clip-path: polygon(
+		20% 0%, 50% 30%, 80% 0%, 100% 20%, 70% 50%,
+		100% 80%, 80% 100%, 50% 70%, 20% 100%, 0% 80%, 30% 50%, 0% 20%
+	);
 }
 
 /*

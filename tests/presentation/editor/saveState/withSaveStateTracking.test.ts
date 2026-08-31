@@ -1,11 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { err, ok, type Result } from '../../../../src/core/result/Result';
+import { err, ok } from '../../../../src/core/result/Result';
 import type { AppError, ErrorCategory } from '../../../../src/core/errors/AppError';
-import {
-	markUncompensated,
-	type DispatchOutcome,
-} from '../../../../src/application/commands/DispatchOutcome';
+import { markUncompensated, type DispatchResult } from '../../../../src/application/commands/DispatchOutcome';
 import { useSaveStateStore } from '../../../../src/presentation/editor/save-state/save-state-store';
 import { affectsSaveState } from '../../../../src/presentation/editor/save-state/affects-save-state';
 import { withSaveStateTracking } from '../../../../src/presentation/editor/save-state/with-save-state-tracking';
@@ -24,8 +21,6 @@ import type { UndoableCommand } from '../../../../src/presentation/editor/tools/
  */
 const errorOf = (category: ErrorCategory, code = 'x'): AppError =>
 	({ category, code: `zone.${code}`, message: 'developer text' }) as AppError;
-
-type DispatchResult = Result<DispatchOutcome, AppError>;
 
 const tracker = () => ({
 	beginSaving: vi.fn<() => void>(),

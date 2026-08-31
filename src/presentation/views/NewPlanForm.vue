@@ -14,7 +14,9 @@
  * already open, so a caller that dispatched only after this component resolved could never
  * reopen it to show one. `submit` is emitted once `dispatch` has actually succeeded.
  */
-import { nextTick, ref, watchEffect, type Ref } from 'vue';
+import { nextTick, ref, type Ref } from 'vue';
+import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
+import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
 import { useFormCommit } from '../composables/use-form-commit';
 import type { FieldErrorMap } from '../errors/route-error';
 import { isErr, type Result } from '../../core/result/Result';
@@ -118,44 +120,11 @@ const form = useFormCommit<CreatePlanInput, { plan: Loaded<Plan> }>({
 	logger: props.logger,
 });
 
-/**
- * `vue/no-mutating-props` flags any write reachable through a props-derived expression, and
- * `busy` is a `Ref` the caller handed over specifically so this component could write into it
- * (`FormDescriptor.busy`'s own doc comment). Routed through a plain function so the write is
- * not syntactically `props.busy.value = …`, which is all the rule looks for — the mutation
- * the rule really forbids, `props.busy = someOtherRef`, stays an error.
- */
-function writeBusy(target: Ref<boolean> | undefined, value: boolean): void {
-	if (target) target.value = value;
-}
+// `writeBusy`, the busy `watchEffect` and `refuseWhileSubmitting` were byte-identical
+// in this file and its sibling creation form; `useDialogFormBusy` is the one statement
+// of both, and its docblock carries the two invariants they each spelled out.
+const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
 
-// Written FROM the composable's own state — the only direction data flows between the two.
-watchEffect(() => {
-	writeBusy(props.busy, form.submitting.value);
-});
-
-/**
- * WHILE A WRITE IS IN FLIGHT NO CONTROL IS `:disabled`, and that is a FOCUS rule rather than
- * a styling preference — `FormDialog.vue`'s docblock states it as an invariant of the
- * framework and `NewProjectForm`'s carries the full account. Chromium moves focus to `<body>`
- * when the element holding it is disabled, and `<body>` is outside `.rp-dialog`, where
- * `DialogHost` binds its `keydown` listener: disabling the focused control takes `Escape` and
- * the whole Tab trap out for exactly the window `busy` exists to make `Escape` refuse
- * DELIBERATELY.
- *
- * So the controls stay focusable and are made INOPERATIVE instead: `readonly` on the text
- * input, announced by the platform and enforced by the browser, and `aria-disabled` on the
- * button, which has nothing but `disabled` to offer. This function is what makes the refusal
- * real, and it RESTORES the control's own DOM value on the way out rather than merely
- * returning — a refused write leaves `values` unchanged, so nothing re-renders, and the
- * character the browser has already placed would otherwise sit there as a value the form does
- * not hold, which is a lie about state rather than a refusal of it.
- */
-function refuseWhileSubmitting(control: HTMLElement & { value: string }, rendered: string): boolean {
-	if (!form.submitting.value) return false;
-	control.value = rendered;
-	return true;
-}
 
 /**
  * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight past
@@ -251,14 +220,6 @@ async function onSubmit(): Promise<void> {
 				>
 			</label>
 		</FieldError>
-		<div class="rp-dialog-actions">
-			<button
-				type="submit"
-				class="rp-dialog-button"
-				:aria-disabled="form.submitting.value"
-			>
-				{{ tr('dialog.form.submit') }}
-			</button>
-		</div>
+		<FormSubmitRow :submitting="form.submitting.value" />
 	</form>
 </template>

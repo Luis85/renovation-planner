@@ -23,8 +23,10 @@
 @import "./chrome.css";
 @import "./work-packages.css";
 @import "./zone-panel.css";
+@import "./message-panel.css";
 @import "./empty-state.css";
 @import "./view-failure.css";
+@import "./list-row.css";
 @import "./forms.css";
 @import "./notices.css";
 @import "./project-detail.css";

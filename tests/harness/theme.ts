@@ -14,7 +14,7 @@
  * exist: a headless screenshot of a URL needs nothing to click, which keeps the refusal of
  * a browser-automation dependency cheap rather than merely principled.
  */
-type Scheme = 'dark' | 'light';
+export type Scheme = 'dark' | 'light';
 
 const SCHEMES: Scheme[] = ['dark', 'light'];
 

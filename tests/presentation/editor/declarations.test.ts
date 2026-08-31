@@ -26,6 +26,7 @@ import { globSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { toPosix } from '../../helpers/posix';
 
 const SRC = fileURLToPath(new URL('../../../src/', import.meta.url));
 
@@ -52,7 +53,7 @@ function declarationPattern(name: string): RegExp {
 }
 
 function sourceFiles(): string[] {
-	return globSync('**/*.{ts,vue}', { cwd: SRC }).map((file) => file.replaceAll('\\', '/'));
+	return globSync('**/*.{ts,vue}', { cwd: SRC }).map((file) => toPosix(file));
 }
 
 function read(relative: string): string {

@@ -45,7 +45,7 @@ export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef {
 }
 
 /** What both passes need: the vault surface, the diagnostics sink, and the echo window. */
-interface ScanInput {
+export interface ScanInput {
 	vault: Vault;
 	metadataCache: MetadataCache;
 	echo: EchoWindow;

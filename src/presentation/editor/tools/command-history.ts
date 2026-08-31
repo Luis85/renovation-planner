@@ -1,6 +1,5 @@
-import { isErr, ok, type Result } from '../../../core/result/Result';
-import type { AppError } from '../../../core/errors/AppError';
-import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
+import { isErr, ok } from '../../../core/result/Result';
+import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import { createSerialQueue } from './serial-queue';
 import type { UndoableCommand } from './undoable-command';
 
@@ -23,8 +22,6 @@ export const UNDO_DEPTH = 100;
  * save indicator read as a write, and pressing a disabled-looking Undo cleared a `save-error`
  * over data nobody had saved.
  */
-type DispatchResult = Result<DispatchOutcome, AppError>;
-
 /**
  * The undo/redo stack for one open Plan (SDD §30, design slice 6). Ephemeral by design
  * (SDD §15) and scoped per Plan — meant to live on `EditorStore`, and to not survive a

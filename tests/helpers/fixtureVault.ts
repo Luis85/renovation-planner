@@ -23,21 +23,13 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { TFile, TFolder, type FileStats } from 'obsidian';
-import type { LogLevel, Logger } from '../../src/application/ports/Logger';
-import { EchoWindow } from '../../src/infrastructure/persistence/index/EchoWindow';
-import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
-import { InMemoryDiagnosticsLedger } from '../../src/infrastructure/logging/diagnosticsLedger';
-import { createMigrationRunner } from '../../src/infrastructure/persistence/migration/MigrationRunner';
-import { MIGRATION_SET } from '../../src/infrastructure/persistence/migration/migrationSet';
-import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
+import { applyFrontmatterEdit, describeFile, fileCacheAnswer } from './vault';
 import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { ObsidianAssetRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetRepository';
 import { ObsidianRequirementRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianRequirementRepository';
-import { PlanGeometryStore } from '../../src/infrastructure/obsidian/repositories/PlanGeometryStore';
-import { parseFrontmatter, serializeFrontmatter, type RepositoryStack } from './vault';
-import type { Line } from './logger';
+import { stackFoundation, type StackFoundation } from './repositoryStack';
 
 /**
  * `getAbstractFileByPath` answers the MOCK MODULE's own `TFile`/`TFolder`, constructed and
@@ -82,13 +74,9 @@ const containedIn = (root: string, candidate: string): boolean => {
 };
 
 const fileAt = (path: string, stat?: FileStats): TFile => {
-	const segments = path.split('/');
-	const file = new TFile();
-	file.path = path;
-	file.name = segments.at(-1) ?? '';
-	file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/u, '');
-	file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
+	const file = Object.assign(new TFile(), { path, ...describeFile(path) });
 	if (stat !== undefined) file.stat = stat;
+
 	return file;
 };
 
@@ -399,11 +387,8 @@ class FixtureVaultAdapter {
 class FixtureFileManager {
 	constructor(private readonly vault: FixtureVaultAdapter) {}
 
-	async processFrontMatter(file: TFile, update: (frontmatter: Record<string, unknown>) => void): Promise<void> {
-		const text = await this.vault.read(file);
-		const { frontmatter, body } = parseFrontmatter(text);
-		update(frontmatter);
-		await this.vault.modify(file, `${serializeFrontmatter(frontmatter)}${body}`);
+	processFrontMatter(file: TFile, update: (frontmatter: Record<string, unknown>) => void): Promise<void> {
+		return applyFrontmatterEdit(this.vault, file, update);
 	}
 
 	/** `TAbstractFile` in Obsidian, so a folder is as ordinary an argument here as a note. */
@@ -444,10 +429,7 @@ class FixtureMetadataCache {
 		if (file === null) return null;
 
 		const behind = this.vault.pendingParse.get(file.path);
-		const seen = behind === undefined ? this.vault.readOrUndefined(file.path) : behind;
-		if (seen === undefined || seen === null) return null;
-		if (!seen.startsWith('---\n')) return {};
-		return { frontmatter: parseFrontmatter(seen).frontmatter };
+		return fileCacheAnswer(behind === undefined ? this.vault.readOrUndefined(file.path) : behind);
 	}
 
 	/** What Obsidian eventually does on its own, once its parse queue drains. */
@@ -472,7 +454,12 @@ export type { FixtureVaultAdapter, FixtureFileManager, FixtureMetadataCache };
  * the echo window, the migration runner, the logger and its `logged` recorder — is the same
  * shape, constructed the same way.
  */
-export interface FixtureStack extends Omit<RepositoryStack, 'vault' | 'fileManager' | 'metadataCache'> {
+export interface FixtureStack extends StackFoundation {
+	projects: ObsidianProjectRepository;
+	plans: ObsidianPlanRepository;
+	zones: ObsidianZoneRepository;
+	assets: ObsidianAssetRepository;
+	requirements: ObsidianRequirementRepository;
 	vault: FixtureVaultAdapter;
 	fileManager: FixtureFileManager;
 	metadataCache: FixtureMetadataCache;
@@ -557,70 +544,28 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 	// so this order is the only order that compiles and there is no cycle to break.
 	const metadataCache = new FixtureMetadataCache(vault);
 	const fileManager = new FixtureFileManager(vault);
+	const base = stackFoundation({ vault, fileManager, metadataCache }, DEFAULT_PROJECT_FOLDER);
 
-	const index = new InMemoryProjectIndex();
-	const echo = new EchoWindow();
-
-	const logged: Line[] = [];
-	const record =
-		(level: LogLevel) =>
-		(event: string, context?: Record<string, unknown>): void => {
-			logged.push({ level, event, context });
-		};
-	const logger: Logger = { debug: record('debug'), info: record('info'), warn: record('warn'), error: record('error') };
-
-	// The PLUGIN's table, not a local copy — see `createRepositoryStack`'s own comment on why
-	// that distinction matters.
-	const migrations = createMigrationRunner(MIGRATION_SET);
-	const ledger = new InMemoryDiagnosticsLedger();
-
-	const deps = {
-		vault: vault as never,
-		fileManager: fileManager as never,
-		metadataCache: metadataCache as never,
-		index,
-		echo,
-		migrations,
-		logger,
-		ledger,
-	};
-	const store = new PlanGeometryStore(vault as never, fileManager as never, index, migrations, echo);
-
+	// The five repositories are constructed here rather than inside `stackFoundation`, for the
+	// reason `createRepositoryStack`'s own docblock measures: fallow cannot resolve a class's
+	// members through a field inherited from another module, and building them there reported
+	// eleven live repository methods as dead code.
 	return Promise.resolve({
 		vault,
 		fileManager,
 		metadataCache,
-		index,
-		echo,
-		migrations,
-		logged,
-		logger,
-		// Inherited from `RepositoryStack` through `FixtureStack`'s `Omit` — needs no
-		// justification of its own, only the value.
-		ledger,
-		store,
-		projects: new ObsidianProjectRepository(deps, DEFAULT_PROJECT_FOLDER),
-		plans: new ObsidianPlanRepository(deps, store),
-		zones: new ObsidianZoneRepository(deps, store),
-		assets: new ObsidianAssetRepository(deps),
-		requirements: new ObsidianRequirementRepository(deps),
-		projectFolder: DEFAULT_PROJECT_FOLDER,
+		...base,
+		projects: new ObsidianProjectRepository(base.deps, DEFAULT_PROJECT_FOLDER),
+		plans: new ObsidianPlanRepository(base.deps, base.store),
+		zones: new ObsidianZoneRepository(base.deps, base.store),
+		assets: new ObsidianAssetRepository(base.deps),
+		requirements: new ObsidianRequirementRepository(base.deps),
 		root,
 		dispose: () => {
 			if (!isUnderTempDir(root)) {
 				throw new Error(`Refusing to delete a path outside the OS temp directory: ${root}`);
 			}
 			rmSync(root, { recursive: true, force: true });
-		},
-		rebuildIndex() {
-			index.rebuild(
-				buildProjectIndexEntries({
-					vault: vault as never,
-					metadataCache: metadataCache as never,
-					echo,
-					logger,
-				}),
-			);
 		},
 	});
 };

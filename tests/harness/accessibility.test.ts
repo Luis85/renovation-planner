@@ -321,7 +321,9 @@ describe('axe against the mounted view', () => {
 	 *
 	 * The case above uses `settings.unrecovered`, and design slice 17 withholds the retry from
 	 * that one deliberately — so it grades a failure state with no button, exactly as the Plan
-	 * Editor's default fixture grades the buttonless `planEditor.noBackground`. A button carries
+	 * Editor's DEFAULT fixture grades the buttonless `planEditor.noBackground` (the editor's
+	 * action-carrying `planEditor.noZones` has its own case further down, which this one is the
+	 * pattern for). A button carries
 	 * its own gradeable properties (an accessible name above all), and `role="alert"` on the
 	 * container is the one piece of ARIA this slice adds anywhere a scan in this file can reach.
 	 *
@@ -450,37 +452,43 @@ describe('axe against the mounted view', () => {
 	});
 
 	/**
-	 * **The last action-carrying empty state no axe scan reached, and closing it needed a
-	 * FIXTURE rather than an assertion.** CLAUDE.md recorded `planEditor.noZones` as the
-	 * remaining gap with exactly that reason: the case above mounts the default fixture, whose
-	 * plan carries no background, so `selectPlanEditorEmptyState` answers `noBackground` — the
-	 * buttonless entry — and `noZones`'s button was exercised by `emptyStateOverlay.test.ts`
-	 * alone, which asserts behaviour and grades no semantics.
+	 * **The last action-carrying empty state no axe scan reached** — and BOTH this branch and
+	 * `main` added a case for it independently, which is why this docblock carries two
+	 * arguments rather than one.
 	 *
-	 * A plan WITH a background and no zones is the one input that reaches `noZones`; it is the
-	 * fixture `emptyStateOverlay.test.ts` already spells, for the same reason.
+	 * The case above mounts the DEFAULT fixture, whose plan has no background, so
+	 * `selectPlanEditorEmptyState` answers `planEditor.noBackground` — the entry design slice
+	 * 14 ships deliberately buttonless, since `set-plan-background` is a plugin command the
+	 * editor's Vue tree cannot reach. `planEditor.noZones` is the other entry, its action
+	 * activates the polygon tool, and its only exercise was `emptyStateOverlay.test.ts`:
+	 * behaviour, not semantics. A button carries gradeable properties nothing else here has,
+	 * an accessible name above all. A plan WITH a background and NO zones is the one input
+	 * that reaches it — the fixture `emptyStateOverlay.test.ts` already spells.
 	 *
-	 * `.rp-empty-state__action` is asserted PRESENT before the scan, for the reason every
-	 * empty-state case in this file gives: axe over a subtree that does not contain the control
-	 * passes exactly like axe over one that does, so a fixture drifting back to `noBackground`
-	 * would leave a green case grading nothing. Measured — restoring the default fixture fails
-	 * at that assertion rather than at the scan. The overlay also yields to an ACTIVE TOOL, so
-	 * that is a second way this case could quietly stop scanning what it names, and the same
-	 * assertion covers it.
+	 * **The presence assertions sit ABOVE `axe.run`, and that ordering is the whole of what
+	 * the merge had to decide.** The two versions differed in exactly this: `main`'s placed
+	 * them after the scan, arguing that `mountPlanEditor` awaits its own `settle()` so the
+	 * overlay is already drawn. That argument is probably true and is not what makes the case
+	 * sound — this file measured the counter-case in the Renovation Project section above: an
+	 * assertion BELOW `axe.run` passes even when the subtree handed to axe was empty, because
+	 * `axe.run` itself awaits enough turns for the store to settle before anything reads the
+	 * DOM. Green scan of nothing, green assertion afterwards, nothing graded. Above the scan
+	 * the same drift fails at the assertion instead — measured: restoring the default fixture
+	 * fails there rather than at the scan. The overlay also yields to an ACTIVE TOOL, a second
+	 * way this case could quietly stop scanning what it names, and the same assertion covers
+	 * that too.
 	 */
-	it('reports no semantic violations on the plan editor’s no-zones action', async () => {
+	it('reports no semantic violations on the plan editor empty state that carries an action', async () => {
 		let mounted: EditorHarness | null = null;
 		try {
 			mounted = await mountPlanEditor({
 				plan: { ...FIXTURE_PLAN, background: { path: 'Plans/ground.png', kind: 'image' } },
 				zones: [],
 			});
-			const root = mounted.wrapper.element as HTMLElement;
-			expect(root.querySelector('.rp-empty-state')).not.toBeNull();
-			expect(root.querySelector('.rp-empty-state__action')).not.toBeNull();
+			expect(mounted.wrapper.find('.rp-empty-state').exists()).toBe(true);
+			expect(mounted.wrapper.find('.rp-empty-state__action').exists()).toBe(true);
 
-			const results = await axe.run(root, runOptions);
-
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
 			expect(results.violations).toEqual([]);
 		} finally {
 			mounted?.unmount();

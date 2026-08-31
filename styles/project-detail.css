@@ -169,7 +169,6 @@
  * `tests/build/buttonSpecificity.test.ts` refuses that loss as a category.
  */
 .rp-plan-list .rp-plan-list__row {
-	display: flex;
 	/*
 	 * Obsidian's own `button` rule sets `justify-content: center`, and it is not overridden by
 	 * `text-align: left` below — that property positions INLINE content, and a flex item is
@@ -182,22 +181,8 @@
 	 * left-aligned is a side effect of that. One child needs the rule said out loud.
 	 */
 	justify-content: flex-start;
-	width: 100%;
-	/* WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
-	   photographing the page rather than by any gate. */
-	min-height: var(--size-4-6);
-	padding: var(--size-2-2) var(--size-4-2);
-	border: none;
-	border-radius: var(--radius-s);
-	background-color: transparent;
-	color: var(--text-normal);
-	text-align: left;
-	cursor: pointer;
 }
 
-.rp-plan-list .rp-plan-list__row:hover {
-	background-color: var(--background-modifier-hover);
-}
 
 /* Flattening the row took Obsidian's own `button:focus-visible` box-shadow with it, so the
    ring is stated here — `tests/build/buttonFocusRing.test.ts` is the check for exactly that.

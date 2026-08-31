@@ -228,6 +228,33 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 		// `createSpan` over `createEl('span', …)` because that ruleset refuses the second
 		// spelling too; both are measured rather than chosen, from what `npx eslint` reported.
 		const label = createSpan({ cls: 'rp-notice-severity' });
+		/**
+		 * **The MARK, which `docs/components/Toast.md` asks for beside the word**: "each variant
+		 * owes a mark as well as a colour". A word plus a colour satisfies SDD §85's
+		 * status-not-colour-only rule — a word is not a colour — and does not satisfy that
+		 * sentence, which is stricter for the reason `Save-state indicator.md` spells out: the
+		 * coloured label works perfectly for the author who built it.
+		 *
+		 * Everything it draws is CSS in `styles/notices.css` — a disc, a tick, a triangle and a
+		 * cross, one per severity, in `currentColor` so each takes its own severity's colour rule
+		 * and no colour literal appears. No `setIcon`, which would be this plugin's first icon
+		 * call and would pull in the harness icon renderer CLAUDE.md lists as deliberately absent.
+		 *
+		 * `aria-hidden` and carrying no text, so the WORD stays the whole accessible name and the
+		 * announcement written into the live region is unchanged — the mark adds a visual channel
+		 * without adding a second thing to read.
+		 *
+		 * It is a CHILD of the label rather than a fourth flex item, and that is what lets one
+		 * `color` declaration per severity reach both: the mark inherits the label's colour
+		 * through `currentColor`, so there is no second list of severity selectors to drift from
+		 * the first. The price is that `render` may no longer write the word with
+		 * `label.textContent`, which would take the mark with it — the word gets its own span for
+		 * that reason, deliberately CLASSLESS because no rule styles it and a class the stylesheet
+		 * does not name would break the accounting below.
+		 */
+		const mark = createSpan({ cls: 'rp-notice-mark', attr: { 'aria-hidden': 'true' } });
+		const word = createSpan();
+		label.append(mark, word);
 		const body = createSpan({ cls: 'rp-notice-message' });
 
 		const dismiss = createEl('button', { cls: 'rp-notice-dismiss' });
@@ -257,7 +284,11 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 		 * when it happens twice more — the same information the sighted user gets.
 		 */
 		const render = (next: NoticeView): void => {
-			label.textContent = tr(SEVERITY_LABEL_KEYS[next.severity]);
+			// `word`, never `label`: the label holds the mark as well, and writing its
+			// `textContent` deletes the mark — on the FIRST render, since this runs before the
+			// append below, and on every `(×N)` update after it. Measured rather than reasoned:
+			// the mutation reddens all four of `notify.test.ts`'s mark cases, not only the repeat.
+			word.textContent = tr(SEVERITY_LABEL_KEYS[next.severity]);
 			body.textContent = textOf(next);
 			announce(next);
 		};
@@ -265,13 +296,16 @@ const createObsidianHost = (announceInto: Regions): NoticeHost => ({
 
 		element.textContent = '';
 		// The flex container is THIS element — the three children below are its children, and
-		// flex only reaches direct ones. This host applies SIX class names — `rp-notice`,
-		// `rp-notice-<severity>`, `rp-notice-body`, `rp-notice-severity`, `rp-notice-message`,
-		// `rp-notice-dismiss` — and `styles/notices.css` names all six: four of them (`-body`,
-		// `-severity`, `-message`, `-dismiss`) as the element a rule declares on, and two only
-		// as ANCESTORS — `.rp-notice`, which scopes the dismiss button past Obsidian's
-		// `button:not(.clickable-icon)`, and `.rp-notice-<severity>`, which picks the label's
-		// colour. Both ancestors are THIS element now rather than `containerEl` (see the
+		// flex only reaches direct ones. This host applies SEVEN class names — `rp-notice`,
+		// `rp-notice-<severity>`, `rp-notice-body`, `rp-notice-severity`, `rp-notice-mark`,
+		// `rp-notice-message`, `rp-notice-dismiss` — and `styles/notices.css` names all seven:
+		// five of them (`-body`, `-severity`, `-mark`, `-message`, `-dismiss`) as the element a
+		// rule declares on, and two only as ANCESTORS — `.rp-notice`, which scopes the dismiss
+		// button past Obsidian's `button:not(.clickable-icon)`, and `.rp-notice-<severity>`,
+		// which picks the label's colour AND, through it, the mark's shape. Counted with
+		// `grep -n "rp-notice" src/presentation/notices/notify.ts styles/notices.css` in this
+		// edit rather than remembered. The word's own span is the one element here carrying no
+		// class at all, for the reason its docblock gives. Both ancestors are THIS element now rather than `containerEl` (see the
 		// header), which every one of those rules survives because all four descendants are
 		// appended here. The `display: flex` was always going to be here: on `containerEl` it
 		// would have made `messageEl` the only flex item and left the three children

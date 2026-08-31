@@ -48,20 +48,40 @@ export function zoneUndoDeps(
 	return { requirements, locks, logger: recorder };
 }
 
-/** A REAL dispatching bus recording publication order — for event-chain assertions. */
-export function dispatchingEventBus(): EventBus & {
+/**
+ * A REAL dispatching bus recording publication order — for event-chain assertions.
+ *
+ * `clear()` rather than a caller writing `published.length = 0`: the list is handed out
+ * `readonly` so nothing can quietly rewrite what was recorded, and nine call sites were
+ * assigning through that anyway to start counting from a later phase. One method says what
+ * they meant and keeps the array read-only for everything else.
+ */
+export interface RecordingBus extends EventBus {
 	readonly published: readonly DomainEvent[];
-} {
+	/** Forget everything recorded so far, so an assertion can start from the next publish. */
+	clear(): void;
+}
+
+export function dispatchingEventBus(): RecordingBus {
 	const published: DomainEvent[] = [];
 	const inner = createEventBus();
-	return {
+	// ANNOTATED rather than cast at the end: the trailing `as unknown as …` gave the object
+	// literal no contextual type at all, so `event`, `type` and `handler` each inferred `any`
+	// — three implicit anys in a bus that exists to record what a cascade publishes, and three
+	// more in every file that re-declares this shape.
+	const bus: RecordingBus = {
 		published,
 		publish: async (event) => {
 			published.push(event);
 			await inner.publish(event);
 		},
 		subscribe: (type, handler) => inner.subscribe(type, handler),
-	} as unknown as EventBus & { readonly published: readonly DomainEvent[] };
+		clear: () => {
+			published.length = 0;
+		},
+	};
+
+	return bus;
 }
 
 /**

@@ -51,7 +51,7 @@ describe('override commands', () => {
 	it('the quantity override re-runs the cost pipeline on the effective quantity', async () => {
 		const w = await withRequirement();
 		const command = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
-		w.events.published.length = 0;
+		w.events.clear();
 		const result = await command.execute({ requirementId: w.requirementId, quantity: 20 });
 		if (!result.ok) throw new Error(String(result.error));
 
@@ -69,14 +69,14 @@ describe('override commands', () => {
 		const w = await withRequirement();
 		const command = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
 
-		w.events.published.length = 0;
+		w.events.clear();
 		await command.execute({ requirementId: w.requirementId, cost: moneyOf('400.00', 'EUR') });
 		expect(
 			w.events.published.filter((e) => (e as { type: string }).type === 'CostEstimateChanged'),
 		).toHaveLength(1);
 
 		// Writing the SAME figure fires nothing.
-		w.events.published.length = 0;
+		w.events.clear();
 		await command.execute({ requirementId: w.requirementId, cost: moneyOf('400.00', 'EUR') });
 		expect(
 			w.events.published.filter((e) => (e as { type: string }).type === 'CostEstimateChanged'),

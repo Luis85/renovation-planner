@@ -7,7 +7,7 @@
  * parameter, never a second wiring point somewhere else in the plugin.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createCompositionRoot, planEditorDeps } from '../../src/plugin/composition-root';
+import { createCompositionRoot, planEditorDeps, type VaultStack } from '../../src/plugin/composition-root';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 import { planBackgroundChanged } from '../../src/domain/plan/Plan.events';
@@ -17,12 +17,15 @@ import { FakeLeaf, FakeWorkspace } from '../helpers/workspace';
 
 installObsidianDom();
 
-const vaultStack = () =>
+// Typed as `VaultStack`, not `as never`: the cast made every `.vault` read below an error,
+// because `never` has no properties. `as never` on a whole double is the spelling that hides
+// which members it is actually standing in for.
+const vaultStack = (): VaultStack =>
 	({
 		vault: { getAbstractFileByPath: () => null, getFiles: () => [] },
 		fileManager: {},
 		metadataCache: { getFileCache: () => null },
-	}) as never;
+	}) as unknown as VaultStack;
 
 describe('the event bus the root composes', () => {
 	/**

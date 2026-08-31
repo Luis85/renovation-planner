@@ -26,7 +26,7 @@ import { projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../../../src
  *
  * `RepositoryStack.metadataCache` is `FakeMetadataCache`, which models the one member this
  * seam reads (`getFileCache`) and none of the twenty-odd others Obsidian's `MetadataCache`
- * declares — and `tsconfig.tests.json` deliberately checks tests against the REAL module, so
+ * declares — and `tsconfig.json` deliberately checks tests against the REAL module, so
  * no fake can satisfy that type however faithful it is at the member in question. ONE cast,
  * named, over the one field that needs it, rather than three at the call sites; `echo` is a
  * real `EchoWindow` and is passed through untouched.

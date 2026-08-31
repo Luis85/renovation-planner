@@ -13,6 +13,8 @@ import { buildProjectIndexEntries } from '../infrastructure/persistence/index/bu
 import { projectIndexRebuilt } from '../application/events/projectIndex.events';
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presentation/views/PlanEditorView';
+import { ProjectSuggestModal } from '../presentation/modals/ProjectSuggestModal';
+import { entriesOfType } from './indexEntries';
 import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
@@ -235,6 +237,32 @@ export default class RenovationPlannerPlugin extends Plugin {
 			name: tr('command.open-project'),
 			callback: () => {
 				this.openProject();
+			},
+		});
+
+		/**
+		 * Design slice 21: reveal the pane, then go INTO a project.
+		 *
+		 * A second command rather than behaviour behind the existing `open-project` id, and
+		 * the spec's own argument for treating an id as data is the argument for it: a user
+		 * whose hotkey means "show me the pane" must not suddenly get a fuzzy picker. The
+		 * ribbon shares `open-project`'s copy, so repurposing it would also split the two ways
+		 * in that the comment above insists call one function.
+		 *
+		 * **With no projects in the vault this reveals the LIST**, not a picker and not a
+		 * notice — deliberately unlike `open-plan-editor`, which answers `notify(tr('plan.none'))`.
+		 * The reason is a property of the surfaces: a Plan Editor with no plan draws nothing,
+		 * so a notice is all that command can usefully do, while this view HAS a list state
+		 * whose empty state carries a Create button — so revealing it puts the user one click
+		 * from the thing they were trying to reach. A zero-row fuzzy picker would be the worst
+		 * of the three. Stated here so that nobody later "fixes" the inconsistency by adding a
+		 * `project.none` notice and quietly removing the better behaviour.
+		 */
+		this.addCommand({
+			id: 'open-project-detail',
+			name: tr('command.open-project-detail'),
+			callback: () => {
+				this.openProjectDetail();
 			},
 		});
 
@@ -573,5 +601,39 @@ export default class RenovationPlannerPlugin extends Plugin {
 			},
 			RENOVATION_PROJECT_VIEW,
 		);
+	}
+
+	/**
+	 * The palette's way into the detail state: pick a project, then go there.
+	 *
+	 * Detached like every other Obsidian handler, and it spells no detachment itself:
+	 * `navigateToProject` answers its own faults through `reportFault` and does not reject,
+	 * which is `revealView`'s contract carried one step further. The bare `void` is honest for
+	 * exactly the reason `openProject`'s docblock gives, and `runDetached` would be wrong here
+	 * for the same reason it is wrong there.
+	 *
+	 * **This is the first production call that passes no `targetLeaf`**, which is the whole
+	 * point of the parameter being optional: the palette has no originating leaf, so the leaf
+	 * is the one `revealView` ANSWERS. Every mechanism that then applies — the arrival-order
+	 * ticket, and the per-leaf write lane a row click in that same pane shares — lives in
+	 * `navigateToProject` and is deliberately not restated here: a guard spelled at this call
+	 * site would be a second, narrower answer to a question that module already owns.
+	 */
+	private openProjectDetail(): void {
+		const projects = entriesOfType(this.root.persistence?.index, 'renovation-project');
+		const deps = {
+			workspace: this.app.workspace,
+			reportFault: (cause: unknown): void => {
+				notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+			},
+		};
+		if (projects.length === 0) {
+			// The list, not a picker: see the command's own docblock.
+			void navigateToProject(deps, RENOVATION_PROJECT_VIEW, null);
+			return;
+		}
+		new ProjectSuggestModal(this.app, projects, (project) => {
+			void navigateToProject(deps, RENOVATION_PROJECT_VIEW, project.id);
+		}).open();
 	}
 }

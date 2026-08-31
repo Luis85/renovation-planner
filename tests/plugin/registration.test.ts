@@ -76,6 +76,10 @@ describe('what onload registers', () => {
 	it('adds every command with an unprefixed id', () => {
 		expect(plugin.commands.map((c) => c.id)).toEqual([
 			'open-project',
+			// Slice 21's SECOND door into this view, and a second id rather than new behaviour
+			// behind the first for exactly the reason above: a user's hotkey on `open-project`
+			// means "show me the pane", and it must not start meaning "open a fuzzy picker".
+			'open-project-detail',
 			'open-plan-editor',
 			'set-plan-background',
 			// Scaffolding, and it still has to obey the id rule — a user who binds a hotkey to

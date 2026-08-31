@@ -8,6 +8,7 @@ import type { StringKey } from './en';
 
 export const de: Partial<Record<StringKey, string>> = {
 	'command.open-project': 'Renovierungsprojekt öffnen',
+	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.name': 'Renovierungsprojekt',
 	'settings.units.name': 'Einheiten',
 	'settings.units.desc': 'Maßsystem für Mengen und Abmessungen.',

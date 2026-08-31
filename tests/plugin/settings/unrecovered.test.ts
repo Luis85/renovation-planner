@@ -71,6 +71,7 @@ describe('a read that failed', () => {
 		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW, GEOMETRY_SIDECAR_VIEW]);
 		expect(plugin.commands.map((command) => command.id)).toEqual([
 			'open-project',
+			'open-project-detail',
 			'open-plan-editor',
 			'set-plan-background',
 			'create-sample-project',

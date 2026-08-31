@@ -6,6 +6,7 @@
  */
 export const en = {
 	'command.open-project': 'Open renovation project',
+	'command.open-project-detail': 'Go to renovation project',
 	'view.project.name': 'Renovation project',
 	'settings.units.name': 'Units',
 	'settings.units.desc': 'Measurement system for quantities and dimensions.',

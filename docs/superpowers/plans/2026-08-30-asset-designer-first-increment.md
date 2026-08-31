@@ -329,10 +329,22 @@ export function normaliseFacing(radians: number): number {
 export function validateAssetShape(shape: AssetShape): Result<AssetShape, ValidationError> {
 	const footprint = createPolygon(shape.footprint.points);
 	if (isErr(footprint)) return err(assetError('invalid-footprint', footprint.error.message));
+	// DEGENERACY — see Amendment 2 below. `createPolygon` validates vertex count and
+	// finiteness, both of which a collinear trace satisfies.
+	if (!enclosesArea(footprint.value)) {
+		return err(
+			assetError('degenerate-footprint', 'A footprint must enclose an area; these vertices are collinear.'),
+		);
+	}
 	let clearance: Polygon | null = null;
 	if (shape.clearance !== null) {
 		const validated = createPolygon(shape.clearance.points);
 		if (isErr(validated)) return err(assetError('invalid-clearance', validated.error.message));
+		if (!enclosesArea(validated.value)) {
+			return err(
+				assetError('degenerate-clearance', 'A clearance must enclose an area; these vertices are collinear.'),
+			);
+		}
 		clearance = validated.value;
 	}
 	if (!Number.isFinite(shape.anchor.x) || !Number.isFinite(shape.anchor.y)) {
@@ -422,6 +434,34 @@ npm run check
 git add src/domain/asset/AssetShape.ts tests/domain/asset/assetShape.test.ts
 git commit -m "An asset's shape, and the maths that derives its dimensions"
 ```
+
+---
+
+#### Amendment 2 — the degeneracy guards, added 2026-08-31 after they shipped
+
+The listing above carries `enclosesArea` for the footprint AND the clearance. It did not when
+this task was executed, and the guards arrived later as `c532556`, in response to a review
+finding: `createPolygon` validates vertex COUNT and FINITENESS, both of which a collinear trace
+satisfies, so the traced path accepted a zero-area footprint while the typed path refused
+degeneracy through its sign guard.
+
+**This amendment exists because a stale listing in an executable plan is a REGRESSION waiting to
+be re-run, not a documentation defect.** A subagent given this task follows the code block
+literally; left as it was, the next execution would have silently reverted a shipped fix and
+every test of it would have been deleted along with the guard. That is the difference between
+this and the plan-text findings deliberately left open elsewhere on this branch.
+
+Two things the listing cannot carry, both recorded where the code is:
+
+- `enclosesArea` is TOTAL rather than `Result`-returning. `area` validates its input, so a caller
+  downstream of `createPolygon` would carry a refusal arm nothing can reach — the dead-guard
+  shape this task's own `footprintFromDimensions` docblock already records.
+- It tests AREA, not bounding-box extent. Three points on a diagonal enclose nothing while their
+  box is square, so an extent test refuses the axis-aligned collinear case and passes the
+  diagonal one. Measured: swapping the rule for an extent test reddens the diagonal case alone.
+
+Both `degenerate-footprint` and `degenerate-clearance` are new codes and belong in Task A12's
+locale table, which builds from the raise sites rather than from `en.ts`.
 
 ---
 
@@ -651,6 +691,26 @@ Model them on the existing plan-geometry sidecar tests (find them with `grep -rl
 - [ ] **Step 4: Implement the store and the adapter**
 
 `AssetGeometryStore` mirrors `PlanGeometryStore`: `ensureFolder` before create, whole-document write, `revision` incremented by the store, schema validation on read, and the `unit: 'mm'` literal doing the refusing. `ObsidianAssetGeometrySidecar` adapts it to the port and maps storage tuples to `Point`s so no caller parses storage shape.
+
+**The read runs BOTH domain validators, not one.** The shape goes through `validateAssetShape`
+and the calibration through `validateCalibration` (`domain/plan/Calibration.ts`, which calls
+itself the read path's validator). An earlier draft of this step named only the first, and the
+gap was real rather than editorial: coincident points are four well-typed numbers the schema
+cannot fault, and `updateAssetShape` decides `footprintPending` from `calibration !== null`, so
+a degenerate calibration records a fresh trace as ALREADY SCALED while no usable scale exists.
+
+The plan sidecar has no equivalent hole because its calibration is validated one layer up, at
+`Plan.withCalibration` while `ObsidianPlanRepository` assembles the entity. An
+`AssetGeometryDocument` reaches a command with no assembly step in between, so this read is the
+only door there is — which is why the asymmetry with `ObsidianPlanGeometrySidecar` is correct
+rather than an oversight to be tidied away.
+
+`validateCalibration`'s CODE passes through unchanged, so one rule keeps one vocabulary; only its
+category is restamped, because `plan.degenerate-points` is a `CalculationError` and
+`RepositoryError` admits `ValidationError`. Add the two cases: a sidecar whose calibration has
+coincident points refuses the read, and an ordinary calibration still reads — the second is the
+positive control, without which the rule is pinned as refusing calibrations rather than refusing
+degenerate ones.
 
 - [ ] **Step 5: Run the whole infrastructure suite**
 

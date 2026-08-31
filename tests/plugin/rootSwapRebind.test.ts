@@ -76,8 +76,15 @@ describe('a view already open when the root is replaced', () => {
 	/**
 	 * A settings swap must not silently return a detail-state pane to the list. `navigate`
 	 * writes that state through the real `navigateToProject` (Task 11), so this drives the
-	 * whole path a user's own click would: navigate, then swap settings, then ask what the
-	 * pane is showing.
+	 * whole path a user's own click would: navigate, then swap settings, then ask which project
+	 * the view still holds.
+	 *
+	 * **Not "what the pane is showing", which is what this sentence said for one round.**
+	 * `getState()` reads `this.projectId`; a rebind that kept the field and drew the LIST anyway
+	 * would leave this case green. That gap is covered — `renovationProjectView.test.ts`'s
+	 * 'remounts the open project on the new bundle' reddens against exactly that mutation, and
+	 * this case reddens against blanking the field — so the pair holds criterion 7 and neither
+	 * half holds it alone.
 	 *
 	 * **It asks the VIEW's own state, and the first version asked the rebound bundle's
 	 * `projectId` instead — the wrong side of the seam.** That member is dead:

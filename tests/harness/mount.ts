@@ -100,11 +100,21 @@ const HARNESS_PLAN_NAMES = [
  * `mountHarness` async for every caller.
  *
  * What actually carries the loudness is the CAPTURE tool rather than this function:
- * `scripts/harness-shot.mjs` registers `page.on('pageerror')` and records console errors, and
- * Chromium reports an unhandled rejection through both, so a failed seed fails the capture
- * rather than photographing the list. Under `npm run harness` it is a console line beneath a
- * page that quietly draws the list — the residue, named rather than implied, because the
- * sentence that used to sit here read as a guarantee this module gave on its own.
+ * `scripts/harness-shot.mjs` registers `page.on('pageerror')` AND a `console` listener that
+ * records anything of type `error`, collects both into one list, and `reportErrors` sets
+ * `process.exitCode = 1` from it. So a failed seed fails the RUN rather than exiting 0 over a
+ * wrong picture — **not** the capture: the rejection is asynchronous and `page.screenshot` sits
+ * inside `captureOne`'s `try`, so the PNG of the list IS written, and the non-zero exit is what
+ * stops anyone reasoning about it. (The first draft of this paragraph said "fails the capture",
+ * which contradicted the `Error` string one line below it — the correction round's own residue,
+ * reported by the scoped re-review of the correction round.) Which of the two listeners an
+ * unhandled rejection reaches is not measured here and the sentence does not claim it: the
+ * console half is enough for the exit code, and the pinned Chromium is absent from this
+ * container.
+ *
+ * Under `npm run harness` there is no such collector — it is a console line beneath a page that
+ * quietly draws the list. The residue, named rather than implied, because the sentence that used
+ * to sit here read as a guarantee this module gave on its own.
  *
  * Found by the whole-branch review.
  */

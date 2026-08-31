@@ -41,9 +41,21 @@ export class FakeLeaf implements WorkspaceLeaf {
 	view: unknown;
 
 	/**
-	 * Records the state AND tells the view, because Obsidian's own call does both — setting a
-	 * leaf's view state is how a view's `setState` is ever reached, which is the entire reason
-	 * `navigateToProject` writes through this method rather than touching the view.
+	 * Records the state AND tells the view, because Obsidian's own call does both FOR A STATE OF
+	 * THE VIEW'S OWN TYPE — setting a leaf's view state is how a view's `setState` is ever
+	 * reached, which is the entire reason `navigateToProject` writes through this method rather
+	 * than touching the view.
+	 *
+	 * That qualifier is where this fake is still WIDER than the real thing, and it is written
+	 * down rather than closed: Obsidian constructs a view for the new type instead of handing
+	 * the sitting one a foreign state, and this routes on any `state.type` at all. Measured
+	 * unreachable from both ends — production sets a view state only on a leaf it has just
+	 * created (`reveal.ts` and `revealView.ts` say so) or on its own view's leaf under its own
+	 * type, and `rootSwapRebind.test.ts` is the only file in the suite that ever assigns
+	 * `FakeLeaf.view`. It costs nothing today; a type test would cost a fake that has to know
+	 * which types exist. Reported by the scoped re-review of the round that added the routing,
+	 * against a first draft whose "because Obsidian's own call does both" was flatly wider than
+	 * what the code keeps.
 	 *
 	 * **It recorded only, until the whole-branch review of design slice 21.** A fake that
 	 * merely remembers what it was told leaves the view deaf to every navigation after the

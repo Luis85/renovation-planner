@@ -73,9 +73,15 @@ nothing, which is the hazard `catalogueNotesIn`'s own docblock names for a diffe
 
 ## Why no gate saw it
 
-There is nothing to catch. The behaviour is correct by the rule it implements, every test of
-the migration asserts on what moved, and no test asserts on what did not — which is the honest
-shape of the gap: a silent non-move looks identical to having nothing to move.
+The non-move IS tested, and a first draft of this note said otherwise —
+`tests/plugin/settings/libraryMigration.test.ts`'s *'leaves an asset filed outside the library
+where it is'* indexes `Elsewhere/Paint.md` alongside an in-library note and asserts the rename
+list holds only the in-library one. The behaviour is correct by the rule it implements and it
+is pinned.
+
+What no gate covers is the **reporting**, because there is none to cover. That is the whole of
+the gap, and it is not a coverage problem: a silent non-move is indistinguishable from having
+nothing to move, and no test can ask for a sentence nobody has decided to write.
 
 ## Why it matters
 

@@ -804,6 +804,6 @@ describe('every button rule against Obsidian\'s own', () => {
 		const bare = '.rp-editor-tool-active';
 
 		expect(buttonClasses()).toContain(bare);
-		expect(moreSpecific(specificityOf(bare), OBSIDIAN_BUTTON)).toBe(false);
+		expect(moreSpecific(specificityOf(parseSelector(bare)), OBSIDIAN_BUTTON)).toBe(false);
 	});
 });

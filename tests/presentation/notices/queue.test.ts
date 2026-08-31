@@ -47,6 +47,156 @@ describe('the notice queue', () => {
 		vi.useFakeTimers();
 	});
 
+
+	/**
+	 * **Design slice 17's preemption, and the exposure it closes.**
+	 *
+	 * `AUTO_DISMISS_MS` gives `warning` and `error` no timer at all, so three standing warnings
+	 * fill every visible slot and never leave. `severity.ts` recorded the consequence before
+	 * anything depended on it: every later `notifyError` is queued invisibly AND unannounced,
+	 * because `announce` rides `render` and `render` runs only for a notice actually shown.
+	 * Slice 17's table routes a dozen categories to a toast, which is what turned that from a
+	 * tolerable edge into a load-bearing policy.
+	 *
+	 * The remedy is the one that file pre-selected — "giving `error` priority over a held
+	 * `warning` rather than raising `MAX_VISIBLE_NOTICES`, which only moves the number at which
+	 * this starts".
+	 */
+	describe('an error arriving behind a full screen of warnings', () => {
+		function threeStandingWarnings() {
+			const recorder = recordingHost();
+			const queue = createNoticeQueue(recorder.host);
+			// Three distinct sentences, none of which dedups into another and none of which
+			// expires. This is one command and one background cascade away in a real vault:
+			// `background.unsupported`, `cascade.aborted`, `cascade.stale-marker-failed`.
+			queue.push('warning', 'first');
+			queue.push('warning', 'second');
+			queue.push('warning', 'third');
+			return { ...recorder, queue };
+		}
+
+		it('is shown, by taking a slot from a held warning', () => {
+			const { queue, live } = threeStandingWarnings();
+			expect(live()).toHaveLength(3);
+
+			queue.push('error', 'the one that matters');
+
+			expect(live().map((o) => o.view.message)).toContain('the one that matters');
+			expect(live()).toHaveLength(3);
+		});
+
+		it('takes the NEWEST warning slot, not the oldest', () => {
+			// The oldest has been on screen longest and is likeliest to have been read; the
+			// newest is the one the user is least likely to have taken in already.
+			const { queue, live } = threeStandingWarnings();
+
+			queue.push('error', 'urgent');
+
+			const shown = live().map((o) => o.view.message);
+			expect(shown).toContain('first');
+			expect(shown).not.toContain('third');
+		});
+
+		it('keeps the demoted warning rather than dropping it', () => {
+			// Demotion is not dismissal. The warning goes back to the held set and is promoted
+			// into the next freed slot, which is what the queue already guarantees for anything
+			// that never got one.
+			const { queue, live, opened } = threeStandingWarnings();
+			queue.push('error', 'urgent');
+
+			// Both halves, in the order the real host performs them: the element goes, THEN the
+			// hint arrives. `dismissed` only sweeps and promotes, and `sweep` reads `handle.live`.
+			const urgent = opened.find((o) => o.view.message === 'urgent');
+			urgent?.handle.hide();
+			urgent?.callbacks.dismissed();
+
+			expect(live().map((o) => o.view.message)).toContain('third');
+		});
+
+		it('leaves a HOVERED warning alone and holds the error instead', () => {
+			// The queue's pause contract outranks preemption: `paused` means the pointer is over
+			// that notice or its dismiss control has focus, and taking it away mid-read — or
+			// pulling a focused button out of the tab order — is worse than making the error
+			// wait. With every visible warning paused there is no victim, so the error stays
+			// held, which is exactly what the cap alone would have done.
+			const { queue, live, opened } = threeStandingWarnings();
+			for (const entry of opened) entry.callbacks.pause();
+
+			queue.push('error', 'urgent');
+
+			expect(live().map((o) => o.view.message)).toEqual(['first', 'second', 'third']);
+		});
+
+		it('never opens a warning it is about to demote for a held error', () => {
+			// **An announcement is made at `open`, so opening-then-hiding is not free.**
+			// `createObsidianHost.open` announces during its initial render, so a warning shown
+			// for one synchronous instant and immediately demoted still reaches a screen reader —
+			// a message a sighted user never had the chance to read. The fill loop must not hand
+			// a slot to a warning while an error is waiting for one.
+			const { host, opened, live } = recordingHost();
+			const queue = createNoticeQueue(host);
+			queue.push('error', 'e1');
+			queue.push('error', 'e2');
+			queue.push('error', 'e3');
+			// Both held behind a full screen, the warning FIRST so a strict FIFO fill reaches it
+			// before the error.
+			queue.push('warning', 'held-warning');
+			queue.push('error', 'held-error');
+			expect(opened.map((o) => o.view.message)).toEqual(['e1', 'e2', 'e3']);
+
+			// Free exactly one slot.
+			opened[0]?.handle.hide();
+			opened[0]?.callbacks.dismissed();
+
+			// The freed slot goes to the held ERROR, and the warning is never constructed at all.
+			expect(live().map((o) => o.view.message)).toEqual(['e2', 'e3', 'held-error']);
+			expect(opened.map((o) => o.view.message)).not.toContain('held-warning');
+		});
+
+		it('preempts as soon as the interaction that protected a warning ends', () => {
+			// **The hole the pause guard opened, and the reason it needs closing rather than
+			// reverting.** Holding the error while every warning is being read is right; leaving
+			// it held once the pointer moves away is not. A warning has no auto-dismiss timer, so
+			// `arm` does nothing for it and `resume` alone would never retry — the error would
+			// stay invisible AND unannounced until some unrelated push or dismissal happened to
+			// run `promote` again.
+			const { queue, live, opened } = threeStandingWarnings();
+			for (const entry of opened) entry.callbacks.pause();
+			queue.push('error', 'urgent');
+			expect(live().map((o) => o.view.message)).toEqual(['first', 'second', 'third']);
+
+			// The user moves the pointer off the newest warning.
+			opened[2]?.callbacks.resume();
+
+			expect(live().map((o) => o.view.message)).toContain('urgent');
+			expect(live().map((o) => o.view.message)).not.toContain('third');
+		});
+
+		it('does not preempt for another WARNING', () => {
+			// The narrowing, and it needs its own case: a rule letting any later notice preempt
+			// would pass all three cases above while making the cap mean nothing.
+			const { queue, live } = threeStandingWarnings();
+
+			queue.push('warning', 'fourth');
+
+			expect(live().map((o) => o.view.message)).toEqual(['first', 'second', 'third']);
+		});
+
+		it('does not preempt a screen that is already all errors', () => {
+			const { host, live } = recordingHost();
+			const queue = createNoticeQueue(host);
+			queue.push('error', 'a');
+			queue.push('error', 'b');
+			queue.push('error', 'c');
+
+			queue.push('error', 'd');
+
+			// Nothing to take: an error may not evict another error, or the newest error would
+			// silence the one before it and the cap would be a rotating window.
+			expect(live().map((o) => o.view.message)).toEqual(['a', 'b', 'c']);
+		});
+	});
+
 	it('opens a notice for a push', () => {
 		const { host, opened } = recordingHost();
 		createNoticeQueue(host).push('error', 'boom');

@@ -35,7 +35,11 @@ function harness(options: { worldPerScreenPixel?: number } = {}): Harness {
 	const inputs: CreateZoneInput[] = [];
 	const rejections: string[] = [];
 	let failNext = false;
-	let gate: (() => void) | null = null;
+	// `Promise<void>`, not `void`: `gateNextDispatch` assigns a function that returns the gated
+	// promise, and the dispatcher below awaits it through `.then`. The declaration said `void`
+	// until `tests/**` was type-checked — wrong about the value it holds, while the runtime was
+	// right all along, which is why nothing failed.
+	let gate: (() => Promise<void>) | null = null;
 
 	const { context } = toolContext({
 		worldPerScreenPixel: options.worldPerScreenPixel,
@@ -99,7 +103,11 @@ function build(h: Harness): DrawPolygonTool {
 			} as never;
 		},
 		nextZoneName: () => h.nextZoneName,
+		// Design slice 17 split the door: `reportInvalidInput` is a refusal this tool made
+		// itself, before any command existed. Both feed one list here, because every case in
+		// this file asks "was the user told", which is true through either.
 		reportRejected: (error) => h.rejections.push(error.message),
+		reportInvalidInput: (error) => h.rejections.push(error.message),
 	});
 }
 
@@ -301,6 +309,7 @@ describe('DrawPolygonTool', () => {
 			},
 			nextZoneName: () => 'Zone 1',
 			reportRejected: () => undefined,
+			reportInvalidInput: () => undefined,
 		});
 		tool.activate(context);
 

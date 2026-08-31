@@ -1,0 +1,33 @@
+{
+	// THE TESTS PROGRAM. `tsconfig.json` covers `src/` plus the five `tests/` entries that
+	// have earned their way in one at a time; this covers the rest of `tests/`, and it is a
+	// SEPARATE program rather than more `include` entries on that one for a single reason:
+	// `npm run build` must stay green, and 114 of 307 test files are not clean yet. Merging
+	// the two the day the debt reaches zero is the intended end state — at which point this
+	// file and `scripts/typecheck-tests.mjs` both disappear.
+	//
+	// `npm run typecheck:tests` is the gate, and it is not `vue-tsc` directly: the debt is
+	// held as a baseline of files permitted to fail, which that script enforces in BOTH
+	// directions. Read its header before adding anything here.
+	"extends": "./tsconfig.json",
+
+	// NO `paths` MAPPING FOR `obsidian`, deliberately, and this is the load-bearing decision
+	// in the file. `vitest.config.ts` aliases that specifier to `tests/helpers/obsidian-mock.ts`
+	// so the suite RUNS against the mock; a compiler has one resolution per program, so
+	// mapping it here would give `src/` the mock too — measured, 77 errors, because the mock
+	// exports 13 members and the real module's type surface has `Vault`, `Workspace`,
+	// `MetadataCache`, `FileManager`, `App` and `TAbstractFile` among many others it does not.
+	//
+	// So a test importing from `'obsidian'` is type-checked against the REAL types, which is
+	// this repository's own "a fake must not be thinner than the real thing" rule finally
+	// pointed at a compiler: a mock-only member (`Notice.shown`, `FuzzySuggestModal.opened`)
+	// is a type error under that specifier and must be imported from the mock module BY NAME.
+	// That is the honest spelling — it says at the import which surface is being reached for.
+	// Measured: 118 of the 562 errors this program starts with are exactly that.
+	"include": ["tests/**/*.ts", "tests/**/*.vue"]
+
+	// `src/**` is deliberately absent. Every src module a test touches is pulled in through
+	// its imports and checked here anyway; one that no test touches is already checked by
+	// `npm run build`. Listing it would only mean two programs disagreeing about which one
+	// owns a src error.
+}

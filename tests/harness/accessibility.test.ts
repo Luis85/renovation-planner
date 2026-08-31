@@ -252,7 +252,44 @@ describe('axe against the mounted view', () => {
 
 		const results = await axe.run(view.contentEl, runOptions);
 
-		expect(view.contentEl.querySelector('.rp-view-message')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-view-failure')).not.toBeNull();
+		expect(results.violations).toEqual([]);
+		await view.onClose();
+	});
+
+	/**
+	 * The same surface with its ACTION, which is a different scan and not a redundant one.
+	 *
+	 * The case above uses `settings.unrecovered`, and design slice 17 withholds the retry from
+	 * that one deliberately — so it grades a failure state with no button, exactly as the Plan
+	 * Editor's default fixture grades the buttonless `planEditor.noBackground`. A button carries
+	 * its own gradeable properties (an accessible name above all), and `role="alert"` on the
+	 * container is the one piece of ARIA this slice adds anywhere a scan in this file can reach.
+	 *
+	 * The presence assertion is load-bearing for this file's usual reason: `violations` is `[]`
+	 * on a subtree containing nothing at all, so asserting the control is really in the DOM this
+	 * scan ran against is what makes green mean something.
+	 */
+	it('reports no semantic violations on a failure state carrying a retry', async () => {
+		installObsidianDom();
+		const view = makeView({
+			queries: {
+				listProjects: () =>
+					Promise.resolve(
+						err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' }),
+					),
+			},
+			commands: unavailableRenovationProjectCommands(),
+			openProject: () => Promise.resolve('opened' as const),
+			onProjectsChanged: () => () => undefined,
+		});
+		document.body.appendChild(view.containerEl);
+		await view.onOpen();
+		await flushPromises();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
+		expect(view.contentEl.querySelector('.rp-view-failure__action')).not.toBeNull();
 		expect(results.violations).toEqual([]);
 		await view.onClose();
 	});

@@ -111,7 +111,11 @@ describe('the fixture vault adapter', () => {
 	it('serves the pre-save frontmatter for the window, and the new bytes once it drains', async () => {
 		open = await openFixtureVault('valid-project');
 		const path = 'Project.md';
-		const file = open.vault.getAbstractFileByPath(path);
+		// Cast to the file type the two calls below take: `getAbstractFileByPath` answers
+		// `TFile | TFolder | null`, and this path is a note the fixture wrote. Narrowing with
+		// `instanceof TFile` would bind the assertion to the MOCK's class while the annotation
+		// here is Obsidian's real one, which is a worse claim than one honest cast.
+		const file = open.vault.getAbstractFileByPath(path) as TFile;
 		const before = open.metadataCache.getFileCache(file)?.frontmatter?.['status'];
 
 		await open.fileManager.processFrontMatter(file, (frontmatter) => {

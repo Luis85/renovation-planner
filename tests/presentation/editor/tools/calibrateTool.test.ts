@@ -130,7 +130,21 @@ describe('CalibrateTool', () => {
 		expect(h.dispatched).toHaveLength(0);
 	});
 
-	it('coincident clicks never reach the prompt or the dispatcher', async () => {
+	/**
+	 * **The guard stays; the SILENCE goes** (design slice 17).
+	 *
+	 * Refusing before the prompt is right and stays: asking a user to measure a distance the
+	 * tool has already decided is meaningless is worse than not asking. What was wrong is what
+	 * happened next — the first click's anchor was wiped and the gesture reset with nothing
+	 * said, so a user who mis-clicked twice in one spot lost a placed point and got no reason.
+	 * That is the silent no-op this slice exists to remove, and the table routes it to a toast:
+	 * an explicit operation, attributable to no single field.
+	 *
+	 * Note what this does NOT change: the command is still never dispatched, so the domain's
+	 * own `calibration.coincident-points` is still unreachable from here. The tool raises the
+	 * same coded error the domain would have, from the one factory that spells it.
+	 */
+	it('reports coincident clicks rather than silently discarding the first point', async () => {
 		const h = harness();
 		const tool = newTool(h);
 		click(tool, at(5, 5));
@@ -138,6 +152,7 @@ describe('CalibrateTool', () => {
 		await flush();
 		expect(h.dispatched).toHaveLength(0);
 		expect(h.supplierMeasurements).toHaveLength(0);
+		expect(h.rejected.map((error) => error.code)).toEqual(['calibration.coincident-points']);
 	});
 
 	it('a non-positive or non-finite supplied distance dispatches nothing', async () => {

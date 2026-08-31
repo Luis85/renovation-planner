@@ -780,7 +780,14 @@ export const flattenedWithoutRing = (
 	scanned: readonly (readonly [string, string])[],
 	classes: Set<string>,
 	groups: readonly ReadonlySet<string>[] = [],
-): { readonly offenders: Map<string, string>; readonly seen: number } => {
+): {
+	// A LIST of sites per class, matching what the body builds and what `buttonFocusRing.test.ts`
+	// already reads (`offenders.values().toArray().flat().map((site) => site.where)`). It said
+	// `Map<string, string>` — the shape from before a key needed every one of its sites covered,
+	// which the body's own comment explains and the annotation was never updated for.
+	readonly offenders: Map<string, { readonly where: string; readonly conditions: Conditions }[]>;
+	readonly seen: number;
+} => {
 	// A LIST per key, not one site. The same class is flattened in as many places as the sheets
 	// flatten it, and `set` kept only the last: `.dialog-a .button { box-shadow: none }` followed by
 	// `.dialog-b .button { box-shadow: none }` left one entry, and a ring scoped to `.dialog-b`

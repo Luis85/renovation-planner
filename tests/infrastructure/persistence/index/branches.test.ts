@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createRepositoryStack } from '../../../helpers/vault';
-import { expectOk } from '../../../helpers/domain';
+import { expectDefined, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../../../helpers/entities';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
@@ -94,7 +94,11 @@ describe('sidecar events through the pipeline', () => {
 			stack.vault.entries.set(orphanPath, '{}');
 			adapter.onModify(stack.vault.getAbstractFileByPath(orphanPath) as never);
 
-			const mappingBefore = stack.index.getGeometrySidecarPath(planId);
+			const mappingBefore = expectDefined(
+				stack.index.getGeometrySidecarPath(planId),
+				'the sidecar mapping for the plan',
+			);
+
 			expect(mappingBefore).toContain('.rpgeo');
 
 			stack.logged.length = 0;

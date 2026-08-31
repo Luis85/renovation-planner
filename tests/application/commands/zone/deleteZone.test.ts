@@ -59,7 +59,7 @@ describe('DeleteZoneCommand', () => {
 		const { events } = wired();
 		class FailingRead extends InMemoryZoneRepository {
 			override getById() {
-				return injectedReadFailure();
+				return Promise.resolve(injectedReadFailure());
 			}
 		}
 		const error = expectErr(

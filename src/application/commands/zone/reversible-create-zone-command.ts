@@ -1,7 +1,6 @@
+import type { DispatchResult } from '../DispatchOutcome';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
-import type { DispatchOutcome } from '../DispatchOutcome';
 import type {
-	AppError,
 	GeometryError,
 	ReferenceError,
 } from '../../../core/errors/AppError';
@@ -89,7 +88,7 @@ export class ReversibleCreateZoneCommand {
 		private readonly input: CreateZoneInput,
 	) {}
 
-	async execute(): Promise<Result<DispatchOutcome, AppError>> {
+	async execute(): Promise<DispatchResult> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) {
 			const result = await this.createCommand.execute(this.input);
@@ -105,7 +104,7 @@ export class ReversibleCreateZoneCommand {
 		return ok('wrote');
 	}
 
-	async undo(): Promise<Result<DispatchOutcome, AppError>> {
+	async undo(): Promise<DispatchResult> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) return err(nothingToUndo());
 		const expected = this.ledger.lastWritten(snapshot.entity.id) ?? snapshot.version;

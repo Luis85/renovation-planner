@@ -1,6 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Notice } from '../../helpers/obsidian-mock';
 import { installObsidianDom } from '../../helpers/dom';
@@ -13,6 +14,7 @@ import {
 	notifySuccess,
 	notifyWarning,
 } from '../../../src/presentation/notices/notify';
+import { AUTO_DISMISS_MS, type NoticeSeverity } from '../../../src/presentation/notices/severity';
 import type { AppError } from '../../../src/core/errors/AppError';
 import { surfaceError } from '../../../src/presentation/errors/surfaceError';
 import {
@@ -313,5 +315,132 @@ describe('the notice door', () => {
 		// sentence is what the user gets. Asserted verbatim, because that string is the whole
 		// thing this case exists to prove reached the notice.
 		expect(text).toContain('This data is not in the expected form.');
+	});
+});
+
+
+/**
+ * **`docs/components/Toast.md`: "each variant owes a mark as well as a colour".** Slice 13
+ * shipped the translated word plus a colour, which satisfies SDD §85's status-not-colour-only
+ * rule — a word is not a colour — and does not satisfy the component contract, exactly as the
+ * save-state indicator did until the review pass that gave it `.rp-save-state-mark`. This is
+ * the same gap closed on the other surface, and these are the two instruments that reach it.
+ */
+describe('the mark the toast contract requires beside the word', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		document.body.innerHTML = '';
+		Notice.shown.length = 0;
+		Notice.constructed.length = 0;
+		activateNotices();
+	});
+
+	/**
+	 * Each of the three bare-message DOORS with its own severity, rather than a transcription of
+	 * the severity union — the union is walked separately, by the selector check below, which is
+	 * what catches a fifth severity being added. `error` is absent because `notifyError` takes a
+	 * routed `AppError` rather than a string; it is the same `open` path and the same markup, and
+	 * the last case in the describe above already drives it.
+	 */
+	it.each([
+		['success', notifySuccess, 'Success'],
+		['info', notify, 'Info'],
+		['warning', notifyWarning, 'Warning'],
+	] as const)('draws a mark AND the word for %s', (severity, door, word) => {
+		door('something happened');
+
+		const el = noticeEls()[0];
+		const mark = el?.querySelector('.rp-notice-mark');
+		expect(mark).not.toBeNull();
+		// `aria-hidden` and carrying no text, so the WORD remains the whole accessible name —
+		// which is what lets every `textContent` assertion in the file above go on holding, and
+		// is why the mark is hidden rather than labelled.
+		expect(mark?.getAttribute('aria-hidden')).toBe('true');
+		expect(mark?.textContent).toBe('');
+		// Both channels, which is the whole claim: a mark with the word gone would be the
+		// unlabelled glyph, and the word alone is what shipped.
+		expect(el?.textContent).toContain(word);
+		expect(el?.textContent).toContain('something happened');
+		expect(el?.classList.contains(`rp-notice-${severity}`)).toBe(true);
+	});
+
+	/**
+	 * **The trap the nesting introduces, pinned as behaviour.** The mark is a CHILD of the
+	 * severity label, so that one `color` declaration per severity reaches both — and `render`
+	 * therefore may not write the word with `label.textContent`, which would delete the mark on
+	 * every `(×N)` update. The obvious spelling is the wrong one, so this is what stops it coming
+	 * back. Measured rather than predicted, and the measurement corrected the first draft of this
+	 * paragraph: `render(view)` runs BEFORE the append, so `label.textContent = …` wipes the mark
+	 * on the initial render too and reddens all four cases in this describe rather than this one
+	 * alone. The case still earns its place — it is the only one that would catch a host which
+	 * built the mark correctly and lost it on the update path.
+	 */
+	it('keeps the mark through a repeat\'s update', () => {
+		notifyWarning('same');
+		expect(noticeEls()[0]?.querySelector('.rp-notice-mark')).not.toBeNull();
+
+		notifyWarning('same');
+
+		const el = noticeEls()[0];
+		expect(el?.textContent).toContain('(×2)');
+		expect(el?.querySelector('.rp-notice-mark')).not.toBeNull();
+		expect(el?.textContent).toContain('Warning');
+	});
+});
+
+/**
+ * **The one hole `styles/notices.css`'s own header says nothing here can catch, closed for the
+ * mark.** jsdom resolves no CSS and the browser harness cannot draw a notice at all — its
+ * vendored `obsidian.css` declares no `.notice` and no `.notice-container` — so a selector one
+ * word short of what `notify.ts` emits matches nothing with every test in this file still
+ * green. That is not hypothetical: `styles/editor-status.css` shipped exactly it once
+ * (`rp-save-state-error` against a template emitting `rp-save-state-save-error`), and
+ * `saveStateIndicator.test.ts` is the check written for it, which this one copies.
+ *
+ * The selectors are BUILT from the same `rp-notice-${severity}` expression `notify.ts`
+ * interpolates, never transcribed, and `Record<NoticeSeverity, …>` makes a fifth severity a
+ * compile error rather than a silently ungraded one.
+ *
+ * What it CANNOT reach, said narrowly: whether the four shapes are distinguishable from each
+ * other, or visible at all. That is a judgement about a rendered picture, and
+ * `docs/tests/cases/Notices and save state.md` is the only instrument for it.
+ */
+describe('every notice severity has a mark rule the host can actually reach', () => {
+	const css = readFileSync('styles/notices.css', 'utf8');
+
+	/**
+	 * Every severity carries `'own'`: unlike the save-state indicator, no severity here rests on
+	 * the base mark, because the base is a plain square and a square is not one of the four
+	 * shapes. `info`'s rule rounds it to the disc rather than leaving it — recorded as a
+	 * decision, since an absent key and a deliberate one look identical in a loop.
+	 */
+	const MARK_RULE: Readonly<Record<NoticeSeverity, 'own'>> = {
+		success: 'own',
+		info: 'own',
+		warning: 'own',
+		error: 'own',
+	};
+
+	it('declares the base mark the word sits beside', () => {
+		expect(css).toContain('.rp-notice-mark {');
+	});
+
+	it.each(Object.keys(MARK_RULE) as NoticeSeverity[])('declares a distinct mark for %s', (severity) => {
+		expect(css).toContain(`.rp-notice-${severity} .rp-notice-mark`);
+	});
+
+	// The table above is the severities, not a copy of them: the type's own keys drive it.
+	it('covers every severity the type declares', () => {
+		expect(Object.keys(MARK_RULE).toSorted()).toEqual(Object.keys(AUTO_DISMISS_MS).toSorted());
+	});
+
+	/**
+	 * The mark takes its severity's colour through `currentColor` rather than through four more
+	 * colour declarations of its own — which is what keeps ONE list of severity selectors in that
+	 * file instead of two that can drift. A literal colour here would also fail the build (SDD
+	 * §84), so this asserts the mechanism rather than the absence.
+	 */
+	it('paints the mark in the severity colour it inherits', () => {
+		expect(css).toContain('background-color: currentColor');
 	});
 });

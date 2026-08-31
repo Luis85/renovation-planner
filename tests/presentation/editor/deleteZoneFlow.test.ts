@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { err, ok, type Result } from '../../../src/core/result/Result';
-import type { DispatchOutcome } from '../../../src/application/commands/DispatchOutcome';
+import { err, ok } from '../../../src/core/result/Result';
+import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import type { AppError } from '../../../src/core/errors/AppError';
 import type { ZoneId } from '../../../src/domain/zone/ZoneId';
 import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
@@ -73,7 +73,7 @@ function rig(options: {
 	// `DispatchOutcome`, not `void`: slice 13 made every dispatch report whether it wrote, so
 	// the save-state indicator cannot infer one from a bare `ok`. This option type was still
 	// the pre-slice-13 shape.
-	dispatchResults?: readonly Result<DispatchOutcome, AppError>[];
+	dispatchResults?: readonly DispatchResult[];
 	targets?: readonly { id: string; label: string }[];
 	picks?: readonly ({ readonly id: string } | 'cancel')[];
 }): Rig {

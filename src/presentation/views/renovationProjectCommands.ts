@@ -7,7 +7,7 @@ import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { Loaded } from '../../application/ports/versioning';
 import type { Project } from '../../domain/project/Project';
 
-type CreateProjectResult = Result<{ project: Loaded<Project> }, RepositoryError>;
+export type CreateProjectResult = Result<{ project: Loaded<Project> }, RepositoryError>;
 
 /**
  * The write side of the Renovation Project view — the mirror of

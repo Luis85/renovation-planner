@@ -2,11 +2,9 @@ import { inject, onBeforeUnmount, provide, reactive, ref, type InjectionKey, typ
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
-import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import { createInspector } from './inspector-wiring';
-import type { AppError } from '../../core/errors/AppError';
 import type { Logger } from '../../application/ports/Logger';
-import type { Result } from '../../core/result/Result';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
@@ -178,8 +176,6 @@ function registerEditorTools(
 		}),
 	);
 }
-
-type DispatchResult = Result<DispatchOutcome, AppError>;
 
 /**
  * The last stop for an UNEXPECTED technical fault on a dispatch (SDD §65 reserves throws
@@ -370,7 +366,7 @@ function createAssetOptionsLoader(
 function createDeleteZoneAction(
 	context: PlanEditorContext,
 	dialogs: ReturnType<typeof useDialogStore>,
-	inspector: { commit(edit: InspectorEdit): Promise<Result<DispatchOutcome, AppError>> },
+	inspector: { commit(edit: InspectorEdit): Promise<DispatchResult> },
 	selection: ReturnType<typeof useSelectionStore>,
 ): (zoneId: ZoneId, zoneName: string) => Promise<void> {
 	const deps: DeleteZoneFlowDeps = {

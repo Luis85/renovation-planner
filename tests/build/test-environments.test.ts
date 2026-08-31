@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync, statSync } from 'node:fs';
-import { dirname, relative, resolve, sep } from 'node:path';
-import { REPO } from '../helpers/oxlint';
+import { dirname, resolve } from 'node:path';
+import { repoRelative } from '../helpers/repo';
 
 /**
  * The inner layers execute in bare node — asked as the EFFECTIVE environment, not as a
@@ -27,8 +27,6 @@ const PROTECTED_DIRECTORIES = ['tests/core/', 'tests/domain/', 'tests/applicatio
 
 /** The regex Vitest itself matches with, read out of the installed package, not assumed. */
 const ENVIRONMENT_DIRECTIVE = /@(?:vitest|jest)-environment\s+([\w-]+)\b/u;
-
-const posix = (path: string): string => relative(REPO, path).replaceAll(sep, '/');
 
 /**
  * Relative import specifiers — STATIC and DYNAMIC both, because both are graph edges.
@@ -145,7 +143,7 @@ const reachesContracts = (entry: string): boolean => {
 		const file = queue.pop();
 		if (file === undefined || seen.has(file)) continue;
 		seen.add(file);
-		if (posix(file).startsWith('tests/contracts/')) return true;
+		if (repoRelative(file).startsWith('tests/contracts/')) return true;
 		for (const specifier of importsOf(file)) {
 			const target = resolveSpecifier(file, specifier);
 			if (target !== null && !seen.has(target)) queue.push(target);
@@ -195,7 +193,7 @@ describe('the inner layers execute in node', () => {
 		const examinedByDirectory: string[] = [];
 		const examinedByContract: string[] = [];
 		for (const spec of specs) {
-			const path = posix(spec.moduleId);
+			const path = repoRelative(spec.moduleId);
 			const protectedByDirectory = PROTECTED_DIRECTORIES.some((dir) => path.startsWith(dir));
 
 			// The rule is STRUCTURAL: a file that invokes a repository contract runs in node.

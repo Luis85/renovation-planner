@@ -49,7 +49,19 @@ export type ErrorOrigin =
 	| { readonly kind: 'view-hydration' }
 	| { readonly kind: 'background-cascade' };
 
+// `Routed` is UNEXPORTABLE on purpose, and this is one of the two leaks in this repository
+// that must not be "fixed" the way the report suggests. Its first action reads "Export the
+// referenced private type by name" — doing that would let a call site hand-build
+// `{ kind: 'toast', level: 'error' } as ErrorSurface & Routed` and reach `notifyError`
+// without ever asking `surfaceFor`, which is the whole guarantee this module exists to make
+// and which `tests/presentation/errors/errorSurfacePolicy.test-d.ts` proves with three
+// `@ts-expect-error` directives. The leak is the mechanism working.
+//
+// "next line" is LITERAL, and the reported line is the one the private type is NAMED on —
+// the first union member, not this alias's head. Both mistakes were made on the way here and
+// each reported the suppression itself as stale while the leak went on being counted.
 export type ErrorSurface =
+	// fallow-ignore-next-line private-type-leak
 	| ({ readonly kind: 'inline'; readonly field: string } & Routed)
 	| ({ readonly kind: 'toast'; readonly level: 'warning' | 'error' } & Routed)
 	| ({ readonly kind: 'modal' } & Routed)

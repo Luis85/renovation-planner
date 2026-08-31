@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import semver from 'semver';
 import { describe, expect, it } from 'vitest';
-import { REPO } from '../helpers/oxlint';
+import { REPO } from '../helpers/repo';
 
 /**
  * `engines.node` is a promise, and every dependency renegotiates it silently. A runtime

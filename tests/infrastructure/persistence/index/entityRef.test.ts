@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { entityRefOf } from '../../../../src/infrastructure/persistence/index/buildProjectIndexEntries';
+import { toPosix } from '../../../helpers/posix';
 
 describe('entityRefOf', () => {
 	it('answers the declared type and id for a note of ours', () => {
@@ -50,7 +51,7 @@ function sourceFilesUnder(dir: string): string[] {
 function modulesNaming(needle: string): string[] {
 	return sourceFilesUnder('src')
 		.filter((path) => readFileSync(path, 'utf8').includes(needle))
-		.map((path) => path.replaceAll('\\', '/'))
+		.map((path) => toPosix(path))
 		.toSorted();
 }
 

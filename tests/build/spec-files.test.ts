@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { readdirSync, statSync } from 'node:fs';
-import { join, relative, sep } from 'node:path';
-import { REPO } from '../helpers/oxlint';
+import { join } from 'node:path';
+import { REPO, repoRelative } from '../helpers/repo';
 
 const walk = (dir: string): string[] => {
 	const found: string[] = [];
@@ -14,8 +14,6 @@ const walk = (dir: string): string[] => {
 	return found;
 };
 
-const posix = (path: string): string => relative(REPO, path).replaceAll(sep, '/');
-
 describe('test file naming', () => {
 	/**
 	 * Both trees, because measuring a set and then guarding a subset of it is this
@@ -25,7 +23,7 @@ describe('test file naming', () => {
 	 */
 	it.each(['tests', 'src'])('has no .spec.ts anywhere under %s/', (tree) => {
 		const offenders = walk(join(REPO, tree))
-			.map((path) => posix(path))
+			.map((path) => repoRelative(path))
 			.filter((path) => path.endsWith('.spec.ts'));
 
 		expect(offenders).toEqual([]);
@@ -47,7 +45,7 @@ describe('test file naming', () => {
 	 */
 	it('has no .test.ts under src/, where a test file would be build input', () => {
 		const offenders = walk(join(REPO, 'src'))
-			.map((path) => posix(path))
+			.map((path) => repoRelative(path))
 			.filter((path) => path.endsWith('.test.ts'));
 
 		expect(offenders).toEqual([]);
@@ -65,7 +63,7 @@ describe('test file naming', () => {
 	 */
 	it('collects every *.test.ts on disk', async () => {
 		const onDisk = walk(join(REPO, 'tests'))
-			.map((path) => posix(path))
+			.map((path) => repoRelative(path))
 			.filter((path) => path.endsWith('.test.ts'))
 			.toSorted();
 
@@ -83,7 +81,7 @@ describe('test file naming', () => {
 		const specs = await vitest.globTestSpecifications();
 		await vitest.close();
 
-		const collected = [...new Set(specs.map((spec) => posix(spec.moduleId)))].toSorted();
+		const collected = [...new Set(specs.map((spec) => repoRelative(spec.moduleId)))].toSorted();
 
 		expect(collected).toEqual(onDisk);
 	});

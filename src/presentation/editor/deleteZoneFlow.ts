@@ -4,7 +4,7 @@ import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { RequirementId } from '../../domain/requirement/RequirementId';
 import type { ReassignmentTargetDto } from '../../application/queries/reassignmentTypes';
 import type { ReferencingGroup } from '../../application/queries/ListRequirementsReferencing';
-import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type {
 	DeleteReferenceDialogResult,
 	EntityCandidate,
@@ -79,7 +79,7 @@ export interface DeleteZoneFlowDeps {
 		candidates: readonly EntityCandidate[],
 	): Promise<{ readonly id: string } | 'cancel'>;
 	/** The Inspector's ONE commit path (SDD §59), so the delete is one history entry like any other. */
-	dispatch(edit: InspectorEdit): Promise<Result<DispatchOutcome, AppError>>;
+	dispatch(edit: InspectorEdit): Promise<DispatchResult>;
 	/**
 	 * Resolved copy for the DIALOGS, supplied by the caller — nothing under
 	 * `presentation/dialogs/` names a key. Refusal copy is deliberately NOT here: an
@@ -123,7 +123,7 @@ function isSetChanged(outcome: DeleteZoneOutcome): boolean {
 // The dispatch's `DispatchOutcome` is deliberately not read here: this flow reports whether
 // the ZONE is gone, and every one of its dispatch paths writes when it succeeds. The save
 // indicator is the consumer that cares which, and it reads the same result one seam up.
-function outcomeOf(dispatched: Result<DispatchOutcome, AppError>): DeleteZoneOutcome {
+function outcomeOf(dispatched: DispatchResult): DeleteZoneOutcome {
 	return dispatched.ok ? { kind: 'deleted' } : { kind: 'failed', error: dispatched.error };
 }
 

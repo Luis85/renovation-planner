@@ -23,7 +23,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
-import { join, sep } from 'node:path';
+import { join } from 'node:path';
+import { toPosix } from '../helpers/posix';
 
 /**
  * Obsidian's registration surface, as this plugin actually uses it. A member added to this
@@ -56,7 +57,7 @@ function modulesRegistering(): string[] {
 			const source = readFileSync(path, 'utf8');
 			return REGISTRATION_MEMBERS.some((member) => source.includes(member));
 		})
-		.map((path) => path.replaceAll(sep, '/'))
+		.map((path) => toPosix(path))
 		.toSorted();
 }
 

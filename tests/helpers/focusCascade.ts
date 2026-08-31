@@ -59,7 +59,7 @@ import { buttonClassesOn, subjectOf, targetsAButton } from './buttonRules';
  * destroys the first; leaving it out satisfies the first and destroys the second. So it travels
  * beside the key and is asked only at the moment a ring would clear a flatten.
  */
-interface Conditions {
+export interface Conditions {
 	/** The `@media`/`@supports`/`@container` query the rule sits inside, or `''` for none. */
 	readonly condition: string;
 	/** Everything above the subject, rendered losslessly — combinators included. */

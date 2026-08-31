@@ -2,13 +2,13 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { err, ok, type Result } from '../../../../src/core/result/Result';
-import type { AppError, GeometryError, PersistenceError } from '../../../../src/core/errors/AppError';
+import type { GeometryError, PersistenceError } from '../../../../src/core/errors/AppError';
 import type { EntityId } from '../../../../src/core/identity/EntityId';
 import type { ZoneId } from '../../../../src/domain/zone/ZoneId';
 import type { ZoneInspectorFields } from '../../../../src/application/queries/GetZoneInspector';
 import type { RequirementInspectorDTO } from '../../../../src/application/queries/GetRequirementsForZone';
 import type { AssetId } from '../../../../src/domain/asset/AssetId';
-import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../../../src/application/commands/DispatchOutcome';
 import type { RepositoryError } from '../../../../src/application/ports/repositoryErrors';
 import {
 	createInspectorStoreDefinition,
@@ -22,7 +22,7 @@ type QueryAnswer = Result<ZoneInspectorFields | null, PersistenceError | Geometr
 /** What `InspectorDeps.requirementsQuery` actually resolves — a `RepositoryError`, and real rows. */
 type RequirementsAnswer = Result<readonly RequirementInspectorDTO[], RepositoryError>;
 /** Every dispatch stubbed here stands for a real write, which is what a success has said since slice 13. */
-const WROTE: Result<DispatchOutcome, AppError> = ok('wrote');
+const WROTE: DispatchResult = ok('wrote');
 
 const zoneId = (n: number): ZoneId => `zone-${n}` as ZoneId;
 
@@ -37,7 +37,7 @@ function makeFields(id: ZoneId, overrides: Partial<ZoneInspectorFields> = {}): Z
 function stubDeps(initialAnswer: QueryAnswer, requirementsQuery?: InspectorDeps['requirementsQuery']) {
 	let answer = initialAnswer;
 	const queryExecute = vi.fn<(input: { zoneId: ZoneId }) => Promise<QueryAnswer>>(() => Promise.resolve(answer));
-	const commandRun = vi.fn<(command: UndoableCommand) => Promise<Result<DispatchOutcome, AppError>>>(() =>
+	const commandRun = vi.fn<(command: UndoableCommand) => Promise<DispatchResult>>(() =>
 		Promise.resolve(WROTE),
 	);
 	const toCommand = vi.fn<(edit: InspectorEdit) => UndoableCommand>(() => ({

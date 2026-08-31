@@ -142,7 +142,17 @@
 		"unused-dev-dependencies": "error",
 		"unused-optional-dependencies": "error",
 		"unused-class-members": "error",
-		"private-type-leaks": "warn"
+		// Was "warn", which is how nineteen of these accumulated without a gate ever reddening.
+		// Cleared to zero first, then ratcheted — the same shape as the coverage floors and the
+		// type-check baseline before it: a floor only means something once the tree is under it.
+		//
+		// Two of the nineteen must NOT be cleared the way the report's first suggested action
+		// says, and both carry the reason where the suppression is. `Routed` in
+		// `errorSurfacePolicy.ts` is a `unique symbol` its module deliberately never exports —
+		// exporting it would let a call site hand-build a toast surface and reach `notifyError`
+		// without asking `surfaceFor`. `ReversibleOverrideBase` is internal by construction, and
+		// exporting it traded two leaks for an `unused-exports` finding, measured.
+		"private-type-leaks": "error"
 	},
 	// Members a FRAMEWORK invokes — declared rather than suppressed inline, which is what
 	// keeps the rule able to report a genuinely dead one. A settings tab's contract is these

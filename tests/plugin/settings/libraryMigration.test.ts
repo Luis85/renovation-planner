@@ -138,6 +138,37 @@ describe('migrateLibraryFolder', () => {
 	});
 
 	/**
+	 * The rebuild is the OTHER step that runs after every note has moved, and it can throw:
+	 * `buildProjectIndexEntries` reads the vault and the metadata cache. Sitting outside both
+	 * catch blocks, it made this one arm reject rather than resolve — breaking the contract
+	 * the sibling case below asserts, leaving the durable setting naming the SOURCE while the
+	 * notes sit at the destination, and sending the caller down the generic detached-fault
+	 * path with none of the recovery guidance the post-move failures carry.
+	 *
+	 * Asserted on the CODE rather than on "it did not succeed", because a rejection satisfies
+	 * that reading too — and the `await` below is the whole instrument: against a rejecting
+	 * build it throws before any assertion runs.
+	 */
+	it('resolves a distinct outcome when the rebuild fails after the move', async () => {
+		const rig = harness({
+			rebuildIndex: () => {
+				throw new Error('the metadata cache is not ready');
+			},
+		});
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+		expect(isErr(result) && result.error.code).toBe('settings.library-rebuild-failed');
+		// Persistence is not attempted: the session cannot be told to agree with a vault it
+		// has just failed to read.
+		expect(rig.order).toEqual(['move', 'move']);
+		expect(rig.persistedFolder()).toBeUndefined();
+		expect(rig.logged).toHaveLength(1);
+		expect(rig.logged[0].event).toBe('settings.library-rebuild-failed');
+		expect(rig.logged[0].context?.cause).toBeInstanceOf(Error);
+	});
+
+	/**
 	 * The last failure point, and the only one where the notes have already moved. It gets
 	 * its own code because its recovery differs from every other arm: re-running the
 	 * migration would move nothing, since the notes are already there.

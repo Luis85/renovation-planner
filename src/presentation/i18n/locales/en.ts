@@ -257,6 +257,8 @@ export const en = {
 	'settings.library-source-case-mismatch':
 		'The library folder does not exist at the spelling this setting names, though a similarly named folder does. Rename that folder to match before moving.',
 	'settings.library-move-failed': 'The library could not be moved, so the setting was not changed.',
+	'settings.library-rebuild-failed':
+		'The catalogue moved, but the app could not catch up with the change. Reload Obsidian, then set the library folder to the new location.',
 	'settings.library-persist-failed':
 		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
 	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',

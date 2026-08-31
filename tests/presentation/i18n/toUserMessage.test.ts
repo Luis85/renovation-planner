@@ -166,6 +166,17 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'plugin/settings/libraryMigration.ts',
 	],
 	['settings.library-move-failed', 'Persistence', 'error.category.persistence', 'plugin/settings/libraryMigration.ts'],
+	// The REBUILD failure, minted rather than folded into the persist row below. Both leave the
+	// notes at the destination and the setting naming the source, but the persist sentence says
+	// the setting could not be saved — which is the wrong event here, since nothing was
+	// attempted — and the remedy differs: the session's index is what is behind, so it has to
+	// catch up with the vault before the setting is pointed anywhere.
+	[
+		'settings.library-rebuild-failed',
+		'Persistence',
+		'error.category.persistence',
+		'plugin/settings/libraryMigration.ts',
+	],
 	[
 		'settings.library-persist-failed',
 		'Persistence',

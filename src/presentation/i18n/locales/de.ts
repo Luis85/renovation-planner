@@ -29,6 +29,8 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
 	'settings.library-move-failed':
 		'Die Bibliothek konnte nicht verschoben werden, die Einstellung wurde nicht geändert.',
+	'settings.library-rebuild-failed':
+		'Der Katalog wurde verschoben, aber die App konnte die Änderung nicht nachvollziehen. Bitte Obsidian neu laden und dann den Bibliotheksordner auf den neuen Ort setzen.',
 	'settings.library-persist-failed':
 		'Der Katalog wurde verschoben, aber die Einstellung konnte nicht gespeichert werden. Bitte den Bibliotheksordner auf den neuen Ort setzen.',
 	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',

@@ -167,7 +167,29 @@ export async function migrateLibraryFolder(
 	}
 
 	// 5. Rebuild from the new roots, and 6. persist ONLY now.
-	deps.rebuildIndex();
+	//
+	// The rebuild READS — `buildProjectIndexEntries` walks the vault and the metadata cache —
+	// so it can throw, and it runs at the point where every note has already moved. Left
+	// uncaught it was the one arm of this function that REJECTED instead of resolving its
+	// declared `Result`: the caller went down the generic detached-fault path, which says
+	// nothing a user could act on, while the durable setting still named the source.
+	//
+	// Its own code rather than the persist one below, because neither half of that sentence is
+	// true here — nothing was attempted, so "the setting could not be saved" describes the
+	// wrong event, and the remedy is different: the session's index is the thing that is
+	// behind, so it has to catch up with the vault before pointing the setting anywhere.
+	try {
+		deps.rebuildIndex();
+	} catch (cause) {
+		deps.logger.error('settings.library-rebuild-failed', { destination, cause });
+		return err({
+			category: 'Persistence',
+			code: 'settings.library-rebuild-failed',
+			message: `The catalogue moved to ${destination} but the project index could not be rebuilt.`,
+			cause,
+		});
+	}
+
 	try {
 		await deps.persist(destination);
 	} catch (cause) {
@@ -253,6 +275,13 @@ export function libraryDestinations(
  *   already resolves through it, so this stops being a second mechanism for finding notes.
  *   The §83 violation then DISSOLVES rather than being refused: the project stays where it
  *   is, only the catalogue moves, and the user is asked for nothing.
+ *
+ *   **`'renovation-asset'` IS the definition of the catalogue, and it is a literal, so it does
+ *   not grow on its own.** The comment above about `Suppliers/` and `Trades/` beside `Assets/`
+ *   is this migration's own anticipation of more library-resident kinds — and the day one is
+ *   added to `ENTITY_TYPES`, its notes are silently left behind by every library move with
+ *   nothing failing anywhere, because a move that relocates too FEW notes raises nothing. So:
+ *   whoever adds a library-resident entity type owes this line, in the same edit.
  * - **The source intersection** preserves Task 5's documented behaviour that an asset filed
  *   outside the library is NOT relocated — updates write where the note already sits, and
  *   only inserts go to the library (its open question 3). Enumerating by type alone would

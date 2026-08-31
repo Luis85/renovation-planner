@@ -39,6 +39,19 @@ export const de: Partial<Record<StringKey, string>> = {
 	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
 	// „Zonen“, nicht „Bereiche“: die deutsche Oberfläche nennt eine Zone überall sonst so
 	// (`editor.zone.default-name`, `editor.inspector.delete-zone.reassign-title`).
+	// „Vault“ bleibt unübersetzt — Obsidians eigener Name dafür, was `strings.test.ts` prüft.
+	'diagnostics.title': 'Diagnosebericht',
+	'diagnostics.no-issues': 'In dieser Sitzung hat keine Notiz das Laden verweigert.',
+	'diagnostics.session-only':
+		'Dieser Bericht umfasst nur die aktuelle Sitzung. Beim erneuten Öffnen des Vaults wird er geleert.',
+	'diagnostics.plugin-version': 'Plugin-Version',
+	'diagnostics.obsidian-version': 'Obsidian-Version',
+	'diagnostics.last-migration': 'Zuletzt angewendete Migration',
+	'diagnostics.schema-versions': 'Schemaversionen',
+	'diagnostics.pending-migrations': 'Ausstehende Migrationen',
+	'diagnostics.none': 'Keine',
+	'diagnostics.copy': 'Bericht kopieren',
+	'diagnostics.copied': 'Diagnosebericht kopiert.',
 	'zone.listing-incomplete':
 		'Einige Zonen in diesem Projekt konnten nicht gelesen werden, daher ist die Liste möglicher Ziele unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',

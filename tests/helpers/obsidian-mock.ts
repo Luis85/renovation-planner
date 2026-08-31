@@ -206,6 +206,47 @@ export class Notice {
  * driving what a user selecting an item does — without it a test could assert that a
  * picker was opened and nothing about what choosing does.
  */
+/**
+ * Obsidian's plain `Modal`, modelled at the three members a subclass here actually uses:
+ * `titleEl`, `contentEl` and the `open`/`close` pair that runs the lifecycle hooks.
+ *
+ * `close()` runs `onClose()` for the reason `FuzzySuggestModal.close()` does — a fake that
+ * skipped it would make a subclass's teardown untestable — and `open()` runs `onOpen()`, which
+ * is where a `Modal` builds its content: a fake that only flipped a flag would leave every
+ * assertion about what a modal DRAWS reaching an empty element.
+ *
+ * The two elements are detached from the document, as the real ones are until Obsidian attaches
+ * them. Nothing here models the backdrop, the scope, or the close button.
+ */
+export class Modal {
+	static readonly opened: Modal[] = [];
+
+	readonly titleEl: HTMLElement = document.createElement('div');
+	readonly contentEl: HTMLElement = document.createElement('div');
+	isOpen = false;
+
+	constructor(readonly app: unknown) {}
+
+	open(): void {
+		this.isOpen = true;
+		Modal.opened.push(this);
+		this.onOpen();
+	}
+
+	close(): void {
+		this.isOpen = false;
+		this.onClose();
+	}
+
+	onOpen(): void {
+		// The real base class's hook is a no-op too; a subclass overrides it.
+	}
+
+	onClose(): void {
+		// As above.
+	}
+}
+
 export class FuzzySuggestModal<T> {
 	static readonly opened: FuzzySuggestModal<unknown>[] = [];
 

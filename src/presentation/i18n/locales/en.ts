@@ -347,6 +347,21 @@ export const en = {
 	//
 	// The second sentence points at the diagnostics report, which is why the report is in the
 	// same increment: a sentence naming a surface that does not exist is a promise on screen.
+	// The diagnostics report. `session-only` is the first of this increment's two recorded
+	// limitations, put on the surface where the user meets it rather than only in a docblock:
+	// the ledger is in-memory, so reopening the vault empties the report.
+	'diagnostics.title': 'Diagnostics report',
+	'diagnostics.no-issues': 'No notes have refused to load in this session.',
+	'diagnostics.session-only':
+		'This report covers the current session only. It is cleared when the vault is reopened.',
+	'diagnostics.plugin-version': 'Plugin version',
+	'diagnostics.obsidian-version': 'Obsidian version',
+	'diagnostics.last-migration': 'Last migration applied',
+	'diagnostics.schema-versions': 'Schema versions',
+	'diagnostics.pending-migrations': 'Pending migrations',
+	'diagnostics.none': 'None',
+	'diagnostics.copy': 'Copy report',
+	'diagnostics.copied': 'Diagnostics report copied.',
 	'zone.listing-incomplete':
 		'Some zones in this project could not be read, so the list of places to move this to is incomplete. Open the diagnostics report to see which notes refused.',
 	'save-state.saved': 'Saved',

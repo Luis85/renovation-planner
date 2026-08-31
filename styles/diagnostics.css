@@ -1,0 +1,101 @@
+/*
+ * The diagnostics report modal — the surface `GetDiagnosticsSnapshotQuery` never had.
+ *
+ * Plain DOM inside an Obsidian `Modal` rather than a Vue tree, so these rules dress elements
+ * `src/plugin/diagnostics/DiagnosticsReportModal.ts` builds with `createEl`/`createSpan`. The
+ * modal's own chrome — backdrop, panel, title — is Obsidian's; only its content is ours.
+ *
+ * Every colour is an Obsidian variable (SDD §84) — the build refuses a literal, including a
+ * bare word like `red`, so a themed vault stays themed.
+ *
+ * Nothing here is verified by any gate: jsdom resolves no CSS, and the browser harness cannot
+ * draw a Modal any more than it can draw a Notice (its vendored `app.css` declares neither).
+ * `tests/plugin/diagnostics/diagnosticsReportModal.test.ts` asserts the CLASSES are emitted and
+ * this file declares a rule for each; whether it looks right is a vault question.
+ */
+.rp-diagnostics {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-3);
+}
+
+/*
+ * The session-scope sentence. Muted but not hidden: it is a LIMITATION the user needs in order
+ * to read the rows correctly — an empty report after a restart means "not recorded yet", never
+ * "nothing is wrong" — so it is placed above the facts rather than as a footnote below them.
+ */
+.rp-diagnostics__scope {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-diagnostics__facts {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-2-2) var(--size-4-3);
+	margin: 0;
+}
+
+.rp-diagnostics__facts dt {
+	color: var(--text-muted);
+}
+
+.rp-diagnostics__facts dd {
+	margin: 0;
+	font-family: var(--font-monospace);
+}
+
+.rp-diagnostics__empty {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+.rp-diagnostics__issues {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-2);
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/*
+ * A column rather than a row, and that is the narrow-pane decision made once here rather than
+ * at a breakpoint: a path is long, an id is opaque and a code is short, so three of them on one
+ * line either wrap unpredictably or push the path out of the panel.
+ */
+.rp-diagnostics__issue {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-2-1);
+	padding: var(--size-2-2) var(--size-4-2);
+	border-left: 2px solid var(--background-modifier-border);
+}
+
+.rp-diagnostics__code {
+	font-family: var(--font-monospace);
+	color: var(--text-normal);
+}
+
+/*
+ * The id is what the LEDGER holds and the path is the join this view adds, so the id is the
+ * thing that is always there and the path is the thing that may be absent — dimmed in opposite
+ * directions for that reason: the id is secondary to the code, and the path is the one a user
+ * actually navigates by.
+ */
+.rp-diagnostics__id {
+	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+}
+
+.rp-diagnostics__path {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+	overflow-wrap: anywhere;
+}
+
+.rp-diagnostics__copy {
+	align-self: flex-start;
+}

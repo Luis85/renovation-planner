@@ -22,6 +22,26 @@ export function stringField(value: unknown): string | undefined {
 }
 
 /**
+ * IS THIS ID USABLE AS A FILENAME — which it has to be, because two path helpers interpolate
+ * one straight into a path: `assetSidecarPathFor` and `sidecarPathFor`. An id of `asset/custom`
+ * resolves its sidecar to a NESTED path, and since reads and writes derive the same wrong one
+ * nothing looks broken until a library migration, whose direct-children rule leaves the file
+ * behind and the asset then reads as shapeless — silently, an absent sidecar being a shapeless
+ * asset rather than an error.
+ *
+ * Asked here rather than in a per-kind schema because both interpolations have the hazard, and
+ * this is the one answer to "is this note ours" that both index doors resolve.
+ *
+ * A path-segment rule and deliberately NOT a `<prefix>-<ULID>` regex: the hazard is the PATH,
+ * not the format, and a format rule would refuse an id from a prefix nobody has minted yet. `.`
+ * and `..` are refused for the same reason a separator is — each names a directory rather than
+ * a file, so a sidecar derived from one is not where its id says.
+ */
+function isPathSegment(id: string): boolean {
+	return !id.includes('/') && !id.includes('\\') && id !== '.' && id !== '..';
+}
+
+/**
  * What a note DECLARES itself to be — the one answer both the full scan and the
  * incremental pipeline resolve, so the two cannot disagree about a note. Same reason
  * `stringField` above is exported, one level up.
@@ -33,6 +53,7 @@ export function stringField(value: unknown): string | undefined {
 export type EntityRef =
 	| { kind: 'ours'; type: EntityType; id: string }
 	| { kind: 'no-id' }
+	| { kind: 'bad-id' }
 	| { kind: 'not-ours' };
 
 export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef {
@@ -41,8 +62,11 @@ export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef {
 		return { kind: 'not-ours' };
 	}
 	const id = stringField(frontmatter['id']);
-	return id === undefined ? { kind: 'no-id' } : { kind: 'ours', type: type as EntityType, id };
+	if (id === undefined) return { kind: 'no-id' };
+	if (!isPathSegment(id)) return { kind: 'bad-id' };
+	return { kind: 'ours', type: type as EntityType, id };
 }
+
 
 /** What both passes need: the vault surface, the diagnostics sink, and the echo window. */
 export interface ScanInput {
@@ -91,6 +115,13 @@ function collectNotes(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
 			input.logger.warn('persistence.index.note-excluded', {
 				path: file.path,
 				reason: 'a note of this plugin must declare a non-empty id',
+			});
+			continue;
+		}
+		if (ref.kind === 'bad-id') {
+			input.logger.warn('persistence.index.note-excluded', {
+				path: file.path,
+				reason: "a note's id is used as a filename, so it must be one path segment",
 			});
 			continue;
 		}

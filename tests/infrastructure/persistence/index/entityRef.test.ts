@@ -30,6 +30,43 @@ describe('entityRefOf', () => {
 		expect(entityRefOf({ type: 'renovation-plan', id: '' })).toEqual({ kind: 'no-id' });
 		expect(entityRefOf({ type: 'renovation-plan', id: 42 })).toEqual({ kind: 'no-id' });
 	});
+
+	/**
+	 * AN ID IS A FILENAME, so it has to be one path segment.
+	 *
+	 * `assetSidecarPathFor` and `sidecarPathFor` both interpolate an entity's id straight into
+	 * a path, so an id of `asset/custom` resolves its sidecar to `Geometry/asset/custom.rpgeo`
+	 * — nested rather than a direct child. Reads and writes derive the SAME wrong path, so
+	 * nothing looks broken until a library migration, whose direct-children rule leaves the
+	 * file behind and the asset then reads as shapeless. Silent, because an absent sidecar is a
+	 * shapeless asset rather than an error.
+	 *
+	 * Refused HERE rather than in the asset frontmatter schema, because a plan id is
+	 * interpolated by `sidecarPathFor` in exactly the same way — fixing the kind the report
+	 * named would leave the identical defect one file away. This is the one answer to "is this
+	 * note ours", with a caller list the test below MEASURES rather than asserts.
+	 *
+	 * A path-segment rule and deliberately NOT a `<prefix>-<ULID>` regex: the hazard is the
+	 * path, not the format, and a format rule would refuse ids from a prefix nobody has minted
+	 * yet.
+	 */
+	it('answers bad-id for an id that is not a single path segment', () => {
+		for (const id of ['asset/custom', 'asset\\custom', '..', '.', 'a/b/c']) {
+			expect(entityRefOf({ type: 'renovation-asset', id })).toEqual({ kind: 'bad-id' });
+		}
+	});
+
+	it('still answers ours for an ordinary id, so the rule refuses separators and not ids', () => {
+		expect(entityRefOf({ type: 'renovation-asset', id: 'asset-01ABC' })).toEqual({
+			kind: 'ours',
+			type: 'renovation-asset',
+			id: 'asset-01ABC',
+		});
+	});
+
+	it('keeps bad-id distinct from no-id, because they are different diagnostics', () => {
+		expect(entityRefOf({ type: 'renovation-plan', id: 'a/b' }).kind).not.toBe('no-id');
+	});
 });
 
 /**

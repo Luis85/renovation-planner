@@ -245,15 +245,16 @@ export const en = {
 	// The same words as `view.project.create-plan`, and the same gesture: the plans region draws
 	// exactly one of the two controls, so a user never sees both at once.
 	'empty.project.no-plans.action': 'New plan',
-	// The project vanished while its New plan form was open — the one `CreatePlanCommand`
-	// refusal that reaches the user through neither of `useFormCommit`'s doors, because
-	// navigating back to the list destroys the form a banner would have lived in.
+	// The HEADLINE of the screen a project that is not there draws — reached from a read that
+	// missed once the index scan has run, from `CreatePlanCommand`'s `plan.project-not-found`
+	// while its New plan form was open, and from a back-arrow restore of a project since
+	// deleted. It was ALSO a notice on the second of those, back when that path redirected to
+	// the list and a banner had nowhere to live; the redirect is retired and the notice with
+	// it, since the two resolved this same key and would have said one sentence twice at once.
 	'view.project.gone': 'This project no longer exists.',
-	// The BODY of the `gone` state's own screen, beside the notice sentence above — the
-	// headline is shared because it is the same fact. It exists because a `gone` status
-	// whose navigation FAILED used to render the loading line: `navigateToProject` does not
-	// reject, so the watcher's `navigate(null)` can silently do nothing, and the pane then
-	// sat permanently on "Loading projects…" with no Back and nothing true on screen.
+	// The BODY beneath that headline. It exists because a `'gone'` status used to render the
+	// loading line — a false sentence with no Back and no retry, recoverable only by closing
+	// the leaf — which is what the screen replaced.
 	'view.project.gone-body': 'It may have been deleted or moved out of this vault. Go back to the project list.',
 	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
 	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same

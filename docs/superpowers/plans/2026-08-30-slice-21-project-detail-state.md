@@ -29,7 +29,15 @@ owns *how*.
 ## Execution status
 
 This plan is being executed on this branch, task by task, so the tree ahead of you already
-contains the tasks marked done below. **A task's red step is performed when that task is
+contains the tasks marked done below.
+
+**If you are executing a task: updating your own row in this table is part of your commit**,
+not something the coordinator does afterwards. That instruction lives here AND in every task's
+final step, because the first attempt at this rule lived only in the (git-ignored) execution
+ledger — where it bound nobody, since a task brief is extracted from that task's own section
+and never sees this table. Two tasks then landed without touching it and a review bot found the
+table stale for the second time. A rule someone has to remember reports whatever the last
+person to remember thought; a step in the procedure that produces the commit does not. **A task's red step is performed when that task is
 executed, not re-performed from the branch tip** — a reader picking this up cold should start
 at the first task with no commit beside it, exactly as the ledger's resume rule says. Kept
 here rather than only in the (git-ignored) SDD ledger, so the branch itself records it.
@@ -43,7 +51,9 @@ here rather than only in the (git-ignored) SDD ledger, so the branch itself reco
 | 11 — `revealView` answers, `navigateToProject` | ✅ complete — `4d1245d`, review clean |
 | 5 — the five context seams | ✅ complete — `13f021a`; split-pane correction landed mid-task |
 | 6 — the view's state machine | ✅ complete — `bf648c3`, review clean |
-| 7–10, 12–13 | not started |
+| 7 — `PlanList`, `ProjectDetail`, `statusLabel` | ✅ complete — `745669c`, amended by `fd605b3`; review clean |
+| 8 — `NewPlanForm.vue` | ✅ complete — `236cc36`, review clean |
+| 9–10, 12–13 | not started — **9 is next** |
 
 **Amendments and branch-wide work since, in commit order** — kept here because several amend a
 task that is already ticked above, and a table listing only first commits would report a tree
@@ -57,6 +67,10 @@ that no longer exists:
 | `327ecd9` | **Amends Task 11**: the navigation lane is keyed on the leaf a call RESOLVES to, so a palette call and an in-view call to the same pane share one lane |
 | `8f4f6b4` | Plan text — Tasks 5, 6, 9, 10 and 13 carried the abandoned deps-factory shape or an empty-state key ordered after its reader |
 | `6969d88` | Plan text — Task 6's two mount cases could not see the defects they were named for |
+| `2d25835` | Task 6's round-trip case asserted only its final state, so it could not see a refused `''` |
+| `20c0006` | Task 6's commit step staged a file the task does not touch |
+| `d7f207f` | Plan text — the sweep: three helpers described but never defined, and Task 11's Files list |
+| `15f39cf` | **Amends Task 11**: `revealCandidate` answers the leaf it revealed, so the write path stops re-deriving it after the `await` |
 
 Task 4's review found its two completed-scan cases byte-identical at the store layer; the
 duplicate is retired and the real discrimination moved to Task 5's Step 6a, where the flag is
@@ -3027,11 +3041,24 @@ without showing how* and would have detonated inside this task's own `npm run ch
  */
 function mountRoot(over: {
 	projectId: string | null;
+	/** The LIST's rows, for the one case mounted with `projectId: null`. */
 	projects?: readonly ProjectSummaryDto[];
+	/** A fixed plan list. Use `plansRef` instead where a case CREATES a plan and re-reads. */
 	plans?: readonly PlanSummaryDto[];
+	/**
+	 * A LIVE array the case also holds, so a `createPlan` that pushes into it is visible to the
+	 * next `listPlansByProject`. `plans` cannot do that job — it is read once into a literal —
+	 * and the creation case is exactly the one that needs the read to move.
+	 */
+	plansRef?: PlanSummaryDto[];
 	navigate?: (projectId: string | null) => void;
 	openProject?: (projectId: string) => Promise<ProjectOpenOutcome>;
 	openPlan?: (planId: string) => Promise<void>;
+	/** Wired into `commands`, NOT `queries` — see the note below. */
+	createPlan?: (input: CreatePlanInput) => Promise<Result<CreatePlanResult, AppError>>;
+	getProject?: (projectId: string) => Promise<Result<ProjectSummaryDto | null, RepositoryError>>;
+	indexScanCompleted?: () => boolean;
+	onPlansChanged?: (projectId: string, listener: () => void) => () => void;
 }) {
 	const base = defaultRenovationProjectDeps();
 	const context: RenovationProjectDeps = {
@@ -3040,12 +3067,19 @@ function mountRoot(over: {
 		navigate: over.navigate ?? base.navigate,
 		openProject: over.openProject ?? base.openProject,
 		openPlan: over.openPlan ?? base.openPlan,
+		indexScanCompleted: over.indexScanCompleted ?? base.indexScanCompleted,
+		onPlansChanged: over.onPlansChanged ?? base.onPlansChanged,
+		commands: {
+			...base.commands,
+			createPlan: over.createPlan === undefined
+				? base.commands.createPlan
+				: { execute: over.createPlan },
+		},
 		queries: {
 			...base.queries,
 			listProjects: () => Promise.resolve(ok({ projects: over.projects ?? [], unreadable: 0 })),
-			getProject: (id) =>
-				Promise.resolve(ok(over.projects?.find((p) => p.id === id) ?? PROJECT)),
-			listPlansByProject: () => Promise.resolve(ok(over.plans ?? [])),
+			getProject: over.getProject ?? (() => Promise.resolve(ok(PROJECT))),
+			listPlansByProject: () => Promise.resolve(ok(over.plansRef ?? over.plans ?? [])),
 		},
 	};
 	setActivePinia(createPinia());
@@ -3054,14 +3088,17 @@ function mountRoot(over: {
 	});
 }
 
-/**
- * The create-a-plan gesture, end to end, because four cases need it and a gesture spelled out
- * four times is four chances to spell it differently. It drives the REAL controls rather than
- * emitting on the component: a case that reaches the form by any other route would pass against
- * a build whose button is not wired.
- */
 async function openTheFormAndSubmit(wrapper: VueWrapper, name = 'Ground floor') {
-	await wrapper.get('.rp-plan-list__create').trigger('click');
+	// WHICHEVER `New plan` control this state actually renders. `ProjectDetail` draws the
+	// EmptyState in place of `PlanList` for a project with no plans — the shape review round 2
+	// on this PR argued for — so a case that starts empty has `.rp-empty-state__action` and no
+	// `.rp-plan-list__create`, and `wrapper.get()` on the missing one THROWS before the case
+	// reaches its assertion. Hard-coding the empty state's button instead would be wrong the
+	// moment a case starts WITH plans and creates another, which this file should be able to
+	// express. Both controls emit one `createPlan` intent, so this is one gesture with two
+	// entry points rather than a distinction being papered over.
+	const create = wrapper.find('.rp-plan-list__create');
+	await (create.exists() ? create : wrapper.get('.rp-empty-state__action')).trigger('click');
 	await flushPromises();
 	await wrapper.get('input[data-field="name"]').setValue(name);
 	await wrapper.get('form').trigger('submit');
@@ -3069,11 +3106,23 @@ async function openTheFormAndSubmit(wrapper: VueWrapper, name = 'Ground floor') 
 }
 ```
 
-`PROJECT` is this file's own `ProjectSummaryDto` fixture. Import `ok` from
-`src/core/result/Result`, `defaultRenovationProjectDeps` from
-`tests/helpers/makeRenovationProjectView`, `RENOVATION_PROJECT_CONTEXT` and the two types from
-`src/presentation/views/RenovationProjectContext`, and `VueWrapper` plus `flushPromises` from
-`@vue/test-utils`.
+`PROJECT` is this file's own `ProjectSummaryDto` fixture. Import `ok` (and `err`, for the
+failure cases) from `src/core/result/Result`, `defaultRenovationProjectDeps` from
+`tests/helpers/makeRenovationProjectView`, `RENOVATION_PROJECT_CONTEXT` plus
+`RenovationProjectDeps` and `ProjectOpenOutcome` from
+`src/presentation/views/RenovationProjectContext`, `CreatePlanInput`/`CreatePlanResult` from the
+command module Task 8 wired, `AppError` and `RepositoryError` from their own modules, and
+`VueWrapper` plus `flushPromises` from `@vue/test-utils`.
+
+**Every override is CONSUMED, and that is the half a weakened type would not have bought.**
+`createPlan` reaches `commands` rather than `queries` — it is a write, and `ViewRoot` dispatches
+it through `useFormCommit`; `onPlansChanged` reaches the subscription the disposal case counts;
+`indexScanCompleted` and `getProject` reach the store's gate. An earlier draft of this helper
+declared six of the eleven keys its own cases pass, and a review bot's sharper half was that
+merely widening the type would have left the creation, failure, scan-gate and disposal cases
+type-checking and then exercising the DEFAULTS — four cases silently testing the wrong scenario,
+which is worse than a compile error, because a compile error stops the task and a green test
+does not.
 
 For the notice assertion, use whatever `tests/presentation/notices/` already installs as the
 `NoticeHost` — read `tests/helpers/` for it rather than reaching for `new Notice`.
@@ -3320,6 +3369,10 @@ git add -A
 git commit -m "Draw the detail state from ViewRoot and wire its four intents"
 ```
 
+Before committing, set this task's row in the **Execution status** table at the top of this
+file to complete with this commit's sha. It is part of the commit, not a follow-up.
+
+
 ---
 
 ### Task 10: `renovationProject.noPlans`, and the axe scan that grades its button
@@ -3443,6 +3496,10 @@ npm run check
 git add -A
 git commit -m "Give a project with no plans an actionable empty state, graded by axe"
 ```
+
+Before committing, set this task's row in the **Execution status** table at the top of this
+file to complete with this commit's sha. It is part of the commit, not a follow-up.
+
 
 ---
 
@@ -3993,6 +4050,10 @@ git add -A
 git commit -m "Add a palette command that goes to a project"
 ```
 
+Before committing, set this task's row in the **Execution status** table at the top of this
+file to complete with this commit's sha. It is part of the commit, not a follow-up.
+
+
 ---
 
 ### Task 13: the documents whose stated triggers this slice fires
@@ -4115,6 +4176,10 @@ git add -A
 git commit -m "Record what slice 21 changed, and walk what no gate can see"
 git push -u origin claude/slices-17-19-in-flight-bsrfa8
 ```
+
+Before committing, set this task's row in the **Execution status** table at the top of this
+file to complete with this commit's sha. It is part of the commit, not a follow-up.
+
 
 ---
 

@@ -19,7 +19,7 @@ const OXLINT = path.join(REPO, 'node_modules', 'oxlint', 'bin', 'oxlint');
 
 // Posix separators on both platforms: oxlint reports Windows paths with backslashes, and
 // every caller compares against paths built from repository-relative literals.
-const posix = (file: string) => file.split(path.sep).join('/');
+const posix = (file: string) => file.replaceAll(path.sep, '/');
 
 const run = (args: string[]) => {
 	try {

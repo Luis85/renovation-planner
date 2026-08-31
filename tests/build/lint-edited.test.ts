@@ -56,8 +56,7 @@ const named = (command: string) =>
 			.replace(/["']/g, '')
 			.replace(/\$(env:)?CLAUDE_PROJECT_DIR/, '')
 			.replace(/^[\\/]/, '')
-			.split('\\')
-			.join('/'),
+			.replaceAll('\\', '/'),
 	);
 
 /**

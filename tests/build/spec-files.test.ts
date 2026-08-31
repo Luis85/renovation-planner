@@ -14,7 +14,7 @@ const walk = (dir: string): string[] => {
 	return found;
 };
 
-const posix = (path: string): string => relative(REPO, path).split(sep).join('/');
+const posix = (path: string): string => relative(REPO, path).replaceAll(sep, '/');
 
 describe('test file naming', () => {
 	/**

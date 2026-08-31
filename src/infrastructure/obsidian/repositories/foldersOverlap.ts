@@ -1,8 +1,30 @@
 import { normalizeFolder } from './paths';
 
-/** `toLowerCase` on the normalised path — see the asymmetry note in `foldersOverlap`. */
+/**
+ * `toLowerCase` on the normalised path — see the asymmetry note in `foldersOverlap` — with
+ * the vault ROOT reduced to the one spelling `contains` recognises.
+ *
+ * **This is UNVERIFIED from this repository and is deliberately not resting on either
+ * answer.** `normalizePath` is `@public` in `obsidian.d.ts` with nothing documented about
+ * the empty input, and Obsidian cannot be run here, so what it hands back for the vault
+ * root is not a fact anything in this tree can establish. The mock in
+ * `tests/helpers/obsidian-mock.ts` strips leading and trailing slashes and answers `''`; a
+ * real vault may answer `'/'`. `contains` recognises the root as `''` alone, so under that
+ * second reading `foldersOverlap('', 'Shared')` answers `false` — and §83's guard silently
+ * stops covering a project whose `Project.md` sits at the vault root, which
+ * `projectFolderOf` really produces from a user dragging that note there. Both §83
+ * safeguards would be off, with every test green.
+ *
+ * Stripping the slashes here accepts BOTH spellings, which is the same trade the case-fold
+ * below makes for the same reason: over-refusing costs a rename, under-refusing costs every
+ * project's catalogue, and nothing here can ask which reading is true. It is a `replace`
+ * rather than a test against `'/'` so that it holds for any root-ish answer and adds no arm
+ * that only one of the two readings could ever reach — an untested arm is a failed gate.
+ */
 function fold(raw: string): string {
-	return normalizeFolder(raw).toLowerCase();
+	return normalizeFolder(raw)
+		.replace(/^\/+|\/+$/g, '')
+		.toLowerCase();
 }
 
 /** Whether `outer` is an ancestor of `inner`, at a folder boundary. */

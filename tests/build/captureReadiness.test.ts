@@ -10,7 +10,7 @@ import {
 // Module scope, not inline: `unicorn/consistent-function-scoping` is right that a function
 // capturing nothing from its call site should not be rebuilt on every invocation, and identity
 // is the whole point here — it is asserted BACK against this same reference below.
-const isX = (id) => id === 'x';
+const isX = (id: string): boolean => id === 'x';
 
 /**
  * `reportIfNoLongerDrawn` and `describeFailure`, driven directly with a fake `page` rather than
@@ -32,7 +32,7 @@ const isX = (id) => id === 'x';
  */
 describe('reportIfNoLongerDrawn', () => {
 	it('does nothing for a fixed shot, and never asks the page at all', async () => {
-		const errors = [];
+		const errors: string[] = [];
 		const page = {
 			evaluate: () => {
 				throw new Error('a fixed shot has no entry to re-check');
@@ -45,7 +45,7 @@ describe('reportIfNoLongerDrawn', () => {
 	});
 
 	it('records nothing when the entry still holds after the screenshot', async () => {
-		const errors = [];
+		const errors: string[] = [];
 		const page = { evaluate: () => true };
 
 		await reportIfNoLongerDrawn(page, 'prototype:ZoneSummary', 'entry-…-dark', errors, () => true);
@@ -62,7 +62,7 @@ describe('reportIfNoLongerDrawn', () => {
 	 * would have given at that moment.
 	 */
 	it('records the real failure text when the entry no longer holds', async () => {
-		const errors = [];
+		const errors: string[] = [];
 		const page = {
 			evaluate: () => false,
 			// A real `page.textContent` always returns a Promise; a fake that returned the
@@ -80,8 +80,8 @@ describe('reportIfNoLongerDrawn', () => {
 	});
 
 	it('passes the caller-supplied predicate to page.evaluate, not one of its own', async () => {
-		const seen = [];
-		const page = { evaluate: (fn, arg) => (seen.push([fn, arg]), true) };
+		const seen: [unknown, unknown][] = [];
+		const page = { evaluate: (fn: unknown, arg: unknown) => (seen.push([fn, arg]), true) };
 
 		await reportIfNoLongerDrawn(page, 'x', 'dark', [], isX);
 
@@ -131,9 +131,10 @@ describe('describeFailure', () => {
 	 * genuinely absent-without-a-card failure will never produce.
 	 */
 	it('reads the failure card with a short explicit timeout, not Playwright default 30s', async () => {
-		let seenTimeout;
+		let seenTimeout: number | undefined;
 		const page = {
-			textContent: (selector, options) => {
+			textContent: (selector: string, options?: { timeout?: number }) => {
+				void selector;
 				seenTimeout = options?.timeout;
 				return Promise.reject(new Error('no card'));
 			},

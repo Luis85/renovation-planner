@@ -9,7 +9,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
-import type RenovationPlannerPlugin from '../../src/plugin/RenovationPlannerPlugin';
+
 import {
 	RENOVATION_PROJECT_ICON,
 	RENOVATION_PROJECT_VIEW,
@@ -19,7 +19,7 @@ import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../../src/presentati
 import { PLAN_EDITOR_VIEW } from '../../src/presentation/views/PlanEditorView';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { t } from '../../src/presentation/i18n/strings';
-import { loadedPlugin } from '../helpers/plugin';
+import { loadedPlugin, type LoadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
 import { levelChanges, levels, lines, recorder, resetRecorder } from '../helpers/logger';
 import { settle } from '../helpers/async';
@@ -34,7 +34,7 @@ vi.mock('../../src/infrastructure/logging/consoleLogger', async () => (await imp
 
 installObsidianDom();
 
-let plugin: RenovationPlannerPlugin;
+let plugin: LoadedPlugin;
 let workspace: FakeWorkspace;
 
 beforeEach(async () => {

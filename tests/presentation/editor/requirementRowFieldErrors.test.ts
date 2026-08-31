@@ -10,12 +10,26 @@
 import { describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import RequirementRow from '../../../src/presentation/editor/shell/RequirementRow.vue';
+import { Decimal } from 'decimal.js';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { AppError } from '../../../src/core/errors/AppError';
+import type { DispatchOutcome } from '../../../src/application/commands/DispatchOutcome';
+import type { RequirementInspectorDTO } from '../../../src/application/queries/GetRequirementsForZone';
+import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
+import { of as moneyOf } from '../../../src/core/money/Money';
 import type { InspectorEdit } from '../../../src/presentation/editor/inspector/inspector-store';
 import type { Logger } from '../../../src/application/ports/Logger';
 
-type Commit = (edit: InspectorEdit) => Promise<Result<void, AppError>>;
+/**
+ * `RequirementRow`'s `commit` prop, spelled from its own declaration. It read
+ * `Result<void, AppError>` — the shape `UndoableCommand` and every dispatcher stopped having
+ * when design slice 13 made `DispatchOutcome` required, precisely so that a success carries
+ * whether the vault was touched.
+ */
+type Commit = (edit: InspectorEdit) => Promise<Result<DispatchOutcome, AppError>>;
+
+/** Every commit in this file stands for a real override write. */
+const wrote: Result<DispatchOutcome, AppError> = ok('wrote');
 
 /**
  * `useFieldCommit` requires a logger for the one failure it owns both halves of (a coalesced
@@ -24,40 +38,57 @@ type Commit = (edit: InspectorEdit) => Promise<Result<void, AppError>>;
  */
 const logger: Logger = { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined };
 
-const ROW = {
-	requirementId: 'r1',
+/**
+ * The row every case mounts, ANNOTATED as the DTO the component's prop declares.
+ *
+ * Three things the annotation caught, each of which had been rendering happily. `unit` was
+ * `'m²'`, a symbol `MeasurementUnit` does not contain — the real values are `'m2'` and its
+ * siblings, and the template prints this string beside the quantity, so the fixture was
+ * showing a unit the read model never produces. `recalculationStatus` was `'fresh'`, outside
+ * the `'current' | 'stale'` union: the template asks `=== 'stale'`, so an invented third value
+ * behaved like `'current'` by accident rather than by decision. And `wasteFactor` — a required
+ * member — was simply absent, the same fake-too-thin miss the comment below already records
+ * for `calculated`, one field along.
+ *
+ * The three quantity figures and both money values are `Decimal` and `Money`, not `number` and
+ * an object literal: the template calls `.toString()` on them, which a number satisfies, and
+ * `Money` is BRANDED, so nothing but `of()` can produce one.
+ */
+const ROW: RequirementInspectorDTO = {
+	requirementId: 'r1' as RequirementId,
 	assetId: 'a1',
 	assetName: 'Oak flooring',
 	missingTarget: null,
-	unit: 'm²',
-	recalculationStatus: 'fresh',
+	unit: 'm2',
+	wasteFactor: new Decimal('0.10'),
+	recalculationStatus: 'current',
 	// `calculated` is present on both halves because `RequirementInspectorDTO` carries it — and
 	// it was ABSENT here until a case first set an override, since the template reads it only
 	// inside the Overridden branch. A fixture thinner than the real thing, invisible for exactly
 	// as long as nothing drove the arm that needs it.
-	quantity: { effective: 12, calculated: 12, override: null },
+	quantity: { effective: new Decimal(12), calculated: new Decimal(12), override: null },
 	cost: {
-		effective: { amount: '100.00', currency: 'EUR' },
-		calculated: { amount: '100.00', currency: 'EUR' },
+		effective: moneyOf('100.00', 'EUR'),
+		calculated: moneyOf('100.00', 'EUR'),
 		override: null,
 	},
-} as const;
+};
 
 /**
  * The same row with a quantity override actually SET — needed because Reset now asks whether
  * there is anything to clear, so `ROW` above (override `null`) is the case that must dispatch
  * NOTHING and cannot double as the case that must dispatch a clear.
  */
-const OVERRIDDEN_ROW = {
+const OVERRIDDEN_ROW: RequirementInspectorDTO = {
 	...ROW,
-	quantity: { effective: 7, calculated: 12, override: 7 },
-} as const;
+	quantity: { effective: new Decimal(7), calculated: new Decimal(12), override: new Decimal(7) },
+};
 
 /**
  * Asserted on the COMMAND INPUT rather than on a rendered badge — slice 10's rule. "The
  * panel re-rendered" is equally true of a row that committed something else entirely.
  */
-function mountRow(commitResult: Result<void, AppError> = ok(undefined), row: typeof ROW = ROW) {
+function mountRow(commitResult: Result<DispatchOutcome, AppError> = wrote, row: RequirementInspectorDTO = ROW) {
 	const commit = vi.fn<Commit>(() => Promise.resolve(commitResult));
 	const wrapper = mount(RequirementRow, { props: { row, commit, logger } });
 	return { wrapper, commit };
@@ -182,14 +213,14 @@ describe('RequirementRow', () => {
 			code: 'requirement.negative-quantity',
 			message: 'developer english',
 		};
-		let result: Result<void, AppError> = err(refusal);
+		let result: Result<DispatchOutcome, AppError> = err(refusal);
 		const commit = vi.fn<Commit>(() => Promise.resolve(result));
 		const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 		const input = wrapper.get('input[data-field="quantity"]');
 		await input.setValue('-5');
 		await input.trigger('blur');
 		await flushPromises();
-		result = ok(undefined);
+		result = wrote;
 
 		await wrapper.get('.rp-requirement-reset-quantity').trigger('click');
 		await flushPromises();
@@ -201,7 +232,7 @@ describe('RequirementRow', () => {
 	it('reports an unparseable COST instead of throwing out of the handler', async () => {
 		// `moneyOf` throws on a malformed literal, unlike `Number`, which yields NaN. Typing
 		// text into the cost field must not take the click handler's promise down with it.
-		const commit = vi.fn<Commit>(() => Promise.resolve(ok(undefined)));
+		const commit = vi.fn<Commit>(() => Promise.resolve(wrote));
 		const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 
 		const input = wrapper.get('input[data-field="cost"]');
@@ -217,7 +248,7 @@ describe('RequirementRow', () => {
 		// The rule lives in `useFieldCommit.validate`. If it moved back out to each control,
 		// this passes only for whichever control the author remembered — which is how three
 		// findings of one shape arrived on the sibling slice.
-		const commit = vi.fn<Commit>(() => Promise.resolve(ok(undefined)));
+		const commit = vi.fn<Commit>(() => Promise.resolve(wrote));
 		const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 
 		for (const field of ['quantity', 'cost']) {
@@ -235,9 +266,14 @@ describe('RequirementRow', () => {
 		// blur (write starts) -> blur again (queues a recommit) -> Escape -> type more.
 		// The settling write must not carry the new text: the user never committed it, and
 		// cancelled the gesture that would have.
-		let resolveCommit: ((result: Result<void, AppError>) => void) | null = null;
+		// `!` rather than `| null`: `new Promise`'s executor runs synchronously, so this is
+		// assigned the first time `commit` is called. Typed nullable, the compiler must assume
+		// the executor never ran — which is what made the call below "not callable" — and the
+		// null CHECK the comment beneath is about would then be checking a value TypeScript
+		// believes can only be null.
+		let resolveCommit: ((result: Result<DispatchOutcome, AppError>) => void) | undefined;
 		const commit = vi.fn<Commit>(
-			() => new Promise<Result<void, AppError>>((resolve) => {
+			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
 				resolveCommit = resolve;
 			}),
 		);
@@ -254,7 +290,7 @@ describe('RequirementRow', () => {
 		// than a failing assertion — the settling write would never resolve, but the case
 		// would still pass on `commit` having been called exactly once for the wrong reason.
 		expect(resolveCommit).not.toBeNull();
-		resolveCommit?.(ok(undefined));
+		resolveCommit?.(wrote);
 		await flushPromises();
 
 		expect(commit).toHaveBeenCalledTimes(1);
@@ -337,7 +373,7 @@ describe('RequirementRow', () => {
 		// case used to mount `ROW`, whose `quantity.override` is `null`, so what it certified
 		// was a Reset dispatching a clear against a row with nothing to clear. It passed on the
 		// defect the case below now names.
-		const { wrapper, commit } = mountRow(ok(undefined), OVERRIDDEN_ROW);
+		const { wrapper, commit } = mountRow(wrote, OVERRIDDEN_ROW);
 
 		await wrapper.get('.rp-requirement-reset-quantity').trigger('click');
 		await flushPromises();

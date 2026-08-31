@@ -6,14 +6,23 @@ import type { AppError, GeometryError, PersistenceError } from '../../../../src/
 import type { EntityId } from '../../../../src/core/identity/EntityId';
 import type { ZoneId } from '../../../../src/domain/zone/ZoneId';
 import type { ZoneInspectorFields } from '../../../../src/application/queries/GetZoneInspector';
+import type { RequirementInspectorDTO } from '../../../../src/application/queries/GetRequirementsForZone';
+import type { AssetId } from '../../../../src/domain/asset/AssetId';
+import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
+import type { RepositoryError } from '../../../../src/application/ports/repositoryErrors';
 import {
 	createInspectorStoreDefinition,
 	type InspectorDeps,
+	type InspectorEdit,
 } from '../../../../src/presentation/editor/inspector/inspector-store';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 
 type QueryAnswer = Result<ZoneInspectorFields | null, PersistenceError | GeometryError>;
+/** What `InspectorDeps.requirementsQuery` actually resolves — a `RepositoryError`, and real rows. */
+type RequirementsAnswer = Result<readonly RequirementInspectorDTO[], RepositoryError>;
+/** Every dispatch stubbed here stands for a real write, which is what a success has said since slice 13. */
+const WROTE: Result<DispatchOutcome, AppError> = ok('wrote');
 
 const zoneId = (n: number): ZoneId => `zone-${n}` as ZoneId;
 
@@ -28,12 +37,12 @@ function makeFields(id: ZoneId, overrides: Partial<ZoneInspectorFields> = {}): Z
 function stubDeps(initialAnswer: QueryAnswer, requirementsQuery?: InspectorDeps['requirementsQuery']) {
 	let answer = initialAnswer;
 	const queryExecute = vi.fn<(input: { zoneId: ZoneId }) => Promise<QueryAnswer>>(() => Promise.resolve(answer));
-	const commandRun = vi.fn<(command: UndoableCommand) => Promise<Result<void, AppError>>>(() =>
-		Promise.resolve(ok(undefined)),
+	const commandRun = vi.fn<(command: UndoableCommand) => Promise<Result<DispatchOutcome, AppError>>>(() =>
+		Promise.resolve(WROTE),
 	);
-	const toCommand = vi.fn<(edit: Record<string, unknown>) => UndoableCommand>(() => ({
-		execute: () => Promise.resolve(ok(undefined)),
-		undo: () => Promise.resolve(ok(undefined)),
+	const toCommand = vi.fn<(edit: InspectorEdit) => UndoableCommand>(() => ({
+		execute: () => Promise.resolve(WROTE),
+		undo: () => Promise.resolve(WROTE),
 	}));
 	const deps: InspectorDeps = {
 		query: { execute: queryExecute },
@@ -73,10 +82,10 @@ function deferredDeps() {
 		requirementsQuery: {
 			execute: () => Promise.resolve(ok([])),
 		},
-		dispatcher: { run: () => Promise.resolve(ok(undefined)) },
+		dispatcher: { run: () => Promise.resolve(WROTE) },
 		toCommand: () => ({
-			execute: () => Promise.resolve(ok(undefined)),
-			undo: () => Promise.resolve(ok(undefined)),
+			execute: () => Promise.resolve(WROTE),
+			undo: () => Promise.resolve(WROTE),
 		}),
 	};
 	/** Answers the nth query call (0-based, in the order the calls were made). */
@@ -108,8 +117,8 @@ describe('InspectorStore', () => {
 
 		it('the requirements rows hydrate with the zone and clear on empty and multiple selections', async () => {
 			const id = zoneId(1);
-			const rows = [{ requirementId: 'requirement-1' }] as never;
-			const answer: Result<readonly unknown[], PersistenceError> = ok(rows);
+			const rows = [{ requirementId: 'requirement-1' }] as unknown as readonly RequirementInspectorDTO[];
+			const answer: RequirementsAnswer = ok(rows);
 			const { deps } = stubDeps(ok(makeFields(id)), {
 				execute: () => Promise.resolve(answer),
 			});
@@ -136,8 +145,8 @@ describe('InspectorStore', () => {
 		 */
 		it('an unreadable requirements query empties the rows, on hydrate and on refresh alike', async () => {
 			const id = zoneId(1);
-			const rows = [{ requirementId: 'requirement-1' }] as never;
-			let answer: Result<readonly unknown[], PersistenceError> = ok(rows);
+			const rows = [{ requirementId: 'requirement-1' }] as unknown as readonly RequirementInspectorDTO[];
+			let answer: RequirementsAnswer = ok(rows);
 			const { deps } = stubDeps(ok(makeFields(id)), {
 				execute: () => Promise.resolve(answer),
 			});
@@ -201,7 +210,10 @@ describe('InspectorStore', () => {
 		it('dispatches exactly one command through toCommand and the dispatcher, per call', async () => {
 			const { deps, commandRun, toCommand } = stubDeps(ok(null));
 			const store = createInspectorStoreDefinition(deps)();
-			const edit = { name: 'New name' };
+			// A REAL member of `InspectorEdit`. This read `{ name: 'New name' }`, which the union
+			// has never contained — the store passes an edit straight to `toCommand`, and with
+			// that spied nothing at runtime could notice the shape was invented.
+			const edit: InspectorEdit = { kind: 'assign', zoneId: zoneId(1), assetId: 'asset-1' as AssetId };
 
 			const result = await store.commit(edit);
 
@@ -211,15 +223,15 @@ describe('InspectorStore', () => {
 			// Not just "a command was built" and "the dispatcher ran once" separately —
 			// the exact object toCommand returned is the one the dispatcher received.
 			expect(commandRun).toHaveBeenCalledWith(toCommand.mock.results[0]?.value);
-			expect(result).toEqual(ok(undefined));
+			expect(result).toEqual(WROTE);
 		});
 
 		it('two commit calls dispatch exactly two commands, one each', async () => {
 			const { deps, commandRun } = stubDeps(ok(null));
 			const store = createInspectorStoreDefinition(deps)();
 
-			await store.commit({ name: 'First' });
-			await store.commit({ name: 'Second' });
+			await store.commit({ kind: 'assign', zoneId: zoneId(1), assetId: 'asset-1' as AssetId });
+			await store.commit({ kind: 'assign', zoneId: zoneId(2), assetId: 'asset-2' as AssetId });
 
 			expect(commandRun).toHaveBeenCalledTimes(2);
 		});

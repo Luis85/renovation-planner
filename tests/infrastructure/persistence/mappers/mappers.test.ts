@@ -53,10 +53,17 @@ describe('mappers: refusals and merges', () => {
 			layers: [],
 		};
 
-		const pdf = expectOkOf(planFromPersistence({ ...base, 'background-path': 'a.pdf', 'background-kind': 'pdf', 'background-page': null }));
+		// `null` is the second argument `planFromPersistence` has always required — the sidecar's
+		// calibration, merged in by the repository. Omitted, it arrived as `undefined`, and these
+		// two fixtures are about the BACKGROUND: an uncalibrated plan is what they mean.
+		const pdf = expectOkOf(
+			planFromPersistence({ ...base, 'background-path': 'a.pdf', 'background-kind': 'pdf', 'background-page': null }, null),
+		);
 		expect(pdf.background?.page).toBe(1);
 
-		const image = expectOkOf(planFromPersistence({ ...base, 'background-path': 'a.png', 'background-kind': 'image', 'background-page': null }));
+		const image = expectOkOf(
+			planFromPersistence({ ...base, 'background-path': 'a.png', 'background-kind': 'image', 'background-page': null }, null),
+		);
 		expect(image.background?.page).toBeUndefined();
 	});
 

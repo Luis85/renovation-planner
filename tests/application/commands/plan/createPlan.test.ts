@@ -58,7 +58,7 @@ describe('CreatePlanCommand', () => {
 		const { plans, events } = wired();
 		class FailingRead extends InMemoryProjectRepository {
 			override getById() {
-				return injectedReadFailure();
+				return Promise.resolve(injectedReadFailure());
 			}
 		}
 		const error = expectErr(

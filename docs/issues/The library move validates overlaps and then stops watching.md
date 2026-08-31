@@ -70,20 +70,29 @@ absent from the path.
   therefore visible to a check placed after that rebuild, even though the `TFile` filter means
   no event ever announced the drag. The inert version is a check placed immediately after the
   rename loop and before the rebuild; the placement is the whole difference.
-- **What such a check can actually do is narrower than refusing up front, and that is the part
-  worth designing.** By the time it fires the notes have already moved, so its only action is
-  to refuse the persist — which leaves the catalogue at the destination and the setting naming
-  the source. That is exactly the state `settings.library-persist-failed` already documents,
-  and its recorded remedy is *"setting the library folder to where they now are"* — which, in
-  this case, is the overlap the check just refused. So a post-move refusal detects the problem
-  and hands the user a position with no clean move in it. A warning that names the overlapping
-  project may be the more honest surface than a refusal.
-- **Close the cause** — handle `TFolder` renames in the vault-change pipeline by repathing
-  descendant index entries. It is the only option that improves the *pre-move* check too, since
-  a drag that lands between validation and the first rename is invisible to both today. Every
-  index consumer inherits it, including the project-row overlap marker, which currently only
-  updates at a full rebuild. Larger than this item: a change to a seam five repositories and
-  three change sources read through.
+- **Refusing the persist is the right action there, and it has a recovery.** A first draft
+  called it "a position with no clean move"; that was wrong, and it argued toward the unsafe
+  option. The state after such a refusal is: notes at the destination, setting still naming the
+  source, destination overlapping project P. The user moves P clear and runs **Move library**
+  again, targeting where the notes now are — `libraryDestinations` offers it once P is clear,
+  and the now-empty source is explicitly permitted by branch (a) of the source guard ("there is
+  nothing to move and nothing that could be stranded"), so the run relocates no notes, rebuilds
+  and persists. No hand-editing of `data.json` at any point.
+- **A warning instead of a refusal is strictly worse, and was the wrong suggestion.** It would
+  persist a `libraryFolder` overlapping a project folder — the exact §83 state whose consequence
+  is that deleting that project takes every project's shared catalogue with it. A refusal leaves
+  the setting naming a folder the catalogue has left, which the paragraph above recovers from; a
+  warning leaves the destructive configuration in `data.json`, which nothing recovers from. Same
+  asymmetry that makes `foldersOverlap` fold case: for a guard, over-refusing costs a rename and
+  under-refusing costs the catalogue.
+- **Closing the `TFolder` gap does NOT close this race, and listing it here as an alternative
+  was the second wrong turn.** Repathing descendant index entries cannot help a check that has
+  already run: step 3 reads `deps.projectFolders()` once, `migrateLibraryFolder` holds no
+  subscription, and nothing re-queries before the persist — so fresher index data arriving
+  during the rename loop reaches no reader inside this function. The pipeline fix is worth doing
+  for the consumers that *do* re-read, the project-row overlap marker most visibly, and belongs
+  on its own merits rather than here. The one case it might have covered for this item — a drag
+  that landed before the migration began — is already covered by step 0's rebuild.
 - **Bound the window explicitly** — refuse to start when any project folder is unresolvable, and
   say in the documents that a concurrent drag is out of scope. Cheap and honest; it narrows the
   claim rather than closing the hole.
@@ -105,13 +114,15 @@ move either.
 
 ## What closes it
 
-The check itself is small and its placement is now known: between step 5's rebuild and step 6's
-persist. What is not settled is what it should DO there, given that refusing leaves the user
-holding a moved catalogue and a setting that cannot legally be pointed at it. Decide that
-first; the code is the easy half.
+Re-run the §83 validation between step 5's rebuild and step 6's persist, and refuse on an
+overlap with its own code. Three review rounds narrowed it to that: the placement is what makes
+the check effective, refusing is safe because the user can move the offending project folder
+clear and re-run against the notes' current location, and a warning is not the gentler option
+but the destructive one, since it persists the overlap.
 
-The wider fix — teaching the pipeline about `TFolder` renames — is what would let the *pre-move*
-check see a drag at all, and belongs to whoever next opens that seam.
+What is left is the copy — the refusal has to explain a state the user has not seen before
+(notes moved, setting unchanged) and name the recovery, because `settings.library-persist-failed`'s
+existing sentence describes the same shape with a different remedy.
 
 ## References
 

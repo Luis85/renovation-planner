@@ -195,7 +195,7 @@ export class Project {
 	 * Re-validates, so `mismatchedCurrency` runs on the NEW value: a project holding a
 	 * £10,000 budget cannot become an EUR project without the budget moving too.
 	 */
-	// Still unconsumed in src/ — its only caller is tests/domain/project/project.test.ts.
+	// Still unconsumed in src/ — all callers are in tests.
 	// There is no SetProjectCurrency command yet; this member waits on the increment that
 	// adds one. Suppressed rather than deleted: deleting it is how a declared capability rots.
 	// fallow-ignore-next-line unused-class-member

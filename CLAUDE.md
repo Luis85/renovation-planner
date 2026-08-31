@@ -1403,15 +1403,24 @@ on the `(severity, message)` pair into a `(×N)` suffix, a three-slot visible ca
 promotion into a freed slot, per-severity auto-dismiss, and hover/focus pause — and
 `notify.ts` is the only module that binds that port to Obsidian's own `Notice`, which is what
 keeps "one notice door" a fact about the import graph rather than a sentence —
-`grep -rn "new Notice" src/` prints THREE lines: the constructor call in `notify.ts`, a
-comment in `notify.ts` quoting it, and a comment in `queue.ts` naming the binding. One
-construction site, three mentions. An earlier draft of this sentence said "two lines, both in
-`notify.ts`", which was written from memory ten commits after `queue.ts` gained its line —
-this file's own "a docblock that says 'the only place X' gets a `grep` in the SAME edit",
-broken in the file that states it. `NOTICE_TEXT_BAN` also watches the constructor and not only the wrappers, so
+`grep -rn "new Notice" src/` prints TWO lines: the constructor call in `notify.ts` and a
+comment in `queue.ts` naming the binding. One construction site, two mentions.
+
+**That count has now been wrong in this file twice, in opposite directions, and the second
+time is the more instructive.** An earlier draft said "two lines, both in `notify.ts`" — a
+number written from memory ten commits after `queue.ts` gained its line. The correction said
+THREE, counting a comment in `notify.ts` that quoted the constructor; that comment has since
+been rewritten away, so the true answer is two again and the sentence recording the first
+miscount became the second one. A count is a fact about the tree AT THE MOMENT OF THE GREP, so
+the rule this file states — "a docblock that says 'the only place X' gets a `grep` in the SAME
+edit" — protects the edit that writes the number and nothing after it. What does not go stale
+is the CLAIM underneath: one construction site, in `notify.ts`, which `NOTICE_TEXT_BAN` watches
+at the constructor and not only at the wrappers. `NOTICE_TEXT_BAN` also watches the constructor and not only the wrappers, so
 bypassing them is not an escape from the TEXT rule either. Four severities
-with a translated label beside the colour (`AUTO_DISMISS_MS`: 4000 for `success`, 6000 for
-`info`, `null` for `warning` and `error`, so the two that exist to be noticed cannot expire).
+with a translated label AND a CSS-drawn mark beside the colour — the mark arrived later, and
+the "knowingly unmet" bullet below carries that account (`AUTO_DISMISS_MS`: 4000 for `success`,
+6000 for `info`, `null` for `warning` and `error`, so the two that exist to be noticed cannot
+expire).
 `activateNotices()` runs once from `onload` and `disposeNotices` is one more entry on the
 `disposers` list Konva's global got to first. **`onload` therefore touches the DOM now** — it
 appends the two live regions with Obsidian's `createDiv` — which the app installs globally and
@@ -1589,7 +1598,10 @@ it:
   spec, and this slice's own task document had ALREADY recorded it as a gap and predicted the
   fix — "a CSS-drawn glyph would discharge both contracts without introducing `setIcon`" — so
   the check that was missing was not an insight, it was anything at all that reads a component
-  contract. Two things the prediction did not name and the work needed. **A specimen**: the
+  contract. **The prediction said BOTH contracts and this fix discharged one**, which is the
+  half of it worth remembering: the Toast went on shipping a word plus a colour for slices
+  afterwards, under a bullet further down that had by then stopped being true, and closing it
+  there took the same three moves this paragraph describes. Two things the prediction did not name and the work needed. **A specimen**: the
   component reads its store, so a standalone harness mount rests at `saved` and photographs
   ONE of the four marks — `src/prototypes/SaveStateMarks.vue` exists to draw all four, and is
   the only place `unsaved-changes` is rendered anywhere, being unreachable through the store.
@@ -1688,16 +1700,50 @@ it:
   precisely BECAUSE it contradicts the expectation — the rule ("a fake must not be thinner
   than the real thing") still holds and the widening was still right; the blast radius simply
   is not a function of how thin the fake was.
-- **Three contract requirements are knowingly unmet, and where they are written down matters
-  more than that they exist.** `docs/components/Toast.md` and
+- **Three contract requirements were knowingly unmet, ONE still is, and where they are written
+  down matters more than that they exist.** `docs/components/Toast.md` and
   `docs/components/Save-state indicator.md` both name this slice in their frontmatter and
-  neither was opened until review round eleven. No mark beside the word on either surface
-  (both contracts say "Both, always, never one"; a word plus colour satisfies SDD §85 and not
-  them, and a CSS-drawn glyph would close it without introducing `setIcon`); no moving
-  indicator for `Saving`; and no retry emit on `Save error`, which is UNDESIGNED rather than
-  merely unbuilt, since the tracker sees a dispatch outcome and not a re-runnable command, and
-  re-running a failed `undo` is not idempotent. All three are in the manual case and in
-  `docs/tasks/13`, because a gap nobody inherits is a gap rediscovered from scratch.
+  neither was opened until review round eleven. The three were: no mark beside the word on
+  either surface (both contracts say "Both, always, never one"; a word plus colour satisfies
+  SDD §85 and not them, and a CSS-drawn glyph would close it without introducing `setIcon`);
+  no moving indicator for `Saving`; and no retry emit on `Save error`. All three are in the
+  manual case and in `docs/tasks/13`, because a gap nobody inherits is a gap rediscovered from
+  scratch — which is also how the first two came to be closed.
+
+  **What is true now, surface by surface, because this paragraph asserted the opposite for
+  several slices while the code beside it disagreed.** The MARK is drawn on BOTH: the
+  save-state indicator's `.rp-save-state-mark` (a disc, a ring, a rotating arc, crossed bars —
+  borders, in `styles/editor-status.css`) closed it there, by the same review pass whose "A
+  word is not a colour" bullet sits about forty lines below this one, and the Toast's
+  `.rp-notice-mark` (a disc, a tick, a triangle, a cross — one filled box and a `clip-path`, in
+  `styles/notices.css`) closed it here. `currentColor` on both, so no colour literal appears
+  and SDD §84's check has nothing to refuse; `aria-hidden` and text-free on both, so the word
+  stays the whole accessible name and no existing assertion moved. `setIcon` is STILL never
+  called. The MOTION is drawn too, on the one surface that owes it: the saving arc rotates and
+  stops under `prefers-reduced-motion` with its gap kept, since the gap is what tells it from
+  the ring. `Toast.md` owes no motion of this plugin's — its *Entering* state is Obsidian's own
+  `Notice` animation.
+
+  **The one that remains is the retry emit on `Save error`, and it is UNDESIGNED rather than
+  merely unbuilt** — the tracker sees a dispatch outcome and not a re-runnable command, and
+  re-running a failed `undo` is not idempotent, so supplying one is design work rather than
+  wiring. Two residuals ride beside it, neither a contract gap: held still, the arc and the
+  ring differ by one gap at that size, which costs nothing while `unsaved-changes` is
+  unreachable through the store's action surface and is written where the CSS is for the slice
+  that makes it reachable; and whether the toast's four silhouettes are told apart is settled
+  by NOTHING here, because the vendored `tests/harness/obsidian.css` declares no `.notice` rule
+  at all, so a notice cannot be drawn to photograph. What each surface's selector test does
+  reach is that the stylesheet declares a rule the emitted class can match — built from the
+  same interpolation the source uses, which is the defect class this repository shipped once
+  (`rp-save-state-error` against an emitted `rp-save-state-save-error`).
+
+  **The shape worth keeping is this bullet's own history rather than the marks.** It went on
+  saying "no mark beside the word on EITHER surface" for slices after one of the two had a
+  mark, in a file whose own next section describes that very fix and even quotes the prediction
+  it followed — two passages contradicting each other about one surface, neither failing
+  anything. A prose ledger of gaps is exactly as stale as the last person to close one
+  remembered to make it, and closing a gap is precisely the moment nobody re-reads the
+  paragraph that recorded it.
 - **There were FOUR, and the fourth closed by a route the record had not predicted.** The
   Toast live region was attributed on a container that APPEARS — the shape `Toast.md`
   explicitly refuses and calls "the one that decides whether this component works at all for

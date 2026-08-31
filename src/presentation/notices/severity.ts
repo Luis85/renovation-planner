@@ -53,9 +53,17 @@ export const AUTO_DISMISS_MS: Readonly<Record<NoticeSeverity, number | null>> = 
 };
 
 /**
- * The translated word that rides beside the colour. SDD §85 forbids status carried by
- * colour alone, and this — rather than an icon — is how that rule is kept: this plugin has
- * never called `setIcon`, and a text label satisfies the rule on its own.
+ * The translated word that rides beside the colour. SDD §85 forbids status carried by colour
+ * alone, and this — rather than an icon — is how that rule is kept: this plugin has never
+ * called `setIcon`, and a text label satisfies the rule on its own.
+ *
+ * **It does not satisfy `docs/components/Toast.md`, which asks for more than SDD §85 does**:
+ * "each variant owes a mark as well as a colour". An earlier version of this docblock read as
+ * though the word closed everything the mark could have, and it closed the SDD rule only. The
+ * mark is `.rp-notice-mark` in `styles/notices.css`, built beside this word in `notify.ts`,
+ * `aria-hidden` and text-free so the word is still the whole accessible name — and still no
+ * `setIcon`, which was always the reason for preferring a word over an icon and remains true
+ * of a CSS-drawn glyph.
  */
 export const SEVERITY_LABEL_KEYS: Readonly<Record<NoticeSeverity, StringKey>> = {
 	success: 'notice.severity.success',

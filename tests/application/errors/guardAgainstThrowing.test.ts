@@ -93,7 +93,6 @@ const PORT_MEMBERS: ReadonlySet<string> = new Set([
 	'save',
 	'delete',
 	'listAll',
-	'listAll',
 	'listByProject',
 	'listByPlan',
 	'listByZone',

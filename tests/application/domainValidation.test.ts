@@ -58,10 +58,9 @@ async function wiredRecalculate() {
 
 describe('Asset validation', () => {
 	it('refuses an empty name, an unknown category, a negative price and out-of-range waste', () => {
-		expect(Asset.create({ id: 'asset-1' as never, projectId: 'p' as never, ...VALID_ASSET, name: '   ' }).ok).toBe(false);
+		expect(Asset.create({ id: 'asset-1' as never, ...VALID_ASSET, name: '   ' }).ok).toBe(false);
 		const badCategory = Asset.create({
 			id: 'asset-1' as never,
-			projectId: 'p' as never,
 			...VALID_ASSET,
 			category: 'vehicle' as never,
 		});
@@ -70,7 +69,6 @@ describe('Asset validation', () => {
 
 		const negative = Asset.create({
 			id: 'asset-1' as never,
-			projectId: 'p' as never,
 			...VALID_ASSET,
 			unitCost: createMoney('-5.00', 'EUR').value ?? moneyOf('-5.00', 'EUR'),
 		});
@@ -81,7 +79,6 @@ describe('Asset validation', () => {
 	it('refuses a waste factor above 1 with the percentage hint', () => {
 		const result = Asset.create({
 			id: 'asset-1' as never,
-			projectId: 'p' as never,
 			...VALID_ASSET,
 			wasteFactorDefault: new Decimal('10'),
 		});
@@ -91,7 +88,7 @@ describe('Asset validation', () => {
 	});
 
 	it('withChanges re-validates the whole entity', () => {
-		const asset = expectOk(Asset.create({ id: 'asset-1' as never, projectId: 'p' as never, ...VALID_ASSET }));
+		const asset = expectOk(Asset.create({ id: 'asset-1' as never, ...VALID_ASSET }));
 		const broken = asset.withChanges({ wasteFactorDefault: new Decimal('2') });
 		expect(broken.ok).toBe(false);
 		const fine = asset.withChanges({ name: 'Better tile', notes: null });

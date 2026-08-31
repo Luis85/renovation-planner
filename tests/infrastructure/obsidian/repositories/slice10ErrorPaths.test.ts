@@ -27,11 +27,15 @@ function requirementFor(projectId: ProjectId, zoneId: ZoneId, assetId: AssetId) 
 }
 
 /**
- * Folder resolution goes through the index now (ADR-0013), so any project an Asset or a
- * Requirement is saved against has to be a REAL, registered project — a bare
- * `createProjectId()` used to be enough because both repositories read the shared setting
- * out of `NoteVaultDeps` instead. Left unregistered, every save below would refuse with
- * `*.project-folder-unresolved` before touching the behaviour each test actually names.
+ * Folder resolution goes through the index now (ADR-0013), so the project a Requirement is
+ * saved against has to be a REAL, registered project — a bare `createProjectId()` used to be
+ * enough because the repository read the shared setting out of `NoteVaultDeps` instead. Left
+ * unregistered, a requirement save would refuse with `requirement.project-folder-unresolved`
+ * before touching the behaviour each test actually names.
+ *
+ * An ASSET no longer needs one at all: design slice 19 put the catalogue under the library
+ * folder, so its save resolves nothing out of the index — which is why `seedAsset` below
+ * calls none of this.
  */
 async function seedProject(stack: RepositoryStack): Promise<ProjectId> {
 	const projectId = createProjectId();

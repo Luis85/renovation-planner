@@ -136,7 +136,7 @@ describe('handler list-failure branches', () => {
 		});
 		await w.events.publish({
 			type: 'AssetUpdated',
-			payload: { assetId: 'asset-x', projectId: 'project-x' },
+			payload: { assetId: 'asset-x' },
 		} as never);
 		expect(notified).toEqual(['asset-x']);
 	});
@@ -352,7 +352,7 @@ describe('asset-cascade isolation arms', () => {
 
 		await w.events.publish({
 			type: 'AssetUpdated',
-			payload: { assetId: assetEntity.entity.id, projectId: w.project.entity.id },
+			payload: { assetId: assetEntity.entity.id },
 		} as never);
 
 		expect(expectOk(await w.requirements.listByAsset(assetEntity.entity.id))).toEqual([]);
@@ -385,7 +385,7 @@ describe('asset-cascade isolation arms', () => {
 
 		await w.events.publish({
 			type: 'AssetUpdated',
-			payload: { assetId: assetEntity.entity.id, projectId: w.project.entity.id },
+			payload: { assetId: assetEntity.entity.id },
 		} as never);
 
 		expect(staleMarkerFailed).toHaveLength(1);
@@ -440,7 +440,7 @@ describe('asset-cascade isolation arms', () => {
 
 		await w.events.publish({
 			type: 'AssetUpdated',
-			payload: { assetId: assetEntity.entity.id, projectId: w.project.entity.id },
+			payload: { assetId: assetEntity.entity.id },
 		} as never);
 
 		const links = expectOk(await w.requirements.listByAsset(assetEntity.entity.id));

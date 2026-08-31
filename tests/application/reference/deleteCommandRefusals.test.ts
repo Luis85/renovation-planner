@@ -65,7 +65,7 @@ async function wiredZoneWithLink() {
 	};
 }
 
-/** A second zone/asset pair in the SAME project, usable as a reassignment target. */
+/** A second zone in the SAME project, usable as a reassignment target. */
 async function saveTarget(w: Awaited<ReturnType<typeof wiredZoneWithLink>>) {
 	return expectOk(
 		await w.zones.save(

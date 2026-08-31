@@ -104,7 +104,7 @@ export interface EditorRuntime {
 	 * `useFieldCommit`'s own `notify` to route, not this function's to announce.
 	 */
 	readonly commitField: (edit: InspectorEdit) => Promise<DispatchResult>;
-	/** The assign-asset picker's options for this plan's project. */
+	/** The assign-asset picker's options: the vault's whole catalogue, narrowed by no project. */
 	readonly assetOptions: Readonly<Ref<readonly { readonly id: string; readonly name: string }[]>>;
 }
 

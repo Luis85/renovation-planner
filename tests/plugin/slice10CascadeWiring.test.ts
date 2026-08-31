@@ -124,7 +124,7 @@ describe('slice-10 cascade wiring', () => {
 
 		await plugin.root.eventBus.publish({
 			type: 'AssetUpdated',
-			payload: { assetId: asset.entity.id, projectId: project.entity.id },
+			payload: { assetId: asset.entity.id },
 		} as never);
 
 		// The cascade wrote through the PLUGIN's repositories, which hold the plugin's own

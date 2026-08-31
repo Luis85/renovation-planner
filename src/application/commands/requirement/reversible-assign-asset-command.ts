@@ -57,7 +57,7 @@ type AdapterErrors = DomainError | CalculationError | ReferenceError | Repositor
  * taking the edit with it.
  *
  * Redo restores under the ORIGINAL ID but revalidates like any create: it re-acquires
- * both endpoint locks and re-runs the existence, project and unit-kind checks against the
+ * both endpoint locks and re-runs the existence and unit-kind checks against the
  * current world, carrying over only the ID. It can therefore fail, which is correct —
  * slice 6 keeps a refused redo on the redo stack rather than half-applying it.
  */

@@ -46,7 +46,7 @@ describe('selectPlanEditorEmptyState', () => {
 	 * in the describe block where that is true. Measured, not assumed.
 	 */
 	it('asks for a background first, even though such a plan also has no zones', () => {
-		expect(selectPlanEditorEmptyState(PLAN, [])).toBe('noBackground');
+		expect(selectPlanEditorEmptyState(PLAN, [], 0)).toBe('noBackground');
 	});
 
 	/**
@@ -64,15 +64,15 @@ describe('selectPlanEditorEmptyState', () => {
 	 * where `zones` is `[]`.
 	 */
 	it('still asks for a background when the plan already has zones', () => {
-		expect(selectPlanEditorEmptyState(PLAN, [ZONE])).toBe('noBackground');
+		expect(selectPlanEditorEmptyState(PLAN, [ZONE], 0)).toBe('noBackground');
 	});
 
 	it('asks for a zone once the background is set', () => {
-		expect(selectPlanEditorEmptyState(withBackground(), [])).toBe('noZones');
+		expect(selectPlanEditorEmptyState(withBackground(), [], 0)).toBe('noZones');
 	});
 
 	it('asks for nothing when the plan has both', () => {
-		expect(selectPlanEditorEmptyState(withBackground(), [ZONE])).toBeNull();
+		expect(selectPlanEditorEmptyState(withBackground(), [ZONE], 0)).toBeNull();
 	});
 
 	/**
@@ -82,7 +82,28 @@ describe('selectPlanEditorEmptyState', () => {
 	 * renders as; this function's job is to return no key for it.
 	 */
 	it('returns no key for a plan that does not resolve at all', () => {
-		expect(selectPlanEditorEmptyState(null, [])).toBeNull();
+		expect(selectPlanEditorEmptyState(null, [], 0)).toBeNull();
+	});
+
+	/**
+	 * The arm that makes this a THREE-argument function, and the last of the three selectors
+	 * to get it. An empty zone list with a refusal behind it is not "no zones yet": `noZones`
+	 * carries a "Draw a zone" button, so the canvas would offer the user an action beside a
+	 * strip telling them three of their zones could not be read — two answers to "why is this
+	 * canvas empty", and the actionable one is the wrong one.
+	 */
+	it('asks for nothing when the zones are empty only because notes refused', () => {
+		expect(selectPlanEditorEmptyState(withBackground(), [], 3)).toBeNull();
+	});
+
+	/**
+	 * And the refusal does NOT outrank the background, which is the ordering half. A plan with
+	 * no background has not reached the step where its zones matter, so PRD §93's sequence
+	 * still asks for the background first — the same short-circuit the two cases at the top of
+	 * this block are about. Hoisting the `unreadable` guard above it reddens exactly this case.
+	 */
+	it('still asks for a background first when notes also refused', () => {
+		expect(selectPlanEditorEmptyState(PLAN, [], 3)).toBe('noBackground');
 	});
 });
 

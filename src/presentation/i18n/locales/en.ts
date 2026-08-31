@@ -203,10 +203,17 @@ export const en = {
 	// fix lives in the settings tab.
 	'view.session-failure.headline': 'Renovation planner could not start',
 	'view.project.loading': 'Loading projects…',
-	// No second sentence pointing at a diagnostics report: `GetDiagnosticsSnapshotQuery` is
+	// No second sentence pointing at a diagnostics report, and the REASON changed under this
+	// key rather than the decision. It used to be that `GetDiagnosticsSnapshotQuery` was
 	// composed and consumed by nobody — no command, no settings entry, no view — so "open the
-	// diagnostics report" was an instruction the user cannot follow. Slice 14's Amendment 1
-	// refuses a button that does nothing; a sentence that does nothing is the same defect.
+	// diagnostics report" was an instruction the user could not follow. There is a command and
+	// a settings row now, and the two sibling strips below both end with that instruction.
+	//
+	// What keeps it off THIS key is that this sentence is count-free while both of those carry
+	// a number: it says "some projects" because `ListProjects` counted its refusals before an
+	// interpolating `t()` existed to spend the count on. Adding the report clause here without
+	// the count would point a user at a report holding rows this sentence cannot corroborate.
+	// Both halves belong to this key's own surface, and neither is this increment's to change.
 	'view.project.some-unreadable': 'Some projects could not be read from the vault.',
 	// The detail state's own strip, one level down. COUNTED where the sentence above says
 	// "some", and the difference is not an inconsistency to tidy: `ListProjects` has counted
@@ -339,17 +346,9 @@ export const en = {
 	'settings.library-persist-failed':
 		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
 	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
-	// The one refusal the skip-and-count listings produce, and the only consumer that raises
-	// it is the reassignment picker: every other reader carries the count into a warning strip
-	// instead. Keyed by the exact code, per the block above — an `error.`-prefixed key would
-	// fall through to the Persistence category's "reading or writing the vault failed
-	// unexpectedly", which is false about a refusal that knows precisely what is wrong.
-	//
-	// The second sentence points at the diagnostics report, which is why the report is in the
-	// same increment: a sentence naming a surface that does not exist is a promise on screen.
-	// The diagnostics report. `session-only` is the first of this increment's two recorded
-	// limitations, put on the surface where the user meets it rather than only in a docblock:
-	// the ledger is in-memory, so reopening the vault empties the report.
+	// The diagnostics report's own keys. `session-only` is the first of this increment's two
+	// recorded limitations, put on the surface where the user meets it rather than only in a
+	// docblock: the ledger is in-memory, so reopening the vault empties the report.
 	'command.show-diagnostics-report': 'Show diagnostics report',
 	'settings.diagnostics.name': 'Diagnostics report',
 	'settings.diagnostics.desc':
@@ -366,6 +365,14 @@ export const en = {
 	'diagnostics.none': 'None',
 	'diagnostics.copy': 'Copy report',
 	'diagnostics.copied': 'Diagnostics report copied.',
+	// The one refusal the skip-and-count listings produce, and the only consumer that raises it
+	// is the reassignment picker: every other reader carries the count into a warning strip
+	// instead. Keyed by the exact code, per the slice-19 block above — an `error.`-prefixed key
+	// would fall through to the Persistence category's "reading or writing the vault failed
+	// unexpectedly", which is false about a refusal that knows precisely what is wrong.
+	//
+	// The second sentence points at the diagnostics report, which is why the report is in the
+	// same increment: a sentence naming a surface that does not exist is a promise on screen.
 	'zone.listing-incomplete':
 		'Some zones in this project could not be read, so the list of places to move this to is incomplete. Open the diagnostics report to see which notes refused.',
 	'save-state.saved': 'Saved',

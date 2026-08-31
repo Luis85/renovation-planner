@@ -123,11 +123,21 @@ export function renderDiagnosticsReport(into: HTMLElement, deps: DiagnosticsRepo
 		//
 		// The success notice is chained INSIDE the promise, so it fires on fulfilment only.
 		// "Copied" printed beside an empty clipboard is worse than no notice at all.
+		//
+		// **The async IIFE is load-bearing and is not a style choice.** `runDetached` takes a
+		// PROMISE, so its argument is evaluated before it is entered — and `writeToClipboard`
+		// can throw SYNCHRONOUSLY rather than reject: the composed one is
+		// `navigator.clipboard.writeText(text)`, and where the API is absent or blocked that
+		// property access is a `TypeError` thrown during argument evaluation. Written as a bare
+		// `runDetached(deps.writeToClipboard(...).then(...), …)` the throw escapes the click
+		// handler entirely — no notice, no log line, a button that silently does nothing, which
+		// is the exact failure `runDetached` exists to prevent, reached past it. Inside an async
+		// function both failure shapes become one rejection.
 		runDetached(
-			deps.writeToClipboard(diagnosticsReportText(deps.snapshot)).then((): void => {
+			(async (): Promise<void> => {
+				await deps.writeToClipboard(diagnosticsReportText(deps.snapshot));
 				notifySuccess(tr('diagnostics.copied'));
-				return undefined;
-			}),
+			})(),
 			deps.logger,
 			'diagnostics.copy.failed',
 		);

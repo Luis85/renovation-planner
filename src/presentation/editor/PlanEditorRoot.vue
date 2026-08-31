@@ -242,12 +242,6 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 			Its OWN `v-if`, never chained into the background `v-if`/`v-else-if` below, for the
 			reason the block above already paid for: "some zones could not be read" and "this
 			plan's background is missing" are independent facts, and a plan can have both. As a
-			link in that chain, one of them silently swallows the other.
-		-->
-		<!--
-			Its OWN `v-if`, never chained into the background `v-if`/`v-else-if` below, for the
-			reason the block above already paid for: "some zones could not be read" and "this
-			plan's background is missing" are independent facts, and a plan can have both. As a
 			link in that chain, one of them silently swallows the other — measured, by making it
 			one and watching `unreadableZonesNotice.test.ts`'s third case go red.
 		-->

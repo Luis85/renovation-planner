@@ -37,9 +37,22 @@ export type PlanEditorEmptyStateKey = 'noBackground' | 'noZones';
 export function selectPlanEditorEmptyState(
 	plan: PlanDto | null,
 	zones: readonly ZoneDto[],
+	unreadable: number,
 ): PlanEditorEmptyStateKey | null {
 	if (plan === null) return null;
 	if (plan.background === null) return 'noBackground';
+	// The third argument, and the LAST of the three selectors to get it — which is the thing
+	// worth remembering rather than the rule. Both siblings guard on `unreadable`, and this one
+	// was left out of the increment that added the guard to `selectProjectDetailEmptyState`,
+	// on the surface that increment is named for: a plan whose zones all refused drew "No zones
+	// yet / Draw a zone" over the canvas, beside a strip saying three of them could not be
+	// read. Two answers to "why is this canvas empty", and the actionable one is the wrong one.
+	//
+	// It goes BELOW the background check rather than above it, and that ordering is the
+	// short-circuit this file's own header describes: a plan with no background cannot have
+	// been asked for its zones in a way the user can act on, so the first missing step of
+	// PRD §93's sequence still wins.
+	if (unreadable > 0) return null;
 	if (zones.length === 0) return 'noZones';
 	return null;
 }

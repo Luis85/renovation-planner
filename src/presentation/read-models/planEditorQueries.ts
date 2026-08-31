@@ -24,17 +24,6 @@ export interface AssetOptionDto {
 }
 
 /**
- * The ONLY application-layer surface the Plan Editor depends on. Concrete Obsidian
- * repositories are wired at the composition root; the view is handed this and never
- * learns that a vault exists.
- *
- * Both methods hand back slice 4's query `Result` **verbatim in shape**: a missing Plan
- * is `ok(null)` and a failed read is `isErr`. Flattening either into a bare
- * `PlanDto | null` would make "no such plan" and "the vault read failed" indistinguishable
- * — which is exactly the distinction slice 14's empty-state selectors and slice 17's
- * error routing both branch on, and neither could recover it afterwards.
- */
-/**
  * The canvas's own shape of a zone listing: the zones it can draw, and how many it cannot.
  *
  * `unreadable` is the view-side name for the port's `refused` — the same number, and the
@@ -46,6 +35,17 @@ export interface ZoneScene {
 	readonly unreadable: number;
 }
 
+/**
+ * The ONLY application-layer surface the Plan Editor depends on. Concrete Obsidian
+ * repositories are wired at the composition root; the view is handed this and never
+ * learns that a vault exists.
+ *
+ * Both methods hand back slice 4's query `Result` **verbatim in shape**: a missing Plan
+ * is `ok(null)` and a failed read is `isErr`. Flattening either into a bare
+ * `PlanDto | null` would make "no such plan" and "the vault read failed" indistinguishable
+ * — which is exactly the distinction slice 14's empty-state selectors and slice 17's
+ * error routing both branch on, and neither could recover it afterwards.
+ */
 export interface PlanEditorQueryServices {
 	getPlan(planId: string): Promise<Result<PlanDto | null, RepositoryError>>;
 	findZonesByPlan(planId: string): Promise<Result<ZoneScene, RepositoryError>>;

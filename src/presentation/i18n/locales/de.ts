@@ -225,8 +225,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.plan-missing.action': 'Tab schließen',
 	'view.session-failure.headline': 'Renovation Planner konnte nicht gestartet werden',
 	'view.project.loading': 'Projekte werden geladen …',
-	// Kein zweiter Satz über einen Diagnosebericht: den gibt es in diesem Build nicht — siehe
-	// den Kommentar am gleichen Schlüssel in `en.ts`.
+	// Kein zweiter Satz über einen Diagnosebericht — den gibt es in diesem Build inzwischen
+	// sehr wohl; der Grund steht jetzt am gleichen Schlüssel in `en.ts` und ist ein anderer.
 	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden.',
 	'view.project.some-plans-unreadable':
 		'{count} Grundriss(e) in diesem Projekt konnten nicht gelesen werden. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',

@@ -33,35 +33,6 @@ import type { NoteVaultDeps } from './NoteVaultDeps';
 import type { PlanGeometryStore } from './PlanGeometryStore';
 
 /**
- * The Obsidian-backed PlanRepository (SDD §36, §42). A Plan's state spans TWO files:
- * its note, and the geometry sidecar whose LIFECYCLE this repository owns (create on
- * insert, delete on delete) — never its CONTENT: not `objects[]`, and since design slice
- * 7 not `calibration` either.
- *
- * `Plan.calibration` is therefore READ-ONLY through this repository: `getById` merges the
- * sidecar's value into the entity, and `save` writes the note alone.
- * `ReversibleCalibratePlanCommand` is the only writer, through
- * `PlanGeometrySidecar` — because calibrating means rewriting the calibration AND every
- * rescaled coordinate as one conditional write, which a plan-note save cannot express.
- *
- * It used to sync the field on every save, and that was a LOST UPDATE with no gate able
- * to see it: calibration does not live in the note, so a calibration landing in the
- * sidecar does not move the note's revision — an entity read BEFORE one still passed
- * `checkExpectedVersion` afterwards, and a rename then wrote its stale calibration (or
- * `null`) back over the new one while the rescaled coordinates stayed. Two writers of one
- * field where only one of them has a version to check is the defect; removing the writer
- * that cannot check is the fix.
- *
- * The two-file lifecycle is compensated in both directions (§42):
- * - INSERT writes the sidecar FIRST: a Plan note without its sidecar is the worse
- *   failure (the Plan looks live but cannot hold geometry), while an orphan sidecar is
- *   inert, unreferenced by the index, and reclaimable. A failed note write deletes the
- *   sidecar just created.
- * - DELETE removes the note first, snapshotting BOTH files beforehand: a failed sidecar
- *   removal restores the note byte-for-byte, so a caller's failed `Result` never means
- *   "partly done".
- */
-/**
  * Which refusals a plan listing may swallow: the ones that are about ONE note.
  *
  * An allowlist, so an unenumerated code propagates — the fail-closed direction, and the same
@@ -96,6 +67,35 @@ function isSkippablePlanRefusal(error: RepositoryError): boolean {
 	return error.category === 'Migration' || SKIPPABLE_PLAN_CODES.has(error.code);
 }
 
+/**
+ * The Obsidian-backed PlanRepository (SDD §36, §42). A Plan's state spans TWO files:
+ * its note, and the geometry sidecar whose LIFECYCLE this repository owns (create on
+ * insert, delete on delete) — never its CONTENT: not `objects[]`, and since design slice
+ * 7 not `calibration` either.
+ *
+ * `Plan.calibration` is therefore READ-ONLY through this repository: `getById` merges the
+ * sidecar's value into the entity, and `save` writes the note alone.
+ * `ReversibleCalibratePlanCommand` is the only writer, through
+ * `PlanGeometrySidecar` — because calibrating means rewriting the calibration AND every
+ * rescaled coordinate as one conditional write, which a plan-note save cannot express.
+ *
+ * It used to sync the field on every save, and that was a LOST UPDATE with no gate able
+ * to see it: calibration does not live in the note, so a calibration landing in the
+ * sidecar does not move the note's revision — an entity read BEFORE one still passed
+ * `checkExpectedVersion` afterwards, and a rename then wrote its stale calibration (or
+ * `null`) back over the new one while the rescaled coordinates stayed. Two writers of one
+ * field where only one of them has a version to check is the defect; removing the writer
+ * that cannot check is the fix.
+ *
+ * The two-file lifecycle is compensated in both directions (§42):
+ * - INSERT writes the sidecar FIRST: a Plan note without its sidecar is the worse
+ *   failure (the Plan looks live but cannot hold geometry), while an orphan sidecar is
+ *   inert, unreferenced by the index, and reclaimable. A failed note write deletes the
+ *   sidecar just created.
+ * - DELETE removes the note first, snapshotting BOTH files beforehand: a failed sidecar
+ *   removal restores the note byte-for-byte, so a caller's failed `Result` never means
+ *   "partly done".
+ */
 export class ObsidianPlanRepository {
 	private readonly queues = new KeyedQueues();
 

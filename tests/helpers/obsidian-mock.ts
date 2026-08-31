@@ -198,15 +198,6 @@ export class Notice {
 }
 
 /**
- * The fuzzy file picker. Obsidian owns the rendering and the fuzzy matching; what a
- * subclass supplies is the three methods below, so those are the whole contract and this
- * fake exercises exactly them.
- *
- * `open()` records rather than drawing, and `choose()` is the fake's own affordance for
- * driving what a user selecting an item does — without it a test could assert that a
- * picker was opened and nothing about what choosing does.
- */
-/**
  * Obsidian's plain `Modal`, modelled at the three members a subclass here actually uses:
  * `titleEl`, `contentEl` and the `open`/`close` pair that runs the lifecycle hooks.
  *
@@ -247,6 +238,15 @@ export class Modal {
 	}
 }
 
+/**
+ * The fuzzy file picker. Obsidian owns the rendering and the fuzzy matching; what a
+ * subclass supplies is the three methods below, so those are the whole contract and this
+ * fake exercises exactly them.
+ *
+ * `open()` records rather than drawing, and `choose()` is the fake's own affordance for
+ * driving what a user selecting an item does — without it a test could assert that a
+ * picker was opened and nothing about what choosing does.
+ */
 export class FuzzySuggestModal<T> {
 	static readonly opened: FuzzySuggestModal<unknown>[] = [];
 

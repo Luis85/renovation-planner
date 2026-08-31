@@ -208,7 +208,9 @@ export const useProjectStore = defineStore('project', () => {
 	 * above `hydrate`), so adding it would not change behaviour, only appear to promise a
 	 * guarantee this store does not keep in the one case that actually needs stating.
 	 */
-	const emptyStateKey = computed(() => selectPlanEditorEmptyState(plan.value, [...zones.value.values()]));
+	const emptyStateKey = computed(() =>
+		selectPlanEditorEmptyState(plan.value, [...zones.value.values()], unreadableZones.value),
+	);
 
 	/**
 	 * Rebuilds this store to its opening state (ADR-005). Nothing calls this today — the

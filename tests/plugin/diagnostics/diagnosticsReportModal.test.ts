@@ -144,6 +144,36 @@ describe('copying the report', () => {
 
 		expect(lines.map((line) => line.event)).toContain('diagnostics.copy.failed');
 	});
+
+	/**
+	 * A clipboard that throws SYNCHRONOUSLY rather than rejecting, which is what an absent or
+	 * blocked API actually does: the composed writer is `navigator.clipboard.writeText(text)`,
+	 * and that property access is a `TypeError` where the API is missing.
+	 *
+	 * `runDetached` takes a promise, so its argument is evaluated before it is entered — a bare
+	 * `runDetached(deps.writeToClipboard(...).then(...), …)` lets this throw escape the click
+	 * handler entirely: no notice, no log, a dead button, past the very function that exists to
+	 * prevent it. Only the rejecting sibling above was handled until this case existed.
+	 */
+	it('reports a clipboard that throws rather than rejecting', async () => {
+		const into = document.createElement('div');
+		renderDiagnosticsReport(into, {
+			snapshot: SNAPSHOT,
+			resolvePath: () => undefined,
+			writeToClipboard: () => {
+				throw new TypeError("Cannot read properties of undefined (reading 'writeText')");
+			},
+			logger: recorder,
+		});
+
+		expect(() => {
+			into.querySelector<HTMLButtonElement>('.rp-diagnostics__copy')?.click();
+		}).not.toThrow();
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(lines.map((line) => line.event)).toContain('diagnostics.copy.failed');
+	});
 });
 
 describe('the modal around it', () => {

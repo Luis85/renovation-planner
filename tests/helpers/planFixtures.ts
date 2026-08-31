@@ -94,10 +94,19 @@ export const emptyRequirementReads = (): Pick<
 	listReassignmentTargets: () => Promise.resolve(ok([])),
 });
 
-export function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[] = []): PlanEditorQueryServices {
+/**
+ * `unreadable` defaults to 0, which is the ordinary vault. It is a parameter rather than a
+ * property of `zones` because the two are independent: a plan can have zones AND notes that
+ * refused, and the canvas draws the first while saying how many of the second there were.
+ */
+export function fakeQueries(
+	plan: PlanDto | null,
+	zones: readonly ZoneDto[] = [],
+	unreadable = 0,
+): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(plan)),
-		findZonesByPlan: () => Promise.resolve(ok({ zones, unreadable: 0 })),
+		findZonesByPlan: () => Promise.resolve(ok({ zones, unreadable })),
 		...emptyRequirementReads(),
 	};
 }

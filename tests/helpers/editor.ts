@@ -37,6 +37,11 @@ import { installResizeObserver, placeAt, resizeTo } from './layout';
 export interface EditorHarnessOptions {
 	readonly plan?: PlanDto | null;
 	readonly zones?: readonly ZoneDto[];
+	/**
+	 * How many of this plan's zone notes refused to load. Ignored when `queries` is supplied,
+	 * like `plan` and `zones` are — a caller handing over the whole query bundle owns all of it.
+	 */
+	readonly unreadableZones?: number;
 	readonly queries?: PlanEditorQueryServices;
 	/** The write side; defaults to the refusal commands, for tests that dispatch nothing. */
 	readonly commands?: PlanEditorCommandServices;
@@ -184,7 +189,8 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const plan = options.plan === undefined ? FIXTURE_PLAN : options.plan;
 	const context: PlanEditorContext = {
 		planId: plan?.id ?? FIXTURE_PLAN.id,
-		queries: options.queries ?? fakeQueries(plan, options.zones ?? FIXTURE_ZONES),
+		queries:
+			options.queries ?? fakeQueries(plan, options.zones ?? FIXTURE_ZONES, options.unreadableZones),
 		commands: options.commands ?? unavailablePlanEditorCommands(),
 		vault: options.vault ?? EMPTY_VAULT,
 		onThemeChange: (listener) => {

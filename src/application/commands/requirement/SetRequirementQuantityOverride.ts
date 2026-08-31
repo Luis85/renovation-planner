@@ -78,9 +78,23 @@ async function applyQuantityOverride(
 	// The pipeline stage an override edit owes the estimate: cost off the NEW effective.
 	// `expectedCurrency` is the SAME `unitCost` this call also passes as `unitPrice` — not a
 	// fresh read of the project's currency — because this re-prices against the snapshot
-	// `calculatedFrom` already recorded rather than against a live Asset; the guard can only
-	// ever agree with itself here, and the alternative (reading the project again) would be a
-	// second answer to a currency this figure was already derived against.
+	// `calculatedFrom` already recorded rather than against a live Asset. Reading the project
+	// here was considered and refused: with `AssignAsset` and `RecalculateRequirement` now
+	// both refusing a currency mismatch, adding a third refusal here would lock the user out
+	// of the requirement entirely — "recalculate first" is not a remedy they could take once
+	// recalculate refuses too. So the guard can only ever agree with itself, deliberately.
+	//
+	// **The residue that trade buys, named rather than surveyed.** A project note with no
+	// `currency:` key takes the plugin's `defaultCurrency` (Task 2), so changing THAT setting
+	// re-denominates every legacy project in one stroke. After such a change, `AssignAsset`
+	// and `RecalculateRequirement` both refuse every affected Requirement — but THIS door does
+	// not: it writes a fresh `estimatedCost` in the OLD, `calculatedFrom.unitCost`'s currency,
+	// because it never asks what the project's currency is NOW. It is the one write of an
+	// estimate the invariant does not reach. Pinned as behaviour in `currencyMismatch.test.ts`
+	// ('the quantity override still writes in the old currency after the project is
+	// re-denominated') rather than left as a paragraph, so the read model that eventually has
+	// to reconcile a Requirement's currency against its Project's fails a test rather than
+	// finding this by surprise.
 	const cost = computeEstimatedCost({
 		quantity: effectiveValue(updated.value.quantity),
 		unitPrice: updated.value.calculatedFrom.unitCost,

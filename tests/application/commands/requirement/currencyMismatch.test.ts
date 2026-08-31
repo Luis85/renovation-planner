@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { AssignAssetCommand } from '../../../../src/application/commands/requirement/AssignAsset';
 import { RecalculateRequirementCommand } from '../../../../src/application/commands/requirement/RecalculateRequirement';
+import { SetRequirementQuantityOverrideCommand } from '../../../../src/application/commands/requirement/SetRequirementQuantityOverride';
 import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryPlanRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
@@ -54,20 +55,17 @@ async function seed(projectCurrency: string, assetCurrency: string) {
 		),
 	);
 
+	const locks = new ReferenceLocks();
 	return {
 		assets,
 		requirements,
+		projects,
+		projectId: project.entity.id,
 		zoneId: zone.entity.id,
 		assetId: asset.entity.id,
-		assign: new AssignAssetCommand({
-			zones,
-			assets,
-			requirements,
-			events,
-			locks: new ReferenceLocks(),
-			projects,
-		}),
+		assign: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects }),
 		recalculate: new RecalculateRequirementCommand(requirements, zones, assets, events, projects),
+		quantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
 	};
 }
 
@@ -111,5 +109,44 @@ describe('a pairing whose price is not in the project currency', () => {
 		const result = await w.recalculate.execute({ requirementId: created.requirement.id });
 
 		expect(expectErr(result).code).toBe('cost.currency-mismatch');
+	});
+});
+
+/**
+ * `SetRequirementQuantityOverride.ts`'s own comment names this residue: it re-prices the
+ * snapshot `calculatedFrom.unitCost` rather than a fresh read of the project, deliberately —
+ * a third refusal here, alongside `AssignAsset` and `RecalculateRequirement`, would leave the
+ * user unable to fix a mis-denominated Requirement at all, since "recalculate first" would
+ * itself refuse. Pinned as behaviour so a later change (the read model that has to reconcile
+ * a Requirement's currency against its Project's) fails a test rather than finding this by
+ * surprise.
+ */
+describe('the quantity-override door does not re-check the live project currency', () => {
+	it('still writes a fresh estimate in the OLD currency after the project is re-denominated', async () => {
+		const w = await seed('EUR', 'EUR');
+		const created = expectOk(await w.assign.execute({ zoneId: w.zoneId, assetId: w.assetId }));
+		expect(created.requirement.estimatedCost.calculated.currency).toBe('EUR');
+
+		// The shape a `defaultCurrency` setting change produces for every legacy project note
+		// with no `currency:` key of its own (Task 2): the PROJECT is re-denominated after
+		// this Requirement's figures were derived, and nothing tells the Requirement so.
+		const project = expectOk(await w.projects.getById(w.projectId));
+		if (project === null) throw new Error('the project was seeded');
+		const reDenominated = expectOk(project.entity.withCurrency(currencyOf('GBP')));
+		expectOk(await w.projects.save(reDenominated, project.version));
+
+		const result = await w.quantityOverride.execute({
+			requirementId: created.requirement.id,
+			quantity: 20,
+		});
+
+		// SUCCEEDS, and writes in the OLD currency — the residue, not a defect this pins away.
+		const updated = expectOk(result);
+		expect(updated.estimatedCost.calculated.currency).toBe('EUR');
+
+		// Contrast: RecalculateRequirement DOES read the live project, and now refuses the
+		// very same Requirement the override door just happily re-priced.
+		const recalculated = await w.recalculate.execute({ requirementId: created.requirement.id });
+		expect(expectErr(recalculated).code).toBe('cost.currency-mismatch');
 	});
 });

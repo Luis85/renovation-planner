@@ -46,6 +46,30 @@ describe('RecalculateRequirementCommand refusals', () => {
 		expect(error.code).toBe('test.injected-failure');
 	});
 
+	/**
+	 * Unlike `AssignAsset.ts`, which propagates a failed project read as itself, this
+	 * command wraps BOTH a failed read and a missing project as `requirement.project-gone`
+	 * — the same shape `loadZone`/`loadAsset` already give `requirement.zone-gone` and
+	 * `requirement.asset-gone` above. Deliberately left as-is; the asymmetry with
+	 * `AssignAsset` is recorded for the whole-branch review rather than changed here.
+	 */
+	it('propagates a failed project read as requirement.project-gone', async () => {
+		const w = await wiredWithLink();
+		const projects = overridePort(w.projects, {
+			getById: () => Promise.resolve(err(injectedPersistenceError())),
+		});
+		const error = expectErr(
+			await new RecalculateRequirementCommand(
+				w.requirements,
+				w.zones,
+				w.assets,
+				w.events,
+				projects,
+			).execute({ requirementId: w.requirementId }),
+		);
+		expect((error as { code: string }).code).toBe('requirement.project-gone');
+	});
+
 	it('wraps a vanished zone as requirement.zone-gone', async () => {
 		const w = await wiredWithLink();
 		const zone = expectFound(await w.zones.getById(w.zoneId));
@@ -61,6 +85,13 @@ describe('RecalculateRequirementCommand refusals', () => {
 		expectOk(await w.assets.delete(w.assetId, asset.version));
 		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
 		expect((error as { code: string }).code).toBe('requirement.asset-gone');
+	});
+
+	it('wraps a vanished project as requirement.project-gone', async () => {
+		const w = await wiredWithLink();
+		expectOk(await w.projects.delete(w.project.entity.id, w.project.version));
+		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
+		expect((error as { code: string }).code).toBe('requirement.project-gone');
 	});
 
 	it('wraps a failing area computation as requirement.area-failed', async () => {

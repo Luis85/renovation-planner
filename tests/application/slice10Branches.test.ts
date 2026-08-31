@@ -326,11 +326,15 @@ describe('ReversibleAssignAssetCommand guards', () => {
 		// does not exist, its result immediately `void`ed — did nothing at all; the assign
 		// and the save below are the whole of the move, and always were.
 		//
-		// The other project has to be a REAL, saved one and not a bare string id: the
-		// currency invariant added since means `AssignAssetCommand` now reads the zone's
-		// project to learn what currency to derive against, so a dangling `projectId` would
-		// refuse with `requirement.project-not-found` rather than exercise the cross-project
-		// redo this case is actually about.
+		// The other project is a REAL, saved one rather than a bare string id — NOT because
+		// the currency invariant added since would refuse a dangling one here. It would not:
+		// `redoCreate` re-saves the recorded SNAPSHOT directly and never calls
+		// `AssignAssetCommand` or reads a project at all, so this path is exactly as blind to
+		// `projectId` after the invariant as it was before it (the only real
+		// `AssignAssetCommand.execute` in this case runs BEFORE the move, against the
+		// original project). The change is a plain faithfulness improvement instead: a
+		// dangling id was never an honest model of "moved to another project", which
+		// production can only do by moving a zone to a project that actually exists.
 		const otherProject = expectOk(await w.projects.save(makeProject({ name: 'Second project' }), 'absent'));
 		const current = expectFound(await w.zones.getById(zoneEntity.entity.id));
 		Object.assign(current.entity, { projectId: otherProject.entity.id });

@@ -122,6 +122,40 @@ describe('AssignAssetCommand refusals', () => {
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
+
+	it('propagates a failed project read', async () => {
+		const w = await wiredWithLink();
+		const projects = overridePort(w.projects, {
+			getById: () => Promise.resolve(err(injectedPersistenceError())),
+		});
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects });
+		const otherZone = expectOk(
+			await w.zones.save(
+				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }),
+				'absent',
+			),
+		);
+		const error = expectErr(
+			await assigning.execute({ zoneId: otherZone.entity.id, assetId: w.assetId }),
+		);
+		expect(error.code).toBe('test.injected-failure');
+	});
+
+	it("answers requirement.project-not-found when the zone's project has vanished", async () => {
+		const w = await wiredWithLink();
+		const otherZone = expectOk(
+			await w.zones.save(
+				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }),
+				'absent',
+			),
+		);
+		expectOk(await w.projects.delete(w.project.entity.id, w.project.version));
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const error = expectErr(
+			await assigning.execute({ zoneId: otherZone.entity.id, assetId: w.assetId }),
+		);
+		expect(error.code).toBe('requirement.project-not-found');
+	});
 });
 
 describe('UpdateAssetCommand refusals', () => {

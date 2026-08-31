@@ -37,7 +37,12 @@ describe('the pipeline is told the currency it must produce', () => {
 	/**
 	 * BEFORE any arithmetic: a mismatch must not be able to produce a partially computed
 	 * figure. Driven with a discount above 100% as well — a second refusable input — so the
-	 * assertion is that the currency check runs in the guard block rather than mid-chain.
+	 * assertion is that the currency check runs FIRST in the guard chain rather than
+	 * merely somewhere in it. `shipping` in another currency would not discriminate this:
+	 * nothing about it refuses on its own once the currencies already disagree, so the case
+	 * would pass unchanged even with `currencyMismatchError` moved to run LAST. A discount
+	 * above 100% does refuse on its own (`cost.discount-above-full`), which is what makes
+	 * this case able to tell "currency checked first" from "currency checked at all".
 	 */
 	it('refuses before arithmetic, alongside the other input guards', () => {
 		const error = expectErr(
@@ -45,7 +50,7 @@ describe('the pipeline is told the currency it must produce', () => {
 				quantity: TEN_SQUARE_METRES,
 				unitPrice: of('39.50', 'GBP'),
 				expectedCurrency: currencyOf('EUR'),
-				shipping: of('10.00', 'GBP'),
+				discount: { percent: new Decimal('150') },
 			}),
 		);
 		expect(error.code).toBe('cost.currency-mismatch');

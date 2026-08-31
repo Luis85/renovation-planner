@@ -15,15 +15,16 @@ import type { navigateToProject as NavigateToProject } from '../../../../src/inf
 const TYPE = 'renovation-project';
 
 /**
- * `latestNavigation` and `navigationWrites` are module state in `navigateToProject.ts`
- * (the module's own comment says so, for the reason `activating` next door is), so a
- * case left holding a previous case's ticket or a rejected write chain would make the
- * next case's result a fact about test ORDER rather than about that case's own scenario
- * — measured while writing this file: a case that poisons the chain on purpose (see
- * below) turned the very next `it` here red too, for a reason that had nothing to do
- * with its own body. `vi.resetModules()` plus a fresh dynamic import re-runs the
- * module's top-level `let` initializers for every case, which is the same idiom
- * `harness.test.ts` uses for the same reason.
+ * `chains` (and its `PALETTE_LANE` entry) are module state in `navigateToProject.ts` — a
+ * `WeakMap` of per-target tickets and write chains since the split-pane supersession fix, but
+ * still module-scoped state for the same reason `activating` next door is, and the module's
+ * own comment says so — so a case left holding a previous case's ticket or a rejected write
+ * chain would make the next case's result a fact about test ORDER rather than about that
+ * case's own scenario — measured while writing this file: a case that poisons the chain on
+ * purpose (see below) turned the very next `it` here red too, for a reason that had nothing to
+ * do with its own body. `vi.resetModules()` plus a fresh dynamic import re-runs the module's
+ * top-level `const` initializers for every case, which is the same idiom `harness.test.ts`
+ * uses for the same reason.
  */
 let navigateToProject: typeof NavigateToProject;
 
@@ -292,6 +293,33 @@ describe('navigateToProject', () => {
 
 		expect(second.getViewState().state).toEqual({ projectId: 'project-3' });
 		expect(first.getViewState().state).toEqual({ projectId: 'project-1' });
+	});
+
+	/**
+	 * **Two reviewers found this independently on the first version of `targetLeaf`.** The
+	 * ticket and the write chain were module-scoped — one shared lane, correct only while every
+	 * call resolved to the same singleton leaf. `targetLeaf` was added to let two split panes
+	 * navigate INDEPENDENTLY, and a shared lane broke that: a navigation for leaf B, arriving
+	 * before leaf A's queued write ran, bumped the one shared ticket and made A's own
+	 * supersession check see itself as superseded by an unrelated target — dropping A's write
+	 * down the same path a legitimate supersession takes, silently, with `reportFault` never
+	 * called because nothing actually faulted. This case fails against exactly that build:
+	 * `first`'s write is dropped because `second`'s call bumps the one shared counter before
+	 * `first`'s chained step re-reads it.
+	 */
+	it('lands both writes when two navigations target different leaves concurrently', async () => {
+		const workspace = new FakeWorkspace();
+		const first = workspace.withOpen(TYPE, { projectId: 'project-1' });
+		const second = workspace.withOpen(TYPE, { projectId: 'project-2' });
+		const deps = { workspace, reportFault: vi.fn<(cause: unknown) => void>() };
+
+		await Promise.all([
+			navigateToProject(deps, TYPE, 'project-a', first),
+			navigateToProject(deps, TYPE, 'project-b', second),
+		]);
+
+		expect(first.getViewState().state).toEqual({ projectId: 'project-a' });
+		expect(second.getViewState().state).toEqual({ projectId: 'project-b' });
 	});
 
 	/** A door in this directory that REJECTS has no one to catch it. */

@@ -1,7 +1,7 @@
 import type { Point } from '../../core/geometry/Point';
 import type { Polygon } from '../../core/geometry/Polygon';
 import { createPolygon } from '../../core/geometry/Polygon';
-import { boundingBoxOf } from '../../core/geometry/operations';
+import { boundingBoxOf, enclosesArea } from '../../core/geometry/operations';
 import type { GeometryError, ValidationError } from '../../core/errors/AppError';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import { assetError } from './Asset.errors';
@@ -149,10 +149,26 @@ export function normaliseFacing(radians: number): number {
 export function validateAssetShape(shape: AssetShape): Result<AssetShape, ValidationError> {
 	const footprint = createPolygon(shape.footprint.points);
 	if (isErr(footprint)) return err(assetError('invalid-footprint', footprint.error.message));
+	if (!enclosesArea(footprint.value)) {
+		return err(
+			assetError(
+				'degenerate-footprint',
+				'A footprint must enclose an area; these vertices are collinear.',
+			),
+		);
+	}
 	let clearance: Polygon | null = null;
 	if (shape.clearance !== null) {
 		const validated = createPolygon(shape.clearance.points);
 		if (isErr(validated)) return err(assetError('invalid-clearance', validated.error.message));
+		if (!enclosesArea(validated.value)) {
+			return err(
+				assetError(
+					'degenerate-clearance',
+					'A clearance must enclose an area; these vertices are collinear.',
+				),
+			);
+		}
 		clearance = validated.value;
 	}
 	if (!Number.isFinite(shape.anchor.x) || !Number.isFinite(shape.anchor.y)) {

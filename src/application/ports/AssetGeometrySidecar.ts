@@ -43,15 +43,16 @@ export interface AssetGeometrySnapshot {
  * `infrastructure/ObsidianAssetGeometrySidecar` adapts the concrete
  * `AssetGeometryStore`; schema, revision counter and lock stay below the port.
  *
- * `@expected-unused` rather than a `fallow-ignore`, because the two say different things:
- * this interface has no implementer yet — the store and the adapter are the increment
- * after this one — and the tag is what makes fallow report the ANNOTATION as stale the
- * moment something imports it, so the note is removed by the change that makes it wrong
- * rather than outliving its reason. An abstraction shipped ahead of its first use is a
- * finding this repository normally refuses; this one is declared early because the
- * document shape above is what the store is written against.
+ * It shipped one task ahead of its first implementer under fallow's expected-unused tag,
+ * chosen over a `fallow-ignore` precisely so that fallow would report the ANNOTATION as
+ * stale the moment something imported the interface. `ObsidianAssetGeometrySidecar` did, the
+ * gate said so, and the tag is gone — removed by the change that made it wrong rather than
+ * outliving its reason, which is the whole of what that mechanism was for.
  *
- * @expected-unused
+ * The tag's NAME is deliberately not written out above. Fallow matches it anywhere in the
+ * docblock rather than only where it is applied, so a sentence describing the tag in prose
+ * goes on being read as the tag itself and the suppression stays stale forever — measured,
+ * by removing the tag and watching the gate go on reporting it.
  */
 export interface AssetGeometrySidecar {
 	read(assetId: AssetId): Promise<Result<AssetGeometrySnapshot, RepositoryError>>;

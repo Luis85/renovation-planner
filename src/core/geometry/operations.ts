@@ -145,6 +145,29 @@ export function area(polygon: Polygon): Result<number, GeometryError> {
 	return ok(Math.abs(signedAreaSum(polygon.points)) / 2);
 }
 
+/**
+ * Does this polygon enclose any area at all?
+ *
+ * TOTAL rather than a `Result`, and that is the whole point of it existing beside `area`
+ * above. `area` validates its input, so a caller that already holds a validated `Polygon` —
+ * anything downstream of `createPolygon` — would have to handle a refusal arm nothing can
+ * reach, which is the dead guard `footprintFromDimensions`'s own docblock records this
+ * repository paying for. One gate per question, both arms reachable: `createPolygon` owns
+ * vertex count and finiteness, and this owns degeneracy.
+ *
+ * **Zero area is not the same question as a zero bounding-box EXTENT**, and the difference is
+ * why this is not a `boundingBoxOf` check. Three points on a diagonal — (0,0), (10,10),
+ * (20,20) — enclose nothing while their box is 20 by 20, so an extent test refuses the
+ * axis-aligned collinear case and passes the diagonal one. Measured rather than reasoned,
+ * because a partial fix here would read exactly like a complete one.
+ *
+ * Unsigned and undivided: `Math.abs(sum) / 2 > 0` and `Math.abs(sum) > 0` answer identically,
+ * so the halving is dropped rather than carried for a comparison that cannot see it.
+ */
+export function enclosesArea(polygon: Polygon): boolean {
+	return Math.abs(signedAreaSum(polygon.points)) > 0;
+}
+
 export function perimeter(polygon: Polygon): Result<number, GeometryError> {
 	const checked = validatePolygonPoints(polygon.points);
 	if (!checked.ok) {

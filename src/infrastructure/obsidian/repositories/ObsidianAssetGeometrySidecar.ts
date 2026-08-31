@@ -9,6 +9,8 @@ import type {
 } from '../../../application/ports/AssetGeometrySidecar';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { validateAssetShape } from '../../../domain/asset/AssetShape';
+import type { Calibration } from '../../../domain/plan/Calibration';
+import { validateCalibration } from '../../../domain/plan/Calibration';
 import type { AssetGeometryDTO } from '../../persistence/dto/assetGeometry';
 import type { AssetGeometryStore, AssetSidecarContent } from './AssetGeometryStore';
 import {
@@ -55,6 +57,48 @@ function shapeFromPersistence(stored: StoredShape): Result<AssetShape, Repositor
 	});
 }
 
+/**
+ * A stored calibration raised to the domain's, and RUN THROUGH the domain's own validator —
+ * the sentence `shapeFromPersistence` above states, applied to the field beside the one it
+ * was written for. It was applied to the shape alone, and the calibration was mapped and
+ * returned unasked.
+ *
+ * The schema cannot see any of what this refuses: coincident points are four well-typed
+ * numbers, and so are a non-positive known distance and a collapsed scale. `SetAssetFootprint`
+ * decides `footprintPending` from `document.calibration !== null`, so a degenerate calibration
+ * is a non-null one that records a fresh trace as ALREADY SCALED while no usable scale exists.
+ *
+ * **Why here and not one layer up, which is where the plan's equivalent lives.** A plan's
+ * calibration is validated at `Plan.withCalibration`, called while `ObsidianPlanRepository`
+ * assembles the entity; an `AssetGeometryDocument` is handed to a command with no assembly
+ * step in between, so this read is the only door there is.
+ *
+ * **The domain's own CODE, and a restamped CATEGORY.** Re-spelling these rules in an
+ * `asset-geometry.*` vocabulary would be a second derivation of one rule, so the code passes
+ * through exactly as `validateAssetShape`'s `asset.*` codes do. The category cannot:
+ * `plan.degenerate-points` is a `CalculationError` and `RepositoryError` admits
+ * `ValidationError`, and at a READ boundary all three refusals mean the same thing — the
+ * stored document is invalid. Unconditional rather than branched on the incoming category,
+ * because a branch here would have one arm no fixture reaches.
+ *
+ * A REFUSAL and never a repair, for the reason the shape half gives: nulling a corrupt
+ * calibration would present a damaged file as an asset nobody has calibrated.
+ */
+function calibrationFromStored(
+	stored: NonNullable<AssetGeometryDTO['calibration']>,
+): Result<Calibration, RepositoryError> {
+	const calibration = calibrationFromPersistence(stored);
+	const checked = validateCalibration(calibration);
+	if (!checked.ok) {
+		return err({
+			category: 'Validation',
+			code: checked.error.code,
+			message: checked.error.message,
+		});
+	}
+	return ok(calibration);
+}
+
 const shapeToPersistence = (shape: AssetShape): StoredShape => ({
 	footprint: { points: toTuples(shape.footprint.points) },
 	footprintOrigin: shape.footprintOrigin,
@@ -91,10 +135,16 @@ export class ObsidianAssetGeometrySidecar implements AssetGeometrySidecar {
 			if (!validated.ok) return err(validated.error);
 			shape = validated.value;
 		}
+		let calibration: Calibration | null = null;
+		if (dto.calibration) {
+			const validated = calibrationFromStored(dto.calibration);
+			if (!validated.ok) return err(validated.error);
+			calibration = validated.value;
+		}
 
 		return ok({
 			document: {
-				calibration: dto.calibration ? calibrationFromPersistence(dto.calibration) : null,
+				calibration,
 				shape,
 			},
 			version: snapshot.value.version,

@@ -232,6 +232,58 @@ describe('validateAssetShape', () => {
 		expect(result.value.clearance?.points).toHaveLength(4);
 	});
 
+	/**
+	 * ZERO AREA, and why the pair of cases is what proves the rule rather than either alone.
+	 *
+	 * `createPolygon` validates vertex COUNT and FINITENESS, which a collinear trace satisfies
+	 * — `footprintFromDimensions`'s own docblock says so in as many words ("accepts a zero-area
+	 * rectangle happily"), and the typed path refuses degeneracy through its sign guard while
+	 * the traced path had nothing to refuse it. An asset whose footprint encloses nothing is an
+	 * object a renovator places that occupies a line.
+	 *
+	 * The AXIS case alone does not discriminate: a bounding-box extent test refuses it too, and
+	 * a build that asked `width > 0 && depth > 0` would pass it while a diagonal trace — box 20
+	 * by 20, area 0 — sailed through. Measured, not reasoned. That is the `exactOnAxis` shape
+	 * this repository has already paid for once, where four directions out of twenty-four were
+	 * repaired and the diagonal was what came back a round later.
+	 */
+	it('refuses a footprint whose vertices are collinear along an axis', () => {
+		const result = validateAssetShape({
+			...typedShape,
+			footprint: { points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }] },
+		});
+		expect(isErr(result) && result.error.code).toBe('asset.degenerate-footprint');
+	});
+
+	it('refuses a footprint whose vertices are collinear along a DIAGONAL, which no extent test can see', () => {
+		const result = validateAssetShape({
+			...typedShape,
+			footprint: { points: [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 }] },
+		});
+		expect(isErr(result) && result.error.code).toBe('asset.degenerate-footprint');
+	});
+
+	it('accepts a triangle, so the rule refuses degeneracy rather than three vertices', () => {
+		const result = validateAssetShape({
+			...typedShape,
+			footprint: { points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 0, y: 10 }] },
+		});
+		expect(isOk(result)).toBe(true);
+	});
+
+	/**
+	 * The CLASS and not the case. A clearance is a boundary around the object and a zero-area
+	 * one is as meaningless as a zero-area footprint — and `clearance: null` is the legal way
+	 * to have none, so a degenerate one must REFUSE rather than pass as though it were absent.
+	 */
+	it('refuses a degenerate clearance rather than letting it stand in for having none', () => {
+		const result = validateAssetShape({
+			...typedShape,
+			clearance: { points: [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 }] },
+		});
+		expect(isErr(result) && result.error.code).toBe('asset.degenerate-clearance');
+	});
+
 	it('detaches the ANCHOR too, which the polygon fix alone left aliased', () => {
 		// The same defect class as the polygons, in the one field a reader is least likely
 		// to look at: `{ ...shape }` carries the caller's anchor object by reference, so a

@@ -225,6 +225,72 @@ describe('ObsidianAssetGeometrySidecar', () => {
 	 * above assumes it did. A refusal and not a repair: reading a corrupt file as an empty
 	 * design presents it as an asset nobody has drawn yet.
 	 */
+	/**
+	 * The CALIBRATION half of the rule the docblock above `shapeFromPersistence` states in
+	 * full — "a sidecar is a file a user can open and edit, so this is where that assumption
+	 * is made true rather than merely relied on" — which was applied to the shape and not to
+	 * the calibration beside it. A rule stated in a docblock and not followed by the door it
+	 * is written above.
+	 *
+	 * `pointA` and `pointB` coincide here while every scalar is positive, so the Zod schema
+	 * sees four well-typed numbers and nothing wrong. The plan sidecar has no equivalent hole
+	 * because its calibration is validated one layer up, at `Plan.withCalibration`; an asset
+	 * geometry document is handed to a command with no entity assembly in between, so this
+	 * read is the only door there is.
+	 *
+	 * Why it is not cosmetic: `setFootprint` decides `footprintPending` from
+	 * `document.calibration !== null`. A degenerate calibration is non-null, so a fresh trace
+	 * over it would be recorded as ALREADY SCALED while no usable scale exists — silently
+	 * mislabelling provenance in the field family that took four review rounds to settle.
+	 *
+	 * A REFUSAL and never a repair, for the reason the shape half gives: nulling a corrupt
+	 * calibration would present a damaged file as a plan nobody has calibrated.
+	 */
+	it('refuses a calibration the schema accepts and the domain does not', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		stack.vault.entries.set(
+			path,
+			rawDocument(assetId, {
+				calibration: {
+					pointA: { x: 100, y: 100 },
+					pointB: { x: 100, y: 100 },
+					knownDistance: 1200,
+					pixelsPerWorldUnit: 0.75,
+				},
+			}),
+		);
+
+		const error = expectErr(await sidecar.read(assetId));
+		// The domain's OWN code, exactly as the shape half passes `asset.*` through — one rule,
+		// one vocabulary, no second spelling of it here. The CATEGORY is restamped and the code
+		// is not: `validateCalibration` raises this one as a `Calculation`, which
+		// `RepositoryError` does not admit, and at a read boundary every one of its refusals
+		// means the stored document is invalid.
+		expect(error).toMatchObject({ category: 'Validation', code: 'plan.degenerate-points' });
+	});
+
+	it('reads a calibration the domain accepts, so the rule refuses degeneracy rather than calibrations', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		stack.vault.entries.set(
+			path,
+			rawDocument(assetId, {
+				calibration: {
+					pointA: { x: 0, y: 0 },
+					pointB: { x: 800, y: 0 },
+					knownDistance: 1200,
+					pixelsPerWorldUnit: 0.75,
+				},
+			}),
+		);
+
+		expect(expectOk(await sidecar.read(assetId)).document.calibration).toEqual({
+			pointA: { x: 0, y: 0 },
+			pointB: { x: 800, y: 0 },
+			knownDistance: 1200,
+			pixelsPerWorldUnit: 0.75,
+		});
+	});
+
 	it('refuses a hand-edited sidecar whose footprint has two vertices', async () => {
 		const { sidecar, stack, assetId, path } = seeded();
 		stack.vault.entries.set(

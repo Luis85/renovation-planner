@@ -3,7 +3,9 @@ import type { ValidationError } from '../../../core/errors/AppError';
 import type { Point } from '../../../core/geometry/Point';
 import type { Polygon } from '../../../core/geometry/Polygon';
 import { coincident } from '../../../core/geometry/operations';
+import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
+import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import type { AssetShape, FootprintOrigin } from '../../../domain/asset/AssetShape';
 import { footprintFromDimensions, validateAssetShape } from '../../../domain/asset/AssetShape';
 import type { Command } from '../Command';
@@ -114,9 +116,20 @@ function sameFootprint(current: AssetShape, next: AssetShape): boolean {
  * footprint has to say so or a "Saved" badge claims a write that did not happen. It
  * returns before the port is reached, which is why a stale `expected` over an unchanged
  * footprint is not a conflict: there is no field this command owns left to lose.
+ *
+ * **`AssetDesignChanged` is announced here and nowhere else in this module** — measured
+ * rather than asserted: grepping this file for `events\.publish` prints exactly one line, the
+ * one below. (The narrower pattern rather than the bare word, which this paragraph matches
+ * too.) Both commands announce through it because both WRITE through it, so a third
+ * design command added to this file cannot forget; and it sits on the `'wrote'` arm alone,
+ * BELOW the no-write return and BELOW the port's own answer, because the event means "the
+ * stored design changed" rather than "somebody pressed something". A peer designer leaf
+ * re-reads on it, and a refresh triggered by an idle re-submit or by a write that refused is
+ * a re-read of a document nothing moved.
  */
 async function setFootprint(
 	sidecar: AssetGeometrySidecar,
+	events: EventBus,
 	input: { readonly assetId: AssetId; readonly expected?: EntityVersion },
 	change: FootprintChange,
 ): Promise<DispatchResult> {
@@ -136,6 +149,7 @@ async function setFootprint(
 	const next: AssetGeometryDocument = { ...document, shape: shape.value };
 	const written = await sidecar.write(input.assetId, next, input.expected ?? version);
 	if (isErr(written)) return written;
+	await events.publish(assetDesignChanged({ assetId: input.assetId }));
 	return ok('wrote');
 }
 
@@ -154,10 +168,13 @@ async function setFootprint(
 export class SetAssetFootprintFromDimensionsCommand
 	implements Command<SetAssetFootprintFromDimensionsInput, DispatchResult>
 {
-	constructor(private readonly sidecar: AssetGeometrySidecar) {}
+	constructor(
+		private readonly sidecar: AssetGeometrySidecar,
+		private readonly events: EventBus,
+	) {}
 
 	execute(input: SetAssetFootprintFromDimensionsInput): Promise<DispatchResult> {
-		return setFootprint(this.sidecar, input, (current) => {
+		return setFootprint(this.sidecar, this.events, input, (current) => {
 			const footprint = footprintFromDimensions(input.width, input.depth);
 			if (isErr(footprint)) return footprint;
 			return ok(withFootprint(current, footprint.value, 'typed', false));
@@ -181,10 +198,13 @@ export class SetAssetFootprintFromDimensionsCommand
 export class SetAssetFootprintCommand
 	implements Command<SetAssetFootprintInput, DispatchResult>
 {
-	constructor(private readonly sidecar: AssetGeometrySidecar) {}
+	constructor(
+		private readonly sidecar: AssetGeometrySidecar,
+		private readonly events: EventBus,
+	) {}
 
 	execute(input: SetAssetFootprintInput): Promise<DispatchResult> {
-		return setFootprint(this.sidecar, input, (current, calibrated) =>
+		return setFootprint(this.sidecar, this.events, input, (current, calibrated) =>
 			ok(withFootprint(current, { points: input.points }, 'traced', !calibrated)),
 		);
 	}

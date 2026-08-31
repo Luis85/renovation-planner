@@ -21,8 +21,11 @@ import type { EntityVersion } from '../../../../src/application/ports/versioning
 import type { RepositoryError } from '../../../../src/application/ports/repositoryErrors';
 import type { Result } from '../../../../src/core/result/Result';
 import type { Point } from '../../../../src/core/geometry/Point';
+import type { EventBus } from '../../../../src/core/events/EventBus';
+import { createEventBus } from '../../../../src/core/events/EventBus';
 import type { AssetId } from '../../../../src/domain/asset/AssetId';
 import { createAssetId } from '../../../../src/domain/asset/AssetId';
+import type { AssetDesignChanged } from '../../../../src/domain/asset/Asset.events';
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import type { Calibration } from '../../../../src/domain/plan/Calibration';
 import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
@@ -76,17 +79,35 @@ const decorated = (): AssetShape => ({
 	facing: Math.PI / 2,
 });
 
+/**
+ * The REAL bus (`createEventBus`), not a double. `RecordingEventBus.subscribe` discards its
+ * handler, so a case built on it would assert an empty list in both worlds; `dispatchingEventBus`
+ * really delivers but also records, and nothing here asks what was published — only what a
+ * subscriber HEARD, which is the whole claim a peer designer leaf rests on.
+ */
+function designChangesHeardOn(bus: EventBus): AssetId[] {
+	const heard: AssetId[] = [];
+	// `DomainEvent<TType>` carries only its `type`, so a subscriber narrows to the concrete
+	// event to reach a payload — the spelling `onAssetUpdated` already uses.
+	bus.subscribe('AssetDesignChanged', (event) => {
+		heard.push((event as AssetDesignChanged).payload.assetId);
+	});
+	return heard;
+}
+
 function seeded() {
 	const stack = createRepositoryStack();
 	const assetId = createAssetId();
 	const sidecar = new ObsidianAssetGeometrySidecar(stack.assetGeometry);
+	const events = createEventBus();
 	return {
 		stack,
 		assetId,
 		sidecar,
+		events,
 		path: assetSidecarPathFor(stack.libraryFolder, assetId),
-		typed: new SetAssetFootprintFromDimensionsCommand(sidecar),
-		traced: new SetAssetFootprintCommand(sidecar),
+		typed: new SetAssetFootprintFromDimensionsCommand(sidecar, events),
+		traced: new SetAssetFootprintCommand(sidecar, events),
 		async seed(document: AssetGeometryDocument): Promise<void> {
 			expectOk(await sidecar.write(assetId, document));
 		},
@@ -277,7 +298,7 @@ describe('SetAssetFootprint', () => {
 	 * stale snapshot, with nothing reporting anything.
 	 */
 	it('conditions an unexpecting write on the version it read, so a racing writer is not lost', async () => {
-		const { assetId, sidecar, storedShape } = seeded();
+		const { assetId, sidecar, storedShape, events } = seeded();
 		let raced = false;
 		const racing: AssetGeometrySidecar = {
 			read: (id) => sidecar.read(id),
@@ -294,7 +315,7 @@ describe('SetAssetFootprint', () => {
 			},
 		};
 
-		const late = await new SetAssetFootprintCommand(racing).execute({ assetId, points: TRIANGLE });
+		const late = await new SetAssetFootprintCommand(racing, events).execute({ assetId, points: TRIANGLE });
 
 		expect(expectErr(late).code).toBe('asset-geometry.revision-conflict');
 		expect(await storedShape()).toBeNull();
@@ -314,5 +335,73 @@ describe('SetAssetFootprint', () => {
 		const again = await typed.execute({ assetId, width: 1200, depth: 800, expected: stale });
 
 		expect(expectOk(again)).toBe('no-write');
+	});
+});
+
+/**
+ * `AssetDesignChanged` (Task A5a), asked of a real subscriber on a real bus.
+ *
+ * The event exists so that a second designer leaf showing the same asset re-reads: it means
+ * "the stored design changed", never "somebody pressed something". Every case below is about
+ * which of those two it means, which is why they assert on what a SUBSCRIBER heard rather
+ * than on a recorder's list — a published event nothing can be subscribed to refreshes no
+ * leaf.
+ */
+describe('AssetDesignChanged', () => {
+	it('announces a footprint that was written', async () => {
+		const { typed, assetId, events } = seeded();
+		const heard = designChangesHeardOn(events);
+
+		await typed.execute({ assetId, width: 1200, depth: 800 });
+
+		expect(heard).toEqual([assetId]);
+	});
+
+	/**
+	 * The discriminating case. A command that announced regardless would tell every open
+	 * designer leaf to re-read on every idle re-submit, and would make the event mean
+	 * "somebody pressed something" — not a signal a subscriber can act on. It also covers
+	 * every refusal above the no-write guard, since a publish placed anywhere before that
+	 * return reddens exactly here.
+	 */
+	it('announces nothing when the write was a no-write', async () => {
+		const { typed, assetId, events } = seeded();
+		await typed.execute({ assetId, width: 1200, depth: 800 });
+		const heard = designChangesHeardOn(events);
+
+		expect(expectOk(await typed.execute({ assetId, width: 1200, depth: 800 }))).toBe('no-write');
+
+		expect(heard).toEqual([]);
+	});
+
+	/**
+	 * The other half of "both commands announce through ONE line". Move the publish into
+	 * `SetAssetFootprintFromDimensionsCommand.execute` and every case above stays green while
+	 * a traced outline silently refreshes nobody.
+	 */
+	it('announces a traced footprint through the same publish point', async () => {
+		const { traced, assetId, events } = seeded();
+		const heard = designChangesHeardOn(events);
+
+		await traced.execute({ assetId, points: TRIANGLE });
+
+		expect(heard).toEqual([assetId]);
+	});
+
+	/**
+	 * The gap between the no-write guard and the port, which the case above cannot reach: a
+	 * publish placed BEFORE `sidecar.write` announces a design change that never landed, and
+	 * the peer leaf then re-reads the document the initiating leaf failed to write.
+	 */
+	it('announces nothing when the write itself failed', async () => {
+		const { typed, assetId, seed, stack, path, events } = seeded();
+		await seed({ calibration: null, shape: decorated() });
+		stack.vault.failures.add(`modify:${path}`);
+		const heard = designChangesHeardOn(events);
+
+		expect(expectErr(await typed.execute({ assetId, width: 1200, depth: 800 })).code)
+			.toBe('asset-geometry.write-failed');
+
+		expect(heard).toEqual([]);
 	});
 });

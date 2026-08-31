@@ -82,8 +82,11 @@ stale rather than a `Ref` somebody has to keep fresh. Navigation goes through
 arrows walk it** — the in-app ‹ back is a different mechanism from that arrow (it SETS a state
 where the arrow asks Obsidian to RESTORE one) and both carry the same `''`-means-the-list
 sentinel `getState` writes. Whether Obsidian honours the arrow is checkable nowhere here —
-`FakeLeaf` records asks rather than behaving — so it is walked in
-`docs/tests/cases/Navigate into a project and back.md`. The **Plan editor** is per-plan (several
+`FakeLeaf` records asks rather than behaving — so it is left to
+`docs/tests/cases/Navigate into a project and back.md`, **which is written and has not been run
+in a vault**: that case's Runs table says so, and slice 21's own outcome row said "walked" over
+it until a review bot compared the two. An unrun manual case is a plan to find out, not a
+finding. The **Plan editor** is per-plan (several
 leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
 around a Konva stage of §17's seven layers, the Zones of one Plan, an image or PDF
 background, and a pan/zoom camera — slice 5. **That canvas is editable now**, which is the

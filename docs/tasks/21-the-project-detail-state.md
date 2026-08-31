@@ -114,14 +114,24 @@ state transition, and with an empty vault reveals the **list** rather than a zer
    restore it. **And it holds only until the scan COMPLETES, zero entries included** — a vault
    whose last project note was deleted while Obsidian was closed reaches the list, rather than
    spinning for the session waiting for an index that will never have entries in it.
-9. The `open-project` command reaches the same state transition as a row click — **including
-   when a Renovation project leaf is already open**, which is the normal case; with no projects
-   in the vault it reveals the list state, not a picker.
-10. Two `open-project` invocations in one tick naming **different** projects leave exactly one
+9. The `open-project-detail` command reaches the same state transition as a row click —
+   **including when a Renovation project leaf is already open**, which is the normal case; with
+   no projects in the vault it reveals the list state, not a picker.
+10. Two `open-project-detail` invocations in one tick naming **different** projects leave exactly one
     leaf, and the leaf ends on the later of the two **even when the earlier navigation settles
     last**. The view is a singleton, and a command that can produce a second tab of it has
     broken that however correct each invocation looks alone; the ordering half is separate,
     because coalescing the reveal fixes the tab count and leaves the two state writes racing.
+
+    > **Both of these said `open-project` until a review bot read them against the evidence.**
+    > That id was already taken — by the command that merely REVEALS the pane, registered since
+    > slice 1, locale-keyed and asserted in two test files — so this slice built
+    > `open-project-detail` beside it, deliberately and for the reason the spec itself gives
+    > about ids being data a user's hotkey binds to. The deviation was recorded in the summary
+    > above and in the pull request, and these two criteria were not brought with it: they went
+    > on naming a command that reveals a pane while their evidence tested the one that navigates
+    > into a project. A criterion that names the wrong subject is ticked against the wrong
+    > behaviour however good the test under it is.
 11. The in-app **‹ back** action returns to the list, and a `setState` carrying the list
     sentinel is honoured rather than validated away. A **different mechanism** from criterion
     13's arrow, not a half of it: this action *sets* a state where the arrow asks Obsidian to
@@ -131,7 +141,8 @@ state transition, and with an empty vault reveals the **list** rather than a zer
     checked against the vocabulary rows in `tests/presentation/i18n/strings.test.ts`.
 13. **The pane's back arrow returns to the list**, and forward returns to the project. Not
     checkable by any gate here — `FakeLeaf` records asks rather than behaving and jsdom models
-    no workspace — so it is walked in [[Navigate into a project and back]].
+    no workspace — so it is left to [[Navigate into a project and back]], which is where it
+    gets walked WHEN that case is run. It has not been.
 14. `npm run check` passes, coverage floors held.
 
 ## Risks
@@ -196,14 +207,16 @@ reader can go and look rather than take the tick.
 | 10 | ✅ | *leaves exactly one leaf for two invocations naming different projects* and *ends on the later of two invocations even when the first settles last* — the two halves the criterion splits, because coalescing the reveal fixes the tab count and leaves the state writes racing |
 | 11 | ✅ | *navigates back to the list with null* and, on the parse, *accepts an empty projectId as the list state* |
 | 12 | ✅ | Every new key is in `en.ts` and `de.ts`; `tests/presentation/i18n/strings.test.ts` holds completeness and its two vocabulary rows. Read the tick narrowly, as that file's own header asks: it pins two TERMS, not the language, so the German register of this slice's copy was settled by reading (Task 9 changed one body from the informal *Füge* to *Fügen Sie*) and by nothing automatic |
-| 13 | ➖ **Walked, not ticked** | `docs/tests/cases/Navigate into a project and back.md` steps 3 and 4. No gate here can reach it: `FakeLeaf` records asks rather than behaving, so the suite asserts only that `ViewStateResult.history` was set |
+| 13 | ⛔ **Not verified** | `docs/tests/cases/Navigate into a project and back.md` steps 3 and 4 are WRITTEN and **not yet run** — that case's own Runs table says "Not yet run in a vault", and no gate here can reach the question: `FakeLeaf` records asks rather than behaving, so the suite asserts only that `ViewStateResult.history` was set, never that Obsidian walked it. **This row said "Walked, not ticked" until a review bot checked it against the Runs table it cites.** Nobody walked anything; the case was authored. The two are a whole verdict apart, and this is the one row in the table whose entire job is to be honest about evidence |
 | 14 | ✅ | `npm run check` exit 0 at this task's commit, coverage floors held — see the commit message for the four figures |
 
 ### Withdrawn, and residues carried forward
 
-- **Nothing in the criteria list is withdrawn.** All thirteen assertable ones are ticked and
-  the fourteenth is walked, which is worth stating plainly because withdrawal was available
-  and the previous two slices each used it.
+- **Nothing in the criteria list is withdrawn.** All thirteen assertable ones are ticked; the
+  fourteenth, criterion 13, is **unverified** — its manual case is written and has not been run
+  in a vault. Withdrawal was available and the previous two slices each used it, which is worth
+  stating plainly; so is the correction, because this sentence read "and the fourteenth is
+  walked" and that was not true of anything that had happened.
 - **One `onOpen`/`setState` ordering still mounts twice**, and it is pinned as behaviour
   (`renovationProjectView.test.ts` asserts the mounted list as `[null, 'project-01JAAA']`)
   rather than fixed. `setState` before `onOpen` is closed by an `opened` flag; the other

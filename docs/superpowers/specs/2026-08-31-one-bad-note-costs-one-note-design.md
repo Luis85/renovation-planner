@@ -70,9 +70,56 @@ export interface PlanListing { readonly loaded: Loaded<Plan>[]; readonly refused
 ```
 
 `ObsidianZoneRepository.list` and `ObsidianPlanRepository.listByProject` skip and count instead
-of returning the first `err`. Nothing is lost by skipping: `getById` writes every refusal into
-the `DiagnosticsLedger` before returning it, which is the mechanism that made the project fix
-cheap and is already in place on both sides.
+of returning the first `err` — but **only for refusals that are about one note**, and only after
+recording each one. Both qualifications are corrections found by review on this spec's own first
+commit, and each would have shipped a defect worse than the one being fixed.
+
+#### 1a. A shared failure is not N note failures
+
+`ObsidianZoneRepository.loadOne:113-119` answers `zone.sidecar-unreadable` when the plan's
+geometry sidecar cannot be read, and `list` memoises that read across the whole loop — so one
+unreadable sidecar makes **every** zone in the plan refuse. Blanket skip-and-count would answer
+`loaded: [], refused: 20` and draw an empty canvas under a notice blaming twenty notes for one
+file. That is this increment's own claim inverted: a shared failure reported as N note failures,
+with the editor's honest failure state replaced by a cheerful partial-list notice.
+
+So `list` propagates a shared failure and skips only entity-local ones. The set is enumerated as
+the codes that MAY be skipped, never as the codes that may not, so the default is to propagate:
+
+```ts
+const SKIPPABLE_ZONE_CODES = new Set([
+    'zone.frontmatter-invalid',   // this note's frontmatter does not parse
+    'zone.entity-invalid',        // this note's values do not make a Zone
+    'zone.geometry-entry-missing' // this zone has no entry in a sidecar that read fine
+]);
+```
+
+`zone.sidecar-unreadable` is absent, which is the point. A migration refusal carries its own
+category (`MigrationError`) and is skippable by category rather than by code. **Fail-closed is
+the whole design of this list**: a refusal code invented later propagates, which is today's
+behaviour and safe, rather than being silently swallowed into a count.
+
+#### 1b. "Skipping loses nothing" was false on both of these surfaces
+
+The Issue states that *"`getById` records every refusal into the `DiagnosticsLedger` before
+returning it, so skipping loses nothing on the zone side either."* Measured on 2026-08-31, it is
+false. `grep -c ledger` over `ObsidianZoneRepository.ts` and `ObsidianPlanRepository.ts` returns
+**0** for both — neither records anything. The only recording on their path is `noteIo.ts:315`,
+inside `openNoteById`, and it records **only the migration error**; every later refusal in
+`loadOne` records nothing. `ObsidianProjectRepository:91` records at `readEntity` level, catching
+migration *and* frontmatter failures, which is why the project fix was sound and why the analogy
+does not carry.
+
+So each repository **records the refusal into the ledger at the point of skipping**, before
+incrementing the count. Without it, this increment's entire argument fails for the commonest
+refusals: an entity vanishes from the listing, the count says so, and the diagnostics report the
+user is then told to open has no row for it.
+
+**The residue, named rather than implied:** a `getById` refusal reached OUTSIDE a listing — the
+Inspector reading one zone — still records nothing for zone and plan, where the project
+repository would. That is pre-existing, wider than this increment, and left alone; what this
+increment owes is that every note it *skips* is findable, and that is what the recording at the
+skip site guarantees.
 
 The in-memory repositories answer `refused: 0` always. That is honest rather than a stub —
 they hold entities, not notes, and have no parse step to refuse at.
@@ -187,13 +234,20 @@ Each case watched failing against the un-fixed code, and the mutation named.
 
 | What | Level | Mutation that must redden it |
 | --- | --- | --- |
-| Zone listing skips, all three entry points | Disk-backed fixture vault | Restore `if (!one.ok) return one` |
+| Zone listing skips, both entry points | Disk-backed fixture vault | Restore `if (!one.ok) return one` |
+| A **post-migration** validation failure is skipped AND recorded | Disk-backed fixture vault | Drop the `ledger.record` at the skip site |
+| An unreadable **sidecar** still fails the whole listing | Disk-backed fixture vault | Add `zone.sidecar-unreadable` to the skippable set |
 | Plan listing skips | Disk-backed fixture vault | Same |
 | Count reaches the canvas strip | jsdom, rendered DOM | Drop the field from the template |
 | Count reaches the detail strip | jsdom, rendered DOM | Same |
 | Reassignment picker still fails fast | node | Route it through the listing's `loaded` |
 | Copied payload holds no path; rendered row does | node + jsdom | Swap either half |
 | The report is reachable from both doors | `tests/plugin/` | Delete either registration |
+
+**A corrupt `schema-version` is the ONE refusal that already records, so a test using only that
+input passes while the gap in 1b stands.** This spec's own first draft did exactly that. Every
+skip-and-count case therefore drives a **post-migration** failure — a current-schema note whose
+frontmatter fails the mapper — as well as a version one.
 
 **The refusal must be produced, not stubbed.** A repository fake that cannot fail to parse a
 note proves nothing about a listing that skips parse failures — this repository's own
@@ -213,8 +267,9 @@ and the report look like.
 
 ## Definition of done
 
-1. `ZoneListing` and `PlanListing` exist; both Obsidian repositories skip and count; both
-   in-memory repositories answer `refused: 0`.
+1. `ZoneListing` and `PlanListing` exist; both Obsidian repositories skip and count **only
+   entity-local refusals**, propagating a shared sidecar failure; both record each skipped
+   refusal into the ledger before counting it; both in-memory repositories answer `refused: 0`.
 2. `FindZonesByPlan` and `ListPlansByProject` carry the count to their stores;
    `ListReassignmentTargets` still refuses, with its reason in the code and its case beside the
    others.

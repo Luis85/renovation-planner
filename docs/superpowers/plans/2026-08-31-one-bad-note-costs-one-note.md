@@ -212,6 +212,41 @@ describe('the zone listing skips a note it cannot read', () => {
 		expect(stack.ledger.issues()).toHaveLength(1);
 	});
 
+	it('skips AND records a note that passes migration and fails the mapper', async () => {
+		// A corrupt `schema-version` is the ONE refusal that already reached the ledger,
+		// through `noteIo.ts:315`. Driving only that input passes while every later
+		// refusal in `loadOne` records nothing -- which is exactly what this spec's own
+		// first draft did. This case drives a CURRENT-schema note whose frontmatter fails
+		// the mapper, so it exercises the recording this task adds.
+		const stack = await openFixtureVault();
+		const { planId } = await stack.seedPlanWithZones(2);
+		await stack.invalidateZoneFrontmatter(0); // keeps schema-version, breaks a field
+
+		const listed = await stack.zones.listByPlan(planId);
+
+		expect(listed.ok).toBe(true);
+		if (!listed.ok) return;
+		expect(listed.value.loaded).toHaveLength(1);
+		expect(listed.value.refused).toBe(1);
+		expect(stack.ledger.issues()).toHaveLength(1);
+	});
+
+	it('does NOT skip an unreadable sidecar -- one shared failure is not N note failures', async () => {
+		// `loadOne` answers `zone.sidecar-unreadable` for EVERY zone when the plan's
+		// geometry sidecar cannot be read, and `list` memoises that read across the loop.
+		// Skipping it would answer `loaded: [], refused: 2` and draw an empty canvas under
+		// a notice blaming two notes for one file -- this increment's claim inverted.
+		const stack = await openFixtureVault();
+		const { planId } = await stack.seedPlanWithZones(2);
+		await stack.corruptSidecar(planId);
+
+		const listed = await stack.zones.listByPlan(planId);
+
+		expect(listed.ok).toBe(false);
+		if (listed.ok) return;
+		expect(listed.error.code).toBe('zone.sidecar-unreadable');
+	});
+
 	it('counts a refusal reached through listByProject too', async () => {
 		const stack = await openFixtureVault();
 		const { projectId } = await stack.seedPlanWithZones(2);
@@ -288,9 +323,18 @@ In `ObsidianZoneRepository.ts`, replace the body of `private async list` (curren
 		for (const id of ids) {
 			const one = await this.loadOne(id, readOnce);
 			if (!one.ok) {
-				// Skipped rather than fatal: `loadOne` reaches `getById`, which has already
-				// recorded this refusal into the diagnostics ledger, so the detail survives
-				// and the user keeps every zone that DID load.
+				// A SHARED failure is not N note failures. `loadOne` answers
+				// `zone.sidecar-unreadable` for every zone in a plan whose geometry sidecar
+				// cannot be read -- and `readOnce` memoises that read across this loop -- so
+				// swallowing it would answer an EMPTY list with `refused: N`, drawing a bare
+				// canvas under a notice blaming N notes for one file. Propagated instead.
+				if (!isSkippableZoneRefusal(one.error)) return one;
+				// Recorded HERE, because the claim "skipping loses nothing" was false until
+				// this line existed: `noteIo`'s `openNoteById` records the MIGRATION refusal
+				// and nothing else, so every later arm of `loadOne` reached the ledger not at
+				// all. A skipped note the diagnostics report cannot name is a note the user
+				// is told about and cannot find.
+				this.deps.ledger.record('zone', id, one.error);
 				refused += 1;
 				continue;
 			}
@@ -299,6 +343,33 @@ In `ObsidianZoneRepository.ts`, replace the body of `private async list` (curren
 		return ok({ loaded, refused });
 	}
 ```
+
+and beside it, at module scope:
+
+```ts
+/**
+ * Which refusals a listing may swallow: the ones that are about ONE note.
+ *
+ * Enumerated as what MAY be skipped rather than what may not, so the default is to
+ * propagate. A refusal code invented later then fails the listing -- today's behaviour,
+ * and the safe direction -- instead of being silently folded into a count. Fail-closed on
+ * purpose; the unsafe direction here hides a whole-plan failure behind a per-note notice.
+ *
+ * A migration refusal is skippable by CATEGORY: `MigrationError` means this build predates
+ * this note, which is as note-local as a refusal gets.
+ */
+const SKIPPABLE_ZONE_CODES = new Set([
+	'zone.frontmatter-invalid',
+	'zone.entity-invalid',
+	'zone.geometry-entry-missing',
+]);
+
+function isSkippableZoneRefusal(error: RepositoryError): boolean {
+	return error.category === 'Migration' || SKIPPABLE_ZONE_CODES.has(error.code);
+}
+```
+
+Confirm `MigrationError`'s `category` spelling in `src/core/errors/AppError.ts` before writing that test — it is `'Migration'` in this plan's reading, and a wrong string would make every migration refusal fatal while every test using a corrupt `schema-version` goes red, which is at least a loud failure.
 
 Import `ZoneListing` from the port.
 
@@ -539,7 +610,7 @@ describe('the plan listing skips a note it cannot read', () => {
 });
 ```
 
-Same instruction as Task 2 Step 1: read `fixtureVault.ts` and use its own seeding helpers, extending that file rather than this one if they are missing.
+Same instruction as Task 2 Step 1: read `fixtureVault.ts` and use its own seeding helpers, extending that file rather than this one if they are missing. **And add the post-migration case here too** — a corrupt `schema-version` is the one refusal that already reaches the ledger, so a test driving only that input passes while the recording this task adds does nothing.
 
 - [ ] **Step 2: Run it and watch it fail at the assertion**
 
@@ -566,7 +637,12 @@ and `listByProject(projectId: ProjectId): Promise<Result<PlanListing, Repository
 
 - [ ] **Step 4: Make both implementations answer it**
 
-In `ObsidianPlanRepository.listByProject`, keep the existing `getIdsByType` narrowing and its docblock untouched, and change the loop to accumulate `refused` and `continue` exactly as `ObsidianProjectRepository.listAll:212-224` does, returning `ok({ loaded, refused })`.
+In `ObsidianPlanRepository.listByProject`, keep the existing `getIdsByType` narrowing and its docblock untouched, and change the loop to accumulate `refused` and `continue`, returning `ok({ loaded, refused })`.
+
+**Two things it must copy from Task 2 rather than from `ObsidianProjectRepository.listAll:212-224`**, which needs neither:
+
+- **Record before skipping.** `grep -c ledger src/infrastructure/obsidian/repositories/ObsidianPlanRepository.ts` returns **0**: this repository records nothing, and `noteIo.ts:315` records only the migration refusal. Add `this.deps.ledger.record('plan', id, read.error);` at the skip site, or the diagnostics report has no row for the plan the user was just told about.
+- **Check for a shared failure.** Read `ObsidianPlanRepository.getById`'s own refusal arms and ask of each: is this about ONE note, or about something every plan in the project shares? Enumerate the skippable codes the way Task 2 does — as an allowlist, so an unenumerated code propagates. If every arm turns out to be note-local, **say so in a comment naming the arms you checked**, because "there is no shared failure here" is a claim, and the next person to add an arm needs to know it was measured rather than assumed.
 
 In `InMemoryPlanRepository.ts`:
 

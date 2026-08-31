@@ -31,9 +31,31 @@ const ZONES_FOLDER = 'Zones';
 const ASSETS_FOLDER = 'Assets';
 const REQUIREMENTS_FOLDER = 'Requirements';
 
-/** The user-editable setting passes through `normalizePath` before any Vault call. */
+/**
+ * The user-editable setting passes through `normalizePath` before any Vault call — and then
+ * through one more rule this module owns: **the vault root is `''`, never `'/'`.**
+ *
+ * `joinFolder` below already treats `''` as the root, which is the reason it is a function
+ * rather than a template literal in five places. What it cannot survive is being handed
+ * `'/'`: it is truthy, so `joinFolder('/', 'Geometry')` is `'//Geometry'`, a path Obsidian
+ * refuses to write and finds nothing at — a designed asset would read as shapeless because
+ * its sidecar was looked for somewhere it never was.
+ *
+ * `/` is reachable: it is a folder a user can type into a hand-edited `data.json`, and
+ * `settingsFrom` hands back a string rather than a vocabulary for this field.
+ *
+ * **The collapse is here rather than left to `normalizePath` because which of the two that
+ * function returns cannot be settled from this repository.** The `obsidian` dependency is
+ * types-only, there is no implementation to read, and the suite's own mock strips the
+ * slashes and answers `''` while the real one is believed to fall back to `'/'`. Doing it
+ * here makes every caller correct under BOTH readings, which is worth more than being right
+ * about the one nobody can check — and it means the mock being kinder than the real thing in
+ * exactly this case, which is this repository's oldest recurring defect, no longer decides
+ * whether the code works.
+ */
 export function normalizeFolder(raw: string): string {
-	return normalizePath(raw.trim());
+	const normalized = normalizePath(raw.trim());
+	return normalized === '/' ? '' : normalized;
 }
 
 /**

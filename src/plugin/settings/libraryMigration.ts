@@ -400,6 +400,13 @@ export function catalogueNotesIn(
 }
 
 /**
+ * An asset sidecar is named after its asset's whole id (`assetSidecarPathFor`), and
+ * `createEntityId` mints `<prefix>-<ULID>` — so the prefix is what tells an asset's sidecar
+ * from a plan's, and tells them apart exactly rather than by depth.
+ */
+const ASSET_SIDECAR_PREFIX = 'asset-';
+
+/**
  * WHICH `.rpgeo` FILES ARE THE LIBRARY'S — the DIRECT children of its own `Geometry/`
  * folder, and nothing deeper.
  *
@@ -411,10 +418,26 @@ export function catalogueNotesIn(
  * project's geometry with a catalogue it has nothing to do with, and leave every plan on it
  * with an index mapping pointing at a file that is no longer there.
  *
- * Depth is what separates the two, and it separates them exactly: ADR-0014's layout puts
- * every asset sidecar as an immediate child of `<libraryFolder>/Geometry/`, and any project
- * nested in the library contributes at least one more segment. The `.rpgeo` test is the
- * second half — a README or a note a user filed in that folder is not ours to relocate.
+ * Depth is MOST of what separates the two: ADR-0014's layout puts every asset sidecar as an
+ * immediate child of `<libraryFolder>/Geometry/`, and any project NESTED in the library
+ * contributes at least one more segment. The `.rpgeo` test is the second half — a README or
+ * a note a user filed in that folder is not ours to relocate.
+ *
+ * **Depth alone was not enough, and the case it misses is the one it cannot see: a project
+ * whose folder IS the library folder.** That project contributes no extra segment at all, so
+ * its `plan-*.rpgeo` sit as direct children here and satisfied every test above — and moving
+ * the library relocated a project's plan geometry while leaving the project and its note
+ * behind, breaking the folder-scoped layout ADR-011 derives its recovery path from. It is
+ * reachable without any command refusing it: §83's guards cover project CREATION and this
+ * migration's DESTINATION, and neither compares the SOURCE against a project folder, while
+ * ADR-0013 derives a project's folder from where its `Project.md` sits — so dragging that
+ * note into the library root produces the state by hand, and slice 19 MARKS an overlap
+ * rather than refusing it.
+ *
+ * So the id PREFIX is the third test, and it is the one that separates them exactly. An
+ * asset sidecar is named after the whole asset id and `createEntityId` mints
+ * `<prefix>-<ULID>`, so `asset-` and `plan-` are disjoint by construction and no depth
+ * argument is being relied on to hold.
  *
  * Asked of the LAYOUT rather than of the index, unlike its sibling, because there is nothing
  * to ask: a sidecar has no frontmatter, no `type` and no entry of its own. That asymmetry is
@@ -426,10 +449,9 @@ export function catalogueNotesIn(
  */
 export function libraryGeometryIn(files: readonly TFile[], folder: string): TFile[] {
 	const root = `${libraryGeometryFolderFor(folder)}/`;
-	return files.filter(
-		(file) =>
-			file.path.startsWith(root) &&
-			file.path.endsWith('.rpgeo') &&
-			!file.path.slice(root.length).includes('/'),
-	);
+	return files.filter((file) => {
+		if (!file.path.startsWith(root) || !file.path.endsWith('.rpgeo')) return false;
+		const name = file.path.slice(root.length);
+		return !name.includes('/') && name.startsWith(ASSET_SIDECAR_PREFIX);
+	});
 }

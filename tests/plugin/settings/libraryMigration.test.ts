@@ -661,6 +661,37 @@ describe('libraryGeometryIn', () => {
 	});
 
 	/** The prefix trap `catalogueNotesIn` already carries: a segment boundary, not a string one. */
+	/**
+	 * A project whose folder IS the library folder, rather than nested inside it.
+	 *
+	 * The depth rule this function is built on separates a nested project's plan sidecars from
+	 * the library's own by one segment — and an IDENTICAL folder contributes none, so
+	 * `<library>/Geometry/plan-*.rpgeo` are direct children and passed every test here. Moving
+	 * the library then relocated a project's plan geometry while leaving the project and its
+	 * note at the source, breaking the folder-scoped layout ADR-011 derives the recovery path
+	 * from.
+	 *
+	 * Reachable without any command refusing it: §83's guards cover project CREATION and the
+	 * migration's DESTINATION, and neither compares the SOURCE against a project folder — while
+	 * ADR-0013 derives a project's folder from where its `Project.md` sits, so dragging that
+	 * note into the library root produces this state by hand, and slice 19 MARKS an overlap
+	 * rather than refusing it.
+	 *
+	 * The id prefix is what separates them and separates them exactly: `createEntityId` mints
+	 * `<prefix>-<ULID>`, `assetSidecarPathFor` names the file after the whole asset id, and the
+	 * two prefixes are `asset` and `plan`.
+	 */
+	it('takes the library\'s asset sidecars and not a co-located project\'s plan sidecars', () => {
+		const files = [
+			noteAt(`${SOURCE}/Geometry/asset-01ABC.rpgeo`),
+			noteAt(`${SOURCE}/Geometry/plan-01ABC.rpgeo`),
+		];
+
+		expect(libraryGeometryIn(files, SOURCE).map((file) => file.path)).toEqual([
+			`${SOURCE}/Geometry/asset-01ABC.rpgeo`,
+		]);
+	});
+
 	it('does not reach a folder that merely starts with the library\'s name', () => {
 		const files = [noteAt('Renovation/LibraryOld/Geometry/asset-01JABC.rpgeo')];
 

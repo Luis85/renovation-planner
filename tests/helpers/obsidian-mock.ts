@@ -50,6 +50,18 @@ export const apiVersion = '1.13.0';
  * become forward slashes, repeated slashes collapse, leading and trailing slashes go, and
  * the result is NFC-normalized — the last because macOS hands out NFD filenames and a
  * decomposed path does not match a composed one.
+ *
+ * **The ONE case where "no kinder" is a claim this repository cannot check: the vault root.**
+ * Given `'/'` this answers `''`; the real one is believed to fall back to `'/'`, and there is
+ * no way to settle it here — the `obsidian` dependency is types-only and ships no
+ * implementation. It matters because `joinFolder` treats `''` as the root and `'/'` is truthy,
+ * so a caller handed `'/'` builds `'//Geometry'`, which finds nothing and cannot be written.
+ *
+ * Nothing depends on the answer any more: `normalizeFolder` collapses a root-only result
+ * itself and is correct under both readings. That was MEASURED rather than assumed — patching
+ * this function to return `'/'` and removing the collapse reproduces `'//Geometry'` exactly,
+ * and with the collapse in place the root cases pass under either behaviour. Do not "fix" this
+ * fake to return `'/'`: that asserts the same unverified claim from the other side.
  */
 export function normalizePath(path: string): string {
 	return path

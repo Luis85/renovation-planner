@@ -7,13 +7,14 @@ import type { AssetId } from '../../../domain/asset/AssetId';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { validateAssetShape } from '../../../domain/asset/AssetShape';
-import { assetError } from '../../../domain/asset/Asset.errors';
 import type { DispatchResult } from '../DispatchOutcome';
 import type {
 	AssetGeometryDocument,
 	AssetGeometrySidecar,
 } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
+import { assetError, assetNotFound } from '../../../domain/asset/Asset.errors';
+import type { AssetRepository } from '../../ports/AssetRepository';
 
 /** What every design command is given: an asset, and what it may condition its write on. */
 export interface AssetShapeInput {
@@ -76,13 +77,47 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  * "somebody pressed something". A peer designer leaf re-reads on it, and a refresh triggered
  * by an idle re-submit or by a write that refused is a re-read of a document nothing moved.
  */
+/**
+ * What every design command needs to reach: the sidecar it writes, the repository it checks the
+ * asset against, and the bus it announces on.
+ *
+ * An object rather than three parameters because adding the repository took this function to six
+ * and `max-params` is five — the same fold `trashNoteBackedEntity` made at the same limit. It also
+ * reads better at the five call sites: the DEPENDENCIES are one argument and the OPERATION is the
+ * other three.
+ */
+export interface AssetShapeDeps {
+	readonly sidecar: AssetGeometrySidecar;
+	readonly assets: AssetRepository;
+	readonly events: EventBus;
+}
+
 export async function updateAssetShape(
-	sidecar: AssetGeometrySidecar,
-	events: EventBus,
+	deps: AssetShapeDeps,
 	input: AssetShapeInput,
 	change: ShapeChange,
 	unchanged: ShapeUnchanged,
 ): Promise<DispatchResult> {
+	const { sidecar, assets, events } = deps;
+	// THE ASSET FIRST, and before the sidecar is even opened.
+	//
+	// An absent sidecar is a valid empty document by design — "a shapeless asset, not an
+	// error" — so without this, a command against a deleted or invented id wrote a real
+	// `.rpgeo`, answered 'wrote', and announced a design change for an asset that is not
+	// there. That orphan is the one a reused id later attaches to, defeating the store's
+	// `asset-id-mismatch` guard because the two ids then agree; and it re-creates precisely
+	// what deleting an asset's sidecar with its asset exists to prevent.
+	//
+	// The two failure kinds stay APART. `isErr(loaded) || loaded.value === null` reports a
+	// vault fault as "the asset is gone", which this repository has shipped three times.
+	//
+	// `SetAssetHeightCommand` already asked this question — it reads the note, so it had to.
+	// The five geometry commands read only the sidecar and so did not, which left one
+	// increment shipping six design commands where one checked and five did not.
+	const loaded = await assets.getById(input.assetId);
+	if (isErr(loaded)) return loaded;
+	if (loaded.value === null) return err(assetNotFound(input.assetId));
+
 	const snapshot = await sidecar.read(input.assetId);
 	if (isErr(snapshot)) return snapshot;
 	const { document, version } = snapshot.value;

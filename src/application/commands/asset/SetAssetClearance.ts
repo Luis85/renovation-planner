@@ -1,13 +1,11 @@
 import { isErr, ok } from '../../../core/result/Result';
 import type { Point } from '../../../core/geometry/Point';
-import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { Command } from '../Command';
 import type { DispatchResult } from '../DispatchOutcome';
-import type { AssetGeometrySidecar } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
-import { requireShape, samePolygon, updateAssetShape } from './updateAssetShape';
+import { requireShape, samePolygon, updateAssetShape, type AssetShapeDeps } from './updateAssetShape';
 
 export interface SetAssetClearanceInput {
 	readonly assetId: AssetId;
@@ -63,15 +61,11 @@ function sameClearance(current: AssetShape, next: AssetShape): boolean {
  * paid for.
  */
 export class SetAssetClearanceCommand implements Command<SetAssetClearanceInput, DispatchResult> {
-	constructor(
-		private readonly sidecar: AssetGeometrySidecar,
-		private readonly events: EventBus,
-	) {}
+	constructor(private readonly deps: AssetShapeDeps) {}
 
 	execute(input: SetAssetClearanceInput): Promise<DispatchResult> {
 		return updateAssetShape(
-			this.sidecar,
-			this.events,
+			this.deps,
 			input,
 			(current, calibrated) => {
 				const shape = requireShape(current);

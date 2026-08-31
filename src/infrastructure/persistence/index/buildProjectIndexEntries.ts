@@ -5,12 +5,7 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
 import { ENTITY_TYPES, type EntityType, type ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { Logger } from '../../../application/ports/Logger';
 import { frontmatterOf } from '../../obsidian/repositories/noteIo';
-import {
-	EDGE_DOT_OR_SPACE,
-	FORBIDDEN_IN_FILENAME,
-	parentOf,
-	sidecarPathFor,
-} from '../../obsidian/repositories/paths';
+import { parentOf, sidecarPathFor } from '../../obsidian/repositories/paths';
 import type { EchoWindow } from './EchoWindow';
 
 function listSidecars(vault: Vault): TFile[] {
@@ -26,32 +21,6 @@ export function stringField(value: unknown): string | undefined {
 	return typeof value === 'string' && value ? value : undefined;
 }
 
-/**
- * IS THIS ID USABLE AS A FILENAME — which it has to be, because two path helpers interpolate
- * one straight into a path: `assetSidecarPathFor` and `sidecarPathFor`. An id of `asset/custom`
- * resolves its sidecar to a NESTED path, and since reads and writes derive the same wrong one
- * nothing looks broken until a library migration, whose direct-children rule leaves the file
- * behind and the asset then reads as shapeless — silently, an absent sidecar being a shapeless
- * asset rather than an error.
- *
- * Asked here rather than in a per-kind schema because both interpolations have the hazard, and
- * this is the one answer to "is this note ours" that both index doors resolve.
- *
- * A path-segment rule and deliberately NOT a `<prefix>-<ULID>` regex: the hazard is the PATH,
- * not the format, and a format rule would refuse an id from a prefix nobody has minted yet. `.`
- * and `..` are refused for the same reason a separator is — each names a directory rather than
- * a file, so a sidecar derived from one is not where its id says.
- *
- * **TWO hazards, and the first version of this closed only one.** A separator makes the path
- * NEST; a character like `:` makes the filename INVALID — on Windows only, so it fails for users
- * and works for whoever wrote it. `FORBIDDEN_IN_FILENAME` is `fileNameFor`'s own vocabulary,
- * shared rather than restated: that function STRIPS these from a chosen name, and this one
- * REFUSES them, because an id IS the identity and there is nothing to clean it into.
- */
-function isPathSegment(id: string): boolean {
-	if (FORBIDDEN_IN_FILENAME.test(id) || EDGE_DOT_OR_SPACE.test(id)) return false;
-	return id !== '.' && id !== '..';
-}
 
 /**
  * What a note DECLARES itself to be — the one answer both the full scan and the
@@ -65,7 +34,6 @@ function isPathSegment(id: string): boolean {
 export type EntityRef =
 	| { kind: 'ours'; type: EntityType; id: string }
 	| { kind: 'no-id' }
-	| { kind: 'bad-id' }
 	| { kind: 'not-ours' };
 
 export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef {
@@ -74,9 +42,7 @@ export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef {
 		return { kind: 'not-ours' };
 	}
 	const id = stringField(frontmatter['id']);
-	if (id === undefined) return { kind: 'no-id' };
-	if (!isPathSegment(id)) return { kind: 'bad-id' };
-	return { kind: 'ours', type: type as EntityType, id };
+	return id === undefined ? { kind: 'no-id' } : { kind: 'ours', type: type as EntityType, id };
 }
 
 
@@ -127,13 +93,6 @@ function collectNotes(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
 			input.logger.warn('persistence.index.note-excluded', {
 				path: file.path,
 				reason: 'a note of this plugin must declare a non-empty id',
-			});
-			continue;
-		}
-		if (ref.kind === 'bad-id') {
-			input.logger.warn('persistence.index.note-excluded', {
-				path: file.path,
-				reason: "a note's id is used as a filename, so it must be one path segment",
 			});
 			continue;
 		}

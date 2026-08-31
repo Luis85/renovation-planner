@@ -32,70 +32,29 @@ describe('entityRefOf', () => {
 	});
 
 	/**
-	 * AN ID IS A FILENAME, so it has to be one path segment.
+	 * AN AWKWARD ID IS STILL OURS — the regression this case exists to keep closed.
 	 *
-	 * `assetSidecarPathFor` and `sidecarPathFor` both interpolate an entity's id straight into
-	 * a path, so an id of `asset/custom` resolves its sidecar to `Geometry/asset/custom.rpgeo`
-	 * — nested rather than a direct child. Reads and writes derive the SAME wrong path, so
-	 * nothing looks broken until a library migration, whose direct-children rule leaves the
-	 * file behind and the asset then reads as shapeless. Silent, because an absent sidecar is a
-	 * shapeless asset rather than an error.
+	 * Two earlier attempts refused an id that cannot be a filename HERE, so a project, zone or
+	 * requirement whose hand-written id held a `:` or a `#` stopped being indexed and became
+	 * unopenable. That traded lost access for a bad write, which is the wrong direction: every
+	 * one of those hazards is a WRITE hazard, and none of them stops a note being read.
 	 *
-	 * Refused HERE rather than in the asset frontmatter schema, because a plan id is
-	 * interpolated by `sidecarPathFor` in exactly the same way — fixing the kind the report
-	 * named would leave the identical defect one file away. This is the one answer to "is this
-	 * note ours", with a caller list the test below MEASURES rather than asserts.
+	 * The rule now lives at `AssetGeometryStore.pathFor`, the one site that derives a path, so
+	 * the note stays indexed and openable while no sidecar is ever written for it — which
+	 * leaves nothing for a library migration to orphan, the concern that started all of this.
 	 *
-	 * A path-segment rule and deliberately NOT a `<prefix>-<ULID>` regex: the hazard is the
-	 * path, not the format, and a format rule would refuse ids from a prefix nobody has minted
-	 * yet.
+	 * More reachable than it looks: the spec records that the only way a vault has an Asset
+	 * today is a hand-written note, so hand-written ids are the normal case rather than an
+	 * exotic one.
 	 */
-	it('answers bad-id for an id that is not a single path segment', () => {
-		for (const id of ['asset/custom', 'asset\\custom', '..', '.', 'a/b/c']) {
-			expect(entityRefOf({ type: 'renovation-asset', id })).toEqual({ kind: 'bad-id' });
-		}
-	});
-
-	/**
-	 * EVERY character a filename may not hold, not just the two that make a path NEST.
-	 *
-	 * The first version of this rule refused `/`, `\\`, `.` and `..` — the SEPARATOR hazard, an id
-	 * escaping its folder. `fileNameFor` (paths.ts) had already written down the other half:
-	 * Obsidian forbids `\\ / : * ? " < > | # ^ [ ]` and dislikes edge dots and spaces. Measured, the
-	 * first rule admitted NINE of those ten characters.
-	 *
-	 * The one that matters is platform-split: `Geometry/asset:custom.rpgeo` is a legal path on
-	 * Linux and macOS and an invalid one on Windows, so it fails for users and works for whoever
-	 * wrote it. CI carries a Windows leg because paths are one of the two things that differ
-	 * between platforms, and this is a path.
-	 *
-	 * Driven as a LOOP over the vocabulary rather than as a handful of examples, so a character
-	 * dropped from the shared class fails here rather than silently.
-	 */
-	it('answers bad-id for every character a filename may not hold', () => {
-		for (const ch of ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '#', '^', '[', ']']) {
-			expect(entityRefOf({ type: 'renovation-asset', id: `asset${ch}custom` })).toEqual({
-				kind: 'bad-id',
+	it('indexes a note whose id could not be a filename, because reading is not writing', () => {
+		for (const id of ['asset:custom', 'asset/custom', 'CON', ' asset ', 'a#b']) {
+			expect(entityRefOf({ type: 'renovation-asset', id })).toEqual({
+				kind: 'ours',
+				type: 'renovation-asset',
+				id,
 			});
 		}
-	});
-
-	it('answers bad-id for an edge dot or space, which Windows and Obsidian both dislike', () => {
-		for (const id of [' asset-01ABC', 'asset-01ABC ', 'asset-01ABC.', '.asset-01ABC']) {
-			expect(entityRefOf({ type: 'renovation-asset', id })).toEqual({ kind: 'bad-id' });
-		}
-	});
-
-	it('still answers ours for an ordinary id, so the rule refuses separators and not ids', () => {
-		expect(entityRefOf({ type: 'renovation-asset', id: 'asset-01ABC' })).toEqual({
-			kind: 'ours',
-			type: 'renovation-asset',
-			id: 'asset-01ABC',
-		});
-	});
-
-	it('keeps bad-id distinct from no-id, because they are different diagnostics', () => {
-		expect(entityRefOf({ type: 'renovation-plan', id: 'a/b' }).kind).not.toBe('no-id');
 	});
 });
 

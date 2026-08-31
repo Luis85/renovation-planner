@@ -1,11 +1,11 @@
 import { TFile, type FileManager, type Vault } from 'obsidian';
-import { err, ok, type Result } from '../../../core/result/Result';
+import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { checkExpectedVersion } from './versionCheck';
 import { ensureFolder, persistenceError } from './noteIo';
-import { assetSidecarPathFor, parentOf } from './paths';
+import { assetSidecarPathFor, parentOf, usableAsFilename } from './paths';
 import type { AssetGeometryDTO } from '../../persistence/dto/assetGeometry';
 import { AssetGeometrySchemaV1 } from '../../persistence/dto/assetGeometry';
 import { KeyedQueues } from './KeyedQueues';
@@ -119,7 +119,9 @@ export class AssetGeometryStore {
 	 */
 	delete(assetId: AssetId): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`asset:${assetId}`, async () => {
-			const path = this.pathFor(assetId);
+			const resolved = this.pathFor(assetId);
+			if (isErr(resolved)) return resolved;
+			const path = resolved.value;
 			const file = this.vault.getAbstractFileByPath(path);
 			if (!(file instanceof TFile)) return ok(undefined);
 			try {
@@ -190,13 +192,23 @@ export class AssetGeometryStore {
 	 * and every write resolves here and nowhere else, so that later change is one line
 	 * rather than a rewrite of the read path.
 	 */
-	private pathFor(assetId: AssetId): string {
-		return assetSidecarPathFor(this.libraryFolder, assetId);
+	private pathFor(assetId: AssetId): Result<string, RepositoryError> {
+		if (!usableAsFilename(assetId)) {
+			return err(
+				persistenceError(
+					'asset-geometry.unusable-id',
+					`An asset id names its sidecar file, and ${assetId} cannot be a filename.`,
+				),
+			);
+		}
+		return ok(assetSidecarPathFor(this.libraryFolder, assetId));
 	}
 
 	/** MUST run inside the asset's queue — both callers here do. */
 	private async readUnlocked(assetId: AssetId): Promise<Result<AssetSidecarSnapshot, RepositoryError>> {
-		const path = this.pathFor(assetId);
+		const resolved = this.pathFor(assetId);
+		if (isErr(resolved)) return resolved;
+		const path = resolved.value;
 		const file = this.vault.getAbstractFileByPath(path);
 		if (!(file instanceof TFile)) {
 			return ok({ dto: emptyDocument(assetId), version: ABSENT_VERSION, path });

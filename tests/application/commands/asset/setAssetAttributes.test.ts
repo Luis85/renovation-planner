@@ -28,6 +28,7 @@ import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obs
 import { assetSidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { createRepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
+import { makeAsset } from '../../../helpers/entities';
 
 const SQUARE: readonly Point[] = [
 	{ x: 0, y: 0 },
@@ -109,20 +110,25 @@ function designChangesHeardOn(bus: EventBus): AssetId[] {
  * Every command is constructed HERE. A command built beside a case is a command a mutation
  * run silently leaves un-mutated, which Task A5a paid for once already.
  */
-function seeded() {
+async function seeded() {
 	const stack = createRepositoryStack();
 	const assetId = createAssetId();
 	const sidecar = new ObsidianAssetGeometrySidecar(stack.assetGeometry);
 	const events = createEventBus();
+	// The asset NOTE exists, because a design command now requires it to. This fixture created
+	// only a sidecar until that check landed, so 47 cases across these two files were driving
+	// commands against an asset that does not exist — measured, and the reason the check is
+	// worth having rather than a nicety.
+	expectOk(await stack.assets.save(makeAsset({ id: assetId }), 'absent'));
 	return {
 		stack,
 		assetId,
 		sidecar,
 		events,
 		path: assetSidecarPathFor(stack.libraryFolder, assetId),
-		clearance: new SetAssetClearanceCommand(sidecar, events),
-		anchor: new SetAssetAnchorCommand(sidecar, events),
-		facing: new SetAssetFacingCommand(sidecar, events),
+		clearance: new SetAssetClearanceCommand({ sidecar, assets: stack.assets, events }),
+		anchor: new SetAssetAnchorCommand({ sidecar, assets: stack.assets, events }),
+		facing: new SetAssetFacingCommand({ sidecar, assets: stack.assets, events }),
 		async seed(document: AssetGeometryDocument): Promise<void> {
 			expectOk(await sidecar.write(assetId, document));
 		},
@@ -137,7 +143,7 @@ function seeded() {
 
 describe('SetAssetClearance', () => {
 	it('refuses a clearance on an asset with no footprint, because a boundary is relative to one', async () => {
-		const { clearance, assetId, storedShape } = seeded();
+		const { clearance, assetId, storedShape } = await seeded();
 
 		expect(expectErr(await clearance.execute({ assetId, points: WIDER })).code)
 			.toBe('asset.no-footprint');
@@ -146,7 +152,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('captures a boundary and flags it pending when the surface carries no scale', async () => {
-		const { clearance, assetId, seed, storedShape } = seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 
 		expect(expectOk(await clearance.execute({ assetId, points: WIDER }))).toBe('wrote');
@@ -157,7 +163,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('marks a boundary captured on a CALIBRATED surface as already scaled', async () => {
-		const { clearance, assetId, seed, storedShape } = seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: measured() });
 
 		await clearance.execute({ assetId, points: WIDER });
@@ -173,7 +179,7 @@ describe('SetAssetClearance', () => {
 	 * calibrated surface the wrong derivation and the right answer agree.
 	 */
 	it('clears the clearance when given null, and clears its pending flag with it', async () => {
-		const { clearance, assetId, seed, storedShape } = seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		expect(expectOk(await clearance.execute({ assetId, points: WIDER }))).toBe('wrote');
 		expect((await storedShape())?.clearancePending).toBe(true);
@@ -186,7 +192,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('sets only its own pending flag, leaving a measured footprint measured', async () => {
-		const { clearance, assetId, seed, storedShape } = seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 
 		await clearance.execute({ assetId, points: WIDER });
@@ -198,7 +204,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('preserves the footprint, anchor and facing it does not own', async () => {
-		const { clearance, assetId, seed, storedShape } = seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: { ...awaitingScale(), facing: Math.PI / 2 } });
 
 		await clearance.execute({ assetId, points: WIDER });
@@ -210,7 +216,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('refuses a two-point boundary through the one polygon validator, without touching the vault', async () => {
-		const { clearance, assetId, seed, revision, storedShape } = seeded();
+		const { clearance, assetId, seed, revision, storedShape } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		const before = await revision();
 
@@ -225,7 +231,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('reports no-write when the boundary given is the one already stored', async () => {
-		const { clearance, assetId, seed, revision } = seeded();
+		const { clearance, assetId, seed, revision } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: measured() });
 		await clearance.execute({ assetId, points: WIDER });
 		const written = await revision();
@@ -241,7 +247,7 @@ describe('SetAssetClearance', () => {
 	 * outline changing, and the re-trace is what records that it has been through one.
 	 */
 	it('rewrites a boundary whose coordinates are unchanged but which is no longer awaiting a scale', async () => {
-		const { clearance, assetId, seed, storedShape } = seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		await clearance.execute({ assetId, points: WIDER });
 		await seed({ calibration: CALIBRATION, shape: await storedShape() });
@@ -252,7 +258,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('reports no-write for a removal on an asset that has no boundary anyway', async () => {
-		const { clearance, assetId, seed, revision } = seeded();
+		const { clearance, assetId, seed, revision } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		const before = await revision();
 
@@ -262,7 +268,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('announces a boundary that was written', async () => {
-		const { clearance, assetId, seed, events } = seeded();
+		const { clearance, assetId, seed, events } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		const heard = designChangesHeardOn(events);
 
@@ -272,7 +278,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('announces nothing when the write was a no-write', async () => {
-		const { clearance, assetId, seed, events } = seeded();
+		const { clearance, assetId, seed, events } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: measured() });
 		await clearance.execute({ assetId, points: WIDER });
 		const heard = designChangesHeardOn(events);
@@ -285,7 +291,7 @@ describe('SetAssetClearance', () => {
 
 describe('SetAssetAnchor', () => {
 	it('refuses an anchor on an asset with no footprint', async () => {
-		const { anchor, assetId, storedShape } = seeded();
+		const { anchor, assetId, storedShape } = await seeded();
 
 		expect(expectErr(await anchor.execute({ assetId, anchor: { x: 10, y: 10 } })).code)
 			.toBe('asset.no-footprint');
@@ -294,7 +300,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('places the anchor and flags it pending when the surface carries no scale', async () => {
-		const { anchor, assetId, seed, storedShape } = seeded();
+		const { anchor, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 
 		expect(expectOk(await anchor.execute({ assetId, anchor: { x: 10, y: 10 } }))).toBe('wrote');
@@ -305,7 +311,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('marks an anchor placed on a CALIBRATED surface as already scaled', async () => {
-		const { anchor, assetId, seed, storedShape } = seeded();
+		const { anchor, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: measured() });
 
 		await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
@@ -314,7 +320,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('sets only its own pending flag, leaving the footprint and clearance awaiting their scale', async () => {
-		const { anchor, assetId, seed, storedShape } = seeded();
+		const { anchor, assetId, seed, storedShape } = await seeded();
 		// Calibrated, with both siblings still pending: the one arrangement where a command
 		// writing a sibling's flag from `!calibrated` writes a value that differs.
 		await seed({ calibration: CALIBRATION, shape: awaitingScale() });
@@ -328,7 +334,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('preserves the footprint, clearance and facing it does not own', async () => {
-		const { anchor, assetId, seed, storedShape } = seeded();
+		const { anchor, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: { ...awaitingScale(), facing: Math.PI / 2 } });
 
 		await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
@@ -340,7 +346,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('refuses a non-finite anchor without touching the vault', async () => {
-		const { anchor, assetId, seed, revision, storedShape } = seeded();
+		const { anchor, assetId, seed, revision, storedShape } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		const before = await revision();
 
@@ -352,7 +358,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('reports no-write when the anchor given is the anchor already stored', async () => {
-		const { anchor, assetId, seed, revision } = seeded();
+		const { anchor, assetId, seed, revision } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: measured() });
 		await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
 		const written = await revision();
@@ -369,7 +375,7 @@ describe('SetAssetAnchor', () => {
 	 * revision the save indicator then reports as a save.
 	 */
 	it('reports no-write for an anchor re-placed within the coincidence tolerance', async () => {
-		const { anchor, assetId, seed, revision } = seeded();
+		const { anchor, assetId, seed, revision } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: measured() });
 		await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
 		const written = await revision();
@@ -381,7 +387,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('writes when the anchor really moves', async () => {
-		const { anchor, assetId, seed, storedShape } = seeded();
+		const { anchor, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: measured() });
 		await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
 
@@ -391,7 +397,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('announces an anchor that was written', async () => {
-		const { anchor, assetId, seed, events } = seeded();
+		const { anchor, assetId, seed, events } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		const heard = designChangesHeardOn(events);
 
@@ -401,7 +407,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('announces nothing when the write was a no-write', async () => {
-		const { anchor, assetId, seed, events } = seeded();
+		const { anchor, assetId, seed, events } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: measured() });
 		await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
 		const heard = designChangesHeardOn(events);
@@ -414,7 +420,7 @@ describe('SetAssetAnchor', () => {
 
 describe('SetAssetFacing', () => {
 	it('refuses a facing on an asset with no footprint', async () => {
-		const { facing, assetId, storedShape } = seeded();
+		const { facing, assetId, storedShape } = await seeded();
 
 		expect(expectErr(await facing.execute({ assetId, facing: 1 })).code).toBe('asset.no-footprint');
 
@@ -422,7 +428,7 @@ describe('SetAssetFacing', () => {
 	});
 
 	it('turns the object, and reports that it wrote', async () => {
-		const { facing, assetId, seed, storedShape } = seeded();
+		const { facing, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 
 		expect(expectOk(await facing.execute({ assetId, facing: Math.PI / 2 }))).toBe('wrote');
@@ -431,7 +437,7 @@ describe('SetAssetFacing', () => {
 	});
 
 	it('normalises a facing given as 2π to 0, so two spellings of north cannot be stored', async () => {
-		const { facing, assetId, seed, storedShape } = seeded();
+		const { facing, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: null, shape: { ...measured(), facing: 1 } });
 
 		expect(expectOk(await facing.execute({ assetId, facing: Math.PI * 2 }))).toBe('wrote');
@@ -440,7 +446,7 @@ describe('SetAssetFacing', () => {
 	});
 
 	it('refuses a non-finite facing without touching the vault', async () => {
-		const { facing, assetId, seed, revision, storedShape } = seeded();
+		const { facing, assetId, seed, revision, storedShape } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		const before = await revision();
 
@@ -458,7 +464,7 @@ describe('SetAssetFacing', () => {
 	 * `false` over `true` and is seen.
 	 */
 	it('touches no pending flag at all, its own included', async () => {
-		const { facing, assetId, seed, storedShape } = seeded();
+		const { facing, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: awaitingScale() });
 
 		await facing.execute({ assetId, facing: Math.PI / 2 });
@@ -470,7 +476,7 @@ describe('SetAssetFacing', () => {
 	});
 
 	it('preserves the footprint, clearance and anchor it does not own', async () => {
-		const { facing, assetId, seed, storedShape } = seeded();
+		const { facing, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: awaitingScale() });
 
 		await facing.execute({ assetId, facing: Math.PI / 2 });
@@ -482,7 +488,7 @@ describe('SetAssetFacing', () => {
 	});
 
 	it('reports no-write when the facing given is the facing already stored', async () => {
-		const { facing, assetId, seed, revision } = seeded();
+		const { facing, assetId, seed, revision } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		await facing.execute({ assetId, facing: Math.PI / 2 });
 		const written = await revision();
@@ -498,7 +504,7 @@ describe('SetAssetFacing', () => {
 	 * revision for a turn nobody made.
 	 */
 	it('reports no-write for 2π against a stored 0', async () => {
-		const { facing, assetId, seed, revision } = seeded();
+		const { facing, assetId, seed, revision } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		const before = await revision();
 
@@ -508,7 +514,7 @@ describe('SetAssetFacing', () => {
 	});
 
 	it('announces a facing that was written', async () => {
-		const { facing, assetId, seed, events } = seeded();
+		const { facing, assetId, seed, events } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		const heard = designChangesHeardOn(events);
 
@@ -518,7 +524,7 @@ describe('SetAssetFacing', () => {
 	});
 
 	it('announces nothing when the write was a no-write', async () => {
-		const { facing, assetId, seed, events } = seeded();
+		const { facing, assetId, seed, events } = await seeded();
 		await seed({ calibration: null, shape: measured() });
 		await facing.execute({ assetId, facing: Math.PI / 2 });
 		const heard = designChangesHeardOn(events);

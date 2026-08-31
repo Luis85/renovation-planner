@@ -19,7 +19,7 @@ import type {
 } from '../../../../src/application/ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../../../src/application/ports/versioning';
 import type { RepositoryError } from '../../../../src/application/ports/repositoryErrors';
-import type { Result } from '../../../../src/core/result/Result';
+import { err, type Result } from '../../../../src/core/result/Result';
 import type { Point } from '../../../../src/core/geometry/Point';
 import type { EventBus } from '../../../../src/core/events/EventBus';
 import { createEventBus } from '../../../../src/core/events/EventBus';
@@ -32,6 +32,7 @@ import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obs
 import { assetSidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { createRepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
+import { makeAsset } from '../../../helpers/entities';
 
 const TRIANGLE: readonly Point[] = [
 	{ x: 0, y: 0 },
@@ -95,19 +96,24 @@ function designChangesHeardOn(bus: EventBus): AssetId[] {
 	return heard;
 }
 
-function seeded() {
+async function seeded() {
 	const stack = createRepositoryStack();
 	const assetId = createAssetId();
 	const sidecar = new ObsidianAssetGeometrySidecar(stack.assetGeometry);
 	const events = createEventBus();
+	// The asset NOTE exists, because a design command now requires it to. This fixture created
+	// only a sidecar until that check landed, so 47 cases across these two files were driving
+	// commands against an asset that does not exist — measured, and the reason the check is
+	// worth having rather than a nicety.
+	expectOk(await stack.assets.save(makeAsset({ id: assetId }), 'absent'));
 	return {
 		stack,
 		assetId,
 		sidecar,
 		events,
 		path: assetSidecarPathFor(stack.libraryFolder, assetId),
-		typed: new SetAssetFootprintFromDimensionsCommand(sidecar, events),
-		traced: new SetAssetFootprintCommand(sidecar, events),
+		typed: new SetAssetFootprintFromDimensionsCommand({ sidecar, assets: stack.assets, events }),
+		traced: new SetAssetFootprintCommand({ sidecar, assets: stack.assets, events }),
 		async seed(document: AssetGeometryDocument): Promise<void> {
 			expectOk(await sidecar.write(assetId, document));
 		},
@@ -120,9 +126,60 @@ function seeded() {
 	};
 }
 
+/**
+ * AN ASSET THAT IS NOT THERE, which every command sharing `updateAssetShape` must refuse.
+ *
+ * An absent sidecar is a valid empty document by design — a shapeless asset, not an error — so
+ * without an existence check a design command against a deleted or invented id wrote a real
+ * `.rpgeo`, answered 'wrote', and announced a design change for nothing. That orphan is the one
+ * a reused id later attaches to, defeating the store's own `asset-id-mismatch` guard because
+ * the two ids then agree, and it re-creates exactly what deleting a sidecar with its asset
+ * exists to prevent.
+ *
+ * All three assertions matter: the refusal ALONE is equally true of a build that wrote and then
+ * failed, so the file's absence and the silence are what say nothing happened.
+ */
+describe('a design command against an asset that does not exist', () => {
+	it('refuses, writes no sidecar, and announces nothing', async () => {
+		const stack = createRepositoryStack();
+		const missing = createAssetId();
+		const sidecar = new ObsidianAssetGeometrySidecar(stack.assetGeometry);
+		const events = createEventBus();
+		const heard: unknown[] = [];
+		events.subscribe('AssetDesignChanged', (e) => {
+			heard.push(e);
+		});
+
+		const result = await new SetAssetFootprintFromDimensionsCommand({ sidecar, assets: stack.assets, events }).execute({ assetId: missing, width: 1200, depth: 800 });
+
+		expect(expectErr(result).code).toBe('asset.not-found');
+		expect(stack.vault.entries.has(assetSidecarPathFor(stack.libraryFolder, missing))).toBe(false);
+		expect(heard).toEqual([]);
+	});
+
+	it('surfaces a failed asset read rather than reporting the asset missing', async () => {
+		const stack = createRepositoryStack();
+		const assetId = createAssetId();
+		const sidecar = new ObsidianAssetGeometrySidecar(stack.assetGeometry);
+		const failing = {
+			...stack.assets,
+			getById: () =>
+				Promise.resolve(
+					err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'x' } as const),
+				),
+		} as unknown as typeof stack.assets;
+
+		const result = await new SetAssetFootprintFromDimensionsCommand({ sidecar, assets: failing, events: createEventBus() }).execute({ assetId, width: 1200, depth: 800 });
+
+		// NOT `asset.not-found`: collapsing the two reports a vault fault as "the asset is gone",
+		// which this repository has shipped three times.
+		expect(expectErr(result).code).toBe('vault.unexpected-failure');
+	});
+});
+
 describe('SetAssetFootprintFromDimensions', () => {
 	it('writes a centred rectangle and reports that it wrote', async () => {
-		const { typed, assetId, storedShape } = seeded();
+		const { typed, assetId, storedShape } = await seeded();
 
 		const result = await typed.execute({ assetId, width: 1200, depth: 800 });
 
@@ -131,7 +188,7 @@ describe('SetAssetFootprintFromDimensions', () => {
 	});
 
 	it('marks the footprint typed, so no unscaled warning is shown for numbers nobody measured', async () => {
-		const { typed, assetId, seed, storedShape } = seeded();
+		const { typed, assetId, seed, storedShape } = await seeded();
 		// Uncalibrated, which is what a traced capture would answer `pending` to. Typed
 		// millimetres are not a measurement off a background, so the surface says nothing
 		// about them.
@@ -145,7 +202,7 @@ describe('SetAssetFootprintFromDimensions', () => {
 	});
 
 	it('preserves the clearance, anchor, facing and the pending flags it does not own', async () => {
-		const { typed, assetId, seed, storedShape } = seeded();
+		const { typed, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: null, shape: decorated() });
 
 		expect(expectOk(await typed.execute({ assetId, width: 1200, depth: 800 }))).toBe('wrote');
@@ -159,7 +216,7 @@ describe('SetAssetFootprintFromDimensions', () => {
 	});
 
 	it('refuses a non-positive dimension without touching the vault', async () => {
-		const { typed, assetId, seed, revision, storedShape } = seeded();
+		const { typed, assetId, seed, revision, storedShape } = await seeded();
 		await seed({ calibration: null, shape: decorated() });
 		const before = await revision();
 
@@ -172,7 +229,7 @@ describe('SetAssetFootprintFromDimensions', () => {
 	});
 
 	it('reports no-write when the rectangle asked for is the one already stored', async () => {
-		const { typed, assetId, revision } = seeded();
+		const { typed, assetId, revision } = await seeded();
 		await typed.execute({ assetId, width: 1200, depth: 800 });
 		const written = await revision();
 
@@ -183,7 +240,7 @@ describe('SetAssetFootprintFromDimensions', () => {
 	});
 
 	it('writes again when a dimension really changes', async () => {
-		const { typed, assetId, storedShape } = seeded();
+		const { typed, assetId, storedShape } = await seeded();
 		await typed.execute({ assetId, width: 1200, depth: 800 });
 
 		expect(expectOk(await typed.execute({ assetId, width: 1400, depth: 800 }))).toBe('wrote');
@@ -194,7 +251,7 @@ describe('SetAssetFootprintFromDimensions', () => {
 
 describe('SetAssetFootprint', () => {
 	it('marks a traced footprint traced, and pending a scale when the surface is uncalibrated', async () => {
-		const { traced, assetId, storedShape } = seeded();
+		const { traced, assetId, storedShape } = await seeded();
 
 		expect(expectOk(await traced.execute({ assetId, points: TRIANGLE }))).toBe('wrote');
 
@@ -204,7 +261,7 @@ describe('SetAssetFootprint', () => {
 	});
 
 	it('marks a trace taken on a CALIBRATED surface as already scaled', async () => {
-		const { traced, assetId, seed, storedShape } = seeded();
+		const { traced, assetId, seed, storedShape } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: null });
 
 		await traced.execute({ assetId, points: TRIANGLE });
@@ -213,7 +270,7 @@ describe('SetAssetFootprint', () => {
 	});
 
 	it('rewrites a footprint whose coordinates are unchanged but whose provenance is not', async () => {
-		const { traced, assetId, seed, storedShape } = seeded();
+		const { traced, assetId, seed, storedShape } = await seeded();
 		// Calibrated, so `footprintPending` is false on both sides and the ONLY thing that
 		// differs is where the outline came from. A comparison over coordinates alone
 		// reports `no-write` here and leaves the sidecar claiming somebody typed it.
@@ -232,7 +289,7 @@ describe('SetAssetFootprint', () => {
 	});
 
 	it('records that a re-traced outline is no longer awaiting a scale', async () => {
-		const { traced, assetId, seed, storedShape } = seeded();
+		const { traced, assetId, seed, storedShape } = await seeded();
 		await traced.execute({ assetId, points: TRIANGLE });
 		const captured = await storedShape();
 		// The calibration arrives without the outline changing — which is exactly the state
@@ -246,7 +303,7 @@ describe('SetAssetFootprint', () => {
 	});
 
 	it('writes an outline with a different number of vertices over the one traced before', async () => {
-		const { traced, assetId, storedShape } = seeded();
+		const { traced, assetId, storedShape } = await seeded();
 		await traced.execute({ assetId, points: TRIANGLE });
 
 		expect(expectOk(await traced.execute({ assetId, points: SQUARE }))).toBe('wrote');
@@ -255,7 +312,7 @@ describe('SetAssetFootprint', () => {
 	});
 
 	it('refuses a two-point outline through the one polygon validator', async () => {
-		const { traced, assetId, seed, revision } = seeded();
+		const { traced, assetId, seed, revision } = await seeded();
 		await seed({ calibration: null, shape: decorated() });
 		const before = await revision();
 
@@ -268,7 +325,7 @@ describe('SetAssetFootprint', () => {
 	});
 
 	it('reports a sidecar it cannot read rather than writing over it', async () => {
-		const { traced, assetId, stack, path, seed } = seeded();
+		const { traced, assetId, stack, path, seed } = await seeded();
 		await seed({ calibration: null, shape: decorated() });
 		stack.vault.failures.add(`read:${path}`);
 
@@ -277,7 +334,7 @@ describe('SetAssetFootprint', () => {
 	});
 
 	it('refuses the second of two writes built from the same revision, rather than losing one', async () => {
-		const { typed, traced, assetId, sidecar, storedShape } = seeded();
+		const { typed, traced, assetId, sidecar, storedShape } = await seeded();
 		const first = expectOk(await sidecar.read(assetId)).version;
 		const second = expectOk(await sidecar.read(assetId)).version;
 
@@ -298,7 +355,7 @@ describe('SetAssetFootprint', () => {
 	 * stale snapshot, with nothing reporting anything.
 	 */
 	it('conditions an unexpecting write on the version it read, so a racing writer is not lost', async () => {
-		const { assetId, sidecar, storedShape, events } = seeded();
+		const { assetId, sidecar, storedShape, events, stack } = await seeded();
 		let raced = false;
 		const racing: AssetGeometrySidecar = {
 			read: (id) => sidecar.read(id),
@@ -315,7 +372,7 @@ describe('SetAssetFootprint', () => {
 			},
 		};
 
-		const late = await new SetAssetFootprintCommand(racing, events).execute({ assetId, points: TRIANGLE });
+		const late = await new SetAssetFootprintCommand({ sidecar: racing, assets: stack.assets, events }).execute({ assetId, points: TRIANGLE });
 
 		expect(expectErr(late).code).toBe('asset-geometry.revision-conflict');
 		expect(await storedShape()).toBeNull();
@@ -328,7 +385,7 @@ describe('SetAssetFootprint', () => {
 	 * so at a case rather than surprising the caller.
 	 */
 	it('reports no-write for an identical footprint even when the expectation is stale', async () => {
-		const { typed, assetId, sidecar } = seeded();
+		const { typed, assetId, sidecar } = await seeded();
 		const stale = expectOk(await sidecar.read(assetId)).version;
 		await typed.execute({ assetId, width: 1200, depth: 800 });
 
@@ -349,7 +406,7 @@ describe('SetAssetFootprint', () => {
  */
 describe('AssetDesignChanged', () => {
 	it('announces a footprint that was written', async () => {
-		const { typed, assetId, events } = seeded();
+		const { typed, assetId, events } = await seeded();
 		const heard = designChangesHeardOn(events);
 
 		await typed.execute({ assetId, width: 1200, depth: 800 });
@@ -365,7 +422,7 @@ describe('AssetDesignChanged', () => {
 	 * return reddens exactly here.
 	 */
 	it('announces nothing when the write was a no-write', async () => {
-		const { typed, assetId, events } = seeded();
+		const { typed, assetId, events } = await seeded();
 		await typed.execute({ assetId, width: 1200, depth: 800 });
 		const heard = designChangesHeardOn(events);
 
@@ -380,7 +437,7 @@ describe('AssetDesignChanged', () => {
 	 * a traced outline silently refreshes nobody.
 	 */
 	it('announces a traced footprint through the same publish point', async () => {
-		const { traced, assetId, events } = seeded();
+		const { traced, assetId, events } = await seeded();
 		const heard = designChangesHeardOn(events);
 
 		await traced.execute({ assetId, points: TRIANGLE });
@@ -394,7 +451,7 @@ describe('AssetDesignChanged', () => {
 	 * the peer leaf then re-reads the document the initiating leaf failed to write.
 	 */
 	it('announces nothing when the write itself failed', async () => {
-		const { typed, assetId, seed, stack, path, events } = seeded();
+		const { typed, assetId, seed, stack, path, events } = await seeded();
 		await seed({ calibration: null, shape: decorated() });
 		stack.vault.failures.add(`modify:${path}`);
 		const heard = designChangesHeardOn(events);

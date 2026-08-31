@@ -1,12 +1,10 @@
 import { isErr, ok } from '../../../core/result/Result';
-import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { Command } from '../Command';
 import type { DispatchResult } from '../DispatchOutcome';
-import type { AssetGeometrySidecar } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
-import { requireShape, updateAssetShape } from './updateAssetShape';
+import { requireShape, updateAssetShape, type AssetShapeDeps } from './updateAssetShape';
 
 export interface SetAssetFacingInput {
 	readonly assetId: AssetId;
@@ -49,15 +47,11 @@ function sameFacing(current: AssetShape, next: AssetShape): boolean {
  * spelling and no caller has to remember to fold it.
  */
 export class SetAssetFacingCommand implements Command<SetAssetFacingInput, DispatchResult> {
-	constructor(
-		private readonly sidecar: AssetGeometrySidecar,
-		private readonly events: EventBus,
-	) {}
+	constructor(private readonly deps: AssetShapeDeps) {}
 
 	execute(input: SetAssetFacingInput): Promise<DispatchResult> {
 		return updateAssetShape(
-			this.sidecar,
-			this.events,
+			this.deps,
 			input,
 			(current) => {
 				const shape = requireShape(current);

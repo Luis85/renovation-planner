@@ -293,6 +293,76 @@ describe('ObsidianAssetGeometrySidecar', () => {
 		});
 	});
 
+	/**
+	 * AN ID THAT CANNOT NAME A FILE is refused HERE, at the one site that derives a path — not
+	 * at the index, which is where two earlier attempts put it.
+	 *
+	 * The hazards are all WRITE hazards: a separator gives a nested sidecar that reads and
+	 * writes agree on until a library migration orphans it; a forbidden character or a reserved
+	 * Windows device name gives a path that cannot be created at all, on Windows only, so it
+	 * fails for users and works for whoever wrote the code. None of them stops a note being
+	 * READ, which is why refusing at the index was wrong: it converted a bad write into lost
+	 * access, making a note the user can see on disk unopenable in the app.
+	 *
+	 * Refusing here instead means the note stays indexed and openable, no sidecar is ever
+	 * written for it, and there is therefore nothing for a migration to orphan — which closes
+	 * the original concern properly rather than by making the asset disappear.
+	 *
+	 * Reserved device names are reserved WITH an extension: `CON.rpgeo` names the device, not a
+	 * file. Matched case-insensitively, and on the id itself, which is the whole stem.
+	 */
+	it('refuses to resolve a path for an id that cannot name a file', async () => {
+		const { sidecar, stack } = seeded();
+		const cases = [
+			'asset/custom',
+			'asset\\custom',
+			'asset:custom',
+			'asset*x',
+			'a|b',
+			'a#b',
+			'.',
+			'..',
+			' asset ',
+			'asset.',
+			'CON',
+			'nul',
+			'COM1',
+		];
+		for (const raw of cases) {
+			const id = raw as unknown as Parameters<typeof sidecar.read>[0];
+			expect(expectErr(await sidecar.read(id)).code).toBe('asset-geometry.unusable-id');
+		}
+		// Nothing was written for any of them, which the refusal alone does not say.
+		expect([...stack.vault.entries.keys()].some((p) => p.endsWith('.rpgeo'))).toBe(false);
+	});
+
+	/**
+	 * The WRITE and the DELETE, not only the read — and this case is named for what it asserts
+	 * because the first draft was not. It said "and the DELETE" while exercising `write` alone,
+	 * which left the delete path's refusal arm uncovered; `coverage-final.json` reported it and
+	 * the gate passed anyway on floor headroom. A test name that outruns its assertions is a
+	 * defect this repository has a rule about, and this is it, written twenty minutes after
+	 * quoting that rule.
+	 *
+	 * `delete` is reached through the STORE rather than the port, because the port has none —
+	 * `PlanGeometrySidecar` does not declare one either, and the repository holds the concrete
+	 * store.
+	 */
+	it('refuses the write and the delete for such an id too, not only the read', async () => {
+		const { sidecar, stack } = seeded();
+		const id = 'asset:custom' as unknown as Parameters<typeof sidecar.read>[0];
+
+		expect(expectErr(await sidecar.write(id, { calibration: null, shape: rectangle() })).code)
+			.toBe('asset-geometry.unusable-id');
+		expect(expectErr(await stack.assetGeometry.delete(id)).code).toBe('asset-geometry.unusable-id');
+	});
+
+	it('still resolves an ordinary id, so the rule refuses unusable ids and not ids', async () => {
+		const { sidecar, assetId } = seeded();
+		expectOk(await sidecar.write(assetId, { calibration: null, shape: rectangle() }));
+		expect(expectOk(await sidecar.read(assetId)).document.shape).not.toBeNull();
+	});
+
 	it('refuses a hand-edited sidecar whose footprint has two vertices', async () => {
 		const { sidecar, stack, assetId, path } = seeded();
 		stack.vault.entries.set(

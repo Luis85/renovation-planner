@@ -1,15 +1,13 @@
 import { isErr, ok } from '../../../core/result/Result';
 import type { Point } from '../../../core/geometry/Point';
 import type { Polygon } from '../../../core/geometry/Polygon';
-import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape, FootprintOrigin } from '../../../domain/asset/AssetShape';
 import { footprintFromDimensions } from '../../../domain/asset/AssetShape';
 import type { Command } from '../Command';
 import type { DispatchResult } from '../DispatchOutcome';
-import type { AssetGeometrySidecar } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
-import { samePolygon, updateAssetShape } from './updateAssetShape';
+import { samePolygon, updateAssetShape, type AssetShapeDeps } from './updateAssetShape';
 
 export interface SetAssetFootprintFromDimensionsInput {
 	readonly assetId: AssetId;
@@ -93,13 +91,10 @@ function sameFootprint(current: AssetShape, next: AssetShape): boolean {
 export class SetAssetFootprintFromDimensionsCommand
 	implements Command<SetAssetFootprintFromDimensionsInput, DispatchResult>
 {
-	constructor(
-		private readonly sidecar: AssetGeometrySidecar,
-		private readonly events: EventBus,
-	) {}
+	constructor(private readonly deps: AssetShapeDeps) {}
 
 	execute(input: SetAssetFootprintFromDimensionsInput): Promise<DispatchResult> {
-		return updateAssetShape(this.sidecar, this.events, input, (current) => {
+		return updateAssetShape(this.deps, input, (current) => {
 			const footprint = footprintFromDimensions(input.width, input.depth);
 			if (isErr(footprint)) return footprint;
 			return ok(withFootprint(current, footprint.value, 'typed', false));
@@ -123,15 +118,11 @@ export class SetAssetFootprintFromDimensionsCommand
 export class SetAssetFootprintCommand
 	implements Command<SetAssetFootprintInput, DispatchResult>
 {
-	constructor(
-		private readonly sidecar: AssetGeometrySidecar,
-		private readonly events: EventBus,
-	) {}
+	constructor(private readonly deps: AssetShapeDeps) {}
 
 	execute(input: SetAssetFootprintInput): Promise<DispatchResult> {
 		return updateAssetShape(
-			this.sidecar,
-			this.events,
+			this.deps,
 			input,
 			(current, calibrated) =>
 				ok(withFootprint(current, { points: input.points }, 'traced', !calibrated)),

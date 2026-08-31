@@ -1,14 +1,12 @@
 import { isErr, ok } from '../../../core/result/Result';
 import type { Point } from '../../../core/geometry/Point';
 import { coincident } from '../../../core/geometry/operations';
-import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { Command } from '../Command';
 import type { DispatchResult } from '../DispatchOutcome';
-import type { AssetGeometrySidecar } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
-import { requireShape, updateAssetShape } from './updateAssetShape';
+import { requireShape, updateAssetShape, type AssetShapeDeps } from './updateAssetShape';
 
 export interface SetAssetAnchorInput {
 	readonly assetId: AssetId;
@@ -47,15 +45,11 @@ function sameAnchor(current: AssetShape, next: AssetShape): boolean {
  * `validateAssetShape`, so the one anchor rule lives at the one place that states it.
  */
 export class SetAssetAnchorCommand implements Command<SetAssetAnchorInput, DispatchResult> {
-	constructor(
-		private readonly sidecar: AssetGeometrySidecar,
-		private readonly events: EventBus,
-	) {}
+	constructor(private readonly deps: AssetShapeDeps) {}
 
 	execute(input: SetAssetAnchorInput): Promise<DispatchResult> {
 		return updateAssetShape(
-			this.sidecar,
-			this.events,
+			this.deps,
 			input,
 			(current, calibrated) => {
 				const shape = requireShape(current);

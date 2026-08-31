@@ -138,8 +138,10 @@ export function assetSidecarPathFor(libraryFolder: string, assetId: AssetId | st
 /**
  * WHAT A FILENAME MAY NOT CONTAIN — Obsidian's own forbidden set, `\ / : * ? " < > | # ^ [ ]`.
  *
- * Exported because it has TWO consumers doing OPPOSITE things with one vocabulary, and a second
- * regex that agrees today is how they stop agreeing. `fileNameFor` below STRIPS these from a
+ * Module-private, because both consumers live in this file: a second regex that agrees today is
+ * how they stop agreeing, and keeping them here is what makes that impossible rather than merely
+ * unlikely. It was briefly exported for a THIRD consumer at the index, which is the placement two
+ * rounds of review established was wrong. `fileNameFor` below STRIPS these from a
  * user's chosen name; `entityRefOf` REFUSES an id that contains one, because an id is
  * interpolated into a filename rather than cleaned into one — there is nothing to strip when the
  * string IS the identity.
@@ -152,13 +154,45 @@ export function assetSidecarPathFor(libraryFolder: string, assetId: AssetId | st
  * Not global: a `g` flag makes `RegExp.test` stateful through `lastIndex`, which a shared constant
  * with two call sites must not be. `fileNameFor` builds its own global copy from `.source`.
  */
-export const FORBIDDEN_IN_FILENAME = /[/\\:*?"<>|#^[\]]/;
+const FORBIDDEN_IN_FILENAME = /[/\\:*?"<>|#^[\]]/;
 
 /**
  * EDGE DOTS AND SPACES, which Windows and Obsidian both dislike — trimmed by `fileNameFor` and
  * refused by `entityRefOf`, for the same reason the character set above is.
  */
-export const EDGE_DOT_OR_SPACE = /^[\s.]|[\s.]$/;
+const EDGE_DOT_OR_SPACE = /^[\s.]|[\s.]$/;
+
+/**
+ * Windows' reserved DEVICE names, which are reserved **with an extension too** — `CON.rpgeo`
+ * names the console, not a file — so an extension is no escape and the test is on the stem.
+ * Case-insensitive, because the reservation is.
+ */
+const RESERVED_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+
+/**
+ * CAN THIS STRING BE A FILENAME — asked of an ENTITY ID, which is interpolated into a path
+ * rather than cleaned into one, so there is nothing to strip and the only answer is yes or no.
+ *
+ * Three rules, and the third arrived a round after the first two: the forbidden characters, the
+ * edge dots and spaces, and the reserved device names. `.` and `..` are refused as whole strings
+ * rather than by the character class, because a name merely CONTAINING a dot is fine.
+ *
+ * **Where this is asked is the part that took three attempts.** It belongs at the site that
+ * derives a PATH, not at the index that reads a note: every one of these hazards is a write
+ * hazard, and refusing at the index made a note the user can see on disk unopenable in the app —
+ * lost access traded for a bad write, which is the wrong direction.
+ *
+ * **What it deliberately does not cover**: `fileNameFor` above strips the characters but passes a
+ * reserved NAME through unchanged (`fileNameFor('CON') === 'CON'`, measured), so a note named for
+ * a device still lands at an invalid Windows path through `freshNotePath`. That is pre-existing,
+ * it is the same class one layer over, and it wants the same treatment at the five repositories'
+ * insert paths — recorded here rather than fixed, because widening this change again is how the
+ * previous two attempts went wrong.
+ */
+export function usableAsFilename(id: string): boolean {
+	if (FORBIDDEN_IN_FILENAME.test(id) || EDGE_DOT_OR_SPACE.test(id)) return false;
+	return id !== '.' && id !== '..' && !RESERVED_DEVICE_NAME.test(id);
+}
 
 /**
  * Human-chosen filename derived from the entity's name at creation time

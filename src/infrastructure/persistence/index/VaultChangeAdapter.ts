@@ -126,21 +126,15 @@ export class VaultChangeAdapter {
 
 		const ref = entityRefOf(frontmatter);
 		if (ref.kind !== 'ours') {
-			// BOTH excluded kinds, spelled out. The narrowing above is `!== 'ours'`, so a new
-			// arm of `EntityRef` reaches here and is excluded correctly with NO diagnostic and
-			// no compile error — measured: adding `bad-id` failed the build at the scan and
-			// said nothing here. The scan's two branches are compiler-enforced; this door's are
-			// not, which is why they are enumerated rather than left to a default.
+			// The narrowing above is `!== 'ours'`, so a NEW arm of `EntityRef` reaches here and
+			// is excluded correctly with no diagnostic and no compile error — measured when
+			// `bad-id` briefly existed: adding it failed the build at the scan and said nothing
+			// here. The scan's branches are compiler-enforced; this door's are not, so a third
+			// excluded kind must be spelled out rather than left to a default.
 			if (ref.kind === 'no-id') {
 				this.deps.logger.warn('persistence.pipeline.note-excluded', {
 					path,
 					reason: 'a note of this plugin must declare a non-empty id',
-				});
-			}
-			if (ref.kind === 'bad-id') {
-				this.deps.logger.warn('persistence.pipeline.note-excluded', {
-					path,
-					reason: "a note's id is used as a filename, so it must be one path segment",
 				});
 			}
 			// Not ours — but if it USED to be, it changed into something we cannot index.

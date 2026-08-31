@@ -245,6 +245,7 @@ export const en = {
 	// to a project's own metadata.
 	'view.project.back': 'Back to projects',
 	'view.project.open-note': 'Open note',
+	'view.project.currency': 'Priced in {currency}',
 	'view.project.plans-title': 'Plans',
 	'view.project.create-plan': 'New plan',
 	// Design slice 21's creation form. One field, so one label — `background` and `layers` are

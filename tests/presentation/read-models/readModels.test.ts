@@ -104,6 +104,7 @@ describe('mapping an entity to a read model', () => {
 			id: project.id,
 			name: 'Barn conversion',
 			status: project.status,
+			currency: project.currency,
 			libraryOverlap: false,
 		});
 	});
@@ -415,6 +416,7 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 			id: saved.entity.id,
 			name: 'Hallway',
 			status: saved.entity.status,
+			currency: saved.entity.currency,
 			libraryOverlap: false,
 		});
 	});

@@ -234,6 +234,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	// 'Grundriss-Editor öffnen') — the vocabulary comes from the file, never from a dictionary.
 	'view.project.back': 'Zurück zu den Projekten',
 	'view.project.open-note': 'Notiz öffnen',
+	'view.project.currency': 'Kalkuliert in {currency}',
 	'view.project.plans-title': 'Grundrisse',
 	'view.project.create-plan': 'Neuer Grundriss',
 	'form.new-plan.title': 'Neuer Grundriss',

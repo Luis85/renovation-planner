@@ -13,7 +13,13 @@ import type { ProjectSummaryDto } from '../../../src/presentation/read-models/Pl
 import { t } from '../../../src/presentation/i18n/strings';
 
 // See `projectDetailStore.test.ts` for why this is stated and why it is `false`.
-const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Hallway', status: 'IDEA', libraryOverlap: false };
+const PROJECT: ProjectSummaryDto = {
+	id: 'project-1',
+	name: 'Hallway',
+	status: 'IDEA',
+	currency: 'EUR',
+	libraryOverlap: false,
+};
 
 describe('ProjectDetail', () => {
 	it('names the project and renders its status through the shared label', () => {
@@ -107,6 +113,16 @@ describe('ProjectDetail', () => {
 		await wrapper.get('.rp-plan-list__row').trigger('click');
 
 		expect(wrapper.emitted('openPlan')).toEqual([['plan-1']]);
+	});
+
+	it('says which currency the project is priced in, beside its status', () => {
+		const wrapper = mount(ProjectDetail, {
+			props: { project: { ...PROJECT, currency: 'GBP' }, plans: [], emptyState: null },
+		});
+
+		expect(wrapper.get('.rp-project-detail__currency').text()).toBe(
+			t('en', 'view.project.currency', { currency: 'GBP' }),
+		);
 	});
 
 	/**

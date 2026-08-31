@@ -38,8 +38,13 @@
  *
  * Back sits ABOVE the project's name, because it is a route out of this state rather than an
  * action on the project, and reading it as a peer of `Open note` would say the opposite. The
- * remaining three then share one line: the name takes the slack (`1fr`, with `min-width: 0`
- * below, so it ellipses), the status and `Open note` keep their size.
+ * remaining four then share one line: the name takes the slack (`1fr`, with `min-width: 0`
+ * below, so it ellipses), and the status, the currency and `Open note` each keep their own
+ * size — a fourth `auto` track, added beside the other two rather than folded into either. A
+ * GRID is what makes that safe: `.rp-project-list__name`'s own history (`flex-grow: 1` in
+ * `forms.css`, after a third item in a `space-between` FLEX row shoved that list's status
+ * label to wherever each row's name length happened to leave it) is the failure mode a fixed
+ * `auto` track after the flexible one avoids here, rather than one this row already had.
  *
  * The first version did that with `flex-basis: 100%` on the back button plus `flex-grow: 0;
  * width: fit-content` to keep it from stretching, under a comment asserting that the second
@@ -62,7 +67,7 @@
  */
 .rp-project-detail__header {
 	display: grid;
-	grid-template-columns: 1fr auto auto;
+	grid-template-columns: 1fr auto auto auto;
 	align-items: center;
 	gap: var(--size-4-2);
 	padding: var(--size-4-2) var(--size-4-2) var(--size-2-2);
@@ -92,6 +97,11 @@
 }
 
 .rp-project-detail__status {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-project-detail__currency {
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 }

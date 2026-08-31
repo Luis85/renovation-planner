@@ -83,6 +83,9 @@ interface Overrides {
 	 */
 	createPlan?: RenovationProjectCommandServices['createPlan']['execute'];
 	getProject?: RenovationProjectQueryServices['getProject'];
+	/** How many of this project's plan notes refused to load. Ignored when `listPlansByProject`
+	 * is supplied whole, like `plans` is. */
+	unreadablePlans?: number;
 	indexScanCompleted?: () => boolean;
 	onProjectsChanged?: (listener: () => void) => () => void;
 	onPlansChanged?: (projectId: string, listener: () => void) => () => void;
@@ -127,7 +130,10 @@ function mountRoot(over: Overrides): VueWrapper {
 				over.listPlansByProject ??
 				(() =>
 					Promise.resolve(
-						ok({ plans: [...(over.plansRef ?? over.plans ?? [])], unreadable: 0 }),
+						ok({
+							plans: [...(over.plansRef ?? over.plans ?? [])],
+							unreadable: over.unreadablePlans ?? 0,
+						}),
 					)),
 		},
 	};
@@ -649,5 +655,55 @@ describe('ViewRoot in the detail state', () => {
 
 		expect(wrapper.find('.rp-dialog').exists()).toBe(false);
 		expect(listPlansByProject).toHaveBeenCalledTimes(1);
+	});
+});
+
+/**
+ * The counted strip, driven through the whole state rather than against `ProjectDetail`'s prop:
+ * the count has to survive the port, the query, the read-model seam, the store and the binding,
+ * and a component-level case would pass with the store field wired to nothing.
+ */
+describe('the project detail state reports plans it could not read', () => {
+	it('draws a counted notice when some plan notes refused', async () => {
+		const wrapper = mountRoot({
+			projectId: 'project-1',
+			plans: [{ id: 'plan-1', name: 'Ground floor' }],
+			unreadablePlans: 1,
+		});
+		await flushPromises();
+
+		expect(wrapper.get('.rp-view-notice').text()).toBe(
+			t('en', 'view.project.some-plans-unreadable', { count: '1' }),
+		);
+	});
+
+	it('draws none when every plan note was read', async () => {
+		const wrapper = mountRoot({
+			projectId: 'project-1',
+			plans: [{ id: 'plan-1', name: 'Ground floor' }],
+			unreadablePlans: 0,
+		});
+		await flushPromises();
+
+		expect(wrapper.find('.rp-view-notice').exists()).toBe(false);
+	});
+
+	it('draws the plans it CAN read beside the notice, never instead of them', async () => {
+		// The defect this whole increment exists for: before it, one bad plan note took the
+		// listing down and this state drew its failure screen with no plans at all. Both
+		// assertions together are the claim — the notice alone is equally true of that screen.
+		const wrapper = mountRoot({
+			projectId: 'project-1',
+			plans: [
+				{ id: 'plan-1', name: 'Ground floor' },
+				{ id: 'plan-2', name: 'First floor' },
+			],
+			unreadablePlans: 1,
+		});
+		await flushPromises();
+
+		expect(wrapper.findAll('.rp-plan-list__row')).toHaveLength(2);
+		expect(wrapper.find('.rp-view-notice').exists()).toBe(true);
+		expect(wrapper.find('.rp-view-failure').exists()).toBe(false);
 	});
 });

@@ -36,6 +36,8 @@ import { tr } from '../i18n/strings';
 defineProps<{
 	project: ProjectSummaryDto;
 	plans: readonly PlanSummaryDto[];
+	/** How many of this project's plan notes could not be read; 0 draws no strip. */
+	unreadablePlans: number;
 	emptyState: EmptyStateProps | null;
 }>();
 defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: [] }>();
@@ -63,6 +65,24 @@ defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []
 				{{ tr('view.project.open-note') }}
 			</button>
 		</div>
+		<!--
+			ADDITIVE, and above BOTH branches below rather than inside either: the plans this
+			project has and the plan notes that refused are independent facts. `.rp-view-notice`
+			is reused deliberately — the same additive-warning role `ViewRoot` gives it on this
+			same view, already declared in the stylesheet.
+
+			It cannot draw beside the empty state today, because `selectProjectDetailEmptyState`
+			answers `null` when anything refused — "Create your first plan" and "1 plan could not
+			be read" are two sentences contradicting each other. Placed above the branch anyway,
+			so that decision living in the selector is the only thing keeping them apart.
+		-->
+		<p
+			v-if="unreadablePlans > 0"
+			class="rp-view-notice"
+			role="status"
+		>
+			{{ tr('view.project.some-plans-unreadable', { count: String(unreadablePlans) }) }}
+		</p>
 		<!--
 			`heading-level="3"` because this empty state is EMBEDDED in the plans region rather
 			than replacing the view: the project's own name above is an `<h2>`, and the populated

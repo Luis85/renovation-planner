@@ -211,6 +211,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	// Kein zweiter Satz über einen Diagnosebericht: den gibt es in diesem Build nicht — siehe
 	// den Kommentar am gleichen Schlüssel in `en.ts`.
 	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden.',
+	'view.project.some-plans-unreadable':
+		'{count} Grundriss(e) in diesem Projekt konnten nicht gelesen werden. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'form.new-project.title': 'Neues Renovierungsprojekt',
 	'form.new-project.name': 'Name',
 	'form.new-project.status': 'Status',

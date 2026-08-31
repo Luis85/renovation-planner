@@ -52,6 +52,7 @@ const dialogs = useDialogStore();
 const {
 	project,
 	plans,
+	unreadablePlans,
 	status,
 	error,
 	emptyStateKey,
@@ -256,6 +257,7 @@ onBeforeUnmount(
 		v-if="status === 'ready' && project !== null"
 		:project="project"
 		:plans="plans"
+		:unreadable-plans="unreadablePlans"
 		:empty-state="emptyState"
 		@back="context.navigate(null)"
 		@open-note="() => void onOpenNote()"

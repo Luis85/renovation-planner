@@ -208,6 +208,13 @@ export const en = {
 	// diagnostics report" was an instruction the user cannot follow. Slice 14's Amendment 1
 	// refuses a button that does nothing; a sentence that does nothing is the same defect.
 	'view.project.some-unreadable': 'Some projects could not be read from the vault.',
+	// The detail state's own strip, one level down. COUNTED where the sentence above says
+	// "some", and the difference is not an inconsistency to tidy: `ListProjects` has counted
+	// its refusals since slice 16 and this key predates the interpolating `t()` that slice 19
+	// built, so the count above is available and simply not yet spent. Widening it is a change
+	// to that sentence's own surface, not to this one.
+	'view.project.some-plans-unreadable':
+		'{count} plan(s) in this project could not be read. Open the diagnostics report to see which notes refused.',
 	'form.new-project.title': 'New renovation project',
 	'form.new-project.name': 'Name',
 	'form.new-project.status': 'Status',

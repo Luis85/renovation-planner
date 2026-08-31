@@ -48,6 +48,45 @@ describe('ProjectDetailStore', () => {
 	});
 
 	/**
+	 * Zero readable plans with a refusal behind them is NOT an empty state, and this state was
+	 * unreachable until the plan listing learned to skip and count: one bad plan note used to
+	 * fail the whole read, so the store went to `'failed'` and never got here.
+	 *
+	 * Both halves are the assertion. `unreadablePlans` alone would pass against a build that
+	 * still offered "Create your first plan" beside "1 plan could not be read"; `emptyStateKey`
+	 * alone would pass against one that never carried the count this far.
+	 */
+	it('offers no empty state when every plan note in the project refused', async () => {
+		const store = useProjectDetailStore();
+
+		await store.hydrate(
+			queriesAnswering({
+				listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 1 })),
+			}),
+			PROJECT.id,
+			true,
+		);
+
+		expect(store.status).toBe('ready');
+		expect(store.unreadablePlans).toBe(1);
+		expect(store.emptyStateKey).toBeNull();
+	});
+
+	it('still offers the empty state for a project whose plans all read as none', async () => {
+		const store = useProjectDetailStore();
+
+		await store.hydrate(
+			queriesAnswering({
+				listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
+			}),
+			PROJECT.id,
+			true,
+		);
+
+		expect(store.emptyStateKey).toBe('noPlans');
+	});
+
+	/**
 	 * A failed read is NOT a missing project. Navigating away on one would tell a user their
 	 * project was deleted because their vault hiccuped — the whole reason
 	 * `ProjectStoreStatus` keeps `missing` and `failed` apart, kept here.

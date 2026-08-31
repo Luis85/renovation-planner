@@ -66,9 +66,20 @@ export function selectRenovationProjectEmptyState(
 
 /**
  * A project with no plans yet (design slice 21). A function of QUERY RESULTS, like its two
- * siblings — `status` is the store's structural gate above it, never a fourth argument here,
+ * siblings — `status` is the store's structural gate above it, never a further argument here,
  * which is what keeps "which state is this project in" answerable by a node test.
+ *
+ * `unreadable` is here for exactly the reason it is on `selectRenovationProjectEmptyState`
+ * above, and it arrived later only because the state it guards against was UNREACHABLE until
+ * the plan listing learned to skip and count: one bad plan note used to fail the whole listing,
+ * so a project with zero readable plans and a refusal behind them drew the failure screen and
+ * never this. Now it draws the plans it has — none — and "Create your first plan" beside "1
+ * plan could not be read" is two sentences contradicting each other about one project.
  */
-export function selectProjectDetailEmptyState(plans: readonly PlanSummaryDto[]): 'noPlans' | null {
+export function selectProjectDetailEmptyState(
+	plans: readonly PlanSummaryDto[],
+	unreadable: number,
+): 'noPlans' | null {
+	if (unreadable > 0) return null;
 	return plans.length === 0 ? 'noPlans' : null;
 }

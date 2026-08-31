@@ -1,8 +1,15 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
+import type { LibraryOverlaps } from '../../application/ports/LibraryOverlaps';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { Query } from '../../application/queries/Query';
+import type { GetProjectInput } from '../../application/queries/GetProject';
+import type { ListPlansByProjectInput } from '../../application/queries/ListPlansByProject';
 import type { ProjectListResult } from '../../application/queries/ListProjects';
-import { toProjectSummaryDto, type ProjectSummaryDto } from './PlanDto';
+import type { Loaded } from '../../application/ports/versioning';
+import type { Project } from '../../domain/project/Project';
+import type { Plan } from '../../domain/plan/Plan';
+import type { ProjectId } from '../../domain/project/ProjectId';
+import { toPlanSummaryDto, toProjectSummaryDto, type PlanSummaryDto, type ProjectSummaryDto } from './PlanDto';
 
 /**
  * The view's own shape of a project listing: summaries it can render, and how many projects
@@ -23,6 +30,15 @@ export interface ProjectListView {
  */
 export interface RenovationProjectQueryServices {
 	listProjects(): Promise<Result<ProjectListView, RepositoryError>>;
+	/**
+	 * One project by id — design slice 21's detail state. `ok(null)` means "no such project"
+	 * and travels through unchanged, because the store has to tell that apart from a failed
+	 * read: navigating away on a failure would tell a user their project was deleted because
+	 * their vault hiccuped.
+	 */
+	getProject(projectId: string): Promise<Result<ProjectSummaryDto | null, RepositoryError>>;
+	/** That project's plans, as list rows read them. */
+	listPlansByProject(projectId: string): Promise<Result<readonly PlanSummaryDto[], RepositoryError>>;
 }
 
 /**
@@ -48,7 +64,7 @@ export interface RenovationProjectQueryServices {
  * here rather than being re-derived: one logical failure must not arrive under two different
  * codes when something downstream branches on it.
  */
-function refuseUnrecovered() {
+function refuseUnrecovered(): Promise<Result<never, RepositoryError>> {
 	return Promise.resolve(
 		err<RepositoryError>({
 			category: 'Persistence',
@@ -61,6 +77,8 @@ function refuseUnrecovered() {
 export function unavailableRenovationProjectQueries(): RenovationProjectQueryServices {
 	return {
 		listProjects: refuseUnrecovered,
+		getProject: refuseUnrecovered,
+		listPlansByProject: refuseUnrecovered,
 	};
 }
 
@@ -77,15 +95,56 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
  */
 export function createRenovationProjectQueries(
 	listProjects: Query<void, Result<ProjectListResult, RepositoryError>>,
+	getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>,
+	listPlansByProject: Query<ListPlansByProjectInput, Result<Plan[], RepositoryError>>,
+	overlaps: LibraryOverlaps,
 ): RenovationProjectQueryServices {
 	return {
 		async listProjects() {
 			const found = await listProjects.execute();
 			if (isErr(found)) return found;
+			// A SET rather than `overlapping.includes(...)` per row: the query answers a list
+			// of ids and the mapping asks one question per project, which is quadratic on a
+			// vault with many projects for no reason — and the set is built once per read, so
+			// it cannot drift from the list it came from the way a second lookup could.
+			const overlapping = new Set<string>(found.value.overlapping);
 			return ok({
-				projects: found.value.projects.map(toProjectSummaryDto),
+				projects: found.value.projects.map((project) =>
+					toProjectSummaryDto(project, overlapping.has(project.id)),
+				),
 				unreadable: found.value.unreadable,
 			});
+		},
+
+		/**
+		 * The `as ProjectId` is the same boundary assertion every other edge of the system
+		 * makes — `createPlanEditorQueries` states it for `as PlanId` at its own two doors.
+		 * The id arrives from a `ProjectSummaryDto` this bundle itself minted or from
+		 * Obsidian's view state, and the repository's answer for an id that names nothing is
+		 * `ok(null)`, which is a case the caller already handles.
+		 */
+		async getProject(projectId) {
+			const found = await getProject.execute({ projectId: projectId as ProjectId });
+			if (isErr(found)) return found;
+			if (found.value === null) return ok(null);
+			// §83's flag ASKED rather than fabricated. `ProjectSummaryDto.libraryOverlap` is
+			// required because the list row renders a mark and a word from it, and this door
+			// answers the same DTO type — so `false` here would be a statement about a project
+			// whose folder this function never compared. The detail state draws no marker today,
+			// which is exactly what makes the lie safe to tell and wrong to write down: the day
+			// it grows one, a hard-coded `false` is a defect with no failing test in front of it.
+			//
+			// `overlapping` takes a LIST and answers the overlapping subset, so a single id is a
+			// one-element ask — synchronous, and the same instrument the list query reaches
+			// through `ListProjects`, rather than a second derivation that could disagree with it.
+			const [overlapping] = overlaps.overlapping([found.value.entity.id]);
+			return ok(toProjectSummaryDto(found.value.entity, overlapping !== undefined));
+		},
+
+		async listPlansByProject(projectId) {
+			const listed = await listPlansByProject.execute({ projectId: projectId as ProjectId });
+			if (isErr(listed)) return listed;
+			return ok(listed.value.map(toPlanSummaryDto));
 		},
 	};
 }

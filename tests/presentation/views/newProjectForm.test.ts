@@ -270,9 +270,15 @@ describe('NewProjectForm', () => {
 		// The submit button stays FOCUSABLE while busy (`aria-disabled`, never `:disabled` — see
 		// the component's docblock for what disabling the focused control costs the dialog), so a
 		// second press is an ordinary thing to reach. `useFormCommit.submit` drops it on its own,
-		// which is what keeps one form from creating two projects; the guard in `onSubmit` is what
-		// keeps the dropped press from ALSO running the focus move and dragging the keyboard onto
-		// a field carrying an error from the submit still in flight.
+		// which is what keeps one form from creating two projects.
+		//
+		// **This comment used to credit `onSubmit`'s own `submitting` guard for the focus
+		// assertion below, and this case passes without it** — its dispatch resolves `ok`, so no
+		// control ever carries `aria-invalid` and there is nothing for a focus move to land on
+		// either way. That guard is gone from both creation forms; what actually holds the
+		// property is `submit` clearing `fieldErrors` before it sets `submitting`, and
+		// `newPlanForm.test.ts`'s *moves focus nowhere on a press refused mid-write* is the case
+		// that drives the scenario with a real errored control and reddens when that clear moves.
 		let resolveDispatch: (() => void) | null = null;
 		const dispatch = vi.fn<Dispatch>(
 			() =>

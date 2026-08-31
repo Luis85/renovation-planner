@@ -30,7 +30,7 @@ async function wiredWithRequirement() {
 	);
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -77,7 +77,7 @@ describe('DeleteZoneCommand reference integrity', () => {
 		const w = await wiredWithRequirement();
 		const asset2 = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id }),
+				makeAsset(),
 				'absent',
 			),
 		);
@@ -159,7 +159,7 @@ describe('DeleteZoneCommand reference integrity', () => {
 	it('a failing markStale mid-resolution compensates every write and fails the command', async () => {
 		const w = await wiredWithRequirement();
 		// Two referents so step 2 has a partial state to compensate.
-		const asset2 = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const asset2 = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const second = await w.assign.execute({ zoneId: w.zoneId, assetId: asset2.entity.id });
 		if (!second.ok) throw new Error('unexpected failure');
 		const ids = [w.requirementId, second.value.requirement.id].toSorted();
@@ -193,7 +193,7 @@ describe('DeleteZoneCommand reference integrity', () => {
 	it('an assignment dispatched DURING a delete serializes on the lock instead of dangling', async () => {
 		const w = await wiredWithRequirement();
 		const otherAsset = expectOk(
-			await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'),
+			await w.assets.save(makeAsset(), 'absent'),
 		);
 
 		// Start the resolution WITHOUT awaiting it, then dispatch the assignment.

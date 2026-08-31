@@ -2293,12 +2293,26 @@ empty.
       rules from slice 1/12).
 - [x] `AssetRepository` and `RequirementRepository` have in-memory and
       Obsidian implementations passing one shared contract test suite (§72).
-- [ ] Requirement notes persist under the project's `Requirements/`, and Asset notes
+- [x] Requirement notes persist under the project's `Requirements/`, and Asset notes
       under the **library folder's** `Assets/` — one per vault, resolved from the plugin
       setting (§83), never from the project folder — each
       with `schema-version: 1`, validated through Zod on read (§43); invalid
       frontmatter is rejected before it reaches the domain, not silently
       coerced.
+      *Closed by design slice 19 (2026-08-31).* The two folders:
+      `tests/infrastructure/obsidian/repositories/perProjectFolders.test.ts` › *writes two
+      projects' requirements into two folders and both assets into one library*, plus *saves
+      an asset with no project note in the index at all* — the vault holds no project note
+      whatsoever there, which is the strongest form of "never from the project folder". That
+      the folder comes from the SETTING rather than a constant is
+      `tests/plugin/settings/libraryMigration.test.ts` › *moves every catalogue note, then
+      rebuilds, then persists — in that order*, which changes it and watches the notes follow.
+      `schema-version: 1`: `tests/plugin/persistence-wiring.test.ts` › *wires the diagnostics
+      snapshot to the real migration runner*. The Zod gate refusing before the domain sees anything:
+      `tests/infrastructure/obsidian/repositories/slice10ErrorPaths.test.ts` › *getById
+      reports schema-version-malformed for an unreadable schema version* and *getById reports
+      entity-invalid when the migrated row fails its own validation* — a refusal at each of the
+      two gates, neither of them a coercion.
 - [x] `AssignAssetCommand` creates a `Requirement` whose `quantity.calculated`
       and `estimatedCost.calculated` are correct on first creation, without
       requiring a subsequent Zone edit.
@@ -2306,7 +2320,7 @@ empty.
       `ValidationError` and creates no Requirement — a Zone's area is not a valid
       identity input for a length, volume, piece, hour, day, or fixed-unit Asset. The
       check reads slice 9's `UNIT_KIND` map, not a literal `'m2'` comparison.
-- [ ] `AssignAssetCommand` **accepts** any Zone with any area-kind Asset, regardless of
+- [x] `AssignAssetCommand` **accepts** any Zone with any area-kind Asset, regardless of
       which project the Zone is in — asserted
       by driving the command directly with Zones from two different Projects against one
       Asset. The catalogue is shared (§59), so this pairing is correct rather than a leak;
@@ -2325,7 +2339,12 @@ empty.
       figure. Whether a figure in the Asset's currency is the *right* one for the Zone's
       project is the open question, and it is open in the shipped code rather than in this
       criterion.
-- [ ] `ListRequirementsReferencing` on an Asset returns referents **grouped by project**,
+      *Closed by design slice 19 (2026-08-31):*
+      `tests/application/commands/requirement/assignAsset.test.ts` › *assigns one asset into
+      zones from two different projects*, which drives the command directly with Zones from two
+      Projects against one Asset and asserts each Requirement's own `projectId`. `expectOk` on
+      both dispatches rather than a boolean, so a reintroduced refusal fails naming its code.
+- [x] `ListRequirementsReferencing` on an Asset returns referents **grouped by project**,
       covered by a fixture where one Asset is referenced from two Projects. A bare total is
       refused by this test, because it reads as "in the project I am looking at" while a
       shared asset's references are not. The assertion stops at the QUERY: that those groups
@@ -2333,16 +2352,34 @@ empty.
       until something can delete an Asset — see the gap under *Deletion & reference
       integrity*. This criterion asked for the dialog until that gap was noticed, which made
       it uncompletable through any specified path.
-- [ ] Every group carries `projectPath` alongside `projectName`, asserted against a
+      *Closed by design slice 19 (2026-08-31):*
+      `tests/application/queries/listRequirementsReferencing.test.ts` › *groups an asset's
+      referents by project*, whose fixture references one Asset from two Projects and asserts
+      two groups of 2 and 1 — a bare total of three fails it. Its pair, *yields exactly one
+      group for a zone target*, is what says the Zone flow's single row is unchanged in
+      appearance and changed in derivation.
+- [x] Every group carries `projectPath` alongside `projectName`, asserted against a
       fixture whose two Projects share one `name` — the case nothing refuses, since
       `Project.create` trims the name and rejects only an empty one. Without the path
       those two groups are indistinguishable to the caller, and slice 15's rows are then
       identical for the two things a user is choosing between. The assertion is on the
       QUERY returning it; whether a row shows it is slice 15's rule and slice 15's test.
-- [ ] `reassignTo` on an **Asset** delete accepts a target regardless of project, and on
+      *Closed by design slice 19 (2026-08-31):*
+      `tests/application/queries/listRequirementsReferencing.test.ts` › *supplies projectPath —
+      the FOLDER, not the note — where two projects share a name*, against a fixture whose two
+      Projects are both called `Refit`, paired with *omits projectPath when names are
+      unambiguous* so the field is not simply always present.
+- [x] `reassignTo` on an **Asset** delete accepts a target regardless of project, and on
       a **Zone** delete still refuses one whose `projectId` differs from the deleted
       Zone's. Both halves asserted, since the asymmetry is the thing a later reader is
       most likely to "tidy" back into symmetry.
+      *Closed by design slice 19 (2026-08-31):* both halves in ONE file,
+      `tests/application/reference/deleteAssetRefusals.test.ts` › *accepts an asset
+      reassignment target the deleted asset shares no project with* (which also asserts the
+      repoint landed) and *still refuses a ZONE reassignment target from another project*
+      (naming `reference.cross-project-reassign`, so it cannot pass on some other refusal).
+      The Zone case was MOVED here from `slice10Branches.test.ts` for exactly the reason this
+      criterion gives; that file keeps a pointer comment saying where it went.
 - [x] The event chain `ZoneGeometryChanged → RequirementInvalidated →
       RequirementRecalculated → CostEstimateChanged` is covered by an
       application-layer test asserting event order (§32, §71).
@@ -2382,7 +2419,7 @@ empty.
       Asset after the delete removed or reassigned its Requirements. The resurrection
       case gets its own test — it is the one the reference lock does not cover, since a
       field edit creates no reference for that lock to serialize against.
-- [ ] `ReversibleAssignAssetCommand` is what the Inspector dispatches: undo removes a
+- [x] `ReversibleAssignAssetCommand` is what the Inspector dispatches: undo removes a
       Requirement this gesture created, redo restores it under the same
       `RequirementId`, and undo on the idempotent path — where the Requirement already
       existed — deletes nothing and preserves its overrides. Redo restores the ID but
@@ -2390,6 +2427,19 @@ empty.
       `AssignAssetCommand`'s existence and unit-kind checks against the current
       entities, refusing rather than recreating a link that is no longer legal. There is
       no project check left to re-run — an Asset has none (§59, amended 2026-08-26).
+      *Closed by design slice 19 (2026-08-31).* The adapter:
+      `tests/application/commands/requirement/reversibleAssign.test.ts` › *undo removes what
+      execute created; redo brings it back under the SAME id*, *on the idempotent path undo
+      deletes NOTHING and preserves overrides*, and *redo REVALIDATES: a unit changed to m
+      while unlinked refuses and creates nothing*. That the INSPECTOR reaches that adapter
+      rather than the plain command is
+      `tests/presentation/editor/shell/requirementsPanel.test.ts` › *assigns an asset through
+      the picker and renders its row with effective figures*, which presses Undo on the real
+      toolbar and requires the row and the persisted Requirement to be gone — a case that
+      passes identically against a plain `AssignAssetCommand` without that step, and which
+      was watched failing with it removed. The absent project check is the positive assertion
+      one criterion above: `assignAsset.test.ts` › *assigns one asset into zones from two
+      different projects*, which is what redo re-runs.
 - [x] The adapter reads `created` from `AssignAssetResult`, never from its own
       pre-dispatch read: two adapters assigning the same (zone, asset) concurrently see
       `created: true` and `created: false` respectively, and the second's undo deletes
@@ -2526,7 +2576,7 @@ empty.
       or a failed `markStale` compensates and fails it. The two halves are asserted
       separately, since one policy applied to both would be wrong in one direction or the
       other.
-- [ ] `reassign` with a `reassignTo` that is missing, self-referencing, unresolvable, an
+- [x] `reassign` with a `reassignTo` that is missing, self-referencing, unresolvable, an
       Asset whose unit is not of `area` kind, or a **Zone** in a different Project than
       the Zone being deleted resolves a `ValidationError`, writes nothing, and deletes
       nothing — the unit check reading slice 9's `UNIT_KIND`, so this path and
@@ -2536,6 +2586,21 @@ empty.
       project to differ about (§59). The previous version required the project check on
       *both* kinds, so a reader restoring symmetry here would be reintroducing a refusal
       the amendment removed — asserted in both directions for that reason.
+      *Closed by design slice 19 (2026-08-31), one named case per listed input.* Missing:
+      `tests/application/slice10Branches.test.ts` › *refuses a reassign resolution without a
+      target*. Self-referencing: that file's *refuses a self-reassignment before anything is
+      written*, and `tests/application/reference/deleteAssetRefusals.test.ts` › *refuses
+      reassignment to the asset itself*. Unresolvable:
+      `tests/application/reference/deleteCommandRefusals.test.ts` › *answers
+      reference.reassign-target-gone for a target zone that does not exist* and
+      `deleteAssetRefusals.test.ts` › *answers reference.reassign-target-gone for an unknown
+      target asset*. The ASSET-only unit half:
+      `tests/application/commands/asset/assetCommands.test.ts` › *reassign repoints at another
+      area-kind asset and recalculates inline*, whose second half hands the delete a metre-unit
+      target and requires `requirement.unit-not-area` — the same code and the same `UNIT_KIND`
+      read `AssignAssetCommand` uses, which is what stops the two disagreeing. The ZONE-only
+      project half, and its inverse on the Asset side, are the pair named in the asymmetry
+      criterion above.
 - [x] Both override fields dispatch their reversible adapter through
       `CommandHistory.run()` — no plain override command reaches the panel — and undo
       restores the full pre-edit Requirement in each of the three cases that differ:

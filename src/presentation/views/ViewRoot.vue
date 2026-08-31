@@ -29,7 +29,15 @@
  * two ItemView-scoped Vue apps SDD §12 has the dialog framework mount into. Design slice 16
  * gave it its first caller in this tree: `renovationProject.noProjects`'s action opens
  * `NewProjectForm` in a `FormDialog`, which is why the host mounting here rather than only
- * beside a `PlanCanvas` stopped being a decision made ahead of its own need.
+ * beside a `PlanCanvas` stopped being a decision made ahead of its own need. It stays HERE
+ * rather than moving into either state, so one host serves both and a navigation cannot leave
+ * a dialog with nowhere to open.
+ *
+ * **Design slice 21 gave this view a second state**, and everything above describes the first
+ * one. `openProjectId` decides which: `null` draws the list, a project id hands the whole
+ * detail state to `ProjectDetailState`, which owns its own store, its own subscriptions and its
+ * own dialog. The split is a seam rather than a file boundary — the list state instantiates
+ * none of them — and its own docblock carries the two measurements that produced it.
  */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -37,6 +45,7 @@ import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import ProjectList from './ProjectList.vue';
+import ProjectDetailState from './ProjectDetailState.vue';
 import NewProjectForm from './NewProjectForm.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
@@ -52,6 +61,18 @@ const context = useRenovationProjectContext();
 const store = useRenovationProjectStore();
 const dialogs = useDialogStore();
 const { projects, emptyStateKey, status, error, unreadable } = storeToRefs(store);
+
+/**
+ * WHICH STATE THIS MOUNT DRAWS, read ONCE — `null` is the list, a string is that project's
+ * detail state. Nothing here is reactive on it and there is nothing to make reactive: the view
+ * REMOUNTS per navigation (`RenovationProjectView.sync`), so the tree is built from this value
+ * and the two cannot disagree.
+ *
+ * A local rather than `context.projectId` at every site, because it is what narrows: read off
+ * the context each time it stays `string | null` and every detail-state use needs an assertion
+ * the compiler cannot check.
+ */
+const openProjectId = context.projectId;
 
 /**
  * `FormDescriptor.busy`'s other end. ONE ref, read and written by TWO places at once: it is
@@ -112,24 +133,6 @@ async function onCreateProject(): Promise<void> {
 }
 
 /**
- * A project row's click, and the one case that has to do more than open a note.
- *
- * A project note deleted after this pane was opened leaves its row on screen: the vault-change
- * pipeline drops the index entry silently, and `store.hydrate` has no listener to be woken by
- * — its two callers are `onMounted` and `onCreateProject`. So the row went on being drawn, did
- * nothing at all when clicked, and told the user nothing until the view was reopened. Reported
- * in review, against a comment in `openProjectNote` claiming the list was "re-read on the next
- * hydrate anyway", of which there was none.
- *
- * `'missing'` is that row saying so, and the re-read is what removes it. `'failed'` is not:
- * the composition root has already put a notice in front of the user for it, and the list
- * behind the row is not stale.
- */
-async function onOpenProject(projectId: string): Promise<void> {
-	if ((await context.openProject(projectId)) === 'missing') await hydrate();
-}
-
-/**
  * `null` for no empty state — a normal render, `ProjectList` drawing the vault's projects —
  * or the resolved props for the one key this slice's registry declares
  * (`renovationProject.noProjects`). `EMPTY_STATE_CONTENT.renovationProject` is keyed to
@@ -177,63 +180,89 @@ const failure = computed(() => {
 	};
 });
 
-onMounted(() => {
-	void hydrate();
-});
 
 /**
- * The index rebuild, and why a view that already read needs telling.
+ * Both of the LIST state's reads, and they are registered only when the list is what this mount
+ * draws. `ProjectDetailState` owns the detail state's own mount read and its own two
+ * subscriptions, so a detail mount takes neither of these — re-reading a store nothing renders
+ * is a vault-wide read answering a question nobody asked.
  *
+ * The subscription is the index rebuild, and the reason a view that already read needs telling:
  * Obsidian restores its leaves BEFORE `onLayoutReady`, and the index scan runs FROM it (SDD
  * §47). A pane restored with the app therefore hydrates against an empty index, is answered a
- * legitimate empty list, and draws the actionable "no projects yet" state over a vault full
- * of them — permanently, because until this subscription existed neither of the other two
+ * legitimate empty list, and draws the actionable "no projects yet" state over a vault full of
+ * them — permanently, because until this subscription existed neither of the other two
  * hydrations could be reached by anything a rebuild does.
  *
  * Registered at setup and disposed on unmount, the same shape and for the same reason as
  * `PlanEditorRoot`'s `onPlanChanged`: Obsidian reuses a view, so a listener outliving its Vue
  * app would re-hydrate a store nothing renders and stack another on the next open.
  */
-onBeforeUnmount(
-	context.onProjectsChanged(() => {
+if (openProjectId === null) {
+	onMounted(() => {
 		void hydrate();
-	}),
-);
+	});
+
+	onBeforeUnmount(
+		context.onProjectsChanged(() => {
+			void hydrate();
+		}),
+	);
+}
 </script>
 
 <template>
 	<div class="renovation-planner-view">
-		<template v-if="status === 'ready'">
-			<EmptyState
-				v-if="empty !== null"
-				v-bind="empty"
-				@action="onCreateProject"
+		<template v-if="openProjectId === null">
+			<template v-if="status === 'ready'">
+				<EmptyState
+					v-if="empty !== null"
+					v-bind="empty"
+					@action="onCreateProject"
+				/>
+				<!--
+					`@open` NAVIGATES (design slice 21, criterion 1) rather than opening the
+					project's own note, which is what it did for five slices. `Project.md` stays
+					reachable from the detail header's Open note action — `ProjectDetailState`'s
+					`onOpenNote`, the one caller that still opens one.
+				-->
+				<ProjectList
+					v-else
+					:projects="projects"
+					@open="(id) => context.navigate(id)"
+					@create="onCreateProject"
+				/>
+				<p
+					v-if="unreadable > 0"
+					class="rp-view-notice"
+					role="status"
+				>
+					{{ tr('view.project.some-unreadable') }}
+				</p>
+			</template>
+			<ViewFailure
+				v-else-if="failure !== null"
+				v-bind="failure"
+				@action="() => void hydrate()"
 			/>
-			<ProjectList
+			<div
 				v-else
-				:projects="projects"
-				@open="(id) => void onOpenProject(id)"
-				@create="onCreateProject"
-			/>
-			<p
-				v-if="unreadable > 0"
-				class="rp-view-notice"
-				role="status"
+				class="rp-view-message"
 			>
-				{{ tr('view.project.some-unreadable') }}
-			</p>
+				<p>{{ tr('view.project.loading') }}</p>
+			</div>
 		</template>
-		<ViewFailure
-			v-else-if="failure !== null"
-			v-bind="failure"
-			@action="() => void hydrate()"
-		/>
-		<div
+		<!--
+			The whole detail state, in its own component. NOT for the line cap — `max-lines` skips
+			blanks and comments and neither file is near it; see `ProjectDetailState`'s own header.
+			`projectId` is `string | null` here — `vue-tsc` narrows a `v-if` for a
+			direct binding but not inside a template arrow function, so every handler over there
+			would have needed an assertion the compiler cannot check. A prop is `string`.
+		-->
+		<ProjectDetailState
 			v-else
-			class="rp-view-message"
-		>
-			<p>{{ tr('view.project.loading') }}</p>
-		</div>
+			:project-id="openProjectId"
+		/>
 		<DialogHost />
 	</div>
 </template>

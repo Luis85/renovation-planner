@@ -8,6 +8,7 @@ import type { StringKey } from './en';
 
 export const de: Partial<Record<StringKey, string>> = {
 	'command.open-project': 'Renovierungsprojekt öffnen',
+	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.name': 'Renovierungsprojekt',
 	'settings.units.name': 'Einheiten',
 	'settings.units.desc': 'Maßsystem für Mengen und Abmessungen.',
@@ -18,6 +19,24 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.project-folder.name': 'Standardordner für neue Projekte',
 	'settings.project-folder.desc':
 		'Vault-Ordner, in dem der Ordner eines neuen Projekts angelegt wird. Ein bestehendes Projekt behält den Ordner, in dem es sich bereits befindet.',
+	'settings.library-folder.name': 'Bibliotheksordner',
+	'settings.library-folder.current': 'Zurzeit {folder}. Eine Änderung verschiebt die Notizen.',
+	'settings.library-folder.move.name': 'Bibliothek verschieben',
+	'settings.library-folder.move.desc': 'Einen neuen Ordner wählen und den Katalog dorthin verschieben.',
+	'settings.library-folder-empty': 'Ein Bibliotheksordner darf nicht leer sein.',
+	'settings.library-overlaps-project': 'Dieser Ordner liegt in einem Projektordner oder enthält einen.',
+	'settings.library-overlaps-source': 'Dieser Ordner überlappt den aktuellen Bibliotheksordner.',
+	'settings.library-source-case-mismatch':
+		'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
+	'settings.library-refresh-failed':
+		'Die App konnte den Vault nicht einlesen. Es wurde nichts verschoben und die Einstellung wurde nicht geändert. Bitte erneut versuchen oder Obsidian neu laden.',
+	'settings.library-move-failed':
+		'Die Bibliothek konnte nicht verschoben werden, die Einstellung wurde nicht geändert.',
+	'settings.library-rebuild-failed':
+		'Der Katalog wurde verschoben, aber die App konnte die Änderung nicht nachvollziehen. Bitte Obsidian neu laden und dann den Bibliotheksordner auf den neuen Ort setzen.',
+	'settings.library-persist-failed':
+		'Der Katalog wurde verschoben, aber die Einstellung konnte nicht gespeichert werden. Bitte den Bibliotheksordner auf den neuen Ort setzen.',
+	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
 	'settings.verbose-logging.desc': 'Debug-Meldungen in der Entwicklerkonsole anzeigen. Alles bleibt auf diesem Gerät.',
 	'view.geometry.name': 'Geometrie-Seitendatei',
@@ -60,7 +79,6 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.inspector.quantity-override.label': 'Mengen-Übersteuerung für',
 	'editor.inspector.cost-override.label': 'Kosten-Übersteuerung für',
 	'editor.inspector.override.reset': 'Auf berechneten Wert zurücksetzen',
-	'entity.requirement.plural': 'Anforderungen',
 	'editor.inspector.delete-zone.reassign-title': 'Zu welcher Zone sollen diese Anforderungen verschoben werden?',
 	'sequence.marker-clear-failed': 'Das Löschen wurde gespeichert, aber der Wiederherstellungseintrag konnte nicht aus dem Vault entfernt werden. Er wird beim nächsten Öffnen dieses Vaults entfernt.',
 	'cascade.stale-marker-failed': 'Eine Anforderung konnte nicht als veraltet markiert werden. Ihre Werte können falsch sein, bis sie neu berechnet wird.',
@@ -129,8 +147,12 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.no-reassignment-target': 'In diesem Projekt gibt es keine andere Zone, der diese Anforderungen zugewiesen werden könnten.',
 	'reference.self-reassign': 'Referenzen können nicht dem zu löschenden Eintrag neu zugewiesen werden. Bitte einen anderen wählen.',
 	'reference.cross-project-reassign': 'Referenzen können nur innerhalb desselben Projekts neu zugewiesen werden.',
+	// Zeilen im Löschdialog (Slice 15, Punkt 6): zwei Schlüssel statt eines mit fest
+	// verdrahtetem Trennzeichen — Wortstellung und Interpunktion um einen eingesetzten
+	// Namen gehören der Übersetzung.
+	'reference.row.project': '{name}',
+	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
-	'requirement.cross-project': 'Eine Zone und ein Objekt aus verschiedenen Projekten können nicht verknüpft werden.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
@@ -201,10 +223,32 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.project.no-projects.action': 'Projekt erstellen',
 	'view.project.list-title': 'Renovierungsprojekte',
 	'view.project.create': 'Neues Projekt',
+	// `Grundriss`/`Grundrisse` is this file's own word for a plan ('command.open-plan-editor':
+	// 'Grundriss-Editor öffnen') — the vocabulary comes from the file, never from a dictionary.
+	'view.project.back': 'Zurück zu den Projekten',
+	'view.project.open-note': 'Notiz öffnen',
+	'view.project.plans-title': 'Grundrisse',
+	'view.project.create-plan': 'Neuer Grundriss',
+	'form.new-plan.title': 'Neuer Grundriss',
+	'form.new-plan.name': 'Name',
+	// SIEZEN, wie jeder andere Fließtext in dieser Datei ('Erstellen Sie eines, um zu beginnen.',
+	// 'Zeichnen Sie die erste Zone auf diesem Plan.'): die englische Vorlage kennt diese
+	// Unterscheidung nicht, und zwei Anreden in einer Oberfläche sind derselbe Fehler wie zwei
+	// Namen für eine Sache.
+	'empty.project.no-plans.headline': 'Noch keine Grundrisse',
+	'empty.project.no-plans.body': 'Fügen Sie einen Grundriss hinzu, um Zonen zu zeichnen und Mengen zu ermitteln.',
+	'empty.project.no-plans.action': 'Neuer Grundriss',
+	'view.project.gone': 'Dieses Projekt existiert nicht mehr.',
+	'view.project.gone-body': 'Es wurde möglicherweise gelöscht oder aus diesem Vault verschoben. Gehen Sie zurück zur Projektliste.',
+	// 'überlappt', the verb `settings.library-overlaps-source` already uses for the same
+	// relation — one noun and one verb per concept, which is the rule the 'Material'/'Objekt'
+	// correction was made for.
+	'view.project.library-overlap': 'Überlappt den Bibliotheksordner',
 	'project.empty-name': 'Ein Projekt braucht einen Namen.',
 	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',
 	'project.invalid-date': 'Geben Sie ein echtes Kalenderdatum ein.',
+	'plan.empty-name': 'Ein Grundriss braucht einen Namen.',
 	'save-state.saved': 'Gespeichert',
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',

@@ -11,7 +11,7 @@ import type { SequenceMarker } from '../../../../src/application/reference/delet
 import { of as moneyOf } from '../../../../src/core/money/Money';
 import type { MeasurementUnit } from '../../../../src/core/units/MeasurementUnit';
 import { expectErr, expectOk, observationToken } from '../../../helpers/domain';
-import { makeAsset, makeZone } from '../../../helpers/entities';
+import { makeAsset, makePlan, makeProject, makeZone } from '../../../helpers/entities';
 import {
 	requirementFixture,
 	TEN_SQUARE_METERS,
@@ -40,7 +40,7 @@ async function wiredWithLink() {
 	);
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -70,7 +70,6 @@ describe('CreateAssetCommand', () => {
 		const w = await requirementFixture();
 		const command = new CreateAssetCommand(w.assets, w.events);
 		const result = await command.execute({
-			projectId: w.project.entity.id,
 			name: 'Grout',
 			category: 'material',
 			unit: 'piece' as MeasurementUnit,
@@ -80,7 +79,7 @@ describe('CreateAssetCommand', () => {
 		if (!result.ok) throw new Error(result.error.message);
 		expect(result.value.unitCost.amount).toBe('2.5');
 		expect(
-			expectOk(await w.assets.listByProject(w.project.entity.id)).map((a) => a.entity.id),
+			expectOk(await w.assets.listAll()).map((a) => a.entity.id),
 		).toContain(result.value.id);
 	});
 
@@ -88,7 +87,6 @@ describe('CreateAssetCommand', () => {
 		const w = await requirementFixture();
 		const command = new CreateAssetCommand(w.assets, w.events);
 		const error = await command.execute({
-			projectId: w.project.entity.id,
 			name: 'Bad',
 			category: 'material',
 			unit: 'piece',
@@ -119,22 +117,68 @@ describe('DeleteRequirementCommand', () => {
 });
 
 describe('the picker queries', () => {
-	it('ListAssets returns every project asset unfiltered — including non-area ones', async () => {
+	it('ListAssets returns every asset in the vault unfiltered — including non-area ones', async () => {
 		const w = await wiredWithLink();
-		await w.assets.save(makeAsset({ projectId: w.project.entity.id, unit: 'm' }), 'absent');
-		const rows = expectOk(await new ListAssets(w.assets).execute(w.project.entity.id));
+		await w.assets.save(makeAsset({ unit: 'm' }), 'absent');
+		const rows = expectOk(await new ListAssets(w.assets).execute());
 		expect(rows.map((a) => a.unit)).toEqual(['m2', 'm']);
 	});
 
-	it('ListRequirementsReferencing answers IDs for both ends of the reference', async () => {
+	it('offers the same catalogue to two different project contexts', async () => {
 		const w = await wiredWithLink();
-		const query = new ListRequirementsReferencing(w.requirements);
-		expect(expectOk(await query.execute({ kind: 'zone', zoneId: w.zoneId }))).toEqual([
-			w.requirementId,
-		]);
-		expect(expectOk(await query.execute({ kind: 'asset', assetId: w.assetId }))).toEqual([
-			w.requirementId,
-		]);
+		// The query takes no project, so "two contexts" is the only thing left that could
+		// differ: two zones in two projects, both reaching the SAME picker options. Asserted
+		// through the requirement each context can then create, so this is a claim about
+		// what a caller can DO with the list and not only about its contents.
+		const secondProject = expectOk(
+			await w.projects.save(makeProject({ name: 'Loft' }), 'absent'),
+		);
+		const secondPlan = expectOk(
+			await w.plans.save(makePlan({ projectId: secondProject.entity.id }), 'absent'),
+		);
+		const secondZone = expectOk(
+			await w.zones.save(
+				expectOk(
+					makeZone({
+						projectId: secondProject.entity.id,
+						planId: secondPlan.entity.id,
+						name: 'Loft floor',
+					}).withGeometry({ points: TEN_SQUARE_METERS }),
+				),
+				'absent',
+			),
+		);
+
+		const query = new ListAssets(w.assets);
+		const forKitchen = expectOk(await query.execute()).map((a) => a.id);
+		const forLoft = expectOk(await query.execute()).map((a) => a.id);
+		expect(forLoft).toEqual(forKitchen);
+		expect(forKitchen).toContain(w.assetId);
+
+		// And the offer is honoured: the second project's zone can take the first
+		// project's catalogue entry.
+		const assigned = expectOk(
+			await w.assign.execute({ zoneId: secondZone.entity.id, assetId: w.assetId }),
+		);
+		expect(assigned.requirement.projectId).toBe(secondProject.entity.id);
+	});
+
+	it('ListRequirementsReferencing answers one named group per project for both ends', async () => {
+		// Since slice 19 the answer is GROUPED: an Asset belongs to no project, so its
+		// referents can sit in several, and the group names the one each referent is in.
+		// One project here, so both ends answer one group — the Zone flow's row is unchanged
+		// in appearance and changed in derivation.
+		const w = await wiredWithLink();
+		const query = new ListRequirementsReferencing(w.requirements, w.projects, () => undefined);
+		const expected = [
+			{
+				projectId: w.project.entity.id,
+				projectName: w.project.entity.name,
+				requirementIds: [w.requirementId],
+			},
+		];
+		expect(expectOk(await query.execute({ kind: 'zone', zoneId: w.zoneId }))).toEqual(expected);
+		expect(expectOk(await query.execute({ kind: 'asset', assetId: w.assetId }))).toEqual(expected);
 	});
 
 	it('ListReassignmentTargets excludes the deleted entity and non-area assets', async () => {
@@ -142,7 +186,7 @@ describe('the picker queries', () => {
 		const other = makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id, name: 'Kitchen' });
 		const target = expectOk(await w.zones.save(other, 'absent'));
 		const lengthAsset = expectOk(
-			await w.assets.save(makeAsset({ projectId: w.project.entity.id, unit: 'm', name: 'Skirting' }), 'absent'),
+			await w.assets.save(makeAsset({ unit: 'm', name: 'Skirting' }), 'absent'),
 		);
 
 		const zoneTargets = expectOk(
@@ -223,7 +267,6 @@ describe('DeleteAssetCommand', () => {
 		const replacement = expectOk(
 			await w.assets.save(
 				makeAsset({
-					projectId: w.project.entity.id,
 					wasteFactorDefault: new Decimal('0.10'),
 					name: 'Cheaper Tile',
 					unitCost: moneyOf('30.00', 'EUR'),
@@ -247,7 +290,7 @@ describe('DeleteAssetCommand', () => {
 		// A non-area target is refused by the same check assignment applies.
 		const skirting = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, unit: 'm', name: 'Skirting' }),
+				makeAsset({ unit: 'm', name: 'Skirting' }),
 				'absent',
 			),
 		);

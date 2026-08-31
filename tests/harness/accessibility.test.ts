@@ -106,11 +106,63 @@ import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
-import { makeView } from '../helpers/makeRenovationProjectView';
+import { defaultRenovationProjectDeps, makeView } from '../helpers/makeRenovationProjectView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
 import { err, ok } from '../../src/core/result/Result';
+import type { Result } from '../../src/core/result/Result';
+import type { RepositoryError } from '../../src/application/ports/repositoryErrors';
+import type { RenovationProjectQueryServices } from '../../src/presentation/read-models/renovationProjectQueries';
 import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 import NewProjectForm from '../../src/presentation/views/NewProjectForm.vue';
+import type { ViewStateResult } from 'obsidian';
+import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
+import type { PlanSummaryDto } from '../../src/presentation/read-models/PlanDto';
+
+/**
+ * A read side where every door refuses with the same code — which is what production does for
+ * a session that has one (`unavailableRenovationProjectQueries` builds all three members out
+ * of one `refuseUnrecovered`). The two cases below grade the FAILURE state, so refusing is
+ * the honest stand-in rather than the fake-harsher-than-the-real-thing CLAUDE.md's fifth
+ * instance names: there is no production answer being hidden. Design slice 21's two detail
+ * doors refuse beside `listProjects` rather than answering, because a bundle that half-refused
+ * would model no session this plugin can be in.
+ */
+const refusingWith = (code: string): RenovationProjectQueryServices => {
+	const refuse = (): Promise<Result<never, RepositoryError>> =>
+		Promise.resolve(err({ category: 'Persistence', code, message: 'refused' }));
+	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse };
+};
+
+/**
+ * A view whose DETAIL state has something to draw, for the two scans at the end of this
+ * describe block.
+ *
+ * Over `defaultRenovationProjectDeps()` rather than a hand-built literal, for that factory's
+ * own stated reason: it is the one place an honest default per member is written down, so a
+ * widened `RenovationProjectDeps` meets this file at the same moment it meets every other
+ * consumer — which is exactly what stranded this file's own four-member literal when design
+ * slice 21's Task 5 grew the interface by five members.
+ *
+ * **It sets no `projectId`, and that is a measurement rather than an omission.**
+ * `RenovationProjectView.mount` provides `{ ...this.deps, projectId }` with the VIEW's own
+ * field last, so `deps.projectId` is written over on every mount and a value set here would be
+ * inert — measured directly: a view built with `projectId: 'project-1'` in its bundle and no
+ * `setState` draws the LIST. `setState` is what puts the view in the detail state, so that is
+ * what both cases below drive, and a member that looked load-bearing here would send the next
+ * reader to the wrong line when one of them fails.
+ */
+function detailDeps(over: { projectId: string; plans: readonly PlanSummaryDto[] }): RenovationProjectDeps {
+	const base = defaultRenovationProjectDeps();
+	return {
+		...base,
+		queries: {
+			...base.queries,
+			getProject: () =>
+				Promise.resolve(ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', libraryOverlap: false })),
+			listPlansByProject: () => Promise.resolve(ok(over.plans)),
+		},
+	};
+}
 
 /**
  * See LAYOUT in the header for the three separate, verified reasons these cannot work
@@ -192,6 +244,27 @@ describe('axe against the mounted view', () => {
 		// `nextTick`s) drains both the query's promise and the reactive re-render it triggers.
 		await flushPromises();
 
+		// The `.rp-empty-state` assertion is load-bearing, not decorative: `results.violations`
+		// is `[]` on a scan of nothing at all, exactly as it is on a scan of a real, compliant
+		// empty state — the two are indistinguishable without this line.
+		//
+		// **ABOVE the scan, and that is a correction rather than a style choice.** It sat below
+		// `axe.run` for two slices under a sentence claiming that a regression reopening the
+		// timing gap "fails HERE rather than passing vacuously again", and design slice 21
+		// measured that false: delete the `flushPromises()` above and this case still PASSED,
+		// because `axe.run` awaits enough turns internally for the store to settle before an
+		// assertion below it ever runs. The DOM was empty at the moment of the scan and
+		// populated by the time anything looked — precisely the vacuous pass that sentence
+		// promised to catch. Asked BEFORE the scan it is a statement about the DOM axe is
+		// handed, and dropping the wait turns it red (measured both ways, on this case and on
+		// the two detail-state ones below).
+		expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
+		// Design slice 16's addition: `renovationProject.noProjects` carries an action button
+		// now (`EMPTY_STATE_CONTENT`'s `actionLabel`), so this was the first BUTTON-CARRYING
+		// empty state this file ever scanned. Asserted directly rather than inferred from
+		// "no violations", for the identical reason the line above exists.
+		expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
+
 		// Scoped to `contentEl`, not the whole mounted leaf: `containerEl` also carries
 		// Obsidian's own `.view-header` chrome (see `tests/helpers/obsidian-mock.ts`),
 		// which this plugin does not draw and is not this check's to grade. `contentEl` is
@@ -199,18 +272,66 @@ describe('axe against the mounted view', () => {
 		// future Vue app lands in unchanged.
 		const results = await axe.run(view.contentEl, runOptions);
 
-		// The `.rp-empty-state` assertion is load-bearing, not decorative: `results.violations`
-		// is `[]` on a scan of nothing at all, exactly as it is on a scan of a real, compliant
-		// empty state — the two are indistinguishable without this line. Asserted on the DOM
-		// this scan actually ran against, so a future regression that reintroduces the timing
-		// gap above fails HERE rather than passing vacuously again.
-		expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
-		// Design slice 16's addition: `renovationProject.noProjects` carries an action button
-		// now (`EMPTY_STATE_CONTENT`'s `actionLabel`), so this is the first BUTTON-CARRYING
-		// empty state this file has ever scanned. Asserted directly rather than inferred from
-		// "no violations", for the identical reason the line above exists.
-		expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
 		expect(results.violations).toEqual([]);
+	});
+
+	/**
+	 * The project LIST, carrying design slice 19's §83 library-overlap marker — this project's
+	 * first row-level status, and the first thing in this view that says something about a
+	 * project rather than merely naming it.
+	 *
+	 * The case above grades the EMPTY state and can never reach a row: `mountHarness` takes no
+	 * `deps`, so its list is empty by construction. This one hands `makeView` a list holding one
+	 * marked project — rather than exposing the helper's own `IndexLibraryOverlaps`, which is
+	 * built over an empty `InMemoryProjectIndex` and so is incapable of answering "overlapping"
+	 * at all. What is graded is the marker's MARKUP, which is what axe can see at this file's
+	 * ceiling; the mark itself is CSS-drawn and jsdom resolves no CSS, so the "mark and a word"
+	 * contract is held by `projectListOverlap.test.ts` against the stylesheet instead.
+	 *
+	 * The PRESENCE assertions are the load-bearing half, for this file's standing reason:
+	 * `results.violations` is `[]` on a scan of nothing at all, indistinguishable from a scan of
+	 * compliant markup — measured here by rendering the marker's `v-if` false, which reddens
+	 * this case and nothing else. `flushPromises` is kept for uniformity with its siblings
+	 * rather than because this case needs it, and the difference was measured too: this case
+	 * `await`s `onOpen` (`mountHarness` does not — it is synchronous and `void`s it), and the
+	 * fixture query resolves immediately, so removing the line leaves the case green. Kept
+	 * because a case that relies on how few microtasks a hydrate happens to take is one edit
+	 * from the vacuous pass the empty-state case above already shipped once.
+	 */
+	it('reports no semantic violations on a project row carrying the library-overlap marker', async () => {
+		installObsidianDom();
+		const view = makeView({
+			// SPREAD at BOTH levels rather than a bare literal, and slice 21 is why: this bundle
+			// was written when `RenovationProjectDeps` had four members and
+			// `RenovationProjectQueryServices` had one. The detail state added five to the first
+			// and two to the second, so a hand-built literal no longer satisfies either type.
+			// The default supplies everything this case has no opinion about; it overrides
+			// exactly the one query it is about.
+			...defaultRenovationProjectDeps(),
+			queries: {
+				...defaultRenovationProjectDeps().queries,
+				listProjects: () =>
+					Promise.resolve(
+						ok({
+							projects: [{ id: 'p1', name: 'Kitchen refit', status: 'IDEA', libraryOverlap: true }],
+							unreadable: 0,
+						}),
+					),
+			},
+			commands: unavailableRenovationProjectCommands(),
+			openProject: () => Promise.resolve('opened' as const),
+			onProjectsChanged: () => () => undefined,
+		});
+		document.body.appendChild(view.containerEl);
+		await view.onOpen();
+		await flushPromises();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
+		expect(view.contentEl.querySelector('.rp-project-list__row')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-project-list__overlap')).not.toBeNull();
+		expect(results.violations).toEqual([]);
+		await view.onClose();
 	});
 
 	/**
@@ -235,15 +356,9 @@ describe('axe against the mounted view', () => {
 	it('reports no semantic violations on the failure message the view draws for a refused read', async () => {
 		installObsidianDom();
 		const view = makeView({
-			queries: {
-				listProjects: () =>
-					Promise.resolve(
-						err({ category: 'Persistence', code: 'settings.unrecovered', message: 'no' }),
-					),
-			},
+			...defaultRenovationProjectDeps(),
+			queries: refusingWith('settings.unrecovered'),
 			commands: unavailableRenovationProjectCommands(),
-			openProject: () => Promise.resolve('opened' as const),
-			onProjectsChanged: () => () => undefined,
 		});
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();
@@ -251,9 +366,12 @@ describe('axe against the mounted view', () => {
 		// without this the scan runs against Vue's `<!--v-if-->` placeholders and grades nothing.
 		await flushPromises();
 
+		// ABOVE the scan, for the reason the empty-state case measures out: below it, a presence
+		// assertion passes even when the DOM handed to axe was empty.
+		expect(view.contentEl.querySelector('.rp-view-failure')).not.toBeNull();
+
 		const results = await axe.run(view.contentEl, runOptions);
 
-		expect(view.contentEl.querySelector('.rp-view-failure')).not.toBeNull();
 		expect(results.violations).toEqual([]);
 		await view.onClose();
 	});
@@ -276,23 +394,95 @@ describe('axe against the mounted view', () => {
 	it('reports no semantic violations on a failure state carrying a retry', async () => {
 		installObsidianDom();
 		const view = makeView({
-			queries: {
-				listProjects: () =>
-					Promise.resolve(
-						err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' }),
-					),
-			},
+			...defaultRenovationProjectDeps(),
+			queries: refusingWith('vault.unexpected-failure'),
 			commands: unavailableRenovationProjectCommands(),
-			openProject: () => Promise.resolve('opened' as const),
-			onProjectsChanged: () => () => undefined,
 		});
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();
 		await flushPromises();
 
+		// ABOVE the scan — same measurement as the empty-state case.
+		expect(view.contentEl.querySelector('.rp-view-failure__action')).not.toBeNull();
+
 		const results = await axe.run(view.contentEl, runOptions);
 
-		expect(view.contentEl.querySelector('.rp-view-failure__action')).not.toBeNull();
+		expect(results.violations).toEqual([]);
+		await view.onClose();
+	});
+
+	/**
+	 * The DETAIL state with no plans, scanned WITH its action button — design slice 21.
+	 *
+	 * CLAUDE.md recorded `planEditor.noZones` as the one action-carrying empty state no axe scan
+	 * in this repository reached, and this slice must not make that two:
+	 * `renovationProject.noPlans` carries a button from its first commit, so it is graded here
+	 * rather than joining that gap. It is the third button-carrying empty state to exist, and
+	 * all three are scanned in this file since the improvement pass closed `noZones` with a
+	 * fixture — see the last case in this block.
+	 *
+	 * `flushPromises()` before scanning is load-bearing, and this file has already been burned by
+	 * its absence: the mount is synchronous while `ProjectDetailStore.hydrate` settles a tick
+	 * later, so a scan taken early is handed a subtree holding nothing but Vue's `<!--v-if-->`
+	 * placeholders — a pass true of an empty subtree and indistinguishable from a pass on
+	 * compliant markup. The three presence assertions are what make this a scan of something,
+	 * and they sit ABOVE `axe.run` for the reason the empty-state case measures out: below it,
+	 * they pass even when the DOM axe was handed was empty. `.rp-project-detail__back` is one of
+	 * them because the empty state sits INSIDE the detail shell rather than replacing it, so this
+	 * pass grades the header's two controls in the same run — a scan of the real surface, not of
+	 * a component in isolation.
+	 */
+	it('reports no semantic violations on the project detail state and its action', async () => {
+		installObsidianDom();
+		const view = makeView(detailDeps({ projectId: 'project-1', plans: [] }));
+		document.body.appendChild(view.containerEl);
+		await view.onOpen();
+		// `setState`, not the bundle: see `detailDeps`. It is also the ONE door a real
+		// navigation and a restored leaf both arrive through.
+		await view.setState({ projectId: 'project-1' }, {} as ViewStateResult);
+		await flushPromises();
+
+		expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-project-detail__back')).not.toBeNull();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
+		expect(results.violations).toEqual([]);
+		await view.onClose();
+	});
+
+	/**
+	 * The POPULATED detail state, which draws different markup — the same header, plus a `Plans`
+	 * heading and a list of plan rows. Its own case rather than a second fixture on the one
+	 * above, because only this branch has two headings for `heading-order` to judge: the
+	 * project's `<h2>` and `PlanList`'s `<h3>`.
+	 *
+	 * **What neither case grades is the empty branch's heading LEVEL, and that is measured
+	 * rather than assumed.** `projectDetail.test.ts`'s own case said this scan "would catch it
+	 * … as a heading-order violation"; driven with `:heading-level="3"` removed from
+	 * `ProjectDetail`, every case in this file stays green — axe reports a SKIPPED level
+	 * (`<h2>` then `<h4>`) and a peer `<h2>` under an `<h2>` is not one. So the tag assertion
+	 * over there is not a smaller, closer form of this scan; it is the only instrument for that
+	 * decision, and the sentence in it has been narrowed to say so.
+	 */
+	it('reports no semantic violations on a project with plans', async () => {
+		installObsidianDom();
+		const view = makeView(detailDeps({ projectId: 'project-1', plans: [{ id: 'plan-1', name: 'Ground floor' }] }));
+		document.body.appendChild(view.containerEl);
+		await view.onOpen();
+		await view.setState({ projectId: 'project-1' }, {} as ViewStateResult);
+		await flushPromises();
+
+		// Load-bearing for the same reason every other presence assertion in this file is, and
+		// the ROW is asserted beside the shell: `.rp-project-detail` is drawn by the empty
+		// branch too, so without the row this case cannot tell a populated list from an empty
+		// one and would go on passing over a `PlanList` that rendered no rows at all.
+		expect(view.contentEl.querySelector('.rp-project-detail')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-plan-list__row')).not.toBeNull();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
 		expect(results.violations).toEqual([]);
 		await view.onClose();
 	});
@@ -322,24 +512,31 @@ describe('axe against the mounted view', () => {
 	});
 
 	/**
-	 * The one empty state in the Plan Editor that carries an ACTION, and it was graded by
-	 * nothing until this case existed.
+	 * **The last action-carrying empty state no axe scan reached** — and BOTH this branch and
+	 * `main` added a case for it independently, which is why this docblock carries two
+	 * arguments rather than one.
 	 *
-	 * The case above mounts the DEFAULT fixture, whose plan has no background — so its overlay
-	 * resolves to `planEditor.noBackground`, which design slice 14 ships deliberately
-	 * buttonless (`set-plan-background` is a plugin command the editor's Vue tree cannot
-	 * reach). `planEditor.noZones` is the other entry, its action activates the polygon tool,
-	 * and its only exercise was `emptyStateOverlay.test.ts` — behaviour, not semantics. A
-	 * button carries gradeable properties nothing else here has: an accessible name above all.
+	 * The case above mounts the DEFAULT fixture, whose plan has no background, so
+	 * `selectPlanEditorEmptyState` answers `planEditor.noBackground` — the entry design slice
+	 * 14 ships deliberately buttonless, since `set-plan-background` is a plugin command the
+	 * editor's Vue tree cannot reach. `planEditor.noZones` is the other entry, its action
+	 * activates the polygon tool, and its only exercise was `emptyStateOverlay.test.ts`:
+	 * behaviour, not semantics. A button carries gradeable properties nothing else here has,
+	 * an accessible name above all. A plan WITH a background and NO zones is the one input
+	 * that reaches it — the fixture `emptyStateOverlay.test.ts` already spells.
 	 *
-	 * A plan WITH a background and NO zones is what reaches it; the empty vault the harness
-	 * defaults to is enough, because the overlay is chosen from the plan's `background` field
-	 * rather than from anything that loads.
-	 *
-	 * The two presence assertions are load-bearing for this file's usual reason, and the
-	 * SECOND one especially: `violations` is `[]` on a subtree containing nothing at all, and
-	 * equally `[]` on an overlay whose button stopped rendering — so a regression that drops
-	 * the action would otherwise pass here exactly as loudly as compliance does.
+	 * **The presence assertions sit ABOVE `axe.run`, and that ordering is the whole of what
+	 * the merge had to decide.** The two versions differed in exactly this: `main`'s placed
+	 * them after the scan, arguing that `mountPlanEditor` awaits its own `settle()` so the
+	 * overlay is already drawn. That argument is probably true and is not what makes the case
+	 * sound — this file measured the counter-case in the Renovation Project section above: an
+	 * assertion BELOW `axe.run` passes even when the subtree handed to axe was empty, because
+	 * `axe.run` itself awaits enough turns for the store to settle before anything reads the
+	 * DOM. Green scan of nothing, green assertion afterwards, nothing graded. Above the scan
+	 * the same drift fails at the assertion instead — measured: restoring the default fixture
+	 * fails there rather than at the scan. The overlay also yields to an ACTIVE TOOL, a second
+	 * way this case could quietly stop scanning what it names, and the same assertion covers
+	 * that too.
 	 */
 	it('reports no semantic violations on the plan editor empty state that carries an action', async () => {
 		let mounted: EditorHarness | null = null;
@@ -348,14 +545,10 @@ describe('axe against the mounted view', () => {
 				plan: { ...FIXTURE_PLAN, background: { path: 'Plans/ground.png', kind: 'image' } },
 				zones: [],
 			});
-			// `mountPlanEditor` awaits its own `settle()`, which is what this file's header
-			// calls for elsewhere as `flushPromises` — the overlay is rendered by the time it
-			// returns, and the assertions below are what prove it rather than assume it.
-
-			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
-
 			expect(mounted.wrapper.find('.rp-empty-state').exists()).toBe(true);
 			expect(mounted.wrapper.find('.rp-empty-state__action').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
 			expect(results.violations).toEqual([]);
 		} finally {
 			mounted?.unmount();
@@ -448,12 +641,14 @@ describe('axe against the mounted view', () => {
 		});
 		await nextTick();
 
-		const results = await axe.run(view.contentEl, runOptions);
-
 		// Load-bearing for the same reason every other presence assertion in this file is:
 		// `results.violations` is `[]` on a scan of nothing at all, indistinguishable from a
-		// scan of a real, compliant form without this line.
+		// scan of a real, compliant form without this line. ABOVE the scan, for the reason the
+		// empty-state case measures out.
 		expect(view.contentEl.querySelector('.rp-dialog-form')).not.toBeNull();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
 		expect(results.violations).toEqual([]);
 	});
 });

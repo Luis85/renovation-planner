@@ -1,6 +1,5 @@
 import type { RepositoryError } from './repositoryErrors';
 import type { Result } from '../../core/result/Result';
-import type { ProjectId } from '../../domain/project/ProjectId';
 import type { Asset } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { Expected, EntityVersion, Loaded } from './versioning';
@@ -19,5 +18,10 @@ export interface AssetRepository {
 		expected: Expected,
 	): Promise<Result<Loaded<Asset>, RepositoryError>>;
 	delete(id: AssetId, expected: EntityVersion): Promise<Result<void, RepositoryError>>;
-	listByProject(projectId: ProjectId): Promise<Result<Loaded<Asset>[], RepositoryError>>;
+	/**
+	 * The whole vault's catalogue. An Asset belongs to no project since design slice 19, so
+	 * there is no per-project list to ask for — the picker's narrowing (unit kind, the
+	 * entity being deleted) lives with the caller that owns each rule.
+	 */
+	listAll(): Promise<Result<Loaded<Asset>[], RepositoryError>>;
 }

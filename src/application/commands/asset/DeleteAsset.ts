@@ -94,13 +94,10 @@ export class DeleteAssetCommand
 							referenceError('reference.reassign-target-gone', `Asset ${target} not found.`),
 						);
 					}
-					if (found.value.entity.projectId !== loaded.value.projectId) {
-						return err({
-							category: 'Validation',
-							code: 'reference.cross-project-reassign',
-							message: `Asset ${target} belongs to another project than the asset being deleted.`,
-						});
-					}
+					// No project check here, and the asymmetry with `DeleteZone` is deliberate:
+					// since design slice 19 an Asset belongs to no project, so any catalogue
+					// entry is a legitimate reassignment target. A ZONE still belongs to one,
+					// and `DeleteZone` still refuses a target from another project.
 					const candidate: Asset = found.value.entity;
 					if (!candidate.isAreaKind()) {
 						return err({
@@ -125,7 +122,7 @@ export class DeleteAssetCommand
 		if (isErr(resolved)) return resolved;
 
 		await this.ops.events.publish(
-			assetDeleted({ assetId: input.assetId, projectId: loaded.value.projectId }),
+			assetDeleted({ assetId: input.assetId }),
 		);
 		return ok(resolved.value);
 	}

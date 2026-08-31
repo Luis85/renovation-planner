@@ -90,7 +90,7 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 			const saved = await this.assets.save(candidate, expected);
 			if (isErr(saved)) return saved;
 			await this.events.publish(
-				assetUpdated({ assetId: saved.value.entity.id, projectId: saved.value.entity.projectId }),
+				assetUpdated({ assetId: saved.value.entity.id }),
 			);
 			return ok(saved.value.entity);
 		} finally {

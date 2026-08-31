@@ -49,14 +49,14 @@ describe('requirement override round trip', () => {
 
 describe('asset null-waste persistence', () => {
 	it('a null default survives the schema and re-validates', () => {
-		const dto = assetToPersistence(makeAsset({ projectId: createProjectId() }), 1);
+		const dto = assetToPersistence(makeAsset(), 1);
 		dto['waste-factor-default'] = null;
 		const parsed = expectOk(assetFromPersistence({ ...dto }));
 		expect(parsed.wasteFactorDefault.toString()).toBe('0');
 	});
 
 	it('a default outside [0, 1] fails the entity validation after the schema', () => {
-		const dto = assetToPersistence(makeAsset({ projectId: createProjectId() }), 1);
+		const dto = assetToPersistence(makeAsset(), 1);
 		dto['waste-factor-default'] = '2';
 		const error = expectErr(assetFromPersistence({ ...dto }));
 		expect(error.code).toBe('asset.waste-factor-default-above-one');

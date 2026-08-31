@@ -12,6 +12,7 @@ import { ListProjects } from '../../../src/application/queries/ListProjects';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { err, isErr, isOk, ok } from '../../../src/core/result/Result';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
+import type { LibraryOverlaps } from '../../../src/application/ports/LibraryOverlaps';
 import type { ProjectRepository } from '../../../src/application/ports/ProjectRepository';
 import { expectOk } from '../../helpers/domain';
 import { makeProject } from '../../helpers/entities';
@@ -22,11 +23,20 @@ const READ_FAILED: PersistenceError = {
 	message: 'boom',
 };
 
+/**
+ * The §83 overlap port, answering nothing. Honest rather than kind here: these cases run
+ * against an in-memory repository with no vault and no Project Index, so there is no derived
+ * folder for a real adapter to compare — there is genuinely nothing to report. What the port
+ * ACTUALLY does with an index is `listProjectsOverlaps.test.ts`, which drives the real
+ * `IndexLibraryOverlaps` rather than this.
+ */
+const NO_OVERLAPS: LibraryOverlaps = { overlapping: () => [] };
+
 describe('ListProjects', () => {
 	it('answers an empty list for a vault with no projects', async () => {
-		const result = await new ListProjects(new InMemoryProjectRepository()).execute();
+		const result = await new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS).execute();
 
-		expect(isOk(result) && result.value).toEqual({ projects: [], unreadable: 0 });
+		expect(isOk(result) && result.value).toEqual({ projects: [], unreadable: 0, overlapping: [] });
 	});
 
 	/**
@@ -56,7 +66,7 @@ describe('ListProjects', () => {
 			listAll: () => Promise.resolve(err(READ_FAILED)),
 		};
 
-		const result = await new ListProjects(failing).execute();
+		const result = await new ListProjects(failing, NO_OVERLAPS).execute();
 
 		expect(isErr(result) && result.error.code).toBe('project.read-failed');
 	});
@@ -68,7 +78,7 @@ describe('ListProjects', () => {
 		await repository.save(first, 'absent');
 		await repository.save(second, 'absent');
 
-		const result = await new ListProjects(repository).execute();
+		const result = await new ListProjects(repository, NO_OVERLAPS).execute();
 
 		const listed = expectOk(result);
 		expect(listed.projects.map((p) => p.id)).toEqual(
@@ -99,7 +109,7 @@ describe('ListProjects', () => {
 			listAll: () => Promise.resolve(ok({ loaded: [], refused: 3 })),
 		};
 
-		const listed = expectOk(await new ListProjects(refusing).execute());
+		const listed = expectOk(await new ListProjects(refusing, NO_OVERLAPS).execute());
 
 		expect(listed.projects).toEqual([]);
 		expect(listed.unreadable).toBe(3);

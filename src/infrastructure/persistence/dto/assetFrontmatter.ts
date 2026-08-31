@@ -5,13 +5,20 @@ import { UNIT_KIND, type MeasurementUnit } from '../../../core/units/Measurement
 
 export const ASSET_TYPE = 'renovation-asset';
 
-/** Schema version 1 — the PRD §36 example plus `revision` per the conditional-write contract. */
+/**
+ * Schema version 1 — the PRD §36 example plus `revision` per the conditional-write
+ * contract. Still version 1 after design slice 19 dropped `project`: the version is
+ * DERIVED from the registered migration steps, `ASSET_MIGRATIONS` is empty, and no
+ * release of this plugin exists (verified against the remote: no tags, no releases), so
+ * no vault anywhere holds an Asset note this build has to migrate. A note carrying a
+ * leftover `project` key still parses — the schema is not strict — and the write path
+ * retires the key on that note's next save.
+ */
 export const AssetFrontmatterSchemaV1 = z.object({
 	type: z.literal(ASSET_TYPE),
 	'schema-version': z.literal(1),
 	id: z.string().min(1),
 	revision: z.number().int().nonnegative().catch(0),
-	project: z.string().min(1),
 	name: z.string(),
 	category: kebabEnum(ASSET_CATEGORIES),
 	supplier: z.string().nullable().catch(null),

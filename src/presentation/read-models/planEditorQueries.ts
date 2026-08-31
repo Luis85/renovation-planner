@@ -1,19 +1,20 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { PlanId } from '../../domain/plan/PlanId';
-import type { ProjectId } from '../../domain/project/ProjectId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { Loaded } from '../../application/ports/versioning';
 import type { Query } from '../../application/queries/Query';
 import type { FindZonesByPlanInput } from '../../application/queries/FindZonesByPlan';
 import type { GetPlanInput } from '../../application/queries/GetPlan';
 import type { RequirementInspectorDTO } from '../../application/queries/GetRequirementsForZone';
-import type { ReferencedTarget } from '../../application/queries/ListRequirementsReferencing';
+import type {
+	ReferencedTarget,
+	ReferencingGroup,
+} from '../../application/queries/ListRequirementsReferencing';
 import type { ReassignmentTargetDto } from '../../application/queries/reassignmentTypes';
 import type { Asset } from '../../domain/asset/Asset';
 import type { Plan as PlanEntity } from '../../domain/plan/Plan';
 import type { Zone as ZoneEntity } from '../../domain/zone/Zone';
-import type { RequirementId } from '../../domain/requirement/RequirementId';
 import { toPlanDto, toZoneDto, type PlanDto, type ZoneDto } from './PlanDto';
 
 /** One row of the assign-asset picker: what a `<select>` needs, nothing more. */
@@ -44,13 +45,26 @@ export interface PlanEditorQueryServices {
 	getRequirementsForZone(
 		zoneId: string,
 	): Promise<Result<readonly RequirementInspectorDTO[], RepositoryError>>;
-	/** The assign-asset picker's options for one project, unfiltered (the command enforces the unit-kind rule). */
-	listAssets(projectId: string): Promise<Result<readonly AssetOptionDto[], RepositoryError>>;
+	/**
+	 * The assign-asset picker's options: the vault's whole catalogue, unfiltered (the
+	 * command enforces the unit-kind rule). No project narrows it — since design slice 19
+	 * an Asset belongs to none.
+	 */
+	listAssets(): Promise<Result<readonly AssetOptionDto[], RepositoryError>>;
 	/**
 	 * What the delete flow shows the user BEFORE the dialog, and owes back to the command
 	 * as `resolvedReferents`. IDs rather than a count, because the command compares sets.
+	 *
+	 * GROUPED, exactly as the query answers: one entry per referencing project, carrying a
+	 * `projectPath` only where that project's name is ambiguous among the groups returned.
+	 * This member flattened them for a slice, which made slice 19's grouping unreachable —
+	 * the ambiguity decision is the QUERY's and cannot be recovered downstream once the
+	 * names are gone, and the delete dialog's row per project is what needs it. The flat
+	 * set the command compares is derived from these by the flow, in one place.
 	 */
-	listRequirementsReferencing(zoneId: string): Promise<Result<readonly RequirementId[], RepositoryError>>;
+	listRequirementsReferencing(
+		zoneId: string,
+	): Promise<Result<readonly ReferencingGroup[], RepositoryError>>;
 	/** The Reassign picker's candidates, already narrowed to what the command would accept. */
 	listReassignmentTargets(
 		zoneId: string,
@@ -117,8 +131,8 @@ export function createPlanEditorQueries(queries: {
 	/** Production composition always passes both slice-10 members; omitted only by editor
 	 * test rigs that mount no Requirements panel content, which then answer empty. */
 	readonly getRequirementsForZone?: Query<ZoneId, Result<readonly RequirementInspectorDTO[], RepositoryError>>;
-	readonly listAssets?: Query<ProjectId, Result<readonly Asset[], RepositoryError>>;
-	readonly listRequirementsReferencing?: Query<ReferencedTarget, Result<readonly RequirementId[], RepositoryError>>;
+	readonly listAssets?: Query<void, Result<readonly Asset[], RepositoryError>>;
+	readonly listRequirementsReferencing?: Query<ReferencedTarget, Result<readonly ReferencingGroup[], RepositoryError>>;
 	readonly listReassignmentTargets?: Query<ReferencedTarget, Result<readonly ReassignmentTargetDto[], RepositoryError>>;
 }): PlanEditorQueryServices {
 	return {
@@ -137,16 +151,19 @@ export function createPlanEditorQueries(queries: {
 			if (!found) return ok([]);
 			return await found.execute(zoneId as ZoneId);
 		},
-		async listAssets(projectId) {
+		async listAssets() {
 			const listed = queries.listAssets;
 			if (!listed) return ok([]);
-			const found = await listed.execute(projectId as ProjectId);
+			const found = await listed.execute();
 			if (isErr(found)) return found;
 			return ok(found.value.map((asset) => ({ id: asset.id, name: asset.name })));
 		},
 		async listRequirementsReferencing(zoneId) {
 			const listed = queries.listRequirementsReferencing;
 			if (!listed) return ok([]);
+			// Handed on verbatim, like `listReassignmentTargets` below: the grouping IS the
+			// presentation contract since slice 19, because the delete dialog draws one row per
+			// referencing project and only the query knows which of those names collide.
 			return await listed.execute({ kind: 'zone', zoneId: zoneId as ZoneId });
 		},
 		async listReassignmentTargets(zoneId) {

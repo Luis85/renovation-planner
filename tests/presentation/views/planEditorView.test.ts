@@ -25,6 +25,7 @@ installEditorEnvironment();
 
 let themeListeners = 0;
 let planListeners = 0;
+let catalogueListeners = 0;
 
 function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 	return {
@@ -57,6 +58,12 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 			planListeners += 1;
 			return () => {
 				planListeners -= 1;
+			};
+		},
+		onCatalogueChanged: () => {
+			catalogueListeners += 1;
+			return () => {
+				catalogueListeners -= 1;
 			};
 		},
 	};
@@ -93,6 +100,7 @@ async function opened(planId = FIXTURE_PLAN.id): Promise<PlanEditorView> {
 beforeEach(() => {
 	themeListeners = 0;
 	planListeners = 0;
+	catalogueListeners = 0;
 });
 
 afterEach(async () => {
@@ -204,7 +212,19 @@ describe('mount and unmount', () => {
 	it('leaves no app, stage, listener or markup behind on close', async () => {
 		const view = await opened();
 		expect(themeListeners).toBe(1);
+		// ONE of each, and the split is the assertion. `PlanEditorRoot` subscribes `hydrate` to
+		// the plan door; `runtime.ts` subscribes the assign picker to the CATALOGUE door. This
+		// read TWO plan listeners and zero catalogue ones until the picker stopped borrowing
+		// `onPlanChanged` — right for the one event it needed there and wasteful for the five
+		// it did not, so a zone gesture re-read every asset note in the vault.
+		//
+		// Both numbers are asserted rather than loosened to "at least one" because that is the
+		// half this case exists for: a count going UP is a subscription added without a
+		// disposal, which is exactly the leak the assertions below measure. And asserting the
+		// PAIR is what stops a build that merges the two doors back together from passing —
+		// one that subscribed both to `onPlanChanged` would read 2 and 0 again.
 		expect(planListeners).toBe(1);
+		expect(catalogueListeners).toBe(1);
 
 		await view.onClose();
 		await settle();
@@ -212,6 +232,7 @@ describe('mount and unmount', () => {
 		expect(Konva.stages).toHaveLength(0);
 		expect(themeListeners).toBe(0);
 		expect(planListeners).toBe(0);
+		expect(catalogueListeners).toBe(0);
 		expect(view.contentEl.childElementCount).toBe(0);
 	});
 

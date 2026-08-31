@@ -247,11 +247,24 @@ export const useDialogStore = defineStore('dialog', () => {
 	}
 
 	/**
-	 * Called by `DialogHost` alone, BY CONVENTION — see its header for why the host settles
-	 * rather than each kind component. Nothing enforces the exclusivity: `resolve` is a
-	 * public store member and `current` comes back from `storeToRefs` as a writable ref, so
-	 * any other holder of the store could settle or strand a pending dialog. Not worth a
-	 * mechanism for a one-caller store; worth saying plainly that it is not one.
+	 * **The rule is that no KIND COMPONENT settles — not that this has one caller.** The kinds
+	 * emit a typed `resolve` and `DialogHost` is what turns that into a settlement, so
+	 * single-settle, focus restoration and the release of the background's `inert` hang off one
+	 * seam rather than four. An OPENER retiring its own dialog is a different actor and takes
+	 * none of that away: all three of those concerns run off the `current` watcher in
+	 * `DialogHost`, which fires for whoever cleared it.
+	 *
+	 * `grep -rn "\.resolve(" src/presentation/` minus `Promise.resolve` and this file prints
+	 * THREE lines, in two files: `DialogHost`'s own wrapper and its unmount hook, and
+	 * `ProjectDetailState`'s `'gone'` watcher, which retires an open dialog whose project has
+	 * left the vault. This docblock said "called by `DialogHost` alone" and the sentence is
+	 * written from that grep instead — re-run when it moves, which it already has once: that
+	 * third line was `onProjectGone` for one commit, and keying it on the status instead is what
+	 * closed the read path the call site could not see.
+	 *
+	 * Nothing enforces any of it: `resolve` is a public store member and `current` comes back
+	 * from `storeToRefs` as a writable ref, so any holder of the store could settle or strand a
+	 * pending dialog. Not worth a mechanism; worth saying plainly that it is not one.
 	 *
 	 * `current` is cleared before `pending(result)` runs. What makes the Reassign branch
 	 * of the delete flow work — opening the next dialog the instant the awaited promise

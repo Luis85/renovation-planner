@@ -546,14 +546,16 @@ it: that payload gaining the owning project id.*
 
 | Case | Response | Precedent |
 |---|---|---|
-| `getProject` → `ok(null)`, initial scan completed | Navigate back to the list **and re-read it** | `ProjectOpenOutcome.'missing'`, which already does exactly this |
+| `getProject` → `ok(null)`, initial scan completed | Draw the `'gone'` screen, whose action navigates back to the list | This row said "navigate back to the list **and re-read it**", after `ProjectOpenOutcome.'missing'`, and the slice shipped a `watch(status)` that did it. The improvement pass retired that watcher: `setState` records `ViewStateResult.history` for any accepted changed state, so an automatic redirect left the DEAD project on the back stack. `docs/tasks/21`'s improvement-pass section carries the measurement |
 | `getProject` → `ok(null)`, scan not yet completed | Hold the loading state and wait for the re-hydrate — see below | the restored-leaf hazard `onProjectsChanged` exists for |
 | Either read `isErr` | Mapped sentence via `trError` in `.rp-view-message`; **stay on the detail** | `ProjectStoreStatus`'s `missing` / `failed` split |
 | Both succeed | `status = 'ready'` | — |
 
-**A failed read is not a missing project**, and navigating away on one would tell a user their
+**A failed read is not a missing project**, and calling one `'gone'` would tell a user their
 project was deleted because their vault hiccuped. That is the whole reason
-`ProjectStoreStatus` keeps the two apart, and it is kept here.
+`ProjectStoreStatus` keeps the two apart, and it is kept here. (This sentence read "navigating
+away on one" while the redirect existed; the distinction it draws is unchanged and only its
+consequence moved from a navigation to a screen.)
 
 **Nor is an EMPTY INDEX a missing project, which is what the table's first two rows are split
 over.** Found while repairing the hydrate callers rather than reported in review, and written
@@ -663,20 +665,30 @@ vault nobody can reproduce.
 | code | routes to |
 |---|---|
 | `plan.empty-name` | the `name` field |
-| `plan.project-not-found` | a **notice**, and back to the list — the project vanished while the form was open |
+| `plan.project-not-found` | **neither**: the form is retired and the pane draws the `'gone'` screen — the project vanished while the form was open. This row read "a **notice**, and back to the list" while the `'gone'` watcher existed; `docs/tasks/21`'s improvement-pass section carries why the redirect went and why the notice went with it |
 | anything else | banner |
 
 **That middle row said "banner, and back to the list" and could not have both**, which is the
 remount decision reaching somewhere nobody looked. Navigating rebuilds the tree, the tree
 carries `DialogHost`, and `onBeforeUnmount` settles an open dialog with its kind's cancel
 result — so the form holding the banner is destroyed in the same gesture that would have
-drawn it, and the user is returned to the list having been told nothing at all. Two ways out
-and the notice is the better one: keeping the user in a detail state for a project that no
-longer exists, so that a banner has somewhere to live, is a worse answer than returning them
-to the list, and slice 13's queue renders on `document.body` and therefore outlives the
-remount that destroys everything else. This is also the one refusal on this surface that
-reaches the user through neither of `useFormCommit`'s two doors, so it is the row most likely
-to be re-simplified back into a banner by someone reading the other two.
+drawn it, and the user is returned to the list having been told nothing at all. The slice
+shipped a NOTICE for that reason: slice 13's queue renders on `document.body`, so it outlived
+the remount that destroyed everything else.
+
+**The improvement pass then removed the remount, and the notice went with it.** With the
+`'gone'` watcher retired there is nothing to outlive: `markGone` settles the status, the pane
+draws the screen that names what happened and carries a way back, and the form is retired
+deliberately rather than as a side effect of navigating. The notice resolved
+`view.project.gone` — the key that screen's own headline resolves — so keeping it would have
+said one sentence twice at once in two surfaces, which is slice 17's double-report shape. The
+argument this paragraph made is intact and its conclusion moved: keeping the user in a detail
+state for a project that no longer exists so a BANNER has somewhere to live is still the worse
+answer, and the screen is what replaces the detail state rather than what sits inside it.
+
+This is still the one refusal on this surface that reaches the user through neither of
+`useFormCommit`'s two doors, so it remains the row most likely to be re-simplified back into a
+banner by someone reading the other two.
 
 Every one of those codes needs copy in **both** locale tables, bound to its raise site by a
 table copied **from the raise sites** — never from `en.ts`, because a table derived from the
@@ -706,7 +718,7 @@ reader it is wrong for. Modelled on the keys the sibling components already use
 
 Two of those are worth their row for a reason beyond completeness. `form.new-plan.title` is
 resolved by the caller and not by the dialog — slice 15's rule, and neither half of it is
-caught by lint, since a descriptor's `title:` is none of `I18N_LITERAL_BAN`'s four call sites.
+caught by lint, since a descriptor's `title:` is none of `I18N_LITERAL_BAN`'s call sites.
 And **the detail header's status reuses `PROJECT_STATUS_LABELS`**, which is not a new key at
 all: `ProjectList` already renders it through a local `statusLabel` helper, so the second
 consumer is the moment that helper becomes shared rather than copied — two expressions of one

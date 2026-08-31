@@ -2,11 +2,13 @@
  * @vitest-environment jsdom
  */
 import { readFileSync } from 'node:fs';
+import type { ViewStateResult } from 'obsidian';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { installObsidianDom } from '../../helpers/dom';
 import { RENOVATION_PROJECT_VIEW, type RenovationProjectView } from '../../../src/presentation/views/RenovationProjectView';
+import { RENOVATION_PROJECT_CONTEXT, type RenovationProjectDeps } from '../../../src/presentation/views/RenovationProjectContext';
 import { t } from '../../../src/presentation/i18n/strings';
-import { makeView } from '../../helpers/makeRenovationProjectView';
+import { defaultRenovationProjectDeps, makeView } from '../../helpers/makeRenovationProjectView';
 // Regular type imports rather than an inline dynamic-import type annotation: oxlint's
 // `consistent-type-imports` forbids that form, and `noInlineConfig` means there is no
 // suppression for it. These are the module SHAPES the two wrappers below spread.
@@ -20,7 +22,16 @@ import type * as PiniaModule from 'pinia';
  * and that each view gets its OWN Pinia rather than a shared singleton. Neither is visible
  * in the DOM: an app left mounted and an app unmounted leave the same empty pane behind.
  */
-const { apps, pinias } = vi.hoisted(() => ({ apps: [] as { unmount: () => void }[], pinias: [] as unknown[] }));
+const { apps, pinias, mountRecorders } = vi.hoisted(() => ({
+	apps: [] as { unmount: () => void }[],
+	pinias: [] as unknown[],
+	/**
+	 * What `makeViewRecordingMounts` registers. Called with the context a mount actually
+	 * PROVIDED — the one place the `projectId` a mount was built for exists to be read, since
+	 * `mount` spreads it over the bundle and hands the result to Vue and to nothing else.
+	 */
+	mountRecorders: [] as ((context: RenovationProjectDeps) => void)[],
+}));
 
 vi.mock('vue', async (importOriginal) => {
 	const vue = await importOriginal<typeof VueModule>();
@@ -29,6 +40,19 @@ vi.mock('vue', async (importOriginal) => {
 		...vue,
 		createApp: (...args: Parameters<typeof vue.createApp>) => {
 			const app = vue.createApp(...args);
+			// `provide` is wrapped rather than replaced, for the reason the whole module is:
+			// the real one runs and the wrapper only watches. It is the honest observation
+			// point for which state a mount was built for — `RenovationProjectView.mount`
+			// spreads this mount's `projectId` over the bundle and provides the result,
+			// keeping no copy of it. Filtered on the KEY because `app.use(createPinia())`
+			// provides too, one line above.
+			const provide = app.provide.bind(app) as (key: unknown, value: unknown) => VueModule.App;
+			app.provide = ((key: unknown, value: unknown) => {
+				if (key === RENOVATION_PROJECT_CONTEXT) {
+					for (const record of mountRecorders) record(value as RenovationProjectDeps);
+				}
+				return provide(key, value);
+			}) as typeof app.provide;
 			apps.push(app);
 			return app;
 		},
@@ -211,5 +235,332 @@ describe('the Vue lifecycle', () => {
 		await expect(subject.onClose()).resolves.toBeUndefined();
 
 		expect(apps).toEqual([]);
+	});
+});
+
+/**
+ * A view whose every MOUNT is observed, by the `projectId` that mount actually PROVIDED.
+ *
+ * Beside the cases rather than in `tests/helpers/`, because it exists to observe this one
+ * class. It captures no deps FACTORY, and there is none to capture: `RenovationProjectDeps`
+ * is a plain bundle, and `RenovationProjectView.mount` writes this mount's `projectId` over
+ * it (`{ ...this.deps, projectId }`) on its way to `app.provide`. That provided object is
+ * therefore the only place the answer exists, which is what the `provide` wrapper at the top
+ * of this file reads.
+ */
+function makeViewRecordingMounts(mounted: (string | null)[]): RenovationProjectView {
+	mountRecorders.push((context) => mounted.push(context.projectId));
+	return makeView();
+}
+
+describe('the list and detail states', () => {
+	beforeEach(() => {
+		// Per test, because a recorder registered by one case would otherwise go on pushing
+		// into that case's array from every later mount in this file.
+		mountRecorders.length = 0;
+	});
+
+	/**
+	 * `''` is a DESTINATION here, and it is the one place this view must not copy
+	 * `PlanEditorView`. `planIdFrom` refuses an empty id and `setState` then leaves the field
+	 * alone, which is right for a view whose empty case is *nothing to draw*. This view's
+	 * empty case is the LIST — a state a user navigates to — so refusing `''` refuses the only
+	 * state the back arrow ever restores, and the pane never leaves the detail state.
+	 */
+	it('accepts an empty projectId as the list state', async () => {
+		const view = makeView();
+		await view.onOpen();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+
+		await view.setState({ projectId: '' }, {} as ViewStateResult);
+
+		expect(view.getState()).toEqual({ projectId: '' });
+	});
+
+	/**
+	 * **The middle assertion is the case**, and its absence is what a review of Task 6's own
+	 * mutation instruction found. Driving `A → '' → B` and asserting only the FINAL state
+	 * cannot see a build that refuses `''`: the field simply stays at `A` until `B` overwrites
+	 * it, so the last line reads `B` either way. The name promises `detail → list → detail`,
+	 * and without the middle line it checked `detail → detail`.
+	 */
+	it('round-trips detail → list → detail', async () => {
+		const view = makeView();
+		await view.onOpen();
+
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+		await view.setState({ projectId: '' }, {} as ViewStateResult);
+		expect(view.getState()).toEqual({ projectId: '' });
+
+		await view.setState({ projectId: 'project-01JBBB' }, {} as ViewStateResult);
+
+		expect(view.getState()).toEqual({ projectId: 'project-01JBBB' });
+	});
+
+	/**
+	 * A value that is not a string at all is a layout this build does not recognise, and the
+	 * conservative answer is to go on drawing whatever is already drawn.
+	 */
+	it('refuses a non-string projectId and keeps the state it already had', async () => {
+		const view = makeView();
+		await view.onOpen();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+
+		await view.setState({ projectId: 42 }, {} as ViewStateResult);
+
+		expect(view.getState()).toEqual({ projectId: 'project-01JAAA' });
+	});
+
+	/**
+	 * The other three shapes a persisted layout can arrive in, driven for the same reason
+	 * `planEditorView.test.ts` drives its own four: `projectIdFrom` reads an `unknown` written
+	 * by a user's hand or by another version of this plugin, so every arm of it is reachable in
+	 * a real vault. A state that is not an object at all and one that IS `null` are two
+	 * different conditions of the same guard, which is why both are here rather than one
+	 * standing in for the other; a state with no `projectId` key lands on the same arm as the
+	 * `42` above, and is what a leaf saved BEFORE this slice actually restores as.
+	 */
+	it.each([
+		['no state at all', null],
+		['a state that is not an object', 'project-01JBBB'],
+		['a state with no projectId key', {}],
+	])('refuses %s and keeps the state it already had', async (_name, state) => {
+		const view = makeView();
+		await view.onOpen();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+		const result = {} as ViewStateResult;
+
+		await view.setState(state, result);
+
+		expect(view.getState()).toEqual({ projectId: 'project-01JAAA' });
+		expect(result.history).toBeUndefined();
+	});
+
+	/**
+	 * **The single assignment the back arrow works because of, and every other case in this
+	 * slice passes without it.** `ViewStateResult.history` is documented as "there is a state
+	 * change which should be recorded in the navigation history"; setting it puts each
+	 * navigation into Obsidian's own leaf history. No gate here can check that Obsidian
+	 * HONOURS it — `FakeLeaf` records asks rather than behaving — so this is the whole of what
+	 * the suite can say, and `docs/tests/cases/` carries the rest.
+	 */
+	it('records each navigation in the leaf’s navigation history', async () => {
+		const view = makeView();
+		const result = {} as ViewStateResult;
+
+		await view.setState({ projectId: 'project-01JAAA' }, result);
+
+		expect(result.history).toBe(true);
+	});
+
+	/**
+	 * A REFUSED state is not a navigation. `{ projectId: 42 }` is a layout this build does not
+	 * recognise, so the pane goes on drawing what it draws — and a history entry for it would
+	 * restore the state the pane is already in, an arrow that appears to do nothing.
+	 */
+	it('records no history for a state it refuses', async () => {
+		const view = makeView();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+		const result = {} as ViewStateResult;
+
+		await view.setState({ projectId: 42 }, result);
+
+		expect(result.history).toBeUndefined();
+	});
+
+	/** Nor is re-stating the project already open — `sync()` no-ops and so must the history. */
+	it('records no history when the state names the project already open', async () => {
+		const view = makeView();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+		const result = {} as ViewStateResult;
+
+		await view.setState({ projectId: 'project-01JAAA' }, result);
+
+		expect(result.history).toBeUndefined();
+	});
+
+	/**
+	 * What the `mounted` flag exists for. `PlanEditorView`'s guard returns on
+	 * `planId === null` because there is nothing to draw; here `null` is the LIST, a real
+	 * state — so a bare `projectId === mountedProjectId` guard skips the first open and the
+	 * pane draws nothing at all.
+	 *
+	 * **Two assertions, because neither can answer for the other.** The DOM one is the only
+	 * place in this file that proves a tree actually reaches `contentEl` — recording mount
+	 * calls says a mount was ATTEMPTED, not that anything was drawn — and it is what goes red
+	 * against the skipped-first-open defect above. The recorded value is what makes the word
+	 * *list* in this case's name true: a node exists under every state, so the DOM assertion
+	 * alone cannot see WHICH one mounted.
+	 */
+	it('mounts the list on a first open', async () => {
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
+
+		await view.onOpen();
+
+		expect(view.contentEl.querySelector('.renovation-planner-view')).not.toBeNull();
+		expect(mounted).toEqual([null]);
+	});
+
+	/**
+	 * **`setState` before `onOpen` mounts the resolved state ONCE**, which is the ordering the
+	 * `opened` flag exists for: the id is recorded, nothing is mounted into a leaf Obsidian has
+	 * not opened yet, and the `onOpen` that follows draws the project directly. Without the flag
+	 * this mounts a tree into an unopened leaf and then replaces it.
+	 */
+	it('mounts once when setState arrives before onOpen', async () => {
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
+
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+		await view.onOpen();
+
+		expect(mounted).toEqual(['project-01JAAA']);
+	});
+
+	/**
+	 * **The OTHER ordering still mounts twice, and this case pins that rather than hiding it.**
+	 * `onOpen` mounts the list because `projectId` is still `null` at that moment, and the
+	 * `setState` that follows remounts to the project — a visible flash, a wasted vault-wide
+	 * `listProjects` and a subscribe/dispose cycle.
+	 *
+	 * The `opened` flag cannot fix this direction and it is worth saying why rather than
+	 * leaving the asymmetry to be rediscovered: by the time `setState` arrives the list is
+	 * already mounted, so there is nothing left to defer. The only fix is to make mounting
+	 * itself deferred and coalescing — `onOpen` and `setState` in one tick producing one mount
+	 * — which turns a synchronous mount into an asynchronous one for every caller and every
+	 * case in this file. That is a change worth its own increment and its own argument, not a
+	 * drive-by inside a review round; `docs/tasks/21` carries it.
+	 *
+	 * Asserted as `[null, 'project-01JAAA']` deliberately, and **read that promise narrowly**:
+	 * it catches a fix that defers the mount past this case's own `await view.onOpen()`, and it
+	 * does NOT catch one that defers by a microtask inside `onOpen` and returns that promise.
+	 * Measured rather than reasoned — under that variant this file's 31 cases all pass, while
+	 * the same two calls made WITHOUT awaiting `onOpen` collapse to `['project-01JAAA']`.
+	 *
+	 * Which is the more useful finding, and it belongs to the increment rather than to this
+	 * case: the cheap remedy's whole benefit depends on whether Obsidian awaits `onOpen` before
+	 * calling `setState`. If it awaits, no deferral inside `onOpen` helps at all and the fix is
+	 * pure cost. `FakeLeaf` cannot answer that, and neither can an eye in a vault — a visible
+	 * flash says which ORDERING happens, never whether the host awaited. `docs/tasks/21` carries
+	 * it as a measurement to take rather than as a design to argue.
+	 */
+	it('still mounts the list first when onOpen precedes setState', async () => {
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
+
+		await view.onOpen();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+
+		expect(mounted).toEqual([null, 'project-01JAAA']);
+	});
+
+	/**
+	 * `onOpen` and `setState` race and the order is not something a plugin may assume.
+	 *
+	 * **Counting surviving DOM nodes cannot see this, and that is what the case is about.**
+	 * A remount is `onClose(); onOpen();` and `onClose` calls `contentEl.empty()`, so a build
+	 * that wrongly remounts here still leaves exactly ONE `.renovation-planner-view` — the
+	 * assertion this case used to carry read identically in both worlds while its name promised
+	 * to catch a second mount. What the defect actually costs is invisible in the DOM: `mount`
+	 * is where the context is provided, so a remount on Obsidian's ordinary `onOpen`/`setState`
+	 * sequence re-hydrates both stores and re-registers the `onProjectsChanged` and
+	 * `onPlansChanged` subscriptions, every open, with the pane looking correct. Reported by a
+	 * review bot against this plan.
+	 *
+	 * It shares its assertion with `mounts the list on a first open` and is NOT a duplicate
+	 * of it — the extra
+	 * `setState` is the whole case, and against the remounting build this reads `[null, null]`.
+	 * Two cases with identical bodies AND identical driving is the trap Task 4 fell into
+	 * (`d9e81f3`); identical assertions under different driving is an ordinary pair.
+	 */
+	it('does not mount twice when setState follows onOpen', async () => {
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
+
+		await view.onOpen();
+		await view.setState({ projectId: '' }, {} as ViewStateResult);
+
+		expect(mounted).toEqual([null]);
+	});
+
+	/**
+	 * The whole of the spec's first review finding: a tree built from `projectId` and NOT
+	 * remounted goes on drawing the state it was built for, after a `setState` that did
+	 * everything it was asked. Every other case here passes against that build.
+	 */
+	it('remounts when navigating between two projects', async () => {
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
+		await view.onOpen();
+
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+		await view.setState({ projectId: 'project-01JBBB' }, {} as ViewStateResult);
+
+		expect(mounted).toEqual([null, 'project-01JAAA', 'project-01JBBB']);
+	});
+
+	/**
+	 * Criterion 7: `projectId` is the VIEW's own field, so a rebind that replaces every
+	 * dependency must not disturb it. `rebind` takes a `RenovationProjectDeps` BUNDLE — Task 5
+	 * chose that over a `(projectId) => deps` factory and its commit body says why — so this
+	 * case hands it a second, genuinely different bundle rather than the one the view already
+	 * holds. `defaultRenovationProjectDeps()` is exported from `makeRenovationProjectView.ts`
+	 * for exactly this; calling it twice gives two bundles over two independent in-memory
+	 * repositories, which is what makes the assertion mean "survived a real swap".
+	 */
+	it('keeps the open project across a rebind', async () => {
+		const view = makeView();
+		await view.onOpen();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+
+		view.rebind(defaultRenovationProjectDeps());
+
+		expect(view.getState()).toEqual({ projectId: 'project-01JAAA' });
+	});
+
+	/**
+	 * The other half of that rebind, and what makes the assertion above about the FIELD rather
+	 * than about a pane that happens to look unchanged: the swap remounts, and it remounts on
+	 * the state the view was already in. A `rebind` that went back through `sync` without
+	 * clearing `mounted` would leave the retired root's tree on screen with every other case
+	 * here green.
+	 */
+	it('remounts the open project on the new bundle', async () => {
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
+		await view.onOpen();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+
+		view.rebind(defaultRenovationProjectDeps());
+
+		expect(mounted).toEqual([null, 'project-01JAAA', 'project-01JAAA']);
+	});
+});
+
+/**
+ * The DEFAULT bundle's own honesty, which nothing else here reads. `makeRenovationProjectView`
+ * claims its `commands.createPlan` writes into the same repository `queries.listPlansByProject`
+ * reads back — the harness page's whole ability to seed a plan by hand and watch the detail
+ * state redraw rests on it, and CLAUDE.md's fifth fake-instance lesson is about exactly this
+ * direction: a stand-in wired to a second, empty repository answers a different world with
+ * every case in this suite still green. Measured, not asserted — swapping that constructor
+ * argument for a fresh `InMemoryPlanRepository` leaves 15 files and 141 tests passing without
+ * this one.
+ */
+describe('the default renovation project deps', () => {
+	it('creates a plan through the same repository the plan list reads', async () => {
+		const deps = defaultRenovationProjectDeps();
+		const project = await deps.commands.createProject.execute({ name: 'Hallway' });
+		if (!project.ok) throw new Error('expected the default bundle to create a project');
+
+		const created = await deps.commands.createPlan.execute({
+			projectId: project.value.project.entity.id,
+			name: 'Ground floor',
+		});
+		const plans = await deps.queries.listPlansByProject(project.value.project.entity.id);
+
+		expect(created.ok).toBe(true);
+		expect(plans.ok && plans.value?.map((plan) => plan.name)).toEqual(['Ground floor']);
 	});
 });

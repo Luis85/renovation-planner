@@ -278,9 +278,23 @@ export class ObsidianPlanRepository {
 
 	async listByProject(projectId: ProjectId): Promise<Result<Loaded<Plan>[], RepositoryError>> {
 		const loaded: Loaded<Plan>[] = [];
+		// One map per project holds every entity kind, so the project's ids have to be narrowed
+		// to plans — and the narrowing asks the index what TYPE each entry is rather than how
+		// its id is SPELLED. The prefix test this replaced (`startsWith('plan-')`) was a claim
+		// about a naming convention `CreatePlanCommand` happens to follow:
+		// `PlanFrontmatterSchemaV1` declares `id: z.string().min(1)`, so a plan note written by
+		// hand, copied in or arriving through sync can carry any non-empty id, and such a plan
+		// was indexed under the right type and project, reachable from the palette, and silently
+		// absent from the project's own plan list. Two surfaces disagreeing about which plans
+		// exist. Reported by a review bot against design slice 21, whose detail state is the
+		// surface that made the disagreement visible; the defect is older than that surface.
+		//
+		// `getIdsByType` is what every other repository here already narrows with —
+		// `ObsidianProjectRepository`, `ObsidianRequirementRepository` and
+		// `ObsidianAssetRepository` all do — so this stops being the outlier.
+		const plans = new Set<string>(this.deps.index.getIdsByType('renovation-plan').map(String));
 		for (const id of this.deps.index.getIdsByProject(projectId)) {
-			// One map per project holds every entity kind; plans carry the plan- prefix.
-			if (!String(id).startsWith('plan-')) continue;
+			if (!plans.has(String(id))) continue;
 			const one = await this.getById(id as PlanId);
 			if (!one.ok) return one;
 			if (one.value) loaded.push(one.value);

@@ -12,6 +12,36 @@ entries are added by the pull request that earns them, never invented at release
 
 ### Added
 
+- **The Asset catalogue is shared across the vault** (design slice 19, PRD §59 as amended on
+  2026-08-26). An `Asset` carries no project id at all — the field, the `project:` frontmatter
+  key, the event payload member, the index axis and the project-folder location are all gone —
+  so one catalogue entry may be referenced from every project in the vault. Asset notes live
+  under a new **library folder** setting (§83), defaulting to `Renovation/Library`, and
+  `AssetRepository.listByProject` became `listAll`. The asset schema stays at version 1 and
+  is redefined rather than bumped: no release has ever been cut, verified against the remote.
+- **A library-folder migration**, reached from an action row in the settings pane: it
+  validates the destination, moves every catalogue note with `fileManager.renameFile` so vault
+  links survive, rebuilds the Project Index, and persists to `data.json` only then. A failure
+  at any earlier step leaves the setting untouched and names what had already moved. The
+  library row itself binds **no control**, deliberately: `setControlValue` writes on every
+  change, so a control there would persist a folder with no notes moved and strand the
+  catalogue at the old path.
+- **§83's overlap rule**, through one predicate (`foldersOverlap` — symmetric, compared at the
+  folder boundary, case-folded). Creating a project whose folder would overlap the library is
+  refused, as is moving the library onto a project folder or onto itself. The third site §83
+  names has no door — ADR-0013 derives a project's folder from where its note sits, so a user
+  moves a project by dragging a folder — and it gets a **marker on the affected project's row**
+  instead: a mark and a word, derived per read, so it clears the moment the folder does.
+- **References grouped by project.** `ListRequirementsReferencing` answers one group per
+  project rather than a flat list, carrying `projectName` and — only where two projects share a
+  name, which nothing refuses — `projectPath`. A shared asset's references are no longer all in
+  the project the user is looking at, so a bare count would read as a claim it cannot make.
+- **`t(language, key, params?)` interpolates**, leaving an unmatched hole standing as `{name}`
+  rather than blanking it: a visible hole is a bug report and an empty string is a silent one.
+  Substitution is a single pass, so a substituted VALUE that itself contains a hole is left
+  alone rather than filled in turn. `tr` forwards the third argument, and every existing
+  two-argument call is unchanged. `de.ts` is now required to name the same holes as `en.ts` for
+  **any** key, per key.
 - The declared Node range is `^22.22.2 || ^24.15.0 || >=26.0.0`, and
   `tests/build/engines.test.ts` keeps it honest by comparing it against every installed
   package with npm's own `semver.subset`. `>=22` was already false before oxlint — `eslint`
@@ -65,6 +95,16 @@ entries are added by the pull request that earns them, never invented at release
   `infrastructure`, `presentation`, `plugin`) and ban `vue`, `pinia`, `konva` and
   `obsidian` in the inner ones, which is the architecture test the SDD asks for (§76).
 - Tests live in `tests/`, matching the SDD's proposed structure.
+
+### Removed
+
+- The refusal of a Zone and an Asset from different projects (`requirement.cross-project`, in
+  `AssignAssetCommand` and its reversible adapter) and the asset half of
+  `reference.cross-project-reassign`. Those pairings are what sharing MEANS. **The Zone half
+  stays** — a Zone still belongs to one project — and both halves are asserted together, since
+  an asymmetry read alone looks like an oversight. Each deleted refusal is replaced by its
+  inverse as a positive assertion, because a deleted refusal otherwise leaves no test behind
+  and nothing would notice the guard coming back.
 
 ### Added
 

@@ -1,8 +1,9 @@
-import { apiVersion, Plugin, TFile, type TAbstractFile } from 'obsidian';
+import { apiVersion, Plugin, TFile, type TAbstractFile, type WorkspaceLeaf } from 'obsidian';
 import { RENOVATION_PROJECT_ICON, RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../presentation/views/GeometrySidecarView';
 import { tr } from '../presentation/i18n/strings';
 import { revealView } from '../infrastructure/obsidian/workspace/revealView';
+import { navigateToProject } from '../infrastructure/obsidian/workspace/navigateToProject';
 import type { LogLevel, Logger } from '../application/ports/Logger';
 import type { PluginDataProbe } from '../application/ports/PluginDataProbe';
 import { createConsoleLogger } from '../infrastructure/logging/consoleLogger';
@@ -12,6 +13,8 @@ import { buildProjectIndexEntries } from '../infrastructure/persistence/index/bu
 import { projectIndexRebuilt } from '../application/events/projectIndex.events';
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presentation/views/PlanEditorView';
+import { ProjectSuggestModal } from '../presentation/modals/ProjectSuggestModal';
+import { entriesOfType } from './indexEntries';
 import { registerPlanEditorCommands } from './planEditorCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
@@ -24,7 +27,7 @@ import {
 	type VaultStack,
 } from './composition-root';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
-import { isDataAbsent, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
+import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type SettingsPatch } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
@@ -36,6 +39,15 @@ import { recoverInterruptedSequences } from '../application/reference/recoverInt
  * everything still stays in the local console (SDD §67).
  */
 const LOG_LEVEL: LogLevel = 'info';
+
+/**
+ * The settings write chain's own tail handler, and ONE function for both arms deliberately:
+ * whether the write before it resolved or rejected, the chain carries on. A rejection is
+ * the caller's to see on the promise it was handed, never the next writer's to inherit.
+ */
+function swallow(): void {
+	return undefined;
+}
 
 /**
  * The plugin shell: the layer allowed to reach every other one — it composes them (SDD §9,
@@ -84,6 +96,7 @@ function onNoteFile(adapterOf: () => VaultChangeAdapter | undefined, method: 'on
 		if (file instanceof TFile) adapterOf()?.[method](file);
 	};
 }
+
 export default class RenovationPlannerPlugin extends Plugin {
 	/**
 	 * One field, not a bare `settings` one: a view or the settings tab reaches persisted
@@ -109,6 +122,20 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** What `onunload` has to undo, in the order it was claimed. */
 	private readonly disposers: (() => void)[] = [];
+
+	/**
+	 * Has the initial index scan completed — zero entries included.
+	 *
+	 * Set in `startPersistence` beside the `projectIndexRebuilt()` publish, which is
+	 * unconditional after `index.rebuild(...)`: a completed EMPTY rebuild announces itself
+	 * exactly like a completed full one, and the difference matters — see
+	 * `RenovationProjectDeps.indexScanCompleted`, whose docblock carries why "populated" was
+	 * the wrong question.
+	 *
+	 * Never goes back to false. A settings swap re-runs the scan against a new root, and the
+	 * fact this records — that a scan has happened in this session — stays true.
+	 */
+	private indexScanCompleted = false;
 
 	async onload(): Promise<void> {
 		// FIRST, ahead of even the logger: importing this bundle has ALREADY put Konva on
@@ -178,7 +205,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// view already on screen kept the previous root indefinitely. `rebindOpenViews` is the
 		// other half, and the two share ONE spelling of each bundle below so a rebind can
 		// never hand a view something different from what its factory would have built.
-		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps()));
+		// `projectId: null` — the LIST state — is every fresh leaf's initial bundle: a leaf
+		// Obsidian is constructing has no view state to read yet, and the view learning its
+		// own restored `projectId` and rebuilding against it is the next task's mechanism.
+		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps(leaf)));
 		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
 		// view many times.
 		this.registerView(PLAN_EDITOR_VIEW, (leaf) => new PlanEditorView(leaf, this.planEditorViewDeps()));
@@ -203,6 +233,32 @@ export default class RenovationPlannerPlugin extends Plugin {
 			name: tr('command.open-project'),
 			callback: () => {
 				this.openProject();
+			},
+		});
+
+		/**
+		 * Design slice 21: reveal the pane, then go INTO a project.
+		 *
+		 * A second command rather than behaviour behind the existing `open-project` id, and
+		 * the spec's own argument for treating an id as data is the argument for it: a user
+		 * whose hotkey means "show me the pane" must not suddenly get a fuzzy picker. The
+		 * ribbon shares `open-project`'s copy, so repurposing it would also split the two ways
+		 * in that the comment above insists call one function.
+		 *
+		 * **With no projects in the vault this reveals the LIST**, not a picker and not a
+		 * notice — deliberately unlike `open-plan-editor`, which answers `notify(tr('plan.none'))`.
+		 * The reason is a property of the surfaces: a Plan Editor with no plan draws nothing,
+		 * so a notice is all that command can usefully do, while this view HAS a list state
+		 * whose empty state carries a Create button — so revealing it puts the user one click
+		 * from the thing they were trying to reach. A zero-row fuzzy picker would be the worst
+		 * of the three. Stated here so that nobody later "fixes" the inconsistency by adding a
+		 * `project.none` notice and quietly removing the better behaviour.
+		 */
+		this.addCommand({
+			id: 'open-project-detail',
+			name: tr('command.open-project-detail'),
+			callback: () => {
+				this.openProjectDetail();
 			},
 		});
 
@@ -276,17 +332,121 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
-	 * The one write path for settings, so no control has to know how they are persisted.
-	 * `saveData` replaces the whole file, which is why this takes the complete next settings
-	 * object rather than a patch — and why the root is REPLACED rather than mutated: its
-	 * fields are readonly, so there is exactly one way state changes here.
+	 * The tail of the settings write chain, so that no two settings writes are ever in
+	 * flight together.
+	 *
+	 * There are two write doors and they take opposite orderings around their own
+	 * `saveData` — see `persistLibraryFolder` — which is exactly why they must not overlap:
+	 * `persistLibraryFolder` leaves `this.root.settings` naming the SOURCE folder for the
+	 * whole length of its write, and every other control in the settings pane is live
+	 * throughout it. A write composed in that window carries the stale `libraryFolder`, and
+	 * landing after ours it puts the source back into `data.json` while the session runs on
+	 * the destination — a catalogue split in two, which is the outcome the persist-last
+	 * ordering exists to prevent, reached by a different route.
+	 *
+	 * Never rejected: each successor swallows, so a failing write cannot wedge the chain for
+	 * the rest of the session. The caller still sees its own rejection, because that is the
+	 * promise this hands back rather than the one it stores.
 	 */
-	saveSettings(next: RenovationPlannerSettings): Promise<void> {
-		// Refused for the whole SESSION, not only at bootstrap: a transient read failure
-		// must not stamp defaults over a `data.json` that is sitting there intact. The tab
-		// is the other writer and is guarded independently (`getSettingDefinitions`).
-		if (this.root.settings === null) return Promise.resolve();
+	private settingsWrites: Promise<void> = Promise.resolve();
 
+	/**
+	 * Queue one settings write, and — the half serialization alone does not buy — compose it
+	 * INSIDE the chain.
+	 *
+	 * Serializing is not sufficient on its own: a write whose settings object was built
+	 * before the migration persisted still carries the folder the catalogue has left,
+	 * however carefully it is ordered afterwards. So a caller hands over a function rather
+	 * than an object, and it runs against the state current at the moment it writes.
+	 */
+	private queueSettingsWrite(write: () => Promise<void>): Promise<void> {
+		const result = this.settingsWrites.then(write);
+		this.settingsWrites = result.then(swallow, swallow);
+		return result;
+	}
+
+	/**
+	 * The one write path for settings, so no control has to know how they are persisted.
+	 * `saveData` replaces the whole file, and the root is REPLACED rather than mutated — its
+	 * fields are readonly, so there is exactly one way state changes here.
+	 *
+	 * It takes a PATCH and composes the rest at execution time, which is the half
+	 * serialization alone does not buy. A caller handing over a complete settings object
+	 * hands over a SNAPSHOT, and a snapshot is stale for as long as any other write is in
+	 * flight — so two controls changed before the queue drains lost the earlier one
+	 * outright, and one changed during a library move replayed the folder the catalogue had
+	 * just left. Both are the same defect, and taking the whole object from `this.root` at
+	 * the moment of the write is the one shape that closes them together.
+	 *
+	 * `settingsFrom` is still the gate: it drops a key this version does not declare and
+	 * falls back on a value outside the vocabulary, so a patch is validated exactly as a
+	 * whole object was.
+	 */
+	saveSettings(patch: SettingsPatch): Promise<void> {
+		return this.queueSettingsWrite(async () => {
+			// Refused for the whole SESSION, not only at bootstrap: a transient read failure
+			// must not stamp defaults over a `data.json` that is sitting there intact. The tab
+			// is the other writer and is guarded independently (`getSettingDefinitions`).
+			const current = this.root.settings;
+			if (current === null) return;
+
+			const composed = settingsFrom({ ...current, ...patch, libraryFolder: current.libraryFolder });
+			this.applySettings(composed);
+			await this.saveData(composed);
+		});
+	}
+
+	/**
+	 * The library folder's write door, and it is a SEPARATE method rather than a call to
+	 * `saveSettings` for one reason: the order.
+	 *
+	 * `saveSettings` swaps the composition root and rebinds the views BEFORE its own
+	 * `saveData` settles, which is right for a preference — the pane's control has already
+	 * shown the new value — and destructive here. A rejecting write would leave the running
+	 * session composed against the DESTINATION while `data.json` still named the SOURCE, and
+	 * the remedy `settings.library-persist-failed` names ("set the library folder to the new
+	 * location") cannot be applied, because the library row binds no control. A restart would
+	 * then compose against the source and write new catalogue entries there, splitting the
+	 * catalogue in two — the outcome that failure arm exists to prevent rather than cause.
+	 *
+	 * So: write the file, and only then swap. If the write rejects, nothing has been swapped
+	 * and the session is still coherent with the file — the notes are at the destination and
+	 * the setting is not, which is exactly the state the error's copy describes.
+	 */
+	persistLibraryFolder(libraryFolder: string): Promise<void> {
+		// On the same chain as `saveSettings`, and composed inside it for the same reason:
+		// this door's whole hazard is the window between its `saveData` and its root swap,
+		// and a write queued behind it must read the settings that swap leaves behind.
+		return this.queueSettingsWrite(async () => {
+			// The same guard `saveSettings` carries, for the same whole-session reason: a
+			// transient read failure must not stamp defaults over a `data.json` sitting there
+			// intact.
+			const current = this.root.settings;
+			if (current === null) return;
+
+			const next = settingsFrom({ ...current, libraryFolder });
+			await this.saveData(next);
+			this.applySettings(next);
+		});
+	}
+
+	/**
+	 * The Project Index rebuild, as a door the library migration can reach: it moves notes
+	 * out from under an index that still names their old paths, and the rebuild is what
+	 * makes the session agree with the vault BEFORE the setting is written. The same step
+	 * `applySettings` takes after a root swap, so there is one rebuild and not two spellings
+	 * of one.
+	 */
+	rebuildProjectIndex(): void {
+		this.startPersistence();
+	}
+
+	/**
+	 * Everything a settings change does to the RUNNING session, with no write in it. Both
+	 * write doors call this; what differs is which side of their own `saveData` they call it
+	 * on, which is the whole of `persistLibraryFolder`'s reason to exist.
+	 */
+	private applySettings(next: RenovationPlannerSettings): void {
 		// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
 		// pane takes effect immediately, in both directions, without a plugin reload.
 		this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
@@ -307,12 +467,68 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// to correct itself. Rebinding second means each view mounts once, against an index
 		// that is already populated.
 		this.rebindOpenViews();
-		return this.saveData(next);
 	}
 
-	/** ONE spelling of the Renovation Project view's bundle, for the factory and the rebind. */
-	private projectViewDeps(): RenovationProjectDeps {
-		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault);
+	/**
+	 * ONE spelling of the Renovation Project view's bundle, for the factory and the rebind.
+	 *
+	 * `leaf` is the leaf THIS bundle belongs to, and `navigate` is bound to it: a click inside
+	 * this pane must write to this pane, never to whichever leaf `getLeavesOfType` happens to
+	 * answer first — a fact that only bites once the pane is split, since Obsidian's own split
+	 * action duplicates a leaf with its view state intact and this view is a singleton only by
+	 * the plugin's own construction. `navigateToProject`'s own `targetLeaf` parameter is what
+	 * closes that; see its docblock for the split-pane scenario this exists for.
+	 *
+	 * **The bundle's own `projectId` is inert, and this method takes no parameter for it
+	 * BECAUSE it is.** `RenovationProjectView.mount` provides `{ ...this.deps, projectId }`
+	 * with the VIEW's own field written last, so whatever a caller put in the bundle is
+	 * shadowed at the one place the Vue tree reads it. It was a parameter for two tasks,
+	 * and `rebindOpenViews` passed a `projectIdOfLeaf(leaf)` reading of `leaf.getViewState()`
+	 * into it under a comment naming that read as what keeps a detail-state pane off the list
+	 * across a settings swap — a value nothing could read, a claim the code beside it did not
+	 * hold, and an unguarded `getViewState()` inside a loop that rebinds every open view, all
+	 * for one member of one bundle. What actually holds that guarantee is
+	 * `RenovationProjectView.rebind` never touching `this.projectId`, which is where the
+	 * rebind's own docblock already states it and where `rootSwapRebind.test.ts` now asserts
+	 * it. `null` is the member's honest value here: the type declares it because the
+	 * CONTEXT needs one, and the context gets its own.
+	 *
+	 * Found by the whole-branch review. Nothing in `npm run check` can see a parameter whose
+	 * value is shadowed at the point of use — `fallow` reports unimported files and dead
+	 * exports, not a dead argument.
+	 */
+	private projectViewDeps(leaf: WorkspaceLeaf): RenovationProjectDeps {
+		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
+			projectId: null,
+			// Through `navigateToProject` (Task 11), NOT a raw `setViewState`, and it closes
+			// two holes at once. A bare `void` on a rejecting `setViewState` is an unhandled
+			// rejection reaching nobody — the shape `runDetached` exists to close, and the
+			// palette command's own door already answers it through `reportFault`. And two
+			// row clicks before the first write settles issue CONCURRENT writes, where the
+			// earlier one can settle last and reopen the project the user has navigated away
+			// from: the same window Task 11's write chain closes, on the door a user is far
+			// more likely to double-fire than a palette command. Both reported by a review
+			// bot against this plan.
+			//
+			// It is also this repository's own "one action, every input" rule: the row, the
+			// Back action and the palette command now reach ONE door rather than two that
+			// have to be kept in step. `leaf` is passed as the target: see this method's own
+			// docblock for why the type-lookup fallback is not this door's answer.
+			navigate: (next) => {
+				void navigateToProject(
+					{
+						workspace: this.app.workspace,
+						reportFault: (cause: unknown): void => {
+							notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+						},
+					},
+					RENOVATION_PROJECT_VIEW,
+					next,
+					leaf,
+				);
+			},
+			indexScanCompleted: () => this.indexScanCompleted,
+		});
 	}
 
 	/** ONE spelling of the Plan Editor's bundle, for the factory and the rebind. */
@@ -347,7 +563,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// property access, so a `rebind` reached only via `instanceof` is reported as an
 			// unused class member. Measured — both views were, before this line existed.
 			const view: RenovationProjectView = leaf.view;
-			view.rebind(this.projectViewDeps());
+			// A settings swap must not silently return a detail-state pane to the list, and
+			// what holds that is `rebind` never touching the view's own `projectId` — not
+			// anything passed in here. See `projectViewDeps`, which used to take a reading of
+			// this leaf's view state under a comment claiming otherwise.
+			view.rebind(this.projectViewDeps(leaf));
 		}
 		for (const leaf of this.app.workspace.getLeavesOfType(PLAN_EDITOR_VIEW)) {
 			if (!(leaf.view instanceof PlanEditorView)) continue;
@@ -407,6 +627,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 				logger: this.root.logger,
 			}),
 		);
+
+		// Set BEFORE the announce, so a subscriber re-hydrating on that event already sees a
+		// completed scan. Announcing first would leave the very re-read this flag exists for
+		// asking a question the flag still answers `false` to.
+		this.indexScanCompleted = true;
 
 		// Announced, because a surface that already read through the index has read a
 		// DIFFERENT index. Obsidian restores its leaves before `onLayoutReady`, so a Plan
@@ -488,5 +713,39 @@ export default class RenovationPlannerPlugin extends Plugin {
 			},
 			RENOVATION_PROJECT_VIEW,
 		);
+	}
+
+	/**
+	 * The palette's way into the detail state: pick a project, then go there.
+	 *
+	 * Detached like every other Obsidian handler, and it spells no detachment itself:
+	 * `navigateToProject` answers its own faults through `reportFault` and does not reject,
+	 * which is `revealView`'s contract carried one step further. The bare `void` is honest for
+	 * exactly the reason `openProject`'s docblock gives, and `runDetached` would be wrong here
+	 * for the same reason it is wrong there.
+	 *
+	 * **This is the first production call that passes no `targetLeaf`**, which is the whole
+	 * point of the parameter being optional: the palette has no originating leaf, so the leaf
+	 * is the one `revealView` ANSWERS. Every mechanism that then applies — the arrival-order
+	 * ticket, and the per-leaf write lane a row click in that same pane shares — lives in
+	 * `navigateToProject` and is deliberately not restated here: a guard spelled at this call
+	 * site would be a second, narrower answer to a question that module already owns.
+	 */
+	private openProjectDetail(): void {
+		const projects = entriesOfType(this.root.persistence?.index, 'renovation-project');
+		const deps = {
+			workspace: this.app.workspace,
+			reportFault: (cause: unknown): void => {
+				notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+			},
+		};
+		if (projects.length === 0) {
+			// The list, not a picker: see the command's own docblock.
+			void navigateToProject(deps, RENOVATION_PROJECT_VIEW, null);
+			return;
+		}
+		new ProjectSuggestModal(this.app, projects, (project) => {
+			void navigateToProject(deps, RENOVATION_PROJECT_VIEW, project.id);
+		}).open();
 	}
 }

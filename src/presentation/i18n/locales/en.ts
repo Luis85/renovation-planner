@@ -6,6 +6,7 @@
  */
 export const en = {
 	'command.open-project': 'Open renovation project',
+	'command.open-project-detail': 'Go to renovation project',
 	'view.project.name': 'Renovation project',
 	'settings.units.name': 'Units',
 	'settings.units.desc': 'Measurement system for quantities and dimensions.',
@@ -14,6 +15,10 @@ export const en = {
 	'settings.project-folder.name': 'Default projects folder',
 	'settings.project-folder.desc':
 		'Vault folder where a new project’s folder is created. An existing project keeps the folder it is already in.',
+	'settings.library-folder.name': 'Library folder',
+	'settings.library-folder.current': 'Currently {folder}. Changing this moves the notes.',
+	'settings.library-folder.move.name': 'Move the library',
+	'settings.library-folder.move.desc': 'Choose a new folder and move the catalogue into it.',
 	'settings.verbose-logging.name': 'Verbose logging',
 	'settings.verbose-logging.desc': 'Show debug-level messages in the developer console. Everything stays on this device.',
 	'view.geometry.name': 'Geometry sidecar',
@@ -57,7 +62,6 @@ export const en = {
 	'editor.inspector.quantity-override.label': 'Override quantity for',
 	'editor.inspector.cost-override.label': 'Override cost for',
 	'editor.inspector.override.reset': 'Reset to calculated',
-	'entity.requirement.plural': 'Requirements',
 	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
 	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
@@ -130,8 +134,14 @@ export const en = {
 	'reference.no-reassignment-target': 'There is no other zone in this project to reassign these requirements to.',
 	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
 	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
+	// The delete dialog's reference rows (slice 15 item 6), one row per project. TWO keys
+	// rather than one plus a hand-built separator: word order and the punctuation around an
+	// interpolated name are the translator's to choose ([[Multilanguage]]). The path form is
+	// used only for a group whose project name `ListRequirementsReferencing` found ambiguous
+	// among the groups it answered, and only when that project could be placed.
+	'reference.row.project': '{name}',
+	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
-	'requirement.cross-project': 'A zone and an asset from different projects cannot be linked.',
 	'requirement.negative-quantity': 'A quantity cannot be negative.',
 	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`
 	// and a malformed money literal never reach a dispatch, so there is no raised code for
@@ -218,6 +228,49 @@ export const en = {
 	'empty.project.no-projects.action': 'Create a project',
 	'view.project.list-title': 'Renovation projects',
 	'view.project.create': 'New project',
+	// Design slice 21's detail state. `Back to projects` names its DESTINATION rather than
+	// saying `Back`: this pane has one other state and a label that says which one it returns to
+	// is what stops the control reading as browser history. `Open note` is the secondary action —
+	// the row itself navigates now, and `Project.md` stays reachable because nothing else routes
+	// to a project's own metadata.
+	'view.project.back': 'Back to projects',
+	'view.project.open-note': 'Open note',
+	'view.project.plans-title': 'Plans',
+	'view.project.create-plan': 'New plan',
+	// Design slice 21's creation form. One field, so one label — `background` and `layers` are
+	// both optional on `CreatePlanInput` and this form sends neither: slice 5's background is
+	// its own command, and a plan without one is a state the editor already draws.
+	'form.new-plan.title': 'New plan',
+	'form.new-plan.name': 'Name',
+	// Design slice 21's detail state, its one empty state and its one refusal that reaches the
+	// user as a notice rather than as a banner. `No plans yet` is deliberately distinct copy from
+	// `empty.project.no-projects.*`: a project with no plans is a later stage of the same
+	// onboarding than a vault with no projects. **Nothing checks that distinctness**, and an
+	// earlier draft of this comment said `content.test.ts` did: its only distinctness case is
+	// scoped to the two `planEditor` entries, and Task 10 as planned adds none for these two.
+	// A registry pointing both at one key would type-check perfectly and no gate would notice.
+	'empty.project.no-plans.headline': 'No plans yet',
+	'empty.project.no-plans.body': 'Add a plan to start drawing zones and working out quantities.',
+	// The same words as `view.project.create-plan`, and the same gesture: the plans region draws
+	// exactly one of the two controls, so a user never sees both at once.
+	'empty.project.no-plans.action': 'New plan',
+	// The HEADLINE of the screen a project that is not there draws — reached from a read that
+	// missed once the index scan has run, from `CreatePlanCommand`'s `plan.project-not-found`
+	// while its New plan form was open, and from a back-arrow restore of a project since
+	// deleted. It was ALSO a notice on the second of those, back when that path redirected to
+	// the list and a banner had nowhere to live; the redirect is retired and the notice with
+	// it, since the two resolved this same key and would have said one sentence twice at once.
+	'view.project.gone': 'This project no longer exists.',
+	// The BODY beneath that headline. It exists because a `'gone'` status used to render the
+	// loading line — a false sentence with no Back and no retry, recoverable only by closing
+	// the leaf — which is what the screen replaced.
+	'view.project.gone-body': 'It may have been deleted or moved out of this vault. Go back to the project list.',
+	// PRD §83's third enforcement site, and the only one with no door to refuse at: a
+	// project's folder is DERIVED from where its own note sits (ADR-0013), so a user moves
+	// it by dragging in Obsidian's file explorer and no command is dispatched. This row is
+	// the whole of what they are told, so it states the FACT rather than an instruction —
+	// the remedy is to move one of the two folders, and which one is theirs to decide.
+	'view.project.library-overlap': 'Overlaps the library folder',
 	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
 	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
 	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is
@@ -238,6 +291,42 @@ export const en = {
 	'project.unknown-status': 'Choose a status from the list.',
 	'project.target-before-start': 'Target completion must be on or after the start date.',
 	'project.invalid-date': 'Enter a real calendar date.',
+	// Design slice 21's New plan form, keyed by the exact code `Plan.create` raises — minted
+	// through `planError`'s `plan.${code}` template (`src/domain/plan/Plan.errors.ts`), so a
+	// grep for the whole string finds nothing. A missing entry here does not degrade to
+	// silence, it degrades to the generic Validation sentence under a field the user can see.
+	//
+	// `plan.project-not-found` gets no entry and needs none: `NewPlanForm` never routes it to
+	// a field or to a banner — the project is gone, so the form emits `projectGone` and the
+	// view notifies and navigates. The three background codes `Plan.create` also mints have no
+	// entry for the plainer reason: that form sends no background.
+	'plan.empty-name': 'A plan needs a name.',
+	// Slice 19's coded refusals. Keyed by the exact `AppError.code`, for the reason the slice
+	// 16 block above states: `toUserMessage`'s lookup is `error.code in en`, so an
+	// `error.`-prefixed key would never resolve and each of these would silently fall through
+	// to its category's generic sentence — which for the four below is "reading or writing the
+	// vault failed unexpectedly", false about a refusal that knows exactly what is wrong.
+	//
+	// The persist-failure sentence names the REMEDY rather than the fault, because its recovery
+	// is not the obvious one: the notes are already at the destination, so re-running the move
+	// moves nothing, and pointing the setting at where they now are is the fix.
+	'settings.library-folder-empty': 'A library folder cannot be empty.',
+	'settings.library-overlaps-project': 'That folder is inside a project folder, or contains one.',
+	'settings.library-overlaps-source': 'That folder overlaps the current library folder.',
+	'settings.library-source-case-mismatch':
+		'The library folder does not exist at the spelling this setting names, though a similarly named folder does. Rename that folder to match before moving.',
+	// The REFRESH failure is step 0's, and its sentence is the only one in this group that
+	// says nothing moved. Sharing the rebuild sentence below would have opened with "The
+	// catalogue moved" about a migration that had not started, and its remedy differs: a
+	// retry is exactly what may work here.
+	'settings.library-refresh-failed':
+		'The app could not catch up with the vault, so nothing was moved and the setting was not changed. Try again, or reload Obsidian.',
+	'settings.library-move-failed': 'The library could not be moved, so the setting was not changed.',
+	'settings.library-rebuild-failed':
+		'The catalogue moved, but the app could not catch up with the change. Reload Obsidian, then set the library folder to the new location.',
+	'settings.library-persist-failed':
+		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
+	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

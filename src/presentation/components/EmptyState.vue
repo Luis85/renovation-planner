@@ -24,10 +24,28 @@
  * not cover this one, so nothing caught that gap automatically; CLAUDE.md's design-slice-14
  * entry records it as the reason promotion is not always a byte-for-byte move.
  */
+import { computed } from 'vue';
 import type { EmptyStateProps } from '../emptyStates/resolve';
 
-defineProps<EmptyStateProps & { overlay?: boolean }>();
+const props = defineProps<EmptyStateProps & { overlay?: boolean; headingLevel?: 2 | 3 }>();
 defineEmits<{ action: [] }>();
+
+/**
+ * The headline was a hard-coded `<h2>`, which is right for the two callers that REPLACE a
+ * view's whole content region and wrong for one that EMBEDS this component inside a section
+ * of its own. `ProjectDetail` is the second kind: its project name is an `<h2>`, so an
+ * embedded `<h2>` announced "No plans yet" as a PEER of the project rather than as content of
+ * its plans region — and that is the branch a just-created project always lands in.
+ *
+ * Optional with a default of 2, so the existing callers say nothing and keep the level they
+ * had. The union is `2 | 3` rather than `number` because those are the two levels this
+ * component can legally sit at today, and a widened type would be a promise no caller checks.
+ *
+ * Found by a review bot on the pull request. Worth noting what did NOT find it: Task 7 added a
+ * heading-order case in the same commit, for the POPULATED branch — the defect lives in the
+ * other one. A check written for the case its author had in mind, again.
+ */
+const headingTag = computed<'h2' | 'h3'>(() => (props.headingLevel === 3 ? 'h3' : 'h2'));
 </script>
 
 <template>
@@ -39,9 +57,12 @@ defineEmits<{ action: [] }>();
 			<div class="rp-empty-state__icon">
 				<slot name="icon" />
 			</div>
-			<h2 class="rp-empty-state__headline">
+			<component
+				:is="headingTag"
+				class="rp-empty-state__headline"
+			>
 				{{ headline }}
-			</h2>
+			</component>
 			<p class="rp-empty-state__body">
 				{{ body }}
 			</p>

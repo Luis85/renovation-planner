@@ -39,9 +39,11 @@ export interface RevealDeps {
  * Bounded by its own `finally`: an entry lives exactly as long as the activation it
  * describes, so a later click takes the ordinary candidate lookup rather than a stale promise.
  *
- * **What it holds is the ANSWERED activation**, never the raw one — see `revealCandidate`.
+ * **What it holds is the ANSWERED activation**, never the raw one — see `revealCandidate` —
+ * and what that activation answers is the LEAF, so a joining caller is handed the same leaf
+ * rather than a boolean it would have to re-derive.
  */
-const activating = new Map<string, Promise<void>>();
+const activating = new Map<string, Promise<WorkspaceLeaf | undefined>>();
 
 /**
  * What identifies the leaf an activation is asking for.
@@ -77,13 +79,34 @@ function requestKey(type: string, state?: Record<string, unknown>): string {
  * candidate and an in-flight creation are mutually exclusive for both callers today — a
  * creation only ever starts because the lookup found nothing — so asking it first costs a
  * map read and closes the gesture users actually perform.
+ *
+ * **It ANSWERS the LEAF it revealed**, and that is the second widening of this signature:
+ * `void`, then `boolean`, now the leaf. Each step answers a question the one before it could
+ * not. `void` could not say whether the activation succeeded, and leaf EXISTENCE could not
+ * answer that either — a failed reveal of an EXISTING leaf leaves that leaf sitting in
+ * `getLeavesOfType` regardless, so a caller inferring success from the lookup would go on to
+ * mutate a pane it had just failed to show. The boolean answered that, and still could not
+ * say WHICH leaf: `navigateToProject` re-derived it with a fresh `getLeavesOfType(type)[0]`
+ * after the `await`, and **a value re-derived after an `await` is a value that may have
+ * changed** — the revealed pane closed, or the leaves reordered, and the palette command
+ * revealed one pane and wrote the project state into another. This function has held that
+ * leaf all along, `candidates()[0]` taken before any `await` or the one it created, and threw
+ * it away to answer `true`.
+ *
+ * So: the leaf on every path that got through `setViewState`/`revealLeaf` without the fault
+ * handler firing; `undefined` from this function's own `catch` and from the inner `.catch`
+ * that reports a fault on the creation path — which says both that the activation failed AND
+ * that there is no leaf being offered to write into. A joined activation answers whatever
+ * the one it joined answered, which is correct rather than incidental: `requestKey` is the
+ * type plus the state that would be set, so two calls that coalesced are asking for a leaf
+ * neither could tell from the other's.
  */
 export async function revealCandidate(
 	deps: RevealDeps,
 	type: string,
 	candidates: () => readonly WorkspaceLeaf[],
 	state?: Record<string, unknown>,
-): Promise<void> {
+): Promise<WorkspaceLeaf | undefined> {
 	try {
 		const key = requestKey(type, state);
 		const inFlight = activating.get(key);
@@ -91,7 +114,7 @@ export async function revealCandidate(
 		const existing = candidates()[0];
 		if (existing !== undefined) {
 			await deps.workspace.revealLeaf(existing);
-			return;
+			return existing;
 		}
 		// Recorded before the first `await`, so a call landing in the same tick as this one
 		// finds it — and recorded ALREADY ANSWERED, which is the half a review round found
@@ -100,15 +123,17 @@ export async function revealCandidate(
 		// log lines for one failed double click. Sharing an operation means sharing its
 		// failure too, and one failure is one report.
 		const leaf = deps.workspace.getLeaf('tab');
-		const activation = leaf
+		const activation: Promise<WorkspaceLeaf | undefined> = leaf
 			.setViewState({ type, active: true, state })
 			.then(() => deps.workspace.revealLeaf(leaf))
+			.then(() => leaf)
 			.catch((cause: unknown) => {
 				deps.reportFault(cause);
+				return undefined;
 			});
 		activating.set(key, activation);
 		try {
-			await activation;
+			return await activation;
 		} finally {
 			activating.delete(key);
 		}
@@ -129,5 +154,6 @@ export async function revealCandidate(
 		// It also skips the lookup entirely for a joined click, which is a consequence rather
 		// than the reason.
 		deps.reportFault(cause);
+		return undefined;
 	}
 }

@@ -15,6 +15,7 @@ describe('resolving settings from stored data', () => {
 		expect(settingsFrom({ units: 'imperial' })).toEqual({
 			units: 'imperial',
 			projectFolder: DEFAULT_SETTINGS.projectFolder,
+			libraryFolder: DEFAULT_SETTINGS.libraryFolder,
 			verboseLogging: DEFAULT_SETTINGS.verboseLogging,
 		});
 	});
@@ -23,6 +24,7 @@ describe('resolving settings from stored data', () => {
 		expect(settingsFrom({ projectFolder: 'Renovations/Main' })).toEqual({
 			units: DEFAULT_SETTINGS.units,
 			projectFolder: 'Renovations/Main',
+			libraryFolder: DEFAULT_SETTINGS.libraryFolder,
 			verboseLogging: DEFAULT_SETTINGS.verboseLogging,
 		});
 	});
@@ -37,6 +39,31 @@ describe('resolving settings from stored data', () => {
 		expect(settingsFrom({ projectFolder: '' }).projectFolder).toBe(DEFAULT_SETTINGS.projectFolder);
 		expect(settingsFrom({ projectFolder: '   ' }).projectFolder).toBe(DEFAULT_SETTINGS.projectFolder);
 		expect(settingsFrom({ projectFolder: 42 }).projectFolder).toBe(DEFAULT_SETTINGS.projectFolder);
+	});
+
+	/**
+	 * The library folder is the second setting `folderFrom` serves, and the pair of cases
+	 * below is what makes one validator with a `fallback` parameter a claim rather than a
+	 * convenience: both callers are driven, so a second copy differing only in its default
+	 * would have to be kept correct in two places.
+	 */
+	it('round-trips libraryFolder through settingsFrom', () => {
+		expect(settingsFrom({ libraryFolder: 'Shared/Catalogue' }).libraryFolder).toBe('Shared/Catalogue');
+	});
+
+	it('falls back to the default for an empty or non-string libraryFolder', () => {
+		// Asserted first, and not decoration: without it every line below compares one
+		// `undefined` against another and the whole case passes against a settings object
+		// that has no such field at all — which is exactly what it did before the field
+		// existed.
+		expect(DEFAULT_SETTINGS.libraryFolder).toEqual(expect.stringMatching(/\S/));
+		expect(settingsFrom({ libraryFolder: '' }).libraryFolder).toBe(DEFAULT_SETTINGS.libraryFolder);
+		expect(settingsFrom({ libraryFolder: '   ' }).libraryFolder).toBe(DEFAULT_SETTINGS.libraryFolder);
+		expect(settingsFrom({ libraryFolder: 7 }).libraryFolder).toBe(DEFAULT_SETTINGS.libraryFolder);
+	});
+
+	it('drops a key this version does not declare, on the way out as well as in', () => {
+		expect(settingsFrom({ libraryFolder: 'Shared', mystery: 1 })).not.toHaveProperty('mystery');
 	});
 
 	it('fills what the stored object does not say', () => {
@@ -70,6 +97,7 @@ describe('resolving settings from stored data', () => {
 		expect(settingsFrom({ units: 'imperial', currency: 'EUR' })).toEqual({
 			units: 'imperial',
 			projectFolder: DEFAULT_SETTINGS.projectFolder,
+			libraryFolder: DEFAULT_SETTINGS.libraryFolder,
 			verboseLogging: DEFAULT_SETTINGS.verboseLogging,
 		});
 	});

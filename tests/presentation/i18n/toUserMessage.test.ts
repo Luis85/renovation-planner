@@ -108,7 +108,6 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['reference.self-reassign', 'Validation', 'error.category.validation', 'application/commands/zone/DeleteZone.ts'],
 	['reference.cross-project-reassign', 'Validation', 'error.category.validation', 'application/commands/zone/DeleteZone.ts'],
 	['requirement.unit-not-area', 'Validation', 'error.category.validation', 'application/commands/requirement/AssignAsset.ts'],
-	['requirement.cross-project', 'Validation', 'error.category.validation', 'application/commands/requirement/AssignAsset.ts'],
 	['requirement.negative-quantity', 'Domain', 'error.category.domain', 'application/commands/requirement/SetRequirementQuantityOverride.ts'],
 	// Design slice 16's New Project form. `project.negative-amount` is deliberately absent:
 	// it is raised by the same `Project.create` and would belong here on the same grounds,
@@ -117,9 +116,94 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	['project.unknown-status', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 	['project.target-before-start', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
 	['project.invalid-date', 'Validation', 'error.category.validation', 'domain/project/Project.ts'],
+	// Design slice 21's New plan form. `plan.project-not-found` is deliberately absent: it is
+	// the one refusal `NewPlanForm` routes to neither a field nor the user-facing banner — the
+	// view notifies and navigates on it — so no copy of its own is owed. The three background
+	// codes `Plan.create` also mints are absent for the plainer reason that no form sends a
+	// background.
+	['plan.empty-name', 'Validation', 'error.category.validation', 'domain/plan/Plan.ts'],
+	// Design slice 19's §83 overlap guard. A `Persistence` refusal rather than a `Validation`
+	// one, because it is `persistenceError` at the repository that mints it — and that is
+	// precisely why the row earns its place: the generic Persistence sentence is "reading or
+	// writing the vault failed unexpectedly", which is false about a refusal that read and
+	// wrote nothing and knows exactly what is wrong.
+	[
+		'project.folder-overlaps-library',
+		'Persistence',
+		'error.category.persistence',
+		'infrastructure/obsidian/repositories/ObsidianProjectRepository.ts',
+	],
+	// Slice 19's library-folder migration, and the four rows are the four ways it can
+	// refuse. Each category below is copied from the RAISE SITE rather than from what the
+	// sentence sounds like: the two refusals are `Validation` because nothing has been read
+	// or written when they fire, and the two failures are `Persistence` because a vault
+	// operation is exactly what did not work.
+	//
+	// The last one is why the pair is not one row: `settings.library-move-failed` and
+	// `settings.library-persist-failed` share a category and a category sentence, and their
+	// RECOVERIES are opposites — one says the setting was not changed, the other says the
+	// notes already moved and the setting is what needs setting.
+	['settings.library-folder-empty', 'Validation', 'error.category.validation', 'plugin/settings/libraryMigration.ts'],
+	[
+		'settings.library-overlaps-project',
+		'Validation',
+		'error.category.validation',
+		'plugin/settings/libraryMigration.ts',
+	],
+	// The SOURCE overlap, and it is a row of its own rather than a synonym of the one above:
+	// the project sentence says "inside a project folder, or contains one", which is false
+	// about a destination that overlaps the folder the catalogue is currently in, and a user
+	// told the wrong thing about which folder is the problem has nothing to act on.
+	[
+		'settings.library-overlaps-source',
+		'Validation',
+		'error.category.validation',
+		'plugin/settings/libraryMigration.ts',
+	],
+	// The source SPELLING refusal — narrower than the existence check it replaced, which
+	// refused a fresh vault whose library folder had simply not been created yet.
+	// `settings.library-move-failed` was read before minting this and is not honest for it:
+	// its sentence is true but says nothing a user can act on, and it is `Persistence`, which
+	// claims a vault operation failed when none was attempted.
+	[
+		'settings.library-source-case-mismatch',
+		'Validation',
+		'error.category.validation',
+		'plugin/settings/libraryMigration.ts',
+	],
+	// Step 0's REFRESH failure, minted rather than folded into the rebuild row below for the
+	// reason that row gives about the persist one: both are the same operation failing, and
+	// the rebuild sentence opens "The catalogue moved" — false here, where the refusal fires
+	// before a single rename. The recovery differs with it: a retry may simply work.
+	[
+		'settings.library-refresh-failed',
+		'Persistence',
+		'error.category.persistence',
+		'plugin/settings/libraryMigration.ts',
+	],
+	['settings.library-move-failed', 'Persistence', 'error.category.persistence', 'plugin/settings/libraryMigration.ts'],
+	// The REBUILD failure, minted rather than folded into the persist row below. Both leave the
+	// notes at the destination and the setting naming the source, but the persist sentence says
+	// the setting could not be saved — which is the wrong event here, since nothing was
+	// attempted — and the remedy differs: the session's index is what is behind, so it has to
+	// catch up with the vault before the setting is pointed anywhere.
+	[
+		'settings.library-rebuild-failed',
+		'Persistence',
+		'error.category.persistence',
+		'plugin/settings/libraryMigration.ts',
+	],
+	[
+		'settings.library-persist-failed',
+		'Persistence',
+		'error.category.persistence',
+		'plugin/settings/libraryMigration.ts',
+	],
 ];
 
-describe("design slice 10's coded refusals", () => {
+// Named for the shape rather than for a slice: the table below has carried codes from slices
+// 10, 16 and 19, and a describe naming one of them reads as a scope the table does not have.
+describe('coded refusals that carry copy of their own', () => {
 	it.each(MINTED)('%s resolves its own copy rather than the %s category sentence', (code, category, categoryKey) => {
 		const refusal = error({ category, code });
 

@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from '../../../helpers/obsidian-mock';
 import { Decimal } from 'decimal.js';
 import { settleUntil as until } from '../../../helpers/editor';
-import { click, PROJECT_ID, rig, toolbarButton } from '../../../helpers/planEditorRig';
+import { click, rig, toolbarButton } from '../../../helpers/planEditorRig';
 import { expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
 import { lines, resetRecorder } from '../../../helpers/logger';
@@ -45,7 +45,6 @@ async function selectedZone(seedAssets = 1) {
 		for (let index = 0; index < seedAssets; index += 1) {
 			await assets.save(
 				makeAsset({
-					projectId: PROJECT_ID,
 					name: `Asset ${index}`,
 					unit: 'm2',
 					wasteFactorDefault: new Decimal('0.10'),
@@ -62,7 +61,7 @@ async function selectedZone(seedAssets = 1) {
 
 /** Pick the first offered asset and press Assign. */
 async function assign(r: Awaited<ReturnType<typeof selectedZone>>): Promise<void> {
-	const asset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+	const asset = expectOk(await r.assetsRepo.listAll())[0];
 	if (asset === undefined) throw new Error('expected a seeded asset');
 	await until(() => {
 		const el = r.harness.wrapper.find('#rp-assign-asset').element as HTMLSelectElement;

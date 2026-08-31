@@ -67,9 +67,6 @@ export type AssignAssetErrors =
  * as the Inspector is (§3.3: a handler is not a trusted caller):
  *
  * - both endpoints exist;
- * - `zone.projectId === asset.projectId` — nothing in the input's SHAPE stops a caller
- *   pairing across projects, and a cross-project requirement would leak one project's unit
- *   costs into another's estimates while being unfindable by `ListAssets`;
  * - the Asset is of AREA kind (`UNIT_KIND[asset.unit]`, never a literal `'m2'`) — a zone's
  *   polygon area is not an identity input for a length, volume, piece, hour, day or fixed
  *   asset, and accepting one would silently relabel an area figure.
@@ -100,14 +97,6 @@ export class AssignAssetCommand
 			const zone = loadedZone.value.entity;
 			const asset = loadedAsset.value;
 
-			if (zone.projectId !== asset.projectId) {
-				return err({
-					category: 'Validation',
-					code: 'requirement.cross-project',
-					message: `A requirement cannot pair zone ${zone.id} (project ${zone.projectId}) `
-						+ `with asset ${asset.id} from project ${asset.projectId}.`,
-				});
-			}
 			// Dimension check, not symbol check — see the header.
 			if (UNIT_KIND[asset.unit] !== 'area') {
 				return err({

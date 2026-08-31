@@ -1,6 +1,5 @@
 import type { App, TFile } from 'obsidian';
 import { isErr, type Result } from '../core/result/Result';
-import type { ProjectIndex, ProjectIndexEntry } from '../application/ports/ProjectIndex';
 import type { PlanId } from '../domain/plan/PlanId';
 import type { Command } from '../application/commands/Command';
 import type {
@@ -21,6 +20,7 @@ import {
 import { surfaceError } from '../presentation/errors/surfaceError';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../presentation/views/PlanEditorView';
 import { tr } from '../presentation/i18n/strings';
+import { entriesOfType } from './indexEntries';
 import type { PluginCommandHost } from './commandHost';
 
 /**
@@ -32,18 +32,6 @@ import type { PluginCommandHost } from './commandHost';
  * `PluginCommandHost` — which is why that interface is its own file rather than declared
  * here.
  */
-
-/**
- * Every Plan the Project Index knows about (§47) — the index rather than the vault,
- * because it is the single answer to where an entity is and a second scan here could
- * disagree with it.
- *
- * A filter over `entries()` because the question is asked once, when a palette command
- * runs: `getIdsByType` would answer ids alone, and a picker needs the PATH to render a row.
- */
-function planEntries(index: ProjectIndex | undefined): ProjectIndexEntry[] {
-	return (index?.entries() ?? []).filter((entry) => entry.type === 'renovation-plan');
-}
 
 /**
  * Everything the plugin can currently offer as a background: the Vault's own file list,
@@ -115,7 +103,7 @@ async function applyBackground(host: PluginCommandHost, planId: PlanId, file: TF
  * DATA. What changed is behaviour behind the same name.
  */
 function openPlanPicker(host: PluginCommandHost): void {
-	const plans = planEntries(host.root.persistence?.index);
+	const plans = entriesOfType(host.root.persistence?.index, 'renovation-plan');
 	if (plans.length === 0) {
 		notify(tr('plan.none'));
 		return;

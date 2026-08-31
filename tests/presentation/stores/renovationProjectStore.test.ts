@@ -14,12 +14,24 @@ import { useRenovationProjectStore } from '../../../src/presentation/stores/Reno
 import type { RenovationProjectQueryServices } from '../../../src/presentation/read-models/renovationProjectQueries';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
-const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
+const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', libraryOverlap: false };
 const READ_FAILED = { category: 'Persistence', code: 'settings.unrecovered', message: 'boom' } as const;
 
+/**
+ * `getProject` and `listPlansByProject` are design slice 21's detail-state doors, and this
+ * store never calls either — `RenovationProjectStore` holds the LIST, and the detail state is
+ * `ProjectDetailStore`'s. They ANSWER rather than refuse for CLAUDE.md's fifth
+ * fake-instance reason: a stand-in that refuses what production would answer shows a false
+ * picture, and there is no unavailable session being modelled here — every case in this file
+ * that wants a refusal spells it on `listProjects`, which is the door it is about.
+ * `ok(null)` is "no such project", which is the answer this bundle's own one-project vault
+ * gives for any id but `PROJECT`'s.
+ */
 function queries(overrides: Partial<RenovationProjectQueryServices> = {}): RenovationProjectQueryServices {
 	return {
 		listProjects: () => Promise.resolve(ok({ projects: [PROJECT], unreadable: 0 })),
+		getProject: () => Promise.resolve(ok(null)),
+		listPlansByProject: () => Promise.resolve(ok([])),
 		...overrides,
 	};
 }
@@ -145,13 +157,13 @@ describe('RenovationProjectStore hydration', () => {
 		const slowGate = new Promise<void>((resolve) => {
 			releaseSlow = resolve;
 		});
-		const stale: ProjectSummaryDto = { id: 'stale', name: 'the stale answer', status: 'Planning' };
+		const stale: ProjectSummaryDto = { id: 'stale', name: 'the stale answer', status: 'Planning', libraryOverlap: false };
 		const slow = store.hydrate(
 			queries({ listProjects: () => slowGate.then(() => ok({ projects: [stale], unreadable: 0 })) }),
 		);
 
 		// A second hydration starts and finishes entirely inside the first one's await.
-		const fresh: ProjectSummaryDto = { id: 'fresh', name: 'the fresh answer', status: 'Planning' };
+		const fresh: ProjectSummaryDto = { id: 'fresh', name: 'the fresh answer', status: 'Planning', libraryOverlap: false };
 		await store.hydrate(queries({ listProjects: () => Promise.resolve(ok({ projects: [fresh], unreadable: 0 })) }));
 		expect(store.projects).toEqual([fresh]);
 

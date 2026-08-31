@@ -44,7 +44,7 @@ async function wiredRecalculate() {
 	);
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -59,10 +59,9 @@ async function wiredRecalculate() {
 
 describe('Asset validation', () => {
 	it('refuses an empty name, an unknown category, a negative price and out-of-range waste', () => {
-		expect(Asset.create({ id: 'asset-1' as never, projectId: 'p' as never, ...VALID_ASSET, name: '   ' }).ok).toBe(false);
+		expect(Asset.create({ id: 'asset-1' as never, ...VALID_ASSET, name: '   ' }).ok).toBe(false);
 		const badCategory = Asset.create({
 			id: 'asset-1' as never,
-			projectId: 'p' as never,
 			...VALID_ASSET,
 			category: 'vehicle' as never,
 		});
@@ -71,7 +70,6 @@ describe('Asset validation', () => {
 
 		const negative = Asset.create({
 			id: 'asset-1' as never,
-			projectId: 'p' as never,
 			...VALID_ASSET,
 			// `Money` itself permits a negative amount — `AMOUNT_PATTERN` admits the sign — so
 			// this construction succeeds and it is `Asset.create` that refuses, which is the
@@ -87,7 +85,6 @@ describe('Asset validation', () => {
 	it('refuses a waste factor above 1 with the percentage hint', () => {
 		const result = Asset.create({
 			id: 'asset-1' as never,
-			projectId: 'p' as never,
 			...VALID_ASSET,
 			wasteFactorDefault: new Decimal('10'),
 		});
@@ -97,7 +94,7 @@ describe('Asset validation', () => {
 	});
 
 	it('withChanges re-validates the whole entity', () => {
-		const asset = expectOk(Asset.create({ id: 'asset-1' as never, projectId: 'p' as never, ...VALID_ASSET }));
+		const asset = expectOk(Asset.create({ id: 'asset-1' as never, ...VALID_ASSET }));
 		const broken = asset.withChanges({ wasteFactorDefault: new Decimal('2') });
 		expect(broken.ok).toBe(false);
 		const fine = asset.withChanges({ name: 'Better tile', notes: null });
@@ -175,7 +172,7 @@ describe('GetRequirementsForZone readings', () => {
 		);
 		const assetEntity = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			),
 		);
@@ -199,7 +196,7 @@ describe('GetRequirementsForZone readings', () => {
 		);
 		const assetEntity = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			),
 		);

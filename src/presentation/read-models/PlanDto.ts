@@ -54,6 +54,40 @@ export interface ProjectSummaryDto {
 	readonly id: string;
 	readonly name: string;
 	readonly status: string;
+	/**
+	 * PRD §83: this project's DERIVED folder is the library folder, contains it, or sits
+	 * inside it.
+	 *
+	 * It is on the summary rather than looked up by the row, because a `ProjectSummaryDto`
+	 * carries no path and the comparison needs one — the same reason `openProject` takes an
+	 * id and the composition root resolves the note. Required rather than optional: an
+	 * absent flag and a `false` one read identically at the `v-if` that renders the marker,
+	 * so every producer of a summary states the answer instead of one of them silently
+	 * meaning "not asked".
+	 *
+	 * A fact about the read that produced it and never a stored one: ADR-0013 derives the
+	 * folder from where the project's own note sits, so a user who drags that folder back is
+	 * simply absent from the next answer — which is what makes staleness and retraction
+	 * unrepresentable rather than handled. **The next answer, not the next moment**: that
+	 * read goes through the Project Index, which is not told about a folder moved in
+	 * Obsidian's file explorer (the vault listeners filter to `TFile`, since slice 4), so the
+	 * flag flips at the next index rebuild — at load, or after a settings save — rather than
+	 * as the drag lands. `IndexLibraryOverlaps` carries the mechanism.
+	 */
+	readonly libraryOverlap: boolean;
+}
+
+/**
+ * A plan as a LIST ROW sees it (design slice 21) — deliberately not `PlanDto`.
+ *
+ * A row needs neither the background, the calibration nor the layers, and handing a component
+ * the full DTO makes it a consumer of fields it does not read: the next change to any of those
+ * three would then have to reason about a list that never wanted them. `ProjectSummaryDto` is
+ * the same distinction one entity up.
+ */
+export interface PlanSummaryDto {
+	readonly id: string;
+	readonly name: string;
 }
 
 export function toPlanDto(plan: Plan): PlanDto {
@@ -81,6 +115,16 @@ export function toZoneDto(zone: Zone): ZoneDto {
 	};
 }
 
-export function toProjectSummaryDto(project: Project): ProjectSummaryDto {
-	return { id: project.id, name: project.name, status: project.status };
+/**
+ * `libraryOverlap` is a PARAMETER rather than something read off the entity, because a
+ * `Project` does not know it: §83's answer is derived per read from the project index and the
+ * configured library folder (`LibraryOverlaps`), and an entity carrying it would be an entity
+ * carrying a fact about a setting.
+ */
+export function toProjectSummaryDto(project: Project, libraryOverlap: boolean): ProjectSummaryDto {
+	return { id: project.id, name: project.name, status: project.status, libraryOverlap };
+}
+
+export function toPlanSummaryDto(plan: Plan): PlanSummaryDto {
+	return { id: plan.id, name: plan.name };
 }

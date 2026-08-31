@@ -23,9 +23,9 @@ let hostCount = 0;
  * One store per view also makes the one-at-a-time rule mean "one per view", which is the
  * correct scope — two Plan Editor tabs may each legitimately have a dialog.
  *
- * **This component is the single caller of `dialogStore.resolve`.** The kind components
- * emit a typed `resolve` event and settle nothing themselves. That is one seam rather than
- * four: single-settle, focus restoration and background release all hang off this one
+ * **No KIND COMPONENT calls `dialogStore.resolve`; they emit a typed `resolve` event and
+ * settle nothing themselves.** That is one seam rather than four: single-settle, focus
+ * restoration and background release all hang off this one
  * function, and a kind that settled directly would bypass every one of them.
  *
  * **`inert` on the siblings, and no `aria-hidden`.** The background is this component's

@@ -14,9 +14,13 @@ import { ensureFolder, undoEnsureFolder } from '../../../../src/infrastructure/o
  * retrying after a failure is an ordinary thing to do. Review of that slice asked for exactly
  * the recorded trigger.
  *
- * The repository cases assert on the VAULT rather than on the returned refusal: `save` already
- * answered `project.write-failed` before any of this existed (`errorPaths.test.ts` pins that),
- * so a case reading only the error is equally true of the defect and of the fix.
+ * The repository cases assert on the VAULT rather than only on the returned refusal: `save`
+ * already answered `project.write-failed` before any of this existed (`errorPaths.test.ts` pins
+ * that), so a case reading only the error is equally true of the defect and of the fix.
+ *
+ * They still name the CODE beside the vault, and design slice 19 is why: a refusal that returns
+ * before anything is created satisfies every "the folder is gone" assertion trivially, so the
+ * pair is what says the compensation ran rather than that it was never needed.
  */
 describe('a failed project insert leaves no folder behind', () => {
 	it('removes the project folder and the root it had to create for it', async () => {
@@ -24,7 +28,19 @@ describe('a failed project insert leaves no folder behind', () => {
 		const project = makeProjectEntity({ name: 'Collision' });
 		stack.vault.failures.add(`create:${stack.projectFolder}/Collision/Collision.md`);
 
-		expectErr(await stack.projects.save(project, 'absent'));
+		// The CODE, exactly as the third case below already asserts it, and not merely "some
+		// refusal": design slice 19 gave `save` a `project.folder-overlaps-library` arm that
+		// returns BEFORE `ensureFolder`, so a stack whose library CONTAINS the project folder
+		// satisfies both `toBeNull()`s trivially — nothing was ever created, the compensation
+		// never ran, and this case stayed green over code it no longer reached.
+		//
+		// Measured rather than argued, and the value matters: mutating
+		// `createRepositoryStack`'s default `libraryFolder` to `'Renovation/Library'` changes
+		// NOTHING, because `Renovation/Collision` and `Renovation/Library` are siblings and
+		// `foldersOverlap` tests containment at a segment boundary. `'Renovation'` is the
+		// mutation that fires the guard, and with this line it takes the case red.
+		const error = expectErr(await stack.projects.save(project, 'absent'));
+		expect(error.code).toBe('project.write-failed');
 
 		expect(stack.vault.getAbstractFileByPath(`${stack.projectFolder}/Collision`)).toBeNull();
 		expect(stack.vault.getAbstractFileByPath(stack.projectFolder)).toBeNull();
@@ -152,5 +168,37 @@ describe('a failed project insert leaves no folder behind', () => {
 		expect(created).toEqual(['Renovation', 'Renovation/Alpha']);
 		expect(await undoEnsureFolder(stack.vault as never, stack.fileManager as never, created)).toEqual([]);
 		expect(stack.vault.getAbstractFileByPath('Renovation')).toBeNull();
+	});
+});
+
+/**
+ * §83's first door, and it sits one line ABOVE the compensation this file is otherwise about:
+ * a refusal that runs before `ensureFolder` has nothing to compensate, because nothing was
+ * created. The two cases are a pair on purpose — the refusal alone is equally true of a build
+ * that refuses every insert, so the sibling case is what says the guard is about the OVERLAP
+ * and not about the library folder being configured at all.
+ *
+ * Asserted on the VAULT as well as on the code, for the same reason the cases above are: the
+ * whole claim is "creates nothing", and a case reading only the returned error passes against
+ * a guard placed after `ensureFolder`.
+ */
+describe('a project folder that would overlap the library', () => {
+	it('is refused, and creates neither the folder nor the root it would have needed', async () => {
+		const stack = createRepositoryStack('Renovation', 'Renovation/Library');
+
+		const refusal = expectErr(await stack.projects.save(makeProjectEntity({ name: 'Library' }), 'absent'));
+
+		expect(refusal.code).toBe('project.folder-overlaps-library');
+		expect(stack.vault.getAbstractFileByPath('Renovation/Library')).toBeNull();
+		expect(stack.vault.getAbstractFileByPath('Renovation')).toBeNull();
+	});
+
+	it('leaves a sibling of the library alone', async () => {
+		const stack = createRepositoryStack('Renovation', 'Renovation/Library');
+
+		const project = makeProjectEntity({ name: 'Kitchen refit' });
+		expectOk(await stack.projects.save(project, 'absent'));
+
+		expect(stack.index.getPath(project.id)).toBe('Renovation/Kitchen refit/Kitchen refit.md');
 	});
 });

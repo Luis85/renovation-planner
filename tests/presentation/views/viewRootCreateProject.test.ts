@@ -33,6 +33,11 @@ function deps(listProjects: () => Promise<unknown>) {
 		},
 		openProject: vi.fn<() => Promise<'opened'>>(() => Promise.resolve('opened')),
 		onProjectsChanged: () => () => undefined,
+		// The LIST state, stated rather than omitted: a `provide` value is `unknown`, so
+		// an absent key would reach `ViewRoot` as `undefined` once slice 21 gives it a
+		// `projectId` to branch on, with nothing to report it. See
+		// `viewRootIndexRebuild.test.ts` for the whole argument.
+		projectId: null,
 	};
 }
 
@@ -132,6 +137,11 @@ describe('ViewRoot, creating a project', () => {
 			},
 			openProject: vi.fn<() => Promise<'opened'>>(() => Promise.resolve('opened')),
 		onProjectsChanged: () => () => undefined,
+		// The LIST state, stated rather than omitted: a `provide` value is `unknown`, so
+		// an absent key would reach `ViewRoot` as `undefined` once slice 21 gives it a
+		// `projectId` to branch on, with nothing to report it. See
+		// `viewRootIndexRebuild.test.ts` for the whole argument.
+		projectId: null,
 		};
 		const wrapper = mount(ViewRoot, {
 			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },

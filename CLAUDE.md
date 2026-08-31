@@ -8,12 +8,18 @@ has already refused things that look obvious from the code alone, and where this
 the SDD disagree, the SDD is the authority and this file is the bug.
 
 Today the build, the gates, the browser harness and the release pipeline work; the
-settings pane offers the three settings there are (units, the default projects folder — where a
-NEW project's folder is created, since slice 18; an EXISTING project's folder derives from
-where its `Project.md` sits instead (ADR-0013) — and slice 11's verbose logging — counted in
-`getSettingDefinitions`, and this sentence said "the one setting there is" for several slices
-after it stopped being one); and the persistence layer of design slice 4 is in place — Obsidian
-repositories, the geometry sidecar store, the project index and its vault-change pipeline
+settings pane declares **five rows and only three of them bind a control** — units, the default
+projects folder (where a NEW project's folder is created, since slice 18; an EXISTING project's
+folder derives from where its `Project.md` sits instead, ADR-0013) and slice 11's verbose
+logging, plus slice 19's two library-folder rows, one INFORMATIONAL and one an ACTION, which
+bind none on purpose: `setControlValue` writes through `saveSettings` on every change, and a
+control on `libraryFolder` would persist a folder with no notes moved and strand the catalogue.
+Counted in `getSettingDefinitions` rather than remembered — this sentence said "the one setting
+there is" for several slices after it stopped being one, then "the three settings there are"
+through slice 19, which is the same failure one increment later and is why the count now comes
+with the distinction between a row and a control. The persistence layer of design slice 4 is in
+place — Obsidian repositories, the geometry sidecar store, the project index and its
+vault-change pipeline
 (bounded since slice 18 by what a note DECLARES, not by where it sits, which closes slice 4's
 own recorded multi-root prerequisite without registering a single root), and the migration
 runner.
@@ -33,11 +39,13 @@ later. Slice 13 belongs to *Shared UI vocabulary* (slices 13–17), and what it 
 the toast and the save-state badge — the notice queue and
 the save-state indicator, the surface any view or command reports a transient message or a
 save state through. **That group is now complete: 14 and 15 landed first, then 16, and slice
-17 — the integration slice the map calls "17 integrates them" — has closed it.** What is NOT
-done is slices 19, 20 and 21, which are written and unbuilt, plus the items slices 16 and 17
-WITHDREW rather than ticked; each is recorded in its own task document's amendments rather
-than here, because a list of exceptions kept in two places is one that disagrees with
-itself.
+17 — the integration slice the map calls "17 integrates them" — has closed it.** **Design slice
+19 has closed since**, which is what took slice 10's own document from seven open criteria to
+none: the Asset catalogue left the project, so a catalogue entry carries no project id at all.
+What is NOT done is slices **20 and 21**, which are written and unbuilt, plus the items slices
+16, 17 and 19 WITHDREW or narrowed rather than ticked; each is recorded in its own task
+document's amendments rather than here, because a list of exceptions kept in two places is one
+that disagrees with itself.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
@@ -65,7 +73,31 @@ view, opened from the empty state's action button and from `ProjectList`'s own h
 `{ projects, unreadable }`, not a bare array; the PORT below it answers a `ProjectListing`,
 `{ loaded, refused }`, and the rename across that seam is deliberate — and the empty state is the `'ready'` status
 with BOTH halves clear: an empty list with `unreadable > 0` is a vault that has projects this
-build could not read, so it gets the notice and no "no projects yet". The **Plan editor** is per-plan (several
+build could not read, so it gets the notice and no "no projects yet".
+
+**Design slice 21 gave that view a SECOND state, and everything above describes the first
+one.** A project row NAVIGATES now rather than opening `Project.md`, into a detail state that
+draws one project — its name, its lifecycle status, an **Open note** action (the only surface
+left that opens the raw note), a **‹ back**, and that project's plans with a `New plan` form
+dispatching the real `CreatePlanCommand`. A project that turns out not to be there draws a
+screen saying so, with its own way back, and **nothing redirects on its own** — reached
+identically from a read that missed, from `CreatePlanCommand`'s `plan.project-not-found`, and
+from a back-arrow restore of a project since deleted. Which project is open lives in **Obsidian's own view
+state** (`getState`/`setState`), never in Pinia: `rebind` remounts the whole Vue tree on a
+settings save, and a Pinia-held selection would throw the user out of the project they are in.
+`ViewRoot` reads `context.projectId` ONCE — `null` is the list, a string hands the whole state
+to `ProjectDetailState.vue`, which owns its store, its two subscriptions and its own dialog —
+and the view REMOUNTS per navigation (`sync`), which is what makes that value unable to go
+stale rather than a `Ref` somebody has to keep fresh. Navigation goes through
+`leaf.setViewState` and sets `ViewStateResult.history`, so **the pane's own back and forward
+arrows walk it** — the in-app ‹ back is a different mechanism from that arrow (it SETS a state
+where the arrow asks Obsidian to RESTORE one) and both carry the same `''`-means-the-list
+sentinel `getState` writes. Whether Obsidian honours the arrow is checkable nowhere here —
+`FakeLeaf` records asks rather than behaving — so it is left to
+`docs/tests/cases/Navigate into a project and back.md`, **which is written and has not been run
+in a vault**: that case's Runs table says so, and slice 21's own outcome row said "walked" over
+it until a review bot compared the two. An unrun manual case is a plan to find out, not a
+finding. The **Plan editor** is per-plan (several
 leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
 around a Konva stage of §17's seven layers, the Zones of one Plan, an image or PDF
 background, and a pan/zoom camera — slice 5. **That canvas is editable now**, which is the
@@ -293,7 +325,22 @@ already hydrates. Rules that came out of it:
   scan. Design slice 16 gave `renovationProject.noProjects` its action button and this
   file's own case now scans it, asserting `.rp-empty-state__action` is present the same
   way it already asserted `.rp-empty-state` — that slice's own section below has the rest.
-  `noZones`'s button remains the one action-carrying empty state this file does not scan.
+  **THREE entries carry an action and this file scans all three**, which it did not until
+  slice 21's improvement pass. Design slice 21's `renovationProject.noPlans` arrived with its
+  button already wired (`ProjectDetailState.onCreatePlan`) and was graded from its first
+  commit — the detail state's no-plans case asserts `.rp-empty-state`,
+  `.rp-empty-state__action` and `.rp-project-detail__back` are all in the scanned DOM, and the
+  last of those is what makes it a scan of the surface rather than of a component, since that
+  empty state sits INSIDE the detail shell rather than replacing it. `planEditor.noZones` was
+  the one that stayed unscanned for seven slices, and its reason was never an oversight but a
+  FIXTURE: the Plan Editor case's default plan carries no background, so the selector answers
+  `noBackground`, the buttonless entry. Closing it is one more mount with a plan that HAS a
+  background and no zones — the fixture `emptyStateOverlay.test.ts` already spells — plus the
+  same `.rp-empty-state__action` assertion, which is what stops the case from silently
+  grading `noBackground` again if that fixture drifts, or grading nothing if the overlay
+  yields to an active tool. Both mutations measured: the default fixture fails at the
+  assertion rather than at the scan, and stripping the action button's accessible name
+  reddens this case beside the other two.
 
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
 are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
@@ -911,8 +958,11 @@ check. Rules that came out of it:
   standard gesture for pressing it, while the camera armed behind it. `event.target ===
   container` is the whole fix, tested against the container rather than by sniffing for
   interactive tag names, so the rule stays true for whatever that slot holds next. Worth
-  pairing with the accessibility note in the slice 14 section: no empty state carrying a
-  button is graded by any axe scan, so nothing else here was watching this control.
+  pairing with the accessibility note in the slice 14 section: when this defect shipped, no
+  empty state carrying a button was graded by any axe scan, so nothing else here was watching
+  this control. `planEditor.noZones` is scanned since slice 21's improvement pass — which does
+  not reach the keyboard question this bullet is about, since jsdom dispatches no native
+  activation, but does mean the control is no longer unwatched by every instrument at once.
 - **`pointercancel` was the one door that broke this design's own central claim.** It
   cancelled the ACTIVE TOOL unconditionally — so a user mid-polygon who held space to pan and
   then alt-tabbed lost their vertices, which is precisely what routing the pan around
@@ -1118,7 +1168,7 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   `t()`. Only the two label DEFAULTS are resolved inside the framework, from `StringKey`s —
   `confirmLabel ?? 'Confirm'` would have been the one untranslated string every confirmation
   in the plugin flowed through. Neither half is caught by lint: `I18N_LITERAL_BAN` fires at
-  four call sites and a descriptor's `title:` is none of them, so both rest on review.
+  six call sites and a descriptor's `title:` is none of them, so both rest on review.
   What IS checked is that `de.ts` translates every key `en.ts` declares
   (`tests/presentation/i18n/strings.test.ts`) — the type permits the gap on purpose, so an
   incomplete locale is safe, and the fallback then hides a forgotten key from everyone but
@@ -1137,14 +1187,17 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   shipped with none for two slices, which was the plan rather than dead code: the queries
   feeding their rows and the command fields carrying their answer were slice 10's to define,
   and declaring them in slice 15 would have been a second derivation of contracts it owns.
-  **Two of slice 15's items are still open, and the caller did not close them**, because the
-  shared-catalogue amendment rewrote them after that flow was built:
-  `ListRequirementsReferencing` returns a flat `RequirementId[]`, not the per-project GROUPS
-  carrying `projectName` and `projectPath` that item 6 now asks for; and item 6a's
-  `t(language, key, params?)` does not exist — `src/presentation/i18n/strings.ts` still
-  declares two parameters, and every string `en.ts` holds is fixed text. The two land
-  together, because the first interpolated string in the plugin is the row label item 6
-  names.
+  **Two of slice 15's items stayed open for four slices and the caller did not close them**,
+  because the shared-catalogue amendment rewrote them after that flow was built:
+  `ListRequirementsReferencing` answered a flat `RequirementId[]` rather than the per-project
+  GROUPS carrying `projectName` and `projectPath` that item 6 asks for, and item 6a's
+  `t(language, key, params?)` did not exist. **Design slice 19 closed both, together**, which
+  is the shape rather than the schedule: the first interpolated string in the plugin IS the row
+  label item 6 names, so neither could land alone. The query answers
+  `readonly ReferencingGroup[]` now, with `projectPath` supplied only where `projectName` is
+  ambiguous among the groups returned, and the row mapping is `rowsFor` in `deleteZoneFlow.ts`.
+  Both items are ticked in slice 15's OWN document with a dated note, which is where a closed
+  criterion belongs.
 - **A tool's transient visual goes in `RenderState`, and it needs its own field when it
   means its own thing.** The calibration segment is `measurement`, not a two-point
   `previewPolygon`: a polygon preview renders dashed and closed and says "you are drawing a
@@ -1324,11 +1377,24 @@ id on a name collision. Four rules came out of it, the last two from the review 
   `obsidian` mock module as always-used. Whichever figure is read, the mechanism is the same: an
   export with only a test caller (`projectFolderOf`, briefly, at the end of one task) stayed
   invisible to the gate the whole time. What actually fails is a new file nothing imports at
-  all, reported as an unused FILE — a different rule from the dead-export one. `foldersOverlap`
-  still ships in slice 19 rather than here, and that call is still right: the predicate has no
-  job in this slice — there is no command that changes a project's folder under the derived
-  shape, and no library to overlap with until slice 19 exists — but the reason is that it has
-  nothing to do, not that a gate would have refused it for having no caller.
+  all, reported as an unused FILE — a different rule from the dead-export one. **`foldersOverlap`
+  did not exist in slice 18 and was not deferred as written code**: slice 18 discussed the
+  predicate, declared it in prose and shipped no module, so there was nothing for a gate to
+  refuse and nothing left uncalled. This bullet used to say it "still ships in slice 19 rather
+  than here", which reads as a predicate written and parked. Deferring it was still the right
+  call, for the reason given here: it had no job in this slice — no command changes a project's
+  folder under the derived shape, and there was no library to overlap with — and that reason is
+  "nothing to do", not "a gate would have refused it for having no caller". **Slice 19 wrote
+  it** (`infrastructure/obsidian/repositories/foldersOverlap.ts` — symmetric, compared at the
+  segment boundary, case-folded) and gave it callers in three modules.
+  `grep -rn "foldersOverlap(" src/`, run in the edit that wrote this sentence and excluding
+  the definition's own file, prints **six** call expressions: the project insert's refusal
+  (`ObsidianProjectRepository`), the overlap read (`IndexLibraryOverlaps`), and four in
+  `libraryMigration` — the destination against the source, the destination against each
+  project folder, and TWO inside the destination LIST it offers, which filters on the source
+  and on every project folder separately. A count of the migration's *rules* is three and a
+  count of its *calls* is four; this sentence says which it is measuring, because the previous
+  draft said "four call sites" and was counting neither.
 - **Widening DISCOVERY and leaving EXISTENCE alone is half a slice.** A note is found by what
   it declares now, but every save still established existence by scanning
   `<projectFolder>/<Kind>/` — so a note the user had filed anywhere else was read, indexed and
@@ -1396,6 +1462,140 @@ own recurring shape:
     excluded with a diagnostic' — and asserted none.
 
   A no-op assertion and a correct one look identical until something is broken underneath them.
+
+**Design slice 19 has landed: the Asset catalogue left the project.** PRD §59 was amended on
+2026-08-26 so that work stays project-scoped while `Asset`, `Supplier` and `Trade` are defined
+once per vault — *"a catalogue entry carries no project id at all; an absent id is the rule
+being kept, not a migration that has not run."* So `Asset` lost `projectId` everywhere (the
+entity, the events, the Zod schema, the mapper, `saveNoteBackedEntity`'s constraint, the index
+axis and the folder), `listByProject` became `listAll`, three refusals were deleted, and asset
+notes moved under a configurable **library folder** (§83) whose default is `Renovation/Library`
+— legal only because slice 18 landed first and project folders are now that folder's siblings
+rather than its parent. `t` gained a third parameter in the same slice, because the first
+interpolated string in the plugin is the row label of a grouped reference. Slice 10's last seven
+open criteria and slice 15's items 6 and 6a are ticked in THEIR documents by this slice, and the
+rules that came out of it:
+
+- **A deleted refusal leaves no test behind, so the replacement is its INVERSE rather than an
+  absence.** `requirement.cross-project` had a test; deleting the guard deleted the test, and
+  nothing would then have noticed the guard coming back. `assignAsset.test.ts` asserts the
+  positive instead — one Asset assigned into Zones from two Projects, each Requirement carrying
+  its own Zone's `projectId` — and it uses `expectOk` rather than a boolean, so a reintroduced
+  refusal fails naming its own code instead of reporting `false`.
+- **The asymmetry the amendment created is the thing a later reader will tidy away, so both
+  halves live in ONE file.** `reference.cross-project-reassign` kept its ZONE half and lost its
+  ASSET half — a Zone still belongs to a project and an Asset does not — and the two cases sit
+  together in `deleteAssetRefusals.test.ts` under a header saying why. Read the general shape:
+  when a change makes two sibling rules disagree ON PURPOSE, the cases have to be adjacent, or
+  each one alone reads as an oversight.
+- **A setting whose write MOVES data may not be bound to a control, and the reason is
+  `setControlValue`.** It writes through `saveSettings` on every change, so ANY control on
+  `libraryFolder` persists the new value with no notes moved — a text control per keystroke, a
+  folder picker once, and once is enough, because the migration then reads the just-persisted
+  value as the folder to move FROM and searches an empty directory. Picking a different control
+  type is not an escape. The pane declares an INFORMATIONAL row naming the current folder and a
+  separate ACTION row that runs the migration, and the migration is the only writer of that
+  field. The slice's own document had said the row "needs no new branch, because
+  `getControlValue`/`setControlValue` are keyed generically", which is true of a PREFERENCE and
+  false of a MIGRATION; that passage is corrected in place rather than deleted, because leaving
+  it would invite the next author to re-add a control.
+- **Validate, move, rebuild, persist LAST — and persisting first is not a smaller version of the
+  same thing, it is the failure.** A `data.json` naming the destination while the notes sit at
+  the source leaves every project resolving an empty library. That order is also why
+  `persistLibraryFolder` is a SEPARATE door from `saveSettings` rather than a call to it:
+  `saveSettings` swaps the composition root and rebinds the views BEFORE its own `saveData`
+  settles, which is right for a preference and destructive here — a rejecting write would leave
+  the session composed against the destination and the file naming the source, and the remedy
+  the error names ("set the library folder to the new location") cannot be applied, because the
+  row binds no control. So: write the file, and only then swap.
+- **Two writers of one file need a chain, and the later one must compose INSIDE it.** An
+  ordinary `setControlValue` composed while the migration's write was in flight carried the
+  stale `libraryFolder` from its own snapshot and wrote the SOURCE back over the destination —
+  the session on one folder and the file on the other. One serialized `queueSettingsWrite` chain
+  fixes the interleaving; taking `libraryFolder` from the live state at write time fixes the
+  stale field; and **neither property alone passes the test**, which was measured by mutating
+  each out on its own. The test asserts the PAIR — the file names the destination AND the
+  user's `units` change survives — so a "fix" that dropped the later write fails it.
+- **A guard that folds case and an enumeration that does not look like one rule with two
+  spellings, and they are TWO rules — which took a wrong fix to establish.** `foldersOverlap`
+  folded case from the day it was written; `catalogueNotesIn` compares paths exactly, so a
+  source folder differing from the vault only in case selected ZERO notes, refused nothing, and
+  persisted the destination — a silent success. The first repair extracted a shared
+  `folderContains` and made the enumeration fold too, on this file's own "a question worth
+  asking at one door is a function" rule. **That was the wrong direction and it was REVERTED:
+  for a GUARD, over-refusing costs a rename; for an ENUMERATION, over-selecting MOVES FILES**,
+  so a folded sweep would relocate unrelated notes on a case-sensitive vault. What ships is the
+  enumeration staying EXACT, at the segment boundary, with the hazard closed by a coded refusal
+  instead — `settings.library-source-case-mismatch`, raised when the configured source is not in
+  the vault while a folder differing only in case is, which is precisely the state where an
+  exact enumeration would look in the wrong place. `catalogueNotesIn`'s docblock states the
+  asymmetry where the code is. **Two predicates that look alike are not automatically
+  duplication**, which is this file's own "consolidating two questions that merely look alike"
+  rule paying out a second time, in the increment that wrote it down. **And the case a test
+  could pass on:** `expect(isOk(result)).toBe(true)` is true of the original defect and of every
+  repair alike, because the migration reported success having moved nothing; only asserting what
+  MOVED tells them apart.
+- **`foldersOverlap` folds case because the two directions of that error are not symmetric.**
+  Under-refusing permits the exact state the guard exists to prevent — deleting an apparently
+  separate project folder takes the shared catalogue with it — while over-refusing costs a
+  rename. Nothing here can ask which filesystem the vault is on, and it does not need to.
+- **§83 names three sites and one of them has no door, so it gets a MARKER rather than a
+  refusal.** ADR-0013 derives a project's folder from where its `Project.md` sits, so a user
+  moves a project by dragging a folder in Obsidian's file explorer and there is no command to
+  refuse. Creating a project and moving the library are the two real refusals; the third site is
+  answered by `libraryOverlap` on the project's own row — a mark AND a word (§85), derived per
+  read from the index rather than stored, so nothing is cached and nothing has to be retracted.
+  A criterion promising "three refusals" was rewritten rather than ticked: **a criterion
+  that quietly keeps its old wording is how the gap between promise and check reopens.**
+- **Derived per read is a claim about CACHING, and it was read as a claim about PROMPTNESS.**
+  The marker follows the Project INDEX, and the gesture it exists to report is the one the
+  index is never told about: `RenovationPlannerPlugin` filters the vault's create/modify/delete
+  and rename events to `TFile`, so the `TFolder` Obsidian reports for a folder move is dropped,
+  `VaultChangeAdapter` never hears it, and the index keeps the note's old path. The row gains
+  or loses its marker at the next full index REBUILD — at `onLayoutReady`, so a reload, or
+  after a settings save — rather than as the drag lands, and the same holds in reverse for a
+  user who drags the folder back. **PRE-EXISTING**: that filter dates from design slice 4 and
+  is an ancestor of `main`; slice 19 only added the first consumer that makes it visible, and
+  closing it is a change to the vault-change pipeline every index consumer inherits rather than
+  to this marker. Narrowed in the documents rather than fixed in the code, per this file's own
+  first Claims rule; `docs/tests/cases/Move the Library.md` steps 12 and 12b require the reload
+  for exactly this reason and say why.
+- **A wiring test has to assert ABOVE the layer that erases the field.** Replacing the composed
+  root's `libraryFolder` with a wrong one left 1594 tests green, because the only case reading
+  the project list read it through `createRenovationProjectQueries`, which maps `projects` and
+  `unreadable` and DROPS `overlapping` by design. `libraryOverlapWiring.test.ts` asserts at the
+  guarded query instead, and that choice is the whole finding rather than a detail of it.
+- **A third item in a `space-between` row moves the other two.** The overlap marker pushed each
+  marked row's status label to wherever that row's name length left it — x≈589 on one row and
+  x≈700 on another — so the statuses stopped forming a column. `flex-grow: 1` on the name puts
+  the slack in one place. Found by CAPTURING the rows and looking, because jsdom lays nothing
+  out; the test that keeps it is a TEXT assertion over the stylesheet and measures no position,
+  which is the honest half of that pair.
+- **The harness cannot show this marker at all**, and saying so is better than the capture
+  reading as coverage: the harness's project repository starts empty and its
+  `IndexLibraryOverlaps` sits over an empty index, so no project it can create is ever
+  overlapping. What was looked at was the real dev server with the marker's exact markup
+  injected into real rows — the DATA path is not what put it there; the markup, the CSS and the
+  row layout are.
+- **An unmatched interpolation hole is left standing as `{name}`, never blanked**, because a
+  visible hole is a bug report and an empty string is a silent one. The locale check that came
+  with it asks a PER-KEY question — any key's German translation names the same holes as its
+  English one — rather than enumerating the two keys this slice added, which would go stale at
+  the next interpolated string. An incomplete locale is safe by design; a MIS-HOLED one renders
+  a brace to exactly one language's users.
+- **The no-bump justification is a fact about a TAG, and `git log main..` cannot answer it.**
+  The asset schema stays at version 1 because no release exists — measured against the REMOTE
+  (`git ls-remote --tags origin` prints nothing), not against a clone's `main`, which says only
+  what the machine last fetched. The first version of that paragraph rested on slice 10 being
+  unmerged, which has since stopped being true. The falsifier is written FORWARD-LOOKING for
+  that reason: if a release is cut before this shape reaches `main`, ask that tag's tree for a
+  `project` key in `assetFrontmatter.ts`.
+- **`z.object` being non-strict is not enough when the rule is about the BYTES.** A leftover
+  `project:` key parses fine and is ignored, which satisfies the type and not the sentence. The
+  write spec carries a `retiredKeys` list — `writeOwnedFrontmatter` is a merge, so omitting a
+  key from the DTO cannot express "remove this one" — and the note is rewritten without it on
+  its next save. **Narrow claim, and the test says it too:** a note nobody ever saves again
+  keeps the key on disk forever. There is no sweep and there will not be one.
 
 **Design slice 13 has landed: there is ONE notice door and ONE save-state indicator.**
 `createNoticeQueue` is a plain module-level queue over an injected `NoticeHost` port — dedup
@@ -2144,25 +2344,185 @@ The rules that came out of it:
   nobody" and here it would absorb one whose `tsconfig.json` entry had been forgotten, leaving a
   file that is neither compiled nor reported.
 
+**Design slice 21 has landed: the project surface has a second state, and a project is
+somewhere you can BE.** A row navigates into one project — its plans, a `New plan` form over
+the real `CreatePlanCommand`, an `Open note` action, and a way back — and which project is open
+is a fact Obsidian's own view state holds. The two-surfaces paragraph at the top of this file
+describes the mechanism; these are the rules that came out of building it, and four review
+rounds' worth of findings on this branch were false SENTENCES rather than broken behaviour,
+which is the shape to expect from the next one too:
+
+- **A spec can name an identifier that is already taken, and the collision is invisible until
+  somebody greps.** The design named its palette command `open-project`; that id was already
+  registered, already locale-keyed and already asserted in two test files, for the command that
+  reveals the view. It shipped as `open-project-detail`. Nothing would have failed loudly — an
+  id is data Obsidian binds a user's hotkey to, and a second `addCommand` under one id is a
+  question about Obsidian's registry rather than about this tree.
+- **`''` as a DESTINATION is the one place this view must not copy `PlanEditorView`, and the
+  failure is total rather than cosmetic.** `getState` records `{ projectId: '' }` for the list —
+  `''` rather than an absent key, because a key that is sometimes there is a different shape to
+  reason about, which is `PlanEditorView.getState`'s own argument, and here the empty string
+  additionally MEANS something. A validator shaped like `planIdFrom` — refuse anything that is
+  not a non-empty string —
+  discards exactly the value the back arrow restores, so the pane would never leave the detail
+  state at all. `projectIdFrom` is a THREE-way parse for that reason: a non-object refuses, a
+  non-string refuses, and `''` is ACCEPTED and means the list.
+- **A `mounted` flag beside `mountedProjectId`, because `null` is a STATE here and not an
+  absence.** `sync()`'s guard cannot be `projectId === mountedProjectId` alone: both are `null`
+  on a first open, so the guard answers "already showing that" and the pane draws nothing at
+  all. Measured as a mutation — nine cases red, most of them pre-existing lifecycle ones,
+  because nothing is drawn.
+- **The question is whether the index scan RAN, never whether it FOUND anything.** Obsidian
+  restores its leaves before `onLayoutReady` and the scan runs from it, so a restored detail
+  state asks an empty index and is answered a legitimate `ok(null)` — acting on that would
+  navigate to the list and destroy the very `projectId` the restore was about. An earlier
+  draft asked "has the index been populated", which hangs a restored pane forever in a vault
+  whose last project note was deleted while Obsidian was closed. `indexScanCompleted()` is a
+  predicate rather than a subscription, because `onProjectsChanged` collapses three events into
+  one payload-less signal and cannot tell a completed rebuild from somebody else's create.
+- **A REMOUNT makes staleness unrepresentable.** Every navigation tears the Vue tree down and
+  builds it from the new `projectId`, so no component can hold a value that disagrees with the
+  view's. The alternative — a reactive ref in the context — would have been the first reactive
+  member any view context in this plugin carries, and a second way a tree here learns its
+  subject changed. What it costs is stated where it is paid: the list's scroll position, and a
+  dialog open across the navigation settling through `DialogHost.onBeforeUnmount`.
+- **One ordering of `onOpen` and `setState` still mounts twice, and it is ASSERTED rather than
+  fixed.** Obsidian promises no order. `setState` before `onOpen` was a tree mounted into a leaf
+  Obsidian had not opened, and an `opened` flag closes it; the other ordering cannot be closed
+  the same way, because by the time `setState` arrives `onOpen` has already mounted the LIST
+  (`projectId` is still `null` then) and there is nothing left to defer. The real remedy is a
+  deferred, coalescing mount, which turns a synchronous mount asynchronous for every caller and
+  every case in that file — an increment with its own argument, not a review-round line. So the
+  surviving double mount is pinned as `[null, 'project-01JAAA']`. **The lesson is the reply, not
+  the defect:** the fix was announced on the pull request from the SHAPE of the flag, and
+  measuring it produced exactly that failing pair — this branch's own recurring defect,
+  committed in a review reply about it.
+
+  **The improvement pass then measured the remedy itself, and both halves of the sentence above
+  had to be narrowed.** Deferring `onOpen`'s mount by one microtask and returning that promise
+  collapses the pair to `['project-01JAAA']` when the caller does NOT await `onOpen`, and leaves
+  it at `[null, 'project-01JAAA']` when it does. So the fix's entire benefit rests on whether
+  Obsidian awaits `onOpen` before calling `setState` — which `FakeLeaf` cannot answer, no gate
+  here can see, and an eye in a vault cannot either: the visible flash says which ORDERING
+  happens, never whether the host awaited. That is the increment's first task and it is a
+  MEASUREMENT rather than a design decision, which is not what "an increment with its own
+  argument" implied. And the pin promises more than it delivers: "a build that starts coalescing
+  fails there" is true only of a fix that defers past the await — the microtask variant passes
+  the whole file, 31 cases, with the coalescing live in one of the two call shapes. A pin on a
+  fix nobody has written yet is a pin on the shape its author imagined.
+- **An automatic redirect records a history entry nobody asked for, so the `'gone'` watcher is
+  retired.** `ProjectDetailState` used to `watch(status)` and navigate to the list on `'gone'`;
+  `setState` sets `ViewStateResult.history` for any accepted CHANGED state and cannot tell a
+  correction from a deliberate navigation — measured, list→project, project→list and a
+  back-arrow-shaped restore all answer `true` — so the back stack held the DEAD project, and
+  Back restored it, re-read it, found it still gone and bounced forward. Threading a
+  `corrective` flag was the alternative and it keeps the redirect while adding a context seam,
+  a mutable one-shot flag on a view, and a lifetime question (`navigateToProject` DROPS a
+  superseded write, so a flag set and never consumed poisons the next navigation) — and
+  everything it buys lives in Obsidian's history semantics, which `FakeLeaf` cannot answer.
+  **Prefer the fix whose result a gate can see to the one whose correctness lives where no
+  gate reaches**: `'gone'` now always draws its own screen, so Back restores the dead project
+  and the screen says so. Two consequences followed rather than being glossed — the New Plan
+  form has to be RETIRED, since with no remount there is no `DialogHost.onBeforeUnmount` to
+  settle it, which makes `ProjectDetailState` a second caller of `dialogStore.resolve`; and
+  the notice went with the redirect, because it resolved `view.project.gone`, the same key the
+  screen's headline resolves, so the two said one sentence twice at once.
+- **And the retirement had to be keyed on the STATUS, which is this file's oldest lesson
+  arriving in the commit that quotes it.** That `dialogs.resolve` went in at `onProjectGone` —
+  correct for the command path and blind to the READ one: a project note deleted while the
+  dialog is up reaches `'gone'` through `onProjectsChanged` without `onProjectGone` ever
+  running, leaving a form modal over the screen saying its project does not exist. The redirect
+  had covered that path BY ACCIDENT (it remounted, and `DialogHost.onBeforeUnmount` settled the
+  dialog), so retiring it moved a guarantee from a side effect to nowhere. A `watch(status)`
+  REPLACES the call-site resolve rather than sitting beside it, because two answers to one
+  question is what produced the gap. **The test also had to be watched red twice**: its first
+  draft reached for `.rp-plan-list__create` on a fixture with no plans and failed at `Unable to
+  get` — a red that proved nothing and reads exactly like one that did, which is why "watched
+  it fail" has to mean "watched it fail at the assertion".
+- **A "single caller" claim survives narrower and truer as a claim about a ROLE.** Both
+  `DialogHost`'s header and `dialog-store.ts`'s `resolve` said the host was the only caller;
+  it is two files and three lines now. What the rule was reaching for is that no KIND
+  COMPONENT settles — that is what keeps single-settle, focus restoration and the `inert`
+  release on one seam — and an OPENER retiring its own dialog takes none of that away, because
+  all three hang off the store's `current` watcher and run for whoever cleared it. Rewritten
+  from the grep in the same edit, per this file's own rule.
+- **A prediction about which test a mutation reddens is itself a measurement.** A brief here
+  said an empty-id mutation would redden "the accepts-an-empty-projectId and round-trip cases";
+  only the first can. The round-trip drives `A → '' → B` and asserts the FINAL state, so with
+  `''` refused the field simply stays `A` until `B` overwrites it and the assertion reads the
+  same in both worlds. The fourth such instruction on this branch, reported rather than routed
+  around.
+
+**And the detail state was LOOKED AT, which is where the rest of these come from.** Nothing in
+this slice had a picture until its last task: the harness index discovers `ProjectDetail.vue`
+and `PlanList.vue` and mounting either one there is useless — `IndexPage.vue` renders
+`<component :is>` BARE, and that component requires three props and reads `project.name`
+immediately, so the capture would photograph the harness's own failure card. `?project=<id>`
+(`tests/harness/page.ts` → `mountHarness`) opens the real view on a seeded project instead, and
+`project-detail` / `project-detail-narrow` are two more fixed shots. What that bought, all of it
+invisible to `npm run check`:
+
+- **Two declarations written to prevent a thing, neither of which could.** The back control had
+  `flex-basis: 100%` to claim its own line plus `flex-grow: 0; width: fit-content` under a
+  comment saying that pair was what stopped it stretching. In a row flex container `flex-basis`
+  IS the main size, so it beats `width`; and clamping it with `max-width: fit-content` would
+  shrink the item and take the line break with it, since the break is decided on the
+  hypothetical main size. `Back to projects` rendered as a full-pane bar with a centred label —
+  a section banner where the design says "not a peer of the actions beside it". The header is a
+  GRID now (`grid-column: 1 / -1; justify-self: start`), which is two properties doing two jobs
+  rather than one property doing neither.
+- **`text-align: left` is inert on a flex item, and Obsidian's own `button` rule centres it.**
+  Every plan name was centred in the pane, under a left-aligned `Plans` heading, beside a
+  declaration saying `text-align: left`. `.rp-project-list__row` never had the defect and never
+  stated the fix either — it carries `justify-content: space-between` because it has TWO
+  children, and being left-aligned is a side effect. One child needs the rule said out loud.
+- **A fixture that FITS its pane cannot demonstrate a scroll rule.** The first harness fixture
+  held twelve plans; at an 800px leaf the list's scroll height equalled its client height
+  exactly, 360 against 360, so deleting `.rp-plan-list`'s whole `flex: 1; min-height: 0;
+  overflow-y: auto` block changed nothing any capture could show. Twenty-six is past what fits.
+- **Both of the rules reasoned from the cascade were RIGHT, and the sentence explaining one of
+  them was wrong.** `.rp-project-detail`'s `flex: 1` measures 800px of an 800px leaf against
+  123px — its header alone — over a SHORT list, which is the case that matters and the one the
+  no-plans empty state lands on. `.rp-plan-list`'s block measures a 677px box over a 780px
+  scroll height, scrolling under a header whose top does not move. But its comment said that
+  without the block "the shell would grow instead": measured, the shell does not grow and
+  neither does the page — the `ul` becomes 780px tall inside an 800px shell that starts it at
+  y=123, so the last rows are simply below the pane, clipped, with no scrollbar and no gesture
+  that reaches them. The plausible sentence and the true one differ in what the user LOSES.
+- **`RenovationProjectDeps.projectId` cannot open the detail state from outside**, which is a
+  fact about `mount` rather than about the bundle: it provides `{ ...this.deps, projectId }`
+  with the VIEW's own field, so a bundle naming a project is silently overwritten. The harness
+  drives `setState` instead — the same door a navigation and a restored leaf both arrive
+  through — and a jsdom case in `harness.test.ts` pins that it really reaches the detail state,
+  because both captures wait on `.renovation-planner-view`, which the LIST satisfies just as
+  well.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
 every vault. It is a plain callback over a `FuzzySuggestModal` of the Project Index's plan
 entries now. The command ID did not change, because a user's hotkey is bound to it.
 
-**`create-sample-project` is SCAFFOLDING and says so in its name, and design slice 16 —
-now landed — retired only HALF of what it seeds.** One command seeds a project, a plan and
+**`create-sample-project` is SCAFFOLDING and says so in its name, and it is now a
+CONVENIENCE rather than the only source of anything.** One command seeds a project, a plan and
 five zones through the real `CreateProjectCommand` / `CreatePlanCommand` /
 `CreateZoneCommand`, then opens the editor on what it made — the vault-side equivalent of
-`npm run harness`. Zones stopped needing it once slices 6 and 8 gave `DrawPolygonTool` a way
-to draw one by hand, and the PROJECT half stopped needing it once slice 16 gave
+`npm run harness`. Exactly three commands and nothing else: no asset and no requirement, which
+is worth saying because a reader reasoning from slice 10's closed loop would expect them.
+Zones stopped needing it once slices 6 and 8 gave `DrawPolygonTool` a way
+to draw one by hand; the PROJECT half stopped needing it once slice 16 gave
 `renovationProject.noProjects` a real action (`NewProjectForm` / `CreateProjectCommand` —
 Amendment 1's "ships with no action at all" held through slices 14 and 15 and stopped being
-true here) and gave `ProjectList` its own header button beside it. The PLAN half is what
-this module is still the only source of: nothing in `presentation/` calls
-`CreatePlanCommand`, and there is no project-detail surface a "new plan" action could live
-on — `src/plugin/sampleProject.ts` names exactly this remaining gap and why the partial
-notes a failed seed leaves behind are deliberate.
+true here) and gave `ProjectList` its own header button beside it; and the PLAN half stopped
+needing it in slice 21, whose detail state carries a `New plan` button over the real
+`CreatePlanCommand`. This paragraph said "the PLAN half is what this module is still the only
+source of … there is no project-detail surface a 'new plan' action could live on" until that
+slice landed, which is a trigger stated in prose firing without anything to notice it. What is
+left is the reason it was written for: one gesture produces a scene worth LOOKING AT, where
+assembling the same one by hand is two forms, two navigations and five polygons drawn vertex
+by vertex. **Its trigger is now that it stops being USED** — a fact about a habit, which no
+gate can report. `src/plugin/sampleProject.ts` carries that and why the partial notes a failed
+seed leaves behind are deliberate.
 
 Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
 each is written up where the code is: the seed's first run failed on Obsidian's
@@ -2226,9 +2586,19 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   `I18N_LITERAL_BAN` (`eslint.config.mjs` — `docs/requirements/Multilanguage.md`'s rule)
   and `NOTICE_TEXT_BAN` — not prose. `I18N_LITERAL_BAN` is narrower than "every
   user-visible string": it refuses a
-  literal at exactly FOUR call sites — `.setText(...)`, and the `text:` option of
-  `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)` — and passes a call to `t`/`tr`
+  literal at exactly SIX call sites — `.setText(...)`, the `text:` option of
+  `.createEl(...)`/`.createDiv(...)`/`.createSpan(...)`, `addCommand`'s `name` and
+  `addRibbonIcon`'s title — and passes a call to `t`/`tr`
   untouched, since that is a `CallExpression`, not a `Literal`, at the position it checks.
+  The last two arrived with design slice 21's improvement pass, and what made them cheap is
+  what the widening MEASURED rather than assumed: `docs/tasks/21` had declined to close that
+  gap because widening "touches every existing call site's evidence", and it touches none —
+  every one of them already passes `tr(...)`. `tests/build/i18n-literal-boundary.test.ts` is
+  that rule's first instrument in fifteen slices, and it is a whole selector's blind spots
+  read back for the first time: `id` stays a literal because a command id is DATA a hotkey
+  binds to, and the ribbon selector keys on the ARGUMENT POSITION because the icon beside the
+  title is a literal too — widen it to "a literal anywhere in the call" and two allow-cases go
+  red, measured.
   **`NOTICE_TEXT_BAN` is the notice door, and it is a SECOND rule rather than a widening of
   that one**: it refuses a `.message`/`.stack` read anywhere inside a `notify(...)`,
   `notifySuccess(...)`, `notifyWarning(...)` or `new Notice(...)` call, and a bare string
@@ -2245,13 +2615,16 @@ What each step refuses, because a step whose purpose is vague gets skipped:
   paths, blind spots included, and drives BOTH blocks that carry the rule — dropping the
   repeat in the `infrastructure/obsidian/` block turns exactly two of its cases red,
   measured.
-  `I18N_LITERAL_BAN` still does not reach `addCommand({ name: '…' })`,
-  `addRibbonIcon(icon, 'title', …)`, a `title` or `attr:` value, `el.textContent = '…'`, or
-  a literal held in a variable first — today's actual UI text (settings `name`/`desc`, the
-  command name, the ribbon title, `getDisplayText`) reaches none of those four call sites,
-  so it is compliant by convention rather than by this gate — the same way the write
+  `I18N_LITERAL_BAN` reaches `addCommand({ name: '…' })` and
+  `addRibbonIcon(icon, 'title', …)` since slice 21's improvement pass, and still does not
+  reach a `title` or `attr:` value, `el.textContent = '…'`, a TEMPLATE literal, a
+  registration reached as a bare function, or a literal held in a variable first — so the UI
+  text that is left (settings `name`/`desc`, `getDisplayText`) is compliant by convention
+  rather than by this gate, the same way the write
   boundary below names the spellings its selectors see and the ones they cannot, rather
-  than claiming to see more. It also runs the Obsidian plugin guidelines
+  than claiming to see more. Every one of those blind spots is asserted AS a blind spot in
+  `tests/build/i18n-literal-boundary.test.ts`, because a rule that had narrowed further
+  would read exactly the same. It also runs the Obsidian plugin guidelines
   and the size and complexity budgets. Warnings fail too (`--max-warnings 0`) — the
   mobile-safety rule reports as a warning, and `isDesktopOnly: false` is a promise.
   `manifest.json` itself is linted
@@ -2309,23 +2682,27 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
-  99/99/99/98 (statements/functions/lines/branches), against 99.36/99.49/99.64/98.12
-  measured on the tree that merged slice 13 into main. **Read branches again: 98.12 against
-  a floor of 98, which is about two and a half covered branches of headroom, one branch
-  costing 0.044 — the tightest this metric has been since slice 11.** Slice 13 measured 98.25
-  alone and the figure FELL on merging, which is the second time this repository has recorded
-  that happening; `vitest.config.ts` has the arithmetic. **Two branches is tight enough that
-  an UNREACHABLE guard is not free**: the first draft of slice 13's live-region fix carried a
-  `regions?.[…]` null arm no test could drive, and removing it by handing the regions to the
-  host as an argument is what put that figure back. So an
-  untested new arm does not "reduce
-  coverage", it fails the gate — plan the test with the code rather than after it. Do not
-  read a figure from this line as current; run `npm run test:coverage`. The exact numbers,
-  which increment moved them, and what every remaining uncovered arm IS live in
+  99/99/99/98 (statements/functions/lines/branches), against 99.22/99.10/99.46/98.05
+  measured at design slice 19's close. **Read branches and FUNCTIONS again: the headroom is
+  ONE covered unit on each — 2780 branches covered where 2779 is the floor, and 1432
+  functions where 1431 is — which is the tightest either metric has ever been here.** Count
+  in UNITS rather than in percentage points, because a unit is what an untested arm actually
+  costs: one branch is 0.035pp and one function 0.069pp, both below the hundredth the summary
+  line prints, so a figure that did not visibly move is not evidence that nothing moved. **A
+  passing gate is not a review either** — slice 16's review pass left an arm uncovered while
+  branches read 98.12 against a floor of 98, and the three units of headroom it had then
+  swallowed it silently; it was found by reading `coverage-final.json` for the CHANGED FILES,
+  which is the instrument that can see one arm. At today's margin an untested arm in a tight
+  metric fails the gate outright and one in a slack metric hides completely, so plan the test
+  with the code rather than after it — and **an UNREACHABLE guard is not free**: the first
+  draft of slice 13's live-region fix carried a `regions?.[…]` null arm no test could drive,
+  and removing it by handing the regions to the host as an argument is what put that figure
+  back. Do not read a figure from this line as current; run `npm run test:coverage`. The exact
+  numbers, which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
-  equal the floors already in force ratchets NOTHING, which is what slices 5, 15, 11 and 13
-  did.
+  equal the floors already in force ratchets NOTHING, which is what slices 5, 11, 13, 15, 16,
+  18 and 19 did.
   The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
   real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
@@ -2717,7 +3094,13 @@ measured, six such files timed out in one run and every one of them passed on a
 file count on that re-run. No subtree of `tests/` has that many files, so the figure was
 unverifiable and is gone rather than replaced by a second guess.) A parallelism artifact, not a broken gate
 — so re-run serially before believing a `beforeAll` timeout in that directory, and count the
-cost of the next ESLint-booting test file against it.
+cost of the next ESLint-booting test file against it. **Serial is the diagnostic, not the
+remedy, and the difference is measured rather than assumed**: the twelve files that boot an
+instance run in about 30s under default parallelism and about 60s under
+`--no-file-parallelism` on a two-core container, so making the serial run the default costs
+exactly double. The contention is real and the obvious fix for it is worse than the problem;
+a lever that helps would have to reduce the number of BOOTS, which cross-worker sharing
+cannot do because each test file gets its own module registry.
 
 **It does not prevent the edit and it does not roll one back**, and every description of it
 has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own
@@ -2799,7 +3182,16 @@ green in all four gates beforehand:
   `RequirementId` — a foreign brand reaching a method, in the file that tests that repository.
 - **`saveSettings({ …, projectsFolder })` where the setting is `projectFolder`.** `settingsFrom`
   is a trust boundary that drops a key this version does not declare, so six cases certified a
-  rebind on a settings change that never happened.
+  rebind on a settings change that never happened. **A SEVENTH was living on an open branch and
+  arrived at the merge**, in design slice 21's `rootSwapRebind.test.ts` — invisible to the sweep
+  that found the other six, because that file did not exist on `main` when the sweep ran. It
+  cost nothing behaviourally, and saying why is the point: `saveSettings` calls
+  `rebindOpenViews()` unconditionally rather than comparing old settings against new, so the
+  rebind those cases are about really did happen. What it cost is that the case reads as
+  changing a setting and does not — and it would go on passing on the day `saveSettings` learns
+  to short-circuit an unchanged save. **This is the argument for the gate being PERMANENT rather
+  than a sweep**: a one-off cleanup measures the tree in front of it, and every open branch is a
+  tree it cannot see.
 - **A confirm dialog handed `body:` where `ConfirmDescriptor` declares `message`** — an excess
   property, so that fixture's dialog rendered no message at all.
 - **`argumentsOf` guarding a lightningcss pseudo-class with `Array.isArray`**, which cannot
@@ -3182,6 +3574,20 @@ that was fixing the previous instance.
 - **Measure a set with an instrument that can see all of it, and test the instrument
   first.** A grep for `foo(` misses `foo<T>(`. Both happened there, and both times the wrong
   count was already being used as the evidence for a decision.
+- **A static-analysis category is a LENS, not a census**, which is the rule above met from
+  the direction where the instrument is somebody else's. `private-type-leak` reports an
+  exported signature naming a private type, so when `type DispatchResult` turned out to be
+  declared byte-identically in SEVEN places, it showed the TWO whose alias reached an
+  exported signature and was silent about the five that did not — and one line is under the
+  clone detector's floor, so nothing else could see them either. The other five turned up
+  only because clearing those two meant grepping for the SHAPE. A tool answers the question
+  it was written to ask; the count it returns is not the size of the thing it points at.
+- **A tool's suggested fix is a hypothesis.** Fallow's first action on a `private-type-leak`
+  is "export the referenced private type by name", and it was wrong twice in nineteen: on
+  `Routed` it would have destroyed the `unique symbol` access lock three `@ts-expect-error`
+  directives exist to prove, and on `ReversibleOverrideBase` it traded two leaks for an
+  `unused-exports` finding — the report contradicting ITSELF, visible only by making the
+  change and re-running.
 - **A docblock that says "the only place X" gets a `grep` in the SAME edit**, and the
   sentence is then written from what the grep printed. Slice 11's review rounds counted
   eleven sentences promising a category where the code held a list — three of them
@@ -3304,6 +3710,29 @@ Not oversights; each has a trigger.
   fails `npm run analyze`, so each arrives with its first real use — scheduling, which does
   not exist yet.
 
+- **vue-router**, considered explicitly at design slice 21 because that slice introduced
+  navigation and a router is the canonical Vue answer to it. Four reasons, and the first is
+  the one that decides: **its product is URL binding, and an `ItemView` has no URL** — it
+  would be instantiated with `createMemoryHistory()`, which reduces it to a state machine
+  keyed by path-shaped strings, a `v-if` in a `/projects/:id` costume. It would also be a
+  SECOND history stack competing with the one the pane's back arrow already drives (nothing
+  errors; the two quietly disagree, which is worse), a second authority for a fact
+  `RenovationProjectView`'s view state now owns outright, and a dependency bought for one
+  binary state.
+
+  **The trigger is a third level of nesting AND a genuine need for a history independent of
+  Obsidian's** — both, not either. *"Epic 4 arrives"* is explicitly NOT the trigger, and that
+  is a measurement rather than a hedge — and the measurement had to be corrected once, which is
+  the useful half: this sentence said "Epic 4's whole navigation set" over SIX destinations, and
+  PRD Feature 4.1 lists SEVEN (Overview, Spaces, Design, Work, Budget, Schedule, **Documentation**
+  — the one dropped). It was also wrong about its own scope: 4.1 is one feature of Epic 4, which
+  also carries the project switcher (4.2), breadcrumbs (4.3) and context preservation (4.4).
+  The argument survives both corrections, which is why it is corrected rather than withdrawn:
+  seven destinations fit in `{ projectId, section }` exactly as six do — one more key rather than
+  a router — and 4.3 and 4.4 are DERIVED from that state rather than additional history, while
+  4.2 is the picker this slice already built. Found by a reviewer reading the PRD rather than the
+  sentence.
+
   **decimal.js is NOT on this list any more.** It arrived with slice 9's money arithmetic
   (ADR-010) and this line said otherwise for two slices. `core/money/Money.ts` is the ONLY
   module that touches a `Decimal` for a monetary amount — `amount` is a decimal STRING
@@ -3333,9 +3762,9 @@ Not oversights; each has a trigger.
   `.fallowrc.json`'s `ignoreDependencies` with that reason. The bundle went from about
   60 KB to **488 KB** at design slice 5's close; that is what ADR-003 and §54 cost, and it
   is worth knowing before the next dependency. **488 KB is that slice's own figure, not
-  today's** — eleven slices of feature work later, `dist/main.js` measures **670.06 kB**
-  (gzip 211.08 kB) as of design slice 16's close, verified by running `npm run build` rather
-  than carried forward from an earlier entry here. Read every bundle figure in this file the
+  today's** — `dist/main.js` measured 670.06 kB (gzip 211.08 kB) at design slice 16's close and
+  **703.39 kB (gzip 221.71 kB) at design slice 19's**, each verified by running `npm run build`
+  rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 
   **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a

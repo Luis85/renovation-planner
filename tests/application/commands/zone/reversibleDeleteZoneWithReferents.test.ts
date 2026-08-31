@@ -115,7 +115,6 @@ async function wired(assetCount: number, requirements = new FailNthSave()) {
 		const asset = expectOk(
 			await w.assets.save(
 				makeAsset({
-					projectId: w.project.entity.id,
 					name: `Asset ${i}`,
 					wasteFactorDefault: new Decimal('0.10'),
 				}),
@@ -258,7 +257,7 @@ describe('ReversibleDeleteZoneCommand over a referenced zone', () => {
 		const w = await wired(1);
 		// A second referent appears after the set the adapter was constructed with.
 		const extra = expectOk(
-			await w.assets.save(makeAsset({ projectId: w.project.entity.id, name: 'Late' }), 'absent'),
+			await w.assets.save(makeAsset({ name: 'Late' }), 'absent'),
 		);
 		const assigned = await w.assign.execute({ zoneId: w.zone.entity.id, assetId: extra.entity.id });
 		if (!assigned.ok) throw new Error(String(assigned.error));

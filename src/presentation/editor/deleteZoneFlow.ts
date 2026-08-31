@@ -3,9 +3,15 @@ import type { AppError, ValidationError } from '../../core/errors/AppError';
 import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { RequirementId } from '../../domain/requirement/RequirementId';
 import type { ReassignmentTargetDto } from '../../application/queries/reassignmentTypes';
+import type { ReferencingGroup } from '../../application/queries/ListRequirementsReferencing';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
-import type { DeleteReferenceDialogResult, EntityCandidate } from '../dialogs/dialog-store';
+import type {
+	DeleteReferenceDialogResult,
+	EntityCandidate,
+	ReferenceRow,
+} from '../dialogs/dialog-store';
 import type { InspectorEdit } from './inspector/inspector-store';
+import { tr } from '../i18n/strings';
 
 /**
  * PRD §63–64's delete-with-references decision, as the Inspector's Delete button runs it —
@@ -31,9 +37,14 @@ import type { InspectorEdit } from './inspector/inspector-store';
  * Nothing here decides an invariant. `DeleteZoneCommand` re-checks every one of them
  * because a script or a migration never opens a dialog (§87 rule 5).
  *
- * Every user-facing string arrives already resolved, in `copy` and in `zoneName` — the
- * dialogs resolve nothing on their own behalf, and neither does this. `zoneName` is not a
- * `StringKey` at all: it is the user's own text.
+ * Every user-facing string the dialogs receive is resolved before it reaches them —
+ * nothing under `presentation/dialogs/` names a key. Two of them are resolved HERE rather
+ * than by the caller, and that is a change from this module's first shape: a reference
+ * row's label depends on whether the group carries a `projectPath`, which is the ambiguity
+ * rule `ListRequirementsReferencing` has already applied, so a caller building the label
+ * would be deriving that rule a second time. Everything else still arrives resolved, in
+ * `copy` and in `zoneName` — and `zoneName` is not a `StringKey` at all: it is the user's
+ * own text.
  */
 
 /**
@@ -47,14 +58,21 @@ export type DeleteZoneOutcome =
 	| { readonly kind: 'failed'; readonly error: AppError };
 
 export interface DeleteZoneFlowDeps {
-	/** Slice 10's query — §58/§59 route this read through one, never a repository handle. */
-	listReferents(zoneId: string): Promise<Result<readonly RequirementId[], AppError>>;
+	/**
+	 * Slice 10's query — §58/§59 route this read through one, never a repository handle.
+	 *
+	 * GROUPED per project since design slice 19, because an Asset is owned by no project and
+	 * its referents are no longer all in the project the user is looking at. A Zone still
+	 * yields exactly one group, and a zone nothing references yields NONE — a group exists
+	 * only for a project holding at least one referent, which is what lets every emptiness
+	 * test below stay a test on the list itself.
+	 */
+	listReferents(zoneId: string): Promise<Result<readonly ReferencingGroup[], AppError>>;
 	listReassignmentTargets(zoneId: string): Promise<Result<readonly ReassignmentTargetDto[], AppError>>;
-	/** `dialogStore.openDialog({ kind: 'delete-reference', … })`, with the copy already resolved. */
+	/** `dialogStore.openDialog({ kind: 'delete-reference', … })`, with the rows already built. */
 	askResolution(
 		entityLabel: string,
-		referenceLabel: string,
-		count: number,
+		references: readonly ReferenceRow[],
 	): Promise<DeleteReferenceDialogResult>;
 	askReassignTarget(
 		title: string,
@@ -71,7 +89,6 @@ export interface DeleteZoneFlowDeps {
 	 * discarded unread — see `NO_REASSIGNMENT_TARGET` below.
 	 */
 	readonly copy: {
-		readonly referenceLabel: string;
 		readonly reassignTitle: string;
 	};
 }
@@ -111,17 +128,49 @@ function outcomeOf(dispatched: DispatchResult): DeleteZoneOutcome {
 }
 
 /**
- * One ask and the dispatch it consents to. `referents` is what the dialog's row is built
- * from AND what travels to the command, which is what makes the two the same set by
- * construction rather than by a comparison nobody re-runs.
+ * Slice 15's Definition of Done item 6: one dialog row per referencing PROJECT, named by
+ * that project and counting the referents it holds.
+ *
+ * ONE KEY PER LABEL, never a translated fragment concatenated with a name — word order and
+ * the punctuation around an interpolated name are the translator's to choose
+ * ([[Multilanguage]]), which is why the qualified form is its own key rather than
+ * `reference.row.project` plus a hand-built separator.
+ *
+ * The path is taken on `projectPath !== undefined` and NOT on `'projectPath' in group`:
+ * `ListRequirementsReferencing` writes the field as an explicit `undefined` for an
+ * ambiguous project the index cannot place, so the `in` operator answers true with no value
+ * and the row would read `Kitchen refit — undefined`.
+ */
+export function rowsFor(groups: readonly ReferencingGroup[]): readonly ReferenceRow[] {
+	return groups.map((group) => ({
+		label: group.projectPath === undefined
+			? tr('reference.row.project', { name: group.projectName })
+			: tr('reference.row.project-at-path', { name: group.projectName, path: group.projectPath }),
+		count: group.requirementIds.length,
+	}));
+}
+
+/**
+ * The flat set the COMMAND compares, taken from the same groups the rows were drawn from —
+ * one derivation, so the rows and `resolvedReferents` cannot describe different sets.
+ */
+function referentsOf(groups: readonly ReferencingGroup[]): readonly RequirementId[] {
+	return groups.flatMap((group) => group.requirementIds);
+}
+
+/**
+ * One ask and the dispatch it consents to. `groups` is what the dialog's rows are built
+ * from AND what the command's `resolvedReferents` is flattened out of, which is what makes
+ * the two the same set by construction rather than by a comparison nobody re-runs.
  */
 async function askAndDispatch(
 	deps: DeleteZoneFlowDeps,
 	zoneId: ZoneId,
 	zoneName: string,
-	referents: readonly RequirementId[],
+	groups: readonly ReferencingGroup[],
 ): Promise<DeleteZoneOutcome> {
-	const chosen = await deps.askResolution(zoneName, deps.copy.referenceLabel, referents.length);
+	const referents = referentsOf(groups);
+	const chosen = await deps.askResolution(zoneName, rowsFor(groups));
 	if (chosen.action === 'cancel') return { kind: 'cancelled' };
 
 	if (chosen.action === 'reassign') {
@@ -158,20 +207,20 @@ async function askAndDispatch(
 /**
  * The zero branch: no resolution, because none was chosen. If a Requirement appeared
  * between the read and the dispatch the command refuses, and we ask after all — the same
- * decision the non-zero branch makes, one round-trip later. Answers the referents to ask
+ * decision the non-zero branch makes, one round-trip later. Answers the groups to ask
  * about, or the outcome to report instead.
  */
 async function resolveZeroBranch(
 	deps: DeleteZoneFlowDeps,
 	zoneId: ZoneId,
-): Promise<{ readonly referents: readonly RequirementId[] } | { readonly outcome: DeleteZoneOutcome }> {
+): Promise<{ readonly groups: readonly ReferencingGroup[] } | { readonly outcome: DeleteZoneOutcome }> {
 	const bare = await deps.dispatch({ kind: 'delete', zoneId });
 	if (bare.ok || !isStaleReadRefusal(bare.error)) return { outcome: outcomeOf(bare) };
 	const reread = await deps.listReferents(zoneId);
 	if (isErr(reread)) return { outcome: { kind: 'failed', error: reread.error } };
 	// Gone again already: the refusal is the honest answer, not a dialog with an empty row.
 	if (reread.value.length === 0) return { outcome: outcomeOf(bare) };
-	return { referents: reread.value };
+	return { groups: reread.value };
 }
 
 export async function deleteZoneWithReferences(
@@ -182,11 +231,13 @@ export async function deleteZoneWithReferences(
 	const initial = await deps.listReferents(zoneId);
 	if (isErr(initial)) return { kind: 'failed', error: initial.error };
 
-	let referents = initial.value;
-	if (referents.length === 0) {
+	// No GROUP is no referent: the query builds one only for a project holding at least one,
+	// so this is the same zero the flat shape used to test and not a weaker reading of it.
+	let groups = initial.value;
+	if (groups.length === 0) {
 		const zero = await resolveZeroBranch(deps, zoneId);
 		if ('outcome' in zero) return zero.outcome;
-		referents = zero.referents;
+		groups = zero.groups;
 	}
 
 	// One ask, and — only for `reference.set-changed` — one re-ask against the live set.
@@ -194,7 +245,7 @@ export async function deleteZoneWithReferences(
 	// rule: a set churning under the user must not be able to trap them in a reopening
 	// dialog, and a loop invites the bound to be widened by someone who reads it as a retry
 	// count. The second ask's own refusal is returned whatever it is.
-	const first = await askAndDispatch(deps, zoneId, zoneName, referents);
+	const first = await askAndDispatch(deps, zoneId, zoneName, groups);
 	if (!isSetChanged(first)) return first;
 
 	const live = await deps.listReferents(zoneId);

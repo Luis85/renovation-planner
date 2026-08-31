@@ -52,6 +52,18 @@ export interface PlanEditorContext {
 	 */
 	onPlanChanged(listener: () => void): () => void;
 	/**
+	 * "The vault's asset catalogue changed — re-read it." Unfiltered, because an Asset
+	 * belongs to no project since design slice 19 and to no plan ever: there is no id to
+	 * filter on and every leaf wants the same answer.
+	 *
+	 * A THIRD door rather than more traffic through the second. The assign picker used to
+	 * read its options on `onPlanChanged`, which is right for exactly one of the six event
+	 * types that door carries — `ProjectIndexRebuilt`, without which a leaf restored before
+	 * `onLayoutReady` offers an empty picker for its whole life — and wasteful for the other
+	 * five, which re-read every asset note in the vault once per zone gesture.
+	 */
+	onCatalogueChanged(listener: () => void): () => void;
+	/**
 	 * Close THIS leaf — the tab the user is looking at.
 	 *
 	 * The one thing a Plan Editor can offer a user whose plan is gone. `GetPlan` answering

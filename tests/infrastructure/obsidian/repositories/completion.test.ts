@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, parseFrontmatter, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectFound, expectOk, observationToken } from '../../../helpers/domain';
-import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
+import { makeAsset as makeAssetEntity, makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
@@ -107,6 +107,39 @@ describe('project and zone listings', () => {
 	});
 
 	/**
+	 * The same rule for the ASSET catalogue, where slice 19 made the cost far higher.
+	 *
+	 * While the catalogue was per-project, one corrupt asset note disabled assignment in its
+	 * OWN project. Vault-wide, it would empty the assign picker in EVERY project — and
+	 * `loadAssetOptions` renders an empty list rather than an error, so the failure would be
+	 * silent as well as total.
+	 *
+	 * Corrupted at the FRONTMATTER rather than at `schema-version`, which is the arm that
+	 * matters: a bad schema version is refused by `openNoteById`, which records it to the
+	 * ledger on the way past. An asset whose `type` and `id` are fine and whose category is
+	 * nonsense fails at `assetFromPersistence` instead, which returns its error WITHOUT
+	 * recording — so the repository has to record it, or skipping would lose the signal.
+	 */
+	it('listAll skips an unreadable asset rather than emptying the whole catalogue', async () => {
+		const stack = createRepositoryStack();
+		const readable = expectOk(await stack.assets.save(makeAssetEntity(), 'absent')).entity.id;
+		const poisoned = expectOk(await stack.assets.save(makeAssetEntity(), 'absent')).entity.id;
+		const path = notePathOf(stack, poisoned);
+		stack.vault.entries.set(
+			path,
+			(stack.vault.entries.get(path) ?? '').replace(/^category: .*$/m, 'category: not-a-category'),
+		);
+
+		const listed = expectOk(await stack.assets.listAll());
+
+		// The readable one survives — the whole point. Asserted on the ids rather than on a
+		// count, because "one asset" is equally true of a build that kept the wrong one.
+		expect(listed.map((one) => one.entity.id)).toEqual([readable]);
+		// And the refusal is not lost by being skipped.
+		expect(stack.ledger.issues().map((issue) => issue.entityId)).toContain(poisoned);
+	});
+
+	/**
 	 * A vanished note is NOT a refusal and must not be counted as one: `getById` answers
 	 * `ok(null)` for it (§36, "not found is not an error"), nothing was refused, and telling
 	 * the user "some projects could not be read" about a note that simply is not there would
@@ -122,6 +155,46 @@ describe('project and zone listings', () => {
 
 		expect(listing.loaded).toEqual([]);
 		expect(listing.refused).toBe(0);
+	});
+
+	/**
+	 * **The listing is narrowed by the index's TYPE, not by how an id is SPELLED**, and these
+	 * two cases are what tell those apart.
+	 *
+	 * `PlanFrontmatterSchemaV1` declares `id: z.string().min(1)` and the zone schema is the
+	 * same, so a note written by hand, copied in or arriving through sync can carry any
+	 * non-empty id. `CreatePlanCommand` mints `plan-<ULID>`, which is why the prefix filter
+	 * these replace looked right for years: every plan the APP creates satisfies it. Such a
+	 * note was indexed under the right type and the right project, reachable from the palette,
+	 * and silently missing from the project's own list — two surfaces disagreeing about which
+	 * plans exist.
+	 *
+	 * Both are watched RED against the prefix filter, and the id is deliberately one no
+	 * convention would produce. Reported by a review bot against the plan half; the zone half
+	 * was the same shape one file away and is fixed and pinned with it rather than left as the
+	 * instance the report did not happen to name.
+	 */
+	it('lists a plan whose id does not carry the conventional prefix', async () => {
+		const stack = createRepositoryStack();
+		const projectId = createProjectId();
+		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+		const planId = 'imported-floor-1' as PlanId;
+		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
+
+		const listed = expectOk(await stack.plans.listByProject(projectId));
+
+		expect(listed.map((one) => one.entity.id)).toEqual([planId]);
+	});
+
+	it('lists a zone whose id does not carry the conventional prefix', async () => {
+		const stack = createRepositoryStack();
+		const { projectId, planId } = await seed(stack);
+		const zoneId = 'imported-kitchen' as ReturnType<typeof createZoneId>;
+		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, planId, projectId }), 'absent'));
+
+		const listed = expectOk(await stack.zones.listByProject(projectId));
+
+		expect(listed.map((one) => one.entity.id)).toEqual([zoneId]);
 	});
 
 	it('listByProject skips a vanished note', async () => {

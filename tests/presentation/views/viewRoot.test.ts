@@ -20,6 +20,7 @@ import {
 } from '../../../src/presentation/views/RenovationProjectContext';
 import { ok } from '../../../src/core/result/Result';
 import { unavailableRenovationProjectCommands } from '../../../src/presentation/views/renovationProjectCommands';
+import { defaultRenovationProjectDeps } from '../../helpers/makeRenovationProjectView';
 import type { RenovationProjectDeps } from '../../../src/presentation/views/RenovationProjectContext';
 
 /**
@@ -27,15 +28,27 @@ import type { RenovationProjectDeps } from '../../../src/presentation/views/Reno
  * (`ok({ projects: [], unreadable: 0 })`): neither case here is about the project list or its
  * empty state (that is `tests/presentation/views/renovationProjectEmptyState.test.ts`'s job)
  * — it is about `DialogHost` and the stylesheet hook, so the list only needs to be SOMETHING
- * the view can hydrate against without throwing. `commands` and `openProject` are the same
- * refusal bundle and no-op neither case here dispatches through — `'opened'` rather than
- * `'missing'`, so a click nothing here makes could not set off a re-read either.
+ * the view can hydrate against without throwing. `commands` is the refusal bundle neither
+ * case here dispatches through.
+ *
+ * Everything this file has no opinion about is spread from `defaultRenovationProjectDeps()`
+ * rather than restated — `openProject` answering `'opened'` (so a click nothing here makes
+ * could not set off a re-read), and design slice 21's five navigation members, whose choices
+ * are documented once at that factory. What is overridden is what this file actually varies.
+ *
+ * `getProject`/`listPlansByProject` ANSWER rather than refuse, for CLAUDE.md's fifth
+ * fake-instance reason: `projectId` is `null` here, so neither door is reached, and a bundle
+ * that refused what production answers would be a fake harsher than the real thing sitting
+ * where the next case to touch the detail state will read it.
  */
 const deps: RenovationProjectDeps = {
-	queries: { listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })) },
+	...defaultRenovationProjectDeps(),
+	queries: {
+		listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })),
+		getProject: () => Promise.resolve(ok(null)),
+		listPlansByProject: () => Promise.resolve(ok([])),
+	},
 	commands: unavailableRenovationProjectCommands(),
-	openProject: () => Promise.resolve('opened' as const),
-	onProjectsChanged: () => () => undefined,
 };
 
 describe('the view root', () => {

@@ -1,3 +1,4 @@
+import type { WorkspaceLeaf } from 'obsidian';
 import { revealCandidate, type RevealDeps } from './reveal';
 
 /**
@@ -18,8 +19,29 @@ import { revealCandidate, type RevealDeps } from './reveal';
  * It does not REJECT: `revealCandidate` answers every fault through `deps.reportFault`, once
  * per activation rather than once per click. So a caller has nothing left to catch, which is
  * why the two detached doors hand this straight to `void` rather than to `runDetached`.
+ *
+ * **It ANSWERS the leaf it revealed**, and that is the SECOND widening of this signature —
+ * `void`, then `boolean`, now the leaf. The first widening's argument still holds and is not
+ * enough: leaf EXISTENCE cannot say whether the activation succeeded, because `revealCandidate`
+ * wraps `await deps.workspace.revealLeaf(existing)` in its own fault boundary and RESOLVES
+ * after reporting — `revealView.test.ts`'s "answers a fault on the reuse path too" pins exactly
+ * that — so a failed reveal of an EXISTING leaf leaves that leaf sitting in `getLeavesOfType`,
+ * and the reuse path is the NORMAL one for a singleton view.
+ *
+ * What the BOOLEAN could not say is WHICH leaf, and that is the defect this widening closes.
+ * `navigateToProject` had to re-derive it — `getLeavesOfType(type)[0]`, a fresh lookup made
+ * after the `await` — and **a value re-derived after an `await` is a value that may have
+ * changed**: the revealed pane closed, or the leaves reordered, and the palette command
+ * revealed one pane and wrote the project state into another. `revealCandidate` was holding
+ * that leaf the whole time and discarding it to answer `true`; answering it instead is
+ * strictly more information at every call site, and `undefined` carries everything `false`
+ * carried plus the fact that there is no leaf on offer to write into.
+ *
+ * Additive rather than the widening decision 6 refused: this is a RETURN VALUE, not a
+ * parameter whose two callers want opposite answers. Both detached doors `void` the call and
+ * are unaffected.
  */
-export function revealView(deps: RevealDeps, type: string): Promise<void> {
+export function revealView(deps: RevealDeps, type: string): Promise<WorkspaceLeaf | undefined> {
 	// Every leaf of the type is a candidate, which is what makes this the SINGLETON case:
 	// there is at most one, and the first is it. `revealPlanEditor` is the same mechanism
 	// over a narrower candidate set — see `revealCandidate`.

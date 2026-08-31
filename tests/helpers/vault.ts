@@ -507,6 +507,14 @@ export interface RepositoryStack extends StackFoundation {
 	vault: FakeVault;
 	fileManager: FakeFileManager;
 	metadataCache: FakeMetadataCache;
+	/**
+	 * The library root the stack was constructed with, echoed back the way `StackFoundation`
+	 * echoes `projectFolder` — the folder `ObsidianAssetRepository` inserts into since design
+	 * slice 19, which a case asserting on an asset's PATH has no other way to name. Declared
+	 * HERE rather than on the foundation because the foundation constructs no repository, and
+	 * this root is only meaningful to the two that take it.
+	 */
+	libraryFolder: string;
 }
 
 export type { FakeVault, FakeFileManager, FakeMetadataCache };
@@ -526,8 +534,17 @@ export type { FakeVault, FakeFileManager, FakeMetadataCache };
  * The cost is five constructor calls in each of two files, against the eighty-odd lines the
  * foundation shares. What made the duplication dangerous is gone either way: `deps` and
  * `store` are built in one place, so the ARGUMENTS cannot drift.
+ *
+ * `libraryFolder` defaults to a TOP-LEVEL `Library`, deliberately not the plugin's own
+ * `DEFAULT_SETTINGS.libraryFolder` (`Renovation/Library`). Slice 19's §83 guard refuses a new
+ * project whose folder overlaps the library, and every project root this suite constructs
+ * stacks with — `Renovation`, `Projects/A`, `Projects/B`, `Somewhere Else`,
+ * `Somewhere/My Renovation` — puts its projects one segment below that root. A sibling under
+ * `Renovation` would therefore collide with any project this suite happened to name `Library`;
+ * a top-level `Library` overlaps none of those roots or their children, so a case that wants
+ * the refusal has to ASK for it by naming the folder.
  */
-export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryStack {
+export function createRepositoryStack(projectFolder = 'Renovation', libraryFolder = 'Library'): RepositoryStack {
 	const vault = new FakeVault();
 	const fileManager = new FakeFileManager(vault);
 	const metadataCache = new FakeMetadataCache(vault);
@@ -538,10 +555,11 @@ export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryS
 		fileManager,
 		metadataCache,
 		...base,
-		projects: new ObsidianProjectRepository(base.deps, projectFolder),
+		projects: new ObsidianProjectRepository(base.deps, projectFolder, libraryFolder),
 		plans: new ObsidianPlanRepository(base.deps, base.store),
 		zones: new ObsidianZoneRepository(base.deps, base.store),
-		assets: new ObsidianAssetRepository(base.deps),
+		assets: new ObsidianAssetRepository(base.deps, libraryFolder),
 		requirements: new ObsidianRequirementRepository(base.deps),
+		libraryFolder,
 	};
 }

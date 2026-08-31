@@ -88,8 +88,13 @@ the five values and what they do not claim.
 
 ## Deliberately NOT checked
 
-- **Folder overlap between a project and the library.** `foldersOverlap` is slice 19's
-  predicate, built where it has a caller — there is no library folder to overlap with yet.
+- **Folder overlap between a project and the library.** Not deferred any more, and both
+  clauses this entry used to carry are now false: `foldersOverlap` has three callers, and
+  design slice 19 gave the vault a library folder to overlap with. This was the document
+  that deferred the check TO that slice; [[Move the Library]] is where it is discharged —
+  its step 11 is the refusal a project creation gets (`project.folder-overlaps-library`,
+  the one door §83 can refuse at) and its step 12 is the row marker for the state §83
+  cannot refuse, reached by dragging a project folder into the library.
 - **A one-time folder migration and its partial-move diagnostic.** Withdrawn, not deferred:
   under the derived shape the existing single-folder layout is already a valid project
   folder, so nothing has to move (see step 14).

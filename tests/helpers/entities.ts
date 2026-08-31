@@ -60,10 +60,12 @@ export function makeZone(
 	);
 }
 
-/** `unit: m2`, 45.00 EUR, 10% waste — the "Porcelain Tile" of the end-to-end scenario. */
-export function makeAsset(
-	props: Partial<CreateAssetProps> & { projectId: ProjectId; id?: AssetId },
-): Asset {
+/**
+ * `unit: m2`, 45.00 EUR, 10% waste — the "Porcelain Tile" of the end-to-end scenario.
+ * No project: since design slice 19 the catalogue is a vault-level library, so a call
+ * naming one would be naming a field the entity does not have.
+ */
+export function makeAsset(props: Partial<CreateAssetProps> & { id?: AssetId } = {}): Asset {
 	const { id, ...rest } = props;
 	return expectOk(
 		Asset.create({

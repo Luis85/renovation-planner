@@ -58,7 +58,7 @@ function composed() {
  * instance, which is the whole point: the fault has to originate below the boundary.
  */
 function detonate(repository: object): void {
-	const methods = ['getById', 'save', 'delete', 'listByProject', 'listByPlan', 'listByZone', 'listByAsset', 'markStale'];
+	const methods = ['getById', 'save', 'delete', 'listAll', 'listByProject', 'listByPlan', 'listByZone', 'listByAsset', 'markStale'];
 	for (const method of methods) {
 		Object.defineProperty(repository, method, {
 			configurable: true,
@@ -119,7 +119,7 @@ describe('slice 10 leaves the composition root guarded', () => {
 		const persistence = composed();
 		detonate(persistence.assets);
 
-		const result = await persistence.requirementQueries.listAssets.execute('project-1' as never);
+		const result = await persistence.requirementQueries.listAssets.execute();
 
 		expect(result.ok).toBe(false);
 		const logged = lines.filter((line) => line.event === 'query.listAssets.failed');

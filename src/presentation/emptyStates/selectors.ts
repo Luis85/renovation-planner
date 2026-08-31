@@ -1,4 +1,4 @@
-import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto';
+import type { PlanDto, PlanSummaryDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto';
 
 /**
  * Which empty state a view is in — decided from query results that have ALREADY succeeded,
@@ -62,4 +62,13 @@ export function selectRenovationProjectEmptyState(
 ): 'noProjects' | null {
 	if (unreadable > 0) return null;
 	return projects.length === 0 ? 'noProjects' : null;
+}
+
+/**
+ * A project with no plans yet (design slice 21). A function of QUERY RESULTS, like its two
+ * siblings — `status` is the store's structural gate above it, never a fourth argument here,
+ * which is what keeps "which state is this project in" answerable by a node test.
+ */
+export function selectProjectDetailEmptyState(plans: readonly PlanSummaryDto[]): 'noPlans' | null {
+	return plans.length === 0 ? 'noPlans' : null;
 }

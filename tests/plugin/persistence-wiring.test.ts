@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
 import { apiVersion } from '../helpers/obsidian-mock';
 import { loadedPlugin } from '../helpers/plugin';
+import { FakeLeaf } from '../helpers/workspace';
 import { createRepositoryStack, serializeFrontmatter } from '../helpers/vault';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../helpers/entities';
 import { expectDefined, expectErr, expectOk } from '../helpers/domain';
@@ -114,6 +115,38 @@ describe('persistence composition', () => {
 	});
 
 	/**
+	 * **The question is whether the scan has RUN, not whether it found anything**, and those
+	 * are the same question only in a vault that still has projects.
+	 *
+	 * A vault whose only project note was deleted while Obsidian was closed rebuilds to a
+	 * legitimately EMPTY index. Under a "has the index been populated" rule the flag never
+	 * turns true, a restored detail leaf's `ok(null)` is never authoritative, and the pane
+	 * holds its loading line for the rest of the session — trading a destroyed `projectId` for
+	 * a permanent spinner, which is not a fix.
+	 *
+	 * `startPersistence` publishes `projectIndexRebuilt()` unconditionally after
+	 * `index.rebuild(...)` — there is no count in the call and no branch above it — so a
+	 * completed empty rebuild announces itself exactly like a completed full one, and the flag
+	 * must follow that and not the entry count. This case fails against the rule it replaced;
+	 * the store-level cases in Task 4 pass under both, which is why it lives here.
+	 */
+	it('reports the scan as completed after an empty rebuild', async () => {
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS);
+		workspace.layoutReady();
+
+		expect(plugin.root.persistence?.index.entries()).toEqual([]);
+		expect(
+			(
+				plugin as unknown as {
+					projectViewDeps(leaf: unknown): { indexScanCompleted(): boolean };
+				}
+			)
+				.projectViewDeps(new FakeLeaf() as never)
+				.indexScanCompleted(),
+		).toBe(true);
+	});
+
+	/**
 	 * SDD §92 item 13's "not the whole plugin" half, at load. `startPersistence` scans the
 	 * whole vault, and the scan does not read `schema-version` at all — so one note from a
 	 * newer build must not cost a user their session. Driven through the REAL plugin rather
@@ -188,7 +221,7 @@ describe('persistence composition', () => {
 		const refsAfterLoad = plugin.eventRefs.length;
 		const handlersAfterLoad = vaultHandlers.length;
 
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
+		await plugin.saveSettings({ units: 'imperial' });
 
 		expect(plugin.root.settings?.units).toBe('imperial');
 		expect(plugin.root.persistence).not.toBe(firstPersistence);
@@ -212,7 +245,7 @@ describe('persistence composition', () => {
 
 		const { plugin, workspace, vaultHandlers } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
 		workspace.layoutReady();
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
+		await plugin.saveSettings({ units: 'imperial' });
 
 		// A note that appears AFTER the save, delivered through the handler registered
 		// BEFORE it. A handler holding its adapter captured would file this into an index

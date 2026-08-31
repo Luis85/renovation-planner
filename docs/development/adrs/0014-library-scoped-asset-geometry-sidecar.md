@@ -78,10 +78,12 @@ first written. The content is a different document from a plan sidecar's — its
   the still-current setting says they are. Without it the store would resolve sidecars under the
   new folder the instant the setting persisted and every designed shape would read as absent —
   silently, because a missing sidecar is a shapeless asset rather than an error.
-- **An asset note filed outside the library still keeps its geometry inside it.** Since ADR-0013 a
-  note is found by what it DECLARES rather than by where it sits, so an asset note anywhere in the
-  vault is indexed and usable; slice 19's migration moves the notes that are in the library folder,
-  which by definition is not that one. Its sidecar is written under `<libraryFolder>/Geometry/`
+- **An asset note filed outside the library still keeps its geometry inside it.** This is design
+  slice 19's own open question 3, and the answer it records: since ADR-0013 a note is found by what
+  it DECLARES rather than by where it sits, so an asset note anywhere in the vault is indexed and
+  usable, and after that slice's Task 5 an *update* writes where the note already sits while only an
+  *insert* goes to the library — so such a note never moves. "The catalogue lives in the library
+  folder" is therefore true of new assets only. Its sidecar is written under `<libraryFolder>/Geometry/`
   regardless, because the path derives from the setting and not from where the note strayed. That
   is the intended answer — one geometry home — and it means the Project Index is the only thing
   pairing a stray note with its sidecar, exactly as it already is for plans.
@@ -106,3 +108,11 @@ first written. The content is a different document from a plan sidecar's — its
   the settings surface, and a folder-change path that must move existing files and rebuild the
   index before it may persist the new value. ADR-011 priced a configurable geometry path once and
   reverted it; nothing about assets makes the price lower.
+
+## Revisit when
+
+A vault needs more than one library — the folder is a single setting today, and every path here
+derives from it, so a second library is a change to this decision rather than a use of it. Or
+`Geometry/` needs internal structure of its own (per-asset revisions, retained history) rather than
+one file per asset: the epic's recoverability condition is not met by a single mutable sidecar, and
+the first increment that lets a placement reference a shape is the trigger for that.

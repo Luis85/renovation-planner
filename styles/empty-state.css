@@ -28,19 +28,6 @@
 	pointer-events: none;
 }
 
-.rp-empty-state__panel {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-3);
-	align-items: center;
-	max-width: 28em;
-	padding: var(--size-4-6);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background-color: var(--background-secondary);
-	text-align: center;
-}
-
 .rp-empty-state__icon:empty {
 	display: none;
 }

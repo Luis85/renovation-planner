@@ -86,10 +86,23 @@ export function footprintFromDimensions(
 export function dimensionsOf(footprint: Polygon): Result<Dimensions, GeometryError> {
 	const box = boundingBoxOf(footprint);
 	if (isErr(box)) return box;
-	return ok({
-		width: box.value.max.x - box.value.min.x,
-		depth: box.value.max.y - box.value.min.y,
-	});
+	const width = box.value.max.x - box.value.min.x;
+	const depth = box.value.max.y - box.value.min.y;
+	// A finite EXTENT does not mean a finite SPAN. Every boundary below this one admits
+	// coordinates one at a time — the schema, `validatePolygonPoints`, `boundingBoxOf` —
+	// so -1e308 and 1e308 each pass and their difference is `Infinity`. Reported rather
+	// than returned, because a non-finite width presented as a measurement is the lie the
+	// unscaled marker exists to prevent, and `JSON.stringify` would write it as `null`.
+	// The same shape as `ReversibleCalibratePlan`'s finite-result guard: a finite ratio
+	// does not mean a finite product.
+	if (!Number.isFinite(width) || !Number.isFinite(depth)) {
+		return err({
+			category: 'Geometry',
+			code: 'dimensions-overflow',
+			message: `A footprint's extent is not representable: got ${String(width)} x ${String(depth)}.`,
+		});
+	}
+	return ok({ width, depth });
 }
 
 /** One spelling per direction: `[0, 2π)`, so a stored 2π and a stored 0 cannot differ. */

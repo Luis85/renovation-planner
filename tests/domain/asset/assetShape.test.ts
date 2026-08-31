@@ -8,6 +8,7 @@ import {
 	type AssetShape,
 } from '../../../src/domain/asset/AssetShape';
 import { isErr, isOk } from '../../../src/core/result/Result';
+import { createPolygon } from '../../../src/core/geometry/Polygon';
 
 /**
  * Built through the real constructor rather than hand-written, so a field added to
@@ -81,6 +82,20 @@ describe('dimensionsOf', () => {
 		// buffer is representable and this arm is reachable rather than defensive.
 		const dims = dimensionsOf({ points: [] });
 		expect(isErr(dims) && dims.error.category).toBe('Geometry');
+	});
+	it('refuses an extent that overflows, rather than reporting Infinity as a measurement', () => {
+		// Every boundary below this one admits coordinates ONE AT A TIME, so each of these
+		// is finite and their difference is not. A non-finite width presented as a
+		// measurement is what the unscaled marker exists to prevent, and JSON.stringify
+		// would persist it as null.
+		const wide = createPolygon([
+			{ x: -1e308, y: 0 },
+			{ x: 1e308, y: 0 },
+			{ x: 1e308, y: 10 },
+		]);
+		if (!isOk(wide)) throw new Error('fixture: each coordinate is finite');
+		const result = dimensionsOf(wide.value);
+		expect(isErr(result) && result.error.code).toBe('dimensions-overflow');
 	});
 });
 

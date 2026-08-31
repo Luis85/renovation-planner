@@ -1,19 +1,28 @@
 import { TFile as MockTFile, TFolder as MockTFolder, type FileStats, type TFile } from 'obsidian';
-import type { LogLevel } from '../../src/application/ports/Logger';
 import { serializeFrontmatter } from '../../src/infrastructure/obsidian/repositories/noteIo';
-import { buildProjectIndexEntries } from '../../src/infrastructure/persistence/index/buildProjectIndexEntries';
-import { EchoWindow } from '../../src/infrastructure/persistence/index/EchoWindow';
-import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
-import { InMemoryDiagnosticsLedger } from '../../src/infrastructure/logging/diagnosticsLedger';
-import { createMigrationRunner, type MigrationRunner } from '../../src/infrastructure/persistence/migration/MigrationRunner';
-import { MIGRATION_SET } from '../../src/infrastructure/persistence/migration/migrationSet';
 import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { ObsidianAssetRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetRepository';
 import { ObsidianRequirementRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianRequirementRepository';
-import { PlanGeometryStore } from '../../src/infrastructure/obsidian/repositories/PlanGeometryStore';
-import type { Line, Logger } from './logger';
+import { stackFoundation, type StackFoundation } from './repositoryStack';
+
+/**
+ * The three fields Obsidian derives from a note's path, as ONE derivation.
+ *
+ * Both fakes construct `TFile`s and both derived these by hand, which had already drifted:
+ * one spelled the extension strip `/\.[^.]+$/u` and the other `/\.[^.]+$/`. Equivalent
+ * today, and the kind of difference that stops being equivalent without anything failing.
+ */
+export const describeFile = (path: string): { name: string; basename: string; extension: string } => {
+	const last = path.split('/').at(-1) ?? '';
+
+	return {
+		name: last,
+		basename: last.replace(/\.[^.]+$/u, ''),
+		extension: path.includes('.') ? (path.split('.').at(-1) ?? '') : '',
+	};
+};
 
 /**
  * The vault's bytes, as a `Map` that also knows when a write came from OUTSIDE the plugin.
@@ -201,12 +210,7 @@ class FakeVault {
 
 	private nodeAt(path: string, withChildren: boolean): TFile | MockTFolder | null {
 		if (this.entries.has(path)) {
-			const segments = path.split('/');
-			const file = new MockTFile();
-			file.path = path;
-			file.name = segments.at(-1) ?? '';
-			file.basename = (segments.at(-1) ?? '').replace(/\.[^.]+$/, '');
-			file.extension = path.includes('.') ? (path.split('.').at(-1) ?? '') : '';
+			const file = Object.assign(new MockTFile(), { path, ...describeFile(path) });
 			file.stat = this.entries.statOf(path);
 			return file;
 		}
@@ -409,6 +413,34 @@ export function parseFrontmatter(text: string): { frontmatter: Record<string, un
 	return { frontmatter, body };
 }
 
+/** The half of `processFrontMatter` that is the same over either vault: values in, body intact. */
+export const applyFrontmatterEdit = async (
+	vault: { read(file: TFile): Promise<string>; modify(file: TFile, text: string): Promise<void> },
+	file: TFile,
+	update: (frontmatter: Record<string, unknown>) => void,
+): Promise<void> => {
+	const text = await vault.read(file);
+	const { frontmatter, body } = parseFrontmatter(text);
+	update(frontmatter);
+	await vault.modify(file, `${serializeFrontmatter(frontmatter)}${body}`);
+};
+
+/**
+ * What `getFileCache` answers for the text the parse queue last reached — THREE answers, not
+ * two, stated once for both fakes.
+ *
+ * `null` means Obsidian has no entry for the file. A file it parsed and found NO frontmatter
+ * in answers an OBJECT whose `frontmatter` is undefined. Conflating those makes "never seen"
+ * and "the user deleted the frontmatter" indistinguishable — the exact conflation
+ * `frontmatterOf` must not make, and the one both fakes carry a paragraph about.
+ */
+export const fileCacheAnswer = (seen: string | null | undefined): { frontmatter?: Record<string, unknown> } | null => {
+	if (seen === undefined || seen === null) return null;
+	if (!seen.startsWith('---\n')) return {};
+
+	return { frontmatter: parseFrontmatter(seen).frontmatter };
+};
+
 class FakeFileManager {
 	constructor(private readonly vault: FakeVault) {}
 
@@ -417,14 +449,8 @@ class FakeFileManager {
 	 * whatever the callback leaves in back under the same delimiters, and keeps the body.
 	 * This fake does the observable half: values in, body intact.
 	 */
-	async processFrontMatter(
-		file: TFile,
-		update: (frontmatter: Record<string, unknown>) => void,
-	): Promise<void> {
-		const text = await this.vault.read(file);
-		const { frontmatter, body } = parseFrontmatter(text);
-		update(frontmatter);
-		await this.vault.modify(file, `${serializeFrontmatter(frontmatter)}${body}`);
+	processFrontMatter(file: TFile, update: (frontmatter: Record<string, unknown>) => void): Promise<void> {
+		return applyFrontmatterEdit(this.vault, file, update);
 	}
 
 	/** `TAbstractFile` in Obsidian, so a folder is as ordinary an argument here as a note. */
@@ -458,14 +484,7 @@ class FakeMetadataCache {
 		// shows for them; anything else is answered from disk. `catchUp()` drains the queue.
 		const behind = this.vault.pendingParse.get(file.path);
 		const seen = behind === undefined ? this.vault.entries.get(file.path) : behind;
-		if (seen === undefined || seen === null) return null;
-		// `CachedMetadata | null`, as the real signature says, and the two are NOT the same
-		// answer: null means Obsidian has no entry for the file, while a file it parsed and
-		// found no frontmatter in answers an OBJECT whose `frontmatter` is undefined. This
-		// fake used to answer null for both, which made "never seen" and "frontmatter
-		// deleted" indistinguishable — the exact conflation `frontmatterOf` must not make.
-		if (!seen.startsWith('---\n')) return {};
-		return { frontmatter: parseFrontmatter(seen).frontmatter };
+		return fileCacheAnswer(seen);
 	}
 
 	/** What Obsidian eventually does on its own, once its parse queue drains. */
@@ -474,114 +493,55 @@ class FakeMetadataCache {
 	}
 }
 
-export interface RepositoryStack {
-	vault: FakeVault;
-	fileManager: FakeFileManager;
-	metadataCache: FakeMetadataCache;
-	index: InMemoryProjectIndex;
-	echo: EchoWindow;
-	migrations: MigrationRunner;
-	logged: Line[];
-	logger: Logger;
-	/**
-	 * `createRepositoryStack` has always returned this field; the interface never
-	 * declared it, which was invisible for as long as nothing type-checked this file (a
-	 * `tests/**` transpile does not check assignability). `tests/helpers/fixtureVault.test-d.ts`
-	 * pulling this interface into a real program was the first thing that could have caught
-	 * the excess-property error on the return statement below — and did.
-	 *
-	 * Typed as the CONCRETE class, matching `store`/`migrations`/`index`/`echo` and every
-	 * repository field on this interface, rather than as the `DiagnosticsLedger` port: a
-	 * caller reading a concrete-only member later is not refused, and the port type would buy
-	 * nothing here — `logger: Logger` is the one exception on this interface, and it is an
-	 * exception because that field is a plain object literal with no class behind it, not a
-	 * constructed instance the way this one is.
-	 */
-	ledger: InMemoryDiagnosticsLedger;
-	store: PlanGeometryStore;
+/**
+ * The in-memory stack: `RepositoryStackCore` over `FakeVault` and its two siblings. Every
+ * member but these three is shared with `openFixtureVault`'s disk-backed stack and is
+ * declared once, in `repositoryStack.ts`.
+ */
+export interface RepositoryStack extends StackFoundation {
 	projects: ObsidianProjectRepository;
 	plans: ObsidianPlanRepository;
 	zones: ObsidianZoneRepository;
 	assets: ObsidianAssetRepository;
 	requirements: ObsidianRequirementRepository;
-	/**
-	 * The default root the stack was constructed with — `createRepositoryStack`'s own
-	 * argument, echoed back for a caller that needs it. Under ADR-0013 this is no longer a
-	 * per-project field any of the five note-backed repositories read: `ObsidianProjectRepository`
-	 * is the only one that still takes it directly (Task 5's `newProjectRoot`), because it is
-	 * the one repository that ever writes a note whose folder does not already exist to be
-	 * derived from. Every other project's folder is `projectFolderOf`'s to answer.
-	 */
-	projectFolder: string;
-	/** Rebuilds the index from the vault contents — the scan the plugin runs at load. */
-	rebuildIndex(): void;
+	vault: FakeVault;
+	fileManager: FakeFileManager;
+	metadataCache: FakeMetadataCache;
 }
 
 export type { FakeVault, FakeFileManager, FakeMetadataCache };
 
+/**
+ * The five repositories are constructed by each stack rather than by `stackFoundation`, and
+ * that line is drawn by a MEASUREMENT rather than by taste.
+ *
+ * Fallow resolves a class's members through the annotation in the file where the consuming
+ * expression sits, and it does not follow a field through an `extends` into another module.
+ * Building them in the shared function took `npm run analyze` from clean to ELEVEN
+ * `unused-class-members` findings — `getById`, `save`, `delete`, `listAll`, `listByPlan` and
+ * `listByProject` across the three note repositories, every one a method whose only call
+ * sites are tests. Redeclaring the fields on both stack interfaces recovered three and left
+ * eight; nothing short of the `new` expression living here recovered all eleven.
+ *
+ * The cost is five constructor calls in each of two files, against the eighty-odd lines the
+ * foundation shares. What made the duplication dangerous is gone either way: `deps` and
+ * `store` are built in one place, so the ARGUMENTS cannot drift.
+ */
 export function createRepositoryStack(projectFolder = 'Renovation'): RepositoryStack {
 	const vault = new FakeVault();
 	const fileManager = new FakeFileManager(vault);
 	const metadataCache = new FakeMetadataCache(vault);
-	const index = new InMemoryProjectIndex();
-	const echo = new EchoWindow();
-
-	// A per-stack recorder, so a suite can assert on its OWN stack's diagnostics without
-	// racing the shared module-scope recorder the plugin suites use.
-	const logged: Line[] = [];
-	const record =
-		(level: LogLevel) =>
-		(event: string, context?: Record<string, unknown>): void => {
-			logged.push({ level, event, context });
-		};
-	const logger: Logger = { debug: record('debug'), info: record('info'), warn: record('warn'), error: record('error') };
-
-	// The PLUGIN's table, not a copy of it. This used to be four kinds hand-written here
-	// while the composition root registered six — a fake thinner than the real thing, so
-	// every repository test drove a runner that had never heard of an Asset or a
-	// Requirement. Sharing the constant is what makes the drift impossible rather than
-	// merely fixed.
-	const migrations = createMigrationRunner(MIGRATION_SET);
-	const ledger = new InMemoryDiagnosticsLedger();
-
-	const deps = {
-		vault: vault as never,
-		fileManager: fileManager as never,
-		metadataCache: metadataCache as never,
-		index,
-		echo,
-		migrations,
-		logger,
-		ledger,
-	};
-	const store = new PlanGeometryStore(vault as never, fileManager as never, index, migrations, echo);
+	const base = stackFoundation({ vault, fileManager, metadataCache }, projectFolder);
 
 	return {
 		vault,
 		fileManager,
 		metadataCache,
-		index,
-		echo,
-		migrations,
-		logged,
-		logger,
-		ledger,
-		store,
-		projects: new ObsidianProjectRepository(deps, projectFolder),
-		plans: new ObsidianPlanRepository(deps, store),
-		zones: new ObsidianZoneRepository(deps, store),
-		assets: new ObsidianAssetRepository(deps),
-		requirements: new ObsidianRequirementRepository(deps),
-		projectFolder,
-		rebuildIndex() {
-			index.rebuild(
-				buildProjectIndexEntries({
-					vault: vault as never,
-					metadataCache: metadataCache as never,
-					echo,
-					logger,
-				}),
-			);
-		},
+		...base,
+		projects: new ObsidianProjectRepository(base.deps, projectFolder),
+		plans: new ObsidianPlanRepository(base.deps, base.store),
+		zones: new ObsidianZoneRepository(base.deps, base.store),
+		assets: new ObsidianAssetRepository(base.deps),
+		requirements: new ObsidianRequirementRepository(base.deps),
 	};
 }

@@ -174,7 +174,7 @@ describe("the harness's own SFCs", () => {
 			// at all — the failure that would read as "no files out of scope".
 			[{ extension: '.vue', isMixedContent: true, scriptKind: ts.ScriptKind.Deferred }],
 		);
-		const included = new Set(parsed.fileNames.map((file) => path.relative(REPO, file).replace(/\\/g, '/')));
+		const included = new Set(parsed.fileNames.map((file) => path.relative(REPO, file).replaceAll('\\', '/')));
 
 		expect(harnessSfcs.filter((file) => !included.has(file))).toEqual([]);
 	});

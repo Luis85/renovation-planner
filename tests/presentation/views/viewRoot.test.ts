@@ -46,7 +46,7 @@ const deps: RenovationProjectDeps = {
 	queries: {
 		listProjects: () => Promise.resolve(ok({ projects: [], unreadable: 0 })),
 		getProject: () => Promise.resolve(ok(null)),
-		listPlansByProject: () => Promise.resolve(ok([])),
+		listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 	},
 	commands: unavailableRenovationProjectCommands(),
 };

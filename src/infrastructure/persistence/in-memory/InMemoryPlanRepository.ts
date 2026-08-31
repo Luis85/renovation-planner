@@ -3,7 +3,7 @@ import type { PersistenceError, ValidationError } from '../../../core/errors/App
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Plan } from '../../../domain/plan/Plan';
 import type { PlanId } from '../../../domain/plan/PlanId';
-import type { PlanRepository } from '../../../application/ports/PlanRepository';
+import type { PlanListing, PlanRepository } from '../../../application/ports/PlanRepository';
 import type {
 	EntityVersion,
 	Expected,
@@ -39,9 +39,13 @@ export class InMemoryPlanRepository implements PlanRepository {
 		return Promise.resolve(this.store.remove(id, expected, 'plan'));
 	}
 
-	listByProject(projectId: ProjectId): Promise<Result<Loaded<Plan>[], PersistenceError>> {
+	/**
+	 * `refused` is 0 by construction — this store holds entities, not text, so there is no
+	 * parse step to refuse at. The non-zero arm belongs to the Obsidian implementation.
+	 */
+	listByProject(projectId: ProjectId): Promise<Result<PlanListing, PersistenceError>> {
 		return Promise.resolve(
-			ok(this.store.values().filter((p) => p.entity.projectId === projectId)),
+			ok({ loaded: this.store.values().filter((p) => p.entity.projectId === projectId), refused: 0 }),
 		);
 	}
 }

@@ -115,7 +115,7 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 		}
 
 		project.value = found.value;
-		plans.value = listed.value;
+		plans.value = listed.value.plans;
 		status.value = 'ready';
 	}
 

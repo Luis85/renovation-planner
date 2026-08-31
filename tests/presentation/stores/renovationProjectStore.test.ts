@@ -31,7 +31,7 @@ function queries(overrides: Partial<RenovationProjectQueryServices> = {}): Renov
 	return {
 		listProjects: () => Promise.resolve(ok({ projects: [PROJECT], unreadable: 0 })),
 		getProject: () => Promise.resolve(ok(null)),
-		listPlansByProject: () => Promise.resolve(ok([])),
+		listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 		...overrides,
 	};
 }

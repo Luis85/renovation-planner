@@ -561,6 +561,6 @@ describe('the default renovation project deps', () => {
 		const plans = await deps.queries.listPlansByProject(project.value.project.entity.id);
 
 		expect(created.ok).toBe(true);
-		expect(plans.ok && plans.value?.map((plan) => plan.name)).toEqual(['Ground floor']);
+		expect(plans.ok && plans.value.plans.map((plan) => plan.name)).toEqual(['Ground floor']);
 	});
 });

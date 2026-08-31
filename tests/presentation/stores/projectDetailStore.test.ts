@@ -23,7 +23,7 @@ function queriesAnswering(overrides: Partial<RenovationProjectQueryServices>): R
 	return {
 		listProjects: () => Promise.reject(new Error('not exercised')),
 		getProject: () => Promise.resolve(ok(PROJECT)),
-		listPlansByProject: () => Promise.resolve(ok([])),
+		listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 		...overrides,
 	};
 }
@@ -36,7 +36,7 @@ describe('ProjectDetailStore', () => {
 	it('is ready with the project and its plans when both reads answer', async () => {
 		const store = useProjectDetailStore();
 
-		await store.hydrate(queriesAnswering({ listPlansByProject: () => Promise.resolve(ok([{ id: 'plan-1', name: 'Ground floor' }])) }), PROJECT.id, true);
+		await store.hydrate(queriesAnswering({ listPlansByProject: () => Promise.resolve(ok({ plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadable: 0 })) }), PROJECT.id, true);
 
 		expect(store.status).toBe('ready');
 		expect(store.project?.name).toBe('Hallway');
@@ -181,7 +181,7 @@ describe('ProjectDetailStore', () => {
 	it('keeps a ready detail state and its content when a re-hydrate misses before the scan has completed', async () => {
 		const store = useProjectDetailStore();
 		await store.hydrate(
-			queriesAnswering({ listPlansByProject: () => Promise.resolve(ok([{ id: 'plan-1', name: 'Ground floor' }])) }),
+			queriesAnswering({ listPlansByProject: () => Promise.resolve(ok({ plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadable: 0 })) }),
 			PROJECT.id,
 			true,
 		);
@@ -238,7 +238,7 @@ describe('ProjectDetailStore', () => {
 			queriesAnswering({
 				listPlansByProject: async () => {
 					await slow;
-					return ok([{ id: 'stale-plan', name: 'Stale' }]);
+					return ok({ plans: [{ id: 'stale-plan', name: 'Stale' }], unreadable: 0 });
 				},
 			}),
 			PROJECT.id,

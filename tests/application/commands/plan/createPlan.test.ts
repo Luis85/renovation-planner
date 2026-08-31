@@ -82,7 +82,7 @@ describe('CreatePlanCommand', () => {
 			}),
 		);
 		expect(error.code).toBe('plan.empty-name');
-		expect(expectOk(await plans.listByProject(project.id))).toHaveLength(0);
+		expect(expectOk(await plans.listByProject(project.id)).loaded).toHaveLength(0);
 		expect(events.published).toHaveLength(0);
 	});
 

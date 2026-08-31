@@ -1,0 +1,8 @@
+{
+	"schemaVersion": 1,
+	"planId": "plan-first",
+	"revision": 1,
+	"unit": "mm",
+	"calibration": null,
+	"objects": []
+}

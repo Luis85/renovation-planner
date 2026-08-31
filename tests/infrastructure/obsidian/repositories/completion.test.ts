@@ -181,7 +181,7 @@ describe('project and zone listings', () => {
 		const planId = 'imported-floor-1' as PlanId;
 		expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
 
-		const listed = expectOk(await stack.plans.listByProject(projectId));
+		const listed = expectOk(await stack.plans.listByProject(projectId)).loaded;
 
 		expect(listed.map((one) => one.entity.id)).toEqual([planId]);
 	});
@@ -201,7 +201,7 @@ describe('project and zone listings', () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
 		stack.vault.entries.delete(notePathOf(stack, planId));
-		expect(expectOk(await stack.plans.listByProject(projectId))).toEqual([]);
+		expect(expectOk(await stack.plans.listByProject(projectId)).loaded).toEqual([]);
 	});
 
 	it('listByPlan/listByProject propagate read failures', async () => {

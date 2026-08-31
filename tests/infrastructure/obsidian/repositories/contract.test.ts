@@ -546,7 +546,7 @@ describe('listByProject and a note the index still points at', () => {
 			projectId: project.id,
 		});
 
-		const listed = expectOk(await stack.plans.listByProject(project.id));
+		const listed = expectOk(await stack.plans.listByProject(project.id)).loaded;
 
 		expect(listed.map((plan) => plan.entity.name)).toEqual(['Ground floor']);
 	});

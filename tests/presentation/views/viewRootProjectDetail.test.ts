@@ -125,7 +125,10 @@ function mountRoot(over: Overrides): VueWrapper {
 			// against a CORRECT build — measured, not reasoned, by running it both ways.
 			listPlansByProject:
 				over.listPlansByProject ??
-				(() => Promise.resolve(ok([...(over.plansRef ?? over.plans ?? [])]))),
+				(() =>
+					Promise.resolve(
+						ok({ plans: [...(over.plansRef ?? over.plans ?? [])], unreadable: 0 }),
+					)),
 		},
 	};
 	setActivePinia(createPinia());
@@ -633,7 +636,7 @@ describe('ViewRoot in the detail state', () => {
 	 */
 	it('does not re-read the plans when the dialog is cancelled', async () => {
 		const listPlansByProject = vi.fn<RenovationProjectQueryServices['listPlansByProject']>(() =>
-			Promise.resolve(ok([])),
+			Promise.resolve(ok({ plans: [], unreadable: 0 })),
 		);
 		const wrapper = mountRoot({ projectId: 'project-1', listPlansByProject });
 		await flushPromises();

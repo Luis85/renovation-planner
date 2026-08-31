@@ -485,7 +485,8 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 
 		const listed = expectOk(await queries.listPlansByProject(projectId));
 
-		expect(listed.map((plan) => plan.name)).toEqual(['Ground floor']);
+		expect(listed.plans.map((plan) => plan.name)).toEqual(['Ground floor']);
+		expect(listed.unreadable).toBe(0);
 	});
 
 	/**

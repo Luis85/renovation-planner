@@ -26,6 +26,7 @@ import {
 	projectFolderOf,
 	sidecarPathFor,
 } from './paths';
+import type { PlanListing } from '../../../application/ports/PlanRepository';
 import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
@@ -60,6 +61,41 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  *   removal restores the note byte-for-byte, so a caller's failed `Result` never means
  *   "partly done".
  */
+/**
+ * Which refusals a plan listing may swallow: the ones that are about ONE note.
+ *
+ * An allowlist, so an unenumerated code propagates — the fail-closed direction, and the same
+ * shape `ObsidianZoneRepository` uses. Both were measured against `getById`'s arms rather than
+ * copied, because the two repositories answer DIFFERENTLY for one identically-shaped code.
+ *
+ * `getById` can refuse four ways, and all four are note-local — checked arm by arm, since
+ * "there is no shared failure here" is a claim and the next person to add an arm needs to know
+ * it was measured:
+ *
+ *  1. `openNoteById` with a tagged MIGRATION refusal — this build predates that note.
+ *  2. `plan.schema-version-malformed` — a `schema-version` that is not a number, in that note.
+ *  3. `plan.frontmatter-invalid` — the mapper refused that note (or its own sidecar's
+ *     calibration, which is still that plan's file).
+ *  4. `plan.sidecar-unreadable` — **and this is where the zone listing says the opposite.** A
+ *     PLAN's sidecar is `Geometry/<planId>.rpgeo`, one document per plan, so its failure is
+ *     about this plan alone. A ZONE's geometry lives in its PLAN's sidecar, one document
+ *     shared by every zone on it, and `ObsidianZoneRepository.list` memoises that read across
+ *     its loop — so swallowing it there would blame N notes for one file. Same code shape, two
+ *     answers, decided by which document the failure is about.
+ *
+ * `plan.migration-failed` is deliberately absent: it is `mappedMigrationFailure`'s fallback for
+ * an UNTAGGED throw under the runner, so what actually failed is unknown. Fail closed.
+ */
+const SKIPPABLE_PLAN_CODES = new Set([
+	'plan.frontmatter-invalid',
+	'plan.schema-version-malformed',
+	'plan.sidecar-unreadable',
+]);
+
+function isSkippablePlanRefusal(error: RepositoryError): boolean {
+	return error.category === 'Migration' || SKIPPABLE_PLAN_CODES.has(error.code);
+}
+
 export class ObsidianPlanRepository {
 	private readonly queues = new KeyedQueues();
 
@@ -276,8 +312,9 @@ export class ObsidianPlanRepository {
 		});
 	}
 
-	async listByProject(projectId: ProjectId): Promise<Result<Loaded<Plan>[], RepositoryError>> {
+	async listByProject(projectId: ProjectId): Promise<Result<PlanListing, RepositoryError>> {
 		const loaded: Loaded<Plan>[] = [];
+		let refused = 0;
 		// One map per project holds every entity kind, so the project's ids have to be narrowed
 		// to plans — and the narrowing asks the index what TYPE each entry is rather than how
 		// its id is SPELLED. The prefix test this replaced (`startsWith('plan-')`) was a claim
@@ -296,10 +333,19 @@ export class ObsidianPlanRepository {
 		for (const id of this.deps.index.getIdsByProject(projectId)) {
 			if (!plans.has(String(id))) continue;
 			const one = await this.getById(id as PlanId);
-			if (!one.ok) return one;
+			if (!one.ok) {
+				if (!isSkippablePlanRefusal(one.error)) return one;
+				// This repository records nothing of its own — `openNoteById` reaches the ledger
+				// for the migration refusal and no other arm does — so without this line a
+				// skipped plan is one the user is told about and the diagnostics report cannot
+				// name.
+				this.deps.ledger.record('plan', id, one.error);
+				refused += 1;
+				continue;
+			}
 			if (one.value) loaded.push(one.value);
 		}
-		return Promise.resolve(ok(loaded));
+		return ok({ loaded, refused });
 	}
 
 

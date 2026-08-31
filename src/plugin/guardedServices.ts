@@ -12,7 +12,11 @@ import { createVaultExceptionMapper } from '../application/errors/exceptionMappe
 import { guardCommand, guardQuery } from '../application/errors/guardAgainstThrowing';
 import { GetDiagnosticsSnapshotQuery, type DiagnosticsSnapshot } from '../application/queries/GetDiagnosticsSnapshot';
 import { GetProject, type GetProjectInput } from '../application/queries/GetProject';
-import { ListPlansByProject, type ListPlansByProjectInput } from '../application/queries/ListPlansByProject';
+import {
+	ListPlansByProject,
+	type ListPlansByProjectInput,
+	type PlanListResult,
+} from '../application/queries/ListPlansByProject';
 import { ListProjects } from '../application/queries/ListProjects';
 import type { ProjectListResult } from '../application/queries/ListProjects';
 import { GetPlan, type GetPlanInput } from '../application/queries/GetPlan';
@@ -149,7 +153,7 @@ export interface GuardedEditorServices {
 	 * 11) rather than composed raw — a bare application class leaving the root is exactly what
 	 * `tests/plugin/guardCategory.test.ts` was built to catch.
 	 */
-	readonly listPlansByProject: Query<ListPlansByProjectInput, Result<Plan[], RepositoryError>>;
+	readonly listPlansByProject: Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>;
 }
 
 /** Design slice 10's write and read side, guarded — the same seam, one slice later. */

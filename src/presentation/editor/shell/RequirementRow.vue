@@ -17,14 +17,13 @@
  * reaching for a dispatcher of its own would silently break the post-command refresh and
  * the reactive undo/redo flags, with nothing erroring anywhere.
  */
-import { ok, type Result } from '../../../core/result/Result';
-import type { AppError } from '../../../core/errors/AppError';
+import { ok } from '../../../core/result/Result';
 import { of as moneyOf } from '../../../core/money/Money';
 import type { Money } from '../../../core/money/Money';
 import type { RequirementInspectorDTO } from '../../../application/queries/GetRequirementsForZone';
 import type { InspectorEdit } from '../inspector/inspector-store';
 import type { Logger } from '../../../application/ports/Logger';
-import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import { useFieldCommit, type UseFieldCommit } from '../../composables/use-field-commit';
 import type { FieldErrorMap } from '../../errors/route-error';
 import { trError } from '../../i18n/toUserMessage';
@@ -34,7 +33,7 @@ import FieldError from '../../components/FieldError.vue';
 
 const props = defineProps<{
 	row: RequirementInspectorDTO;
-	commit: (edit: InspectorEdit) => Promise<Result<DispatchOutcome, AppError>>;
+	commit: (edit: InspectorEdit) => Promise<DispatchResult>;
 	/**
 	 * This leaf's logger (`runtime.logger`, which is `PlanEditorCommandServices.logger`),
 	 * required by `useFieldCommit` for the one failure it owns both halves of: a coalesced

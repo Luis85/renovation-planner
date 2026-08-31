@@ -11,9 +11,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import RequirementRow from '../../../src/presentation/editor/shell/RequirementRow.vue';
 import { Decimal } from 'decimal.js';
-import { err, ok, type Result } from '../../../src/core/result/Result';
+import { err, ok } from '../../../src/core/result/Result';
 import type { AppError } from '../../../src/core/errors/AppError';
-import type { DispatchOutcome } from '../../../src/application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import type { RequirementInspectorDTO } from '../../../src/application/queries/GetRequirementsForZone';
 import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
 import { of as moneyOf } from '../../../src/core/money/Money';
@@ -26,10 +26,10 @@ import type { Logger } from '../../../src/application/ports/Logger';
  * when design slice 13 made `DispatchOutcome` required, precisely so that a success carries
  * whether the vault was touched.
  */
-type Commit = (edit: InspectorEdit) => Promise<Result<DispatchOutcome, AppError>>;
+type Commit = (edit: InspectorEdit) => Promise<DispatchResult>;
 
 /** Every commit in this file stands for a real override write. */
-const wrote: Result<DispatchOutcome, AppError> = ok('wrote');
+const wrote: DispatchResult = ok('wrote');
 
 /**
  * `useFieldCommit` requires a logger for the one failure it owns both halves of (a coalesced
@@ -88,7 +88,7 @@ const OVERRIDDEN_ROW: RequirementInspectorDTO = {
  * Asserted on the COMMAND INPUT rather than on a rendered badge — slice 10's rule. "The
  * panel re-rendered" is equally true of a row that committed something else entirely.
  */
-function mountRow(commitResult: Result<DispatchOutcome, AppError> = wrote, row: RequirementInspectorDTO = ROW) {
+function mountRow(commitResult: DispatchResult = wrote, row: RequirementInspectorDTO = ROW) {
 	const commit = vi.fn<Commit>(() => Promise.resolve(commitResult));
 	const wrapper = mount(RequirementRow, { props: { row, commit, logger } });
 	return { wrapper, commit };
@@ -213,7 +213,7 @@ describe('RequirementRow', () => {
 			code: 'requirement.negative-quantity',
 			message: 'developer english',
 		};
-		let result: Result<DispatchOutcome, AppError> = err(refusal);
+		let result: DispatchResult = err(refusal);
 		const commit = vi.fn<Commit>(() => Promise.resolve(result));
 		const wrapper = mount(RequirementRow, { props: { row: ROW, commit, logger } });
 		const input = wrapper.get('input[data-field="quantity"]');
@@ -271,9 +271,9 @@ describe('RequirementRow', () => {
 		// the executor never ran — which is what made the call below "not callable" — and the
 		// null CHECK the comment beneath is about would then be checking a value TypeScript
 		// believes can only be null.
-		let resolveCommit: ((result: Result<DispatchOutcome, AppError>) => void) | undefined;
+		let resolveCommit: ((result: DispatchResult) => void) | undefined;
 		const commit = vi.fn<Commit>(
-			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+			() => new Promise<DispatchResult>((resolve) => {
 				resolveCommit = resolve;
 			}),
 		);

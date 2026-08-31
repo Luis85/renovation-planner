@@ -41,14 +41,12 @@
  *   Konva type at all.
  */
 import { describe, expect, it } from 'vitest';
-import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../../../src/application/commands/DispatchOutcome';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createPinia, setActivePinia } from 'pinia';
 import { ok } from '../../../../src/core/result/Result';
-import type { Result } from '../../../../src/core/result/Result';
-import type { AppError } from '../../../../src/core/errors/AppError';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
 import { SnapService } from '../../../../src/presentation/editor/snapping/snap-service';
@@ -114,7 +112,7 @@ function stubDeps(): EditorContextDeps {
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
 		commandDispatcher: {
-			run: (_command: UndoableCommand): Promise<Result<DispatchOutcome, AppError>> => Promise.resolve(ok('wrote')),
+			run: (_command: UndoableCommand): Promise<DispatchResult> => Promise.resolve(ok('wrote')),
 		},
 		writeLedger: new SessionWriteLedger(),
 		renderState: new RenderState(),

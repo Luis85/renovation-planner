@@ -24,19 +24,6 @@
 	padding: var(--size-4-4);
 }
 
-.rp-view-failure__panel {
-	display: flex;
-	flex-direction: column;
-	gap: var(--size-4-3);
-	align-items: center;
-	max-width: 28em;
-	padding: var(--size-4-6);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-m);
-	background-color: var(--background-secondary);
-	text-align: center;
-}
-
 .rp-view-failure__headline {
 	/* The same asymmetric spacing `.rp-empty-state__headline` carries and for the same reason:
 	   the bottom margin adds to the flex `gap`, so headline->body leads body->action rather

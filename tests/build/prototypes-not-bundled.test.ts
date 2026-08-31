@@ -2,7 +2,8 @@ import path from 'node:path';
 import { build } from 'vite';
 import type { Rolldown } from 'vite';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { REPO } from '../helpers/oxlint';
+import { toPosix } from '../helpers/posix';
+import { REPO } from '../helpers/repo';
 
 /**
  * The guarantee with a user on the other end: no prototype or fixture MODULE composes a
@@ -43,7 +44,7 @@ const BUILD_MS = 120_000;
 // assertions pass vacuously. That is the strongest guarantee in this feature going green while
 // checking nothing, on a change to a helper in another file. Stripping the trailing slash is
 // idempotent, so it is correct whichever way `REPO` is spelled.
-const repoRoot = `${REPO.replaceAll(path.sep, '/').replace(/\/$/, '')}/`;
+const repoRoot = `${toPosix(REPO).replace(/\/$/, '')}/`;
 
 let modules: string[] = [];
 
@@ -66,7 +67,7 @@ beforeAll(async () => {
 
 	// Absolute ids, normalised to forward slashes so this reads the same on Windows — which
 	// is one of the four legs `npm run check` rides.
-	modules = chunks.flatMap((chunk) => Object.keys(chunk.modules).map((id) => id.replaceAll(path.sep, '/')));
+	modules = chunks.flatMap((chunk) => Object.keys(chunk.modules).map((id) => toPosix(id)));
 }, BUILD_MS);
 
 describe('the built plugin', () => {

@@ -6,6 +6,7 @@ import { unavailablePlanEditorCommands } from '../../src/presentation/editor/pla
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { installObsidianDom } from '../helpers/dom';
+import { emptyRequirementReads } from '../helpers/planFixtures';
 import { FakeLeaf } from '../helpers/workspace';
 
 /**
@@ -136,14 +137,9 @@ export function harnessDeps(): PlanEditorDeps {
 			// one covers the synchronous seed, and neither path goes through the other.
 			getPlan: () => Promise.resolve(ok(structuredClone(HARNESS_PLAN))),
 			findZonesByPlan: () => Promise.resolve(ok(structuredClone(HARNESS_ZONES))),
-			// Slice 10's four reads, answered EMPTY rather than refused — the fixture world
-			// seeds no Requirements and no Assets, so an empty list is what the real query
-			// would return for it. That is the honest stand-in; the refusal bundle would be
-			// the harsher one, and this file already carries what that costs below.
-			getRequirementsForZone: () => Promise.resolve(ok([])),
-			listAssets: () => Promise.resolve(ok([])),
-			listRequirementsReferencing: () => Promise.resolve(ok([])),
-			listReassignmentTargets: () => Promise.resolve(ok([])),
+			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`
+			// for why EMPTY rather than refused, and for what a refusal bundle costs a READ.
+			...emptyRequirementReads(),
 		},
 		/**
 		 * Every WRITE refuses with `settings.unrecovered`, the honest answer for a page with no

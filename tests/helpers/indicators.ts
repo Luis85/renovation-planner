@@ -157,7 +157,7 @@ const isCurrentColor = (color: CssColor): boolean =>
  * what a variable holds, so it counts as drawing, which is the same ceiling the specificity check
  * declares rather than a new one.
  */
-type Known = 'draws' | 'blank' | 'unknown';
+export type Known = 'draws' | 'blank' | 'unknown';
 
 /** The three longhands an `outline` resolves to, which the CASCADE decides one at a time. */
 export type OutlinePart = 'width' | 'style' | 'color';

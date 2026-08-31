@@ -1,6 +1,6 @@
 import { ok, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
-import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
+import type { DispatchOutcome, DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleDeleteZoneCommand } from '../../application/commands/zone/reversible-delete-zone-command';
 import { ReversibleAssignAssetCommand } from '../../application/commands/requirement/reversible-assign-asset-command';
@@ -40,7 +40,7 @@ import type { PlanEditorContext } from './PlanEditorContext';
 function asDispatchCommand<TInput, TValue>(
 	adapter: {
 		execute(input?: TInput): Promise<Result<TValue, AppError>>;
-		undo(): Promise<Result<DispatchOutcome, AppError>>;
+		undo(): Promise<DispatchResult>;
 	},
 	outcomeOf: (value: TValue) => DispatchOutcome,
 	input?: TInput,
@@ -67,7 +67,7 @@ export function createInspector(
 	// The shape rather than `Pick<EditorRuntime['dispatcher'], 'run'>`: `EditorRuntime` is
 	// declared in `runtime.ts`, which imports THIS module, and naming it here would close a
 	// cycle for a type that is one method wide.
-	dispatcher: { run(command: UndoableCommand): Promise<Result<DispatchOutcome, AppError>> },
+	dispatcher: { run(command: UndoableCommand): Promise<DispatchResult> },
 	ledger: SessionWriteLedger,
 ) {
 	return createInspectorStoreDefinition({

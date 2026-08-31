@@ -1,7 +1,8 @@
 import { existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { REPO, lintedFiles } from '../helpers/oxlint';
+import { lintedFiles } from '../helpers/oxlint';
+import { REPO, repoRelative } from '../helpers/repo';
 import ts from 'typescript';
 import { ESLINT_BOOT_MS, resolveConfig, severityOf, warmUpEslint } from '../helpers/eslint';
 import { isPlantedProbe } from '../helpers/plantedProbe';
@@ -174,7 +175,7 @@ describe("the harness's own SFCs", () => {
 			// at all — the failure that would read as "no files out of scope".
 			[{ extension: '.vue', isMixedContent: true, scriptKind: ts.ScriptKind.Deferred }],
 		);
-		const included = new Set(parsed.fileNames.map((file) => path.relative(REPO, file).replaceAll('\\', '/')));
+		const included = new Set(parsed.fileNames.map((file) => repoRelative(file)));
 
 		expect(harnessSfcs.filter((file) => !included.has(file))).toEqual([]);
 	});

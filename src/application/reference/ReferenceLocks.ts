@@ -103,6 +103,28 @@ export class ReferenceLocks {
 	}
 
 	/**
+	 * Hold ONE entity's level-2 lock for the length of `write`, released whatever `write` does.
+	 *
+	 * The shape both override commands had spelled out longhand — `acquire`, `try`, `finally
+	 * release` — which is the level-2 lock a delete resolution's compensation relies on. The
+	 * RULE was already stated once (`SetRequirementCostOverrideCommand`'s header, cited by its
+	 * sibling's comment); the CODE was not, and `npm run analyze` reported the pair as a clone.
+	 * A rule stated once over two copies is the shape this repository keeps re-finding.
+	 *
+	 * Deliberately not widened to a list: every caller today locks exactly the entity it is
+	 * about to write, and a `readonly string[]` parameter would invite a second caller to pass
+	 * a set without the ordering argument `beginSession` exists to make.
+	 */
+	async withLevel2<T>(id: string, write: () => Promise<T>): Promise<T> {
+		const release = await this.acquire([], [id]);
+		try {
+			return await write();
+		} finally {
+			release();
+		}
+	}
+
+	/**
 	 * One command's locking lifetime. The delete resolution uses one session across TWO
 	 * acquire calls (level 1 at step 0, level 2 at step 1) — which is exactly what the
 	 * hierarchy permits and everything else refuses.

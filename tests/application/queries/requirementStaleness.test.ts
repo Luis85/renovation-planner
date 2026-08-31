@@ -9,8 +9,14 @@ import { InMemoryAssetRepository } from '../../../src/infrastructure/persistence
 import { InMemoryRequirementRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
 import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
 import { currencyOf, of as moneyOf } from '../../../src/core/money/Money';
-import { expectOk, RecordingEventBus } from '../../helpers/domain';
+import { expectErr, expectOk, injectedPersistenceError, RecordingEventBus } from '../../helpers/domain';
 import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entities';
+import { err } from '../../../src/core/result/Result';
+
+/** Matches the pattern `queryRefusals.test.ts` uses for the zone and asset endpoints. */
+function overridePort<T extends object>(inner: T, patch: Record<string, unknown>): T {
+	return Object.assign(Object.create(Object.getPrototypeOf(inner)), inner, patch) as T;
+}
 
 const TEN_SQUARE_METERS = [
 	{ x: 0, y: 0 },
@@ -63,6 +69,8 @@ async function seeded() {
 
 	return {
 		projects,
+		zones,
+		requirements,
 		assets,
 		projectId: project.entity.id,
 		zoneId: zone.entity.id,
@@ -116,5 +124,38 @@ describe("a project's currency is part of what a figure was calculated from", ()
 
 		const rows = expectOk(await w.query.execute(w.zoneId));
 		expect(rows[0]?.recalculationStatus).toBe('stale');
+	});
+
+	/**
+	 * The project is an endpoint like the zone and the asset: gone reads "stale", never
+	 * "current" for a figure this query cannot re-derive. `loadProjectCurrency`'s own
+	 * `zone.value === null` short-circuit is not reached here on purpose — the ZONE still
+	 * resolves; only the PROJECT it points at is absent — so this exercises
+	 * `project.value?.entity.currency ?? null` on a genuinely missing project.
+	 */
+	it('reads stale once the zone points at a project that is gone', async () => {
+		const w = await seeded();
+		const loadedProject = expectOk(await w.projects.getById(w.projectId));
+		if (loadedProject === null) throw new Error('the project was seeded');
+		expectOk(await w.projects.delete(w.projectId, loadedProject.version));
+
+		const rows = expectOk(await w.query.execute(w.zoneId));
+		expect(rows[0]?.recalculationStatus).toBe('stale');
+	});
+
+	/**
+	 * A project that FAILS to read is not the same as one that is gone: `isErr(project)`
+	 * propagates the `RepositoryError` up through `execute`, exactly like an asset or zone
+	 * read failure elsewhere in this query — it does not resolve to "stale".
+	 */
+	it('propagates a failed project read rather than reporting stale', async () => {
+		const w = await seeded();
+		const projects = overridePort(w.projects, {
+			getById: () => Promise.resolve(err(injectedPersistenceError())),
+		});
+		const query = new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects);
+
+		const error = expectErr(await query.execute(w.zoneId));
+		expect(error.code).toBe('test.injected-failure');
 	});
 });

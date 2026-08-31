@@ -7,6 +7,7 @@ import { ListRequirementsReferencing } from '../../../src/application/queries/Li
 import { ListReassignmentTargets } from '../../../src/application/queries/ListReassignmentTargets';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
 import type { RequirementRepository } from '../../../src/application/ports/RequirementRepository';
+import type { ZoneId } from '../../../src/domain/zone/ZoneId';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { expectErr, expectFound, expectOk } from '../../helpers/domain';
 import { makeAsset, makeZone } from '../../helpers/entities';
@@ -92,10 +93,35 @@ describe('GetRequirementsForZone error propagation', () => {
 		expect(error.code).toBe('test.injected-failure');
 	});
 
-	it('propagates a failed origin-zone read', async () => {
+	it('propagates a failed zone read while resolving the project currency', async () => {
 		const w = await wiredWithLink();
+		// `execute` reads the zone FIRST, inside `loadProjectCurrency`, before it ever
+		// reaches a row — this failure never gets as far as `loadOriginZone` below.
 		const zones = overridePort(w.zones, {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
+		});
+		const error = expectErr(
+			await new GetRequirementsForZone(w.requirements, zones, w.assets, w.projects).execute(w.zoneId),
+		);
+		expect(error.code).toBe('test.injected-failure');
+	});
+
+	it('propagates a failed origin-zone read', async () => {
+		const w = await wiredWithLink();
+		// A call-count-aware override, because `loadProjectCurrency` and `loadOriginZone`
+		// both call `zones.getById` with the SAME id here (one zone, one requirement) — an
+		// override that fails unconditionally would be caught by the first call and never
+		// reach this function's own branch at all, which is exactly the defect a prior
+		// review round found: `execute` used to read the zone only once, inside
+		// `buildRow`'s `loadOriginZone`, and a call ordering change made that call site
+		// unreachable behind an earlier one with an identical failure mode.
+		let calls = 0;
+		const zones = overridePort(w.zones, {
+			getById: (id: ZoneId) => {
+				calls += 1;
+				if (calls === 1) return w.zones.getById(id);
+				return Promise.resolve(err(injectedPersistenceError()));
+			},
 		});
 		const error = expectErr(
 			await new GetRequirementsForZone(w.requirements, zones, w.assets, w.projects).execute(w.zoneId),

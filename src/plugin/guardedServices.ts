@@ -31,6 +31,21 @@ import { MoveSpatialObjectCommand, type MoveSpatialObjectInput } from '../applic
 import type { CreateAssetCommand, CreateAssetInput } from '../application/commands/asset/CreateAsset';
 import type { UpdateAssetCommand, UpdateAssetInput, UpdateAssetErrors } from '../application/commands/asset/UpdateAsset';
 import type { DeleteAssetCommand, DeleteAssetInput, DeleteAssetErrors } from '../application/commands/asset/DeleteAsset';
+import {
+	SetAssetFootprintCommand,
+	SetAssetFootprintFromDimensionsCommand,
+	type SetAssetFootprintInput,
+	type SetAssetFootprintFromDimensionsInput,
+} from '../application/commands/asset/SetAssetFootprint';
+import { SetAssetClearanceCommand, type SetAssetClearanceInput } from '../application/commands/asset/SetAssetClearance';
+import { SetAssetAnchorCommand, type SetAssetAnchorInput } from '../application/commands/asset/SetAssetAnchor';
+import { SetAssetFacingCommand, type SetAssetFacingInput } from '../application/commands/asset/SetAssetFacing';
+import { SetAssetHeightCommand, type SetAssetHeightInput } from '../application/commands/asset/SetAssetHeight';
+import type { AssetShapeDeps } from '../application/commands/asset/updateAssetShape';
+import type { DispatchResult } from '../application/commands/DispatchOutcome';
+import { GetAssetDesignQuery } from '../application/queries/GetAssetDesign';
+import type { AssetDesignDto, AssetDesignError } from '../application/queries/GetAssetDesign';
+import type { AssetId } from '../domain/asset/AssetId';
 import type {
 	AssignAssetCommand,
 	AssignAssetInput,
@@ -177,6 +192,31 @@ export interface GuardedSlice10Services {
 		readonly listAssets: Query<void, Result<readonly Asset[], RepositoryError>>;
 		readonly listRequirementsReferencing: Query<ReferencedTarget, Result<readonly ReferencingGroup[], RepositoryError>>;
 		readonly listReassignmentTargets: Query<ReferencedTarget, Result<readonly ReassignmentTargetDto[], RepositoryError>>;
+	};
+}
+
+/**
+ * The asset designer's write and read side, guarded — the same seam two increments later
+ * (design slice A9).
+ *
+ * ONE BUNDLE rather than seven top-level members, because these seven are the whole surface
+ * of one thing: a designer view is handed `assetDesign` and reaches every door of the design
+ * from it, the way the Plan Editor is handed `requirementQueries`. The alternative spreads
+ * the group's membership across `PersistenceServices` and leaves the next command that
+ * belongs to it deciding for itself where to go.
+ *
+ * `get` rather than `getAssetDesign`: the bundle already says which entity, and a member
+ * repeating its own bundle's name reads as a second group inside the first one.
+ */
+export interface GuardedAssetDesignServices {
+	readonly assetDesign: {
+		readonly setFootprint: Command<SetAssetFootprintInput, DispatchResult>;
+		readonly setFootprintFromDimensions: Command<SetAssetFootprintFromDimensionsInput, DispatchResult>;
+		readonly setClearance: Command<SetAssetClearanceInput, DispatchResult>;
+		readonly setAnchor: Command<SetAssetAnchorInput, DispatchResult>;
+		readonly setFacing: Command<SetAssetFacingInput, DispatchResult>;
+		readonly setHeight: Command<SetAssetHeightInput, DispatchResult>;
+		readonly get: Query<AssetId, Result<AssetDesignDto, AssetDesignError>>;
 	};
 }
 
@@ -372,6 +412,55 @@ export function guardSlice10(
 		setRequirementCostOverride,
 		deleteRequirement,
 		requirementQueries,
+	};
+}
+
+/**
+ * The asset designer's half of the same seam, composed and guarded in one place — the shape
+ * `guardedEditorServices` takes rather than `guardSlice10`'s, because nothing above this
+ * function needs the unguarded commands: `composeSlice10` exists to hand `recalculate` and
+ * the delete sequence their raw collaborators INSIDE the application layer, and no design
+ * command is dispatched from in there.
+ *
+ * **`guardCommand` and not `guardBothDoors`, measured rather than assumed.** All six design
+ * commands expose exactly one entry point today:
+ * `grep -n "execute" src/application/commands/asset/SetAsset*.ts` prints six lines, one per
+ * class, and no second door. The reversible adapters the designer's undo stack needs are
+ * Phase B's, and the day one of them dispatches through an `executeWithVersion`, guarding
+ * `execute` alone would wrap the door nobody uses — the defect this repository has already
+ * shipped once. What catches that is `tests/plugin/guardCategory.test.ts`, which drives every
+ * door of everything the root hands out, rather than anybody remembering this paragraph.
+ *
+ * One `AssetShapeDeps` rather than three parameters, because that is already the shape the
+ * five geometry commands take and the other two are built from its members: re-spelling it
+ * here would be a second statement of what a design command needs.
+ */
+export function guardAssetDesign(
+	deps: AssetShapeDeps,
+	logger: Logger,
+	map: VaultExceptionMapper,
+): GuardedAssetDesignServices {
+	const { sidecar, assets, events } = deps;
+	const setFootprint = guardCommand(new SetAssetFootprintCommand(deps), 'command.setAssetFootprint.failed', logger, map);
+	const setFootprintFromDimensions = guardCommand(
+		new SetAssetFootprintFromDimensionsCommand(deps),
+		'command.setAssetFootprintFromDimensions.failed',
+		logger,
+		map,
+	);
+	const setClearance = guardCommand(new SetAssetClearanceCommand(deps), 'command.setAssetClearance.failed', logger, map);
+	const setAnchor = guardCommand(new SetAssetAnchorCommand(deps), 'command.setAssetAnchor.failed', logger, map);
+	const setFacing = guardCommand(new SetAssetFacingCommand(deps), 'command.setAssetFacing.failed', logger, map);
+	const setHeight = guardCommand(
+		new SetAssetHeightCommand(assets, events),
+		'command.setAssetHeight.failed',
+		logger,
+		map,
+	);
+	const get = guardQuery(new GetAssetDesignQuery(assets, sidecar), 'query.getAssetDesign.failed', logger, map);
+
+	return {
+		assetDesign: { setFootprint, setFootprintFromDimensions, setClearance, setAnchor, setFacing, setHeight, get },
 	};
 }
 

@@ -47,6 +47,7 @@ import { renovationProjectOpenPlan, renovationProjectOpenProject } from './renov
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
+import type { AssetGeometrySidecar } from '../application/ports/AssetGeometrySidecar';
 import type { AssetRepository as AssetRepositoryPort } from '../application/ports/AssetRepository';
 import type { RequirementRepository as RequirementRepositoryPort } from '../application/ports/RequirementRepository';
 import type { PlanRepository } from '../application/ports/PlanRepository';
@@ -59,6 +60,7 @@ import type { Zone } from '../domain/zone/Zone';
 import { IndexLibraryOverlaps } from '../infrastructure/obsidian/repositories/IndexLibraryOverlaps';
 import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
 import { AssetGeometryStore } from '../infrastructure/obsidian/repositories/AssetGeometryStore';
+import { ObsidianAssetGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
 import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
@@ -74,9 +76,11 @@ import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnostics
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import {
 	VAULT_EXCEPTION_MAPPER,
+	guardAssetDesign,
 	guardCalibratePlan,
 	guardSlice10,
 	guardedEditorServices,
+	type GuardedAssetDesignServices,
 	type GuardedEditorServices,
 	type GuardedSlice10Services,
 	type QueryServices,
@@ -148,11 +152,14 @@ export interface CompositionRoot {
 /**
  * Everything the persistence stack hands out, with the Error Boundary already around it:
  * every `Command` and `Query` member here is a GUARDED wrapper (SDD §66), which is why the
- * two guarded groups are EXTENDED rather than re-declared — the shapes and the guards that
+ * three guarded groups are EXTENDED rather than re-declared — the shapes and the guards that
  * produce them live together in `guardedServices.ts`, so a member added there cannot be
  * forgotten here.
  */
-export interface PersistenceServices extends GuardedEditorServices, GuardedSlice10Services {
+export interface PersistenceServices
+	extends GuardedEditorServices,
+		GuardedSlice10Services,
+		GuardedAssetDesignServices {
 	readonly index: ProjectIndex;
 	readonly vaultDeps: NoteVaultDeps;
 	readonly migrations: MigrationRunner;
@@ -162,6 +169,15 @@ export interface PersistenceServices extends GuardedEditorServices, GuardedSlice
 	 * collaborator here that reads and writes calibration rather than an entity note.
 	 */
 	readonly geometry: PlanGeometrySidecar;
+	/**
+	 * ADR-0014's asset sidecar as a PORT, beside the plan one — the collaborator every asset
+	 * design command writes through, exposed for the reason `geometry` above is: a port a
+	 * command holds and nothing hands out is a port no test can detonate, and
+	 * `tests/plugin/guardCategory.test.ts` proves the boundary by breaking exactly the
+	 * collaborators a service reads through. Phase B's reversible design adapters restore
+	 * snapshots through it, the way the Inspector's restore through `zones`.
+	 */
+	readonly assetGeometry: AssetGeometrySidecar;
 	readonly projects: ProjectRepository;
 	readonly plans: PlanRepository;
 	readonly zones: ZoneRepository;
@@ -255,12 +271,17 @@ export interface SessionCollaborators {
 
 function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectRoot: string, libraryFolder: string) {
 	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
-	// Not returned: nothing above this function holds it yet. The asset repository is its one
-	// consumer, for the DELETE alone — an asset's design is written through
-	// `AssetGeometrySidecar`, whose composition arrives with the designer's own commands.
+	// ONE store, two consumers, and the sharing is the point rather than an economy: the
+	// asset repository holds it for the DELETE (an asset's note and its sidecar go together)
+	// and the design commands write through the port below it, and `KeyedQueues` is per
+	// INSTANCE — so a second store built beside this one would split the per-asset lock those
+	// two share and leave a delete free to interleave with a design write.
 	const assetGeometryStore = new AssetGeometryStore(vault.vault, vault.fileManager, libraryFolder, deps.echo);
 	return {
 		geometryStore,
+		// The port, not the store: `plugin/` is where an infrastructure class becomes the
+		// application's own interface, and the design commands are typed against the port.
+		assetGeometry: new ObsidianAssetGeometrySidecar(assetGeometryStore),
 		// `newProjectRoot` is a real argument, not `deps.projectFolder` read inline — this
 		// repository is the only one that ever writes a note whose folder does not already
 		// exist to be derived from, so it takes the setting as its own constructor
@@ -294,7 +315,7 @@ function composeGuarded(
 	files: VaultFileProbe,
 	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
 ) {
-	const { projects, plans, zones, requirements, overlaps } = repositories;
+	const { projects, plans, zones, assets, assetGeometry, requirements, overlaps } = repositories;
 	const { events: eventBus, logger, recalculate, locks, markers } = wiring;
 	const map = VAULT_EXCEPTION_MAPPER;
 	const deleteZone = new DeleteZoneCommand({
@@ -315,6 +336,7 @@ function composeGuarded(
 	return {
 		...editor,
 		...guardSlice10(slice10, recalculate, logger, map),
+		...guardAssetDesign({ sidecar: assetGeometry, assets, events: eventBus }, logger, map),
 		createProject: guardCommand(new CreateProjectCommand(projects, eventBus), 'command.createProject.failed', logger, map),
 		createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, map),
 		createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, map),
@@ -400,6 +422,7 @@ export function createCompositionRoot(
 			migrations,
 			geometryStore,
 			geometry: new ObsidianPlanGeometrySidecar(geometryStore),
+			assetGeometry: repositories.assetGeometry,
 			projects,
 			plans,
 			zones,

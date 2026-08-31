@@ -63,22 +63,30 @@ absent from the path.
 
 ## Alternatives weighed, and why they were not taken
 
-- **Re-run the same validation after the move.** The obvious remedy, and close to inert.
-  `projectFolders()` derives each folder from the project index, and `RenovationPlannerPlugin`
-  filters vault events to `TFile` — so the `TFolder` Obsidian reports for a folder drag is
-  dropped, `VaultChangeAdapter` never hears it, and the index keeps the old path. A post-move
-  recheck would re-read the same stale answer the pre-move check already had. It would catch
-  only the case where something else rebuilt the index mid-flight, which is not the reported
-  scenario. **Implementing this and closing the item would change almost nothing while looking
-  like a fix**, which is the specific trap worth recording.
-- **Close the cause instead** — handle `TFolder` renames in the vault-change pipeline by
-  repathing descendant index entries. Every index consumer inherits it, including the
-  project-row overlap marker, which today only updates at a full rebuild. Correct, and larger
-  than this item: it is a change to a seam five repositories and three change sources read
-  through.
-- **Bound the window explicitly** — refuse to start when any project folder is unresolvable,
-  and say in the documents that a concurrent drag is out of scope. Cheap and honest; it
-  narrows the claim rather than closing the hole.
+- **Re-run the validation between step 5 and step 6.** The direct fix, and it works — a first
+  draft of this note said it would be inert and was wrong. Step 5's `deps.rebuildIndex()`
+  reaches `RenovationPlannerPlugin.startPersistence()`, a full vault scan that re-derives every
+  project entry from the notes' *current* paths. A project folder dragged during step 4 is
+  therefore visible to a check placed after that rebuild, even though the `TFile` filter means
+  no event ever announced the drag. The inert version is a check placed immediately after the
+  rename loop and before the rebuild; the placement is the whole difference.
+- **What such a check can actually do is narrower than refusing up front, and that is the part
+  worth designing.** By the time it fires the notes have already moved, so its only action is
+  to refuse the persist — which leaves the catalogue at the destination and the setting naming
+  the source. That is exactly the state `settings.library-persist-failed` already documents,
+  and its recorded remedy is *"setting the library folder to where they now are"* — which, in
+  this case, is the overlap the check just refused. So a post-move refusal detects the problem
+  and hands the user a position with no clean move in it. A warning that names the overlapping
+  project may be the more honest surface than a refusal.
+- **Close the cause** — handle `TFolder` renames in the vault-change pipeline by repathing
+  descendant index entries. It is the only option that improves the *pre-move* check too, since
+  a drag that lands between validation and the first rename is invisible to both today. Every
+  index consumer inherits it, including the project-row overlap marker, which currently only
+  updates at a full rebuild. Larger than this item: a change to a seam five repositories and
+  three change sources read through.
+- **Bound the window explicitly** — refuse to start when any project folder is unresolvable, and
+  say in the documents that a concurrent drag is out of scope. Cheap and honest; it narrows the
+  claim rather than closing the hole.
 
 ## Why no gate saw it
 
@@ -97,10 +105,13 @@ move either.
 
 ## What closes it
 
-Not designed here, and the decision is which of the three directions above is wanted. The
-smallest honest step is the third: narrow the claim in the documents so the residue is stated
-rather than implied. The real fix is the second, and it belongs to whoever next opens the
-vault-change pipeline.
+The check itself is small and its placement is now known: between step 5's rebuild and step 6's
+persist. What is not settled is what it should DO there, given that refusing leaves the user
+holding a moved catalogue and a setting that cannot legally be pointed at it. Decide that
+first; the code is the easy half.
+
+The wider fix — teaching the pipeline about `TFolder` renames — is what would let the *pre-move*
+check see a drag at all, and belongs to whoever next opens that seam.
 
 ## References
 

@@ -1840,23 +1840,50 @@ describe('the list and detail states', () => {
 	 * `planId === null` because there is nothing to draw; here `null` is the LIST, a real
 	 * state — so a bare `projectId === mountedProjectId` guard skips the first open and the
 	 * pane draws nothing at all.
+	 *
+	 * **Two assertions, because neither can answer for the other.** The DOM one is the only
+	 * place in this file that proves a tree actually reaches `contentEl` — recording mount
+	 * calls says a mount was ATTEMPTED, not that anything was drawn — and it is what goes red
+	 * against the skipped-first-open defect above. The recorded value is what makes the word
+	 * *list* in this case's name true: a node exists under every state, so the DOM assertion
+	 * alone cannot see WHICH one mounted.
 	 */
 	it('mounts the list on a first open', async () => {
-		const view = makeView();
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
 
 		await view.onOpen();
 
 		expect(view.contentEl.querySelector('.renovation-planner-view')).not.toBeNull();
+		expect(mounted).toEqual([null]);
 	});
 
-	/** `onOpen` and `setState` race and the order is not something a plugin may assume. */
+	/**
+	 * `onOpen` and `setState` race and the order is not something a plugin may assume.
+	 *
+	 * **Counting surviving DOM nodes cannot see this, and that is what the case is about.**
+	 * A remount is `onClose(); onOpen();` and `onClose` calls `contentEl.empty()`, so a build
+	 * that wrongly remounts here still leaves exactly ONE `.renovation-planner-view` — the
+	 * assertion this case used to carry read identically in both worlds while its name promised
+	 * to catch a second mount. What the defect actually costs is invisible in the DOM: `mount`
+	 * is where the context is provided, so a remount on Obsidian's ordinary `onOpen`/`setState`
+	 * sequence re-hydrates both stores and re-registers the `onProjectsChanged` and
+	 * `onPlansChanged` subscriptions, every open, with the pane looking correct. Reported by a
+	 * review bot against this plan.
+	 *
+	 * It shares its assertion with the case above and is NOT a duplicate of it — the extra
+	 * `setState` is the whole case, and against the remounting build this reads `[null, null]`.
+	 * Two cases with identical bodies AND identical driving is the trap Task 4 fell into
+	 * (`d9e81f3`); identical assertions under different driving is an ordinary pair.
+	 */
 	it('does not mount twice when setState follows onOpen', async () => {
-		const view = makeView();
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
 
 		await view.onOpen();
 		await view.setState({ projectId: '' }, {} as ViewStateResult);
 
-		expect(view.contentEl.querySelectorAll('.renovation-planner-view')).toHaveLength(1);
+		expect(mounted).toEqual([null]);
 	});
 
 	/**

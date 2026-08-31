@@ -940,7 +940,7 @@ to retrofit at once.
 - Test: `tests/application/commands/asset/setAssetFootprint.test.ts` — extend
 
 **Interfaces:**
-- Consumes: `EventBus` (`src/application/ports/EventBus.ts`), `AssetId`.
+- Consumes: `EventBus` (**`src/core/events/EventBus.ts`** — NOT `application/ports/`, which has no such file; every `application/` command imports it from core), `AssetId`.
 - Produces: `AssetDesignChanged { assetId }` — ONE event for every design command in this
   increment, never a per-field family. B3a depends on that being one name.
 
@@ -948,18 +948,26 @@ to retrofit at once.
 
 Two, and the second is the one that discriminates:
 
+**Both snippets below are written for the SHAPE, and the shape is nested.** An
+`EventBus.subscribe` handler receives `DomainEvent<TType>`, which declares only `type` — every
+subscriber in `src/` narrows with a cast first (`onAssetUpdated.ts:30`) — and every asset event
+carries `{ type, payload: { assetId } }` through the existing `AssetEventPayload`, so it is
+`e.payload.assetId` and never `e.assetId`. The Produces line above reads as a flat event; taken
+literally it would produce one inconsistent with `AssetCreated`/`AssetUpdated`/`AssetDeleted`.
+Since `tests/**` is type-checked by `build`, the flat spelling fails the GATE and not merely the
+assertion — and `npx vitest run` alone cannot see it, because vitest transpiles without checking.
+
 ```typescript
 it('announces a footprint that was written', async () => {
 	const heard: AssetId[] = [];
-	bus.subscribe('AssetDesignChanged', (e) => heard.push(e.assetId));
+	bus.subscribe('AssetDesignChanged', (e) => heard.push((e as AssetDesignChanged).payload.assetId));
 	await typed.execute({ assetId, width: 120, depth: 80 });
 	expect(heard).toEqual([assetId]);
 });
 
 it('announces nothing when the write was a no-write', async () => {
 	await typed.execute({ assetId, width: 120, depth: 80 });
-	const heard: AssetId[] = [];
-	bus.subscribe('AssetDesignChanged', (e) => heard.push(e.assetId));
+	const heard = designChangesHeardOn(bus);
 	await typed.execute({ assetId, width: 120, depth: 80 });
 	expect(heard).toEqual([]);
 });
@@ -1043,9 +1051,48 @@ Plus: a non-finite anchor refuses; a non-finite facing refuses; a two-point clea
 
 **The `no-write` case is not a nicety.** `ok` is not evidence that anything was written, and the save-state indicator infers nothing — a repeated identical anchor must say so, or a "Saved" badge claims a write that did not happen.
 
+#### Amendment 1 — the shared write path, decided 2026-08-31 after Task A5a
+
+**A5a establishes a property this task as written cannot inherit.** Its Step 2 rationale is that
+the publish sits in `setFootprint` "so both commands announce through one line and a third design
+command added to that file cannot forget" — and A6's three commands are in THREE files with no
+shared write helper named anywhere. Copying the publish three times gives three publish points and
+the property is gone; the Interfaces block above says "copying `setFootprint`'s single publish
+point", which is not a thing a caller in another file can do.
+
+So the first move of this task is an EXTRACTION, not a third command:
+
+- Move `setFootprint`'s body out of `SetAssetFootprint.ts` into
+  `src/application/commands/asset/updateAssetShape.ts` as `updateAssetShape(sidecar, events,
+  input, change)`, unchanged. It is already generic — the only per-command part is the `change`
+  callback — so this is a move plus a rename, and both A5 commands keep working through it.
+- All FIVE commands go through it: the two footprint ones and this task's three. One read, one
+  `validateAssetShape`, one `expected ?? version`, one no-write comparison, one publish.
+- **The comparison is the one part that cannot be shared as-is.** `sameFootprint` asks about the
+  three fields the footprint commands own; each of these three owns different ones. Hand the
+  comparison in beside the change — `unchanged: (current, next) => boolean` — so the "would this
+  write change anything" question stays at the one place that decides whether to publish, and the
+  per-command knowledge of WHICH fields stays with the command.
+
+**Why an extraction rather than a base class or three copies:** the property being preserved is
+that a sixth design command cannot forget to announce, and that is only true if there is one
+function it must call to write at all. Three copies satisfy every test in this task and lose it
+silently.
+
+Add the case A5a's own suite has for the footprint pair, once per command here:
+
+```typescript
+it('announces nothing when the write was a no-write', async () => {
+	await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
+	const heard = designChangesHeardOn(bus);
+	await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
+	expect(heard).toEqual([]);
+});
+```
+
 - [ ] **Step 2: Run, watch fail, implement the three commands**
 
-Each reads, validates through `validateAssetShape`, compares against the stored value (`coincident` for the anchor, not `===`), writes only on a real change, and returns `'no-write'` otherwise.
+Each reads, validates through `validateAssetShape`, compares against the stored value (`coincident` for the anchor, not `===`), writes only on a real change, and returns `'no-write'` otherwise — all of it through `updateAssetShape`, per Amendment 1 above.
 
 **Each sets its OWN pending flag at capture**, and only its own: `SetAssetClearance` sets
 `clearancePending` from whether the surface is calibrated at that moment, `SetAssetAnchor` sets
@@ -1253,7 +1300,9 @@ Add the asset geometry sidecar to `guardCategory.test.ts`'s detonated collaborat
 it('a shape written through the root reaches a subscriber on the root event bus', async () => {
 	const root = createCompositionRoot(deps);
 	const heard: string[] = [];
-	root.eventBus.subscribe('AssetDesignChanged', (e) => heard.push(e.assetId));
+	// `e.payload.assetId`, and `heard: AssetId[]` — the flat spelling and a `string[]` both fail
+	// `build`, which type-checks `tests/**`. Found by executing Task A5a; see its report.
+	root.eventBus.subscribe('AssetDesignChanged', (e) => heard.push((e as AssetDesignChanged).payload.assetId));
 	await root.assetDesign.setFootprintFromDimensions.execute({ assetId, width: 100, depth: 60 });
 	expect(heard).toEqual([assetId]);
 });

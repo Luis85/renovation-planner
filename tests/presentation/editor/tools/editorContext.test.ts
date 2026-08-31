@@ -41,6 +41,7 @@
  *   Konva type at all.
  */
 import { describe, expect, it } from 'vitest';
+import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -109,7 +110,7 @@ function stubDeps(): EditorContextDeps {
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
 		commandDispatcher: {
-			run: (_command: UndoableCommand): Promise<Result<void, AppError>> => Promise.resolve(ok(undefined)),
+			run: (_command: UndoableCommand): Promise<Result<DispatchOutcome, AppError>> => Promise.resolve(ok('wrote')),
 		},
 		writeLedger: new SessionWriteLedger(),
 		renderState: new RenderState(),

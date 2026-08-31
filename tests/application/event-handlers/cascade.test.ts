@@ -17,7 +17,7 @@ import { of as moneyOf } from '../../../src/core/money/Money';
 import type { DomainEvent, EventBus } from '../../../src/core/events/EventBus';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { expectOk } from '../../helpers/domain';
-import { failMarkStaleOnce } from '../../helpers/slice10';
+import { dispatchingEventBus, failMarkStaleOnce } from '../../helpers/slice10';
 import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entities';
 
 /**
@@ -27,18 +27,10 @@ import { makeAsset, makePlan, makeProject, makeZone } from '../../helpers/entiti
  */
 
 /** A REAL dispatching bus that records publication order — the instrument the order test asks for. */
-function recordingBus(): EventBus & { readonly published: readonly DomainEvent[] } {
-	const published: DomainEvent[] = [];
-	const inner = createEventBus();
-	return {
-		published,
-		publish: async (event) => {
-			published.push(event);
-			await inner.publish(event);
-		},
-		subscribe: (type, handler) => inner.subscribe(type, handler),
-	} as unknown as EventBus & { readonly published: readonly DomainEvent[] };
-}
+// `dispatchingEventBus` from the shared helper rather than a fourth copy of it: this file
+// carried a character-identical one, down to the trailing cast that erased its own parameter
+// types.
+const recordingBus = dispatchingEventBus;
 
 /**
  * The §32 chain, driven at the application layer: ZoneGeometryChanged →
@@ -113,7 +105,7 @@ describe('the recalculation cascade', () => {
 		registerOnZoneGeometryChanged(w.events, w.deps);
 		const assigned = await w.assign.execute({ zoneId: w.zone.entity.id, assetId: w.asset.entity.id });
 		if (!assigned.ok) throw new Error(String(assigned.error));
-		w.events.published.length = 0;
+		w.events.clear();
 
 		// Edit the polygon to 12 m² through the repository the way slice 8's command does.
 		const moved = w.zone.entity.withGeometry({ points: TWELVE_SQUARE_METERS });
@@ -255,7 +247,7 @@ describe('the recalculation cascade', () => {
 				staleMarkerFailed: (id: string) => notified.push(`marker:${id}`),
 			},
 		});
-		w.events.published.length = 0;
+		w.events.clear();
 
 		await w.events.publish(
 			zoneGeometryChanged({

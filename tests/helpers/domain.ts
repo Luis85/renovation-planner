@@ -20,6 +20,17 @@ export class RecordingEventBus implements EventBus {
 		return Promise.resolve();
 	}
 
+	/**
+	 * Forget everything recorded so far, so an assertion can start from the next publish.
+	 *
+	 * The same door `dispatchingEventBus` exposes, deliberately: callers used to write
+	 * `bus.published.length = 0`, which works here (the array is mutable) and does not on the
+	 * other recorder (its list is handed out `readonly`). One spelling across both.
+	 */
+	clear(): void {
+		this.published.length = 0;
+	}
+
 	subscribe<TType extends string>(
 		type: TType,
 		handler: (event: DomainEvent<TType>) => void | Promise<void>,

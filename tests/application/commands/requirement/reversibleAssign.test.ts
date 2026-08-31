@@ -245,7 +245,7 @@ describe('UpdateAssetCommand unit-kind guard', () => {
 
 	it('publishes AssetUpdated on every successful save, name edits included', async () => {
 		const w = await wired();
-		w.events.published.length = 0;
+		w.events.clear();
 		await new UpdateAssetCommand(w.assets, w.requirements, w.events, w.locks).execute({
 				assetId: w.assetId,
 				changes: { name: 'Just renamed' },

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
 import { ok, type Result } from '../../../../src/core/result/Result';
 import type { AppError } from '../../../../src/core/errors/AppError';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
@@ -132,7 +133,7 @@ function buildContext(history: CommandHistory): {
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
 		commandDispatcher: {
-			run: (command: UndoableCommand): Promise<Result<void, AppError>> => history.run(command),
+			run: (command: UndoableCommand): Promise<Result<DispatchOutcome, AppError>> => history.run(command),
 		},
 		writeLedger,
 		renderState,
@@ -159,12 +160,12 @@ function seededZone() {
 let cmdSeq = 0;
 /** A fake `UndoableCommand` whose `execute()` behaviour the test controls, and whose
  * `id` lets a test read `undoStack` order back the same way `commandHistory.test.ts` does. */
-function fakeCommand(execute: () => Promise<Result<void, AppError>>): UndoableCommand & { id: number } {
+function fakeCommand(execute: () => Promise<Result<DispatchOutcome, AppError>>): UndoableCommand & { id: number } {
 	const id = ++cmdSeq;
 	return {
 		id,
-		execute: vi.fn<() => Promise<Result<void, AppError>>>(execute),
-		undo: vi.fn<() => Promise<Result<void, AppError>>>(() => Promise.resolve(ok(undefined))),
+		execute: vi.fn<() => Promise<Result<DispatchOutcome, AppError>>>(execute),
+		undo: vi.fn<() => Promise<Result<DispatchOutcome, AppError>>>(() => Promise.resolve(ok('wrote'))),
 	};
 }
 
@@ -187,10 +188,10 @@ function fakeCommand(execute: () => Promise<Result<void, AppError>>): UndoableCo
 function fakeGestureTool(
 	context: EditorContext,
 	buildCommand: () => UndoableCommand,
-): EditorTool & { pendingRun: Promise<Result<void, AppError>> | null; moveCount: number } {
+): EditorTool & { pendingRun: Promise<Result<DispatchOutcome, AppError>> | null; moveCount: number } {
 	const tool = {
 		id: 'select' as const,
-		pendingRun: null as Promise<Result<void, AppError>> | null,
+		pendingRun: null as Promise<Result<DispatchOutcome, AppError>> | null,
 		moveCount: 0,
 		activate: (): void => undefined,
 		deactivate: (): void => undefined,
@@ -265,7 +266,7 @@ describe('gesture -> command transaction (design slice 6)', () => {
 		const history = new CommandHistory();
 		const runSpy = vi.spyOn(history, 'run');
 		const { context, renderState } = buildContext(history);
-		const command = fakeCommand(() => Promise.resolve(ok(undefined)));
+		const command = fakeCommand(() => Promise.resolve(ok('wrote')));
 		const tool = fakeGestureTool(context, () => command);
 		const manager = new ToolManager(() => context);
 		manager.register(tool);
@@ -295,7 +296,7 @@ describe('gesture -> command transaction (design slice 6)', () => {
 		const history = new CommandHistory();
 		const { context } = buildContext(history);
 		const manager = new ToolManager(() => context);
-		let nextCommand: UndoableCommand = fakeCommand(() => Promise.resolve(ok(undefined)));
+		let nextCommand: UndoableCommand = fakeCommand(() => Promise.resolve(ok('wrote')));
 		const tool = fakeGestureTool(context, () => nextCommand);
 		manager.register(tool);
 		manager.setActiveTool('select');
@@ -306,7 +307,7 @@ describe('gesture -> command transaction (design slice 6)', () => {
 		await history.undo();
 		expect(history.canRedo).toBe(true);
 
-		nextCommand = fakeCommand(() => Promise.resolve(ok(undefined)));
+		nextCommand = fakeCommand(() => Promise.resolve(ok('wrote')));
 		manager.pointerDown(pointerEvent());
 		manager.pointerUp(pointerEvent());
 		await tool.pendingRun;
@@ -330,11 +331,11 @@ describe('gesture -> command transaction (design slice 6)', () => {
 		// "fast" one) — so completion order would disagree with dispatch order here if
 		// CommandHistory did not serialize run() calls against one another.
 		let resolveFirst!: (result: Result<void, AppError>) => void;
-		const firstCascade = new Promise<Result<void, AppError>>((resolve) => {
+		const firstCascade = new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
 			resolveFirst = resolve;
 		});
 		const command1 = fakeCommand(() => firstCascade);
-		const command2 = fakeCommand(() => Promise.resolve(ok(undefined)));
+		const command2 = fakeCommand(() => Promise.resolve(ok('wrote')));
 		let nextCommand: UndoableCommand = command1;
 		const tool = fakeGestureTool(context, () => nextCommand);
 		manager.register(tool);

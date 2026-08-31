@@ -156,7 +156,7 @@ describe('the harness Inspector query', () => {
 			requirementsQuery: {
 				execute: ({ zoneId }) => harnessDeps().queries.getRequirementsForZone(String(zoneId)),
 			},
-			dispatcher: { run: () => Promise.resolve(ok(undefined)) },
+			dispatcher: { run: () => Promise.resolve(ok('wrote')) },
 			toCommand: () => ({}) as never,
 		});
 		const inspector = useInspector();

@@ -163,11 +163,17 @@ const FORBIDDEN_IN_FILENAME = /[/\\:*?"<>|#^[\]]/;
 const EDGE_DOT_OR_SPACE = /^[\s.]|[\s.]$/;
 
 /**
- * Windows' reserved DEVICE names, which are reserved **with an extension too** — `CON.rpgeo`
- * names the console, not a file — so an extension is no escape and the test is on the stem.
- * Case-insensitive, because the reservation is.
+ * Windows' reserved DEVICE names, which are reserved **with an extension too** — `CON.rpgeo` and
+ * `CON.shape` both name the console rather than a file. Case-insensitive, because the reservation
+ * is.
+ *
+ * Applied to the stem BEFORE THE FIRST DOT, which is the correction this rule needed: anchored on
+ * the whole id it caught `CON` and let `CON.shape` through, and the sidecar path appends `.rpgeo`
+ * to whatever it is given. Anchored on the stem rather than matched as a substring, so `console`,
+ * `console.log` and `my.CON` stay legal — measured, since over-refusing here rejects ids nobody
+ * should have to rename.
  */
-const RESERVED_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+const RESERVED_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
 
 /**
  * CAN THIS STRING BE A FILENAME — asked of an ENTITY ID, which is interpolated into a path

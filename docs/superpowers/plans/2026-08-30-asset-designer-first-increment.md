@@ -1508,6 +1508,17 @@ git commit -m "Read an asset's design, and say when its dimensions are unscaled"
 
 - [ ] **Step 1: Construct the sidecar and the commands at the root**
 
+**What this step actually owes, corrected after executing it:** wrap the store in
+`ObsidianAssetGeometrySidecar`. That adapter had **no `src/` importer at all** before Task A9, and
+only this task's Interfaces line ("the adapter from A4") pointed at it — the step's own title and
+body did not. Everything else the step described is done elsewhere: the store is constructed by
+Task A7a, the commands are constructed in `guardedServices.ts` rather than the root, and
+`assetSidecarPathFor` is called inside the store.
+
+**One store, not two.** `composeRepositories` returns the instance A7a built. `KeyedQueues` is per
+instance, so a second store would split the per-asset lock that an asset's delete and a design
+write share — which is the lock the whole read-modify-write of a design gesture rests on.
+
 The store takes the `libraryFolder` setting **in its constructor**, resolved the same way slice
 19's asset repository resolves it, and derives each path through `assetSidecarPathFor`.
 
@@ -1527,9 +1538,35 @@ behind.
 
 - [ ] **Step 2: Guard every door**
 
-Wrap each command with `guardCommand` and the query with `guardQuery` in `guardedServices.ts`, one event name each (`command.setAssetFootprint.failed`, …). Any command that later gains a reversible adapter dispatching through `executeWithVersion` takes `guardBothDoors` instead — a guard on the door nobody dispatches through is a guard nobody has.
+Wrap each command with `guardCommand` and the query with `guardQuery` in `guardedServices.ts`, one
+event name each — `command.setAssetFootprint.failed`, `command.setAssetFootprintFromDimensions
+.failed`, `command.setAssetClearance.failed`, `command.setAssetAnchor.failed`,
+`command.setAssetFacing.failed`, `command.setAssetHeight.failed`, and the READ's, which an earlier
+draft of this list left unstated: `query.getAssetDesign.failed`.
+
+**On `guardBothDoors`, and read this before following it.** The rule is right — a guard on the door
+nobody dispatches through is a guard nobody has — and the instruction is not executable as written.
+`guardBothDoors` is **module-private** in `guardedServices.ts` and its signature hard-codes
+`Promise<Result<Requirement, E>>` as `execute`'s return, while every design command resolves
+`DispatchResult`. A Phase B author who reaches for it on the day a reversible adapter appears meets
+a compile error, not a widening: **generalise that function first**, then use it.
 
 - [ ] **Step 3: Extend the behavioural guard category test**
+
+**Two things measured while executing this, and the second narrows what the step claims.** The
+detonation list can only hold what `persistence` hands out, so exposing the sidecar port on
+`PersistenceServices` is part of this step and was never stated — a port nothing hands out is a
+port no test can detonate.
+
+And detonating it reddens **nothing** today. Every one of the seven doors reads `input.assetId`, or
+`assets.getById` — already on the list — before it touches the sidecar, so the hostile proxy throws
+at the first property read either way. It is kept for the FAIL-CLOSED property the file's header
+rests on: a future command that reads the sidecar first would otherwise be driven against a live
+store over a fake vault and could answer a success. What actually proves the new doors are guarded
+is `persistence.assets`, not the entry this step adds.
+
+The walk DOES reach all seven — measured by asserting the discovered paths against a sentinel, and
+composing one door raw reddens both the wiring case and the category test.
 
 Add the asset geometry sidecar to `guardCategory.test.ts`'s detonated collaborators, so a hostile input through every door the walk finds still comes back as the mapped `vault.unexpected-failure`.
 

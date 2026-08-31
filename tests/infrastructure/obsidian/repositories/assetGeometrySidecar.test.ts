@@ -327,6 +327,12 @@ describe('ObsidianAssetGeometrySidecar', () => {
 			'CON',
 			'nul',
 			'COM1',
+			// Reserved BEFORE the first dot, not only as the whole id: Windows treats
+			// `CON.shape` as the console too, so an extension is no escape. The first version
+			// of this rule anchored on the whole string and let all three of these through.
+			'CON.shape',
+			'con.rpgeo',
+			'COM1.x',
 		];
 		for (const raw of cases) {
 			const id = raw as unknown as Parameters<typeof sidecar.read>[0];
@@ -355,6 +361,22 @@ describe('ObsidianAssetGeometrySidecar', () => {
 		expect(expectErr(await sidecar.write(id, { calibration: null, shape: rectangle() })).code)
 			.toBe('asset-geometry.unusable-id');
 		expect(expectErr(await stack.assetGeometry.delete(id)).code).toBe('asset-geometry.unusable-id');
+	});
+
+	/**
+	 * The control that keeps the reserved rule from over-refusing: `console` and `my.CON` are
+	 * ordinary strings that merely CONTAIN a device name, and an id is refused only when the
+	 * device name is its whole stem. Measured, because widening the match to a substring would
+	 * pass every case above while rejecting legitimate ids.
+	 */
+	it('accepts an id that merely contains a device name', async () => {
+		const { sidecar } = seeded();
+		for (const raw of ['console', 'console.log', 'my.CON', 'a.b']) {
+			const id = raw as unknown as Parameters<typeof sidecar.read>[0];
+			// A shapeless read, which is what an asset nobody has designed answers — the point
+			// being that it RESOLVED a path rather than refusing one.
+			expect(expectOk(await sidecar.read(id)).document.shape).toBeNull();
+		}
 	});
 
 	it('still resolves an ordinary id, so the rule refuses unusable ids and not ids', async () => {

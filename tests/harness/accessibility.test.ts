@@ -105,11 +105,29 @@ import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
 import { installObsidianDom } from '../helpers/dom';
-import { makeView } from '../helpers/makeRenovationProjectView';
+import { defaultRenovationProjectDeps, makeView } from '../helpers/makeRenovationProjectView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
 import { err, ok } from '../../src/core/result/Result';
+import type { Result } from '../../src/core/result/Result';
+import type { RepositoryError } from '../../src/application/ports/repositoryErrors';
+import type { RenovationProjectQueryServices } from '../../src/presentation/read-models/renovationProjectQueries';
 import { useDialogStore, type DialogDescriptor } from '../../src/presentation/dialogs/dialog-store';
 import NewProjectForm from '../../src/presentation/views/NewProjectForm.vue';
+
+/**
+ * A read side where every door refuses with the same code — which is what production does for
+ * a session that has one (`unavailableRenovationProjectQueries` builds all three members out
+ * of one `refuseUnrecovered`). The two cases below grade the FAILURE state, so refusing is
+ * the honest stand-in rather than the fake-harsher-than-the-real-thing CLAUDE.md's fifth
+ * instance names: there is no production answer being hidden. Design slice 21's two detail
+ * doors refuse beside `listProjects` rather than answering, because a bundle that half-refused
+ * would model no session this plugin can be in.
+ */
+const refusingWith = (code: string): RenovationProjectQueryServices => {
+	const refuse = (): Promise<Result<never, RepositoryError>> =>
+		Promise.resolve(err({ category: 'Persistence', code, message: 'refused' }));
+	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse };
+};
 
 /**
  * See LAYOUT in the header for the three separate, verified reasons these cannot work
@@ -234,15 +252,9 @@ describe('axe against the mounted view', () => {
 	it('reports no semantic violations on the failure message the view draws for a refused read', async () => {
 		installObsidianDom();
 		const view = makeView({
-			queries: {
-				listProjects: () =>
-					Promise.resolve(
-						err({ category: 'Persistence', code: 'settings.unrecovered', message: 'no' }),
-					),
-			},
+			...defaultRenovationProjectDeps(),
+			queries: refusingWith('settings.unrecovered'),
 			commands: unavailableRenovationProjectCommands(),
-			openProject: () => Promise.resolve('opened' as const),
-			onProjectsChanged: () => () => undefined,
 		});
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();
@@ -273,15 +285,9 @@ describe('axe against the mounted view', () => {
 	it('reports no semantic violations on a failure state carrying a retry', async () => {
 		installObsidianDom();
 		const view = makeView({
-			queries: {
-				listProjects: () =>
-					Promise.resolve(
-						err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' }),
-					),
-			},
+			...defaultRenovationProjectDeps(),
+			queries: refusingWith('vault.unexpected-failure'),
 			commands: unavailableRenovationProjectCommands(),
-			openProject: () => Promise.resolve('opened' as const),
-			onProjectsChanged: () => () => undefined,
 		});
 		document.body.appendChild(view.containerEl);
 		await view.onOpen();

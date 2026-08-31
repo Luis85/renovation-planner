@@ -24,7 +24,7 @@ import type { PlanRepository } from '../../../src/application/ports/PlanReposito
 import type { ProjectId } from '../../../src/domain/project/ProjectId';
 import type { Loaded } from '../../../src/application/ports/versioning';
 import type { Plan } from '../../../src/domain/plan/Plan';
-import { expectOk } from '../../helpers/domain';
+import { expectOk, observationToken } from '../../helpers/domain';
 import { makePlan } from '../../helpers/entities';
 
 const PROJECT = 'project-01JAAA' as ProjectId;
@@ -98,7 +98,13 @@ describe('ListPlansByProject', () => {
 	 * loop this fixture cannot produce.
 	 */
 	it('passes the port’s array through unchanged, adding no reconciliation of its own', async () => {
-		const survivor: Loaded<Plan> = { entity: makePlan({ projectId: PROJECT, name: 'First floor' }), version: 1 };
+		const survivor: Loaded<Plan> = {
+			entity: makePlan({ projectId: PROJECT, name: 'First floor' }),
+			// `EntityVersion`, not a bare number: the pair the ports actually carry. Nothing here
+			// reads either half — this case is about the array travelling through unchanged — so
+			// the token is the helper's own minting rather than a digest of anything.
+			version: { revision: 1, observed: observationToken('t1') },
+		};
 
 		const result = await new ListPlansByProject(
 			repositoryAnswering(() => Promise.resolve(ok([survivor]))),

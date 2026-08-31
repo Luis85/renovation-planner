@@ -18,9 +18,16 @@ import { createProjectPlansChangeSource } from '../../../src/application/events/
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { planCreated } from '../../../src/domain/plan/Plan.events';
 import { projectIndexEntryChanged } from '../../../src/application/events/projectIndex.events';
+import { createPlanId } from '../../../src/domain/plan/PlanId';
+import { createProjectId } from '../../../src/domain/project/ProjectId';
+import { createZoneId } from '../../../src/domain/zone/ZoneId';
 
-const OURS = 'project-01JAAA';
-const THEIRS = 'project-01JBBB';
+// Minted rather than spelled as branded string literals — the idiom
+// `projectListChangeSource.test.ts` next door already uses for the same payloads. Nothing
+// here reads an id's TEXT; every case only asks whether two ids are the same one.
+const OURS = createProjectId();
+const THEIRS = createProjectId();
+const A_PLAN = createPlanId();
 
 describe('createProjectPlansChangeSource', () => {
 	it('delivers a PlanCreated for its own project', async () => {
@@ -28,7 +35,7 @@ describe('createProjectPlansChangeSource', () => {
 		const listener = vi.fn<() => void>();
 		createProjectPlansChangeSource(events)(OURS, listener);
 
-		await events.publish(planCreated({ planId: 'plan-01JXXX', projectId: OURS }));
+		await events.publish(planCreated({ planId: A_PLAN, projectId: OURS }));
 
 		expect(listener).toHaveBeenCalledTimes(1);
 	});
@@ -42,7 +49,7 @@ describe('createProjectPlansChangeSource', () => {
 		const listener = vi.fn<() => void>();
 		createProjectPlansChangeSource(events)(OURS, listener);
 
-		await events.publish(planCreated({ planId: 'plan-01JXXX', projectId: THEIRS }));
+		await events.publish(planCreated({ planId: A_PLAN, projectId: THEIRS }));
 
 		expect(listener).not.toHaveBeenCalled();
 	});
@@ -57,7 +64,7 @@ describe('createProjectPlansChangeSource', () => {
 		const listener = vi.fn<() => void>();
 		createProjectPlansChangeSource(events)(OURS, listener);
 
-		await events.publish(projectIndexEntryChanged({ entityId: 'plan-01JZZZ', entityType: 'renovation-plan' }));
+		await events.publish(projectIndexEntryChanged({ entityId: createPlanId(), entityType: 'renovation-plan' }));
 
 		expect(listener).toHaveBeenCalledTimes(1);
 	});
@@ -67,7 +74,7 @@ describe('createProjectPlansChangeSource', () => {
 		const listener = vi.fn<() => void>();
 		createProjectPlansChangeSource(events)(OURS, listener);
 
-		await events.publish(projectIndexEntryChanged({ entityId: 'zone-01JZZZ', entityType: 'renovation-zone' }));
+		await events.publish(projectIndexEntryChanged({ entityId: createZoneId(), entityType: 'renovation-zone' }));
 
 		expect(listener).not.toHaveBeenCalled();
 	});
@@ -134,8 +141,8 @@ describe('createProjectPlansChangeSource', () => {
 		const dispose = createProjectPlansChangeSource(events)(OURS, listener);
 
 		dispose();
-		await events.publish(planCreated({ planId: 'plan-01JXXX', projectId: OURS }));
-		await events.publish(projectIndexEntryChanged({ entityId: 'plan-01JZZZ', entityType: 'renovation-plan' }));
+		await events.publish(planCreated({ planId: A_PLAN, projectId: OURS }));
+		await events.publish(projectIndexEntryChanged({ entityId: createPlanId(), entityType: 'renovation-plan' }));
 
 		expect(listener).not.toHaveBeenCalled();
 	});

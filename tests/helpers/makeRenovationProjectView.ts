@@ -55,18 +55,42 @@ import { recorder } from './logger';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 
 /**
- * The default `deps` answers an empty project list with nothing refused, backed by a REAL
+ * The default `deps`: an empty project list with nothing refused, backed by a REAL
  * `InMemoryProjectRepository` rather than a fixed literal — one built fresh per call, so two
  * views built through this factory in the same test never share state.
  *
- * `commands.createProject` ANSWERS now too, for the same repository, rather than the
+ * **EXPORTED, which is what makes this file's opening promise — "a grown constructor
+ * requirement meets every consumer at the same time" — true of the consumers that pass their
+ * OWN `deps`, and not only of the ones that take the default.** Those were exactly the
+ * consumers stranded when design slice 21's Task 5 grew `RenovationProjectDeps` by five
+ * members. SEVEN files hand-built a four-member literal, counted rather than remembered, and
+ * they split two ways — which is the part worth keeping. FOUR annotated theirs (or handed it
+ * to `makeView`, which is annotated) and so failed the moment `main`'s `typecheck:tests` gate
+ * met this branch: `accessibility.test.ts`, `renovationProjectEmptyState.test.ts`,
+ * `viewRootFailure.test.ts`, `viewRoot.test.ts`. All four spread this now.
+ * THREE put theirs into `mount(ViewRoot, { global: { provide } })`, whose value type is
+ * `unknown` — `viewRootIndexRebuild`, `viewRootCreateProject` and `viewRootOpenProject` — so
+ * no compiler sees their shape at all and the gate stayed green over them. They are correct
+ * today only because `ViewRoot` reads four members; the task that makes it read `projectId`
+ * hands those three an `undefined` with nothing to say so. Left as they are on purpose — each
+ * needs a controlled or observable `listProjects` spy that a full annotation would fight — and
+ * written down here rather than left to be rediscovered.
+ *
+ * A caller spreads this and overrides
+ * the one or two members its own cases actually vary — `{ ...defaultRenovationProjectDeps(),
+ * queries }` — so a member it has no opinion about gets the honest default decided ONCE here,
+ * beside the reasoning, rather than five times by guess. A caller that needs a controlled,
+ * deferred or observable member still writes that member itself, and the override is what
+ * says so.
+ *
+ * `commands.createProject` ANSWERS, for the same repository, rather than the
  * refusal bundle it used to default to. Design slice 16 gave the empty state's button a real
  * hand-off (`ViewRoot` opens `NewProjectForm` and dispatches through it), which is the exact
  * forward risk CLAUDE.md's fifth fake-instance lesson names: a stand-in that REFUSES what
  * production would answer turns a tool built for looking into one that shows a false
- * picture. `tests/harness/mount.ts` calls this with no `deps` at all, so the browser harness
- * page (`npm run harness`) is the direct beneficiary — a session there can now actually
- * create a project and see the read model that create landed in.
+ * picture. `tests/harness/mount.ts` calls `makeView` with no `deps` at all, so the browser
+ * harness page (`npm run harness`) is the direct beneficiary — a session there can now
+ * actually create a project and see the read model that create landed in.
  * `tests/presentation/views/viewRootCreateProject.test.ts` covers the identical round trip
  * against `ViewRoot` mounted directly, with its own hand-built `deps` rather than this
  * factory's, because that file needs to observe the shared `busy` ref and a controlled,
@@ -84,15 +108,15 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
  * one paragraph up: this default ANSWERS, so its failures are real ones worth recording.
  *
  * `openProject` stays a no-op answering `'opened'`: opening a project's own note is an
- * Obsidian-vault operation this harness has none of, and every caller of this factory that
- * cares about it (`renovationProjectEmptyState.test.ts`, `accessibility.test.ts`'s failed-read
- * case) passes its own `deps` explicitly instead of taking the default. `'opened'` and not
- * `'missing'`, because `'missing'` asks `ViewRoot` to re-read the list — a default that
- * re-hydrated on every row click would be a fake driving behaviour nothing asked for.
+ * Obsidian-vault operation this harness has none of, and a caller that cares about it
+ * overrides it rather than reading the default. No caller LIST here, deliberately — a
+ * docblock naming its own callers is a fact about the routing, and routing is what the next
+ * review round changes; `grep -rn 'openProject' tests/presentation/views/` is the instrument,
+ * and it answers for the day it is run. `'opened'` and not `'missing'`, because `'missing'`
+ * asks `ViewRoot` to re-read the list — a default that re-hydrated on every row click would be
+ * a fake driving behaviour nothing asked for.
  */
-export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView => {
-	if (deps !== undefined) return new RenovationProjectView(new FakeLeaf() as never, deps);
-
+export const defaultRenovationProjectDeps = (): RenovationProjectDeps => {
 	const projects = new InMemoryProjectRepository();
 	// Beside `projects` rather than inline in `ListPlansByProject`'s constructor: `commands`
 	// grows a `createPlan` member of its own once Task 8 lands, and it needs the SAME
@@ -128,5 +152,12 @@ export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 		// restored-leaf holding pattern, which is a fake driving behaviour nothing asked for.
 		indexScanCompleted: () => true,
 	};
-	return new RenovationProjectView(new FakeLeaf() as never, defaults);
+	return defaults;
 };
+
+/**
+ * Builds the view against `deps`, or — handed none — against
+ * `defaultRenovationProjectDeps()` above, whose every choice is documented there.
+ */
+export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
+	new RenovationProjectView(new FakeLeaf() as never, deps ?? defaultRenovationProjectDeps());

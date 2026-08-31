@@ -28,6 +28,25 @@ const TYPE = 'renovation-project';
  */
 let navigateToProject: typeof NavigateToProject;
 
+type NavigateArgs = Parameters<typeof NavigateToProject>;
+
+/**
+ * The fake's shape is the real one's; the cast is the module boundary the mock stands in for.
+ * ONE cast, in one place, named for what it is — the idiom `revealView.test.ts` next door
+ * already uses for the same `FakeWorkspace` against the same `RevealDeps`, rather than an
+ * `as never` at each of this file's fifteen call sites.
+ *
+ * It builds the whole `RevealDeps` rather than just the workspace, for that file's own
+ * reason: `reportFault` is REQUIRED, so a case that left it out would pass until something
+ * faulted and then die with `deps.reportFault is not a function`. Every case here passes its
+ * own spy, because most of them assert on the count.
+ */
+const depsFor = (workspace: FakeWorkspace, reportFault: (cause: unknown) => void): NavigateArgs[0] =>
+	({ workspace, reportFault }) as unknown as NavigateArgs[0];
+
+/** Same boundary, the other parameter: `targetLeaf` is a real `WorkspaceLeaf` in production. */
+const targetOf = (leaf: FakeLeaf): NavigateArgs[3] => leaf as unknown as NavigateArgs[3];
+
 beforeEach(async () => {
 	vi.resetModules();
 	({ navigateToProject } = await import(
@@ -83,7 +102,7 @@ describe('navigateToProject', () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.withOpen(TYPE);
 
-		await navigateToProject({ workspace, reportFault: vi.fn<(cause: unknown) => void>() }, TYPE, 'project-1');
+		await navigateToProject(depsFor(workspace, vi.fn<(cause: unknown) => void>()), TYPE, 'project-1');
 
 		expect(leaf.getViewState().state).toEqual({ projectId: 'project-1' });
 	});
@@ -97,7 +116,7 @@ describe('navigateToProject', () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.withOpen(TYPE);
 
-		await navigateToProject({ workspace, reportFault: vi.fn<(cause: unknown) => void>() }, TYPE, null);
+		await navigateToProject(depsFor(workspace, vi.fn<(cause: unknown) => void>()), TYPE, null);
 
 		expect(leaf.getViewState().state).toEqual({ projectId: '' });
 	});
@@ -108,7 +127,7 @@ describe('navigateToProject', () => {
 	 */
 	it('leaves exactly one leaf for two invocations in one tick naming different projects', async () => {
 		const workspace = new FakeWorkspace();
-		const deps = { workspace, reportFault: vi.fn<(cause: unknown) => void>() };
+		const deps = depsFor(workspace, vi.fn<(cause: unknown) => void>());
 
 		await Promise.all([
 			navigateToProject(deps, TYPE, 'project-1'),
@@ -134,7 +153,7 @@ describe('navigateToProject', () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.withOpen(TYPE);
 		const written = recordSetViewState(leaf);
-		const deps = { workspace, reportFault: vi.fn<(cause: unknown) => void>() };
+		const deps = depsFor(workspace, vi.fn<(cause: unknown) => void>());
 
 		await Promise.all([
 			navigateToProject(deps, TYPE, 'project-1'),
@@ -154,7 +173,7 @@ describe('navigateToProject', () => {
 	it('ends on the later project when a second navigation arrives mid-write', async () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.withOpen(TYPE);
-		const deps = { workspace, reportFault: vi.fn<(cause: unknown) => void>() };
+		const deps = depsFor(workspace, vi.fn<(cause: unknown) => void>());
 		const writes = slowSetViewState(leaf); // first write resolves only when released
 
 		const first = navigateToProject(deps, TYPE, 'project-1');
@@ -175,7 +194,7 @@ describe('navigateToProject', () => {
 		const leaf = workspace.withOpen(TYPE);
 		workspace.revealLeaf = () => Promise.reject(new Error('boom'));
 
-		await navigateToProject({ workspace, reportFault: vi.fn<(cause: unknown) => void>() }, TYPE, 'project-1');
+		await navigateToProject(depsFor(workspace, vi.fn<(cause: unknown) => void>()), TYPE, 'project-1');
 
 		expect(leaf.getViewState().state).toBeUndefined();
 	});
@@ -200,7 +219,7 @@ describe('navigateToProject', () => {
 			return calls === 1 ? original(type) : [];
 		};
 
-		await navigateToProject({ workspace, reportFault }, TYPE, 'project-1');
+		await navigateToProject(depsFor(workspace, reportFault), TYPE, 'project-1');
 
 		expect(reportFault).not.toHaveBeenCalled();
 		expect(leaf.getViewState().state).toBeUndefined();
@@ -218,7 +237,7 @@ describe('navigateToProject', () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.withOpen(TYPE);
 		const reportFault = vi.fn<(cause: unknown) => void>();
-		const deps = { workspace, reportFault };
+		const deps = depsFor(workspace, reportFault);
 		const healthy = workspace.getLeavesOfType.bind(workspace);
 		workspace.getLeavesOfType = () => {
 			throw new Error('boom');
@@ -252,7 +271,7 @@ describe('navigateToProject', () => {
 		const workspace = new FakeWorkspace();
 		const leaf = workspace.withOpen(TYPE);
 		const reportFault = vi.fn<(cause: unknown) => void>();
-		const deps = { workspace, reportFault };
+		const deps = depsFor(workspace, reportFault);
 		const healthy = workspace.getLeavesOfType.bind(workspace);
 		let calls = 0;
 		workspace.getLeavesOfType = (type: string) => {
@@ -287,9 +306,9 @@ describe('navigateToProject', () => {
 		const workspace = new FakeWorkspace();
 		const first = workspace.withOpen(TYPE, { projectId: 'project-1' });
 		const second = workspace.withOpen(TYPE, { projectId: 'project-2' });
-		const deps = { workspace, reportFault: vi.fn<(cause: unknown) => void>() };
+		const deps = depsFor(workspace, vi.fn<(cause: unknown) => void>());
 
-		await navigateToProject(deps, TYPE, 'project-3', second);
+		await navigateToProject(deps, TYPE, 'project-3', targetOf(second));
 
 		expect(second.getViewState().state).toEqual({ projectId: 'project-3' });
 		expect(first.getViewState().state).toEqual({ projectId: 'project-1' });
@@ -311,11 +330,11 @@ describe('navigateToProject', () => {
 		const workspace = new FakeWorkspace();
 		const first = workspace.withOpen(TYPE, { projectId: 'project-1' });
 		const second = workspace.withOpen(TYPE, { projectId: 'project-2' });
-		const deps = { workspace, reportFault: vi.fn<(cause: unknown) => void>() };
+		const deps = depsFor(workspace, vi.fn<(cause: unknown) => void>());
 
 		await Promise.all([
-			navigateToProject(deps, TYPE, 'project-a', first),
-			navigateToProject(deps, TYPE, 'project-b', second),
+			navigateToProject(deps, TYPE, 'project-a', targetOf(first)),
+			navigateToProject(deps, TYPE, 'project-b', targetOf(second)),
 		]);
 
 		expect(first.getViewState().state).toEqual({ projectId: 'project-a' });
@@ -330,7 +349,7 @@ describe('navigateToProject', () => {
 		const reportFault = vi.fn<(cause: unknown) => void>();
 
 		await expect(
-			navigateToProject({ workspace, reportFault }, TYPE, 'project-1'),
+			navigateToProject(depsFor(workspace, reportFault), TYPE, 'project-1'),
 		).resolves.toBeUndefined();
 		expect(reportFault).toHaveBeenCalledTimes(1);
 	});

@@ -14,31 +14,38 @@
  */
 import { describe, expect, it } from 'vitest';
 import { err, ok } from '../../../src/core/result/Result';
+import type { Result } from '../../../src/core/result/Result';
+import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
 import { t } from '../../../src/presentation/i18n/strings';
 import { installObsidianDom } from '../../helpers/dom';
-import { makeView } from '../../helpers/makeRenovationProjectView';
+import { defaultRenovationProjectDeps, makeView } from '../../helpers/makeRenovationProjectView';
 import { unavailableRenovationProjectCommands } from '../../../src/presentation/views/renovationProjectCommands';
 import type { RenovationProjectQueryServices } from '../../../src/presentation/read-models/renovationProjectQueries';
 
 const commands = unavailableRenovationProjectCommands();
-const openProject = (): Promise<'opened'> => Promise.resolve('opened');
-const onProjectsChanged = (): (() => void) => () => undefined;
+
+/**
+ * Every door of the bundle refuses with the same error, which is what production does for a
+ * session whose reads are unavailable: `unavailableRenovationProjectQueries` builds all three
+ * members out of one `refuseUnrecovered`. This file's whole subject is the refusal, so
+ * refusing is the honest stand-in here rather than the fake-harsher-than-the-real-thing
+ * CLAUDE.md's fifth instance names — there is no production answer being hidden. A bundle
+ * whose `listProjects` refused while design slice 21's two detail doors answered would be the
+ * opposite defect: kinder than the real thing.
+ */
+const refusingWith = (code: string, message: string): RenovationProjectQueryServices => {
+	const refuse = (): Promise<Result<never, RepositoryError>> =>
+		Promise.resolve(err({ category: 'Persistence', code, message }));
+	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse };
+};
 
 /** A session that never composed a query service: slice 1's unrecovered-settings bundle. */
-const bootstrapFailure = (): RenovationProjectQueryServices => ({
-	listProjects: () =>
-		Promise.resolve(
-			err({ category: 'Persistence', code: 'settings.unrecovered', message: 'no settings' }),
-		),
-});
+const bootstrapFailure = (): RenovationProjectQueryServices =>
+	refusingWith('settings.unrecovered', 'no settings');
 
 /** A read that was really attempted and really failed — the retryable case. */
-const vaultFailure = (): RenovationProjectQueryServices => ({
-	listProjects: () =>
-		Promise.resolve(
-			err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'io' }),
-		),
-});
+const vaultFailure = (): RenovationProjectQueryServices =>
+	refusingWith('vault.unexpected-failure', 'io');
 
 async function settle(): Promise<void> {
 	for (let index = 0; index < 4; index += 1) await Promise.resolve();
@@ -49,7 +56,7 @@ async function settle(): Promise<void> {
 
 async function open(queries: RenovationProjectQueryServices) {
 	installObsidianDom();
-	const view = makeView({ queries, commands, openProject, onProjectsChanged });
+	const view = makeView({ ...defaultRenovationProjectDeps(), queries, commands });
 	await view.onOpen();
 	await settle();
 	return view;
@@ -98,6 +105,7 @@ describe('the Renovation Project view, when its hydrating query refused', () => 
 	it('re-runs the hydrating query when that retry is pressed', async () => {
 		let calls = 0;
 		const counting: RenovationProjectQueryServices = {
+			...vaultFailure(),
 			listProjects: () => {
 				calls += 1;
 				return Promise.resolve(
@@ -120,6 +128,10 @@ describe('the Renovation Project view, when its hydrating query refused', () => 
 	it('leaves the failure behind once a retry succeeds', async () => {
 		let attempt = 0;
 		const recovering: RenovationProjectQueryServices = {
+			// The two detail doors go on refusing across the retry, because nothing here reads
+			// them: this case is about `listProjects` recovering, and a door that quietly changed
+			// its answer beside it would be a second variable in a case with one.
+			...vaultFailure(),
 			listProjects: () => {
 				attempt += 1;
 				return attempt === 1

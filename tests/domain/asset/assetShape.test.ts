@@ -63,6 +63,19 @@ describe('footprintFromDimensions', () => {
 		expect(isErr(result) && result.error.code).toBe('asset.non-positive-dimension');
 	});
 
+	it('refuses a dimension whose HALF underflows, since the rectangle would have no extent', () => {
+		// Number.MIN_VALUE is positive, so it passes the sign guard; halving it gives exactly
+		// zero, and all four vertices collapse onto the origin. createPolygon accepts that —
+		// four finite points — so nothing below this function can catch it.
+		const result = footprintFromDimensions(Number.MIN_VALUE, 800);
+		expect(isErr(result) && result.error.code).toBe('asset.dimension-underflow');
+	});
+
+	it('accepts the smallest dimension that DOES survive halving, so the guard is not too wide', () => {
+		const result = footprintFromDimensions(Number.MIN_VALUE * 2, 800);
+		expect(isOk(result)).toBe(true);
+	});
+
 	it('checks the second dimension too, not only the first', () => {
 		const result = footprintFromDimensions(1200, -5);
 		expect(isErr(result) && result.error.code).toBe('asset.non-positive-dimension');

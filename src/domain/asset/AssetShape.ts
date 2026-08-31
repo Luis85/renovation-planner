@@ -67,6 +67,20 @@ export function footprintFromDimensions(
 	}
 	const halfWidth = width / 2;
 	const halfDepth = depth / 2;
+	// The SIGN guard above is about the input; this one is about the RECTANGLE it produces.
+	// A positive subnormal (`Number.MIN_VALUE`, say) satisfies `> 0` and halves to exactly
+	// zero, so all four vertices collapse onto the origin and `createPolygon` accepts them
+	// happily — four finite points, no rule broken. The command would report a written
+	// footprint with no extent. Asking whether the constructed half survived is the general
+	// question; refusing one magnitude would leave the next one through.
+	if (halfWidth <= 0 || halfDepth <= 0) {
+		return err(
+			assetError(
+				'dimension-underflow',
+				`A dimension is too small to describe a rectangle: ${String(width)} x ${String(depth)}.`,
+			),
+		);
+	}
 	const polygon = createPolygon([
 		{ x: -halfWidth, y: -halfDepth },
 		{ x: halfWidth, y: -halfDepth },

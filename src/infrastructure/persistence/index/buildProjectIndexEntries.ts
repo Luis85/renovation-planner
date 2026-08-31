@@ -5,7 +5,12 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
 import { ENTITY_TYPES, type EntityType, type ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { Logger } from '../../../application/ports/Logger';
 import { frontmatterOf } from '../../obsidian/repositories/noteIo';
-import { parentOf, sidecarPathFor } from '../../obsidian/repositories/paths';
+import {
+	EDGE_DOT_OR_SPACE,
+	FORBIDDEN_IN_FILENAME,
+	parentOf,
+	sidecarPathFor,
+} from '../../obsidian/repositories/paths';
 import type { EchoWindow } from './EchoWindow';
 
 function listSidecars(vault: Vault): TFile[] {
@@ -36,9 +41,16 @@ export function stringField(value: unknown): string | undefined {
  * not the format, and a format rule would refuse an id from a prefix nobody has minted yet. `.`
  * and `..` are refused for the same reason a separator is — each names a directory rather than
  * a file, so a sidecar derived from one is not where its id says.
+ *
+ * **TWO hazards, and the first version of this closed only one.** A separator makes the path
+ * NEST; a character like `:` makes the filename INVALID — on Windows only, so it fails for users
+ * and works for whoever wrote it. `FORBIDDEN_IN_FILENAME` is `fileNameFor`'s own vocabulary,
+ * shared rather than restated: that function STRIPS these from a chosen name, and this one
+ * REFUSES them, because an id IS the identity and there is nothing to clean it into.
  */
 function isPathSegment(id: string): boolean {
-	return !id.includes('/') && !id.includes('\\') && id !== '.' && id !== '..';
+	if (FORBIDDEN_IN_FILENAME.test(id) || EDGE_DOT_OR_SPACE.test(id)) return false;
+	return id !== '.' && id !== '..';
 }
 
 /**

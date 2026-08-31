@@ -56,6 +56,36 @@ describe('entityRefOf', () => {
 		}
 	});
 
+	/**
+	 * EVERY character a filename may not hold, not just the two that make a path NEST.
+	 *
+	 * The first version of this rule refused `/`, `\\`, `.` and `..` — the SEPARATOR hazard, an id
+	 * escaping its folder. `fileNameFor` (paths.ts) had already written down the other half:
+	 * Obsidian forbids `\\ / : * ? " < > | # ^ [ ]` and dislikes edge dots and spaces. Measured, the
+	 * first rule admitted NINE of those ten characters.
+	 *
+	 * The one that matters is platform-split: `Geometry/asset:custom.rpgeo` is a legal path on
+	 * Linux and macOS and an invalid one on Windows, so it fails for users and works for whoever
+	 * wrote it. CI carries a Windows leg because paths are one of the two things that differ
+	 * between platforms, and this is a path.
+	 *
+	 * Driven as a LOOP over the vocabulary rather than as a handful of examples, so a character
+	 * dropped from the shared class fails here rather than silently.
+	 */
+	it('answers bad-id for every character a filename may not hold', () => {
+		for (const ch of ['/', '\\', ':', '*', '?', '"', '<', '>', '|', '#', '^', '[', ']']) {
+			expect(entityRefOf({ type: 'renovation-asset', id: `asset${ch}custom` })).toEqual({
+				kind: 'bad-id',
+			});
+		}
+	});
+
+	it('answers bad-id for an edge dot or space, which Windows and Obsidian both dislike', () => {
+		for (const id of [' asset-01ABC', 'asset-01ABC ', 'asset-01ABC.', '.asset-01ABC']) {
+			expect(entityRefOf({ type: 'renovation-asset', id })).toEqual({ kind: 'bad-id' });
+		}
+	});
+
 	it('still answers ours for an ordinary id, so the rule refuses separators and not ids', () => {
 		expect(entityRefOf({ type: 'renovation-asset', id: 'asset-01ABC' })).toEqual({
 			kind: 'ours',
@@ -93,8 +123,21 @@ function modulesNaming(needle: string): string[] {
 }
 
 describe('entityRefOf callers', () => {
-	it('is named by exactly two modules in src/, and they are the scan and the pipeline', () => {
-		expect(modulesNaming('entityRefOf')).toEqual([
+	/**
+	 * The needle carries the `(`, for the reason the sibling claim below spells out and had
+	 * already measured — a bare name matches a DOCBLOCK, and a docblock is not a caller.
+	 *
+	 * This one was bare until `paths.ts`'s `FORBIDDEN_IN_FILENAME` docblock named `entityRefOf`
+	 * as one of its two consumers, at which point the filter reported three modules and the
+	 * case failed for a cross-reference. The hazard was written down one `describe` below,
+	 * for the other needle, and not applied here — which is this repository's own recurring
+	 * shape: a rule stated in a comment is a rule some neighbour is not following.
+	 *
+	 * Same blind spot as its sibling, said rather than implied: a comment writing the name with
+	 * an empty argument list would read as a call.
+	 */
+	it('is called by exactly two modules in src/, and they are the scan and the pipeline', () => {
+		expect(modulesNaming('entityRefOf(')).toEqual([
 			'src/infrastructure/persistence/index/VaultChangeAdapter.ts',
 			'src/infrastructure/persistence/index/buildProjectIndexEntries.ts',
 		]);

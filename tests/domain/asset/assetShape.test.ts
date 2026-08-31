@@ -148,6 +148,26 @@ describe('shapeFromDimensions', () => {
 		const result = shapeFromDimensions(0, 800);
 		expect(isErr(result) && result.error.code).toBe('asset.non-positive-dimension');
 	});
+
+	/**
+	 * The two domain constructors must not disagree about what is valid.
+	 *
+	 * At `Number.MIN_VALUE * 2` the rectangle has four DISTINCT vertices and a shoelace sum of
+	 * exactly zero — the products underflow, not the coordinates — so this used to answer `ok`
+	 * with a shape `validateAssetShape` refuses as degenerate. Note that round 23's translation
+	 * fix cannot help here and was never going to: it addresses cancellation between large
+	 * terms, and this is underflow of small ones.
+	 *
+	 * Closed by routing the composed shape through the validator rather than by adding a third
+	 * copy of the area rule, so the two cannot disagree for THIS reason or any future one. The
+	 * absurdity of the input is not the point and is not the defence — nobody types 1e-323 mm,
+	 * and two constructors over one type contradicting each other is worth one line regardless.
+	 */
+	it('refuses a rectangle whose area underflows, rather than building a shape the validator rejects', () => {
+		const tiny = Number.MIN_VALUE * 2;
+		const result = shapeFromDimensions(tiny, tiny);
+		expect(isErr(result) && result.error.code).toBe('asset.degenerate-footprint');
+	});
 });
 
 describe('validateAssetShape', () => {

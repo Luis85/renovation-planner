@@ -202,11 +202,33 @@ export function validateAssetShape(shape: AssetShape): Result<AssetShape, Valida
 	});
 }
 
-/** Every shape starts here: the rectangle, centred, facing +x, with no clearance. */
+/**
+ * Every shape starts here: the rectangle, centred, facing +x, with no clearance.
+ *
+ * **Composed and then VALIDATED**, so this constructor and `validateAssetShape` cannot disagree
+ * about what a valid shape is — for the reason below and for every future rule neither of them
+ * has yet. It is one call rather than a third copy of the area rule, which is what the
+ * alternative would have been.
+ *
+ * The disagreement was real: at `Number.MIN_VALUE * 2` the rectangle has four DISTINCT vertices
+ * whose shoelace products all underflow, so `footprintFromDimensions` answers `ok` for a polygon
+ * enclosing exactly zero area and this used to hand back a shape the validator refuses. The
+ * translation in `signedAreaSum` cannot help — that addresses cancellation between large terms,
+ * and this is underflow of small ones.
+ *
+ * Only ONE of `validateAssetShape`'s refusals is reachable from here, which is why this is not a
+ * dead guard: the shape is built `typed` and not pending, with no clearance and a finite anchor
+ * and facing, so degeneracy is the only arm — and it is live.
+ *
+ * `footprintFromDimensions` is deliberately NOT given the same rule. It answers a `Polygon`, and
+ * a degenerate polygon is a legal one (SDD §26 files that under "Future"); its own docblock
+ * states the one-gate-per-question rule a third guard there would break, and its single `src/`
+ * caller validates the whole shape downstream anyway.
+ */
 export function shapeFromDimensions(width: number, depth: number): Result<AssetShape, ValidationError> {
 	const footprint = footprintFromDimensions(width, depth);
 	if (isErr(footprint)) return footprint;
-	return ok({
+	return validateAssetShape({
 		footprint: footprint.value,
 		footprintOrigin: 'typed',
 		footprintPending: false,

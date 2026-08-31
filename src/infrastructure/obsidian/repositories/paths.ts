@@ -136,6 +136,31 @@ export function assetSidecarPathFor(libraryFolder: string, assetId: AssetId | st
 }
 
 /**
+ * WHAT A FILENAME MAY NOT CONTAIN — Obsidian's own forbidden set, `\ / : * ? " < > | # ^ [ ]`.
+ *
+ * Exported because it has TWO consumers doing OPPOSITE things with one vocabulary, and a second
+ * regex that agrees today is how they stop agreeing. `fileNameFor` below STRIPS these from a
+ * user's chosen name; `entityRefOf` REFUSES an id that contains one, because an id is
+ * interpolated into a filename rather than cleaned into one — there is nothing to strip when the
+ * string IS the identity.
+ *
+ * That split was found the hard way: the id rule originally refused only `/` and `\`, which is the
+ * SEPARATOR hazard (escaping a folder), and admitted the other nine characters — while this
+ * docblock had already named all ten. `Geometry/asset:custom.rpgeo` is a legal path on Linux and
+ * macOS and invalid on Windows, so it fails for users and works for whoever wrote it.
+ *
+ * Not global: a `g` flag makes `RegExp.test` stateful through `lastIndex`, which a shared constant
+ * with two call sites must not be. `fileNameFor` builds its own global copy from `.source`.
+ */
+export const FORBIDDEN_IN_FILENAME = /[/\\:*?"<>|#^[\]]/;
+
+/**
+ * EDGE DOTS AND SPACES, which Windows and Obsidian both dislike — trimmed by `fileNameFor` and
+ * refused by `entityRefOf`, for the same reason the character set above is.
+ */
+export const EDGE_DOT_OR_SPACE = /^[\s.]|[\s.]$/;
+
+/**
  * Human-chosen filename derived from the entity's name at creation time
  * ("deduplicated on collision" is the caller's job: it knows what already exists, and
  * appends the entity ID when the plain name is taken). Filename is NEVER identity (§83):
@@ -146,7 +171,7 @@ export function assetSidecarPathFor(libraryFolder: string, assetId: AssetId | st
  */
 export function fileNameFor(name: string): string {
 	const clean = name
-		.replace(/[/\\:*?"<>|#^[\]]/g, '')
+		.replace(new RegExp(FORBIDDEN_IN_FILENAME.source, 'g'), '')
 		.replace(/^[\s.]+|[\s.]+$/g, '')
 		.slice(0, 80)
 		.replace(/[\s.]+$/g, '');

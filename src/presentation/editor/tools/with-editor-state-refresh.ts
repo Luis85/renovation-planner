@@ -1,6 +1,4 @@
-import type { AppError } from '../../../core/errors/AppError';
-import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
-import type { Result } from '../../../core/result/Result';
+import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { PlanEditorQueryServices } from '../../read-models/planEditorQueries';
 import type { CommandHistory } from './command-history';
 import { createSerialQueue } from './serial-queue';
@@ -45,10 +43,6 @@ export interface EditorStateRefreshDeps {
 	/** The plan this editor leaf shows; every refresh re-reads exactly it. */
 	planId: string;
 }
-
-// Forwarded UNCHANGED, like every other part of a result this decorator passes through:
-// re-reading two stores says nothing about whether the vault was touched.
-type DispatchResult = Result<DispatchOutcome, AppError>;
 
 /**
  * The decorator that puts a committed mutation on the canvas AND in the Inspector
@@ -96,6 +90,11 @@ export function withEditorStateRefresh(
 		}
 	}
 
+	/**
+	 * The result is forwarded UNCHANGED, like every other part of one this decorator passes
+	 * through: re-reading two stores says nothing about whether the vault was touched, so the
+	 * `DispatchOutcome` the command reported is the one the caller sees.
+	 */
 	function stepped(operation: () => Promise<DispatchResult>): () => Promise<DispatchResult> {
 		return () =>
 			enqueue(async () => {

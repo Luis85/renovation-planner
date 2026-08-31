@@ -1,6 +1,4 @@
-import type { Result } from '../../../core/result/Result';
-import type { AppError } from '../../../core/errors/AppError';
-import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 
 /**
  * A reversible editor gesture (SDD §30, design slice 6). A thin adapter around a plain
@@ -24,6 +22,6 @@ import type { DispatchOutcome } from '../../../application/commands/DispatchOutc
  * happened, and undoing it is a legal thing to ask for.
  */
 export interface UndoableCommand {
-	execute(): Promise<Result<DispatchOutcome, AppError>>;
-	undo(): Promise<Result<DispatchOutcome, AppError>>;
+	execute(): Promise<DispatchResult>;
+	undo(): Promise<DispatchResult>;
 }

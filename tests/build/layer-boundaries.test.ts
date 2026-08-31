@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { dirname, relative, sep } from 'node:path';
+import { dirname, relative } from 'node:path';
 import eslintConfig from '../../eslint.config.mjs';
 import { ESLINT_BOOT_MS, lintDetailed, warmUpEslint, type Diagnostic } from '../helpers/eslint';
+import { toPosix } from '../helpers/posix';
 
 /**
  * The layer boundary, checked AT THE FORBIDDEN THING.
@@ -169,7 +170,7 @@ const EXTENSIONS = ['ts', 'vue', 'js', 'jsx', 'mjs', 'cjs'] as const;
  * Derived rather than corrected, because correcting four values leaves the fifth to be got
  * wrong by the next author.
  */
-const toSrc = (path: string): string => `${relative(dirname(path), 'src').replaceAll(sep, '/')}/`;
+const toSrc = (path: string): string => `${toPosix(relative(dirname(path), 'src'))}/`;
 
 /** Every shape a group glob can protect. `**\/${g}` alone matches the barrel. */
 const layerShapes = (layer: string, depth: string): readonly Planted[] => [

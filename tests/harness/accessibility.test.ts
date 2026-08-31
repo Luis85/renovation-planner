@@ -104,6 +104,7 @@ import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
+import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
 import { makeView } from '../helpers/makeRenovationProjectView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
@@ -262,7 +263,9 @@ describe('axe against the mounted view', () => {
 	 *
 	 * The case above uses `settings.unrecovered`, and design slice 17 withholds the retry from
 	 * that one deliberately — so it grades a failure state with no button, exactly as the Plan
-	 * Editor's default fixture grades the buttonless `planEditor.noBackground`. A button carries
+	 * Editor's DEFAULT fixture grades the buttonless `planEditor.noBackground` (the editor's
+	 * action-carrying `planEditor.noZones` has its own case further down, which this one is the
+	 * pattern for). A button carries
 	 * its own gradeable properties (an accessible name above all), and `role="alert"` on the
 	 * container is the one piece of ARIA this slice adds anywhere a scan in this file can reach.
 	 *
@@ -312,6 +315,47 @@ describe('axe against the mounted view', () => {
 
 			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
 
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * The one empty state in the Plan Editor that carries an ACTION, and it was graded by
+	 * nothing until this case existed.
+	 *
+	 * The case above mounts the DEFAULT fixture, whose plan has no background — so its overlay
+	 * resolves to `planEditor.noBackground`, which design slice 14 ships deliberately
+	 * buttonless (`set-plan-background` is a plugin command the editor's Vue tree cannot
+	 * reach). `planEditor.noZones` is the other entry, its action activates the polygon tool,
+	 * and its only exercise was `emptyStateOverlay.test.ts` — behaviour, not semantics. A
+	 * button carries gradeable properties nothing else here has: an accessible name above all.
+	 *
+	 * A plan WITH a background and NO zones is what reaches it; the empty vault the harness
+	 * defaults to is enough, because the overlay is chosen from the plan's `background` field
+	 * rather than from anything that loads.
+	 *
+	 * The two presence assertions are load-bearing for this file's usual reason, and the
+	 * SECOND one especially: `violations` is `[]` on a subtree containing nothing at all, and
+	 * equally `[]` on an overlay whose button stopped rendering — so a regression that drops
+	 * the action would otherwise pass here exactly as loudly as compliance does.
+	 */
+	it('reports no semantic violations on the plan editor empty state that carries an action', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor({
+				plan: { ...FIXTURE_PLAN, background: { path: 'Plans/ground.png', kind: 'image' } },
+				zones: [],
+			});
+			// `mountPlanEditor` awaits its own `settle()`, which is what this file's header
+			// calls for elsewhere as `flushPromises` — the overlay is rendered by the time it
+			// returns, and the assertions below are what prove it rather than assume it.
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(mounted.wrapper.find('.rp-empty-state').exists()).toBe(true);
+			expect(mounted.wrapper.find('.rp-empty-state__action').exists()).toBe(true);
 			expect(results.violations).toEqual([]);
 		} finally {
 			mounted?.unmount();

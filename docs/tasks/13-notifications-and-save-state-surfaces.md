@@ -896,14 +896,15 @@ split slice 5 already established for that layer's own stores:
 `docs/components/Toast.md` and `docs/components/Save-state indicator.md` are component
 contracts naming this slice in their own frontmatter, and **this document was written without
 opening either** — found by review on 2026-08-28, eleven rounds in, after the design and the
-plan were both written. Four of their requirements were knowingly unmet; item 4 has since
-been closed and the other three still are. They are recorded
+plan were both written. Four of their requirements were knowingly unmet; items 1, 2 and 4 have
+since been closed and only item 3 remains. They are recorded
 here, and in [[Notices and save state]]'s own contract-gaps section, because the
 workspace holding this reasoning is deleted when the slice closes and a gap nobody inherits
 is a gap rediscovered from scratch.
 
-1. **~~No mark beside the word.~~ Closed for the save-state indicator by the review pass on
-   this branch, by exactly the fix predicted here — and still OPEN for the Toast.** Both
+1. **~~No mark beside the word.~~ Closed on BOTH surfaces now, by exactly the fix predicted
+   here.** The save-state indicator went first, in the review pass on this branch; the Toast
+   followed, and the paragraph after this one is what that took. Both
    contracts ask for a mark AND a word ("Both, always, never one"). The slice shipped the
    translated word plus colour, which satisfies SDD §85's "status not colour-only" and does
    not satisfy the contracts; a review bot found it on the indicator. The mark is CSS in
@@ -922,6 +923,34 @@ is a gap rediscovered from scratch.
    same expression the template interpolates and asserts the stylesheet declares it, which is
    the one hole `editor-status.css`'s own header says nothing here can catch, and which had
    already cost this file one defect (`-error` against a template emitting `-save-error`).
+
+   **The Toast half, taken later, and what it added to the account above.** `.rp-notice-mark`
+   in `styles/notices.css` — a disc for `info`, a tick for `success`, a triangle for
+   `warning`, a cross for `error` — each cut from one filled box with `clip-path` rather than
+   drawn from borders, which is the only real difference between the two surfaces' rules. The
+   element is built in `notify.ts` beside the severity label, `aria-hidden` and carrying no
+   text, so the word stays the whole accessible name and **not one existing assertion in
+   `notify.test.ts` had to move**. Three things it needed that the save-state half did not:
+
+   - **A place to put the mark that one `color` declaration per severity can reach.** It is a
+     CHILD of `.rp-notice-severity`, inheriting through `currentColor`, rather than a fourth
+     flex item on `.rp-notice-body` — a sibling would have needed its own list of four
+     severity selectors beside the existing four, and two lists of the same four drift.
+   - **The trap that nesting introduces, pinned as behaviour.** `render` may no longer write
+     the word with `label.textContent`, which would take the mark with it. The obvious
+     spelling is the wrong one, so `notify.test.ts` has a case for it — and the measurement
+     corrected the prediction: `render(view)` runs before the append, so the mutation reddens
+     all four mark cases rather than the repeat's alone.
+   - **No specimen, and that is a gap rather than a decision.** The save-state half got
+     `src/prototypes/SaveStateMarks.vue` because a standalone mount rests at one state. A
+     notice cannot be drawn in the browser harness AT ALL — `tests/harness/obsidian.css`
+     declares no `.notice` and no `.notice-container` rule, so there is no chrome, no position
+     and no stacking to draw one into — so there is nothing to capture and nothing to read by
+     eye. Whether the four silhouettes are told apart at `0.7em` of `--font-smallest` is
+     settled by step 12a of the manual case and by nothing else. The polygons themselves were
+     verified by RASTERIZING them rather than by reading them, which is the cheapest thing
+     available short of a vault: a `clip-path` one transposition from a tick draws a shape
+     nothing in `npm run check` can see.
 2. **~~No moving indicator for *Saving*.~~ Closed with item 1.** `Save-state indicator.md`
    cites the Design System's *Loading* row: a moving indicator **and** text. The arc rotates,
    and because it is this stylesheet's first animation it is also the first thing in it that

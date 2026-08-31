@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
-import { err, ok, type Result } from '../../../../src/core/result/Result';
-import type { AppError, PersistenceError } from '../../../../src/core/errors/AppError';
+import { err, ok } from '../../../../src/core/result/Result';
+import type { PersistenceError } from '../../../../src/core/errors/AppError';
 import type { PlanEditorQueryServices } from '../../../../src/presentation/read-models/planEditorQueries';
 import type { ZoneDto } from '../../../../src/presentation/read-models/PlanDto';
-import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
+import type { DispatchOutcome, DispatchResult } from '../../../../src/application/commands/DispatchOutcome';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { withEditorStateRefresh } from '../../../../src/presentation/editor/tools/with-editor-state-refresh';
@@ -25,8 +25,6 @@ import { fakeQueries } from '../../../helpers/planFixtures';
  * The decorator forwards the outcome unchanged, so the VALUE decides nothing here; the TYPE
  * is what keeps these stand-ins from modelling a contract the editor no longer has.
  */
-type DispatchResult = Result<DispatchOutcome, AppError>;
-
 /** Every operation faked below stands for a committed gesture — which is why a refresh is owed. */
 const wrote = (): Promise<DispatchResult> => Promise.resolve(ok<DispatchOutcome>('wrote'));
 

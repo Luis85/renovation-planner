@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
-import { ok, type Result } from '../../../../src/core/result/Result';
-import type { AppError } from '../../../../src/core/errors/AppError';
+import type { DispatchResult } from '../../../../src/application/commands/DispatchOutcome';
+import { ok } from '../../../../src/core/result/Result';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import type { ProjectId } from '../../../../src/domain/project/ProjectId';
 import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
@@ -137,7 +136,7 @@ function buildContext(history: CommandHistory): {
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
 		commandDispatcher: {
-			run: (command: UndoableCommand): Promise<Result<DispatchOutcome, AppError>> => history.run(command),
+			run: (command: UndoableCommand): Promise<DispatchResult> => history.run(command),
 		},
 		writeLedger,
 		renderState,
@@ -164,12 +163,12 @@ function seededZone() {
 let cmdSeq = 0;
 /** A fake `UndoableCommand` whose `execute()` behaviour the test controls, and whose
  * `id` lets a test read `undoStack` order back the same way `commandHistory.test.ts` does. */
-function fakeCommand(execute: () => Promise<Result<DispatchOutcome, AppError>>): UndoableCommand & { id: number } {
+function fakeCommand(execute: () => Promise<DispatchResult>): UndoableCommand & { id: number } {
 	const id = ++cmdSeq;
 	return {
 		id,
-		execute: vi.fn<() => Promise<Result<DispatchOutcome, AppError>>>(execute),
-		undo: vi.fn<() => Promise<Result<DispatchOutcome, AppError>>>(() => Promise.resolve(ok('wrote'))),
+		execute: vi.fn<() => Promise<DispatchResult>>(execute),
+		undo: vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(ok('wrote'))),
 	};
 }
 
@@ -192,10 +191,10 @@ function fakeCommand(execute: () => Promise<Result<DispatchOutcome, AppError>>):
 function fakeGestureTool(
 	context: EditorContext,
 	buildCommand: () => UndoableCommand,
-): EditorTool & { pendingRun: Promise<Result<DispatchOutcome, AppError>> | null; moveCount: number } {
+): EditorTool & { pendingRun: Promise<DispatchResult> | null; moveCount: number } {
 	const tool = {
 		id: 'select' as const,
-		pendingRun: null as Promise<Result<DispatchOutcome, AppError>> | null,
+		pendingRun: null as Promise<DispatchResult> | null,
 		moveCount: 0,
 		activate: (): void => undefined,
 		deactivate: (): void => undefined,
@@ -341,8 +340,8 @@ describe('gesture -> command transaction (design slice 6)', () => {
 		// "slow" one); command2's resolves the instant it is invoked (deliberately the
 		// "fast" one) — so completion order would disagree with dispatch order here if
 		// CommandHistory did not serialize run() calls against one another.
-		let resolveFirst!: (result: Result<DispatchOutcome, AppError>) => void;
-		const firstCascade = new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+		let resolveFirst!: (result: DispatchResult) => void;
+		const firstCascade = new Promise<DispatchResult>((resolve) => {
 			resolveFirst = resolve;
 		});
 		const command1 = fakeCommand(() => firstCascade);

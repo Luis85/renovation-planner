@@ -22,7 +22,7 @@ import type { Vector } from './Vector';
  * disguised as a verdict. Only a Result-wrapping operation may answer "undefined".
  */
 
-type Shape = Point | LineSegment | Polyline | Polygon | BoundingBox;
+export type Shape = Point | LineSegment | Polyline | Polygon | BoundingBox;
 
 type PointMapper = (point: Point) => Point;
 

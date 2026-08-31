@@ -1,5 +1,5 @@
+import type { DispatchResult } from '../DispatchOutcome';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
-import type { DispatchOutcome } from '../DispatchOutcome';
 import type { AppError } from '../../../core/errors/AppError';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
@@ -40,6 +40,11 @@ type Snapshot = { readonly entity: Requirement; readonly postVersion: EntityVers
  * re-reading what undo just wrote — a snapshot-on-every-execute adapter drifts on the
  * second undo/redo round while looking right on the first.
  */
+// Internal by construction: the two exported adapters below are its only subclasses, and
+// `export`ing it to clear the leak traded those two findings for an `unused-exports` one —
+// measured by making the change and re-running `npm run analyze`, not predicted. So the
+// report contradicts itself here rather than contradicting a design rule, and the two
+// suppressions live on the subclasses, which is where the leak is REPORTED.
 abstract class ReversibleOverrideBase<TInput> {
 	protected snapshot: Snapshot | undefined;
 
@@ -51,7 +56,7 @@ abstract class ReversibleOverrideBase<TInput> {
 		Result<{ requirement: Requirement; version: EntityVersion }, AppError>
 	>;
 
-	async execute(input: TInput): Promise<Result<DispatchOutcome, AppError>> {
+	async execute(input: TInput): Promise<DispatchResult> {
 		if (!this.snapshot) {
 			const before = await this.requirements.getById(this.requirementIdOf(input));
 			if (isErr(before)) return err(before.error);
@@ -74,7 +79,7 @@ abstract class ReversibleOverrideBase<TInput> {
 		return ok('wrote');
 	}
 
-	async undo(): Promise<Result<DispatchOutcome, AppError>> {
+	async undo(): Promise<DispatchResult> {
 		const captured = this.snapshot;
 		if (!captured) {
 			return err({ category: 'Domain', code: 'undo.before-execute', message: 'Nothing to undo yet.' });
@@ -90,6 +95,7 @@ abstract class ReversibleOverrideBase<TInput> {
 	protected abstract requirementIdOf(input: TInput): RequirementId;
 }
 
+// fallow-ignore-next-line private-type-leak
 export class ReversibleSetRequirementQuantityOverrideCommand extends ReversibleOverrideBase<SetRequirementQuantityOverrideInput> {
 	constructor(
 		private readonly setCommand: SetRequirementQuantityOverrideDoor,
@@ -109,6 +115,7 @@ export class ReversibleSetRequirementQuantityOverrideCommand extends ReversibleO
 	}
 }
 
+// fallow-ignore-next-line private-type-leak
 export class ReversibleSetRequirementCostOverrideCommand extends ReversibleOverrideBase<SetRequirementCostOverrideInput> {
 	constructor(
 		private readonly setCommand: SetRequirementCostOverrideDoor,

@@ -5,12 +5,12 @@
  * place.
  */
 import { describe, expect, it, vi } from 'vitest';
-import type { DispatchOutcome } from '../../../src/application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import { ref } from 'vue';
 import { flushPromises } from '@vue/test-utils';
 import { useFieldCommit } from '../../../src/presentation/composables/use-field-commit';
 import type { FieldErrorMap } from '../../../src/presentation/errors/route-error';
-import { err, ok, type Result } from '../../../src/core/result/Result';
+import { err, ok } from '../../../src/core/result/Result';
 import type { AppError } from '../../../src/core/errors/AppError';
 import type { Logger } from '../../../src/application/ports/Logger';
 
@@ -18,7 +18,7 @@ interface QuantityInput {
 	readonly quantity: number;
 }
 
-type Run = () => Promise<Result<DispatchOutcome, AppError>>;
+type Run = () => Promise<DispatchResult>;
 type Notify = (error: AppError) => void;
 
 /**
@@ -59,7 +59,7 @@ function validation(code: string): AppError {
  * treats an absent one as "nothing to refuse".
  */
 function harness(
-	outcome: Result<DispatchOutcome, AppError> | Run,
+	outcome: DispatchResult | Run,
 	canonical = ref(10),
 	validate?: (value: number) => string | null,
 ) {
@@ -180,7 +180,7 @@ describe('useFieldCommit', () => {
 		// with nothing erroring and no way for the user to tell it had happened.
 		let settle: () => void = noop;
 		const { field } = harness(
-			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+			() => new Promise<DispatchResult>((resolve) => {
 				settle = () => { resolve(ok('wrote')); };
 			}),
 		);
@@ -202,7 +202,7 @@ describe('useFieldCommit', () => {
 		// without coalescing one edit leaves three undo entries.
 		const settles: (() => void)[] = [];
 		const { field, run } = harness(
-			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+			() => new Promise<DispatchResult>((resolve) => {
 				settles.push(() => { resolve(ok('wrote')); });
 			}),
 		);
@@ -228,7 +228,7 @@ describe('useFieldCommit', () => {
 		// buy an undo entry that undoes nothing visible.
 		let settle: () => void = noop;
 		const { field, run } = harness(
-			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+			() => new Promise<DispatchResult>((resolve) => {
 				settle = () => { resolve(ok('wrote')); };
 			}),
 		);
@@ -274,10 +274,10 @@ describe('useFieldCommit', () => {
 		// message already says it. When the draft has moved, the inline half is suppressed — and
 		// a `!mine` test then skipped the notice too, so the write failed and neither door spoke.
 		// The notice covers whatever the field did not DISPLAY, not whatever was not `mine`.
-		let settle: (result: Result<DispatchOutcome, AppError>) => void = noop;
+		let settle: (result: DispatchResult) => void = noop;
 		const refusal = validation('requirement.negative-quantity');
 		const { field, notify } = harness(
-			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+			() => new Promise<DispatchResult>((resolve) => {
 				settle = resolve;
 			}),
 		);
@@ -323,9 +323,9 @@ describe('useFieldCommit', () => {
 		// whether `recommit` itself was retired. Only typing again, so `drafted.value` is
 		// non-null while `recommit` is the one thing left standing between "nothing queued"
 		// and "the abandoned request fires after all", makes the two implementations disagree.
-		let settle: (result: Result<DispatchOutcome, AppError>) => void = noop;
+		let settle: (result: DispatchResult) => void = noop;
 		const { field, run } = harness(
-			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => { settle = resolve; }),
+			() => new Promise<DispatchResult>((resolve) => { settle = resolve; }),
 		);
 
 		field.onInput(-5);
@@ -356,9 +356,9 @@ describe('useFieldCommit', () => {
 		// `onCancel`'s own comment already records this exact class — "the settling write's loop
 		// dispatched keystrokes the user had never committed" — and closed it for the ESCAPE path
 		// alone. This is the same defect with no Escape in it.
-		let settle: (result: Result<DispatchOutcome, AppError>) => void = noop;
+		let settle: (result: DispatchResult) => void = noop;
 		const { field, run, built } = harness(
-			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => { settle = resolve; }),
+			() => new Promise<DispatchResult>((resolve) => { settle = resolve; }),
 		);
 
 		field.onInput(-5);
@@ -402,8 +402,8 @@ describe('useFieldCommit', () => {
 			readonly cost: number | null;
 		}
 		type BuildOverrideCommand = (value: number | null) => {
-			execute: () => Promise<Result<DispatchOutcome, AppError>>;
-			undo: () => Promise<Result<DispatchOutcome, AppError>>;
+			execute: () => Promise<DispatchResult>;
+			undo: () => Promise<DispatchResult>;
 			value: number | null;
 		};
 		const buildCommand = vi.fn<BuildOverrideCommand>((value) => ({
@@ -445,7 +445,7 @@ describe('useFieldCommit', () => {
 		// it.
 		let settle: () => void = noop;
 		const { field, run } = harness(
-			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+			() => new Promise<DispatchResult>((resolve) => {
 				settle = () => { resolve(ok('wrote')); };
 			}),
 			ref(10),
@@ -481,7 +481,7 @@ describe('useFieldCommit', () => {
 		// that third value; the settling round must not put one back about the second.
 		let settle: () => void = noop;
 		const { field, run, built } = harness(
-			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+			() => new Promise<DispatchResult>((resolve) => {
 				settle = () => { resolve(ok('wrote')); };
 			}),
 			ref(10),
@@ -533,12 +533,12 @@ describe('useFieldCommit', () => {
 
 	it('notifies AND logs the mapped fault from a coalesced round rejection, once each', async () => {
 		const fault = new Error('vault fault in continuation');
-		let settleFirst: (result: Result<DispatchOutcome, AppError>) => void = noop;
+		let settleFirst: (result: DispatchResult) => void = noop;
 		let calls = 0;
 		const { field, run, notify, logger } = harness(() => {
 			calls += 1;
 			if (calls === 1) {
-				return new Promise<Result<DispatchOutcome, AppError>>((resolve) => { settleFirst = resolve; });
+				return new Promise<DispatchResult>((resolve) => { settleFirst = resolve; });
 			}
 			if (calls === 2) return Promise.reject(fault);
 			return Promise.resolve(ok('wrote'));

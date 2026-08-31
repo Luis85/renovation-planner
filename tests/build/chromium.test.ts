@@ -5,7 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CHROMIUM_OVERRIDE, resolveChromiumExecutable } from '../../scripts/chromium.mjs';
-import { REPO } from '../helpers/oxlint';
+import { REPO } from '../helpers/repo';
 
 /**
  * Which Chromium a headless capture runs against — driven as a function rather than pinned as

@@ -1,14 +1,12 @@
 import type { Point, ScreenPoint } from '../viewport/Viewport';
 import type { Vector } from '../../../core/geometry/Vector';
-import type { Result } from '../../../core/result/Result';
-import type { AppError } from '../../../core/errors/AppError';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { Calibration } from '../../../domain/plan/Calibration';
 import type { SelectionStore } from '../selection/selection-store';
 import type { SnapService } from '../snapping/snap-service';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import type { UndoableCommand } from './undoable-command';
-import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { RenderState } from './render-state';
 
 /**
@@ -50,7 +48,7 @@ export interface EditorContext {
 	};
 	readonly selection: SelectionStore;
 	readonly snapService: SnapService;
-	readonly commandDispatcher: { run(command: UndoableCommand): Promise<Result<DispatchOutcome, AppError>> };
+	readonly commandDispatcher: { run(command: UndoableCommand): Promise<DispatchResult> };
 	/**
 	 * What this editor's own history has written, per entity — see
 	 * `application/editor/WriteLedger.ts` and design slice 6's "The expectation is the

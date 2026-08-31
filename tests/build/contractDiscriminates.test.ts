@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { REPO } from '../helpers/oxlint';
+import { REPO } from '../helpers/repo';
 
 /**
  * ONE child process, not one per case.

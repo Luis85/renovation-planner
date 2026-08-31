@@ -48,7 +48,8 @@ It has **no focus state and takes no focus**. A toast that steals focus interrup
 user was doing to tell them about the thing they already did.
 
 Severity is a variant rather than a state, and each variant owes a mark as well as a colour —
-[[Design System]]'s *Error* row applies to the failing one.
+[[Design System]]'s *Error* row applies to the failing one. **Met**, and it was not met when
+slice 13 first shipped: see *Settled* below.
 
 ## Contract
 
@@ -106,6 +107,33 @@ surface no axe scan reaches: the two live regions the plugin appends to `documen
 activation — outside a view twice over — and the dismiss control's accessible name, are
 asserted by jsdom tests one attribute at a time and graded by no accessibility instrument.
 Its markup also stays Obsidian's to change.
+
+**Each variant carries a mark as well as a colour now, and it did not for a slice and a
+half.** Slice 13 shipped `.rp-notice-severity` as an uppercase translated word plus a colour
+and stopped — which satisfies SDD §85's status-not-colour-only rule, since a word is not a
+colour, and does not satisfy the *Anatomy* sentence above, which asks for a mark as well.
+The sibling contract [[Save-state indicator]] says why the stricter reading is the right one:
+the coloured label works perfectly for the author who built it.
+
+`.rp-notice-mark` is that mark — a disc for information, a tick for success, a triangle for a
+warning, a cross for an error, each cut from one filled box with `clip-path` in
+`styles/notices.css`. **No `setIcon`**, which this plugin has still never called: an icon call
+would need the harness icon renderer that is deliberately absent, and an icon font would be a
+second thing to theme. `currentColor` throughout, so each mark takes the colour rule its
+severity already has and no colour literal appears — SDD §84's check, run over the assembled
+sheet's parsed tree, refuses one.
+
+It costs the accessible name nothing, which is the part worth stating rather than assuming:
+the element is `aria-hidden` and carries no text, so the word remains the whole announcement
+and the live-region text below is unchanged. **What no instrument here can settle is whether
+the four silhouettes are told apart**, because the browser harness cannot draw a notice at all
+— `tests/harness/obsidian.css` declares no `.notice` and no `.notice-container` rule, so there
+is no chrome to draw one into and no capture to read by eye. `notify.test.ts` proves the
+element exists, is hidden and carries no text, and that `styles/notices.css` declares a rule
+the emitted class actually reaches — that last one being the defect class this repository has
+shipped once already, on the sibling surface, where a selector was one word short of the
+class the template emitted. The shapes themselves are step 12a of
+`docs/tests/cases/Notices and save state.md`, and a vault is the only instrument.
 
 **The Accessibility rule above is met the way it is written, and it took a review round to
 get there.** Slice 13 first put `role`/`aria-live` on the `Notice` element itself, which is

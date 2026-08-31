@@ -1,13 +1,12 @@
 import { isErr, ok, type Result } from '../../../core/result/Result';
 import type {
-	AppError,
 	GeometryError,
 	ReferenceError,
 } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import type { Polygon } from '../../../core/geometry/Polygon';
 import type { Command } from '../../../application/commands/Command';
-import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
+import type { DispatchOutcome, DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { MoveSpatialObjectInput } from '../../../application/commands/zone/MoveSpatialObject';
 import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
@@ -15,8 +14,8 @@ import type { Loaded } from '../../../application/ports/versioning';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { UndoableCommand } from './undoable-command';
 
-type MoveError = ReferenceError | GeometryError | RepositoryError;
-type MoveCommand = Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, MoveError>>;
+export type MoveError = ReferenceError | GeometryError | RepositoryError;
+export type MoveCommand = Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, MoveError>>;
 
 /**
  * A reversible editor gesture wrapping slice 3's `MoveSpatialObjectCommand` (design
@@ -52,11 +51,11 @@ export class ReversibleMoveZoneCommand implements UndoableCommand {
 		private readonly inverse: Polygon,
 	) {}
 
-	execute(): Promise<Result<DispatchOutcome, AppError>> {
+	execute(): Promise<DispatchResult> {
 		return this.dispatch(this.forward);
 	}
 
-	undo(): Promise<Result<DispatchOutcome, AppError>> {
+	undo(): Promise<DispatchResult> {
 		return this.dispatch(this.inverse);
 	}
 

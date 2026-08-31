@@ -1,15 +1,15 @@
 import { computed, readonly, ref, toValue, type DeepReadonly, type MaybeRefOrGetter, type Ref } from 'vue';
-import { isErr, type Result } from '../../core/result/Result';
+import { isErr } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
 import type { Logger } from '../../application/ports/Logger';
-import type { DispatchOutcome } from '../../application/commands/DispatchOutcome';
+import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import { faultError } from '../notices/notify';
 import { routeError, type FieldErrorMap } from '../errors/route-error';
 
 /** What `CommandHistory.run` takes: anything with the two halves of a reversible write. */
-interface RunnableCommand {
-	execute(): Promise<Result<DispatchOutcome, AppError>>;
-	undo(): Promise<Result<DispatchOutcome, AppError>>;
+export interface RunnableCommand {
+	execute(): Promise<DispatchResult>;
+	undo(): Promise<DispatchResult>;
 }
 
 /**
@@ -55,7 +55,7 @@ export interface UseFieldCommit<T> {
 export function useFieldCommit<T, TInput>(options: {
 	readonly canonicalValue: MaybeRefOrGetter<T>;
 	readonly buildCommand: (value: T) => RunnableCommand;
-	readonly history: { run(command: RunnableCommand): Promise<Result<DispatchOutcome, AppError>> };
+	readonly history: { run(command: RunnableCommand): Promise<DispatchResult> };
 	readonly errorMap: FieldErrorMap<TInput>;
 	readonly field: keyof TInput;
 	readonly toUserMessage: (error: AppError) => string;

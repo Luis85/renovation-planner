@@ -1,11 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { err, ok, type Result } from '../../../../src/core/result/Result';
-import type { AppError } from '../../../../src/core/errors/AppError';
-import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
+import { err, ok } from '../../../../src/core/result/Result';
+import type { DispatchResult } from '../../../../src/application/commands/DispatchOutcome';
 import { CommandHistory, UNDO_DEPTH } from '../../../../src/presentation/editor/tools/command-history';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 
-type DispatchResult = Result<DispatchOutcome, AppError>;
 type ResultThunk = () => Promise<DispatchResult>;
 
 let seq = 0;

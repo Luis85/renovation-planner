@@ -1,11 +1,8 @@
-import type { AppError } from '../../../core/errors/AppError';
-import type { DispatchOutcome } from '../../../application/commands/DispatchOutcome';
-import { isErr, type Result } from '../../../core/result/Result';
+import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
+import { isErr } from '../../../core/result/Result';
 import type { RefreshedHistory } from '../tools/with-editor-state-refresh';
 import type { useSaveStateStore } from './save-state-store';
 import { affectsSaveState } from './affects-save-state';
-
-type DispatchResult = Result<DispatchOutcome, AppError>;
 
 export type SaveStateTracker = Pick<
 	ReturnType<typeof useSaveStateStore>,

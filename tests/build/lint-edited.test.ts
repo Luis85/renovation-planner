@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { REPO } from '../helpers/oxlint';
+import { REPO } from '../helpers/repo';
 import { plantedProbePath } from '../helpers/plantedProbe';
 
 /**

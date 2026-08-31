@@ -70,13 +70,34 @@ export const FIXTURE_ZONES: readonly ZoneDto[] = [
  * loading Vue, Konva and pdf.js to get it. `tests/helpers/editor.ts` re-exports it so the
  * jsdom suites that already reach for it there are unaffected.
  */
+/**
+ * Slice 10's four reads, answered EMPTY rather than refused.
+ *
+ * Every fixture world here seeds no Requirements and no Assets, so an empty list is what the
+ * real query would return for one — that is the honest stand-in, where a refusal bundle would
+ * be the HARSHER-than-the-real-thing fake this repository has already paid for once (a stack
+ * that refused `zoneInspector`, a READ, showed the seeded Kitchen selected on the canvas and
+ * nothing in the Inspector, with no error anywhere).
+ *
+ * Shared with `tests/harness/planEditor.ts`, which differs from `fakeQueries` only in its
+ * first two members: the harness must `structuredClone` what it hands back, because
+ * `PlanEditorRoot.hydrate()` puts whatever it gets straight into Pinia's deep reactive state
+ * and the next mutation would otherwise edit the fixture itself.
+ */
+export const emptyRequirementReads = (): Pick<
+	PlanEditorQueryServices,
+	'getRequirementsForZone' | 'listAssets' | 'listRequirementsReferencing' | 'listReassignmentTargets'
+> => ({
+	getRequirementsForZone: () => Promise.resolve(ok([])),
+	listAssets: () => Promise.resolve(ok([])),
+	listRequirementsReferencing: () => Promise.resolve(ok([])),
+	listReassignmentTargets: () => Promise.resolve(ok([])),
+});
+
 export function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[] = []): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(plan)),
 		findZonesByPlan: () => Promise.resolve(ok(zones)),
-		getRequirementsForZone: () => Promise.resolve(ok([])),
-		listAssets: () => Promise.resolve(ok([])),
-		listRequirementsReferencing: () => Promise.resolve(ok([])),
-		listReassignmentTargets: () => Promise.resolve(ok([])),
+		...emptyRequirementReads(),
 	};
 }

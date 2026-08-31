@@ -1,5 +1,5 @@
 import { ESLint } from 'eslint';
-import { REPO } from './oxlint';
+import { REPO } from './repo';
 
 /**
  * Driving the real ESLint, for the checks that are ABOUT the lint gate rather than about a

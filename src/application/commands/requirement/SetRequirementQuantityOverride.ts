@@ -150,17 +150,12 @@ export class SetRequirementQuantityOverrideCommand
 	}
 
 	/** The adapter's door: the same write, plus what undo needs that publishing does not. */
-	async executeWithVersion(
+	executeWithVersion(
 		input: SetRequirementQuantityOverrideInput,
 	): Promise<Result<{ requirement: Requirement; version: EntityVersion }, SetOverrideErrors>> {
 		// The level-2 lock a delete resolution's compensation relies on — see
 		// `SetRequirementCostOverrideCommand`'s header, which states the rule once for both.
-		const release = await this.locks.acquire([], [input.requirementId]);
-		try {
-			return await this.write(input);
-		} finally {
-			release();
-		}
+		return this.locks.withLevel2(input.requirementId, () => this.write(input));
 	}
 
 	private async write(

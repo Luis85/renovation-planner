@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from 'yaml';
-import { REPO } from '../helpers/oxlint';
+import { REPO } from '../helpers/repo';
 
 /**
  * `yaml` — a real, general parser, not a hand-rolled reader — so every one of `ci.yml`'s

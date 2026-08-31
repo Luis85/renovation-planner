@@ -206,12 +206,20 @@ uncalibrated again, which is the epic's own inherited rule doing the work.
 ### 6. Calibration rescales what came off the background, and nothing else
 
 `CalibrateAsset` multiplies by `scaleCorrection` **only the coordinates that came from the
-background and have not yet been converted** — the clearance, the anchor, its own calibration pair
-and a `traced` footprint — and never a `typed` footprint.
+background and have not yet been converted** — the clearance, the anchor and a `traced` footprint —
+and never a `typed` footprint.
 
-**`pendingScale` gates whether a calibration rescales anything at all; `footprintOrigin` decides
-whether the footprint is among what it rescales.** Both are necessary and neither is sufficient, so
-the rule is a conjunction rather than one flag.
+**Its own calibration pair is the exception, and is ALWAYS rescaled and finite-checked**, gated on
+nothing. The at-rest invariant `distance(pointA, pointB) === knownDistance` is definitional: it is
+what makes a stored calibration mean anything. Gating the pair on `pendingScale` persists the picked
+points unconverted whenever the flag is already clear — which includes the *ordinary* first
+calibration, a background calibrated before any geometry exists — storing a 100-unit pair that
+claims a known distance of 200 and rendering the background at a scale inconsistent with its own
+calibration.
+
+**`pendingScale` gates whether a calibration rescales the GEOMETRY at all; `footprintOrigin` decides
+whether the footprint is among it.** Both are necessary and neither is sufficient, so the geometry
+rule is a conjunction rather than one flag.
 
 This is the one place slice 7's plan rule may not be copied, and the first draft of this document
 copied it. `ReversibleCalibratePlan` rescales *every* coordinate the plan owns, which is correct
@@ -305,10 +313,10 @@ designer's undo must reach it:
 that `Asset.withChanges` exists to re-run, and undo granularity is per gesture: a user who traces a
 clearance and regrets it should not lose their anchor with it.
 
-`CalibrateAsset` borrows `ReversibleCalibratePlan`'s machinery and **not** its rule: when
-`pendingScale` is set it rescales the clearance, the anchor, its own calibration pair and a `traced`
-footprint, leaving a `typed` one alone; when it is not, it rescales nothing and merely records the
-new calibration (Decision 6). It clears `pendingScale`, since the coordinates it just converted are
+`CalibrateAsset` borrows `ReversibleCalibratePlan`'s machinery and **not** its rule: it always
+rescales its own calibration pair, and when `pendingScale` is set it also rescales the clearance, the
+anchor and a `traced` footprint, leaving a `typed` one alone; when the flag is clear it converts no
+geometry (Decision 6). It clears `pendingScale`, since the coordinates it just converted are
 millimetres now. Recalibrating an oven rescales that oven and nothing else on any plan, which is
 the whole reason the epic gives the designer a calibration of its own.
 

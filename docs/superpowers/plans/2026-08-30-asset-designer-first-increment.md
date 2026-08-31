@@ -1753,6 +1753,18 @@ it('rescales nothing on a second calibration, because those coordinates are alre
 	expect(isOk(stored) && stored.value.document.calibration).not.toBeNull();
 });
 
+it('rescales its own calibration pair even when no geometry awaits a scale', async () => {
+	// The ordinary first calibration: a background, nothing traced on it yet.
+	await seedShape({ footprint: rect(1200, 800), footprintOrigin: 'typed', pendingScale: false });
+	await calibrate.execute({ assetId, pointA: { x: 0, y: 0 }, pointB: { x: 100, y: 0 }, knownDistance: 200 });
+	const stored = await sidecar.read(assetId);
+	const c = isOk(stored) ? stored.value.document.calibration : null;
+	// The at-rest invariant is definitional and gated on nothing.
+	expect(c && distance(c.pointA, c.pointB)).toBeCloseTo(200, 6);
+	// ...while the typed footprint it sits beside is still untouched.
+	expect(isOk(stored) && stored.value.document.shape?.footprint.points[2]).toEqual({ x: 600, y: 400 });
+});
+
 it('refuses two coincident points, which is a division by zero', async () => {
 	const result = await calibrate.execute({ assetId, pointA: p, pointB: p, knownDistance: 200 });
 	expect(isErr(result) && result.error.code).toBe('calibration.coincident-points');
@@ -1770,11 +1782,17 @@ The second case is the epic's central separation — the calibration a designer 
 
 - [ ] **Step 2: Implement**
 
-Derive, then — **only when `pendingScale` is set** — apply `scaleShape(…, scaleCorrection, origin)`
-to the coordinates that came off the background: the clearance, the anchor, the calibration's own
-pair, and the footprint **only when `footprintOrigin === 'traced'`**. Then clear `pendingScale` and
-write the whole document once. When `pendingScale` is already clear, rescale nothing and record the
-new calibration alone.
+Derive, then rescale in two steps, because they are gated differently.
+
+**Always** apply `scaleCorrection` to the calibration's **own pair**, whatever `pendingScale` says.
+The at-rest invariant asserted below is definitional, and the flag is clear on the ordinary first
+calibration — a background calibrated before any geometry is drawn — so gating the pair stores the
+picked points unconverted: a 100-unit pair claiming a known distance of 200.
+
+**Only when `pendingScale` is set**, apply `scaleShape(…, scaleCorrection, origin)` to the GEOMETRY
+that came off the background: the clearance, the anchor, and the footprint **only when
+`footprintOrigin === 'traced'`**. Then clear `pendingScale`. Write the whole document once. When the
+flag is already clear, no geometry is converted and only the new calibration is recorded.
 
 **Both conditions are necessary and neither is sufficient**, which is the owner's ruling on the one
 question this plan left open. `footprintOrigin` stays `'traced'` for the life of the outline, so

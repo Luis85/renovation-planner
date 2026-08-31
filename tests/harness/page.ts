@@ -30,10 +30,16 @@ const params = new URLSearchParams(window.location.search);
  * The index is OPT-IN, and that is a decision rather than an accident.
  *
  * `?view=plan-editor` keeps the Plan Editor and everything else keeps the project view,
- * because `scripts/harness-shot.mjs`'s three fixed shots address the project surface with no
- * `view` parameter at all — `''`, `?theme=light`, `?phone`. Making a bare URL mean "index"
- * would break all three, and the test in Task 6 that asserts the fixed shots still exist
- * would keep passing while the captures timed out.
+ * because `scripts/harness-shot.mjs`'s FIVE fixed shots address the project surface with no
+ * `view` parameter at all — `''`, `?theme=light`, `?phone`, and design slice 21's
+ * `?project=project-1` at both widths. Making a bare URL mean "index" would break all five, and
+ * the test in Task 6 that asserts the fixed shots still exist would keep passing while the
+ * captures timed out.
+ *
+ * This sentence said THREE and named the first three until slice 21 added the other two — a
+ * count that goes stale in the direction of a WEAKER argument, which is the quiet kind. Found
+ * while acting on a review finding about its neighbours rather than by any gate: nothing reads
+ * a prose enumeration against the list it describes.
  *
  * The PBI leaves "does the index displace the current root" open. This answers it: it does
  * not, because displacing it costs a working workflow to save one query parameter.

@@ -102,18 +102,35 @@ const HARNESS_PLAN_NAMES = [
  * validation is a picture of the loading state with no error anywhere, which is the quiet this
  * whole capture tool exists against.
  */
+/**
+ * A seed step's `Result`, unwrapped loudly. The in-memory repositories answer synchronously, so
+ * this reads the settled value rather than awaiting: `save` returns a promise, and the fixture
+ * needs the failure to reach a human rather than a rejected promise nobody holds.
+ */
+const expectSeeded = (saved: Promise<{ ok: boolean }>): void => {
+	void saved.then((result) => {
+		if (!result.ok) throw new Error('the harness fixture failed to seed; the capture would photograph the list');
+
+		return result;
+	});
+};
+
 const seedProject = (projectId: string) => ({ projects, plans }: SeedRepositories): void => {
 	const id = projectId as ProjectId;
 	const project = expectOk(
 		Project.create({ id, name: 'Maple Street, ground floor refit', status: 'EXECUTION' }),
 	);
 
-	void projects.save(project, 'absent');
+	// THROWN rather than `void`ed, and the reason is what this fixture is for: a failed save
+	// leaves an empty world, both captures then photograph the LIST, and they wait on
+	// `.renovation-planner-view`, which the list satisfies — so `npm run harness-shot` would
+	// write two PNGs of the wrong state and exit 0. A fixture that stops seeding must be loud.
+	expectSeeded(projects.save(project, 'absent'));
 
 	HARNESS_PLAN_NAMES.forEach((name, index) => {
 		const plan = expectOk(Plan.create({ id: `plan-${index + 1}` as PlanId, projectId: id, name }));
 
-		void plans.save(plan, 'absent');
+		expectSeeded(plans.save(plan, 'absent'));
 	});
 };
 

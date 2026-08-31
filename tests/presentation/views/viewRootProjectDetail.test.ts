@@ -371,6 +371,34 @@ describe('ViewRoot in the detail state', () => {
 		expect(navigate).toHaveBeenCalledWith(null);
 	});
 
+	/**
+	 * **The screen a `'gone'` project draws when the navigation above does not happen.**
+	 * `navigateToProject` does not reject by contract, so a rejected `setViewState` reports its
+	 * fault and resolves — the watcher's `navigate(null)` silently does nothing and the store
+	 * stays `'gone'`. Before this branch existed the pane then rendered the LOADING line: a
+	 * false sentence, with no Back and no retry, recoverable only by closing the leaf.
+	 *
+	 * Driven with a `navigate` that does nothing, which is exactly what a failed navigation
+	 * looks like from here — the store cannot tell a refused write from one that never
+	 * happened, and that is the whole reason the fallback has to be honest rather than
+	 * transient. Reported by a review bot.
+	 */
+	it('draws an actionable gone state when the navigation does not take', async () => {
+		const navigate = vi.fn<(projectId: string | null) => void>();
+		const wrapper = mountRoot({ projectId: 'project-1', navigate, getProject: () => Promise.resolve(ok(null)) });
+		await flushPromises();
+
+		// The lie the old build told, asserted as ABSENT: a green here is what the loading line
+		// used to satisfy.
+		expect(wrapper.find('.rp-view-message').exists()).toBe(false);
+		expect(wrapper.get('.rp-empty-state__headline').text()).toBe(t('en', 'view.project.gone'));
+
+		await wrapper.get('.rp-empty-state__action').trigger('click');
+
+		// Twice: once from the watcher, once from the button the user had to be given.
+		expect(navigate).toHaveBeenNthCalledWith(2, null);
+	});
+
 	it('holds the loading line rather than navigating before the scan has run', async () => {
 		const navigate = vi.fn<(projectId: string | null) => void>();
 		const wrapper = mountRoot({

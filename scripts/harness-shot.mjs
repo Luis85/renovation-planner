@@ -108,7 +108,7 @@ const SHOTS = [
 	// photograph: it mounts a component bare, and `ProjectDetail` requires three props and
 	// reads `project.name` immediately, so the picture would be the index's own failure card.
 	// `?project=<id>` seeds a project of that id and opens the view on it — see
-	// `tests/harness/mount.ts` for what the fixture holds and why it holds twelve plans.
+	// `tests/harness/mount.ts` for what the fixture holds and why twelve plans were not enough.
 	//
 	// A FIXED shot rather than a `--width` invocation, and that is a fact about this script
 	// rather than a preference: `resolveShots` reads a positional argument as a harness-index

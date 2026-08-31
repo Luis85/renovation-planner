@@ -91,7 +91,7 @@ export const entryShots = (entry, width) => {
  *
  * An entry argument that is present but blank (`npm run harness-shot ""`) is a mistake, not an
  * absent argument — `entryShots('')` would still produce two loadable-looking filenames, so a
- * quoted empty string would otherwise run the ten fixed shots and exit 0 rather than reporting
+ * quoted empty string would otherwise run the twelve fixed shots and exit 0 rather than reporting
  * an unnamed entry. Truthiness alone conflates the two; this checks presence first.
  */
 const WIDTH_FLAG = /^--width=(.*)$/;

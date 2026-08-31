@@ -151,6 +151,14 @@ describe('the browser harness', () => {
 	 *
 	 * `flushPromises` and not a tick count: `onOpen` mounts synchronously and the store's read
 	 * settles afterwards, so a fixed number of turns is a fact about today's call chain.
+	 *
+	 * **What this does NOT drive is `page.ts`'s `params.get('project')`** — it calls
+	 * `mountHarness` with the id directly, so the one line that turns a URL into that argument
+	 * is exercised by nothing here. A build that stopped reading the parameter would keep this
+	 * case green and photograph the list twice. Stated rather than closed: `page.ts` mounts at
+	 * module scope, so driving it means importing a module for its side effects under a
+	 * rewritten `location`, which is a test harness of its own rather than a case. Reported by
+	 * this task's reviewer.
 	 */
 	it('opens the detail state on a seeded project when given one, plans and all', async () => {
 		const { view } = mountHarness(document.body, 'project-1');

@@ -27,6 +27,7 @@
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
+import EmptyState from '../components/EmptyState.vue';
 import ProjectDetail from './ProjectDetail.vue';
 import NewPlanForm from './NewPlanForm.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
@@ -225,6 +226,28 @@ onBeforeUnmount(
 		@open-note="() => void onOpenNote()"
 		@open-plan="(planId) => void context.openPlan(planId)"
 		@create-plan="() => void onCreatePlan()"
+	/>
+	<!--
+		`'gone'` draws its OWN screen rather than falling through to the message region, and that
+		is a safety net rather than a nicety. The watcher below navigates back to the list on
+		`'gone'` — but `navigateToProject` does not reject by contract, so a rejected
+		`setViewState` reports its fault and resolves, the navigation silently does not happen,
+		and the store stays `'gone'`. Without this branch the pane then sat permanently on
+		"Loading projects…" — a false sentence, with no Back and no retry, recoverable only by
+		closing the leaf. Reported by a review bot.
+
+		Making the navigation OBSERVABLE was the alternative and is the smaller half: `'gone'`
+		would still render as loading for the frame before the remount, and for any later path
+		that reaches `'gone'` without this watcher. An honest fallback makes that a smaller
+		question rather than the only defence.
+	-->
+	<EmptyState
+		v-else-if="status === 'gone'"
+		:headline="tr('view.project.gone')"
+		:body="tr('view.project.gone-body')"
+		:action-label="tr('view.project.back')"
+		:heading-level="3"
+		@action="context.navigate(null)"
 	/>
 	<div
 		v-else

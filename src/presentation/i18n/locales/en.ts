@@ -249,6 +249,12 @@ export const en = {
 	// refusal that reaches the user through neither of `useFormCommit`'s doors, because
 	// navigating back to the list destroys the form a banner would have lived in.
 	'view.project.gone': 'This project no longer exists.',
+	// The BODY of the `gone` state's own screen, beside the notice sentence above — the
+	// headline is shared because it is the same fact. It exists because a `gone` status
+	// whose navigation FAILED used to render the loading line: `navigateToProject` does not
+	// reject, so the watcher's `navigate(null)` can silently do nothing, and the pane then
+	// sat permanently on "Loading projects…" with no Back and nothing true on screen.
+	'view.project.gone-body': 'It may have been deleted or moved out of this vault. Go back to the project list.',
 	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
 	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
 	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is

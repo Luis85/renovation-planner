@@ -39,7 +39,7 @@ import type { PluginCommandHost } from './commandHost';
  * **What is left is the honest, smaller reason it was written for in the first place**, which
  * is the sentence three paragraphs up: it is the vault-side equivalent of `npm run harness`.
  * One gesture produces a scene worth LOOKING AT — a project, a plan, and five zones covering
- * four types and all three statuses — where assembling the same scene by hand is a project
+ * three types and all three statuses — where assembling the same scene by hand is a project
  * form, a navigation, a plan form, another navigation and then five polygons drawn vertex by
  * vertex. That is work a reviewer skips, and skipping it is how a rendering defect goes
  * unlooked-at. A convenience for whoever is about to open the canvas, not a capability the

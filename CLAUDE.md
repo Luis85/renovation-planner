@@ -3337,9 +3337,16 @@ Not oversights; each has a trigger.
 
   **The trigger is a third level of nesting AND a genuine need for a history independent of
   Obsidian's** — both, not either. *"Epic 4 arrives"* is explicitly NOT the trigger, and that
-  is a measurement rather than a hedge: PRD Epic 4's whole navigation set (Overview, Spaces,
-  Design, Work, Budget, Schedule) fits in `{ projectId, section }` in the same view state,
-  which is one more key rather than a router.
+  is a measurement rather than a hedge — and the measurement had to be corrected once, which is
+  the useful half: this sentence said "Epic 4's whole navigation set" over SIX destinations, and
+  PRD Feature 4.1 lists SEVEN (Overview, Spaces, Design, Work, Budget, Schedule, **Documentation**
+  — the one dropped). It was also wrong about its own scope: 4.1 is one feature of Epic 4, which
+  also carries the project switcher (4.2), breadcrumbs (4.3) and context preservation (4.4).
+  The argument survives both corrections, which is why it is corrected rather than withdrawn:
+  seven destinations fit in `{ projectId, section }` exactly as six do — one more key rather than
+  a router — and 4.3 and 4.4 are DERIVED from that state rather than additional history, while
+  4.2 is the picker this slice already built. Found by a reviewer reading the PRD rather than the
+  sentence.
 
   **decimal.js is NOT on this list any more.** It arrived with slice 9's money arithmetic
   (ADR-010) and this line said otherwise for two slices. `core/money/Money.ts` is the ONLY

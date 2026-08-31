@@ -41,8 +41,22 @@ here rather than only in the (git-ignored) SDD ledger, so the branch itself reco
 | 3 — the view's two new reads, guarded | ✅ complete — `b237799`, review clean |
 | 4 — `ProjectDetailStore` | ✅ complete — `674887f`, amended (see below) |
 | 11 — `revealView` answers, `navigateToProject` | ✅ complete — `4d1245d`, review clean |
-| 5 — the five context seams | next |
-| 6–10, 12–13 | not started |
+| 5 — the five context seams | ✅ complete — `13f021a`; split-pane correction landed mid-task |
+| 6 — the view's state machine | ✅ complete — `bf648c3`, review clean |
+| 7–10, 12–13 | not started |
+
+**Amendments and branch-wide work since, in commit order** — kept here because several amend a
+task that is already ticked above, and a table listing only first commits would report a tree
+that no longer exists:
+
+| Commit | What it changed |
+|---|---|
+| `7b6d2f9` | Merge of `main`, which had gained a `typecheck:tests` gate this branch had never faced |
+| `18cf94f` | Clears that gate: nine test files, nothing baselined, no assertion weakened |
+| `67264a6` | Closes the residue that work reported — three `viewRoot` test files provide an unchecked context, now stating `projectId: null` |
+| `327ecd9` | **Amends Task 11**: the navigation lane is keyed on the leaf a call RESOLVES to, so a palette call and an in-view call to the same pane share one lane |
+| `8f4f6b4` | Plan text — Tasks 5, 6, 9, 10 and 13 carried the abandoned deps-factory shape or an empty-state key ordered after its reader |
+| `6969d88` | Plan text — Task 6's two mount cases could not see the defects they were named for |
 
 Task 4's review found its two completed-scan cases byte-identical at the store layer; the
 duplicate is retired and the real discrimination moved to Task 5's Step 6a, where the flag is
@@ -1767,12 +1781,21 @@ describe('the list and detail states', () => {
 		expect(view.getState()).toEqual({ projectId: '' });
 	});
 
+	/**
+	 * **The middle assertion is the case**, and its absence is what a review of Task 6's own
+	 * mutation instruction found. Driving `A → '' → B` and asserting only the FINAL state
+	 * cannot see a build that refuses `''`: the field simply stays at `A` until `B` overwrites
+	 * it, so the last line reads `B` either way. The name promises `detail → list → detail`,
+	 * and without the middle line it checked `detail → detail`.
+	 */
 	it('round-trips detail → list → detail', async () => {
 		const view = makeView();
 		await view.onOpen();
 
 		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
 		await view.setState({ projectId: '' }, {} as ViewStateResult);
+		expect(view.getState()).toEqual({ projectId: '' });
+
 		await view.setState({ projectId: 'project-01JBBB' }, {} as ViewStateResult);
 
 		expect(view.getState()).toEqual({ projectId: 'project-01JBBB' });
@@ -2102,7 +2125,15 @@ Each of these is invisible in a green run and each has exactly one case:
 2. Change the guard to `if (this.projectId === this.mountedProjectId) return;` (drop
    `this.mounted &&`) → the "mounts the list on a first open" case goes RED.
 3. Change `projectIdFrom`'s last line to `return projectId.length > 0 ? { projectId } : null;`
-   → the "accepts an empty projectId" and round-trip cases go RED.
+   → the "accepts an empty projectId" and round-trip cases go RED. **Both, and the second one
+   only because the round-trip case asserts its MIDDLE step.** Task 6's implementer measured
+   this instruction false as first written: driving `A → '' → B` and asserting only the final
+   state cannot see a refused `''`, because the field simply stays at `A` until `B` overwrites
+   it and the last line reads `B` in both builds. It was reported rather than worked around —
+   the fourth instruction in this plan to name a case that could not fail for the stated
+   reason — and fixed by making the case honour its own name (`detail → list → detail` was
+   checking `detail → detail`) rather than by narrowing the instruction to one case. Watched
+   red both ways afterwards.
 
 Restore all three.
 

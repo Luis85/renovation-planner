@@ -277,12 +277,21 @@ describe('the list and detail states', () => {
 		expect(view.getState()).toEqual({ projectId: '' });
 	});
 
+	/**
+	 * **The middle assertion is the case**, and its absence is what a review of Task 6's own
+	 * mutation instruction found. Driving `A → '' → B` and asserting only the FINAL state
+	 * cannot see a build that refuses `''`: the field simply stays at `A` until `B` overwrites
+	 * it, so the last line reads `B` either way. The name promises `detail → list → detail`,
+	 * and without the middle line it checked `detail → detail`.
+	 */
 	it('round-trips detail → list → detail', async () => {
 		const view = makeView();
 		await view.onOpen();
 
 		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
 		await view.setState({ projectId: '' }, {} as ViewStateResult);
+		expect(view.getState()).toEqual({ projectId: '' });
+
 		await view.setState({ projectId: 'project-01JBBB' }, {} as ViewStateResult);
 
 		expect(view.getState()).toEqual({ projectId: 'project-01JBBB' });

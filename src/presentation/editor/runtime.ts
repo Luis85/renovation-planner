@@ -301,6 +301,20 @@ function wrapDispatcher(
  * an empty catalogue. `PlanEditorRoot` already subscribes its own `hydrate` to
  * `onPlanChanged` — which carries `ProjectIndexRebuilt` — so the PLAN recovered and the
  * options did not, leaving the picker permanently empty in a restored leaf.
+ *
+ * **What that borrowed event costs, named rather than left as surveyed ground.**
+ * `ProjectIndexRebuilt` is the ONE member of `planChangeSource`'s two lists this read has
+ * any business hearing; the other five — `PlanBackgroundChanged`, `PlanCalibrated`,
+ * `ZoneCreated`, `ZoneGeometryChanged`, `ZoneDeleted` — say nothing about the catalogue and
+ * re-read every asset note in the vault anyway, once per zone gesture in an open editor.
+ * Correct and wasteful, which is the honest reading: no asset-change event source exists
+ * (`AssetCreated`/`AssetUpdated`/`AssetDeleted` are published and nothing filters them into
+ * a per-leaf subscription), and `PlanEditorContext` exposes exactly two listener doors,
+ * neither of which is about assets. Closing it is a THIRD door on that context plus a
+ * sibling to `planChangeSource`, which is a widening of the editor's own seam rather than a
+ * change to this function — so it is written here rather than worked around, and the bound
+ * is per GESTURE and not per pointer move, because every one of those five is published on
+ * commit.
  */
 function loadAssetOptions(
 	context: PlanEditorContext,

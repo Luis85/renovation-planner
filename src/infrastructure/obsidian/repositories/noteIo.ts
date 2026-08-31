@@ -7,6 +7,7 @@ import type { MigrationRunner } from '../../persistence/migration/MigrationRunne
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
 import type { ObservationToken } from '../../../application/ports/versioning';
+import { persistenceError } from '../../../application/errors';
 import { parentOf } from './paths';
 import { observeFrontmatter } from './digest';
 
@@ -23,11 +24,13 @@ import { observeFrontmatter } from './digest';
 /**
  * Every `PersistenceError` this layer produces, from one place — the geometry store and
  * the three repositories all call THIS rather than each keeping a copy, and the `cause`
- * spread is the reason it is worth a function at all.
+ * spread is the reason it is worth a function at all. The definition itself moved to
+ * `application/errors.ts` when a QUERY became a raise site: `application/` may not import
+ * `infrastructure/`, so the shared factory has to sit on the side both layers can reach.
+ * Re-exported here so this layer's importers keep naming the module they read notes
+ * through, and so there is still exactly one definition to drift from.
  */
-export function persistenceError(code: string, message: string, cause?: unknown): PersistenceError {
-	return { category: 'Persistence', code, message, ...(cause === undefined ? {} : { cause }) };
-}
+export { persistenceError };
 
 /**
  * The `MigrationError` twin of the factory above. The runner throws tagged `Error`

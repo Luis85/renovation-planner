@@ -44,13 +44,13 @@ async function wiredAfterFailedSequence() {
 	);
 	const asset = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
 	const assigned = await w.assign.execute({ zoneId: zone.entity.id, assetId: asset.entity.id });
 	if (!assigned.ok) throw new Error('unexpected assign failure');
-	const secondAsset = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+	const secondAsset = expectOk(await w.assets.save(makeAsset(), 'absent'));
 	const second = await w.assign.execute({ zoneId: zone.entity.id, assetId: secondAsset.entity.id });
 	if (!second.ok) throw new Error('unexpected assign failure');
 
@@ -89,7 +89,7 @@ describe('recoverInterruptedSequences', () => {
 		const zone = expectOk(
 			await w.zones.save(makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }), 'absent'),
 		);
-		const asset = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const asset = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const requirement = makeRequirement({
 			projectId: w.project.entity.id,
 			assetId: asset.entity.id,
@@ -176,7 +176,7 @@ describe('recoverInterruptedSequences', () => {
 
 	it('leaves a completed ASSET deletion standing rather than resurrecting it', async () => {
 		const w = await requirementFixture();
-		const asset = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const asset = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		expectOk(await w.assets.delete(asset.entity.id, asset.version));
 
 		const markers = new InMemorySequenceMarkerStore();
@@ -208,7 +208,7 @@ describe('recoverInterruptedSequences', () => {
 		const zone = expectOk(
 			await w.zones.save(makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }), 'absent'),
 		);
-		const asset = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const asset = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const requirement = makeRequirement({
 			projectId: w.project.entity.id,
 			assetId: asset.entity.id,

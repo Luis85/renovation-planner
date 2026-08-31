@@ -3,6 +3,7 @@ import type { AppError, GeometryError, PersistenceError, ReferenceError } from '
 import type { Command } from '../application/commands/Command';
 import type { Query } from '../application/queries/Query';
 import type { Logger } from '../application/ports/Logger';
+import type { LibraryOverlaps } from '../application/ports/LibraryOverlaps';
 import type { Loaded } from '../application/ports/versioning';
 import type { RepositoryError } from '../application/ports/repositoryErrors';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
@@ -58,14 +59,17 @@ import type {
 } from '../application/commands/requirement/DeleteRequirement';
 import type { GetRequirementsForZone, RequirementInspectorDTO } from '../application/queries/GetRequirementsForZone';
 import type { ListAssets } from '../application/queries/ListAssets';
-import type { ListRequirementsReferencing, ReferencedTarget } from '../application/queries/ListRequirementsReferencing';
+import type {
+	ListRequirementsReferencing,
+	ReferencedTarget,
+	ReferencingGroup,
+} from '../application/queries/ListRequirementsReferencing';
 import type { ListReassignmentTargets } from '../application/queries/ListReassignmentTargets';
 import type { ReassignmentTargetDto } from '../application/queries/reassignmentTypes';
 import type { ResolvedSequence } from '../application/reference/deleteResolution';
 import type { Asset } from '../domain/asset/Asset';
 import type { Requirement } from '../domain/requirement/Requirement';
 import type { RequirementId } from '../domain/requirement/RequirementId';
-import type { ProjectId } from '../domain/project/ProjectId';
 import type { Project } from '../domain/project/Project';
 import type { Plan } from '../domain/plan/Plan';
 import type { Zone } from '../domain/zone/Zone';
@@ -170,8 +174,8 @@ export interface GuardedSlice10Services {
 	/** Slice 10's read side, beside the zone inspector query — guarded member by member. */
 	readonly requirementQueries: {
 		readonly getRequirementsForZone: Query<ZoneId, Result<readonly RequirementInspectorDTO[], RepositoryError>>;
-		readonly listAssets: Query<ProjectId, Result<readonly Asset[], RepositoryError>>;
-		readonly listRequirementsReferencing: Query<ReferencedTarget, Result<readonly RequirementId[], RepositoryError>>;
+		readonly listAssets: Query<void, Result<readonly Asset[], RepositoryError>>;
+		readonly listRequirementsReferencing: Query<ReferencedTarget, Result<readonly ReferencingGroup[], RepositoryError>>;
 		readonly listReassignmentTargets: Query<ReferencedTarget, Result<readonly ReassignmentTargetDto[], RepositoryError>>;
 	};
 }
@@ -214,6 +218,12 @@ export function guardedEditorServices(
 		files: VaultFileProbe;
 		logger: Logger;
 		map: VaultExceptionMapper;
+		/**
+		 * §83's third site, which has no door to refuse at (ADR-0013 derives a project's
+		 * folder from where its note sits). `ListProjects` answers it beside the list rather
+		 * than a second query answering it separately — one read, one failure mode.
+		 */
+		overlaps: LibraryOverlaps;
 	},
 	diagnosticsSources: {
 		versions: RuntimeVersions;
@@ -222,7 +232,7 @@ export function guardedEditorServices(
 	},
 ): { queries: QueryServices } & GuardedEditorServices {
 	const { projects, plans, zones } = repositories;
-	const { eventBus, files, logger, map } = deps;
+	const { eventBus, files, logger, map, overlaps } = deps;
 
 	const getProject = guardQuery(new GetProject(projects), 'query.getProject.failed', logger, map);
 	const getPlan = guardQuery(new GetPlan(plans), 'query.getPlan.failed', logger, map);
@@ -252,7 +262,7 @@ export function guardedEditorServices(
 		map,
 	);
 	const zoneInspector = guardQuery(new GetZoneInspector(zones), 'query.zoneInspector.failed', logger, map);
-	const listProjects = guardQuery(new ListProjects(projects), 'query.listProjects.failed', logger, map);
+	const listProjects = guardQuery(new ListProjects(projects, overlaps), 'query.listProjects.failed', logger, map);
 	const listPlansByProject = guardQuery(new ListPlansByProject(plans), 'query.listPlansByProject.failed', logger, map);
 
 	return {

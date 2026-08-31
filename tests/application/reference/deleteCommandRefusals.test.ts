@@ -42,7 +42,7 @@ async function wiredZoneWithLink() {
 	);
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -65,7 +65,7 @@ async function wiredZoneWithLink() {
 	};
 }
 
-/** A second zone/asset pair in the SAME project, usable as a reassignment target. */
+/** A second zone in the SAME project, usable as a reassignment target. */
 async function saveTarget(w: Awaited<ReturnType<typeof wiredZoneWithLink>>) {
 	return expectOk(
 		await w.zones.save(
@@ -258,7 +258,7 @@ describe('DeleteZoneCommand closure refusals', () => {
 		// completed write in `progress` when the second one fails.
 		const secondAsset = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			),
 		);

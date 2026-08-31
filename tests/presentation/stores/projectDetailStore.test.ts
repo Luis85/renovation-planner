@@ -13,7 +13,10 @@ import { useProjectDetailStore } from '../../../src/presentation/stores/ProjectD
 import type { RenovationProjectQueryServices } from '../../../src/presentation/read-models/renovationProjectQueries';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
-const PROJECT: ProjectSummaryDto = { id: 'project-01JAAA', name: 'Hallway', status: 'IDEA' };
+// `libraryOverlap` is slice 19's §83 marker, required on the DTO and `false` here because
+// these cases are about the DETAIL state, which draws no marker — stated rather than omitted,
+// so a fixture never carries a value nothing chose.
+const PROJECT: ProjectSummaryDto = { id: 'project-01JAAA', name: 'Hallway', status: 'IDEA', libraryOverlap: false };
 const READ_FAILED = { category: 'Persistence', code: 'project.read-failed', message: 'boom' } as const;
 
 function queriesAnswering(overrides: Partial<RenovationProjectQueryServices>): RenovationProjectQueryServices {

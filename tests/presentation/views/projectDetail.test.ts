@@ -12,7 +12,8 @@ import ProjectDetail from '../../../src/presentation/views/ProjectDetail.vue';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 import { t } from '../../../src/presentation/i18n/strings';
 
-const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Hallway', status: 'IDEA' };
+// See `projectDetailStore.test.ts` for why this is stated and why it is `false`.
+const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Hallway', status: 'IDEA', libraryOverlap: false };
 
 describe('ProjectDetail', () => {
 	it('names the project and renders its status through the shared label', () => {

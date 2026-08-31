@@ -36,14 +36,29 @@ export interface NoteWriteSpec<TEntity> {
 	readonly kind: string;
 	readonly indexType: 'renovation-asset' | 'renovation-requirement';
 	/**
-	 * Where an INSERT creates the note, and `undefined` when the owning project's folder
-	 * did not resolve (ADR-0013). Only the insert path reads it: an UPDATE writes where the
+	 * Where an INSERT creates the note, and `undefined` when the folder did not resolve —
+	 * which is the owning project's folder (ADR-0013) for a Requirement, and never happens
+	 * for an Asset, whose folder is the configured library's and is always a real path.
+	 * Only the insert path reads it: an UPDATE writes where the
 	 * note already is, so a save is refused for an unresolvable folder only when it has to
 	 * choose a location. `undefined` is a refusal rather than a fallback — writing to a
 	 * defaulted path when the real one is unknown is how a note lands in a parallel tree
 	 * beside the user's work.
 	 */
 	readonly notesFolder: string | undefined;
+	/**
+	 * The project this entity's index entry is filed under, or `undefined` for a catalogue
+	 * entry that belongs to no project (§59, amended by design slice 19). It is a function
+	 * of the entity rather than a member of the CONSTRAINT because the two kinds sharing
+	 * this write disagree: a Requirement carries its project, an Asset has none.
+	 */
+	readonly projectId: (entity: TEntity) => ProjectId | undefined;
+	/**
+	 * Owned keys this build has RETIRED, deleted from an existing note on its next save.
+	 * Omitting a key from the DTO cannot express removal — the write is a merge; see
+	 * `writeOwnedFrontmatter`.
+	 */
+	readonly retiredKeys?: readonly string[];
 	/** The fresh-note file name base — an Asset's name, a Requirement's composed name. */
 	readonly entryName: (entity: TEntity) => string;
 	readonly toPersistence: (entity: TEntity, revision: number) => Record<string, unknown>;
@@ -52,7 +67,7 @@ export interface NoteWriteSpec<TEntity> {
 	readonly writeFailedCode: string;
 }
 
-export async function saveNoteBackedEntity<TEntity extends { readonly id: EntityId<string>; readonly projectId: ProjectId }>(
+export async function saveNoteBackedEntity<TEntity extends { readonly id: EntityId<string> }>(
 	deps: NoteVaultDeps,
 	spec: NoteWriteSpec<TEntity>,
 	entity: TEntity,
@@ -89,7 +104,7 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 	try {
 		if (existing) {
 			notePath = existing.path;
-			await writeOwnedFrontmatter(deps.fileManager, existing, dto);
+			await writeOwnedFrontmatter(deps.fileManager, existing, dto, spec.retiredKeys);
 		} else {
 			// The insert path is the only one that has to choose a location, so it is the
 			// only one an unresolvable project folder can refuse. Nothing has been written
@@ -99,7 +114,7 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 				return err(
 					persistenceError(
 						`${spec.kind}.project-folder-unresolved`,
-						`Could not resolve the folder of project ${entity.projectId} for ${spec.kind} ${entity.id}.`,
+						`Could not resolve the folder of project ${String(spec.projectId(entity))} for ${spec.kind} ${entity.id}.`,
 					),
 				);
 			}
@@ -115,7 +130,7 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 		id: entity.id,
 		type: spec.indexType,
 		path: notePath,
-		projectId: entity.projectId,
+		projectId: spec.projectId(entity),
 	});
 	// The reading the cache gave BEFORE this write, so a read landing inside Obsidian parse
 	// lag can tell a cache that has not caught up from one that has. Undefined on the insert

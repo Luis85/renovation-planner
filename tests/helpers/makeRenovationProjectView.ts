@@ -48,7 +48,10 @@ import { GetProject } from '../../src/application/queries/GetProject';
 import { ListPlansByProject } from '../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../src/application/queries/ListProjects';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { IndexLibraryOverlaps } from '../../src/infrastructure/obsidian/repositories/IndexLibraryOverlaps';
+import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
+import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { createRenovationProjectQueries } from '../../src/presentation/read-models/renovationProjectQueries';
 import { FakeLeaf } from './workspace';
 import { RecordingEventBus } from './domain';
@@ -166,6 +169,15 @@ export const defaultRenovationProjectDeps = (
 	// world.
 	const plans = new InMemoryPlanRepository();
 	const events = new RecordingEventBus();
+	// The REAL §83 adapter over a real (empty) Project Index, not a `() => []` stub. It gives
+	// the same answer today — no project is indexed, so none has a derived folder to compare —
+	// but it gives it FOR THE RIGHT REASON, and it can give a different one. A stub cannot:
+	// design slice 19 Task 9 renders a marker from this field, and from that moment every view
+	// test taking this default would have been silently asserting "never overlapping" against
+	// an object incapable of saying anything else. This file is a fake held to a contract; the
+	// standing rule is that it must not be thinner, kinder, harsher or faster than the real
+	// thing, and "always empty by construction" is thinner.
+	const overlaps = new IndexLibraryOverlaps(new InMemoryProjectIndex(), DEFAULT_SETTINGS.libraryFolder);
 
 	// Before the queries and the commands are built over them, so a seeded caller gets ONE
 	// world rather than a read model over content and a write side over an empty pair. The
@@ -179,7 +191,12 @@ export const defaultRenovationProjectDeps = (
 	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
 	// requires a `logger` beside it.
 	const defaults: RenovationProjectDeps = {
-		queries: createRenovationProjectQueries(new ListProjects(projects), new GetProject(projects), new ListPlansByProject(plans)),
+		queries: createRenovationProjectQueries(
+			new ListProjects(projects, overlaps),
+			new GetProject(projects),
+			new ListPlansByProject(plans),
+			overlaps,
+		),
 		commands: {
 			createProject: new CreateProjectCommand(projects, events),
 			createPlan: new CreatePlanCommand(plans, projects, events),

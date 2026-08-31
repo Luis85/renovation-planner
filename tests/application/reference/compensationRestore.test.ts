@@ -61,7 +61,7 @@ async function wiredZoneWithReferent() {
 describe('a completed forward write is restored when a later step fails', () => {
 	it('DeleteZone: the removed referent comes back when the zone note itself cannot be deleted', async () => {
 		const w = await wiredZoneWithReferent();
-		const asset = expectOk(await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'));
+		const asset = expectOk(await w.assets.save(makeAsset(), 'absent'));
 		const requirement = expectOk(
 			await w.requirements.save(
 				makeRequirement({
@@ -102,7 +102,7 @@ describe('a completed forward write is restored when a later step fails', () => 
 		const w = await wiredZoneWithReferent();
 		const asset = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			),
 		);

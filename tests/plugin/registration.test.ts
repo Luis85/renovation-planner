@@ -186,10 +186,10 @@ describe('the composition root', () => {
 	it('re-applies the log floor when settings are saved', async () => {
 		expect(levelChanges).toEqual([]);
 
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, verboseLogging: true });
+		await plugin.saveSettings({ verboseLogging: true });
 		expect(levelChanges).toEqual(['debug']);
 
-		await plugin.saveSettings(DEFAULT_SETTINGS);
+		await plugin.saveSettings({ verboseLogging: false });
 		expect(levelChanges).toEqual(['debug', 'info']);
 	});
 

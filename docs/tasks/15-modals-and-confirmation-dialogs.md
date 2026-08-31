@@ -120,6 +120,33 @@ Note what the framework does NOT claim, because the word "modal" reads wider tha
 `Modal` — nothing pushes a `Scope` and the keydown handler does not `stopPropagation()` — so
 Obsidian's own keymap stays live behind an open dialog.
 
+### What slice 19 closed (2026-08-31)
+
+**Items 6 and 6a were met by slice 19 (2026-08-31.)** Every Definition of Done item in this
+document is now met. The row mapping is `rowsFor` in
+`src/presentation/editor/deleteZoneFlow.ts`, asserted in
+`tests/presentation/editor/deleteZoneFlow.test.ts` — against the mapping directly, which is
+what item 6 asks for — and through the mounted editor in
+`tests/presentation/editor/shell/deleteZoneWithReferences.test.ts`. `t`'s third parameter
+lives in `src/presentation/i18n/strings.ts`, with `tr` forwarding it, driven by
+`tests/presentation/i18n/strings.test.ts` (the fill, the unmatched hole left standing, the
+unchanged two-argument call, and the per-key hole parity between `de.ts` and `en.ts`).
+
+Two corrections to the item text above rather than silent drift. The keys are
+`reference.row.project` (`'{name}'`) and `reference.row.project-at-path`
+(`'{name} — {path}'`), not the `entity.requirement.plural.in-project*` pair this document
+spelled: the row names the project and no longer names the entity type, so
+`entity.requirement.plural` had no caller left and was removed from both locales. **Design
+slice 19's closing pass corrected the three places where that old spelling sat in a CRITERION
+or a test description** — Definition of Done item 6, the worked-example integration test in the
+Test Plan, and the same-name test below it — and
+deliberately left it standing in the two illustrative code sketches further down, which are
+this document's own draft of a design and are covered by this paragraph rather than being
+claims about shipped code. A key name inside a ticked box is the one that misleads. And
+`ListRequirementsReferencing` answers the groups — the flat referent set the command
+compares is derived from them inside the flow, so the ambiguity decision stays the query's
+and is made once.
+
 ### What the walkthrough found (2026-08-26)
 
 `docs/tests/cases/Calibrate a Plan.md` is the procedure and carries the run. Everything
@@ -913,7 +940,7 @@ contract ends at the typed result, before any write occurs.
   than passing review by accident.
 - **Worked-example integration test** — a fixture Zone with two fixture Requirements
   referencing it drives `onInspectorDeleteZone`; assert the dialog that opens carries
-  `references: [{ label: t(lang, 'entity.requirement.plural.in-project', { project: 'Kitchen Refit' }), count: 2 }]`
+  `references: [{ label: t(lang, 'reference.row.project', { name: 'Kitchen Refit' }), count: 2 }]`
   sourced from a fake `ListRequirementsReferencing` double **returning one
   `ReferencingProject` group** — which is what a Zone target always yields, since a Zone
   belongs to one Plan and that to one Project. Then assert that choosing each of the four
@@ -935,7 +962,7 @@ contract ends at the typed result, before any write occurs.
   safe by design, a *mis-holed* one renders a brace to exactly one language's users.
 - **Same-name test**, which the grouped-rows test does not reach either: a double returning
   two groups **whose `projectName` is the same string** produces two rows carrying
-  `entity.requirement.plural.in-project-at` with each group's own `projectPath`, and a
+  `reference.row.project-at-path` with each group's own `projectPath`, and a
   third group with a distinct name in the same set still carries the plain key. Three
   assertions, because the rule has three halves and dropping any one of them still passes
   the other two: **both** colliding rows are qualified (not just the second), the
@@ -992,10 +1019,12 @@ contract ends at the typed result, before any write occurs.
 5. `DeleteReferenceDialog` renders an arbitrary-length `references` array exactly as
    supplied — no recomputation, no invented default rows when the caller supplies only
    one.
-6. Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly **one**
+6. **Met by slice 19 (2026-08-31)** — see *What slice 19 closed* above for the two key
+   names that changed.
+   Opening the delete dialog on a Zone referenced by 2 Requirements shows exactly **one**
    row counting 2, its label naming the owning project through a single localized key
    per label — the plain form here, since one group's name cannot collide with another's,
-   and `entity.requirement.plural.in-project-at` carrying `projectPath` for **each** row
+   and `reference.row.project-at-path` carrying `projectPath` for **each** row
    whose `projectName` is not unique among the groups on screen, which a separate
    row-mapping test drives with two same-named groups plus a third distinct one —
    sourced from slice 10's `ListRequirementsReferencing` query, verified by an
@@ -1008,7 +1037,8 @@ contract ends at the typed result, before any write occurs.
    Asset a delete affordance. The mapping test still
    earns its place here, because every Zone fixture is single-group and would pass a caller
    that read `groups[0]` alone.
-6a. `t(language, key, params?)` fills `{name}` holes from `params` in a single pass over
+6a. **Met by slice 19 (2026-08-31).**
+    `t(language, key, params?)` fills `{name}` holes from `params` in a single pass over
     the template, leaves an unmatched hole standing as `{name}`, and is unchanged for
     every two-argument call that exists today. `tr` forwards the same third argument.
     `de.ts`'s translation of any key names the same holes as `en.ts`'s, asserted per key

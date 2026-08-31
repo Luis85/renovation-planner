@@ -230,21 +230,23 @@ describe('plans and zones land in their own project folder', () => {
 	});
 });
 
-describe('assets and requirements land in their own project folder', () => {
-	it('writes two projects\' assets and requirements into two different folders', async () => {
+describe('requirements land in their own project folder, and assets in the library', () => {
+	it('writes two projects\' requirements into two folders and both assets into one library', async () => {
 		const stack = createRepositoryStack('Renovation');
 		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
 		const bathroom = makeProjectEntity({ id: 'p2' as ProjectId, name: 'Bathroom' });
 		await stack.projects.save(kitchen, 'absent');
 		await stack.projects.save(bathroom, 'absent');
 
-		const tiles = makeAssetEntity({ id: 'a1' as AssetId, projectId: 'p1' as ProjectId, name: 'Tiles' });
-		const grout = makeAssetEntity({ id: 'a2' as AssetId, projectId: 'p2' as ProjectId, name: 'Grout' });
+		const tiles = makeAssetEntity({ id: 'a1' as AssetId, name: 'Tiles' });
+		const grout = makeAssetEntity({ id: 'a2' as AssetId, name: 'Grout' });
 		await stack.assets.save(tiles, 'absent');
 		await stack.assets.save(grout, 'absent');
 
-		expect(stack.index.getPath('a1' as never)).toBe('Renovation/Kitchen Refit/Assets/Tiles.md');
-		expect(stack.index.getPath('a2' as never)).toBe('Renovation/Bathroom/Assets/Grout.md');
+		// One library, not two project folders — design slice 19. Neither asset names a
+		// project and neither note lands under one.
+		expect(stack.index.getPath('a1' as never)).toBe('Library/Assets/Tiles.md');
+		expect(stack.index.getPath('a2' as never)).toBe('Library/Assets/Grout.md');
 
 		const requirement = makeRequirementEntity({
 			id: 'r1' as RequirementId,
@@ -257,24 +259,42 @@ describe('assets and requirements land in their own project folder', () => {
 		expect(stack.index.getPath('r1' as never)).toBe('Renovation/Bathroom/Requirements/r1.md');
 	});
 
-	it('refuses an asset save whose project folder cannot be resolved, and writes nothing', async () => {
+	it('keeps assets off the project axis and on the type axis', async () => {
+		// The reason `listAll` needs no filter and no exclusion list: an asset is upserted
+		// with no `projectId`, so it never appears under `getIdsByProject` at all. A
+		// requirement in the same vault is the contrast — it still carries one.
 		const stack = createRepositoryStack('Renovation');
 		const kitchen = makeProjectEntity({ id: 'p1' as ProjectId, name: 'Kitchen Refit' });
 		await stack.projects.save(kitchen, 'absent');
-		const tiles = makeAssetEntity({ projectId: 'p1' as ProjectId, name: 'Tiles' });
-		const before = [...stack.vault.entries.keys()];
+		const tiles = makeAssetEntity({ id: 'a1' as AssetId, name: 'Tiles' });
+		await stack.assets.save(tiles, 'absent');
+		await stack.requirements.save(
+			makeRequirementEntity({
+				id: 'r1' as RequirementId,
+				projectId: 'p1' as ProjectId,
+				assetId: tiles.id,
+				origin: { kind: 'zone', zoneId: 'z1' as ZoneId },
+			}),
+			'absent',
+		);
 
-		// Same route as the plan and zone cases, and an INSERT for the same reason — this
-		// asset has never been saved, so the write has to choose a location. `saveQueued`
-		// hands the unresolved folder to the spec as `undefined`; `saveNoteBackedEntity`
-		// refuses on the insert path, before `ensureFolder`, which is why nothing is written.
-		stack.index.remove('p1' as never);
+		expect(stack.index.getIdsByProject('p1' as ProjectId)).not.toContain('a1');
+		expect(stack.index.getIdsByProject('p1' as ProjectId)).toContain('r1');
+		expect(stack.index.getIdsByType('renovation-asset')).toContain('a1');
+	});
+
+	it('saves an asset with no project note in the index at all', async () => {
+		// The replacement for the `asset.project-folder-unresolved` case design slice 19
+		// deleted: an asset's folder is the library's, so there is no project entry for the
+		// save to resolve and nothing for a missing one to refuse. The vault holds no project
+		// note whatsoever here, which is the strongest form of that claim.
+		const stack = createRepositoryStack('Renovation');
+		const tiles = makeAssetEntity({ id: 'a1' as AssetId, name: 'Tiles' });
+
 		const result = await stack.assets.save(tiles, 'absent');
 
-		expect(result.ok).toBe(false);
-		expect(result.ok === false && result.error.category).toBe('Persistence');
-		expect(result.ok === false && result.error.code).toBe('asset.project-folder-unresolved');
-		expect([...stack.vault.entries.keys()]).toEqual(before);
+		expect(result.ok).toBe(true);
+		expect(stack.index.getPath('a1' as never)).toBe('Library/Assets/Tiles.md');
 	});
 
 	it('refuses a requirement save whose project folder cannot be resolved, and writes nothing', async () => {
@@ -449,10 +469,10 @@ describe('a note filed outside its kind folder still saves', () => {
 		const stack = createRepositoryStack('Renovation');
 		await seedKitchenProject(stack);
 		await stack.assets.save(
-			makeAssetEntity({ id: 'a1' as AssetId, projectId: 'p1' as ProjectId, name: 'Tiles' }),
+			makeAssetEntity({ id: 'a1' as AssetId, name: 'Tiles' }),
 			'absent',
 		);
-		const derived = 'Renovation/Kitchen Refit/Assets/Tiles.md';
+		const derived = 'Library/Assets/Tiles.md';
 		relocate(stack, derived, 'Inbox/Tiles.md');
 
 		const read = expectOk(await stack.assets.getById('a1' as AssetId));

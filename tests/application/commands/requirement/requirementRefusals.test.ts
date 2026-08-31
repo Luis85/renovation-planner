@@ -153,7 +153,7 @@ describe('UpdateAssetCommand refusals', () => {
 	it('a unit-kind change on an UNREFERENCED asset re-reads under the lock and saves', async () => {
 		const w = await wiredWithLink();
 		const spare = expectOk(
-			await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'),
+			await w.assets.save(makeAsset(), 'absent'),
 		);
 		const updated = expectOk(
 			await new UpdateAssetCommand(w.assets, w.requirements, w.events, w.locks).execute({
@@ -167,7 +167,7 @@ describe('UpdateAssetCommand refusals', () => {
 	it('the kind-change re-read answers asset.not-found when the asset vanished under the lock', async () => {
 		const w = await wiredWithLink();
 		const spare = expectOk(
-			await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'),
+			await w.assets.save(makeAsset(), 'absent'),
 		);
 		let reads = 0;
 		const assets = overridePort(w.assets, {
@@ -189,7 +189,7 @@ describe('UpdateAssetCommand refusals', () => {
 	it('the kind-change re-read propagates its failure', async () => {
 		const w = await wiredWithLink();
 		const spare = expectOk(
-			await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'),
+			await w.assets.save(makeAsset(), 'absent'),
 		);
 		let reads = 0;
 		const assets = overridePort(w.assets, {
@@ -211,7 +211,7 @@ describe('UpdateAssetCommand refusals', () => {
 	it('the kind-change re-read re-validates what it actually read', async () => {
 		const w = await wiredWithLink();
 		const spare = expectOk(
-			await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'),
+			await w.assets.save(makeAsset(), 'absent'),
 		);
 		let reads = 0;
 		const assets = overridePort(w.assets, {
@@ -237,7 +237,7 @@ describe('UpdateAssetCommand refusals', () => {
 	it('the kind-change referent check propagates a failed listing', async () => {
 		const w = await wiredWithLink();
 		const spare = expectOk(
-			await w.assets.save(makeAsset({ projectId: w.project.entity.id }), 'absent'),
+			await w.assets.save(makeAsset(), 'absent'),
 		);
 		const requirements = overridePort(w.requirements, {
 			listByAsset: () => Promise.resolve(err(injectedPersistenceError())),

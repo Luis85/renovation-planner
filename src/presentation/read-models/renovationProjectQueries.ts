@@ -1,4 +1,5 @@
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
+import type { LibraryOverlaps } from '../../application/ports/LibraryOverlaps';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { Query } from '../../application/queries/Query';
 import type { GetProjectInput } from '../../application/queries/GetProject';
@@ -96,13 +97,21 @@ export function createRenovationProjectQueries(
 	listProjects: Query<void, Result<ProjectListResult, RepositoryError>>,
 	getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>,
 	listPlansByProject: Query<ListPlansByProjectInput, Result<Plan[], RepositoryError>>,
+	overlaps: LibraryOverlaps,
 ): RenovationProjectQueryServices {
 	return {
 		async listProjects() {
 			const found = await listProjects.execute();
 			if (isErr(found)) return found;
+			// A SET rather than `overlapping.includes(...)` per row: the query answers a list
+			// of ids and the mapping asks one question per project, which is quadratic on a
+			// vault with many projects for no reason — and the set is built once per read, so
+			// it cannot drift from the list it came from the way a second lookup could.
+			const overlapping = new Set<string>(found.value.overlapping);
 			return ok({
-				projects: found.value.projects.map(toProjectSummaryDto),
+				projects: found.value.projects.map((project) =>
+					toProjectSummaryDto(project, overlapping.has(project.id)),
+				),
 				unreadable: found.value.unreadable,
 			});
 		},
@@ -117,7 +126,19 @@ export function createRenovationProjectQueries(
 		async getProject(projectId) {
 			const found = await getProject.execute({ projectId: projectId as ProjectId });
 			if (isErr(found)) return found;
-			return ok(found.value === null ? null : toProjectSummaryDto(found.value.entity));
+			if (found.value === null) return ok(null);
+			// §83's flag ASKED rather than fabricated. `ProjectSummaryDto.libraryOverlap` is
+			// required because the list row renders a mark and a word from it, and this door
+			// answers the same DTO type — so `false` here would be a statement about a project
+			// whose folder this function never compared. The detail state draws no marker today,
+			// which is exactly what makes the lie safe to tell and wrong to write down: the day
+			// it grows one, a hard-coded `false` is a defect with no failing test in front of it.
+			//
+			// `overlapping` takes a LIST and answers the overlapping subset, so a single id is a
+			// one-element ask — synchronous, and the same instrument the list query reaches
+			// through `ListProjects`, rather than a second derivation that could disagree with it.
+			const [overlapping] = overlaps.overlapping([found.value.entity.id]);
+			return ok(toProjectSummaryDto(found.value.entity, overlapping !== undefined));
 		},
 
 		async listPlansByProject(projectId) {

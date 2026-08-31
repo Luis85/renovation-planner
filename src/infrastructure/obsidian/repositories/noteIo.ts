@@ -356,6 +356,21 @@ export function isTFolder(file: unknown): file is TFolder {
 }
 
 /**
+ * A MOVE, through Obsidian's own `FileManager` — which is what rewrites every link in the
+ * vault that pointed at the old path. A create-and-delete pair would leave every one of
+ * them dangling, so the two are not interchangeable however similar the outcome looks in a
+ * file listing.
+ *
+ * It lives here rather than at its caller because the write boundary is a claim about a
+ * DIRECTORY: slice 19's library migration is composed in `plugin/settings/` and is handed
+ * this function as a dep, so the only code naming a vault mutation is still the code in
+ * `infrastructure/obsidian/`.
+ */
+export function renameNote(fileManager: FileManager, file: TFile, to: string): Promise<void> {
+	return fileManager.renameFile(file, to);
+}
+
+/**
  * Creates each missing folder segment; an existing non-folder at a segment is an error.
  *
  * `created` is an OUT parameter rather than a return value, and the difference is the whole
@@ -478,13 +493,29 @@ export async function restoreNoteText(
 	}
 }
 
-/** Merges the plugin-owned keys into an existing note without touching body or extras. */
+/**
+ * Merges the plugin-owned keys into an existing note without touching body or extras, and
+ * DELETES keys this build has retired.
+ *
+ * `retired` exists because omission cannot express removal here: this is a MERGE, so a key
+ * dropped from the DTO is preserved rather than cleared. Design slice 19 retired `project`
+ * from an Asset when the catalogue left the project, and the rule is about the BYTES — a
+ * note is rewritten without it on its next save. A note nobody ever saves again keeps the
+ * stale key on disk forever; there is no sweep and there will not be one.
+ *
+ * Ordering is load-bearing: delete FIRST, assign second, so a key that is both retired and
+ * re-owned survives as its new value rather than being deleted after it was written.
+ */
 export async function writeOwnedFrontmatter(
 	fileManager: FileManager,
 	file: TFile,
 	owned: Record<string, unknown>,
+	retired: readonly string[] = [],
 ): Promise<void> {
-	await fileManager.processFrontMatter(file, (frontmatter) => {
+	// `processFrontMatter`'s callback is typed `any` by Obsidian; narrowed here at the one
+	// place that reads it by KEY, so the deletion below is a checked member access.
+	await fileManager.processFrontMatter(file, (frontmatter: Record<string, unknown>) => {
+		for (const key of retired) delete frontmatter[key];
 		Object.assign(frontmatter, owned);
 	});
 }

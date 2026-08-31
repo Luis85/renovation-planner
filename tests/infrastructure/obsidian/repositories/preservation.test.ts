@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
+import {
+	createRepositoryStack,
+	parseFrontmatter,
+	serializeFrontmatter,
+	type RepositoryStack,
+} from '../../../helpers/vault';
+import { writeOwnedFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 import { expectFound, expectOk } from '../../../helpers/domain';
 import {
 	makeAsset,
@@ -126,14 +132,13 @@ const PRESERVATION_CASES: ReadonlyArray<{
 		kind: 'asset',
 		reads: 'Renamed asset',
 		drive: async (stack) => {
-			const projectId = await seedProject(stack);
 			const id = createAssetId();
-			const written = expectOk(await stack.assets.save(makeAsset({ id, projectId }), 'absent'));
+			const written = expectOk(await stack.assets.save(makeAsset({ id }), 'absent'));
 			await expectTargetedUpdatePreservesUserContent({
 				stack,
 				id,
 				write: () =>
-					stack.assets.save(makeAsset({ id, projectId, name: 'Renamed asset' }), written.version),
+					stack.assets.save(makeAsset({ id, name: 'Renamed asset' }), written.version),
 				expectOwned: { name: 'Renamed asset' },
 			});
 			return expectOk(await stack.assets.getById(id))?.entity.name;
@@ -225,5 +230,67 @@ describe('a targeted property update preserves the user’s own note content', (
 
 		const reread = expectOk(await stack.requirements.getById(requirement.id));
 		expect(reread?.entity.recalculationStatus).toBe('stale');
+	});
+});
+
+/**
+ * The other half of the same door. Preservation is about keys this build does NOT own;
+ * retirement is about a key it USED to own and no longer writes — and omitting it from the
+ * DTO cannot express that, because `writeOwnedFrontmatter` is a merge (`Object.assign`).
+ * Without the `retired` list a note carrying `project:` would keep it forever, and dropping
+ * the key from `AssetFrontmatterSchemaV1` at the same time made it look like one of the
+ * unowned extras the case above exists to protect.
+ */
+describe('a retired owned key is removed from the note it survives on', () => {
+	it('round-trips a note carrying a leftover project key to a note that does not', async () => {
+		const stack = createRepositoryStack('Renovation');
+		const id = createAssetId();
+		const written = expectOk(await stack.assets.save(makeAsset({ id, name: 'Tiles' }), 'absent'));
+		const path = stack.index.getPath(id) ?? '';
+
+		// A slice-18-era note: the same bytes this build writes, plus the `project` key it
+		// used to own. Hand-edited rather than mapper-produced, because the mapper that
+		// produced it no longer exists.
+		const before = parseFrontmatter(stack.vault.entries.get(path) ?? '');
+		stack.vault.entries.set(
+			path,
+			serializeFrontmatter({ ...before.frontmatter, project: 'project-1' }) + before.body,
+		);
+		stack.metadataCache.catchUp();
+
+		// It PARSES — the schema is not strict, so an existing note is readable rather than
+		// refused.
+		const loaded = expectOk(await stack.assets.getById(id));
+		if (loaded === null) throw new Error('the leftover key should not stop the note parsing');
+		expect(parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter).toHaveProperty('project');
+
+		const saved = expectOk(await stack.assets.save(loaded.entity, loaded.version));
+
+		expect(saved.version.revision).toBe(written.version.revision + 1);
+		// And the BYTES no longer carry it. Narrow claim, deliberately: this happens on a
+		// SAVE. A note nobody ever saves again keeps the stale key on disk forever, there is
+		// no sweep, and there will not be one.
+		expect(parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter).not.toHaveProperty('project');
+	});
+
+	it('lets a retired key that is re-owned survive as its new value', async () => {
+		// Ordering inside `writeOwnedFrontmatter`: delete FIRST, assign second. Driven at that
+		// function's own door, since no repository spec both owns and retires one key —
+		// putting `name` in both lists asks whether a deletion can outrank the write that
+		// follows it, and only this door can be asked.
+		const stack = createRepositoryStack('Renovation');
+		const path = 'Inbox/Note.md';
+		stack.vault.entries.set(path, serializeFrontmatter({ name: 'Before', project: 'project-1' }));
+		const file = stack.vault.getAbstractFileByPath(path);
+		if (file === null) throw new Error('the planted note should resolve');
+
+		await writeOwnedFrontmatter(stack.fileManager as never, file as never, { name: 'After' }, [
+			'name',
+			'project',
+		]);
+
+		expect(parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter).toEqual({
+			name: 'After',
+		});
 	});
 });

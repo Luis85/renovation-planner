@@ -59,6 +59,12 @@ export interface EditorHarness {
 	readonly changeTheme: () => void;
 	/** Fire the injected plan-change subscription, as a committed command would. */
 	readonly changePlan: () => void;
+	/**
+	 * Fire the injected catalogue-change subscription, as an asset command or an index
+	 * rebuild would. Separate from `changePlan` because the two doors carry different
+	 * events — a test that could only fire one could not tell them apart.
+	 */
+	readonly changeCatalogue: () => void;
 	/** How many theme listeners are still registered — the unmount leak check. */
 	readonly themeListeners: () => number;
 	/** How many times the tree asked to close this leaf (`PlanEditorContext.closeLeaf`). */
@@ -169,6 +175,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const themeListeners = new Set<() => void>();
 	let closedLeaf = 0;
 	const planListeners = new Set<() => void>();
+	const catalogueListeners = new Set<() => void>();
 
 	// `plan` is `PlanDto | null | undefined` here: `undefined` means the option was
 	// OMITTED (default to the fixture), `null` means the caller explicitly asked for no
@@ -187,6 +194,13 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		onPlanChanged: (listener) => {
 			planListeners.add(listener);
 			return () => planListeners.delete(listener);
+		},
+		// Its OWN set, not an alias of the plan door's: the whole point of the third source is
+		// that the two fire on different events, so a fixture that folded them together could
+		// not tell a build that had merged them back from one that had not.
+		onCatalogueChanged: (listener) => {
+			catalogueListeners.add(listener);
+			return () => catalogueListeners.delete(listener);
 		},
 		closeLeaf: () => {
 			closedLeaf += 1;
@@ -228,6 +242,9 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		},
 		changePlan: () => {
 			for (const listener of planListeners) listener();
+		},
+		changeCatalogue: () => {
+			for (const listener of catalogueListeners) listener();
 		},
 		themeListeners: () => themeListeners.size,
 		closedLeaf: () => closedLeaf,

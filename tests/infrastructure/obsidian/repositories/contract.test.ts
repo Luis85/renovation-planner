@@ -557,7 +557,6 @@ assetRepositoryContract(() => {
 	return {
 		repository: stack.assets,
 		touch: (id) => handEdit(stack, id),
-		otherProject: () => registerOtherProject(stack),
 	};
 });
 

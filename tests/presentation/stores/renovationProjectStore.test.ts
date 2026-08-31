@@ -14,7 +14,7 @@ import { useRenovationProjectStore } from '../../../src/presentation/stores/Reno
 import type { RenovationProjectQueryServices } from '../../../src/presentation/read-models/renovationProjectQueries';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
-const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
+const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', libraryOverlap: false };
 const READ_FAILED = { category: 'Persistence', code: 'settings.unrecovered', message: 'boom' } as const;
 
 /**
@@ -157,13 +157,13 @@ describe('RenovationProjectStore hydration', () => {
 		const slowGate = new Promise<void>((resolve) => {
 			releaseSlow = resolve;
 		});
-		const stale: ProjectSummaryDto = { id: 'stale', name: 'the stale answer', status: 'Planning' };
+		const stale: ProjectSummaryDto = { id: 'stale', name: 'the stale answer', status: 'Planning', libraryOverlap: false };
 		const slow = store.hydrate(
 			queries({ listProjects: () => slowGate.then(() => ok({ projects: [stale], unreadable: 0 })) }),
 		);
 
 		// A second hydration starts and finishes entirely inside the first one's await.
-		const fresh: ProjectSummaryDto = { id: 'fresh', name: 'the fresh answer', status: 'Planning' };
+		const fresh: ProjectSummaryDto = { id: 'fresh', name: 'the fresh answer', status: 'Planning', libraryOverlap: false };
 		await store.hydrate(queries({ listProjects: () => Promise.resolve(ok({ projects: [fresh], unreadable: 0 })) }));
 		expect(store.projects).toEqual([fresh]);
 

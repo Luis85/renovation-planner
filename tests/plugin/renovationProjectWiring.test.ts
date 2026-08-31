@@ -499,7 +499,7 @@ describe('the registered view factory', () => {
 		const { plugin } = await loadedPlugin();
 		const beforeFolder = plugin.root.settings?.projectFolder;
 
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere else' });
+		await plugin.saveSettings({ projectFolder: 'Somewhere else' });
 
 		expect(plugin.root.settings?.projectFolder).not.toBe(beforeFolder);
 		const built = plugin.views.get(RENOVATION_PROJECT_VIEW)?.(new FakeLeaf() as never);

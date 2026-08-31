@@ -157,7 +157,8 @@ function detailDeps(over: { projectId: string; plans: readonly PlanSummaryDto[] 
 		...base,
 		queries: {
 			...base.queries,
-			getProject: () => Promise.resolve(ok({ id: over.projectId, name: 'Hallway', status: 'IDEA' })),
+			getProject: () =>
+				Promise.resolve(ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', libraryOverlap: false })),
 			listPlansByProject: () => Promise.resolve(ok(over.plans)),
 		},
 	};
@@ -272,6 +273,65 @@ describe('axe against the mounted view', () => {
 		const results = await axe.run(view.contentEl, runOptions);
 
 		expect(results.violations).toEqual([]);
+	});
+
+	/**
+	 * The project LIST, carrying design slice 19's §83 library-overlap marker — this project's
+	 * first row-level status, and the first thing in this view that says something about a
+	 * project rather than merely naming it.
+	 *
+	 * The case above grades the EMPTY state and can never reach a row: `mountHarness` takes no
+	 * `deps`, so its list is empty by construction. This one hands `makeView` a list holding one
+	 * marked project — rather than exposing the helper's own `IndexLibraryOverlaps`, which is
+	 * built over an empty `InMemoryProjectIndex` and so is incapable of answering "overlapping"
+	 * at all. What is graded is the marker's MARKUP, which is what axe can see at this file's
+	 * ceiling; the mark itself is CSS-drawn and jsdom resolves no CSS, so the "mark and a word"
+	 * contract is held by `projectListOverlap.test.ts` against the stylesheet instead.
+	 *
+	 * The PRESENCE assertions are the load-bearing half, for this file's standing reason:
+	 * `results.violations` is `[]` on a scan of nothing at all, indistinguishable from a scan of
+	 * compliant markup — measured here by rendering the marker's `v-if` false, which reddens
+	 * this case and nothing else. `flushPromises` is kept for uniformity with its siblings
+	 * rather than because this case needs it, and the difference was measured too: this case
+	 * `await`s `onOpen` (`mountHarness` does not — it is synchronous and `void`s it), and the
+	 * fixture query resolves immediately, so removing the line leaves the case green. Kept
+	 * because a case that relies on how few microtasks a hydrate happens to take is one edit
+	 * from the vacuous pass the empty-state case above already shipped once.
+	 */
+	it('reports no semantic violations on a project row carrying the library-overlap marker', async () => {
+		installObsidianDom();
+		const view = makeView({
+			// SPREAD at BOTH levels rather than a bare literal, and slice 21 is why: this bundle
+			// was written when `RenovationProjectDeps` had four members and
+			// `RenovationProjectQueryServices` had one. The detail state added five to the first
+			// and two to the second, so a hand-built literal no longer satisfies either type.
+			// The default supplies everything this case has no opinion about; it overrides
+			// exactly the one query it is about.
+			...defaultRenovationProjectDeps(),
+			queries: {
+				...defaultRenovationProjectDeps().queries,
+				listProjects: () =>
+					Promise.resolve(
+						ok({
+							projects: [{ id: 'p1', name: 'Kitchen refit', status: 'IDEA', libraryOverlap: true }],
+							unreadable: 0,
+						}),
+					),
+			},
+			commands: unavailableRenovationProjectCommands(),
+			openProject: () => Promise.resolve('opened' as const),
+			onProjectsChanged: () => () => undefined,
+		});
+		document.body.appendChild(view.containerEl);
+		await view.onOpen();
+		await flushPromises();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
+		expect(view.contentEl.querySelector('.rp-project-list__row')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-project-list__overlap')).not.toBeNull();
+		expect(results.violations).toEqual([]);
+		await view.onClose();
 	});
 
 	/**

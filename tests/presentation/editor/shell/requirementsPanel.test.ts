@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { settle, settleUntil as until } from '../../../helpers/editor';
-import { click, pointer, PROJECT_ID, rig, toolbarButton } from '../../../helpers/planEditorRig';
+import { click, pointer, rig, toolbarButton } from '../../../helpers/planEditorRig';
 import { expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
 
@@ -18,7 +18,7 @@ async function rigWithAssets(names: string[]) {
 	return await rig(async ({ assets }) => {
 		for (const name of names) {
 			await assets.save(
-				makeAsset({ projectId: PROJECT_ID, name, unit: 'm2', wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ name, unit: 'm2', wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			);
 		}
@@ -63,7 +63,7 @@ describe('the Requirements panel', () => {
 
 	it('assigns an asset through the picker and renders its row with effective figures', async () => {
 		const r = await rigWithAssets(['Floor tiles']);
-		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 
@@ -81,12 +81,28 @@ describe('the Requirements panel', () => {
 		const text = r.harness.wrapper.text();
 		expect(text).toContain('m2');
 		expect(text).toContain('EUR');
+
+		// And the gesture is UNDOABLE, which is the half of slice 10's criterion that is
+		// about the WIRING rather than about the adapter: `ReversibleAssignAssetCommand` is
+		// what the Inspector dispatches. Its own undo/redo/idempotent behaviour is asserted
+		// at the adapter's door in
+		// `tests/application/commands/requirement/reversibleAssign.test.ts`; what only THIS
+		// mount can say is that the assign edit reaches that adapter at all. Without it the
+		// case passes identically against an `inspector-wiring.ts` that dispatched the plain
+		// `AssignAssetCommand` — the row appears either way, and nothing else here would
+		// notice the requirement becoming unrecoverable.
+		toolbarButton(r.harness, 'Undo').click();
+		await until(
+			() => r.harness.wrapper.text().includes('No requirements reference this zone yet.'),
+			'the assignment is undone',
+		);
+		expect(expectOk(await r.requirementsRepo.listByZone('zone-a' as never))).toEqual([]);
 		r.harness.unmount();
 	});
 
 	it('applies a quantity override with an Overridden badge, then resets to calculated', async () => {
 		const r = await rigWithAssets(['Plaster']);
-		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the row override inputs render');
@@ -136,7 +152,7 @@ describe('the Requirements panel', () => {
 	 */
 	it('writes nothing when Reset is pressed on a field that holds no override', async () => {
 		const r = await rigWithAssets(['Screed']);
-		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the row override inputs render');
@@ -169,7 +185,7 @@ describe('the Requirements panel', () => {
 	 */
 	it('shows the negative-quantity refusal under the quantity input, from the real command', async () => {
 		const r = await rigWithAssets(['Underlay']);
-		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 		await until(() => r.harness.wrapper.find('input[data-field="quantity"]').exists(), 'the row override inputs render');
@@ -216,7 +232,7 @@ describe('the Requirements panel', () => {
 	 */
 	it('renders a requirement whose asset is gone from its id, with the reason', async () => {
 		const r = await rigWithAssets(['Doomed']);
-		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
 		if (areaAsset === undefined) throw new Error('expected a seeded asset');
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
@@ -253,7 +269,7 @@ describe('the Requirements panel', () => {
 	 */
 	it('a zone reshape leaves the RECALCULATED figures on screen, with no reselect', async () => {
 		const r = await rigWithAssets(['Screed']);
-		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
 		if (areaAsset === undefined) throw new Error('expected a seeded asset');
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
@@ -302,7 +318,7 @@ describe('the Requirements panel', () => {
 
 	it('applies a COST override the same way, and resets it', async () => {
 		const r = await rigWithAssets(['Grout']);
-		const areaAsset = expectOk(await r.assetsRepo.listByProject(PROJECT_ID))[0];
+		const areaAsset = expectOk(await r.assetsRepo.listAll())[0];
 
 		await selectZoneAndAssign(r, areaAsset.entity.id);
 		await until(() => r.harness.wrapper.find('input[data-field="cost"]').exists(), 'the cost override input renders');

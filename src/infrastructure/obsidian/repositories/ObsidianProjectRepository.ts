@@ -21,6 +21,7 @@ import {
 import { observeFrontmatter } from './digest';
 import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
 import { freshNotePath, freshProjectFolder } from './paths';
+import { foldersOverlap } from './foldersOverlap';
 import { KeyedQueues } from './KeyedQueues';
 import type { NoteVaultDeps } from './NoteVaultDeps';
 import { fileAt } from './NoteVaultDeps';
@@ -65,10 +66,18 @@ export class ObsidianProjectRepository {
 	 * nothing else. It is this repository's alone rather than a shared `NoteVaultDeps`
 	 * field, because it is the only one that ever writes a note whose folder does not
 	 * already exist to be derived from.
+	 *
+	 * `libraryFolder` is the other plugin setting, and it is here for the same reason: this
+	 * is the one repository that chooses a folder, so it is the one that can refuse an
+	 * overlapping one (§83). A stored copy rather than a value read per call is correct
+	 * rather than a slice-18 relapse — it is a SETTING and not a derived path, and
+	 * `saveSettings` replaces the whole composition root, so this copy cannot outlive the
+	 * setting it was built from.
 	 */
 	constructor(
 		private readonly deps: NoteVaultDeps,
 		private readonly newProjectRoot: string,
+		private readonly libraryFolder: string,
 	) {}
 
 	getById(id: ProjectId): Promise<Result<Loaded<Project> | null, RepositoryError>> {
@@ -123,6 +132,17 @@ export class ObsidianProjectRepository {
 			}
 		} else {
 			const folder = freshProjectFolder(this.deps.vault, this.newProjectRoot, project.name, project.id);
+			// §83, the first of two doors. BEFORE `ensureFolder`, so a refusal creates nothing —
+			// the orphan-folder compensation this class already carries is for a write that
+			// failed, not for a refusal it could have made first.
+			if (foldersOverlap(folder, this.libraryFolder)) {
+				return err(
+					persistenceError(
+						'project.folder-overlaps-library',
+						`Project folder ${folder} overlaps the library folder ${this.libraryFolder}.`,
+					),
+				);
+			}
 			path = freshNotePath(this.deps.vault, folder, project.name, project.id);
 			// DECLARED outside the `try`, because `ensureFolder` can throw having already made
 			// some of the segments and the catch has to see those. `ObsidianPlanRepository`'s

@@ -23,7 +23,6 @@ const assetId = createAssetId();
 function assetProps(overrides?: Partial<CreateAssetProps>): Parameters<typeof Asset.create>[0] {
 	return {
 		id: assetId,
-		projectId,
 		name: 'Tile',
 		category: 'material',
 		unit: 'm2',

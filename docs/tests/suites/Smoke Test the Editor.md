@@ -85,18 +85,26 @@ tested today.
 | --- | --- | --- |
 | `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 75 |
 | `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 30 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 60 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 77 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 12 |
-| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 8 |
+| `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 9 |
 
-185 steps across ten cases. The counts are `grep`ed out of these files rather than carried
+203 steps across ELEVEN cases. The counts are `grep`ed out of these files rather than carried
 over from the notes the classification was drafted in, so a re-tagged step moves the number —
-and the number moves whether or not anyone re-runs the grep, which is what happened here: this
-paragraph read "165 steps across nine cases" until design slice 21 re-measured it, and 16 of
-the 20 steps it had gone stale by are that slice's own new case. The other FOUR are in cases
-that already existed — steps added without re-running the grep, or an original miscount; this
-instrument cannot tell those two apart, and either way the figure was wrong before this case
-existed.
+and the number moves whether or not anyone re-runs the grep.
+
+**This paragraph is its own worked example, twice over.** Design slices 19 and 21 each re-ran
+the two greps and each wrote down what it measured; both were correct on the day, and the merge
+of the two made both wrong at once, because each had counted a tree without the other's cases in
+it. Slice 21 recorded 185 steps across ten cases (`obsidian` 60, `judgement` 8), slice 19
+recorded 184 across ten (`suite` 71, `browser` 28, `obsidian` 65). Neither side of that conflict
+could be taken: the figures above are a fresh run of both greps against the merged tree.
+
+**And the case count went with it.** Slice 19's version carried a parenthetical saying
+[[Navigate into a project and back]] "is an eleventh case file and carries no verdicts, so it is
+not among the ten" — true when written, and false by the time it merged: slice 21's improvement
+pass gave that case its verdict column, and it contributes 17 steps. Eleven cases, all of them
+carrying verdicts, measured per file rather than assumed.
 
 The instrument is TWO patterns, because the verdict has two spellings and a grep that sees only
 the table form silently under-counts by the sixteen steps of [[Canvas Navigation]]:
@@ -110,8 +118,15 @@ Written down because it had to be reconstructed once: the sentence above said th
 grepped and not with what, and a first attempt that matched table rows alone answered 149 —
 close enough to read as right, and wrong by exactly the case whose steps are a list.
 [[Editor Walkthrough]] 7 has since moved `browser` → `obsidian` (its own paragraph says why),
-which is what took those two rows from 29 to 28 and from 47 to 48 at the time — a note about
-that edit, not about today's five figures, every one of which has since moved.
+which is what took those two rows from 29 and 47 at the time — a note about that edit, not
+about today's five figures, every one of which has since moved again.
+
+What is traced of the latest move and what is not, stated separately: [[Move the Library]] is
+sixteen `obsidian` steps of its own and [[Navigate into a project and back]] is seventeen steps
+across four verdicts, which is most of `obsidian`'s rise. The rest — and `judgement` going 8 → 9
+— is drift that accumulated between re-runs and was found by re-running, not by anyone noticing.
+Which is the sentence above proving itself a third time: a count is only as current as its last
+measurement, and nothing here re-takes it.
 
 **`suite` means REACHABLE, and never "already covered".** That difference is the whole of the
 follow-up work. A sample was checked against the tests rather than inferred from filenames —
@@ -196,8 +211,10 @@ that over-reaches.
 of these steps are already inside the jsdom suite's reach — this file has grown case by
 case, and no earlier pass ever asked which steps the suite had caught up with. The steps that
 genuinely need a vault are not spread evenly either: two cases, [[Notices and save state]] and
-[[A Project Owns Its Folder]], hold 26 of the 47 `obsidian` steps between them, because one
-surface is drawn by Obsidian's own `Notice` and the other is about where files sit. The
+[[A Project Owns Its Folder]] held 26 of the 47 `obsidian` steps between them at the count
+this sentence was written against, because one surface is drawn by Obsidian's own `Notice`
+and the other is about where files sit — and [[Move the Library]] has since made a third,
+fifteen `obsidian` steps of its own, for the same kind of reason. The
 `browser` tier is the one this triage was made to price, and three review rounds moved it in
 both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
 `obsidian` or `desktop` on a closer read, and five `suite` steps then turned out to be
@@ -302,3 +319,12 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   somewhere else in Obsidian's file explorer and watching writes follow it, which the fake
   vault has no file explorer to demonstrate — and step 11 is a real-vault startup-cost
   observation against a PRD budget category (§102) that names no figure to clear.
+- [[Move the Library]] — design slice 19's `libraryFolder` migration, and the most
+  destructive operation this plugin performs: it renames every catalogue note in the vault.
+  Every collaborator it has is a real-Obsidian API a fake stands in for — `renameFile`,
+  `createFolder`, `getAllFolders`, `getFiles`, `FuzzySuggestModal` — and its central
+  argument, that a rename lets Obsidian rewrite the vault's own links, rests on a link graph
+  no fake here models. Its step 7 is the only instrument anywhere for the picker's
+  `onChooseItem`/`onClose` ordering, which `obsidian.d.ts` does not state, and its step 12
+  is the first time §83's row marker is rendered through its own data path rather than by
+  injecting the span.

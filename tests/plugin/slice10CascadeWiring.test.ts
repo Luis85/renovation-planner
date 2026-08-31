@@ -53,7 +53,6 @@ async function seededStack() {
 	const asset = expectOk(
 		await stack.assets.save(
 			makeAsset({
-				projectId: project.entity.id,
 				wasteFactorDefault: new Decimal('0.10'),
 			}),
 			'absent',
@@ -134,7 +133,7 @@ describe('slice-10 cascade wiring', () => {
 
 		await plugin.root.eventBus.publish({
 			type: 'AssetUpdated',
-			payload: { assetId: asset.entity.id, projectId: project.entity.id },
+			payload: { assetId: asset.entity.id },
 		} as never);
 
 		// The cascade wrote through the PLUGIN's repositories, which hold the plugin's own
@@ -244,5 +243,67 @@ describe('slice-10 cascade wiring', () => {
 
 		// No persistence was ever composed, so unloading must not have written anything.
 		expect([...stack.vault.entries.keys()]).toEqual(before);
+	});
+});
+
+/**
+ * Design slice 19's referent grouping, driven through the COMPOSED root rather than through
+ * a hand-wired query.
+ *
+ * `ListRequirementsReferencing` takes its folder resolver as a collaborator, and the one
+ * binding that supplies it in production is a single arrow in `slice10Composition.ts`. Every
+ * other case in this repository re-spells that expression itself, so a root that bound
+ * `index.getPath` verbatim — a project's NOTE, `…/Refit.md`, where a group owes its FOLDER —
+ * would have been caught by nothing at all: a guard on the door nobody dispatches through is
+ * a guard nobody has. This case dispatches through that door.
+ *
+ * Two projects deliberately share a NAME, because that is the only arrangement that asks the
+ * resolver anything: `projectPath` is supplied only where the name does not identify the
+ * project on its own.
+ */
+describe('slice-19 referent grouping wiring', () => {
+	it('resolves each group’s projectPath to the project FOLDER through the composed root', async () => {
+		const stack = createRepositoryStack();
+		// Explicit ids, so the folders `freshProjectFolder` derives are spellable here: the
+		// first project takes the plain name and the second, colliding, takes the name plus
+		// its own id.
+		const first = expectOk(
+			await stack.projects.save(makeProject({ id: 'project-a' as never, name: 'Refit' }), 'absent'),
+		);
+		const second = expectOk(
+			await stack.projects.save(makeProject({ id: 'project-b' as never, name: 'Refit' }), 'absent'),
+		);
+		const asset = expectOk(await stack.assets.save(makeAsset(), 'absent'));
+		for (const project of [first, second]) {
+			expectOk(
+				await stack.requirements.save(
+					makeRequirement({
+						projectId: project.entity.id,
+						assetId: asset.entity.id,
+						origin: { kind: 'zone', zoneId: 'zone-x' as never },
+					}),
+					'absent',
+				),
+			);
+		}
+		stack.metadataCache.catchUp();
+
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		workspace.layoutReady();
+
+		const query = plugin.root.persistence?.requirementQueries.listRequirementsReferencing;
+		if (query === undefined) throw new Error('expected a composed referencing query');
+		const groups = expectOk(await query.execute({ kind: 'asset', assetId: asset.entity.id }));
+
+		expect(groups.map((group) => group.projectName)).toEqual(['Refit', 'Refit']);
+		// The folders, not the notes. `index.getPath` answers `Renovation/Refit/Refit.md` and
+		// `Renovation/Refit project-b/Refit.md` for these two, so a binding that handed its
+		// answer straight through fails on both entries rather than on a shape.
+		expect(groups.map((group) => group.projectPath).toSorted()).toEqual([
+			'Renovation/Refit',
+			'Renovation/Refit project-b',
+		]);
+
+		await plugin.onunload();
 	});
 });

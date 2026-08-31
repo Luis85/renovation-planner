@@ -8,12 +8,18 @@ has already refused things that look obvious from the code alone, and where this
 the SDD disagree, the SDD is the authority and this file is the bug.
 
 Today the build, the gates, the browser harness and the release pipeline work; the
-settings pane offers the three settings there are (units, the default projects folder — where a
-NEW project's folder is created, since slice 18; an EXISTING project's folder derives from
-where its `Project.md` sits instead (ADR-0013) — and slice 11's verbose logging — counted in
-`getSettingDefinitions`, and this sentence said "the one setting there is" for several slices
-after it stopped being one); and the persistence layer of design slice 4 is in place — Obsidian
-repositories, the geometry sidecar store, the project index and its vault-change pipeline
+settings pane declares **five rows and only three of them bind a control** — units, the default
+projects folder (where a NEW project's folder is created, since slice 18; an EXISTING project's
+folder derives from where its `Project.md` sits instead, ADR-0013) and slice 11's verbose
+logging, plus slice 19's two library-folder rows, one INFORMATIONAL and one an ACTION, which
+bind none on purpose: `setControlValue` writes through `saveSettings` on every change, and a
+control on `libraryFolder` would persist a folder with no notes moved and strand the catalogue.
+Counted in `getSettingDefinitions` rather than remembered — this sentence said "the one setting
+there is" for several slices after it stopped being one, then "the three settings there are"
+through slice 19, which is the same failure one increment later and is why the count now comes
+with the distinction between a row and a control. The persistence layer of design slice 4 is in
+place — Obsidian repositories, the geometry sidecar store, the project index and its
+vault-change pipeline
 (bounded since slice 18 by what a note DECLARES, not by where it sits, which closes slice 4's
 own recorded multi-root prerequisite without registering a single root), and the migration
 runner.
@@ -33,11 +39,13 @@ later. Slice 13 belongs to *Shared UI vocabulary* (slices 13–17), and what it 
 the toast and the save-state badge — the notice queue and
 the save-state indicator, the surface any view or command reports a transient message or a
 save state through. **That group is now complete: 14 and 15 landed first, then 16, and slice
-17 — the integration slice the map calls "17 integrates them" — has closed it.** What is NOT
-done is slices 19, 20 and 21, which are written and unbuilt, plus the items slices 16 and 17
-WITHDREW rather than ticked; each is recorded in its own task document's amendments rather
-than here, because a list of exceptions kept in two places is one that disagrees with
-itself.
+17 — the integration slice the map calls "17 integrates them" — has closed it.** **Design slice
+19 has closed since**, which is what took slice 10's own document from seven open criteria to
+none: the Asset catalogue left the project, so a catalogue entry carries no project id at all.
+What is NOT done is slices **20 and 21**, which are written and unbuilt, plus the items slices
+16, 17 and 19 WITHDREW or narrowed rather than ticked; each is recorded in its own task
+document's amendments rather than here, because a list of exceptions kept in two places is one
+that disagrees with itself.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
@@ -1179,14 +1187,17 @@ Its first real caller is the calibration gesture. Rules that came out of it:
   shipped with none for two slices, which was the plan rather than dead code: the queries
   feeding their rows and the command fields carrying their answer were slice 10's to define,
   and declaring them in slice 15 would have been a second derivation of contracts it owns.
-  **Two of slice 15's items are still open, and the caller did not close them**, because the
-  shared-catalogue amendment rewrote them after that flow was built:
-  `ListRequirementsReferencing` returns a flat `RequirementId[]`, not the per-project GROUPS
-  carrying `projectName` and `projectPath` that item 6 now asks for; and item 6a's
-  `t(language, key, params?)` does not exist — `src/presentation/i18n/strings.ts` still
-  declares two parameters, and every string `en.ts` holds is fixed text. The two land
-  together, because the first interpolated string in the plugin is the row label item 6
-  names.
+  **Two of slice 15's items stayed open for four slices and the caller did not close them**,
+  because the shared-catalogue amendment rewrote them after that flow was built:
+  `ListRequirementsReferencing` answered a flat `RequirementId[]` rather than the per-project
+  GROUPS carrying `projectName` and `projectPath` that item 6 asks for, and item 6a's
+  `t(language, key, params?)` did not exist. **Design slice 19 closed both, together**, which
+  is the shape rather than the schedule: the first interpolated string in the plugin IS the row
+  label item 6 names, so neither could land alone. The query answers
+  `readonly ReferencingGroup[]` now, with `projectPath` supplied only where `projectName` is
+  ambiguous among the groups returned, and the row mapping is `rowsFor` in `deleteZoneFlow.ts`.
+  Both items are ticked in slice 15's OWN document with a dated note, which is where a closed
+  criterion belongs.
 - **A tool's transient visual goes in `RenderState`, and it needs its own field when it
   means its own thing.** The calibration segment is `measurement`, not a two-point
   `previewPolygon`: a polygon preview renders dashed and closed and says "you are drawing a
@@ -1366,11 +1377,24 @@ id on a name collision. Four rules came out of it, the last two from the review 
   `obsidian` mock module as always-used. Whichever figure is read, the mechanism is the same: an
   export with only a test caller (`projectFolderOf`, briefly, at the end of one task) stayed
   invisible to the gate the whole time. What actually fails is a new file nothing imports at
-  all, reported as an unused FILE — a different rule from the dead-export one. `foldersOverlap`
-  still ships in slice 19 rather than here, and that call is still right: the predicate has no
-  job in this slice — there is no command that changes a project's folder under the derived
-  shape, and no library to overlap with until slice 19 exists — but the reason is that it has
-  nothing to do, not that a gate would have refused it for having no caller.
+  all, reported as an unused FILE — a different rule from the dead-export one. **`foldersOverlap`
+  did not exist in slice 18 and was not deferred as written code**: slice 18 discussed the
+  predicate, declared it in prose and shipped no module, so there was nothing for a gate to
+  refuse and nothing left uncalled. This bullet used to say it "still ships in slice 19 rather
+  than here", which reads as a predicate written and parked. Deferring it was still the right
+  call, for the reason given here: it had no job in this slice — no command changes a project's
+  folder under the derived shape, and there was no library to overlap with — and that reason is
+  "nothing to do", not "a gate would have refused it for having no caller". **Slice 19 wrote
+  it** (`infrastructure/obsidian/repositories/foldersOverlap.ts` — symmetric, compared at the
+  segment boundary, case-folded) and gave it callers in three modules.
+  `grep -rn "foldersOverlap(" src/`, run in the edit that wrote this sentence and excluding
+  the definition's own file, prints **six** call expressions: the project insert's refusal
+  (`ObsidianProjectRepository`), the overlap read (`IndexLibraryOverlaps`), and four in
+  `libraryMigration` — the destination against the source, the destination against each
+  project folder, and TWO inside the destination LIST it offers, which filters on the source
+  and on every project folder separately. A count of the migration's *rules* is three and a
+  count of its *calls* is four; this sentence says which it is measuring, because the previous
+  draft said "four call sites" and was counting neither.
 - **Widening DISCOVERY and leaving EXISTENCE alone is half a slice.** A note is found by what
   it declares now, but every save still established existence by scanning
   `<projectFolder>/<Kind>/` — so a note the user had filed anywhere else was read, indexed and
@@ -1438,6 +1462,140 @@ own recurring shape:
     excluded with a diagnostic' — and asserted none.
 
   A no-op assertion and a correct one look identical until something is broken underneath them.
+
+**Design slice 19 has landed: the Asset catalogue left the project.** PRD §59 was amended on
+2026-08-26 so that work stays project-scoped while `Asset`, `Supplier` and `Trade` are defined
+once per vault — *"a catalogue entry carries no project id at all; an absent id is the rule
+being kept, not a migration that has not run."* So `Asset` lost `projectId` everywhere (the
+entity, the events, the Zod schema, the mapper, `saveNoteBackedEntity`'s constraint, the index
+axis and the folder), `listByProject` became `listAll`, three refusals were deleted, and asset
+notes moved under a configurable **library folder** (§83) whose default is `Renovation/Library`
+— legal only because slice 18 landed first and project folders are now that folder's siblings
+rather than its parent. `t` gained a third parameter in the same slice, because the first
+interpolated string in the plugin is the row label of a grouped reference. Slice 10's last seven
+open criteria and slice 15's items 6 and 6a are ticked in THEIR documents by this slice, and the
+rules that came out of it:
+
+- **A deleted refusal leaves no test behind, so the replacement is its INVERSE rather than an
+  absence.** `requirement.cross-project` had a test; deleting the guard deleted the test, and
+  nothing would then have noticed the guard coming back. `assignAsset.test.ts` asserts the
+  positive instead — one Asset assigned into Zones from two Projects, each Requirement carrying
+  its own Zone's `projectId` — and it uses `expectOk` rather than a boolean, so a reintroduced
+  refusal fails naming its own code instead of reporting `false`.
+- **The asymmetry the amendment created is the thing a later reader will tidy away, so both
+  halves live in ONE file.** `reference.cross-project-reassign` kept its ZONE half and lost its
+  ASSET half — a Zone still belongs to a project and an Asset does not — and the two cases sit
+  together in `deleteAssetRefusals.test.ts` under a header saying why. Read the general shape:
+  when a change makes two sibling rules disagree ON PURPOSE, the cases have to be adjacent, or
+  each one alone reads as an oversight.
+- **A setting whose write MOVES data may not be bound to a control, and the reason is
+  `setControlValue`.** It writes through `saveSettings` on every change, so ANY control on
+  `libraryFolder` persists the new value with no notes moved — a text control per keystroke, a
+  folder picker once, and once is enough, because the migration then reads the just-persisted
+  value as the folder to move FROM and searches an empty directory. Picking a different control
+  type is not an escape. The pane declares an INFORMATIONAL row naming the current folder and a
+  separate ACTION row that runs the migration, and the migration is the only writer of that
+  field. The slice's own document had said the row "needs no new branch, because
+  `getControlValue`/`setControlValue` are keyed generically", which is true of a PREFERENCE and
+  false of a MIGRATION; that passage is corrected in place rather than deleted, because leaving
+  it would invite the next author to re-add a control.
+- **Validate, move, rebuild, persist LAST — and persisting first is not a smaller version of the
+  same thing, it is the failure.** A `data.json` naming the destination while the notes sit at
+  the source leaves every project resolving an empty library. That order is also why
+  `persistLibraryFolder` is a SEPARATE door from `saveSettings` rather than a call to it:
+  `saveSettings` swaps the composition root and rebinds the views BEFORE its own `saveData`
+  settles, which is right for a preference and destructive here — a rejecting write would leave
+  the session composed against the destination and the file naming the source, and the remedy
+  the error names ("set the library folder to the new location") cannot be applied, because the
+  row binds no control. So: write the file, and only then swap.
+- **Two writers of one file need a chain, and the later one must compose INSIDE it.** An
+  ordinary `setControlValue` composed while the migration's write was in flight carried the
+  stale `libraryFolder` from its own snapshot and wrote the SOURCE back over the destination —
+  the session on one folder and the file on the other. One serialized `queueSettingsWrite` chain
+  fixes the interleaving; taking `libraryFolder` from the live state at write time fixes the
+  stale field; and **neither property alone passes the test**, which was measured by mutating
+  each out on its own. The test asserts the PAIR — the file names the destination AND the
+  user's `units` change survives — so a "fix" that dropped the later write fails it.
+- **A guard that folds case and an enumeration that does not look like one rule with two
+  spellings, and they are TWO rules — which took a wrong fix to establish.** `foldersOverlap`
+  folded case from the day it was written; `catalogueNotesIn` compares paths exactly, so a
+  source folder differing from the vault only in case selected ZERO notes, refused nothing, and
+  persisted the destination — a silent success. The first repair extracted a shared
+  `folderContains` and made the enumeration fold too, on this file's own "a question worth
+  asking at one door is a function" rule. **That was the wrong direction and it was REVERTED:
+  for a GUARD, over-refusing costs a rename; for an ENUMERATION, over-selecting MOVES FILES**,
+  so a folded sweep would relocate unrelated notes on a case-sensitive vault. What ships is the
+  enumeration staying EXACT, at the segment boundary, with the hazard closed by a coded refusal
+  instead — `settings.library-source-case-mismatch`, raised when the configured source is not in
+  the vault while a folder differing only in case is, which is precisely the state where an
+  exact enumeration would look in the wrong place. `catalogueNotesIn`'s docblock states the
+  asymmetry where the code is. **Two predicates that look alike are not automatically
+  duplication**, which is this file's own "consolidating two questions that merely look alike"
+  rule paying out a second time, in the increment that wrote it down. **And the case a test
+  could pass on:** `expect(isOk(result)).toBe(true)` is true of the original defect and of every
+  repair alike, because the migration reported success having moved nothing; only asserting what
+  MOVED tells them apart.
+- **`foldersOverlap` folds case because the two directions of that error are not symmetric.**
+  Under-refusing permits the exact state the guard exists to prevent — deleting an apparently
+  separate project folder takes the shared catalogue with it — while over-refusing costs a
+  rename. Nothing here can ask which filesystem the vault is on, and it does not need to.
+- **§83 names three sites and one of them has no door, so it gets a MARKER rather than a
+  refusal.** ADR-0013 derives a project's folder from where its `Project.md` sits, so a user
+  moves a project by dragging a folder in Obsidian's file explorer and there is no command to
+  refuse. Creating a project and moving the library are the two real refusals; the third site is
+  answered by `libraryOverlap` on the project's own row — a mark AND a word (§85), derived per
+  read from the index rather than stored, so nothing is cached and nothing has to be retracted.
+  A criterion promising "three refusals" was rewritten rather than ticked: **a criterion
+  that quietly keeps its old wording is how the gap between promise and check reopens.**
+- **Derived per read is a claim about CACHING, and it was read as a claim about PROMPTNESS.**
+  The marker follows the Project INDEX, and the gesture it exists to report is the one the
+  index is never told about: `RenovationPlannerPlugin` filters the vault's create/modify/delete
+  and rename events to `TFile`, so the `TFolder` Obsidian reports for a folder move is dropped,
+  `VaultChangeAdapter` never hears it, and the index keeps the note's old path. The row gains
+  or loses its marker at the next full index REBUILD — at `onLayoutReady`, so a reload, or
+  after a settings save — rather than as the drag lands, and the same holds in reverse for a
+  user who drags the folder back. **PRE-EXISTING**: that filter dates from design slice 4 and
+  is an ancestor of `main`; slice 19 only added the first consumer that makes it visible, and
+  closing it is a change to the vault-change pipeline every index consumer inherits rather than
+  to this marker. Narrowed in the documents rather than fixed in the code, per this file's own
+  first Claims rule; `docs/tests/cases/Move the Library.md` steps 12 and 12b require the reload
+  for exactly this reason and say why.
+- **A wiring test has to assert ABOVE the layer that erases the field.** Replacing the composed
+  root's `libraryFolder` with a wrong one left 1594 tests green, because the only case reading
+  the project list read it through `createRenovationProjectQueries`, which maps `projects` and
+  `unreadable` and DROPS `overlapping` by design. `libraryOverlapWiring.test.ts` asserts at the
+  guarded query instead, and that choice is the whole finding rather than a detail of it.
+- **A third item in a `space-between` row moves the other two.** The overlap marker pushed each
+  marked row's status label to wherever that row's name length left it — x≈589 on one row and
+  x≈700 on another — so the statuses stopped forming a column. `flex-grow: 1` on the name puts
+  the slack in one place. Found by CAPTURING the rows and looking, because jsdom lays nothing
+  out; the test that keeps it is a TEXT assertion over the stylesheet and measures no position,
+  which is the honest half of that pair.
+- **The harness cannot show this marker at all**, and saying so is better than the capture
+  reading as coverage: the harness's project repository starts empty and its
+  `IndexLibraryOverlaps` sits over an empty index, so no project it can create is ever
+  overlapping. What was looked at was the real dev server with the marker's exact markup
+  injected into real rows — the DATA path is not what put it there; the markup, the CSS and the
+  row layout are.
+- **An unmatched interpolation hole is left standing as `{name}`, never blanked**, because a
+  visible hole is a bug report and an empty string is a silent one. The locale check that came
+  with it asks a PER-KEY question — any key's German translation names the same holes as its
+  English one — rather than enumerating the two keys this slice added, which would go stale at
+  the next interpolated string. An incomplete locale is safe by design; a MIS-HOLED one renders
+  a brace to exactly one language's users.
+- **The no-bump justification is a fact about a TAG, and `git log main..` cannot answer it.**
+  The asset schema stays at version 1 because no release exists — measured against the REMOTE
+  (`git ls-remote --tags origin` prints nothing), not against a clone's `main`, which says only
+  what the machine last fetched. The first version of that paragraph rested on slice 10 being
+  unmerged, which has since stopped being true. The falsifier is written FORWARD-LOOKING for
+  that reason: if a release is cut before this shape reaches `main`, ask that tag's tree for a
+  `project` key in `assetFrontmatter.ts`.
+- **`z.object` being non-strict is not enough when the rule is about the BYTES.** A leftover
+  `project:` key parses fine and is ignored, which satisfies the type and not the sentence. The
+  write spec carries a `retiredKeys` list — `writeOwnedFrontmatter` is a merge, so omitting a
+  key from the DTO cannot express "remove this one" — and the note is rewritten without it on
+  its next save. **Narrow claim, and the test says it too:** a note nobody ever saves again
+  keeps the key on disk forever. There is no sweep and there will not be one.
 
 **Design slice 13 has landed: there is ONE notice door and ONE save-state indicator.**
 `createNoticeQueue` is a plain module-level queue over an injected `NoticeHost` port — dedup
@@ -2524,23 +2682,27 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **test:coverage** — the suite plus the coverage floors. `src/` measured 100% of all four
   metrics through slice 2 and no longer does: slice 4 brought the first arms no test can
   reach — defensive double-fault logging, an Obsidian-runtime view callback. Floors of
-  99/99/99/98 (statements/functions/lines/branches), against 99.36/99.49/99.64/98.12
-  measured on the tree that merged slice 13 into main. **Read branches again: 98.12 against
-  a floor of 98, which is about two and a half covered branches of headroom, one branch
-  costing 0.044 — the tightest this metric has been since slice 11.** Slice 13 measured 98.25
-  alone and the figure FELL on merging, which is the second time this repository has recorded
-  that happening; `vitest.config.ts` has the arithmetic. **Two branches is tight enough that
-  an UNREACHABLE guard is not free**: the first draft of slice 13's live-region fix carried a
-  `regions?.[…]` null arm no test could drive, and removing it by handing the regions to the
-  host as an argument is what put that figure back. So an
-  untested new arm does not "reduce
-  coverage", it fails the gate — plan the test with the code rather than after it. Do not
-  read a figure from this line as current; run `npm run test:coverage`. The exact numbers,
-  which increment moved them, and what every remaining uncovered arm IS live in
+  99/99/99/98 (statements/functions/lines/branches), against 99.22/99.10/99.46/98.05
+  measured at design slice 19's close. **Read branches and FUNCTIONS again: the headroom is
+  ONE covered unit on each — 2780 branches covered where 2779 is the floor, and 1432
+  functions where 1431 is — which is the tightest either metric has ever been here.** Count
+  in UNITS rather than in percentage points, because a unit is what an untested arm actually
+  costs: one branch is 0.035pp and one function 0.069pp, both below the hundredth the summary
+  line prints, so a figure that did not visibly move is not evidence that nothing moved. **A
+  passing gate is not a review either** — slice 16's review pass left an arm uncovered while
+  branches read 98.12 against a floor of 98, and the three units of headroom it had then
+  swallowed it silently; it was found by reading `coverage-final.json` for the CHANGED FILES,
+  which is the instrument that can see one arm. At today's margin an untested arm in a tight
+  metric fails the gate outright and one in a slack metric hides completely, so plan the test
+  with the code rather than after it — and **an UNREACHABLE guard is not free**: the first
+  draft of slice 13's live-region fix carried a `regions?.[…]` null arm no test could drive,
+  and removing it by handing the regions to the host as an argument is what put that figure
+  back. Do not read a figure from this line as current; run `npm run test:coverage`. The exact
+  numbers, which increment moved them, and what every remaining uncovered arm IS live in
   `vitest.config.ts`, which also carries the ratchet policy: floors only rise, and they
   rise to what a FINISHED increment measures — so an increment whose rounded-down figures
-  equal the floors already in force ratchets NOTHING, which is what slices 5, 15, 11 and 13
-  did.
+  equal the floors already in force ratchets NOTHING, which is what slices 5, 11, 13, 15, 16,
+  18 and 19 did.
   The suite
   includes `tests/harness/accessibility.test.ts` — axe-core driven in jsdom against the
   real mounted surfaces (`mountHarness`, the real Plan Editor, and the harness index in
@@ -3580,9 +3742,9 @@ Not oversights; each has a trigger.
   `.fallowrc.json`'s `ignoreDependencies` with that reason. The bundle went from about
   60 KB to **488 KB** at design slice 5's close; that is what ADR-003 and §54 cost, and it
   is worth knowing before the next dependency. **488 KB is that slice's own figure, not
-  today's** — eleven slices of feature work later, `dist/main.js` measures **670.06 kB**
-  (gzip 211.08 kB) as of design slice 16's close, verified by running `npm run build` rather
-  than carried forward from an earlier entry here. Read every bundle figure in this file the
+  today's** — `dist/main.js` measured 670.06 kB (gzip 211.08 kB) at design slice 16's close and
+  **703.39 kB (gzip 221.71 kB) at design slice 19's**, each verified by running `npm run build`
+  rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 
   **`pdfjs-dist` is a devDependency, and that is the whole point of the entry.** It was a

@@ -169,7 +169,6 @@ describe('CreateAssetCommand save refusals', () => {
 		});
 		const error = expectErr(
 			await new CreateAssetCommand(assets, w.events).execute({
-				projectId: w.project.entity.id,
 				name: 'Grout',
 				category: 'material',
 				unit: 'piece',
@@ -206,7 +205,7 @@ describe('picker query supplement', () => {
 		const w = await wiredWithLink();
 		const replacement = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			),
 		);

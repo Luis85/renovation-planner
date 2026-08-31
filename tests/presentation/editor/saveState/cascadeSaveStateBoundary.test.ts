@@ -77,7 +77,7 @@ async function wired(wrap: (inner: RequirementRepository) => RequirementReposito
 	);
 	const asset = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);

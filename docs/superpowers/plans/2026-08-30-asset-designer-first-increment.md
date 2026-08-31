@@ -1197,32 +1197,60 @@ kept in one command out of five by memory rather than by a shared publish point.
 **Files:**
 - Create: `src/application/commands/asset/SetAssetHeight.ts`
 - Modify: `src/infrastructure/persistence/dto/assetFrontmatter.ts` (find it with `ls src/infrastructure/persistence/dto/`)
-- Modify: the asset mapper beside it
+- Modify: `src/infrastructure/persistence/mappers/assetMapper.ts` — NOT "beside" the DTO, it is a
+  sibling directory
 - Test: `tests/application/commands/asset/setAssetHeight.test.ts`
 - Test: extend the existing asset frontmatter/mapper test
 
 **Interfaces:**
-- Consumes: `AssetRepository`, `Asset.withChanges`.
-- Produces: `SetAssetHeightCommand` with input `{ assetId, height: number | null, expected? }`; `Asset.height: number | null`.
+- Consumes: `AssetRepository`, `Asset.withChanges`, **`EventBus`** (`src/core/events/EventBus.ts`).
+  The bus was missing from this line and it is not optional: Task B3a requires this exact command
+  to publish `AssetDesignChanged` — it names `SetAssetHeight` — and Task A9 wires
+  `assetDesign: { …, setHeight, … }` against whatever signature this task shipped. Built to the
+  stated interface, A7 makes B3a a retrofit across the bundle.
+- Produces: `SetAssetHeightCommand` with input `{ assetId, height: number | null, expected? }`
+  resolving **`DispatchResult`**, like every other command in this increment; `Asset.height: number
+  | null`. The return type was unstated, and the wrong one COMPILES — `Result<Asset, …>` is
+  `UpdateAssetCommand`'s shape, the nearest neighbour and the one a reader copies, and it breaks
+  the save indicator, which is the `ok`-is-not-evidence-of-a-write defect this repository has
+  already paid for.
 
 - [ ] **Step 1: Add the field to the schema, additively**
 
-Follow the pattern the existing nullable asset fields use — `.number().nullable().catch(null)` — so **no schema version bump is owed**: an absent key reads as `null` and a garbage value reads as `null` rather than failing the load. Confirm the pattern by reading the file before editing it; if the existing nullable fields use a different spelling, match theirs.
+`height: z.number().nullable().catch(null)`, so **no schema version bump is owed**: an absent key
+reads as `null` and a garbage value reads as `null` rather than failing the load.
+
+**Two corrections to how that was originally stated.** There is no `.number()` field on
+`AssetFrontmatterSchemaV1` at all — the existing nullable fields are `.string().nullable()
+.catch(null)` and one with a `.regex(…)` — so "follow the pattern the existing nullable asset
+fields use" pointed at a pattern that is not there. And `.catch(null)` protects the READ and does
+nothing for the WRITE: `serializeFrontmatter` emits `String(v)`, so a non-finite height is written
+as a bare word no YAML number grammar accepts, read back as `null`, and lost — having refused
+nothing. That hole is closed by the finiteness gate in Step 2, not by the schema.
+
+**The no-bump claim is a fact about a TAG.** Measured with `git ls-remote --tags origin`, which
+prints nothing: no release exists, so no vault holds an Asset note written by a build predating
+this key. If a release is cut before this reaches `main`, ask that tag's tree instead.
 
 - [ ] **Step 2: Write the failing tests**
+
+**`.value?.entity.height`, not `.value?.height`.** `AssetRepository.getById` answers
+`Result<Loaded<Asset> | null, RepositoryError>` and `Loaded<T>` puts the version BESIDE the
+entity, deliberately. Every snippet below had the flat spelling, which under
+`expect(isOk(x) && …)` silently asserts on a boolean rather than failing loudly.
 
 ```typescript
 it('round-trips a height through the note, so a plugin-less reader sees it', async () => {
 	await height.execute({ assetId, height: 900 });
 	const reloaded = await assets.getById(assetId);
-	expect(isOk(reloaded) && reloaded.value?.height).toBe(900);
+	expect(isOk(reloaded) && reloaded.value?.entity.height).toBe(900);
 });
 
 it('clears a height given null', async () => {
 	await height.execute({ assetId, height: 900 });
 	await height.execute({ assetId, height: null });
 	const reloaded = await assets.getById(assetId);
-	expect(isOk(reloaded) && reloaded.value?.height).toBeNull();
+	expect(isOk(reloaded) && reloaded.value?.entity.height).toBeNull();
 });
 
 it('refuses a negative height', async () => {
@@ -1230,14 +1258,46 @@ it('refuses a negative height', async () => {
 	expect(isErr(result) && result.error.code).toBe('asset.negative-height');
 });
 
-it('is stored and read by nothing that calculates: no quantity or cost changes with it', async () => {
-	const before = await requirementsFor(assetId);
-	await height.execute({ assetId, height: 900 });
-	expect(await requirementsFor(assetId)).toEqual(before);
+it('refuses a non-finite height, which is a SECOND question and a separate code', async () => {
+	for (const height_ of [Number.POSITIVE_INFINITY, Number.NaN]) {
+		const result = await height.execute({ assetId, height: height_ });
+		expect(isErr(result) && result.error.code).toBe('asset.invalid-height');
+	}
 });
 ```
 
-That last case is the epic's "interpreted by nothing" made checkable. It is weak evidence today and strong evidence the day somebody adds a reader — which is exactly what it exists to catch.
+**Why finiteness is its own gate and its own code.** `NaN < 0` is `false`, so a sign guard cannot
+see it, and "a height cannot be negative; got NaN" is not a true sentence — the same split
+`footprintFromDimensions` already makes between sign and finiteness. Its loss is SILENT: the
+schema's `.catch(null)` turns a non-finite value into `null` on the way in, while
+`serializeFrontmatter` writes `String(v)` on the way out, so the command reports `'wrote'`, the
+note carries a bare word, and the height is gone at the next read having refused nothing. Zero
+stays legal.
+
+**Four more cases the original list omitted**, each covering a branch this command must have and
+none of which the four snippets reach — measured, and against floors with about one covered unit
+of headroom, so their absence fails the gate rather than passing quietly: the `no-write` report
+(which `DispatchResult` requires a decision on and this task never mentioned), the `expected`
+condition (declared in the Interfaces above and exercised by nothing), the not-found arm, and a
+READ that fails rather than answering `null` — the last being the `isErr(x) || x.value === null`
+collapse this repository has already paid for, where a vault fault is reported as "the asset is
+gone".
+
+**Does height count as a design change? Yes — `AssetDesignChanged`, never `AssetUpdated`.** A
+height is an input to no quantity and no cost and is absent from `calculatedFrom`, so announcing
+it on the event slice 10's recalculation cascade subscribes to would be a behaviour change
+wearing a name's clothes. But the designer's inspector draws it, so a peer leaf must re-read.
+
+**The "interpreted by nothing" case, rewritten because as originally written it discriminated
+nothing.** It called `requirementsFor(assetId)`, which does not exist — two hits in this plan and
+none in `src/` or `tests/` — and its stated justification ("weak evidence today and strong
+evidence the day somebody adds a reader") was too generous even once built:
+`registerOnAssetUpdated` filters through `assetMatchesCalculatedFrom`, which compares price and
+unit, neither of which a height moves. So a build publishing `AssetUpdated` would list the
+referring requirements, skip every one, and write nothing — identical figures and revisions in
+both worlds. Build it with the cascade REGISTERED and an `AssetUpdated` subscriber asserted
+EMPTY; that is what makes the wrong-event mutation redden it, and the figure and revision
+assertions stay as the tripwire for the day a reader appears.
 
 - [ ] **Step 3: Implement, run, gate, commit**
 
@@ -1245,6 +1305,65 @@ That last case is the epic's "interpreted by nothing" made checkable. It is weak
 npm run check
 git add src/application/commands/asset/SetAssetHeight.ts src/infrastructure/persistence src/domain/asset tests
 git commit -m "An asset carries a height, and nothing computes with it"
+```
+
+---
+
+### Task A7a: delete an asset's geometry with the asset
+
+**Why it exists.** Found by review after Task A4, and scheduled rather than fixed inline because
+it is four moves and a lifecycle change, which deserves the same test-first and mutation
+discipline the commands around it got.
+
+`AssetGeometrySidecar` declares `read` and `write` and nothing else, and `AssetDeleted` has exactly
+ONE consumer in `src/` — `assetCatalogueChangeSource.ts`, a refresh signal for the catalogue picker
+— so nothing removes a file. The sidecar did not exist before A4, so this branch introduced the
+orphan.
+
+**The consequence is not merely untidy.** `<libraryFolder>/Geometry/<assetId>.rpgeo` survives the
+note, is carried through every later library migration by `libraryGeometryIn`, and — since an id is
+a user-editable frontmatter field — a REUSED id silently loads a deleted asset's design onto the
+new one. That defeats an existing guard rather than slipping past one: A4's read refuses a sidecar
+whose internal `assetId` disagrees with the file requested, and a reused id makes the two agree.
+
+**The precedent is a sibling file, so nothing here needs designing.** `ObsidianPlanRepository`
+calls `this.geometry.delete(...)` at TWO sites — one on the ordinary delete path and one on a
+compensation path — and they differ. Read both before writing either.
+
+**Files:**
+- Modify: `src/application/ports/AssetGeometrySidecar.ts` — a `delete` member
+- Modify: `src/infrastructure/obsidian/repositories/AssetGeometryStore.ts` and
+  `ObsidianAssetGeometrySidecar.ts`
+- Modify: whichever repository owns the asset note's delete — find it rather than assuming, and
+  mirror the plan side's call sites
+- Test: extend `tests/infrastructure/obsidian/repositories/assetGeometrySidecar.test.ts`, plus the
+  asset delete path's own suite
+
+- [ ] **Step 1: Write the failing cases**
+
+Four, and the second is the one a naive implementation breaks:
+
+1. deleting a DESIGNED asset removes its `.rpgeo`;
+2. deleting an UNDESIGNED asset — no sidecar on disk — still succeeds. An absent sidecar is the
+   ordinary state, not a failure, which is the rule A4's read already follows;
+3. a sidecar whose removal FAILS does not leave the note gone and the file behind. Which of refuse
+   or compensate is right is decided by reading the plan side's two sites, not by choosing here;
+4. a library migration after a delete carries nothing orphaned — the `libraryGeometryIn` half,
+   which is what makes the consequence above checkable rather than argued.
+
+- [ ] **Step 2: Run, watch fail, implement**
+
+- [ ] **Step 3: Mutate**
+
+Remove the delete call and watch case 1 redden alone. Then remove the no-sidecar guard and watch
+case 2. **If case 2 reddens nothing, the fixture has a sidecar it should not** — the absence is
+only evidence if the fixture could have produced the thing.
+
+- [ ] **Step 4: Run, gate, commit**
+
+```bash
+npm run check
+git commit -m "Delete an asset's geometry with the asset"
 ```
 
 ---
@@ -1481,8 +1600,16 @@ Every key in `en.ts` and `de.ts`. German: `Objekt`, never `Material`. Sentence c
 
 Add a row per code this increment raises — `asset.non-positive-dimension`,
 `asset.invalid-footprint`, `asset.invalid-clearance`, `asset.invalid-anchor`,
-`asset.invalid-facing`, `asset.no-footprint`, `asset.negative-height` — asserting the English and
-German sentence each resolves to.
+`asset.invalid-facing`, `asset.no-footprint`, `asset.negative-height`, plus the three this list
+did not have when it was written: **`asset.degenerate-footprint`**, **`asset.degenerate-clearance`**
+(Task A2's Amendment 2) and **`asset.invalid-height`** (Task A7's finiteness gate) — asserting the
+English and German sentence each resolves to.
+
+**Those three are exactly why the instruction below is a grep and not a list.** All three are
+raised through `assetError`, so the command finds them; the enumeration above did not, and a code
+with no locale entry does not degrade to silence — it degrades to the WRONG sentence, which is
+slice 11's own recorded defect. Read the list as a floor that has already gone stale once, and
+trust what the grep prints over what this paragraph says.
 
 **Copy the table from the RAISE SITES, not from `en.ts`.** A table derived from the locale file
 agrees with a typo. Find them with:

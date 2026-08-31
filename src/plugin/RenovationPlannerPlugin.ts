@@ -38,6 +38,15 @@ import { recoverInterruptedSequences } from '../application/reference/recoverInt
 const LOG_LEVEL: LogLevel = 'info';
 
 /**
+ * The settings write chain's own tail handler, and ONE function for both arms deliberately:
+ * whether the write before it resolved or rejected, the chain carries on. A rejection is
+ * the caller's to see on the promise it was handed, never the next writer's to inherit.
+ */
+function swallow(): void {
+	return undefined;
+}
+
+/**
  * The plugin shell: the layer allowed to reach every other one — it composes them (SDD §9,
  * §10) — and where registering with Obsidian belongs.
  *
@@ -276,19 +285,65 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
+	 * The tail of the settings write chain, so that no two settings writes are ever in
+	 * flight together.
+	 *
+	 * There are two write doors and they take opposite orderings around their own
+	 * `saveData` — see `persistLibraryFolder` — which is exactly why they must not overlap:
+	 * `persistLibraryFolder` leaves `this.root.settings` naming the SOURCE folder for the
+	 * whole length of its write, and every other control in the settings pane is live
+	 * throughout it. A write composed in that window carries the stale `libraryFolder`, and
+	 * landing after ours it puts the source back into `data.json` while the session runs on
+	 * the destination — a catalogue split in two, which is the outcome the persist-last
+	 * ordering exists to prevent, reached by a different route.
+	 *
+	 * Never rejected: each successor swallows, so a failing write cannot wedge the chain for
+	 * the rest of the session. The caller still sees its own rejection, because that is the
+	 * promise this hands back rather than the one it stores.
+	 */
+	private settingsWrites: Promise<void> = Promise.resolve();
+
+	/**
+	 * Queue one settings write, and — the half serialization alone does not buy — compose it
+	 * INSIDE the chain.
+	 *
+	 * Serializing is not sufficient on its own: a write whose settings object was built
+	 * before the migration persisted still carries the folder the catalogue has left,
+	 * however carefully it is ordered afterwards. So a caller hands over a function rather
+	 * than an object, and it runs against the state current at the moment it writes.
+	 */
+	private queueSettingsWrite(write: () => Promise<void>): Promise<void> {
+		const result = this.settingsWrites.then(write);
+		this.settingsWrites = result.then(swallow, swallow);
+		return result;
+	}
+
+	/**
 	 * The one write path for settings, so no control has to know how they are persisted.
 	 * `saveData` replaces the whole file, which is why this takes the complete next settings
 	 * object rather than a patch — and why the root is REPLACED rather than mutated: its
 	 * fields are readonly, so there is exactly one way state changes here.
+	 *
+	 * `libraryFolder` is the one field it does NOT take from its caller, and that is the
+	 * composed-at-write-time half of the guarantee above. The library row binds no control,
+	 * so this door is never a legitimate writer of it — every caller merely carries it along
+	 * from the snapshot it spread, and that snapshot is stale for exactly as long as a
+	 * migration's own write is in flight. Reading it from the state current at the WRITE is
+	 * what makes an ordinary settings change during a move harmless in both directions: the
+	 * user's change lands, and the folder it was never about is left alone.
 	 */
 	saveSettings(next: RenovationPlannerSettings): Promise<void> {
-		// Refused for the whole SESSION, not only at bootstrap: a transient read failure
-		// must not stamp defaults over a `data.json` that is sitting there intact. The tab
-		// is the other writer and is guarded independently (`getSettingDefinitions`).
-		if (this.root.settings === null) return Promise.resolve();
+		return this.queueSettingsWrite(async () => {
+			// Refused for the whole SESSION, not only at bootstrap: a transient read failure
+			// must not stamp defaults over a `data.json` that is sitting there intact. The tab
+			// is the other writer and is guarded independently (`getSettingDefinitions`).
+			const current = this.root.settings;
+			if (current === null) return;
 
-		this.applySettings(next);
-		return this.saveData(next);
+			const composed = settingsFrom({ ...next, libraryFolder: current.libraryFolder });
+			this.applySettings(composed);
+			await this.saveData(composed);
+		});
 	}
 
 	/**
@@ -308,16 +363,21 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * and the session is still coherent with the file — the notes are at the destination and
 	 * the setting is not, which is exactly the state the error's copy describes.
 	 */
-	async persistLibraryFolder(libraryFolder: string): Promise<void> {
-		// The same guard `saveSettings` carries, for the same whole-session reason: a
-		// transient read failure must not stamp defaults over a `data.json` sitting there
-		// intact.
-		const current = this.root.settings;
-		if (current === null) return;
+	persistLibraryFolder(libraryFolder: string): Promise<void> {
+		// On the same chain as `saveSettings`, and composed inside it for the same reason:
+		// this door's whole hazard is the window between its `saveData` and its root swap,
+		// and a write queued behind it must read the settings that swap leaves behind.
+		return this.queueSettingsWrite(async () => {
+			// The same guard `saveSettings` carries, for the same whole-session reason: a
+			// transient read failure must not stamp defaults over a `data.json` sitting there
+			// intact.
+			const current = this.root.settings;
+			if (current === null) return;
 
-		const next = settingsFrom({ ...current, libraryFolder });
-		await this.saveData(next);
-		this.applySettings(next);
+			const next = settingsFrom({ ...current, libraryFolder });
+			await this.saveData(next);
+			this.applySettings(next);
+		});
 	}
 
 	/**

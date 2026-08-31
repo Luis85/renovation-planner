@@ -247,7 +247,7 @@ export class SettingsTab extends PluginSettingTab {
 		try {
 			const projectFolders = projectFolderPaths(this.host.root.persistence);
 			const folders = this.app.vault.getAllFolders(false).map((folder) => folder.path);
-			const to = await askLibraryDestination(this.app, libraryDestinations(folders, projectFolders));
+			const to = await askLibraryDestination(this.app, libraryDestinations(folders, projectFolders, from));
 			if (to === null) return;
 
 			const migrated = await migrateLibraryFolder(this.libraryMigrationDeps(), from, to);

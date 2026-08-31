@@ -165,6 +165,32 @@ describe('migrateLibraryFolder', () => {
 		expect(renameFile).not.toHaveBeenCalled();
 	});
 
+	/**
+	 * A destination that OVERLAPS the source, in any of the three directions
+	 * `foldersOverlap` reads: the source itself, a folder inside it, and a folder that
+	 * contains it.
+	 *
+	 * The nested one is what makes this a refusal rather than a tidiness rule. Moving
+	 * `Renovation/Library` into `Renovation/Library/New` leaves every note still UNDER the
+	 * source, so a persist failure — which does not change the setting — is followed by a
+	 * retry that re-enumerates the very notes it just moved and sends
+	 * `New/Assets/Tiles.md` to `New/New/Assets/Tiles.md`. If persistence then succeeds, the
+	 * catalogue is stranded below the folder the setting names.
+	 */
+	it.each([
+		['the source itself', SOURCE],
+		['a folder nested inside the source', `${SOURCE}/New`],
+		['a folder containing the source', 'Renovation'],
+	])('refuses %s as a destination, and moves nothing', async (_case, destination) => {
+		const renameFile = vi.fn<LibraryMigrationDeps['renameFile']>(() => Promise.resolve());
+		const rig = harness({ renameFile });
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, destination);
+
+		expect(isErr(result) && result.error.code).toBe('settings.library-overlaps-source');
+		expect(renameFile).not.toHaveBeenCalled();
+	});
+
 	it('refuses an empty destination, and moves nothing', async () => {
 		const renameFile = vi.fn<LibraryMigrationDeps['renameFile']>(() => Promise.resolve());
 		const rig = harness({ renameFile });
@@ -212,12 +238,61 @@ describe('libraryDestinations', () => {
 		const offered = libraryDestinations(
 			['Shared/Catalogue', 'Renovation/Kitchen refit', 'Renovation/Kitchen refit/Assets', 'Renovation'],
 			['Renovation/Kitchen refit'],
+			SOURCE,
 		);
 
 		// `Renovation` contains the project folder, so it goes too — the check refuses in
 		// both directions, since either path can be the one that moves.
 		expect(offered).toEqual(['Shared/Catalogue']);
 	});
+
+	/**
+	 * The same predicate against the SOURCE, which drops three folders a user could
+	 * otherwise pick: the library folder itself (renaming every note onto itself), a folder
+	 * inside it (the stranding case the migration's own guard refuses) and a folder that
+	 * contains it.
+	 *
+	 * Filtering stays a convenience — the migration is what refuses — but there is no
+	 * reason to offer a destination that is guaranteed to be refused.
+	 */
+	it('drops the current library folder and anything overlapping it', () => {
+		const offered = libraryDestinations(
+			['Shared/Catalogue', SOURCE, `${SOURCE}/New`, 'Renovation'],
+			[],
+			SOURCE,
+		);
+
+		expect(offered).toEqual(['Shared/Catalogue']);
+	});
+});
+
+/**
+ * A source whose CASE differs from the vault's own paths — reachable after a case-only
+ * external rename, or a hand edit of `data.json` on a Windows or macOS vault, where two
+ * casings are one folder on disk.
+ *
+ * `foldersOverlap` folds case deliberately and says so at length; the enumeration did not,
+ * so the guard and the selection disagreed about what "the same folder" means. The
+ * consequence is the worst shape any arm of this migration has: zero notes selected, no
+ * failure to report, and the destination persisted as though the move had succeeded — the
+ * catalogue left behind while every future asset is written to the new root, and the user
+ * told it worked.
+ *
+ * Asserted on what MOVED rather than on `ok`, because `ok` is exactly what the defect
+ * answers.
+ */
+it('moves the catalogue when the configured source differs from the vault only in case', async () => {
+	const files = [noteAt('Renovation/Library/Assets/Tiles.md')];
+	const rig = harness({ catalogueNotes: (from) => catalogueNotesIn(files, from) });
+
+	const result = await migrateLibraryFolder(rig.deps, 'renovation/library', DESTINATION);
+
+	expect(isOk(result)).toBe(true);
+	// The relative path survives because case folding preserves LENGTH, so the slice that
+	// strips the old root strips exactly the old root however it was spelled.
+	expect(rig.renamed).toEqual([
+		{ from: 'Renovation/Library/Assets/Tiles.md', to: 'Shared/Catalogue/Assets/Tiles.md' },
+	]);
 });
 
 describe('catalogueNotesIn', () => {
@@ -230,6 +305,23 @@ describe('catalogueNotesIn', () => {
 		];
 
 		expect(catalogueNotesIn(files, SOURCE).map((file) => file.path)).toEqual([
+			'Renovation/Library/Assets/Tiles.md',
+		]);
+	});
+
+	/**
+	 * The same segment boundary, folded — the rule `foldersOverlap` already applies, so the
+	 * guard and the enumeration cannot disagree about which notes "the same folder" holds.
+	 * The prefix trap is asserted again from the folded side: a case-insensitive match that
+	 * had been weakened into a bare `startsWith` would take `Renovation/LibraryOld` too.
+	 */
+	it('takes them case-insensitively, still at the segment boundary', () => {
+		const files = [
+			noteAt('Renovation/Library/Assets/Tiles.md'),
+			noteAt('Renovation/LibraryOld/Assets/Paint.md'),
+		];
+
+		expect(catalogueNotesIn(files, 'renovation/LIBRARY').map((file) => file.path)).toEqual([
 			'Renovation/Library/Assets/Tiles.md',
 		]);
 	});

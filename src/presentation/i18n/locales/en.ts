@@ -253,6 +253,7 @@ export const en = {
 	// moves nothing, and pointing the setting at where they now are is the fix.
 	'settings.library-folder-empty': 'A library folder cannot be empty.',
 	'settings.library-overlaps-project': 'That folder is inside a project folder, or contains one.',
+	'settings.library-overlaps-source': 'That folder overlaps the current library folder.',
 	'settings.library-move-failed': 'The library could not be moved, so the setting was not changed.',
 	'settings.library-persist-failed':
 		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',

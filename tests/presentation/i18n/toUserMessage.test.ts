@@ -144,6 +144,16 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.validation',
 		'plugin/settings/libraryMigration.ts',
 	],
+	// The SOURCE overlap, and it is a row of its own rather than a synonym of the one above:
+	// the project sentence says "inside a project folder, or contains one", which is false
+	// about a destination that overlaps the folder the catalogue is currently in, and a user
+	// told the wrong thing about which folder is the problem has nothing to act on.
+	[
+		'settings.library-overlaps-source',
+		'Validation',
+		'error.category.validation',
+		'plugin/settings/libraryMigration.ts',
+	],
 	['settings.library-move-failed', 'Persistence', 'error.category.persistence', 'plugin/settings/libraryMigration.ts'],
 	[
 		'settings.library-persist-failed',

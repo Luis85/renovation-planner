@@ -24,6 +24,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-folder.move.desc': 'Einen neuen Ordner wählen und den Katalog dorthin verschieben.',
 	'settings.library-folder-empty': 'Ein Bibliotheksordner darf nicht leer sein.',
 	'settings.library-overlaps-project': 'Dieser Ordner liegt in einem Projektordner oder enthält einen.',
+	'settings.library-overlaps-source': 'Dieser Ordner überlappt den aktuellen Bibliotheksordner.',
 	'settings.library-move-failed':
 		'Die Bibliothek konnte nicht verschoben werden, die Einstellung wurde nicht geändert.',
 	'settings.library-persist-failed':

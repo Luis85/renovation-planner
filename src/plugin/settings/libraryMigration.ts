@@ -3,7 +3,7 @@ import type { AppError } from '../../core/errors/AppError';
 import { err, ok, type Result } from '../../core/result/Result';
 import type { Logger } from '../../application/ports/Logger';
 import type { ProjectIndex } from '../../application/ports/ProjectIndex';
-import { foldersOverlap } from '../../infrastructure/obsidian/repositories/foldersOverlap';
+import { folderContains, foldersOverlap } from '../../infrastructure/obsidian/repositories/foldersOverlap';
 import { joinFolder, normalizeFolder, parentOf } from '../../infrastructure/obsidian/repositories/paths';
 
 /**
@@ -64,8 +64,31 @@ export async function migrateLibraryFolder(
 		return err({ category: 'Validation', code: 'settings.library-folder-empty', message: 'A library folder cannot be empty.' });
 	}
 	const destination = normalizeFolder(to);
+	const source = normalizeFolder(from);
 
-	// 1. Validate against EVERY project folder, in both directions (§83): a project folder
+	// 1. Validate against the SOURCE, before any project folder, because this is the one
+	// overlap that makes the move itself incoherent rather than merely ill-placed.
+	//
+	// The nested direction is what the guard is for. `catalogueNotes` enumerates by path
+	// prefix, so moving `Renovation/Library` into `Renovation/Library/New` leaves every note
+	// still UNDER the source — and the setting is persisted LAST, so a persist failure is
+	// followed by a retry that re-enumerates the notes it has just moved and sends
+	// `New/Assets/Tiles.md` to `New/New/Assets/Tiles.md`. Should the persist then succeed,
+	// the catalogue sits below the folder the setting names and no read resolves it.
+	//
+	// `foldersOverlap` is symmetric, so the two cheaper directions come free and are worth
+	// having in their own right: the destination EQUAL to the source renames every note onto
+	// itself, and a destination CONTAINING the source flattens the catalogue into a folder
+	// whose own subtree it was just lifted out of.
+	if (foldersOverlap(destination, source)) {
+		return err({
+			category: 'Validation',
+			code: 'settings.library-overlaps-source',
+			message: `The library folder ${destination} overlaps its current location ${source}.`,
+		});
+	}
+
+	// 2. Validate against EVERY project folder, in both directions (§83): a project folder
 	// holding the library would take every project's shared catalogues with it when the
 	// project is deleted.
 	for (const projectFolder of deps.projectFolders()) {
@@ -78,9 +101,8 @@ export async function migrateLibraryFolder(
 		}
 	}
 
-	// 2. Move, so the vault's links survive.
+	// 3. Move, so the vault's links survive.
 	const moved: string[] = [];
-	const source = normalizeFolder(from);
 	for (const note of deps.catalogueNotes(source)) {
 		// The path RELATIVE to the old root, never `note.name`. A catalogue note lives at
 		// `<library>/Assets/Tiles.md`, so its leaf name alone would flatten it to
@@ -102,7 +124,7 @@ export async function migrateLibraryFolder(
 		}
 	}
 
-	// 3. Rebuild from the new roots, and 4. persist ONLY now.
+	// 4. Rebuild from the new roots, and 5. persist ONLY now.
 	deps.rebuildIndex();
 	try {
 		await deps.persist(destination);
@@ -151,17 +173,37 @@ export function projectFolderPaths(persistence: { index: ProjectIndex } | null):
  * §83 would refuse.
  *
  * Filtering is a convenience and never the guard — a project folder can be dragged between
- * choosing a destination and applying it, so `migrateLibraryFolder` is what refuses.
+ * choosing a destination and applying it, so `migrateLibraryFolder` is what refuses. Both of
+ * its overlap rules are applied here for the same reason: there is no point offering a
+ * destination that is guaranteed to be refused, and dropping the SOURCE is what stops the
+ * picker listing the folder the catalogue is already in.
  */
-export function libraryDestinations(folders: readonly string[], projectFolders: readonly string[]): string[] {
-	return folders.filter((folder) => !projectFolders.some((projectFolder) => foldersOverlap(folder, projectFolder)));
+export function libraryDestinations(
+	folders: readonly string[],
+	projectFolders: readonly string[],
+	source: string,
+): string[] {
+	return folders.filter(
+		(folder) =>
+			!foldersOverlap(folder, source) &&
+			!projectFolders.some((projectFolder) => foldersOverlap(folder, projectFolder)),
+	);
 }
 
 /**
  * The files under the library folder — at the SEGMENT boundary, never as a string prefix,
  * so `Renovation/LibraryOld` is not read as part of `Renovation/Library`.
+ *
+ * Through `folderContains`, which is the SAME predicate the guards above refuse with, and
+ * that identity is the point rather than a saving. This filter spelled the rule out longhand
+ * once and folded no case, while `foldersOverlap` folds it deliberately — so the two
+ * disagreed about what "the same folder" means, and a source differing from the vault's own
+ * paths only in case (a case-only external rename, or a hand-edited `data.json` on a Windows
+ * or macOS vault, where two casings are one folder on disk) selected ZERO notes. The
+ * migration then moved nothing, rebuilt, and persisted the destination as though it had
+ * worked: the catalogue left at the old path, every future asset written to the new one, and
+ * success reported. Every other arm of this migration at least refuses.
  */
 export function catalogueNotesIn(files: readonly TFile[], folder: string): TFile[] {
-	const root = `${normalizeFolder(folder)}/`;
-	return files.filter((file) => file.path.startsWith(root));
+	return files.filter((file) => folderContains(folder, file.path));
 }

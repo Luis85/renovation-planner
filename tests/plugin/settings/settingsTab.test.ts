@@ -363,6 +363,59 @@ describe('moving the library', () => {
 	});
 
 	/**
+	 * The window `persistLibraryFolder` opens between its own `saveData` and the root swap:
+	 * for the length of that write `this.root.settings.libraryFolder` still names the
+	 * SOURCE, and every other control in the pane is still live — only the move row is
+	 * disabled.
+	 *
+	 * So an ordinary settings change made during it composes `{ ...root.settings, units }`
+	 * carrying the stale source folder, and if that write lands after the migration's, the
+	 * session runs on the destination while `data.json` names the source. A restart then
+	 * writes new catalogue entries at the old path and splits the catalogue in two — the
+	 * outcome the persist-last ordering exists to prevent, reached by a different route.
+	 *
+	 * It has to INTERLEAVE to mean anything: two writes made one after the other prove
+	 * nothing, because the second one composes from a root that has already been swapped.
+	 * The gate below holds both writes in flight at once, and the assertions are the PAIR —
+	 * the file names the destination AND the user's units change survives, since a fix that
+	 * simply dropped the later write would satisfy the first half alone.
+	 */
+	it('is not overwritten by an ordinary settings write composed while the move was persisting', async () => {
+		const { plugin, tab } = await withStored(null);
+		equipVault(plugin, { folders: ['Shared/Catalogue'], files: ['Renovation/Library/Assets/Tiles.md'] });
+		let release!: () => void;
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const write = plugin.saveData.bind(plugin);
+		// Every write waits for the same gate, so both are in flight together and each lands
+		// in the order its continuation was queued.
+		plugin.saveData = async (data: unknown): Promise<void> => {
+			await gate;
+			await write(data);
+		};
+
+		moveRow(tab).action(0);
+		(FuzzySuggestModal.opened[0] as FuzzySuggestModal<string>).choose('Shared/Catalogue');
+		await settle();
+		// Composed HERE, while the migration's own write is still in flight.
+		const ordinary = tab.setControlValue('units', 'imperial');
+		release();
+		await ordinary;
+		await settle();
+
+		const expected = { ...DEFAULT_SETTINGS, units: 'imperial', libraryFolder: 'Shared/Catalogue' };
+		expect(plugin.saved.at(-1)).toEqual(expected);
+		expect(plugin.root.settings).toEqual(expected);
+		// And in that order, with neither write carrying the folder the other had just left:
+		// a build that let them interleave writes the source back over the destination.
+		expect((plugin.saved as { libraryFolder: string }[]).map((entry) => entry.libraryFolder)).toEqual([
+			'Shared/Catalogue',
+			'Shared/Catalogue',
+		]);
+	});
+
+	/**
 	 * The guard `saveSettings` has carried since slice 1, at the second write door: a
 	 * transient read failure must not stamp a folder over a `data.json` sitting there
 	 * intact. Unreachable from the pane — a tab with unrecovered settings declares one

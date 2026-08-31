@@ -94,11 +94,32 @@ export class ObsidianAssetRepository implements AssetRepository {
 		return this.list(this.deps.index.getIdsByType('renovation-asset') as AssetId[]);
 	}
 
+	/**
+	 * One unreadable note does not take the catalogue down with it.
+	 *
+	 * This used to return the first refusal, which was survivable while the list was
+	 * per-project: a corrupt asset note disabled assignment in its OWN project. Since the
+	 * catalogue became vault-wide it is not — one hand-edited note anywhere would empty the
+	 * assign picker in EVERY project, and `loadAssetOptions` shows an empty list rather than
+	 * an error, so the failure is silent as well as total.
+	 *
+	 * The refusal is RECORDED rather than dropped. `openNoteById` already writes a migration
+	 * failure to the ledger, but the `fromPersistence` arm — invalid asset frontmatter on a
+	 * note whose `type` and `id` are fine, which is exactly the reported case — returns its
+	 * error without recording, so skipping silently would lose the signal entirely.
+	 *
+	 * The shape is `ObsidianProjectRepository.listAll`'s, minus its `refused` count: that
+	 * exists because the project list must tell "no projects" from "projects I could not
+	 * read", and the assign picker has no such distinction to draw.
+	 */
 	private async list(ids: readonly AssetId[]): Promise<Result<Loaded<Asset>[], RepositoryError>> {
 		const loaded: Loaded<Asset>[] = [];
 		for (const id of ids) {
 			const found = await this.getById(id);
-			if (isErr(found)) return found;
+			if (isErr(found)) {
+				this.deps.ledger.record('asset', id, found.error);
+				continue;
+			}
 			if (found.value !== null) loaded.push(found.value);
 		}
 		return ok(loaded);

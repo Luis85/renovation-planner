@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, parseFrontmatter, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectFound, expectOk, observationToken } from '../../../helpers/domain';
-import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
+import { makeAsset as makeAssetEntity, makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
@@ -104,6 +104,39 @@ describe('project and zone listings', () => {
 
 		expect(listing.loaded.map((one) => one.entity.id)).toEqual([readable]);
 		expect(listing.refused).toBe(1);
+	});
+
+	/**
+	 * The same rule for the ASSET catalogue, where slice 19 made the cost far higher.
+	 *
+	 * While the catalogue was per-project, one corrupt asset note disabled assignment in its
+	 * OWN project. Vault-wide, it would empty the assign picker in EVERY project — and
+	 * `loadAssetOptions` renders an empty list rather than an error, so the failure would be
+	 * silent as well as total.
+	 *
+	 * Corrupted at the FRONTMATTER rather than at `schema-version`, which is the arm that
+	 * matters: a bad schema version is refused by `openNoteById`, which records it to the
+	 * ledger on the way past. An asset whose `type` and `id` are fine and whose category is
+	 * nonsense fails at `assetFromPersistence` instead, which returns its error WITHOUT
+	 * recording — so the repository has to record it, or skipping would lose the signal.
+	 */
+	it('listAll skips an unreadable asset rather than emptying the whole catalogue', async () => {
+		const stack = createRepositoryStack();
+		const readable = expectOk(await stack.assets.save(makeAssetEntity(), 'absent')).entity.id;
+		const poisoned = expectOk(await stack.assets.save(makeAssetEntity(), 'absent')).entity.id;
+		const path = notePathOf(stack, poisoned);
+		stack.vault.entries.set(
+			path,
+			(stack.vault.entries.get(path) ?? '').replace(/^category: .*$/m, 'category: not-a-category'),
+		);
+
+		const listed = expectOk(await stack.assets.listAll());
+
+		// The readable one survives — the whole point. Asserted on the ids rather than on a
+		// count, because "one asset" is equally true of a build that kept the wrong one.
+		expect(listed.map((one) => one.entity.id)).toEqual([readable]);
+		// And the refusal is not lost by being skipped.
+		expect(stack.ledger.issues().map((issue) => issue.entityId)).toContain(poisoned);
 	});
 
 	/**

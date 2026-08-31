@@ -296,14 +296,27 @@ describe('ObsidianAssetRepository failure branches', () => {
 		expect(error.code).toBe('asset.schema-version-malformed');
 	});
 
-	it('listAll propagates a corrupt sibling note', async () => {
+	/**
+	 * Rewritten by slice 19, and the INVERSE of what it used to assert.
+	 *
+	 * It required `listAll` to propagate a corrupt sibling's refusal, which was survivable
+	 * while the catalogue was per-project: one bad note disabled assignment in its OWN
+	 * project. Vault-wide, the same behaviour empties the assign picker in EVERY project from
+	 * a single hand-edited note — and `loadAssetOptions` renders an empty list rather than an
+	 * error, so it would be silent as well as total.
+	 *
+	 * Asserting the surviving SIBLING rather than `ok`, because `ok` alone is equally true of
+	 * a build that returned an empty list.
+	 */
+	it('listAll skips a corrupt sibling and still answers the readable ones', async () => {
 		const stack = createRepositoryStack();
 		const { path } = await seedAsset(stack);
-		await seedAsset(stack, { name: 'Second' });
+		const second = await seedAsset(stack, { name: 'Second' });
 		stack.vault.entries.set(path, 'someone deleted the frontmatter');
 
-		const listed = await stack.assets.listAll();
-		expect(listed.ok).toBe(false);
+		const listed = expectOk(await stack.assets.listAll());
+
+		expect(listed.map((one) => one.entity.id)).toEqual([second.assetId]);
 	});
 
 	it('listAll skips an indexed id whose note has vanished entirely', async () => {

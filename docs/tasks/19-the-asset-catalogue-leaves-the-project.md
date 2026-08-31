@@ -421,10 +421,15 @@ its old wording is how the gap between promise and check reopens.
 - [x] `Asset` declares no `projectId`, `AssetEventPayload` carries none, and
       `AssetFrontmatterSchemaV1` has no `project` key.
       *(amended 2026-08-31: this item named a `tests/build/` check "finding no `asset` module
-      naming `ProjectId`". No such check was written and none is proposed — `src/domain/asset/`
-      mentions `ProjectId` in exactly one place today, a sentence of PROSE explaining the
-      absence, which a text scan would have to tolerate and would then tolerate a re-added
-      field beside. The clause is replaced by the instruments that exist.)*
+      naming `ProjectId`". No such check was written and none is proposed, and the reason is
+      what the greps actually print. `grep -rn "ProjectId" src/domain/asset/` — the TYPE, that
+      exact spelling — matches **nothing**, so a scan for it would pass over a tree that had
+      never been changed at all and would say the same thing about one that had. The only hit
+      in that directory is case-insensitive, `Asset.ts:75`, and it is the FIELD name inside a
+      sentence of prose explaining the absence — so a scan loose enough to see anything here
+      would have to tolerate that line, and would then tolerate a re-added field beside it. A
+      check that matches nothing looks exactly like a clean tree, which is this repository's
+      own instrument rule. The clause is replaced by the instruments that exist.)*
       The entity and the payload are held by the TYPE (`vue-tsc` in `npm run build`): every
       construction site would fail to compile against a re-added required member. The schema's
       missing key is held behaviourally by
@@ -521,8 +526,16 @@ its old wording is how the gap between promise and check reopens.
       leaves every existing two-argument call unchanged; `de.ts`'s translation of **any** key
       names the same holes as `en.ts`'s, per key — `tests/presentation/i18n/strings.test.ts` ›
       *fills a hole from params*, *leaves an unmatched hole standing rather than blanking it*,
+      *substitutes in ONE pass, so a value containing a hole is not re-substituted*,
       *is unchanged for a two-argument call*, and *requires de.ts to name the same holes as
       en.ts, per key*.
+      **The one-pass clause had no test behind it when this box was first ticked**, and the
+      three cases beside it could not acquire one: they pass brace-free values, on which a
+      single `String.replace` and a loop of per-parameter replaces agree exactly. The case
+      added for it hands `reference.row.project-at-path` (`'{name} — {path}'`) a `name` VALUE
+      that is itself the literal `{path}`, which is what "one pass" means — watched failing
+      against a looping implementation, which answers `Vault/Library — Vault/Library` where one
+      pass answers `{path} — Vault/Library`, substituting a folder into a project's own name.
 - [x] Slice 15's items 6 and 6a are ticked in **its** document, by this slice, with a dated note
       saying so — `docs/tasks/15-modals-and-confirmation-dialogs.md`, under *Items 6 and 6a were
       met by slice 19 (2026-08-31)*, which also corrects the two key names that document spelled

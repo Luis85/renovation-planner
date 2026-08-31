@@ -36,10 +36,12 @@ entries are added by the pull request that earns them, never invented at release
   project rather than a flat list, carrying `projectName` and — only where two projects share a
   name, which nothing refuses — `projectPath`. A shared asset's references are no longer all in
   the project the user is looking at, so a bare count would read as a claim it cannot make.
-- **`t(language, key, params?)` interpolates**, in one pass, leaving an unmatched hole standing
-  as `{name}` rather than blanking it: a visible hole is a bug report and an empty string is a
-  silent one. `tr` forwards the third argument, and every existing two-argument call is
-  unchanged. `de.ts` is now required to name the same holes as `en.ts` for **any** key, per key.
+- **`t(language, key, params?)` interpolates**, leaving an unmatched hole standing as `{name}`
+  rather than blanking it: a visible hole is a bug report and an empty string is a silent one.
+  Substitution is a single pass, so a substituted VALUE that itself contains a hole is left
+  alone rather than filled in turn. `tr` forwards the third argument, and every existing
+  two-argument call is unchanged. `de.ts` is now required to name the same holes as `en.ts` for
+  **any** key, per key.
 - The declared Node range is `^22.22.2 || ^24.15.0 || >=26.0.0`, and
   `tests/build/engines.test.ts` keeps it honest by comparing it against every installed
   package with npm's own `semver.subset`. `>=22` was already false before oxlint — `eslint`

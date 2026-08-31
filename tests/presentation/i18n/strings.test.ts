@@ -119,6 +119,17 @@ describe('interpolation', () => {
 		expect(t('en', 'reference.row.project', {})).toContain('{name}');
 	});
 
+	it('substitutes in ONE pass, so a value containing a hole is not re-substituted', () => {
+		// `reference.row.project-at-path` is `'{name} — {path}'`, and the `name` VALUE here is
+		// itself the literal `{path}`. One pass leaves it standing; an implementation that
+		// looped `replace` per parameter would fill `{name}` first and then find the `{path}`
+		// it had just written, substituting the folder into a project's own NAME. Nothing else
+		// in this file can tell the two apart — every other case has brace-free values, on
+		// which the two implementations agree exactly.
+		expect(t('en', 'reference.row.project-at-path', { name: '{path}', path: 'Vault/Library' }))
+			.toBe('{path} — Vault/Library');
+	});
+
 	it('is unchanged for a two-argument call', () => {
 		expect(t('en', 'view.project.list-title')).toBe(en['view.project.list-title']);
 	});

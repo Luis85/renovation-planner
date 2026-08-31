@@ -1343,9 +1343,15 @@ id on a name collision. Four rules came out of it, the last two from the review 
   folder under the derived shape, and there was no library to overlap with — and that reason is
   "nothing to do", not "a gate would have refused it for having no caller". **Slice 19 wrote
   it** (`infrastructure/obsidian/repositories/foldersOverlap.ts` — symmetric, compared at the
-  segment boundary, case-folded) and gave it four call sites in three modules: the project
-  insert's refusal, the library migration's three checks (destination against source, against
-  every project folder, and the destination LIST it offers), and `IndexLibraryOverlaps`.
+  segment boundary, case-folded) and gave it callers in three modules.
+  `grep -rn "foldersOverlap(" src/`, run in the edit that wrote this sentence and excluding
+  the definition's own file, prints **six** call expressions: the project insert's refusal
+  (`ObsidianProjectRepository`), the overlap read (`IndexLibraryOverlaps`), and four in
+  `libraryMigration` — the destination against the source, the destination against each
+  project folder, and TWO inside the destination LIST it offers, which filters on the source
+  and on every project folder separately. A count of the migration's *rules* is three and a
+  count of its *calls* is four; this sentence says which it is measuring, because the previous
+  draft said "four call sites" and was counting neither.
 - **Widening DISCOVERY and leaving EXISTENCE alone is half a slice.** A note is found by what
   it declares now, but every save still established existence by scanning
   `<projectFolder>/<Kind>/` — so a note the user had filed anywhere else was read, indexed and
@@ -1467,13 +1473,25 @@ rules that came out of it:
   stale field; and **neither property alone passes the test**, which was measured by mutating
   each out on its own. The test asserts the PAIR — the file names the destination AND the
   user's `units` change survives — so a "fix" that dropped the later write fails it.
-- **A guard that folds case and an enumeration that does not are one rule with two spellings,
-  and they had already drifted.** `foldersOverlap` folded case from the day it was written;
-  `catalogueNotesIn` compared paths raw, so a source folder differing from the vault only in
-  case selected ZERO notes, refused nothing, and persisted the destination — a silent success.
-  `folderContains` is the one function both doors ask now. **The case a test could pass on:**
-  `expect(isOk(result)).toBe(true)` is true of the defect and of the fix alike; only asserting
-  what MOVED tells them apart.
+- **A guard that folds case and an enumeration that does not look like one rule with two
+  spellings, and they are TWO rules — which took a wrong fix to establish.** `foldersOverlap`
+  folded case from the day it was written; `catalogueNotesIn` compares paths exactly, so a
+  source folder differing from the vault only in case selected ZERO notes, refused nothing, and
+  persisted the destination — a silent success. The first repair extracted a shared
+  `folderContains` and made the enumeration fold too, on this file's own "a question worth
+  asking at one door is a function" rule. **That was the wrong direction and it was REVERTED:
+  for a GUARD, over-refusing costs a rename; for an ENUMERATION, over-selecting MOVES FILES**,
+  so a folded sweep would relocate unrelated notes on a case-sensitive vault. What ships is the
+  enumeration staying EXACT, at the segment boundary, with the hazard closed by a coded refusal
+  instead — `settings.library-source-case-mismatch`, raised when the configured source is not in
+  the vault while a folder differing only in case is, which is precisely the state where an
+  exact enumeration would look in the wrong place. `catalogueNotesIn`'s docblock states the
+  asymmetry where the code is. **Two predicates that look alike are not automatically
+  duplication**, which is this file's own "consolidating two questions that merely look alike"
+  rule paying out a second time, in the increment that wrote it down. **And the case a test
+  could pass on:** `expect(isOk(result)).toBe(true)` is true of the original defect and of every
+  repair alike, because the migration reported success having moved nothing; only asserting what
+  MOVED tells them apart.
 - **`foldersOverlap` folds case because the two directions of that error are not symmetric.**
   Under-refusing permits the exact state the guard exists to prevent — deleting an apparently
   separate project folder takes the shared catalogue with it — while over-refusing costs a

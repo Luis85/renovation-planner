@@ -777,7 +777,7 @@ export default defineConfig({
 			// Measured 2026-08-31 at the end of design slice 19 — the Asset catalogue leaving
 			// the project: `Asset` losing `projectId` across the entity, the events, the Zod
 			// schema, the mapper, `saveNoteBackedEntity`'s constraint and the index axis;
-			// `listByProject` → `listAll`; `foldersOverlap`/`folderContains`; the
+			// `listByProject` → `listAll`; `foldersOverlap`; the
 			// `libraryFolder` setting, its informational row, its action row and
 			// `migrateLibraryFolder` (validate → move → rebuild → persist LAST) with the
 			// serialized settings-write chain under it; `ListRequirementsReferencing`

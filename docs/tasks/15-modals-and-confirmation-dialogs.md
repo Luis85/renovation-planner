@@ -137,8 +137,9 @@ Two corrections to the item text above rather than silent drift. The keys are
 (`'{name} — {path}'`), not the `entity.requirement.plural.in-project*` pair this document
 spelled: the row names the project and no longer names the entity type, so
 `entity.requirement.plural` had no caller left and was removed from both locales. **Design
-slice 19's closing pass corrected the two places where that old spelling sat in a CRITERION
-or a test description** — Definition of Done item 6 and the same-name test below it — and
+slice 19's closing pass corrected the three places where that old spelling sat in a CRITERION
+or a test description** — Definition of Done item 6, the worked-example integration test in the
+Test Plan, and the same-name test below it — and
 deliberately left it standing in the two illustrative code sketches further down, which are
 this document's own draft of a design and are covered by this paragraph rather than being
 claims about shipped code. A key name inside a ticked box is the one that misleads. And
@@ -939,7 +940,7 @@ contract ends at the typed result, before any write occurs.
   than passing review by accident.
 - **Worked-example integration test** — a fixture Zone with two fixture Requirements
   referencing it drives `onInspectorDeleteZone`; assert the dialog that opens carries
-  `references: [{ label: t(lang, 'entity.requirement.plural.in-project', { project: 'Kitchen Refit' }), count: 2 }]`
+  `references: [{ label: t(lang, 'reference.row.project', { name: 'Kitchen Refit' }), count: 2 }]`
   sourced from a fake `ListRequirementsReferencing` double **returning one
   `ReferencingProject` group** — which is what a Zone target always yields, since a Zone
   belongs to one Plan and that to one Project. Then assert that choosing each of the four

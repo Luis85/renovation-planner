@@ -10,11 +10,14 @@ import { mount } from '@vue/test-utils';
 import ProjectList from '../../../src/presentation/views/ProjectList.vue';
 import { t } from '../../../src/presentation/i18n/strings';
 
+// `libraryOverlap: false` on both: design slice 19's §83 marker is not what any case in
+// this file is about, and an ordinary row is the state they all describe. The marked row
+// has its own file (`projectListOverlap.test.ts`).
 const PROJECTS = [
-	{ id: 'p1', name: 'Kitchen', status: 'IDEA' },
+	{ id: 'p1', name: 'Kitchen', status: 'IDEA', libraryOverlap: false },
 	// 'PLANNING' is not a member of `ProjectStatus` — deliberately, so this fixture exercises
 	// both the recognised and the unrecognised branch of the status label at once.
-	{ id: 'p2', name: 'Bathroom', status: 'PLANNING' },
+	{ id: 'p2', name: 'Bathroom', status: 'PLANNING', libraryOverlap: false },
 ];
 
 describe('ProjectList', () => {

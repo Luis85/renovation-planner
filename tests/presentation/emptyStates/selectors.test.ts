@@ -92,7 +92,7 @@ describe('selectRenovationProjectEmptyState', () => {
 	});
 
 	it('asks for nothing once there is one', () => {
-		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
+		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', libraryOverlap: false };
 
 		expect(selectRenovationProjectEmptyState([project], 0)).toBeNull();
 	});
@@ -113,7 +113,7 @@ describe('selectRenovationProjectEmptyState', () => {
 	 * projects to report the fifth.
 	 */
 	it('asks for nothing when some projects loaded and others refused', () => {
-		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
+		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', libraryOverlap: false };
 
 		expect(selectRenovationProjectEmptyState([project], 1)).toBeNull();
 	});

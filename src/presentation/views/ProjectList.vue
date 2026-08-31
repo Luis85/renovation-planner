@@ -60,6 +60,16 @@ function statusLabel(status: string): string {
 			>
 				<span class="rp-project-list__name">{{ project.name }}</span>
 				<span class="rp-project-list__status">{{ statusLabel(project.status) }}</span>
+				<!--
+					PRD §83's only surface. A MARK and a WORD, never one: the CSS-drawn triangle
+					lives on the class's `::before` and the translated sentence is the element's
+					own text, so the row says what is wrong to a reader who cannot see the colour
+					and to one who cannot see the glyph alike.
+				-->
+				<span
+					v-if="project.libraryOverlap"
+					class="rp-project-list__overlap"
+				>{{ tr('view.project.library-overlap') }}</span>
 			</button>
 		</li>
 	</ul>

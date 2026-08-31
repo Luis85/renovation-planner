@@ -29,7 +29,7 @@ const openProject = (): Promise<'opened'> => Promise.resolve('opened');
 /** No index rebuild is published here; `viewRootIndexRebuild.test.ts` is what drives it. */
 const onProjectsChanged = (): (() => void) => () => undefined;
 
-const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning' };
+const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', libraryOverlap: false };
 
 const answering = (
 	projects: readonly ProjectSummaryDto[],

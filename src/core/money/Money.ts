@@ -3,6 +3,21 @@ import { err, ok, type Result } from '../result/Result';
 import type { CalculationError, ValidationError } from '../errors/AppError';
 
 /**
+ * A validated ISO 4217 alpha-3 code. `declare const` with a `unique symbol` is type-only —
+ * nothing is emitted — so the brand costs no runtime and cannot be forged outside this
+ * module: an unvalidated `'eur'` does not compile where a `Currency` is wanted.
+ *
+ * The brand goes on the way OUT rather than on the way in, which is a narrower claim than
+ * a brand usually invites: `createMoney`, `of` and `currencyOf` all refuse a
+ * non-conforming code already, so branding their RESULT states a fact rather than adding
+ * a hope. It stops a caller passing a bare string. It does not stop one passing the wrong
+ * validated currency — nothing type-shaped can, and `computeEstimatedCost`'s refusal is
+ * what catches that.
+ */
+declare const currencyBrand: unique symbol;
+export type Currency = string & { readonly [currencyBrand]: true };
+
+/**
  * An opaque monetary amount (ADR-010): the value type every budget/cost field carries,
  * never a raw number. All arithmetic runs on decimal.js inside THIS module — call sites
  * never import `decimal.js` to touch an `amount`, and nothing may coerce one with
@@ -71,8 +86,8 @@ const moneyBrand = Symbol('Money');
 export interface Money {
 	readonly [moneyBrand]: true;
 	readonly amount: string;
-	/** ISO 4217 alpha-3, uppercase. */
-	readonly currency: string;
+	/** ISO 4217 alpha-3, uppercase — validated by whichever constructor built this. */
+	readonly currency: Currency;
 }
 
 /**
@@ -89,6 +104,33 @@ export interface Money {
 const AMOUNT_PATTERN = /^(-(?!0+(\.0+)?$))?(0|[1-9]\d*)(\.\d+)?$/;
 const CURRENCY_PATTERN = /^[A-Z]{3}$/;
 
+/**
+ * The untrusted-input door: `data.json`, note frontmatter, anything a user can type. Takes
+ * `unknown` rather than `string` because both of those can hold a number or an object.
+ */
+export function parseCurrency(raw: unknown): Result<Currency, ValidationError> {
+	if (typeof raw !== 'string' || !CURRENCY_PATTERN.test(raw)) {
+		return err({
+			category: 'Validation',
+			code: 'money.invalid-currency',
+			message: `A currency must be an uppercase ISO 4217 alpha-3 code; got "${String(raw)}".`,
+		});
+	}
+	return ok(raw as Currency);
+}
+
+/**
+ * The program-literal door, and it THROWS for the reason `of` does: a hard-coded currency
+ * that does not parse is a programmer error, and a `Result` here would put an unreachable
+ * error arm at every module-level literal that needs one.
+ */
+export function currencyOf(code: string): Currency {
+	if (!CURRENCY_PATTERN.test(code)) {
+		throw new Error(`A currency must be an uppercase ISO 4217 alpha-3 code; got "${code}".`);
+	}
+	return code as Currency;
+}
+
 export function createMoney(amount: string, currency: string): Result<Money, ValidationError> {
 	if (!AMOUNT_PATTERN.test(amount)) {
 		return err({
@@ -97,14 +139,9 @@ export function createMoney(amount: string, currency: string): Result<Money, Val
 			message: `A monetary amount must be a plain decimal string; got "${amount}".`,
 		});
 	}
-	if (!CURRENCY_PATTERN.test(currency)) {
-		return err({
-			category: 'Validation',
-			code: 'money.invalid-currency',
-			message: `A currency must be an uppercase ISO 4217 alpha-3 code; got "${currency}".`,
-		});
-	}
-	return ok({ [moneyBrand]: true, amount, currency });
+	const parsed = parseCurrency(currency);
+	if (!parsed.ok) return parsed;
+	return ok({ [moneyBrand]: true, amount, currency: parsed.value });
 }
 
 /**
@@ -160,7 +197,7 @@ const MoneyDecimal = Decimal.clone({
  * and break the round-trip back through `new Decimal(...)`. It also normalizes a negative
  * ZERO to a plain `0`, which is what lets `AMOUNT_PATTERN` refuse `-0`.
  */
-function fromDecimal(amount: Decimal, currency: string, places?: number): Money {
+function fromDecimal(amount: Decimal, currency: Currency, places?: number): Money {
 	return { [moneyBrand]: true, amount: amount.toFixed(places ?? amount.dp()), currency };
 }
 
@@ -185,11 +222,7 @@ const LITERAL_PATTERN = /^[+-]?(\d+\.?\d*|\.\d+)(e[+-]?\d+)?$/i;
  * a documentation pass.
  */
 export function of(value: string | number | Decimal, currency: string): Money {
-	if (!CURRENCY_PATTERN.test(currency)) {
-		throw new Error(
-			`A currency must be an uppercase ISO 4217 alpha-3 code; got "${currency}".`,
-		);
-	}
+	const validated = currencyOf(currency);
 	if (typeof value === 'string' && !LITERAL_PATTERN.test(value)) {
 		throw new Error(
 			`A monetary amount must be a finite decimal literal in base ten; got "${value}".`,
@@ -204,7 +237,7 @@ export function of(value: string | number | Decimal, currency: string): Money {
 			`A monetary amount must be a finite decimal; got "${String(value)}".`,
 		);
 	}
-	return fromDecimal(amount, currency);
+	return fromDecimal(amount, validated);
 }
 
 export function zero(currency: string): Money {

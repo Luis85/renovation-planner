@@ -134,39 +134,6 @@ function chainFor(leaf: WorkspaceLeaf): NavigationChain {
 let issued = 0;
 
 /**
- * The leaf a call with no `targetLeaf` resolves to: reveal the view, then read back the leaf
- * the reveal guarantees. `undefined` means there is nothing to navigate, and the three ways
- * that happens are kept apart here rather than collapsed at the call site, because each is
- * already ANSWERED where it happens:
- *
- * - the reveal itself failed, which `revealCandidate` has already reported through
- *   `deps.reportFault` — once per activation rather than once per joined click, which is why
- *   this must not report it again;
- * - the candidate lookup THREW. `getLeavesOfType` is a synchronous call into Obsidian that can
- *   throw, and `revealCandidate` next door already treats exactly that as a real workspace
- *   fault — its own comment records the round where a candidate lookup "sat one call out" and
- *   escaped the boundary. Uncaught, it would leave `navigateToProject` rejecting with nothing
- *   reported, which is the contract every door in this directory keeps;
- * - the reveal succeeded and answered no leaf: a successful activation whose leaf has since
- *   gone, and the create path having produced none. The boolean cannot cover that, because it
- *   describes the activation and not what `getLeavesOfType` says a moment later.
- *
- * All three predate the lane change and all three still return before anything is queued — the
- * difference is that the lookup now sits OUTSIDE the write chain, so a throw here can no longer
- * settle a chain rejected. That hazard has not moved somewhere else; it has stopped existing on
- * this path.
- */
-async function revealedLeaf(deps: RevealDeps, type: string): Promise<WorkspaceLeaf | undefined> {
-	if (!(await revealView(deps, type))) return undefined;
-	try {
-		return deps.workspace.getLeavesOfType(type)[0];
-	} catch (cause) {
-		deps.reportFault(cause);
-		return undefined;
-	}
-}
-
-/**
  * Reveal the singleton view, then navigate it to a project — design slice 21's two steps, in
  * the order they mean. Given `targetLeaf`, the reveal is skipped and the write goes straight
  * to that leaf: see the parameter's own comment for why "the singleton" stops being a safe
@@ -231,9 +198,28 @@ export async function navigateToProject(
 	// asked for this navigation came from — so there is nothing to REVEAL: no candidate lookup
 	// to run and no leaf to create. Revealing anyway would risk activating a different leaf of
 	// the same type (the type lookup is exactly the ambiguity a split pane introduces) while
-	// claiming to have shown the one already on screen. `??` short-circuits, so that path takes
-	// neither half of `revealedLeaf` and never suspends here at all.
-	const leaf = targetLeaf ?? (await revealedLeaf(deps, type));
+	// claiming to have shown the one already on screen. `??` short-circuits, so that path does
+	// not reveal at all and never suspends here.
+	//
+	// **Otherwise the leaf is the one `revealView` ANSWERED, never a fresh lookup**, and that is
+	// the fourth instalment of one shape in this module: a value re-derived after an `await` is
+	// a value that may have changed. This used to be `if (!(await revealView(...))) return` in a
+	// helper, followed by `getLeavesOfType(type)[0]` — so the leaf actually revealed was thrown
+	// away and the workspace asked again, and if it had moved during that `await` (the revealed
+	// pane closed, the leaves reordered) the fresh `[0]` answered a DIFFERENT leaf: the palette
+	// command revealed one pane and wrote the project state into another. `revealCandidate` has
+	// held that leaf since before its own first `await` and hands it back now.
+	//
+	// `undefined` means there is nothing to navigate, and both ways that happens are already
+	// ANSWERED where they happen, which is why nothing is reported here: the reveal itself
+	// faulted, or the candidate lookup THREW — `getLeavesOfType` is a synchronous call into
+	// Obsidian that can throw, and it is a thunk called INSIDE `revealCandidate`'s own fault
+	// boundary, which that function's `catch` records as the round where the lookup "sat one
+	// call out" and escaped. Either way `deps.reportFault` has already run, once per activation
+	// rather than once per joined click, so reporting again here would double it. The third way
+	// the old shape had — the reveal succeeding and answering no leaf — has stopped existing
+	// rather than moved: every success path of `revealCandidate` IS a leaf.
+	const leaf = targetLeaf ?? (await revealView(deps, type));
 	if (leaf === undefined) return;
 
 	const chain = chainFor(leaf);
@@ -245,8 +231,9 @@ export async function navigateToProject(
 		// pane for the rest of the session, silently, while every other lane is unaffected.
 		// Catching inside the callback is what makes the chain recover by construction rather
 		// than by anyone remembering to reset it. Reported by a review bot against this plan;
-		// the lookup that used to share this boundary is answered in `revealedLeaf` now, which
-		// is outside the chain and so cannot poison it at all.
+		// the lookup that used to share this boundary is answered inside `revealCandidate`'s own
+		// boundary now, an `await` before anything is queued, so it cannot poison this chain at
+		// all.
 		try {
 			// Read INSIDE the chain, not before it: a request superseded — by a LATER call for
 			// this same leaf — while it waited its turn must not write at all, and by here this

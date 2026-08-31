@@ -201,40 +201,63 @@ describe('navigateToProject', () => {
 	});
 
 	/**
-	 * **The case the boolean does not cover**, in the implementation's own words: a
-	 * successful activation whose leaf has since gone, and the create path having produced
-	 * none. `revealView` answers `true` — the reveal itself worked — but `revealedLeaf`'s own
-	 * read of `getLeavesOfType` is a SEPARATE call, made after an `await`, and nothing
-	 * guarantees the leaf it found a moment ago is still there when it asks again. That read
-	 * moved OUT of the write step when the lane began being keyed on the leaf a call resolves
-	 * to; the arm it guards, and this case, are unchanged by the move.
+	 * **The write lands on the leaf the reveal ANSWERED, not on whatever a fresh lookup says a
+	 * moment later — the fourth instalment of one shape in this module: a value re-derived
+	 * after an `await` is a value that may have changed.** The earlier three were the target
+	 * leaf re-derived by type, the ticket re-derived across targets, and the lane re-derived
+	 * from how a call was raised.
+	 *
+	 * `revealView` used to answer a BOOLEAN, so the leaf it had actually revealed was discarded
+	 * and re-derived by `getLeavesOfType(type)[0]` on the far side of the `await`. Obsidian's
+	 * workspace is free to move in that window — the revealed pane closed, a drag or a split
+	 * reordering the leaves — and the palette command then revealed one pane and wrote the
+	 * project state into another, with no error anywhere and the pane the user was looking at
+	 * showing its stale state.
+	 *
+	 * Driven exactly that way: two leaves of the type (a split pane, which is what makes index
+	 * 0 an unsafe description at all), the reveal held across a microtask, and the order
+	 * reversed while it is in flight so that `[0]` afterwards is the OTHER leaf. Both
+	 * assertions discriminate and they discriminate differently — the revealed pane must carry
+	 * the write, and the pane the stale lookup would have chosen must be untouched.
+	 *
+	 * **Watched failing against the boolean signature**: the write landed on `other`, leaving
+	 * `revealed` with no project state at all.
 	 */
-	it('writes nothing when the reveal succeeds but no leaf resolves', async () => {
+	it('writes to the leaf the reveal answered, not the one the lookup would answer afterwards', async () => {
 		const workspace = new FakeWorkspace();
-		const leaf = workspace.withOpen(TYPE);
+		const revealed = workspace.withOpen(TYPE);
+		const other = workspace.withOpen(TYPE);
 		const reportFault = vi.fn<(cause: unknown) => void>();
-		const original = workspace.getLeavesOfType.bind(workspace);
-		let calls = 0;
-		workspace.getLeavesOfType = (type: string) => {
-			calls += 1;
-			// Call 1 is `revealView`'s own candidate lookup, which finds the leaf and
-			// succeeds; call 2 is `revealedLeaf`'s own read, answered as empty.
-			return calls === 1 ? original(type) : [];
+		workspace.revealLeaf = async (leaf) => {
+			workspace.revealed.push(leaf);
+			await Promise.resolve();
+			// The workspace moves WHILE the reveal is in flight, which is the whole scenario:
+			// after this, `getLeavesOfType(TYPE)[0]` is `other` and no longer the revealed pane.
+			workspace.leaves.reverse();
 		};
 
 		await navigateToProject(depsFor(workspace, reportFault), TYPE, 'project-1');
 
+		expect(workspace.revealed).toEqual([revealed]);
+		expect(revealed.getViewState().state).toEqual({ projectId: 'project-1' });
+		expect(other.getViewState().state).toBeUndefined();
 		expect(reportFault).not.toHaveBeenCalled();
-		expect(leaf.getViewState().state).toBeUndefined();
 	});
 
 	/**
 	 * **A throwing candidate lookup must not poison the chain**, which is the half that
-	 * outlives the gesture: an uncaught throw settles `navigationWrites` rejected, every later
-	 * `.then(step)` skips its callback, and project navigation is dead for the rest of the
-	 * session with nothing on screen to say why. Both assertions are load-bearing — reporting
-	 * the fault is equally true of a build whose chain never recovers. Reported by a review
-	 * bot.
+	 * outlives the gesture: an uncaught throw settles this lane's `writes` rejected, every
+	 * later `.then(step)` skips its callback, and project navigation is dead for the rest of
+	 * the session with nothing on screen to say why. Both assertions are load-bearing —
+	 * reporting the fault is equally true of a build whose chain never recovers. Reported by a
+	 * review bot.
+	 *
+	 * `getLeavesOfType` is called in ONE place on this path now — the thunk `revealView` hands
+	 * `revealCandidate`, inside that function's own fault boundary — so the throw is reported
+	 * there and answered as no leaf, and `navigateToProject` returns before anything is queued.
+	 * A second case used to sit beside this one, faulting a SECOND lookup that `revealedLeaf`
+	 * made after the reveal resolved; that lookup is what the leaf-answering signature deleted,
+	 * so the case went with it rather than being weakened to pass.
 	 */
 	it('reports a throwing leaf lookup and still navigates afterwards', async () => {
 		const workspace = new FakeWorkspace();
@@ -251,51 +274,6 @@ describe('navigateToProject', () => {
 		await navigateToProject(deps, TYPE, 'project-2');
 
 		expect(reportFault).toHaveBeenCalledTimes(1);
-		expect(leaf.getViewState().state).toEqual({ projectId: 'project-2' });
-	});
-
-	/**
-	 * **The case above does not actually discriminate the boundary its own docblock names**,
-	 * measured by running Step 4's third mutation against it: `getLeavesOfType` throws
-	 * unconditionally there, so `revealView`'s OWN candidate lookup — the exact same function,
-	 * called FIRST — already reports the fault and answers `false`, and `navigateToProject`
-	 * returns before anything of its own is reached. `revealedLeaf`'s `try` is never entered
-	 * either way, mutated or not, so that case stays green against the mutation it was written
-	 * to catch.
-	 *
-	 * This one lets `revealView`'s own lookup succeed (the leaf is already open, so its single
-	 * candidate call passes) and throws only on the SECOND `getLeavesOfType` call —
-	 * `revealedLeaf`'s own read, the one that decides both which lane this call joins and which
-	 * leaf it writes to. Without its `try` the throw escapes `navigateToProject` as a rejection
-	 * with nothing reported, which is the one thing every door in this directory promises not to
-	 * do. That read used to sit INSIDE the write step, where a throw also settled the lane's
-	 * chain rejected and killed navigation for the pane for the session; it is outside the chain
-	 * now, so this case pins the report and the second call's success, and the chain's own
-	 * recovery is pinned where a throw can still reach it — the rejecting-`setViewState` case
-	 * below.
-	 */
-	it('reports a throwing leaf lookup from lane resolution, and navigates on the next call', async () => {
-		const workspace = new FakeWorkspace();
-		const leaf = workspace.withOpen(TYPE);
-		const reportFault = vi.fn<(cause: unknown) => void>();
-		const deps = depsFor(workspace, reportFault);
-		const healthy = workspace.getLeavesOfType.bind(workspace);
-		let calls = 0;
-		workspace.getLeavesOfType = (type: string) => {
-			calls += 1;
-			// Call 1 is `revealView`'s own candidate lookup (the leaf is already open, so it
-			// succeeds); call 2 is `revealedLeaf`'s own read, which is the one this case
-			// exists to fault.
-			if (calls === 2) throw new Error('boom');
-			return healthy(type);
-		};
-
-		await navigateToProject(deps, TYPE, 'project-1');
-		expect(reportFault).toHaveBeenCalledTimes(1);
-		expect(leaf.getViewState().state).toBeUndefined();
-
-		workspace.getLeavesOfType = healthy;
-		await navigateToProject(deps, TYPE, 'project-2');
 		expect(leaf.getViewState().state).toEqual({ projectId: 'project-2' });
 	});
 

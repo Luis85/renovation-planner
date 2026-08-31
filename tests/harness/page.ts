@@ -2,10 +2,11 @@
  * The bundle's entry point. Everything real is in `mount.ts`, `planEditor.ts` and
  * `IndexPage.vue`, each of which a test can drive.
  *
- * `?view=plan-editor` opens the Plan Editor instead of the project surface, and `?index` (or
- * an `?entry=`) opens the harness index. A query parameter rather than a second page, for the
- * same reason `?theme` and `?phone` are ones: a headless screenshot needs a URL and nothing to
- * click.
+ * `?view=plan-editor` opens the Plan Editor instead of the project surface, `?project=<id>`
+ * opens the Renovation Project view's DETAIL state on a seeded project of that id rather than
+ * its list, and `?index` (or an `?entry=`) opens the harness index. A query parameter rather
+ * than a second page, for the same reason `?theme` and `?phone` are ones: a headless
+ * screenshot needs a URL and nothing to click.
  */
 import { createApp } from 'vue';
 import VueKonva from 'vue-konva';
@@ -122,7 +123,15 @@ if (wantsIndex) {
 
 	app.mount(root);
 } else {
-	view = wantsPlanEditor ? mountPlanEditorHarness(document.body).view : mountHarness(document.body).view;
+	/**
+	 * `params.get('project')` is `null` when the parameter is absent, which is exactly the
+	 * value `mountHarness` reads as "the list" — the same sentinel `RenovationProjectDeps.
+	 * projectId` uses, so no translation happens here and a bare root keeps taking the
+	 * untouched default.
+	 */
+	view = wantsPlanEditor
+		? mountPlanEditorHarness(document.body).view
+		: mountHarness(document.body, params.get('project')).view;
 }
 
 // After the mount: the toggle is the harness's own furniture and is appended to the body,

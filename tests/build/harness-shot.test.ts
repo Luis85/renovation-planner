@@ -564,13 +564,15 @@ describe('the headless harness capture script', () => {
 		expect(source).not.toContain('createHash');
 	});
 
-	it('still defines the ten fixed shots, so an argumentless run is unchanged', () => {
+	it('still defines the twelve fixed shots, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
 		for (const name of [
 			'dark',
 			'light',
 			'phone',
+			'project-detail',
+			'project-detail-narrow',
 			'plan-editor-dark',
 			'plan-editor-light',
 			'index-dark',
@@ -581,6 +583,32 @@ describe('the headless harness capture script', () => {
 		]) {
 			expect(source).toContain(`name: '${name}'`);
 		}
+	});
+
+	/**
+	 * The detail state's two shots, and what makes them two rather than one: the NARROW one
+	 * carries its own `width`, which is the only reason it photographs anything the wide one
+	 * does not — 460 is an Obsidian sidebar leaf's real width, where the header's wrapping row
+	 * and a plan name's ellipsis are decided. Lose the field and the run writes two PNGs of the
+	 * same picture under two names and exits 0, which is the silent wrong-picture outcome every
+	 * refusal in `resolveShots` exists to prevent.
+	 *
+	 * `?project=` is pinned beside it because that parameter is what reaches the detail state at
+	 * all: without it `tests/harness/mount.ts` mounts the LIST, the selector still matches, and
+	 * both shots would quietly photograph the surface the three above them already cover.
+	 */
+	it('takes the detail state at two widths, and reaches it through the parameter that opens it', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'project-detail'[^}]*query: '\?project=/);
+		expect(source).toMatch(/name: 'project-detail-narrow'[^}]*query: '\?project=/);
+		expect(source).toMatch(/name: 'project-detail-narrow'[^}]*width: 460/);
+		// The narrow one is also the LIGHT one, which is what makes two shots cover both
+		// palettes — measured, not preferred: the status label is the only element on this
+		// surface with a colour of its own, and it measures 6.69:1 in light against 8.13:1 in
+		// dark. Pinned for the same reason the index shots pin theirs: a scheme chosen by
+		// measurement and recorded only in prose is a scheme that silently flips back.
+		expect(source).toMatch(/name: 'project-detail-narrow'[^}]*theme=light/);
 	});
 
 	/**

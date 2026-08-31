@@ -17,7 +17,13 @@
  * `.rp-empty-state` asks for `flex: 1` and there was no free height for it to claim, so the one
  * screen every just-created project lands on drew its panel jammed under the header instead of
  * centred in the pane. Reported by a review bot; jsdom lays nothing out, so no test here could
- * have seen it, and the pinned Chromium is absent from this container so no capture could either.
+ * have seen it, and there was no capture of this state at the time either. There is one now
+ * (`project-detail` and `project-detail-narrow` in `scripts/harness-shot.mjs`), and the rule was
+ * MEASURED in that browser rather than eyeballed: over a SHORT list, `.rp-project-detail` is
+ * the full 800px of an 800px leaf with this rule and 123px — its header alone — without it.
+ * Short is the case that matters and is why the number was taken that way: over a list longer
+ * than the pane the content fills the leaf on its own, and the two versions measure the same
+ * 800, so a capture of the shipped 26-plan fixture says nothing about this rule either way.
  */
 .rp-project-detail {
 	display: flex;
@@ -27,19 +33,36 @@
 }
 
 /*
- * A WRAPPING ROW WHOSE FIRST ITEM CLAIMS THE WHOLE LINE.
+ * A GRID WHOSE FIRST ITEM SPANS THE ROW, and it is a grid because a wrapping FLEX row cannot
+ * express this at all — which a capture is what said, at the first look this state ever had.
  *
- * Back sits ABOVE the project's name — `flex-basis: 100%` on it, rather than a second wrapper
- * element — because it is a route out of this state rather than an action on the project, and
- * reading it as a peer of `Open note` would say the opposite. The remaining three then share
- * one line: the name takes the slack, the status and `Open note` keep their size.
+ * Back sits ABOVE the project's name, because it is a route out of this state rather than an
+ * action on the project, and reading it as a peer of `Open note` would say the opposite. The
+ * remaining three then share one line: the name takes the slack (`1fr`, with `min-width: 0`
+ * below, so it ellipses), the status and `Open note` keep their size.
+ *
+ * The first version did that with `flex-basis: 100%` on the back button plus `flex-grow: 0;
+ * width: fit-content` to keep it from stretching, under a comment asserting that the second
+ * pair was what stopped it. It does not: in a row flex container `flex-basis` IS the main
+ * size, so it beats `width`, and the item's hypothetical main size is what decides where the
+ * line breaks — clamping it with `max-width: fit-content` would shrink the button and take the
+ * line break with it. Measured in a real browser at the first capture this state ever had:
+ * `Back to projects` rendered as a full-pane bar with its label centred (Obsidian's own
+ * `button { justify-content: center }`), which reads as a section banner rather than as the
+ * one control that leaves. Two declarations in the same block had been written to prevent
+ * exactly that and neither could.
+ *
+ * `grid-column: 1 / -1` claims the row and `justify-self: start` sizes the item to its
+ * content — two different properties, so neither is competing with the other. A wrapper
+ * element was the alternative and is what this comment used to say it had avoided; the grid
+ * costs no markup at all.
  *
  * The horizontal padding matches the plan ROW's below, so the project's name, the `Plans`
  * heading and a plan's name all share one left edge.
  */
 .rp-project-detail__header {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: 1fr auto auto;
 	align-items: center;
 	gap: var(--size-4-2);
 	padding: var(--size-4-2) var(--size-4-2) var(--size-2-2);
@@ -47,22 +70,19 @@
 }
 
 .rp-project-detail__back {
-	flex-basis: 100%;
-	align-self: flex-start;
-	/* A back control is not a peer of the actions beside it, so `flex-basis` alone is not
-	   enough: without this it would stretch across the line it claimed. */
-	flex-grow: 0;
-	width: fit-content;
+	grid-column: 1 / -1;
+	justify-self: start;
 }
 
 /*
  * A LONG NAME MUST NOT PUSH THE STATUS OR THE NOTE ACTION OFF THE ROW — the defect
  * `.rp-project-list__name` already paid for at 460px, which is an Obsidian sidebar leaf's real
- * width. A flex item's `min-width` is `auto`, so a name refuses to shrink below its content
- * and whatever CAN shrink is the half that loses.
+ * width. `min-width: 0` is what lets the `1fr` column actually shrink: a GRID item's automatic
+ * minimum size is its content, exactly as a flex item's is, so without it the name refuses to
+ * ellipse and whatever can shrink is the half that loses. Confirmed by capture at 460 rather
+ * than argued: the name ellipses and both of its neighbours keep their size.
  */
 .rp-project-detail__name {
-	flex: 1;
 	min-width: 0;
 	margin: 0;
 	overflow: hidden;
@@ -72,7 +92,6 @@
 }
 
 .rp-project-detail__status {
-	flex-shrink: 0;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 }
@@ -119,13 +138,20 @@
  * this `ul` are both direct children of `.rp-project-detail` — so giving the `ul` alone the
  * free height is what pins `Plans` and its `New plan` button in place while the rows move
  * under them. `min-height: 0` is the half that is easy to omit: a flex item's default minimum
- * is its content, so `overflow-y` on its own would be inert and the shell would grow instead.
+ * is its content, so `overflow-y` on its own would be inert.
+ *
+ * MEASURED in a real browser at 800px of leaf, against the 26-plan harness fixture: with the
+ * block, the `ul` is 677px tall over a 780px scroll height — it scrolls — while the `Plans`
+ * header's top stays at 81. Without it the `ul` is 780px tall starting at y=123 inside an
+ * 800px shell, so its last rows are below the pane, clipped, with no scrollbar and no gesture
+ * that reaches them; the document's own scroll height stays 800 either way. An earlier
+ * spelling of this comment said the shell would GROW instead, which is the plausible sentence
+ * and not what happens — the rows are simply lost.
  *
  * `.rp-project-list` has no equivalent and can still grow its own pane. That is a pre-existing
  * shape rather than something this slice introduced, and it is left alone deliberately: it is
  * a different component on a different surface, and changing how an existing pane scrolls is
- * not a change to make blind — the pinned Chromium is absent here, so neither could be looked
- * at. Written down rather than fixed in passing.
+ * not a change to make blind. Written down rather than fixed in passing.
  */
 .rp-plan-list {
 	margin: 0;
@@ -144,6 +170,18 @@
  */
 .rp-plan-list .rp-plan-list__row {
 	display: flex;
+	/*
+	 * Obsidian's own `button` rule sets `justify-content: center`, and it is not overridden by
+	 * `text-align: left` below — that property positions INLINE content, and a flex item is
+	 * not inline content, so the declaration was inert for the one child this row has. The
+	 * first capture of this state showed twelve plan names centred in the pane, under a
+	 * left-aligned `Plans` heading and beside a rule saying `text-align: left`.
+	 *
+	 * `.rp-project-list__row` never had the defect and never stated the fix either: it carries
+	 * `justify-content: space-between` because it has TWO children to push apart, and being
+	 * left-aligned is a side effect of that. One child needs the rule said out loud.
+	 */
+	justify-content: flex-start;
 	width: 100%;
 	/* WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
 	   photographing the page rather than by any gate. */

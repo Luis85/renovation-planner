@@ -32,35 +32,42 @@ it — whether the leaf's arrows actually walk the entries we push — is a fact
   that this once made a duplicate-tab regression case pass against a live defect. The whole of
   this slice's navigation is that round trip.
 
-## How to check
+**What is already discharged elsewhere, so that a runner does not re-derive it.** The detail
+state's LAYOUT has a headless capture as of this slice — `npm run harness-shot` writes
+`project-detail.png` at 1280 and `project-detail-narrow.png` at 460, the width an Obsidian
+sidebar leaf actually has — and the two rules that capture exists for were measured in that
+browser rather than judged by eye: `.rp-project-detail`'s `flex: 1` fills an 800px leaf where
+without it the shell is its header alone at 123px, and `.rp-plan-list`'s scroll block gives the
+list a 677px box over a 780px scroll height under a `Plans` header that does not move. The
+no-plans state was looked at the same way, with the harness fixture's plans removed by hand for
+one capture: the panel is centred in the 719px the header leaves, with Back and Open note still
+above it. Steps 14 and 15 are what a THEMED leaf in a real workspace adds to that, not a first
+look.
 
-1. Open the Renovation project pane from the ribbon. The **list** draws, with a row per
-   project.
-2. Click a project row. The pane swaps to that project's **detail** state: its name and
-   status, and its plans beneath. **`Project.md` does not open.**
-3. Press the leaf's **back** arrow. The pane returns to the list.
-4. Press **forward**. The pane returns to the same project.
-5. Click the detail header's own **‹ back**. The pane returns to the list. A different
-   mechanism from step 3 and worth its own step: the arrow asks Obsidian to *restore* a state
-   we recorded, while this action *sets* one — both carrying the same list sentinel, which a
-   validator modelled on the Plan Editor's would have refused.
-6. Return to the detail state, then click **Open note**. `Project.md` opens in its own tab, and
-   the Renovation project pane still shows the detail state.
-7. Return to the pane and click a plan row. The Plan Editor opens on that plan.
-8. Go back to the Renovation project pane. It is still on the same project.
-9. Click **New plan**, give it a name, submit. The plan appears in the list without reopening
-   the pane.
-10. Open **Settings → Renovation Planner** and change the default projects folder, then save.
-    Return to the pane: it is **still on the same project**, not back at the list.
-11. Close Obsidian entirely and reopen it. The pane reopens **on the same project**.
-12. **With the pane already open on a project**, run the **Open project** command from the
-    palette and pick the *other* project. The pane shows that one, in the **same leaf** — no
-    second Renovation project tab appears. Press back; the pane returns to where it was. The
-    already-open leaf is the normal case and the one the first design could not navigate: a
-    reveal sets state only on a leaf it creates.
-13. Move every project note out of the vault, reload, and run **Open project** again. The pane
-    reveals the **list** with its empty state and its Create button — not a picker with no
-    rows, and not a notice.
+## Steps
+
+Each step carries a `Reachable by` verdict — the cheapest instrument that could
+discharge it as written. [[Smoke Test the Editor]]'s *The triage column* section defines
+the five values and what they do not claim.
+
+| # | Reachable by | Do this | It passes when | It exists to catch |
+| --- | --- | --- | --- | --- |
+| 1 | `obsidian` | Open the Renovation project pane from the ribbon | The **list** draws, one row per project | The pane still opening on the state it always did — this slice gave the same view a second one |
+| 2 | `suite` | Click a project row | The pane swaps to that project's **detail** state: its name, its status, and its plans beneath. **`Project.md` does not open** | Criterion 1. The row opened the raw note for five slices; a click that still opens one is the whole defect this slice was reported for |
+| 3 | `obsidian` | Press the leaf's **back** arrow | The pane returns to the list | Criterion 13, and the half no gate can reach: the suite can only see that `setState` set `history = true`, never that Obsidian walked it |
+| 4 | `obsidian` | Press **forward** | The pane returns to the same project | The other end of the same entry. A `history` that records the departure and not the arrival looks identical at step 3 |
+| 5 | `suite` | Click the detail header's own **‹ Back to projects** | The pane returns to the list | Criterion 11. A DIFFERENT mechanism from step 3 and worth its own step: the arrow asks Obsidian to *restore* a state we recorded, while this action *sets* one — both carrying the same `''` list sentinel, which a validator modelled on the Plan Editor's would have refused |
+| 6 | `obsidian` | Return to the detail state, then click **Open note** | `Project.md` opens in its own tab, and the Renovation project pane still shows the detail state | Criterion 5. The note has to stay reachable now that the row no longer opens it, and reaching it must not cost the pane its place |
+| 7 | `suite` | Click a plan row | The Plan Editor opens on that plan | Criterion 2 — the same `revealPlanEditor` the palette command uses, rather than a second way in |
+| 8 | `obsidian` | Go back to the Renovation project pane | It is still on the same project | A leaf Obsidian reuses re-runs `onOpen`; the project it draws must come from the state, not from a field that survived by luck |
+| 9 | `suite` | Click **New plan**, give it a name, submit | The plan appears in the list **without** reopening the pane | Criterion 3 — the first user-facing caller of `CreatePlanCommand`, plus `ProjectDetailState.onCreatePlan`'s re-read. A created plan that never appears is indistinguishable from a create that silently failed |
+| 10 | `obsidian` | Open **Settings → Renovation Planner**, change the default projects folder, and save | The pane is **still on the same project**, not back at the list | Criterion 7. `rebind` tears the whole Vue tree down, which is exactly why the open project lives in Obsidian's view state rather than in Pinia |
+| 11 | `obsidian` | Close Obsidian entirely and reopen it, watching the pane as it appears | The pane reopens **on the same project**. It may show its loading line for an instant; it must never show the LIST and must never settle on "this project no longer exists" | Criterion 8, and the ordering Obsidian actually uses: leaves are restored BEFORE `onLayoutReady`, and the index scan runs from it. A restored detail state that read the empty index's legitimate `ok(null)` as a deleted project would navigate to the list and destroy the very `projectId` this step is about |
+| 12 | `obsidian` | Empty the vault of project notes (move `Renovation/` aside), reload, and open the pane | It reaches the LIST with its empty state — it does not sit on a loading line for the session | The other half of criterion 8, and the reason the gate is "has the scan RUN" rather than "has the index been populated": a vault whose last project note was deleted while Obsidian was closed has an index that will never have entries in it |
+| 13 | `obsidian` | **With the pane already open on a project**, run **Go to renovation project** from the palette and pick the *other* project | The pane shows that one, in the **same leaf** — no second Renovation project tab appears. Press back; the pane returns to where it was | Criteria 9 and 10. The already-open leaf is the normal case and the one the first design could not navigate: a reveal sets state only on a leaf it creates |
+| 14 | `browser` | With more plans than fit the pane, look at the detail state; then narrow the pane to a sidebar's width | The shell fills the leaf — no strip of empty pane below it and no page-level scrollbar; the plan list scrolls under a `Plans` header that stays put; and at sidebar width the project's name ellipses while its status and **Open note** keep their places on the row | The layout claims `npm run check` cannot see at all, since jsdom lays nothing out. Already discharged headlessly at 1280 and 460 (see above); what a vault adds is a themed palette and a real leaf's chrome |
+| 15 | `browser` | Create a project and open it before giving it any plans | "No plans yet" and its **New plan** button are centred in the pane below the header, not jammed under it — and the header's Back and Open note controls are still there above it | `.rp-project-detail`'s `flex: 1`, which is what gives `.rp-empty-state` free height to claim, and slice 14's rule that an empty state replacing a region hides the thing the region exists to show: this one is drawn INSIDE the plans region so that a just-created project keeps its way back |
+| 16 | `obsidian` | Switch Obsidian's language to German (Settings → General → Language) and repeat steps 2, 5 and 9 | The detail header, the `Plans` region, the empty state and the New plan dialog all render in German | Every string this slice added is a `StringKey` resolved through `t`/`tr`. `tests/presentation/i18n/strings.test.ts` pins that `de.ts` answers every key and two terms; it renders nothing, so nobody has looked at this copy in a running app |
 
 ## Acceptance criteria
 
@@ -70,10 +77,30 @@ it — whether the leaf's arrows actually walk the entries we push — is a fact
 3. Step 6 opens the note without losing the pane's place.
 4. Step 9's new plan appears without a manual reopen.
 5. Step 10 keeps the user in the project across a settings save.
-6. Step 11 keeps the user in the project across a restart.
-7. Step 12 navigates the leaf that is already open and creates no second tab of a singleton.
-8. Step 13 reveals the list, not a zero-row picker.
-9. Nothing in steps 1–13 draws a plan or project the vault does not hold.
+6. Step 11 keeps the user in the project across a restart, without a flash of the list state.
+7. Step 12 reaches the list rather than waiting for an index scan that will find nothing.
+8. Step 13 navigates the leaf that is already open and creates no second tab of a singleton.
+9. Steps 14 and 15 leave no strip of dead pane and no unreachable plan row.
+10. Nothing in steps 1–16 draws a plan or project the vault does not hold.
+
+## Deliberately NOT checked
+
+- **Whether the pane mounts once or twice on a restore.** One ordering of `onOpen` and
+  `setState` still mounts the list and then remounts the project, which is invisible to a user
+  — the first tree is replaced before a frame is painted — and is pinned as behaviour in
+  `renovationProjectView.test.ts` rather than left to be noticed here. `docs/tasks/21` carries
+  the follow-up.
+- **Colour contrast and hit-target size.** `tests/harness/accessibility.test.ts` grades roles,
+  names, labels and ARIA validity, and explicitly not those two. Step 14's claim is about
+  layout, not about measured contrast; the one element on this surface with a colour of its own
+  is the status label, measured at 6.69:1 in light and 8.13:1 in dark against the pane behind
+  it when its capture was taken.
+
+## Runs
+
+| Date | Build | Outcome |
+| --- | --- | --- |
+| — | — | Not yet run in a vault. Every row above is an expectation derived from the design document, the task document and the code — except steps 14 and 15's layout, which was measured in a headless Chromium (a substitute build, not the pinned one) at 1280 and 460. |
 
 ## Outcome
 

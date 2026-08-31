@@ -75,7 +75,7 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the eight cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the nine cases whose
 steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
 procedure is a list. The verdict names the **cheapest instrument that could discharge that
 step as written**. It is a claim about the step's own pass condition, not a report on what is
@@ -83,14 +83,21 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 71 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 28 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 48 |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 10 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 75 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 30 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 60 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 12 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 8 |
 
-165 steps across nine cases. The counts are `grep`ed out of these files rather than carried
-over from the notes the classification was drafted in, so a re-tagged step moves the number.
+185 steps across ten cases. The counts are `grep`ed out of these files rather than carried
+over from the notes the classification was drafted in, so a re-tagged step moves the number —
+and the number moves whether or not anyone re-runs the grep, which is what happened here: this
+paragraph read "165 steps across nine cases" until design slice 21 re-measured it, and 16 of
+the 20 steps it had gone stale by are that slice's own new case. The other FOUR are in cases
+that already existed — steps added without re-running the grep, or an original miscount; this
+instrument cannot tell those two apart, and either way the figure was wrong before this case
+existed.
+
 The instrument is TWO patterns, because the verdict has two spellings and a grep that sees only
 the table form silently under-counts by the sixteen steps of [[Canvas Navigation]]:
 
@@ -103,7 +110,8 @@ Written down because it had to be reconstructed once: the sentence above said th
 grepped and not with what, and a first attempt that matched table rows alone answered 149 —
 close enough to read as right, and wrong by exactly the case whose steps are a list.
 [[Editor Walkthrough]] 7 has since moved `browser` → `obsidian` (its own paragraph says why),
-which is what took those two rows from 29 and 47; the total, and the other three, are unchanged.
+which is what took those two rows from 29 to 28 and from 47 to 48 at the time — a note about
+that edit, not about today's five figures, every one of which has since moved.
 
 **`suite` means REACHABLE, and never "already covered".** That difference is the whole of the
 follow-up work. A sample was checked against the tests rather than inferred from filenames —
@@ -280,6 +288,14 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   `obsidian.d.ts` does not answer — whether `Notice.containerEl` is the per-notice element or
   the shared stack container — and the queue's slot accounting is wrong in a way that wedges
   it at three notices if the answer is the second one.
+- [[Navigate into a project and back]] — design slice 21's second state for the project
+  surface, and the case is about the ROUND TRIP rather than about the state: `FakeLeaf`
+  records what `setViewState` was asked for and runs no view factory, so the suite can see
+  that `ViewStateResult.history` was set and never that the leaf's own arrows walk it. Its
+  steps 14 and 15 are the layout half, and they are the one place in this suite where a
+  `browser` verdict has already been discharged by a capture before the first vault run —
+  `npm run harness-shot` writes the detail state at 1280 and at a sidebar's 460 — so what a
+  vault adds there is a themed palette rather than a first look.
 - [[A Project Owns Its Folder]] — design slice 18's ADR-0013: a project's folder is now
   derived from where its own note sits, rather than cached from a shared plugin setting. Its
   step 7 is the property no gate here can reach at all — dragging a project's folder

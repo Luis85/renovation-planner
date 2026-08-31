@@ -168,5 +168,62 @@ state transition, and with an empty vault reveals the **list** rather than a zer
 
 ## Outcome
 
-Written when the slice closes: what shipped, what the review rounds found, and which of these
-criteria moved.
+The slice closed across thirteen tasks on `claude/slices-17-19-in-flight-bsrfa8`. What shipped:
+`ListPlansByProject` and `PlanSummaryDto`; `projectPlansChangeSource`; two guarded reads on
+`RenovationProjectQueryServices`; `ProjectDetailStore`; five new context seams; the view's own
+`getState`/`setState`/`sync` state machine; `ProjectDetail.vue`, `PlanList.vue` and the shared
+`statusLabel`; `NewPlanForm.vue` over the real `CreatePlanCommand`; `ProjectDetailState.vue`
+drawing it all from `ViewRoot`; `renovationProject.noPlans` graded by axe; `revealView`
+answering the leaf it revealed, with `navigateToProject` above it; the `open-project-detail`
+palette command; and this task's documents, harness knob and captures.
+
+### The criteria, one at a time
+
+Ticked means a check exists that fails without the behaviour; the evidence is named so a
+reader can go and look rather than take the tick.
+
+| # | Verdict | Evidence |
+| --- | --- | --- |
+| 1 | ✅ | `viewRootProjectDetail.test.ts` — *navigates into a project from a list row rather than opening its note* |
+| 2 | ✅ | Presentation half: *opens a plan row through context.openPlan*. Wiring half: `renovationProjectOpenSeams.test.ts` — *opens a leaf carrying the plan id, through the real `revealPlanEditor`*, which is the spy this criterion asks for rather than a comparison of two paths' results |
+| 3 | ✅ | *shows a created plan in the rows without reopening the pane*, and *creates a second plan from the plan list's own header button* — the second is what pins the two controls onto ONE handler |
+| 4 | ✅ | `newPlanForm.test.ts` — *keeps the typed value and shows the field error on a refusal*, *retires the field error as soon as the name is edited*. The vanished-project half is `viewRootProjectDetail.test.ts`'s *returns to the list AND notifies when the project vanished while the form was open*, asserted as a PAIR: the navigation alone is equally true of a build that says nothing |
+| 5 | ✅ | *opens the project's own note from the header*, plus *returns to the list when the header's note turns out to be gone* — the `'missing'` arm re-reads THIS state rather than the list |
+| 6 | ✅ | *navigates back to the list when the project is gone and the scan has run* against *shows the mapped failure sentence and stays put when a read refuses* — two cases, because the criterion is that the two are DISTINGUISHABLE |
+| 7 | ✅ | `renovationProjectView.test.ts` — *keeps the open project across a rebind* and *remounts the open project on the new bundle*. The first alone passes against a rebind that keeps the field and never redraws |
+| 8 | ✅ | *holds the loading line rather than navigating before the scan has run*, *draws the project once the index is rebuilt under a restored leaf*, and the zero-entry half through criterion 6's first case: the gate is `indexScanCompleted()`, which answers "has it RUN" |
+| 9 | ✅ | `openProjectDetail.test.ts` — *navigates an already-open leaf to the chosen project* and *reveals the list state rather than a picker in an empty vault*, with an unrecovered-settings twin beside it |
+| 10 | ✅ | *leaves exactly one leaf for two invocations naming different projects* and *ends on the later of two invocations even when the first settles last* — the two halves the criterion splits, because coalescing the reveal fixes the tab count and leaves the state writes racing |
+| 11 | ✅ | *navigates back to the list with null* and, on the parse, *accepts an empty projectId as the list state* |
+| 12 | ✅ | Every new key is in `en.ts` and `de.ts`; `tests/presentation/i18n/strings.test.ts` holds completeness and its two vocabulary rows. Read the tick narrowly, as that file's own header asks: it pins two TERMS, not the language, so the German register of this slice's copy was settled by reading (Task 9 changed one body from the informal *Füge* to *Fügen Sie*) and by nothing automatic |
+| 13 | ➖ **Walked, not ticked** | `docs/tests/cases/Navigate into a project and back.md` steps 3 and 4. No gate here can reach it: `FakeLeaf` records asks rather than behaving, so the suite asserts only that `ViewStateResult.history` was set |
+| 14 | ✅ | `npm run check` exit 0 at this task's commit, coverage floors held — see the commit message for the four figures |
+
+### Withdrawn, and residues carried forward
+
+- **Nothing in the criteria list is withdrawn.** All thirteen assertable ones are ticked and
+  the fourteenth is walked, which is worth stating plainly because withdrawal was available
+  and the previous two slices each used it.
+- **One `onOpen`/`setState` ordering still mounts twice**, and it is pinned as behaviour
+  (`renovationProjectView.test.ts` asserts the mounted list as `[null, 'project-01JAAA']`)
+  rather than fixed. `setState` before `onOpen` is closed by an `opened` flag; the other
+  ordering needs a deferred, coalescing mount, which turns a synchronous mount asynchronous
+  for every caller and every case in that file. That is an increment with its own argument.
+  A build that starts coalescing fails at that assertion and has to come and say so.
+- **A command's `name:` literal is caught by no gate.** `I18N_LITERAL_BAN` reaches four call
+  sites and `addCommand({ name })` is none of them; measured, a raw English literal there
+  stays green. Recorded in `openProjectDetail.test.ts`'s own docblock rather than fixed
+  inside this slice, because widening that selector touches every existing call site's
+  evidence.
+- **`NewPlanForm.onSubmit`'s own `submitting` guard is a second, local statement of a refusal
+  `useFormCommit` already makes**, kept for the narrower reason its comment gives: a refused
+  press must not also run the focus move onto a control carrying the in-flight submit's error.
+  Whether that second path is reachable at all was raised on this branch and is NOT settled
+  here — it needs a case that fails without the guard, and there is none. Carried into the
+  whole-branch review rather than removed on a reading.
+- **The detail state's layout was captured for the first time in Task 13**, and the two
+  capture-only defects it found are fixed in the same commit: a back control whose two
+  declarations against stretching could neither of them work (`flex-basis` is the main size
+  in a row flex container), and plan names centred by Obsidian's own `button {
+  justify-content: center }` under a rule that said `text-align: left`. CLAUDE.md's slice 21
+  section carries both with their measurements.

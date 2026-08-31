@@ -65,7 +65,25 @@ view, opened from the empty state's action button and from `ProjectList`'s own h
 `{ projects, unreadable }`, not a bare array; the PORT below it answers a `ProjectListing`,
 `{ loaded, refused }`, and the rename across that seam is deliberate — and the empty state is the `'ready'` status
 with BOTH halves clear: an empty list with `unreadable > 0` is a vault that has projects this
-build could not read, so it gets the notice and no "no projects yet". The **Plan editor** is per-plan (several
+build could not read, so it gets the notice and no "no projects yet".
+
+**Design slice 21 gave that view a SECOND state, and everything above describes the first
+one.** A project row NAVIGATES now rather than opening `Project.md`, into a detail state that
+draws one project — its name, its lifecycle status, an **Open note** action (the only surface
+left that opens the raw note), a **‹ back**, and that project's plans with a `New plan` form
+dispatching the real `CreatePlanCommand`. Which project is open lives in **Obsidian's own view
+state** (`getState`/`setState`), never in Pinia: `rebind` remounts the whole Vue tree on a
+settings save, and a Pinia-held selection would throw the user out of the project they are in.
+`ViewRoot` reads `context.projectId` ONCE — `null` is the list, a string hands the whole state
+to `ProjectDetailState.vue`, which owns its store, its two subscriptions and its own dialog —
+and the view REMOUNTS per navigation (`sync`), which is what makes that value unable to go
+stale rather than a `Ref` somebody has to keep fresh. Navigation goes through
+`leaf.setViewState` and sets `ViewStateResult.history`, so **the pane's own back and forward
+arrows walk it** — the in-app ‹ back is a different mechanism from that arrow (it SETS a state
+where the arrow asks Obsidian to RESTORE one) and both carry the same `''`-means-the-list
+sentinel `getState` writes. Whether Obsidian honours the arrow is checkable nowhere here —
+`FakeLeaf` records asks rather than behaving — so it is walked in
+`docs/tests/cases/Navigate into a project and back.md`. The **Plan editor** is per-plan (several
 leaves coexist, keyed by a plan id in Obsidian's own view state): §60's five shell regions
 around a Konva stage of §17's seven layers, the Zones of one Plan, an image or PDF
 background, and a pan/zoom camera — slice 5. **That canvas is editable now**, which is the
@@ -292,7 +310,16 @@ already hydrates. Rules that came out of it:
   scan. Design slice 16 gave `renovationProject.noProjects` its action button and this
   file's own case now scans it, asserting `.rp-empty-state__action` is present the same
   way it already asserted `.rp-empty-state` — that slice's own section below has the rest.
-  `noZones`'s button remains the one action-carrying empty state this file does not scan.
+  **THREE entries carry an action now and this file scans two of them**: design slice 21's
+  `renovationProject.noPlans` arrived with its button already wired
+  (`ProjectDetailState.onCreatePlan`), and it is graded here rather than joining the gap —
+  the detail state's no-plans case asserts `.rp-empty-state`, `.rp-empty-state__action` and
+  `.rp-project-detail__back` are all in the scanned DOM, and the last of those is what makes
+  it a scan of the surface rather than of a component, since that empty state sits INSIDE the
+  detail shell rather than replacing it. `planEditor.noZones` is the one that remains
+  unscanned, and its reason is unchanged: the Plan Editor case's default fixture resolves to
+  `planEditor.noBackground`, which carries no button, so reaching `noZones` means a second
+  fixture rather than an assertion. It is exercised by `emptyStateOverlay.test.ts` alone.
 
 **Design slice 8 has landed: the canvas is editable.** `SelectTool` and `DrawPolygonTool`
 are registered in a `ToolManager`, and `CommandHistory` — wrapped by the
@@ -2097,25 +2124,137 @@ The rules that came out of it:
   nobody" and here it would absorb one whose `tsconfig.json` entry had been forgotten, leaving a
   file that is neither compiled nor reported.
 
+**Design slice 21 has landed: the project surface has a second state, and a project is
+somewhere you can BE.** A row navigates into one project — its plans, a `New plan` form over
+the real `CreatePlanCommand`, an `Open note` action, and a way back — and which project is open
+is a fact Obsidian's own view state holds. The two-surfaces paragraph at the top of this file
+describes the mechanism; these are the rules that came out of building it, and four review
+rounds' worth of findings on this branch were false SENTENCES rather than broken behaviour,
+which is the shape to expect from the next one too:
+
+- **A spec can name an identifier that is already taken, and the collision is invisible until
+  somebody greps.** The design named its palette command `open-project`; that id was already
+  registered, already locale-keyed and already asserted in two test files, for the command that
+  reveals the view. It shipped as `open-project-detail`. Nothing would have failed loudly — an
+  id is data Obsidian binds a user's hotkey to, and a second `addCommand` under one id is a
+  question about Obsidian's registry rather than about this tree.
+- **`''` as a DESTINATION is the one place this view must not copy `PlanEditorView`, and the
+  failure is total rather than cosmetic.** `getState` records `{ projectId: '' }` for the list —
+  `''` rather than an absent key, because a key that is sometimes there is a different shape to
+  reason about, which is `PlanEditorView.getState`'s own argument, and here the empty string
+  additionally MEANS something. A validator shaped like `planIdFrom` — refuse anything that is
+  not a non-empty string —
+  discards exactly the value the back arrow restores, so the pane would never leave the detail
+  state at all. `projectIdFrom` is a THREE-way parse for that reason: a non-object refuses, a
+  non-string refuses, and `''` is ACCEPTED and means the list.
+- **A `mounted` flag beside `mountedProjectId`, because `null` is a STATE here and not an
+  absence.** `sync()`'s guard cannot be `projectId === mountedProjectId` alone: both are `null`
+  on a first open, so the guard answers "already showing that" and the pane draws nothing at
+  all. Measured as a mutation — nine cases red, most of them pre-existing lifecycle ones,
+  because nothing is drawn.
+- **The question is whether the index scan RAN, never whether it FOUND anything.** Obsidian
+  restores its leaves before `onLayoutReady` and the scan runs from it, so a restored detail
+  state asks an empty index and is answered a legitimate `ok(null)` — acting on that would
+  navigate to the list and destroy the very `projectId` the restore was about. An earlier
+  draft asked "has the index been populated", which hangs a restored pane forever in a vault
+  whose last project note was deleted while Obsidian was closed. `indexScanCompleted()` is a
+  predicate rather than a subscription, because `onProjectsChanged` collapses three events into
+  one payload-less signal and cannot tell a completed rebuild from somebody else's create.
+- **A REMOUNT makes staleness unrepresentable.** Every navigation tears the Vue tree down and
+  builds it from the new `projectId`, so no component can hold a value that disagrees with the
+  view's. The alternative — a reactive ref in the context — would have been the first reactive
+  member any view context in this plugin carries, and a second way a tree here learns its
+  subject changed. What it costs is stated where it is paid: the list's scroll position, and a
+  dialog open across the navigation settling through `DialogHost.onBeforeUnmount`.
+- **One ordering of `onOpen` and `setState` still mounts twice, and it is ASSERTED rather than
+  fixed.** Obsidian promises no order. `setState` before `onOpen` was a tree mounted into a leaf
+  Obsidian had not opened, and an `opened` flag closes it; the other ordering cannot be closed
+  the same way, because by the time `setState` arrives `onOpen` has already mounted the LIST
+  (`projectId` is still `null` then) and there is nothing left to defer. The real remedy is a
+  deferred, coalescing mount, which turns a synchronous mount asynchronous for every caller and
+  every case in that file — an increment with its own argument, not a review-round line. So the
+  surviving double mount is pinned as `[null, 'project-01JAAA']`, and a build that starts
+  coalescing fails there and has to come and say so. **The lesson is the reply, not the
+  defect:** the fix was announced on the pull request from the SHAPE of the flag, and measuring
+  it produced exactly that failing pair — this branch's own recurring defect, committed in a
+  review reply about it.
+- **A prediction about which test a mutation reddens is itself a measurement.** A brief here
+  said an empty-id mutation would redden "the accepts-an-empty-projectId and round-trip cases";
+  only the first can. The round-trip drives `A → '' → B` and asserts the FINAL state, so with
+  `''` refused the field simply stays `A` until `B` overwrites it and the assertion reads the
+  same in both worlds. The fourth such instruction on this branch, reported rather than routed
+  around.
+
+**And the detail state was LOOKED AT, which is where the rest of these come from.** Nothing in
+this slice had a picture until its last task: the harness index discovers `ProjectDetail.vue`
+and `PlanList.vue` and mounting either one there is useless — `IndexPage.vue` renders
+`<component :is>` BARE, and that component requires three props and reads `project.name`
+immediately, so the capture would photograph the harness's own failure card. `?project=<id>`
+(`tests/harness/page.ts` → `mountHarness`) opens the real view on a seeded project instead, and
+`project-detail` / `project-detail-narrow` are two more fixed shots. What that bought, all of it
+invisible to `npm run check`:
+
+- **Two declarations written to prevent a thing, neither of which could.** The back control had
+  `flex-basis: 100%` to claim its own line plus `flex-grow: 0; width: fit-content` under a
+  comment saying that pair was what stopped it stretching. In a row flex container `flex-basis`
+  IS the main size, so it beats `width`; and clamping it with `max-width: fit-content` would
+  shrink the item and take the line break with it, since the break is decided on the
+  hypothetical main size. `Back to projects` rendered as a full-pane bar with a centred label —
+  a section banner where the design says "not a peer of the actions beside it". The header is a
+  GRID now (`grid-column: 1 / -1; justify-self: start`), which is two properties doing two jobs
+  rather than one property doing neither.
+- **`text-align: left` is inert on a flex item, and Obsidian's own `button` rule centres it.**
+  Every plan name was centred in the pane, under a left-aligned `Plans` heading, beside a
+  declaration saying `text-align: left`. `.rp-project-list__row` never had the defect and never
+  stated the fix either — it carries `justify-content: space-between` because it has TWO
+  children, and being left-aligned is a side effect. One child needs the rule said out loud.
+- **A fixture that FITS its pane cannot demonstrate a scroll rule.** The first harness fixture
+  held twelve plans; at an 800px leaf the list's scroll height equalled its client height
+  exactly, 360 against 360, so deleting `.rp-plan-list`'s whole `flex: 1; min-height: 0;
+  overflow-y: auto` block changed nothing any capture could show. Twenty-six is past what fits.
+- **Both of the rules reasoned from the cascade were RIGHT, and the sentence explaining one of
+  them was wrong.** `.rp-project-detail`'s `flex: 1` measures 800px of an 800px leaf against
+  123px — its header alone — over a SHORT list, which is the case that matters and the one the
+  no-plans empty state lands on. `.rp-plan-list`'s block measures a 677px box over a 780px
+  scroll height, scrolling under a header whose top does not move. But its comment said that
+  without the block "the shell would grow instead": measured, the shell does not grow and
+  neither does the page — the `ul` becomes 780px tall inside an 800px shell that starts it at
+  y=123, so the last rows are simply below the pane, clipped, with no scrollbar and no gesture
+  that reaches them. The plausible sentence and the true one differ in what the user LOSES.
+- **`RenovationProjectDeps.projectId` cannot open the detail state from outside**, which is a
+  fact about `mount` rather than about the bundle: it provides `{ ...this.deps, projectId }`
+  with the VIEW's own field, so a bundle naming a project is silently overwritten. The harness
+  drives `setState` instead — the same door a navigation and a restored leaf both arrive
+  through — and a jsdom case in `harness.test.ts` pins that it really reaches the detail state,
+  because both captures wait on `.renovation-planner-view`, which the LIST satisfies just as
+  well.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
 every vault. It is a plain callback over a `FuzzySuggestModal` of the Project Index's plan
 entries now. The command ID did not change, because a user's hotkey is bound to it.
 
-**`create-sample-project` is SCAFFOLDING and says so in its name, and design slice 16 —
-now landed — retired only HALF of what it seeds.** One command seeds a project, a plan and
+**`create-sample-project` is SCAFFOLDING and says so in its name, and it is now a
+CONVENIENCE rather than the only source of anything.** One command seeds a project, a plan and
 five zones through the real `CreateProjectCommand` / `CreatePlanCommand` /
 `CreateZoneCommand`, then opens the editor on what it made — the vault-side equivalent of
-`npm run harness`. Zones stopped needing it once slices 6 and 8 gave `DrawPolygonTool` a way
-to draw one by hand, and the PROJECT half stopped needing it once slice 16 gave
+`npm run harness`. Exactly three commands and nothing else: no asset and no requirement, which
+is worth saying because a reader reasoning from slice 10's closed loop would expect them.
+Zones stopped needing it once slices 6 and 8 gave `DrawPolygonTool` a way
+to draw one by hand; the PROJECT half stopped needing it once slice 16 gave
 `renovationProject.noProjects` a real action (`NewProjectForm` / `CreateProjectCommand` —
 Amendment 1's "ships with no action at all" held through slices 14 and 15 and stopped being
-true here) and gave `ProjectList` its own header button beside it. The PLAN half is what
-this module is still the only source of: nothing in `presentation/` calls
-`CreatePlanCommand`, and there is no project-detail surface a "new plan" action could live
-on — `src/plugin/sampleProject.ts` names exactly this remaining gap and why the partial
-notes a failed seed leaves behind are deliberate.
+true here) and gave `ProjectList` its own header button beside it; and the PLAN half stopped
+needing it in slice 21, whose detail state carries a `New plan` button over the real
+`CreatePlanCommand`. This paragraph said "the PLAN half is what this module is still the only
+source of … there is no project-detail surface a 'new plan' action could live on" until that
+slice landed, which is a trigger stated in prose firing without anything to notice it. What is
+left is the reason it was written for: one gesture produces a scene worth LOOKING AT, where
+assembling the same one by hand is two forms, two navigations and five polygons drawn vertex
+by vertex. **Its trigger is now that it stops being USED** — a fact about a habit, which no
+gate can report. `src/plugin/sampleProject.ts` carries that and why the partial notes a failed
+seed leaves behind are deliberate.
 
 Both of those were **found by a human running the plugin in Obsidian**, not by a gate, and
 each is written up where the code is: the seed's first run failed on Obsidian's
@@ -3185,6 +3324,22 @@ Not oversights; each has a trigger.
 - **dayjs**, and nothing else on the SDD's stack. Installing a dependency nothing imports
   fails `npm run analyze`, so each arrives with its first real use — scheduling, which does
   not exist yet.
+
+- **vue-router**, considered explicitly at design slice 21 because that slice introduced
+  navigation and a router is the canonical Vue answer to it. Four reasons, and the first is
+  the one that decides: **its product is URL binding, and an `ItemView` has no URL** — it
+  would be instantiated with `createMemoryHistory()`, which reduces it to a state machine
+  keyed by path-shaped strings, a `v-if` in a `/projects/:id` costume. It would also be a
+  SECOND history stack competing with the one the pane's back arrow already drives (nothing
+  errors; the two quietly disagree, which is worse), a second authority for a fact
+  `RenovationProjectView`'s view state now owns outright, and a dependency bought for one
+  binary state.
+
+  **The trigger is a third level of nesting AND a genuine need for a history independent of
+  Obsidian's** — both, not either. *"Epic 4 arrives"* is explicitly NOT the trigger, and that
+  is a measurement rather than a hedge: PRD Epic 4's whole navigation set (Overview, Spaces,
+  Design, Work, Budget, Schedule) fits in `{ projectId, section }` in the same view state,
+  which is one more key rather than a router.
 
   **decimal.js is NOT on this list any more.** It arrived with slice 9's money arithmetic
   (ADR-010) and this line said otherwise for two slices. `core/money/Money.ts` is the ONLY

@@ -56,6 +56,18 @@ import { recorder } from './logger';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 
 /**
+ * The two repositories `defaultRenovationProjectDeps` builds its queries and its commands
+ * over, handed to a `seed` callback so a caller can put content in them BEFORE either side
+ * exists. Both, never one: a project with no plans and a plan with no project are each a
+ * state the detail store has a branch for, and a seed that could only reach half of them
+ * would be a fake choosing which branch is reachable.
+ */
+export interface SeedRepositories {
+	readonly projects: InMemoryProjectRepository;
+	readonly plans: InMemoryPlanRepository;
+}
+
+/**
  * The default `deps`: an empty project list with nothing refused, backed by a REAL
  * `InMemoryProjectRepository` rather than a fixed literal — one built fresh per call, so two
  * views built through this factory in the same test never share state.
@@ -130,8 +142,19 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
  * and it answers for the day it is run. `'opened'` and not `'missing'`, because `'missing'`
  * asks `ViewRoot` to re-read the list — a default that re-hydrated on every row click would be
  * a fake driving behaviour nothing asked for.
+ *
+ * `seed` is the one way a caller can name a project this factory holds. Every id here is
+ * GENERATED — `CreateProjectCommand` mints its own — so `?project=<id>` in the browser
+ * harness could never match one that a command had made, and a read model stubbed to answer a
+ * fixed project beside commands writing into an empty pair would be two worlds: the New plan
+ * button would report success and the list it wrote into would not be the list on screen. The
+ * callback runs before the queries and the commands are constructed, so both sides see the
+ * same two repositories and the create-and-see-it-appear loop works on the seeded project
+ * exactly as it already does on a created one.
  */
-export const defaultRenovationProjectDeps = (): RenovationProjectDeps => {
+export const defaultRenovationProjectDeps = (
+	seed?: (repositories: SeedRepositories) => void,
+): RenovationProjectDeps => {
 	const projects = new InMemoryProjectRepository();
 	// Beside `projects` rather than inline in `ListPlansByProject`'s constructor: `commands`
 	// carries a `createPlan` of its own since Task 8, and it needs the SAME repository this
@@ -139,6 +162,13 @@ export const defaultRenovationProjectDeps = (): RenovationProjectDeps => {
 	// world.
 	const plans = new InMemoryPlanRepository();
 	const events = new RecordingEventBus();
+
+	// Before the queries and the commands are built over them, so a seeded caller gets ONE
+	// world rather than a read model over content and a write side over an empty pair. The
+	// browser harness's `?project=` knob is the only caller today (`tests/harness/mount.ts`):
+	// a detail state has to be OPENED on a project that exists, and every id here is
+	// generated, so a seed is the only way a URL can name one.
+	seed?.({ projects, plans });
 
 	// ANNOTATED rather than inferred, so a member the interface grows is a compile error here
 	// rather than an `undefined` handed to whoever reads it — which is what this file shipped:

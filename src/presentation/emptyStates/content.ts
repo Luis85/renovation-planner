@@ -25,8 +25,8 @@ export interface EmptyStateContent {
 	 * slice 16 built the form it hands off to, so it keeps the field like `planEditor.noZones`
 	 * does, whose hand-off (`activeToolId = 'draw-polygon'`) already existed and was reachable
 	 * from here. Design slice 21's `renovationProject.noPlans` is the third entry that carries
-	 * one, and it carried one from its first commit: `ViewRoot.onCreatePlan` opens `NewPlanForm`
-	 * in slice 15's `FormDialog` and dispatches the real `CreatePlanCommand`, so its button was
+	 * one, and it carried one from its first commit: `ProjectDetailState.onCreatePlan` opens
+	 * `NewPlanForm` in slice 15's `FormDialog` and dispatches the real `CreatePlanCommand`, so its button was
 	 * never the dead control slice 14's Amendment 1 refuses. THREE entries carry a label and one
 	 * does not — this sentence is that list, so an entry added without appearing in it is the
 	 * stale-comment defect this repository keeps paying for.
@@ -49,7 +49,7 @@ export const EMPTY_STATE_CONTENT = {
 		},
 		/**
 		 * Design slice 21, and the entry that arrives WITH its action rather than growing one a
-		 * slice later: `ViewRoot.onCreatePlan` opens `NewPlanForm` in slice 15's `FormDialog` and
+		 * slice later: `ProjectDetailState.onCreatePlan` opens `NewPlanForm` in slice 15's `FormDialog` and
 		 * dispatches the real `CreatePlanCommand`, so the button is a live control from the first
 		 * commit rather than the dead one slice 14's Amendment 1 refuses.
 		 *

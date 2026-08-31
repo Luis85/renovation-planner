@@ -420,6 +420,49 @@ describe('the list and detail states', () => {
 	 * Two cases with identical bodies AND identical driving is the trap Task 4 fell into
 	 * (`d9e81f3`); identical assertions under different driving is an ordinary pair.
 	 */
+	/**
+	 * **`setState` before `onOpen` mounts the resolved state ONCE**, which is the ordering the
+	 * `opened` flag exists for: the id is recorded, nothing is mounted into a leaf Obsidian has
+	 * not opened yet, and the `onOpen` that follows draws the project directly. Without the flag
+	 * this mounts a tree into an unopened leaf and then replaces it.
+	 */
+	it('mounts once when setState arrives before onOpen', async () => {
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
+
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+		await view.onOpen();
+
+		expect(mounted).toEqual(['project-01JAAA']);
+	});
+
+	/**
+	 * **The OTHER ordering still mounts twice, and this case pins that rather than hiding it.**
+	 * `onOpen` mounts the list because `projectId` is still `null` at that moment, and the
+	 * `setState` that follows remounts to the project — a visible flash, a wasted vault-wide
+	 * `listProjects` and a subscribe/dispose cycle.
+	 *
+	 * The `opened` flag cannot fix this direction and it is worth saying why rather than
+	 * leaving the asymmetry to be rediscovered: by the time `setState` arrives the list is
+	 * already mounted, so there is nothing left to defer. The only fix is to make mounting
+	 * itself deferred and coalescing — `onOpen` and `setState` in one tick producing one mount
+	 * — which turns a synchronous mount into an asynchronous one for every caller and every
+	 * case in this file. That is a change worth its own increment and its own argument, not a
+	 * drive-by inside a review round; `docs/tasks/21` carries it.
+	 *
+	 * Asserted as `[null, 'project-01JAAA']` deliberately: a build that starts coalescing must
+	 * fail HERE and be made to say so, rather than quietly satisfying a weaker assertion.
+	 */
+	it('still mounts the list first when onOpen precedes setState', async () => {
+		const mounted: (string | null)[] = [];
+		const view = makeViewRecordingMounts(mounted);
+
+		await view.onOpen();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+
+		expect(mounted).toEqual([null, 'project-01JAAA']);
+	});
+
 	it('does not mount twice when setState follows onOpen', async () => {
 		const mounted: (string | null)[] = [];
 		const view = makeViewRecordingMounts(mounted);

@@ -168,7 +168,28 @@ export class RenovationProjectView extends ItemView {
 		// earlier draft of this step.
 		if (parsed !== null && parsed.projectId !== this.projectId) result.history = true;
 		if (parsed !== null) this.projectId = parsed.projectId;
-		this.sync();
+		// Only once the view is OPEN. A `setState` arriving BEFORE `onOpen` — one of the two
+		// orderings this class's docblock refuses to assume between — used to mount a Vue tree
+		// into a leaf Obsidian had not opened yet, which the `onOpen` that followed then
+		// replaced: two apps, two vault-wide `listProjects` reads and two subscribe/dispose
+		// cycles to draw one pane. Recording the id and letting `onOpen` do the single mount is
+		// the whole fix for that direction.
+		//
+		// **It is NOT a fix for the other direction, and the asymmetry is deliberate rather
+		// than overlooked.** When `onOpen` comes first it has already mounted the list, because
+		// `projectId` is still `null` at that moment — so there is nothing left for this line to
+		// defer, and the `setState` that follows remounts. Fixing that means making the mount
+		// itself deferred and coalescing, so that both hooks in one tick produce one mount; that
+		// turns a synchronous mount asynchronous for every caller and every case, which is an
+		// increment rather than a line. `docs/tasks/21` carries it, and
+		// `renovationProjectView.test.ts` PINS the surviving double mount so a build that starts
+		// coalescing has to come here and say so.
+		//
+		// Reported by a review bot, whose observation about the existing coverage is what made
+		// it findable: the pre-existing "does not mount twice" case passes `''`, which parses to
+		// `null` — the state a fresh view already holds — so `sync`'s unchanged-state guard
+		// returns early and that case is true only of the sentinel.
+		if (this.opened) this.sync();
 		return Promise.resolve();
 	}
 
@@ -198,7 +219,21 @@ export class RenovationProjectView extends ItemView {
 	 */
 	private mounted = false;
 
+	/**
+	 * Whether Obsidian has OPENED this view — which is not `mounted`, and the difference is the
+	 * whole point: `mounted` says a tree is on screen, this says the leaf is ready to hold one.
+	 * `setState` may arrive before `onOpen` or after it (the class docblock's own point about
+	 * the hook order being unspecified). This flag serves the FIRST of those two orderings only
+	 * — see `setState` for why the second needs a deferred mount rather than a flag.
+	 *
+	 * Cleared in `onClose` rather than left set, because Obsidian REUSES a view: a `setState`
+	 * arriving on a closed leaf would otherwise mount a Vue app into a pane nobody is showing,
+	 * and the next `onOpen` would unmount it having done the work twice.
+	 */
+	private opened = false;
+
 	onOpen(): Promise<void> {
+		this.opened = true;
 		// The hook the stylesheet keys on to reset Obsidian's own pane paddings
 		// (styles/chrome.css) — on `containerEl`, because the padding lives on
 		// `.view-content`, a descendant of it. Here rather than in `mount`: it is a fact about
@@ -217,6 +252,7 @@ export class RenovationProjectView extends ItemView {
 	 * leaf instead would lose the user's layout, which is a recurring review rejection.
 	 */
 	onClose(): Promise<void> {
+		this.opened = false;
 		this.unmount();
 		this.contentEl.empty();
 		return Promise.resolve();

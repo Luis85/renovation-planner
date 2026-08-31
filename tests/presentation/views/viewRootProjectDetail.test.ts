@@ -294,11 +294,26 @@ describe('ViewRoot in the detail state', () => {
 	});
 
 	/**
-	 * Criterion 4's one refusal that cannot be a banner. BOTH halves in one case, deliberately:
-	 * "it navigated" is equally true of the build that tells the user nothing, and "a notice
-	 * appeared" is equally true of the build that strands them in a dead detail state.
+	 * Criterion 4's one refusal that cannot be a banner, as amended when the `'gone'` watcher was
+	 * retired. THREE halves in one case, deliberately, because each is true of a build the other
+	 * two are wrong about: the form is retired (a build that only settles the status leaves it
+	 * floating over the screen saying its project does not exist), the screen draws (a build that
+	 * only closes the dialog drops the user back on a stale `'ready'` project), and NOTHING
+	 * navigates.
+	 *
+	 * That last assertion is the point of this task. `RenovationProjectView.setState` records
+	 * `ViewStateResult.history` for any accepted, changed state, so the redirect this replaced
+	 * put the DEAD project on the back stack — measured on PR 42, all three of list→project,
+	 * project→list and a back-arrow-shaped restore answer `true`. Watched red against the build
+	 * that navigated: it calls `navigate(null)` and, since `navigate` is a spy and nothing
+	 * remounts, leaves `.rp-dialog` in the DOM.
+	 *
+	 * The notice this used to assert is gone with the redirect and its absence is asserted here,
+	 * because a notice is the thing most likely to be added back by someone reading criterion 4's
+	 * earlier wording: it resolved `view.project.gone`, which is the key the screen's own headline
+	 * resolves, so the two said one sentence twice at once — slice 17's double-report shape.
 	 */
-	it('returns to the list AND notifies when the project vanished while the form was open', async () => {
+	it('retires the form and draws the gone screen when the project vanished while it was open', async () => {
 		const navigate = vi.fn<(projectId: string | null) => void>();
 		const wrapper = mountRoot({
 			projectId: 'project-1',
@@ -310,8 +325,10 @@ describe('ViewRoot in the detail state', () => {
 
 		await openTheFormAndSubmit(wrapper, 'Ground floor');
 
-		expect(navigate).toHaveBeenCalledWith(null);
-		expect(Notice.shown).toHaveLength(1);
+		expect(wrapper.find('.rp-dialog').exists()).toBe(false);
+		expect(wrapper.get('.rp-empty-state__headline').text()).toBe(t('en', 'view.project.gone'));
+		expect(navigate).not.toHaveBeenCalled();
+		expect(Notice.shown).toHaveLength(0);
 	});
 
 	/**
@@ -371,12 +388,15 @@ describe('ViewRoot in the detail state', () => {
 	});
 
 	/**
-	 * The Open note action racing a deletion. Asserted on the NAVIGATION rather than on
+	 * The Open note action racing a deletion. Asserted on what the pane DRAWS rather than on
 	 * "hydrate was called", because refreshing the list store from the detail state is
 	 * equally true of the build that leaves the user on a stale screen — which is what an
 	 * earlier draft of this plan specified. Reported by a review bot.
+	 *
+	 * It asserted the NAVIGATION until the `'gone'` watcher was retired; the re-read and its
+	 * `ok(null)` are unchanged, and the screen is what the status now produces.
 	 */
-	it('returns to the list when the header’s note turns out to be gone', async () => {
+	it('draws the gone screen when the header’s note turns out to be gone', async () => {
 		const navigate = vi.fn<(projectId: string | null) => void>();
 		let exists = true;
 		const wrapper = mountRoot({
@@ -393,37 +413,33 @@ describe('ViewRoot in the detail state', () => {
 		await wrapper.get('.rp-project-detail__open-note').trigger('click');
 		await flushPromises();
 
-		expect(navigate).toHaveBeenCalledWith(null);
-	});
-
-	/** Criterion 6's other arm: the project really is gone, so return to the list. */
-	it('navigates back to the list when the project is gone and the scan has run', async () => {
-		const navigate = vi.fn<(projectId: string | null) => void>();
-		mountRoot({ projectId: 'project-1', navigate, getProject: () => Promise.resolve(ok(null)) });
-		await flushPromises();
-
-		expect(navigate).toHaveBeenCalledWith(null);
+		expect(wrapper.get('.rp-empty-state__headline').text()).toBe(t('en', 'view.project.gone'));
+		expect(navigate).not.toHaveBeenCalled();
 	});
 
 	/**
-	 * **The screen a `'gone'` project draws when the navigation above does not happen.**
-	 * `navigateToProject` does not reject by contract, so a rejected `setViewState` reports its
-	 * fault and resolves — the watcher's `navigate(null)` silently does nothing and the store
-	 * stays `'gone'`. Before this branch existed the pane then rendered the LOADING line: a
-	 * false sentence, with no Back and no retry, recoverable only by closing the leaf.
+	 * **Criterion 6's other arm, and the case this task rewrote.** A read that misses once the
+	 * scan has run used to REDIRECT to the list, and `RenovationProjectView.setState` records a
+	 * history entry for any accepted, changed state — so the entry Obsidian kept was the dead
+	 * project, and Back restored it, re-read it, found it still gone and bounced forward again.
+	 * Retiring the watcher leaves the screen as the whole answer.
 	 *
-	 * Driven with a `navigate` that does nothing, which is exactly what a failed navigation
-	 * looks like from here — the store cannot tell a refused write from one that never
-	 * happened, and that is the whole reason the fallback has to be honest rather than
-	 * transient. Reported by a review bot.
+	 * Three assertions, and each fails against a different wrong build: the loading line is
+	 * ABSENT (what this pane drew before the screen existed at all, a false sentence with no way
+	 * out), the screen draws, and **nothing navigates by itself** — the last is what goes red
+	 * against the build this task replaced, which called `navigate(null)` here.
+	 *
+	 * Then the action, which is what makes the screen a way OUT rather than a wall: one
+	 * navigation, raised by the user's own click, so the history entry Obsidian records for it
+	 * is one somebody asked for. `toHaveBeenCalledTimes(1)` rather than `toHaveBeenCalledWith`,
+	 * because "it was called with null" is equally true of the build that also called it
+	 * automatically a moment earlier.
 	 */
-	it('draws an actionable gone state when the navigation does not take', async () => {
+	it('draws an actionable gone state instead of navigating out of it', async () => {
 		const navigate = vi.fn<(projectId: string | null) => void>();
 		const wrapper = mountRoot({ projectId: 'project-1', navigate, getProject: () => Promise.resolve(ok(null)) });
 		await flushPromises();
 
-		// The lie the old build told, asserted as ABSENT: a green here is what the loading line
-		// used to satisfy.
 		expect(wrapper.find('.rp-view-message').exists()).toBe(false);
 		expect(wrapper.get('.rp-empty-state__headline').text()).toBe(t('en', 'view.project.gone'));
 		// `<h2>`, not `<h3>`: this state REPLACES the view, so there is no project heading above
@@ -431,11 +447,12 @@ describe('ViewRoot in the detail state', () => {
 		// `3`. Asserted because the tag is the whole content of that distinction and nothing
 		// else here would notice it flipping — the first version of this screen passed `3`.
 		expect(wrapper.get('.rp-empty-state__headline').element.tagName).toBe('H2');
+		expect(navigate).not.toHaveBeenCalled();
 
 		await wrapper.get('.rp-empty-state__action').trigger('click');
 
-		// Twice: once from the watcher, once from the button the user had to be given.
-		expect(navigate).toHaveBeenNthCalledWith(2, null);
+		expect(navigate).toHaveBeenCalledTimes(1);
+		expect(navigate).toHaveBeenCalledWith(null);
 	});
 
 	it('holds the loading line rather than navigating before the scan has run', async () => {

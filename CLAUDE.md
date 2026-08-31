@@ -71,7 +71,10 @@ build could not read, so it gets the notice and no "no projects yet".
 one.** A project row NAVIGATES now rather than opening `Project.md`, into a detail state that
 draws one project — its name, its lifecycle status, an **Open note** action (the only surface
 left that opens the raw note), a **‹ back**, and that project's plans with a `New plan` form
-dispatching the real `CreatePlanCommand`. Which project is open lives in **Obsidian's own view
+dispatching the real `CreatePlanCommand`. A project that turns out not to be there draws a
+screen saying so, with its own way back, and **nothing redirects on its own** — reached
+identically from a read that missed, from `CreatePlanCommand`'s `plan.project-not-found`, and
+from a back-arrow restore of a project since deleted. Which project is open lives in **Obsidian's own view
 state** (`getState`/`setState`), never in Pinia: `rebind` remounts the whole Vue tree on a
 settings save, and a Pinia-held selection would throw the user out of the project they are in.
 `ViewRoot` reads `context.projectId` ONCE — `null` is the list, a string hands the whole state
@@ -2181,6 +2184,30 @@ which is the shape to expect from the next one too:
   defect:** the fix was announced on the pull request from the SHAPE of the flag, and measuring
   it produced exactly that failing pair — this branch's own recurring defect, committed in a
   review reply about it.
+- **An automatic redirect records a history entry nobody asked for, so the `'gone'` watcher is
+  retired.** `ProjectDetailState` used to `watch(status)` and navigate to the list on `'gone'`;
+  `setState` sets `ViewStateResult.history` for any accepted CHANGED state and cannot tell a
+  correction from a deliberate navigation — measured, list→project, project→list and a
+  back-arrow-shaped restore all answer `true` — so the back stack held the DEAD project, and
+  Back restored it, re-read it, found it still gone and bounced forward. Threading a
+  `corrective` flag was the alternative and it keeps the redirect while adding a context seam,
+  a mutable one-shot flag on a view, and a lifetime question (`navigateToProject` DROPS a
+  superseded write, so a flag set and never consumed poisons the next navigation) — and
+  everything it buys lives in Obsidian's history semantics, which `FakeLeaf` cannot answer.
+  **Prefer the fix whose result a gate can see to the one whose correctness lives where no
+  gate reaches**: `'gone'` now always draws its own screen, so Back restores the dead project
+  and the screen says so. Two consequences followed rather than being glossed — the New Plan
+  form has to be RETIRED, since with no remount there is no `DialogHost.onBeforeUnmount` to
+  settle it, which makes `ProjectDetailState` a second caller of `dialogStore.resolve`; and
+  the notice went with the redirect, because it resolved `view.project.gone`, the same key the
+  screen's headline resolves, so the two said one sentence twice at once.
+- **A "single caller" claim survives narrower and truer as a claim about a ROLE.** Both
+  `DialogHost`'s header and `dialog-store.ts`'s `resolve` said the host was the only caller;
+  it is two files and three lines now. What the rule was reaching for is that no KIND
+  COMPONENT settles — that is what keeps single-settle, focus restoration and the `inert`
+  release on one seam — and an OPENER retiring its own dialog takes none of that away, because
+  all three hang off the store's `current` watcher and run for whoever cleared it. Rewritten
+  from the grep in the same edit, per this file's own rule.
 - **A prediction about which test a mutation reddens is itself a measurement.** A brief here
   said an empty-id mutation would redden "the accepts-an-empty-projectId and round-trip cases";
   only the first can. The round-trip drives `A → '' → B` and asserts the FINAL state, so with

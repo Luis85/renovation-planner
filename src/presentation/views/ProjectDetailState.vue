@@ -25,7 +25,7 @@
  * No `<style>` block, ever: `vue/no-restricted-block` fails one. The classes below are
  * `styles/`-owned, assembled into one sheet.
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import EmptyState from '../components/EmptyState.vue';
 import ProjectDetail from './ProjectDetail.vue';
@@ -34,10 +34,9 @@ import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { useRenovationProjectContext } from './RenovationProjectContext';
 import { useProjectDetailStore } from '../stores/ProjectDetailStore';
-import { useDialogStore } from '../dialogs/dialog-store';
+import { cancelResultFor, useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
-import { notifyWarning } from '../notices/notify';
 import type { CreatePlanInput } from '../../application/commands/plan/CreatePlan';
 
 /**
@@ -106,28 +105,16 @@ const emptyState = computed(() => {
 const failureMessage = computed(() => (error.value === null ? null : trError(error.value)));
 
 /**
- * `'gone'` is the store saying the scan has RUN and this project is not in the vault — which is
- * `ProjectOpenOutcome`'s `'missing'` one level up: return to the list, which re-reads on mount.
- *
- * A `watch` rather than a branch inside `hydrate`, because navigation is a rendering rule and
- * the store stays a pure function of what the queries answered — slice 14's own division
- * between a selector and a component, applied to a status.
- */
-watch(status, (value) => {
-	if (value === 'gone') context.navigate(null);
-});
-
-/**
  * The detail header's **Open note** action, and the one gesture here that has to do more than
  * it says. It is what is left of `ViewRoot.onOpenProject`: criterion 1 makes a project row a
  * NAVIGATION, so the list no longer opens `Project.md` at all and this is the only surface that
  * does.
  *
  * `'missing'` means the id resolved to nothing, so what is drawn is stale — and THIS state is
- * what re-reads, never the list. That read answers `ok(null)`, settles `'gone'`, and returns the
- * user to the list through the watcher above. Re-reading the LIST from here would refresh
- * something nobody is looking at, which is what an earlier draft of this slice's plan specified:
- * the user would have sat on a project whose note is gone with no correction coming.
+ * what re-reads, never the list. That read answers `ok(null)`, settles `'gone'`, and the pane
+ * draws the screen that says so. Re-reading the LIST from here would refresh something nobody is
+ * looking at, which is what an earlier draft of this slice's plan specified: the user would have
+ * sat on a project whose note is gone with no correction coming.
  *
  * `'failed'` is not a stale id — the composition root has already put a notice in front of the
  * user for it, and what is behind the action is not stale.
@@ -176,16 +163,25 @@ async function onCreatePlan(): Promise<void> {
 			 */
 			onProjectGone: () => {
 				// The one `CreatePlanCommand` refusal that reaches the user through neither of
-				// `useFormCommit`'s doors. A notice rather than a banner, because the navigation
-				// below destroys the form a banner would have lived in — and slice 13's queue
-				// renders on `document.body`, so it outlives the remount.
-				notifyWarning(tr('view.project.gone'));
-				// `markGone` rather than `context.navigate(null)` directly, and the store's own
-				// docblock carries the argument: this settles the state the command is
-				// authoritative about and lets the `'gone'` watcher above be the ONE door out,
-				// so a redirect whose `setViewState` faults leaves the pane on the screen that
-				// explains itself rather than on a stale `'ready'` project.
+				// `useFormCommit`'s doors — and since the `'gone'` state stopped redirecting, it
+				// reaches them through the SCREEN rather than through a notice. `markGone`
+				// settles the state the command is authoritative about (the store's own docblock
+				// carries why a re-read is the weaker answer), and the `v-else-if` below draws
+				// it.
+				//
+				// **The notice that used to sit here was `notifyWarning(tr('view.project.gone'))`
+				// — the same key the screen's headline resolves — so the two said one sentence
+				// twice, at once, in two surfaces.** That is slice 17's double-report shape, and
+				// the channel to keep is the one that stays: the screen persists with a way back,
+				// where a notice is a remark about a gesture. Dropping it narrows criterion 4,
+				// which is recorded in `docs/tasks/21` rather than left to be rediscovered.
 				detail.markGone();
+				// The form is now moot, and nothing else retires it: with the redirect gone there
+				// is no remount for `DialogHost.onBeforeUnmount` to settle it from, so it would
+				// otherwise float over the screen saying its project does not exist. Resolved
+				// from the OPENER — see `dialog-store.ts`'s `resolve` for why that is a different
+				// actor from the kind components the single-settle rule is about.
+				dialogs.resolve(cancelResultFor('form'));
 			},
 		},
 		busy: newPlanBusy,
@@ -233,18 +229,27 @@ onBeforeUnmount(
 		@create-plan="() => void onCreatePlan()"
 	/>
 	<!--
-		`'gone'` draws its OWN screen rather than falling through to the message region, and that
-		is a safety net rather than a nicety. The watcher below navigates back to the list on
-		`'gone'` — but `navigateToProject` does not reject by contract, so a rejected
-		`setViewState` reports its fault and resolves, the navigation silently does not happen,
-		and the store stays `'gone'`. Without this branch the pane then sat permanently on
-		"Loading projects…" — a false sentence, with no Back and no retry, recoverable only by
-		closing the leaf. Reported by a review bot.
+		**`'gone'` is a SCREEN, and since this task it is the only answer to a project that is not
+		there.** It shipped as a fallback under a `watch(status)` that navigated back to the list
+		on `'gone'`; that watcher is retired, and the argument is a history entry nobody asked
+		for. `RenovationProjectView.setState` sets `ViewStateResult.history` for any accepted,
+		changed state and cannot tell a deliberate navigation from a correction — measured, all
+		three of list→project, project→list (corrective) and a back-arrow-shaped restore answer
+		`true` — so the redirect put the DEAD project on the back stack, and Back restored it,
+		re-read it, found it still gone and bounced forward again.
 
-		Making the navigation OBSERVABLE was the alternative and is the smaller half: `'gone'`
-		would still render as loading for the frame before the remount, and for any later path
-		that reaches `'gone'` without this watcher. An honest fallback makes that a smaller
-		question rather than the only defence.
+		Two candidate fixes were raised on PR 42. Threading a `corrective` flag from the caller
+		down to `setState` keeps the redirect and adds a context seam, a mutable one-shot flag on
+		a view instance, and a lifetime question (`navigateToProject` DROPS a superseded write, so
+		a flag set and never consumed poisons the next navigation) — and every claim about what it
+		buys lives in Obsidian's history semantics, which `FakeLeaf` cannot answer. Retiring the
+		watcher instead removes the entry, the bounce and a mechanism, and what it leaves behind
+		is checkable right here: Back restores the dead project and this screen draws, which is a
+		true and actionable picture rather than a redirect that looks like nothing happened.
+
+		What it costs is stated where it is paid: the user is no longer moved for them. This
+		screen is what makes that the better half — it names what happened and its action is a
+		DELIBERATE navigation, so the entry Obsidian records for it is one the user asked for.
 
 		**No `heading-level`, so this takes `EmptyState`'s default `<h2>`** — and that is the
 		component's own rule rather than a preference: an empty state that REPLACES a region

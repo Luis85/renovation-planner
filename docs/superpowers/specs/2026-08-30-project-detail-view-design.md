@@ -663,7 +663,7 @@ vault nobody can reproduce.
 | code | routes to |
 |---|---|
 | `plan.empty-name` | the `name` field |
-| `plan.project-not-found` | a **notice**, and back to the list — the project vanished while the form was open |
+| `plan.project-not-found` | **neither**: the form is retired and the pane draws the `'gone'` screen — the project vanished while the form was open. This row read "a **notice**, and back to the list" while the `'gone'` watcher existed; `docs/tasks/21`'s improvement-pass section carries why the redirect went and why the notice went with it |
 | anything else | banner |
 
 **That middle row said "banner, and back to the list" and could not have both**, which is the

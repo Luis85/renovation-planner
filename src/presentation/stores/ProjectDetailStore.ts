@@ -11,12 +11,12 @@ import type { PlanSummaryDto, ProjectSummaryDto } from '../read-models/PlanDto';
  * have.
  *
  * `'gone'` means "the scan has run and this project is not in the vault", which is what
- * `ViewRoot` navigates back to the list on. It is a STATUS rather than a callback the store
- * fires, so the store stays a pure function of what the queries answered and "navigate" stays
+ * `ProjectDetailState` draws its own screen for. It is a STATUS rather than a callback the store
+ * fires, so the store stays a pure function of what the queries answered and what to DRAW stays
  * a rendering rule — slice 14's own division between a selector and a component.
  *
  * `'failed'` is separate from it for the reason `ProjectStoreStatus` keeps its own two apart:
- * a failed read is a real problem, and navigating on one would tell a user their project was
+ * a failed read is a real problem, and calling one `'gone'` would tell a user their project was
  * deleted because their vault hiccuped.
  */
 type ProjectDetailStatus = 'idle' | 'loading' | 'ready' | 'failed' | 'gone';
@@ -134,13 +134,15 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	 * `fail` does, since a store holding a project it has just declared gone is a store that
 	 * disagrees with itself.
 	 *
-	 * The navigation is deliberately NOT here. `ProjectDetailState`'s `'gone'` watcher is the
-	 * one door out of this state, and a second one beside it is what that component's own
-	 * `onCreatePlan` rule refuses ("one handler, never two independently-decided ways"). It
-	 * also makes the fallback reachable: when the redirect's own `setViewState` faults and no
-	 * remount happens, the pane is already `'gone'` and draws the screen that says so, instead
-	 * of a stale `'ready'` project. Reported by a review bot, which found the stale-`'ready'`
-	 * half by reading the failure path this repository had only ever driven on its happy one.
+	 * **No navigation is here, and since the `'gone'` watcher was retired there is none anywhere.**
+	 * This settles a STATUS and `ProjectDetailState`'s `v-else-if` draws the screen for it — one
+	 * answer to "this project is not there", reached identically from a read that missed, from
+	 * this command refusal, and from a back-arrow restore of a project that has since been
+	 * deleted. What it replaced was a redirect, and the redirect recorded a history entry nobody
+	 * asked for; that component's own template comment carries the measurement.
+	 *
+	 * Its earlier form was reported by a review bot, which found the stale-`'ready'` half by
+	 * reading the failure path this repository had only ever driven on its happy one.
 	 */
 	function markGone(): void {
 		latestHydration += 1;

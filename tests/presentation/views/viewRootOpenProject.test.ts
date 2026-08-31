@@ -83,7 +83,7 @@ async function mountOnOneProject(outcome: ProjectOpenOutcome) {
 }
 
 describe('ViewRoot, opening a project’s note', () => {
-	it('re-reads the project when the action turns out to point at nothing, and returns to the list', async () => {
+	it('re-reads the project when the action turns out to point at nothing, and leaves the detail state', async () => {
 		const { wrapper, getProject, openProject, navigate, deleteIt } = await mountOnOneProject('missing');
 		expect(wrapper.find('.rp-project-detail').exists()).toBe(true);
 
@@ -95,8 +95,12 @@ describe('ViewRoot, opening a project’s note', () => {
 		expect(openProject).toHaveBeenCalledWith(KITCHEN.id);
 		expect(getProject).toHaveBeenCalledTimes(2);
 		// The re-read is not the point on its own: what the user needs is to stop being in a
-		// detail state for a project that does not exist.
-		expect(navigate).toHaveBeenCalledWith(null);
+		// detail state for a project that does not exist. This asserted the redirect until the
+		// `'gone'` watcher was retired; what replaced it is the screen, and `navigate` is
+		// asserted NOT called for the reason that task gives — an automatic redirect records a
+		// history entry nobody asked for.
+		expect(wrapper.find('.rp-project-detail').exists()).toBe(false);
+		expect(navigate).not.toHaveBeenCalled();
 	});
 
 	it('does not re-read when the note opened', async () => {

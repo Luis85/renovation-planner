@@ -95,16 +95,33 @@ state transition, and with an empty vault reveals the **list** rather than a zer
 3. A plan can be created from the detail state, through the real `CreatePlanCommand`, and
    appears in the list without reopening the pane.
 4. A rejected create keeps the user's typed value and shows an inline error against the field
-   the error names; it never reverts what was typed. The one refusal that cannot work that
-   way — the project vanished while the form was open — returns the user to the list **and**
-   tells them why through a notice, because navigating destroys the form the banner would
-   have lived in.
+   the error names; it never reverts what was typed. The one refusal that cannot work that way
+   — the project vanished while the form was open — **retires the form and leaves the pane on
+   the screen that says the project is gone**, because a banner cannot live in a form whose
+   subject no longer exists.
+
+   > **This said "returns the user to the list AND tells them why through a notice" until the
+   > improvement pass retired the `'gone'` watcher.** Both halves of that sentence were
+   > consequences of the redirect: navigating destroyed the form, so the account had to survive
+   > on `document.body`, which is what made it a notice. With no redirect the form is retired
+   > deliberately (`dialogs.resolve(cancelResultFor('form'))` from the opener) and the account
+   > is the screen — which persists and carries a way back, where a notice is a remark about a
+   > gesture. The notice was dropped rather than kept beside it because it resolved
+   > `view.project.gone`, the same key the screen's headline resolves: two surfaces saying one
+   > sentence at once is slice 17's double-report shape.
 5. `Project.md` is still reachable, from an **Open note** action in the detail header.
-6. A project id that resolves to nothing, **once the index has been seen populated**, returns
-   to the list and re-reads it; a read that *refuses* stays on the detail and shows the mapped
-   sentence. The two are distinguishable in a test, and the qualifier is criterion 8's — before
-   the scan has run, "resolves to nothing" is a statement about the index rather than about the
-   vault.
+6. A project id that resolves to nothing, **once the index has been seen populated**, leaves
+   the detail state for a screen that says the project is gone and carries a way back to the
+   list; a read that *refuses* stays on the detail and shows the mapped sentence. The two are
+   distinguishable in a test, and the qualifier is criterion 8's — before the scan has run,
+   "resolves to nothing" is a statement about the index rather than about the vault.
+
+   > **This said "returns to the list and re-reads it" until the improvement pass**, and the
+   > change is the one criterion 4 records: the corrective redirect went, because
+   > `RenovationProjectView.setState` records a history entry for any accepted, changed state
+   > and therefore left the DEAD project on the back stack. The list is still one click away
+   > and that click is a deliberate navigation, so the entry Obsidian records for it is one
+   > somebody asked for.
 7. A settings save while the detail state is open leaves the user in the same project.
 8. Closing and reopening Obsidian reopens the project that was open — **including when the
    pane is restored before the index scan has run**, which is the ordering Obsidian actually
@@ -198,9 +215,9 @@ reader can go and look rather than take the tick.
 | 1 | ✅ | `viewRootProjectDetail.test.ts` — *navigates into a project from a list row rather than opening its note* |
 | 2 | ✅ | Presentation half: *opens a plan row through context.openPlan*. **The spy this criterion asks for** is `renovationProjectWiring.test.ts` — *binds openPlan to the real revealPlanEditor*, which `vi.mock`s the MODULE (the composition root imports the binding directly) and asserts the call. `renovationProjectOpenSeams.test.ts`'s *opens a leaf carrying the plan id* is a real case and is NOT that spy — it asserts the resulting leaf state, which is what criterion 2 explicitly refuses as evidence; an earlier draft of this row named it as the spy |
 | 3 | ✅ | *shows a created plan in the rows without reopening the pane*, and *creates a second plan from the plan list's own header button* — the second is what pins the two controls onto ONE handler |
-| 4 | ✅ | `newPlanForm.test.ts` — *keeps the typed value and shows the field error on a refusal*, *retires the field error as soon as the name is edited*. The vanished-project half is `viewRootProjectDetail.test.ts`'s *returns to the list AND notifies when the project vanished while the form was open*, asserted as a PAIR: the navigation alone is equally true of a build that says nothing |
-| 5 | ✅ | *opens the project's own note from the header*, plus *returns to the list when the header's note turns out to be gone* — the `'missing'` arm re-reads THIS state rather than the list |
-| 6 | ✅ | *navigates back to the list when the project is gone and the scan has run* against *shows the mapped failure sentence and stays put when a read refuses* — two cases, because the criterion is that the two are DISTINGUISHABLE |
+| 4 | ✅ | `newPlanForm.test.ts` — *keeps the typed value and shows the field error on a refusal*, *retires the field error as soon as the name is edited*. The vanished-project half is `viewRootProjectDetail.test.ts`'s *retires the form and draws the gone screen when the project vanished while it was open*, asserted as a TRIPLE — the dialog is gone, the screen draws, and nothing navigates — because each of the three is true of a build the other two are wrong about. It read *returns to the list AND notifies*, as a pair, until the improvement pass retired the watcher |
+| 5 | ✅ | *opens the project's own note from the header*, plus *draws the gone screen when the header's note turns out to be gone* — the `'missing'` arm re-reads THIS state rather than the list |
+| 6 | ✅ | *draws an actionable gone state instead of navigating out of it* against *shows the mapped failure sentence and stays put when a read refuses* — two cases, because the criterion is that the two are DISTINGUISHABLE. The first read *navigates back to the list when the project is gone and the scan has run* until the improvement pass; it now asserts the screen, the absent loading line, `navigate` NOT called, and one navigation on the action's own click |
 | 7 | ✅ | `renovationProjectView.test.ts` — *keeps the open project across a rebind* and *remounts the open project on the new bundle*. The first alone passes against a rebind that keeps the field and never redraws |
 | 8 | ✅ | *holds the loading line rather than navigating before the scan has run*, *draws the project once the index is rebuilt under a restored leaf*, and the zero-entry half through criterion 6's first case: the gate is `indexScanCompleted()`, which answers "has it RUN" |
 | 9 | ✅ | `openProjectDetail.test.ts` — *navigates an already-open leaf to the chosen project* and *reveals the list state rather than a picker in an empty vault*, with an unrecovered-settings twin beside it |
@@ -210,6 +227,50 @@ reader can go and look rather than take the tick.
 | 13 | ⛔ **Not verified** | `docs/tests/cases/Navigate into a project and back.md` steps 3 and 4 are WRITTEN and **not yet run** — that case's own Runs table says "Not yet run in a vault", and no gate here can reach the question: `FakeLeaf` records asks rather than behaving, so the suite asserts only that `ViewStateResult.history` was set, never that Obsidian walked it. **This row said "Walked, not ticked" until a review bot checked it against the Runs table it cites.** Nobody walked anything; the case was authored. The two are a whole verdict apart, and this is the one row in the table whose entire job is to be honest about evidence |
 | 14 | ✅ | `npm run check` exit 0 at this task's commit, coverage floors held — see the commit message for the four figures |
 
+### The improvement pass
+
+A second pass over this slice after it closed. Each entry is a defect, its mutation and what
+the mutation printed.
+
+- **A corrective redirect recorded a history entry, and the `'gone'` watcher is retired.**
+  `ProjectDetailState` used to `watch(status)` and call `context.navigate(null)` on `'gone'`;
+  `RenovationProjectView.setState` sets `ViewStateResult.history` for any accepted, CHANGED
+  state and cannot tell a correction from a deliberate navigation. Measured by driving the
+  view directly — list→project, project→list (the correction) and a back-arrow-shaped restore
+  all answer `history === true` — so Obsidian's back stack held the DEAD project, and Back
+  restored it, re-read it, found it still gone and bounced forward again.
+
+  Two candidates were raised on PR 42 and the ARGUMENT for taking the second is not the line
+  count. Threading a `corrective` flag keeps the redirect and adds a context seam, a mutable
+  one-shot flag on a view instance, and a lifetime question — `navigateToProject` DROPS a
+  superseded write, so a flag set and never consumed poisons the next navigation — and
+  everything it buys lives in Obsidian's history semantics, which `FakeLeaf` cannot answer and
+  no gate here can see. Retiring the watcher removes the entry, the bounce and a mechanism,
+  and what replaces it is checkable in this repository: Back restores the dead project and the
+  screen draws, which is a true and actionable picture rather than a redirect that reads as
+  nothing having happened. **Prefer the fix whose result a gate can see to the one whose
+  correctness lives somewhere no gate reaches.**
+
+  Two consequences were followed rather than glossed. The form had to be RETIRED — with no
+  remount there is no `DialogHost.onBeforeUnmount` to settle it, so a New Plan form would have
+  floated over the screen saying its project does not exist — which makes
+  `ProjectDetailState` a second caller of `dialogStore.resolve`. Both docblocks claiming
+  `DialogHost` was the only one are rewritten from the grep, and the rule they were reaching
+  for survives narrower and truer: no KIND COMPONENT settles, because that is what keeps
+  single-settle, focus restoration and the `inert` release on one seam — all three of which
+  hang off the store's `current` watcher and therefore run for whoever cleared it. And the
+  notice went with the redirect, because it resolved `view.project.gone`, the key the screen's
+  own headline resolves.
+
+  Watched red three ways rather than one, because a partial fix reads exactly like a complete
+  one: restoring the watcher reddens three cases; dropping ONLY the dialog resolution reddens
+  the vanished-project case alone; and `viewRootOpenProject.test.ts`'s `'missing'` case had to
+  be rewritten because it asserted the redirect from the Open note path.
+
+  **What this does NOT settle** is whether Obsidian honoured the entry in the first place —
+  criterion 13's unrun ground. The defect is that the code ASKED for one; whether the bounce
+  the ask produces is what a user sees is still a question only a vault can answer.
+
 ### Withdrawn, and residues carried forward
 
 - **Nothing in the criteria list is withdrawn.** All thirteen assertable ones are ticked; the
@@ -217,6 +278,12 @@ reader can go and look rather than take the tick.
   in a vault. Withdrawal was available and the previous two slices each used it, which is worth
   stating plainly; so is the correction, because this sentence read "and the fourteenth is
   walked" and that was not true of anything that had happened.
+- **The notice on the vanished-project path is dropped rather than deferred.** It is not a
+  gap waiting for someone: two surfaces resolving one key at one instant is a double report,
+  and the surviving surface is the one that persists and carries a way out. If a future round
+  wants a notice back on that path, it needs its own sentence — the failure of a PRESS is a
+  different claim from the state of a project — and that is new copy in two locale tables
+  rather than a re-added call.
 - **One `onOpen`/`setState` ordering still mounts twice**, and it is pinned as behaviour
   (`renovationProjectView.test.ts` asserts the mounted list as `[null, 'project-01JAAA']`)
   rather than fixed. `setState` before `onOpen` is closed by an `opened` flag; the other

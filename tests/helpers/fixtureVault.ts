@@ -472,6 +472,15 @@ export interface FixtureStack extends StackFoundation {
 const DEFAULT_PROJECT_FOLDER = 'Renovation';
 
 /**
+ * Top-level, and deliberately not the plugin's own `Renovation/Library` default — the same
+ * choice `createRepositoryStack` makes and for the same reason: slice 19's §83 guard refuses
+ * a new project whose folder overlaps the library, and every project this stack creates lands
+ * one segment under `DEFAULT_PROJECT_FOLDER`. A top-level `Library` cannot overlap any of
+ * them, so a fixture case wanting the refusal has to construct the repository itself.
+ */
+const DEFAULT_LIBRARY_FOLDER = 'Library';
+
+/**
  * `dispose()`'s one guard: refuses to `rmSync` anything that isn't genuinely under the OS
  * temp directory. `root` is always the exact string `mkdtempSync` returned three lines
  * above it, so under today's code this can never fire — but "the convention holds" is
@@ -555,11 +564,14 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		fileManager,
 		metadataCache,
 		...base,
-		projects: new ObsidianProjectRepository(base.deps, DEFAULT_PROJECT_FOLDER),
+		projects: new ObsidianProjectRepository(base.deps, DEFAULT_PROJECT_FOLDER, DEFAULT_LIBRARY_FOLDER),
 		plans: new ObsidianPlanRepository(base.deps, base.store),
 		zones: new ObsidianZoneRepository(base.deps, base.store),
-		assets: new ObsidianAssetRepository(base.deps),
+		assets: new ObsidianAssetRepository(base.deps, DEFAULT_LIBRARY_FOLDER),
 		requirements: new ObsidianRequirementRepository(base.deps),
+		// `projectFolder` arrives through `base`; the library root does not, because slice 19
+		// gave it to the two repositories that write into it rather than to the foundation.
+		libraryFolder: DEFAULT_LIBRARY_FOLDER,
 		root,
 		dispose: () => {
 			if (!isUnderTempDir(root)) {

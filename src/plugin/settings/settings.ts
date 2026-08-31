@@ -26,6 +26,15 @@ export type Units = (typeof UNITS)[number];
  */
 const DEFAULT_PROJECT_FOLDER = 'Renovation';
 
+/**
+ * §36's drawing, and it is only legal because slice 18 landed first: under the pre-18 shape
+ * `Renovation` WAS the project folder, so `foldersOverlap('Renovation/Library',
+ * 'Renovation')` is true and the default would be refused by the rule §83 states. After
+ * slice 18 the project folders are `Renovation/Kitchen refit` and friends, and the library
+ * is their sibling.
+ */
+const DEFAULT_LIBRARY_FOLDER = 'Renovation/Library';
+
 export interface RenovationPlannerSettings {
 	/** Measurement system for quantities and dimensions (SDD A§15: default units). */
 	units: Units;
@@ -38,6 +47,21 @@ export interface RenovationPlannerSettings {
 	 */
 	projectFolder: string;
 	/**
+	 * Where the shared Asset (and later Supplier and Trade) catalogues live — one per vault
+	 * (§83). Unlike `projectFolder` this is not "where a new one starts": it is where the
+	 * catalogue IS, so changing it MOVES the notes. ADR-011 priced a configurable path as
+	 * something to avoid where it can be avoided; here it cannot, because a shared library
+	 * has no project folder to derive its location from.
+	 *
+	 * **`Assets/` is the only thing under it, and `Suppliers/`/`Trades/` are deliberately
+	 * NOT created**: the rule names three catalogues and two of them do not exist as
+	 * entities — `Asset.supplier` is free text and `Trade` is Epic 8 — so a folder with
+	 * nothing that can live in it is a promise rather than a structure. The field is named
+	 * for the LIBRARY rather than for assets for that reason: those two arrive by adding a
+	 * repository that resolves its own subfolder from this root, not by moving this one.
+	 */
+	libraryFolder: string;
+	/**
 	 * Verbose logging (slice 11): drops the console logger's floor from `info` to
 	 * `debug`. Diagnostics, not telemetry — everything stays in the local console
 	 * (SDD §67), this only widens what reaches it.
@@ -45,9 +69,27 @@ export interface RenovationPlannerSettings {
 	verboseLogging: boolean;
 }
 
+/**
+ * What a settings write CHANGES, rather than what the settings become.
+ *
+ * A complete settings object composed by the caller is a SNAPSHOT, and a snapshot is stale
+ * for as long as any other write is in flight — which is the whole of the library
+ * migration's window, since it persists LAST and swaps the running root only afterwards. A
+ * patch says the one thing its caller meant and lets the write chain compose the rest at
+ * execution time, so two changes made in that window both survive and neither replays a
+ * folder the catalogue has left.
+ *
+ * Values are `unknown` because the settings pane is keyed generically — a control's value is
+ * whatever Obsidian hands `setControlValue` — and `settingsFrom` is the gate every one of
+ * them passes through. Typing them tighter would put a cast at the one door that exists so
+ * there is no cast.
+ */
+export type SettingsPatch = Readonly<Partial<Record<keyof RenovationPlannerSettings, unknown>>>;
+
 export const DEFAULT_SETTINGS: RenovationPlannerSettings = {
 	units: 'metric',
 	projectFolder: DEFAULT_PROJECT_FOLDER,
+	libraryFolder: DEFAULT_LIBRARY_FOLDER,
 	verboseLogging: false,
 };
 
@@ -84,12 +126,13 @@ export function isDataAbsent(raw: unknown): boolean {
 }
 
 /**
- * Whether a folder path is usable as one. Empty after trimming is the only refusal: a
- * path is user text, `normalizePath` is applied where it meets the Vault, and anything
- * non-empty is a place.
+ * Whether a folder path is usable as one. Empty after trimming is the only refusal: a path
+ * is user text, `normalizePath` is applied where it meets the Vault, and anything non-empty
+ * is a place. The `fallback` parameter is what lets one validator serve both folder
+ * settings — the alternative was a second function differing only in its default.
  */
-function projectFolderFrom(value: unknown): string {
-	return typeof value === 'string' && value.trim() ? value.trim() : DEFAULT_SETTINGS.projectFolder;
+function folderFrom(value: unknown, fallback: string): string {
+	return typeof value === 'string' && value.trim() ? value.trim() : fallback;
 }
 
 /**
@@ -105,7 +148,8 @@ export function settingsFrom(raw: unknown): RenovationPlannerSettings {
 	const stored = typeof raw === 'object' && raw !== null ? (raw as Partial<RenovationPlannerSettings>) : {};
 	return {
 		units: unitsFrom(stored.units),
-		projectFolder: projectFolderFrom(stored.projectFolder),
+		projectFolder: folderFrom(stored.projectFolder, DEFAULT_SETTINGS.projectFolder),
+		libraryFolder: folderFrom(stored.libraryFolder, DEFAULT_SETTINGS.libraryFolder),
 		verboseLogging: verboseLoggingFrom(stored.verboseLogging),
 	};
 }

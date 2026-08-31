@@ -3,14 +3,12 @@ import type { ValidationError } from '../../core/errors/AppError';
 import { isNegative, type Money } from '../../core/money/Money';
 import { err, ok, type Result } from '../../core/result/Result';
 import { UNIT_KIND, type MeasurementUnit } from '../../core/units/MeasurementUnit';
-import type { ProjectId } from '../project/ProjectId';
 import { isAssetCategory, type AssetCategory } from './AssetCategory';
 import type { AssetId } from './AssetId';
 import { assetError } from './Asset.errors';
 
 export interface CreateAssetProps {
 	readonly id: AssetId;
-	readonly projectId: ProjectId;
 	readonly name: string;
 	readonly category: AssetCategory;
 	readonly supplier?: string | null;
@@ -24,7 +22,6 @@ export interface CreateAssetProps {
 
 interface AssetFields {
 	readonly id: AssetId;
-	readonly projectId: ProjectId;
 	readonly name: string;
 	readonly category: AssetCategory;
 	readonly supplier: string | null;
@@ -73,10 +70,15 @@ export function checkWasteFraction(
  * An Asset owns no geometry and references no Zone — it is catalog data referenced BY ID
  * (design slice 10's Out of scope: placement as a spatial object is later Epic-6 feature
  * work). `supplier` is free text this slice; the Supplier entity is Epic 11.
+ *
+ * It owns no PROJECT either, since design slice 19: the catalogue is a vault-level
+ * library one Asset serves every project from, so the entity carries no `projectId` and
+ * its note lives under the configured library folder rather than under any project's.
+ * The WORK stays project-scoped — a Requirement carries the project of the Zone it was
+ * derived from, never the Asset's.
  */
 export class Asset {
 	readonly id: AssetId;
-	readonly projectId: ProjectId;
 	readonly name: string;
 	readonly category: AssetCategory;
 	readonly supplier: string | null;
@@ -88,7 +90,6 @@ export class Asset {
 
 	private constructor(fields: AssetFields) {
 		this.id = fields.id;
-		this.projectId = fields.projectId;
 		this.name = fields.name;
 		this.category = fields.category;
 		this.supplier = fields.supplier;
@@ -128,7 +129,6 @@ export class Asset {
 		return ok(
 			new Asset({
 				id: props.id,
-				projectId: props.projectId,
 				name,
 				category: props.category,
 				supplier: props.supplier ?? null,
@@ -142,15 +142,14 @@ export class Asset {
 	}
 
 	/**
-	 * Rebuilds through `create`, so every edit re-validates. `id` and `projectId` are
-	 * identity and ownership — neither is editable.
+	 * Rebuilds through `create`, so every edit re-validates. `id` is identity — it is not
+	 * editable.
 	 */
 	withChanges(
-		changes: Partial<Omit<CreateAssetProps, 'id' | 'projectId'>>,
+		changes: Partial<Omit<CreateAssetProps, 'id'>>,
 	): Result<Asset, ValidationError> {
 		return Asset.create({
 			id: this.id,
-			projectId: this.projectId,
 			name: changes.name ?? this.name,
 			category: changes.category ?? this.category,
 			supplier: 'supplier' in changes ? (changes.supplier ?? null) : this.supplier,

@@ -1,11 +1,10 @@
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { isErr, ok, type Result } from '../../../core/result/Result';
-import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetRepository } from '../../../application/ports/AssetRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
-import { assetsFolderFor, projectFolderOf } from '../repositories/paths';
+import { assetsFolderFor, normalizeFolder } from '../repositories/paths';
 import { KeyedQueues } from '../repositories/KeyedQueues';
 import type { NoteVaultDeps } from '../repositories/NoteVaultDeps';
 import { assetFromPersistence, assetToPersistence } from '../../persistence/mappers/assetMapper';
@@ -16,10 +15,21 @@ import {
 	type NoteWriteSpec,
 } from './noteEntityWrite';
 
-/** Everything about an asset write that does not change between saves — the folder does. */
+/**
+ * Everything about an asset write that is a fact about the KIND. The folder is left out
+ * because it is a fact about the INSTANCE — the library folder this repository was
+ * composed with — rather than because it varies from one save to the next; it no longer
+ * does, now that it is no longer derived from a project note.
+ */
 const SPEC: Omit<NoteWriteSpec<Asset>, 'notesFolder'> = {
 	kind: 'asset',
 	indexType: 'renovation-asset',
+	// A catalogue entry belongs to no project, so its index entry carries none — which is
+	// what keeps assets off `getIdsByProject` BY CONSTRUCTION rather than by a filter.
+	projectId: () => undefined,
+	// `project` was an owned key through design slice 18. Omitting it from the DTO cannot
+	// clear it, because the write is a merge; see `writeOwnedFrontmatter`.
+	retiredKeys: ['project'],
 	entryName: (asset) => asset.name,
 	toPersistence: assetToPersistence,
 	preWriteValid: (dto) => assetFromPersistence({ ...dto }).ok,
@@ -30,15 +40,22 @@ const SPEC: Omit<NoteWriteSpec<Asset>, 'notesFolder'> = {
 /**
  * The Zone repository's six-step save contract, without the geometry sidecar — an asset
  * note owns no second file. The write SEQUENCE lives once in `noteEntityWrite`; this
- * class keeps the per-kind facts: its mapper and its error codes. Its folder is resolved
- * per save, from the owning project's own note (ADR-0013, `projectFolderOf`) — never a
- * constructor field, since a project's folder can move (a rename, a manual reorganisation)
- * between one save and the next.
+ * class keeps the per-kind facts: its mapper and its error codes.
+ *
+ * Its folder is the LIBRARY's since design slice 19 — the catalogue belongs to the vault
+ * rather than to a project, so there is no project note to derive a folder from and the
+ * configured setting is the whole answer. That is a constructor field rather than a
+ * per-save resolution for the reason the opposite was true before it: the setting is read
+ * at composition and a change to it rebuilds the root, while a PROJECT's folder could move
+ * under a live repository.
  */
 export class ObsidianAssetRepository implements AssetRepository {
 	private readonly queues = new KeyedQueues();
 
-	constructor(private readonly deps: NoteVaultDeps) {}
+	constructor(
+		private readonly deps: NoteVaultDeps,
+		private readonly libraryFolder: string,
+	) {}
 
 	getById(id: AssetId): Promise<Result<Loaded<Asset> | null, RepositoryError>> {
 		return readNoteBackedEntity(this.deps, 'asset', id, assetFromPersistence, 'asset.entity-invalid');
@@ -55,13 +72,9 @@ export class ObsidianAssetRepository implements AssetRepository {
 		asset: Asset,
 		expected: Expected,
 	): Promise<Result<Loaded<Asset>, RepositoryError>> {
-		// Resolved here and consumed only on the INSERT path — `undefined` travels into the
-		// spec rather than refusing outright, because an UPDATE writes where the note
-		// already is and needs no folder at all (see `NoteWriteSpec.notesFolder`).
-		const folder = projectFolderOf(this.deps.index, asset.projectId);
 		const spec: NoteWriteSpec<Asset> = {
 			...SPEC,
-			notesFolder: folder === undefined ? undefined : assetsFolderFor(folder),
+			notesFolder: assetsFolderFor(normalizeFolder(this.libraryFolder)),
 		};
 		return saveNoteBackedEntity(this.deps, spec, asset, expected);
 	}
@@ -72,18 +85,41 @@ export class ObsidianAssetRepository implements AssetRepository {
 		);
 	}
 
-	listByProject(projectId: ProjectId): Promise<Result<Loaded<Asset>[], RepositoryError>> {
-		const ids = this.deps.index
-			.getIdsByProject(projectId)
-			.filter((id) => String(id).startsWith('asset-')) as AssetId[];
-		return this.list(ids);
+	/**
+	 * The whole vault's catalogue, over the TYPE axis — assets fall off the project axis by
+	 * construction (nothing upserts them with a `projectId`), so this needs no filter and
+	 * no exclusion list.
+	 */
+	listAll(): Promise<Result<Loaded<Asset>[], RepositoryError>> {
+		return this.list(this.deps.index.getIdsByType('renovation-asset') as AssetId[]);
 	}
 
+	/**
+	 * One unreadable note does not take the catalogue down with it.
+	 *
+	 * This used to return the first refusal, which was survivable while the list was
+	 * per-project: a corrupt asset note disabled assignment in its OWN project. Since the
+	 * catalogue became vault-wide it is not — one hand-edited note anywhere would empty the
+	 * assign picker in EVERY project, and `loadAssetOptions` shows an empty list rather than
+	 * an error, so the failure is silent as well as total.
+	 *
+	 * The refusal is RECORDED rather than dropped. `openNoteById` already writes a migration
+	 * failure to the ledger, but the `fromPersistence` arm — invalid asset frontmatter on a
+	 * note whose `type` and `id` are fine, which is exactly the reported case — returns its
+	 * error without recording, so skipping silently would lose the signal entirely.
+	 *
+	 * The shape is `ObsidianProjectRepository.listAll`'s, minus its `refused` count: that
+	 * exists because the project list must tell "no projects" from "projects I could not
+	 * read", and the assign picker has no such distinction to draw.
+	 */
 	private async list(ids: readonly AssetId[]): Promise<Result<Loaded<Asset>[], RepositoryError>> {
 		const loaded: Loaded<Asset>[] = [];
 		for (const id of ids) {
 			const found = await this.getById(id);
-			if (isErr(found)) return found;
+			if (isErr(found)) {
+				this.deps.ledger.record('asset', id, found.error);
+				continue;
+			}
 			if (found.value !== null) loaded.push(found.value);
 		}
 		return ok(loaded);

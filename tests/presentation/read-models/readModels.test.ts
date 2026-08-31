@@ -9,6 +9,7 @@ import { err, ok } from '../../../src/core/result/Result';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { ListProjects } from '../../../src/application/queries/ListProjects';
+import type { LibraryOverlaps } from '../../../src/application/ports/LibraryOverlaps';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -96,11 +97,24 @@ describe('mapping an entity to a read model', () => {
 	it('summarises a project down to what a header needs', () => {
 		const project = makeProject({ name: 'Barn conversion' });
 
-		expect(toProjectSummaryDto(project)).toEqual({
+		expect(toProjectSummaryDto(project, false)).toEqual({
 			id: project.id,
 			name: 'Barn conversion',
 			status: project.status,
+			libraryOverlap: false,
 		});
+	});
+
+	/**
+	 * §83's flag is an ARGUMENT, not something read off the entity — a `Project` cannot know
+	 * whether its derived folder overlaps a configured library folder. Asserted in both
+	 * directions, because a mapper that hard-coded `false` would satisfy the case above.
+	 */
+	it('carries the caller own overlap answer rather than deriving one', () => {
+		const project = makeProject({ name: 'Barn conversion' });
+
+		expect(toProjectSummaryDto(project, true).libraryOverlap).toBe(true);
+		expect(toProjectSummaryDto(project, false).libraryOverlap).toBe(false);
 	});
 });
 
@@ -182,7 +196,7 @@ describe('the plan editor query boundary', () => {
 		for (const refused of [
 			await queries.findZonesByPlan('plan-1'),
 			await queries.getRequirementsForZone('zone-1'),
-			await queries.listAssets('project-1'),
+			await queries.listAssets(),
 			await queries.listRequirementsReferencing('zone-1'),
 			await queries.listReassignmentTargets('zone-1'),
 		]) {
@@ -207,7 +221,53 @@ describe('the plan editor query boundary', () => {
 			},
 		} as never);
 
-		expect(expectErr(await failing.listAssets('project-1'))).toMatchObject({ category: 'Persistence' });
+		expect(expectErr(await failing.listAssets())).toMatchObject({ category: 'Persistence' });
+	});
+
+	/**
+	 * A read that refuses must not reach the flow as an empty set — that is exactly the
+	 * picture "this zone has no referents" produces, and the flow would delete on it.
+	 */
+	it('surfaces a failed referent read rather than an empty referent set', async () => {
+		const failing = createPlanEditorQueries({
+			getPlan: { execute: () => Promise.resolve(ok(null)) },
+			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
+			listRequirementsReferencing: {
+				execute: () => Promise.resolve(err({ category: 'Persistence', code: 'x', message: 'y' })),
+			},
+		} as never);
+
+		expect(expectErr(await failing.listRequirementsReferencing('zone-1'))).toMatchObject({
+			category: 'Persistence',
+		});
+	});
+
+	/**
+	 * The seam carries the GROUPS. It flattened them for one slice, which left slice 19's
+	 * grouping — and the per-project rows the delete dialog draws from it — unreachable: the
+	 * ambiguity decision is the query's, and once the project names are gone nothing
+	 * downstream can recover it. The assertion is on the shape, not on a count, because a
+	 * flattening answers the right NUMBER of referents and the wrong thing entirely.
+	 */
+	it('carries the referent groups a shared asset spreads across projects, unflattened', async () => {
+		const grouped = createPlanEditorQueries({
+			getPlan: { execute: () => Promise.resolve(ok(null)) },
+			findZonesByPlan: { execute: () => Promise.resolve(ok([])) },
+			listRequirementsReferencing: {
+				execute: () =>
+					Promise.resolve(
+						ok([
+							{ projectId: 'p-1', projectName: 'Kitchen', requirementIds: ['r-1', 'r-2'] },
+							{ projectId: 'p-2', projectName: 'Bathroom', requirementIds: ['r-3'] },
+						]),
+					),
+			},
+		} as never);
+
+		expect(expectOk(await grouped.listRequirementsReferencing('zone-1'))).toEqual([
+			{ projectId: 'p-1', projectName: 'Kitchen', requirementIds: ['r-1', 'r-2'] },
+			{ projectId: 'p-2', projectName: 'Bathroom', requirementIds: ['r-3'] },
+		]);
 	});
 
 	it('answers empty for a slice-10 query the composition omitted', async () => {
@@ -217,28 +277,62 @@ describe('the plan editor query boundary', () => {
 		} as never);
 
 		expect(expectOk(await bare.getRequirementsForZone('zone-1'))).toEqual([]);
-		expect(expectOk(await bare.listAssets('project-1'))).toEqual([]);
+		expect(expectOk(await bare.listAssets())).toEqual([]);
 		expect(expectOk(await bare.listRequirementsReferencing('zone-1'))).toEqual([]);
 		expect(expectOk(await bare.listReassignmentTargets('zone-1'))).toEqual([]);
 	});
 });
+
+/**
+ * The §83 overlap port, answering nothing — there is no vault and no Project Index behind
+ * these in-memory repositories, so no folder is derivable and there is genuinely nothing to
+ * report. `overlapping` is not part of `ProjectListView` anyway: the read model maps the two
+ * fields the view draws today, and this file is about that boundary rather than about §83.
+ */
+const NO_OVERLAPS: LibraryOverlaps = { overlapping: () => [] };
 
 describe('the renovation project query boundary', () => {
 	it('answers every project as a DTO, not as an entity', async () => {
 		const projects = new InMemoryProjectRepository();
 		const project = makeProject({ name: 'Barn conversion' });
 		expectOk(await projects.save(project, 'absent'));
-		const queries = createRenovationProjectQueries(new ListProjects(projects));
+		const queries = createRenovationProjectQueries(new ListProjects(projects, NO_OVERLAPS));
 
 		const found = expectOk(await queries.listProjects());
 
-		expect(found.projects).toEqual([toProjectSummaryDto(project)]);
+		expect(found.projects).toEqual([toProjectSummaryDto(project, false)]);
 		// Flat and serializable all the way down — no domain method survived the boundary.
 		expect(JSON.parse(JSON.stringify(found))).toEqual(found);
 	});
 
+	/**
+	 * The §83 mapping, which the `NO_OVERLAPS` port above cannot reach: it answers `[]`, so
+	 * every case in this block would be equally green against a boundary that dropped
+	 * `overlapping` entirely — which is exactly what this boundary did until design slice 19.
+	 *
+	 * Both directions in ONE read, over two projects, because that is the claim: the flag
+	 * lands on the project the port NAMED and on no other. A mapping that set every row's
+	 * flag from `overlapping.length > 0` would pass a single-project case in both directions.
+	 */
+	it('marks the projects the overlap port names, and only those', async () => {
+		const projects = new InMemoryProjectRepository();
+		const overlapping = makeProject({ name: 'Barn conversion' });
+		const ordinary = makeProject({ name: 'Loft conversion' });
+		expectOk(await projects.save(overlapping, 'absent'));
+		expectOk(await projects.save(ordinary, 'absent'));
+		const queries = createRenovationProjectQueries(
+			new ListProjects(projects, { overlapping: () => [overlapping.id] }),
+		);
+
+		const found = expectOk(await queries.listProjects());
+
+		expect(
+			Object.fromEntries(found.projects.map((project) => [project.name, project.libraryOverlap])),
+		).toEqual({ 'Barn conversion': true, 'Loft conversion': false });
+	});
+
 	it('answers an empty vault with an empty list and no refusals, not an error', async () => {
-		const queries = createRenovationProjectQueries(new ListProjects(new InMemoryProjectRepository()));
+		const queries = createRenovationProjectQueries(new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS));
 
 		expect(expectOk(await queries.listProjects())).toEqual({ projects: [], unreadable: 0 });
 	});

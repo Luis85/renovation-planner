@@ -1,4 +1,4 @@
-import { inject, provide, reactive, ref, watch, type InjectionKey, type Ref } from 'vue';
+import { inject, onBeforeUnmount, provide, reactive, ref, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
@@ -103,7 +103,7 @@ export interface EditorRuntime {
 	 * `useFieldCommit`'s own `notify` to route, not this function's to announce.
 	 */
 	readonly commitField: (edit: InspectorEdit) => Promise<DispatchResult>;
-	/** The assign-asset picker's options for this plan's project. */
+	/** The assign-asset picker's options: the vault's whole catalogue, narrowed by no project. */
 	readonly assetOptions: Readonly<Ref<readonly { readonly id: string; readonly name: string }[]>>;
 }
 
@@ -281,35 +281,81 @@ function wrapDispatcher(
 }
 
 /**
- * The assign picker's options, read once per leaf: the project's asset catalog changes
- * only through this same app (whose own dispatches refresh nothing about THIS list
- * because the picker is a catalogue view, not a figure), and a stale option that no
- * longer resolves fails the assignment command loudly rather than silently. Watched off
- * the PLAN, because hydration is async — at build time there is no projectId yet.
+ * The assign picker's options: the vault's asset catalogue changes only through this same
+ * app (whose own dispatches refresh nothing about THIS list because the picker is a
+ * catalogue view, not a figure), and a stale option that no longer resolves fails the
+ * assignment command loudly rather than silently.
+ *
+ * **Read at mount AND on every `onCatalogueChanged`, which is not the same thing as "once
+ * per leaf".** Design slice 19 replaced design slice 8's watch on the plan's project with a
+ * single read — correct in itself, since the catalogue left the project and there is no
+ * longer a `projectId` to wait for — and judged that unchanged behaviour. It was not: the
+ * watch had a second effect nobody had named, which is that it re-fired when the store
+ * re-hydrated. `PlanEditorView.sync()` mounts on the RESTORED VIEW STATE rather than on a
+ * resolved plan, and Obsidian restores its leaves before `onLayoutReady`, so on the
+ * ordinary restart path this read lands against a still-empty project index and answers
+ * an empty catalogue — leaving the picker empty for the life of that leaf.
+ *
+ * The recovery was first bought by borrowing `onPlanChanged`, which carries
+ * `ProjectIndexRebuilt` and therefore worked, and which also carries five events that say
+ * nothing about the catalogue — so a zone gesture re-read every asset note in the vault.
+ * `createAssetCatalogueChangeSource` is the narrowing: the rebuild that fixes the restored
+ * leaf, the three asset commands, and an index entry change filtered to `renovation-asset`
+ * for a note added by hand or arriving through sync. The picker now hears what it is
+ * about and nothing else.
+ *
+ * **COALESCED, because hearing the right events is not the same as hearing few of them.**
+ * A library migration renames every catalogue note one at a time and `VaultChangeAdapter`
+ * announces each rename, so moving N assets delivers N events — and an unconditional read
+ * per event is N vault-wide scans in every open editor, for a change of paths. Never more
+ * than one read is in flight; a burst arriving during one collapses into exactly one more
+ * after it. That the reads cannot OVERLAP is the second property, and it is what removes
+ * the stale-overwrite race this repository has already recorded twice (`ProjectStore.hydrate`
+ * and `InspectorStore` both carry a request ticket for it): an older scan cannot finish
+ * after a newer one and put a deleted asset back, because there is never an older scan
+ * still running. Both halves were reported in review against the commit that introduced
+ * the first — `onPlanChanged` did not carry the entry event, so the old wiring could not
+ * see a migration at all.
+ *
+ * The trailing read is a REQUEST rather than a queue: ten events during one scan buy one
+ * more scan, not ten. What that gives up is knowing which event the final read answers,
+ * which nothing here needs — the read is a full catalogue snapshot either way.
  */
-function watchAssetOptions(
+function createAssetOptionsLoader(
 	context: PlanEditorContext,
-	projectStore: ReturnType<typeof useProjectStore>,
 	assetOptionsRef: Ref<readonly { readonly id: string; readonly name: string }[]>,
-): void {
-	watch(
-		() => projectStore.plan?.projectId,
-		(projectId) => {
-			void (async () => {
-				const options = await context.queries.listAssets(String(projectId ?? ''));
+): () => void {
+	let running = false;
+	let requestedAgain = false;
+	const run = async (): Promise<void> => {
+		running = true;
+		try {
+			do {
+				requestedAgain = false;
+				const options = await context.queries.listAssets();
 				if (options.ok) assetOptionsRef.value = options.value;
-			})();
-		},
-		{ immediate: true },
-	);
+			} while (requestedAgain);
+		} finally {
+			running = false;
+		}
+	};
+	return (): void => {
+		if (running) {
+			requestedAgain = true;
+			return;
+		}
+		void run();
+	};
 }
 
 /**
  * The Inspector's Delete action, and the flow's four collaborators bound to this leaf:
  * slice 10's two queries, slice 15's two dialog kinds, and the Inspector's own commit path.
  *
- * Every string is resolved HERE — `tr` at the call site, the zone's own name from the
- * caller — because nothing under `presentation/dialogs/` resolves a key on its own behalf.
+ * Every string the dialogs receive is resolved before it reaches them, because nothing
+ * under `presentation/dialogs/` resolves a key on its own behalf: the reassign title with
+ * `tr` here, the zone's own name from the caller, and the reference rows in
+ * `deleteZoneFlow` — which is where the groups those labels depend on actually are.
  *
  * Both failure halves of SDD §65 are handled here rather than in `commitEdit`, and that is
  * the reason this action does not go through it: a refusal the flow ACTS on
@@ -326,17 +372,16 @@ function createDeleteZoneAction(
 	const deps: DeleteZoneFlowDeps = {
 		listReferents: (zoneId) => context.queries.listRequirementsReferencing(zoneId),
 		listReassignmentTargets: (zoneId) => context.queries.listReassignmentTargets(zoneId),
-		askResolution: (entityLabel, referenceLabel, count) =>
-			dialogs.openDialog({
-				kind: 'delete-reference',
-				entityLabel,
-				references: [{ label: referenceLabel, count }],
-			}),
+		// The rows arrive built. `deleteZoneFlow` maps the query's per-project groups onto them,
+		// because which label a row takes depends on the ambiguity `ListRequirementsReferencing`
+		// resolved — building them here would derive that rule a second time, and this door
+		// cannot see the groups at all.
+		askResolution: (entityLabel, references) =>
+			dialogs.openDialog({ kind: 'delete-reference', entityLabel, references }),
 		askReassignTarget: (title, candidates) =>
 			dialogs.openDialog({ kind: 'entity-picker', title, candidates }),
 		dispatch: (edit) => inspector.commit(edit),
 		copy: {
-			referenceLabel: tr('entity.requirement.plural'),
 			reassignTitle: tr('editor.inspector.delete-zone.reassign-title'),
 		},
 	};
@@ -534,9 +579,14 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 
 	const deleteZone = createDeleteZoneAction(context, dialogs, inspector, selection);
 
-	// The assign picker's options, hydrated by the watcher below.
+	// The assign picker's options, hydrated at mount and re-read on the catalogue's OWN
+	// subscription rather than on the plan's. The disposal matters for the reason it does at
+	// `PlanEditorRoot`'s `hydrate`: Obsidian reuses a view, so a listener outliving its Vue
+	// tree writes into a retired one.
 	const assetOptionsRef = ref<readonly { readonly id: string; readonly name: string }[]>([]);
-	watchAssetOptions(context, projectStore, assetOptionsRef);
+	const reloadAssetOptions = createAssetOptionsLoader(context, assetOptionsRef);
+	reloadAssetOptions();
+	onBeforeUnmount(context.onCatalogueChanged(reloadAssetOptions));
 
 	return {
 		dispatcher: wrappedDispatcher,

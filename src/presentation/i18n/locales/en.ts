@@ -14,6 +14,10 @@ export const en = {
 	'settings.project-folder.name': 'Default projects folder',
 	'settings.project-folder.desc':
 		'Vault folder where a new project’s folder is created. An existing project keeps the folder it is already in.',
+	'settings.library-folder.name': 'Library folder',
+	'settings.library-folder.current': 'Currently {folder}. Changing this moves the notes.',
+	'settings.library-folder.move.name': 'Move the library',
+	'settings.library-folder.move.desc': 'Choose a new folder and move the catalogue into it.',
 	'settings.verbose-logging.name': 'Verbose logging',
 	'settings.verbose-logging.desc': 'Show debug-level messages in the developer console. Everything stays on this device.',
 	'view.geometry.name': 'Geometry sidecar',
@@ -57,7 +61,6 @@ export const en = {
 	'editor.inspector.quantity-override.label': 'Override quantity for',
 	'editor.inspector.cost-override.label': 'Override cost for',
 	'editor.inspector.override.reset': 'Reset to calculated',
-	'entity.requirement.plural': 'Requirements',
 	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
 	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
@@ -130,8 +133,14 @@ export const en = {
 	'reference.no-reassignment-target': 'There is no other zone in this project to reassign these requirements to.',
 	'reference.self-reassign': 'References cannot be reassigned to the entry being deleted. Pick a different one.',
 	'reference.cross-project-reassign': 'References can only be reassigned within the same project.',
+	// The delete dialog's reference rows (slice 15 item 6), one row per project. TWO keys
+	// rather than one plus a hand-built separator: word order and the punctuation around an
+	// interpolated name are the translator's to choose ([[Multilanguage]]). The path form is
+	// used only for a group whose project name `ListRequirementsReferencing` found ambiguous
+	// among the groups it answered, and only when that project could be placed.
+	'reference.row.project': '{name}',
+	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'This asset is not measured by area, so a zone area cannot drive its quantity.',
-	'requirement.cross-project': 'A zone and an asset from different projects cannot be linked.',
 	'requirement.negative-quantity': 'A quantity cannot be negative.',
 	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`
 	// and a malformed money literal never reach a dispatch, so there is no raised code for
@@ -218,6 +227,12 @@ export const en = {
 	'empty.project.no-projects.action': 'Create a project',
 	'view.project.list-title': 'Renovation projects',
 	'view.project.create': 'New project',
+	// PRD §83's third enforcement site, and the only one with no door to refuse at: a
+	// project's folder is DERIVED from where its own note sits (ADR-0013), so a user moves
+	// it by dragging in Obsidian's file explorer and no command is dispatched. This row is
+	// the whole of what they are told, so it states the FACT rather than an instruction —
+	// the remedy is to move one of the two folders, and which one is theirs to decide.
+	'view.project.library-overlap': 'Overlaps the library folder',
 	// Design slice 16's creation form. Keyed by the exact `AppError.code` `Project.create`
 	// raises (`src/domain/project/Project.ts`) — never `error.project.<name>` — for the same
 	// reason the slice 10 block above states: `toUserMessage`'s exact-match lookup is
@@ -238,6 +253,32 @@ export const en = {
 	'project.unknown-status': 'Choose a status from the list.',
 	'project.target-before-start': 'Target completion must be on or after the start date.',
 	'project.invalid-date': 'Enter a real calendar date.',
+	// Slice 19's coded refusals. Keyed by the exact `AppError.code`, for the reason the slice
+	// 16 block above states: `toUserMessage`'s lookup is `error.code in en`, so an
+	// `error.`-prefixed key would never resolve and each of these would silently fall through
+	// to its category's generic sentence — which for the four below is "reading or writing the
+	// vault failed unexpectedly", false about a refusal that knows exactly what is wrong.
+	//
+	// The persist-failure sentence names the REMEDY rather than the fault, because its recovery
+	// is not the obvious one: the notes are already at the destination, so re-running the move
+	// moves nothing, and pointing the setting at where they now are is the fix.
+	'settings.library-folder-empty': 'A library folder cannot be empty.',
+	'settings.library-overlaps-project': 'That folder is inside a project folder, or contains one.',
+	'settings.library-overlaps-source': 'That folder overlaps the current library folder.',
+	'settings.library-source-case-mismatch':
+		'The library folder does not exist at the spelling this setting names, though a similarly named folder does. Rename that folder to match before moving.',
+	// The REFRESH failure is step 0's, and its sentence is the only one in this group that
+	// says nothing moved. Sharing the rebuild sentence below would have opened with "The
+	// catalogue moved" about a migration that had not started, and its remedy differs: a
+	// retry is exactly what may work here.
+	'settings.library-refresh-failed':
+		'The app could not catch up with the vault, so nothing was moved and the setting was not changed. Try again, or reload Obsidian.',
+	'settings.library-move-failed': 'The library could not be moved, so the setting was not changed.',
+	'settings.library-rebuild-failed':
+		'The catalogue moved, but the app could not catch up with the change. Reload Obsidian, then set the library folder to the new location.',
+	'settings.library-persist-failed':
+		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
+	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

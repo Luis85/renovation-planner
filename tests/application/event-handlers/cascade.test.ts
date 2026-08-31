@@ -74,7 +74,7 @@ async function wired() {
 	);
 	const asset = expectOk(
 		await assets.save(
-			makeAsset({ projectId: project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -140,7 +140,7 @@ describe('the recalculation cascade', () => {
 		if (!repriced.ok) throw new Error('unexpected failure');
 		const saved = expectOk(await w.assets.save(repriced.value, w.asset.version));
 		await w.events.publish(
-			assetUpdated({ assetId: saved.entity.id, projectId: saved.entity.projectId }),
+			assetUpdated({ assetId: saved.entity.id }),
 		);
 
 		const stored = expectOk(await w.requirements.getById(assigned.value.requirement.id));
@@ -176,7 +176,7 @@ describe('the recalculation cascade', () => {
 		});
 		await gone.assign.execute({ zoneId: gone.zone.entity.id, assetId: gone.asset.entity.id });
 		await gone.events.publish(
-			assetUpdated({ assetId: gone.asset.entity.id, projectId: gone.project.entity.id }),
+			assetUpdated({ assetId: gone.asset.entity.id }),
 		);
 
 		const faulted = await wired();
@@ -194,7 +194,7 @@ describe('the recalculation cascade', () => {
 		});
 		await faulted.assign.execute({ zoneId: faulted.zone.entity.id, assetId: faulted.asset.entity.id });
 		await faulted.events.publish(
-			assetUpdated({ assetId: faulted.asset.entity.id, projectId: faulted.project.entity.id }),
+			assetUpdated({ assetId: faulted.asset.entity.id }),
 		);
 
 		const named = events.filter((e) => e.name.startsWith('requirement.cascade-asset'));
@@ -216,7 +216,7 @@ describe('the recalculation cascade', () => {
 		const saved = expectOk(await w.assets.save(renamed.value, w.asset.version));
 
 		const before = expectOk(await w.requirements.listByAsset(saved.entity.id));
-		await w.events.publish(assetUpdated({ assetId: saved.entity.id, projectId: saved.entity.projectId }));
+		await w.events.publish(assetUpdated({ assetId: saved.entity.id }));
 		const after = expectOk(await w.requirements.listByAsset(saved.entity.id));
 
 		// Same revision AND same observed token: no write happened.

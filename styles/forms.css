@@ -137,6 +137,23 @@
  * on the status is what makes the name the half that gives.
  */
 .rp-project-list__name {
+	/*
+	 * THE NAME TAKES THE SLACK, so the status stays in a column.
+	 *
+	 * The row is `justify-content: space-between`, which distributes free space BETWEEN its
+	 * items — fine while there were two of them (name left, status right) and wrong the moment
+	 * design slice 19 added a third: the §83 marker took the right edge and the status floated
+	 * to wherever that row's own name length left it, so no two marked rows agreed where the
+	 * status sat and marked rows disagreed with unmarked ones. Read off `harness-shots/` at
+	 * 1280 and 460, which is the only instrument here that can see it.
+	 *
+	 * Growing the name puts the slack in ONE place instead, so the trailing items stay packed
+	 * at the right whatever a row carries. Identical to what `space-between` already produced
+	 * for a two-item row, which is why it is stated unconditionally rather than under a
+	 * `:has()` — a rule that only applies to marked rows would leave the two kinds of row
+	 * laid out by two different mechanisms.
+	 */
+	flex-grow: 1;
 	min-width: 0;
 	overflow: hidden;
 	white-space: nowrap;

@@ -105,3 +105,38 @@ describe('the German locale', () => {
 		expect(offenders, 'Vault is Obsidian’s own name and is not translated').toEqual([]);
 	});
 });
+
+/** Every `{name}`-shaped hole in a template, sorted so two lists compare by content alone. */
+const holesIn = (value: string): string[] => [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).toSorted();
+
+describe('interpolation', () => {
+	it('fills a hole from params', () => {
+		expect(t('en', 'reference.row.project', { name: 'Kitchen refit' })).toBe('Kitchen refit');
+	});
+
+	it('leaves an unmatched hole standing rather than blanking it', () => {
+		// A visible `{name}` is a bug report; an empty string is a silent one.
+		expect(t('en', 'reference.row.project', {})).toContain('{name}');
+	});
+
+	it('substitutes in ONE pass, so a value containing a hole is not re-substituted', () => {
+		// `reference.row.project-at-path` is `'{name} — {path}'`, and the `name` VALUE here is
+		// itself the literal `{path}`. One pass leaves it standing; an implementation that
+		// looped `replace` per parameter would fill `{name}` first and then find the `{path}`
+		// it had just written, substituting the folder into a project's own NAME. Nothing else
+		// in this file can tell the two apart — every other case has brace-free values, on
+		// which the two implementations agree exactly.
+		expect(t('en', 'reference.row.project-at-path', { name: '{path}', path: 'Vault/Library' }))
+			.toBe('{path} — Vault/Library');
+	});
+
+	it('is unchanged for a two-argument call', () => {
+		expect(t('en', 'view.project.list-title')).toBe(en['view.project.list-title']);
+	});
+
+	it('requires de.ts to name the same holes as en.ts, per key', () => {
+		for (const [key, german] of Object.entries(de) as [StringKey, string][]) {
+			expect(holesIn(german), `de.ts holes for ${key}`).toEqual(holesIn(en[key]));
+		}
+	});
+});

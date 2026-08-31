@@ -81,6 +81,7 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 			kind: 'requirement',
 			indexType: 'renovation-requirement',
 			notesFolder: folder === undefined ? undefined : requirementsFolderFor(folder),
+			projectId: (entity) => entity.projectId,
 			entryName: requirementFileName,
 			toPersistence: requirementToPersistence,
 			preWriteValid: (dto) => requirementFromPersistence({ ...dto }).ok,

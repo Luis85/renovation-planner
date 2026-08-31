@@ -188,7 +188,7 @@ describe('persistence composition', () => {
 		const refsAfterLoad = plugin.eventRefs.length;
 		const handlersAfterLoad = vaultHandlers.length;
 
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
+		await plugin.saveSettings({ units: 'imperial' });
 
 		expect(plugin.root.settings?.units).toBe('imperial');
 		expect(plugin.root.persistence).not.toBe(firstPersistence);
@@ -212,7 +212,7 @@ describe('persistence composition', () => {
 
 		const { plugin, workspace, vaultHandlers } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
 		workspace.layoutReady();
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
+		await plugin.saveSettings({ units: 'imperial' });
 
 		// A note that appears AFTER the save, delivered through the handler registered
 		// BEFORE it. A handler holding its adapter captured would file this into an index

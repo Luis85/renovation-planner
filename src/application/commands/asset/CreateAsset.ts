@@ -8,12 +8,10 @@ import type { AssetCategory } from '../../../domain/asset/AssetCategory';
 import { assetCreated } from '../../../domain/asset/Asset.events';
 import { of as moneyOf } from '../../../core/money/Money';
 import type { MeasurementUnit } from '../../../core/units/MeasurementUnit';
-import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Command } from '../Command';
 import type { AssetRepository } from '../../ports/AssetRepository';
 
 export interface CreateAssetInput {
-	readonly projectId: ProjectId;
 	readonly name: string;
 	readonly category: AssetCategory;
 	readonly unit: MeasurementUnit;
@@ -46,7 +44,6 @@ export class CreateAssetCommand
 		const unitCost = moneyOf(input.unitCostAmount, input.currency);
 		const asset = Asset.create({
 			id: createAssetId(),
-			projectId: input.projectId,
 			name: input.name,
 			category: input.category,
 			supplier: input.supplier ?? null,
@@ -61,7 +58,7 @@ export class CreateAssetCommand
 		const saved = await this.assets.save(asset.value, 'absent');
 		if (isErr(saved)) return saved;
 		await this.events.publish(
-			assetCreated({ assetId: saved.value.entity.id, projectId: saved.value.entity.projectId }),
+			assetCreated({ assetId: saved.value.entity.id }),
 		);
 		return ok(saved.value.entity);
 	}

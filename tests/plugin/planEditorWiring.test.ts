@@ -140,7 +140,7 @@ describe('the registered view factory', () => {
 		const { plugin } = await loadedPlugin();
 		const before = plugin.root.persistence?.planEditorQueries;
 
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere else' });
+		await plugin.saveSettings({ projectFolder: 'Somewhere else' });
 		const after = plugin.root.persistence?.planEditorQueries;
 
 		// The root really was replaced — otherwise the claim below is about nothing.

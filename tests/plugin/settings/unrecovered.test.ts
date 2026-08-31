@@ -96,7 +96,7 @@ describe('the two writers, refused independently', () => {
 	it('makes no saveData call for the whole session', async () => {
 		const { plugin } = await unrecovered();
 
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
+		await plugin.saveSettings({ units: 'imperial' });
 
 		expect(plugin.saved).toEqual([]);
 	});
@@ -198,7 +198,7 @@ describe('a file Obsidian could not parse, which it reports by resolving empty',
 	it('refuses both writers, exactly as a rejection does', async () => {
 		const { plugin, tab } = await unparseable();
 
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
+		await plugin.saveSettings({ units: 'imperial' });
 		await tab.setControlValue('units', 'imperial');
 
 		expect(plugin.saved).toEqual([]);
@@ -245,11 +245,15 @@ describe('a fresh install, which is the opposite outcome', () => {
 		const tab = plugin.settingTabs[0] as unknown as SettingsTab;
 
 		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS });
-		// Three controls: units, the slice-4 project folder (the one location field), and
-		// slice 11's verbose-logging toggle.
-		expect(tab.getSettingDefinitions()).toHaveLength(3);
+		// Five definitions, three of them controls: units, the slice-4 project folder (the one
+		// location field) and slice 11's verbose-logging toggle, plus slice 19's PAIR of
+		// library rows — one a name and a description that binds no control, because writing
+		// that setting without moving the notes first strands the catalogue, and one an action
+		// that runs the migration which moves them and persists the setting last.
+		expect(tab.getSettingDefinitions()).toHaveLength(5);
+		expect(tab.getSettingDefinitions().filter((item) => 'control' in item && item.control !== undefined)).toHaveLength(3);
 
-		await plugin.saveSettings({ ...DEFAULT_SETTINGS, units: 'imperial' });
+		await plugin.saveSettings({ units: 'imperial' });
 
 		expect(plugin.saved).toEqual([{ ...DEFAULT_SETTINGS, units: 'imperial' }]);
 	});

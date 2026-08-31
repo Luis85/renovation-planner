@@ -48,6 +48,14 @@ export interface PlanEditorDeps {
 	 * `domain/plan/Plan.events.ts`.
 	 */
 	readonly onPlanChanged: (planId: string, listener: () => void) => () => void;
+	/**
+	 * Subscribe to the domain events that mean "the vault's asset catalogue changed".
+	 *
+	 * Takes NO id, which is the whole difference from the door above: an Asset has belonged
+	 * to no project since design slice 19 and to no plan ever, so there is nothing to filter
+	 * on and every leaf wants the same unfiltered category.
+	 */
+	readonly onCatalogueChanged: (listener: () => void) => () => void;
 }
 
 /**
@@ -194,6 +202,8 @@ export class PlanEditorView extends ItemView {
 			vault: this.deps.vault,
 			onThemeChange: this.deps.onThemeChange,
 			onPlanChanged: (listener) => this.deps.onPlanChanged(planId, listener),
+			// Passed straight through rather than partially applied: there is no id to bind.
+			onCatalogueChanged: this.deps.onCatalogueChanged,
 			// NOT a `PlanEditorDeps` member: the composition root composes services and knows
 			// nothing about which leaf this is. The leaf is the VIEW's, so the view is what can
 			// close it.

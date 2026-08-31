@@ -223,12 +223,46 @@ export class FuzzySuggestModal<T> {
 		FuzzySuggestModal.opened.push(this as FuzzySuggestModal<unknown>);
 	}
 
+	/**
+	 * `Modal.close()` runs `onClose()`, and a fake that skipped it would make a subclass
+	 * treating that hook as "the user dismissed me" untestable — which is the only way a
+	 * promise-shaped picker can ever answer "nothing was chosen".
+	 */
 	close(): void {
 		this.isOpen = false;
+		this.onClose();
 	}
 
-	/** Stand-in for a user picking a row; the real class routes this through its list. */
+	onClose(): void {
+		// The real base class's hook is a no-op too; a subclass overrides it.
+	}
+
+	/**
+	 * Stand-in for a user picking a row; the real class routes this through its list AND
+	 * closes the modal afterwards, so this does both. A `choose` that left the modal open
+	 * would let a subclass settle twice with nothing here to notice.
+	 */
 	choose(item: T): void {
+		this.onChooseItem(item);
+		this.close();
+	}
+
+	/**
+	 * The SAME gesture in the other order, and it exists because modelling only the
+	 * convenient one is exactly the "kinder than the real thing" this file refuses.
+	 *
+	 * `SuggestModal.selectSuggestion` is widely believed to CLOSE before it delivers the
+	 * choice, and `obsidian.d.ts` states no ordering either way — so a subclass that treats
+	 * `onClose` as "the user dismissed me" is correct under one ordering and loses every
+	 * choice under the other. With only `choose()` above, a picker whose cancellation answer
+	 * was not deferred passed every case here while being wrong in a vault (measured: three
+	 * cases go red once this door exists and the deferral is removed).
+	 *
+	 * Both doors are kept deliberately: what a caller owes is order-INDEPENDENCE, which is a
+	 * claim about the pair rather than about either one.
+	 */
+	chooseAfterClose(item: T): void {
+		this.close();
 		this.onChooseItem(item);
 	}
 
@@ -291,6 +325,12 @@ export class Plugin {
 
 	addSettingTab(tab: PluginSettingTab): void {
 		this.settingTabs.push(tab);
+		// The real call populates `settingItems` here — `update()`'s own docblock says
+		// "called by addSettingTab() and by dynamic tabs when their data changes" — so a
+		// fake that only pushed would leave the rendered definitions empty until something
+		// happened to refresh them, and a test asserting a refresh could not tell the two
+		// apart.
+		tab.update();
 	}
 
 	registerView(type: string, factory: ViewFactory): void {
@@ -412,5 +452,22 @@ export class PluginSettingTab {
 		readonly app: unknown,
 		readonly plugin: unknown,
 	) {}
+
+	/**
+	 * What the pane is currently RENDERED from. Obsidian stores the result of
+	 * `getSettingDefinitions()` here and never re-reads it on its own, so a tab whose
+	 * underlying data changed shows the old definitions until it calls `update()` — which
+	 * is exactly the behaviour the library migration has to answer for, and which a fake
+	 * without this pair could not express at all.
+	 */
+	settingItems: unknown[] = [];
+
+	update(): void {
+		this.settingItems = this.getSettingDefinitions();
+	}
+
+	getSettingDefinitions(): unknown[] {
+		return [];
+	}
 }
 

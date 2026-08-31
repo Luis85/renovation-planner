@@ -16,8 +16,20 @@ import { de } from './locales/de';
 
 const LOCALES: Record<string, Partial<Record<StringKey, string>>> = { de };
 
-export function t(language: string, key: StringKey): string {
-	return LOCALES[language]?.[key] ?? en[key];
+/**
+ * One pass over the template filling `{name}` holes. An UNMATCHED hole is left standing as
+ * `{name}` rather than blanked: a visible hole is a bug report, an empty string is a silent
+ * one. `params` is optional, so every existing two-argument call is unchanged — which the
+ * compiler enforces rather than a sweep.
+ *
+ * ONE KEY PER LABEL, never a translated fragment concatenated with a name: word order and
+ * the punctuation around an interpolated name are the translator's to choose
+ * ([[Multilanguage]]).
+ */
+export function t(language: string, key: StringKey, params?: Readonly<Record<string, string>>): string {
+	const template = LOCALES[language]?.[key] ?? en[key];
+	if (params === undefined) return template;
+	return template.replace(/\{(\w+)\}/g, (hole, name: string) => params[name] ?? hole);
 }
 
 /**
@@ -43,6 +55,6 @@ export function currentLanguage(): string {
 }
 
 /** `t` in the app's own language. */
-export function tr(key: StringKey): string {
-	return t(currentLanguage(), key);
+export function tr(key: StringKey, params?: Readonly<Record<string, string>>): string {
+	return t(currentLanguage(), key, params);
 }

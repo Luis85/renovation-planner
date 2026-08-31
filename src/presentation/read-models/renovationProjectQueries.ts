@@ -82,8 +82,15 @@ export function createRenovationProjectQueries(
 		async listProjects() {
 			const found = await listProjects.execute();
 			if (isErr(found)) return found;
+			// A SET rather than `overlapping.includes(...)` per row: the query answers a list
+			// of ids and the mapping asks one question per project, which is quadratic on a
+			// vault with many projects for no reason — and the set is built once per read, so
+			// it cannot drift from the list it came from the way a second lookup could.
+			const overlapping = new Set<string>(found.value.overlapping);
 			return ok({
-				projects: found.value.projects.map(toProjectSummaryDto),
+				projects: found.value.projects.map((project) =>
+					toProjectSummaryDto(project, overlapping.has(project.id)),
+				),
 				unreadable: found.value.unreadable,
 			});
 		},

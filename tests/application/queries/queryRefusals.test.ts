@@ -6,6 +6,8 @@ import { ListAssets } from '../../../src/application/queries/ListAssets';
 import { ListRequirementsReferencing } from '../../../src/application/queries/ListRequirementsReferencing';
 import { ListReassignmentTargets } from '../../../src/application/queries/ListReassignmentTargets';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
+import type { RequirementRepository } from '../../../src/application/ports/RequirementRepository';
+import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { expectErr, expectFound, expectOk } from '../../helpers/domain';
 import { makeAsset, makeZone } from '../../helpers/entities';
 import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
@@ -24,6 +26,20 @@ function overridePort<T extends object>(inner: T, patch: Record<string, unknown>
 	return Object.assign(Object.create(Object.getPrototypeOf(inner)), inner, patch) as T;
 }
 
+/**
+ * Slice 19's grouping gave this query two more collaborators. Neither is reached on the
+ * arm under test here — the requirement listing fails before any project is named — so
+ * they are supplied as the narrowest things that satisfy the signature, and the grouping's
+ * own behaviour is asserted in `listRequirementsReferencing.test.ts`.
+ */
+function referencingQuery(requirements: RequirementRepository): ListRequirementsReferencing {
+	return new ListRequirementsReferencing(
+		requirements,
+		new InMemoryProjectRepository(),
+		() => undefined,
+	);
+}
+
 async function wiredWithLink() {
 	const w = await requirementFixture();
 	const zoneEntity = expectOk(
@@ -38,7 +54,7 @@ async function wiredWithLink() {
 	);
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -158,9 +174,9 @@ describe('picker query refusals', () => {
 	it('ListAssets propagates a failed listing', async () => {
 		const w = await wiredWithLink();
 		const assets = overridePort(w.assets, {
-			listByProject: () => Promise.resolve(err(injectedPersistenceError())),
+			listAll: () => Promise.resolve(err(injectedPersistenceError())),
 		});
-		const error = expectErr(await new ListAssets(assets).execute(w.project.entity.id));
+		const error = expectErr(await new ListAssets(assets).execute());
 		expect(error.code).toBe('test.injected-failure');
 	});
 
@@ -170,7 +186,7 @@ describe('picker query refusals', () => {
 			listByZone: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const zoneError = expectErr(
-			await new ListRequirementsReferencing(failingZones).execute({ kind: 'zone', zoneId: w.zoneId }),
+			await referencingQuery(failingZones).execute({ kind: 'zone', zoneId: w.zoneId }),
 		);
 		expect(zoneError.code).toBe('test.injected-failure');
 
@@ -178,7 +194,7 @@ describe('picker query refusals', () => {
 			listByAsset: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const assetError = expectErr(
-			await new ListRequirementsReferencing(failingAssets).execute({ kind: 'asset', assetId: w.assetId }),
+			await referencingQuery(failingAssets).execute({ kind: 'asset', assetId: w.assetId }),
 		);
 		expect(assetError.code).toBe('test.injected-failure');
 	});
@@ -212,14 +228,15 @@ describe('picker query refusals', () => {
 		expect(zoneListError.code).toBe('test.injected-failure');
 
 		const assetsListFailing = overridePort(w.assets, {
-			listByProject: () => Promise.resolve(err(injectedPersistenceError())),
+			listAll: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const assetListError = expectErr(
 			await new ListReassignmentTargets(w.zones, assetsListFailing).execute({ kind: 'asset', assetId: w.assetId }),
 		);
 		expect(assetListError.code).toBe('test.injected-failure');
 
-		// An unknown entity has no project to list targets FROM: empty, not an error.
+		// An unknown entity is not there to be excluded from its own target list, and the
+		// zone case has no project to list from either: empty, not an error.
 		const unknownZone = expectOk(await targets.execute({ kind: 'zone', zoneId: 'zone-none' as never }));
 		expect(unknownZone).toEqual([]);
 		const unknownAsset = expectOk(await targets.execute({ kind: 'asset', assetId: 'asset-none' as never }));

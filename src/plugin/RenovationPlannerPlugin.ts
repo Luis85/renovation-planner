@@ -24,7 +24,7 @@ import {
 	type VaultStack,
 } from './composition-root';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
-import { isDataAbsent, settingsFrom, type RenovationPlannerSettings } from './settings/settings';
+import { isDataAbsent, settingsFrom, type RenovationPlannerSettings, type SettingsPatch } from './settings/settings';
 import { SettingsTab } from './settings/SettingsTab';
 import { SequenceMarkerFileStore } from '../infrastructure/obsidian/plugin-data/SequenceMarkerFileStore';
 import { recoverInterruptedSequences } from '../application/reference/recoverInterruptedSequences';
@@ -36,6 +36,15 @@ import { recoverInterruptedSequences } from '../application/reference/recoverInt
  * everything still stays in the local console (SDD §67).
  */
 const LOG_LEVEL: LogLevel = 'info';
+
+/**
+ * The settings write chain's own tail handler, and ONE function for both arms deliberately:
+ * whether the write before it resolved or rejected, the chain carries on. A rejection is
+ * the caller's to see on the promise it was handed, never the next writer's to inherit.
+ */
+function swallow(): void {
+	return undefined;
+}
 
 /**
  * The plugin shell: the layer allowed to reach every other one — it composes them (SDD §9,
@@ -276,17 +285,121 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
-	 * The one write path for settings, so no control has to know how they are persisted.
-	 * `saveData` replaces the whole file, which is why this takes the complete next settings
-	 * object rather than a patch — and why the root is REPLACED rather than mutated: its
-	 * fields are readonly, so there is exactly one way state changes here.
+	 * The tail of the settings write chain, so that no two settings writes are ever in
+	 * flight together.
+	 *
+	 * There are two write doors and they take opposite orderings around their own
+	 * `saveData` — see `persistLibraryFolder` — which is exactly why they must not overlap:
+	 * `persistLibraryFolder` leaves `this.root.settings` naming the SOURCE folder for the
+	 * whole length of its write, and every other control in the settings pane is live
+	 * throughout it. A write composed in that window carries the stale `libraryFolder`, and
+	 * landing after ours it puts the source back into `data.json` while the session runs on
+	 * the destination — a catalogue split in two, which is the outcome the persist-last
+	 * ordering exists to prevent, reached by a different route.
+	 *
+	 * Never rejected: each successor swallows, so a failing write cannot wedge the chain for
+	 * the rest of the session. The caller still sees its own rejection, because that is the
+	 * promise this hands back rather than the one it stores.
 	 */
-	saveSettings(next: RenovationPlannerSettings): Promise<void> {
-		// Refused for the whole SESSION, not only at bootstrap: a transient read failure
-		// must not stamp defaults over a `data.json` that is sitting there intact. The tab
-		// is the other writer and is guarded independently (`getSettingDefinitions`).
-		if (this.root.settings === null) return Promise.resolve();
+	private settingsWrites: Promise<void> = Promise.resolve();
 
+	/**
+	 * Queue one settings write, and — the half serialization alone does not buy — compose it
+	 * INSIDE the chain.
+	 *
+	 * Serializing is not sufficient on its own: a write whose settings object was built
+	 * before the migration persisted still carries the folder the catalogue has left,
+	 * however carefully it is ordered afterwards. So a caller hands over a function rather
+	 * than an object, and it runs against the state current at the moment it writes.
+	 */
+	private queueSettingsWrite(write: () => Promise<void>): Promise<void> {
+		const result = this.settingsWrites.then(write);
+		this.settingsWrites = result.then(swallow, swallow);
+		return result;
+	}
+
+	/**
+	 * The one write path for settings, so no control has to know how they are persisted.
+	 * `saveData` replaces the whole file, and the root is REPLACED rather than mutated — its
+	 * fields are readonly, so there is exactly one way state changes here.
+	 *
+	 * It takes a PATCH and composes the rest at execution time, which is the half
+	 * serialization alone does not buy. A caller handing over a complete settings object
+	 * hands over a SNAPSHOT, and a snapshot is stale for as long as any other write is in
+	 * flight — so two controls changed before the queue drains lost the earlier one
+	 * outright, and one changed during a library move replayed the folder the catalogue had
+	 * just left. Both are the same defect, and taking the whole object from `this.root` at
+	 * the moment of the write is the one shape that closes them together.
+	 *
+	 * `settingsFrom` is still the gate: it drops a key this version does not declare and
+	 * falls back on a value outside the vocabulary, so a patch is validated exactly as a
+	 * whole object was.
+	 */
+	saveSettings(patch: SettingsPatch): Promise<void> {
+		return this.queueSettingsWrite(async () => {
+			// Refused for the whole SESSION, not only at bootstrap: a transient read failure
+			// must not stamp defaults over a `data.json` that is sitting there intact. The tab
+			// is the other writer and is guarded independently (`getSettingDefinitions`).
+			const current = this.root.settings;
+			if (current === null) return;
+
+			const composed = settingsFrom({ ...current, ...patch, libraryFolder: current.libraryFolder });
+			this.applySettings(composed);
+			await this.saveData(composed);
+		});
+	}
+
+	/**
+	 * The library folder's write door, and it is a SEPARATE method rather than a call to
+	 * `saveSettings` for one reason: the order.
+	 *
+	 * `saveSettings` swaps the composition root and rebinds the views BEFORE its own
+	 * `saveData` settles, which is right for a preference — the pane's control has already
+	 * shown the new value — and destructive here. A rejecting write would leave the running
+	 * session composed against the DESTINATION while `data.json` still named the SOURCE, and
+	 * the remedy `settings.library-persist-failed` names ("set the library folder to the new
+	 * location") cannot be applied, because the library row binds no control. A restart would
+	 * then compose against the source and write new catalogue entries there, splitting the
+	 * catalogue in two — the outcome that failure arm exists to prevent rather than cause.
+	 *
+	 * So: write the file, and only then swap. If the write rejects, nothing has been swapped
+	 * and the session is still coherent with the file — the notes are at the destination and
+	 * the setting is not, which is exactly the state the error's copy describes.
+	 */
+	persistLibraryFolder(libraryFolder: string): Promise<void> {
+		// On the same chain as `saveSettings`, and composed inside it for the same reason:
+		// this door's whole hazard is the window between its `saveData` and its root swap,
+		// and a write queued behind it must read the settings that swap leaves behind.
+		return this.queueSettingsWrite(async () => {
+			// The same guard `saveSettings` carries, for the same whole-session reason: a
+			// transient read failure must not stamp defaults over a `data.json` sitting there
+			// intact.
+			const current = this.root.settings;
+			if (current === null) return;
+
+			const next = settingsFrom({ ...current, libraryFolder });
+			await this.saveData(next);
+			this.applySettings(next);
+		});
+	}
+
+	/**
+	 * The Project Index rebuild, as a door the library migration can reach: it moves notes
+	 * out from under an index that still names their old paths, and the rebuild is what
+	 * makes the session agree with the vault BEFORE the setting is written. The same step
+	 * `applySettings` takes after a root swap, so there is one rebuild and not two spellings
+	 * of one.
+	 */
+	rebuildProjectIndex(): void {
+		this.startPersistence();
+	}
+
+	/**
+	 * Everything a settings change does to the RUNNING session, with no write in it. Both
+	 * write doors call this; what differs is which side of their own `saveData` they call it
+	 * on, which is the whole of `persistLibraryFolder`'s reason to exist.
+	 */
+	private applySettings(next: RenovationPlannerSettings): void {
 		// The verbose-logging floor is re-applied HERE, not only at load: a toggle in the
 		// pane takes effect immediately, in both directions, without a plugin reload.
 		this.logger.setLevel(next.verboseLogging ? 'debug' : LOG_LEVEL);
@@ -307,7 +420,6 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// to correct itself. Rebinding second means each view mounts once, against an index
 		// that is already populated.
 		this.rebindOpenViews();
-		return this.saveData(next);
 	}
 
 	/** ONE spelling of the Renovation Project view's bundle, for the factory and the rebind. */

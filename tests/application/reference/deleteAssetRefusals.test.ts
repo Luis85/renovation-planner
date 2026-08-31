@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
 import { err } from '../../../src/core/result/Result';
 import { DeleteAssetCommand } from '../../../src/application/commands/asset/DeleteAsset';
+import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import { expectErr, expectOk } from '../../helpers/domain';
@@ -41,7 +42,7 @@ async function wiredAssetWithLink() {
 	);
 	const assetEntity = expectOk(
 		await w.assets.save(
-			makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+			makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 			'absent',
 		),
 	);
@@ -134,27 +135,11 @@ describe('DeleteAssetCommand closure refusals', () => {
 		expect(error.code).toBe('test.injected-failure');
 	});
 
-	it('refuses a cross-project reassignment target', async () => {
-		const w = await wiredAssetWithLink();
-		const foreign = expectOk(
-			await w.assets.save(makeAsset({ projectId: 'project-other' as never }), 'absent'),
-		);
-		const error = expectErr(
-			await w.command.execute({
-				assetId: w.assetId,
-				resolution: 'reassign',
-				reassignTo: foreign.entity.id,
-				resolvedReferents: [],
-			}),
-		);
-		expect(error.code).toBe('reference.cross-project-reassign');
-	});
-
 	it('the repoint refuses when the requirement vanished between listing and writing', async () => {
 		const w = await wiredAssetWithLink();
 		const replacement = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			),
 		);
@@ -194,7 +179,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 		const w = await wiredAssetWithLink();
 		const replacement = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			),
 		);
@@ -232,7 +217,7 @@ describe('DeleteAssetCommand closure refusals', () => {
 		const w = await wiredAssetWithLink();
 		const replacement = expectOk(
 			await w.assets.save(
-				makeAsset({ projectId: w.project.entity.id, wasteFactorDefault: new Decimal('0.10') }),
+				makeAsset({ wasteFactorDefault: new Decimal('0.10') }),
 				'absent',
 			),
 		);
@@ -337,5 +322,76 @@ describe('DeleteAssetCommand closure refusals', () => {
 			}),
 		);
 		expect(error.code).toBe('test.injected-failure');
+	});
+});
+
+/**
+ * Design slice 19 deleted the ASSET half of `reference.cross-project-reassign` and kept the
+ * ZONE half, because an Asset stopped belonging to a project and a Zone did not. Both halves
+ * are asserted HERE, in one file, because a later reader looking at either alone would read
+ * the asymmetry as an oversight and tidy it back into symmetry — which is exactly what
+ * design slice 10's rewritten criterion predicted somebody would do.
+ */
+describe('the reassignment-target project rule is asymmetric', () => {
+	it('accepts an asset reassignment target the deleted asset shares no project with', async () => {
+		const w = await wiredAssetWithLink();
+		// Through design slice 18 this was "an asset from another project" and was refused.
+		// There is no other project to be from now: one library serves every project.
+		const other = expectOk(
+			await w.assets.save(
+				makeAsset({ name: 'Cheaper tile', wasteFactorDefault: new Decimal('0.10') }),
+				'absent',
+			),
+		);
+
+		expectOk(
+			await w.command.execute({
+				assetId: w.assetId,
+				resolution: 'reassign',
+				reassignTo: other.entity.id,
+				resolvedReferents: [w.requirementId],
+			}),
+		);
+
+		const repointed = expectOk(await w.requirements.getById(w.requirementId));
+		expect(repointed?.entity.assetId).toBe(other.entity.id);
+	});
+
+	it('still refuses a ZONE reassignment target from another project', async () => {
+		const w = await requirementFixture();
+		const zoneA = expectOk(
+			await w.zones.save(
+				expectOk(
+					makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }).withGeometry({
+						points: TEN_SQUARE_METERS,
+					}),
+				),
+				'absent',
+			),
+		);
+		const foreignZone = expectOk(
+			await w.zones.save(
+				makeZone({ projectId: 'project-other' as never, planId: w.plan.entity.id }),
+				'absent',
+			),
+		);
+		const deleteZone = new DeleteZoneCommand({
+			zones: w.zones,
+			requirements: w.requirements,
+			recalculate: w.recalculate,
+			events: w.events,
+			locks: w.locks,
+			logger: silentLogger(),
+		});
+
+		const error = expectErr(
+			await deleteZone.execute({
+				zoneId: zoneA.entity.id,
+				resolution: 'reassign',
+				reassignTo: foreignZone.entity.id,
+				resolvedReferents: [],
+			}),
+		);
+		expect(error.code).toBe('reference.cross-project-reassign');
 	});
 });

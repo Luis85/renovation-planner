@@ -315,6 +315,40 @@ describe('ViewRoot in the detail state', () => {
 	});
 
 	/**
+	 * The same refusal, asked about the pane rather than about the call — and it is the FAILURE
+	 * path of the case above rather than a second view of its happy one.
+	 *
+	 * `navigate` is a spy here exactly as it is there, which means no remount ever happens: in
+	 * production that is what a `setViewState` fault looks like, `navigateToProject` having
+	 * reported the cause and resolved without moving the leaf. The case above asserts the call
+	 * and the notice and stops, so it passed while the pane behind the dialog still drew the
+	 * project the command had just refused to write to — and cancelling the form returned the
+	 * user to that stale `'ready'` state, with the `'gone'` screen this slice built for exactly
+	 * this situation unreachable.
+	 *
+	 * Watched red against the build that navigated straight out of `onProjectGone`: it draws
+	 * `.rp-project-detail__name` there, because nothing ever moved the status off `'ready'`.
+	 * `getProject` is deliberately left answering the project SUCCESSFULLY, which is the whole
+	 * discriminator — a fix that re-read instead of settling the status would be handed
+	 * `'ready'` by a stale index and pass the notice-and-call case while failing this one.
+	 * Reported by a review bot.
+	 */
+	it('shows the gone screen when the redirect does not remount the leaf', async () => {
+		const wrapper = mountRoot({
+			projectId: 'project-1',
+			navigate: vi.fn<(projectId: string | null) => void>(),
+			createPlan: () =>
+				Promise.resolve(err({ category: 'Reference', code: 'plan.project-not-found', message: 'x' })),
+		});
+		await flushPromises();
+
+		await openTheFormAndSubmit(wrapper, 'Ground floor');
+
+		expect(wrapper.find('.rp-project-detail__name').exists()).toBe(false);
+		expect(wrapper.get('.rp-empty-state__headline').text()).toBe(t('en', 'view.project.gone'));
+	});
+
+	/**
 	 * A failed read STAYS on the detail and shows the mapped sentence — it does not navigate.
 	 * Navigating on a failure would tell a user their project was deleted because their vault
 	 * hiccuped.

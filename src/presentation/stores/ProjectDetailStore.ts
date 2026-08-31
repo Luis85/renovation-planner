@@ -120,6 +120,37 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	}
 
 	/**
+	 * `'gone'` settled from a COMMAND's refusal rather than discovered by a read.
+	 *
+	 * `CreatePlanCommand` answers `plan.project-not-found` when the project this state is about
+	 * was deleted from under an open form, and that is a STRONGER statement than any re-read
+	 * can make: the index may not have caught up, so `hydrate` could still answer `'ready'` and
+	 * leave the user on a project the command has just refused to write to. Asking the read to
+	 * rediscover what the write already knows is the weaker of the two, and it fails in the
+	 * direction that strands somebody.
+	 *
+	 * It takes a hydration ticket for the reason `reset` does — a read that started BEFORE the
+	 * refusal must not settle `'ready'` after it — and it clears the content for the reason
+	 * `fail` does, since a store holding a project it has just declared gone is a store that
+	 * disagrees with itself.
+	 *
+	 * The navigation is deliberately NOT here. `ProjectDetailState`'s `'gone'` watcher is the
+	 * one door out of this state, and a second one beside it is what that component's own
+	 * `onCreatePlan` rule refuses ("one handler, never two independently-decided ways"). It
+	 * also makes the fallback reachable: when the redirect's own `setViewState` faults and no
+	 * remount happens, the pane is already `'gone'` and draws the screen that says so, instead
+	 * of a stale `'ready'` project. Reported by a review bot, which found the stale-`'ready'`
+	 * half by reading the failure path this repository had only ever driven on its happy one.
+	 */
+	function markGone(): void {
+		latestHydration += 1;
+		project.value = null;
+		plans.value = [];
+		error.value = null;
+		status.value = 'gone';
+	}
+
+	/**
 	 * Structurally gated on `'ready'`, so a failed or missing read is literally unreachable
 	 * from an empty state rather than merely unreached by convention.
 	 */
@@ -142,5 +173,5 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 		status.value = 'idle';
 	}
 
-	return { project, plans, status, error, emptyStateKey, hydrate, reset };
+	return { project, plans, status, error, emptyStateKey, hydrate, markGone, reset };
 });

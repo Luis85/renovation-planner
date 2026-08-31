@@ -180,7 +180,12 @@ async function onCreatePlan(): Promise<void> {
 				// below destroys the form a banner would have lived in — and slice 13's queue
 				// renders on `document.body`, so it outlives the remount.
 				notifyWarning(tr('view.project.gone'));
-				context.navigate(null);
+				// `markGone` rather than `context.navigate(null)` directly, and the store's own
+				// docblock carries the argument: this settles the state the command is
+				// authoritative about and lets the `'gone'` watcher above be the ONE door out,
+				// so a redirect whose `setViewState` faults leaves the pane on the screen that
+				// explains itself rather than on a stale `'ready'` project.
+				detail.markGone();
 			},
 		},
 		busy: newPlanBusy,

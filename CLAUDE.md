@@ -2879,7 +2879,13 @@ measured, six such files timed out in one run and every one of them passed on a
 file count on that re-run. No subtree of `tests/` has that many files, so the figure was
 unverifiable and is gone rather than replaced by a second guess.) A parallelism artifact, not a broken gate
 — so re-run serially before believing a `beforeAll` timeout in that directory, and count the
-cost of the next ESLint-booting test file against it.
+cost of the next ESLint-booting test file against it. **Serial is the diagnostic, not the
+remedy, and the difference is measured rather than assumed**: the twelve files that boot an
+instance run in about 30s under default parallelism and about 60s under
+`--no-file-parallelism` on a two-core container, so making the serial run the default costs
+exactly double. The contention is real and the obvious fix for it is worse than the problem;
+a lever that helps would have to reduce the number of BOOTS, which cross-worker sharing
+cannot do because each test file gets its own module registry.
 
 **It does not prevent the edit and it does not roll one back**, and every description of it
 has to say so. `PostToolUse` runs AFTER the tool has written the file — Claude Code's own
@@ -3344,6 +3350,20 @@ that was fixing the previous instance.
 - **Measure a set with an instrument that can see all of it, and test the instrument
   first.** A grep for `foo(` misses `foo<T>(`. Both happened there, and both times the wrong
   count was already being used as the evidence for a decision.
+- **A static-analysis category is a LENS, not a census**, which is the rule above met from
+  the direction where the instrument is somebody else's. `private-type-leak` reports an
+  exported signature naming a private type, so when `type DispatchResult` turned out to be
+  declared byte-identically in SEVEN places, it showed the TWO whose alias reached an
+  exported signature and was silent about the five that did not — and one line is under the
+  clone detector's floor, so nothing else could see them either. The other five turned up
+  only because clearing those two meant grepping for the SHAPE. A tool answers the question
+  it was written to ask; the count it returns is not the size of the thing it points at.
+- **A tool's suggested fix is a hypothesis.** Fallow's first action on a `private-type-leak`
+  is "export the referenced private type by name", and it was wrong twice in nineteen: on
+  `Routed` it would have destroyed the `unique symbol` access lock three `@ts-expect-error`
+  directives exist to prove, and on `ReversibleOverrideBase` it traded two leaks for an
+  `unused-exports` finding — the report contradicting ITSELF, visible only by making the
+  change and re-running.
 - **A docblock that says "the only place X" gets a `grep` in the SAME edit**, and the
   sentence is then written from what the grep printed. Slice 11's review rounds counted
   eleven sentences promising a category where the code held a list — three of them

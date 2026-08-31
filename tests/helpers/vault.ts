@@ -557,6 +557,9 @@ export function createRepositoryStack(projectFolder = 'Renovation', libraryFolde
 	const fileManager = new FakeFileManager(vault);
 	const metadataCache = new FakeMetadataCache(vault);
 	const base = stackFoundation({ vault, fileManager, metadataCache }, projectFolder);
+	// Before the asset repository, which takes it: an asset DELETE owns the note and the
+	// geometry sidecar together.
+	const assetGeometry = new AssetGeometryStore(vault as never, fileManager as never, libraryFolder, base.echo);
 
 	return {
 		vault,
@@ -566,9 +569,9 @@ export function createRepositoryStack(projectFolder = 'Renovation', libraryFolde
 		projects: new ObsidianProjectRepository(base.deps, projectFolder, libraryFolder),
 		plans: new ObsidianPlanRepository(base.deps, base.store),
 		zones: new ObsidianZoneRepository(base.deps, base.store),
-		assets: new ObsidianAssetRepository(base.deps, libraryFolder),
+		assets: new ObsidianAssetRepository(base.deps, libraryFolder, assetGeometry),
 		requirements: new ObsidianRequirementRepository(base.deps),
-		assetGeometry: new AssetGeometryStore(vault as never, libraryFolder, base.echo),
+		assetGeometry,
 		libraryFolder,
 	};
 }

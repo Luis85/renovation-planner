@@ -557,6 +557,9 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 	const metadataCache = new FixtureMetadataCache(vault);
 	const fileManager = new FixtureFileManager(vault);
 	const base = stackFoundation({ vault, fileManager, metadataCache }, DEFAULT_PROJECT_FOLDER);
+	// Before the asset repository, which takes it: an asset DELETE owns the note and the
+	// geometry sidecar together.
+	const assetGeometry = new AssetGeometryStore(vault as never, fileManager as never, DEFAULT_LIBRARY_FOLDER, base.echo);
 
 	// The five repositories are constructed here rather than inside `stackFoundation`, for the
 	// reason `createRepositoryStack`'s own docblock measures: fallow cannot resolve a class's
@@ -570,9 +573,9 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		projects: new ObsidianProjectRepository(base.deps, DEFAULT_PROJECT_FOLDER, DEFAULT_LIBRARY_FOLDER),
 		plans: new ObsidianPlanRepository(base.deps, base.store),
 		zones: new ObsidianZoneRepository(base.deps, base.store),
-		assets: new ObsidianAssetRepository(base.deps, DEFAULT_LIBRARY_FOLDER),
+		assets: new ObsidianAssetRepository(base.deps, DEFAULT_LIBRARY_FOLDER, assetGeometry),
 		requirements: new ObsidianRequirementRepository(base.deps),
-		assetGeometry: new AssetGeometryStore(vault as never, DEFAULT_LIBRARY_FOLDER, base.echo),
+		assetGeometry,
 		// `projectFolder` arrives through `base`; the library root does not, because slice 19
 		// gave it to the two repositories that write into it rather than to the foundation.
 		libraryFolder: DEFAULT_LIBRARY_FOLDER,

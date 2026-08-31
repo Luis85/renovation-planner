@@ -1,4 +1,4 @@
-import { TFile, type Vault } from 'obsidian';
+import { TFile, type FileManager, type Vault } from 'obsidian';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { EntityVersion } from '../../../application/ports/versioning';
@@ -83,12 +83,53 @@ export class AssetGeometryStore {
 
 	constructor(
 		private readonly vault: Vault,
+		private readonly fileManager: FileManager,
 		private readonly libraryFolder: string,
 		private readonly echo: EchoWindow,
 	) {}
 
 	read(assetId: AssetId): Promise<Result<AssetSidecarSnapshot, RepositoryError>> {
 		return this.queues.run(`asset:${assetId}`, () => this.readUnlocked(assetId));
+	}
+
+	/**
+	 * Asset-DELETE path only: removes the file, and an ABSENT file is still success — the
+	 * ordinary state of an asset nobody has designed, which is the same sentence `read`
+	 * answers with an empty document rather than a refusal.
+	 *
+	 * **No `pathHint`, and that is where the mirror of `PlanGeometryStore.delete` stops.**
+	 * Both of its call sites pass one and their reasons are different, and BOTH are reasons
+	 * about the INDEX: the plan-insert rollback has no mapping yet (it is upserted only on
+	 * success), and the plan delete captures the path before trashing the note because the
+	 * note's own delete event can clear the mapping mid-operation. `pathFor` DERIVES
+	 * (see its docblock), so neither failure exists here — there is nothing to go stale
+	 * between the caller's decision and this lookup. An optional parameter would be a
+	 * second, unreachable answer to a question with one.
+	 *
+	 * Inside the asset's own queue, so a delete cannot interleave with the read-modify-write
+	 * of a design gesture on the same asset.
+	 *
+	 * **What this makes UNRECOVERABLE, and it costs nothing today because the path does not
+	 * exist.** `undoDeleteResolution` has exactly one caller
+	 * (`reversible-delete-zone-command.ts`) — measured, not assumed — so no undo of an asset
+	 * deletion exists to be made lossy. The day one does, restoring the note is no longer the
+	 * inverse of deleting it: whoever writes it owes this file's CONTENT, snapshotted before
+	 * the removal, the way `ReversibleDeleteZone` owes the geometry entry it takes out.
+	 * Until then a deleted design is gone with the asset, which is what a delete means.
+	 */
+	delete(assetId: AssetId): Promise<Result<void, RepositoryError>> {
+		return this.queues.run(`asset:${assetId}`, async () => {
+			const path = this.pathFor(assetId);
+			const file = this.vault.getAbstractFileByPath(path);
+			if (!(file instanceof TFile)) return ok(undefined);
+			try {
+				await this.fileManager.trashFile(file);
+			} catch (cause) {
+				return err(persistenceError('asset-geometry.delete-failed', `Could not delete sidecar ${path}.`, cause));
+			}
+			this.echo.forget(path);
+			return ok(undefined);
+		});
 	}
 
 	/**

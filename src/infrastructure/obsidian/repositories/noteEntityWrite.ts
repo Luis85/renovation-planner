@@ -16,6 +16,7 @@ import {
 	frontmatterOf,
 	openNoteById,
 	persistenceError,
+	restoreNoteText,
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from './noteIo';
@@ -142,24 +143,86 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 	});
 }
 
-/** A missing note fails the conditional delete the same way a stale revision does. */
+/**
+ * The per-kind facts of a delete. One object rather than two more positional arguments
+ * because `max-params` is five and `deps`, `kind`, `id` and `expected` already fill it —
+ * and because these two travel together: a kind that owns a second file owes a code for
+ * the refusal that removing it can produce.
+ */
+export interface NoteDeleteSpec {
+	readonly deleteFailedCode: string;
+	/**
+	 * A SECOND file this entity's delete owns, removed AFTER the note is trashed and BEFORE
+	 * the index entry goes — `ObsidianPlanRepository.delete`'s order, at the second door
+	 * that now has two files to keep consistent. Absent for a kind whose note is the whole
+	 * of it (a Requirement).
+	 *
+	 * **Note first, and the ordering is the decision rather than an accident of which line
+	 * came first.** Removing the sidecar first would need no compensation at all — nothing
+	 * has been deleted when it refuses — and its OTHER failure is the one that decides:
+	 * a sidecar gone with the note's trash then refusing leaves an entity whose geometry has
+	 * been destroyed and which reports nothing, because an absent asset sidecar reads as a
+	 * shapeless asset rather than as an error (`AssetGeometryStore`). Note-first trades that
+	 * silent loss for a failure this function can undo.
+	 */
+	readonly alsoRemove?: () => Promise<Result<void, RepositoryError>>;
+}
+
+/**
+ * A missing note fails the conditional delete the same way a stale revision does.
+ *
+ * Where `spec.alsoRemove` is given, the note's bytes are snapshotted BEFORE anything is
+ * deleted and restored when that second removal refuses, so a failed `Result` never means
+ * "partly done" (SDD §42). The index entry survives such a refusal untouched, which is what
+ * keeps the restored note READABLE — every read here resolves through the index, so
+ * removing the entry first and putting the file back afterwards would leave a note on disk
+ * that nothing can find.
+ */
 export async function trashNoteBackedEntity(
 	deps: NoteVaultDeps,
 	kind: DiagnosticEntityKind,
 	id: EntityId<string>,
-	deleteFailedCode: string,
 	expected: EntityVersion,
+	spec: NoteDeleteSpec,
 ): Promise<Result<void, RepositoryError>> {
 	const opened = openNoteById(deps, kind, id);
 	if (opened.status === 'missing') return err(revisionConflict(kind, id));
 	if (opened.status === 'error') return err(opened.error);
 	const conflict = checkExpectedVersion(kind, id, versionOfFrontmatter(opened.raw), expected);
 	if (conflict) return err(conflict);
+
+	const notePath = opened.file.path;
+	// Only where there is something to compensate FOR. A kind with no second file could
+	// never reach `restoreNoteText` below, so reading its note would add a failure mode to a
+	// delete that has no use for what the read returns. The empty default is never READ:
+	// `alsoRemove` gates both the assignment and the only site that consumes it.
+	let noteText = '';
+	if (spec.alsoRemove) {
+		try {
+			noteText = await deps.vault.read(opened.file);
+		} catch (cause) {
+			return err(persistenceError(spec.deleteFailedCode, `Could not read ${kind} note ${notePath}.`, cause));
+		}
+	}
+
 	try {
 		await deps.fileManager.trashFile(opened.file);
 	} catch (cause) {
-		return err(persistenceError(deleteFailedCode, `Could not delete ${kind} ${id}.`, cause));
+		return err(persistenceError(spec.deleteFailedCode, `Could not delete ${kind} ${id}.`, cause));
 	}
+
+	const removed = spec.alsoRemove ? await spec.alsoRemove() : ok(undefined);
+	if (!removed.ok) {
+		const restored = await restoreNoteText(deps.vault, kind, notePath, noteText);
+		if (!restored.ok) {
+			// Logged, never swallowed (SDD §42): the ORIGINAL failure is what the caller is
+			// owed, and a compensation that could not write is the only account of the note
+			// that is now gone with its second file still there.
+			deps.logger.error(`${kind}.delete-compensation-failed`, { id, cause: restored.error });
+		}
+		return err(persistenceError(spec.deleteFailedCode, `Could not remove the second file of ${kind} ${id}.`, removed.error));
+	}
+
 	deps.index.remove(id);
 	return ok(undefined);
 }

@@ -93,7 +93,7 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 
 	delete(id: RequirementId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`requirement:${id}`, () =>
-			trashNoteBackedEntity(this.deps, 'requirement', id, 'requirement.delete-failed', expected),
+			trashNoteBackedEntity(this.deps, 'requirement', id, expected, { deleteFailedCode: 'requirement.delete-failed' }),
 		);
 	}
 

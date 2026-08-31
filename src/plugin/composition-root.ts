@@ -58,6 +58,7 @@ import type { Plan } from '../domain/plan/Plan';
 import type { Zone } from '../domain/zone/Zone';
 import { IndexLibraryOverlaps } from '../infrastructure/obsidian/repositories/IndexLibraryOverlaps';
 import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
+import { AssetGeometryStore } from '../infrastructure/obsidian/repositories/AssetGeometryStore';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
 import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
@@ -254,6 +255,10 @@ export interface SessionCollaborators {
 
 function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectRoot: string, libraryFolder: string) {
 	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
+	// Not returned: nothing above this function holds it yet. The asset repository is its one
+	// consumer, for the DELETE alone — an asset's design is written through
+	// `AssetGeometrySidecar`, whose composition arrives with the designer's own commands.
+	const assetGeometryStore = new AssetGeometryStore(vault.vault, vault.fileManager, libraryFolder, deps.echo);
 	return {
 		geometryStore,
 		// `newProjectRoot` is a real argument, not `deps.projectFolder` read inline — this
@@ -265,7 +270,7 @@ function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectR
 		projects: new ObsidianProjectRepository(deps, newProjectRoot, libraryFolder),
 		plans: new ObsidianPlanRepository(deps, geometryStore),
 		zones: new ObsidianZoneRepository(deps, geometryStore),
-		assets: new ObsidianAssetRepository(deps, libraryFolder),
+		assets: new ObsidianAssetRepository(deps, libraryFolder, assetGeometryStore),
 		requirements: new ObsidianRequirementRepository(deps),
 		// §83's third site, which has no door to refuse at: ADR-0013 derives a project's
 		// folder from where its `Project.md` sits, so a user moves a project by dragging a

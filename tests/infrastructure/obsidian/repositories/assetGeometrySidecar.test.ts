@@ -18,6 +18,8 @@ import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obs
 import type { AssetGeometryDocument } from '../../../../src/application/ports/AssetGeometrySidecar';
 import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import { shapeFromDimensions } from '../../../../src/domain/asset/AssetShape';
+import { makeAsset } from '../../../helpers/entities';
+import { libraryGeometryIn } from '../../../../src/plugin/settings/libraryMigration';
 
 const rectangle = (): AssetShape => expectOk(shapeFromDimensions(1200, 800));
 
@@ -421,5 +423,114 @@ describe('ObsidianAssetGeometrySidecar over the fixture vault', () => {
 
 		expect(snapshot.document).toEqual({ calibration: null, shape: null });
 		expect(snapshot.version.revision).toBe(0);
+	});
+});
+
+/** An asset with its note written and NO sidecar: the state every case below starts from. */
+const savedAsset = async (name = 'Radiator') => {
+	const stack: RepositoryStack = createRepositoryStack();
+	const asset = makeAsset({ name });
+	const saved = expectOk(await stack.assets.save(asset, 'absent'));
+	return {
+		stack,
+		asset,
+		version: saved.version,
+		notePath: stack.index.getPath(asset.id) ?? '',
+		path: assetSidecarPathFor(stack.libraryFolder, asset.id),
+		sidecar: new ObsidianAssetGeometrySidecar(stack.assetGeometry),
+	};
+};
+
+/**
+ * The sidecar's LIFECYCLE, which is the half `AssetGeometryStore`'s read and write cannot
+ * carry: a `.rpgeo` that outlives the asset note is not merely untidy. It is carried
+ * through every later library migration by `libraryGeometryIn`, and — since an asset id is
+ * a user-editable frontmatter field — a REUSED id silently loads a deleted asset's design
+ * onto the new one, which DEFEATS the store's `asset-id-mismatch` guard rather than
+ * slipping past it: the reused id makes the two agree.
+ *
+ * The shape is `ObsidianPlanRepository.delete`'s and the reasoning is in
+ * `AssetGeometryStore.delete`'s own docblock — note first, sidecar second, the note
+ * restored byte-for-byte when the sidecar refuses.
+ */
+describe('deleting an asset takes its geometry sidecar with it', () => {
+	it('removes the .rpgeo of a designed asset', async () => {
+		const { stack, asset, version, path, sidecar } = await savedAsset();
+		expectOk(await sidecar.write(asset.id, { calibration: null, shape: rectangle() }));
+		expect(stack.vault.entries.has(path)).toBe(true);
+
+		expectOk(await stack.assets.delete(asset.id, version));
+
+		expect(stack.vault.entries.has(path)).toBe(false);
+	});
+
+	/**
+	 * An asset nobody has designed has no sidecar, which is the ORDINARY state rather than a
+	 * failure — the rule `read` already follows, kept true through a delete.
+	 *
+	 * The absence is evidence only because this fixture COULD have produced the file: the
+	 * case above writes one through the same helper, and the assertion below pins that
+	 * nothing wrote one here.
+	 */
+	it('succeeds for an undesigned asset, which has no sidecar to remove', async () => {
+		const { stack, asset, version, notePath, path } = await savedAsset('Undesigned');
+		expect(stack.vault.entries.has(path)).toBe(false);
+
+		expectOk(await stack.assets.delete(asset.id, version));
+
+		expect(stack.vault.entries.has(notePath)).toBe(false);
+		expect(stack.index.getPath(asset.id)).toBeUndefined();
+	});
+
+	it('restores the note when the sidecar refuses to go, leaving neither half done', async () => {
+		const { stack, asset, version, notePath, path, sidecar } = await savedAsset();
+		expectOk(await sidecar.write(asset.id, { calibration: null, shape: rectangle() }));
+		const before = stack.vault.entries.get(notePath);
+		stack.vault.failures.add(`delete:${path}`);
+
+		const refusal = expectErr(await stack.assets.delete(asset.id, version));
+
+		expect(refusal.code).toBe('asset.delete-failed');
+		// Neither the note gone with the file behind, nor the file gone with the note behind.
+		expect(stack.vault.entries.get(notePath)).toBe(before);
+		expect(stack.vault.entries.has(path)).toBe(true);
+		expect(stack.index.getPath(asset.id)).toBe(notePath);
+	});
+
+	it('refuses before trashing anything when the note cannot be snapshotted', async () => {
+		const { stack, asset, version, notePath, path, sidecar } = await savedAsset();
+		expectOk(await sidecar.write(asset.id, { calibration: null, shape: rectangle() }));
+		stack.vault.failures.add(`read:${notePath}`);
+
+		expect(expectErr(await stack.assets.delete(asset.id, version)).code).toBe('asset.delete-failed');
+
+		expect(stack.vault.entries.has(notePath)).toBe(true);
+		expect(stack.vault.entries.has(path)).toBe(true);
+	});
+
+	it('reports the original failure and logs when the compensation refuses too', async () => {
+		const { stack, asset, version, notePath, path, sidecar } = await savedAsset();
+		expectOk(await sidecar.write(asset.id, { calibration: null, shape: rectangle() }));
+		stack.vault.failures.add(`delete:${path}`);
+		stack.vault.failures.add(`create:${notePath}`);
+
+		expect(expectErr(await stack.assets.delete(asset.id, version)).code).toBe('asset.delete-failed');
+
+		expect(stack.logged.some((line) => line.event === 'asset.delete-compensation-failed')).toBe(true);
+	});
+
+	/**
+	 * The consequence made checkable rather than argued: `libraryGeometryIn` is what a
+	 * library migration MOVES, so an orphan is what it would carry to the new folder forever.
+	 */
+	it('leaves a library migration nothing orphaned to carry', async () => {
+		const { stack, asset, version, path, sidecar } = await savedAsset();
+		expectOk(await sidecar.write(asset.id, { calibration: null, shape: rectangle() }));
+		expect(libraryGeometryIn(stack.vault.getFiles(), stack.libraryFolder).map((file) => file.path))
+			.toEqual([path]);
+
+		expectOk(await stack.assets.delete(asset.id, version));
+
+		expect(libraryGeometryIn(stack.vault.getFiles(), stack.libraryFolder)).toEqual([]);
 	});
 });

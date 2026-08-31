@@ -14,6 +14,7 @@ import {
 	trashNoteBackedEntity,
 	type NoteWriteSpec,
 } from './noteEntityWrite';
+import type { AssetGeometryStore } from './AssetGeometryStore';
 
 /**
  * Everything about an asset write that is a fact about the KIND. The folder is left out
@@ -38,9 +39,9 @@ const SPEC: Omit<NoteWriteSpec<Asset>, 'notesFolder'> = {
 };
 
 /**
- * The Zone repository's six-step save contract, without the geometry sidecar — an asset
- * note owns no second file. The write SEQUENCE lives once in `noteEntityWrite`; this
- * class keeps the per-kind facts: its mapper and its error codes.
+ * The Zone repository's six-step SAVE contract, without the geometry sidecar. The write
+ * SEQUENCE lives once in `noteEntityWrite`; this class keeps the per-kind facts: its
+ * mapper and its error codes.
  *
  * Its folder is the LIBRARY's since design slice 19 — the catalogue belongs to the vault
  * rather than to a project, so there is no project note to derive a folder from and the
@@ -48,6 +49,16 @@ const SPEC: Omit<NoteWriteSpec<Asset>, 'notesFolder'> = {
  * per-save resolution for the reason the opposite was true before it: the setting is read
  * at composition and a change to it rebuilds the root, while a PROJECT's folder could move
  * under a live repository.
+ *
+ * **A save owns one file and a DELETE owns two.** An asset's geometry lives in a sidecar (ADR-0014)
+ * that no save of this repository ever touches — the design commands write it through
+ * `AssetGeometrySidecar`, and its absence is the ordinary state of an undesigned asset — so
+ * the SAVE contract is unchanged and only the delete takes the store. Deleting the note
+ * alone left `<libraryFolder>/Geometry/<assetId>.rpgeo` behind: inert-looking, carried to
+ * the new folder by every later library migration, and — since an asset id is a
+ * user-editable frontmatter field — loaded onto a REUSED id, which is the one case
+ * `AssetGeometryStore`'s `asset-id-mismatch` guard cannot refuse, because a reused id makes
+ * the file and the request agree.
  */
 export class ObsidianAssetRepository implements AssetRepository {
 	private readonly queues = new KeyedQueues();
@@ -55,6 +66,7 @@ export class ObsidianAssetRepository implements AssetRepository {
 	constructor(
 		private readonly deps: NoteVaultDeps,
 		private readonly libraryFolder: string,
+		private readonly geometry: AssetGeometryStore,
 	) {}
 
 	getById(id: AssetId): Promise<Result<Loaded<Asset> | null, RepositoryError>> {
@@ -79,9 +91,18 @@ export class ObsidianAssetRepository implements AssetRepository {
 		return saveNoteBackedEntity(this.deps, spec, asset, expected);
 	}
 
+	/**
+	 * The note and the geometry sidecar, in that order, with the note restored byte-for-byte
+	 * if the sidecar refuses — `ObsidianPlanRepository.delete`'s contract, reached through
+	 * the shared note-delete sequence rather than by a second copy of it. `NoteDeleteSpec`
+	 * carries why the order is this way round.
+	 */
 	delete(id: AssetId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`asset:${id}`, () =>
-			trashNoteBackedEntity(this.deps, 'asset', id, 'asset.delete-failed', expected),
+			trashNoteBackedEntity(this.deps, 'asset', id, expected, {
+				deleteFailedCode: 'asset.delete-failed',
+				alsoRemove: () => this.geometry.delete(id),
+			}),
 		);
 	}
 

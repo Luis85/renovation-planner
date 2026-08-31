@@ -232,6 +232,14 @@ reader can go and look rather than take the tick.
 A second pass over this slice after it closed. Each entry is a defect, its mutation and what
 the mutation printed.
 
+- **Criterion 13 is still unverified, and the improvement pass did not change that.** Running
+  [[Navigate into a project and back]] was attempted and is not possible in this environment:
+  `npm run test-build` builds the plugin into this repository's own vault and launches nothing,
+  and there is no Obsidian binary here. The Runs table and the criterion's row are left exactly
+  as they are — an unrun manual case is a plan to find out, and a verdict upgraded on reasoning
+  is the defect that row exists to refuse. The case gained a step 17 for the redirect this pass
+  retired, which is more ground for the same walk rather than a substitute for it.
+
 - **A corrective redirect recorded a history entry, and the `'gone'` watcher is retired.**
   `ProjectDetailState` used to `watch(status)` and call `context.navigate(null)` on `'gone'`;
   `RenovationProjectView.setState` sets `ViewStateResult.history` for any accepted, CHANGED

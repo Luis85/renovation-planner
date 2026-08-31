@@ -59,7 +59,12 @@ export function createPolygon(points: readonly Point[]): Result<Polygon, Geometr
 	if (!checked.ok) {
 		return checked;
 	}
-	// Copied, not aliased: the caller keeps its (mutable) buffer mid-gesture, and a push
-	// after construction must not be able to break the invariant just validated.
-	return ok({ points: [...points] });
+	// Copied, not aliased, and copied at BOTH levels: the caller keeps its (mutable) buffer
+	// mid-gesture, and neither a push to that array nor a write through a vertex it still
+	// holds may break the invariant just validated. `[...points]` alone was the array half
+	// only — it left every `Point` shared, so `points[0].x = NaN` reached straight through
+	// a validated polygon. `Point`'s fields are `readonly`, which refuses that write through
+	// THIS type and not through a caller that kept a mutable-typed reference to the same
+	// object.
+	return ok({ points: points.map((point) => ({ x: point.x, y: point.y })) });
 }

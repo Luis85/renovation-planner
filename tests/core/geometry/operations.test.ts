@@ -89,6 +89,40 @@ describe('distance and length', () => {
 	});
 });
 
+/**
+ * TRANSLATION CANCELLATION, asked of the shared accumulator through the two exported callers
+ * that use it.
+ *
+ * The shoelace sum multiplies raw coordinates, so a shape that is small relative to its offset
+ * produces terms whose difference is below a double's resolution and cancels to exactly zero. A
+ * 1×1 square at 1e8 sums to `0` raw and to `2` once the vertices are translated to the first one.
+ * Area is translation-invariant, so subtracting a vertex before accumulating changes no correct
+ * answer and rescues the cancelling ones.
+ *
+ * Asked here rather than only through `enclosesArea`, because `area` and `centroid` accumulate
+ * through the same helper and had the identical defect — fixing the caller that a review happened
+ * to point at would have left its two siblings wrong.
+ */
+describe('a small polygon far from the origin', () => {
+	const FAR = createPolygon([
+		{ x: 1e8, y: 1e8 },
+		{ x: 1e8 + 1, y: 1e8 },
+		{ x: 1e8 + 1, y: 1e8 + 1 },
+		{ x: 1e8, y: 1e8 + 1 },
+	]);
+
+	it('has its real area rather than zero', () => {
+		expect(FAR.ok && area(FAR.value)).toEqual({ ok: true, value: 1 });
+	});
+
+	it('centroids at its middle rather than refusing as zero-area', () => {
+		expect(FAR.ok && centroid(FAR.value)).toEqual({
+			ok: true,
+			value: { x: 1e8 + 0.5, y: 1e8 + 0.5 },
+		});
+	});
+});
+
 describe('area, perimeter, centroid over the 3-4-5 triangle', () => {
 	it('areas it as 6, unsigned regardless of winding', () => {
 		expect(area(TRIANGLE)).toEqual({ ok: true, value: 6 });

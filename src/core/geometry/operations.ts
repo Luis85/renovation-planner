@@ -92,16 +92,28 @@ function chainLength(points: readonly Point[]): number {
 }
 
 /**
- * Signed twice-area times nothing — this is the raw shoelace sum Σ(x_i·y_{i+1} −
- * x_{i+1}·y_i), whose half IS the signed area. Internal only; `area` exports its
- * unsigned magnitude.
+ * Signed twice-area — the shoelace sum Σ(x_i·y_{i+1} − x_{i+1}·y_i), whose half IS the
+ * signed area. Internal only; `area` exports its unsigned magnitude.
+ *
+ * **Accumulated RELATIVE TO THE FIRST VERTEX, and that is not a micro-optimisation.** The raw
+ * form multiplies absolute coordinates, so a shape small relative to its offset produces terms
+ * whose difference falls below a double's 15-16 significant digits and cancels to exactly zero:
+ * a genuine 1×1 square at (1e8, 1e8) sums to `0` raw and to `2` translated. Measured, and all
+ * three callers were wrong — `area` answered 0, `centroid` REFUSED the square as zero-area, and
+ * `enclosesArea` refused the footprint.
+ *
+ * Sound because the signed area is translation-invariant: subtracting a constant point from
+ * every vertex changes no correct answer, and the first vertex is chosen because it needs no
+ * search and is guaranteed to exist (`validatePolygonPoints` has already refused an empty
+ * list at every caller).
  */
 function signedAreaSum(points: readonly Point[]): number {
+	const origin = points[0];
 	let sum = 0;
 	for (let i = 0; i < points.length; i++) {
 		const a = points[i];
 		const b = points[(i + 1) % points.length];
-		sum += a.x * b.y - b.x * a.y;
+		sum += (a.x - origin.x) * (b.y - origin.y) - (b.x - origin.x) * (a.y - origin.y);
 	}
 	return sum;
 }
@@ -197,17 +209,29 @@ export function centroid(polygon: Polygon): Result<Point, GeometryError> {
 	if (cross === 0) {
 		return geometryErr('polygon-zero-area', 'Cannot weight a centroid by a zero area.');
 	}
+	// Accumulated relative to the first vertex for the reason `signedAreaSum` gives, and then
+	// shifted back. A centroid is not translation-INVARIANT the way an area is, but it is
+	// translation-EQUIVARIANT — centroid(P − o) + o = centroid(P) — so the same subtraction is
+	// sound here with one addition at the end. Fixing the shared accumulator alone left this
+	// loop still multiplying raw coordinates, so the guard above stopped refusing a real
+	// square while this answered the wrong point for it: a refusal replaced by a quiet error,
+	// which is the worse of the two.
+	const origin = polygon.points[0];
 	let cx = 0;
 	let cy = 0;
 	const n = polygon.points.length;
 	for (let i = 0; i < n; i++) {
 		const a = polygon.points[i];
 		const b = polygon.points[(i + 1) % n];
-		const w = a.x * b.y - b.x * a.y;
-		cx += (a.x + b.x) * w;
-		cy += (a.y + b.y) * w;
+		const ax = a.x - origin.x;
+		const ay = a.y - origin.y;
+		const bx = b.x - origin.x;
+		const by = b.y - origin.y;
+		const w = ax * by - bx * ay;
+		cx += (ax + bx) * w;
+		cy += (ay + by) * w;
 	}
-	return ok({ x: cx / (3 * cross), y: cy / (3 * cross) });
+	return ok({ x: cx / (3 * cross) + origin.x, y: cy / (3 * cross) + origin.y });
 }
 
 /** Undefined on an empty or non-finite point set — a min/max over nothing answers nothing. */

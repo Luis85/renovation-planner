@@ -272,6 +272,36 @@ describe('validateAssetShape', () => {
 	});
 
 	/**
+	 * A REAL square, far from the origin, which the first version of the degeneracy rule
+	 * refused.
+	 *
+	 * The shoelace sum accumulates products of the raw coordinates, so at an offset of 1e8 the
+	 * terms are ~1e16 — past a double's 15-16 significant digits — and the unit-scale
+	 * differences that ARE the area cancel to exactly zero. Measured: this square sums to `0`
+	 * raw and to `2` when the vertices are translated to the first one first.
+	 *
+	 * The direction is what makes it worse than what the rule replaced. A degenerate footprint
+	 * accepted is the user's own doing; a valid trace REFUSED is the tool calling their work
+	 * impossible. Reachability is deliberately not the defence — 1e8 mm is 100 km and no
+	 * footprint sits there — because the repair costs one subtraction per vertex and cannot
+	 * make any correct answer worse.
+	 */
+	it('accepts a real square far from the origin, where the raw shoelace sum cancels to zero', () => {
+		const result = validateAssetShape({
+			...typedShape,
+			footprint: {
+				points: [
+					{ x: 1e8, y: 1e8 },
+					{ x: 1e8 + 1, y: 1e8 },
+					{ x: 1e8 + 1, y: 1e8 + 1 },
+					{ x: 1e8, y: 1e8 + 1 },
+				],
+			},
+		});
+		expect(isOk(result)).toBe(true);
+	});
+
+	/**
 	 * The CLASS and not the case. A clearance is a boundary around the object and a zero-area
 	 * one is as meaningless as a zero-area footprint — and `clearance: null` is the legal way
 	 * to have none, so a degenerate one must REFUSE rather than pass as though it were absent.

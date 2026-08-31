@@ -1,5 +1,5 @@
 import { propertyOf, stylesheetRules } from './selectors';
-import type { Declaration } from 'lightningcss';
+import type { BoxShadow, CssColor, Declaration, Length, OutlineStyle } from 'lightningcss';
 
 /**
  * What a declaration block DRAWS, read through the parser rather than through a value vocabulary.
@@ -71,7 +71,21 @@ const NOT_KNOWN_TO_PAINT = new Set(['none', 'initial', 'unset', 'revert', 'rever
  * a perfectly visible `outline: 2px solid red` beneath it and the gate would fail correct CSS.
  * Dropping leaves the earlier ring winning, which is what the browser draws.
  */
-const paintableOutlineStyle = (style: { readonly value?: unknown }): boolean => style.value !== 'hidden';
+const paintableOutlineStyle = (style: OutlineStyle): boolean =>
+	style.type !== 'line-style' || style.value !== 'hidden';
+
+/**
+ * Is this the `none` line style — the one spelling that BLANKS the outline?
+ *
+ * Asked through `OutlineStyle`'s own discriminant rather than by reading `.value` off the union,
+ * which is what these predicates did while nothing type-checked them: `outline-style: auto` is
+ * `{ type: 'auto' }` and carries no `value` at all, so the old `style.value === 'none'` was
+ * comparing `undefined` and answering "draws" by accident rather than by decision. The answer
+ * happens to be right — `auto` paints the platform's own ring — and the reason is now the one
+ * stated.
+ */
+const isNoneOutlineStyle = (style: OutlineStyle): boolean =>
+	style.type === 'line-style' && style.value === 'none';
 
 /**
  * Is this a length the parser resolved to exactly zero?
@@ -92,8 +106,7 @@ const paintableOutlineStyle = (style: { readonly value?: unknown }): boolean => 
  * only same-element declarations would catch the rare half and miss the ordinary one — a mechanism
  * that reads as more complete than it is. Stated, not half-built.
  */
-const isZero = (length: { type: string; value?: unknown }): boolean =>
-	length.type === 'value' && (length.value as { value: number }).value === 0;
+const isZero = (length: Length): boolean => length.type === 'value' && length.value.value === 0;
 
 /**
  * Does this shadow SPILL PAST THE BOX — the only part of an outset shadow anyone can see?
@@ -117,14 +130,9 @@ const isZero = (length: { type: string; value?: unknown }): boolean =>
  * reason above rather than for a new one. Probed unprompted; the three `outline-offset` declarations
  * this project ships are all `1px`.
  */
-const spills = (shadow: {
-	xOffset: { type: string; value?: unknown };
-	yOffset: { type: string; value?: unknown };
-	blur: { type: string; value?: unknown };
-	spread: { type: string; value?: unknown };
-}): boolean =>
+const spills = (shadow: BoxShadow): boolean =>
 	![shadow.xOffset, shadow.yOffset, shadow.blur].every((length) => isZero(length)) ||
-	!(shadow.spread.type === 'value' && (shadow.spread.value as { value: number }).value <= 0);
+	!(shadow.spread.type === 'value' && shadow.spread.value.value <= 0);
 
 /**
  * Would this colour paint anything?
@@ -134,10 +142,15 @@ const spills = (shadow: {
  * arrive as `rgb` with `alpha: 0`, which is exactly why this is one comparison rather than a list
  * of spellings. A node carrying no numeric alpha at all — `currentcolor` — is assumed to paint.
  */
-const paints = (color: { alpha?: number }): boolean => color.alpha !== 0;
+const paints = (color: CssColor): boolean =>
+	// A SYSTEM COLOUR is a bare string in this union, not an object — `buttonborder` has no
+	// `alpha` to read and no `type` either. Both predicates answered correctly for it before,
+	// by reading `undefined` off a string; they say which case they are answering now.
+	typeof color === 'string' || !('alpha' in color) || color.alpha !== 0;
 
 /** Is this the `currentcolor` keyword, whose value is whatever `color` finally resolves to? */
-const isCurrentColor = (color: { type?: string }): boolean => color.type === 'currentcolor';
+const isCurrentColor = (color: CssColor): boolean =>
+	typeof color !== 'string' && color.type === 'currentcolor';
 
 /**
  * What one component of an indicator is known to be. `unknown` is a `var()` — this gate cannot see
@@ -295,7 +308,7 @@ export const indicatorOf = (
 
 			// A keyword width (`medium`, `thin`, `thick`) is not a length and is never zero.
 			width = shorthandWidth.type === 'length' && isZero(shorthandWidth.value) ? 'blank' : 'draws';
-			style = declaration.value.style.value === 'none' ? 'blank' : 'draws';
+			style = isNoneOutlineStyle(declaration.value.style) ? 'blank' : 'draws';
 			fromCurrentColor = isCurrentColor(declaration.value.color);
 			color = paints(declaration.value.color) ? 'draws' : 'blank';
 			continue;
@@ -309,7 +322,7 @@ export const indicatorOf = (
 			if (!paintableOutlineStyle(declaration.value)) continue;
 
 			touched.add('style');
-			style = declaration.value.value === 'none' ? 'blank' : 'draws';
+			style = isNoneOutlineStyle(declaration.value) ? 'blank' : 'draws';
 			continue;
 		}
 		if (declaration.property === 'outline-color') {

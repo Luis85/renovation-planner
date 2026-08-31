@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { err, ok, type Result } from '../../../../src/core/result/Result';
 import type { AppError, PersistenceError } from '../../../../src/core/errors/AppError';
-import type { PlanEditorQueryServices, ZoneDto } from '../../../../src/presentation/read-models/planEditorQueries';
+import type { PlanEditorQueryServices } from '../../../../src/presentation/read-models/planEditorQueries';
+import type { ZoneDto } from '../../../../src/presentation/read-models/PlanDto';
+import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { withEditorStateRefresh } from '../../../../src/presentation/editor/tools/with-editor-state-refresh';
+import { fakeQueries } from '../../../helpers/planFixtures';
 
 /**
  * Design slice 8's post-command funnel (docs/tasks/08-zone-editing.md, "Store-refresh
@@ -14,7 +17,18 @@ import { withEditorStateRefresh } from '../../../../src/presentation/editor/tool
  * Inspector panel is exactly where that gap hides.
  */
 
-type VoidResult = Result<void, AppError>;
+/**
+ * What `CommandHistory` and `UndoableCommand` actually resolve, which is what the fakes below
+ * have to resolve too. This file declared `Result<void, AppError>` and every fake answered
+ * `ok(undefined)` — the shape those two interfaces stopped having when design slice 13 made
+ * `DispatchOutcome` required precisely so that a no-write success could not pass for a write.
+ * The decorator forwards the outcome unchanged, so the VALUE decides nothing here; the TYPE
+ * is what keeps these stand-ins from modelling a contract the editor no longer has.
+ */
+type DispatchResult = Result<DispatchOutcome, AppError>;
+
+/** Every operation faked below stands for a committed gesture — which is why a refresh is owed. */
+const wrote = (): Promise<DispatchResult> => Promise.resolve(ok<DispatchOutcome>('wrote'));
 
 const PLAN_ID = 'plan-1';
 
@@ -40,6 +54,7 @@ const zoneDto = (id: string): ZoneDto => ({
 function makeQueries(options?: { failZonesReadsFrom?: number }) {
 	let zoneReads = 0;
 	const queries: PlanEditorQueryServices & { zoneReads(): number } = {
+		...fakeQueries(null),
 		getPlan: () => Promise.resolve(ok(planDto())),
 		findZonesByPlan: () => {
 			zoneReads += 1;
@@ -62,24 +77,24 @@ function fakeHistory() {
 	const calls: string[] = [];
 	return {
 		calls,
-		run(command: UndoableCommand): Promise<VoidResult> {
+		run(command: UndoableCommand): Promise<DispatchResult> {
 			calls.push('run');
 			return command.execute();
 		},
-		undo(): Promise<VoidResult> {
+		undo(): Promise<DispatchResult> {
 			calls.push('undo');
-			return Promise.resolve(ok(undefined));
+			return wrote();
 		},
-		redo(): Promise<VoidResult> {
+		redo(): Promise<DispatchResult> {
 			calls.push('redo');
-			return Promise.resolve(ok(undefined));
+			return wrote();
 		},
 	};
 }
 
 const noopCommand: UndoableCommand = {
-	execute: () => Promise.resolve(ok(undefined)),
-	undo: () => Promise.resolve(ok(undefined)),
+	execute: wrote,
+	undo: wrote,
 };
 
 describe('withEditorStateRefresh', () => {
@@ -137,7 +152,7 @@ describe('withEditorStateRefresh', () => {
 		const failing: UndoableCommand = {
 			execute: () =>
 				Promise.resolve(err({ category: 'Persistence', code: 'test.no', message: 'no' })),
-			undo: () => Promise.resolve(ok(undefined)),
+			undo: wrote,
 		};
 
 		const result = await refreshed.run(failing);
@@ -173,6 +188,7 @@ describe('withEditorStateRefresh', () => {
 	it('a failed PLAN re-read keeps the previous contents too, not only a failed zones read', async () => {
 		let planReads = 0;
 		const queries: PlanEditorQueryServices = {
+			...fakeQueries(null),
 			getPlan: () => {
 				planReads += 1;
 				if (planReads >= 2) {
@@ -207,8 +223,12 @@ describe('withEditorStateRefresh', () => {
 	it("two overlapping dispatches: the first command's slower re-query cannot overwrite the second's snapshot", async () => {
 		// The FIRST zones read is gated; an UNQUEUED decorator would let the second
 		// dispatch's refresh land first and then be overwritten by this late snapshot.
-		let releaseFirstRead: (() => void) | null = null;
-		let signalFirstReadStarted: (() => void) | null = null;
+		// `!` rather than `| null`: `new Promise`'s executor is called synchronously, so both
+		// are assigned before their own declaration finishes — the idiom `commandHistory.test.ts`
+		// already uses. Typed nullable, the compiler must assume the executor never ran and
+		// every later call is unreachable, which is a claim about this file that is not true.
+		let releaseFirstRead!: () => void;
+		let signalFirstReadStarted!: () => void;
 		const firstReadGate = new Promise<void>((resolve) => {
 			releaseFirstRead = resolve;
 		});
@@ -218,11 +238,12 @@ describe('withEditorStateRefresh', () => {
 		let firstReadBegan = false;
 		let lastLanded: string | null = null;
 		const queries: PlanEditorQueryServices = {
+			...fakeQueries(null),
 			getPlan: () => Promise.resolve(ok(planDto())),
 			async findZonesByPlan() {
 				if (!firstReadBegan) {
 					firstReadBegan = true;
-					signalFirstReadStarted?.(); // tell the test this read has begun
+					signalFirstReadStarted(); // tell the test this read has begun
 					await firstReadGate;
 					lastLanded = 'first';
 					return ok([zoneDto('zone-a')]);
@@ -246,7 +267,7 @@ describe('withEditorStateRefresh', () => {
 		const first = refreshed.run(noopCommand);
 		const second = refreshed.run(noopCommand);
 		await firstReadStarted;
-		releaseFirstRead?.();
+		releaseFirstRead();
 		await Promise.all([first, second]);
 
 		// The store ends holding the SECOND command's snapshot, not the first's.
@@ -269,8 +290,8 @@ describe('withEditorStateRefresh', () => {
 		const refreshed = withEditorStateRefresh(
 			{
 				run: () => Promise.reject(fault),
-				undo: () => Promise.resolve(ok(undefined)),
-				redo: () => Promise.resolve(ok(undefined)),
+				undo: wrote,
+				redo: wrote,
 			},
 			{
 				projectStore,
@@ -300,15 +321,15 @@ describe('withEditorStateRefresh', () => {
 		let first = true;
 		const refreshed = withEditorStateRefresh(
 			{
-				run: () => {
+				run: (): Promise<DispatchResult> => {
 					if (first) {
 						first = false;
 						return Promise.reject(new Error('boom'));
 					}
-					return Promise.resolve(ok(undefined));
+					return wrote();
 				},
-				undo: () => Promise.resolve(ok(undefined)),
-				redo: () => Promise.resolve(ok(undefined)),
+				undo: wrote,
+				redo: wrote,
 			},
 			{
 				projectStore,

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
-import { expectErr, expectOk } from '../../../helpers/domain';
+import { expectErr, expectFound, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
-import { frontmatterOf } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
+import { frontmatterOf, type FrontmatterSource } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 import { MigrationRunner } from '../../../../src/infrastructure/persistence/migration/MigrationRunner';
 import { projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 
@@ -20,6 +20,21 @@ import { projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../../../src
  * which half of the tail it held. Pure-function edges (tokens, version arithmetic, path
  * spelling) belong beside their unit; what is here needs a vault.
  */
+
+/**
+ * The stack AS the `FrontmatterSource` that seam declares.
+ *
+ * `RepositoryStack.metadataCache` is `FakeMetadataCache`, which models the one member this
+ * seam reads (`getFileCache`) and none of the twenty-odd others Obsidian's `MetadataCache`
+ * declares — and `tsconfig.tests.json` deliberately checks tests against the REAL module, so
+ * no fake can satisfy that type however faithful it is at the member in question. ONE cast,
+ * named, over the one field that needs it, rather than three at the call sites; `echo` is a
+ * real `EchoWindow` and is passed through untouched.
+ */
+const frontmatterSource = (stack: RepositoryStack): FrontmatterSource => ({
+	metadataCache: stack.metadataCache as unknown as FrontmatterSource['metadataCache'],
+	echo: stack.echo,
+});
 
 async function seed(stack: RepositoryStack): Promise<{ projectId: ProjectId; planId: PlanId }> {
 	const projectId = createProjectId();
@@ -47,7 +62,7 @@ describe('plan repository: update failures and listing', () => {
 	it('delete refuses when snapshots cannot be taken or the trash fails', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
-		const read = expectOk(await stack.plans.getById(planId));
+		const read = expectFound(await stack.plans.getById(planId));
 		const notePath = notePathOf(stack, planId);
 
 		stack.vault.failures.add(`read:${notePath}`);
@@ -66,7 +81,7 @@ describe('plan repository: update failures and listing', () => {
 	it('delete tolerates a vanished sidecar and skips its echo bookkeeping', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
-		const read = expectOk(await stack.plans.getById(planId));
+		const read = expectFound(await stack.plans.getById(planId));
 		stack.vault.entries.delete(sidecarPathOf(stack, projectId, planId));
 
 		expectOk(await stack.plans.delete(planId, read.version));
@@ -86,7 +101,7 @@ describe('project repository: delete and listing failures', () => {
 		const stack = createRepositoryStack();
 		const projectId = createProjectId();
 		expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
-		const read = expectOk(await stack.projects.getById(projectId));
+		const read = expectFound(await stack.projects.getById(projectId));
 		stack.vault.failures.add(`delete:${notePathOf(stack, projectId)}`);
 		expect(expectErr(await stack.projects.delete(projectId, read.version)).code).toBe('project.delete-failed');
 		expect(expectOk(await stack.projects.getById(projectId))).not.toBeNull();
@@ -163,16 +178,16 @@ describe('small unit edges', () => {
 		const ghost = { path: 'ghost.md' } as never;
 
 		// No cache entry, nothing written: empty.
-		expect(frontmatterOf(stack, ghost)).toEqual({});
+		expect(frontmatterOf(frontmatterSource(stack), ghost)).toEqual({});
 
 		// No cache entry, but this plugin wrote here: what it wrote.
 		stack.echo.markFrontmatter('ghost.md', { id: 'p1', 'schema-version': 1 });
-		expect(frontmatterOf(stack, ghost)).toEqual({ id: 'p1', 'schema-version': 1 });
+		expect(frontmatterOf(frontmatterSource(stack), ghost)).toEqual({ id: 'p1', 'schema-version': 1 });
 
 		// A PARSED note with no frontmatter: empty, even though the echo has a record. The
 		// fake answers a cache object with no `frontmatter` for this, exactly as Obsidian does.
 		stack.vault.entries.set('ghost.md', 'plain text, no frontmatter');
-		expect(frontmatterOf(stack, ghost)).toEqual({});
+		expect(frontmatterOf(frontmatterSource(stack), ghost)).toEqual({});
 	});
 
 	it('registerAll chains every step of one kind', () => {

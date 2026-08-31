@@ -24,12 +24,25 @@ import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 
 const READ_FAILED = { category: 'Persistence', code: 'plan.read-failed', message: 'boom' } as const;
 
+/**
+ * The one pointer every camera gesture below is made with.
+ *
+ * `beginPan`/`continuePan`/`endPan` each take a `pointerId` — a gesture belongs to a POINTER
+ * and not only to a button, which is what stops a second finger's moves reading as a
+ * continuation of the first one's drag. These cases called them with the screen point alone,
+ * an arity the store has not had since that fix; what they describe is one pointer throughout,
+ * so they say so. Two-pointer ownership is `canvasGestureOwnership.test.ts`'s subject.
+ */
+const POINTER = 1;
+
 function queries(overrides: Partial<PlanEditorQueryServices> = {}): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
 		findZonesByPlan: () => Promise.resolve(ok(FIXTURE_ZONES)),
 		getRequirementsForZone: () => Promise.resolve(ok([])),
 		listAssets: () => Promise.resolve(ok([])),
+		listRequirementsReferencing: () => Promise.resolve(ok([])),
+		listReassignmentTargets: () => Promise.resolve(ok([])),
 		...overrides,
 	};
 }
@@ -255,9 +268,9 @@ describe('EditorStore, the ephemeral half', () => {
 	it('pans from where the gesture started, so a long drag does not drift', () => {
 		const store = useEditorStore();
 
-		store.beginPan(screenPoint(100, 100));
-		store.continuePan(screenPoint(150, 100));
-		store.continuePan(screenPoint(200, 100));
+		store.beginPan(screenPoint(100, 100), POINTER);
+		store.continuePan(screenPoint(150, 100), POINTER);
+		store.continuePan(screenPoint(200, 100), POINTER);
 		const inTwoSteps = store.viewport.pan;
 
 		// A FRESH pinia, so the second gesture starts from the same camera as the first. There
@@ -265,8 +278,8 @@ describe('EditorStore, the ephemeral half', () => {
 		// src/ calls is dead code by this project own gate.
 		setActivePinia(createPinia());
 		const second = useEditorStore();
-		second.beginPan(screenPoint(100, 100));
-		second.continuePan(screenPoint(200, 100));
+		second.beginPan(screenPoint(100, 100), POINTER);
+		second.continuePan(screenPoint(200, 100), POINTER);
 
 		expect(second.viewport.pan).toEqual(inTwoSteps);
 		expect(second.dragState).not.toBeNull();
@@ -274,9 +287,9 @@ describe('EditorStore, the ephemeral half', () => {
 
 	it('forgets the gesture when it ends', () => {
 		const store = useEditorStore();
-		store.beginPan(screenPoint(0, 0));
+		store.beginPan(screenPoint(0, 0), POINTER);
 
-		store.endPan();
+		store.endPan(POINTER);
 
 		expect(store.dragState).toBeNull();
 	});
@@ -285,15 +298,15 @@ describe('EditorStore, the ephemeral half', () => {
 		const store = useEditorStore();
 		const before = store.viewport;
 
-		expect(store.continuePan(screenPoint(10, 10))).toBe(false);
+		expect(store.continuePan(screenPoint(10, 10), POINTER)).toBe(false);
 		expect(store.viewport).toBe(before);
 	});
 
 	it('reports a move as consumed while a gesture is running', () => {
 		const store = useEditorStore();
-		store.beginPan(screenPoint(0, 0));
+		store.beginPan(screenPoint(0, 0), POINTER);
 
-		expect(store.continuePan(screenPoint(10, 10))).toBe(true);
+		expect(store.continuePan(screenPoint(10, 10), POINTER)).toBe(true);
 	});
 
 	it('translates the pointer into world millimetres, and blanks it on leave', () => {
@@ -337,11 +350,11 @@ describe('EditorStore, the ephemeral half', () => {
 		const grab = screenPoint(40, 60);
 		store.setPointer(grab);
 		const grabbed = store.pointerWorld;
-		store.beginPan(grab);
+		store.beginPan(grab, POINTER);
 
 		const to = screenPoint(140, 10);
 		store.setPointer(to);
-		store.continuePan(to);
+		store.continuePan(to, POINTER);
 
 		// Panning MEANS the world sticks to the cursor, so the readout must not move at all.
 		expect(store.pointerWorld).toEqual(grabbed);

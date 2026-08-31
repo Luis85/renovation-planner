@@ -9,7 +9,9 @@
  * worker installs lazily now), which is exactly why the separation is worth keeping — the
  * next module-scope host reference will not announce itself.
  */
+import { ok } from '../../src/core/result/Result';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
+import type { PlanEditorQueryServices } from '../../src/presentation/read-models/planEditorQueries';
 
 export const FIXTURE_PLAN: PlanDto = {
 	id: 'plan-ground',
@@ -52,3 +54,29 @@ export const FIXTURE_ZONES: readonly ZoneDto[] = [
 		],
 	},
 ];
+
+/**
+ * The full query stack, so that a case wanting ONE member to behave differently overrides
+ * that member rather than hand-rolling a stack.
+ *
+ * Hand-rolled partial stacks are this repository's fake-too-thin rule waiting to happen, and
+ * it happened: design slice 17's first draft of `planEditorFailure.test.ts` declared two
+ * members, one of them under a name (`listZonesForPlan`) the real interface does not have, and
+ * every mount logged `context.queries.listAssets is not a function` while the assertions
+ * passed. Spreading this keeps a new member reaching every caller the day it is written.
+ *
+ * It lives HERE rather than beside the mount harness for this module's own reason: a NODE
+ * test — a store, a decorator over `CommandHistory` — needs the stack and has no business
+ * loading Vue, Konva and pdf.js to get it. `tests/helpers/editor.ts` re-exports it so the
+ * jsdom suites that already reach for it there are unaffected.
+ */
+export function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[] = []): PlanEditorQueryServices {
+	return {
+		getPlan: () => Promise.resolve(ok(plan)),
+		findZonesByPlan: () => Promise.resolve(ok(zones)),
+		getRequirementsForZone: () => Promise.resolve(ok([])),
+		listAssets: () => Promise.resolve(ok([])),
+		listRequirementsReferencing: () => Promise.resolve(ok([])),
+		listReassignmentTargets: () => Promise.resolve(ok([])),
+	};
+}

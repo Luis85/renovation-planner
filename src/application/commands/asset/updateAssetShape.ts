@@ -64,6 +64,18 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  * returned is the weakest honest condition — it refuses exactly the writes that landed since
  * it looked.
  *
+ * **What the existence check does NOT buy, stated where it is made.** It is asked here, in
+ * the application layer; the sidecar's own exclusive region is `KeyedQueues`, inside
+ * `AssetGeometryStore` and keyed per asset, entered only at `read` and `write`. So this write
+ * is atomic with respect to other SIDECAR writes and not with respect to the asset's
+ * EXISTENCE: an asset deleted between this `getById` and the write below leaves a sidecar
+ * behind, because the delete's own `alsoRemove` found no file to remove and the first write's
+ * condition — an absent file at revision zero — is satisfied by an absent file for a reason
+ * that has nothing to do with the note. Closing it means the port growing an exclusive region
+ * a caller can hold across a read and a write, with `ObsidianAssetRepository.delete` holding
+ * the SAME one across both of its file operations, the note trash included. Recorded in
+ * `docs/superpowers/plans/2026-08-30-asset-designer-first-increment.md` rather than only here.
+ *
  * **`no-write` is a report, not an optimisation.** `ok` is not evidence that anything was
  * written and the save-state indicator infers nothing from it, so a repeated identical
  * attribute has to say so or a "Saved" badge claims a write that did not happen. It returns

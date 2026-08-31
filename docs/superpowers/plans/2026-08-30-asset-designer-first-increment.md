@@ -1827,6 +1827,51 @@ Seven mutations run across the three, every one reddening exactly the cases it s
 the two that prove a PARTIAL fix is caught: freezing the three inputs and not the two selects, and
 guarding `enclosesArea` while leaving `area` and `centroid` alone.
 
+#### Residuals — two findings VERIFIED and deliberately not fixed here, 2026-08-31
+
+Both are the same seam: **an asset's note and its geometry sidecar are two files, guarded by two
+different mechanisms, and the boundary between them is not a transaction.** Each was traced
+through the code before being deferred, and each is written here rather than only in a review
+thread, because a deferral kept in a comment is a deferral nothing schedules.
+
+**1. The existence check is not atomic with the geometry write.** `updateAssetShape` asks
+`assets.getById` in the APPLICATION layer; the exclusive region is `KeyedQueues` inside
+`AssetGeometryStore`, keyed `asset:${assetId}`, entered only at `read` and `write`. And
+`ObsidianAssetRepository.delete` takes that queue for `alsoRemove` alone — the `trashFile` before
+it does not. So an asset deleted between the check and the write leaves a sidecar behind: the
+delete found no file to remove, and the first write's condition (an absent file at revision zero)
+is satisfied by an absent file for reasons that have nothing to do with the note. Not producible
+by either serial ordering.
+
+*The remedy*: `AssetGeometrySidecar` grows an exclusive region a caller can hold —
+`runExclusive(assetId, fn)` — with `updateAssetShape` holding it across its `getById`, `read` and
+`write`, and `ObsidianAssetRepository.delete` holding the SAME one across BOTH of its file
+operations. One method, two call sites, and a widening of a port this increment declared plus a
+contract change to a delete sequence three entity kinds take. The narrowed claim ships in
+`updateAssetShape`'s own docblock meanwhile: **atomic with respect to other sidecar writes, not
+with respect to the asset's existence.**
+
+**2. The two-file delete is not one recoverable sequence.** `trashNoteBackedEntity` compensates a
+REFUSAL of `alsoRemove` — it snapshots the note's bytes and restores them — and cannot compensate
+a CRASH, the process that would run the restore being gone. `runDeleteResolution` writes
+`entityDeleted` only after `deleteEntity` returns ok, so a crash in that window leaves a marker
+saying `false`; `recoverInterruptedSequences` then restores the referents and deliberately never
+restores the entity. Live requirements pointing at a missing asset.
+
+*The narrowing that decides where this belongs*: **it is not the asset's defect.** `alsoRemove`
+is `noteEntityWrite`'s, and the Plan repository's two-file delete reaches the identical window
+through the identical function — the asset delete inherited the shape by joining the shared
+sequence rather than by writing a second copy, which was the right call and is why it surfaces
+now.
+
+*The remedy*: the durable marker stops being a boolean about the entity and becomes a record of a
+multi-file operation and its per-file progress, with recovery restoring what it finds in the
+reverse order the sequence wrote it, idempotent across a crash DURING recovery — the design
+`undoDeleteResolution` already holds for referents, extended to the entity's own files. **And it
+does not close the class**: the marker write is itself a file operation, so a crash between the
+note trash and the marker update leaves the same shape one step over. The honest bound is *two
+failures where one used to do*, never atomicity.
+
 ---
 
 # Phase B — the designer

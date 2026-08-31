@@ -1803,6 +1803,32 @@ describe('the list and detail states', () => {
 	});
 
 	/**
+	 * A REFUSED state is not a navigation. `{ projectId: 42 }` is a layout this build does not
+	 * recognise, so the pane goes on drawing what it draws — and a history entry for it would
+	 * restore the state the pane is already in, an arrow that appears to do nothing.
+	 */
+	it('records no history for a state it refuses', async () => {
+		const view = makeView();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+		const result = {} as ViewStateResult;
+
+		await view.setState({ projectId: 42 }, result);
+
+		expect(result.history).toBeUndefined();
+	});
+
+	/** Nor is re-stating the project already open — `sync()` no-ops and so must the history. */
+	it('records no history when the state names the project already open', async () => {
+		const view = makeView();
+		await view.setState({ projectId: 'project-01JAAA' }, {} as ViewStateResult);
+		const result = {} as ViewStateResult;
+
+		await view.setState({ projectId: 'project-01JAAA' }, result);
+
+		expect(result.history).toBeUndefined();
+	});
+
+	/**
 	 * What the `mounted` flag exists for. `PlanEditorView`'s guard returns on
 	 * `planId === null` because there is nothing to draw; here `null` is the LIST, a real
 	 * state — so a bare `projectId === mountedProjectId` guard skips the first open and the
@@ -1929,8 +1955,15 @@ and on the class:
 	 */
 	setState(state: unknown, result: ViewStateResult): Promise<void> {
 		const parsed = projectIdFrom(state);
+		// Only an ACCEPTED, CHANGED state is a navigation. `ViewStateResult.history` is
+		// documented as "there is a state change which should be recorded in the navigation
+		// history", and an unconditional assignment claims one where there is none: a refused
+		// parse (a layout this build does not recognise) and a `setState` naming the project
+		// already open would each add a back entry that restores the state the pane is
+		// already in, so the arrow appears to do nothing. Reported by a review bot against an
+		// earlier draft of this step.
+		if (parsed !== null && parsed.projectId !== this.projectId) result.history = true;
 		if (parsed !== null) this.projectId = parsed.projectId;
-		result.history = true;
 		this.sync();
 		return Promise.resolve();
 	}
@@ -1957,7 +1990,7 @@ and on the class:
 `this.unmount(); this.contentEl.empty();`; `rebind` becomes:
 
 ```ts
-	rebind(deps: RenovationProjectDepsFactory): void {
+	rebind(deps: RenovationProjectDeps): void {
 		this.deps = deps;
 		if (!this.mounted) return;
 		this.unmount();
@@ -1975,7 +2008,14 @@ is a fact about the leaf rather than about the mount:
 		const app = createApp(ViewRoot);
 		app.config.idPrefix = nextAppIdPrefix();
 		app.use(createPinia());
-		app.provide(RENOVATION_PROJECT_CONTEXT, this.deps(projectId));
+		// The bundle with THIS mount's projectId written over it. Task 5 landed
+		// `RenovationProjectDeps` as a plain bundle rather than a `(projectId) => deps`
+		// factory, and its commit body states why; this is the shape that fits it, and it is
+		// the sibling's own pattern — `PlanEditorView.mount` likewise builds its context
+		// locally rather than asking the root for a per-mount one. Nothing in `plugin/`
+		// changes, and `projectId` stays the VIEW's field, which is the property that
+		// mattered.
+		app.provide(RENOVATION_PROJECT_CONTEXT, { ...this.deps, projectId });
 		app.mount(this.contentEl);
 		this.vueApp = app;
 		this.mountedProjectId = projectId;
@@ -2008,7 +2048,9 @@ Expected: PASS.
 
 Each of these is invisible in a green run and each has exactly one case:
 
-1. Delete `result.history = true;` → the navigation-history case goes RED.
+1. Make `result.history = true;` unconditional → the two no-op cases below go RED while the
+   navigation case stays green. Then delete the assignment entirely → the navigation case goes
+   RED. Both directions, because one guard has two ways to be wrong.
 2. Change the guard to `if (this.projectId === this.mountedProjectId) return;` (drop
    `this.mounted &&`) → the "mounts the list on a first open" case goes RED.
 3. Change `projectIdFrom`'s last line to `return projectId.length > 0 ? { projectId } : null;`

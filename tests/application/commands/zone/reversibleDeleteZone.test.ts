@@ -87,7 +87,7 @@ describe('ReversibleDeleteZoneCommand', () => {
 		await reversible.execute();
 		expect(events.published.map((event) => event.type)).toEqual(['ZoneDeleted']);
 
-		events.published.length = 0;
+		events.clear();
 		await reversible.undo();
 
 		// `restore-zone.ts` saves through the repository and publishes nothing, deliberately:
@@ -111,7 +111,7 @@ describe('ReversibleDeleteZoneCommand', () => {
 		const reversible = makeCommand();
 		await reversible.execute();
 		await reversible.undo();
-		events.published.length = 0;
+		events.clear();
 		await reversible.execute(); // the redo path
 
 		expect(expectOk(await zones.getById(zone.id))).toBeNull();

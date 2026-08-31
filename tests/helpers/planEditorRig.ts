@@ -50,6 +50,9 @@ export const PLAN_DTO: PlanDto = {
 	projectId: PROJECT_ID,
 	name: 'Ground floor',
 	background: null,
+	// Uncalibrated, like `planFixtures.ts`'s — absent until `tests/**` was type-checked, on a
+	// literal annotated `PlanDto` with the field required.
+	calibration: null,
 	layers: [],
 };
 
@@ -140,6 +143,38 @@ export async function rig(seed?: (repos: {
 		deleteZone: makeDeleteZoneCommand(zonesRepo, events, requirementsRepo, locks),
 		zones: zonesRepo,
 		zoneInspector: new GetZoneInspector(zonesRepo),
+		// A FACTORY, as the interface requires, and one that REFUSES TO BE USED — deliberately,
+		// loudly, and after two rounds of trying to make it work.
+		//
+		// This rig cannot represent a calibration, and the reason is structural rather than a
+		// missing line. In production the geometry sidecar IS the source of truth for a plan's
+		// calibration and its zone coordinates, joined back by `ObsidianPlanRepository.getById`
+		// and `ObsidianZoneRepository`. This rig runs on the IN-MEMORY repositories, which hold
+		// no sidecar and perform no such join — so a calibration written to a sidecar here is
+		// invisible to the `GetPlan`/`FindZonesByPlan` reads the post-command refresh makes, and
+		// invisible to the geometry cascade that recalculates requirements from a zone's area.
+		//
+		// The two attempts before this one are why the remedy is a throw rather than a wiring:
+		//   - the real command over an EMPTY sidecar refused every gesture with
+		//     `test.injected-failure`, because `read` answers that for an unknown plan;
+		//   - the real command over a SEEDED one succeeded — measured, `{ ok: true, value:
+		//     'wrote' }` — and left every reader in the editor showing the pre-calibration plan.
+		// The second is the worse failure: a test could assert the command succeeded and believe
+		// this rig calibrates. Both were found by review rather than by any gate, because no test
+		// completes a calibration through this rig — `calibrateWiring.test.ts` builds its own
+		// recording factory for that, and `interactionLayer.test.ts` places only the first point.
+		//
+		// So the honest stand-in is one that cannot be mistaken for either a refusal or a
+		// success. Whoever first completes a calibration here gets this sentence instead of a
+		// misleading green, and their next move is to give the rig the sidecar join — which is a
+		// change to the repositories the rig composes, not to this line.
+		calibratePlan: (): never => {
+			throw new Error(
+				'planEditorRig does not model the geometry sidecar join, so it cannot calibrate. ' +
+					'Wire the in-memory repositories to a shared PlanGeometryDocument first, or build ' +
+					'a recording factory in your own suite the way calibrateWiring.test.ts does.',
+			);
+		},
 		requirementEdits: {
 			assignAsset: new AssignAssetCommand(zonesRepo, assetsRepo, requirementsRepo, events, locks),
 			setQuantityOverride: new SetRequirementQuantityOverrideCommand(requirementsRepo, events, locks),

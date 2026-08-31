@@ -488,43 +488,262 @@ Contract notes:
 
 ## Definition of Done
 
-- [ ] All eight `AppError` categories from slice 2 appear in the decision table
+Ticked against what a check actually proves. Two items are amended rather than ticked, and
+both amendments are below the list they belong to — an item ticked over a hole is the defect
+this whole slice is about, one document up.
+
+- [x] All eight `AppError` categories from slice 2 appear in the decision table
     with a typical origin, a surface, and a justification — none silently
     defaulted to "toast" or omitted.
-- [ ] `surfaceFor(error, origin)` is implemented, pure, and exhaustive over
-    `ErrorCategory` with no `default` fallthrough case.
-- [ ] A Zone-save `PersistenceError` on the autosave path flips slice 13's
+- [x] `surfaceFor(error, origin)` is implemented, pure, and exhaustive over
+    `ErrorCategory` with no `default` fallthrough case. Measured: deleting an arm reports
+    `TS2322` at the exhaustion assignment.
+- [x] A Zone-save `PersistenceError` on the autosave path flips slice 13's
     indicator to Save Error and does not also raise a toast for the same
     failure — proven by a test, not left as a sentence in this document.
-- [ ] Calibration's `calibration.invalid-distance` renders as an inline field
+    (`tests/presentation/editor/runtime.test.ts`, which asserts the PAIR: two existing cases
+    had encoded the double-report and were rewritten rather than deleted.)
+- [ ] **AMENDED — see Amendment 1.** Calibration's `calibration.invalid-distance` renders as an inline field
     error; `calibration.coincident-points` and `calibration.degenerate-scale`
     render as toasts — both proven by tests distinguishing the two by origin.
-- [ ] `PersistenceError` from a `background-cascade` resolves to a toast while every
+- [x] `PersistenceError` from a `background-cascade` resolves to a toast while every
     other category from that same origin resolves to `none` — the failed stale marker
-    is the one background failure with nothing left to carry it (slice 10).
-- [ ] A Requirement left with a missing target by `delete-anyway` reaches no surface
+    is the one background failure with nothing left to carry it (slice 10). Its own case,
+    not a row in a loop, for the reason the Testing section gives.
+- [x] A Requirement left with a missing target by `delete-anyway` reaches no surface
     through `surfaceFor` at all — it is a persisted read-model state (slice 10's
     `missingTarget`), and the table says so rather than leaving a reader to assume
     an unrouted case was forgotten.
-- [ ] A delete on an entity with existing referents reaches slice 15's modal
+- [x] **For the one code path that exists.** A delete on an entity with existing referents reaches slice 15's modal
     and never a toast or inline error, in every code path that can trigger it
-    (Zone delete, Asset delete).
-- [ ] A failed background recalculation (`onZoneGeometryChanged` cascade)
+    (Zone delete, Asset delete). `deleteZoneFlow.ts` is the Zone path. **There is no Asset
+    path**: `grep -rn "deleteAsset" src/presentation/` prints nothing, so `DeleteAssetCommand`
+    is composed in the root and reachable from no surface. That half is vacuous rather than
+    satisfied, and it is written here so the next slice to give Assets a delete control knows
+    it inherits this item rather than finding it ticked.
+- [x] A failed background recalculation (`onZoneGeometryChanged` cascade)
     produces zero toast/modal/inline calls; `recalculationStatus` remains the
-    only user-facing trace until the affected Requirement is next viewed.
-- [ ] Every error routed through `surfaceFor`, including every one resolving to
+    only user-facing trace until the affected Requirement is next viewed. Verified by
+    reading `composition-root.ts`'s `cascadeNotices`, which has exactly two members —
+    `cascadeAborted` and `staleMarkerFailed`, both persistence-side. Neither fires per
+    recalculation.
+- [ ] **NOT DONE, and not started — see Amendment 2.** Every error routed through `surfaceFor`, including every one resolving to
     `"none"`, is independently provable to have already been passed to
     `logger.error` — logging is never conditional on the surface chosen.
-- [ ] A view whose hydrating query resolved `isErr` renders an in-place failure state with
+- [x] A view whose hydrating query resolved `isErr` renders an in-place failure state with
     `ToUserMessage` copy and a retry action — never slice 14's empty-state copy, and
     never a toast over a blank region. A `GetPlan` that resolved `ok(null)` renders a
     dangling-reference state and reaches no error surface at all, since it is not an
     error. Both are proven by tests, and both close deferrals slice 14 made to this slice.
-- [ ] The only surface this slice adds beyond slices 13/15/16 is that in-place view failure
+    (`viewRootFailure.test.ts`, `planEditorFailure.test.ts`. The bootstrap origin withholds
+    the retry, which is a THIRD state this item did not anticipate and is described below.)
+- [x] The only surface this slice adds beyond slices 13/15/16 is that in-place view failure
     state, and it is added because slice 14 identified a case none of them covers — not
     because a fourth container looked useful. Every other routed error lands on a toast, a
     modal, an inline field error, the save-state indicator, or a persisted marker slices
     10/11/13 already define.
+
+### Amendment 1 (2026-08-30): the inline calibration error is WITHDRAWN, because no user can reach it
+
+The item asked for `calibration.invalid-distance` to render as an inline field error. Building
+that would have meant restructuring the calibration gesture so the dialog owns its dispatch —
+the shape slice 16 settled for `NewProjectForm` — and this slice's own spec named that as its
+largest piece of work and its schedule risk.
+
+**It was not built, because reading the guards showed the refusal is unreachable from the UI
+through three of them**, and the outermost is the one that matters:
+
+1. `KnownDistanceForm` computes `parsed` as `null` unless the typed value is non-empty, finite
+   and positive, and **disables its submit button** on `parsed === null`. A user cannot submit
+   an invalid distance at all.
+2. `runtime.ts`'s `supplyKnownDistance` returns `null` for anything that is not a number.
+3. `CalibrateTool.complete` returns early on a non-positive or non-finite distance.
+
+So `deriveCalibration`'s `calibration.invalid-distance` arm cannot be reached by any gesture.
+Rendering an inline error for it would have been a surface for a failure nobody can produce —
+and validating at the input, which is what the form already does, is *better* than dispatching
+and rendering a refusal. The honest conclusion is that this item asked for the weaker design.
+
+**The other two thirds of the item are done, and one of them was a real defect.**
+`calibration.degenerate-scale` already reached a toast through `reportRejected`.
+`calibration.coincident-points` did not reach anything: `CalibrateTool.complete` refused a
+zero-length measurement and returned **silently**, wiping the anchor the user's first click had
+drawn. Two clicks in one place discarded a placed point with no reason given. It raises the
+domain's own coded refusal now, through one exported factory both sites share, and
+`calibrateTool.test.ts` pins it.
+
+What is NOT closed by that: the inline half stays unbuilt, and if a future caller can supply a
+distance without passing through `KnownDistanceForm` — a script, an import, an undo replay —
+the refusal becomes reachable and this amendment becomes wrong. That is the trigger.
+
+### Amendment 2 (2026-08-30): the logging item is untouched, not partially met
+
+Nothing in this slice checks that every routed error was already logged. The guarantee is
+believed to hold by construction — slice 11's `guardCommand`/`guardQuery` log at the mapping
+step, before any `Result` reaches Presentation — but "believed to hold by construction" is what
+that slice's own review rounds kept finding to be false, and this slice added no instrument for
+it.
+
+It is left unticked rather than argued for, because the item asks for something
+*independently provable* and no such proof exists. The shape it needs is a check at the
+forbidden thing rather than a walk of call sites: every door that reaches a surface takes an
+error whose logging already happened, which is a claim about the boundary and not about
+`surfaceFor`.
+
+### Amendment 3 (2026-08-30): a third view state this document did not anticipate
+
+The `view-hydration` item describes two states. There are three, and the third is the reason
+`viewHydrationOrigin` exists: a session whose settings never loaded refuses every query with
+`settings.unrecovered`, and that is a `bootstrap` origin rather than a hydration failure. It
+renders the same container with **no retry**, because nothing was composed to re-run and slice
+1 already refused a repair UI.
+
+This document's own "Bootstrap: the failure that precedes every row above" section called for
+exactly that, so the state was designed here; what was missing was any Definition of Done item
+covering it. Both views implement it and both have cases for it.
+
+### Amendment 4 (2026-08-30): the dangling-plan state has its action
+
+The `ok(null)` half of the view-hydration item asks for "an action to close the leaf or pick
+another plan". It shipped for one commit with NO action and the reason was recorded here:
+`PlanEditorContext` carried no door to close a leaf, and reaching for the global `app` is what
+the marketplace rules refuse.
+
+`PlanEditorContext.closeLeaf()` is that door now — a narrow callback the VIEW partially applies
+from its own `WorkspaceLeaf`, which is the shape `onPlanChanged` already had and the reason
+`onThemeChange` gives for not handing the `Workspace` down. The composition root is untouched:
+it composes services and knows nothing about which leaf this is.
+
+Two things the wiring turned up. The failure state's single button now means two OPPOSITE
+things — retry a read that really failed, close a tab whose plan is gone — so the handler
+branches on the status rather than the component learning which caller means what; both
+directions are mutation-checked, because a handler that always retried, or always closed, looks
+correct against a suite testing only one. And the widening was met at compile time by both
+context constructions, the test harness and the browser-harness fixture, which is what
+`tests/helpers/makeRenovationProjectView.ts`'s own docblock promises for the other view.
+
+"Pick another plan" is still not built: the plan picker is `open-plan-editor`, a plugin command
+outside the editor's bundle, and offering it here is the same seam problem one level further
+out. One action rather than two, and this names the missing half rather than implying the item
+is fully met.
+
+### Amendment 5 (2026-08-30): a FAULT keeps its sentence; a REFUSAL goes where the indicator did not
+
+The table routes an autosave-path `PersistenceError` to the save indicator with no toast beside
+it, and reviewing that rule against the code found it under-specified in one direction.
+
+`makeCommitField` maps a **thrown** fault into a resolved `Result` carrying a coded
+`PersistenceError`, so by the time it reaches a reporting site it is structurally identical to
+a refusal the command returned. Routed identically, a technical fault would show a badge
+reading "Save error" and no cause at all — trading the user's only account of it for
+consistency. SDD §65 already draws the line this needs: a throw is a technical fault, a
+refusal is expected.
+
+So `faultError` stamps every mapped fault (`presentation/errors/technical-fault.ts`), which is
+sound because that function is the ONE place a thrown cause becomes an `AppError` — its
+definition plus four callers, all catch blocks. `commitEdit` asks, and a fault takes the
+notice while a refusal takes `reportDispatchRefusal`.
+
+**`reportDispatchRefusal` asks `affectsSaveState`, the same predicate the indicator asked**,
+rather than assuming every dispatched refusal was carried by it. That assumption was false for
+a PRE-WRITE category — `Calculation`, `Domain`, `Validation`, `Reference` — where the indicator
+resolves neutral: a calibration whose scale collapsed after dispatch and before
+`geometry.write` reached nobody at all.
+
+The delete flow deliberately stays on the notice. Its failed arm carries a failed referents
+QUERY and a failed DISPATCH through one branch, and no predicate can separate them — a failed
+query is a `Persistence` error exactly like a failed write. A toast for both over-reports the
+dispatched case and correctly reports the query case; the unsafe direction is silence.
+
+### Amendment 7 (2026-08-30): the stamp is a TYPE obligation, and the two report doors merge
+
+**Amendment 5's central claim was false, and the sentence naming it is where the defect was.**
+It says `faultError` "is the ONE place a thrown cause becomes an `AppError` — its definition
+plus four callers, all catch blocks". `application/errors/guardAgainstThrowing.ts` holds a
+second, and it is the one EVERY guarded command and query goes through: its `catch` maps the
+cause through the vault's `ExceptionMapper` and returns a resolved failed `Result`, with no
+stamp on it. So a repository exception under a dispatched editor command — `MoveSpatialObjectCommand`
+against a vault that threw — reached Presentation looking exactly like a refusal the command had
+chosen to return. `Persistence` is not a pre-write category, so `affectsSaveState` answered
+true, the routing sent it to the save-state sink, and the mapped sentence reached nobody while
+the badge went up. Reported by a review bot; the claim had never been grepped.
+
+**The repair is not a second `markTechnicalFault` call.** `ExceptionMapper`'s declared return
+type is `AppError & TechnicalFault` now, so the obligation is discharged by the compiler at
+every mapper, including the geometry and import ones that file's own docblock promises are
+coming. `guardAgainstThrowing` is unchanged — it already returns what its mapper gave it.
+`faultError` drops its hand-written stamp, because `mapUnexpected` is an `ExceptionMapper`.
+The module moved from `presentation/errors/` to `core/errors/technical-fault.ts`, since its
+writer is now in `application/` and its reader in `presentation/`, on opposite sides of it.
+
+**`reportCommitFailure` is gone, merged into `reportDispatchFailure`.** It existed as a second
+function ONLY because its callers were the only ones whose faults carried a stamp, so the fault
+arm would have been dead in its sibling — a split kept alive by the defect rather than by a
+distinction. With both doors able to see a fault there is one rule and one function holding it,
+which is what this document's own earlier amendment asked for. The module is `report-failure.ts`
+rather than `report-refusal.ts`, because a refusal is precisely what the function distinguishes
+from a fault.
+
+The proof is `tests/application/errors/exceptionMapper.test-d.ts` (a claim about mappers not yet
+written has no runtime form) and one behavioural case in `toolRefusalSurfaces.test.ts` that
+drives the REAL `guardCommand` around a throwing command and requires the toast — watched red
+against an unstamped mapper, with the file's other two cases staying green, which is what
+distinguishes the fix from "toast everything".
+
+### Amendment 6 (2026-08-30): a canvas showing stale data says so, without being replaced
+
+`withEditorStateRefresh` re-reads after every committed write with `keepPreviousOnFailure`, and
+`ProjectStore` honours that by keeping `status === 'ready'` and the previous scene when the
+read fails, recording the error beside it. Nothing rendered that pair: the write succeeded, the
+indicator read **Saved**, and the canvas silently showed pre-command geometry.
+
+The in-place failure state is the wrong surface for it, which is why this needed its own
+answer rather than a widened guard. The data on screen is valid — only stale — and
+`keepPreviousOnFailure` exists precisely to keep showing it; replacing it would hide a plan the
+user can still work on in order to report a read that failed.
+
+`editor.refresh-failed` is an ADDITIVE strip in the region the two background notices already
+use, shown while `status === 'ready' && error !== null`. It persists as long as the condition
+does, which a toast would not.
+
+**"In the region they use" is not "in the chain they form", and the first version was the
+second.** The two background notices are alternatives to EACH OTHER — a background is missing
+or unreadable, never both — so one `v-if`/`v-else-if` chain is right for them. Staleness is an
+independent fact about a re-READ, and putting it at the head of that chain meant a failed
+read-back suppressed the only sentence explaining why the plan had no background: two unrelated
+failures, the survivor being the one that says nothing about the other. It is its own `v-if`
+now. Reported by a review bot; the regression case asserts the whole notice LIST rather than
+picking one out, because `find` answers the first match and was satisfied by the defect.
+
+**And the strip had to stop flickering, which is a fix in the STORE rather than in the
+condition.** `ProjectStore.hydrate` cleared `error` unconditionally at its top while leaving
+`status === 'ready'` on the keep-on-failure path — so the strip withdrew for the whole of the
+next read, over a canvas still drawing the very same stale snapshot, and on a vault that keeps
+refusing it blinked off and on rather than standing. A read that has STARTED has established
+nothing; only one that SUCCEEDS makes the canvas current again, so that is now the single event
+that retires the warning. The other path still clears at the top, and the asymmetry is the
+point: it drops to `loading` and replaces the canvas, so no stale content is left for an error
+to be about. Held in BOTH directions by mutation — clearing at the top again, and never
+clearing on success — because a warning that never retires is the over-correction and passes
+any case that only checks the warning appears.
+
+**That fix was itself too narrow, and the third finding in a row here is what says the field
+was the problem rather than any of its three clears.** It protected the `keepPreviousOnFailure`
+path only, and `PlanEditorRoot` subscribes a PLAIN `hydrate()` — no options — to
+`onPlanChanged`, which fires for any external plan change; with `status` already `'ready'` that
+path also leaves the canvas mounted, so it withdrew the warning for the length of its read in
+exactly the same way. The answer is not a third condition on `error`. `error` means "why is
+there nothing to show" — `fail()` sets it beside `plan = null` — and the strip needs "what is on
+screen is real but may be out of date". `ProjectStore.stale` is that second fact, set where a
+read fails with content still on screen, cleared by the one event that makes the canvas current
+(a read that SUCCEEDED) and by `fail()`, where the stale content is gone with it. Every
+hydration path ends at one of those three, so a future caller gets the lifetime right without
+knowing the rule.
+
+**The shape worth keeping, because this document paid for it three times:** all three defects
+were consequences of one overloaded field, and each individual patch was correct about the
+door it was shown and silent about the next one. A field that answers two questions produces a
+finding per caller until it answers one.
 
 ## References
 

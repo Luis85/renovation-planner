@@ -7,12 +7,31 @@ import { installObsidianDom } from '../../helpers/dom';
 import {
 	activateNotices,
 	disposeNotices,
+	noticeOnlySinks,
 	notify,
 	notifyError,
 	notifySuccess,
 	notifyWarning,
 } from '../../../src/presentation/notices/notify';
 import type { AppError } from '../../../src/core/errors/AppError';
+import { surfaceError } from '../../../src/presentation/errors/surfaceError';
+import {
+	surfaceFor,
+	type ErrorSurface,
+	type ToastSurface,
+} from '../../../src/presentation/errors/errorSurfacePolicy';
+
+/**
+ * Narrows a routed surface to its toast member, so this file can call `notifyError` at all.
+ *
+ * A CAST would have been shorter and is refused on purpose: design slice 17's brand exists to
+ * make the toast door unreachable without asking the policy, and a test that casts past it is
+ * testing a door the production tree does not have.
+ */
+function expectToast(surface: ErrorSurface): ToastSurface {
+	if (surface.kind !== 'toast') throw new Error(`expected a toast surface, got ${surface.kind}`);
+	return surface;
+}
 
 // The host builds its markup with Obsidian's own `createSpan`/`createEl` globals, which the
 // marketplace ruleset requires over `document.createElement`. jsdom has neither.
@@ -37,6 +56,28 @@ describe('the notice door', () => {
 		// that relied on it being live by default would be testing a module the plugin never
 		// uses in that state.
 		activateNotices();
+	});
+
+	/**
+	 * **The degradation `SurfaceSinks.unrenderable` exists for, pinned as behaviour.**
+	 *
+	 * Every production caller of `noticeOnlySinks` today declares an origin whose surface it can
+	 * actually draw, so this door is not reached by any of them — which is the design working,
+	 * and also why it needs a case of its own rather than arriving as coverage from somewhere
+	 * else. A notice-only site handed a `view-failure` has no room for it; the rule is that the
+	 * failure still reaches the user, and the alternative this guards against is silence.
+	 */
+	it('degrades a surface it cannot draw to a notice rather than to silence', () => {
+		const error: AppError = {
+			category: 'Persistence',
+			code: 'zone.save-failed',
+			message: 'developer English',
+		};
+
+		surfaceError(error, { kind: 'view-hydration' }, noticeOnlySinks);
+
+		expect(noticeEls()).toHaveLength(1);
+		expect(noticeEls()[0]?.textContent).not.toContain('developer English');
 	});
 
 	it('renders a translated severity label beside the message, never colour alone', () => {
@@ -243,7 +284,7 @@ describe('the notice door', () => {
 			code: 'vault.unexpected-failure',
 			message: 'a fault that resolved after onunload',
 		};
-		notifyError(late);
+		notifyError(late, expectToast(surfaceFor(late, { kind: 'explicit-operation' })));
 		expect(noticeEls()).toHaveLength(0);
 		expect(Notice.constructed).toHaveLength(constructedBefore);
 	});
@@ -260,7 +301,11 @@ describe('the notice door', () => {
 			code: 'zone.name-required',
 			message: 'developer English that must not reach a user',
 		};
-		notifyError(error);
+		// Design slice 17 made the second parameter the door's lock: `ToastSurface` is branded,
+		// so this call cannot be written without asking the policy first. Reaching for
+		// `surfaceFor` here rather than casting a literal is the point — a cast would prove the
+		// door still opens for anything, which is what the brand exists to stop.
+		notifyError(error, expectToast(surfaceFor(error, { kind: 'explicit-operation' })));
 
 		const text = noticeEls()[0]?.textContent ?? '';
 		expect(text).not.toContain('developer English');

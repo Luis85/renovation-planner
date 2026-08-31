@@ -2,11 +2,17 @@
 // jsdom: the plugin shell touches the DOM through the module mock, exactly as
 // tests/plugin/persistence-wiring.test.ts does.
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Notice } from 'obsidian';
+// Mock-only surface, imported BY NAME. `Notice` carries members
+// the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
+// `'obsidian'` specifier type-checks against a surface that has no such thing. The
+// vitest alias points that specifier at this very file, so this is the SAME class and
+// the same statics — proven, not assumed — and the import now says which surface it
+// wants.
+import { Notice } from '../helpers/obsidian-mock';
 import { Decimal } from 'decimal.js';
 import { loadedPlugin } from '../helpers/plugin';
 import { createRepositoryStack } from '../helpers/vault';
-import { expectOk } from '../helpers/domain';
+import { expectFound, expectOk } from '../helpers/domain';
 import { of as moneyOf } from '../../src/core/money/Money';
 import {
 	makeAsset,
@@ -113,7 +119,7 @@ describe('slice-10 cascade wiring', () => {
 		// A price edit that has not announced itself yet: after it lands, the link no
 		// longer matches what its figures were computed FROM, so the cascade must
 		// recalculate for real rather than skip.
-		const storedAsset = expectOk(await stack.assets.getById(asset.entity.id));
+		const storedAsset = expectFound(await stack.assets.getById(asset.entity.id));
 		const repriced = expectOk(
 			storedAsset.entity.withChanges({ unitCost: moneyOf('50.00', 'EUR') }),
 		);
@@ -189,12 +195,12 @@ describe('slice-10 cascade wiring', () => {
 		workspace.layoutReady();
 
 		// Obsidian hands TAbstractFile to `rename`; only notes interest the pipeline.
-		const planPath = plugin.root.persistence?.index.getPath(plan.id) as string;
+		const planPath = plugin.root.persistence?.index.getPath(plan.entity.id) as string;
 		const rename = vaultHandlers[3];
 		expect(rename).toBeInstanceOf(Function);
 		rename(stack.vault.getAbstractFileByPath(planPath) as never, 'Renovation/old-name.md');
 		plugin.root.persistence?.changeAdapter.flush();
-		expect(plugin.root.persistence?.index.getPath(plan.id)).toBe(planPath);
+		expect(plugin.root.persistence?.index.getPath(plan.entity.id)).toBe(planPath);
 
 		await plugin.onunload();
 	});

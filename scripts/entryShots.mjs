@@ -27,6 +27,18 @@ import { createHash } from 'node:crypto';
  * URL encoding) into assertions that call the function and check its output — see
  * `tests/build/entryShots.test.ts`.
  */
+/**
+ * One capture: the PNG's basename, the index query that draws it, the entry it is of, and
+ * the viewport width (`undefined` for the caller's default).
+ *
+ * @typedef {{ name: string, query: string, entry?: string, width?: number }} Shot
+ */
+
+/**
+ * @param {string} entry
+ * @param {number} [width] Absent for the caller's default viewport width.
+ * @returns {Shot[]}
+ */
 export const entryShots = (entry, width) => {
 	// The id is a URL and may contain `:` and `/` — both legal in a query value, both ILLEGAL
 	// in a Windows filename, and Windows is one of the four legs `npm run check` rides.
@@ -114,6 +126,12 @@ function parseWidth(raw) {
 	return width;
 }
 
+/**
+ * @param {readonly string[]} argv
+ * @param {readonly Shot[]} fixedShots
+ * @param {Record<string, string | undefined>} [env]
+ * @returns {readonly Shot[]}
+ */
 export function resolveShots(argv, fixedShots, env = {}) {
 	const args = argv.slice(2);
 	// Flags are recognised by their leading `--` rather than by position, so

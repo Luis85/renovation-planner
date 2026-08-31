@@ -142,11 +142,17 @@ describe('the renovation project view', () => {
 	 *
 	 * The copy comes from `trError`, so the sentence is the mapped one for the actual code
 	 * (`settings.unrecovered` has its own) rather than a generic second answer.
+	 *
+	 * **The CONTAINER changed in design slice 17 and the claim did not.** That message used to
+	 * share `.rp-view-message` with the loading line; it is now the body of a `ViewFailure`,
+	 * which is a different region from the loading one and can carry an action. What this case
+	 * asserts — that the mapped sentence for THIS code reaches the user — is untouched, and
+	 * `viewRootFailure.test.ts` is where the new state's own behaviour is pinned.
 	 */
 	it('renders the mapped failure message for a failed read', async () => {
 		const view = await open(refusing());
 
-		const message = view.contentEl.querySelector('.rp-view-message');
+		const message = view.contentEl.querySelector('.rp-view-failure__body');
 		expect(message?.textContent?.trim()).toBe(t('en', 'settings.unrecovered'));
 		expect(view.contentEl.querySelector('.rp-empty-state')).toBeNull();
 		await view.onClose();

@@ -18,26 +18,55 @@ import {
 	STAGE_PIXELS,
 } from '../../../src/presentation/editor/viewport/Viewport';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
-import { mountPlanEditor, settle, type EditorHarness } from '../../helpers/editor';
+import {
+	fakeQueries,
+	mountPlanEditor,
+	mountPlanEditorCanvas,
+	settle,
+	type CanvasHarness,
+	type EditorHarness,
+	type EditorHarnessOptions,
+} from '../../helpers/editor';
 import { FIXTURE_PLAN } from '../../helpers/planFixtures';
 
-let harness: EditorHarness | null = null;
+/**
+ * What `afterEach` has to unmount, which is the only thing the whole file shares.
+ *
+ * Every case takes its harness as a LOCAL const from one of the two mounts below, because a
+ * module-level `EditorHarness | null` read inside a case is a value the compiler cannot
+ * narrow — least of all inside the arrow functions several cases build over it.
+ */
+let open: EditorHarness | null = null;
 
 afterEach(() => {
-	harness?.unmount();
-	harness = null;
+	open?.unmount();
+	open = null;
 });
+
+/** Mount over an ordinary plan: a canvas is not in question, so it is proven once here. */
+async function mountCanvas(options: EditorHarnessOptions = {}): Promise<CanvasHarness> {
+	const harness = await mountPlanEditorCanvas(options);
+	open = harness;
+	return harness;
+}
+
+/** Mount for a state that draws NO canvas — a missing plan, a failed read, one still loading. */
+async function mountShell(options: EditorHarnessOptions): Promise<EditorHarness> {
+	const harness = await mountPlanEditor(options);
+	open = harness;
+	return harness;
+}
 
 const READ_FAILED = { category: 'Persistence', code: 'plan.read-failed', message: 'boom' } as const;
 
 /** Pointer and wheel events must BUBBLE: the camera listens on the canvas container. */
-function wheelOver(mounted: EditorHarness, deltaY: number, at = { clientX: 400, clientY: 300 }): void {
+function wheelOver(mounted: CanvasHarness, deltaY: number, at = { clientX: 400, clientY: 300 }): void {
 	mounted.canvasEl.dispatchEvent(new WheelEvent('wheel', { deltaY, ...at, bubbles: true }));
 }
 
 describe('the five regions', () => {
 	it('stands up the toolbar, both panels, the canvas and the status bar', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 		const { wrapper } = harness;
 
 		expect(wrapper.find('.rp-editor-toolbar').exists()).toBe(true);
@@ -52,7 +81,7 @@ describe('the five regions', () => {
 	 * third BY NAME. A bar with two regions or four leaves it nowhere to go.
 	 */
 	it('keeps the status bar three named regions, save state included', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 		const { wrapper } = harness;
 
 		expect(wrapper.find('.rp-editor-status').attributes('aria-label')).toBe(t('en', 'editor.status'));
@@ -67,7 +96,7 @@ describe('the five regions', () => {
 	});
 
 	it('shows the plan name in the status region', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 
 		expect(harness.wrapper.find('.rp-editor-status').text()).toBe(FIXTURE_PLAN.name);
 	});
@@ -79,7 +108,7 @@ describe('the five regions', () => {
 	 * is available, absent when pressing the key would do nothing.
 	 */
 	it('announces the angle constraint under the tools that take it, and no others', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 		const hint = () => harness.wrapper.find('.rp-editor-hint');
 		const press = (label: string) => {
 			const button = harness.wrapper.findAll('button').find((candidate) => candidate.text() === label);
@@ -105,7 +134,7 @@ describe('the five regions', () => {
 	});
 
 	it('labels the toolbar and the inspector, empty though they are', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 		const { wrapper } = harness;
 
 		expect(wrapper.find('.rp-editor-toolbar').attributes('aria-label')).toBe(t('en', 'editor.toolbar'));
@@ -118,7 +147,7 @@ describe('the five regions', () => {
 	 * the state `CalibrateTool` was in for a whole slice.
 	 */
 	it('mounts a dialog host that the leaf can open a dialog through', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 		const store = useDialogStore(harness.pinia);
 
 		void store.openDialog({ kind: 'confirm', title: 'T', message: 'M' });
@@ -135,7 +164,7 @@ describe('the five regions', () => {
 	 * that would catch that.
 	 */
 	it('makes a shell region inert while the dialog is open, and releases it on close', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 		const store = useDialogStore(harness.pinia);
 
 		void store.openDialog({ kind: 'confirm', title: 'T', message: 'M' });
@@ -152,7 +181,7 @@ describe('the five regions', () => {
 
 describe('the layers panel', () => {
 	it('offers one labelled checkbox per Konva layer', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 
 		const rows = harness.wrapper.findAll('.rp-editor-layer-row');
 
@@ -167,7 +196,7 @@ describe('the layers panel', () => {
 	 * write — but it does have to actually hide the layer.
 	 */
 	it('hides the Konva layer when its checkbox is unticked', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 		const zoneLayer = harness.stage.findOne('.zone');
 		expect(zoneLayer?.visible()).toBe(true);
 
@@ -183,13 +212,13 @@ describe('the layers panel', () => {
 
 describe('the measurements readout', () => {
 	it('reports the zoom as a percentage', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 
 		expect(harness.wrapper.find('.rp-editor-measurements').text()).toContain('10%');
 	});
 
 	it('blanks the pointer position until the pointer is over the canvas', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 
 		expect(harness.wrapper.find('.rp-editor-measurements').text()).toContain('—');
 	});
@@ -199,7 +228,7 @@ describe('the measurements readout', () => {
 	 * the viewport transform working end to end without any editable state behind it.
 	 */
 	it('shows the pointer position in world millimetres, and blanks it again on leave', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 
 		harness.canvasEl.dispatchEvent(
 			new PointerEvent('pointermove', { clientX: 100, clientY: 50, bubbles: true }),
@@ -221,8 +250,8 @@ describe('the measurements readout', () => {
 
 describe('the camera', () => {
 	it('zooms in on a wheel up and out on a wheel down', async () => {
-		harness = await mountPlanEditor();
-		const zoomOf = () => harness?.stage.findOne('.zone')?.scaleX() ?? 0;
+		const harness = await mountCanvas();
+		const zoomOf = () => harness.stage.findOne('.zone')?.scaleX() ?? 0;
 		const start = zoomOf();
 
 		wheelOver(harness, -240);
@@ -237,8 +266,8 @@ describe('the camera', () => {
 	});
 
 	it('pans on a primary-button drag', async () => {
-		harness = await mountPlanEditor();
-		const positionOf = () => ({ x: harness?.stage.findOne('.zone')?.x(), y: harness?.stage.findOne('.zone')?.y() });
+		const harness = await mountCanvas();
+		const positionOf = () => ({ x: harness.stage.findOne('.zone')?.x(), y: harness.stage.findOne('.zone')?.y() });
 		const before = positionOf();
 
 		harness.canvasEl.dispatchEvent(
@@ -266,8 +295,8 @@ describe('the camera', () => {
 	 * still asserted otherwise would be pinning a decision this project has reversed.
 	 */
 	it('ignores a drag started with the secondary button', async () => {
-		harness = await mountPlanEditor();
-		const positionOf = () => harness?.stage.findOne('.zone')?.x();
+		const harness = await mountCanvas();
+		const positionOf = () => harness.stage.findOne('.zone')?.x();
 		const before = positionOf();
 
 		harness.canvasEl.dispatchEvent(
@@ -282,8 +311,8 @@ describe('the camera', () => {
 	});
 
 	it('stops panning when the button is released', async () => {
-		harness = await mountPlanEditor();
-		const positionOf = () => harness?.stage.findOne('.zone')?.x();
+		const harness = await mountCanvas();
+		const positionOf = () => harness.stage.findOne('.zone')?.x();
 
 		harness.canvasEl.dispatchEvent(
 			new PointerEvent('pointerdown', { button: 0, clientX: 100, clientY: 100, bubbles: true }),
@@ -304,8 +333,8 @@ describe('the camera', () => {
 	});
 
 	it('ends a pan that leaves the pane, so the view does not stay stuck to the cursor', async () => {
-		harness = await mountPlanEditor();
-		const positionOf = () => harness?.stage.findOne('.zone')?.x();
+		const harness = await mountCanvas();
+		const positionOf = () => harness.stage.findOne('.zone')?.x();
 
 		harness.canvasEl.dispatchEvent(
 			new PointerEvent('pointerdown', { button: 0, clientX: 100, clientY: 100, bubbles: true }),
@@ -327,8 +356,8 @@ describe('the camera', () => {
 	 * because a wheel is not a control everyone has.
 	 */
 	it.each([['+'], ['=']])('zooms in on %s', async (key) => {
-		harness = await mountPlanEditor();
-		const zoomOf = () => harness?.stage.findOne('.zone')?.scaleX() ?? 0;
+		const harness = await mountCanvas();
+		const zoomOf = () => harness.stage.findOne('.zone')?.scaleX() ?? 0;
 		const before = zoomOf();
 
 		harness.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
@@ -338,8 +367,8 @@ describe('the camera', () => {
 	});
 
 	it('zooms out on -', async () => {
-		harness = await mountPlanEditor();
-		const zoomOf = () => harness?.stage.findOne('.zone')?.scaleX() ?? 0;
+		const harness = await mountCanvas();
+		const zoomOf = () => harness.stage.findOne('.zone')?.scaleX() ?? 0;
 		const before = zoomOf();
 
 		harness.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: '-', bubbles: true }));
@@ -349,8 +378,8 @@ describe('the camera', () => {
 	});
 
 	it('leaves every other key to whoever else wants it', async () => {
-		harness = await mountPlanEditor();
-		const zoomOf = () => harness?.stage.findOne('.zone')?.scaleX() ?? 0;
+		const harness = await mountCanvas();
+		const zoomOf = () => harness.stage.findOne('.zone')?.scaleX() ?? 0;
 		const before = zoomOf();
 
 		harness.canvasEl.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
@@ -360,7 +389,7 @@ describe('the camera', () => {
 	});
 
 	it('is focusable and named, so the keyboard can reach it at all', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 
 		expect(harness.canvasEl.getAttribute('tabindex')).toBe('0');
 		expect(harness.canvasEl.getAttribute('aria-label')).toBe(t('en', 'editor.canvas'));
@@ -369,25 +398,34 @@ describe('the camera', () => {
 
 describe('what the shell shows when there is no plan to draw', () => {
 	it('says so, and mounts no canvas, when the plan does not exist', async () => {
-		harness = await mountPlanEditor({
-			queries: { getPlan: () => Promise.resolve(ok(null)), findZonesByPlan: () => Promise.resolve(ok([])), getRequirementsForZone: () => Promise.resolve(ok([])), listAssets: () => Promise.resolve(ok([])) },
+		const harness = await mountShell({
+			queries: { ...fakeQueries(null), getPlan: () => Promise.resolve(ok(null)) },
 		});
 
 		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-editor-canvas-message').text()).toBe(t('en', 'editor.plan-missing'));
+		// Design slice 17 moved this into the shared `ViewFailure` and gave it a headline and a
+		// body; the claim — the shell SAYS the plan is gone, and draws no canvas over it — is
+		// unchanged. `planEditorFailure.test.ts` is where the new state's own rules are pinned.
+		expect(harness.wrapper.find('.rp-view-failure__headline').text()).toBe(
+			t('en', 'editor.plan-missing.headline'),
+		);
 	});
 
 	it('says something DIFFERENT when the read failed', async () => {
-		harness = await mountPlanEditor({
-			queries: {
-				getPlan: () => Promise.resolve(err(READ_FAILED)),
-				findZonesByPlan: () => Promise.resolve(ok([])),
-				getRequirementsForZone: () => Promise.resolve(ok([])),
-				listAssets: () => Promise.resolve(ok([])),
-			},
+		const harness = await mountShell({
+			queries: { ...fakeQueries(null), getPlan: () => Promise.resolve(err(READ_FAILED)) },
 		});
 
-		expect(harness.wrapper.find('.rp-editor-canvas-message').text()).toBe(t('en', 'editor.plan-failed'));
+		// "Something DIFFERENT" is now different in a stronger sense than when this case was
+		// written: the body is `trError(error)`, the mapped sentence for the failing code, so two
+		// different causes no longer share one fixed line. Asserted as a difference from the
+		// missing-plan headline, which is the claim this case has always made.
+		expect(harness.wrapper.find('.rp-view-failure__headline').text()).toBe(
+			t('en', 'editor.plan-failed.headline'),
+		);
+		expect(harness.wrapper.find('.rp-view-failure__headline').text()).not.toBe(
+			t('en', 'editor.plan-missing.headline'),
+		);
 	});
 
 	/**
@@ -396,13 +434,11 @@ describe('what the shell shows when there is no plan to draw', () => {
 	 * 14's empty states exist to tell apart.
 	 */
 	it('shows a loading message while the queries are still out', async () => {
-		harness = await mountPlanEditor({
+		const harness = await mountShell({
 			queries: {
+				...fakeQueries(null),
 				// Never settles: the editor is in its loading state for the whole of this test.
 				getPlan: () => new Promise(() => {}),
-				findZonesByPlan: () => Promise.resolve(ok([])),
-				getRequirementsForZone: () => Promise.resolve(ok([])),
-				listAssets: () => Promise.resolve(ok([])),
 			},
 		});
 
@@ -418,7 +454,7 @@ describe('what the shell shows when there is no plan to draw', () => {
  */
 describe('collapsing a panel', () => {
 	it('removes the layers panel and leaves the canvas', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 		useWorkspaceStore().toggleLayersPanel();
 		await settle();
 
@@ -428,7 +464,7 @@ describe('collapsing a panel', () => {
 	});
 
 	it('removes the inspector independently', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mountCanvas();
 		useWorkspaceStore().toggleInspectorPanel();
 		await settle();
 

@@ -45,6 +45,9 @@ const DOMAIN = 'src/domain/zone/Zone.ts';
  * severity; every entry after it is an option, and an option is either `{ name, message }`
  * or the bare-string spelling the rule also accepts.
  */
+/** A rule entry as a list of its parts, or `[]` when it is absent or not configured as one. */
+const toList = (rule: unknown): readonly unknown[] => (Array.isArray(rule) ? rule : []);
+
 const namesIn = (rule: readonly unknown[]): string[] =>
 	rule.slice(1).map((entry) => (typeof entry === 'string' ? entry : (entry as { name: string }).name));
 
@@ -234,8 +237,13 @@ describe('the network boundary around diagnostics', () => {
 	 */
 	it('carries the marketplace globals in every block that names the rule', () => {
 		const declared = new Set(
-			obsidianmd.configs.recommendedWithLocalesEn.flatMap((config: { rules?: Record<string, readonly unknown[]> }) =>
-				namesIn(config.rules?.['no-restricted-globals'] ?? []),
+			// Unannotated: the callback receives the plugin's own `Config`, and the hand-written
+			// narrower shape is not something a `Config` is assignable to.
+			obsidianmd.configs.recommendedWithLocalesEn.flatMap((config) =>
+				// Guarded rather than defaulted: a configured rule is `RuleConfig`, which is not
+				// necessarily an array — `?? []` only covers the ABSENT case, and `namesIn` takes a
+				// list.
+				namesIn(toList(config.rules?.['no-restricted-globals'])),
 			),
 		);
 		expect(declared.size, 'the plugin declares no restricted globals - the derivation has gone silent').toBeGreaterThan(0);

@@ -7,7 +7,8 @@ import { apiVersion } from '../helpers/obsidian-mock';
 import { loadedPlugin } from '../helpers/plugin';
 import { createRepositoryStack, serializeFrontmatter } from '../helpers/vault';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity } from '../helpers/entities';
-import { expectErr, expectOk } from '../helpers/domain';
+import { expectDefined, expectErr, expectOk } from '../helpers/domain';
+import type { ProjectIndexEntryChanged } from '../../src/application/events/projectIndex.events';
 import { createPlanId } from '../../src/domain/plan/PlanId';
 import { createProjectId } from '../../src/domain/project/ProjectId';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
@@ -60,7 +61,7 @@ describe('persistence composition', () => {
 		expect(typeof plugin.root.persistence?.createZone.execute).toBe('function');
 
 		// Nothing scanned yet: the index is empty until layout-ready.
-		expect(plugin.root.persistence.index.entries()).toEqual([]);
+		expect(expectDefined(plugin.root.persistence, 'the composed persistence stack').index.entries()).toEqual([]);
 		expect(workspace.layoutReadyCallbacks).toHaveLength(1);
 	});
 
@@ -157,7 +158,7 @@ describe('persistence composition', () => {
 		// Obsidian hands TAbstractFile to every event; folders and unknown shapes must
 		// pass through the instanceof guard without touching the pipeline.
 		for (const handler of vaultHandlers) {
-			handler({ path: 'Renovation/a-folder' });
+			handler({ path: 'Renovation/a-folder' } as never);
 		}
 		expect(plugin.root.persistence?.index.entries()).toHaveLength(0);
 	});
@@ -251,7 +252,7 @@ describe('persistence composition', () => {
 
 		const heard: string[] = [];
 		plugin.root.eventBus.subscribe('ProjectIndexEntryChanged', (event) => {
-			heard.push((event as { payload: { entityType: string } }).payload.entityType);
+			heard.push((event as ProjectIndexEntryChanged).payload.entityType);
 		});
 
 		// Written straight into the vault, the way sync or the file explorer delivers one —

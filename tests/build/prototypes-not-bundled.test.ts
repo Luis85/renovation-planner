@@ -41,9 +41,9 @@ const BUILD_MS = 120_000;
 // `${repoRoot}src/prototypes/` — so if it ever loses that slash, both prefixes become
 // `…/renovation-plannersrc/prototypes/`, both filters match nothing, and both `toEqual([])`
 // assertions pass vacuously. That is the strongest guarantee in this feature going green while
-// checking nothing, on a change to a helper in another file. The `.replace` is idempotent, so
-// it is correct whichever way `REPO` is spelled.
-const repoRoot = `${REPO.split(path.sep).join('/').replace(/\/$/, '')}/`;
+// checking nothing, on a change to a helper in another file. Stripping the trailing slash is
+// idempotent, so it is correct whichever way `REPO` is spelled.
+const repoRoot = `${REPO.replaceAll(path.sep, '/').replace(/\/$/, '')}/`;
 
 let modules: string[] = [];
 
@@ -66,7 +66,7 @@ beforeAll(async () => {
 
 	// Absolute ids, normalised to forward slashes so this reads the same on Windows — which
 	// is one of the four legs `npm run check` rides.
-	modules = chunks.flatMap((chunk) => Object.keys(chunk.modules).map((id) => id.split(path.sep).join('/')));
+	modules = chunks.flatMap((chunk) => Object.keys(chunk.modules).map((id) => id.replaceAll(path.sep, '/')));
 }, BUILD_MS);
 
 describe('the built plugin', () => {

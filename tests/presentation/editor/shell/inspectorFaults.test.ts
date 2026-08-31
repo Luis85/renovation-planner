@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from 'vitest';
-import { Notice } from 'obsidian';
+// Mock-only surface, imported BY NAME. `Notice` carries members
+// the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
+// `'obsidian'` specifier type-checks against a surface that has no such thing. The
+// vitest alias points that specifier at this very file, so this is the SAME class and
+// the same statics — proven, not assumed — and the import now says which surface it
+// wants.
+import { Notice } from '../../../helpers/obsidian-mock';
 import { Decimal } from 'decimal.js';
 import { settleUntil as until } from '../../../helpers/editor';
 import { click, PROJECT_ID, rig, toolbarButton } from '../../../helpers/planEditorRig';
@@ -73,6 +79,12 @@ function faultLine(event: string) {
 	return lines.find((line) => line.event === event);
 }
 
+function saveStateLabel(harness: { wrapper: { find: (s: string) => { exists: () => boolean; element: Element } } }): HTMLElement {
+	const label = harness.wrapper.find('.rp-save-state-label');
+	if (!label.exists()) throw new Error('expected the save-state indicator to be mounted');
+	return label.element as HTMLElement;
+}
+
 describe('a failure at an Inspector control', () => {
 	beforeEach(() => {
 		resetRecorder();
@@ -120,7 +132,24 @@ describe('a failure at an Inspector control', () => {
 		r.harness.unmount();
 	});
 
-	it('a RESOLVED refusal during an assignment reaches the user as a notice', async () => {
+	/**
+	 * **A RESOLVED save-affecting refusal goes to the indicator, and to nothing else.**
+	 *
+	 * This case used to assert a notice, and design slice 17 moved it: `commitField` dispatches
+	 * through the tracked dispatcher, so `withSaveStateTracking` has already flipped the badge
+	 * by the time the refusal reaches `commitEdit`. Reporting it again as a toast is one failure
+	 * through two widgets that can drift apart, which that slice's Definition of Done forbids by
+	 * name.
+	 *
+	 * The claim it used to carry — that a notice shows the LOCALE table's copy and never the
+	 * error's own `message` — is not lost with it: `toUserMessage.test.ts` binds every reachable
+	 * code to its sentence, and `notify.test.ts` proves the door resolves through that table. It
+	 * is the SURFACE that changed here, not the copy rule.
+	 *
+	 * The case above it is the deliberate counterpart: a mapped THROW still gets its sentence,
+	 * because that sentence is the only account of it a user will ever get.
+	 */
+	it('a RESOLVED save-affecting refusal reaches the indicator, not a notice', async () => {
 		const r = await selectedZone();
 		const before = Notice.shown.length;
 		r.requirementsRepo.save = () =>
@@ -130,13 +159,14 @@ describe('a failure at an Inspector control', () => {
 			}) as ReturnType<typeof r.requirementsRepo.save>;
 
 		await assign(r);
-		await until(() => Notice.shown.length > before, 'the refusal notice');
+		await until(
+			() => saveStateLabel(r.harness).classList.contains('rp-save-state-save-error'),
+			'the save indicator to report the refusal',
+		);
 
-		// The notice carries the LOCALE table's copy for the error, never the error's own
-		// `message` — 'The vault is read-only.' is log text, and slice 11's boundary is what
-		// keeps it out of a Notice. `vault.locked` has no key of its own, so `toUserMessage`
-		// falls back to the category line.
-		expect(Notice.shown.at(-1)).toContain('The vault could not be read or written.');
+		// Both halves, and the pairing is the point: "the indicator flipped" is equally true of
+		// a build that also toasts, which is exactly what this replaced.
+		expect(Notice.shown.length).toBe(before);
 		r.harness.unmount();
 	});
 
@@ -258,6 +288,45 @@ describe('a failure at an Inspector control', () => {
 		// This project has exactly one zone, so there is nothing to reassign to.
 		expect(r.harness.wrapper.find('.rp-dialog-candidate').exists()).toBe(false);
 		expect(expectOk(await r.zonesRepo.getById('zone-a' as never))).not.toBeNull();
+		r.harness.unmount();
+	});
+
+	/**
+	 * The same rule at the OVERRIDE fields, which reach the dispatcher through their own door.
+	 *
+	 * `useFieldCommit` calls its `notify` when the refusal cannot sit under the field, and
+	 * `props.commit` is the tracked dispatcher — so a save-affecting refusal here is already on
+	 * the indicator, exactly as at `commitEdit`. This row kept toasting it for one commit after
+	 * that path stopped, which is what a rule spelled at two call sites does.
+	 */
+	it('a save-affecting override refusal reaches the indicator, not a notice', async () => {
+		const r = await selectedZone();
+		// A requirement row has to exist before it can have override fields.
+		await assign(r);
+		await until(
+			() => r.harness.wrapper.find('[data-field="quantity"]').exists(),
+			'the requirement row to render its override fields',
+		);
+
+		const before = Notice.shown.length;
+		r.requirementsRepo.save = () =>
+			Promise.resolve({
+				ok: false,
+				error: { category: 'Persistence', code: 'vault.locked', message: 'The vault is read-only.' },
+			}) as ReturnType<typeof r.requirementsRepo.save>;
+
+		// `[data-field]`, not `findAll('input')[0]`: the harness mounts the whole editor and the
+		// layers panel's checkboxes come first, so an index would have driven a checkbox and the
+		// case would have passed in every world.
+		const input = r.harness.wrapper.find('[data-field="quantity"]');
+		await input.setValue('12');
+		await input.trigger('blur');
+		await until(
+			() => saveStateLabel(r.harness).classList.contains('rp-save-state-save-error'),
+			'the save indicator to report the override refusal',
+		);
+
+		expect(Notice.shown.length).toBe(before);
 		r.harness.unmount();
 	});
 });

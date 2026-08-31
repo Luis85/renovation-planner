@@ -95,9 +95,9 @@ function recordingCommands(): {
 			calibratePlan: () => ({
 				execute: (input) => {
 					calls.push(input);
-					return Promise.resolve(ok(undefined));
+					return Promise.resolve(ok('wrote'));
 				},
-				undo: () => Promise.resolve(ok(undefined)),
+				undo: () => Promise.resolve(ok('wrote')),
 			}),
 		},
 	};

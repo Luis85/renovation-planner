@@ -55,7 +55,13 @@ zoneRepositoryContract(() => {
 		listByPlan: (planId) => inner.listByPlan(planId),
 		listByProject: (projectId) => inner.listByProject(projectId),
 		delete: (id, expected) => inner.delete(id, expected),
-		save: (zone, expected) => inner.save({ ...zone, name: '' }, expected),
+		// The PROTOTYPE is preserved, because `Zone` is a class: a bare spread drops
+		// `withGeometry`, `fields`, `area` and `perimeter`, so the object handed on is not a
+		// `Zone` at all. This fixture exists to fail a round trip on a blanked name, and its own
+		// header says a TypeError during construction is "the wrong reason" — a spread is exactly
+		// how it would have got one.
+		save: (zone, expected) =>
+			inner.save(Object.assign(Object.create(Object.getPrototypeOf(zone) as object), zone, { name: '' }), expected),
 	};
 
 	const usedPlans = new Set<PlanId>();

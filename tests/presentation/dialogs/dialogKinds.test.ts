@@ -293,8 +293,12 @@ describe('every kind labels the dialog with the id it is handed', () => {
 		],
 		['EntityPickerDialog', EntityPickerDialog, { kind: 'entity-picker', title: 'T', candidates: [] }],
 		['FormDialog', FormDialog, { kind: 'form', title: 'T', component: StubForm }],
-	])('%s renders exactly one titled element carrying it', (_name, component, descriptor) => {
-		const wrapper = mount(component, { props: { descriptor, titleId: TITLE_ID } });
+	] as const)('%s renders exactly one titled element carrying it', (_name, component, descriptor) => {
+		// Each row pairs a component with the descriptor IT takes, and TypeScript cannot see that
+		// correlation: it checks the descriptor union against the union of all four prop types and
+		// so demands every member of every variant at once. One cast at the seam where the pairing
+		// is known, rather than four near-identical cases that would each lose the shared body.
+		const wrapper = mount(component, { props: { descriptor, titleId: TITLE_ID } as never });
 		const titles = wrapper.findAll('.rp-dialog-title');
 
 		expect(titles).toHaveLength(1);

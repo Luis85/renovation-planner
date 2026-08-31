@@ -1,6 +1,7 @@
 import type { AppError } from '../../../core/errors/AppError';
 import { distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
+import { coincidentPointsError } from '../../../domain/plan/Calibration';
 import type { CalibratePlanInput } from '../../../application/commands/plan/ReversibleCalibratePlan';
 import type { CalibratePlanTransaction } from '../planEditorCommands';
 import type { EditorContext } from './editor-context';
@@ -50,8 +51,22 @@ export interface CalibrateToolDeps {
 	 * an `AppError`, so the notice reporting it can resolve the user-facing copy from the
 	 * error's `code`. Declared as `{ message: string }` for two slices, which is exactly
 	 * what made this one gesture report a refusal in the log's own untranslated words.
+	 *
+	 * DISPATCHED refusals only, since design slice 17 — see `reportInvalidInput` below.
 	 */
 	readonly reportRejected: (error: AppError) => void;
+	/**
+	 * Where a refusal this tool made ITSELF reaches the user — one it raised before building a
+	 * command, so `commandDispatcher.run` was never entered and nothing downstream heard about
+	 * it.
+	 *
+	 * A separate door from `reportRejected` rather than a parameter, because which of the two a
+	 * call site holds is a fact about that line and is what a reader has to be able to see.
+	 * Design slice 17 routes a dispatched refusal to the save indicator (which
+	 * `withSaveStateTracking` has already set) and this one to a notice — one shared door made
+	 * every pre-dispatch refusal silent.
+	 */
+	readonly reportInvalidInput: (error: AppError) => void;
 }
 
 /**
@@ -302,6 +317,12 @@ export class CalibrateTool implements EditorTool {
 			// Two clicks in the same place still drew an anchor marker; nothing is going to
 			// be asked about it, so it comes off again here.
 			this.clearMeasurement(context);
+			// **And it is REPORTED** (design slice 17). Refusing before the prompt stays right —
+			// asking for a measurement of a meaningless segment is worse than not asking — but
+			// returning silently wiped a point the user had placed and gave no reason for it.
+			// The same coded refusal `deriveCalibration` would have raised, from the one factory
+			// that spells it, so the two cannot drift into describing one failure two ways.
+			this.deps.reportInvalidInput(coincidentPointsError());
 			return;
 		}
 		// The plan is bound BEFORE the prompt: whatever the user answers, the points were

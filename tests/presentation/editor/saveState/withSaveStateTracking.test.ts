@@ -296,9 +296,9 @@ describe('withSaveStateTracking', () => {
 	it.each(OPERATIONS)('settles the batch when %s REJECTS rather than resolving', async (operation) => {
 		const boom = new Error('the vault went away mid-write');
 		const history = {
-			run: vi.fn<() => Promise<VoidResult>>(() => Promise.reject(boom)),
-			undo: vi.fn<() => Promise<VoidResult>>(() => Promise.reject(boom)),
-			redo: vi.fn<() => Promise<VoidResult>>(() => Promise.reject(boom)),
+			run: vi.fn<() => Promise<DispatchResult>>(() => Promise.reject(boom)),
+			undo: vi.fn<() => Promise<DispatchResult>>(() => Promise.reject(boom)),
+			redo: vi.fn<() => Promise<DispatchResult>>(() => Promise.reject(boom)),
 		};
 		const save = tracker();
 		const wrapped = withSaveStateTracking(history, save);
@@ -320,14 +320,14 @@ describe('withSaveStateTracking', () => {
 		const store = useSaveStateStore();
 
 		const throwing = {
-			run: vi.fn<() => Promise<VoidResult>>(() => Promise.reject(new Error('boom'))),
-			undo: vi.fn<() => Promise<VoidResult>>(() => Promise.resolve(ok(undefined))),
-			redo: vi.fn<() => Promise<VoidResult>>(() => Promise.resolve(ok(undefined))),
+			run: vi.fn<() => Promise<DispatchResult>>(() => Promise.reject(new Error('boom'))),
+			undo: vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(ok('wrote'))),
+			redo: vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(ok('wrote'))),
 		};
 		await expect(withSaveStateTracking(throwing, store).run(command)).rejects.toThrow('boom');
 		expect(store.state).toBe('save-error');
 
-		const healthy = historyResolving(ok(undefined));
+		const healthy = historyResolving(ok('wrote'));
 		await withSaveStateTracking(healthy, store).run(command);
 		expect(store.state).toBe('saved');
 	});
@@ -345,12 +345,12 @@ describe('withSaveStateTracking', () => {
 			resolveNeutral: vi.fn<() => void>(),
 		};
 		const history = {
-			run: vi.fn<() => Promise<VoidResult>>(() => {
+			run: vi.fn<() => Promise<DispatchResult>>(() => {
 				order.push('run');
-				return Promise.resolve(ok(undefined));
+				return Promise.resolve(ok('wrote'));
 			}),
-			undo: vi.fn<() => Promise<VoidResult>>(() => Promise.resolve(ok(undefined))),
-			redo: vi.fn<() => Promise<VoidResult>>(() => Promise.resolve(ok(undefined))),
+			undo: vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(ok('wrote'))),
+			redo: vi.fn<() => Promise<DispatchResult>>(() => Promise.resolve(ok('wrote'))),
 		};
 
 		await withSaveStateTracking(history, save).run(command);

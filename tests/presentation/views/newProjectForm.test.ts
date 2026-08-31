@@ -9,9 +9,14 @@ import { describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
 import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
 import { err, ok, type Result } from '../../../src/core/result/Result';
-import type { AppError } from '../../../src/core/errors/AppError';
+import type { PersistenceError, ValidationError } from '../../../src/core/errors/AppError';
 import type { CreateProjectInput } from '../../../src/application/commands/project/CreateProject';
+import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
+import type { Loaded } from '../../../src/application/ports/versioning';
+import type { Project } from '../../../src/domain/project/Project';
 import type { Logger } from '../../../src/application/ports/Logger';
+import { makeProject } from '../../helpers/entities';
+import { observationToken } from '../../helpers/domain';
 
 /**
  * `NewProjectForm` requires a logger for the one failure `useFormCommit` owns both halves of
@@ -21,16 +26,35 @@ import type { Logger } from '../../../src/application/ports/Logger';
 const logger: Logger = { debug: () => undefined, info: () => undefined, warn: () => undefined, error: () => undefined };
 
 
-type CreatedProject = { readonly project: { readonly entity: { readonly id: string } } };
-type Dispatch = (input: CreateProjectInput) => Promise<Result<CreatedProject, AppError>>;
+/**
+ * `NewProjectForm`'s `dispatch` prop, spelled from the component's own declaration rather than
+ * approximated. It read `{ project: { entity: { id: string } } }` — thin enough that no real
+ * `CreateProjectCommand` result could ever have been passed to it — and its failure channel was
+ * the whole `AppError` union, where the prop admits `RepositoryError`. Both approximations were
+ * invisible while `tests/**` went unchecked, and the first is this repository's fake-too-thin
+ * rule pointed at a prop: a stand-in narrower than the real value certifies a component against
+ * a contract nobody has.
+ */
+type Dispatch = (input: CreateProjectInput) => Promise<Result<{ project: Loaded<Project> }, RepositoryError>>;
 
-function projectError(code: string): AppError {
+/** A real `Project`, since a success carries a `Loaded<Project>` and nothing less. */
+const created = (): { project: Loaded<Project> } => ({
+	project: { entity: makeProject(), version: { revision: 1, observed: observationToken('t1') } },
+});
+
+/**
+ * The refusals these cases inject. `Validation` rather than the bare `AppError` it used to
+ * return: `RepositoryError` is `PersistenceError | MigrationError | ValidationError`, and every
+ * code below (`project.empty-name`, `project.target-before-start`) is a domain rule the entity
+ * refuses on the way in — so the narrower type is also the accurate one.
+ */
+function projectError(code: string): ValidationError {
 	return { category: 'Validation', code, message: 'developer english' };
 }
 
 describe('NewProjectForm', () => {
 	it('sends exactly the typed values to the command, once', async () => {
-		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
+		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok(created())));
 		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
@@ -43,7 +67,7 @@ describe('NewProjectForm', () => {
 
 	it('emits submit only after the write succeeded', async () => {
 		const wrapper = mount(NewProjectForm, {
-			props: { dispatch: () => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })), logger },
+			props: { dispatch: () => Promise.resolve(ok(created())), logger },
 		});
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
@@ -88,7 +112,7 @@ describe('NewProjectForm', () => {
 			props: {
 				dispatch: () =>
 					Promise.resolve(
-						err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'dev' } as AppError),
+						err<PersistenceError>({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'dev' }),
 					),
 				logger,
 			},
@@ -163,7 +187,7 @@ describe('NewProjectForm', () => {
 			props: {
 				dispatch: () =>
 					Promise.resolve(
-						err({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'dev' } as AppError),
+						err<PersistenceError>({ category: 'Persistence', code: 'vault.unexpected-failure', message: 'dev' }),
 					),
 				logger,
 			},
@@ -186,7 +210,7 @@ describe('NewProjectForm', () => {
 	 * leave that test green while the shipped form showed `IDEA`/`AS_BUILT` to every user.
 	 */
 	it('shows a translated label for every status option, never the raw enum code', () => {
-		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
+		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok(created())));
 		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
 
 		const options = wrapper.findAll('select[data-field="status"] option');
@@ -204,7 +228,7 @@ describe('NewProjectForm', () => {
 	});
 
 	it('sends every field the user filled in, not just name', async () => {
-		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
+		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok(created())));
 		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
@@ -230,7 +254,7 @@ describe('NewProjectForm', () => {
 	});
 
 	it('clears a date back to null when the field is emptied', async () => {
-		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok({ project: { entity: { id: 'p1' } } })));
+		const dispatch = vi.fn<Dispatch>(() => Promise.resolve(ok(created())));
 		const wrapper = mount(NewProjectForm, { props: { dispatch, logger } });
 
 		await wrapper.get('input[data-field="name"]').setValue('Kitchen');
@@ -254,7 +278,7 @@ describe('NewProjectForm', () => {
 			() =>
 				new Promise((resolve) => {
 					resolveDispatch = () => {
-						resolve(ok({ project: { entity: { id: 'p1' } } }));
+						resolve(ok(created()));
 					};
 				}),
 		);
@@ -295,7 +319,7 @@ describe('NewProjectForm', () => {
 			() =>
 				new Promise((resolve) => {
 					resolveDispatch = () => {
-						resolve(ok({ project: { entity: { id: 'p1' } } }));
+						resolve(ok(created()));
 					};
 				}),
 		);
@@ -351,7 +375,7 @@ describe('NewProjectForm', () => {
 			() =>
 				new Promise((resolve) => {
 					resolveDispatch = () => {
-						resolve(ok({ project: { entity: { id: 'p1' } } }));
+						resolve(ok(created()));
 					};
 				}),
 		);

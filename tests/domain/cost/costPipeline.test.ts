@@ -56,7 +56,7 @@ describe('computeEstimatedCost', () => {
 
 	it('consumes the EFFECTIVE purchase quantity, so an override flows through the whole pipeline', () => {
 		const calculated = workedExampleQuantity();
-		const overridden = effectiveValue({ calculated, override: { value: d('18'), unit: 'm2' } });
+		const overridden = effectiveValue({ calculated, override: { value: d('18'), unit: 'm2' as const } });
 		const result = expectOk(
 			computeEstimatedCost({ quantity: overridden, unitPrice: moneyOf('12.50', 'USD') }),
 		);

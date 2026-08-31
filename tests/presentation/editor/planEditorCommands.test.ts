@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { isErr } from '../../../src/core/result/Result';
+import { expectErr } from '../../helpers/domain';
+import type { SetRequirementQuantityOverrideCommand } from '../../../src/application/commands/requirement/SetRequirementQuantityOverride';
+import type { SetRequirementCostOverrideCommand } from '../../../src/application/commands/requirement/SetRequirementCostOverride';
 import type { PlanId } from '../../../src/domain/plan/PlanId';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 
@@ -81,7 +84,15 @@ describe('unavailablePlanEditorCommands', () => {
 		 * would leave the door the panel actually uses untested.
 		 */
 		it('refuses both overrides, through either entry point', async () => {
-			const { setQuantityOverride, setCostOverride } = commands.requirementEdits;
+			// Reached as the CONCRETE commands, because the presentation bundle's own door types
+			// are `Pick<…, 'executeWithVersion'>` — the reversible adapters need the version their
+			// own execute produced, so that is the only member presentation is given. `execute` is
+			// the application-layer entry point, and this case exists to prove BOTH refuse when
+			// settings are unrecovered; naming the concrete type says which surface each half is.
+			const { setQuantityOverride, setCostOverride } = commands.requirementEdits as unknown as {
+				setQuantityOverride: SetRequirementQuantityOverrideCommand;
+				setCostOverride: SetRequirementCostOverrideCommand;
+			};
 			const refusals = [
 				await setQuantityOverride.execute({ requirementId: 'req-x' as never, quantity: 7 }),
 				await setQuantityOverride.executeWithVersion({ requirementId: 'req-x' as never, quantity: 7 }),
@@ -90,7 +101,7 @@ describe('unavailablePlanEditorCommands', () => {
 			];
 
 			for (const refusal of refusals) {
-				expect(isErr(refusal) && refusal.error.code).toBe('settings.unrecovered');
+				expect(expectErr(refusal).code).toBe('settings.unrecovered');
 			}
 		});
 

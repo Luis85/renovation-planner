@@ -3,6 +3,7 @@ import { InMemoryRequirementRepository } from '../../../../src/infrastructure/pe
 import { requirementRepositoryContract } from '../../../contracts/requirement-repository.contract';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
+import { createRequirementId } from '../../../../src/domain/requirement/RequirementId';
 import { createAssetId } from '../../../../src/domain/asset/AssetId';
 
 function fresh<T>(used: Set<T>, mint: () => T): T {
@@ -29,6 +30,9 @@ requirementRepositoryContract(() => {
 describe('InMemoryRequirementRepository extras', () => {
 	it('poke on an unknown id changes nothing and fails nothing', () => {
 		const repository = new InMemoryRequirementRepository();
-		expect(() => repository.poke(createZoneId())).not.toThrow();
+		// A fresh id in a fresh repository, which is exactly the "unknown id" the name promises.
+		// It was a ZONE id until `tests/**` was type-checked — a foreign brand reaching a method
+		// that takes a `RequirementId`, which is the one thing the brands exist to refuse.
+		expect(() => repository.poke(createRequirementId())).not.toThrow();
 	});
 });

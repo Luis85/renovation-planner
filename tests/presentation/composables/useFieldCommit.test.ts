@@ -5,6 +5,7 @@
  * place.
  */
 import { describe, expect, it, vi } from 'vitest';
+import type { DispatchOutcome } from '../../../src/application/commands/DispatchOutcome';
 import { ref } from 'vue';
 import { flushPromises } from '@vue/test-utils';
 import { useFieldCommit } from '../../../src/presentation/composables/use-field-commit';
@@ -17,7 +18,7 @@ interface QuantityInput {
 	readonly quantity: number;
 }
 
-type Run = () => Promise<Result<void, AppError>>;
+type Run = () => Promise<Result<DispatchOutcome, AppError>>;
 type Notify = (error: AppError) => void;
 
 /**
@@ -58,7 +59,7 @@ function validation(code: string): AppError {
  * treats an absent one as "nothing to refuse".
  */
 function harness(
-	outcome: Result<void, AppError> | Run,
+	outcome: Result<DispatchOutcome, AppError> | Run,
 	canonical = ref(10),
 	validate?: (value: number) => string | null,
 ) {
@@ -79,7 +80,7 @@ function harness(
 				// Never actually invoked: the composable hands the command to `history.run`, which
 				// is the spy above. Present because `RunnableCommand` requires it.
 				execute: dispatch,
-				undo: () => Promise.resolve(ok(undefined)),
+				undo: () => Promise.resolve(ok('wrote')),
 				value,
 			};
 		},
@@ -96,7 +97,7 @@ function harness(
 
 describe('useFieldCommit', () => {
 	it('starts clean at the canonical value', () => {
-		const { field } = harness(ok(undefined));
+		const { field } = harness(ok('wrote'));
 
 		expect(field.draft.value).toBe(10);
 		expect(field.error.value).toBeNull();
@@ -179,8 +180,8 @@ describe('useFieldCommit', () => {
 		// with nothing erroring and no way for the user to tell it had happened.
 		let settle: () => void = noop;
 		const { field } = harness(
-			() => new Promise<Result<void, AppError>>((resolve) => {
-				settle = () => { resolve(ok(undefined)); };
+			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+				settle = () => { resolve(ok('wrote')); };
 			}),
 		);
 
@@ -201,8 +202,8 @@ describe('useFieldCommit', () => {
 		// without coalescing one edit leaves three undo entries.
 		const settles: (() => void)[] = [];
 		const { field, run } = harness(
-			() => new Promise<Result<void, AppError>>((resolve) => {
-				settles.push(() => { resolve(ok(undefined)); });
+			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+				settles.push(() => { resolve(ok('wrote')); });
 			}),
 		);
 
@@ -227,8 +228,8 @@ describe('useFieldCommit', () => {
 		// buy an undo entry that undoes nothing visible.
 		let settle: () => void = noop;
 		const { field, run } = harness(
-			() => new Promise<Result<void, AppError>>((resolve) => {
-				settle = () => { resolve(ok(undefined)); };
+			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+				settle = () => { resolve(ok('wrote')); };
 			}),
 		);
 
@@ -245,7 +246,7 @@ describe('useFieldCommit', () => {
 	});
 
 	it('tracks a new canonical value after an accepted commit', async () => {
-		const { field, canonical } = harness(ok(undefined));
+		const { field, canonical } = harness(ok('wrote'));
 		field.onInput(20);
 		await field.onCommit();
 
@@ -273,10 +274,10 @@ describe('useFieldCommit', () => {
 		// message already says it. When the draft has moved, the inline half is suppressed — and
 		// a `!mine` test then skipped the notice too, so the write failed and neither door spoke.
 		// The notice covers whatever the field did not DISPLAY, not whatever was not `mine`.
-		let settle: (result: Result<void, AppError>) => void = noop;
+		let settle: (result: Result<DispatchOutcome, AppError>) => void = noop;
 		const refusal = validation('requirement.negative-quantity');
 		const { field, notify } = harness(
-			() => new Promise<Result<void, AppError>>((resolve) => {
+			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
 				settle = resolve;
 			}),
 		);
@@ -298,7 +299,7 @@ describe('useFieldCommit', () => {
 	it('refuses a draft it cannot even turn into a command, dispatching nothing', async () => {
 		// `validate` is this field's own guard for a draft with no command to build at all —
 		// distinct from a routed `AppError`, since nothing was ever dispatched to produce one.
-		const { field, run } = harness(ok(undefined), ref(10), negative);
+		const { field, run } = harness(ok('wrote'), ref(10), negative);
 
 		field.onInput(-5);
 		await field.onCommit();
@@ -322,9 +323,9 @@ describe('useFieldCommit', () => {
 		// whether `recommit` itself was retired. Only typing again, so `drafted.value` is
 		// non-null while `recommit` is the one thing left standing between "nothing queued"
 		// and "the abandoned request fires after all", makes the two implementations disagree.
-		let settle: (result: Result<void, AppError>) => void = noop;
+		let settle: (result: Result<DispatchOutcome, AppError>) => void = noop;
 		const { field, run } = harness(
-			() => new Promise<Result<void, AppError>>((resolve) => { settle = resolve; }),
+			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => { settle = resolve; }),
 		);
 
 		field.onInput(-5);
@@ -333,7 +334,7 @@ describe('useFieldCommit', () => {
 		void field.onCommit();
 		field.onCancel();
 		field.onInput(-9);
-		settle(ok(undefined));
+		settle(ok('wrote'));
 		await inFlight;
 
 		// Only the original dispatch ever happened: the queued recommit for -7 must not fire
@@ -355,9 +356,9 @@ describe('useFieldCommit', () => {
 		// `onCancel`'s own comment already records this exact class — "the settling write's loop
 		// dispatched keystrokes the user had never committed" — and closed it for the ESCAPE path
 		// alone. This is the same defect with no Escape in it.
-		let settle: (result: Result<void, AppError>) => void = noop;
+		let settle: (result: Result<DispatchOutcome, AppError>) => void = noop;
 		const { field, run, built } = harness(
-			() => new Promise<Result<void, AppError>>((resolve) => { settle = resolve; }),
+			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => { settle = resolve; }),
 		);
 
 		field.onInput(-5);
@@ -366,7 +367,7 @@ describe('useFieldCommit', () => {
 		void field.onCommit();
 		// Typed, never committed — no blur, no Enter, no Escape.
 		field.onInput(-7);
-		settle(ok(undefined));
+		settle(ok('wrote'));
 		await inFlight;
 		await flushPromises();
 
@@ -381,7 +382,7 @@ describe('useFieldCommit', () => {
 		// Task 9 binds `@blur="onCommit"` unconditionally — every blur, not just a dirty one.
 		// Tabbing through an untouched Inspector field must not write the canonical value back
 		// to itself on every pass.
-		const { field, run } = harness(() => Promise.resolve(ok(undefined)));
+		const { field, run } = harness(() => Promise.resolve(ok('wrote')));
 
 		field.onInput(20);
 		await field.onCommit();
@@ -401,16 +402,16 @@ describe('useFieldCommit', () => {
 			readonly cost: number | null;
 		}
 		type BuildOverrideCommand = (value: number | null) => {
-			execute: () => Promise<Result<void, AppError>>;
-			undo: () => Promise<Result<void, AppError>>;
+			execute: () => Promise<Result<DispatchOutcome, AppError>>;
+			undo: () => Promise<Result<DispatchOutcome, AppError>>;
 			value: number | null;
 		};
 		const buildCommand = vi.fn<BuildOverrideCommand>((value) => ({
-			execute: () => Promise.resolve(ok(undefined)),
-			undo: () => Promise.resolve(ok(undefined)),
+			execute: () => Promise.resolve(ok('wrote')),
+			undo: () => Promise.resolve(ok('wrote')),
 			value,
 		}));
-		const run = vi.fn<Run>(() => Promise.resolve(ok(undefined)));
+		const run = vi.fn<Run>(() => Promise.resolve(ok('wrote')));
 		const field = useFieldCommit<number | null, OverrideInput>({
 			canonicalValue: () => 5,
 			buildCommand,
@@ -444,8 +445,8 @@ describe('useFieldCommit', () => {
 		// it.
 		let settle: () => void = noop;
 		const { field, run } = harness(
-			() => new Promise<Result<void, AppError>>((resolve) => {
-				settle = () => { resolve(ok(undefined)); };
+			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+				settle = () => { resolve(ok('wrote')); };
 			}),
 			ref(10),
 			negative,
@@ -480,8 +481,8 @@ describe('useFieldCommit', () => {
 		// that third value; the settling round must not put one back about the second.
 		let settle: () => void = noop;
 		const { field, run, built } = harness(
-			() => new Promise<Result<void, AppError>>((resolve) => {
-				settle = () => { resolve(ok(undefined)); };
+			() => new Promise<Result<DispatchOutcome, AppError>>((resolve) => {
+				settle = () => { resolve(ok('wrote')); };
 			}),
 			ref(10),
 			negative,
@@ -514,7 +515,7 @@ describe('useFieldCommit', () => {
 		let calls = 0;
 		const { field, run } = harness(() => {
 			calls += 1;
-			return calls === 1 ? Promise.reject(fault) : Promise.resolve(ok(undefined));
+			return calls === 1 ? Promise.reject(fault) : Promise.resolve(ok('wrote'));
 		});
 
 		field.onInput(-5);
@@ -532,15 +533,15 @@ describe('useFieldCommit', () => {
 
 	it('notifies AND logs the mapped fault from a coalesced round rejection, once each', async () => {
 		const fault = new Error('vault fault in continuation');
-		let settleFirst: (result: Result<void, AppError>) => void = noop;
+		let settleFirst: (result: Result<DispatchOutcome, AppError>) => void = noop;
 		let calls = 0;
 		const { field, run, notify, logger } = harness(() => {
 			calls += 1;
 			if (calls === 1) {
-				return new Promise<Result<void, AppError>>((resolve) => { settleFirst = resolve; });
+				return new Promise<Result<DispatchOutcome, AppError>>((resolve) => { settleFirst = resolve; });
 			}
 			if (calls === 2) return Promise.reject(fault);
-			return Promise.resolve(ok(undefined));
+			return Promise.resolve(ok('wrote'));
 		});
 
 		// A bare `void commitOnce()` on the continuation path gives a throw here no handler at
@@ -558,7 +559,7 @@ describe('useFieldCommit', () => {
 			field.onInput(-7);
 			void field.onCommit();
 
-			settleFirst(ok(undefined));
+			settleFirst(ok('wrote'));
 			await first;
 			// Flush past the continuation's own throw-and-catch, which runs on a later
 			// microtask than `first`'s own resolution.
@@ -575,12 +576,19 @@ describe('useFieldCommit', () => {
 		// cannot attach anywhere else. A version that only repaired `inFlight`/`pending` and
 		// discarded the cause would leave this uncalled while the field looked perfectly settled.
 		expect(notify).toHaveBeenCalledTimes(1);
-		expect(notify).toHaveBeenCalledWith({
-			category: 'Persistence',
-			code: 'vault.unexpected-failure',
-			message: fault.message,
-			cause: fault,
-		});
+		// `objectContaining` rather than an exact shape: design slice 17 has `faultError` stamp
+		// every mapped fault with `technicalFault`, so a consumer can tell a THROW from a
+		// refusal — the two are otherwise the same `PersistenceError`. What this case is about
+		// is that the door receives the MAPPED error with its cause attached, not that the
+		// object carries nothing else.
+		expect(notify).toHaveBeenCalledWith(
+			expect.objectContaining({
+				category: 'Persistence',
+				code: 'vault.unexpected-failure',
+				message: fault.message,
+				cause: fault,
+			}),
+		);
 		// The DEVELOPER-facing half of the same failure, which this door produced for nobody
 		// until now: it mapped the cause with a `createVaultExceptionMapper` of its own and
 		// called `options.notify`, so a fault reached the user as a sentence and a developer as

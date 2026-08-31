@@ -18,6 +18,8 @@ import { REPO } from '../helpers/oxlint';
  * rather than left to be rediscovered.
  */
 interface Workflow {
+	/** The concurrency group, read by the cancel-superseded-runs case below. */
+	readonly concurrency?: { readonly group?: string; readonly 'cancel-in-progress'?: boolean };
 	readonly on: { readonly push?: { readonly branches?: readonly string[] }; readonly pull_request?: unknown };
 	readonly jobs: Record<
 		string,

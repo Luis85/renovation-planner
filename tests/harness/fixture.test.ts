@@ -119,7 +119,7 @@ describe('the harness fixture', () => {
 			.filter((file) => readFileSync(file, 'utf8').includes('.inspectorDto'))
 			// Posix-normalized before the comparison below: `path.join` above emits `\` on the
 			// Windows CI leg, and this assertion names a literal path.
-			.map((file) => file.split(path.sep).join('/'));
+			.map((file) => file.replaceAll(path.sep, '/'));
 
 		expect(readers).toEqual(['src/presentation/editor/shell/InspectorPanel.vue']);
 	});
@@ -156,7 +156,7 @@ describe('the harness Inspector query', () => {
 			requirementsQuery: {
 				execute: ({ zoneId }) => harnessDeps().queries.getRequirementsForZone(String(zoneId)),
 			},
-			dispatcher: { run: () => Promise.resolve(ok(undefined)) },
+			dispatcher: { run: () => Promise.resolve(ok('wrote')) },
 			toCommand: () => ({}) as never,
 		});
 		const inspector = useInspector();
@@ -202,7 +202,7 @@ describe('reseedFixture, on a dialog nobody closed', () => {
 		const noteResumption = (): boolean => (resumed = true);
 
 		void store
-			.openDialog({ kind: 'confirm', title: 'Delete', body: 'Sure?', confirmLabel: 'Delete' })
+			.openDialog({ kind: 'confirm', title: 'Delete', message: 'Sure?', confirmLabel: 'Delete' })
 			.then(noteResumption);
 
 		expect(store.current).not.toBeNull();
@@ -211,7 +211,7 @@ describe('reseedFixture, on a dialog nobody closed', () => {
 		await settle();
 
 		expect(store.current).toBeNull();
-		expect(() => store.openDialog({ kind: 'confirm', title: 'Next', body: 'Again?', confirmLabel: 'Go' })).not.toThrow(
+		expect(() => store.openDialog({ kind: 'confirm', title: 'Next', message: 'Again?', confirmLabel: 'Go' })).not.toThrow(
 			DialogStackingError,
 		);
 
@@ -263,8 +263,11 @@ describe('reseedFixture, on a world the previous entry edited', () => {
 
 		// What a scripted mock reaching for the store would plausibly do: rename the plan it is
 		// drawing, and nudge a vertex. The second is the one a shallow copy would miss.
-		project.plan.name = 'Edited by a prototype';
-		seededVertex.x = 999;
+		// Cast deliberately: these two writes are exactly what the DTO's `readonly` forbids, and
+		// forbidding them is not the claim — `readonly` is erased at runtime, so only a real
+		// mutation can show the fixture replaces a NESTED edit a shallow copy would miss.
+		(project.plan as { name: string }).name = 'Edited by a prototype';
+		(seededVertex as { x: number }).x = 999;
 
 		reseedFixture();
 
@@ -307,8 +310,11 @@ describe('the harness queries, hydrating a store a prototype then writes to', ()
 		const hydratedVertex = project.zones.get(kitchen.id)?.points[0];
 		if (project.plan === null || hydratedVertex === undefined) throw new Error('hydration seeded nothing');
 
-		project.plan.name = 'Edited after hydrating';
-		hydratedVertex.x = 999;
+		// Cast deliberately: these two writes are exactly what the DTO's `readonly` forbids, and
+		// forbidding them is not the claim — `readonly` is erased at runtime, so only a real
+		// mutation can show the fixture replaces a NESTED edit a shallow copy would miss.
+		(project.plan as { name: string }).name = 'Edited after hydrating';
+		(hydratedVertex as { x: number }).x = 999;
 
 		expect(HARNESS_PLAN.name).toBe('Ground floor');
 		expect(kitchen.points[0]?.x).toBe(0);

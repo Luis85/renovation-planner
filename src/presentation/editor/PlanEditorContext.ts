@@ -51,6 +51,24 @@ export interface PlanEditorContext {
 	 * widened to more event types — not a second mechanism beside it.
 	 */
 	onPlanChanged(listener: () => void): () => void;
+	/**
+	 * Close THIS leaf — the tab the user is looking at.
+	 *
+	 * The one thing a Plan Editor can offer a user whose plan is gone. `GetPlan` answering
+	 * `ok(null)` means this tab points at something the vault no longer holds, and there is
+	 * nothing to retry: the plan is not coming back, so the only useful action is to stop
+	 * looking at it.
+	 *
+	 * A narrow callback rather than the `WorkspaceLeaf` itself, for the reason `onThemeChange`
+	 * gives about the `Workspace`: the tree's only interest is "close me", and handing it the
+	 * leaf would let any component reach the rest of it. The VIEW owns the Obsidian object and
+	 * partially applies it here, exactly as it already does for `onPlanChanged`.
+	 *
+	 * Added in design slice 17. That slice shipped the dangling-reference state with no action
+	 * at all and recorded why — this seam did not exist, and reaching for the global `app`
+	 * instead is what the marketplace rules refuse.
+	 */
+	closeLeaf(): void;
 }
 
 export const PLAN_EDITOR_CONTEXT: InjectionKey<PlanEditorContext> = Symbol('renovation-planner:editor-context');

@@ -183,17 +183,88 @@ export function createNoticeQueue(host: NoticeHost): NoticeQueue {
 				resume: () => {
 					entry.paused = false;
 					ops.arm(entry);
+					// **And retry preemption, because this entry may have been the only thing
+					// blocking it.** `promote` refuses to demote a warning somebody is reading, so
+					// an error arriving during that interaction stays held — and a warning has no
+					// auto-dismiss timer, so `arm` above schedules nothing and no later event is
+					// guaranteed to run `promote` again. Without this the error waits, invisible
+					// and unannounced, for an unrelated push or dismissal.
+					//
+					// The pause guard and this retry are one mechanism, not two: protecting a
+					// notice under the pointer is only correct if the protection ENDS with the
+					// interaction.
+					ops.promote();
 				},
 			});
 			ops.arm(entry);
 		},
 
-		/** Fill every free slot, oldest held notice first. */
+		/**
+		 * Fill every free slot, oldest held notice first — and, since design slice 17, let a held
+		 * ERROR take a slot from a visible WARNING when there is no free one.
+		 *
+		 * **Why preemption rather than a larger cap.** `severity.ts` chose this before anything
+		 * depended on it: raising `MAX_VISIBLE_NOTICES` only moves the number at which the same
+		 * thing starts happening. `warning` and `error` have no auto-dismiss, so three standing
+		 * warnings held every later error invisibly AND unannounced — `announce` rides `render`,
+		 * and `render` runs only for a notice actually shown, so a screen-reader user heard
+		 * nothing either. Slice 17's table routes a dozen categories to a toast, which is what
+		 * made that queue policy load-bearing rather than a tolerable edge.
+		 *
+		 * **The demoted warning is not dismissed.** Its handle is hidden and cleared, which puts
+		 * it back exactly where a notice that never got a slot sits — held, counted, and
+		 * promoted into the next slot to free. Losing it would trade one silenced message for
+		 * another, which is not a fix.
+		 *
+		 * It is the NEWEST visible warning that yields: the oldest has been on screen longest and
+		 * is likeliest to have been read already.
+		 *
+		 * An error never evicts another error. That is the narrowing rather than an omission —
+		 * without it the newest error would silence the one before it and the cap would become a
+		 * rotating window over the very severity this exists to protect.
+		 */
 		promote(): void {
-			for (const entry of entries) {
-				if (visible().length >= MAX_VISIBLE_NOTICES) return;
-				if (entry.handle === null) ops.show(entry);
+			// **Held ERRORS take a free slot first, and this ordering is not the same rule as the
+			// preemption below — it is what stops that rule doing visible damage.** A strict
+			// oldest-first fill hands a free slot to a held warning while an error is still
+			// waiting, and the preemption block then hides the warning it has just opened. That
+			// is not merely wasteful: `createObsidianHost.open` ANNOUNCES during its initial
+			// render, so a warning shown for one synchronous instant still reaches a screen
+			// reader — a message a sighted user was never given the chance to read. Reported by a
+			// review bot.
+			//
+			// Within each tier the order stays oldest-first, which is the FIFO promise everything
+			// else in this queue makes.
+			const queued = entries.filter((held) => held.handle === null);
+			for (const entry of [
+				...queued.filter((held) => held.severity === 'error'),
+				...queued.filter((held) => held.severity !== 'error'),
+			]) {
+				if (visible().length >= MAX_VISIBLE_NOTICES) break;
+				ops.show(entry);
 			}
+
+			// `break` above, not `return`: reaching the cap is exactly the condition preemption
+			// exists for, so returning there would skip it in every case that needs it.
+			const held = entries.find((entry) => entry.handle === null && entry.severity === 'error');
+			if (held === undefined) return;
+
+			// **Never a warning the user is interacting with.** `paused` means the pointer is over
+			// it or its dismiss control has focus, and the queue's existing contract is that a
+			// message must not vanish from under somebody reading it — hiding it here would also
+			// take the focused button out of the tab order mid-interaction. With every visible
+			// warning paused the error stays held, which is the same answer the cap already gives
+			// and strictly better than stealing focus. Reported by a review bot.
+			const victim = visible()
+				.toReversed()
+				.find((entry) => entry.severity === 'warning' && !entry.paused);
+			if (victim === undefined) return;
+
+			victim.handle?.hide();
+			if (victim.timer !== null) cancelTimeout(victim.timer);
+			victim.timer = null;
+			victim.handle = null;
+			ops.show(held);
 		},
 	};
 

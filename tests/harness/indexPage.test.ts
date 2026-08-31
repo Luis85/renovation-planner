@@ -196,12 +196,20 @@ const Abandoned = defineComponent({ setup: () => () => h('p', 'the entry you aba
  * draws against whatever the first one left behind": open the first, let it pan the camera,
  * open the second, and check what it sees.
  */
+/**
+ * The pointer every pan in this file is driven through. `EditorStore`'s pan is keyed on the
+ * POINTER and not just the button — so a second finger's move cannot be read as a
+ * continuation of the first one's drag — and these components predate that, calling all
+ * three methods on the old arity.
+ */
+const POINTER = 1;
+
 const PansTheCamera = defineComponent({
 	setup() {
 		const editor = useEditorStore();
-		editor.beginPan(screenPoint(0, 0));
-		editor.continuePan(screenPoint(120, 40));
-		editor.endPan();
+		editor.beginPan(screenPoint(0, 0), POINTER);
+		editor.continuePan(screenPoint(120, 40), POINTER);
+		editor.endPan(POINTER);
 
 		return () => h('p', 'panned');
 	},
@@ -230,9 +238,9 @@ const PansOnUnmount = defineComponent({
 	setup() {
 		onUnmounted(() => {
 			const editor = useEditorStore();
-			editor.beginPan(screenPoint(0, 0));
-			editor.continuePan(screenPoint(120, 40));
-			editor.endPan();
+			editor.beginPan(screenPoint(0, 0), POINTER);
+			editor.continuePan(screenPoint(120, 40), POINTER);
+			editor.endPan(POINTER);
 		});
 
 		return () => h('p', 'about to pan on the way out');

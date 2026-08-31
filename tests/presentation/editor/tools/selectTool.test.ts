@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { EditorPointerEvent } from '../../../../src/presentation/editor/tools/editor-tool';
 import { createPinia, setActivePinia } from 'pinia';
 import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
 import { SelectTool } from '../../../../src/presentation/editor/tools/select-tool';
@@ -37,7 +38,7 @@ function harness(worldPerScreenPixel = 1): Harness {
 	setActivePinia(createPinia());
 	const { context, rejections } = toolContext({
 		worldPerScreenPixel,
-		commandDispatcher: { run: () => Promise.resolve(ok(undefined)) },
+		commandDispatcher: { run: () => Promise.resolve(ok('wrote')) },
 	});
 	return { context, gestures: [], rejections };
 }
@@ -51,12 +52,16 @@ function build(
 		createMoveGesture: (zoneId, forward, inverse) => {
 			h.gestures.push({ zoneId, forward, inverse });
 			const gesture: UndoableCommand = {
-				execute: () => Promise.resolve(ok(undefined)),
-				undo: () => Promise.resolve(ok(undefined)),
+				execute: () => Promise.resolve(ok('wrote')),
+				undo: () => Promise.resolve(ok('wrote')),
 			};
 			return gesture;
 		},
+		// Design slice 17 split the door: `reportInvalidInput` is a refusal this tool made
+		// itself, before any command existed. Both feed one list here, because every case in
+		// this file asks "was the user told", which is true through either.
 		reportRejected: (error) => h.rejections.push(error.message),
+		reportInvalidInput: (error) => h.rejections.push(error.message),
 	});
 }
 
@@ -400,7 +405,7 @@ describe('SelectTool', () => {
 		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
 		setActivePinia(createPinia());
 		const { context, rejections } = toolContext({
-			commandDispatcher: { run: () => Promise.resolve(ok(undefined)) },
+			commandDispatcher: { run: () => Promise.resolve(ok('wrote')) },
 			// A grid that only ever pulls the first vertex — the pathological case an
 			// independent per-vertex snap deforms and a delta snap does not.
 			snapPoint: (point) => (point.x === 50 && point.y === 0 ? { x: 40, y: 0 } : point),

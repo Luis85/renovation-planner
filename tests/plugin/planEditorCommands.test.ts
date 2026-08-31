@@ -13,7 +13,14 @@
  * such precondition.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { FuzzySuggestModal, Notice, TFile, type Command } from 'obsidian';
+import { TFile, type Command } from 'obsidian';
+// Mock-only surface, imported BY NAME. `FuzzySuggestModal`, `Notice` carry members
+// the real `obsidian` module does not declare (`shown`, `constructed`, `opened`, `choose`), so reaching them through the
+// `'obsidian'` specifier type-checks against a surface that has no such thing. The
+// vitest alias points that specifier at this very file, so this is the SAME class and
+// the same statics — proven, not assumed — and the import now says which surface it
+// wants.
+import { FuzzySuggestModal, Notice } from '../helpers/obsidian-mock';
 import { registerPlanEditorCommands } from '../../src/plugin/planEditorCommands';
 import type { PluginCommandHost } from '../../src/plugin/commandHost';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';

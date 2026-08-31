@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import { CalibrateTool } from '../../../../src/presentation/editor/tools/calibrate-tool';
 import {
 	at,
@@ -130,7 +131,21 @@ describe('CalibrateTool', () => {
 		expect(h.dispatched).toHaveLength(0);
 	});
 
-	it('coincident clicks never reach the prompt or the dispatcher', async () => {
+	/**
+	 * **The guard stays; the SILENCE goes** (design slice 17).
+	 *
+	 * Refusing before the prompt is right and stays: asking a user to measure a distance the
+	 * tool has already decided is meaningless is worse than not asking. What was wrong is what
+	 * happened next — the first click's anchor was wiped and the gesture reset with nothing
+	 * said, so a user who mis-clicked twice in one spot lost a placed point and got no reason.
+	 * That is the silent no-op this slice exists to remove, and the table routes it to a toast:
+	 * an explicit operation, attributable to no single field.
+	 *
+	 * Note what this does NOT change: the command is still never dispatched, so the domain's
+	 * own `calibration.coincident-points` is still unreachable from here. The tool raises the
+	 * same coded error the domain would have, from the one factory that spells it.
+	 */
+	it('reports coincident clicks rather than silently discarding the first point', async () => {
 		const h = harness();
 		const tool = newTool(h);
 		click(tool, at(5, 5));
@@ -138,6 +153,7 @@ describe('CalibrateTool', () => {
 		await flush();
 		expect(h.dispatched).toHaveLength(0);
 		expect(h.supplierMeasurements).toHaveLength(0);
+		expect(h.rejected.map((error) => error.code)).toEqual(['calibration.coincident-points']);
 	});
 
 	it('a non-positive or non-finite supplied distance dispatches nothing', async () => {
@@ -160,6 +176,8 @@ describe('CalibrateTool', () => {
 			hasSpatialObjects: h.hasSpatialObjects,
 			confirmRecalibration: h.confirmRecalibration,
 			reportRejected: h.reportRejected,
+			// Slice 17 split this door from `reportRejected`; both literals here omitted it.
+			reportInvalidInput: h.reportInvalidInput,
 		});
 		tool.pointerDown(at(1, 1));
 		tool.pointerDown(at(2, 2));
@@ -341,6 +359,7 @@ function makeTool(overrides: Pick<Harness, 'hasSpatialObjects' | 'confirmRecalib
 		hasSpatialObjects: overrides.hasSpatialObjects,
 		confirmRecalibration: overrides.confirmRecalibration,
 		reportRejected: h.reportRejected,
+		reportInvalidInput: h.reportInvalidInput,
 	});
 	tool.activate(h.context);
 	return { tool, dispatched: h.dispatched, distancePrompts: () => distancePromptCount };
@@ -420,7 +439,9 @@ describe('the recalibration gate', () => {
 	 * reintroduced by adding an await above it.
 	 */
 	it('drops a confirmation that resolves after the gesture was cancelled', async () => {
-		let release: ((confirmed: boolean) => void) | null = null;
+		// Definite assignment: the write happens inside the promise executor, which control flow
+		// cannot see run, so a `| null` union narrows to `null` at every later read.
+		let release!: (confirmed: boolean) => void;
 		const { tool, dispatched, distancePrompts } = makeTool({
 			hasSpatialObjects: () => true,
 			confirmRecalibration: () =>
@@ -432,7 +453,7 @@ describe('the recalibration gate', () => {
 		const gesture = calibrate(tool);
 		await Promise.resolve();
 		tool.cancel();
-		release?.(true);
+		release(true);
 		await gesture;
 
 		expect(dispatched).toEqual([]);

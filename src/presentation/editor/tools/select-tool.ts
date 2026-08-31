@@ -33,11 +33,29 @@ export interface SelectToolDeps {
 		inverse: Polygon,
 	) => UndoableCommand;
 	/**
-	 * Where a refused move reaches the user — validation rejection or failed write. The
-	 * draw tool carries the identical seam; a silent discard here would leave the zone
-	 * unmoved with the preview gone and no word of why.
+	 * Where a refusal the DISPATCHER produced reaches the user — a command that ran and was
+	 * refused.
+	 *
+	 * Paired with `reportInvalidInput` below, and the split is design slice 17's: only a
+	 * DISPATCHED failure has passed through `withSaveStateTracking`, so only that one is
+	 * already carried by the save indicator. Reporting it again as a toast is one failure
+	 * through two widgets that can drift apart. Everything this tool refuses BEFORE building a
+	 * command has no indicator behind it and takes the other door.
 	 */
 	readonly reportRejected: (error: AppError) => void;
+	/**
+	 * Where a refusal this tool made ITSELF reaches the user — geometry that cannot become a
+	 * command, so `commandDispatcher.run` is never entered and nothing downstream has heard
+	 * about it.
+	 *
+	 * A separate door rather than a parameter, because which of the two a call site is holding
+	 * is a fact about that line and is what a reader has to be able to see. One shared door
+	 * carried both for two slices under a docblock that said so — "validation rejection or
+	 * failed write" — and slice 17 bound the pair to one origin on the strength of that
+	 * sentence, sending every pre-dispatch refusal to a save-state sink that is deliberately a
+	 * no-op. An invalid polygon close went silent. Reported by a review bot.
+	 */
+	readonly reportInvalidInput: (error: AppError) => void;
 }
 
 /**
@@ -248,7 +266,8 @@ export class SelectTool implements EditorTool {
 		const polygonResult = createPolygon(forwardPoints);
 		context.renderState.previewPolygon = null;
 		if (!polygonResult.ok) {
-			this.deps.reportRejected(polygonResult.error);
+			// Pre-dispatch: no command exists yet, so no indicator has heard about this.
+			this.deps.reportInvalidInput(polygonResult.error);
 			return;
 		}
 		const result = await context.commandDispatcher.run(

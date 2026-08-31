@@ -22,18 +22,22 @@ runner.
 10 closing means: `Project`, `Plan`, `Zone`, `Asset` and `Requirement`, the quantity and
 cost engine behind them, the reference-integrity engine that guards deleting either end of
 a link, and the recalculation cascade that keeps a figure honest when its inputs move.
-Everything past this point is feature work on a proven template. Slice 11 has since closed
+Everything past this point is feature work on a proven template. Slice 11 closed
 the first half of the cross-cutting pair — the Error Boundary, the logging policy,
-diagnostics and the data-safety rules. **The second half of that pair is slice 12, and slice
-12 is still not done**: `docs/requirements/Errors, diagnostics and the test harness.md` opens
+diagnostics and the data-safety rules — and **slice 12, its second half, has since closed
+too**: `docs/requirements/Errors, diagnostics and the test harness.md` opens
 "Slices 11 and 12: the two cross-cutting slices", so those two are the pair and nothing else
 can be a half of it. An earlier draft of this passage gave that half to slice 13 in the same
 breath as it listed slice 12 as outstanding — a sentence contradicting itself two clauses
-later. Slice 13 belongs to *Shared UI vocabulary* (slices 13–17, where 14 and 15 had already
-landed), and what it closed there is the toast and the save-state badge — the notice queue and
+later. Slice 13 belongs to *Shared UI vocabulary* (slices 13–17), and what it closed there is
+the toast and the save-state badge — the notice queue and
 the save-state indicator, the surface any view or command reports a transient message or a
-save state through. What is NOT done is slice 12 (the fixture vaults and the
-architecture-enforcement harness) and every surface slices 16 and 17 name.
+save state through. **That group is now complete: 14 and 15 landed first, then 16, and slice
+17 — the integration slice the map calls "17 integrates them" — has closed it.** What is NOT
+done is slices 19, 20 and 21, which are written and unbuilt, plus the items slices 16 and 17
+WITHDREW rather than ticked; each is recorded in its own task document's amendments rather
+than here, because a list of exceptions kept in two places is one that disagrees with
+itself.
 
 There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
 nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
@@ -1976,6 +1980,123 @@ of them." The rules that lasted:
   plugin's own `file instanceof TFile` guard dropped it silently one layer above the thing
   under test — a test that reached nothing, which is indistinguishable from a clean tree.
 
+**Design slice 17 has landed: every `AppError` reaching Presentation has exactly one surface,
+and a call site cannot reach one without asking.** `surfaceFor(error, origin)`
+(`presentation/errors/errorSurfacePolicy.ts`) is SDD §66's last step — the one slice 11 named
+and deliberately did not finish designing. A surface is a function of the PAIR: the same
+`CalculationError` is an inline field error under the known-distance input, a toast for two
+canvas point-picks, and nothing at all inside a background cascade; and origin alone does not
+decide it either, because the toast's `level` comes from the category. `surfaceError` dispatches
+to the doors a site actually has, and `ViewFailure.vue` is the ONE container this slice adds.
+The rules that came out of it:
+
+- **A policy a call site CONSULTS is the guard-nobody-dispatches-through shape, and this file
+  had already paid for it twice.** The slice document specified `surfaceFor` as advisory. What
+  shipped is advisory PLUS a lock: `ErrorSurface` carries a `unique symbol` its own module
+  declares and never exports, so a hand-built `{ kind: 'toast', level: 'error' }` cannot satisfy
+  `ToastSurface` and `notifyError` is unreachable without having asked. **State the guarantee
+  narrowly** — it holds that a call site ASKED, never that it asked with the RIGHT origin, which
+  no type can close. The ten origins are tabulated in the slice's spec because review is the
+  only instrument for that half. Measured, not asserted: deleting `& Routed` from the seven
+  union members reports exactly three `TS2578` unused-directive errors, one per literal.
+- **Two individually-correct mechanisms double-reported one failure for four slices, because
+  nothing owned which one should speak.** Every dispatch in a Plan Editor leaf runs through
+  `withSaveStateTracking`, which asks `affectsSaveState` and flips the save indicator for
+  anything that wrote or might have — and `notifyIfRefused` plus two `reportRejected` bindings
+  then ALSO raised a toast for the same `Result`. Neither mechanism was wrong alone. The
+  Definition of Done forbade it by name and slice 11's own illustrative code had left it open.
+  Two existing tests encoded the defect, and their NAMES were still right ("is reported, and
+  leaves the command on the undo stack") — only the surface changed, so they assert the pair now
+  rather than counting notices.
+- **A `grep` for the docblock claim found an eleventh call site the slice's own spec table
+  missed.** That table was measured with a filter that excluded `notify.ts`, so `notifyFault` —
+  which calls `notifyError` from inside that file — was invisible to it. The repository's rule
+  is that an "only place X" docblock gets a grep in the SAME edit; the rule works, and it works
+  by catching the person who wrote the table.
+- **A guard whose `else` is unreachable still costs a branch, and branch headroom is not a
+  budget.** The plan spelled the simple call sites as `if (surface.kind === 'toast')`, which is
+  correct and leaves a dead `else` at each — three uncovered branches against two of headroom.
+  They use `surfaceError` with sinks instead. Read the floors as floors: this slice landed with
+  **branches at 98.02% against 98** and **functions at 99.05% against 99**, which is about two
+  branches and under one function.
+- **Functions coverage failed with every test passing, which is what the tight metric looks like
+  from the inside.** 3726 green, 98.98% functions, gate red. The one genuinely new uncovered
+  function was `noticeOnlySinks.unrenderable` — unreached because every production site is
+  routed to a surface it CAN draw, which is the design working rather than a gap. Pinned as
+  behaviour (a notice-only site handed a `view-failure` still says something) rather than
+  covered incidentally.
+- **`satisfies never` on a property is the exhaustiveness spelling that does NOT work.** Once
+  the switch is exhaustive the whole of `error` narrows to `never`, so reading `.category` off
+  it is itself an error. The check has to be on the narrowed VALUE (`const unrouted: never =
+  error`). Tried the other way first; the compiler said so immediately.
+- **A failure state must not be a mode of the empty state**, and that is structural rather than
+  a copy convention. `EmptyState` is generic enough to have been reused, which is exactly the
+  reason not to: slice 14's objection is that "create your first project" shown because a vault
+  read failed is actively misleading, and two components make that a fact about the markup. It
+  also keeps `.rp-empty-state` meaning what every existing assertion and the axe case take it to
+  mean.
+- **The retry is withheld from a bootstrap failure, and that needed a THIRD state nobody had
+  named.** `settings.unrecovered` means the composition root wired no query services at all, so
+  re-running one does nothing while looking like it might — the live-control-that-does-nothing
+  slice 14's own amendment refuses. `viewHydrationOrigin` draws that line once for both views.
+  A single test case would not have discriminated: a build offering a retry to both passes
+  anything that only checks the retryable one.
+- **A spy on a module export may bind to nothing, so it was verified before being trusted.**
+  `renovationProjectEmptyState.test.ts` records that instrument failing on another surface — a
+  compiled `<script setup>` closes over the imported identifier directly — and a spy binding to
+  nothing reports `not.toHaveBeenCalled()` for every build ever written. The absence test for
+  "a missing plan never reaches `surfaceFor`" was measured against a FAILED read, where it IS
+  reached, before the absence was read as evidence.
+- **An example offered as proof of REACHABILITY has to be traced to the door it claims to
+  arrive at.** `affectsSaveState`'s docblock cited "calibrating with two clicks at the same
+  point raises `calibration.coincident-points`" as evidence that `Calculation` reaches that
+  predicate. It does not: `CalibrateTool` refuses before it dispatches, so no command runs and
+  nothing reaches the indicator. The claim had been traced to the raise site and no further.
+- **A Definition of Done item can ask for the WEAKER design, and the answer is to withdraw it
+  rather than build it.** The slice asked for `calibration.invalid-distance` to render inline,
+  which would have meant restructuring the calibration gesture — its own spec's largest task and
+  named schedule risk. Reading the guards first showed `KnownDistanceForm` **disables its submit
+  button** unless the value parses positive and finite, so no user can produce that refusal at
+  all. Validating at the input is better than dispatching and rendering a refusal. What the same
+  item's other third bought was real, though: coincident clicks used to be refused SILENTLY,
+  wiping a point the user had placed with no reason given.
+- **A generic component's one event can mean two opposite things, and the CALLER is what
+  decides.** `ViewFailure`'s action retries a read that failed and closes a tab whose plan is
+  gone — `PlanEditorRoot` branches on the status rather than the component learning which of
+  its callers means what, which is what keeps it reusable by a view this slice has never heard
+  of. Both directions are mutation-checked: a handler that always retried, or always closed,
+  passes a suite that tests only one of them.
+- **`PlanEditorContext.closeLeaf()` is the view's leaf, partially applied** — the same shape
+  `onPlanChanged` already had, and the reason `onThemeChange` gives for not handing the
+  `Workspace` down. NOT a `PlanEditorDeps` member: the composition root composes services and
+  knows nothing about which leaf this is. The dangling-plan state shipped without it for one
+  commit, with the missing seam written down rather than worked around by reaching for the
+  global `app`, which the marketplace rules refuse.
+- **A FAULT and a REFUSAL are the same shape by the time they reach a surface, and SDD §65 is
+  the line between them.** `makeCommitField` maps a throw into a resolved `Result` carrying a
+  coded `PersistenceError`, indistinguishable from one a command returned — so routing both to
+  the save indicator would show a badge and no cause for the one case where the mapped sentence
+  is the user's ONLY account. `faultError` stamps every mapped fault, which is sound because it
+  is the one place a thrown cause becomes an `AppError`: its definition plus four callers, all
+  catch blocks.
+- **"Dispatched" is not "the indicator has it", and assuming so made a whole gesture silent.**
+  `withSaveStateTracking` asks `affectsSaveState`, and a PRE-WRITE category resolves NEUTRAL —
+  no badge, nothing written. A door that assumed otherwise routed those to a save-state sink
+  that is deliberately a no-op: a calibration whose scale collapsed after dispatch and before
+  `geometry.write` reached nobody. The door asks the same predicate the indicator asked now, so
+  the two cannot disagree about who reported what. **Three separate review rounds found three
+  shapes of this one mistake**, and the shape is the lesson: the origin of a refusal is not a
+  property of the call site, and every attempt to read it off one was wrong somewhere.
+- **A view showing valid-but-STALE data is not a view that failed.** `keepPreviousOnFailure`
+  keeps the previous scene and `status === 'ready'` when a post-write read-back fails, so the
+  in-place failure state is the wrong surface — replacing the canvas would hide a plan the user
+  can still work on in order to report a read that failed. An additive strip, shown while the
+  condition holds, is the shape that fits; a toast would not, because the staleness outlives it.
+- **`analyze` reads `.test-d.ts` as an unreachable FILE**, so `.fallowrc.json` names each of the
+  four one at a time — deliberately not globbed, because "a glob absorbs the next file and tells
+  nobody" and here it would absorb one whose `tsconfig.json` entry had been forgotten, leaving a
+  file that is neither compiled nor reported.
+
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
 every vault that had no plan notes — and nothing in the app could create one, so that was
@@ -2187,6 +2308,22 @@ What each step refuses, because a step whose purpose is vague gets skipped:
 - **analyze** — fallow: dead files and exports, duplication, complexity against coverage,
   and dependency hygiene.
 
+**`tests/**` is type-checked by the `build` step, like `src/`** — `tsconfig.json`'s `include`
+is `src/**` plus `tests/**`, and there is no second program and no fifth gate. That was not
+free and the cost is worth knowing: `vue-tsc` goes from about 8 seconds to about 16, on each
+of the four CI legs.
+
+It arrived through a RATCHET that no longer exists. Turning the compiler on reported 562
+errors across 114 of 307 files, so the debt was held as a baseline of files permitted to
+fail, cleared over five increments, and the script and its baseline deleted when the list
+emptied. What that bought is in the Testing section below; what it cost is the eight seconds.
+
+**One thing the ratchet proved before it was retired, and the reason this now sits inside
+`check` rather than beside it:** while it was a separate command nobody ran, four files
+silently stopped type-checking between two merges — a deps type that grew a member, a
+function that grew a parameter, two new test files. A gate outside `npm run check` is a gate
+that reports only when somebody remembers to ask it.
+
 `npm audit` is deliberately NOT in `check`: an advisory with no patched version is a red
 nobody can clear, and a gate people learn to ignore protects nothing. It is its own CI job.
 
@@ -2287,6 +2424,28 @@ Obsidian itself cannot run here. Three commands stand in, and none replaces anot
   are read at CALL time, so one child walks every state and the `it`s read the results back.
   **A test file's CPU cost is part of its correctness when anything in the suite waits in
   ticks**, and a green local run on a four-core machine cannot see it.
+
+  **`settleUntil`'s own bound was that same mistake one level up, and it took a red CI leg to
+  see it.** The helper exists because a fixed `settle()` is a fixed tick count; its remedy was
+  a loop bounded at 50 ROUNDS, and a round is four microtasks and one `setTimeout(0)` that Node
+  clamps to about a millisecond — so the budget was about fifty milliseconds of wall clock on
+  every machine, while the work it waits on is a cold Vite transform whose duration is entirely
+  the machine's business. Measured rather than reasoned: `openIndex('entry=prototype:ZonePanel')`
+  settles in four to six rounds locally, which READS as a tenfold margin and is five
+  milliseconds against fifty. `verify (ubuntu-latest, 26)` spent all fifty and failed, while
+  the three prototypes scanned before it passed — a per-MODULE cost, so no ordering makes one
+  of them "the cold one". It is a DEADLINE now (4s, under vitest's 5000ms default so a real
+  regression still fails as this helper's named error rather than as an anonymous test
+  timeout).
+  **Pre-warming the entry module was tried first and is the more useful half of the finding**:
+  `HarnessEntry.component` is a real loader, so awaiting it does move that transform out of the
+  polled window — and with the budget starved to one round `ZonePanel` still failed, because it
+  is a template-only mock composing a real `<StatusBar />` that the index registers through
+  `defineAsyncComponent`, which resolves lazily INSIDE the window. **A list of things to warm
+  goes stale as mocks compose more of them; a deadline needs no list.** `settleUntil.test.ts`
+  pins boundedness with a STUBBED `Date.now` rather than by waiting the budget out — four
+  seconds on every CI leg to prove one `throw` is a bad trade — and says so, since what it
+  cannot measure is whether the VALUE is right for a contended runner.
 
   **It has now caught ten defects the whole of `npm run check` could not**, which is the
   argument for running it on anything that draws: the view collapsing to a sliver of its
@@ -2545,13 +2704,65 @@ models only the members something drives, and its `getLanguage()` always answers
 a call site resolving the language wrongly is invisible to the suite, which is why `t` is
 pure and driven per locale directly. `FakeLeaf`/`FakeWorkspace` RECORD asks rather than
 behave. The DOM helpers install only `createEl`, `createDiv`, `empty`, `setText`. And
-nothing type-checks `tests/**` (vitest transpiles without checking) **except five entries in
-`tsconfig.json`'s `include`**, each there for its own reason. Five, counted in the file
-rather than remembered: slice 11 added the third and this sentence said "two" for a slice,
-slice 16's review pass added the fourth, and slice 12 added the fifth — this sentence
-narrated exactly that failure mode ("counted … rather than remembered") one slice before
-falling into it itself, sitting at "four" through slice 12's own thirteen tasks until its
-final review round re-counted the file.
+**`npm run build` type-checks `tests/**` in full** — `tsconfig.json`'s `include` is `src/**`
+plus `tests/**`, with no `paths` mapping, so a test is checked against the same types `src/`
+is. Vitest still transpiles without checking; the compiler that matters runs in `build`.
+
+**It arrived through a ratchet, and the ratchet is gone.** For a long time this said "two
+entries", then four, five, six, seven — one file at a time, each admitted because a specific
+proof needed a compiler and each paying for itself on its first run. Turning the whole tree on
+reported **562 errors across 114 of 307 files**, so the rest was held as a baseline of files
+permitted to fail (`scripts/typecheck-tests-baseline.json`, enforced by
+`scripts/typecheck-tests.mjs`), cleared over five increments, and both deleted with the list.
+What is worth carrying is not the mechanism but what it found, because every one of these was
+green in all four gates beforehand:
+
+- **A command bundle missing `calibratePlan` entirely**, so slice 15's calibrate button would
+  have TypeErrored in the e2e rig rather than refusing or working.
+- **Two cascade registrations passing the command OBJECT** where `CascadeDeps` declares a
+  METHOD — `deps.recalculate({…})` would have been "not a function", unreached only because
+  both cases abort at a failing list step.
+- **A `createZoneId()` handed to `InMemoryRequirementRepository.poke`**, which takes a
+  `RequirementId` — a foreign brand reaching a method, in the file that tests that repository.
+- **`saveSettings({ …, projectsFolder })` where the setting is `projectFolder`.** `settingsFrom`
+  is a trust boundary that drops a key this version does not declare, so six cases certified a
+  rebind on a settings change that never happened.
+- **A confirm dialog handed `body:` where `ConfirmDescriptor` declares `message`** — an excess
+  property, so that fixture's dialog rendered no message at all.
+- **`argumentsOf` guarding a lightningcss pseudo-class with `Array.isArray`**, which cannot
+  discriminate there: `Selector` is itself `SelectorComponent[]`, so the guard answered true
+  for every variant and handed `:host`'s single selector back as a LIST of them.
+- **Dead code that read as belt and braces** — `zone.withChanges?.({})` on a `Zone` with no
+  such member, immediately `void`ed, under a comment describing the two lines below it.
+- **A local `type ResultLike<T> = { ok: true; value: T }`** asserting that a validating call
+  cannot refuse.
+- **`withConflictingReads` typed to a port while calling `poke`**, which no port declares.
+  That one is also its own lesson: narrowing to `InMemoryRequirementRepository` was the
+  obvious next answer and was wrong in the OTHER direction, since a second call site wraps the
+  ASSET repository — a fix written against the case in front of the author rather than the
+  class, caught only because the compiler was still running.
+
+Three rules came out of the exercise and outlive it:
+
+- **A fixture is usually behind a change it was the REASON for.** `PolygonSketch`'s docblock
+  records `cursor` being split into `pointer` and `nextVertex`, and a fixture still wrote
+  `cursor`; `flattenedWithoutRing` declared `Map<string, string>` while its body built a list
+  of sites per class, for a defect its own comment explains. Prose recorded both changes.
+  Nothing checked them.
+- **`as never` over a whole double hides which members it stands in for**, and makes every
+  read through it an error the moment anything asks. Two `vaultStack()` helpers were `as never`;
+  `never` has no properties.
+- **A local assigned inside a callback narrows to `null` at every later read.** Four separate
+  `let settle: (() => void) | null = null` locals stopped being callable. The house spelling is
+  a definite assignment (`let settle!: () => void`), which `drawPolygonTool.test.ts` already used.
+
+**And the argument for it living in `build` rather than beside it:** while the gate was a
+separate command, four files silently stopped type-checking between two merges, and nothing
+reported it until somebody ran it by hand. The eight seconds it adds to `vue-tsc` is what that
+costs.
+
+The seven entries that were admitted one at a time are still worth reading for WHY each was
+worth a compiler, since the same reasons apply to the next proof somebody needs:
 
 `tests/harness/**/*.vue` is the first, and it is about SCOPE rather than about a proof:
 `IndexPage.vue` is the largest Vue file in the repository and the surface every prototype is
@@ -2621,6 +2832,47 @@ generalises past this one file: pulling a single `*.test-d.ts` into `tsconfig.js
 `include` does not check only the assertions written in it — it type-checks every module that
 file imports, transitively, for the first time, which is a cheap way to point a compiler at a
 helper subtree nothing else reaches.
+
+`tests/presentation/errors/errorSurfacePolicy.test-d.ts` is the sixth, and it is a second
+instance of the `@ts-expect-error` kind rather than a new one — with the difference that what
+it proves is an ACCESS rule rather than a parameter's shape. Slice 17's `ErrorSurface` carries
+a `unique symbol` its own module declares and never exports, so the three literals in this file
+are structurally perfect and still unassignable: the only way to hold a surface is to have
+called `surfaceFor`, which is what makes "a call site cannot reach a toast without asking the
+policy" a `tsc` guarantee rather than a lint one. Measured, not asserted — deleting `& Routed`
+from the seven union members reports exactly three `TS2578: Unused '@ts-expect-error'`
+directives, one per literal. **What it deliberately does not prove is written into the file**:
+that a call site asked with the RIGHT origin, which no type can hold, and for which the spec's
+origin table plus review are the whole instrument.
+
+`tests/application/errors/exceptionMapper.test-d.ts` is the seventh, and it is the same kind
+put to a claim about code NOBODY HAS WRITTEN YET. `ExceptionMapper`'s declared return is
+`AppError & TechnicalFault`, so a mapper that forgets to stamp the fault it mints fails at its
+own `return` — which is the only form in which "every `AppError` minted from a thrown cause
+carries the stamp" can be checked at all, since the mappers it quantifies over are the future
+geometry and import ones the type's own docblock promises. Its two directives are held for
+DIFFERENT reasons and both mutations were run rather than reasoned: widening `ExceptionMapper`
+to a bare `AppError` unsatisfies the first and leaves the second biting, because
+`VaultExceptionMapper` restates the obligation in its own call signature; widening only that
+signature reports nothing at all, because the interface EXTENDS `ExceptionMapper` and inherits
+the stamped one. The first draft of the file's own comment asserted the two were independent
+and that widening one would leave the other open — false in both directions, and the sentence
+is now what the mutations printed.
+
+**It exists because the rule's earlier, REMEMBERED form was kept at one of its two sites.**
+Slice 17 stamped by hand in `faultError`, under a docblock calling that "the single site where
+a thrown cause becomes an `AppError`"; `guardAgainstThrowing.ts`'s catch is the second, and it
+is the one every guarded command and query goes through. So a repository exception under a
+dispatched editor command arrived in Presentation unstamped, was read as an ordinary
+save-affecting refusal, and was routed to the save indicator — badge raised, toast suppressed
+as a double-report, and the mapped sentence, which is the only account of a fault that will
+ever exist, reaching nobody. Reported by a review bot on the pull request; `CLAUDE.md`'s own
+rule is that a docblock saying "the only place X" gets a `grep` in the SAME edit, and that one
+never did. **The two report doors then collapsed into one**, which is the part worth carrying:
+`reportCommitFailure` existed as a separate function ONLY because its callers were the only
+ones whose faults were stamped, so the fault arm would have been dead in its sibling. Making
+the stamp a type obligation removed the asymmetry, and with it the reason for the second
+function — a split kept alive by a defect rather than by a distinction.
 
 - **An invariant asserted in a comment gets a test that fails without it, and the test is
   watched failing.** Revert the fix, run it, see red, restore. On one pull request in the
@@ -2882,6 +3134,18 @@ that was fixing the previous instance.
 - The `obsidian` devDependency is pinned to the FLOOR **exactly** (`1.13.0`), not to npm's
   newest and not to a range over it, so the compiler refuses an API `minAppVersion` does not
   promise. `tests/release/manifest.test.ts` holds that pairing. Raise both or neither.
+- **`lib` and `target` are two different claims and deliberately disagree.** `lib` is
+  ES2021 — what the type system says EXISTS at runtime — while `target` stays at ES2020 in
+  BOTH `tsconfig.json` and `vite.config.ts`, which is the SYNTAX the bundle emits. Raising
+  `lib` alone widens what `src/` may reach for (`String.replaceAll`, `Promise.any`,
+  `AggregateError`, `WeakRef`) and changes not one byte of emitted syntax, because a method
+  call is not downlevelled and esbuild polyfills nothing. So it rests on a RUNTIME claim,
+  and only half of that claim is checked: all four shipped in Node 15, below every range
+  `engines.node` declares and therefore inside what `tests/build/engines.test.ts` already
+  compares — while the Electron an Obsidian at `minAppVersion` 1.13.0 ships is checked by
+  nothing here, and is the half to argue at the next raise. `Object.hasOwn` is still out,
+  measured rather than remembered: a probe compiled under ES2021 reports exactly that one
+  missing and the other four present, because it is ES2022.
 - **`engines.node` is a RANGE, and a measurement rather than a decision.** Every dependency
   renegotiates it silently. `>=22` was already false before oxlint arrived, and the obvious
   repair — raise the floor — was still wrong at the other end: eighteen installed packages

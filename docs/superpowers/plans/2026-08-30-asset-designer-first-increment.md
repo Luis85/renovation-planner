@@ -938,6 +938,7 @@ This is the query's real subject, so drive all four rows:
 ```typescript
 it.each([
 	['typed',  false, false],
+	['typed',  true,  false], // the mixed case: a typed outline with a clearance awaiting a scale.
 	['traced', false, false],
 	['traced', true,  true ],
 ])('origin %s with pendingScale %s reports unscaled=%s', async (origin, pendingScale, expected) => {

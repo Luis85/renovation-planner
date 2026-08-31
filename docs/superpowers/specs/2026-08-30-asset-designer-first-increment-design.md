@@ -142,14 +142,24 @@ So the sidecar records two facts about how the coordinates came to exist:
   moment of capture and cleared by the calibration that converts them. This is what gates rescaling
   at all (Decision 6), and it is the half that moves.
 
-`dimensionsUnscaled` is `pendingScale`, and that is a **correction to this document's own first
-draft**, which derived it as `traced && calibration === null`. That derivation asks a question
+`dimensionsUnscaled` is `pendingScale && footprintOrigin === 'traced'`, and the stored half of that
+is a **correction to this document's own first draft**, which derived the whole of it as
+`traced && calibration === null`. That derivation asks a question
 about the PAST — was there a scale when these coordinates were captured — out of LIVE state, so it
 answers wrongly the moment either input moves: replacing a background (Decision 5) would re-flag an
 outline that really was measured, and the answer would change without the geometry changing. It is
 the "a phase test cannot answer a question about the past" shape this repository has recorded
 repeatedly, and writing it down as a stored fact is what makes the staleness unrepresentable rather
 than refreshed on one more event.
+
+**Why a conjunction rather than `pendingScale` alone.** The dimensions are the *footprint's*
+bounding box, so they are unscaled exactly when the footprint is — while `pendingScale` is a fact
+about the whole shape, which may hold a typed footprint beside a clearance still awaiting a scale
+(Decision 6's known limitation). Reading the flag by itself would report an exact typed 1200 × 800
+as unscaled, which is the lie this section opened by refusing, pointed a third way. This is also why
+`footprintOrigin: 'typed'` with `pendingScale: true` is a **legal** state rather than one a schema
+refinement should refuse: it is the mixed case, and refusing it would forbid tracing a clearance
+around a typed outline.
 
 Neither field is derivable from the geometry, so neither is duplicate data under §88.
 

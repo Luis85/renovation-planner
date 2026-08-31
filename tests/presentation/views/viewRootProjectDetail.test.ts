@@ -392,6 +392,11 @@ describe('ViewRoot in the detail state', () => {
 		// used to satisfy.
 		expect(wrapper.find('.rp-view-message').exists()).toBe(false);
 		expect(wrapper.get('.rp-empty-state__headline').text()).toBe(t('en', 'view.project.gone'));
+		// `<h2>`, not `<h3>`: this state REPLACES the view, so there is no project heading above
+		// it for a subsection to belong to. The no-plans state is the embedded case and takes
+		// `3`. Asserted because the tag is the whole content of that distinction and nothing
+		// else here would notice it flipping — the first version of this screen passed `3`.
+		expect(wrapper.get('.rp-empty-state__headline').element.tagName).toBe('H2');
 
 		await wrapper.get('.rp-empty-state__action').trigger('click');
 

@@ -240,13 +240,23 @@ onBeforeUnmount(
 		would still render as loading for the frame before the remount, and for any later path
 		that reaches `'gone'` without this watcher. An honest fallback makes that a smaller
 		question rather than the only defence.
+
+		**No `heading-level`, so this takes `EmptyState`'s default `<h2>`** — and that is the
+		component's own rule rather than a preference: an empty state that REPLACES a region
+		inherits that region's heading level, and one EMBEDDED in a section takes the section's.
+		This one replaces the whole view, so `ProjectDetail` and its project `<h2>` are not
+		rendered at all and an `<h3>` here would announce a subsection with no parent. The
+		no-plans state a few lines away is the embedded case and does pass `3`.
+
+		The first version of this branch passed `3`, one commit after that rule was written into
+		`EmptyState`'s docblock — the prop added to tell those two cases apart, applied to the
+		wrong one. Reported by a review bot.
 	-->
 	<EmptyState
 		v-else-if="status === 'gone'"
 		:headline="tr('view.project.gone')"
 		:body="tr('view.project.gone-body')"
 		:action-label="tr('view.project.back')"
-		:heading-level="3"
 		@action="context.navigate(null)"
 	/>
 	<div

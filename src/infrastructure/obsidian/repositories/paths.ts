@@ -1,4 +1,5 @@
 import { normalizePath, type Vault } from 'obsidian';
+import type { AssetId } from '../../../domain/asset/AssetId';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { ProjectId } from '../../../domain/project/ProjectId';
@@ -79,6 +80,37 @@ export function requirementsFolderFor(projectFolder: string): string {
 
 export function sidecarPathFor(projectFolder: string, planId: PlanId | string): string {
 	return `${geometryFolderFor(projectFolder)}/${String(planId)}.rpgeo`;
+}
+
+/**
+ * The library's own geometry folder: a SIBLING of `Assets/`, not a child of it (ADR-0014).
+ *
+ * `normalizeFolder` here and not at the call site, because `libraryFolder` is a
+ * user-typed setting rather than a path this plugin derived — the same trust boundary
+ * `freshProjectFolder` applies to the configured project root, and the reason
+ * `assetSidecarPathFor` below can take the raw setting from any caller.
+ */
+export function libraryGeometryFolderFor(libraryFolder: string): string {
+	return joinFolder(normalizeFolder(libraryFolder), GEOMETRY_FOLDER);
+}
+
+/**
+ * ADR-0014: one file per asset, in the library's own `Geometry/`, named by the FULL
+ * prefixed id — so the note's `id` field, the sidecar's own `assetId` field and the
+ * filename are one comparable string.
+ *
+ * **This one IS a read path, and that is the difference from `sidecarPathFor` above.** A
+ * plan's sidecar is resolved through the Project Index because ADR-011 scopes it to a
+ * project folder, which is itself derived from a note the index holds; an asset's is
+ * derived from the SETTING, which no index knows and nothing else answers. So there is no
+ * mapping to consult and deriving is not a second lookup mechanism — it is the only one.
+ * ADR-0014's own Consequences say resolution goes through the index "as it does for plan
+ * sidecars", and that sentence is inherited from ADR-011 rather than measured against this
+ * decision: the index holds no asset-sidecar mapping, and its Decision section states the
+ * derived path as the rule.
+ */
+export function assetSidecarPathFor(libraryFolder: string, assetId: AssetId | string): string {
+	return `${libraryGeometryFolderFor(libraryFolder)}/${String(assetId)}.rpgeo`;
 }
 
 /**

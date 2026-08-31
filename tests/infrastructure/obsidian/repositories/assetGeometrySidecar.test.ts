@@ -1,0 +1,359 @@
+/**
+ * `AssetGeometryStore` and the port face over it (ADR-0014).
+ *
+ * Driven through `ObsidianAssetGeometrySidecar` rather than through the store, because the
+ * port is what every caller above `infrastructure/` will hold and the raising of storage
+ * tuples to `Point`s is half of what these cases are about. Where a rule belongs to the
+ * store alone — that a write creates `Geometry/` before it creates a file in it — the
+ * assertion is on what the VAULT was asked to do, which is the only place that rule is
+ * visible from here.
+ */
+import { afterEach, describe, expect, it } from 'vitest';
+import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
+import { openFixtureVault, type FixtureStack } from '../../../helpers/fixtureVault';
+import { expectErr, expectOk } from '../../../helpers/domain';
+import { createAssetId, type AssetId } from '../../../../src/domain/asset/AssetId';
+import { assetSidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
+import type { AssetGeometryDocument } from '../../../../src/application/ports/AssetGeometrySidecar';
+import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
+import { shapeFromDimensions } from '../../../../src/domain/asset/AssetShape';
+
+const rectangle = (): AssetShape => expectOk(shapeFromDimensions(1200, 800));
+
+const seeded = () => {
+	const stack: RepositoryStack = createRepositoryStack();
+	const assetId = createAssetId();
+	return {
+		stack,
+		assetId,
+		path: assetSidecarPathFor(stack.libraryFolder, assetId),
+		sidecar: new ObsidianAssetGeometrySidecar(stack.assetGeometry),
+	};
+};
+
+/** The bytes a hand edit would leave: everything the schema wants, with one field to spoil. */
+const rawDocument = (assetId: string, overrides: Record<string, unknown> = {}): string =>
+	JSON.stringify({
+		schemaVersion: 1,
+		assetId,
+		revision: 3,
+		unit: 'mm',
+		calibration: null,
+		shape: {
+			footprint: { points: [[-600, -400], [600, -400], [600, 400], [-600, 400]] },
+			footprintOrigin: 'typed',
+			footprintPending: false,
+			clearancePending: false,
+			anchorPending: false,
+			clearance: null,
+			anchor: { x: 0, y: 0 },
+			facing: 0,
+		},
+		...overrides,
+	});
+
+describe('ObsidianAssetGeometrySidecar', () => {
+	it('reads an asset with no sidecar as a shapeless design rather than as a failure', async () => {
+		const { sidecar, assetId } = seeded();
+
+		const snapshot = expectOk(await sidecar.read(assetId));
+
+		expect(snapshot.document).toEqual({ calibration: null, shape: null });
+		expect(snapshot.version.revision).toBe(0);
+	});
+
+	it('creates the library Geometry folder before the file in it', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+
+		expectOk(await sidecar.write(assetId, { calibration: null, shape: rectangle() }));
+
+		// `FakeVault.create` refuses a path whose parent does not exist, exactly as Obsidian
+		// does — the fake that caught this same missing `ensureFolder` for plan sidecars. So
+		// the write above having SUCCEEDED is already most of the proof; the ordering
+		// assertion is what tells a build that creates the folder from a build that happens
+		// to run after some other writer made it.
+		expect(stack.vault.operations).toContain(`createFolder:${stack.libraryFolder}/Geometry`);
+		expect(stack.vault.operations.indexOf(`createFolder:${stack.libraryFolder}/Geometry`))
+			.toBeLessThan(stack.vault.operations.indexOf(`create:${path}`));
+	});
+
+	it('round-trips a typed rectangle, provenance included', async () => {
+		const { sidecar, assetId } = seeded();
+		const document: AssetGeometryDocument = { calibration: null, shape: rectangle() };
+
+		const written = expectOk(await sidecar.write(assetId, document));
+		const read = expectOk(await sidecar.read(assetId));
+
+		expect(written.revision).toBe(1);
+		expect(read.version.revision).toBe(1);
+		expect(read.document.shape?.footprintOrigin).toBe('typed');
+		// Raised back to `Point`s, never the `[x, y]` tuples the file holds.
+		expect(read.document.shape?.footprint.points[0]).toEqual({ x: -600, y: -400 });
+		expect(read.document).toEqual(document);
+	});
+
+	/**
+	 * A SECOND write is a modify, not a create, and it is the only place the store chooses
+	 * between the two — `writeText` asks the vault what is there rather than trusting what
+	 * the caller read. Without a case for it the modify arm never runs at all: every other
+	 * write here is either the first one for its asset or a refusal that returns before the
+	 * file is touched.
+	 */
+	it('modifies the file a second write finds, rather than creating a second one', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		expectOk(await sidecar.write(assetId, { calibration: null, shape: rectangle() }));
+
+		const second = expectOk(await sidecar.write(assetId, { calibration: null, shape: null }));
+
+		expect(second.revision).toBe(2);
+		expect(stack.vault.operations.filter((op) => op.startsWith('create:'))).toEqual([`create:${path}`]);
+		expect(stack.vault.operations).toContain(`modify:${path}`);
+		expect(expectOk(await sidecar.read(assetId)).document.shape).toBeNull();
+	});
+
+	/**
+	 * The document is written and read WHOLE (SDD §40), which is why the port is
+	 * document-grained rather than per-attribute: a recalibration rewrites the calibration
+	 * and every rescaled coordinate the shape holds in ONE file operation. This is the case
+	 * that carries a calibration and a clearance at once, so both of the adapter's nullable
+	 * fields are exercised through their PRESENT arm rather than only through `null`.
+	 */
+	it('round-trips a calibration and a clearance together', async () => {
+		const { sidecar, assetId } = seeded();
+		const base = rectangle();
+		const document: AssetGeometryDocument = {
+			calibration: {
+				pointA: { x: 0, y: 0 },
+				pointB: { x: 800, y: 0 },
+				knownDistance: 1200,
+				pixelsPerWorldUnit: 0.75,
+			},
+			shape: {
+				...base,
+				clearance: {
+					points: [
+						{ x: -700, y: -500 },
+						{ x: 700, y: -500 },
+						{ x: 700, y: 500 },
+						{ x: -700, y: 500 },
+					],
+				},
+			},
+		};
+
+		expectOk(await sidecar.write(assetId, document));
+
+		expect(expectOk(await sidecar.read(assetId)).document).toEqual(document);
+	});
+
+	/**
+	 * A vault write that fails is a REFUSAL, never a resolved success — the save indicator
+	 * infers nothing from `ok`, so a store that swallowed this would badge "Saved" over a
+	 * file that was never written.
+	 */
+	it('refuses when the vault write fails', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		stack.vault.failures.add(`create:${path}`);
+
+		const error = expectErr(await sidecar.write(assetId, { calibration: null, shape: rectangle() }));
+
+		expect(error).toMatchObject({ category: 'Persistence', code: 'asset-geometry.write-failed' });
+	});
+
+	/**
+	 * A vault read that FAULTS is mapped into a resolved refusal at this boundary rather
+	 * than thrown — the store is below the Error Boundary's guards, and a rejection from
+	 * here reaches a caller that declares a `Result` and has no catch.
+	 */
+	it('refuses when the sidecar cannot be read', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		expectOk(await sidecar.write(assetId, { calibration: null, shape: rectangle() }));
+		stack.vault.failures.add(`read:${path}`);
+
+		expect(expectErr(await sidecar.read(assetId))).toMatchObject({
+			category: 'Persistence',
+			code: 'asset-geometry.unreadable',
+		});
+	});
+
+	/**
+	 * A write reads first — inside the lock, which is what makes the conditional write a
+	 * compare-and-swap — so a sidecar this build cannot READ is one it will not overwrite
+	 * either. That is the safe direction and it is deliberate: the file is a hand edit or a
+	 * newer build's, and replacing it wholesale would destroy whatever it says while
+	 * reporting success.
+	 */
+	it('refuses to overwrite a sidecar it cannot read', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		stack.vault.entries.set(path, '{ not json');
+		const bytes = stack.vault.entries.get(path);
+
+		const error = expectErr(await sidecar.write(assetId, { calibration: null, shape: rectangle() }));
+
+		expect(error).toMatchObject({ category: 'Persistence', code: 'asset-geometry.corrupt' });
+		expect(stack.vault.entries.get(path)).toBe(bytes);
+	});
+
+	it('refuses a stale expectation and leaves the bytes on disk untouched', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		const stale = expectOk(await sidecar.read(assetId)).version;
+		expectOk(await sidecar.write(assetId, { calibration: null, shape: rectangle() }));
+		const bytes = stack.vault.entries.get(path);
+
+		const error = expectErr(
+			await sidecar.write(assetId, { calibration: null, shape: null }, stale),
+		);
+
+		expect(error).toMatchObject({ category: 'Validation', code: 'asset-geometry.revision-conflict' });
+		// The error alone is equally true of a build that wrote and then reported: the file
+		// is what says nothing was written.
+		expect(stack.vault.entries.get(path)).toBe(bytes);
+	});
+
+	it('refuses a sidecar whose unit is not mm rather than reinterpreting it (ADR-009)', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		stack.vault.entries.set(path, rawDocument(assetId, { unit: 'cm' }));
+
+		expect(expectErr(await sidecar.read(assetId)).code).toBe('asset-geometry.schema-invalid');
+	});
+
+	/**
+	 * Step 4a's refusal, at the READ. `Polygon` is deliberately unvalidated at the type
+	 * level so a tool can hold a mid-gesture buffer, so without this a hand-edited sidecar
+	 * would cross into `AssetShape` having never passed `createPolygon`, while every command
+	 * above assumes it did. A refusal and not a repair: reading a corrupt file as an empty
+	 * design presents it as an asset nobody has drawn yet.
+	 */
+	it('refuses a hand-edited sidecar whose footprint has two vertices', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		stack.vault.entries.set(
+			path,
+			rawDocument(assetId, {
+				shape: {
+					footprint: { points: [[0, 0], [1, 1]] },
+					footprintOrigin: 'traced',
+					footprintPending: false,
+					clearancePending: false,
+					anchorPending: false,
+					clearance: null,
+					anchor: { x: 0, y: 0 },
+					facing: 0,
+				},
+			}),
+		);
+
+		expect(expectErr(await sidecar.read(assetId)).code).toBe('asset-geometry.schema-invalid');
+	});
+
+	/**
+	 * The domain rules the SCHEMA cannot see — `validateAssetShape`'s, which is why the read
+	 * runs it as well as the parse. A typed footprint marked as awaiting a scale is three
+	 * valid JSON fields whose combination no command can produce; read as written it would
+	 * suppress the unscaled warning over geometry nobody measured.
+	 */
+	it('refuses a shape the schema accepts and the domain does not', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		stack.vault.entries.set(
+			path,
+			rawDocument(assetId, {
+				shape: {
+					footprint: { points: [[-600, -400], [600, -400], [600, 400], [-600, 400]] },
+					footprintOrigin: 'typed',
+					footprintPending: true,
+					clearancePending: false,
+					anchorPending: false,
+					clearance: null,
+					anchor: { x: 0, y: 0 },
+					facing: 0,
+				},
+			}),
+		);
+
+		expect(expectErr(await sidecar.read(assetId)).code).toBe('asset.typed-footprint-cannot-be-pending');
+	});
+
+	/**
+	 * The store's own narrowing, pinned rather than left as a sentence in its docblock. A
+	 * plan sidecar from a newer build refuses through `MigrationRunner` with the `Migration`
+	 * category — "this build is too old" rather than "your data is bad" — and this store runs
+	 * no runner, because the runner is keyed by the closed `DiagnosticEntityKind` union and
+	 * widening it changes the diagnostics snapshot. So the REFUSAL is the same and the
+	 * category is not: `schemaVersion: z.literal(1)` is what does the refusing.
+	 *
+	 * Registering an `asset-geometry` migration kind is what would flip this case, which is
+	 * the point of having it — the day somebody does, this fails and says so.
+	 */
+	it('refuses a sidecar written by a newer build, as a schema refusal rather than a migration one', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		stack.vault.entries.set(path, rawDocument(assetId, { schemaVersion: 2 }));
+
+		const error = expectErr(await sidecar.read(assetId));
+
+		expect(error).toMatchObject({ category: 'Validation', code: 'asset-geometry.schema-invalid' });
+	});
+
+	/**
+	 * The filename join happens above; THIS is where a hand-renamed file or a hand-edited
+	 * `assetId` surfaces, never silently preferred — `PlanGeometryStore`'s own rule, which
+	 * the plan's Step 4a closed for vertex COUNT and said nothing about identity. Without
+	 * it, copying one asset's `.rpgeo` onto another's name loads asset A's geometry as
+	 * asset B's and then EDITS it there.
+	 */
+	it('refuses a sidecar that declares a different asset', async () => {
+		const { sidecar, stack, assetId, path } = seeded();
+		const other = createAssetId();
+		stack.vault.entries.set(path, rawDocument(other));
+
+		const error = expectErr(await sidecar.read(assetId));
+
+		expect(error).toMatchObject({ category: 'Persistence', code: 'asset-geometry.asset-id-mismatch' });
+		expect(error.message).toContain(other);
+	});
+});
+
+/**
+ * The same port over slice 12's DISK-BACKED fixture vault, against bytes that were checked
+ * in rather than written by the test that reads them.
+ *
+ * Two assets, because the pair is the point: one designed and one not. An asset with no
+ * sidecar is the ordinary starting state of every asset ever created, and a fixture that
+ * could only express the designed one would hide every "no shape yet" path in the suite
+ * behind a `.rpgeo` somebody remembered to add.
+ */
+describe('ObsidianAssetGeometrySidecar over the fixture vault', () => {
+	let open: FixtureStack | undefined;
+
+	afterEach(() => {
+		open?.dispose();
+		open = undefined;
+	});
+
+	it('reads a designed asset\'s shape off the checked-in sidecar', async () => {
+		open = await openFixtureVault('valid-project');
+		const sidecar = new ObsidianAssetGeometrySidecar(open.assetGeometry);
+
+		const snapshot = expectOk(await sidecar.read('asset-designed' as AssetId));
+
+		expect(snapshot.version.revision).toBe(2);
+		expect(snapshot.document.shape?.footprintOrigin).toBe('typed');
+		// Raised to `Point`s from the tuples the file holds, over a real filesystem read —
+		// which is the half `createRepositoryStack` cannot demonstrate.
+		expect(snapshot.document.shape?.footprint.points).toEqual([
+			{ x: -300, y: -280 },
+			{ x: 300, y: -280 },
+			{ x: 300, y: 280 },
+			{ x: -300, y: 280 },
+		]);
+	});
+
+	it('reads an asset with no sidecar as shapeless rather than failing', async () => {
+		open = await openFixtureVault('valid-project');
+		const sidecar = new ObsidianAssetGeometrySidecar(open.assetGeometry);
+
+		const snapshot = expectOk(await sidecar.read('asset-undesigned' as AssetId));
+
+		expect(snapshot.document).toEqual({ calibration: null, shape: null });
+		expect(snapshot.version.revision).toBe(0);
+	});
+});

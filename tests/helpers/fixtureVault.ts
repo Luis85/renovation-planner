@@ -28,6 +28,7 @@ import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/reposi
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { ObsidianAssetRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetRepository';
+import { AssetGeometryStore } from '../../src/infrastructure/obsidian/repositories/AssetGeometryStore';
 import { ObsidianRequirementRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import { stackFoundation, type StackFoundation } from './repositoryStack';
 
@@ -460,6 +461,8 @@ export interface FixtureStack extends StackFoundation {
 	zones: ObsidianZoneRepository;
 	assets: ObsidianAssetRepository;
 	requirements: ObsidianRequirementRepository;
+	/** ADR-0014's asset geometry store, constructed here for the fallow reason above. */
+	assetGeometry: AssetGeometryStore;
 	vault: FixtureVaultAdapter;
 	fileManager: FixtureFileManager;
 	metadataCache: FixtureMetadataCache;
@@ -569,6 +572,7 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		zones: new ObsidianZoneRepository(base.deps, base.store),
 		assets: new ObsidianAssetRepository(base.deps, DEFAULT_LIBRARY_FOLDER),
 		requirements: new ObsidianRequirementRepository(base.deps),
+		assetGeometry: new AssetGeometryStore(vault as never, DEFAULT_LIBRARY_FOLDER, base.echo),
 		// `projectFolder` arrives through `base`; the library root does not, because slice 19
 		// gave it to the two repositories that write into it rather than to the foundation.
 		libraryFolder: DEFAULT_LIBRARY_FOLDER,

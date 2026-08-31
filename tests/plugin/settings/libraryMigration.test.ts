@@ -9,12 +9,14 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TFile } from 'obsidian';
 import {
 	catalogueNotesIn,
+	libraryGeometryIn,
 	libraryDestinations,
 	migrateLibraryFolder,
 	projectFolderPaths,
 	type LibraryMigrationDeps,
 } from '../../../src/plugin/settings/libraryMigration';
 import { isErr, isOk } from '../../../src/core/result/Result';
+import { assetSidecarPathFor } from '../../../src/infrastructure/obsidian/repositories/paths';
 import type { ProjectIndex, ProjectIndexEntry } from '../../../src/application/ports/ProjectIndex';
 import type { EntityId } from '../../../src/core/identity/EntityId';
 
@@ -49,6 +51,13 @@ function harness(overrides: Partial<LibraryMigrationDeps> = {}): Harness {
 		// happens once it is.
 		vaultFolders: () => [SOURCE],
 		catalogueNotes: (from) => [noteAt(`${from}/Assets/Tiles.md`), noteAt(`${from}/Assets/Paint.md`)],
+		/**
+		 * EMPTY by default — a library nobody has designed an asset in yet, which is the
+		 * ordinary state and the one every case written before ADR-0014 was describing. The
+		 * cases that care hand in their own, rather than every existing `order` and `renamed`
+		 * sequence in this file gaining a move it was not written to argue about.
+		 */
+		geometrySidecars: () => [],
 		ensureFolder: (path) => {
 			ensured.push(path);
 			return Promise.resolve();
@@ -558,6 +567,105 @@ it('leaves an asset in a sibling folder differing only in case untouched', async
 	expect(rig.renamed).toEqual([
 		{ from: 'Renovation/Library/Assets/Tiles.md', to: 'Shared/Catalogue/Assets/Tiles.md' },
 	]);
+});
+
+/**
+ * ADR-0014 puts an asset's geometry under `<libraryFolder>/Geometry/`, so the sidecars move
+ * with the catalogue or the setting strands them — and it strands them SILENTLY, because
+ * `AssetGeometryStore` reads an absent sidecar as a shapeless asset rather than as an error.
+ * That is why these two cases exist and why the second one is the important one.
+ */
+describe('the library move takes asset geometry with it', () => {
+	const ASSET_ID = 'asset-01JABC';
+	const sidecarUnder = (folder: string): TFile => noteAt(assetSidecarPathFor(folder, ASSET_ID));
+
+	it('renames each sidecar to exactly where the store will look for it', async () => {
+		const rig = harness({ geometrySidecars: (from) => [sidecarUnder(from)] });
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+		expect(isOk(result)).toBe(true);
+		// Asserted against `assetSidecarPathFor(DESTINATION, …)` rather than against a
+		// hand-spelled string: the claim is not "it moved somewhere under the destination",
+		// it is that the migration and the store agree about one path. A literal here would
+		// go on passing if the store's own derivation changed underneath it.
+		expect(rig.renamed.at(-1)).toEqual({
+			from: assetSidecarPathFor(SOURCE, ASSET_ID),
+			to: assetSidecarPathFor(DESTINATION, ASSET_ID),
+		});
+		expect(rig.order).toEqual(['rebuild', 'move', 'move', 'move', 'rebuild', 'persist']);
+	});
+
+	/**
+	 * Persist LAST, or not at all. Without this the setting lands, the store resolves under
+	 * the new folder, and every designed shape reads as `shape: null` while the files sit
+	 * orphaned under the old path with nothing reporting anything. The recoverable state is
+	 * the one where `data.json` still names the folder the sidecars are actually in.
+	 */
+	it('does not persist the new folder when moving a sidecar fails', async () => {
+		const renamedTo: string[] = [];
+		const rig = harness({
+			geometrySidecars: (from) => [sidecarUnder(from)],
+			renameFile: (file, to) => {
+				if (file.path.endsWith('.rpgeo')) return Promise.reject(new Error('locked'));
+				renamedTo.push(to);
+				return Promise.resolve();
+			},
+		});
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+		expect(isErr(result) && result.error.code).toBe('settings.library-move-failed');
+		expect(rig.persistedFolder()).toBeUndefined();
+		// The notes really did move first, so this is a PARTIAL move being refused rather
+		// than a migration that never started — which is the case the assertion above would
+		// otherwise pass for either way.
+		expect(renamedTo).toHaveLength(2);
+	});
+});
+
+/**
+ * WHICH `.rpgeo` FILES ARE THE LIBRARY'S. Deliberately not "every `.rpgeo` under the
+ * source", which is the prefix premise `catalogueNotesIn`'s own docblock records four
+ * findings against: §83 grants a project filed inside the library, and that project's plan
+ * sidecars live at `<library>/<project>/Geometry/plan-x.rpgeo`. Moving those would take a
+ * project's geometry with a catalogue it has nothing to do with, and leave every plan on it
+ * unresolvable.
+ *
+ * The rule is therefore DIRECT CHILDREN of the library's own `Geometry/`, which is exactly
+ * the set ADR-0014's layout defines — no deeper, so no nested project folder can be reached,
+ * and `.rpgeo` only, so a file a user dropped in that folder is left alone.
+ */
+describe('libraryGeometryIn', () => {
+	it('takes the library\'s own sidecars and not a nested project\'s', () => {
+		const files = [
+			noteAt('Renovation/Library/Geometry/asset-01JABC.rpgeo'),
+			noteAt('Renovation/Library/Kitchen/Geometry/plan-01JXYZ.rpgeo'),
+			noteAt('Renovation/Library/Geometry/Archive/asset-01JOLD.rpgeo'),
+		];
+
+		expect(libraryGeometryIn(files, SOURCE).map((file) => file.path)).toEqual([
+			'Renovation/Library/Geometry/asset-01JABC.rpgeo',
+		]);
+	});
+
+	it('takes only .rpgeo files, so a note filed in that folder is left where it is', () => {
+		const files = [
+			noteAt('Renovation/Library/Geometry/asset-01JABC.rpgeo'),
+			noteAt('Renovation/Library/Geometry/README.md'),
+		];
+
+		expect(libraryGeometryIn(files, SOURCE).map((file) => file.path)).toEqual([
+			'Renovation/Library/Geometry/asset-01JABC.rpgeo',
+		]);
+	});
+
+	/** The prefix trap `catalogueNotesIn` already carries: a segment boundary, not a string one. */
+	it('does not reach a folder that merely starts with the library\'s name', () => {
+		const files = [noteAt('Renovation/LibraryOld/Geometry/asset-01JABC.rpgeo')];
+
+		expect(libraryGeometryIn(files, SOURCE)).toEqual([]);
+	});
 });
 
 describe('catalogueNotesIn', () => {

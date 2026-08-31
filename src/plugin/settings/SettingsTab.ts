@@ -8,6 +8,7 @@ import { runDetached } from '../runDetached';
 import { DEFAULT_SETTINGS, UNITS, type RenovationPlannerSettings } from './settings';
 import {
 	catalogueNotesIn,
+	libraryGeometryIn,
 	libraryDestinations,
 	migrateLibraryFolder,
 	projectFolderPaths,
@@ -298,6 +299,9 @@ export class SettingsTab extends PluginSettingTab {
 			// see `catalogueNotesIn`. Asking the folder alone swept a project filed under the
 			// library into the destination.
 			catalogueNotes: (from) => catalogueNotesIn(this.host.root.persistence, vault.getFiles(), from),
+			// The same `getFiles()` list, asked a different question — see `libraryGeometryIn`
+			// for why a sidecar cannot be found the way a catalogue note is.
+			geometrySidecars: (from) => libraryGeometryIn(vault.getFiles(), from),
 			ensureFolder: (path) => ensureFolder(vault, path),
 			renameFile: (file, to) => renameNote(fileManager, file, to),
 			rebuildIndex: () => {

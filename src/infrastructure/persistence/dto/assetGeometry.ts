@@ -63,3 +63,14 @@ export const AssetGeometrySchemaV1 = z.object({
 	calibration: CalibrationSchemaV1.nullable(),
 	shape: AssetShapeSchemaV1.nullable(),
 });
+
+/**
+ * The parsed document's shape, for the store and the adapter that raise it.
+ *
+ * Declared as the plan's own Task A3 code block specifies and as `planGeometry.ts`'s
+ * `PlanGeometryDTO` already does — A3 shipped the schemas without it, so the two sidecar
+ * DTO modules were asymmetric and neither the store nor the adapter could annotate what it
+ * holds. Inferred rather than hand-written: a second spelling of a Zod schema's output is
+ * a second answer to what is in the file.
+ */
+export type AssetGeometryDTO = z.infer<typeof AssetGeometrySchemaV1>;

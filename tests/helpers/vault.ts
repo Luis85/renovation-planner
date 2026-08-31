@@ -4,6 +4,7 @@ import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/reposi
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { ObsidianAssetRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetRepository';
+import { AssetGeometryStore } from '../../src/infrastructure/obsidian/repositories/AssetGeometryStore';
 import { ObsidianRequirementRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import { stackFoundation, type StackFoundation } from './repositoryStack';
 
@@ -504,6 +505,13 @@ export interface RepositoryStack extends StackFoundation {
 	zones: ObsidianZoneRepository;
 	assets: ObsidianAssetRepository;
 	requirements: ObsidianRequirementRepository;
+	/**
+	 * ADR-0014's asset geometry store, beside the foundation's plan one. Here rather than on
+	 * `StackFoundation` for the same reason the five repositories are: it takes the library
+	 * root, and the `new` expression has to sit in the file its members are consumed from —
+	 * see the fallow measurement below.
+	 */
+	assetGeometry: AssetGeometryStore;
 	vault: FakeVault;
 	fileManager: FakeFileManager;
 	metadataCache: FakeMetadataCache;
@@ -560,6 +568,7 @@ export function createRepositoryStack(projectFolder = 'Renovation', libraryFolde
 		zones: new ObsidianZoneRepository(base.deps, base.store),
 		assets: new ObsidianAssetRepository(base.deps, libraryFolder),
 		requirements: new ObsidianRequirementRepository(base.deps),
+		assetGeometry: new AssetGeometryStore(vault as never, libraryFolder, base.echo),
 		libraryFolder,
 	};
 }

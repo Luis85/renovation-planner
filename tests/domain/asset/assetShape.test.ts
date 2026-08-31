@@ -1,0 +1,177 @@
+import { describe, expect, it } from 'vitest';
+import {
+	dimensionsOf,
+	footprintFromDimensions,
+	normaliseFacing,
+	shapeFromDimensions,
+	validateAssetShape,
+	type AssetShape,
+} from '../../../src/domain/asset/AssetShape';
+import { isErr, isOk } from '../../../src/core/result/Result';
+
+/**
+ * Built through the real constructor rather than hand-written, so a field added to
+ * `AssetShape` reaches every case here the day it exists instead of being spread over a
+ * literal that still compiles without it.
+ */
+function typedShapeFixture(): AssetShape {
+	const shape = shapeFromDimensions(1200, 800);
+	if (!isOk(shape)) throw new Error('fixture');
+	return shape.value;
+}
+
+const typedShape = typedShapeFixture();
+
+const square = [
+	{ x: -10, y: -10 },
+	{ x: 10, y: -10 },
+	{ x: 10, y: 10 },
+	{ x: -10, y: 10 },
+];
+
+describe('footprintFromDimensions', () => {
+	it('centres a rectangle on the origin so the anchor default is meaningful', () => {
+		const result = footprintFromDimensions(1200, 800);
+		expect(isOk(result)).toBe(true);
+		if (!isOk(result)) return;
+		expect(result.value.points).toEqual([
+			{ x: -600, y: -400 }, { x: 600, y: -400 },
+			{ x: 600, y: 400 }, { x: -600, y: 400 },
+		]);
+	});
+
+	it('refuses a non-positive dimension, which would be a degenerate polygon', () => {
+		const result = footprintFromDimensions(0, 800);
+		expect(isErr(result)).toBe(true);
+		if (!isErr(result)) return;
+		expect(result.error.code).toBe('asset.non-positive-dimension');
+	});
+
+	it('refuses a non-finite dimension before it reaches the polygon validator', () => {
+		expect(isErr(footprintFromDimensions(Number.NaN, 800))).toBe(true);
+	});
+
+	it('checks the second dimension too, not only the first', () => {
+		const result = footprintFromDimensions(1200, -5);
+		expect(isErr(result) && result.error.code).toBe('asset.non-positive-dimension');
+	});
+});
+
+describe('dimensionsOf', () => {
+	it('reads the bounding box, so a traced outline needs no typed numbers beside it', () => {
+		const traced = footprintFromDimensions(1200, 800);
+		if (!isOk(traced)) throw new Error('fixture');
+		const dims = dimensionsOf(traced.value);
+		expect(isOk(dims) && dims.value).toEqual({ width: 1200, depth: 800 });
+	});
+
+	it('answers the geometry refusal for a point set no box can be taken over', () => {
+		// `Polygon` is deliberately unvalidated at the type level, so an empty vertex
+		// buffer is representable and this arm is reachable rather than defensive.
+		const dims = dimensionsOf({ points: [] });
+		expect(isErr(dims) && dims.error.category).toBe('Geometry');
+	});
+});
+
+describe('normaliseFacing', () => {
+	it('folds a negative angle into [0, 2π)', () => {
+		expect(normaliseFacing(-Math.PI / 2)).toBeCloseTo((3 * Math.PI) / 2, 10);
+	});
+
+	it('folds exactly 2π to 0 rather than leaving two spellings of north', () => {
+		expect(normaliseFacing(Math.PI * 2)).toBe(0);
+	});
+
+	it('answers 0 for a non-finite angle rather than propagating NaN into stored geometry', () => {
+		expect(normaliseFacing(Number.NaN)).toBe(0);
+		expect(normaliseFacing(Number.POSITIVE_INFINITY)).toBe(0);
+	});
+});
+
+describe('shapeFromDimensions', () => {
+	it('starts every shape typed, unpending, centred, facing +x and without a clearance', () => {
+		expect(typedShape).toEqual({
+			footprint: { points: [
+				{ x: -600, y: -400 }, { x: 600, y: -400 },
+				{ x: 600, y: 400 }, { x: -600, y: 400 },
+			] },
+			footprintOrigin: 'typed',
+			footprintPending: false,
+			clearancePending: false,
+			anchorPending: false,
+			clearance: null,
+			anchor: { x: 0, y: 0 },
+			facing: 0,
+		});
+	});
+
+	it('propagates the dimension refusal rather than inventing a shape around it', () => {
+		const result = shapeFromDimensions(0, 800);
+		expect(isErr(result) && result.error.code).toBe('asset.non-positive-dimension');
+	});
+});
+
+describe('validateAssetShape', () => {
+	it('accepts the shape the constructor produces', () => {
+		expect(isOk(validateAssetShape(typedShape))).toBe(true);
+	});
+
+	it('refuses a typed footprint marked as awaiting a scale', () => {
+		const result = validateAssetShape({ ...typedShape, footprintPending: true });
+		expect(isErr(result) && result.error.code).toBe('asset.typed-footprint-cannot-be-pending');
+	});
+
+	it('leaves a TRACED footprint free to be pending, which is the whole point of the flag', () => {
+		const result = validateAssetShape({
+			...typedShape,
+			footprintOrigin: 'traced',
+			footprintPending: true,
+		});
+		expect(isOk(result)).toBe(true);
+	});
+
+	it('refuses a pending clearance on a shape that has no clearance', () => {
+		const result = validateAssetShape({ ...typedShape, clearance: null, clearancePending: true });
+		expect(isErr(result) && result.error.code).toBe('asset.absent-clearance-cannot-be-pending');
+	});
+
+	it('accepts a pending clearance once there are clearance coordinates to be pending about', () => {
+		const result = validateAssetShape({
+			...typedShape,
+			clearance: { points: square },
+			clearancePending: true,
+		});
+		expect(isOk(result)).toBe(true);
+	});
+
+	it('refuses a two-point footprint, which is not a polygon at all', () => {
+		const result = validateAssetShape({
+			...typedShape,
+			footprint: { points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] },
+		});
+		expect(isErr(result) && result.error.code).toBe('asset.invalid-footprint');
+	});
+
+	it('refuses a two-point clearance under its own code, so the message names the right outline', () => {
+		const result = validateAssetShape({
+			...typedShape,
+			clearance: { points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] },
+		});
+		expect(isErr(result) && result.error.code).toBe('asset.invalid-clearance');
+	});
+
+	it('refuses a NaN anchor', () => {
+		const result = validateAssetShape({ ...typedShape, anchor: { x: Number.NaN, y: 0 } });
+		expect(isErr(result) && result.error.code).toBe('asset.invalid-anchor');
+	});
+
+	it('refuses a non-finite facing', () => {
+		const result = validateAssetShape({ ...typedShape, facing: Number.POSITIVE_INFINITY });
+		expect(isErr(result) && result.error.code).toBe('asset.invalid-facing');
+	});
+
+	it('normalises the facing on the way through, not only in normaliseFacing own test', () => {
+		const result = validateAssetShape({ ...typedShape, facing: Math.PI * 2 });
+		expect(isOk(result) && result.value.facing).toBe(0);
+	});
+});

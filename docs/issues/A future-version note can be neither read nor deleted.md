@@ -89,8 +89,22 @@ on a valid expectation and the loss is made explicit to the user first. Whicheve
 the existing case is the regression check — it asserts the current answer, so changing the
 answer means changing that case deliberately rather than discovering it went red.
 
+## Narrowed — 2026-08-31
+
+The *which note* half is answered: the diagnostics report
+(`src/plugin/diagnostics/DiagnosticsReportModal.ts`) lists every refusal recorded this session
+and joins each id to its note's PATH, so a user who meets this refusal can now find the note
+it is about. **The refusal itself is untouched and this Issue stays open** — a future-version
+note still cannot be read, and still cannot be deleted through the plugin.
+
+What changed around it, and it is worth knowing before re-reading the steps above: the zone
+and plan LISTINGS no longer fail whole for one such note. It is skipped, counted, and reported
+— so the note is now reachable in the report rather than only in a refusal the user meets by
+accident.
+
 ## References
 
+- `src/plugin/diagnostics/DiagnosticsReportModal.ts` — where the note's path is now named.
 - `src/infrastructure/obsidian/repositories/noteEntityWrite.ts` — `trashNoteBackedEntity`, and
   the call order that produces this.
 - `src/infrastructure/obsidian/repositories/noteIo.ts` — `migrateNote`'s docblock, now stating

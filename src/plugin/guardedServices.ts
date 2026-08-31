@@ -3,6 +3,7 @@ import type { AppError, GeometryError, PersistenceError, ReferenceError } from '
 import type { Command } from '../application/commands/Command';
 import type { Query } from '../application/queries/Query';
 import type { Logger } from '../application/ports/Logger';
+import type { LibraryOverlaps } from '../application/ports/LibraryOverlaps';
 import type { Loaded } from '../application/ports/versioning';
 import type { RepositoryError } from '../application/ports/repositoryErrors';
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
@@ -210,6 +211,12 @@ export function guardedEditorServices(
 		files: VaultFileProbe;
 		logger: Logger;
 		map: VaultExceptionMapper;
+		/**
+		 * §83's third site, which has no door to refuse at (ADR-0013 derives a project's
+		 * folder from where its note sits). `ListProjects` answers it beside the list rather
+		 * than a second query answering it separately — one read, one failure mode.
+		 */
+		overlaps: LibraryOverlaps;
 	},
 	diagnosticsSources: {
 		versions: RuntimeVersions;
@@ -218,7 +225,7 @@ export function guardedEditorServices(
 	},
 ): { queries: QueryServices } & GuardedEditorServices {
 	const { projects, plans, zones } = repositories;
-	const { eventBus, files, logger, map } = deps;
+	const { eventBus, files, logger, map, overlaps } = deps;
 
 	const getProject = guardQuery(new GetProject(projects), 'query.getProject.failed', logger, map);
 	const getPlan = guardQuery(new GetPlan(plans), 'query.getPlan.failed', logger, map);
@@ -248,7 +255,7 @@ export function guardedEditorServices(
 		map,
 	);
 	const zoneInspector = guardQuery(new GetZoneInspector(zones), 'query.zoneInspector.failed', logger, map);
-	const listProjects = guardQuery(new ListProjects(projects), 'query.listProjects.failed', logger, map);
+	const listProjects = guardQuery(new ListProjects(projects, overlaps), 'query.listProjects.failed', logger, map);
 
 	return {
 		queries: { getProject, getPlan, getZone, findZonesByPlan, diagnostics },

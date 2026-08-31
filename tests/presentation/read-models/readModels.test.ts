@@ -9,6 +9,7 @@ import { err, ok } from '../../../src/core/result/Result';
 import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../../src/application/queries/GetPlan';
 import { ListProjects } from '../../../src/application/queries/ListProjects';
+import type { LibraryOverlaps } from '../../../src/application/ports/LibraryOverlaps';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
@@ -269,12 +270,20 @@ describe('the plan editor query boundary', () => {
 	});
 });
 
+/**
+ * The §83 overlap port, answering nothing — there is no vault and no Project Index behind
+ * these in-memory repositories, so no folder is derivable and there is genuinely nothing to
+ * report. `overlapping` is not part of `ProjectListView` anyway: the read model maps the two
+ * fields the view draws today, and this file is about that boundary rather than about §83.
+ */
+const NO_OVERLAPS: LibraryOverlaps = { overlapping: () => [] };
+
 describe('the renovation project query boundary', () => {
 	it('answers every project as a DTO, not as an entity', async () => {
 		const projects = new InMemoryProjectRepository();
 		const project = makeProject({ name: 'Barn conversion' });
 		expectOk(await projects.save(project, 'absent'));
-		const queries = createRenovationProjectQueries(new ListProjects(projects));
+		const queries = createRenovationProjectQueries(new ListProjects(projects, NO_OVERLAPS));
 
 		const found = expectOk(await queries.listProjects());
 
@@ -284,7 +293,7 @@ describe('the renovation project query boundary', () => {
 	});
 
 	it('answers an empty vault with an empty list and no refusals, not an error', async () => {
-		const queries = createRenovationProjectQueries(new ListProjects(new InMemoryProjectRepository()));
+		const queries = createRenovationProjectQueries(new ListProjects(new InMemoryProjectRepository(), NO_OVERLAPS));
 
 		expect(expectOk(await queries.listProjects())).toEqual({ projects: [], unreadable: 0 });
 	});

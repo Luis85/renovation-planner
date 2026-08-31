@@ -98,7 +98,10 @@ export const makeView = (deps?: RenovationProjectDeps): RenovationProjectView =>
 	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
 	// requires a `logger` beside it.
 	const defaults: RenovationProjectDeps = {
-		queries: createRenovationProjectQueries(new ListProjects(projects)),
+		// The §83 overlap port, answering nothing. Honest rather than kind: this default has an
+		// in-memory repository and no Project Index at all, so no project has a derived folder
+		// for a real adapter to compare — there is nothing to report, not a report suppressed.
+		queries: createRenovationProjectQueries(new ListProjects(projects, { overlapping: () => [] })),
 		commands: { createProject: new CreateProjectCommand(projects, events), logger: recorder },
 		openProject: () => Promise.resolve('opened'),
 		onProjectsChanged: () => () => undefined,

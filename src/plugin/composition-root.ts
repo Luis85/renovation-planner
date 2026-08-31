@@ -54,6 +54,7 @@ import type { Loaded } from '../application/ports/versioning';
 import type { Project } from '../domain/project/Project';
 import type { Plan } from '../domain/plan/Plan';
 import type { Zone } from '../domain/zone/Zone';
+import { IndexLibraryOverlaps } from '../infrastructure/obsidian/repositories/IndexLibraryOverlaps';
 import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
 import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
@@ -256,6 +257,12 @@ function composeRepositories(deps: NoteVaultDeps, vault: VaultStack, newProjectR
 		zones: new ObsidianZoneRepository(deps, geometryStore),
 		assets: new ObsidianAssetRepository(deps, libraryFolder),
 		requirements: new ObsidianRequirementRepository(deps),
+		// §83's third site, which has no door to refuse at: ADR-0013 derives a project's
+		// folder from where its `Project.md` sits, so a user moves a project by dragging a
+		// folder in Obsidian's file explorer. Composed here rather than passed as a sixth
+		// argument to `composeGuarded`, which already sits at `max-params`: this is the
+		// bundle built from `deps.index` and the library setting, and both are already here.
+		overlaps: new IndexLibraryOverlaps(deps.index, libraryFolder),
 	};
 }
 
@@ -272,7 +279,7 @@ function composeGuarded(
 	files: VaultFileProbe,
 	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
 ) {
-	const { projects, plans, zones, requirements } = repositories;
+	const { projects, plans, zones, requirements, overlaps } = repositories;
 	const { events: eventBus, logger, recalculate, locks, markers } = wiring;
 	const map = VAULT_EXCEPTION_MAPPER;
 	const deleteZone = new DeleteZoneCommand({
@@ -287,7 +294,7 @@ function composeGuarded(
 	});
 	const editor = guardedEditorServices(
 		{ projects, plans, zones, deleteZone },
-		{ eventBus, files, logger, map },
+		{ eventBus, files, logger, map, overlaps },
 		diagnostics,
 	);
 	return {

@@ -1,5 +1,7 @@
 import { isErr, ok, type Result } from '../../core/result/Result';
 import type { Project } from '../../domain/project/Project';
+import type { ProjectId } from '../../domain/project/ProjectId';
+import type { LibraryOverlaps } from '../ports/LibraryOverlaps';
 import type { ProjectRepository } from '../ports/ProjectRepository';
 import type { RepositoryError } from '../ports/repositoryErrors';
 
@@ -14,6 +16,16 @@ import type { RepositoryError } from '../ports/repositoryErrors';
 export interface ProjectListResult {
 	readonly projects: readonly Project[];
 	readonly unreadable: number;
+	/**
+	 * The subset of `projects` whose derived folder overlaps the library folder (§83) — a
+	 * state no command can refuse, since ADR-0013 derives that folder from where the
+	 * project's own note sits and a user moves it by dragging in Obsidian's file explorer.
+	 *
+	 * Derived on every read and never recorded, which is what makes staleness, counting,
+	 * retraction and session lifetime unrepresentable rather than handled: a user who drags
+	 * the folder back is simply absent from the next answer.
+	 */
+	readonly overlapping: readonly ProjectId[];
 }
 
 /**
@@ -35,14 +47,23 @@ export interface ProjectListResult {
  * sit unparseable on disk.
  */
 export class ListProjects {
-	constructor(private readonly projects: ProjectRepository) {}
+	constructor(
+		private readonly projects: ProjectRepository,
+		private readonly overlaps: LibraryOverlaps,
+	) {}
 
 	async execute(): Promise<Result<ProjectListResult, RepositoryError>> {
 		const listed = await this.projects.listAll();
 		if (isErr(listed)) return listed;
+		const projects = listed.value.loaded.map((loaded) => loaded.entity);
 		return ok({
-			projects: listed.value.loaded.map((loaded) => loaded.entity),
+			projects,
 			unreadable: listed.value.refused,
+			// ONE query rather than two: a second would need a policy for "the list loaded
+			// but the markers did not", and an advisory marker is exactly the thing whose
+			// failure mode nobody would think about again. Answered here, the two facts
+			// travel together or fail together, and there is one failure mode to reason about.
+			overlapping: this.overlaps.overlapping(projects.map((project) => project.id)),
 		});
 	}
 }

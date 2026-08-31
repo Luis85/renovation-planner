@@ -1008,6 +1008,8 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
       /** Where a note with this id sits, or `undefined` when the index does not know it. */
       resolvePath(entityId: string): string | undefined;
       writeToClipboard(text: string): Promise<void>;
+      /** For `runDetached`: a rejected clipboard write owes a user sentence AND a log line. */
+      readonly logger: Logger;
   }
   export function renderDiagnosticsReport(into: HTMLElement, deps: DiagnosticsReportDeps): void;
   export function diagnosticsReportText(snapshot: DiagnosticsSnapshot): string;
@@ -1039,10 +1041,30 @@ describe('the diagnostics report', () => {
 			snapshot: SNAPSHOT,
 			resolvePath: (id) => (id === 'zone-01JAAA' ? 'Renovation/Kitchen/Zones/Sink.md' : undefined),
 			writeToClipboard: () => Promise.resolve(),
+			logger: recordingLogger(),
 		});
 
 		expect(into.textContent).toContain('Renovation/Kitchen/Zones/Sink.md');
 		expect(into.textContent).toContain('zone-01JAAA');
+	});
+
+	it('renders the schema versions and pending migrations it promises', () => {
+		// Promised by `settings.diagnostics.desc` AND by the Definition of Done, and absent
+		// from this renderer's first draft while present in the copied payload. Asserted on
+		// the DOM so that omission cannot pass again.
+		installObsidianDom();
+		const into = document.createElement('div');
+
+		renderDiagnosticsReport(into, {
+			snapshot: { ...SNAPSHOT, migrationState: { pending: ['zone@2'], lastApplied: 'plan@2' } },
+			resolvePath: () => undefined,
+			writeToClipboard: () => Promise.resolve(),
+			logger: recordingLogger(),
+		});
+
+		expect(into.textContent).toContain('zone 1');  // schemaVersions
+		expect(into.textContent).toContain('zone@2');  // migrationState.pending
+		expect(into.textContent).toContain('plan@2');  // migrationState.lastApplied
 	});
 
 	it('renders an issue whose path the index does not know', () => {
@@ -1053,6 +1075,7 @@ describe('the diagnostics report', () => {
 			snapshot: SNAPSHOT,
 			resolvePath: () => undefined,
 			writeToClipboard: () => Promise.resolve(),
+			logger: recordingLogger(),
 		});
 
 		expect(into.textContent).toContain('zone-01JAAA');
@@ -1139,6 +1162,21 @@ export function renderDiagnosticsReport(into: HTMLElement, deps: DiagnosticsRepo
 	fact('diagnostics.plugin-version', deps.snapshot.pluginVersion);
 	fact('diagnostics.obsidian-version', deps.snapshot.obsidianVersion);
 	fact('diagnostics.last-migration', deps.snapshot.migrationState.lastApplied ?? tr('diagnostics.none'));
+	// Both of these are PROMISED twice over -- by `settings.diagnostics.desc` ("Versions,
+	// schema versions, and the notes that refused to load") and by this increment's
+	// Definition of Done -- and the first draft of this renderer omitted both while
+	// `diagnosticsReportText` carried them. A fact present in the COPY and absent from the
+	// REPORT is Task 6's asymmetry pointed the wrong way: the user reads the modal.
+	fact(
+		'diagnostics.schema-versions',
+		Object.entries(deps.snapshot.schemaVersions)
+			.map(([kind, version]) => `${kind} ${String(version)}`)
+			.join(', '),
+	);
+	fact(
+		'diagnostics.pending-migrations',
+		deps.snapshot.migrationState.pending.join(', ') || tr('diagnostics.none'),
+	);
 
 	if (deps.snapshot.validationIssues.length === 0) {
 		report.createEl('p', { cls: 'rp-diagnostics__empty', text: tr('diagnostics.no-issues') });
@@ -1156,7 +1194,21 @@ export function renderDiagnosticsReport(into: HTMLElement, deps: DiagnosticsRepo
 
 	const copy = report.createEl('button', { cls: 'rp-diagnostics__copy', text: tr('diagnostics.copy') });
 	copy.addEventListener('click', () => {
-		void deps.writeToClipboard(diagnosticsReportText(deps.snapshot));
+		// `runDetached`, never a bare `void`. A DOM click handler returns nothing, so this
+		// promise has no awaiter -- and `void` DISCARDS a rejection rather than handling it,
+		// which is the spelling `runDetached`'s own docblock exists to refuse ("a bare
+		// `void` beside a promise that CAN reject is still the thing this exists to
+		// refuse"). `writeText` really can reject: clipboard permission may be unavailable.
+		//
+		// The success notice is chained INSIDE the promise, so it fires on fulfilment only.
+		// "Copied" printed beside an empty clipboard is worse than no notice at all.
+		runDetached(
+			deps.writeToClipboard(diagnosticsReportText(deps.snapshot)).then(() => {
+				notifySuccess(tr('diagnostics.copied'));
+			}),
+			deps.logger,
+			'diagnostics.copy.failed',
+		);
 	});
 }
 
@@ -1178,7 +1230,7 @@ export class DiagnosticsReportModal extends Modal {
 
 Two things to check against the tree rather than trusting this sketch. `tests/helpers/obsidian-mock.ts` models only the DOM helpers something drives — if it lacks `createSpan` or `Modal.titleEl`, **widen the fake rather than avoiding the member**, and expect the widening to redden unrelated files. And add `.rp-diagnostics*` rules to a `styles/` partial: a class no stylesheet declares is a defect this repository has already shipped once, and jsdom resolves no CSS to catch it.
 
-The `void` on the click handler is load-bearing: the handler is bound to a DOM event that discards its promise, so a rejected clipboard write would otherwise be an unhandled rejection reaching nobody. If the repo's lint prefers `runDetached` here, use it — the notice on success (`diagnostics.copied`) goes through `notifySuccess`.
+**How that clipboard handler got written is worth more than the fix.** Its first draft was `void deps.writeToClipboard(...)` under a comment calling the `void` "load-bearing… so a rejected clipboard write would otherwise be an unhandled rejection reaching nobody". `void` does not do that — it discards the promise and the rejection stays unhandled — so the comment asserted the opposite of what the line did, about the very hazard it named. This repository's oldest recurring defect, and `runDetached`'s own docblock already refuses that spelling by name. Found by review on this plan, not by writing it.
 
 - [ ] **Step 4: Add the copy to both locales**
 
@@ -1188,6 +1240,9 @@ The `void` on the click handler is load-bearing: the handler is bound to a DOM e
 	'diagnostics.title': 'Diagnostics report',
 	'diagnostics.no-issues': 'No notes have refused to load in this session.',
 	'diagnostics.session-only': 'This report covers the current session only. It is cleared when the vault is reopened.',
+	'diagnostics.schema-versions': 'Schema versions',
+	'diagnostics.pending-migrations': 'Pending migrations',
+	'diagnostics.none': 'None',
 	'diagnostics.copy': 'Copy report',
 	'diagnostics.copied': 'Diagnostics report copied.',
 ```
@@ -1198,6 +1253,9 @@ The `void` on the click handler is load-bearing: the handler is bound to a DOM e
 	'diagnostics.title': 'Diagnosebericht',
 	'diagnostics.no-issues': 'In dieser Sitzung hat keine Notiz das Laden verweigert.',
 	'diagnostics.session-only': 'Dieser Bericht umfasst nur die aktuelle Sitzung. Beim erneuten Öffnen des Vaults wird er geleert.',
+	'diagnostics.schema-versions': 'Schemaversionen',
+	'diagnostics.pending-migrations': 'Ausstehende Migrationen',
+	'diagnostics.none': 'Keine',
 	'diagnostics.copy': 'Bericht kopieren',
 	'diagnostics.copied': 'Diagnosebericht kopiert.',
 ```
@@ -1283,7 +1341,7 @@ describe('the diagnostics report has two doors and one function', () => {
 	it('is offered as a settings action row', async () => {
 		const host = await makePluginHost();
 		const rows = host.settingsTab.getSettingDefinitions();
-		expect(rows.some((r) => r.action !== undefined && r.name.includes('iagnos'))).toBe(true);
+		expect(rows.some((r) => r.name === tr('settings.diagnostics.name') && r.action !== undefined)).toBe(true);
 	});
 
 	it('both doors call the same function', async () => {
@@ -1291,7 +1349,15 @@ describe('the diagnostics report has two doors and one function', () => {
 		const opened = vi.spyOn(host, 'openDiagnosticsReport');
 
 		host.commands.find((c) => c.id === 'show-diagnostics-report')?.callback?.();
-		host.settingsTab.getSettingDefinitions().find((r) => r.action)?.action?.();
+		// Discriminated by NAME, not by `r.action !== undefined`. The library-move row is an
+		// action row too and this plan inserts the diagnostics row AFTER it, so a bare
+		// `.find((r) => r.action)` selects the library move -- leaving this case red against
+		// a CORRECT implementation, and starting a catalogue migration inside a test.
+		const row = host.settingsTab
+			.getSettingDefinitions()
+			.find((r) => r.name === tr('settings.diagnostics.name'));
+		expect(row?.action).toBeDefined();
+		row?.action?.();
 
 		expect(opened).toHaveBeenCalledTimes(2);
 	});

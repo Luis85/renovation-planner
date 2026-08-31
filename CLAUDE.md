@@ -2222,6 +2222,18 @@ which is the shape to expect from the next one too:
   settle it, which makes `ProjectDetailState` a second caller of `dialogStore.resolve`; and
   the notice went with the redirect, because it resolved `view.project.gone`, the same key the
   screen's headline resolves, so the two said one sentence twice at once.
+- **And the retirement had to be keyed on the STATUS, which is this file's oldest lesson
+  arriving in the commit that quotes it.** That `dialogs.resolve` went in at `onProjectGone` —
+  correct for the command path and blind to the READ one: a project note deleted while the
+  dialog is up reaches `'gone'` through `onProjectsChanged` without `onProjectGone` ever
+  running, leaving a form modal over the screen saying its project does not exist. The redirect
+  had covered that path BY ACCIDENT (it remounted, and `DialogHost.onBeforeUnmount` settled the
+  dialog), so retiring it moved a guarantee from a side effect to nowhere. A `watch(status)`
+  REPLACES the call-site resolve rather than sitting beside it, because two answers to one
+  question is what produced the gap. **The test also had to be watched red twice**: its first
+  draft reached for `.rp-plan-list__create` on a fixture with no plans and failed at `Unable to
+  get` — a red that proved nothing and reads exactly like one that did, which is why "watched
+  it fail" has to mean "watched it fail at the assertion".
 - **A "single caller" claim survives narrower and truer as a claim about a ROLE.** Both
   `DialogHost`'s header and `dialog-store.ts`'s `resolve` said the host was the only caller;
   it is two files and three lines now. What the rule was reaching for is that no KIND

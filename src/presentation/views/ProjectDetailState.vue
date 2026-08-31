@@ -25,7 +25,7 @@
  * No `<style>` block, ever: `vue/no-restricted-block` fails one. The classes below are
  * `styles/`-owned, assembled into one sheet.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
 import EmptyState from '../components/EmptyState.vue';
 import ProjectDetail from './ProjectDetail.vue';
@@ -105,6 +105,41 @@ const emptyState = computed(() => {
 const failureMessage = computed(() => (error.value === null ? null : trError(error.value)));
 
 /**
+ * **An open dialog is retired whenever this state becomes `'gone'`, from ANY producer.**
+ *
+ * Keyed on the STATUS rather than added at each call site, and that is the whole point. The
+ * commit that retired the `'gone'` redirect gave `onProjectGone` its own `dialogs.resolve` —
+ * correct for the command path, and blind to the READ path: the project note is deleted while
+ * the New plan dialog is up, `onProjectsChanged` fires, `hydrate` is answered `ok(null)`
+ * against a completed scan, and `'gone'` is reached without `onProjectGone` ever running. The
+ * pane drew its gone screen with a form still modal over it. Before the redirect was retired
+ * that path was covered BY ACCIDENT — the navigation remounted the tree and
+ * `DialogHost.onBeforeUnmount` settled the dialog — so retiring it moved a guarantee from a
+ * side effect to nowhere. Reported by a review bot.
+ *
+ * A watcher rather than a third call site: a producer of `'gone'` nobody has written yet gets
+ * this for free, which a list of call sites cannot promise. It REPLACES `onProjectGone`'s own
+ * resolve rather than sitting beside it — two answers to one question is what produced the gap.
+ *
+ * The KIND is read from the store rather than assumed to be `'form'`, and **that is kept for
+ * correctness rather than because anything here can tell the difference** — the distinction
+ * this repository asks for by name. `cancelResultFor` is the one place each kind's cancel shape
+ * is stated, so hardcoding `'form'` would settle a future dialog with a payload its opener
+ * cannot read; measured, hardcoding it passes every case in `viewRootProjectDetail.test.ts`,
+ * because this state opens exactly one kind today. `resolve` is already a no-op with nothing
+ * open, so the `null` guard is what makes the kind readable, not a safety check.
+ *
+ * NOT a navigation, which is the distinction the retired watcher got wrong: closing a dialog
+ * whose subject has vanished is housekeeping the user did not ask for and cannot be hurt by,
+ * while moving them to another screen is a decision that belongs to them and that Obsidian
+ * records in its history.
+ */
+watch(status, (value) => {
+	const open = dialogs.current;
+	if (value === 'gone' && open !== null) dialogs.resolve(cancelResultFor(open.kind));
+});
+
+/**
  * The detail header's **Open note** action, and the one gesture here that has to do more than
  * it says. It is what is left of `ViewRoot.onOpenProject`: criterion 1 makes a project row a
  * NAVIGATION, so the list no longer opens `Project.md` at all and this is the only surface that
@@ -175,13 +210,12 @@ async function onCreatePlan(): Promise<void> {
 				// the channel to keep is the one that stays: the screen persists with a way back,
 				// where a notice is a remark about a gesture. Dropping it narrows criterion 4,
 				// which is recorded in `docs/tasks/21` rather than left to be rediscovered.
+				// Retiring the form is NOT here. `markGone` settles the status, and the `'gone'`
+				// watcher above is what closes an open dialog — for EVERY producer of that
+				// status rather than for this one. A `dialogs.resolve` at this call site was the
+				// first version of that and it left the READ path open; the watcher's docblock
+				// carries the measurement.
 				detail.markGone();
-				// The form is now moot, and nothing else retires it: with the redirect gone there
-				// is no remount for `DialogHost.onBeforeUnmount` to settle it from, so it would
-				// otherwise float over the screen saying its project does not exist. Resolved
-				// from the OPENER — see `dialog-store.ts`'s `resolve` for why that is a different
-				// actor from the kind components the single-settle rule is about.
-				dialogs.resolve(cancelResultFor('form'));
 			},
 		},
 		busy: newPlanBusy,

@@ -294,6 +294,62 @@ describe('ViewRoot in the detail state', () => {
 	});
 
 	/**
+	 * **The SAME retirement, reached by a producer of `'gone'` that is not the command — and the
+	 * defect this case was written against was introduced by the commit that retired the
+	 * redirect.**
+	 *
+	 * That commit gave `onProjectGone` an explicit `dialogs.resolve`, because with no remount
+	 * there is no `DialogHost.onBeforeUnmount` to settle the form. It fixed the command path and
+	 * left the READ path open: the project note is deleted while the dialog is up,
+	 * `onProjectsChanged` fires, `hydrate` is answered `ok(null)` against a completed scan, and
+	 * the status reaches `'gone'` without `onProjectGone` ever running. The pane draws the gone
+	 * screen with a New plan form still modal over it. Before the redirect was retired this path
+	 * was covered by accident — the watcher navigated, the tree remounted, and the unmount hook
+	 * settled the dialog.
+	 *
+	 * **This repository's own recurring lesson, committed in the commit that quotes it**: "I
+	 * fixed the case in the report" is not "I fixed the class". The remedy is therefore keyed on
+	 * the STATUS rather than added at a second call site — one answer for every producer of
+	 * `'gone'`, including a back-arrow restore of a project that has since been deleted, and
+	 * including whatever reaches it next.
+	 *
+	 * Reported by a review bot. Watched red against the build that resolved only from
+	 * `onProjectGone`: `.rp-dialog` was still in the DOM over the gone screen.
+	 */
+	it('retires an open form when a background refresh finds the project gone', async () => {
+		// Collected rather than held in a `let` initialised to a no-op arrow, which
+		// `unicorn/consistent-function-scoping` refuses (the arrow captures nothing) — and it is
+		// the spelling the `onPlansChanged` case below already uses.
+		const listeners: (() => void)[] = [];
+		let exists = true;
+		const wrapper = mountRoot({
+			projectId: 'project-1',
+			onProjectsChanged: (listener) => {
+				listeners.push(listener);
+				return () => undefined;
+			},
+			getProject: () => Promise.resolve(ok(exists ? PROJECT : null)),
+		});
+		await flushPromises();
+
+		// The default fixture has no plans, so the button is the empty state's action rather than
+		// `PlanList`'s header one — the same fallback `openTheFormAndSubmit` makes, and the
+		// reason this case's first draft failed at the SELECTOR while reading as a red that
+		// proved something.
+		await wrapper.get('.rp-empty-state__action').trigger('click');
+		await flushPromises();
+		expect(wrapper.find('.rp-dialog').exists()).toBe(true);
+
+		// The note is deleted under the open dialog, and the index announces it.
+		exists = false;
+		for (const listener of listeners) listener();
+		await flushPromises();
+
+		expect(wrapper.find('.rp-dialog').exists()).toBe(false);
+		expect(wrapper.get('.rp-empty-state__headline').text()).toBe(t('en', 'view.project.gone'));
+	});
+
+	/**
 	 * Criterion 4's one refusal that cannot be a banner, as amended when the `'gone'` watcher was
 	 * retired. THREE halves in one case, deliberately, because each is true of a build the other
 	 * two are wrong about: the form is retired (a build that only settles the status leaves it

@@ -232,6 +232,23 @@ reader can go and look rather than take the tick.
 A second pass over this slice after it closed. Each entry is a defect, its mutation and what
 the mutation printed.
 
+- **The retirement had to be keyed on the STATUS, and finding that out is the pass's own
+  recurring lesson arriving in the commit that quotes it.** `d4f2adc` gave `onProjectGone` an
+  explicit `dialogs.resolve` because with no remount there is no `DialogHost.onBeforeUnmount`
+  to settle the form. That is correct for the command path and blind to the READ path: the
+  project note is deleted while the New plan dialog is up, `onProjectsChanged` fires, `hydrate`
+  is answered `ok(null)` against a completed scan, and `'gone'` is reached without
+  `onProjectGone` ever running — a form left modal over the screen saying its project does not
+  exist. Before the redirect was retired that path was covered BY ACCIDENT, since the
+  navigation remounted the tree, so retiring it moved a guarantee from a side effect to
+  nowhere. **"I fixed the case in the report" is not "I fixed the class", committed by the
+  author who had just written that sentence into the commit message.** Reported by a review
+  bot. The fix is a `watch(status)` that retires an open dialog on `'gone'` and REPLACES the
+  call-site resolve rather than sitting beside it — two answers to one question is what
+  produced the gap. Watched red at the ASSERTION rather than at a selector, which took a second
+  attempt: the case's first draft reached for `.rp-plan-list__create` on a fixture with no
+  plans and failed at `Unable to get`, a red that proved nothing and read exactly like one that
+  did.
 - **Criterion 13 is still unverified, and the improvement pass did not change that.** Running
   [[Navigate into a project and back]] was attempted and is not possible in this environment:
   `npm run test-build` builds the plugin into this repository's own vault and launches nothing,

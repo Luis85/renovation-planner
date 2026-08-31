@@ -256,9 +256,11 @@ export const useDialogStore = defineStore('dialog', () => {
 	 *
 	 * `grep -rn "\.resolve(" src/presentation/` minus `Promise.resolve` and this file prints
 	 * THREE lines, in two files: `DialogHost`'s own wrapper and its unmount hook, and
-	 * `ProjectDetailState`'s `onProjectGone`, which retires a New Plan form whose project the
-	 * command has just said does not exist. This docblock said "called by `DialogHost` alone" and
-	 * the sentence is written from that grep instead.
+	 * `ProjectDetailState`'s `'gone'` watcher, which retires an open dialog whose project has
+	 * left the vault. This docblock said "called by `DialogHost` alone" and the sentence is
+	 * written from that grep instead — re-run when it moves, which it already has once: that
+	 * third line was `onProjectGone` for one commit, and keying it on the status instead is what
+	 * closed the read path the call site could not see.
 	 *
 	 * Nothing enforces any of it: `resolve` is a public store member and `current` comes back
 	 * from `storeToRefs` as a writable ref, so any holder of the store could settle or strand a

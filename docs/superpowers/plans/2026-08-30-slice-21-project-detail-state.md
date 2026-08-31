@@ -4172,11 +4172,36 @@ few representative plans. **Leave the no-parameter path calling `makeView()` wit
 `makeRenovationProjectView.ts`'s docblock states why the bare harness root takes the untouched
 default, and the empty state is what that root exists to show.
 
+Then add the two shots to the FIXED set rather than inventing a CLI mode. `harness-shot` reads
+a positional argument as a harness-index ENTRY id and turns it into `?entry=<encoded>`
+(`scripts/entryShots.mjs`'s `resolveShots`), so `npm run harness-shot '?project=project-1'`
+asks for an entry by that name and is refused — and `--width` is explicitly refused without an
+entry, because "the fixed shots carry their own" viewports. An earlier draft of this step
+prescribed exactly that impossible command; it had corrected the TARGET (the view, not the bare
+component) and then guessed the invocation from what the harness PAGE accepts rather than
+checking what the SCRIPT accepts. Same shape as prescribing a `wc -l` number against a
+`max-lines` rule that skips blanks and comments: right idea, wrong instrument assumed.
+
+The fixed set is where this belongs anyway — every other shot with a query string lives there
+(`?theme=light`, `?phone`, `?view=plan-editor`, `?index`), a shot record already supports its
+own `width` (`captureOne` destructures it and `viewportFor` applies it), and these two are
+exactly as standing a picture as the Plan Editor's. In `scripts/harness-shot.mjs`'s `SHOTS`:
+
+```js
+{ name: 'project-detail', query: '?project=project-1', selector: PROJECT_VIEW },
+// 460 is the width an Obsidian sidebar leaf actually has, and the one that has already hidden a
+// layout defect the default 1280 could not show. It is a FIXED shot rather than a `--width`
+// invocation because `--width` applies only to a named entry.
+{ name: 'project-detail-narrow', query: '?project=project-1', selector: PROJECT_VIEW, width: 460 },
+```
+
+`tests/build/entryShots.test.ts` and `captureReadiness.test.ts` read that list; check what they
+assert about it before adding, rather than after.
+
 Then capture and LOOK:
 
 ```bash
-npm run harness-shot '?project=project-1'
-npm run harness-shot '?project=project-1' -- --width=460
+npm run harness-shot
 ```
 
 `--width=460` is the width an Obsidian sidebar leaf actually has and has already hidden a

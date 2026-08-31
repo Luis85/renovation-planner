@@ -11,7 +11,10 @@
  * definitions, so what the pane looks like is Obsidian's answer and only a live vault's.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { FuzzySuggestModal, Notice, type SettingDefinitionItem } from 'obsidian';
+import type { SettingDefinition, SettingDefinitionAction, SettingDefinitionItem } from 'obsidian';
+// `opened`, `shown`, `choose` and `chooseAfterClose` exist on the MOCK and not on the real
+// surface, so they are imported from it by name — the migration main completed in #46/#47.
+import { FuzzySuggestModal, Notice } from '../../helpers/obsidian-mock';
 import { SettingsTab } from '../../../src/plugin/settings/SettingsTab';
 import { DEFAULT_SETTINGS, UNITS } from '../../../src/plugin/settings/settings';
 import type RenovationPlannerPlugin from '../../../src/plugin/RenovationPlannerPlugin';
@@ -165,15 +168,29 @@ describe('the settings pane', () => {
  * for the test: a tab that stopped declaring the row would keep passing a test that called
  * its handler directly, and the row is the whole of what a user can reach.
  */
-const moveRow = (tab: SettingsTab) => {
+const moveRow = (tab: SettingsTab): SettingDefinitionAction => {
 	const found = tab.getSettingDefinitions().find((item) => item.name === t('en', 'settings.library-folder.move.name'));
-	if (found === undefined || !('action' in found)) throw new Error('no library move action declared');
+	// Narrowed on the VALUE, not with `'action' in found`: `SettingDefinitionRender` and
+	// `SettingDefinitionControl` both declare `action?: never`, so the key is present in every
+	// member of the union and the `in` test leaves it possibly undefined. A non-null assertion
+	// is not the alternative — `typescript/no-non-null-assertion` is an error in this repo.
+	if (found === undefined || typeof found.action !== 'function') {
+		throw new Error('no library move action declared');
+	}
 	return found;
 };
 
-/** The library row's description, which is where the CURRENT folder is shown. */
-const currentFolderRow = (items: SettingDefinitionItem[]) =>
-	items.find((item) => item.name === t('en', 'settings.library-folder.name'));
+/**
+ * The library row's description, which is where the CURRENT folder is shown.
+ *
+ * Takes the WIDE `SettingDefinitionItem[]`, because one of its two callers is Obsidian's own
+ * `tab.settingItems` — the rendered items, which really can hold groups, lists and pages. The
+ * predicate narrows to a plain row, and the name match is what makes it exact: this tab
+ * declares no group, and none of the wider members would carry this name if it did.
+ */
+const currentFolderRow = (items: readonly SettingDefinitionItem[]): SettingDefinition | undefined =>
+	items.find((item): item is SettingDefinition =>
+		'name' in item && item.name === t('en', 'settings.library-folder.name'));
 
 interface VaultEquipment {
 	folders?: string[];

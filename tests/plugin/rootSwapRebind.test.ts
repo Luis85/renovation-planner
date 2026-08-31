@@ -19,6 +19,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { installObsidianDom } from '../helpers/dom';
+import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 import { loadedPlugin } from '../helpers/plugin';
@@ -44,7 +45,10 @@ async function openViewOnLeaf(
 ) {
 	const leaf = new FakeLeaf();
 	await leaf.setViewState({ type, state });
-	const view = plugin.views.get(type)?.(leaf as never) as never as {
+	// `views` is the plugin's own registry and not part of its public surface — reached here on
+	// purpose, because a rebind test has to get at the view instance the plugin built.
+	const views = (plugin as unknown as { views: Map<string, (leaf: never) => unknown> }).views;
+	const view = views.get(type)?.(leaf as never) as never as {
 		onOpen: () => Promise<void>;
 		setState?: (state: unknown, result: unknown) => Promise<void>;
 		deps: Record<string, unknown>;
@@ -64,7 +68,7 @@ describe('a view already open when the root is replaced', () => {
 		expect(view).toBeInstanceOf(RenovationProjectView);
 		const before = view.deps;
 
-		await plugin.saveSettings({ projectFolder: 'Somewhere Else' });
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
 
 		// The whole bundle, not one member: `commands`, `queries`, `openProject` and the
 		// rebuild subscription all come from the root this object was built from.
@@ -78,7 +82,7 @@ describe('a view already open when the root is replaced', () => {
 		expect(view).toBeInstanceOf(PlanEditorView);
 		const before = view.deps;
 
-		await plugin.saveSettings({ projectFolder: 'Somewhere Else' });
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
 
 		expect(view.deps).not.toBe(before);
 	});
@@ -90,7 +94,7 @@ describe('a view already open when the root is replaced', () => {
 		const { plugin, workspace } = await loadedPlugin();
 		const { view } = await openViewOnLeaf(plugin, workspace, PLAN_EDITOR_VIEW, { planId: 'plan-1' });
 
-		await plugin.saveSettings({ projectFolder: 'Somewhere Else' });
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
 
 		expect((view as never as { getState: () => Record<string, unknown> }).getState()).toEqual({ planId: 'plan-1' });
 	});
@@ -104,7 +108,7 @@ describe('a view already open when the root is replaced', () => {
 		const { plugin, workspace } = await loadedPlugin();
 		const { view } = await openViewOnLeaf(plugin, workspace, RENOVATION_PROJECT_VIEW);
 
-		await plugin.saveSettings({ projectFolder: 'Somewhere Else' });
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
 
 		const heard = vi.fn<() => void>();
 		(view.deps as never as { onProjectsChanged: (l: () => void) => () => void }).onProjectsChanged(heard);
@@ -129,7 +133,7 @@ describe('a view already open when the root is replaced', () => {
 			workspace.leaves.push(leaf);
 		}
 
-		await expect(plugin.saveSettings({ projectFolder: 'Somewhere Else' })).resolves.not.toThrow();
+		await expect(plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' })).resolves.not.toThrow();
 	});
 
 	it('leaves a view that is not open alone, and still hands it the new root next time', async () => {
@@ -141,7 +145,7 @@ describe('a view already open when the root is replaced', () => {
 		await (view as never as { onClose: () => Promise<void> }).onClose();
 		const before = view.deps;
 
-		await plugin.saveSettings({ projectFolder: 'Somewhere Else' });
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
 
 		expect(view.deps).not.toBe(before);
 	});

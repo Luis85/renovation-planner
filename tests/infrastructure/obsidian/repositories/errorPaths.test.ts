@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, parseFrontmatter, type RepositoryStack } from '../../../helpers/vault';
-import { expectErr, expectOk } from '../../../helpers/domain';
+import { expectErr, expectFound, expectOk } from '../../../helpers/domain';
 import {
 	makeAsset as makeAssetEntity,
 	makePlan as makePlanEntity,
@@ -371,7 +371,7 @@ describe('plan repository failure branches', () => {
 	it('an update touches no sidecar at all — a missing one does not fail a rename', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
-		const read = expectOk(await stack.plans.getById(planId));
+		const read = expectFound(await stack.plans.getById(planId));
 		stack.vault.entries.delete(sidecarPathOf(stack, projectId, planId));
 
 		// This used to refuse: the save read the sidecar to sync the calibration field.
@@ -388,7 +388,7 @@ describe('plan repository failure branches', () => {
 	it('a delete whose compensation also fails still reports the original failure and logs it', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
-		const read = expectOk(await stack.plans.getById(planId));
+		const read = expectFound(await stack.plans.getById(planId));
 		const notePath = stack.index.getPath(planId) ?? '';
 		const sidecarPath = sidecarPathOf(stack, projectId, planId);
 
@@ -451,7 +451,7 @@ describe('zone repository failure branches', () => {
 		const { projectId, planId } = await seed(stack);
 		const zoneId = createZoneId();
 		expectOk(await stack.zones.save(makeZoneEntity({ id: zoneId, projectId, planId }), 'absent'));
-		const read = expectOk(await stack.zones.getById(zoneId));
+		const read = expectFound(await stack.zones.getById(zoneId));
 		const notePath = stack.index.getPath(zoneId) ?? '';
 
 		// The sidecar mutation fails, so the trashed note must come back; `restoreNote`

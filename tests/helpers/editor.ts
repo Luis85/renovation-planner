@@ -2,7 +2,6 @@ import Konva from 'konva';
 import { createPinia, type Pinia } from 'pinia';
 import VueKonva from 'vue-konva';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { ok } from '../../src/core/result/Result';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../src/presentation/editor/PlanEditorContext';
 import PlanEditorRoot from '../../src/presentation/editor/PlanEditorRoot.vue';
 import {
@@ -10,7 +9,11 @@ import {
 	type PlanEditorCommandServices,
 } from '../../src/presentation/editor/planEditorCommands';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
-import { FIXTURE_PLAN, FIXTURE_ZONES } from './planFixtures';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from './planFixtures';
+
+// Re-exported rather than moved outright: it lives with the fixtures so a NODE test can
+// reach it without loading Vue and Konva, and the jsdom suites already import it from here.
+export { fakeQueries } from './planFixtures';
 import type { PlanEditorQueryServices } from '../../src/presentation/read-models/planEditorQueries';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { installCanvas } from './canvas';
@@ -61,27 +64,6 @@ export interface EditorHarness {
 	/** How many times the tree asked to close this leaf (`PlanEditorContext.closeLeaf`). */
 	readonly closedLeaf: () => number;
 	readonly unmount: () => void;
-}
-
-/**
- * The full query stack, exported so a case that wants ONE member to behave differently
- * overrides that member rather than hand-rolling a stack.
- *
- * Hand-rolled partial stacks are this repository's fake-too-thin rule waiting to happen, and
- * it happened: design slice 17's first draft of `planEditorFailure.test.ts` declared two
- * members, one of them under a name (`listZonesForPlan`) the real interface does not have, and
- * every mount logged `context.queries.listAssets is not a function` while the assertions
- * passed. Spreading this keeps a new member reaching every caller the day it is written.
- */
-export function fakeQueries(plan: PlanDto | null, zones: readonly ZoneDto[] = []): PlanEditorQueryServices {
-	return {
-		getPlan: () => Promise.resolve(ok(plan)),
-		findZonesByPlan: () => Promise.resolve(ok(zones)),
-		getRequirementsForZone: () => Promise.resolve(ok([])),
-		listAssets: () => Promise.resolve(ok([])),
-		listRequirementsReferencing: () => Promise.resolve(ok([])),
-		listReassignmentTargets: () => Promise.resolve(ok([])),
-	};
 }
 
 /** A vault with nothing in it — enough for a plan whose background is `null`. */
@@ -254,6 +236,38 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 			host.remove();
 		},
 	};
+}
+
+/**
+ * The harness with its canvas PROVEN present, which is what most cases actually want.
+ *
+ * `EditorHarness` types `canvasEl` and `stage` as nullable because the editor really does
+ * mount without either — a plan that is missing, unreadable or still loading draws a message
+ * instead — and a harness that pretended otherwise would be a fake kinder than the component.
+ * That honesty then lands on every case that mounts an ORDINARY plan, where a canvas is not
+ * in question, as two null checks per assertion. Asking once, here, is the same narrowing
+ * those cases were each spelling by hand.
+ */
+export interface CanvasHarness extends EditorHarness {
+	readonly canvasEl: HTMLElement;
+	readonly stage: Konva.Stage;
+}
+
+/**
+ * `mountPlanEditor`, plus the proof that a canvas mounted.
+ *
+ * It THROWS rather than asserting the type: a case that reaches for a stage the editor
+ * declined to mount is a case whose premise is wrong, and it should say so where it mounted
+ * rather than as a `TypeError` several assertions later. Use `mountPlanEditor` directly for
+ * the states that draw no canvas.
+ */
+export async function mountPlanEditorCanvas(options: EditorHarnessOptions = {}): Promise<CanvasHarness> {
+	const harness = await mountPlanEditor(options);
+	const { canvasEl, stage } = harness;
+	if (canvasEl === null || stage === null) {
+		throw new Error('the editor mounted no canvas; use mountPlanEditor for a plan that draws none');
+	}
+	return { ...harness, canvasEl, stage };
 }
 
 /** Every Konva layer in the stage, by the `name` its component set. */

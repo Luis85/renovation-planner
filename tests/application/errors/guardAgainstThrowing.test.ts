@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { err, ok, type Result } from '../../../src/core/result/Result';
-import { injectedPersistenceError } from '../../helpers/domain';
+import { injectedPersistenceError, RecordingEventBus } from '../../helpers/domain';
 import { guardCommand, guardQuery } from '../../../src/application/errors/guardAgainstThrowing';
 import { createVaultExceptionMapper, type VaultExceptionMapper } from '../../../src/application/errors/exceptionMapper';
 import type { Logger } from '../../../src/application/ports/Logger';
@@ -134,7 +134,12 @@ const zones = rejecting<ZoneRepository>('zones');
 const assets = rejecting<AssetRepository>('assets');
 const requirements = rejecting<RequirementRepository>('requirements');
 const files = rejecting<VaultFileProbe>('files');
-const events = { publish: (): Promise<void> => Promise.resolve() };
+// The shared bus rather than a `{ publish }` object literal, which is not an `EventBus`:
+// `subscribe` was simply absent, so this fake could never have delivered anything and every
+// command below was composed with something the compiler would have refused. Nothing here
+// subscribes, so a recording bus is the honest stand-in — see its own docblock for the one
+// place a recording bus is NOT (`planEditorRig`, where a cascade has to actually run).
+const events = new RecordingEventBus();
 
 interface Fixture {
 	readonly name: string;
@@ -337,7 +342,10 @@ function slice10Services(): Fixture[] {
 		queryCase('ListAssets', new ListAssets(assets) as never, 'query.listAssets.failed', undefined),
 		queryCase(
 			'ListRequirementsReferencing',
-			new ListRequirementsReferencing(requirements) as never,
+			// Three collaborators since slice 19 grouped referents by project. `projects` is the
+			// same rejecting stand-in every other case uses; the folder lookup is pure and is
+			// never reached, because the repository throws first — which is this case's subject.
+			new ListRequirementsReferencing(requirements, projects, () => undefined) as never,
 			'query.listRequirementsReferencing.failed',
 			target,
 		),

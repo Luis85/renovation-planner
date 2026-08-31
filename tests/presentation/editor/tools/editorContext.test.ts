@@ -41,6 +41,7 @@
  *   Konva type at all.
  */
 import { describe, expect, it } from 'vitest';
+import type { DispatchOutcome } from '../../../../src/application/commands/DispatchOutcome';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -98,6 +99,10 @@ function stubViewport(): EditorContext['viewport'] {
 	return {
 		worldToScreen: (p: Point): ScreenPoint => screenPoint(p.x, p.y),
 		screenToWorld: (p: ScreenPoint): Point => ({ x: p.x, y: p.y }),
+		// One world unit per screen pixel, matching the identity projection above. The third and
+		// fourth stub viewport to omit this member — the one `tool-context.ts`'s header names as
+		// exactly the omission that leaves a suite exercising the old shape with nothing to say so.
+		worldPerScreenPixel: () => 1,
 		setPan: () => undefined,
 		setZoom: () => undefined,
 	};
@@ -109,7 +114,7 @@ function stubDeps(): EditorContextDeps {
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
 		commandDispatcher: {
-			run: (_command: UndoableCommand): Promise<Result<void, AppError>> => Promise.resolve(ok(undefined)),
+			run: (_command: UndoableCommand): Promise<Result<DispatchOutcome, AppError>> => Promise.resolve(ok('wrote')),
 		},
 		writeLedger: new SessionWriteLedger(),
 		renderState: new RenderState(),

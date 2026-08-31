@@ -4,8 +4,9 @@ import { err } from '../../../src/core/result/Result';
 import { InMemorySequenceMarkerStore } from '../../../src/infrastructure/persistence/in-memory/InMemorySequenceMarkerStore';
 import { DeleteZoneCommand } from '../../../src/application/commands/zone/DeleteZone';
 import { recoverInterruptedSequences } from '../../../src/application/reference/recoverInterruptedSequences';
+import type { Requirement } from '../../../src/domain/requirement/Requirement';
 import type { Loaded } from '../../../src/application/ports/versioning';
-import { expectErr, expectOk } from '../../helpers/domain';
+import { expectErr, expectFound, expectOk } from '../../helpers/domain';
 import { makeAsset, makeRequirement, makeZone } from '../../helpers/entities';
 import { lines, recorder as logger } from '../../helpers/logger';
 import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
@@ -105,7 +106,7 @@ describe('recoverInterruptedSequences', () => {
 		// so the CURRENT version of the referent is exactly what `progress` recorded. One
 		// progress entry names a requirement that is not in `affectedBefore` — a forward
 		// write whose append never landed — and recovery must skip it, not choke on it.
-		const marked: Loaded<Requirement> = expectOk(await w.requirements.getById(requirement.id));
+		const marked: Loaded<Requirement> = expectFound(await w.requirements.getById(requirement.id));
 		const markers = new InMemorySequenceMarkerStore();
 		await markers.write({
 			schemaVersion: 1,
@@ -129,7 +130,7 @@ describe('recoverInterruptedSequences', () => {
 		});
 
 		// The referent is back at its pre-state figures and the marker is gone.
-		const stored = expectOk(await w.requirements.getById(requirement.id));
+		const stored = expectFound(await w.requirements.getById(requirement.id));
 		expect(stored?.entity.recalculationStatus).toBe('current');
 		expect(expectOk(await w.zones.getById(zone.entity.id))).not.toBeNull();
 		expect(expectOk(await markers.list())).toEqual([]);
@@ -214,7 +215,7 @@ describe('recoverInterruptedSequences', () => {
 			origin: { kind: 'zone', zoneId: zone.entity.id },
 		});
 		const written = expectOk(await w.requirements.save(requirement, 'absent'));
-		const marked: Loaded<Requirement> = expectOk(await w.requirements.getById(requirement.id));
+		const marked: Loaded<Requirement> = expectFound(await w.requirements.getById(requirement.id));
 		expectOk(await w.zones.delete(zone.entity.id, zone.version));
 
 		// `entityDeleted: true` is written only AFTER `deleteEntity` returned ok, and
@@ -242,7 +243,7 @@ describe('recoverInterruptedSequences', () => {
 		// The deletion stands, the referent is NOT rewritten from the pre-state, and the
 		// marker that would have reversed both on the next load is gone.
 		expect(expectOk(await w.zones.getById(zone.entity.id))).toBeNull();
-		expect(expectOk(await w.requirements.getById(requirement.id))?.version).toBe(marked.version);
+		expect(expectFound(await w.requirements.getById(requirement.id))?.version).toBe(marked.version);
 		expect(expectOk(await markers.list())).toEqual([]);
 	});
 

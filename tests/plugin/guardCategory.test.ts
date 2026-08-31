@@ -217,14 +217,18 @@ function discover(root: unknown, rootPath: string): Discovery {
 		if (!isObject(value) || seen.has(value)) return;
 		seen.add(value);
 
-		if (isService(value)) {
-			discovered.push({ path, service: value });
-			return;
-		}
+		// The ARRAY question first: `isService` narrows `value` to a shape with no index
+		// signature, so asking `Array.isArray` after it leaves `never` and takes the callback's
+		// parameters down with it. An array is a list of members to walk, never a service, so
+		// this order is also the one that reads correctly.
 		if (Array.isArray(value)) {
 			value.forEach((item, index) => {
 				visit(item, `${path}[${index}]`, depth + 1);
 			});
+			return;
+		}
+		if (isService(value)) {
+			discovered.push({ path, service: value });
 			return;
 		}
 		if (!isPlainObject(value)) return;

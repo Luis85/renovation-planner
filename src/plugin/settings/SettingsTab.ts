@@ -1,4 +1,4 @@
-import { FuzzySuggestModal, PluginSettingTab, type App, type SettingDefinitionItem } from 'obsidian';
+import { FuzzySuggestModal, PluginSettingTab, type App, type SettingDefinition } from 'obsidian';
 import { tr } from '../../presentation/i18n/strings';
 import { noticeOnlySinks } from '../../presentation/notices/notify';
 import { surfaceError } from '../../presentation/errors/surfaceError';
@@ -123,7 +123,12 @@ export class SettingsTab extends PluginSettingTab {
 		super(host.app, host);
 	}
 
-	getSettingDefinitions(): SettingDefinitionItem[] {
+	// Narrowed from the base's `SettingDefinitionItem[]`, which also admits groups, lists and
+	// pages — none of which carry a `name`, and none of which this tab declares. Saying so in
+	// the signature is what lets a caller read `name` or `desc` without narrowing a union
+	// three of whose four members this method never returns. A narrower return type is a
+	// legal override.
+	getSettingDefinitions(): SettingDefinition[] {
 		// One text-only item while the settings could not be read — the reason, and NO
 		// control. The tab writes on every control change, so offering no control is what
 		// keeps a failed read from becoming a write through a control nobody has written yet,

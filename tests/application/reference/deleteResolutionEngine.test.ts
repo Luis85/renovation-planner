@@ -4,10 +4,15 @@ import type { AppError, PersistenceError } from '../../../src/core/errors/AppErr
 import {
 	requirementResolutionSteps,
 	runDeleteResolution,
+	type DeleteResolutionErrors,
 	type ResolutionOps,
 	type SequenceMarker,
-	type SequenceMarkerStore,
 } from '../../../src/application/reference/deleteResolution';
+// `SequenceMarkerStore` is a PORT and lives with the ports; only the marker it carries is
+// declared beside the engine. Imported from the engine, the name resolved to nothing — and
+// an `implements` clause against an unresolved type reports NOTHING, which is what hid the
+// missing `list` member on `ScriptedMarkers` below.
+import type { SequenceMarkerStore } from '../../../src/application/ports/SequenceMarkerStore';
 import type {
 	EntityVersion,
 	Expected,
@@ -16,6 +21,7 @@ import type {
 } from '../../../src/application/ports/versioning';
 
 import type { Requirement } from '../../../src/domain/requirement/Requirement';
+import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
 import { makeRequirement } from '../../helpers/entities';
 import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
 import { leftWritesBehind, markUncompensated } from '../../../src/application/commands/DispatchOutcome';
@@ -35,17 +41,23 @@ function injectedPersistenceError(): PersistenceError {
 const V1: EntityVersion = { revision: 1, observed: 't1' as ObservationToken };
 const V2: EntityVersion = { revision: 2, observed: 't2' as ObservationToken };
 
-function referent(id: string): Loaded<Requirement> {
+function referent(id: RequirementId): Loaded<Requirement> {
 	const entity = makeRequirement({
 		projectId: 'project-x' as never,
 		assetId: 'asset-x' as never,
 		origin: { kind: 'zone', zoneId: 'zone-x' as never },
-		id: id as never,
+		id,
 	});
 	return { entity, version: { ...V1 } };
 }
 
-const REQUIREMENT_IDS = ['requirement-1', 'requirement-2'];
+/**
+ * The referent ids, BRANDED — `ResolutionInput.resolvedReferents` is `readonly
+ * RequirementId[]`, not `string[]`. One cast, here, rather than at fourteen call sites.
+ */
+const REQUIREMENT_IDS = ['requirement-1', 'requirement-2'] as unknown as readonly RequirementId[];
+/** The single-referent cases all name the first of them. */
+const FIRST_REQUIREMENT = REQUIREMENT_IDS[0];
 
 interface RecordedOps extends ResolutionOps<Record<string, unknown>> {
 	readonly warnings: string[];
@@ -64,7 +76,9 @@ function makeOps(overrides?: {
 	referents?: readonly Loaded<Requirement>[];
 	loadEntity?: () => Promise<Result<Loaded<Record<string, unknown>> | null, PersistenceError>>;
 	deleteEntityError?: PersistenceError;
-	validateTargetError?: AppError;
+	// `DeleteResolutionErrors`, not `AppError`: that is what the port this stands in for
+	// declares, and the one fixture below is a `Reference` error that satisfies it.
+	validateTargetError?: DeleteResolutionErrors;
 }): RecordedOps {
 	const warnings: string[] = [];
 	const errors: string[] = [];
@@ -72,6 +86,15 @@ function makeOps(overrides?: {
 	const ops: RecordedOps = {
 		entityId: 'entity-1',
 		entityKind: 'zone',
+		// Two forward writes succeed by default; each test shifts in the failures it needs.
+		// Declared IN the literal rather than assigned after it: the annotation is what makes
+		// this object a `RecordedOps`, and five members arriving later are five members the
+		// closures below already read.
+		markStaleResults: [ok({ ...V2 }), ok({ ...V2 })],
+		removeResults: [ok(undefined), ok(undefined)],
+		repointResults: [ok({ ...V2 }), ok({ ...V2 })],
+		recalculateResults: [],
+		restoreResult: null,
 		notified,
 		notify: {
 			markerClearFailed(entityId) {
@@ -138,12 +161,6 @@ function makeOps(overrides?: {
 			return Promise.resolve(ok({ ...(expected === 'absent' ? V1 : expected), observed: 'r' as ObservationToken }));
 		},
 	};
-	// Two forward writes succeed by default; each test shifts in failures it needs.
-	ops.markStaleResults = [ok({ ...V2 }), ok({ ...V2 })];
-	ops.removeResults = [ok(undefined), ok(undefined)];
-	ops.repointResults = [ok({ ...V2 }), ok({ ...V2 })];
-	ops.recalculateResults = [];
-	ops.restoreResult = null;
 	return ops;
 }
 
@@ -168,6 +185,16 @@ class ScriptedMarkers implements SequenceMarkerStore {
 		return Promise.resolve(
 			this.failWriteOn.includes(this.writes) ? err(injectedPersistenceError()) : ok(undefined),
 		);
+	}
+
+	/**
+	 * What the load-time recovery pass walks. Absent until this file was type-checked, and
+	 * silently so: the `implements` clause above was measured against a type that failed to
+	 * resolve, so a fake missing a whole port member reported nothing. It answers the empty
+	 * list because no case here drives a recovery, which is the true state throughout.
+	 */
+	list(): Promise<Result<readonly SequenceMarker[], PersistenceError>> {
+		return Promise.resolve(ok([]));
 	}
 
 	clear(entityId: string): Promise<Result<void, PersistenceError>> {
@@ -265,11 +292,11 @@ describe('compensation', () => {
 	});
 
 	it('a removed requirement is restored against `absent`, not a revision', async () => {
-		const ops = makeOps({ referents: [referent('requirement-1')] });
+		const ops = makeOps({ referents: [referent(FIRST_REQUIREMENT)] });
 		ops.removeResults = [err(injectedPersistenceError())];
 		const result = await runDeleteResolution(
 			ops,
-			{ resolution: 'remove-references', resolvedReferents: ['requirement-1'] },
+			{ resolution: 'remove-references', resolvedReferents: [FIRST_REQUIREMENT] },
 			new ReferenceLocks(),
 		);
 		expect(result).toMatchObject({ ok: false, error: { code: 'test.injected-failure' } });
@@ -290,11 +317,11 @@ describe('compensation', () => {
 	});
 
 	it('a failed reassignment repoint compensates and fails the sequence', async () => {
-		const ops = makeOps({ referents: [referent('requirement-1')] });
+		const ops = makeOps({ referents: [referent(FIRST_REQUIREMENT)] });
 		ops.repointResults = [err(injectedPersistenceError())];
 		const result = await runDeleteResolution(
 			ops,
-			{ resolution: 'reassign', reassignTo: 'entity-9', resolvedReferents: ['requirement-1'] },
+			{ resolution: 'reassign', reassignTo: 'entity-9', resolvedReferents: [FIRST_REQUIREMENT] },
 			new ReferenceLocks(),
 		);
 		expect(result).toMatchObject({ ok: false, error: { code: 'test.injected-failure' } });
@@ -417,13 +444,13 @@ describe('compensation', () => {
 	});
 
 	it('an inline recalculation failure does NOT fail a successful reassignment — it logs', async () => {
-		const ops = makeOps({ referents: [referent('requirement-1')] });
+		const ops = makeOps({ referents: [referent(FIRST_REQUIREMENT)] });
 		ops.recalculateResults = [
 			err({ category: 'Calculation', code: 'requirement.zone-gone', message: 'gone' }),
 		];
 		const result = await runDeleteResolution(
 			ops,
-			{ resolution: 'reassign', reassignTo: 'entity-9', resolvedReferents: ['requirement-1'] },
+			{ resolution: 'reassign', reassignTo: 'entity-9', resolvedReferents: [FIRST_REQUIREMENT] },
 			new ReferenceLocks(),
 		);
 		expect(result.ok).toBe(true);
@@ -450,13 +477,13 @@ describe('marker bookkeeping on the success path', () => {
 	});
 
 	it('a marker write failing MID-sequence compensates the write it followed', async () => {
-		const ops = makeOps({ referents: [referent('requirement-1')] });
+		const ops = makeOps({ referents: [referent(FIRST_REQUIREMENT)] });
 		// Write #1 is the initial marker; write #2 records the first completed forward
 		// write — its failure must not strand that write uncompensated.
 		const markers = new ScriptedMarkers([2]);
 		const result = await runDeleteResolution(
 			ops,
-			{ resolution: 'delete-anyway', resolvedReferents: ['requirement-1'] },
+			{ resolution: 'delete-anyway', resolvedReferents: [FIRST_REQUIREMENT] },
 			new ReferenceLocks(),
 			markers,
 		);
@@ -540,7 +567,7 @@ describe('requirementResolutionSteps', () => {
 
 	it('stamps a re-read refusal that follows its own markStale write', async () => {
 		const requirements = new VanishesAfterMarkStale();
-		const saved = await requirements.save(referent('requirement-1').entity, 'absent');
+		const saved = await requirements.save(referent(FIRST_REQUIREMENT).entity, 'absent');
 		if (!saved.ok) throw new Error('fixture failed to save');
 
 		const steps = requirementResolutionSteps(requirements, noRecalculation, repointNowhere);
@@ -561,7 +588,7 @@ describe('requirementResolutionSteps', () => {
 			}
 		}
 		const requirements = new RefusesMarkStale();
-		const saved = await requirements.save(referent('requirement-1').entity, 'absent');
+		const saved = await requirements.save(referent(FIRST_REQUIREMENT).entity, 'absent');
 		if (!saved.ok) throw new Error('fixture failed to save');
 
 		const steps = requirementResolutionSteps(requirements, noRecalculation, repointNowhere);

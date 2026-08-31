@@ -13,23 +13,33 @@ import { t } from '../../../src/presentation/i18n/strings';
 import {
 	layerNames,
 	mountPlanEditor,
+	mountPlanEditorCanvas,
 	settle,
 	zoneLines,
+	type CanvasHarness,
 	type EditorHarness,
 } from '../../helpers/editor';
 import { FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { connectedObservers } from '../../helpers/layout';
 
-let harness: EditorHarness | null = null;
+/** What `afterEach` unmounts; every case reads its harness from the local const `mount` hands back. */
+let open: EditorHarness | null = null;
 
 afterEach(() => {
-	harness?.unmount();
-	harness = null;
+	open?.unmount();
+	open = null;
 });
+
+/** Every case here draws a scene, so the canvas is proven at the mount rather than per assertion. */
+async function mount(): Promise<CanvasHarness> {
+	const harness = await mountPlanEditorCanvas();
+	open = harness;
+	return harness;
+}
 
 describe('the scene structure', () => {
 	it('mounts all seven layers in the fixed order §17 draws them', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 
 		expect(layerNames(harness.stage)).toEqual([...KONVA_LAYER_IDS]);
 	});
@@ -39,7 +49,7 @@ describe('the scene structure', () => {
 	 * put a `Transformer`; "empty" is what says nothing here has claimed it yet.
 	 */
 	it('mounts the interaction layer present and empty', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 
 		const interaction = harness.stage.findOne<Konva.Layer>('.interaction');
 
@@ -54,7 +64,7 @@ describe('the scene structure', () => {
 	 * identical.
 	 */
 	it('binds the viewport transform to every world-space layer and to no other', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 		harness.stage.container().dispatchEvent(new WheelEvent('wheel', { deltaY: -400, bubbles: true }));
 		await settle();
 
@@ -69,7 +79,7 @@ describe('the scene structure', () => {
 
 	/** §62: an inert hit graph on layers nothing interacts with is a second canvas for nothing. */
 	it('leaves every layer non-listening, since no tool exists yet', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 
 		expect(harness.stage.getChildren().map((layer) => layer.listening())).toEqual(
 			KONVA_LAYER_IDS.map(() => false),
@@ -79,7 +89,7 @@ describe('the scene structure', () => {
 
 describe('a persisted zone on screen', () => {
 	it('renders one closed outline per hydrated zone, keyed by domain id', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 
 		const lines = zoneLines(harness.stage);
 
@@ -95,7 +105,7 @@ describe('a persisted zone on screen', () => {
 	 * millimetres.
 	 */
 	it('hands Konva the persisted world millimetres, not screen coordinates', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 
 		const kitchen = FIXTURE_ZONES[0];
 		const expected = kitchen.points.flatMap((point) => [point.x, point.y]);
@@ -110,7 +120,7 @@ describe('a persisted zone on screen', () => {
 	 * rebuilt it, which is the same statement with a check behind it.
 	 */
 	it('changes no shape points when the camera moves', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 		const before = zoneLines(harness.stage).map((line) => line.points());
 
 		const container = harness.stage.container();
@@ -129,7 +139,7 @@ describe('a persisted zone on screen', () => {
 
 	/** The camera moved something, or the assertion above passes for the wrong reason. */
 	it('moves the layers themselves when the camera moves', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 		const zoneLayer = harness.stage.findOne<Konva.Layer>('.zone') as Konva.Layer;
 		const before = { x: zoneLayer.x(), y: zoneLayer.y(), scale: zoneLayer.scaleX() };
 
@@ -150,7 +160,7 @@ describe('a persisted zone on screen', () => {
 	 * carried by Konva itself between the two.
 	 */
 	it('renders identical points after a re-hydration', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 		const before = zoneLines(harness.stage).map((line) => [...line.points()]);
 
 		harness.changePlan();
@@ -164,7 +174,7 @@ describe('a persisted zone on screen', () => {
 	 * Silent when got wrong, which is why it is a test rather than a comment.
 	 */
 	it('does not scale zone outlines with the zoom', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 
 		const outlines = zoneLines(harness.stage).filter((line) => line.stroke() !== undefined);
 
@@ -182,7 +192,7 @@ describe('theme and accessibility of a zone', () => {
 	 */
 	it('resolves a zone fill from an Obsidian variable and follows a theme change', async () => {
 		document.documentElement.style.setProperty('--color-blue', 'rgb(1, 2, 3)');
-		harness = await mountPlanEditor();
+		const harness = await mount();
 
 		const fillNode = zoneLines(harness.stage)[0];
 		expect(fillNode.fill()).toBe('rgb(1, 2, 3)');
@@ -201,7 +211,7 @@ describe('theme and accessibility of a zone', () => {
 	 * and a caption is unreadable on a printed grayscale plan at a high one.
 	 */
 	it('distinguishes zone status without relying on colour', async () => {
-		harness = await mountPlanEditor();
+		const harness = await mount();
 
 		const outlines = zoneLines(harness.stage).filter((line) => line.dash() !== undefined);
 		const captions = harness.stage.findOne<Konva.Layer>('.zone')?.find('Text') ?? [];

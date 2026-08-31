@@ -403,24 +403,6 @@ describe('the list and detail states', () => {
 	});
 
 	/**
-	 * `onOpen` and `setState` race and the order is not something a plugin may assume.
-	 *
-	 * **Counting surviving DOM nodes cannot see this, and that is what the case is about.**
-	 * A remount is `onClose(); onOpen();` and `onClose` calls `contentEl.empty()`, so a build
-	 * that wrongly remounts here still leaves exactly ONE `.renovation-planner-view` — the
-	 * assertion this case used to carry read identically in both worlds while its name promised
-	 * to catch a second mount. What the defect actually costs is invisible in the DOM: `mount`
-	 * is where the context is provided, so a remount on Obsidian's ordinary `onOpen`/`setState`
-	 * sequence re-hydrates both stores and re-registers the `onProjectsChanged` and
-	 * `onPlansChanged` subscriptions, every open, with the pane looking correct. Reported by a
-	 * review bot against this plan.
-	 *
-	 * It shares its assertion with the case above and is NOT a duplicate of it — the extra
-	 * `setState` is the whole case, and against the remounting build this reads `[null, null]`.
-	 * Two cases with identical bodies AND identical driving is the trap Task 4 fell into
-	 * (`d9e81f3`); identical assertions under different driving is an ordinary pair.
-	 */
-	/**
 	 * **`setState` before `onOpen` mounts the resolved state ONCE**, which is the ordering the
 	 * `opened` flag exists for: the id is recorded, nothing is mounted into a leaf Obsidian has
 	 * not opened yet, and the `onOpen` that follows draws the project directly. Without the flag
@@ -463,6 +445,25 @@ describe('the list and detail states', () => {
 		expect(mounted).toEqual([null, 'project-01JAAA']);
 	});
 
+	/**
+	 * `onOpen` and `setState` race and the order is not something a plugin may assume.
+	 *
+	 * **Counting surviving DOM nodes cannot see this, and that is what the case is about.**
+	 * A remount is `onClose(); onOpen();` and `onClose` calls `contentEl.empty()`, so a build
+	 * that wrongly remounts here still leaves exactly ONE `.renovation-planner-view` — the
+	 * assertion this case used to carry read identically in both worlds while its name promised
+	 * to catch a second mount. What the defect actually costs is invisible in the DOM: `mount`
+	 * is where the context is provided, so a remount on Obsidian's ordinary `onOpen`/`setState`
+	 * sequence re-hydrates both stores and re-registers the `onProjectsChanged` and
+	 * `onPlansChanged` subscriptions, every open, with the pane looking correct. Reported by a
+	 * review bot against this plan.
+	 *
+	 * It shares its assertion with `mounts the list on a first open` and is NOT a duplicate
+	 * of it — the extra
+	 * `setState` is the whole case, and against the remounting build this reads `[null, null]`.
+	 * Two cases with identical bodies AND identical driving is the trap Task 4 fell into
+	 * (`d9e81f3`); identical assertions under different driving is an ordinary pair.
+	 */
 	it('does not mount twice when setState follows onOpen', async () => {
 		const mounted: (string | null)[] = [];
 		const view = makeViewRecordingMounts(mounted);

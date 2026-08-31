@@ -40,9 +40,33 @@ export class FakeLeaf implements WorkspaceLeaf {
 	 */
 	view: unknown;
 
+	/**
+	 * Records the state AND tells the view, because Obsidian's own call does both — setting a
+	 * leaf's view state is how a view's `setState` is ever reached, which is the entire reason
+	 * `navigateToProject` writes through this method rather than touching the view.
+	 *
+	 * **It recorded only, until the whole-branch review of design slice 21.** A fake that
+	 * merely remembers what it was told leaves the view deaf to every navigation after the
+	 * first, so a `navigate('project-1')` driven through the real plugin moved the LEAF's
+	 * state and left the view's own `projectId` at `null` — and the case that meant to prove a
+	 * settings swap keeps a detail-state pane off the list could only observe the recorded
+	 * state, by way of a `projectViewDeps` parameter whose value nothing renders. The thin
+	 * fake and the wrongly-pinned assertion were one defect wearing two faces: with the fake
+	 * deaf, the dead field was the ONLY thing that case could have asked.
+	 *
+	 * `view.setState` is called through a shape test rather than an `instanceof`: this file
+	 * imports nothing from `src/presentation/` and stays that way (see the header), and what
+	 * matters is that the object has the method — the same reasoning `rebindOpenViews` gives
+	 * for the opposite choice in a layer that may name the class.
+	 *
+	 * The result object is `{}`: `ViewStateResult.history` is something Obsidian READS after
+	 * the call, and no fake caller here asks. A test that wants it passes its own leaf.
+	 */
 	async setViewState(state: { type: string; active?: boolean; state?: Record<string, unknown> }): Promise<void> {
 		await Promise.resolve();
 		this.state = state;
+		const view = this.view as { setState?: (state: unknown, result: unknown) => Promise<void> } | undefined;
+		if (typeof view?.setState === 'function') await view.setState(state.state ?? {}, {});
 	}
 
 	/**

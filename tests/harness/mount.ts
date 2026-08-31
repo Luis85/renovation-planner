@@ -89,6 +89,34 @@ const HARNESS_PLAN_NAMES = [
 ];
 
 /**
+ * A seed step's `Result`, unwrapped loudly — and "loudly" means an UNHANDLED REJECTION, which
+ * is worth stating precisely because the first two sentences written here claimed otherwise.
+ *
+ * They said this "reads the settled value rather than awaiting" and the call site said the
+ * error was "THROWN rather than `void`ed". Both are false of a `void promise.then(…)`: the
+ * promise IS `void`ed, and a `.then` callback is a microtask, so the throw happens after
+ * `mountHarness` has returned and mounted. There is no synchronous stop to be had here — a
+ * promise cannot be read synchronously however fast it settles, and a real `await` would make
+ * `mountHarness` async for every caller.
+ *
+ * What actually carries the loudness is the CAPTURE tool rather than this function:
+ * `scripts/harness-shot.mjs` registers `page.on('pageerror')` and records console errors, and
+ * Chromium reports an unhandled rejection through both, so a failed seed fails the capture
+ * rather than photographing the list. Under `npm run harness` it is a console line beneath a
+ * page that quietly draws the list — the residue, named rather than implied, because the
+ * sentence that used to sit here read as a guarantee this module gave on its own.
+ *
+ * Found by the whole-branch review.
+ */
+const expectSeeded = (saved: Promise<{ ok: boolean }>): void => {
+	void saved.then((result) => {
+		if (!result.ok) throw new Error('the harness fixture failed to seed; the capture would photograph the list');
+
+		return result;
+	});
+};
+
+/**
  * One project under the id a URL named, with a plan each from the list above.
  *
  * The id is CAST rather than minted: `createProjectId()` answers a fresh ULID, and a URL
@@ -102,29 +130,17 @@ const HARNESS_PLAN_NAMES = [
  * validation is a picture of the loading state with no error anywhere, which is the quiet this
  * whole capture tool exists against.
  */
-/**
- * A seed step's `Result`, unwrapped loudly. The in-memory repositories answer synchronously, so
- * this reads the settled value rather than awaiting: `save` returns a promise, and the fixture
- * needs the failure to reach a human rather than a rejected promise nobody holds.
- */
-const expectSeeded = (saved: Promise<{ ok: boolean }>): void => {
-	void saved.then((result) => {
-		if (!result.ok) throw new Error('the harness fixture failed to seed; the capture would photograph the list');
-
-		return result;
-	});
-};
-
 const seedProject = (projectId: string) => ({ projects, plans }: SeedRepositories): void => {
 	const id = projectId as ProjectId;
 	const project = expectOk(
 		Project.create({ id, name: 'Maple Street, ground floor refit', status: 'EXECUTION' }),
 	);
 
-	// THROWN rather than `void`ed, and the reason is what this fixture is for: a failed save
+	// Checked rather than discarded, and the reason is what this fixture is for: a failed save
 	// leaves an empty world, both captures then photograph the LIST, and they wait on
 	// `.renovation-planner-view`, which the list satisfies — so `npm run harness-shot` would
-	// write two PNGs of the wrong state and exit 0. A fixture that stops seeding must be loud.
+	// write two PNGs of the wrong state and exit 0. `expectSeeded`'s docblock says by what
+	// mechanism that is made loud, and it is not this file's.
 	expectSeeded(projects.save(project, 'absent'));
 
 	HARNESS_PLAN_NAMES.forEach((name, index) => {

@@ -35,12 +35,6 @@ describe('ProjectDetail', () => {
 	});
 
 	/**
-	 * **The header survives an empty project**, which is every project a user has just
-	 * created. Back and Open note live here and nowhere else, so an empty state drawn in
-	 * PLACE of this component would fail criteria 5 and 11 on the most common detail state
-	 * there is. Reported by a review bot against the plan.
-	 */
-	/**
 	 * **The heading LEVEL, in the branch a just-created project always lands in.** Task 7 added
 	 * a heading-order case for the POPULATED branch — `Plans` is an `<h3>` under the project's
 	 * `<h2>` — and the empty branch was left drawing `EmptyState`'s hard-coded `<h2>`, which
@@ -66,6 +60,12 @@ describe('ProjectDetail', () => {
 		expect(wrapper.get('.rp-project-detail__name').element.tagName).toBe('H2');
 	});
 
+	/**
+	 * **The header survives an empty project**, which is every project a user has just
+	 * created. Back and Open note live here and nowhere else, so an empty state drawn in
+	 * PLACE of this component would fail criteria 5 and 11 on the most common detail state
+	 * there is. Reported by a review bot against the plan.
+	 */
 	it('keeps back and open note when the project has no plans', () => {
 		const wrapper = mount(ProjectDetail, {
 			props: { project: PROJECT, plans: [], emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },

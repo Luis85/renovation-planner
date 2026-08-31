@@ -218,7 +218,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.project.no-plans.body': 'Fügen Sie einen Grundriss hinzu, um Zonen zu zeichnen und Mengen zu ermitteln.',
 	'empty.project.no-plans.action': 'Neuer Grundriss',
 	'view.project.gone': 'Dieses Projekt existiert nicht mehr.',
-	'view.project.gone-body': 'Es wurde möglicherweise gelöscht oder aus diesem Vault verschoben. Gehe zurück zur Projektliste.',
+	'view.project.gone-body': 'Es wurde möglicherweise gelöscht oder aus diesem Vault verschoben. Gehen Sie zurück zur Projektliste.',
 	'project.empty-name': 'Ein Projekt braucht einen Namen.',
 	'project.unknown-status': 'Wählen Sie einen Status aus der Liste.',
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',

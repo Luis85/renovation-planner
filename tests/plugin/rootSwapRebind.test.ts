@@ -74,11 +74,30 @@ describe('a view already open when the root is replaced', () => {
 	});
 
 	/**
-	 * `rebindOpenViews` reads the leaf's OWN view state through `projectIdOfLeaf` rather than
-	 * defaulting every rebuild to the list — a settings swap must not silently return a
-	 * detail-state pane to the list. `navigate` writes that state through the real
-	 * `navigateToProject` (Task 11), so this drives the whole path a user's own click would:
-	 * navigate, then swap settings, then check what the rebound bundle says `projectId` is.
+	 * A settings swap must not silently return a detail-state pane to the list. `navigate`
+	 * writes that state through the real `navigateToProject` (Task 11), so this drives the
+	 * whole path a user's own click would: navigate, then swap settings, then ask what the
+	 * pane is showing.
+	 *
+	 * **It asks the VIEW's own state, and the first version asked the rebound bundle's
+	 * `projectId` instead — the wrong side of the seam.** That member is dead:
+	 * `RenovationProjectView.mount` provides `{ ...this.deps, projectId }` with its own field
+	 * last, so nothing renders what the bundle carries, and the case certified a value no
+	 * pane could draw. It went red against the mutation of the day (deleting the plugin's
+	 * `projectIdOfLeaf` read), which is exactly what makes a wrongly-pinned case hard to
+	 * spot: discriminating and pointed at the wrong thing are not exclusive. `getState()`
+	 * reads `this.projectId`, the one field `sync`/`mount` consult — the same assertion the
+	 * Plan Editor's sibling case below already made about `planId`, arrived at from the
+	 * report of the whole-branch review rather than from the symmetry that was there to see.
+	 *
+	 * **And re-pointing it required widening the FAKE, which is why the two defects were
+	 * one.** `FakeLeaf.setViewState` recorded the state and did not call the view's
+	 * `setState`, where Obsidian's does — so this `navigate` moved the leaf and left the view
+	 * deaf, and the recorded state reachable only through the dead bundle member was the ONLY
+	 * thing the case could have asked. A thin fake does not merely fail to catch a defect; it
+	 * shapes the assertion somebody then writes against it. Both halves are watched red:
+	 * a `setViewState` that stops routing into the view, and a `rebind` that blanks
+	 * `this.projectId`.
 	 */
 	it('rebinds with the project a leaf had already navigated to, not the list', async () => {
 		resetRecorder();
@@ -90,7 +109,9 @@ describe('a view already open when the root is replaced', () => {
 
 		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectsFolder: 'Somewhere Else' });
 
-		expect((view.deps as never as { projectId: string | null }).projectId).toBe('project-1');
+		expect((view as never as { getState: () => Record<string, unknown> }).getState()).toEqual({
+			projectId: 'project-1',
+		});
 	});
 
 	it('rebinds the plan editor too, which was never the reported half', async () => {

@@ -57,10 +57,18 @@ describe('PlanList', () => {
 	});
 
 	/**
-	 * `<h3>`, not `<h2>`: this list sits UNDER `ProjectDetail`'s own `<h2>`, and heading order
-	 * is one of the five things `tests/harness/accessibility.test.ts` actually grades — so a
-	 * second `<h2>` here is an axe `heading-order` violation found by a later task rather than
-	 * by this one.
+	 * `<h3>`, not `<h2>`: this list sits UNDER `ProjectDetail`'s own `<h2>`, and the document
+	 * outline is the reason — a plans list titled as a PEER of the project it belongs to
+	 * misdescribes the page to anyone navigating by headings.
+	 *
+	 * **This assertion is the only instrument for it, and the sentence here used to promise a
+	 * second one.** It said an `<h2>` would be "an axe `heading-order` violation found by a
+	 * later task": measured false in two files on this branch — axe's `heading-order` reports
+	 * a SKIPPED level (`h2` → `h4`), and an `<h2>` under an `<h2>` is a peer, so every case in
+	 * `tests/harness/accessibility.test.ts` stays green with the level deleted. Naming a
+	 * downstream check that cannot fire is worse than naming none: it reads as a second
+	 * instrument and is a comment. Found by the whole-branch review, one round after
+	 * `projectDetail.test.ts` recorded the measurement that refutes it.
 	 */
 	it('titles itself one level below the detail header', () => {
 		const wrapper = mount(PlanList, { props: { plans: [] } });

@@ -137,10 +137,10 @@ describe('persistence composition', () => {
 		expect(
 			(
 				plugin as unknown as {
-					projectViewDeps(projectId: string | null, leaf: unknown): { indexScanCompleted(): boolean };
+					projectViewDeps(leaf: unknown): { indexScanCompleted(): boolean };
 				}
 			)
-				.projectViewDeps(null, new FakeLeaf() as never)
+				.projectViewDeps(new FakeLeaf() as never)
 				.indexScanCompleted(),
 		).toBe(true);
 	});

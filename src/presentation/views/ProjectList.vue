@@ -6,9 +6,13 @@
  * — whose document is the error-surfacing decision table and never mentions one. The list was
  * owned by no slice; it is owned here.
  *
- * It DISPATCHES nothing and opens nothing: it emits an id, and the view calls
- * `context.openProject`, which the composition root supplied because `presentation/` may not
- * reach Obsidian's vault and a `ProjectSummaryDto` carries no path.
+ * It DISPATCHES nothing and opens nothing: it emits an id and the VIEW decides what that
+ * means. Since design slice 21 that is `context.navigate(id)` — criterion 1 is precisely that
+ * a row no longer opens `Project.md` but enters the detail state, from which `Project.md` is
+ * a secondary action. This sentence named `context.openProject` for a slice after that
+ * stopped being true, which is the defect `ProjectDetail.vue` records having made twice about
+ * this same change: a sentence about another commit's behaviour needs re-reading by whoever
+ * lands that commit, and the component the sentence is ABOUT is the one nobody re-read.
  */
 import type { ProjectSummaryDto } from '../read-models/PlanDto';
 import { statusLabel } from './statusLabel';

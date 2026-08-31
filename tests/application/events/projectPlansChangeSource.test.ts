@@ -108,9 +108,23 @@ describe('createProjectPlansChangeSource', () => {
 	});
 
 	/**
-	 * `changedEntityTypeOf` is the guard for the second list. An event with no payload has
-	 * no `entityType` to compare, and must be dropped rather than matched against
-	 * `'renovation-plan'` by way of two `undefined`s.
+	 * `changedEntityTypeOf` is the guard for the second list, and these two cases cover its
+	 * false arm — no more, which is a narrowing of what they used to claim.
+	 *
+	 * They said the payload-less event "must be dropped rather than matched against
+	 * `'renovation-plan'` by way of two `undefined`s", copied from the `projectIdOf` pair
+	 * above. That collision cannot happen here: the comparison target is a string LITERAL,
+	 * not a caller-supplied id, so `undefined === 'renovation-plan'` is already false and
+	 * both cases stay green against a `changedEntityTypeOf` that returns
+	 * `payload?.entityType` with no `typeof` guard at all — measured. The sibling
+	 * `projectIdOf` cases discriminate only because they subscribe with `undefined as never`,
+	 * so two `undefined`s really can meet; this pair copied the form without the condition
+	 * that makes it work, and there is no condition to add — with a literal on one side, the
+	 * guard is held by the TYPE and not by any case that could be written here.
+	 *
+	 * Found by the whole-branch review. Worth keeping as the shape rather than for the two
+	 * cases: a case copied from a discriminating sibling inherits its docblock's confidence
+	 * and not necessarily its mechanism.
 	 */
 	it('stays silent for a ProjectIndexEntryChanged event carrying no payload', async () => {
 		const events = createEventBus();

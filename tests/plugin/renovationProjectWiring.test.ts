@@ -503,8 +503,8 @@ describe('the registered view factory', () => {
 		const { plugin } = await loadedPlugin();
 		const leaf = new FakeLeaf();
 
-		(plugin as unknown as { projectViewDeps(projectId: string | null, leaf: unknown): RenovationProjectDeps })
-			.projectViewDeps(null, leaf)
+		(plugin as unknown as { projectViewDeps(leaf: unknown): RenovationProjectDeps })
+			.projectViewDeps(leaf)
 			.navigate('project-1');
 		await settle();
 
@@ -525,8 +525,8 @@ describe('the registered view factory', () => {
 		const leaf = new FakeLeaf();
 		leaf.setViewState = () => Promise.reject(new Error('disk exploded'));
 
-		(plugin as unknown as { projectViewDeps(projectId: string | null, leaf: unknown): RenovationProjectDeps })
-			.projectViewDeps(null, leaf)
+		(plugin as unknown as { projectViewDeps(leaf: unknown): RenovationProjectDeps })
+			.projectViewDeps(leaf)
 			.navigate('project-1');
 		await settle();
 

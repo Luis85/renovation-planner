@@ -3,19 +3,6 @@ import type { RenovationProjectQueryServices } from '../read-models/renovationPr
 import type { RenovationProjectCommandServices } from './renovationProjectCommands';
 
 /**
- * Everything the Renovation Project view's Vue tree needs from outside itself, provided
- * ONCE by `RenovationProjectView` on the app instance it created.
- *
- * Mirrors `PlanEditorContext`: one injection key rather than a prop threaded through the
- * tree, because `queries` is a property of the LEAF, and `app.provide` (not a module-level
- * singleton) is what keeps two leaves of this view genuinely independent — though today
- * this view is a singleton, so that independence has no second leaf to matter for yet.
- *
- * Slice 1 reserved this seam in writing: "Query-service access is constructor-injected …
- * exactly like `RenovationProjectView` would be once it has data needs." This is that data
- * need, extending the seam by a field rather than relocating it.
- */
-/**
  * What a project row's click did, as far as the VIEW needs to know.
  *
  * `'missing'` is the only member the view branches on: the row points at a project the vault
@@ -32,6 +19,19 @@ import type { RenovationProjectCommandServices } from './renovationProjectComman
  */
 export type ProjectOpenOutcome = 'opened' | 'missing' | 'failed';
 
+/**
+ * Everything the Renovation Project view's Vue tree needs from outside itself, provided
+ * ONCE by `RenovationProjectView` on the app instance it created.
+ *
+ * Mirrors `PlanEditorContext`: one injection key rather than a prop threaded through the
+ * tree, because `queries` is a property of the LEAF, and `app.provide` (not a module-level
+ * singleton) is what keeps two leaves of this view genuinely independent — though today
+ * this view is a singleton, so that independence has no second leaf to matter for yet.
+ *
+ * Slice 1 reserved this seam in writing: "Query-service access is constructor-injected …
+ * exactly like `RenovationProjectView` would be once it has data needs." This is that data
+ * need, extending the seam by a field rather than relocating it.
+ */
 export interface RenovationProjectDeps {
 	readonly queries: RenovationProjectQueryServices;
 	/** Design slice 16's write side — guarded at the root, refusing when settings are unrecovered. */

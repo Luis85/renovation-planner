@@ -88,19 +88,6 @@ function onNoteFile(adapterOf: () => VaultChangeAdapter | undefined, method: 'on
 	};
 }
 
-/**
- * The `projectId` a Renovation Project leaf's own view state currently names — `''` and
- * `undefined` both read as the LIST, since `navigateToProject`'s write step
- * (`state: { projectId: projectId ?? '' }`) is the only thing that ever puts a non-empty
- * string there. Read through `getViewState()` rather than through the view instance: it is
- * what Obsidian itself persists and restores, so `rebindOpenViews` learns the SAME project a
- * reopened leaf would.
- */
-function projectIdOfLeaf(leaf: WorkspaceLeaf): string | null {
-	const state = leaf.getViewState().state;
-	const projectId = state?.['projectId'];
-	return typeof projectId === 'string' && projectId !== '' ? projectId : null;
-}
 export default class RenovationPlannerPlugin extends Plugin {
 	/**
 	 * One field, not a bare `settings` one: a view or the settings tab reaches persisted
@@ -212,7 +199,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// `projectId: null` — the LIST state — is every fresh leaf's initial bundle: a leaf
 		// Obsidian is constructing has no view state to read yet, and the view learning its
 		// own restored `projectId` and rebuilding against it is the next task's mechanism.
-		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps(null, leaf)));
+		this.registerView(RENOVATION_PROJECT_VIEW, (leaf) => new RenovationProjectView(leaf, this.projectViewDeps(leaf)));
 		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
 		// view many times.
 		this.registerView(PLAN_EDITOR_VIEW, (leaf) => new PlanEditorView(leaf, this.planEditorViewDeps()));
@@ -380,15 +367,27 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * the plugin's own construction. `navigateToProject`'s own `targetLeaf` parameter is what
 	 * closes that; see its docblock for the split-pane scenario this exists for.
 	 *
-	 * `projectId` is passed rather than read off `leaf.getViewState()` here: this view's own
-	 * remount-per-navigation mechanics (reading its OWN current state, re-hydrating on
-	 * `setState`) are the next task's, and this method stays the one place both the factory and
-	 * the rebind build the same bundle — a caller that knows a different `projectId` (a fresh
-	 * leaf's initial state, say) is free to pass one once that caller exists.
+	 * **The bundle's own `projectId` is inert, and this method takes no parameter for it
+	 * BECAUSE it is.** `RenovationProjectView.mount` provides `{ ...this.deps, projectId }`
+	 * with the VIEW's own field written last, so whatever a caller put in the bundle is
+	 * shadowed at the one place the Vue tree reads it. It was a parameter for two tasks,
+	 * and `rebindOpenViews` passed a `projectIdOfLeaf(leaf)` reading of `leaf.getViewState()`
+	 * into it under a comment naming that read as what keeps a detail-state pane off the list
+	 * across a settings swap — a value nothing could read, a claim the code beside it did not
+	 * hold, and an unguarded `getViewState()` inside a loop that rebinds every open view, all
+	 * for one member of one bundle. What actually holds that guarantee is
+	 * `RenovationProjectView.rebind` never touching `this.projectId`, which is where the
+	 * rebind's own docblock already states it and where `rootSwapRebind.test.ts` now asserts
+	 * it. `null` is the member's honest value here: the type declares it because the
+	 * CONTEXT needs one, and the context gets its own.
+	 *
+	 * Found by the whole-branch review. Nothing in `npm run check` can see a parameter whose
+	 * value is shadowed at the point of use — `fallow` reports unimported files and dead
+	 * exports, not a dead argument.
 	 */
-	private projectViewDeps(projectId: string | null, leaf: WorkspaceLeaf): RenovationProjectDeps {
+	private projectViewDeps(leaf: WorkspaceLeaf): RenovationProjectDeps {
 		return renovationProjectDeps(this.root, this.app.workspace, this.app.vault, {
-			projectId,
+			projectId: null,
 			// Through `navigateToProject` (Task 11), NOT a raw `setViewState`, and it closes
 			// two holes at once. A bare `void` on a rejecting `setViewState` is an unhandled
 			// rejection reaching nobody — the shape `runDetached` exists to close, and the
@@ -452,10 +451,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 			// property access, so a `rebind` reached only via `instanceof` is reported as an
 			// unused class member. Measured — both views were, before this line existed.
 			const view: RenovationProjectView = leaf.view;
-			// The leaf's OWN state, not `null`: a settings swap must not silently return a
-			// detail-state pane to the list, and `projectIdOfLeaf` reads exactly what
-			// `navigateToProject` last wrote there.
-			view.rebind(this.projectViewDeps(projectIdOfLeaf(leaf), leaf));
+			// A settings swap must not silently return a detail-state pane to the list, and
+			// what holds that is `rebind` never touching the view's own `projectId` — not
+			// anything passed in here. See `projectViewDeps`, which used to take a reading of
+			// this leaf's view state under a comment claiming otherwise.
+			view.rebind(this.projectViewDeps(leaf));
 		}
 		for (const leaf of this.app.workspace.getLeavesOfType(PLAN_EDITOR_VIEW)) {
 			if (!(leaf.view instanceof PlanEditorView)) continue;

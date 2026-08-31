@@ -91,7 +91,12 @@ export interface SeedRepositories {
  * reads four members, and design slice 21 gives it a `projectId` to branch on — at which point
  * an omitted key arrives as `undefined` with no compiler and no failing test to say so, and
  * every case in those files is about the LIST, so they would go on passing for the wrong
- * reason. All five of their literals now state `projectId: null` explicitly. That is the whole
+ * reason. All five of their literals now state the member explicitly — four as
+ * `projectId: null` and the fifth, in `viewRootOpenProject.test.ts`, as `projectId:
+ * KITCHEN.id`, that file being the one whose cases mount the DETAIL state. STATED is the
+ * property that matters, not the value: an omitted key is what nothing can see. (This
+ * sentence said all five stated `null` until the whole-branch review read them — a count that
+ * was right about the count and wrong about one of the things counted.) That is the whole
  * remedy an annotation would have bought for this member, at none of its cost, and it is a
  * fact a reader can check rather than a caveat they have to remember. It was first recorded
  * here as a residue to be inherited; a residue whose bound expires in the next task of the
@@ -108,14 +113,13 @@ export interface SeedRepositories {
  * refusal bundle it used to default to, and design slice 21's `commands.createPlan` ANSWERS
  * beside it for the same reason and against the same two repositories — a plan created through
  * this default is one `queries.listPlansByProject` then reads back, so the harness page can
- * seed a plan by hand and watch the detail state redraw. It is the exact forward risk
- * CLAUDE.md's fifth fake-instance lesson names, in its other direction: a stand-in that
- * REFUSES what production answers turns a tool built for looking into one that shows a false
- * picture. Design slice 16 gave the empty state's button a real
- * hand-off (`ViewRoot` opens `NewProjectForm` and dispatches through it), which is the exact
- * forward risk CLAUDE.md's fifth fake-instance lesson names: a stand-in that REFUSES what
- * production would answer turns a tool built for looking into one that shows a false
- * picture. `tests/harness/mount.ts` calls `makeView` with no `deps` at all, so the browser
+ * seed a plan by hand and watch the detail state redraw. Design slice 16 gave the empty
+ * state's button a real hand-off (`ViewRoot` opens `NewProjectForm` and dispatches through
+ * it), and slice 21 gave the detail state's its own — which is the exact forward risk
+ * CLAUDE.md's fifth fake-instance lesson names: a stand-in that REFUSES what production
+ * answers turns a tool built for looking into one that shows a false picture. (Written twice
+ * here, back to back, until the whole-branch review read the paragraph rather than the
+ * sentence.) `tests/harness/mount.ts` calls `makeView` with no `deps` at all, so the browser
  * harness page (`npm run harness`) is the direct beneficiary — a session there can now
  * actually create a project and see the read model that create landed in.
  * `tests/presentation/views/viewRootCreateProject.test.ts` covers the identical round trip

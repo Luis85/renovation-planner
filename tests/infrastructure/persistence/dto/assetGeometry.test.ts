@@ -140,4 +140,14 @@ describe('the schema and the port document', () => {
 		};
 		expect(document.shape !== null && isOk(validateAssetShape(document.shape))).toBe(true);
 	});
+
+	it('refuses a footprint with too few vertices, rather than admitting it for a later task to catch', () => {
+		const corrupt = { ...valid, shape: { ...valid.shape, footprint: { points: [[0, 0], [10, 0]] } } };
+		expect(AssetGeometrySchemaV1.safeParse(corrupt).success).toBe(false);
+	});
+
+	it('refuses a too-few-vertex CLEARANCE too, which is the arm a footprint-only rule would miss', () => {
+		const corrupt = { ...valid, shape: { ...valid.shape, clearance: { points: [[0, 0], [10, 0]] } } };
+		expect(AssetGeometrySchemaV1.safeParse(corrupt).success).toBe(false);
+	});
 });

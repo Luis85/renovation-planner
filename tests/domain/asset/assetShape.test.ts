@@ -185,4 +185,22 @@ describe('validateAssetShape', () => {
 		const result = validateAssetShape({ ...typedShape, facing: Math.PI * 2 });
 		expect(isOk(result) && result.value.facing).toBe(0);
 	});
+
+	it('returns the VALIDATED copies, so a later mutation of the caller buffer cannot break it', () => {
+		// createPolygon copies deliberately — "the caller keeps its (mutable) buffer
+		// mid-gesture, and a push after construction must not be able to break the invariant
+		// just validated". Spreading the input shape threw those copies away and handed back
+		// the caller's own arrays, reintroducing that hazard one layer up.
+		const footprint = [...square];
+		const clearance = [...square];
+		const result = validateAssetShape({ ...typedShape, footprint: { points: footprint }, clearance: { points: clearance } });
+		expect(isOk(result)).toBe(true);
+		if (!isOk(result)) return;
+
+		footprint.length = 2;
+		clearance.length = 2;
+
+		expect(result.value.footprint.points).toHaveLength(4);
+		expect(result.value.clearance?.points).toHaveLength(4);
+	});
 });

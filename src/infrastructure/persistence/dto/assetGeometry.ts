@@ -10,7 +10,7 @@ const pointTuple = z.tuple([z.number(), z.number()]);
  * are deliberately not the same type, because storage shape stops at this file.
  */
 export const AssetShapeSchemaV1 = z.object({
-	footprint: z.object({ points: z.array(pointTuple) }),
+	footprint: z.object({ points: z.array(pointTuple).min(3) }),
 	footprintOrigin: z.enum(['typed', 'traced']),
 	/**
 	 * Whether these coordinates are still awaiting a scale — a fact recorded AT CAPTURE, not
@@ -32,7 +32,7 @@ export const AssetShapeSchemaV1 = z.object({
 	footprintPending: z.boolean().default(false),
 	clearancePending: z.boolean().default(false),
 	anchorPending: z.boolean().default(false),
-	clearance: z.object({ points: z.array(pointTuple) }).nullable(),
+	clearance: z.object({ points: z.array(pointTuple).min(3) }).nullable(),
 	anchor: z.object({ x: z.number(), y: z.number() }),
 	facing: z.number(),
 });

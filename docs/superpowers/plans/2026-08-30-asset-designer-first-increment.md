@@ -1443,6 +1443,47 @@ it('fails when the asset itself cannot be read, rather than answering an empty d
 
 The last case matters because collapsing a failed read into an empty answer is a defect this repository has recorded three times — a vault fault reported as "the thing is gone".
 
+#### Amendment 1 — what shipped, added 2026-08-31 after it did
+
+The listing above is left as written and this amendment is what disagrees with it, for the reason
+Task A2's Amendment 2 gives: a plan executed literally is work queued, so a difference between the
+listing and the tree has to be findable from the plan rather than only from the code.
+
+**`background` is NOT in the shipped DTO, and Task B7 inherits it.** Its only source is
+`Asset.background`, a field B7 adds — A8 runs first, so the field as listed had nothing to read.
+Typing it and hard-coding `null` would be a field that always lies while reading as implemented,
+which is the "a live control that does nothing" refusal in another surface. **So B7's three-file
+change is a FOUR-file one**: the entity field, the schema keys, both mapper directions, and
+`AssetDesignDto` plus this query's projection — without the last, the designer draws no background
+from a note that carries one, silently, with every gate green.
+
+**The second case is B7's too.** `keeps a measured outline measured when its background is
+replaced` drives `setBackground.execute`, which does not exist yet. The property it is ABOUT — that
+`dimensionsUnscaled` takes no second term — needs no command: it is a seeded document, and it
+shipped as row 3 of the table below. B7 still owes the end-to-end case through its own command,
+because a seeded document cannot show that `SetAssetBackground` leaves `footprintPending` alone.
+
+**The truth table shipped with FIVE rows, not three, and the extra column is the point.** The
+listing seeds no calibration at all, so it cannot close either direction of the join it exists to
+refuse: `pending || calibration === null` is caught only by a traced, non-pending, UNCALIBRATED row
+(the background-replaced state), and `pending && calibration !== null` only by a pending row on a
+CALIBRATED asset. Both were measured as mutations.
+
+**`version` shipped as TWO fields — `noteVersion` and `geometryVersion`.** An asset is two
+resources with two independent revision counters: `SetAssetHeight` conditions on the note's and the
+five geometry commands on the sidecar's. That is the same fact Task B3 gives the designer two
+`WriteLedger`s for, met at the read side, and one field named `version` is a value half its readers
+would present to the wrong port — refused as stale by the note, conditioning a sidecar write on a
+number that never described it.
+
+**Three smaller corrections.** `assetId` is `AssetId` rather than `string` — branded, and a
+`string` subtype anyway, so nothing that consumes it has to change. The error union is
+`RepositoryError | ReferenceError | GeometryError` rather than `AppError`: a union wider than the
+body produces is a caller narrowing on arms nothing raises, and `guardQuery` takes it unchanged.
+And the last case's NAME and BODY name two different things — "cannot be read" is a fault,
+`missingAssetId` is an absence — so both shipped, as two cases, since keeping them apart is the
+whole of what that case is for.
+
 - [ ] **Step 2: Run, watch fail, implement, run, gate, commit**
 
 ```bash
@@ -2380,6 +2421,10 @@ git commit -m "Calibrate an asset, and rescale only what that object owns"
 - Modify: `src/domain/asset/Asset.ts` (the background reference field)
 - Modify: `src/infrastructure/persistence/dto/assetFrontmatter.ts` (the three keys)
 - Modify: `src/infrastructure/persistence/mappers/assetMapper.ts` (both directions)
+- Modify: `src/application/queries/GetAssetDesign.ts` (the `background` field of `AssetDesignDto`,
+  and the projection that fills it) — inherited from Task A8, which shipped without it because the
+  field it reads did not exist yet; see that task's Amendment 1. Without this edit the designer
+  draws no background from a note that carries one, with every gate green.
 - Modify: `src/plugin/composition-root.ts` (bind the picker)
 - Modify: the designer's `noBackground` empty state (add its action)
 - Test: `tests/application/commands/asset/setAssetBackground.test.ts`

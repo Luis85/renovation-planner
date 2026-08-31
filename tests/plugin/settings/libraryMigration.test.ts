@@ -47,7 +47,7 @@ function harness(overrides: Partial<LibraryMigrationDeps> = {}): Harness {
 		projectFolders: () => ['Renovation/Kitchen refit'],
 		// The source is there unless a case says otherwise — every other case is about what
 		// happens once it is.
-		folderExists: (path) => path === SOURCE,
+		vaultFolders: () => [SOURCE],
 		catalogueNotes: (from) => [noteAt(`${from}/Assets/Tiles.md`), noteAt(`${from}/Assets/Paint.md`)],
 		ensureFolder: (path) => {
 			ensured.push(path);
@@ -270,27 +270,47 @@ describe('libraryDestinations', () => {
 });
 
 /**
- * A source that does not resolve to a folder in the vault — a case-only external rename on a
- * case-SENSITIVE filesystem, or a hand-edited `data.json`.
+ * The commonest path of all, and the one a blunt existence check breaks: a fresh vault.
  *
- * The enumeration is exact, so such a source selects nothing. Without this refusal that is
- * the worst shape any arm of this migration has: zero notes moved, no failure reported, and
- * the destination persisted as though the move had succeeded — the catalogue left behind
- * while every future asset is written to the new root, and the user told it worked.
+ * The default `Renovation/Library` is created LAZILY, by the asset repository, on the first
+ * asset insert — so a user who installs the plugin and picks their library folder before
+ * creating anything has no source folder at all. There is nothing to move and nothing that
+ * could be stranded, so the migration must run normally: validate, move the zero notes it
+ * finds, rebuild, persist.
  *
- * The remedy is a REFUSAL rather than a wider match. Widening the enumeration to fold case
- * was tried and is wrong in the destructive direction: see the sibling case below.
+ * Asserted on the PERSIST as well as on `ok`, because "moved nothing" is equally true of a
+ * build that refused.
  */
-it('refuses when the configured source is not a folder in the vault, and moves nothing', async () => {
+it('moves an empty library when the source folder does not exist at all', async () => {
+	const rig = harness({ vaultFolders: () => [], catalogueNotes: () => [] });
+
+	const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+	expect(isOk(result)).toBe(true);
+	expect(rig.renamed).toEqual([]);
+	expect(rig.order).toEqual(['rebuild', 'persist']);
+	expect(rig.persistedFolder()).toBe(DESTINATION);
+});
+
+/**
+ * The other half of that pair, and the one round 2 was written for: the source is absent at
+ * the spelling `data.json` names while a CASE-VARIANT of it is present, holding the notes.
+ *
+ * The exact enumeration will not look there, so without this refusal the migration moves
+ * nothing, reports success and persists the destination — the catalogue left at a path no
+ * setting names any more. It must stay a refusal: a fix for the fresh-vault case above that
+ * let this through would have traded one silent stranding for another.
+ */
+it('refuses when the source exists only under another spelling, and moves nothing', async () => {
 	const files = [noteAt('Renovation/Library/Assets/Tiles.md')];
 	const rig = harness({
 		catalogueNotes: (from) => catalogueNotesIn(files, from),
-		folderExists: (path) => path === 'Renovation/Library',
+		vaultFolders: () => ['Renovation/Library'],
 	});
 
 	const result = await migrateLibraryFolder(rig.deps, 'renovation/library', DESTINATION);
 
-	expect(isErr(result) && result.error.code).toBe('settings.library-source-missing');
+	expect(isErr(result) && result.error.code).toBe('settings.library-source-case-mismatch');
 	expect(rig.renamed).toEqual([]);
 	expect(rig.persistedFolder()).toBeUndefined();
 });
@@ -308,7 +328,13 @@ it('refuses when the configured source is not a folder in the vault, and moves n
  */
 it('leaves a sibling folder differing only in case untouched', async () => {
 	const files = [noteAt('Renovation/Library/Assets/Tiles.md'), noteAt('Renovation/library/Assets/Paint.md')];
-	const rig = harness({ catalogueNotes: (from) => catalogueNotesIn(files, from) });
+	// BOTH are real folders here, which is what makes this the Linux case rather than the
+	// misspelling above: the source resolves exactly, so the guard does not fire and the
+	// question is purely what the enumeration selects.
+	const rig = harness({
+		catalogueNotes: (from) => catalogueNotesIn(files, from),
+		vaultFolders: () => [SOURCE, 'Renovation/library'],
+	});
 
 	const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
 

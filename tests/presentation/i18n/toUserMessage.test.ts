@@ -154,11 +154,13 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.validation',
 		'plugin/settings/libraryMigration.ts',
 	],
-	// The source-existence refusal. `settings.library-move-failed` was read before minting
-	// this and is not honest for it: its sentence is true but says nothing a user can act on,
-	// and it is `Persistence`, which claims a vault operation failed when none was attempted.
+	// The source SPELLING refusal — narrower than the existence check it replaced, which
+	// refused a fresh vault whose library folder had simply not been created yet.
+	// `settings.library-move-failed` was read before minting this and is not honest for it:
+	// its sentence is true but says nothing a user can act on, and it is `Persistence`, which
+	// claims a vault operation failed when none was attempted.
 	[
-		'settings.library-source-missing',
+		'settings.library-source-case-mismatch',
 		'Validation',
 		'error.category.validation',
 		'plugin/settings/libraryMigration.ts',

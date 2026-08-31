@@ -284,10 +284,11 @@ export class SettingsTab extends PluginSettingTab {
 		const { vault, fileManager } = this.app;
 		return {
 			projectFolders: () => projectFolderPaths(this.host.root.persistence),
-			// Through the same enumeration the picker's own list comes from, so "a folder the
-			// vault has" means one thing in this pane. Exact, like `catalogueNotesIn` below and
-			// for its reason: two spellings differing only in case are two folders here.
-			folderExists: (path) => vault.getAllFolders(false).some((folder) => folder.path === path),
+			// The same enumeration the picker's own list comes from, so "a folder the vault has"
+			// means one thing in this pane. The LIST rather than a predicate: the source guard
+			// has to tell a folder that is simply absent from one that is present under another
+			// spelling, and a yes/no has already collapsed the two.
+			vaultFolders: () => vault.getAllFolders(false).map((folder) => folder.path),
 			catalogueNotes: (from) => catalogueNotesIn(vault.getFiles(), from),
 			ensureFolder: (path) => ensureFolder(vault, path),
 			renameFile: (file, to) => renameNote(fileManager, file, to),

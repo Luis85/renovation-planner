@@ -22,12 +22,12 @@ export interface LibraryMigrationDeps {
 	/** Every project's own folder, as ADR-0013 derives it: where its `Project.md` sits. */
 	projectFolders(): readonly string[];
 	/**
-	 * Whether a path resolves to a real folder in the vault — asked of the SOURCE, and only
-	 * of the source. `catalogueNotes` matches paths exactly, so a configured folder the vault
-	 * does not hold selects nothing and there is no other way to tell that apart from a
-	 * library that is genuinely empty.
+	 * Every folder the vault holds, by path. Asked about the SOURCE and only the source, and
+	 * asked for the LIST rather than for a yes/no because the question is not "is it there"
+	 * — see the source guard, which has to tell a missing folder from a misspelt one, and
+	 * cannot do that from a predicate that has already collapsed the two.
 	 */
-	folderExists(path: string): boolean;
+	vaultFolders(): readonly string[];
 	catalogueNotes(from: string): readonly TFile[];
 	ensureFolder(path: string): Promise<void>;
 	/**
@@ -73,20 +73,38 @@ export async function migrateLibraryFolder(
 	const destination = normalizeFolder(to);
 	const source = normalizeFolder(from);
 
-	// 1. The SOURCE has to be there. `catalogueNotes` matches paths exactly — see
-	// `catalogueNotesIn` for why it must not fold case — so a configured folder the vault does
-	// not hold enumerates NOTHING, and every step below then succeeds over an empty list: no
-	// note moved, no failure raised, and the destination persisted as though the move had
-	// worked. That is the one arm of this migration that could report success having done
-	// nothing, and the catalogue is then stranded at a path no setting names any more.
+	// 1. A source the vault does not hold at the SPELLING the setting names, while holding a
+	// folder that differs from it only in case.
 	//
-	// Asked FIRST because it makes every question below hypothetical, and because the sentence
-	// the user needs is the same one whatever destination they picked.
-	if (!deps.folderExists(source)) {
+	// That conjunction is the whole guard, and each half alone is the wrong rule. The
+	// enumeration below matches paths exactly (see `catalogueNotesIn` for why it must not
+	// fold), so a misspelt source selects NOTHING: the migration would move no notes, raise
+	// no failure, and persist the destination as though it had worked, leaving the catalogue
+	// at a path no setting names any more. That is the one arm here that could report success
+	// having done nothing.
+	//
+	// But "the folder is not there" is true of TWO states and cannot separate them:
+	//
+	//   (a) it genuinely does not exist — a fresh vault, where the default library folder is
+	//       created LAZILY by the asset repository on the first insert. There is nothing to
+	//       move and nothing that could be stranded, so persisting the new location is
+	//       correct; refusing here would break the ordinary first thing a user does, which is
+	//       choose a library folder before creating any assets.
+	//   (b) it does not exist at the configured spelling while a CASE-VARIANT of it does —
+	//       the dangerous one, because the notes are then somewhere the exact enumeration
+	//       will not look.
+	//
+	// The variant test is what discriminates them, and it is a full-path fold rather than a
+	// segment comparison so that a difference in any segment counts. It needs no `!==` guard
+	// against matching the source itself: it is only reached when no folder equals the source
+	// exactly, so a folded match is necessarily a different spelling. Obsidian's own paths
+	// are already normalised, which is why only the source passes through `normalizeFolder`.
+	const folders = deps.vaultFolders();
+	if (!folders.includes(source) && folders.some((folder) => folder.toLowerCase() === source.toLowerCase())) {
 		return err({
 			category: 'Validation',
-			code: 'settings.library-source-missing',
-			message: `The library folder ${source} is not a folder in the vault.`,
+			code: 'settings.library-source-case-mismatch',
+			message: `The library folder ${source} is not in the vault, though a folder differing only in case is.`,
 		});
 	}
 

@@ -254,7 +254,8 @@ export const en = {
 	'settings.library-folder-empty': 'A library folder cannot be empty.',
 	'settings.library-overlaps-project': 'That folder is inside a project folder, or contains one.',
 	'settings.library-overlaps-source': 'That folder overlaps the current library folder.',
-	'settings.library-source-missing': 'The current library folder is not in the vault, so there is nothing to move.',
+	'settings.library-source-case-mismatch':
+		'The library folder does not exist at the spelling this setting names, though a similarly named folder does. Rename that folder to match before moving.',
 	'settings.library-move-failed': 'The library could not be moved, so the setting was not changed.',
 	'settings.library-persist-failed':
 		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',

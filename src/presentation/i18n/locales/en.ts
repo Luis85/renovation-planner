@@ -301,6 +301,88 @@ export const en = {
 	// view notifies and navigates. The three background codes `Plan.create` also mints have no
 	// entry for the plainer reason: that form sends no background.
 	'plan.empty-name': 'A plan needs a name.',
+	// Design slice A10's creation form, and the asset designer's whole refusal vocabulary
+	// behind it. Keyed by the exact `AppError.code`, for the reason the slice 16 block above
+	// states: `toUserMessage`'s lookup is `error.code in en`, so an `error.`-prefixed key
+	// would never resolve and every one of these would fall through to the generic Validation
+	// sentence — under a field the user can see, for the nine this form routes.
+	//
+	// **This list is copied from the RAISE SITES rather than from the form's own error map,
+	// and the two are deliberately different sizes.** The map routes nine codes to fields;
+	// this block gives copy to every code `assetError` and `assetNotFound` mint
+	// (`src/domain/asset/Asset.errors.ts`, `Asset.ts`, `AssetShape.ts`,
+	// `application/commands/asset/updateAssetShape.ts`), because absence from the MAP means
+	// "not about a field" and routes to the banner, while absence from HERE means the banner
+	// says "the information given is not valid" about a refusal that knows exactly what is
+	// wrong. The eleven with no field are the designer's own — clearance, anchor, facing and
+	// the two pending-flag invariants — plus height, which is `SetAssetHeightCommand`'s.
+	//
+	// The two pending-flag entries look like programmer errors and are reachable by a user:
+	// `validateAssetShape` runs on every READ of a stored sidecar, and a `.rpgeo` a user has
+	// hand-edited is exactly the document that can carry a typed footprint marked pending.
+	'asset.empty-name': 'An asset needs a name.',
+	'asset.unknown-category': 'Choose a category from the list.',
+	'asset.negative-unit-cost': 'A unit cost cannot be negative.',
+	'asset.invalid-height': 'Enter a height as a number of millimetres.',
+	'asset.negative-height': 'A height cannot be negative.',
+	'asset.non-positive-dimension': 'A width and a depth must each be greater than zero.',
+	'asset.dimension-underflow': 'Those dimensions are too small to describe a rectangle.',
+	'asset.invalid-footprint': 'That outline is not a shape this plugin can store.',
+	'asset.degenerate-footprint': 'That outline encloses no area.',
+	'asset.invalid-clearance': 'That clearance is not a shape this plugin can store.',
+	'asset.degenerate-clearance': 'That clearance encloses no area.',
+	'asset.invalid-anchor': 'An anchor must have finite coordinates.',
+	'asset.invalid-facing': 'A facing must be a finite angle.',
+	'asset.typed-footprint-cannot-be-pending':
+		'A typed footprint is already in millimetres, so it cannot be waiting for a scale.',
+	'asset.absent-clearance-cannot-be-pending': 'There is no clearance to wait for a scale.',
+	'asset.no-footprint':
+		'Give this asset a footprint first; a clearance, an anchor and a facing are each relative to one.',
+	'asset.not-found': 'That asset no longer exists.',
+	// The one code the FORM mints rather than routes: a rectangle needs both halves, and
+	// nothing downstream refuses one given without the other because nothing downstream is
+	// asked. `NewAssetForm.dimensionsIncomplete` is the raise site.
+	'asset.dimensions-incomplete': 'A rectangle needs both a width and a depth.',
+	// `createMoney`'s two refusals (`src/core/money/Money.ts`), which this form runs as a
+	// pre-check because `CreateAssetCommand` reaches `Money.of` first and `of` THROWS on
+	// either — so without the pre-check both of these would reach the user as
+	// `vault.unexpected-failure`, about a vault nothing had opened.
+	'money.invalid-amount': 'Enter an amount as a plain decimal number, such as 45.00.',
+	'money.invalid-currency': 'Enter a three-letter currency code in capitals.',
+	// Design slice A10's creation form. Seven controls, because five of them are exactly the
+	// fields `CreateAssetInput` REQUIRES — a defaulted currency would price an asset in one
+	// nobody chose — and the last two are the optional pair that becomes its footprint.
+	'form.new-asset.title': 'New asset',
+	'form.new-asset.name': 'Name',
+	'form.new-asset.category': 'Category',
+	'form.new-asset.unit': 'Unit',
+	'form.new-asset.unit-cost': 'Unit cost',
+	'form.new-asset.currency': 'Currency',
+	// The unit is named in the LABEL rather than left to a placeholder: every world
+	// coordinate in this plugin is millimetres (ADR-009), and a bare `Width` invites metres.
+	'form.new-asset.width': 'Width in millimetres (optional)',
+	'form.new-asset.depth': 'Depth in millimetres (optional)',
+	// One label per `AssetCategory`, so the control never shows the raw union member
+	// (`building-element`). `ASSET_CATEGORY_LABELS` is the `Record` that makes a missing one
+	// a build failure; `assetLabels.test.ts` is what asks whether these resolve.
+	'form.new-asset.category.material': 'Material',
+	'form.new-asset.category.furniture': 'Furniture',
+	'form.new-asset.category.fixture': 'Fixture',
+	'form.new-asset.category.plant': 'Plant',
+	'form.new-asset.category.equipment': 'Equipment',
+	'form.new-asset.category.building-element': 'Building element',
+	'form.new-asset.category.custom': 'Custom',
+	// One label per `MeasurementUnit`, for the same reason and with the same pair of gates.
+	'form.new-asset.unit.piece': 'Piece',
+	'form.new-asset.unit.m': 'Metres',
+	'form.new-asset.unit.m2': 'Square metres',
+	'form.new-asset.unit.m3': 'Cubic metres',
+	'form.new-asset.unit.hour': 'Hour',
+	'form.new-asset.unit.day': 'Day',
+	'form.new-asset.unit.fixed': 'Fixed price',
+	// The project list header's second action. The catalogue is VAULT-wide since design slice
+	// 19, so this sits on the list state rather than inside a project's detail state.
+	'view.asset.create': 'New asset',
 	// Slice 19's coded refusals. Keyed by the exact `AppError.code`, for the reason the slice
 	// 16 block above states: `toUserMessage`'s lookup is `error.code in en`, so an
 	// `error.`-prefixed key would never resolve and each of these would silently fall through

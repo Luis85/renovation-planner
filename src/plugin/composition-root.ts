@@ -585,7 +585,17 @@ export function renovationProjectDeps(
 				)
 			: unavailableRenovationProjectQueries(),
 		commands: persistence
-			? { createProject: persistence.createProject, createPlan: persistence.createPlan, logger: root.logger }
+			? {
+					createProject: persistence.createProject,
+					createPlan: persistence.createPlan,
+					// Design slice A10. `assetDesign` is the guarded bundle slice A9 composed, and
+					// only the one door the creation form dispatches is handed over: the rest of
+					// that bundle belongs to the designer view Phase B builds, and spreading it
+					// here would make this the second place its membership is decided.
+					createAsset: persistence.createAsset,
+					setAssetFootprintFromDimensions: persistence.assetDesign.setFootprintFromDimensions,
+					logger: root.logger,
+				}
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
 			? renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)

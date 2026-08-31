@@ -33,6 +33,45 @@ describe('unavailableRenovationProjectCommands', () => {
 		expect(isErr(result) && result.error.category).toBe('Persistence');
 	});
 
+	/**
+	 * Design slice A10's pair, asserted per member for the reason the case above gives: two
+	 * results compared against each other would agree just as well if both drifted.
+	 *
+	 * They earn their own cases rather than riding the two above because they are the two whose
+	 * ABSENCE is survivable-looking: `NewAssetForm` would mount, its button would work, and the
+	 * user would get whatever a missing `execute` throws — which is a fault, not the refusal
+	 * every other write in this session answers with.
+	 */
+	it('refuses createAsset with that same shape', async () => {
+		const commands = unavailableRenovationProjectCommands();
+
+		const result = await commands.createAsset.execute({
+			name: 'Kitchen island',
+			category: 'material',
+			unit: 'piece',
+			unitCostAmount: '450.00',
+			currency: 'EUR',
+		});
+
+		expect(isErr(result)).toBe(true);
+		expect(isErr(result) && result.error.code).toBe('settings.unrecovered');
+		expect(isErr(result) && result.error.category).toBe('Persistence');
+	});
+
+	it('refuses setAssetFootprintFromDimensions with that same shape', async () => {
+		const commands = unavailableRenovationProjectCommands();
+
+		const result = await commands.setAssetFootprintFromDimensions.execute({
+			assetId: 'asset-1' as never,
+			width: 1200,
+			depth: 800,
+		});
+
+		expect(isErr(result)).toBe(true);
+		expect(isErr(result) && result.error.code).toBe('settings.unrecovered');
+		expect(isErr(result) && result.error.category).toBe('Persistence');
+	});
+
 	it('resolves a failed Result rather than throwing', async () => {
 		const commands = unavailableRenovationProjectCommands();
 

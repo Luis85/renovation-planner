@@ -47,6 +47,7 @@ import ViewFailure from '../components/ViewFailure.vue';
 import ProjectList from './ProjectList.vue';
 import ProjectDetailState from './ProjectDetailState.vue';
 import NewProjectForm from './NewProjectForm.vue';
+import NewAssetForm from './NewAssetForm.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { useRenovationProjectContext } from './RenovationProjectContext';
@@ -56,6 +57,8 @@ import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
+import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
+import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 
 const context = useRenovationProjectContext();
 const store = useRenovationProjectStore();
@@ -82,6 +85,14 @@ const openProjectId = context.projectId;
  * every line reads as correct and the flag never moves.
  */
 const newProjectBusy = ref(false);
+
+/**
+ * The same mechanism for design slice A10's form, and a SECOND ref rather than one shared
+ * between the two: `busy` is read by `DialogHost` to refuse Escape and disable Cancel while a
+ * write is in flight, and only one dialog is ever open, so sharing would work today and would
+ * mean two forms writing one flag the moment anything opened them in sequence.
+ */
+const newAssetBusy = ref(false);
 
 /**
  * The ONE read this view has, on every occasion it runs — open, after a create, after a row
@@ -130,6 +141,44 @@ async function onCreateProject(): Promise<void> {
 	});
 	if (result === 'cancel') return;
 	await hydrate();
+}
+
+/**
+ * Design slice A10's hand-off, and `onCreateProject`'s shape exactly — including the
+ * `dialogs.current` guard, which is what makes two clicks in one tick reach `openDialog`
+ * once rather than throwing `DialogStackingError`.
+ *
+ * **It does NOT re-hydrate, and that is a difference worth stating rather than an omission.**
+ * `hydrate()` re-reads the PROJECT list, and creating an asset changes nothing in it — an
+ * Asset is vault-wide and carries no project id at all since design slice 19. Re-reading would
+ * be a second answer to what this pane shows, produced by a gesture that did not change it.
+ * There is no catalogue list on this surface for the new asset to appear in, which is the
+ * honest reason the form's `submit` payload goes nowhere yet: Epic 6's catalogue is what
+ * consumes it.
+ *
+ * The two commands are handed down separately because the form's submit is a SEQUENCE over
+ * them and it owns the ordering — see `NewAssetForm`'s header for why the pure checks run
+ * before the first write and why a retry must not create a second asset.
+ */
+async function onCreateAsset(): Promise<void> {
+	if (dialogs.current !== null) return;
+
+	await dialogs.openDialog({
+		kind: 'form',
+		title: tr('form.new-asset.title'),
+		component: NewAssetForm,
+		props: {
+			createAsset: (input: CreateAssetInput) => context.commands.createAsset.execute(input),
+			setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
+				context.commands.setAssetFootprintFromDimensions.execute(input),
+			busy: newAssetBusy,
+			// The form's own door for a dispatch that THROWS, which both of these being guarded
+			// commands means they cannot — but the guard is the ROOT's property, not this call
+			// site's, and `useFormCommit` requires the door rather than assuming the caller.
+			logger: context.commands.logger,
+		},
+		busy: newAssetBusy,
+	});
 }
 
 /**
@@ -231,6 +280,7 @@ if (openProjectId === null) {
 					:projects="projects"
 					@open="(id) => context.navigate(id)"
 					@create="onCreateProject"
+					@create-asset="onCreateAsset"
 				/>
 				<p
 					v-if="unreadable > 0"

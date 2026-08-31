@@ -17,9 +17,10 @@
  * could never reopen it to show one. `submit` is therefore emitted only once `dispatch` has
  * actually succeeded.
  */
-import { nextTick, ref, type Ref } from 'vue';
+import { type Ref } from 'vue';
 import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
+import { useInvalidFieldFocus } from '../composables/use-invalid-field-focus';
 import { useFormCommit } from '../composables/use-form-commit';
 import type { FieldErrorMap } from '../errors/route-error';
 import type { Result } from '../../core/result/Result';
@@ -161,44 +162,11 @@ function onTargetCompletionInput(event: Event): void {
 	form.setField('targetCompletion', fromDateInputValue(control.value));
 }
 
-/** The rendered `<form>`, for the focus move below. Nothing else reads it. */
-const formEl = ref<HTMLFormElement | null>(null);
-
-/**
- * A REJECTED SUBMIT PUTS THE KEYBOARD ON THE FIELD IT IS ABOUT, and that is an
- * accessibility requirement rather than a nicety.
- *
- * `FormBanner` carries `role="alert"` under an explicit argument — it appears in response to
- * the user's own submit and is the only feedback that press produced, so it is announced
- * rather than merely present. That argument is verbatim true of a FIELD error produced by the
- * same press, and `FieldError`'s `<p>` is neither a live region nor focused: a screen-reader
- * user pressed Save on an empty Name, the dialog stayed open, and nothing was spoken while
- * `aria-describedby` changed on an input nobody was on. WCAG 2.2 AA, which `PRODUCT.md` binds
- * by name.
- *
- * The move is chosen over a polite live region because it answers both halves at once: the
- * control's label, its `aria-invalid` and the message `aria-describedby` names are all
- * announced by the focus change, out of markup `FieldError` already renders, and the user is
- * then AT the field rather than merely told about it.
- *
- * It lives here and NOT in `FieldError`, which the Inspector shares. There the commit
- * boundary is blur — the user's attention has already moved on by construction — and pulling
- * focus back to the field they just left would interrupt them somewhere else. Same component,
- * two contexts, and the difference belongs to the context.
- *
- * The control is found by QUERYING the rendered form rather than from a list of field keys:
- * `aria-invalid='true'` is exactly what `FieldError` puts on a control it has a message for,
- * so the first match in document order is the first errored control — and a cross-field error
- * routed to a pair lands on the earlier of the two without this function knowing pairs exist.
- * A second list of keys here would be a second answer to "which fields are wrong".
- *
- * `nextTick` is load-bearing: `submit()` resolves before Vue has flushed the render that
- * applies `aria-invalid`, so the query would find nothing.
- */
-async function focusFirstInvalidControl(): Promise<void> {
-	await nextTick();
-	formEl.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-}
+// The focus move a rejected submit owes, and the `<form>` ref it queries. One statement of
+// both for all three creation forms — `useInvalidFieldFocus`'s docblock carries the WCAG
+// argument, why the control is found by query rather than by a key list, and why the
+// Inspector's blur-committed fields deliberately do not get this.
+const { formEl, focusFirstInvalidControl } = useInvalidFieldFocus();
 
 /**
  * Emits `submit` only when the dispatch actually succeeded — never on `false`. A `false`

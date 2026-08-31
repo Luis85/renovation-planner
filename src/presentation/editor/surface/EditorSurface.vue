@@ -24,6 +24,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
+import type { StringKey } from '../../i18n/locales/en';
 import type { useEditorStore } from '../../stores/EditorStore';
 import { screenPoint, screenToWorld, STAGE_PIXELS, type ScreenPoint } from '../viewport/Viewport';
 import { PanOverride } from '../viewport/pan-override';
@@ -51,6 +52,17 @@ const props = defineProps<{
 	activeToolId: Ref<ToolId | null>;
 	editor: ReturnType<typeof useEditorStore>;
 	framedBounds: (all: boolean) => BoundingBox | null;
+	/**
+	 * What a screen reader calls this surface, as a `StringKey` its MOUNTER owns.
+	 *
+	 * REQUIRED rather than defaulted to `editor.canvas`, which is what this file hard-coded
+	 * until a review bot read the extraction against the reason it exists: a default is a
+	 * default somebody inherits silently, so the asset designer's canvas would have announced
+	 * itself as "Plan canvas" with nothing failing — jsdom resolves the name perfectly well,
+	 * and the axe cases assert that a name EXISTS rather than which subject it names. A
+	 * required prop makes the second mounter answer the question at compile time.
+	 */
+	canvasLabel: StringKey;
 }>();
 
 const editor = props.editor;
@@ -1120,7 +1132,7 @@ onBeforeUnmount(() => {
 		:class="cursorClass"
 		role="application"
 		tabindex="0"
-		:aria-label="tr('editor.canvas')"
+		:aria-label="tr(props.canvasLabel)"
 		@wheel="onWheel"
 		@mousedown="onMouseDown"
 		@pointerdown="onPointerDown"

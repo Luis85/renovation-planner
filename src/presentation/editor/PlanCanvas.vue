@@ -23,10 +23,14 @@ import { boundsOfZones } from './viewport/zoneExtent';
 import { useEditorRuntime } from './runtime';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import EditorSurface from './surface/EditorSurface.vue';
+import type { StringKey } from '../i18n/locales/en';
 import BackgroundLayer from './layers/background/BackgroundLayer.vue';
 import EmptyLayer from './layers/EmptyLayer.vue';
 import InteractionLayer from './layers/InteractionLayer.vue';
 import ZoneLayer from './layers/zone/ZoneLayer.vue';
+
+/** This surface's own subject, which `EditorSurface` requires rather than assuming. */
+const CANVAS_LABEL: StringKey = 'editor.canvas';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 const emit = defineEmits<{ backgroundStatus: [status: BackgroundStatus] }>();
@@ -66,6 +70,7 @@ function framedBounds(all: boolean) {
 		:active-tool-id="runtime.activeToolId"
 		:editor="editor"
 		:framed-bounds="framedBounds"
+		:canvas-label="CANVAS_LABEL"
 	>
 		<template #default="{ size }">
 			<VStage :config="size">

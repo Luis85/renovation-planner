@@ -2811,7 +2811,11 @@ describe('ViewRoot in the detail state', () => {
 		const wrapper = mountRoot({ projectId: 'project-1', navigate, getProject: () => Promise.resolve(err(READ_FAILED)) });
 		await flushPromises();
 
-		expect(wrapper.get('.rp-view-message').text()).toBe(t('en', /* the key READ_FAILED's code maps to */));
+		// `project.read-failed` has no locale entry of its own, so `trError` falls back to the
+		// error's CATEGORY — `Persistence`. Asserting the category sentence rather than
+		// `toUserMessage('en', READ_FAILED)` pins which sentence the user sees; deriving it
+		// from the same mapper the component uses would pass for any mapping at all.
+		expect(wrapper.get('.rp-view-message').text()).toBe(t('en', 'error.category.persistence'));
 		expect(navigate).not.toHaveBeenCalled();
 	});
 

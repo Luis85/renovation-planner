@@ -179,14 +179,32 @@ const overlay = computed<EmptyStateProps | null>(() => {
  * `initial` is the asset's OWN current dimensions when it has any — the inspector's caller is
  * the only one that can ever supply them, since the empty state exists precisely because there
  * are none yet — so a user editing a rectangle sees it rather than a blank form.
+ *
+ * **UNLESS those numbers are not measurements**, which is the one place this form could launder
+ * placeholder pixels into authored millimetres. `dimensionsUnscaled` is exactly the state the
+ * inspector puts a warning over — "traced before a scale existed, so these numbers are not real
+ * measurements yet" — and offering them back as the default made *Edit dimensions → Save* write
+ * them as a `typed` rectangle in true millimetres, in two clicks, with the warning then
+ * correctly gone because the footprint really is typed now. Nothing anywhere said so:
+ * `DesignerInspector` was the only reader of that flag in the whole tree.
+ *
+ * Both halves, and each closes a different thing. The form is left EMPTY, so no gesture
+ * promotes an unscaled number by accident — the ratio between two placeholder pixel counts is
+ * not a default anybody should be nudged towards either. And it carries the reason, because
+ * `docs/requirements/Asset designer.md`'s Definition of Done asks that "an uncalibrated surface
+ * says so wherever a measurement would otherwise appear", and a form that silently declined to
+ * pre-fill would meet the first half of this and not that sentence.
  */
 async function editDimensions(): Promise<void> {
 	if (dialogs.current !== null) return;
-	const dimensions = design.value?.dimensions ?? null;
+	const current = design.value;
+	const unscaled = current?.dimensionsUnscaled === true;
+	const dimensions = current?.dimensions ?? null;
 	const result = await dialogs.openDialog({
 		kind: 'asset-dimensions',
 		title: tr('designer.dimensions.edit.title'),
-		...(dimensions !== null ? { initial: dimensions } : {}),
+		...(dimensions !== null && !unscaled ? { initial: dimensions } : {}),
+		...(unscaled ? { warning: tr('designer.dimensions.unscaled') } : {}),
 	});
 	if (result === null) return;
 	await runtime.setFootprintFromDimensions(result.width, result.depth);

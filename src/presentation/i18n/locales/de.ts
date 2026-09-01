@@ -378,6 +378,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.inspector.height': 'Höhe in Millimetern',
 	'designer.inspector.height.unparseable': 'Geben Sie eine Höhe als Zahl ein, oder leeren Sie das Feld.',
 	'designer.dimensions.edit.title': 'Maße dieses Objekts festlegen',
+	// „Objekt“, nie „Material“. Statt der aktuellen Zahlen und nicht daneben: das Formular
+	// bleibt leer, damit Platzhalterwerte nicht als echte Millimeter gespeichert werden.
+	'designer.dimensions.unscaled':
+		'Dieser Umriss wurde gezeichnet, bevor ein Maßstab vorlag; seine aktuelle Größe ist kein echtes Maß. Geben Sie die echte Breite und Tiefe ein, oder kalibrieren Sie zuerst den Hintergrund.',
 	'designer.dimensions.width': 'Breite in Millimetern',
 	'designer.dimensions.depth': 'Tiefe in Millimetern',
 	'undo.superseded':

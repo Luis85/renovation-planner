@@ -533,6 +533,13 @@ export const en = {
 	// `form.new-asset.width`/`.depth` already uses, minus their "(optional)" suffix: both
 	// fields are required here, since a rectangle needs both halves.
 	'designer.dimensions.edit.title': 'Set this asset’s dimensions',
+	// Shown INSTEAD of the current numbers, not beside them: this footprint's dimensions are
+	// placeholder-space coordinates, and offering them as the form's default is how they get
+	// saved back as authored millimetres in two clicks. It says the same thing
+	// `designer.inspector.dimensions.unscaled` says and cannot be that key: there, numbers are
+	// on screen for "these numbers" to point at, and here the fields are deliberately empty.
+	'designer.dimensions.unscaled':
+		'This footprint was traced before a scale existed, so its current size is not a real measurement. Type the real width and depth, or calibrate the background first.',
 	'designer.dimensions.width': 'Width in millimetres',
 	'designer.dimensions.depth': 'Depth in millimetres',
 	// The undo stack's own refusal, keyed by the exact `AppError.code` for the reason the

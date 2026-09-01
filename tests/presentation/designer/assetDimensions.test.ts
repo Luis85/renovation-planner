@@ -25,6 +25,7 @@ import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { GetAssetDesignQuery } from '../../../src/application/queries/GetAssetDesign';
 import type { AssetId } from '../../../src/domain/asset/AssetId';
 import { isOk } from '../../../src/core/result/Result';
+import { t } from '../../../src/presentation/i18n/strings';
 import { recorder } from '../../helpers/logger';
 import { expectOk } from '../../helpers/domain';
 import { seeded, drawn } from '../../helpers/assetDesignHarness';
@@ -127,6 +128,53 @@ describe('the designer’s dimensions dialog', () => {
 		await flushPromises();
 
 		expect(setFootprintFromDimensions).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * **A pre-filled default is a value the user can save with one click, so a form must not
+	 * offer numbers that are not measurements.** Trace a footprint on an uncalibrated
+	 * background and the inspector says so — "traced before a scale existed, so these numbers
+	 * are not real measurements yet" — and *Edit dimensions* then offered those exact
+	 * placeholder-space numbers as the default, where Save writes them as a `typed` rectangle
+	 * in true millimetres and the warning correctly disappears, because the footprint really is
+	 * typed now. `DesignerInspector` was the ONLY reader of `dimensionsUnscaled` in the tree.
+	 *
+	 * Both halves are asserted here, because they close different things: no `initial` is the
+	 * one that stops the laundering, and the `warning` is what
+	 * `docs/requirements/Asset designer.md`'s "an uncalibrated surface says so wherever a
+	 * measurement would otherwise appear" actually asks for. A build that only declined to
+	 * pre-fill leaves the user staring at an empty form with no reason given.
+	 *
+	 * The dimensions are read from the REAL query rather than asserted, so `dimensionsUnscaled`
+	 * here is `GetAssetDesign`'s own answer over a shape the sidecar really holds.
+	 */
+	it('offers no default and says why, for a footprint whose numbers are not measurements yet', async () => {
+		const harness = await seeded();
+		await harness.seed({ ...drawn(), footprintPending: true });
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue(null);
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		const descriptor = vi.mocked(dialogs.openDialog).mock.calls[0][0];
+		expect(descriptor).not.toHaveProperty('initial');
+		expect(descriptor).toHaveProperty('warning', t('en', 'designer.dimensions.unscaled'));
+	});
+
+	/** And the ordinary case keeps its default, which is what makes the absence above a decision. */
+	it('offers the current rectangle back when its numbers ARE measurements', async () => {
+		const harness = await seeded();
+		await harness.seed(drawn());
+		const { wrapper, dialogs } = await mountDesigner(harness);
+		vi.spyOn(dialogs, 'openDialog').mockResolvedValue(null);
+
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+		await flushPromises();
+
+		const descriptor = vi.mocked(dialogs.openDialog).mock.calls[0][0];
+		expect(descriptor).toHaveProperty('initial', { width: 100, depth: 100 });
+		expect(descriptor).not.toHaveProperty('warning');
 	});
 
 	it('offers the same editor from the inspector once a shape exists', async () => {

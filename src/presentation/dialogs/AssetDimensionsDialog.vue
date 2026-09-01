@@ -60,6 +60,18 @@ function onSubmit(): void {
 		class="rp-dialog-form"
 		@submit.prevent="onSubmit"
 	>
+		<!--
+			The caller's own sentence about the numbers being asked for, ABOVE the fields rather
+			than beside one of them: it is a claim about the pair, exactly as
+			`calibration.coincident-points` is a claim about two points and is why `routeError`
+			has a form-level banner at all. Rendered verbatim — this dialog resolves no copy.
+		-->
+		<p
+			v-if="descriptor.warning !== undefined"
+			class="rp-dialog-warning"
+		>
+			{{ descriptor.warning }}
+		</p>
 		<label class="rp-dialog-field">
 			{{ tr('designer.dimensions.width') }}
 			<input

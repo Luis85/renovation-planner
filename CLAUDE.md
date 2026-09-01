@@ -2889,6 +2889,26 @@ building it:
   correction whose product with an ordinary coordinate is `Infinity`, which `JSON.stringify`
   writes as `null` and the schema then refuses on every later read — refusing the calibration
   keeps the sidecar readable.
+- **A PRE-FILLED default is a value one click saves, so a form must not offer numbers that
+  are not measurements.** `dimensionsUnscaled` is the flag `DesignerInspector` puts a warning
+  over — "traced before a scale existed, so these numbers are not real measurements yet" — and
+  it was the ONLY reader of that flag in the whole tree. `AssetDesignerRoot.editDimensions`
+  handed `design.dimensions` to the dialog as its `initial` without consulting it, and
+  `AssetDimensionsDialog` had no reference to it either: trace on an uncalibrated background,
+  press *Edit dimensions*, press Save, and `footprintFromDimensions` writes those
+  placeholder-space pixel counts as a `typed` rectangle in true millimetres — after which the
+  warning correctly disappears, because the footprint really is typed now. Two clicks, no
+  refusal anywhere, and the number is laundered.
+
+  Both halves, because they close different things. No `initial` when the numbers are unscaled
+  is what stops the laundering; the descriptor's new `warning` is what
+  `docs/requirements/Asset designer.md`'s Definition of Done actually asks for — *"an
+  uncalibrated surface says so wherever a measurement would otherwise appear"* — and a form
+  that silently declined to pre-fill would meet the first and not that sentence. The warning is
+  a `string` on the descriptor and never a `StringKey`, per slice 15's rule that the CALLER
+  resolves copy, so `presentation/dialogs/` gains no vocabulary of the designer's. `designer.
+  dimensions.unscaled` is its own key rather than the inspector's, because there the numbers
+  are on screen for "these numbers" to point at and here the fields are deliberately empty.
 - **A background write's own no-write guard can protect the wrong thing, and reviewing the
   docblock beside it is what caught the gap.** `SetAssetBackgroundCommand` clears a
   calibration before writing the new reference (Decision 5: a stale calibration measured

@@ -118,8 +118,21 @@ export interface AssetDimensionsDescriptor {
 	/** Pre-fills the two fields — the inspector's own gesture offers the asset's current
 	 * dimensions back rather than an empty form, since a user editing a rectangle is usually
 	 * adjusting it rather than starting over. Absent for the empty state's caller, which has
-	 * no dimensions to offer. */
+	 * no dimensions to offer, and absent for a footprint whose numbers are not measurements
+	 * yet: see `warning` below. */
 	readonly initial?: { readonly width: number; readonly depth: number };
+	/**
+	 * A sentence about the numbers this form is asking for, shown above the fields.
+	 *
+	 * ALREADY TRANSLATED, like `title` and every other user-facing string a descriptor carries
+	 * — slice 15's rule that the caller resolves copy and the dialog resolves none. A `string`
+	 * and not a `StringKey`, so `presentation/dialogs/` needs no vocabulary of the designer's.
+	 *
+	 * Its one caller today is `AssetDesignerRoot.editDimensions` on a footprint whose
+	 * `dimensionsUnscaled` is set. Optional, because the ordinary case has nothing to warn
+	 * about and an empty paragraph over every form is worse than none.
+	 */
+	readonly warning?: string;
 }
 
 export type AssetDimensionsDialogResult = { readonly width: number; readonly depth: number } | null;

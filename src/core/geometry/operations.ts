@@ -320,16 +320,18 @@ export function centroid(polygon: Polygon): Result<Point, GeometryError> {
 	// the origin. Sound because the centroid is scale-equivariant as well as translation-
 	// equivariant: scaling every vertex by k scales `w` by k squared, the moments by k cubed and
 	// their quotient by k, so the same division answers in either frame and only the
-	// intermediates change size. `scale` cannot be zero — a polygon whose translated coordinates
+	// intermediates change size. It is `unit` rather than `scale` because this module EXPORTS a
+	// `scale` function, and a local of that name shadows it — caught by `no-shadow` in CI rather
+	// than here, because the lint run that would have said so happened before this code existed. `unit` cannot be zero — a polygon whose translated coordinates
 	// are all zero has `cross === 0` and returned above — so no guard is owed for it.
 	//
 	// `cross` above stays UNSCALED on purpose: it is the AREA's question, and it is what keeps
 	// this function refusing the polygon whose area genuinely is not representable. The scaled
 	// `crossScaled` below is this function's own divisor, in the frame its moments were summed
 	// in.
-	let scale = 0;
+	let unit = 0;
 	for (const point of polygon.points) {
-		scale = Math.max(scale, Math.abs(point.x - origin.x), Math.abs(point.y - origin.y));
+		unit = Math.max(unit, Math.abs(point.x - origin.x), Math.abs(point.y - origin.y));
 	}
 	let crossScaled = 0;
 	let cx = 0;
@@ -338,17 +340,17 @@ export function centroid(polygon: Polygon): Result<Point, GeometryError> {
 	for (let i = 0; i < n; i++) {
 		const a = polygon.points[i];
 		const b = polygon.points[(i + 1) % n];
-		const ax = (a.x - origin.x) / scale;
-		const ay = (a.y - origin.y) / scale;
-		const bx = (b.x - origin.x) / scale;
-		const by = (b.y - origin.y) / scale;
+		const ax = (a.x - origin.x) / unit;
+		const ay = (a.y - origin.y) / unit;
+		const bx = (b.x - origin.x) / unit;
+		const by = (b.y - origin.y) / unit;
 		const w = ax * by - bx * ay;
 		crossScaled += w;
 		cx += (ax + bx) * w;
 		cy += (ay + by) * w;
 	}
-	const x = (cx / (3 * crossScaled)) * scale + origin.x;
-	const y = (cy / (3 * crossScaled)) * scale + origin.y;
+	const x = (cx / (3 * crossScaled)) * unit + origin.x;
+	const y = (cy / (3 * crossScaled)) * unit + origin.y;
 	// The guard on the RESULT, not on the sum it came from — the two are different questions and
 	// this one is asked last for that reason. A finite `cross` and finite weights can still shift
 	// back out of the translated frame into infinity: the spanning triangle's centroid is

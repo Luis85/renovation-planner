@@ -2,6 +2,7 @@ import type { AppError } from '../../../core/errors/AppError';
 import { distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
 import { coincidentPointsError } from '../../../domain/plan/Calibration';
+import type { PlanId } from '../../../domain/plan/PlanId';
 import type { CalibratePlanInput } from '../../../application/commands/plan/ReversibleCalibratePlan';
 import type { CalibratePlanTransaction } from '../planEditorCommands';
 import type { EditorContext } from './editor-context';
@@ -24,6 +25,21 @@ import type { UndoableCommand } from './undoable-command';
 export type KnownDistanceSupplier = (measuredWorldUnits: number) => Promise<number | null>;
 
 export interface CalibrateToolDeps {
+	/**
+	 * The Plan this gesture calibrates.
+	 *
+	 * It used to come from `EditorContext.activePlan.id`, and it cannot come from that field's
+	 * successor: `subject.id` is an `EntityId<string>` so that ONE tool framework can serve a
+	 * Plan and an Asset, and `CalibratePlanInput.planId` is a branded `PlanId`. Widening a
+	 * brand is safe and narrowing one is not, so the id arrives here already narrowed, from
+	 * the same single cast in `runtime.ts` that `subject.id` is built from — one value, two
+	 * fields, nothing to drift.
+	 *
+	 * A value rather than a thunk: which plan a leaf shows is fixed for that leaf's whole
+	 * life (`PlanEditorContext.planId`), unlike the calibration beside it on `subject`, which
+	 * this very tool changes.
+	 */
+	readonly planId: PlanId;
 	readonly supplyKnownDistance: KnownDistanceSupplier;
 	/**
 	 * Whether this plan already has geometry a recalibration would rescale. The gate for
@@ -327,7 +343,7 @@ export class CalibrateTool implements EditorTool {
 		}
 		// The plan is bound BEFORE the prompt: whatever the user answers, the points were
 		// picked on this plan and calibrate this plan.
-		const planId = context.activePlan.id;
+		const planId = this.deps.planId;
 		const generation = this.generation;
 		this.prompting = true;
 		let knownDistance: number | null;

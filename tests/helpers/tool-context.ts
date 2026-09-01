@@ -11,7 +11,7 @@ import { screenPoint } from '../../src/presentation/editor/viewport/Viewport';
  * The `EditorContext` double every tool test needs, in ONE place.
  *
  * Three tool suites had built it from scratch — a character-identical `selection` fake, a
- * character-identical identity viewport, the same `activePlan` literal, the same eight-round
+ * character-identical identity viewport, the same `subject` literal, the same eight-round
  * `flush()` — and two more files carried a fourth and fifth `stubViewport()`. Adding a
  * member to `EditorContext` therefore meant the same edit in five files, and `tests/**` is
  * not type-checked, so missing one leaves that suite exercising the old shape with nothing
@@ -41,7 +41,8 @@ export interface ToolContextOptions {
 	readonly commandDispatcher?: EditorContext['commandDispatcher'];
 	/** Replaces the identity snap, for the suites that assert snapping. */
 	readonly snapPoint?: (point: Point) => Point;
-	readonly activePlan?: EditorContext['activePlan'];
+	/** What this editor is editing (design slice B2's rename of `activePlan`). */
+	readonly subject?: EditorContext['subject'];
 }
 
 /** A selection store double narrowed to `SelectionStore`'s four members, and nothing else. */
@@ -114,7 +115,11 @@ export function toolContext(options: ToolContextOptions = {}): ToolContextHarnes
 		},
 		writeLedger: {} as never,
 		renderState: new RenderState(),
-		activePlan: options.activePlan ?? { id: 'plan-1' as never, calibration: null },
+		// `as EntityId<string>` rather than `as never`, which every one of these literals used
+		// to be: `never` is assignable to anything, so it stood in for a brand nobody had
+		// checked. The subject's id is `EntityId<string>` since design slice B2, so a
+		// readable literal now casts to the type this field actually declares.
+		subject: options.subject ?? { id: 'plan-1' as EntityId<string>, calibration: null },
 	};
 
 	return { context, dispatched, rejections };

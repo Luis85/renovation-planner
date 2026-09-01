@@ -140,7 +140,7 @@ function buildContext(history: CommandHistory): {
 		},
 		writeLedger,
 		renderState,
-		activePlan: { id: createPlanId(), calibration: null },
+		subject: { id: createPlanId(), calibration: null },
 	};
 	return { context: createEditorContext(deps), renderState, writeLedger };
 }

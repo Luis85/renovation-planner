@@ -172,7 +172,8 @@ describe('CalibrateTool', () => {
 		const h = harness();
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
+			planId: h.planId,
+		createCommand: h.createCommand,
 			hasSpatialObjects: h.hasSpatialObjects,
 			confirmRecalibration: h.confirmRecalibration,
 			reportRejected: h.reportRejected,
@@ -355,6 +356,7 @@ function makeTool(overrides: Pick<Harness, 'hasSpatialObjects' | 'confirmRecalib
 			distancePromptCount += 1;
 			return h.supplyKnownDistance(measuredWorldUnits);
 		},
+		planId: h.planId,
 		createCommand: h.createCommand,
 		hasSpatialObjects: overrides.hasSpatialObjects,
 		confirmRecalibration: overrides.confirmRecalibration,

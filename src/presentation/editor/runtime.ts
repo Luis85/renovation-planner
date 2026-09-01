@@ -108,14 +108,26 @@ export interface EditorRuntime {
 }
 
 
+/**
+ * What the concrete tools of this leaf are built from.
+ *
+ * A bundle rather than a sixth positional parameter: adding `planId` took the argument list
+ * past `max-params`, and five positional arguments of which three are stores was already at
+ * that budget for a reason. `planId` is passed rather than re-derived from `context.planId`,
+ * so the one cast that turns Obsidian's opaque per-leaf string into a branded id stays a
+ * single site — see `subject` below, which is built from the same value.
+ */
+interface EditorToolDeps {
+	readonly context: PlanEditorContext;
+	readonly planId: PlanId;
+	readonly projectStore: ReturnType<typeof useProjectStore>;
+	readonly ledger: SessionWriteLedger;
+	readonly dialogs: ReturnType<typeof useDialogStore>;
+}
+
 /** The concrete tools of this slice, registered against one shared context factory. */
-function registerEditorTools(
-	toolManager: ToolManager,
-	context: PlanEditorContext,
-	projectStore: ReturnType<typeof useProjectStore>,
-	ledger: SessionWriteLedger,
-	dialogs: ReturnType<typeof useDialogStore>,
-): void {
+function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
+	const { context, planId, projectStore, ledger, dialogs } = deps;
 	toolManager.register(
 		new SelectTool({
 			spatialObjects: () =>
@@ -131,15 +143,37 @@ function registerEditorTools(
 	);
 	toolManager.register(
 		new DrawPolygonTool({
-			createCommand: (input) =>
-				new ReversibleCreateZoneCommand(
-					context.commands.createZone,
-					context.commands.deleteZone,
-					context.commands.zones,
-					ledger,
-					input,
-				),
-			nextZoneName: () => `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
+			// What a closed polygon MEANS in the Plan Editor: a new Zone on this plan. The tool
+			// itself names none of it — see `PolygonCompletion`, which the designer supplies a
+			// footprint version of. The zone's default name is counted from what the editor has
+			// hydrated, until a creation form asks instead.
+			completion: {
+				commandFor: (geometry) => {
+					const command = new ReversibleCreateZoneCommand(
+						context.commands.createZone,
+						context.commands.deleteZone,
+						context.commands.zones,
+						ledger,
+						{
+							planId,
+							name: `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
+							zoneType: 'Room',
+							geometry,
+						},
+					);
+					// An adapter rather than the command itself: `createdZoneId` is the
+					// application layer's own word for this and is named by its tests and by
+					// design slice 8's document, so the translation into the tool's
+					// subject-agnostic `createdId` happens here, where the Zone is already known.
+					return {
+						execute: () => command.execute(),
+						undo: () => command.undo(),
+						get createdId() {
+							return command.createdZoneId;
+						},
+					};
+				},
+			},
 			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
 		}),
@@ -170,6 +204,7 @@ function registerEditorTools(
 				if (result === 'cancel' || typeof result.values !== 'number') return null;
 				return result.values;
 			},
+			planId,
 			createCommand: () => context.commands.calibratePlan(),
 			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
@@ -468,20 +503,28 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const renderState = reactive(new RenderState());
 
 	/**
-	 * The plan a tool is working on, re-read on every activation.
+	 * The one unavoidable cast in this file. Obsidian persists a plan id in its per-leaf view
+	 * state as an opaque string, so `PlanEditorContext.planId` is a `string` and nothing at
+	 * runtime can verify a phantom brand. Narrowing it here — at the single point that value
+	 * enters the tool framework — is what keeps every tool's own signature honestly branded.
+	 * (`as never` was the previous spelling and is strictly worse: `never` is assignable to
+	 * anything, so a project id would have passed too.)
+	 *
+	 * ONE site, read by both consumers: `subject` below widens it back to the
+	 * `EntityId<string>` every tool sees, and `CalibrateTool` takes it branded through its own
+	 * deps because `CalibratePlanInput` needs a `PlanId` and a brand cannot be narrowed back.
+	 * A second cast would be a second answer to which plan this leaf is showing.
+	 */
+	const planId = context.planId as PlanId;
+
+	/**
+	 * What the tools are working on, re-read on every activation.
 	 *
 	 * `calibration` comes from the hydrated `PlanDto` and is `null` only while the plan
 	 * genuinely is uncalibrated. It used to be a hard-coded `null` beside a comment calling
 	 * it a placeholder, which is a different thing from what `EditorContext` declares to
 	 * every tool: the first tool to believe it would have reported lengths at the
 	 * uncalibrated scale of 1 on a calibrated plan.
-	 *
-	 * The id carries the one unavoidable cast in this file. Obsidian persists a plan id in
-	 * its per-leaf view state as an opaque string, so `PlanEditorContext.planId` is a
-	 * `string` and nothing at runtime can verify a phantom brand. Narrowing it here — at the
-	 * single point that value enters the tool framework — is what keeps every tool's own
-	 * signature honestly branded. (`as never` was the previous spelling and is strictly
-	 * worse: `never` is assignable to anything, so a project id would have passed too.)
 	 *
 	 * **This was collapsed onto one line for the `max-lines` budget and no longer needs to be.**
 	 * The file sat at EXACTLY its 400-line cap (`max-lines`, `skipBlankLines` and
@@ -493,15 +536,15 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	 * extraction. So the literal is back in its natural shape, which is the point of taking
 	 * the extraction rather than shaving another line.
 	 */
-	const activePlan = (): EditorContext['activePlan'] => ({
-		id: context.planId as PlanId,
+	const subject = (): EditorContext['subject'] => ({
+		id: planId,
 		calibration: projectStore.plan?.calibration ?? null,
 	});
 
 	// A FRESH context per activation, assembled through the same one assembler — which is
 	// the guarantee `ToolManager`'s header states its factory exists for, and which a
 	// single object built once and handed back forever could not give. Everything but
-	// `activePlan` is stable by construction (the viewport adapter and the render state
+	// `subject` is stable by construction (the viewport adapter and the render state
 	// close over live refs), so re-assembling it is cheap.
 	const toolManager = new ToolManager(() =>
 		createEditorContext({
@@ -511,10 +554,10 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 			commandDispatcher: wrappedDispatcher,
 			writeLedger: ledger,
 			renderState,
-			activePlan: activePlan(),
+			subject: subject(),
 		}),
 	);
-	registerEditorTools(toolManager, context, projectStore, ledger, dialogs);
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs });
 
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
 	// than in a second `ref` beside it. There were three copies of the active tool id — the

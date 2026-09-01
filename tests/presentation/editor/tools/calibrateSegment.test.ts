@@ -59,7 +59,8 @@ describe('the calibration segment it draws', () => {
 		const h = harness();
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
+			planId: h.planId,
+		createCommand: h.createCommand,
 			hasSpatialObjects: h.hasSpatialObjects,
 			confirmRecalibration: h.confirmRecalibration,
 			reportRejected: h.reportRejected,
@@ -132,7 +133,8 @@ describe('the calibration segment it draws', () => {
 		const h = harness();
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
+			planId: h.planId,
+		createCommand: h.createCommand,
 			hasSpatialObjects: () => true,
 			confirmRecalibration: () => Promise.resolve(false),
 			reportRejected: h.reportRejected,

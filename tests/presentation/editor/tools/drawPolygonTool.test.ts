@@ -1,116 +1,23 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { screenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
-import { DrawPolygonTool } from '../../../../src/presentation/editor/tools/draw-polygon-tool';
-import type { EditorContext } from '../../../../src/presentation/editor/tools/editor-context';
-import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
-import { err, ok } from '../../../../src/core/result/Result';
-import type { CreateZoneInput } from '../../../../src/application/commands/zone/CreateZone';
+import {
+	DrawPolygonTool,
+	type PolygonCompletion,
+} from '../../../../src/presentation/editor/tools/draw-polygon-tool';
 import {
 	flushGesture as flush,
 	pointerAt as at,
 	shiftPointerAt as shiftAt,
 	toolContext,
 } from '../../../helpers/tool-context';
+import { build, drawTriangle, harness, stubCommand } from '../../../helpers/drawPolygonHarness';
 
 /**
  * Design slice 8 — `DrawPolygonTool` driven by simulated pointer sequences
  * (docs/tasks/08-zone-editing.md, "Component tests"): expected vertex buffer, exactly ONE
  * dispatched command per closed polygon, buffer preserved across a rejected close.
  */
-
-interface Harness {
-	context: EditorContext;
-	dispatched: UndoableCommand[];
-	inputs: CreateZoneInput[];
-	rejections: string[];
-	failNextDispatch: () => void;
-	gateNextDispatch: () => () => void;
-	nextZoneName: string;
-}
-
-function harness(options: { worldPerScreenPixel?: number } = {}): Harness {
-	setActivePinia(createPinia());
-	const dispatched: UndoableCommand[] = [];
-	const inputs: CreateZoneInput[] = [];
-	const rejections: string[] = [];
-	let failNext = false;
-	// `Promise<void>`, not `void`: `gateNextDispatch` assigns a function that returns the gated
-	// promise, and the dispatcher below awaits it through `.then`. The declaration said `void`
-	// until `tests/**` was type-checked — wrong about the value it holds, while the runtime was
-	// right all along, which is why nothing failed.
-	let gate: (() => Promise<void>) | null = null;
-
-	const { context } = toolContext({
-		worldPerScreenPixel: options.worldPerScreenPixel,
-		commandDispatcher: {
-			run: (runnable) => {
-				if (gate !== null) {
-					const release = gate;
-					gate = null;
-					return release().then(() => {
-						dispatched.push(runnable);
-						return runnable.execute();
-					});
-				}
-				if (failNext) {
-					failNext = false;
-					return Promise.resolve(
-						err({ category: 'Persistence', code: 'test.injected-failure', message: 'injected' }),
-					);
-				}
-				dispatched.push(runnable);
-				return runnable.execute();
-			},
-		},
-	});
-
-	return {
-		context,
-		dispatched,
-		inputs,
-		rejections,
-			failNextDispatch: () => {
-				failNext = true;
-			},
-			gateNextDispatch: () => {
-				let release!: () => void;
-				const gated = new Promise<void>((resolve) => {
-					release = resolve;
-				});
-				gate = () => {
-					gate = null;
-					return gated;
-				};
-				return () => release();
-			},
-		get nextZoneName() {
-			return `Zone ${inputs.length + 1}`;
-		},
-	};
-}
-
-function build(h: Harness): DrawPolygonTool {
-	return new DrawPolygonTool({
-		createCommand: (input) => {
-			h.inputs.push(input);
-			return {
-				execute: () => Promise.resolve(ok(undefined)),
-				undo: () => Promise.resolve(ok(undefined)),
-				get createdZoneId() {
-					return 'zone-created' as never;
-				},
-			} as never;
-		},
-		nextZoneName: () => h.nextZoneName,
-		// Design slice 17 split the door: `reportInvalidInput` is a refusal this tool made
-		// itself, before any command existed. Both feed one list here, because every case in
-		// this file asks "was the user told", which is true through either.
-		reportRejected: (error) => h.rejections.push(error.message),
-		reportInvalidInput: (error) => h.rejections.push(error.message),
-	});
-}
-
 
 describe('DrawPolygonTool', () => {
 	it('three vertices plus a close click produce exactly ONE dispatched command and a selection', async () => {
@@ -133,9 +40,7 @@ describe('DrawPolygonTool', () => {
 		await flush();
 
 		expect(h.dispatched).toHaveLength(1);
-		expect(h.inputs.at(0)?.planId).toBe('plan-1');
-		expect(h.inputs.at(0)?.geometry.points).toHaveLength(3);
-		expect(h.inputs.at(0)?.name).toBe('Zone 1');
+		expect(h.completions.at(0)?.points).toHaveLength(3);
 		expect(h.context.selection.selectedIds).toEqual(['zone-created']);
 		expect(h.context.renderState.polygonSketch).toBeNull();
 	});
@@ -190,7 +95,7 @@ describe('DrawPolygonTool', () => {
 		await flush();
 
 		expect(h.dispatched).toHaveLength(1);
-		expect(h.inputs).toHaveLength(1);
+		expect(h.completions).toHaveLength(1);
 		expect(h.context.selection.selectedIds).toEqual(['zone-created']);
 	});
 
@@ -291,23 +196,12 @@ describe('DrawPolygonTool', () => {
 		// Pushing it anyway gives the polygon a repeated point — a zero-length edge that
 		// `Polygon` forbids and that area, centroid and hit-testing all divide through.
 		setActivePinia(createPinia());
-		const inputs: CreateZoneInput[] = [];
 		const { context } = toolContext({
 			// Everything within 5 mm of (0, 0) snaps onto it.
 			snapPoint: (point) => (Math.hypot(point.x, point.y) <= 5 ? { x: 0, y: 0 } : point),
 		});
 		const tool = new DrawPolygonTool({
-			createCommand: (input) => {
-				inputs.push(input);
-				return {
-					execute: () => Promise.resolve(ok(undefined)),
-					undo: () => Promise.resolve(ok(undefined)),
-					get createdZoneId() {
-						return 'zone-created' as never;
-					},
-				} as never;
-			},
-			nextZoneName: () => 'Zone 1',
+			completion: { commandFor: () => stubCommand() },
 			reportRejected: () => undefined,
 			reportInvalidInput: () => undefined,
 		});
@@ -325,6 +219,84 @@ describe('DrawPolygonTool', () => {
 			{ x: 100, y: 0 },
 		]);
 		await flush();
+	});
+
+	/**
+	 * Design slice B2: the tool no longer knows what a closed polygon IS. It hands the
+	 * validated shape to the `PolygonCompletion` it was constructed with and dispatches
+	 * whatever command comes back — which is what lets ONE drawing tool serve a Plan's Zones
+	 * and an Asset's footprint without a branch in the gesture.
+	 */
+	it('builds its command from the completion it was given, so one tool serves zones and footprints', async () => {
+		const h = harness();
+		const commandFor = vi.fn<PolygonCompletion['commandFor']>(() => stubCommand());
+		const tool = new DrawPolygonTool({
+			completion: { commandFor },
+			reportRejected: (error) => h.rejections.push(error.message),
+			reportInvalidInput: (error) => h.rejections.push(error.message),
+		});
+		tool.activate(h.context);
+
+		drawTriangle(tool);
+		await flush();
+
+		expect(commandFor).toHaveBeenCalledTimes(1);
+		// The VALIDATED polygon `createPolygon` accepted, not the tool's raw buffer: the
+		// completion cannot build a command out of a shape the geometry rules refused.
+		expect(commandFor).toHaveBeenCalledWith({
+			points: [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 60 }],
+		});
+	});
+
+	/**
+	 * The completion returns a COMMAND and never performs its own dispatch, because
+	 * `context.commandDispatcher.run` is the single funnel per leaf: it is what puts the
+	 * gesture on the undo stack, refreshes the stores and drives the save-state badge. A
+	 * completion that wrote for itself would take every drawing gesture off all three with
+	 * nothing erroring anywhere, which is why this asserts the IDENTITY of the dispatched
+	 * object rather than merely that something was dispatched.
+	 */
+	it('dispatches that command through the dispatcher, so the gesture reaches the undo stack', async () => {
+		const h = harness();
+		const command = stubCommand();
+		const tool = new DrawPolygonTool({
+			completion: { commandFor: () => command },
+			reportRejected: (error) => h.rejections.push(error.message),
+			reportInvalidInput: (error) => h.rejections.push(error.message),
+		});
+		tool.activate(h.context);
+
+		drawTriangle(tool);
+		await flush();
+
+		expect(h.dispatched).toEqual([command]);
+		expect(h.dispatched.at(0)).toBe(command);
+	});
+
+	/**
+	 * A completion that creates nothing has nothing for the gesture to select — which is
+	 * exactly what tracing an Asset's footprint does, since it replaces a field of the asset
+	 * already open rather than minting a new entity. The zone completion answers an id and the
+	 * case above it asserts the selection; this is the other arm, and it must leave the
+	 * selection alone while still finishing the gesture.
+	 */
+	it('selects nothing when the completion created no entity, and still ends the gesture', async () => {
+		const h = harness();
+		const tool = new DrawPolygonTool({
+			completion: { commandFor: () => stubCommand(null) },
+			reportRejected: (error) => h.rejections.push(error.message),
+			reportInvalidInput: (error) => h.rejections.push(error.message),
+		});
+		tool.activate(h.context);
+
+		drawTriangle(tool);
+		await flush();
+
+		expect(h.dispatched).toHaveLength(1);
+		expect(h.context.selection.selectedIds).toEqual([]);
+		// The buffer and its picture still come down: a successful write ends the gesture
+		// whether or not there is something new to select.
+		expect(h.context.renderState.polygonSketch).toBeNull();
 	});
 
 	it('Escape during an in-flight close does not let the LATE success wipe the next polygon', async () => {

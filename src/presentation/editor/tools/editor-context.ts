@@ -1,6 +1,6 @@
 import type { Point, ScreenPoint } from '../viewport/Viewport';
 import type { Vector } from '../../../core/geometry/Vector';
-import type { PlanId } from '../../../domain/plan/PlanId';
+import type { EntityId } from '../../../core/identity/EntityId';
 import type { Calibration } from '../../../domain/plan/Calibration';
 import type { SelectionStore } from '../selection/selection-store';
 import type { SnapService } from '../snapping/snap-service';
@@ -58,11 +58,27 @@ export interface EditorContext {
 	readonly writeLedger: WriteLedger;
 	readonly renderState: RenderState;
 	/**
+	 * What this editor is editing — a Plan in the Plan Editor, an Asset in the designer.
+	 *
+	 * **It was `activePlan` through design slice 21**, typed with a `PlanId`, which is the
+	 * one field of this facade that named a Plan at all: everything else here is already
+	 * subject-agnostic. Renaming it is what lets ONE tool framework serve both surfaces, and
+	 * it is a deviation from `docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`,
+	 * which names the field `activePlan` — recorded here because that document is otherwise
+	 * the binding authority for this interface's shape.
+	 *
+	 * The id is `EntityId<string>` rather than a branded `PlanId`, which is the whole point
+	 * and also the whole cost: a tool that needs the id NARROWED to its own subject's brand
+	 * cannot get it from here. `CalibrateTool` is that tool, and it takes a `PlanId` through
+	 * its own deps instead — see `CalibrateToolDeps.planId`, which `runtime.ts` binds from
+	 * the same single cast this field's id comes from, so the two cannot disagree about which
+	 * plan is open.
+	 *
 	 * `calibration` is nullable: a Plan renders and is editable before it is calibrated
 	 * (slice 5's placeholder scale), so a tool that assumed a value here would break on
-	 * every freshly imported plan.
+	 * every freshly imported plan. An Asset's design carries one on the same terms.
 	 */
-	readonly activePlan: { id: PlanId; calibration: Calibration | null };
+	readonly subject: { readonly id: EntityId<string>; readonly calibration: Calibration | null };
 }
 
 /**
@@ -97,7 +113,7 @@ export interface EditorContextDeps {
 	commandDispatcher: EditorContext['commandDispatcher'];
 	writeLedger: WriteLedger;
 	renderState: RenderState;
-	activePlan: { id: PlanId; calibration: Calibration | null };
+	subject: EditorContext['subject'];
 }
 
 /**
@@ -114,6 +130,6 @@ export function createEditorContext(deps: EditorContextDeps): EditorContext {
 		commandDispatcher: deps.commandDispatcher,
 		writeLedger: deps.writeLedger,
 		renderState: deps.renderState,
-		activePlan: deps.activePlan,
+		subject: deps.subject,
 	};
 }

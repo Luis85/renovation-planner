@@ -25,6 +25,13 @@ import { RenderState } from '../../src/presentation/editor/tools/render-state';
 
 export interface Harness {
 	context: EditorContext;
+	/**
+	 * The plan this tool calibrates, branded. It comes through the tool's own deps rather
+	 * than off `context.subject.id`, which is an `EntityId<string>` so that one tool
+	 * framework can serve a Plan and an Asset — see `CalibrateToolDeps.planId`. Held here so
+	 * the three files that build a tool directly cannot each invent their own.
+	 */
+	planId: PlanId;
 	screenToWorld: ReturnType<typeof vi.fn>;
 	dispatched: UndoableCommand[];
 	inputs: CalibratePlanInput[];
@@ -57,6 +64,8 @@ export interface Harness {
  * queued with `supplyNextDistance`, because the real prompt — the inspector UI that asks
  * for the known distance — is later-slice work that does not exist yet.
  */
+const PLAN_ID = 'plan-1' as PlanId;
+
 export const harness = (): Harness => {
 	const dispatched: UndoableCommand[] = [];
 	const inputs: CalibratePlanInput[] = [];
@@ -120,11 +129,12 @@ export const harness = (): Harness => {
 		// `undefined` — a fake thinner than the thing it stands in for. `tool-context.ts`, the
 		// shared helper, already builds one.
 		renderState: new RenderState(),
-		activePlan: { id: 'plan-1' as PlanId, calibration: null },
+		subject: { id: PLAN_ID, calibration: null },
 	};
 
 	return {
 		context,
+		planId: PLAN_ID,
 		screenToWorld,
 		dispatched,
 		inputs,
@@ -189,6 +199,7 @@ export function click(tool: CalibrateTool, event: EditorPointerEvent): void {
  */
 export function newTool(h: Harness, supplyKnownDistance = h.supplyKnownDistance): CalibrateTool {
 	const tool = new CalibrateTool({
+		planId: h.planId,
 		supplyKnownDistance,
 		createCommand: h.createCommand,
 		hasSpatialObjects: h.hasSpatialObjects,

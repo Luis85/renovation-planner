@@ -116,7 +116,7 @@ function stubDeps(): EditorContextDeps {
 		},
 		writeLedger: new SessionWriteLedger(),
 		renderState: new RenderState(),
-		activePlan: { id: createPlanId(), calibration: null },
+		subject: { id: createPlanId(), calibration: null },
 	};
 }
 
@@ -127,7 +127,7 @@ const SPEC_MEMBERS = [
 	'commandDispatcher',
 	'writeLedger',
 	'renderState',
-	'activePlan',
+	'subject',
 ].toSorted();
 
 /** Property names shaped like a repository or Vault-API method — the surface DoD 11 bans. */
@@ -221,7 +221,7 @@ describe('EditorContext', () => {
 		expect(context.commandDispatcher).toBe(deps.commandDispatcher);
 		expect(context.writeLedger).toBe(deps.writeLedger);
 		expect(context.renderState).toBe(deps.renderState);
-		expect(context.activePlan).toBe(deps.activePlan);
+		expect(context.subject).toBe(deps.subject);
 	});
 
 	it('DoD 11: has exactly the seven spec members, nothing more and nothing fewer', () => {

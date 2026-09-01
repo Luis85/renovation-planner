@@ -131,6 +131,21 @@ only the note the read returned leaves the other standing, so a user who pressed
 price" is told it worked, watches the cascade run, and still has their own price in force.
 `cleared: true` has to mean the project has no price for this asset.
 
+**Which duplicate wins is a RULE, stated once.** Three places resolve it — both repositories'
+`getForPair` and `ListProjectAssetPrices`' fold — and in this document's first draft they
+disagreed: the in-memory fake answered the first match in insertion order, the note-backed
+repository the last in index order, and the query's map the last again. Two answers to one
+question, with the *fake* on the losing side, which would have made every duplicate test
+evidence about a program that does not ship.
+
+The winner is the **highest id**, and that is a real rule rather than a coin toss between two
+enumeration orders: `createEntityId` mints `<prefix>-<ULID>` from a monotonic factory, and its
+own docblock calls lexicographic sortability *"the property the project index (§47) and vault
+change detection ordering (§46) build on"*. So the highest id is the most recently created note —
+last-writer-wins meant literally, and identical in both implementations however each enumerates.
+It lives beside the port that declares the contract, and the shared repository contract test is
+what holds both implementations to it.
+
 **These are not in tension.** Tolerating a duplicate on READ is about not making a vault
 unreadable; refusing to CREATE one and clearing all of them is about not lying to a user. The
 repository stays permissive and the commands are strict, which is the same division

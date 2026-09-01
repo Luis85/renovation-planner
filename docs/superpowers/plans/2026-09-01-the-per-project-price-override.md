@@ -389,6 +389,30 @@ export interface AssetPriceOverrideRepository {
 	): Promise<Result<Loaded<AssetPriceOverride>, RepositoryError>>;
 	delete(id: AssetPriceOverrideId, expected: EntityVersion): Promise<Result<void, RepositoryError>>;
 }
+
+/**
+ * **Which duplicate wins, stated once because three places have to agree.** Both repositories
+ * answer `getForPair`, and `ListProjectAssetPrices` folds a list into a map; a rule left to each
+ * of them is three rules, and they had already drifted in this plan's first draft — the fake
+ * answered the FIRST match (insertion order), the note-backed repository the LAST
+ * (`getIdsByType` order), and the query's `Map` the last again. Tests would have resolved and
+ * updated a different override than production.
+ *
+ * The winner is the HIGHEST id, and that is a real rule rather than a coin toss between two
+ * enumeration orders. `createEntityId` mints `<prefix>-<ULID>` from a MONOTONIC factory —
+ * Crockford-base32, timestamp-prefixed, lexicographically sortable, which its own docblock
+ * calls "the property the project index (§47) and vault change detection ordering (§46) build
+ * on". So the highest id IS the most recently created note: last-writer-wins meant literally,
+ * and identical in both implementations however each happens to enumerate.
+ */
+export function winningDuplicate(
+	matches: readonly Loaded<AssetPriceOverride>[],
+): Loaded<AssetPriceOverride> | null {
+	return matches.reduce<Loaded<AssetPriceOverride> | null>(
+		(best, candidate) => (best === null || candidate.entity.id > best.entity.id ? candidate : best),
+		null,
+	);
+}
 ```
 
 - [ ] **Step 2: Write the shared contract test**
@@ -500,6 +524,30 @@ export function assetPriceOverrideContract(
 			expect(byAsset.every((o) => o.entity.assetId === assetX)).toBe(true);
 		});
 
+		/**
+		 * The duplicate-pair rule, in the SHARED contract because it is the one place both
+		 * implementations can be held to the same answer. Two notes, deterministic winner: the
+		 * higher id, which `createEntityId`'s monotonic ULID makes the more recently created.
+		 * Without this case the two repositories drifted — the fake answering the oldest match
+		 * and the note-backed one the newest — and every duplicate test would have been evidence
+		 * about a different program than the one that ships.
+		 */
+		it('answers the highest-id override when two notes name one pair', async () => {
+			const repo = await makeRepo();
+			const projectId = createProjectId();
+			const assetId = createAssetId();
+			const first = makeOverride(projectId, assetId, '19.50');
+			const second = makeOverride(projectId, assetId, '21.00');
+			// Save in BOTH orders across the two expectations below, so a repository that
+			// happens to enumerate in save order cannot pass by accident.
+			expectOk(await repo.save(second, 'absent'));
+			expectOk(await repo.save(first, 'absent'));
+
+			const winner = second.id > first.id ? second : first;
+			const found = expectOk(await repo.getForPair(projectId, assetId));
+			expect(found?.entity.id).toBe(winner.id);
+		});
+
 		it('deletes an override, after which its pair answers null again', async () => {
 			const repo = await makeRepo();
 			const projectId = createProjectId();
@@ -547,7 +595,10 @@ import type { AssetPriceOverride } from '../../../domain/asset-price/AssetPriceO
 import type { AssetPriceOverrideId } from '../../../domain/asset-price/AssetPriceOverrideId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { AssetId } from '../../../domain/asset/AssetId';
-import type { AssetPriceOverrideRepository } from '../../../application/ports/AssetPriceOverrideRepository';
+import {
+	winningDuplicate,
+	type AssetPriceOverrideRepository,
+} from '../../../application/ports/AssetPriceOverrideRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import { VersionedStore } from './VersionedStore';
 
@@ -575,10 +626,14 @@ export class InMemoryAssetPriceOverrideRepository implements AssetPriceOverrideR
 		projectId: ProjectId,
 		assetId: AssetId,
 	): Promise<Result<Loaded<AssetPriceOverride> | null, PersistenceError>> {
-		const found = this.store
+		// `winningDuplicate`, never `.find(...)`: `VersionedStore.values()` preserves insertion
+		// order, so `find` answers the OLDEST match where the note-backed repository answers the
+		// newest. A fake that resolves a different override than production is a fake that makes
+		// every test about duplicates evidence for the wrong program.
+		const matches = this.store
 			.values()
-			.find((o) => o.entity.projectId === projectId && o.entity.assetId === assetId);
-		return Promise.resolve(ok(found ?? null));
+			.filter((o) => o.entity.projectId === projectId && o.entity.assetId === assetId);
+		return Promise.resolve(ok(winningDuplicate(matches)));
 	}
 
 	listByProject(projectId: ProjectId): Promise<Result<Loaded<AssetPriceOverride>[], PersistenceError>> {
@@ -922,7 +977,10 @@ import type { AssetPriceOverride } from '../../../domain/asset-price/AssetPriceO
 import type { AssetPriceOverrideId } from '../../../domain/asset-price/AssetPriceOverrideId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { AssetId } from '../../../domain/asset/AssetId';
-import type { AssetPriceOverrideRepository } from '../../../application/ports/AssetPriceOverrideRepository';
+import {
+	winningDuplicate,
+	type AssetPriceOverrideRepository,
+} from '../../../application/ports/AssetPriceOverrideRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import type { Logger } from '../../../application/ports/Logger';
 import { projectFolderOf, assetPricesFolderFor } from './paths';
@@ -996,7 +1054,9 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 				count: matches.length,
 			});
 		}
-		return ok(matches[matches.length - 1] ?? null);
+		// The shared rule, not `matches[matches.length - 1]`: that would be `getIdsByType`
+		// order, which is a fact about the index rather than about which note is newest.
+		return ok(winningDuplicate(matches));
 	}
 
 	listByProject(projectId: ProjectId): Promise<Result<Loaded<AssetPriceOverride>[], RepositoryError>> {
@@ -2377,7 +2437,15 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 		const overrides = await this.overrides.listByProject(projectId);
 		if (isErr(overrides)) return overrides;
 
-		const byAsset = new Map(overrides.value.map((o) => [o.entity.assetId, o]));
+		// Grouped then resolved through `winningDuplicate`, never `new Map(list.map(...))`:
+		// that keeps whichever entry came last in `listByProject` order, which is a third
+		// answer to a question the port states once.
+		const byAsset = new Map<AssetId, Loaded<AssetPriceOverride>>();
+		for (const override of overrides.value) {
+			const assetId = override.entity.assetId;
+			const best = winningDuplicate([...(byAsset.has(assetId) ? [byAsset.get(assetId)!] : []), override]);
+			if (best !== null) byAsset.set(assetId, best);
+		}
 		const rows = assets.value.map((loaded) => {
 			const override = byAsset.get(loaded.entity.id) ?? null;
 			return {

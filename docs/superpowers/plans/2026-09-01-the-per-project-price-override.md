@@ -72,6 +72,7 @@ try the same three in the same order.
 | `src/application/commands/requirement/resolveEffectiveUnitCost.ts` | The one `??`, and its batched sibling. |
 | `src/application/event-handlers/requirement/onAssetPriceOverrideChanged.ts` | The project-narrowed cascade. |
 | `src/application/queries/ListProjectAssetPrices.ts` | The section's read model. |
+| `src/application/events/projectPricesChangeSource.ts` | Tells an open project pane a price moved. |
 | `src/presentation/views/AssetPriceList.vue` | The section on the project detail state. |
 
 **Modified:**
@@ -88,7 +89,8 @@ try the same three in the same order.
 | `src/application/event-handlers/requirement/onAssetUpdated.ts` | The batched effective-cost comparison. |
 | `src/application/queries/GetRequirementsForZone.ts` | The memoised resolution, and the DTO's `unitCost` group. |
 | `src/presentation/views/ProjectDetail.vue` | Mount the section. |
-| `src/presentation/stores/ProjectDetailStore.ts` | Hold the price rows. |
+| `src/presentation/stores/ProjectDetailStore.ts` | Hold the price rows, behind the request ticket. |
+| `src/presentation/views/ProjectDetailState.vue` | Two more subscriptions; see Task 9 step 4a. |
 | `src/plugin/composition-root.ts`, `src/plugin/guardedServices.ts` | Construct and guard. |
 | `src/presentation/i18n/en.ts`, `de.ts` | The section's copy. |
 | `styles/` | The section's rules. |
@@ -1240,6 +1242,22 @@ describe('SetAssetPriceOverrideCommand', () => {
 	});
 
 	/**
+	 * The pair lock, driven as a real race: two executions started before either awaits. Both
+	 * read `getForPair === null` without it, mint different ULIDs, and both inserts succeed
+	 * under `'absent'` — the duplicate-pair state this design tolerates in a hand-edited vault
+	 * and must never manufacture. Watch it fail with the `locks.acquire` removed.
+	 */
+	it('does not create two overrides when two executions race on one pair', async () => {
+		const [a, b] = await Promise.all([
+			command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }),
+			command.execute({ projectId, assetId, unitCost: moneyOf('21.00', 'GBP') }),
+		]);
+		expectOk(a);
+		expectOk(b);
+		expect(expectOk(await overrides.listByAsset(assetId))).toHaveLength(1);
+	});
+
+	/**
 	 * A failed WRITE must not announce. Otherwise the cascade recalculates against a price
 	 * that was never persisted, and every requirement it touches is derived from a figure no
 	 * note holds.
@@ -1258,6 +1276,24 @@ reports `cleared: true`; reports `cleared: false` and publishes NOTHING for a pa
 none (there is nothing to invalidate, so a cascade would be pure cost); publishes
 `AssetPriceOverrideChanged` when it did clear one; and propagates a failed delete without
 publishing.
+
+Plus the one that only a hand-edited vault can reach, and which a `getForPair`-based clear
+fails:
+
+```ts
+	/**
+	 * Two notes for one pair — the state the READ deliberately tolerates. A clear that deletes
+	 * only the one `getForPair` returned reports success, runs the cascade, and leaves the
+	 * project still holding a price. Seed the duplicate through the repository directly; the
+	 * command cannot produce it, which is the point of the lock case above.
+	 */
+	it('clears every note for the pair, not just the one the read returns', async () => {
+		await overrides.save(makeOverride(projectId, assetId, '19.50'), 'absent');
+		await overrides.save(makeOverride(projectId, assetId, '21.00'), 'absent');
+		expect(expectOk(await command.execute({ projectId, assetId })).cleared).toBe(true);
+		expect(expectOk(await overrides.listByAsset(assetId))).toHaveLength(0);
+	});
+```
 
 - [ ] **Step 3: Run and watch them fail**
 
@@ -1281,6 +1317,7 @@ import { assetPriceOverrideChanged } from '../../../domain/asset-price/AssetPric
 import type { AssetPriceOverrideRepository } from '../../ports/AssetPriceOverrideRepository';
 import type { ProjectRepository } from '../../ports/ProjectRepository';
 import type { AssetRepository } from '../../ports/AssetRepository';
+import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import type { EntityVersion } from '../../ports/versioning';
@@ -1304,6 +1341,8 @@ export interface SetAssetPriceOverrideDeps {
 	readonly projects: ProjectRepository;
 	readonly assets: AssetRepository;
 	readonly events: EventBus;
+	/** Serializes the check-then-act on the pair; see the header. */
+	readonly locks: ReferenceLocks;
 }
 
 /**
@@ -1322,6 +1361,15 @@ export interface SetAssetPriceOverrideDeps {
  * **The announcement is after the save and only after a successful one.** A cascade driven by
  * an announcement whose write failed would recalculate every requirement in the project
  * against a price no note holds.
+ *
+ * **Both ids are locked for the whole upsert, as ONE sorted batch.** `getForPair` then `save`
+ * is check-then-act, and `'absent'` is keyed by the entity's own id — so two concurrent
+ * executions would each read `null`, mint DIFFERENT ULIDs, and both inserts would succeed,
+ * manufacturing the duplicate-pair state this design tolerates in hand-edited vaults but must
+ * never create itself. The repository's `KeyedQueues` cannot help: it is keyed by id, and the
+ * two ids differ. This is `AssignAssetCommand`'s own mechanism (`AssignAsset.ts:101`) and its
+ * own reason — *"two tabs assigning concurrently serialize here, the second taking the
+ * idempotent path"* — applied to the same shape of race.
  */
 export class SetAssetPriceOverrideCommand
 	implements Command<SetAssetPriceOverrideInput, Result<SetAssetPriceOverrideResult, SetAssetPriceOverrideErrors>>
@@ -1329,6 +1377,17 @@ export class SetAssetPriceOverrideCommand
 	constructor(private readonly deps: SetAssetPriceOverrideDeps) {}
 
 	async execute(
+		input: SetAssetPriceOverrideInput,
+	): Promise<Result<SetAssetPriceOverrideResult, SetAssetPriceOverrideErrors>> {
+		const release = await this.deps.locks.acquire([input.projectId, input.assetId], []);
+		try {
+			return await this.upsert(input);
+		} finally {
+			release();
+		}
+	}
+
+	private async upsert(
 		input: SetAssetPriceOverrideInput,
 	): Promise<Result<SetAssetPriceOverrideResult, SetAssetPriceOverrideErrors>> {
 		const project = await this.deps.projects.getById(input.projectId);
@@ -1407,20 +1466,44 @@ Same shape, and the one decision worth its own comment:
  * so the cascade it would drive is pure cost — and an announcement for a no-op is exactly how
  * a subscriber comes to recalculate a project's whole requirement set because a user clicked
  * a control twice.
+ *
+ * **It clears the PAIR, not one note**, and that is the difference between this command and
+ * `getForPair`. The read tolerates a duplicated pair and answers one of them, deliberately,
+ * because these are user-editable markdown files. Clearing has to be stricter: deleting only
+ * the note the read happened to return leaves the other one standing, so the next read still
+ * finds an override — the user pressed "use the library price", was told it worked, saw the
+ * cascade run, and still has their own price. `cleared: true` must mean the project has no
+ * price for this asset.
+ *
+ * Locked on the pair for the same reason `SetAssetPriceOverrideCommand` is: list-then-delete
+ * is check-then-act.
  */
 export class ClearAssetPriceOverrideCommand … {
 	async execute(input: ClearAssetPriceOverrideInput): Promise<Result<{ cleared: boolean }, …>> {
-		const existing = await this.deps.overrides.getForPair(input.projectId, input.assetId);
-		if (isErr(existing)) return existing;
-		if (existing.value === null) return ok({ cleared: false });
+		const release = await this.deps.locks.acquire([input.projectId, input.assetId], []);
+		try {
+			// `listByAsset` filtered rather than `getForPair`, because every note for the pair
+			// has to go. One query: a shared asset is priced by few projects, where a project
+			// may hold many assets.
+			const listed = await this.deps.overrides.listByAsset(input.assetId);
+			if (isErr(listed)) return listed;
+			const forPair = listed.value.filter((o) => o.entity.projectId === input.projectId);
+			if (forPair.length === 0) return ok({ cleared: false });
 
-		const deleted = await this.deps.overrides.delete(existing.value.entity.id, existing.value.version);
-		if (isErr(deleted)) return deleted;
+			for (const override of forPair) {
+				const deleted = await this.deps.overrides.delete(override.entity.id, override.version);
+				// Reported rather than swallowed: a partial clear leaves a price in force, and
+				// saying `cleared: true` over it is the lie this whole method exists to avoid.
+				if (isErr(deleted)) return deleted;
+			}
 
-		await this.deps.events.publish(
-			assetPriceOverrideChanged({ projectId: input.projectId, assetId: input.assetId }),
-		);
-		return ok({ cleared: true });
+			await this.deps.events.publish(
+				assetPriceOverrideChanged({ projectId: input.projectId, assetId: input.assetId }),
+			);
+			return ok({ cleared: true });
+		} finally {
+			release();
+		}
 	}
 }
 ```
@@ -2407,6 +2490,43 @@ what make that honest, which is exactly why this is not a control on the Inspect
 Add the section to `ProjectDetail.vue` below the plans region, and give `ProjectDetailStore` the
 rows plus a request ticket — the store already hydrates from more than one caller, and without a
 ticket the slower earlier read wins and a just-set price vanishes with no error.
+
+- [ ] **Step 4a: Make it hear about changes, or it draws the vault it read at mount**
+
+Measured, and the reason this is its own step: `createProjectListChangeSource` accepts
+`ProjectIndexEntryChanged` only for `renovation-project` and `createProjectPlansChangeSource`
+only for `renovation-plan`, so **nothing** currently tells this section that an asset or a price
+moved. An open pane would draw the vault as it was at mount — indefinitely — through a price set
+in another leaf, an asset renamed or repriced, or either note arriving by sync.
+
+Two subscriptions, not one, and the split is by concern rather than by convenience:
+
+- **`createAssetCatalogueChangeSource`** already exists, already filters
+  `ProjectIndexEntryChanged` to `renovation-asset`, and is already the answer to "the catalogue
+  moved". Reuse it. Writing a source that duplicated its event list to cover both halves would
+  be a second copy of a list that goes stale — the defect its own header describes.
+- **`createProjectPricesChangeSource`**, new, in `src/application/events/`: subscribes to
+  `AssetPriceOverrideChanged` and to `ProjectIndexEntryChanged` filtered to
+  `renovation-asset-price`. The domain event covers this plugin's own writes; the index event
+  covers a price note added by hand, copied in, or arriving through sync, for which
+  `VaultChangeAdapter` is the sole index writer and publishes no domain event of its own.
+
+Filter both, for the reason `assetCatalogueChangeSource`'s header gives: unfiltered, a burst of
+synced zone notes re-reads the whole catalogue once per note.
+
+Both hand rehydration to the SAME request ticket from Step 4 — two sources firing together is
+exactly the concurrent-hydrate race that ticket exists for.
+
+Test it as behaviour rather than as wiring:
+
+```ts
+	it('rehydrates the price rows when a price note changes out of band', async () => {
+		// mount, then publish ProjectIndexEntryChanged for a renovation-asset-price entry
+		// and assert the row's override moved. Watch it fail with the subscription removed.
+	});
+
+	it('rehydrates when the catalogue changes', async () => { … });
+```
 
 - [ ] **Step 5: Style it**
 

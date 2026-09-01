@@ -113,6 +113,29 @@ direct repository write would not drive the cascade.
   announcement for a no-op is how a project's whole requirement set gets recalculated because a
   control was clicked twice.
 
+## Decision 2c: the pair is a uniqueness claim, so the commands hold it
+
+Three things follow from "one override per (project, asset)", and a review round found the spec
+asserting the claim while specifying none of them.
+
+**Both commands lock the pair.** `getForPair` then `save('absent')` is check-then-act, and
+`'absent'` is keyed by the entity's own id — so two concurrent sets would each read `null`, mint
+different ULIDs, and both inserts would succeed. The repository's per-entity queue cannot help,
+because the two ids differ. `AssignAssetCommand` already solved exactly this shape, locking both
+endpoint ids as one sorted batch so that *"two tabs assigning concurrently serialize here, the
+second taking the idempotent path"*; these commands take the same mechanism.
+
+**Clearing clears the PAIR, not one note.** The read tolerates a duplicated pair and answers one
+of them, deliberately, because the notes are user-editable. Clearing must be stricter: deleting
+only the note the read returned leaves the other standing, so a user who pressed "use the library
+price" is told it worked, watches the cascade run, and still has their own price in force.
+`cleared: true` has to mean the project has no price for this asset.
+
+**These are not in tension.** Tolerating a duplicate on READ is about not making a vault
+unreadable; refusing to CREATE one and clearing all of them is about not lying to a user. The
+repository stays permissive and the commands are strict, which is the same division
+`warnOnDuplicate` and its callers already have.
+
 ## Decision 2b: deleting an asset deletes its price overrides
 
 Also found by review, and it is a dangling reference this document did not consider.
@@ -287,6 +310,12 @@ Then the cases whose absence would leave a defect that reads as working:
 - **The create refusal** — a `unitCost` in a currency that is not the project's, refused at the
   COMMAND (Decision 2), with the companion case that a note already carrying one is still READ:
   asserting only the refusal passes against a build that also hides the stranded note.
+- **The pair's uniqueness under concurrency** (Decision 2c) — two sets racing on one pair leave
+  ONE override, driven as a real race rather than sequentially; and a clear over a hand-seeded
+  duplicate leaves NONE. Each fails against the version without the lock.
+- **The section hears about out-of-band changes** — a price note arriving by sync moves the row.
+  Nothing tells it today: the two existing project change sources filter to `renovation-project`
+  and `renovation-plan`, so an open pane would draw the vault it read at mount, indefinitely.
 - **Deleting an asset takes its price overrides with it** (Decision 2b), including the case that
   makes it a defect rather than an untidiness: an asset with an override and NO requirement, which
   today deletes with no referents observed. Assert the override is gone, not merely that the delete

@@ -2920,9 +2920,23 @@ In `GetRequirementsForZone`, extend `RequirementInspectorDTO` beside `quantity` 
 ```
 
 `effective` comes from `r.calculatedFrom.unitCost` — the persisted provenance — while `catalogue`
-is `assetEntity.unitCost` and `projectOverride` is the value Task 6 resolved. when the asset is gone the whole group is unavailable, so make it
-`unitCost: … | null` and set `null` for a row whose `missingTarget` is `'asset'` — do not invent
-a zero.
+is `assetEntity.unitCost` and `projectOverride` is the value Task 6 resolved. When the asset is
+gone the whole group is unavailable, so make it `unitCost: … | null` and set `null` for a row
+whose `missingTarget` is `'asset'` — do not invent a zero.
+
+**The rendering rule that follows, stated here because it is a property of the group rather than
+of the component:** `catalogue` always draws; `projectOverride` draws when it is not null; and
+`effective` draws whenever it differs from the current resolution (`projectOverride ?? catalogue`)
+— which is the whole point of it being provenance rather than a resolution. The in-force mark
+goes on the figure the displayed cost was DERIVED from, so it lands on whichever drawn figure
+equals `effective`, and on `effective`'s own row when it equals neither. One figure is therefore
+the fresh, unoverridden case only; two and three are the stale ones.
+
+**Compare the fields, not with `Money.compare`.** That function returns a `Result` and REFUSES a
+currency mismatch — which is exactly the state this increment exists around, a GBP override
+against an EUR catalogue — so a row would raise a calculation error while deciding what to draw.
+`amount` and `currency` as plain strings is the comparison, and it is the same one
+`assetMatchesCalculatedFrom` already makes.
 
 - [ ] **Step 3b: Widen the project surface's READ boundary**
 
@@ -3025,7 +3039,8 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   `planChangeSource` carries five plan events, `assetCatalogueChangeSource` four catalogue ones
   plus a filtered index event, and Task 9's `projectPricesChangeSource` two price ones. Without
   this module every scheduled wiring edit can be completed and `PlanEditorContext` still has no
-  door to hear `RequirementRecalculated` through, which leaves the block showing a new price
+  door to hear `RequirementRecalculated` or `RequirementInvalidated` through, which leaves the
+  block showing a new price
   beside old persisted provenance — the exact defect step 3a's third source exists to close.
 - Modify: `src/presentation/editor/tools/editor-context.ts` (or wherever `PlanEditorContext` is
   declared) and `src/plugin/composition-root.ts` — **three** subscriptions, step 3a: the price
@@ -3058,12 +3073,35 @@ describe('RequirementRow unit cost', () => {
 		// Both figures present; the override carries the in-force mark.
 	});
 
-	it('shows the library price alone when the project has no override', () => {
-		// projectOverride: null → one figure, no comparison, no dangling label.
+	it('shows the library price alone when the project has no override AND nothing is stale', () => {
+		// projectOverride: null, effective === catalogue → one figure, no comparison, no
+		// dangling label. BOTH conditions: the second is what the first draft of this case
+		// left out, and the case below is the half it hid.
+	});
+
+	/**
+	 * The no-override STALE row, which the first draft of the case above mandated rendering
+	 * wrongly: `projectOverride` is null, the library price has moved, and the recalculation
+	 * that would have caught up failed — so `effective` is still the old
+	 * `calculatedFrom.unitCost`. Showing the current library price ALONE hides the price the
+	 * displayed calculated cost was actually derived from, on a row simultaneously marked
+	 * `stale`, which is the surface contradicting its own status field: precisely what Task 8's
+	 * `effective` docblock says this group exists to prevent.
+	 */
+	it('shows the provenance beside the library price when they differ and there is no override', () => {
+		// unitCost: { catalogue: 26.00 EUR, projectOverride: null, effective: 24.00 EUR }
+		// Two figures; the 24.00 carries the in-force mark, because it is what the numbers
+		// beside it were computed from.
 	});
 
 	/** §85: never colour alone. The in-force marker is a word or a glyph plus the colour. */
 	it('marks the figure in force with something a screen reader reads', () => { … });
+
+	/** Decision 6's "three numbers in the worst case", and the only shape that needs all three:
+	 *  a project price that moved out of band under a failed recalculation. */
+	it('shows all three when the override moved and the recalculation did not catch up', () => {
+		// unitCost: { catalogue: 26.00 EUR, projectOverride: 21.00 GBP, effective: 19.50 GBP }
+	});
 
 	/** The asset is gone, so there is no catalogue price to compare against — Task 8 sets the
 	 *  whole group to null rather than inventing a zero, and the row must not render an empty
@@ -3127,17 +3165,31 @@ and for the same reason the other three live there: `application/` is the layer 
 both the `EventBus` port and the event names, so `presentation/` takes a callback and learns
 neither.
 
-It subscribes to `RequirementRecalculated` alone and **passes the payload's `projectId` to its
-callback** rather than filtering on one itself. The filter belongs to the caller here, which is
-the opposite of `assetCatalogueChangeSource`'s shape and has a reason: a Plan Editor leaf knows
-its plan id at construction and its PROJECT id only after the plan resolves, so a projectId bound
-when the source is created would be bound to nothing — the "a value derived from two inputs goes
-stale when either moves" shape this repository has already paid for three times. The runtime
-compares the delivered id against the `PlanDto.projectId` it currently holds (`PlanDto` declares
-that field, and `runtime.ts` already consumes the DTO), and rehydrates on a match or when no plan
-has resolved yet. The payload carries no zone id, so the Inspector cannot narrow further than the
-project — which is what the single-flight loader below makes affordable rather than merely
-correct.
+**It subscribes to TWO events, and a `RequirementRecalculated`-only source is silent on exactly
+the path that needs it most.** Measured in `cascade.ts`: `recalculateOne` persists the stale
+marker, publishes `requirementInvalidated(requirementId)`, then recalculates — and on a
+recalculation FAILURE it publishes nothing at all, deliberately, under a comment saying
+`RequirementRecalculated` "would misrepresent what happened". So the durable status is now
+`stale` and the only event after that write was the invalidation. A source hearing recalculations
+alone leaves a mounted Inspector rendering the row as `current` indefinitely — and the price and
+catalogue subscriptions cannot cover it either, because they are concurrent SIBLINGS of the
+cascade and can finish before `markStale` lands. `RequirementInvalidated`'s own docblock calls it
+transient and "not persisted", which is true of the EVENT and not of the moment it is published:
+the cascade publishes it after the marker is written, so a listener reading then reads the marker.
+
+A successful recalculation therefore delivers two events, invalidated then recalculated. That is
+the single-flight loader's job below, not a reason to pick one — and picking the recalculation
+alone is what this finding is.
+
+**The callback carries the `requirementId`, and the caller filters on the rows it is rendering.**
+This replaces the projectId-delivery an earlier draft of this step described, and the new event is
+what forced it rather than a change of mind: `RequirementInvalidated`'s payload is
+`{ requirementId }` with no project in it, so a projectId filter cannot see the failure path at
+all. The requirement id is also the NARROWER filter — the Inspector renders the requirements of
+one selected zone, so a recalculation of a requirement outside that set moves nothing it draws —
+and it needs neither the plan's `projectId` nor the resolution timing that made delivering one
+awkward. The runtime tests membership against the rows the Inspector currently holds; with
+nothing selected there are no rows and the refresh is correctly a no-op.
 
 **A project-wide cascade fires one of those per requirement, and the request ticket does NOT
 collapse that burst** — an earlier draft of this plan said it did, and reading
@@ -3194,8 +3246,9 @@ it('rehydrates the inspector rows when the catalogue price changes', async () =>
 });
 
 it('answers a burst of recalculations with one trailing read, not one read each', async () => {
-	// Count the query calls. Publish RequirementRecalculated ten times inside one in-flight
-	// read, and assert the loader issued TWO — the one already running and one trailing.
+	// Count the query calls. Publish RequirementInvalidated/RequirementRecalculated ten times
+	// inside one in-flight read, and assert the loader issued TWO — the one already running
+	// and one trailing.
 	// Watch it fail with the loader replaced by a bare call per event: ten reads, and every
 	// one of them a pair of vault round trips the ticket would have discarded nine of.
 });
@@ -3406,8 +3459,8 @@ Filter both, for the reason `assetCatalogueChangeSource`'s header gives: unfilte
 synced zone notes re-reads the whole catalogue once per note.
 
 **This is not the recalculation source.** Task 8a creates
-`src/application/events/requirementFiguresChangeSource.ts` for `RequirementRecalculated`, which
-neither of these two subscribes to — write it in whichever of the two tasks runs first and
+`src/application/events/requirementFiguresChangeSource.ts` for `RequirementRecalculated` and
+`RequirementInvalidated`, neither of which these two subscribe to — write it in whichever of the two tasks runs first and
 consume it in the other, exactly as this source itself is shared. The project pane does NOT need
 it: this section renders the catalogue price and the project's own, both of which the two
 subscriptions above cover, and no provenance figure that only a recalculation moves.

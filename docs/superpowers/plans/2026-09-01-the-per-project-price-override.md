@@ -3345,6 +3345,30 @@ In `de.ts`, the same keys. **An Asset is `Objekt`, never `Material`** —
 lines below the comment recording its removal. Keep every interpolation hole that `en.ts` has:
 the per-key hole check is what catches a mis-holed translation.
 
+**And the `AppError` copy, which is a SEPARATE table and was scheduled nowhere until this step.**
+`toUserMessage` resolves `error.code` through its own locale entries, and a code with no entry
+does not degrade to silence — it degrades to the category sentence, which is the defect slice 11
+records: two refusals told a user "That entry no longer exists" about an entry whose continued
+existence was the whole reason for the refusal. Every `asset-price.*` code a user can reach needs
+one in both locales:
+
+| Code | What it must say |
+| --- | --- |
+| `asset-price.currency-mismatch` | The price has to be in the project's own currency. |
+| `asset-price.revision-conflict` | Someone else changed this price while you were editing; discard your entry to see the current one. **This copy names the recovery**, for the reason Step 3 gives — the snapshot is frozen while the field is dirty, so the discard is what unsticks it. |
+| `asset-price.external-modification` | The note was edited outside the plugin; same recovery. A separate code from the one above *"because the recoveries differ"* — here nothing else is writing, so re-reading is enough. |
+| `asset-price.project-not-found` / `asset-price.asset-not-found` | The project, or the asset, is no longer there. |
+| `asset-price.write-failed` / `asset-price.delete-failed` | The price could not be saved, or removed. |
+| `asset-price.entity-invalid` / `asset-price.frontmatter-invalid` | The note could not be read. |
+
+Build the test table from the RAISE SITES rather than from `en.ts`, per `toUserMessage.test.ts`'s
+own rule: a table derived from the locale file agrees with a typo. The codes with no user-facing
+door — `asset-price.duplicate-pair` (a diagnostic), `asset-price.orphaned-by-asset-delete` (its
+own notice), `asset-price.negative-unit-cost` and `asset-price.pre-write-invalid` (unreachable
+through any surface, since the component refuses a negative literal before dispatching) — get NO
+entry, and that absence is stated here so it reads as a decision rather than an omission, exactly
+as `project.negative-amount` already is in that file's minted table.
+
 - [ ] **Step 2: Write the failing component test**
 
 ```ts
@@ -3360,6 +3384,23 @@ describe('AssetPriceList', () => {
 	 */
 	it('passes the row expectation into the command', async () => { … });
 
+	/**
+	 * **The expectation is the one this row LAST KNEW, not the one it is rendering.** Reading
+	 * it inside `buildCommand` — which runs at dispatch time — defeats the whole guard at
+	 * exactly the moment it is needed: `useFieldCommit` deliberately keeps an uncommitted
+	 * draft while the canonical value moves underneath it, so a sync or another leaf refreshes
+	 * the row to a new `overrideId`/`overrideVersion`, the user's blur then builds `expected`
+	 * from the REFRESHED row, and the stale draft saves over the price the user never saw.
+	 * That is the lost update the required expectation exists to stop, reintroduced one layer
+	 * above the command. See Step 3 for the rule.
+	 */
+	it('submits the expectation the row had when editing began, not the refreshed one', async () => {
+		// Type into a row showing 19.50 at version 1, refresh the section with that pair at
+		// version 2 (another leaf's write), blur. `expected` must name version 1, and the
+		// command must refuse. Watch it fail against a `buildCommand` that reads the props:
+		// the dispatch carries version 2 and succeeds, which is the defect.
+	});
+
 	/** Slice 16's rule: a rejected commit KEEPS the user's value and shows the error. */
 	it('keeps the typed value and shows an inline error when the command refuses', async () => {
 		commit.mockResolvedValue(err({ category: 'Validation', code: 'asset-price.currency-mismatch', message: '' }));
@@ -3370,9 +3411,25 @@ describe('AssetPriceList', () => {
 	 * The guard `RequirementRow` had to learn the hard way: pressing clear on a row with no
 	 * override must dispatch NOTHING. A command for a no-op is a write, a revision bump and a
 	 * cascade standing for a change nobody made.
+	 *
+	 * BOTH halves of that guard, because this case is only its first: the row must be clean AND
+	 * not pending. `RequirementRow.reset` spells it `if (!overridden && !field.pending.value)`
+	 * and its docblock says why — "the row's DTO has not refreshed while a commit is in flight,
+	 * so `override` still reads `null` for a write that is on its way to persisting one".
 	 */
-	it('dispatches nothing when clear is pressed on a row that has no override', async () => {
+	it('dispatches nothing when clear is pressed on a clean row that has no override', async () => {
 		expect(commit).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The other half, which an `override === null` test alone certifies WRONG: type a price
+	 * into an empty row, blur, and press clear before the vault answers. Treating that as a
+	 * no-op discards the user's cancellation and lets the set persist — the gesture the user
+	 * made is the one thing that does not happen. Routed through `onCommit` instead, it becomes
+	 * the queued follow-up the composable's coalescing already knows how to answer.
+	 */
+	it('cancels a set that is still in flight when clear is pressed', async () => {
+		// The clear dispatches, and its `expected` names what the SET wrote — see Step 3.
 	});
 
 	/**
@@ -3401,6 +3458,27 @@ clear button. No literal copy — every string through `tr(...)`.
 **The project-wide warning belongs here.** A price set on this row moves every requirement in
 the project on that asset; the section's own heading and its placement on a project surface are
 what make that honest, which is exactly why this is not a control on the Inspector's row.
+
+**The expectation is SNAPSHOT state on the row, not a read of the props.** `buildCommand` runs at
+dispatch time, and by then the props may be a different pair at a different version — that is the
+whole point of the change source in step 4a. Two writers, one field:
+
+- while the field is CLEAN, the snapshot tracks the row (`overrideId`/`overrideVersion`, or
+  `'absent'` for a dash) — a clean field has nothing to protect and must follow the vault;
+- a SUCCESSFUL command overwrites it with its own result — `SetAssetPriceOverride` returns
+  `{ override, version }`, which is the newest thing this component knows to be true about the
+  pair, and it is what makes the pending-clear case above correct: the queued clear is built
+  after the set settles and expects exactly what the set wrote.
+
+While the field is dirty the snapshot is frozen, so a refresh underneath an uncommitted draft
+cannot move it. A resubmit against a pair that really did move therefore refuses with
+`asset-price.revision-conflict`, which is the right answer and needs a recovery the user can
+perform: the inline copy for that code must say the price was changed elsewhere and that
+discarding the entry shows the current one. `onCancel` — Escape, and the clear button's own
+no-op arm — is that discard, and it returns the field to clean, which re-arms the snapshot from
+the refreshed row. Keeping the draft through a refusal is slice 16's rule; re-arming on the
+deliberate discard is what stops that rule turning into a field that can never be submitted
+again.
 
 - [ ] **Step 4: Mount it, and hydrate it**
 

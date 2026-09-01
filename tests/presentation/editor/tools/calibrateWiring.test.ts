@@ -60,6 +60,34 @@ describe('KnownDistanceForm', () => {
 
 		expect(wrapper.emitted('submit')).toBeUndefined();
 	});
+
+	/**
+	 * **`aria-disabled`, never `:disabled` — `FormDialog`'s categorical invariant, and this
+	 * button was its one violator inside a dialog.**
+	 *
+	 * It could not reproduce the focus defect that invariant exists for: `parsed` derives only
+	 * from the input, so the button cannot go enabled→disabled while IT holds focus, and
+	 * `FormDialog` renders Cancel unconditionally so the Tab trap is never emptied. It was a
+	 * latent violation rather than a live one — which is exactly why nothing failed for it, and
+	 * why an invariant with one known exception is a rule the next reader stops believing.
+	 *
+	 * Asserted on BOTH halves. The attribute alone would pass against a build that swapped it
+	 * and lost the refusal; the emit alone would pass against the `:disabled` this replaced,
+	 * since a disabled button submits nothing either. `onSubmit`'s own `parsed === null` guard
+	 * is what makes the inoperative-but-focusable button inert.
+	 */
+	it('marks its submit inoperative rather than disabled, and submits nothing when pressed', async () => {
+		const wrapper = mount(KnownDistanceForm, { props: { measured: 100 } });
+		const button = wrapper.find('button[type="submit"]');
+
+		expect(button.attributes('aria-disabled')).toBe('true');
+		expect(button.attributes('disabled')).toBeUndefined();
+
+		await button.trigger('click');
+		await wrapper.find('form').trigger('submit');
+
+		expect(wrapper.emitted('submit')).toBeUndefined();
+	});
 });
 
 /** Presses a toolbar button by its label — Task 12's own `setToolByLabel`. */

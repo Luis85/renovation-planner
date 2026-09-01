@@ -159,22 +159,33 @@ The Inspector's **three figures** (§89's *beside what it replaced*, at both lev
 beside the `quantity` and `cost` groups it already carries. The row then shows the shared default,
 this project's price, and the requirement's own figure, each labelled and the one in force marked.
 
-## Decision 7: the note is named after the asset's note, and identity is still the id
+## Decision 7: the note is named by its own id, like every other nameless entity
 
-An `AssetPriceOverride` has no name of its own — it is a pair — so `fileNameFor` has nothing to
-derive from. The Obsidian repository resolves the asset note's path through the index it already
-holds (`ProjectIndex.getPath(assetId)`) and takes its basename, falling back to the asset id when
-the index has no entry.
+**This decision was taken the other way first, and the correction is the more useful record.**
+An earlier draft had the Obsidian repository resolve the asset note's path through the index and
+take its basename, so a user would browse `Asset Prices/Porcelain Terrace Tile.md` — which is the
+task document's own illustrative path. It is not implementable, and it is not what the codebase
+does:
 
-Three things that makes true, and one it does not:
+- **`NoteWriteSpec.entryName` is `(entity: TEntity) => string`** (`noteEntityWrite.ts:63`), a pure
+  function of the entity. A friendly name needs the asset's, which the override does not carry, so
+  the only routes to it are denormalising an `assetName` onto the entity — drift, refused
+  everywhere else here — or bypassing `saveNoteBackedEntity`, which is the shared save sequence.
+- **The nearest sibling already answers it.** `ObsidianRequirementRepository`'s `requirementFileName`
+  returns `` `${requirement.id}` ``, under the comment *"Filename is never identity (§83); the id
+  alone keeps requirement notes findable and unambiguous."* A `Requirement` is the other nameless
+  entity here, and it is nameless for the same reason: it is a relationship, not a thing with a
+  name. `entryName: (asset) => asset.name` is the pattern for entities that HAVE one.
 
-- The note a user browses is `Asset Prices/Porcelain Terrace Tile.md`, which is the task document's
-  own example.
-- Nothing is denormalised, so nothing drifts: the name is derived at insert and never read back.
-- [[Identity is the id, never the filename, title or path]] is untouched — reads resolve through
-  the index, and this only names what a write creates.
-- It does **not** rename the price note when the asset is renamed. Deliberate, and the same
-  behaviour every other note here has.
+So the note is `Asset Prices/<AssetPriceOverrideId>.md`. It costs the browsability the task
+document's example implies and buys the shared write path, no index read at insert, and no
+fallback branch — which matters, because the spec's own coverage note counts branches and that
+fallback was one of them.
+
+**The draft was written from the task document's illustrative YAML rather than from the code's
+rule for a nameless entity**, and it survived until the implementation plan tried to write the
+`entryName` line. That is the plan-writing step doing its job, and it is this repository's own
+recurring shape: a claim that reads as settled until somebody asks the code.
 
 ## Persistence
 
@@ -217,8 +228,8 @@ Then the cases whose absence would leave a defect that reads as working:
   entity.
 
 **Branches are the metric to watch, and the headroom is one covered unit.** This increment is
-branch-heavy: the `??`, the create refusal's two sides, the duplicate fork, the fallback in
-Decision 7, and the two batched resolutions. Do not read a figure from any document as current —
+branch-heavy: the `??`, the create refusal's two sides, the duplicate fork and the two batched
+resolutions. Do not read a figure from any document as current —
 run `npm run test:coverage`, and read `coverage-final.json` for the changed files rather than the
 summary line, because at this margin an untested arm in a slack metric hides completely and one in
 a tight metric fails the gate outright. Plan the test with the code.
@@ -251,8 +262,8 @@ document, because a list of exceptions kept in two places disagrees with itself:
    catalogue screen (Decision 1).
 2. The port gains `listByAsset`; the contract block's four methods are five (Decision 3).
 3. `AssetPriceOverride.create` gains a coherence rule the document does not mention (Decision 2).
-4. The note's filename derives from the asset note's basename through the index (Decision 7), which
-   the document's example implies and does not state.
+4. The note is named by its own id, so the illustrative path `Asset Prices/Porcelain Terrace
+   Tile.md` is **not** what ships (Decision 7). `Asset Prices/<AssetPriceOverrideId>.md` is.
 5. Every Definition-of-Done item Amendment 1 item 7 deferred is ticked **or** amended here — none
    is left to be inferred from this increment having happened.
 

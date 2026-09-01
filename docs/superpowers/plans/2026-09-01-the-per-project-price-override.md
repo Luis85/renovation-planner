@@ -3006,8 +3006,36 @@ beside the project's, so it goes stale from either side:
   half — and wiring only the price half would leave the block showing a stale *library* price
   next to a fresh project one, which is a worse picture than two stale numbers.
 
-Both rehydrate the Inspector's rows through the store's existing request ticket — two sources
-firing together is exactly the concurrent-hydrate race that ticket exists for.
+**A third source, because the block has three inputs and two of these events fire BEFORE the
+figure they move.** `catalogue` comes from the asset, `projectOverride` from the override, and
+`effective` from `requirement.calculatedFrom` — which neither of the two events above rewrites.
+The cascade does, and it is a *sibling subscriber* of this refresh: `EventBus.publish` delivers to
+every handler for an event without ordering them, so rehydrating on `AssetPriceOverrideChanged`
+or `AssetUpdated` races the recalculation rather than following it. The Inspector would show the
+new price beside the OLD provenance, and nothing would correct it, because the editor subscribes
+to no recalculation event at all.
+
+So the refresh also listens to **`RequirementRecalculated`**, which the cascade publishes after
+each requirement is rewritten — the event that actually means "this requirement's stored figures
+moved". A project-wide cascade fires one per requirement; the store's request ticket is what
+collapses that burst, which is a second job for it beyond ordering the three sources against each
+other.
+
+All three rehydrate through that one ticket.
+
+```ts
+it('shows the recalculated provenance, not the new price beside the old one', async () => {
+	// Delay the cascade's recalculation deliberately, publish AssetPriceOverrideChanged, and
+	// assert the row settles on the RECALCULATED unitCost.effective rather than on the value it
+	// held when the price event was delivered. Watch it fail with only the two price/catalogue
+	// subscriptions wired: the row shows the new projectOverride against the old effective, and
+	// stays there.
+});
+```
+
+**The general shape, third time in three rounds:** a value's refresh needs one subscription per
+INPUT, and "the event that caused the change" is not always "the event after which the value is
+correct".
 
 **Not by widening `PLAN_CHANGE_EVENTS`.** That list is keyed by plan id
 (`planIdOf(event) === planId`) and a price override carries no plan, so an entry there would

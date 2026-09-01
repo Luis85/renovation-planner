@@ -178,9 +178,28 @@ it names nothing, no Requirement can be derived from it, and there is no other o
 The precedent is the sibling increment's own — an asset's geometry sidecar is deleted with the
 asset, for the same reason.
 
-It goes **inside the existing delete-resolution sequence**, under the same locks and the same
-compensation, rather than beside it: a delete interrupted between the overrides and the asset must
-be recoverable exactly as one interrupted between the requirements and the asset already is.
+**It runs AFTER `runDeleteResolution` returns, not inside it** — this decision was taken the
+other way first and reversed, and the reversal belongs here rather than only in the plan, since a
+spec that still mandates the rejected mechanism is one an implementer builds from.
+
+Inside the sequence is the obvious home and it costs more than it looks: `SequenceMarker` is
+`Requirement`-shaped (`affectedBefore: readonly Loaded<Requirement>[]`), so carrying overrides
+means widening that type and bumping `SEQUENCE_MARKER_SCHEMA_VERSION` — a versioned change to a
+**durable recovery record**, which is exactly the schema change CLAUDE.md says to schedule
+deliberately rather than discover inside another increment.
+
+The residual is also smaller than it first reads. After a failed cleanup the asset is gone, so
+the override is **meaningless** data rather than lost data: no Requirement can derive from it, no
+figure depends on it, and the note is deletable in Obsidian. The state this decision prevents is a
+dangling reference that participates in nothing while looking live; what a failure leaves is a
+stray file — named in a log line and in a user-facing notice.
+
+**The ORDER is the safety argument.** Asset first, then its overrides: a failure there leaves
+exactly the orphan `main` produces today. The reverse order would destroy real prices belonging to
+an asset that still exists.
+
+The trigger for moving it inside is named rather than left implicit: **when that marker is
+versioned for its own reasons**, this goes with it.
 
 ## Decision 3: the port needs `listByAsset`, which the contract block omits
 

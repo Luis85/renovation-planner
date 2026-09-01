@@ -3,8 +3,9 @@ import type { AssetEventPayload } from '../../domain/asset/Asset.events';
 import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
 
 /**
- * "Tell me when THIS asset's design changed" — the domain event vocabulary, turned into one
- * filtered subscription the asset designer can take without naming an event.
+ * "Tell me when THIS asset moved" — the domain event vocabulary, turned into one filtered
+ * subscription the asset designer can take without naming an event. Its design, and also its
+ * existence: see the first list below for why those are one question and not two.
  *
  * It lives in `application/` for the reason its three siblings do, and that reason is the
  * whole point of the indirection: this layer is the one that may know both halves — the
@@ -12,18 +13,32 @@ import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
  * either, which is what stops a view from subscribing to an event type by string and quietly
  * missing the next one added here.
  *
- * **ONE event, not a list of them.** Every design command publishes `AssetDesignChanged` —
- * the five shape commands, `SetAssetHeight`, and the calibration and background commands a
- * later task adds — including the ones that change a field the designer draws without touching
- * the shape. A source keyed on shape events alone leaves a peer leaf's height and background
- * stale until it is reopened, and a per-field list is a rule stated as a list: it goes stale
- * the day a ninth command is added, silently and in the direction of a stale surface.
+ * **The rule is "this leaf's SUBJECT moved", not "its design did"** — a wider question than the
+ * first version of this list asked, and the difference was a defect rather than a nuance. Every
+ * design command publishes `AssetDesignChanged`, so a designer heard about every change to what
+ * it DRAWS; nothing publishes it for the catalogue's own lifecycle, so `UpdateAssetCommand`
+ * renaming an asset left a peer designer showing the old name, and `DeleteAssetCommand` left one
+ * drawing an asset the vault no longer has — on which every write it then dispatched refused.
+ *
+ * That gap was invisible from inside the third list's own argument. Repository-owned writes
+ * upsert or remove the index BEFORE the vault event that follows, and `VaultChangeAdapter`'s
+ * echo check then declines to announce this plugin's own write — correctly, or a save would cost
+ * two refreshes. So no compensating `ProjectIndexEntryChanged` arrives either, and neither list
+ * covered those two commands between them.
+ *
+ * `AssetCreated` is deliberately NOT here, because no leaf can be its subject: a designer is
+ * opened FROM an asset that exists, and a restored leaf names an id that existed when the layout
+ * was saved. A leaf waiting for its subject to appear is the two index arms' question, below.
+ *
+ * A per-FIELD list would still be the wrong shape, which is the half of the original argument
+ * that survives: it goes stale the day a ninth command is added, silently and in the direction
+ * of a stale surface. This list is per-LIFECYCLE, and there are no other lifecycles.
  *
  * It takes an `assetId` like `createPlanChangeSource` does, rather than being unfiltered like
  * the catalogue's: one event per command is affordable exactly because a leaf hears only about
  * the asset it is showing.
  */
-const ASSET_DESIGN_EVENTS = ['AssetDesignChanged'] as const;
+const ASSET_SUBJECT_EVENTS = ['AssetDesignChanged', 'AssetUpdated', 'AssetDeleted'] as const;
 
 /**
  * Events that mean "re-read, whichever asset you are showing" — a SECOND list rather than a
@@ -81,7 +96,7 @@ export function createAssetDesignChangeSource(
 ): (assetId: string, listener: () => void) => () => void {
 	return (assetId: string, listener: () => void) => {
 		const subscriptions = [
-			...ASSET_DESIGN_EVENTS.map((type) =>
+			...ASSET_SUBJECT_EVENTS.map((type) =>
 				events.subscribe(type, (event) => {
 					if (assetIdOf(event) === assetId) listener();
 				}),

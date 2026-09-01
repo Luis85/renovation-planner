@@ -16,7 +16,7 @@ import { describe, expect, it } from 'vitest';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { createAssetDesignChangeSource } from '../../../src/application/events/assetDesignChangeSource';
 import { projectIndexEntryChanged, projectIndexRebuilt } from '../../../src/application/events/projectIndex.events';
-import { assetDesignChanged, assetUpdated } from '../../../src/domain/asset/Asset.events';
+import { assetDeleted, assetDesignChanged, assetUpdated } from '../../../src/domain/asset/Asset.events';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import type { EntityId } from '../../../src/core/identity/EntityId';
 
@@ -52,14 +52,56 @@ describe('createAssetDesignChangeSource', () => {
 	});
 
 	/**
-	 * `AssetUpdated` is the catalogue's event — a rename or a price edit — and the designer
-	 * draws neither. Delivering it would make this source a second catalogue subscription
-	 * wearing the design's name.
+	 * **This case used to assert the OPPOSITE, and it was a green test pinning a defect.** Its
+	 * argument was that `AssetUpdated` is the catalogue's event — a rename or a price edit — and
+	 * that the designer draws neither, so delivering it would make this source a second
+	 * catalogue subscription wearing the design's name.
+	 *
+	 * Both halves were wrong. `AssetDesignDto` carries `name`, so a rename IS something this
+	 * leaf draws; and the reasoning was about what the event is CALLED rather than about what
+	 * the leaf has to re-read. The rule is "this leaf's subject moved", and a rename moves it.
+	 *
+	 * It is not a second catalogue subscription either, because it is filtered to ONE asset —
+	 * the picker's source is the unfiltered one, and that difference is the whole reason two
+	 * sources exist.
 	 */
-	it('ignores AssetUpdated, which says nothing about the design', async () => {
+	it('delivers AssetUpdated, because a rename is something this leaf draws', async () => {
 		const { bus, heard } = wired();
 
 		await bus.publish(assetUpdated({ assetId: THE_ASSET }));
+
+		expect(heard).toHaveLength(1);
+	});
+
+	/**
+	 * **The half that outlives a stale name: an asset deleted under an open designer.**
+	 *
+	 * Nothing else reaches this leaf for it. `DeleteAssetCommand` removes the index entry
+	 * before the vault event that follows, and `VaultChangeAdapter`'s echo check then declines
+	 * to announce this plugin's own write — correctly — so no `ProjectIndexEntryChanged`
+	 * arrives to compensate. Without this arm the designer goes on drawing an asset the vault
+	 * no longer has, and every write it dispatches refuses with nothing on screen saying why.
+	 *
+	 * It is the trigger half of a pair: `AssetDesignStore.hydrate` blanks on an AUTHORITATIVE
+	 * `asset.not-found` rather than keeping the previous design, and that rule can only fire
+	 * for a re-read something asked for.
+	 */
+	it('delivers AssetDeleted, so a designer stops drawing an asset that is gone', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish(assetDeleted({ assetId: THE_ASSET }));
+
+		expect(heard).toHaveLength(1);
+	});
+
+	/** Both lifecycle arms take the SAME id filter as the design one, not a looser one. */
+	it.each([
+		['an update', () => assetUpdated({ assetId: ANOTHER_ASSET })],
+		['a deletion', () => assetDeleted({ assetId: ANOTHER_ASSET })],
+	])('ignores %s of a different asset', async (_name, make) => {
+		const { bus, heard } = wired();
+
+		await bus.publish(make());
 
 		expect(heard).toEqual([]);
 	});
@@ -136,6 +178,7 @@ describe('createAssetDesignChangeSource', () => {
 	 */
 	it.each([
 		['a design change', () => assetDesignChanged({ assetId: THE_ASSET })],
+		['a deletion', () => assetDeleted({ assetId: THE_ASSET })],
 		['a rebuild', () => projectIndexRebuilt()],
 		['an entry change', () => projectIndexEntryChanged({ entityId: THE_ASSET, entityType: 'renovation-asset' })],
 	])('stops delivering %s once disposed', async (_name, make) => {

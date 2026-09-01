@@ -1,6 +1,9 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { AssetEventPayload } from '../../domain/asset/Asset.events';
-import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
+import type {
+	GeometrySidecarChangedPayload,
+	ProjectIndexEntryChangedPayload,
+} from './projectIndex.events';
 
 /**
  * "Tell me when THIS asset moved" — the domain event vocabulary, turned into one filtered
@@ -68,12 +71,33 @@ const EVERY_ASSET_EVENTS = ['ProjectIndexRebuilt'] as const;
  * writes are not announced here — the adapter's echo check comes first — so a save costs one
  * refresh through `AssetDesignChanged`, not two.
  *
- * **What it does NOT cover, stated rather than implied:** the geometry SIDECAR is not a note
- * and carries no index entry of its own, so a `.rpasset` arriving through sync reaches this
- * source through nothing. That is the same gap `planChangeSource` has for a plan's sidecar,
- * and closing it is a change to the vault-change pipeline rather than to this module.
+ * **What it does NOT cover is the SIDECAR, and that is the fourth list's business rather than
+ * a residual now.** A `.rpgeo` is not a note: it carries no index entry of its own, and for an
+ * asset it carries no index MAPPING either (ADR-0014 derives its home), so nothing this arm
+ * filters on is ever raised for one. That gap used to be recorded here as unclosable "until
+ * the vault-change pipeline changes"; the pipeline changed, and `GeometrySidecarChanged` is
+ * what it raises.
  */
 const ASSET_ENTRY_EVENTS = ['ProjectIndexEntryChanged'] as const;
+
+/**
+ * The asset's own geometry SIDECAR changed on disk out of band — a FOURTH list, and separate
+ * from the third for the reason the third is separate from the second: it is a different fact,
+ * with its own reason to be delivered.
+ *
+ * **It is the arm that covers the SHAPE, which is most of what a designer draws.** The design
+ * lives in `<libraryFolder>/Geometry/<assetId>.rpgeo` rather than in the note, so a synced,
+ * restored or hand-edited footprint moves nothing the first three lists watch: no command ran,
+ * so no `AssetDesignChanged`; the note did not change, so no index entry did either. The
+ * pipeline never reads the document, so it cannot honestly publish `AssetDesignChanged` on its
+ * own behalf — which is why this is a file-shaped event the designer translates, rather than a
+ * domain event minted by infrastructure.
+ *
+ * The filter matches the entry arm's exactly, and the TYPE half is load-bearing for the same
+ * reason: a plan's sidecar and an asset's are the same file type under two owners, so an id
+ * alone does not say the change is this leaf's.
+ */
+const ASSET_SIDECAR_EVENTS = ['GeometrySidecarChanged'] as const;
 
 /**
  * `DomainEvent` carries only a `type`; every event in the first list adds an
@@ -91,6 +115,15 @@ function changedEntry(event: DomainEvent): Partial<ProjectIndexEntryChangedPaylo
 	return (event as { payload?: Partial<ProjectIndexEntryChangedPayload> }).payload ?? {};
 }
 
+/**
+ * And for the sidecar event's, which names the same two fields about a different subject. Two
+ * guards rather than one over a shared shape, because a single reader would make the two events
+ * interchangeable at exactly the seam that keeps them apart.
+ */
+function changedSidecar(event: DomainEvent): Partial<GeometrySidecarChangedPayload> {
+	return (event as { payload?: Partial<GeometrySidecarChangedPayload> }).payload ?? {};
+}
+
 export function createAssetDesignChangeSource(
 	events: EventBus,
 ): (assetId: string, listener: () => void) => () => void {
@@ -106,6 +139,12 @@ export function createAssetDesignChangeSource(
 				events.subscribe(type, (event) => {
 					const entry = changedEntry(event);
 					if (entry.entityType === 'renovation-asset' && entry.entityId === assetId) listener();
+				}),
+			),
+			...ASSET_SIDECAR_EVENTS.map((type) =>
+				events.subscribe(type, (event) => {
+					const sidecar = changedSidecar(event);
+					if (sidecar.entityType === 'renovation-asset' && sidecar.entityId === assetId) listener();
 				}),
 			),
 		];

@@ -2,7 +2,10 @@ import { TFile, type MetadataCache, type TFile as TFileType, type Vault } from '
 import type { Logger } from '../../../application/ports/Logger';
 import type { ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { EventBus } from '../../../core/events/EventBus';
-import { projectIndexEntryChanged } from '../../../application/events/projectIndex.events';
+import {
+	geometrySidecarChanged,
+	projectIndexEntryChanged,
+} from '../../../application/events/projectIndex.events';
 import { entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
@@ -167,12 +170,12 @@ export class VaultChangeAdapter {
 	}
 
 	private processSidecar(path: string): void {
-		// The plan id is the sidecar's basename (ADR-011), which is what `joinSidecars`
-		// reads too. It used to be recovered by slicing a configured prefix off the front,
-		// and that is the same bound the scan just lost: a sidecar under a second root
-		// answered no plan at all.
-		const planId = path.slice(path.lastIndexOf('/') + 1).replace(/\.rpgeo$/, '');
-		const planEntry = this.findByPath(this.deps.index.getPath(planId as never) ?? '');
+		// The entity id is the sidecar's basename (ADR-011 for a plan, ADR-0014 for an asset),
+		// which is what `joinSidecars` reads too. It used to be recovered by slicing a
+		// configured prefix off the front, and that is the same bound the scan just lost: a
+		// sidecar under a second root answered no plan at all.
+		const entityId = path.slice(path.lastIndexOf('/') + 1).replace(/\.rpgeo$/, '');
+		const entry = this.findByPath(this.deps.index.getPath(entityId as never) ?? '');
 
 		// A sidecar DELETED out of band (file explorer, sync) clears the mapping instead
 		// of re-affirming a path that no longer exists — leaving it would break every
@@ -182,9 +185,22 @@ export class VaultChangeAdapter {
 		const file = this.deps.vault.getAbstractFileByPath(path);
 		if (!(file instanceof TFile)) {
 			this.deps.echo.forget(path);
-			if (planEntry?.geometrySidecarPath === path) {
-				this.applyUpsert({ ...planEntry, geometrySidecarPath: undefined });
+			if (entry?.geometrySidecarPath === path) {
+				this.applyUpsert({ ...entry, geometrySidecarPath: undefined });
 			}
+			// AFTER the mapping is settled, so a subscriber's re-read sees the index this event
+			// is telling it about rather than the one it is replacing.
+			//
+			// **Deliberately NOT behind the echo check below, and that is a measurement rather
+			// than an oversight.** Both sidecar stores call `echo.forget` on their own delete, so
+			// by the time a plugin-owned delete reaches this door the window has usually let go
+			// of the path already — and "usually" is the whole problem: `trashFile` is awaited, so
+			// Obsidian may raise the event before that line runs. An echo test here would decide
+			// nondeterministically, which reads as protection and is not. So a delete this plugin
+			// made announces too, and costs the leaf one redundant re-read beside the domain event
+			// its command published. The alternative — silence — is a sidecar deleted out of band
+			// reaching nobody, which is the defect this event exists for.
+			this.announceSidecar(entry);
 			return;
 		}
 
@@ -204,24 +220,32 @@ export class VaultChangeAdapter {
 		// the session; the mapping it would have re-affirmed is already the one it holds.
 		if (this.deps.echo.knows(path)) return;
 
+		// Everything past the echo check is a change this plugin did not make, whoever the
+		// sidecar belongs to — so the announcement goes here, ABOVE the asset return below and
+		// above the plan bookkeeping, rather than being spelled once per branch.
+		this.announceSidecar(entry);
+
 		// An ASSET's sidecar, which this door used to call an orphan. The id lookup above
 		// SUCCEEDS for one — it is a real catalogue entry — so the type test below reported
 		// "no indexed plan carries this id", which is false twice over: an indexed asset
 		// carries it, and nothing about the file is wrong. Every hand move, every sync and
 		// every restore of an asset sidecar produced that line.
 		//
-		// Nothing to DO, rather than nothing to say: ADR-0014 gives an asset's sidecar one
-		// derived home under `<libraryFolder>/Geometry/`, so this index stores no mapping for
-		// it and none can go stale. The same ADR also asks that resolution go through this
-		// index as it does for plans — which is NOT built, because an asset's path derives
-		// from a SETTING rather than from its note's own folder, so the scan would have to
-		// take `libraryFolder`. Recorded as a residual in
-		// `docs/superpowers/plans/2026-08-30-asset-designer-first-increment.md`, where the
-		// increment that closes it inherits the argument, rather than left implied by a
-		// diagnostic naming the wrong kind.
-		if (planEntry?.type === 'renovation-asset') return;
+		// Nothing left to DO, rather than nothing to say — and the two used to be conflated
+		// here, which was the defect: ADR-0014 gives an asset's sidecar one derived home under
+		// `<libraryFolder>/Geometry/`, so this index stores no mapping for it and none can go
+		// stale, but a designer showing that asset still has to hear that its shape moved. The
+		// announcement above is what says so; this return is only about the mapping.
+		//
+		// The same ADR also asks that resolution go through this index as it does for plans —
+		// which is NOT built, because an asset's path derives from a SETTING rather than from
+		// its note's own folder, so the scan would have to take `libraryFolder`. Recorded as a
+		// residual in `docs/superpowers/plans/2026-08-30-asset-designer-first-increment.md`,
+		// where the increment that closes it inherits the argument, rather than left implied by
+		// a diagnostic naming the wrong kind.
+		if (entry?.type === 'renovation-asset') return;
 
-		if (!planEntry || planEntry.type !== 'renovation-plan') {
+		if (!entry || entry.type !== 'renovation-plan') {
 			this.deps.logger.warn('persistence.pipeline.sidecar-skipped', {
 				path,
 				reason: 'no indexed plan carries this id',
@@ -236,11 +260,11 @@ export class VaultChangeAdapter {
 		// geometry writes into the copy: `sidecarMappingFor` carries the whole argument, and
 		// carries it for the full scan too, so the two doors cannot answer differently.
 		this.applyUpsert({
-			...planEntry,
+			...entry,
 			geometrySidecarPath: sidecarMappingFor({
 				logger: this.deps.logger,
 				event: 'persistence.pipeline.sidecar-duplicate',
-				planEntry,
+				planEntry: entry,
 				incoming: path,
 				projectPathOf: (projectId) => this.deps.index.getPath(projectId),
 			}),
@@ -328,6 +352,26 @@ export class VaultChangeAdapter {
 	 */
 	private announce(id: ProjectIndexEntry['id'], type: ProjectIndexEntry['type']): void {
 		void this.deps.events.publish(projectIndexEntryChanged({ entityId: id, entityType: type }));
+	}
+
+	/**
+	 * The sidecar counterpart of `announce`, and a SEPARATE event rather than a second caller of
+	 * that one — `applyUpsert`/`applyRemove`'s docblock makes a category claim ("every index
+	 * mutation goes through this pair"), and a sidecar change need mutate nothing at all: an
+	 * asset's sidecar has no index mapping to move, so reusing `ProjectIndexEntryChanged` to buy
+	 * a designer its refresh would make that sentence only mostly true.
+	 *
+	 * A sidecar whose basename resolves to no indexed entity announces NOTHING — a stray or
+	 * copied `.rpgeo` names no subject, so there is no leaf it could be about, and publishing
+	 * with an unresolved id would be an event every filter has to reject on the id alone.
+	 *
+	 * Fire-and-forget for the reasons `announce` states, which apply unchanged.
+	 */
+	private announceSidecar(entry: ProjectIndexEntry | undefined): void {
+		if (entry === undefined) return;
+		void this.deps.events.publish(
+			geometrySidecarChanged({ entityId: entry.id, entityType: entry.type }),
+		);
 	}
 
 	private findByPath(path: string): ProjectIndexEntry | undefined {

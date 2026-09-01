@@ -15,7 +15,11 @@
 import { describe, expect, it } from 'vitest';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { createAssetDesignChangeSource } from '../../../src/application/events/assetDesignChangeSource';
-import { projectIndexEntryChanged, projectIndexRebuilt } from '../../../src/application/events/projectIndex.events';
+import {
+	geometrySidecarChanged,
+	projectIndexEntryChanged,
+	projectIndexRebuilt,
+} from '../../../src/application/events/projectIndex.events';
 import { assetDeleted, assetDesignChanged, assetUpdated } from '../../../src/domain/asset/Asset.events';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import type { EntityId } from '../../../src/core/identity/EntityId';
@@ -154,15 +158,47 @@ describe('createAssetDesignChangeSource', () => {
 	});
 
 	/**
-	 * An event on either list WITHOUT the payload its filter reads is simply never delivered,
-	 * rather than comparing `undefined` against an asset id and matching whichever leaf also has
-	 * none — `planChangeSource.planIdOf`'s rule, and the reason both guards narrow rather than
-	 * cast. The rebuild arm is deliberately not in this list: it carries no payload BY DESIGN
-	 * and reaching every leaf is what it is for.
+	 * **The asset's own geometry SIDECAR, edited or deleted out of band.** The design a
+	 * designer draws lives in that file rather than in the note, so this is the one arm that
+	 * covers a synced or hand-edited SHAPE — and no other arm can: the sidecar carries no index
+	 * entry (ADR-0014 derives its home), so `ProjectIndexEntryChanged` is never raised for it,
+	 * and the pipeline publishes no domain event of its own.
+	 */
+	it('delivers a sidecar change for this asset, which no other arm covers', async () => {
+		const { bus, heard } = wired();
+
+		await bus.publish(geometrySidecarChanged({ entityId: THE_ASSET, entityType: 'renovation-asset' }));
+
+		expect(heard).toEqual(['heard']);
+	});
+
+	/**
+	 * BOTH halves of that filter again, for the reason the entry arm's pair gives: a plan's
+	 * `.rpgeo` and an asset's are the same file type under two owners, so the TYPE is what
+	 * keeps a plan's geometry landing on a plan id out of every designer.
+	 */
+	it.each([
+		['another asset', ANOTHER_ASSET as EntityId<string>, 'renovation-asset' as const],
+		['a note of another kind carrying this id', THE_ASSET as EntityId<string>, 'renovation-plan' as const],
+	])('ignores a sidecar change for %s', async (_name, entityId, entityType) => {
+		const { bus, heard } = wired();
+
+		await bus.publish(geometrySidecarChanged({ entityId, entityType }));
+
+		expect(heard).toEqual([]);
+	});
+
+	/**
+	 * An event on ANY payload-reading list, arriving WITHOUT that payload, is simply never
+	 * delivered — rather than comparing `undefined` against an asset id and matching whichever
+	 * leaf also has none. `planChangeSource.planIdOf`'s rule, and the reason all three guards
+	 * narrow rather than cast. The rebuild arm is deliberately not in this list: it carries no
+	 * payload BY DESIGN and reaching every leaf is what it is for.
 	 */
 	it.each([
 		['a design change', { type: 'AssetDesignChanged' as const }],
 		['an index entry change', { type: 'ProjectIndexEntryChanged' as const }],
+		['a sidecar change', { type: 'GeometrySidecarChanged' as const }],
 	])('ignores %s that carries no payload at all', async (_name, event) => {
 		const { bus, heard } = wired();
 
@@ -181,6 +217,7 @@ describe('createAssetDesignChangeSource', () => {
 		['a deletion', () => assetDeleted({ assetId: THE_ASSET })],
 		['a rebuild', () => projectIndexRebuilt()],
 		['an entry change', () => projectIndexEntryChanged({ entityId: THE_ASSET, entityType: 'renovation-asset' })],
+		['a sidecar change', () => geometrySidecarChanged({ entityId: THE_ASSET, entityType: 'renovation-asset' })],
 	])('stops delivering %s once disposed', async (_name, make) => {
 		const { bus, heard, dispose } = wired();
 

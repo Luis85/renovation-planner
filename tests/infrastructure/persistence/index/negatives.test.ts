@@ -123,11 +123,16 @@ describe('pipeline negatives', () => {
 	 * over: an indexed ASSET carries it, and nothing about the file is wrong. Every hand move,
 	 * every sync, every restore of an asset sidecar produced that line.
 	 *
-	 * Silence rather than a corrected warning, because there is nothing here to do TODAY:
-	 * ADR-0014 gives an asset's sidecar one derived home, so no mapping is stored for it and
-	 * none can go stale. What the ADR ALSO asks for — resolution through the index, as plans
-	 * have — is not built, and is recorded as a residual in this increment's plan rather than
-	 * left implied by a diagnostic nobody can act on.
+	 * Silence rather than a corrected warning, because there is no INDEX WORK here: ADR-0014
+	 * gives an asset's sidecar one derived home, so no mapping is stored for it and none can go
+	 * stale. What the ADR ALSO asks for — resolution through the index, as plans have — is not
+	 * built, and is recorded as a residual in this increment's plan rather than left implied by
+	 * a diagnostic nobody can act on.
+	 *
+	 * **Silence in the LOG only, which this case is about, and not silence at the event bus.**
+	 * An earlier version of this paragraph said "nothing here to do", conflating the two, and
+	 * that reading was the defect: a designer showing the asset still has to hear its shape
+	 * moved. `announcements.test.ts`'s sidecar cases are where the announcement is asserted.
 	 *
 	 * The genuine orphan above keeps its warning, which is what stops this from being a
 	 * silencing: measured, returning early for every non-plan entry leaves that case green

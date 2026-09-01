@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
 import { expectOk } from '../../../helpers/domain';
-import { makeProject as makeProjectEntity } from '../../../helpers/entities';
+import {
+	makeAsset as makeAssetEntity,
+	makePlan as makePlanEntity,
+	makeProject as makeProjectEntity,
+} from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
+import { createPlanId } from '../../../../src/domain/plan/PlanId';
+import { createAssetId } from '../../../../src/domain/asset/AssetId';
 import { createEventBus, type DomainEvent } from '../../../../src/core/events/EventBus';
-import type { ProjectIndexEntryChanged } from '../../../../src/application/events/projectIndex.events';
+import type {
+	GeometrySidecarChanged,
+	ProjectIndexEntryChanged,
+} from '../../../../src/application/events/projectIndex.events';
 import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
 
 /**
@@ -32,6 +41,11 @@ function wired(stack: ReturnType<typeof createRepositoryStack>) {
 		const { payload } = event as ProjectIndexEntryChanged;
 		announced.push({ id: String(payload.entityId), type: payload.entityType });
 	});
+	const sidecars: { id: string; type: string }[] = [];
+	bus.subscribe('GeometrySidecarChanged', (event: DomainEvent) => {
+		const { payload } = event as GeometrySidecarChanged;
+		sidecars.push({ id: String(payload.entityId), type: payload.entityType });
+	});
 	const adapter = new VaultChangeAdapter({
 		vault: stack.vault as never,
 		metadataCache: stack.metadataCache as never,
@@ -41,7 +55,7 @@ function wired(stack: ReturnType<typeof createRepositoryStack>) {
 		events: bus,
 		debounceMs: 0,
 	});
-	return { adapter, announced };
+	return { adapter, announced, sidecars };
 }
 
 /** A project note written straight into the vault, the way sync or a file explorer does. */
@@ -58,6 +72,15 @@ function writeForeignProject(stack: ReturnType<typeof createRepositoryStack>, pa
  * publish — which is what a synchronous pipeline can do and all it can do — has not reached
  * its handler by the time the call returns.
  */
+/** A project and one plan of it, saved through the real repositories so the sidecar exists. */
+async function seedPlan(stack: ReturnType<typeof createRepositoryStack>) {
+	const projectId = createProjectId();
+	const planId = createPlanId();
+	expectOk(await stack.projects.save(makeProjectEntity({ id: projectId }), 'absent'));
+	expectOk(await stack.plans.save(makePlanEntity({ id: planId, projectId }), 'absent'));
+	return planId;
+}
+
 function settled(): Promise<void> {
 	return Promise.resolve().then(() => undefined);
 }
@@ -209,5 +232,148 @@ describe('the vault-change pipeline announces the entries it changes', () => {
 		await settled();
 
 		expect(announced).toEqual([]);
+	});
+
+	/**
+	 * **The sidecar half, and it is the one nothing else could reach.** A `.rpgeo` is not a
+	 * note: it carries no frontmatter, no index entry of its own, and — for an ASSET — no index
+	 * mapping either, since ADR-0014 derives its home. So sync, a hand edit or the file
+	 * explorer changing one reached the index (at most, a plan's mapping) and no leaf: an open
+	 * designer went on drawing the shape it read at mount, indefinitely, and so did an open
+	 * Plan Editor for its zones.
+	 *
+	 * These cases assert on the SIDECAR event rather than on the index, for the reason the file
+	 * header gives: the index half of these paths already behaved, and a case reading it is
+	 * equally true of the defect and of the fix.
+	 */
+	describe('a geometry sidecar changing out of band', () => {
+		it('announces a plan sidecar modified out of band', async () => {
+			const stack = createRepositoryStack();
+			const planId = await seedPlan(stack);
+			const path = stack.index.getGeometrySidecarPath(planId) ?? '';
+			expect(path).toContain('.rpgeo');
+			// Forgotten first, which is what makes this an OUT-OF-BAND edit rather than our own:
+			// the write that seeded it left a token behind, and the echo check is what that token
+			// exists for.
+			stack.echo.forget(path);
+			const { adapter, sidecars } = wired(stack);
+
+			adapter.onModify({ path } as never);
+			await settled();
+
+			expect(sidecars).toEqual([{ id: String(planId), type: 'renovation-plan' }]);
+		});
+
+		it('announces a plan sidecar deleted out of band', async () => {
+			const stack = createRepositoryStack();
+			const planId = await seedPlan(stack);
+			const path = stack.index.getGeometrySidecarPath(planId) ?? '';
+			const { adapter, sidecars } = wired(stack);
+			stack.vault.entries.delete(path);
+
+			adapter.onDelete({ path } as never);
+			await settled();
+
+			expect(sidecars).toEqual([{ id: String(planId), type: 'renovation-plan' }]);
+		});
+
+		/**
+		 * The half the reviewer reported. `processSidecar` returns for an asset entry before it
+		 * reaches any of the plan bookkeeping — correctly, since ADR-0014 leaves nothing to
+		 * bookkeep — and that return used to be the end of the story.
+		 */
+		it('announces an asset sidecar modified out of band', async () => {
+			const stack = createRepositoryStack();
+			const assetId = createAssetId();
+			expectOk(await stack.assets.save(makeAssetEntity({ id: assetId }), 'absent'));
+			const path = `${stack.libraryFolder}/Geometry/${assetId}.rpgeo`;
+			stack.vault.entries.set(path, '{}');
+			const { adapter, sidecars } = wired(stack);
+
+			adapter.onModify({ path } as never);
+			await settled();
+
+			expect(sidecars).toEqual([{ id: String(assetId), type: 'renovation-asset' }]);
+		});
+
+		it('announces an asset sidecar deleted out of band', async () => {
+			const stack = createRepositoryStack();
+			const assetId = createAssetId();
+			expectOk(await stack.assets.save(makeAssetEntity({ id: assetId }), 'absent'));
+			const path = `${stack.libraryFolder}/Geometry/${assetId}.rpgeo`;
+			const { adapter, sidecars } = wired(stack);
+
+			adapter.onDelete({ path } as never);
+			await settled();
+
+			expect(sidecars).toEqual([{ id: String(assetId), type: 'renovation-asset' }]);
+		});
+
+		/**
+		 * **The discriminating case, and the same one the note path has: the echo check stays
+		 * AHEAD of the publish.** This plugin's own sidecar write already costs the leaf one
+		 * refresh through the command's own domain event; announcing here as well would make
+		 * every zone drag and every shape edit re-read twice. Hoisting the publish above
+		 * `echo.knows` turns this case red.
+		 */
+		it('says nothing about this plugin echoing its own sidecar write back', async () => {
+			const stack = createRepositoryStack();
+			const planId = await seedPlan(stack);
+			const path = stack.index.getGeometrySidecarPath(planId) ?? '';
+			const { adapter, sidecars } = wired(stack);
+
+			adapter.onModify({ path } as never);
+			await settled();
+
+			expect(sidecars).toEqual([]);
+		});
+
+		/**
+		 * **The delete branch's echo asymmetry, pinned as BEHAVIOUR rather than left as a
+		 * paragraph.** A modify behind a known echo says nothing; a DELETE says something even
+		 * when the window still holds the path. That is deliberate: both sidecar stores call
+		 * `echo.forget` inside their own delete, and `trashFile` is awaited, so whether the
+		 * window still knows the path when Obsidian raises the event is a race rather than a
+		 * fact — an echo test here would decide nondeterministically while reading as
+		 * protection. The price is one redundant re-read on this plugin's own delete, beside
+		 * the domain event its command already published; the alternative is a sidecar deleted
+		 * out of band reaching nobody, which is the defect this event exists for.
+		 *
+		 * A build that starts gating the delete on the echo fails HERE rather than leaving the
+		 * comment beside that branch quietly wrong.
+		 */
+		it('announces a deleted sidecar even when the echo window still knows the path', async () => {
+			const stack = createRepositoryStack();
+			const planId = await seedPlan(stack);
+			const path = stack.index.getGeometrySidecarPath(planId) ?? '';
+			expect(stack.echo.knows(path)).toBe(true);
+			const { adapter, sidecars } = wired(stack);
+			stack.vault.entries.delete(path);
+
+			adapter.onDelete({ path } as never);
+			await settled();
+
+			expect(sidecars).toEqual([{ id: String(planId), type: 'renovation-plan' }]);
+		});
+
+		/**
+		 * A stray `.rpgeo` — a copied file, a hand-renamed one — names no indexed entity, so it
+		 * has no subject to be about and every leaf must be left alone. Without this the
+		 * unfiltered version of the fix passes: publishing for a resolved entry only is what
+		 * makes the id in the payload mean something.
+		 */
+		it('says nothing about a sidecar whose basename names no indexed entity', async () => {
+			const stack = createRepositoryStack();
+			await seedPlan(stack);
+			const { adapter, sidecars } = wired(stack);
+			const strayPath = `Renovation/Geometry/${createPlanId()}.rpgeo`;
+			stack.vault.entries.set(strayPath, '{}');
+
+			adapter.onModify({ path: strayPath } as never);
+			adapter.onDelete({ path: `Renovation/Geometry/${createPlanId()}.rpgeo` } as never);
+			await settled();
+
+			expect(sidecars).toEqual([]);
+		});
 	});
 });

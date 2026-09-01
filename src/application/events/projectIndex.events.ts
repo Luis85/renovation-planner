@@ -76,3 +76,43 @@ export function projectIndexEntryChanged(
 ): ProjectIndexEntryChanged {
 	return { type: 'ProjectIndexEntryChanged', payload };
 }
+
+/**
+ * A geometry SIDECAR this plugin owns changed on disk out of band — modified or deleted by
+ * sync, by a hand edit, or in the file explorer.
+ *
+ * **It is a fact about FILES, not about the domain, and that is why it is here rather than in
+ * `domain/`.** `VaultChangeAdapter` has not read the document and cannot say what changed
+ * inside it; all it knows is that the bytes behind one entity's geometry are no longer the
+ * ones its readers last saw. Publishing `AssetDesignChanged` or `ZoneGeometryChanged` from
+ * the pipeline instead would put infrastructure beside the command sites that legitimately
+ * raise those, asserting a design change it has never looked at.
+ *
+ * **Nor is it a second spelling of `ProjectIndexEntryChanged`**, which is why it is a third
+ * event rather than a widened payload. That one means "the index changed under you", a
+ * CATEGORY claim `applyUpsert`/`applyRemove` keep by being the only mutators; a sidecar
+ * change need mutate nothing at all. ADR-0014 gives an asset's sidecar a DERIVED home, so the
+ * index stores no mapping for it and there is nothing for a sidecar event to have moved —
+ * buying an asset designer its refresh by announcing an index change that did not happen
+ * would leave the next reader an invariant that is only mostly true.
+ *
+ * **Both kinds of sidecar are covered by one event**, and the payload is what makes that
+ * possible: a plan's `.rpgeo` and an asset's are the same file type under two owners
+ * (ADR-011, ADR-0014), so a subscriber filters on the entity the basename names — its type as
+ * well as its id, because neither alone says the change is this leaf's business. A sidecar
+ * whose basename resolves to no indexed entity names no subject and raises nothing.
+ */
+export interface GeometrySidecarChangedPayload {
+	readonly entityId: EntityId<string>;
+	readonly entityType: EntityType;
+}
+
+export interface GeometrySidecarChanged extends DomainEvent<'GeometrySidecarChanged'> {
+	readonly payload: GeometrySidecarChangedPayload;
+}
+
+export function geometrySidecarChanged(
+	payload: GeometrySidecarChangedPayload,
+): GeometrySidecarChanged {
+	return { type: 'GeometrySidecarChanged', payload };
+}

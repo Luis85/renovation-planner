@@ -23,8 +23,11 @@ export interface AssetDesignerDeps {
 	/**
 	 * "Tell me when the design of THIS asset changed" — partially applied per leaf by the view,
 	 * exactly as `PlanEditorDeps.onPlanChanged` is. It also carries the index rebuild, which is
-	 * what a leaf restored before `onLayoutReady` depends on; see
-	 * `createAssetDesignChangeSource` for both lists and why they are two.
+	 * what a leaf restored before `onLayoutReady` depends on, and the asset's geometry SIDECAR
+	 * changing on disk, which is where the shape actually lives; see
+	 * `createAssetDesignChangeSource` for its FOUR lists and why each is separate. (This
+	 * sentence said "both lists" while there were three, which is why the count now names the
+	 * file that holds it rather than being remembered here.)
 	 */
 	readonly onDesignChanged: (assetId: string, listener: () => void) => () => void;
 	/**

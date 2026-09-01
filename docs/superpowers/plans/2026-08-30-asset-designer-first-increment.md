@@ -3127,6 +3127,11 @@ Steps a human runs in a real vault, each with its expected result. It must cover
 
 One section, in the file's own voice: what landed, and the rules that came out of it. Write the guarantee to the check — if a claim outruns what a gate verifies, narrow the sentence. Include what is deliberately **not** built: nothing draws the shape on a plan, nothing computes with the height, and the clearance has no consumer yet.
 
+**Two passages already in `CLAUDE.md` are FALSE as of this increment and must be corrected, not merely added to.** Both are recorded here rather than left to be re-found, because a stale sentence in that file is the defect this increment spent a whole review cycle on:
+
+- Its account of `assetDesignChangeSource`'s third list says the sidecar gap is open — *"a `.rpasset` arriving through sync reaches this source through nothing … closing it is a change to the vault-change pipeline rather than to this module"*. That gap is CLOSED (`GeometrySidecarChanged`, published from `VaultChangeAdapter.processSidecar`, with a filtered arm on both `assetDesignChangeSource` and `planChangeSource`). The same sentence also names the wrong extension: sidecars are **`.rpgeo`** for plans and assets alike (`assetGeometry.ts`, `buildProjectIndexEntries.ts`), and `.rpasset` is not a file type this plugin has.
+- Its `WriteLedger` account says "every WRITE records into it, restores included", which is still true and no longer the whole story: the ledger now also carries a per-entity GENERATION, because recording the tip cannot distinguish a foreign write SANDWICHED by two of ours from two of ours. That is what the undo guard reads.
+
 **- [ ] Step 3: Final gate, on both halves**
 
 ```bash

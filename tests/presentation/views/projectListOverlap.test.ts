@@ -34,7 +34,7 @@ import ProjectList from '../../../src/presentation/views/ProjectList.vue';
 import { en } from '../../../src/presentation/i18n/locales/en';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
-const KITCHEN: ProjectSummaryDto = { id: 'p1', name: 'Kitchen', status: 'IDEA', libraryOverlap: false };
+const KITCHEN: ProjectSummaryDto = { id: 'p1', name: 'Kitchen', status: 'IDEA', currency: 'EUR', libraryOverlap: false };
 
 const listOf = (...projects: readonly ProjectSummaryDto[]) => mount(ProjectList, { props: { projects } });
 
@@ -67,7 +67,13 @@ describe('the §83 library-overlap marker on a project row', () => {
 	 * — or bound to something the whole list shares — would still satisfy both cases above.
 	 */
 	it('marks the overlapping row and not its neighbour', () => {
-		const list = listOf(KITCHEN, { id: 'p2', name: 'Bathroom', status: 'IDEA', libraryOverlap: true });
+		const list = listOf(KITCHEN, {
+			id: 'p2',
+			name: 'Bathroom',
+			status: 'IDEA',
+			currency: 'EUR',
+			libraryOverlap: true,
+		});
 
 		const rows = list.findAll('.rp-project-list__row');
 

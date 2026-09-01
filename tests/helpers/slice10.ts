@@ -30,9 +30,10 @@ export function makeDeleteZoneCommand(
 	events: EventBus,
 	requirements = new InMemoryRequirementRepository(),
 	locks = new ReferenceLocks(),
+	projects: InMemoryProjectRepository = new InMemoryProjectRepository(),
 ): DeleteZoneCommand {
 	const assets = new InMemoryAssetRepository();
-	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events);
+	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events, projects);
 	return new DeleteZoneCommand({ zones, requirements, recalculate, events, locks, logger: recorder });
 }
 
@@ -147,7 +148,7 @@ export async function requirementFixture(
 	const plan = expectOk(
 		await plans.save(makePlan({ projectId: project.entity.id }), 'absent'),
 	);
-	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events);
+	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events, projects);
 	return {
 		projects,
 		plans,
@@ -158,7 +159,7 @@ export async function requirementFixture(
 		locks,
 		project,
 		plan,
-		assign: new AssignAssetCommand(zones, assets, requirements, events, locks),
+		assign: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects }),
 		recalculate,
 	};
 }

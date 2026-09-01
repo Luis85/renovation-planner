@@ -23,6 +23,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { dirname, isAbsolute, join, relative, sep } from 'node:path';
 import { tmpdir } from 'node:os';
 import { TFile, TFolder, type FileStats } from 'obsidian';
+import { currencyOf } from '../../src/core/money/Money';
 import { applyFrontmatterEdit, describeFile, fileCacheAnswer } from './vault';
 import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
@@ -564,7 +565,7 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		fileManager,
 		metadataCache,
 		...base,
-		projects: new ObsidianProjectRepository(base.deps, DEFAULT_PROJECT_FOLDER, DEFAULT_LIBRARY_FOLDER),
+		projects: new ObsidianProjectRepository(base.deps, DEFAULT_PROJECT_FOLDER, DEFAULT_LIBRARY_FOLDER, currencyOf('EUR')),
 		plans: new ObsidianPlanRepository(base.deps, base.store),
 		zones: new ObsidianZoneRepository(base.deps, base.store),
 		assets: new ObsidianAssetRepository(base.deps, DEFAULT_LIBRARY_FOLDER),

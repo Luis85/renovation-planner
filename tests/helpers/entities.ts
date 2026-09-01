@@ -18,7 +18,7 @@ import {
 	createRequirementId,
 	type RequirementId,
 } from '../../src/domain/requirement/RequirementId';
-import { of as moneyOf } from '../../src/core/money/Money';
+import { currencyOf, of as moneyOf } from '../../src/core/money/Money';
 import type { Quantity } from '../../src/core/units/MeasurementUnit';
 
 /**
@@ -39,7 +39,14 @@ export function squareAt(x = 0, y = 0): Polygon {
 
 export function makeProject(props?: Partial<CreateProjectProps> & { id?: ProjectId }): Project {
 	const { id, ...rest } = props ?? {};
-	return expectOk(Project.create({ id: id ?? createProjectId(), name: 'Kitchen renovation', ...rest }));
+	return expectOk(
+		Project.create({
+			id: id ?? createProjectId(),
+			name: 'Kitchen renovation',
+			currency: currencyOf('EUR'),
+			...rest,
+		}),
+	);
 }
 
 export function makePlan(

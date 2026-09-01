@@ -15,6 +15,7 @@ import type { Command } from '../Command';
 import type { AssetRepository } from '../../ports/AssetRepository';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
+import type { ProjectRepository } from '../../ports/ProjectRepository';
 import { loadAsset } from './AssignAsset';
 import { loadZone } from '../zone/loadZone';
 import { loadRequirement } from './loadRequirement';
@@ -51,6 +52,7 @@ export class RecalculateRequirementCommand
 		private readonly zones: ZoneRepository,
 		private readonly assets: AssetRepository,
 		private readonly events: EventBus,
+		private readonly projects: ProjectRepository,
 	) {}
 
 	async execute(
@@ -95,11 +97,24 @@ export class RecalculateRequirementCommand
 				calculationError('requirement.area-failed', area.error.message, area.error),
 			);
 		}
+		const project = await this.projects.getById(requirement.projectId);
+		if (isErr(project)) {
+			return err(calculationError('requirement.project-gone', project.error.message, project.error));
+		}
+		if (project.value === null) {
+			return err(
+				calculationError(
+					'requirement.project-gone',
+					`Requirement ${requirement.id} names project ${requirement.projectId}, which is not there.`,
+				),
+			);
+		}
 		const figures = deriveRequirementFigures({
 			zoneAreaMm2: area.value,
 			assetUnit: asset.value.unit,
 			unitCost: asset.value.unitCost,
 			wasteFactor: requirement.wasteFactor,
+			expectedCurrency: project.value.entity.currency,
 		});
 		if (!figures.ok) return figures;
 

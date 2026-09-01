@@ -202,13 +202,14 @@ describe('DeleteZoneCommand reference integrity', () => {
 			resolution: 'remove-references',
 			resolvedReferents: [w.requirementId],
 		});
-		const assigning = new AssignAssetCommand(
-			w.zones,
-			w.assets,
-			w.requirements,
-			w.events,
-			w.locks,
-		).execute({ zoneId: w.zoneId, assetId: otherAsset.entity.id });
+		const assigning = new AssignAssetCommand({
+			zones: w.zones,
+			assets: w.assets,
+			requirements: w.requirements,
+			events: w.events,
+			locks: w.locks,
+			projects: w.projects,
+		}).execute({ zoneId: w.zoneId, assetId: otherAsset.entity.id });
 
 		const results = await Promise.all([deleting, assigning] as const);
 		// Either the assignment landed first (the delete then refuses on the moved set)

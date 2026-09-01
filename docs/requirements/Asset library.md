@@ -68,3 +68,10 @@ An item beneath this epic is done when:
   asset's default has no other way to price it — and [[Quotes and quote items]], which would
   otherwise be that way, is V1 while this epic is MVP. An epic that shares a catalogue owes the
   projects that share it a way to disagree about price.
+  **Still open after the currency increment of 2026-09-01, and deliberately not ticked.** That
+  increment gave the pipeline a currency it must produce and refused another, so a mismatch is
+  now caught rather than silently priced — which is the correctness half. It built no override,
+  so a project still has no way to record its own price and this item is unmet. It belongs to the
+  override increment split out of
+  [20 — The Currency the Pipeline Is Told](../tasks/20-the-currency-the-pipeline-is-told.md);
+  that document's Amendment 1, item 7 enumerates what it carries.

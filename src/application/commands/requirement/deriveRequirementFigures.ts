@@ -1,6 +1,6 @@
 import { Decimal } from 'decimal.js';
 import type { CalculationError } from '../../../core/errors/AppError';
-import type { Money } from '../../../core/money/Money';
+import type { Currency, Money } from '../../../core/money/Money';
 import { ok, type Result } from '../../../core/result/Result';
 import type { MeasurementUnit, Quantity } from '../../../core/units/MeasurementUnit';
 import type { CalculatedFrom } from '../../../domain/requirement/Requirement';
@@ -39,6 +39,12 @@ export interface DerivedFiguresInput {
 	readonly unitCost: Money;
 	/** Fraction in [0, 1] — the REQUIREMENT's field, not the Asset's default. */
 	readonly wasteFactor: Decimal;
+	/**
+	 * The project's currency, resolved by the CALLER and passed in. It is not looked up
+	 * here: a derivation that reached for a repository would be a second answer to what a
+	 * Requirement costs, and both callers deliberately route through this one function.
+	 */
+	readonly expectedCurrency: Currency;
 }
 
 export interface DerivedFigures {
@@ -74,6 +80,7 @@ export function deriveRequirementFigures(
 		quantity: purchase.value.calculated,
 		unitPrice: input.unitCost,
 		pricedPer: input.assetUnit,
+		expectedCurrency: input.expectedCurrency,
 	});
 	if (!cost.ok) return cost;
 

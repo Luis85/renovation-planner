@@ -1,4 +1,5 @@
 import { TFile as MockTFile, TFolder as MockTFolder, type FileStats, type TFile } from 'obsidian';
+import { currencyOf } from '../../src/core/money/Money';
 import { serializeFrontmatter } from '../../src/infrastructure/obsidian/repositories/noteIo';
 import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
@@ -555,7 +556,7 @@ export function createRepositoryStack(projectFolder = 'Renovation', libraryFolde
 		fileManager,
 		metadataCache,
 		...base,
-		projects: new ObsidianProjectRepository(base.deps, projectFolder, libraryFolder),
+		projects: new ObsidianProjectRepository(base.deps, projectFolder, libraryFolder, currencyOf('EUR')),
 		plans: new ObsidianPlanRepository(base.deps, base.store),
 		zones: new ObsidianZoneRepository(base.deps, base.store),
 		assets: new ObsidianAssetRepository(base.deps, libraryFolder),

@@ -20,6 +20,7 @@ import type { Command } from '../Command';
 import type { AssetRepository } from '../../ports/AssetRepository';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
+import type { ProjectRepository } from '../../ports/ProjectRepository';
 import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import { deriveRequirementFigures } from './deriveRequirementFigures';
 import type { EntityVersion } from '../../ports/versioning';
@@ -60,6 +61,17 @@ export type AssignAssetErrors =
 	| CalculationError
 	| RepositoryError;
 
+/** One bundle instead of six positional collaborators (the max-params budget). */
+export interface AssignAssetDeps {
+	readonly zones: ZoneRepository;
+	readonly assets: AssetRepository;
+	readonly requirements: RequirementRepository;
+	readonly events: EventBus;
+	readonly locks: ReferenceLocks;
+	/** The currency invariant's read: `deriveRequirementFigures` is told the PROJECT's. */
+	readonly projects: ProjectRepository;
+}
+
 /**
  * Links one Asset into one Zone by creating (or finding) the Requirement between them.
  * Idempotent on the (zoneId, assetId) pair. The invariants a link must satisfy are owned
@@ -79,20 +91,18 @@ export type AssignAssetErrors =
 export class AssignAssetCommand
 	implements Command<AssignAssetInput, Result<AssignAssetResult, AssignAssetErrors>>
 {
-	constructor(
-		private readonly zones: ZoneRepository,
-		private readonly assets: AssetRepository,
-		private readonly requirements: RequirementRepository,
-		private readonly events: EventBus,
-		private readonly locks: ReferenceLocks,
-	) {}
+	private readonly deps: AssignAssetDeps;
+
+	constructor(deps: AssignAssetDeps) {
+		this.deps = deps;
+	}
 
 	async execute(input: AssignAssetInput): Promise<Result<AssignAssetResult, AssignAssetErrors>> {
-		const release = await this.locks.acquire([input.zoneId, input.assetId], []);
+		const release = await this.deps.locks.acquire([input.zoneId, input.assetId], []);
 		try {
-			const loadedZone = await loadZone(this.zones, input.zoneId);
+			const loadedZone = await loadZone(this.deps.zones, input.zoneId);
 			if (!loadedZone.ok) return loadedZone;
-			const loadedAsset = await loadAsset(this.assets, input.assetId);
+			const loadedAsset = await loadAsset(this.deps.assets, input.assetId);
 			if (!loadedAsset.ok) return loadedAsset;
 			const zone = loadedZone.value.entity;
 			const asset = loadedAsset.value;
@@ -107,7 +117,7 @@ export class AssignAssetCommand
 				});
 			}
 
-			const existing = await this.requirements.listByZone(zone.id);
+			const existing = await this.deps.requirements.listByZone(zone.id);
 			if (isErr(existing)) return existing;
 			const found = existing.value.find((r) => r.entity.assetId === asset.id);
 			if (found) {
@@ -133,11 +143,21 @@ export class AssignAssetCommand
 				cause: area.error,
 			});
 		}
+		const project = await this.deps.projects.getById(zone.projectId);
+		if (isErr(project)) return project;
+		if (project.value === null) {
+			return err({
+				category: 'Reference',
+				code: 'requirement.project-not-found',
+				message: `Zone ${zone.id} names project ${zone.projectId}, which is not there.`,
+			});
+		}
 		const figures = deriveRequirementFigures({
 			zoneAreaMm2: area.value,
 			assetUnit: asset.unit,
 			unitCost: asset.unitCost,
 			wasteFactor: asset.wasteFactorDefault,
+			expectedCurrency: project.value.entity.currency,
 		});
 		if (!figures.ok) return figures;
 
@@ -154,9 +174,9 @@ export class AssignAssetCommand
 		});
 		if (isErr(requirement)) return requirement;
 
-		const saved = await this.requirements.save(requirement.value, 'absent');
+		const saved = await this.deps.requirements.save(requirement.value, 'absent');
 		if (isErr(saved)) return saved;
-		await this.events.publish(
+		await this.deps.events.publish(
 			requirementCreated({ requirementId: saved.value.entity.id, projectId: saved.value.entity.projectId }),
 		);
 		return ok({ requirement: saved.value.entity, created: true, version: saved.value.version });

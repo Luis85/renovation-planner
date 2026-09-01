@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Money } from '../../../src/core/money/Money';
-import { createMoney } from '../../../src/core/money/Money';
+import { createMoney, currencyOf, of } from '../../../src/core/money/Money';
 import { Project } from '../../../src/domain/project/Project';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { expectErr, expectOk } from '../../helpers/domain';
@@ -9,7 +9,9 @@ const budget = (): Money => expectOk(createMoney('50000', 'EUR'));
 
 describe('Project.create', () => {
 	it('constructs with defaults: status IDEA, unset fields null', () => {
-		const project = expectOk(Project.create({ id: createProjectId(), name: ' Attic ' }));
+		const project = expectOk(
+			Project.create({ id: createProjectId(), name: ' Attic ', currency: currencyOf('EUR') }),
+		);
 		expect(project.name).toBe('Attic');
 		expect(project.status).toBe('IDEA');
 		expect(project.description).toBeNull();
@@ -34,6 +36,7 @@ describe('Project.create', () => {
 				budget: budget(),
 				contingency: budget(),
 				locationDescription: 'Ground floor',
+				currency: currencyOf('EUR'),
 			}),
 		);
 		expect(project.description).toBe('Full refit');
@@ -52,14 +55,14 @@ describe('Project.create', () => {
 		// both construct through `Project.create`.
 		const negative = expectOk(createMoney('-1', 'EUR'));
 		const budgetError = expectErr(
-			Project.create({ id: createProjectId(), name: 'Kitchen', budget: negative }),
+			Project.create({ id: createProjectId(), name: 'Kitchen', currency: currencyOf('EUR'), budget: negative }),
 		);
 		expect(budgetError.category).toBe('Validation');
 		expect(budgetError.code).toBe('project.negative-amount');
 		expect(budgetError.message).toContain('budget');
 
 		const contingencyError = expectErr(
-			Project.create({ id: createProjectId(), name: 'Kitchen', contingency: negative }),
+			Project.create({ id: createProjectId(), name: 'Kitchen', currency: currencyOf('EUR'), contingency: negative }),
 		);
 		expect(contingencyError.code).toBe('project.negative-amount');
 		expect(contingencyError.message).toContain('contingency');
@@ -70,6 +73,7 @@ describe('Project.create', () => {
 			Project.create({
 				id: createProjectId(),
 				name: 'Kitchen',
+				currency: currencyOf('EUR'),
 				budget: expectOk(createMoney('0', 'EUR')),
 			}),
 		);
@@ -78,7 +82,7 @@ describe('Project.create', () => {
 
 	it('rejects an empty or whitespace-only name', () => {
 		for (const name of ['', '   ']) {
-			const error = expectErr(Project.create({ id: createProjectId(), name }));
+			const error = expectErr(Project.create({ id: createProjectId(), name, currency: currencyOf('EUR') }));
 			expect(error.code).toBe('project.empty-name');
 		}
 	});
@@ -88,6 +92,7 @@ describe('Project.create', () => {
 			Project.create({
 				id: createProjectId(),
 				name: 'Kitchen',
+				currency: currencyOf('EUR'),
 				start: new Date('2026-09-01'),
 				targetCompletion: new Date('2026-08-01'),
 			}),
@@ -99,7 +104,9 @@ describe('Project.create', () => {
 		['start', { start: new Date('nonsense') }],
 		['targetCompletion', { targetCompletion: new Date(NaN) }],
 	])('refuses a %s that is not a real date', (_field, dates) => {
-		const error = expectErr(Project.create({ id: createProjectId(), name: 'Kitchen', ...dates }));
+		const error = expectErr(
+			Project.create({ id: createProjectId(), name: 'Kitchen', currency: currencyOf('EUR'), ...dates }),
+		);
 		expect(error.code).toBe('project.invalid-date');
 	});
 
@@ -111,6 +118,7 @@ describe('Project.create', () => {
 			Project.create({
 				id: createProjectId(),
 				name: 'Kitchen',
+				currency: currencyOf('EUR'),
 				start: new Date(NaN),
 				targetCompletion: new Date('2026-08-01'),
 			}),
@@ -124,6 +132,7 @@ describe('Project.create', () => {
 			Project.create({
 				id: createProjectId(),
 				name: 'Kitchen',
+				currency: currencyOf('EUR'),
 				start: day,
 				targetCompletion: day,
 			}),
@@ -133,8 +142,65 @@ describe('Project.create', () => {
 
 	it('refuses a status outside the lifecycle vocabulary', () => {
 		const error = expectErr(
-			Project.create({ id: createProjectId(), name: 'Kitchen', status: 'PAUSED' as never }),
+			Project.create({
+				id: createProjectId(),
+				name: 'Kitchen',
+				currency: currencyOf('EUR'),
+				status: 'PAUSED' as never,
+			}),
 		);
 		expect(error.code).toBe('project.unknown-status');
+	});
+});
+
+describe('a project has one currency', () => {
+	it('refuses a budget denominated in another currency', () => {
+		const error = expectErr(
+			Project.create({
+				id: createProjectId(),
+				name: 'Kitchen refit',
+				currency: currencyOf('EUR'),
+				budget: of('10000.00', 'GBP'),
+			}),
+		);
+		expect(error.code).toBe('project.currency-mismatch');
+		// The field is NAMED in the message, one code for both fields — the shape
+		// `negativeAmount` beside it already uses.
+		expect(error.message).toContain('budget');
+	});
+
+	it('refuses a contingency denominated in another currency', () => {
+		const error = expectErr(
+			Project.create({
+				id: createProjectId(),
+				name: 'Kitchen refit',
+				currency: currencyOf('EUR'),
+				contingency: of('500.00', 'CHF'),
+			}),
+		);
+		expect(error.message).toContain('contingency');
+	});
+
+	it('accepts both in the project currency, so the guard is not refusing everything', () => {
+		const result = Project.create({
+			id: createProjectId(),
+			name: 'Kitchen refit',
+			currency: currencyOf('EUR'),
+			budget: of('10000.00', 'EUR'),
+			contingency: of('500.00', 'EUR'),
+		});
+		expect(expectOk(result).currency).toBe('EUR');
+	});
+
+	it('refuses a currency change that would orphan a budget in the old one', () => {
+		const project = expectOk(
+			Project.create({
+				id: createProjectId(),
+				name: 'Kitchen refit',
+				currency: currencyOf('GBP'),
+				budget: of('10000.00', 'GBP'),
+			}),
+		);
+		expect(project.withCurrency(currencyOf('EUR')).ok).toBe(false);
 	});
 });

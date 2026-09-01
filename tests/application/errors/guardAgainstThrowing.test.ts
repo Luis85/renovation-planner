@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { currencyOf } from '../../../src/core/money/Money';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import { injectedPersistenceError, RecordingEventBus } from '../../helpers/domain';
 import { guardCommand, guardQuery } from '../../../src/application/errors/guardAgainstThrowing';
@@ -180,7 +181,7 @@ function editorServices(): Fixture[] {
 		map,
 	);
 	return [
-		commandCase('CreateProjectCommand', new CreateProjectCommand(projects, events) as never, 'command.createProject.failed', {
+		commandCase('CreateProjectCommand', new CreateProjectCommand(projects, events, currencyOf('EUR')) as never, 'command.createProject.failed', {
 			name: 'Kitchen',
 		}),
 		commandCase('CreatePlanCommand', new CreatePlanCommand(plans, projects, events) as never, 'command.createPlan.failed', {
@@ -295,13 +296,13 @@ function slice10Services(): Fixture[] {
 		),
 		commandCase(
 			'AssignAssetCommand',
-			new AssignAssetCommand(zones, assets, requirements, events, locks) as never,
+			new AssignAssetCommand({ zones, assets, requirements, events, locks, projects }) as never,
 			'command.assignAsset.failed',
 			{ zoneId: zone.id, assetId: asset.id },
 		),
 		commandCase(
 			'RecalculateRequirementCommand',
-			new RecalculateRequirementCommand(requirements, zones, assets, events) as never,
+			new RecalculateRequirementCommand(requirements, zones, assets, events, projects) as never,
 			'command.recalculateRequirement.failed',
 			{ requirementId: requirement.id },
 		),
@@ -335,7 +336,7 @@ function slice10Services(): Fixture[] {
 		),
 		queryCase(
 			'GetRequirementsForZone',
-			new GetRequirementsForZone(requirements, zones, assets) as never,
+			new GetRequirementsForZone(requirements, zones, assets, projects) as never,
 			'query.getRequirementsForZone.failed',
 			zone.id,
 		),

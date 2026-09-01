@@ -1,4 +1,5 @@
 import type { ValidationError } from '../../../core/errors/AppError';
+import { currencyOf, type Currency } from '../../../core/money/Money';
 import type { Result } from '../../../core/result/Result';
 import { Project } from '../../../domain/project/Project';
 import { ProjectFrontmatterSchemaV1, PROJECT_TYPE, type ProjectFrontmatterDTO } from '../dto/projectFrontmatter';
@@ -53,10 +54,11 @@ export function projectToPersistence(project: Project, revision: number): Record
 		description: project.description,
 		start: toDateOnly(project.start),
 		'target-completion': toDateOnly(project.targetCompletion),
+		currency: project.currency,
 	};
 }
 
-function fromDto(dto: ProjectFrontmatterDTO): Result<Project, ValidationError> {
+function fromDto(dto: ProjectFrontmatterDTO, defaultCurrency: Currency): Result<Project, ValidationError> {
 	return Project.create({
 		id: dto.id as Project['id'],
 		name: dto.name,
@@ -64,12 +66,19 @@ function fromDto(dto: ProjectFrontmatterDTO): Result<Project, ValidationError> {
 		description: dto.description,
 		start: fromDateOnly(dto.start),
 		targetCompletion: fromDateOnly(dto['target-completion']),
+		// The schema has already refused any spelling that is not `/^[A-Z]{3}$/`, so this is
+		// a program-safe value and `currencyOf` is the right door. The only branch here is
+		// the absence, and both of its arms have a test.
+		currency: dto.currency === null ? defaultCurrency : currencyOf(dto.currency),
 	});
 }
 
 /** Parse (already-migrated) raw frontmatter through the versioned schema, then construct. */
-export function projectFromPersistence(raw: unknown): Result<Project, ValidationError> {
+export function projectFromPersistence(
+	raw: unknown,
+	defaultCurrency: Currency,
+): Result<Project, ValidationError> {
 	const parsed = parsePersisted(ProjectFrontmatterSchemaV1, raw, 'project.frontmatter-invalid', 'Project note');
 	if (!parsed.ok) return parsed;
-	return fromDto(parsed.value);
+	return fromDto(parsed.value, defaultCurrency);
 }

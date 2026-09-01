@@ -45,7 +45,13 @@ const detailDoors = {
 	listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 } satisfies Pick<RenovationProjectQueryServices, 'getProject' | 'listPlansByProject'>;
 
-const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', libraryOverlap: false };
+const PROJECT: ProjectSummaryDto = {
+	id: 'project-1',
+	name: 'Kitchen refit',
+	status: 'Planning',
+	currency: 'EUR',
+	libraryOverlap: false,
+};
 
 const answering = (
 	projects: readonly ProjectSummaryDto[],

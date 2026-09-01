@@ -147,12 +147,12 @@ export function composeSlice10(
 			markers,
 			notify: sequenceNotices,
 		}),
-		assignAsset: new AssignAssetCommand(zones, assets, requirements, events, locks),
+		assignAsset: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects }),
 		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
 		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events, locks),
 		deleteRequirement: new DeleteRequirementCommand(requirements),
 		queries: {
-			getRequirementsForZone: new GetRequirementsForZone(requirements, zones, assets),
+			getRequirementsForZone: new GetRequirementsForZone(requirements, zones, assets, projects),
 			listAssets: new ListAssets(assets),
 			listRequirementsReferencing: new ListRequirementsReferencing(
 				requirements,

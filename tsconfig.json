@@ -5,6 +5,12 @@
     "module": "ESNext",
     "target": "ES2020",
     "allowJs": true,
+    // Nothing here emits: Vite builds the bundle and `build` runs `vue-tsc -noEmit`. It is
+    // declared in the CONFIG rather than left to that flag because `allowJs` pulls the build
+    // scripts and `eslint.config.mjs` in as INPUTS — `tests/build/` imports them — so without
+    // it TypeScript names each of those files as its own output and refuses (TS5055). An IDE
+    // reads this file and not the npm script, so the flag alone left the error on screen.
+    "noEmit": true,
     "strict": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,

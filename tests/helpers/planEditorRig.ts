@@ -127,7 +127,7 @@ export async function rig(seed?: (repos: {
 	// no assertion here could see it. The composition root registers exactly the two
 	// handlers below; a rig that registered neither is a fake kinder than the real app.
 	const events = dispatchingEventBus();
-	const recalculate = new RecalculateRequirementCommand(requirementsRepo, zonesRepo, assetsRepo, events);
+	const recalculate = new RecalculateRequirementCommand(requirementsRepo, zonesRepo, assetsRepo, events, projects);
 	registerOnZoneGeometryChanged(events, {
 		requirements: requirementsRepo,
 		events,
@@ -145,7 +145,7 @@ export async function rig(seed?: (repos: {
 	const queries = createPlanEditorQueries({
 		getPlan: new GetPlan(plans),
 		findZonesByPlan: new FindZonesByPlan(zonesRepo),
-		getRequirementsForZone: new GetRequirementsForZone(requirementsRepo, zonesRepo, assetsRepo),
+		getRequirementsForZone: new GetRequirementsForZone(requirementsRepo, zonesRepo, assetsRepo, projects),
 		listAssets: new ListAssets(assetsRepo),
 		listRequirementsReferencing: new ListRequirementsReferencing(
 			requirementsRepo,
@@ -161,7 +161,7 @@ export async function rig(seed?: (repos: {
 		// through: a delete command with a private one of each would never see a referent
 		// this rig just created, and every reference-integrity assertion driven through the
 		// real editor would pass against a zone nothing references.
-		deleteZone: makeDeleteZoneCommand(zonesRepo, events, requirementsRepo, locks),
+		deleteZone: makeDeleteZoneCommand(zonesRepo, events, requirementsRepo, locks, projects),
 		zones: zonesRepo,
 		zoneInspector: new GetZoneInspector(zonesRepo),
 		// A FACTORY, as the interface requires, and one that REFUSES TO BE USED — deliberately,
@@ -197,7 +197,14 @@ export async function rig(seed?: (repos: {
 			);
 		},
 		requirementEdits: {
-			assignAsset: new AssignAssetCommand(zonesRepo, assetsRepo, requirementsRepo, events, locks),
+			assignAsset: new AssignAssetCommand({
+				zones: zonesRepo,
+				assets: assetsRepo,
+				requirements: requirementsRepo,
+				events,
+				locks,
+				projects,
+			}),
 			setQuantityOverride: new SetRequirementQuantityOverrideCommand(requirementsRepo, events, locks),
 			setCostOverride: new SetRequirementCostOverrideCommand(requirementsRepo, events, locks),
 			requirements: requirementsRepo,

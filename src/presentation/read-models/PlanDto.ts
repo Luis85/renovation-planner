@@ -55,6 +55,12 @@ export interface ProjectSummaryDto {
 	readonly name: string;
 	readonly status: string;
 	/**
+	 * The project's currency, for display only. A plain `string` rather than the branded
+	 * `Currency`: this surface prints it and compares nothing, and a brand at a boundary
+	 * with no consumer is a claim nothing rests on.
+	 */
+	readonly currency: string;
+	/**
 	 * PRD §83: this project's DERIVED folder is the library folder, contains it, or sits
 	 * inside it.
 	 *
@@ -122,7 +128,13 @@ export function toZoneDto(zone: Zone): ZoneDto {
  * carrying a fact about a setting.
  */
 export function toProjectSummaryDto(project: Project, libraryOverlap: boolean): ProjectSummaryDto {
-	return { id: project.id, name: project.name, status: project.status, libraryOverlap };
+	return {
+		id: project.id,
+		name: project.name,
+		status: project.status,
+		currency: project.currency,
+		libraryOverlap,
+	};
 }
 
 export function toPlanSummaryDto(plan: Plan): PlanSummaryDto {

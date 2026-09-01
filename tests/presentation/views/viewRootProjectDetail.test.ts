@@ -38,7 +38,13 @@ import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 
 /** The project every detail-state case is mounted for. */
 // See `projectDetailStore.test.ts` for why this is stated and why it is `false`.
-const PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Hallway', status: 'IDEA', libraryOverlap: false };
+const PROJECT: ProjectSummaryDto = {
+	id: 'project-1',
+	name: 'Hallway',
+	status: 'IDEA',
+	currency: 'EUR',
+	libraryOverlap: false,
+};
 
 /** A read that was really attempted and really failed — never `ok(null)`, which means "gone". */
 const READ_FAILED: RepositoryError = {
@@ -190,7 +196,7 @@ describe('ViewRoot in the detail state', () => {
 			projectId: null,
 			navigate,
 			openProject,
-			projects: [{ id: 'project-1', name: 'Hallway', status: 'IDEA', libraryOverlap: false }],
+			projects: [{ id: 'project-1', name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false }],
 		});
 		await flushPromises();
 

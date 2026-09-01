@@ -7,7 +7,7 @@ import type { AssetId } from '../../../domain/asset/AssetId';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { validateAssetShape } from '../../../domain/asset/AssetShape';
-import type { DispatchResult } from '../DispatchOutcome';
+import type { VersionedDispatchResult } from '../DispatchOutcome';
 import type {
 	AssetGeometryDocument,
 	AssetGeometrySidecar,
@@ -76,6 +76,13 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  * the SAME one across both of its file operations, the note trash included. Recorded in
  * `docs/superpowers/plans/2026-08-30-asset-designer-first-increment.md` rather than only here.
  *
+ * **What it ANSWERS is `VersionedDispatch`, not a bare outcome.** The version a write
+ * produced is known here and nowhere cheaper: a caller rediscovering it with a second read
+ * has a window a peer can land in, and the peer's version is then indistinguishable from this
+ * gesture's own. The five commands above narrow it back to a plain `DispatchResult` at their
+ * `execute` door and hand the whole thing out at `executeWithVersion`, which is the pair
+ * `SetRequirementQuantityOverrideCommand` already spells.
+ *
  * **`no-write` is a report, not an optimisation.** `ok` is not evidence that anything was
  * written and the save-state indicator infers nothing from it, so a repeated identical
  * attribute has to say so or a "Saved" badge claims a write that did not happen. It returns
@@ -118,7 +125,7 @@ export async function updateAssetShape(
 	input: AssetShapeInput,
 	change: ShapeChange,
 	unchanged: ShapeUnchanged,
-): Promise<DispatchResult> {
+): Promise<VersionedDispatchResult> {
 	const { sidecar, assets, events } = deps;
 	// THE ASSET FIRST, and before the sidecar is even opened.
 	//
@@ -149,14 +156,18 @@ export async function updateAssetShape(
 	if (isErr(shape)) return shape;
 
 	if (document.shape !== null && unchanged(document.shape, shape.value)) {
-		return ok('no-write');
+		return ok({ outcome: 'no-write' });
 	}
 
 	const next: AssetGeometryDocument = { ...document, shape: shape.value };
 	const written = await sidecar.write(input.assetId, next, input.expected ?? version);
 	if (isErr(written)) return written;
 	await events.publish(assetDesignChanged({ assetId: input.assetId }));
-	return ok('wrote');
+	// The version the WRITE produced, carried out to the caller rather than left to be
+	// rediscovered by a second read. A reversible adapter's undo is conditional on it, and a
+	// peer landing between this line and a read-back would otherwise be recorded as this
+	// gesture's own — see `VersionedDispatch` for the whole of that account.
+	return ok({ outcome: 'wrote', version: written.value });
 }
 
 /**

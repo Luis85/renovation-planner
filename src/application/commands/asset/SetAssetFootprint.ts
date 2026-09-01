@@ -5,7 +5,7 @@ import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape, FootprintOrigin } from '../../../domain/asset/AssetShape';
 import { footprintFromDimensions } from '../../../domain/asset/AssetShape';
 import type { Command } from '../Command';
-import type { DispatchResult } from '../DispatchOutcome';
+import { plainDispatch, type DispatchResult, type VersionedDispatchResult } from '../DispatchOutcome';
 import type { EntityVersion } from '../../ports/versioning';
 import { samePolygon, updateAssetShape, type AssetShapeDeps } from './updateAssetShape';
 
@@ -94,6 +94,15 @@ export class SetAssetFootprintFromDimensionsCommand
 	constructor(private readonly deps: AssetShapeDeps) {}
 
 	execute(input: SetAssetFootprintFromDimensionsInput): Promise<DispatchResult> {
+		return plainDispatch(this.executeWithVersion(input));
+	}
+
+	/**
+	 * The reversible adapter's door: the same write, plus the version it produced. `execute`
+	 * is the plain caller's and drops that fact — the pair `SetRequirementQuantityOverrideCommand`
+	 * already spells, and the reason it is a pair rather than a widening is in `VersionedDispatch`.
+	 */
+	executeWithVersion(input: SetAssetFootprintFromDimensionsInput): Promise<VersionedDispatchResult> {
 		return updateAssetShape(this.deps, input, (current) => {
 			const footprint = footprintFromDimensions(input.width, input.depth);
 			if (isErr(footprint)) return footprint;
@@ -121,6 +130,15 @@ export class SetAssetFootprintCommand
 	constructor(private readonly deps: AssetShapeDeps) {}
 
 	execute(input: SetAssetFootprintInput): Promise<DispatchResult> {
+		return plainDispatch(this.executeWithVersion(input));
+	}
+
+	/**
+	 * The reversible adapter's door: the same write, plus the version it produced. `execute`
+	 * is the plain caller's and drops that fact — the pair `SetRequirementQuantityOverrideCommand`
+	 * already spells, and the reason it is a pair rather than a widening is in `VersionedDispatch`.
+	 */
+	executeWithVersion(input: SetAssetFootprintInput): Promise<VersionedDispatchResult> {
 		return updateAssetShape(
 			this.deps,
 			input,

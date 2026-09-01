@@ -3,7 +3,7 @@ import type { Point } from '../../../core/geometry/Point';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { Command } from '../Command';
-import type { DispatchResult } from '../DispatchOutcome';
+import { plainDispatch, type DispatchResult, type VersionedDispatchResult } from '../DispatchOutcome';
 import type { EntityVersion } from '../../ports/versioning';
 import { requireShape, samePolygon, updateAssetShape, type AssetShapeDeps } from './updateAssetShape';
 
@@ -64,6 +64,15 @@ export class SetAssetClearanceCommand implements Command<SetAssetClearanceInput,
 	constructor(private readonly deps: AssetShapeDeps) {}
 
 	execute(input: SetAssetClearanceInput): Promise<DispatchResult> {
+		return plainDispatch(this.executeWithVersion(input));
+	}
+
+	/**
+	 * The reversible adapter's door: the same write, plus the version it produced. `execute`
+	 * is the plain caller's and drops that fact — the pair `SetRequirementQuantityOverrideCommand`
+	 * already spells, and the reason it is a pair rather than a widening is in `VersionedDispatch`.
+	 */
+	executeWithVersion(input: SetAssetClearanceInput): Promise<VersionedDispatchResult> {
 		return updateAssetShape(
 			this.deps,
 			input,

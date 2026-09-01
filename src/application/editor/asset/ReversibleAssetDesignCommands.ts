@@ -1,12 +1,9 @@
-import { err, isErr, ok, type Result } from '../../../core/result/Result';
-import type { AppError } from '../../../core/errors/AppError';
+import { err, isErr, ok } from '../../../core/result/Result';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { Asset } from '../../../domain/asset/Asset';
-import type { AssetId } from '../../../domain/asset/AssetId';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import { assetNotFound } from '../../../domain/asset/Asset.errors';
-import type { Command } from '../../commands/Command';
-import type { DispatchResult } from '../../commands/DispatchOutcome';
+import type { DispatchResult, VersionedDispatchResult } from '../../commands/DispatchOutcome';
 import type { AssetShapeInput } from '../../commands/asset/updateAssetShape';
 import type {
 	SetAssetFootprintFromDimensionsInput,
@@ -22,7 +19,22 @@ import type {
 } from '../../ports/AssetGeometrySidecar';
 import type { AssetRepository } from '../../ports/AssetRepository';
 import type { EntityVersion } from '../../ports/versioning';
-import type { WriteLedger } from '../WriteLedger';
+import { undoSuperseded, type WriteLedger } from '../WriteLedger';
+
+/**
+ * One design command as this module reaches it: the VERSIONED door alone.
+ *
+ * `executeWithVersion` rather than `execute`, and that is the fix for a lost update rather
+ * than a preference. An adapter that dispatches `execute` learns nothing about the write, so
+ * it has to rediscover the version by reading the port back — and a peer writing between the
+ * command's write and that read is then recorded as this gesture's own, after which the undo
+ * presents the PEER's version, matches, and restores the pre-gesture state over their edit.
+ * The command is the only thing that can answer without a window, and this is the door it
+ * answers through — `SetRequirementQuantityOverrideDoor` is the same shape one adapter over.
+ */
+export interface VersionedDesignCommand<TInput> {
+	executeWithVersion(input: TInput): Promise<VersionedDispatchResult>;
+}
 
 /**
  * The six design commands this module inverts, as DOORS rather than as classes.
@@ -33,17 +45,24 @@ import type { WriteLedger } from '../WriteLedger';
  * outside the Error Boundary. `SetRequirementQuantityOverrideDoor` records the same
  * relaxation for the same reason, one adapter over.
  *
+ * **Naming `executeWithVersion` is what puts `guardBothDoors` on the hook**, and that
+ * obligation is written here because nothing else will say it: these commands leave the
+ * composition root as a guarded facade, a guard on the door nobody dispatches through is a
+ * guard nobody has, and this module IS the second dispatcher. `guardAssetDesign` guards both
+ * doors for that reason, and `tests/plugin/guardCategory.test.ts` drives every door the root
+ * hands out rather than trusting anyone to remember.
+ *
  * Six doors and FIVE mechanisms: both footprint commands are inverted by the same geometry
  * adapter, because what an inverse restores is the sidecar's whole document and neither of
  * them writes anything else.
  */
 export interface AssetDesignCommandBundle {
-	readonly setFootprintFromDimensions: Command<SetAssetFootprintFromDimensionsInput, DispatchResult>;
-	readonly setFootprint: Command<SetAssetFootprintInput, DispatchResult>;
-	readonly setClearance: Command<SetAssetClearanceInput, DispatchResult>;
-	readonly setAnchor: Command<SetAssetAnchorInput, DispatchResult>;
-	readonly setFacing: Command<SetAssetFacingInput, DispatchResult>;
-	readonly setHeight: Command<SetAssetHeightInput, DispatchResult>;
+	readonly setFootprintFromDimensions: VersionedDesignCommand<SetAssetFootprintFromDimensionsInput>;
+	readonly setFootprint: VersionedDesignCommand<SetAssetFootprintInput>;
+	readonly setClearance: VersionedDesignCommand<SetAssetClearanceInput>;
+	readonly setAnchor: VersionedDesignCommand<SetAssetAnchorInput>;
+	readonly setFacing: VersionedDesignCommand<SetAssetFacingInput>;
+	readonly setHeight: VersionedDesignCommand<SetAssetHeightInput>;
 }
 
 /**
@@ -91,41 +110,6 @@ export interface ReversibleAssetDesignEdit {
 }
 
 /**
- * Record what a write LEFT BEHIND, having read it back.
- *
- * **The commands do not report the version they wrote**, and this is the whole of the cost.
- * `updateAssetShape` and `SetAssetHeightCommand` both resolve a bare `DispatchResult`, so an
- * adapter wrapping them learns the post-write version by asking the port again. The
- * alternative was a second `executeWithVersion` door on each of six commands — the shape the
- * two Inspector override adapters take — and it is declined HERE rather than deferred: a
- * second door is a second thing the Error Boundary must wrap (`guardBothDoors` exists because
- * a guard on the door nobody dispatches through is a guard nobody has), and this task wires no
- * composition root and so could not discharge that obligation.
- *
- * **A read-back that faults, or that finds the entity gone, leaves the ledger EXACTLY where it
- * was, and that is the safe direction rather than an oversight.** The undo then presents a
- * version the store has moved past and is refused, which is the fail-closed answer; the
- * alternatives are worse in both directions. Returning the fault as the dispatch's failure
- * would keep a gesture whose write LANDED off the undo stack, and — through
- * `markUncompensated` — badge a save error over data the vault holds. Recording a guessed
- * version would let the undo overwrite whatever really is there.
- *
- * **What it cannot close** is the window between the command's write and this read: a third
- * party writing in it is recorded as ours, and an undo would then overwrite that write. Only a
- * version reported by the write itself closes that, which is the `executeWithVersion` door
- * above.
- */
-async function recordWritten(
-	ledger: WriteLedger,
-	assetId: AssetId,
-	read: Promise<Result<{ readonly version: EntityVersion } | null, AppError>>,
-): Promise<void> {
-	const found = await read;
-	if (isErr(found) || found.value === null) return;
-	ledger.record(assetId, found.value.version);
-}
-
-/**
  * What both adapters share: the wrapped command, its input, and the rule deciding which
  * version each forward write is conditioned on.
  *
@@ -155,15 +139,29 @@ abstract class ReversibleAssetEdit<TInput extends AssetShapeInput> {
 
 	constructor(
 		protected readonly deps: ReversibleAssetDesignDeps,
-		private readonly command: Command<TInput, DispatchResult>,
+		private readonly command: VersionedDesignCommand<TInput>,
 		protected readonly input: TInput,
 	) {}
 
-	protected async runForward(version: EntityVersion): Promise<DispatchResult> {
+	protected async runForward(version: EntityVersion): Promise<VersionedDispatchResult> {
 		const expected = this.ran ? version : (this.input.expected ?? version);
-		const ran = await this.command.execute({ ...this.input, expected });
+		const ran = await this.command.executeWithVersion({ ...this.input, expected });
 		this.ran = true;
 		return ran;
+	}
+
+	/**
+	 * Refuse an undo whose premise a foreign write has already destroyed — the SECOND of the
+	 * three windows a design gesture straddles, and the one no conditional write can see.
+	 *
+	 * The generation this gesture executed under travels beside its inverse; if the ledger's
+	 * has moved since, something outside this history wrote after that inverse was captured,
+	 * and every write below this one on the stack is describing a state that no longer
+	 * happened. Restoring a whole document or a whole entity cannot merge, so refusing is the
+	 * only answer that does not discard somebody's edit. `WriteLedger` walks the five steps.
+	 */
+	protected supersededSince(ledger: WriteLedger, generation: number): boolean {
+		return ledger.generation(this.input.assetId) !== generation;
 	}
 }
 
@@ -187,6 +185,13 @@ abstract class ReversibleAssetEdit<TInput extends AssetShapeInput> {
  * expectation would refuse the exact sequence undo/redo exists to make work. A sidecar edited
  * OUTSIDE this history since still refuses: its version left the ledger's behind.
  *
+ * **And that condition answers about the TIP, so the GENERATION answers about the chain.** A
+ * peer writing between two of this history's gestures leaves the tip perfectly current by the
+ * time the earlier gesture's undo asks — the later gesture wrote past the peer and its own
+ * undo advanced the ledger — so the conditional write above waves it through and restores a
+ * pre-peer document. The generation this execute ran under travels with the inverse and is
+ * compared again at `undo`; `WriteLedger` walks all five steps.
+ *
  * **And the FORWARD write is conditional on the snapshot this gesture kept**, which closes a
  * lost update the undo would otherwise perform. The wrapped command does its own read, so
  * without this the two reads straddle a window: a peer designer writing in it is MERGED by the
@@ -207,7 +212,16 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput>
 	extends ReversibleAssetEdit<TInput>
 	implements ReversibleAssetDesignEdit
 {
-	private inverse: { readonly document: AssetGeometryDocument; readonly preVersion: EntityVersion } | null = null;
+	private inverse: {
+		readonly document: AssetGeometryDocument;
+		readonly preVersion: EntityVersion;
+		/**
+		 * The ledger generation this execute ran under, captured WITH the document it belongs
+		 * to rather than beside it — an inverse and the premise it rests on are one fact, and a
+		 * separate field is one a later edit can forget to refresh on a redo.
+		 */
+		readonly generation: number;
+	} | null = null;
 
 	async execute(): Promise<DispatchResult> {
 		const { sidecar, geometryLedger } = this.deps;
@@ -218,16 +232,25 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput>
 		const before = await sidecar.read(assetId);
 		if (isErr(before)) return before;
 
+		// The one place this adapter can SEE a foreign write: two readings of the same
+		// resource, one of them this history's own. Asked before the forward write, so the
+		// inverse captured below is known to post-date whatever it finds.
+		const generation = geometryLedger.observe(assetId, before.value.version);
+
 		const ran = await this.runForward(before.value.version);
 		// A refusal wrote nothing and a `no-write` wrote nothing: neither has an inverse, and
 		// capturing one would let a later undo write a document no gesture had replaced. An
 		// earlier inverse from a previous `execute` is deliberately KEPT — the net effect of
 		// "wrote, then wrote nothing" is still the first write.
-		if (isErr(ran) || ran.value === 'no-write') return ran;
+		if (isErr(ran)) return ran;
+		if (ran.value.outcome === 'no-write') return ok('no-write');
 
-		this.inverse = { document: before.value.document, preVersion: before.value.version };
-		await recordWritten(geometryLedger, assetId, sidecar.read(assetId));
-		return ran;
+		this.inverse = { document: before.value.document, preVersion: before.value.version, generation };
+		// The version the command's own write produced. A read-back here would straddle the
+		// third window — a peer landing in it is recorded as ours, and the undo then presents
+		// their version, matches, and restores over their edit.
+		geometryLedger.record(assetId, ran.value.version);
+		return ok('wrote');
 	}
 
 	async undo(): Promise<DispatchResult> {
@@ -239,6 +262,7 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput>
 
 		const { sidecar, events, geometryLedger } = this.deps;
 		const assetId = this.input.assetId;
+		if (this.supersededSince(geometryLedger, inverse.generation)) return err(undoSuperseded(assetId));
 		const expected = geometryLedger.lastWritten(assetId) ?? inverse.preVersion;
 		const written = await sidecar.write(assetId, inverse.document, expected);
 		if (isErr(written)) return written;
@@ -273,7 +297,12 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
 	extends ReversibleAssetEdit<TInput>
 	implements ReversibleAssetDesignEdit
 {
-	private inverse: { readonly entity: Asset; readonly preVersion: EntityVersion } | null = null;
+	private inverse: {
+		readonly entity: Asset;
+		readonly preVersion: EntityVersion;
+		/** See the geometry adapter's field of this name: an inverse and its premise are one fact. */
+		readonly generation: number;
+	} | null = null;
 
 	async execute(): Promise<DispatchResult> {
 		const { assets, noteLedger } = this.deps;
@@ -287,14 +316,21 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
 		if (isErr(before)) return before;
 		if (before.value === null) return err(assetNotFound(assetId));
 
+		// The note half of the same observation the geometry adapter makes, and it catches more
+		// than a peer designer: `UpdateAssetCommand` renaming this asset moves the note's
+		// version too, and this inverse restores the WHOLE entity — so an undo past a rename
+		// would revert the name. Refusing is the right answer there rather than a cautious one.
+		const generation = noteLedger.observe(assetId, before.value.version);
+
 		// `SetAssetHeightCommand` reads the note itself, so this adapter straddles the same
 		// two-read window the geometry one does — `runForward` states that rule for both.
 		const ran = await this.runForward(before.value.version);
-		if (isErr(ran) || ran.value === 'no-write') return ran;
+		if (isErr(ran)) return ran;
+		if (ran.value.outcome === 'no-write') return ok('no-write');
 
-		this.inverse = { entity: before.value.entity, preVersion: before.value.version };
-		await recordWritten(noteLedger, assetId, assets.getById(assetId));
-		return ran;
+		this.inverse = { entity: before.value.entity, preVersion: before.value.version, generation };
+		noteLedger.record(assetId, ran.value.version);
+		return ok('wrote');
 	}
 
 	async undo(): Promise<DispatchResult> {
@@ -303,6 +339,7 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
 
 		const { assets, events, noteLedger } = this.deps;
 		const assetId = this.input.assetId;
+		if (this.supersededSince(noteLedger, inverse.generation)) return err(undoSuperseded(assetId));
 		const expected = noteLedger.lastWritten(assetId) ?? inverse.preVersion;
 		const saved = await assets.save(inverse.entity, expected);
 		if (isErr(saved)) return saved;
@@ -330,6 +367,27 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * with the document as it was — and "as it was" has to be captured BEFORE the forward write,
  * by the gesture itself, because a later reader cannot reconstruct it.
  *
+ * **FOUR of the six factories below carry a `fallow-ignore-next-line unused-class-member`
+ * mark, and the two that do not are the reason the rule is stated rather than the count.**
+ * Fallow resolves a class's members through the annotation where the CONSUMING expression
+ * sits. All six are reached only from the test suite; four of them only through
+ * `tests/helpers/assetDesignHarness.ts` — an inferred object property, which it does not
+ * follow — while `setFootprint` and `setHeight` are also called on a local the silent-ledger
+ * cases build with a bare `new ReversibleAssetDesignCommands(…)`, which it does.
+ *
+ * There were no marks at all while every case lived in one file beside an annotated
+ * `const reversible: ReversibleAssetDesignCommands`; the 450-line test budget split those
+ * cases into two files and all six were reported at once. Measured, not guessed, and in three
+ * steps: an annotated local at ONE consuming site clears exactly the doors that site calls, an
+ * annotation on a DESTRUCTURING pattern (`const { reversible }: AssetDesignHarness = …`)
+ * clears none, and a `new` expression assigned to an inferred local clears the doors called on
+ * it — which is what turned two of these marks stale and is a finding of the gate rather than
+ * of a reader.
+ *
+ * The marks are the honest answer while nothing in `src/` constructs this class, and they go
+ * the day something does — `ReversibleDeleteZoneCommand`'s own account of the same mark, whose
+ * `undo` mark this same change removed for the same reason.
+ *
  * **Tasks B6 and B7 extend this module rather than starting a second one.** Their commands
  * (`CalibrateAsset`, `SetAssetBackground`) do not exist yet, which is why their adapters are
  * not here; what this task owes them is the shared design — the two ledgers, the
@@ -342,6 +400,7 @@ export class ReversibleAssetDesignCommands {
 		private readonly commands: AssetDesignCommandBundle,
 	) {}
 
+	// fallow-ignore-next-line unused-class-member
 	setFootprintFromDimensions(input: SetAssetFootprintFromDimensionsInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setFootprintFromDimensions, input);
 	}
@@ -350,14 +409,17 @@ export class ReversibleAssetDesignCommands {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setFootprint, input);
 	}
 
+	// fallow-ignore-next-line unused-class-member
 	setClearance(input: SetAssetClearanceInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setClearance, input);
 	}
 
+	// fallow-ignore-next-line unused-class-member
 	setAnchor(input: SetAssetAnchorInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setAnchor, input);
 	}
 
+	// fallow-ignore-next-line unused-class-member
 	setFacing(input: SetAssetFacingInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setFacing, input);
 	}

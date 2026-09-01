@@ -445,6 +445,17 @@ export const en = {
 	'designer.asset-failed.headline': 'This asset could not be loaded',
 	'designer.refresh-failed':
 		'This asset could not be re-read after the last change; what you see may be out of date.',
+	// The undo stack's own refusal, keyed by the exact `AppError.code` for the reason the
+	// slice 16 block above states. Without an entry it falls through to
+	// `error.category.validation` — "This data is not in the expected form" — about data that
+	// is perfectly well formed and an undo refused to protect somebody else's edit, which is
+	// the wrong-sentence failure slice 11 recorded rather than a silent one.
+	//
+	// It names the CONSEQUENCE rather than the mechanism: a user has no model of a write
+	// ledger, and what they need to know is that the step is still undoable by hand and that
+	// something they did not do is what stands in the way.
+	'undo.superseded':
+		'This change was edited elsewhere after this step, so undoing it would discard that edit. Reload and undo again if you still want it reversed.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

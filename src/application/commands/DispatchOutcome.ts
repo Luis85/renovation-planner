@@ -1,5 +1,6 @@
-import type { Result } from '../../core/result/Result';
+import { isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
+import type { EntityVersion } from '../ports/versioning';
 
 /**
  * What a dispatched reversible gesture DID, beside whether it succeeded.
@@ -73,6 +74,45 @@ export type DispatchOutcome = 'wrote' | 'no-write';
  * the reversible adapters resolve the same shape.
  */
 export type DispatchResult = Result<DispatchOutcome, AppError>;
+
+/**
+ * The same answer, plus the version the write actually produced — what a reversible adapter
+ * needs and a plain dispatcher does not.
+ *
+ * **A UNION rather than an optional field, and that is the whole of why this type exists.**
+ * The adapters used to learn the version by reading the port back after the command returned,
+ * and a peer writing in the window between those two operations was recorded as this
+ * gesture's: the undo then presented the PEER's version, matched the store, and restored the
+ * pre-gesture document over their edit. The read-back helper's own header named that residue
+ * and named this remedy — "only a version reported by the write itself closes that" — and
+ * writing it down bought nothing, which is this repository's own "a documented residue reads
+ * as surveyed ground" arriving in the file that wrote the sentence. That helper is gone with
+ * the read it performed; `ReversibleAssetDesignCommands` records `ran.value.version` instead.
+ *
+ * A `version: EntityVersion | null` beside a free `outcome` would have left the pairing to a
+ * convention: a caller could read `'wrote'` and find `null`, or record a version for a
+ * dispatch that wrote nothing, and neither is a build error. Discriminating on `outcome` makes
+ * "wrote, and here is what it produced" the only representable success that carries one.
+ */
+export type VersionedDispatch =
+	| { readonly outcome: 'no-write' }
+	| { readonly outcome: 'wrote'; readonly version: EntityVersion };
+
+export type VersionedDispatchResult = Result<VersionedDispatch, AppError>;
+
+/**
+ * The plain `execute` door, expressed as the versioned one with its extra fact dropped —
+ * the shape `SetRequirementQuantityOverrideCommand.execute` already takes over its own
+ * `executeWithVersion`.
+ *
+ * One function rather than six copies of `if (!x.ok) return x; return ok(x.value.outcome)`,
+ * so the six design commands cannot drift on what `execute` means, and so a seventh has one
+ * obvious thing to call.
+ */
+export async function plainDispatch(versioned: Promise<VersionedDispatchResult>): Promise<DispatchResult> {
+	const done = await versioned;
+	return isErr(done) ? done : ok(done.value.outcome);
+}
 
 /**
  * The same question on the OTHER channel of the same `Result`: a refusal that left writes

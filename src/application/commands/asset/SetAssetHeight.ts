@@ -4,7 +4,7 @@ import type { AssetId } from '../../../domain/asset/AssetId';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import { assetNotFound } from '../../../domain/asset/Asset.errors';
 import type { Command } from '../Command';
-import type { DispatchResult } from '../DispatchOutcome';
+import { plainDispatch, type DispatchResult, type VersionedDispatchResult } from '../DispatchOutcome';
 import type { AssetRepository } from '../../ports/AssetRepository';
 import type { EntityVersion } from '../../ports/versioning';
 
@@ -62,7 +62,16 @@ export class SetAssetHeightCommand implements Command<SetAssetHeightInput, Dispa
 		private readonly events: EventBus,
 	) {}
 
-	async execute(input: SetAssetHeightInput): Promise<DispatchResult> {
+	execute(input: SetAssetHeightInput): Promise<DispatchResult> {
+		return plainDispatch(this.executeWithVersion(input));
+	}
+
+	/**
+	 * The reversible adapter's door: the same write, plus the version the repository minted —
+	 * the pair `SetRequirementQuantityOverrideCommand` already spells, and the one thing an
+	 * undo cannot rediscover safely afterwards (`VersionedDispatch` carries that account).
+	 */
+	async executeWithVersion(input: SetAssetHeightInput): Promise<VersionedDispatchResult> {
 		const loaded = await this.assets.getById(input.assetId);
 		if (isErr(loaded)) return loaded;
 		if (loaded.value === null) return err(assetNotFound(input.assetId));
@@ -73,11 +82,11 @@ export class SetAssetHeightCommand implements Command<SetAssetHeightInput, Dispa
 		// Compared on the CANDIDATE rather than on the input, so the question asked is
 		// "would this replace what is stored" over two values that have each been through
 		// the same constructor — the shape `updateAssetShape`'s `unchanged` callbacks take.
-		if (candidate.value.height === current.height) return ok('no-write');
+		if (candidate.value.height === current.height) return ok({ outcome: 'no-write' });
 
 		const saved = await this.assets.save(candidate.value, input.expected ?? version);
 		if (isErr(saved)) return saved;
 		await this.events.publish(assetDesignChanged({ assetId: input.assetId }));
-		return ok('wrote');
+		return ok({ outcome: 'wrote', version: saved.value.version });
 	}
 }

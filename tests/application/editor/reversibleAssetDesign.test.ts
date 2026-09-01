@@ -1,222 +1,32 @@
 /**
  * Task B3b: the reversible adapters, without which undo is a lie.
  *
- * Driven through the REAL `ObsidianAssetGeometrySidecar` and the REAL
- * `ObsidianAssetRepository` over the in-memory vault, for the reason the two design-command
- * suites give one boundary down: what these cases are about is the DOCUMENT and the NOTE that
- * end up on disk, and every property here — which revision a write was conditioned on, which
- * document a restore put back, whether a `no-write` bumped anything — is a property of a store
- * that really keeps a revision and really replaces a whole document. A hand-written fake would
- * have answered whatever it was told to.
+ * The harness — every command, both ledgers, the fixtures and the port wrappers — is
+ * `tests/helpers/assetDesignHarness.ts`, shared with `reversibleAssetDesignWindows.test.ts`
+ * rather than copied, and its own docblock carries the account of why every collaborator here
+ * is the REAL one.
  *
- * The bus is the REAL one for the same reason both of those files state: `RecordingEventBus`
- * discards its handler, so a case built on it asserts an empty list in both worlds. What a peer
- * designer leaf rests on is what a SUBSCRIBER heard.
+ * **This file holds the adapters' ordinary contract; its sibling holds the three WINDOWS a
+ * gesture straddles.** They were one file until the 450-line test budget split them, and the
+ * split is along that seam rather than at whatever line the budget fell on.
  */
 import { describe, expect, it } from 'vitest';
-import {
-	ReversibleAssetDesignCommands,
-	type AssetDesignCommandBundle,
-} from '../../../src/application/editor/asset/ReversibleAssetDesignCommands';
-import { SessionWriteLedger } from '../../../src/application/editor/WriteLedger';
-import { SetAssetAnchorCommand } from '../../../src/application/commands/asset/SetAssetAnchor';
-import { SetAssetClearanceCommand } from '../../../src/application/commands/asset/SetAssetClearance';
-import { SetAssetFacingCommand } from '../../../src/application/commands/asset/SetAssetFacing';
-import {
-	SetAssetFootprintCommand,
-	SetAssetFootprintFromDimensionsCommand,
-} from '../../../src/application/commands/asset/SetAssetFootprint';
-import { SetAssetHeightCommand } from '../../../src/application/commands/asset/SetAssetHeight';
-import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
-import type {
-	AssetGeometryDocument,
-	AssetGeometrySidecar,
-} from '../../../src/application/ports/AssetGeometrySidecar';
-import type { EntityVersion } from '../../../src/application/ports/versioning';
-import { createEventBus, type EventBus } from '../../../src/core/events/EventBus';
-import type { Point } from '../../../src/core/geometry/Point';
-import { err, ok } from '../../../src/core/result/Result';
-import type { AssetId } from '../../../src/domain/asset/AssetId';
-import type { AssetDesignChanged } from '../../../src/domain/asset/Asset.events';
-import type { AssetShape } from '../../../src/domain/asset/AssetShape';
-import { ObsidianAssetGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
+import type { VersionedDispatchResult } from '../../../src/application/commands/DispatchOutcome';
+import { ok } from '../../../src/core/result/Result';
 import { CommandHistory } from '../../../src/presentation/editor/tools/command-history';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset } from '../../helpers/entities';
-import { createRepositoryStack, parseFrontmatter, serializeFrontmatter } from '../../helpers/vault';
+import {
+	SQUARE,
+	TRIANGLE,
+	WIDER,
+	drawn,
+	present,
+	seeded,
+	sidecarFailingReadsAfter,
+	sidecarWritingBetweenReads,
+} from '../../helpers/assetDesignHarness';
 
-const SQUARE: readonly Point[] = [
-	{ x: 0, y: 0 },
-	{ x: 100, y: 0 },
-	{ x: 100, y: 100 },
-	{ x: 0, y: 100 },
-];
-
-const TRIANGLE: readonly Point[] = [
-	{ x: -20, y: -20 },
-	{ x: 140, y: -20 },
-	{ x: 140, y: 140 },
-];
-
-const WIDER: readonly Point[] = [
-	{ x: -50, y: -50 },
-	{ x: 150, y: -50 },
-	{ x: 150, y: 150 },
-	{ x: -50, y: 150 },
-];
-
-/** A shape somebody has already drawn on, so every adapter has a pre-state to restore. */
-const drawn = (): AssetShape => ({
-	footprint: { points: [...SQUARE] },
-	footprintOrigin: 'traced',
-	footprintPending: false,
-	clearance: { points: [...TRIANGLE] },
-	clearancePending: false,
-	anchor: { x: 5, y: 5 },
-	anchorPending: false,
-	facing: 0,
-});
-
-/** A vault fault a test can inject, shaped exactly as the ports' own union permits. */
-const VAULT_FAULT = {
-	category: 'Persistence',
-	code: 'vault.unexpected-failure',
-	message: 'the sidecar could not be read',
-} as const;
-
-/**
- * `AssetRepository.getById` answers `null` for an asset that is not there, and the cases below
- * that reach for a version have just written one. A helper rather than a `!`, which the linter
- * refuses and which would report a later defect as a property access on nothing.
- */
-function present<T>(value: T | null): T {
-	if (value === null) throw new Error('expected the asset to be present');
-	return value;
-}
-
-/** What a SUBSCRIBER heard, which is what a peer designer leaf actually rests on. */
-function designChangesHeardOn(bus: EventBus): AssetId[] {
-	const heard: AssetId[] = [];
-	bus.subscribe('AssetDesignChanged', (event) => {
-		heard.push((event as AssetDesignChanged).payload.assetId);
-	});
-	return heard;
-}
-
-/**
- * A sidecar whose reads start failing after the Nth, so the read-back an adapter performs to
- * learn the version its command wrote can be made to fault while the pre-state read succeeds.
- *
- * A delegating object literal rather than a subclass: what is being modelled is one method
- * answering a fault, and everything else must go on being the real store.
- */
-function sidecarFailingReadsAfter(real: AssetGeometrySidecar, reads: number): AssetGeometrySidecar {
-	let seen = 0;
-	return {
-		read: (assetId) => (++seen > reads ? Promise.resolve(err(VAULT_FAULT)) : real.read(assetId)),
-		write: (assetId, document, expected) => real.write(assetId, document, expected),
-	};
-}
-
-/**
- * A sidecar that lets a peer write land in the window BETWEEN the adapter's pre-state read and
- * the wrapped command's own read — which is the window the forward conditioning closes, and the
- * only way to drive it: both reads go through this port, one after the other, with nothing else
- * between them that a test could reach.
- *
- * `after` counts reads, so `1` means "immediately after the adapter has taken its snapshot".
- */
-function sidecarWritingBetweenReads(
-	real: AssetGeometrySidecar,
-	after: number,
-	peer: () => Promise<unknown>,
-): AssetGeometrySidecar {
-	let seen = 0;
-	return {
-		read: async (assetId) => {
-			const answer = await real.read(assetId);
-			if (++seen === after) await peer();
-			return answer;
-		},
-		write: (assetId, document, expected) => real.write(assetId, document, expected),
-	};
-}
-
-/**
- * Every command and both ledgers are constructed HERE, once. A command built beside a case is
- * a command a mutation run silently leaves un-mutated, which this epic has already paid for.
- */
-async function seeded(options: { readonly sidecar?: (real: AssetGeometrySidecar) => AssetGeometrySidecar } = {}) {
-	const stack = createRepositoryStack();
-	const events = createEventBus();
-	const real = new ObsidianAssetGeometrySidecar(stack.assetGeometry);
-	const sidecar = options.sidecar?.(real) ?? real;
-	const written = expectOk(await stack.assets.save(makeAsset({ height: 700 }), 'absent'));
-	const assetId = written.entity.id;
-	const path = stack.index.getPath(assetId) ?? '';
-
-	const commandDeps = { sidecar, assets: stack.assets, events };
-	const noteLedger = new SessionWriteLedger();
-	const geometryLedger = new SessionWriteLedger();
-	// Typed as the BUNDLE rather than as the concrete classes, so a case that replaces one door
-	// with a stand-in is replacing a door and not narrowing to a class the compiler then wants
-	// every private field of.
-	const bundle: AssetDesignCommandBundle = {
-		setFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand(commandDeps),
-		setFootprint: new SetAssetFootprintCommand(commandDeps),
-		setClearance: new SetAssetClearanceCommand(commandDeps),
-		setAnchor: new SetAssetAnchorCommand(commandDeps),
-		setFacing: new SetAssetFacingCommand(commandDeps),
-		setHeight: new SetAssetHeightCommand(stack.assets, events),
-	};
-
-	// ANNOTATED, and constructed here rather than inline in the returned literal: fallow
-	// resolves a class's members through the annotation where the consuming expression sits,
-	// and six factory methods whose only callers are this file are reported as
-	// `unused-class-members` when the `new` expression's result reaches them through an
-	// inferred object property. Measured both ways rather than guessed.
-	const reversible: ReversibleAssetDesignCommands = new ReversibleAssetDesignCommands(
-		{ sidecar, assets: stack.assets, events, noteLedger, geometryLedger },
-		bundle,
-	);
-
-	return {
-		stack,
-		events,
-		assetId,
-		sidecar: real,
-		noteLedger,
-		geometryLedger,
-		bundle,
-		designChanges: designChangesHeardOn(events),
-		reversible,
-		/** The adapters over a bundle a case has replaced one door of. */
-		reversibleWith(overrides: Partial<AssetDesignCommandBundle>): ReversibleAssetDesignCommands {
-			return new ReversibleAssetDesignCommands(
-				{ sidecar, assets: stack.assets, events, noteLedger, geometryLedger },
-				{ ...bundle, ...overrides },
-			);
-		},
-		async seed(shape: AssetShape | null): Promise<void> {
-			expectOk(await real.write(assetId, { calibration: null, shape }));
-		},
-		async document(): Promise<AssetGeometryDocument> {
-			return expectOk(await real.read(assetId)).document;
-		},
-		async geometryVersion(): Promise<EntityVersion> {
-			return expectOk(await real.read(assetId)).version;
-		},
-		async height(): Promise<number | null | undefined> {
-			return expectOk(await stack.assets.getById(assetId))?.entity.height;
-		},
-		/** A hand edit no schema would accept, so the next read of this NOTE fails. */
-		corrupt(): void {
-			const { frontmatter, body } = parseFrontmatter(stack.vault.entries.get(path) ?? '');
-			stack.vault.entries.set(path, serializeFrontmatter({ ...frontmatter, category: 'not-a-category' }) + body);
-			stack.metadataCache.catchUp();
-		},
-	};
-}
 
 describe('the inverse a geometry gesture captures', () => {
 	/**
@@ -291,7 +101,7 @@ describe('the inverse a geometry gesture captures', () => {
 	 * silently deletes it.
 	 */
 	it('re-captures on a redo, so the undo after it restores what the REDO replaced', async () => {
-		const { reversible, assetId, seed, document, bundle } = await seeded();
+		const { reversible, assetId, seed, document, plain } = await seeded();
 		await seed(drawn());
 
 		const command = reversible.setAnchor({ assetId, anchor: { x: 40, y: 40 } });
@@ -300,7 +110,7 @@ describe('the inverse a geometry gesture captures', () => {
 
 		// A peer designer leaf, in between — which is why the redo's pre-state is not the
 		// first execute's.
-		expect(expectOk(await bundle.setFacing.execute({ assetId, facing: 1 }))).toBe('wrote');
+		expect(expectOk(await plain.setFacing.execute({ assetId, facing: 1 }))).toBe('wrote');
 		const beforeRedo = await document();
 
 		expect(expectOk(await command.execute())).toBe('wrote');
@@ -459,13 +269,13 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 	 * build that refused for the wrong reason.
 	 */
 	it('refuses rather than overwriting a sidecar write this history did not make', async () => {
-		const { reversible, assetId, seed, document, bundle } = await seeded();
+		const { reversible, assetId, seed, document, plain } = await seeded();
 		await seed(drawn());
 		const command = reversible.setFootprint({ assetId, points: TRIANGLE });
 		await command.execute();
 
 		// A peer designer leaf, writing the same asset outside this history.
-		expect(expectOk(await bundle.setFacing.execute({ assetId, facing: 1 }))).toBe('wrote');
+		expect(expectOk(await plain.setFacing.execute({ assetId, facing: 1 }))).toBe('wrote');
 		const outsider = await document();
 
 		expect(expectErr(await command.undo()).code).toBe('asset-geometry.revision-conflict');
@@ -474,11 +284,11 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 
 	/** The note half of the same rule, through the repository rather than the sidecar. */
 	it('refuses rather than overwriting a NOTE write this history did not make', async () => {
-		const { reversible, assetId, bundle, height } = await seeded();
+		const { reversible, assetId, plain, height } = await seeded();
 		const command = reversible.setHeight({ assetId, height: 900 });
 		await command.execute();
 
-		expect(expectOk(await bundle.setHeight.execute({ assetId, height: 1200 }))).toBe('wrote');
+		expect(expectOk(await plain.setHeight.execute({ assetId, height: 1200 }))).toBe('wrote');
 
 		expect(expectErr(await command.undo()).code).toBe('asset.revision-conflict');
 		expect(await height()).toBe(1200);
@@ -504,49 +314,33 @@ describe('the window between this gesture\'s snapshot and the command\'s own rea
 	 * document-only assertion while the lost update sat one gesture away.
 	 */
 	it('refuses the forward write rather than capturing an inverse that predates a peer', async () => {
-		const { stack, sidecar, assetId } = await seeded();
-		expectOk(await sidecar.write(assetId, { calibration: null, shape: drawn() }));
-
+		// The peer is staged through the harness's own `sidecar` knob and a hook box, because
+		// the asset id it needs does not exist until `seeded` has run. `after: 1` means
+		// "immediately after this adapter has taken its snapshot", which is the window.
+		const hook: { run: () => Promise<unknown> } = { run: () => Promise.resolve() };
+		const w = await seeded({ sidecar: (real) => sidecarWritingBetweenReads(real, 1, () => hook.run()) });
+		expectOk(await w.sidecar.write(w.assetId, { calibration: null, shape: drawn() }));
 		const peerRan = { done: false };
-		const intercepted = sidecarWritingBetweenReads(sidecar, 1, async () => {
-			const current = expectOk(await sidecar.read(assetId));
+		hook.run = async () => {
+			const current = expectOk(await w.sidecar.read(w.assetId));
 			expectOk(
-				await sidecar.write(
-					assetId,
+				await w.sidecar.write(
+					w.assetId,
 					{ ...current.document, shape: { ...drawn(), clearance: { points: [...WIDER] } } },
 					current.version,
 				),
 			);
 			peerRan.done = true;
-		});
-		const events = createEventBus();
-		const adapters: ReversibleAssetDesignCommands = new ReversibleAssetDesignCommands(
-			{
-				sidecar: intercepted,
-				assets: stack.assets,
-				events,
-				noteLedger: new SessionWriteLedger(),
-				geometryLedger: new SessionWriteLedger(),
-			},
-			{
-				setFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand({ sidecar: intercepted, assets: stack.assets, events }),
-				setFootprint: new SetAssetFootprintCommand({ sidecar: intercepted, assets: stack.assets, events }),
-				setClearance: new SetAssetClearanceCommand({ sidecar: intercepted, assets: stack.assets, events }),
-				setAnchor: new SetAssetAnchorCommand({ sidecar: intercepted, assets: stack.assets, events }),
-				setFacing: new SetAssetFacingCommand({ sidecar: intercepted, assets: stack.assets, events }),
-				setHeight: new SetAssetHeightCommand(stack.assets, events),
-			},
-		);
+		};
 
-		const gesture = adapters.setFootprint({ assetId, points: [...TRIANGLE] });
+		const gesture = w.reversible.setFootprint({ assetId: w.assetId, points: [...TRIANGLE] });
 		const outcome = await gesture.execute();
 
 		expect(peerRan.done).toBe(true);
 		expect(expectErr(outcome).code).toBe('asset-geometry.revision-conflict');
 		// And the peer's document is still what is stored, which is the consequence the refusal
 		// exists to buy rather than a restatement of it.
-		const after = expectOk(await sidecar.read(assetId));
-		expect(after.document.shape?.clearance).toEqual({ points: [...WIDER] });
+		expect((await w.document()).shape?.clearance).toEqual({ points: [...WIDER] });
 	});
 
 	/**
@@ -640,29 +434,36 @@ describe('a read this adapter cannot complete', () => {
 	});
 
 	/**
-	 * A READ-BACK that faults is a different question, and the answer is deliberately not the
-	 * dispatch's failure: the write LANDED, so reporting a failure would keep the gesture off
-	 * the undo stack and badge a save error over data the vault holds. The ledger is left
-	 * exactly where it was instead, which is fail-closed — the undo then presents a version the
-	 * sidecar has moved past and is REFUSED rather than overwriting a state this adapter cannot
-	 * describe.
+	 * **INVERTED, and the inversion is the point.** This case used to assert that a failing
+	 * READ-BACK left the ledger empty and that the undo then refused — a property of an adapter
+	 * that learned its version by asking the port again after the command returned. That read
+	 * is gone: the command reports the version its own write produced, because the window
+	 * between those two operations was a lost update (a peer landing in it was recorded as this
+	 * gesture's, and the undo restored over their edit — the block near the end of this file).
 	 *
-	 * Both halves asserted: the forward write is reported as the write it was, AND the undo
-	 * refuses. Either alone passes a build that got the other one wrong.
+	 * So there is now no read after the write for a fault to land on, and what this case pins
+	 * is the consequence: a gesture whose sidecar has gone unreadable AFTER its write still
+	 * knows what it wrote, and its undo is an ordinary conditional restore rather than a
+	 * refusal. Asserted on the DOCUMENT and not only on the outcome, because "the undo
+	 * succeeded" is equally true of a build that wrote the wrong bytes back.
+	 *
+	 * `sidecarFailingReadsAfter(real, 2)` still names the two reads a forward gesture makes —
+	 * this adapter's pre-read and the command's own — and every read past them now belongs to a
+	 * LATER gesture rather than to this one.
 	 */
-	it('reports the write it made when the read-back faults, and then refuses the undo', async () => {
+	it('knows the version it wrote without a read-back, so the undo still applies', async () => {
 		const { reversible, assetId, seed, document, geometryLedger } = await seeded({
 			sidecar: (real) => sidecarFailingReadsAfter(real, 2),
 		});
 		await seed(drawn());
-		const written = await document();
+		const before = await document();
 
 		const command = reversible.setFacing({ assetId, facing: 1 });
 		expect(expectOk(await command.execute())).toBe('wrote');
-		expect(geometryLedger.lastWritten(assetId)).toBeNull();
+		expect(geometryLedger.lastWritten(assetId)).not.toBeNull();
 
-		expect(expectErr(await command.undo()).code).toBe('asset-geometry.revision-conflict');
-		expect((await document()).shape?.facing).not.toEqual(written.shape?.facing);
+		expect(expectOk(await command.undo())).toBe('wrote');
+		expect(await document()).toEqual(before);
 	});
 
 	/** The note's pre-state read, which must not report an absent asset for a fault. */
@@ -687,21 +488,29 @@ describe('a read this adapter cannot complete', () => {
 	});
 
 	/**
-	 * An asset DELETED between the write and the read-back leaves the ledger alone for the same
-	 * reason a fault does, and the consequence is the one worth pinning: the undo refuses
-	 * rather than RESURRECTING a catalogue entry somebody deleted.
+	 * An asset DELETED after this gesture's write and before its undo must not be RESURRECTED
+	 * by that undo, and the case is kept because that consequence is unchanged — only its
+	 * mechanism moved. It used to hold because the read-back found nothing and left the ledger
+	 * empty; the read-back is gone (see the inverted case above and the last block in this
+	 * file), so what refuses now is the conditional restore itself, against a note that is not
+	 * there to carry the version this gesture recorded.
+	 *
+	 * The ledger assertion is INVERTED with it: the adapter records what its own write
+	 * produced, so the entry exists. Asserted anyway rather than dropped, because "the ledger
+	 * is left alone" was the old case's whole load-bearing claim and a silent removal would
+	 * leave a later reader unable to tell which behaviour is intended.
 	 *
 	 * The deletion is staged through the command door rather than through a repository
 	 * decorator, because the door is what the adapter awaits — a decorator would have to guess
 	 * which call to intercept, and a wrong guess is a green test about a different program.
 	 */
-	it('does not resurrect an asset deleted between the write and the read-back', async () => {
+	it('does not resurrect an asset deleted between its write and its undo', async () => {
 		const seeds = await seeded();
-		const { assetId, bundle, stack, noteLedger } = seeds;
+		const { assetId, plain, stack, noteLedger } = seeds;
 		const reversible = seeds.reversibleWith({
 			setHeight: {
-				execute: async (input): Promise<DispatchResult> => {
-					const ran = await bundle.setHeight.execute(input);
+				executeWithVersion: async (input): Promise<VersionedDispatchResult> => {
+					const ran = await plain.setHeight.executeWithVersion(input);
 					const loaded = present(expectOk(await stack.assets.getById(assetId)));
 					expectOk(await stack.assets.delete(assetId, loaded.version));
 					return ran;
@@ -711,7 +520,7 @@ describe('a read this adapter cannot complete', () => {
 
 		const command = reversible.setHeight({ assetId, height: 900 });
 		expect(expectOk(await command.execute())).toBe('wrote');
-		expect(noteLedger.lastWritten(assetId)).toBeNull();
+		expect(noteLedger.lastWritten(assetId)).not.toBeNull();
 
 		expect(await command.undo()).toEqual(expect.objectContaining({ ok: false }));
 		expect(expectOk(await stack.assets.getById(assetId))).toBeNull();

@@ -317,6 +317,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
 	'designer.refresh-failed':
 		'Dieses Objekt konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
+	'undo.superseded':
+		'Diese Änderung wurde nach diesem Schritt an anderer Stelle bearbeitet; ein Rückgängigmachen würde diese Bearbeitung verwerfen. Laden Sie neu und machen Sie es erneut rückgängig, wenn Sie es weiterhin möchten.',
 	'save-state.saved': 'Gespeichert',
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',

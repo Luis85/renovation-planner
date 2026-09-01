@@ -27,7 +27,11 @@ import type {
 	SetPlanBackgroundError,
 } from '../application/commands/plan/SetPlanBackground';
 import type { DeleteZoneCommand, DeleteZoneInput } from '../application/commands/zone/DeleteZone';
-import { MoveSpatialObjectCommand, type MoveSpatialObjectInput } from '../application/commands/zone/MoveSpatialObject';
+import {
+	MoveSpatialObjectCommand,
+	type MoveSpatialObjectInput,
+	type MoveSpatialObjectResult,
+} from '../application/commands/zone/MoveSpatialObject';
 import type { CreateAssetCommand, CreateAssetInput } from '../application/commands/asset/CreateAsset';
 import type { UpdateAssetCommand, UpdateAssetInput, UpdateAssetErrors } from '../application/commands/asset/UpdateAsset';
 import type { DeleteAssetCommand, DeleteAssetInput, DeleteAssetErrors } from '../application/commands/asset/DeleteAsset';
@@ -41,6 +45,7 @@ import { SetAssetClearanceCommand, type SetAssetClearanceInput } from '../applic
 import { SetAssetAnchorCommand, type SetAssetAnchorInput } from '../application/commands/asset/SetAssetAnchor';
 import { SetAssetFacingCommand, type SetAssetFacingInput } from '../application/commands/asset/SetAssetFacing';
 import { SetAssetHeightCommand, type SetAssetHeightInput } from '../application/commands/asset/SetAssetHeight';
+import type { VersionedDesignCommand } from '../application/editor/asset/ReversibleAssetDesignCommands';
 import type { AssetShapeDeps } from '../application/commands/asset/updateAssetShape';
 import type { DispatchResult } from '../application/commands/DispatchOutcome';
 import { GetAssetDesignQuery } from '../application/queries/GetAssetDesign';
@@ -144,7 +149,7 @@ export interface QueryServices {
 export interface GuardedEditorServices {
 	readonly setPlanBackground: Command<SetPlanBackgroundInput, Result<SetPlanBackgroundOutcome, SetPlanBackgroundError>>;
 	readonly deleteZone: Command<DeleteZoneInput, Result<ResolvedSequence & { zoneId: ZoneId }, ReferenceError | RepositoryError>>;
-	readonly moveZone: Command<MoveSpatialObjectInput, Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>>;
+	readonly moveZone: Command<MoveSpatialObjectInput, Result<MoveSpatialObjectResult, ReferenceError | GeometryError | RepositoryError>>;
 	readonly zoneInspector: Query<GetZoneInspectorInput, Result<ZoneInspectorFields | null, RepositoryError | GeometryError>>;
 	/**
 	 * The Renovation Project view's own read side (design slice 14), guarded like every
@@ -210,15 +215,27 @@ export interface GuardedSlice10Services {
  */
 export interface GuardedAssetDesignServices {
 	readonly assetDesign: {
-		readonly setFootprint: Command<SetAssetFootprintInput, DispatchResult>;
-		readonly setFootprintFromDimensions: Command<SetAssetFootprintFromDimensionsInput, DispatchResult>;
-		readonly setClearance: Command<SetAssetClearanceInput, DispatchResult>;
-		readonly setAnchor: Command<SetAssetAnchorInput, DispatchResult>;
-		readonly setFacing: Command<SetAssetFacingInput, DispatchResult>;
-		readonly setHeight: Command<SetAssetHeightInput, DispatchResult>;
+		readonly setFootprint: GuardedDesignCommand<SetAssetFootprintInput>;
+		readonly setFootprintFromDimensions: GuardedDesignCommand<SetAssetFootprintFromDimensionsInput>;
+		readonly setClearance: GuardedDesignCommand<SetAssetClearanceInput>;
+		readonly setAnchor: GuardedDesignCommand<SetAssetAnchorInput>;
+		readonly setFacing: GuardedDesignCommand<SetAssetFacingInput>;
+		readonly setHeight: GuardedDesignCommand<SetAssetHeightInput>;
 		readonly get: Query<AssetId, Result<AssetDesignDto, AssetDesignError>>;
 	};
 }
+
+/**
+ * A design command as it leaves the root: BOTH doors, each guarded on its own.
+ *
+ * `executeWithVersion` is what `ReversibleAssetDesignCommands` dispatches — it must, because
+ * rediscovering the version with a second read is a window a peer can land in — and a guard
+ * on the door nobody dispatches through is a guard nobody has. Declared as one type rather
+ * than spelled at six members so a seventh design command cannot arrive carrying one door.
+ */
+export interface GuardedDesignCommand<TInput>
+	extends Command<TInput, DispatchResult>,
+		VersionedDesignCommand<TInput> {}
 
 /**
  * The slice-10 commands and queries as `composeSlice10` builds them — concrete classes,
@@ -295,7 +312,7 @@ export function guardedEditorServices(
 	// The one call here that needs its type arguments SPELLED: `MoveSpatialObjectCommand`'s
 	// own union is wider than what inference reads off its `implements` clause, and left
 	// alone `E` comes back as `GeometryError` alone.
-	const moveZone = guardCommand<MoveSpatialObjectInput, { zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>(
+	const moveZone = guardCommand<MoveSpatialObjectInput, MoveSpatialObjectResult, ReferenceError | GeometryError | RepositoryError>(
 		new MoveSpatialObjectCommand(zones, eventBus),
 		'command.moveZone.failed',
 		logger,
@@ -317,20 +334,25 @@ export function guardedEditorServices(
 }
 
 /**
- * An override command's two doors, guarded separately so each names its own boundary in
+ * A two-door command's doors, guarded separately so each names its own boundary in
  * the log. A single event for both would make "which entry point faulted" unanswerable
  * from a log line, and the two are reached by different callers.
+ *
+ * `TPlain` is a type parameter rather than `Requirement`: the two override commands were the
+ * only callers when this was written, and the six asset design commands answer a
+ * `DispatchOutcome` at their plain door. Widening it is what let them use this function
+ * instead of a second one shaped the same way.
  */
-function guardBothDoors<TInput, TVersioned, E extends AppError>(
+function guardBothDoors<TInput, TPlain, TVersioned, E extends AppError>(
 	command: {
-		execute(input: TInput): Promise<Result<Requirement, E>>;
+		execute(input: TInput): Promise<Result<TPlain, E>>;
 		executeWithVersion(input: TInput): Promise<Result<TVersioned, E>>;
 	},
 	events: { readonly execute: string; readonly executeWithVersion: string },
 	logger: Logger,
 	map: VaultExceptionMapper,
 ): {
-	execute(input: TInput): Promise<Result<Requirement, E | PersistenceError>>;
+	execute(input: TInput): Promise<Result<TPlain, E | PersistenceError>>;
 	executeWithVersion(input: TInput): Promise<Result<TVersioned, E | PersistenceError>>;
 } {
 	// Both doors are called THROUGH their wrapper rather than lifted off it: a bare
@@ -416,20 +438,33 @@ export function guardSlice10(
 }
 
 /**
+ * One event name per DOOR of a design command, derived from the command's own so the pair
+ * reads as a pair in a log. Module scope rather than a local, because it captures nothing.
+ */
+function designDoors(name: string): { readonly execute: string; readonly executeWithVersion: string } {
+	return {
+		execute: `command.${name}.failed`,
+		executeWithVersion: `command.${name}.with-version.failed`,
+	};
+}
+
+/**
  * The asset designer's half of the same seam, composed and guarded in one place — the shape
  * `guardedEditorServices` takes rather than `guardSlice10`'s, because nothing above this
  * function needs the unguarded commands: `composeSlice10` exists to hand `recalculate` and
  * the delete sequence their raw collaborators INSIDE the application layer, and no design
  * command is dispatched from in there.
  *
- * **`guardCommand` and not `guardBothDoors`, measured rather than assumed.** All six design
- * commands expose exactly one entry point today:
- * `grep -n "execute" src/application/commands/asset/SetAsset*.ts` prints six lines, one per
- * class, and no second door. The reversible adapters the designer's undo stack needs are
- * Phase B's, and the day one of them dispatches through an `executeWithVersion`, guarding
- * `execute` alone would wrap the door nobody uses — the defect this repository has already
- * shipped once. What catches that is `tests/plugin/guardCategory.test.ts`, which drives every
- * door of everything the root hands out, rather than anybody remembering this paragraph.
+ * **`guardBothDoors`, because the day this paragraph predicted has arrived.** It used to read
+ * "`guardCommand` and not `guardBothDoors`, measured rather than assumed", on the true
+ * observation that all six design commands exposed exactly one entry point — and it named the
+ * trigger: "the day one of them dispatches through an `executeWithVersion`, guarding
+ * `execute` alone would wrap the door nobody uses". `ReversibleAssetDesignCommands` dispatches
+ * through exactly that door now, so both are wrapped, each under its own event name so a log
+ * line says which entry point faulted. `tests/plugin/guardCategory.test.ts` drives every door
+ * of everything the root hands out, which is what catches the next one rather than anybody
+ * remembering this paragraph — and it is what would have caught this had the trigger fired
+ * without the prediction being re-read.
  *
  * One `AssetShapeDeps` rather than three parameters, because that is already the shape the
  * five geometry commands take and the other two are built from its members: re-spelling it
@@ -441,19 +476,19 @@ export function guardAssetDesign(
 	map: VaultExceptionMapper,
 ): GuardedAssetDesignServices {
 	const { sidecar, assets, events } = deps;
-	const setFootprint = guardCommand(new SetAssetFootprintCommand(deps), 'command.setAssetFootprint.failed', logger, map);
-	const setFootprintFromDimensions = guardCommand(
+	const setFootprint = guardBothDoors(new SetAssetFootprintCommand(deps), designDoors('setAssetFootprint'), logger, map);
+	const setFootprintFromDimensions = guardBothDoors(
 		new SetAssetFootprintFromDimensionsCommand(deps),
-		'command.setAssetFootprintFromDimensions.failed',
+		designDoors('setAssetFootprintFromDimensions'),
 		logger,
 		map,
 	);
-	const setClearance = guardCommand(new SetAssetClearanceCommand(deps), 'command.setAssetClearance.failed', logger, map);
-	const setAnchor = guardCommand(new SetAssetAnchorCommand(deps), 'command.setAssetAnchor.failed', logger, map);
-	const setFacing = guardCommand(new SetAssetFacingCommand(deps), 'command.setAssetFacing.failed', logger, map);
-	const setHeight = guardCommand(
+	const setClearance = guardBothDoors(new SetAssetClearanceCommand(deps), designDoors('setAssetClearance'), logger, map);
+	const setAnchor = guardBothDoors(new SetAssetAnchorCommand(deps), designDoors('setAssetAnchor'), logger, map);
+	const setFacing = guardBothDoors(new SetAssetFacingCommand(deps), designDoors('setAssetFacing'), logger, map);
+	const setHeight = guardBothDoors(
 		new SetAssetHeightCommand(assets, events),
-		'command.setAssetHeight.failed',
+		designDoors('setAssetHeight'),
 		logger,
 		map,
 	);

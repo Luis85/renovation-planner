@@ -181,4 +181,49 @@ describe('the asset designer the composition root hands out', () => {
 			'query.getAssetDesign.failed',
 		]);
 	});
+
+	/**
+	 * **The SECOND door of each design command, which is the one the undo stack dispatches.**
+	 * `ReversibleAssetDesignCommands` takes `executeWithVersion` — it must, because
+	 * rediscovering the written version with a read-back is a window a peer can land in — so
+	 * guarding `execute` alone would have wrapped the door nobody uses, which is the defect
+	 * this repository has already shipped once at the Inspector's override adapters.
+	 *
+	 * `tests/plugin/guardCategory.test.ts` already refuses a raw door as a CATEGORY, and this
+	 * case is the complement rather than a duplicate: it pins each door's own EVENT NAME, so a
+	 * pair sharing one name — which leaves "which entry point faulted" unanswerable from a log
+	 * line, the whole reason `guardBothDoors` guards separately — fails here.
+	 */
+	it('guards the versioned door of every design command under its own event name', async () => {
+		const { persistence, assetId } = await rootWithAnAsset();
+		resetRecorder();
+		Object.defineProperty(persistence.assets, 'getById', {
+			configurable: true,
+			value: () => {
+				throw new Error('the vault exploded');
+			},
+		});
+		const design = persistence.assetDesign;
+
+		const results = [
+			await design.setFootprint.executeWithVersion({ assetId, points: [] }),
+			await design.setFootprintFromDimensions.executeWithVersion({ assetId, width: 1200, depth: 800 }),
+			await design.setClearance.executeWithVersion({ assetId, points: null }),
+			await design.setAnchor.executeWithVersion({ assetId, anchor: { x: 0, y: 0 } }),
+			await design.setFacing.executeWithVersion({ assetId, facing: 0 }),
+			await design.setHeight.executeWithVersion({ assetId, height: 900 }),
+		];
+
+		expect(results.map((result) => (result.ok ? null : result.error.code))).toEqual(
+			Array.from({ length: 6 }, () => 'vault.unexpected-failure'),
+		);
+		expect(lines.map((line) => line.event)).toEqual([
+			'command.setAssetFootprint.with-version.failed',
+			'command.setAssetFootprintFromDimensions.with-version.failed',
+			'command.setAssetClearance.with-version.failed',
+			'command.setAssetAnchor.with-version.failed',
+			'command.setAssetFacing.with-version.failed',
+			'command.setAssetHeight.with-version.failed',
+		]);
+	});
 });

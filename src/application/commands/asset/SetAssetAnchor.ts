@@ -4,7 +4,7 @@ import { coincident } from '../../../core/geometry/operations';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import type { Command } from '../Command';
-import type { DispatchResult } from '../DispatchOutcome';
+import { plainDispatch, type DispatchResult, type VersionedDispatchResult } from '../DispatchOutcome';
 import type { EntityVersion } from '../../ports/versioning';
 import { requireShape, updateAssetShape, type AssetShapeDeps } from './updateAssetShape';
 
@@ -48,6 +48,15 @@ export class SetAssetAnchorCommand implements Command<SetAssetAnchorInput, Dispa
 	constructor(private readonly deps: AssetShapeDeps) {}
 
 	execute(input: SetAssetAnchorInput): Promise<DispatchResult> {
+		return plainDispatch(this.executeWithVersion(input));
+	}
+
+	/**
+	 * The reversible adapter's door: the same write, plus the version it produced. `execute`
+	 * is the plain caller's and drops that fact — the pair `SetRequirementQuantityOverrideCommand`
+	 * already spells, and the reason it is a pair rather than a widening is in `VersionedDispatch`.
+	 */
+	executeWithVersion(input: SetAssetAnchorInput): Promise<VersionedDispatchResult> {
 		return updateAssetShape(
 			this.deps,
 			input,

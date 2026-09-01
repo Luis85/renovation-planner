@@ -13,6 +13,7 @@ import type { SetAssetClearanceInput } from '../../commands/asset/SetAssetCleara
 import type { SetAssetAnchorInput } from '../../commands/asset/SetAssetAnchor';
 import type { SetAssetFacingInput } from '../../commands/asset/SetAssetFacing';
 import type { SetAssetHeightInput } from '../../commands/asset/SetAssetHeight';
+import type { CalibrateAssetInput } from '../../commands/asset/CalibrateAsset';
 import type {
 	AssetGeometryDocument,
 	AssetGeometrySidecar,
@@ -37,7 +38,7 @@ export interface VersionedDesignCommand<TInput> {
 }
 
 /**
- * The six design commands this module inverts, as DOORS rather than as classes.
+ * The seven design commands this module inverts, as DOORS rather than as classes.
  *
  * Structural on purpose: the composition root hands presentation a GUARDED facade (design
  * slice 11), which is a wrapper object and never an instance, so naming the concrete command
@@ -52,9 +53,9 @@ export interface VersionedDesignCommand<TInput> {
  * doors for that reason, and `tests/plugin/guardCategory.test.ts` drives every door the root
  * hands out rather than trusting anyone to remember.
  *
- * Six doors and FIVE mechanisms: both footprint commands are inverted by the same geometry
- * adapter, because what an inverse restores is the sidecar's whole document and neither of
- * them writes anything else.
+ * SEVEN doors and FIVE mechanisms: both footprint commands and Task B6's calibration are
+ * inverted by the same geometry adapter, because what an inverse restores is the sidecar's
+ * whole document and none of the three writes anything else.
  */
 export interface AssetDesignCommandBundle {
 	readonly setFootprintFromDimensions: VersionedDesignCommand<SetAssetFootprintFromDimensionsInput>;
@@ -63,6 +64,7 @@ export interface AssetDesignCommandBundle {
 	readonly setAnchor: VersionedDesignCommand<SetAssetAnchorInput>;
 	readonly setFacing: VersionedDesignCommand<SetAssetFacingInput>;
 	readonly setHeight: VersionedDesignCommand<SetAssetHeightInput>;
+	readonly calibrate: VersionedDesignCommand<CalibrateAssetInput>;
 }
 
 /**
@@ -88,7 +90,7 @@ export interface ReversibleAssetDesignDeps {
 	readonly events: EventBus;
 	/** For `SetAssetHeight`, and for Task B7's background — every adapter that writes the NOTE. */
 	readonly noteLedger: WriteLedger;
-	/** For the five geometry commands, and for Task B6's calibration. */
+	/** For the five geometry commands and for Task B6's calibration — every sidecar write. */
 	readonly geometryLedger: WriteLedger;
 }
 
@@ -367,7 +369,7 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * with the document as it was — and "as it was" has to be captured BEFORE the forward write,
  * by the gesture itself, because a later reader cannot reconstruct it.
  *
- * **ONE of the six factories below carries a `fallow-ignore-next-line unused-class-member`
+ * **ONE of the seven factories below carries a `fallow-ignore-next-line unused-class-member`
  * mark, and it used to be four — which is this mark's own documented exit condition arriving.**
  * Fallow resolves a class's members through the annotation where the CONSUMING expression
  * sits. All six were once reached only from the test suite; four of them only through
@@ -392,11 +394,12 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * the day. `setFootprintFromDimensions` keeps its mark until Task B8's dimensions form calls
  * it, which is the last consumer this class is missing.
  *
- * **Tasks B6 and B7 extend this module rather than starting a second one.** Their commands
- * (`CalibrateAsset`, `SetAssetBackground`) do not exist yet, which is why their adapters are
- * not here; what this task owes them is the shared design — the two ledgers, the
- * capture-before-write rule, and the structural `UndoableCommand` conformance — so that "one
- * reversible adapter per design command" stays a fact about a file.
+ * **Task B6 took that invitation and Task B7 still owes it.** This paragraph read "Tasks B6 and
+ * B7 extend this module rather than starting a second one", and B6's `calibrate` below is what
+ * that looks like when it happens: no new mechanism, no second module, one factory over the
+ * geometry adapter already here. `SetAssetBackground` is the one left, and it will need the
+ * NOTE adapter and the geometry one together — it writes the reference and clears the
+ * calibration — which is the first inverse in this file that spans both resources.
  */
 export class ReversibleAssetDesignCommands {
 	constructor(
@@ -427,5 +430,17 @@ export class ReversibleAssetDesignCommands {
 
 	setHeight(input: SetAssetHeightInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetNoteEdit(this.deps, this.commands.setHeight, input);
+	}
+
+	/**
+	 * Task B6's calibration, through the GEOMETRY adapter like every other sidecar write.
+	 *
+	 * It needs no mechanism of its own, and that is the payoff of capturing the whole document
+	 * rather than the one attribute a command owns: a calibration moves the calibration, three
+	 * coordinate groups and three pending flags in one write, and putting the previous bytes
+	 * back undoes all seven of those without this adapter naming any of them.
+	 */
+	calibrate(input: CalibrateAssetInput): ReversibleAssetDesignEdit {
+		return new ReversibleAssetGeometryEdit(this.deps, this.commands.calibrate, input);
 	}
 }

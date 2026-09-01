@@ -49,6 +49,7 @@ import { SetAssetClearanceCommand, type SetAssetClearanceInput } from '../applic
 import { SetAssetAnchorCommand, type SetAssetAnchorInput } from '../application/commands/asset/SetAssetAnchor';
 import { SetAssetFacingCommand, type SetAssetFacingInput } from '../application/commands/asset/SetAssetFacing';
 import { SetAssetHeightCommand, type SetAssetHeightInput } from '../application/commands/asset/SetAssetHeight';
+import { CalibrateAssetCommand, type CalibrateAssetInput } from '../application/commands/asset/CalibrateAsset';
 import type { VersionedDesignCommand } from '../application/editor/asset/ReversibleAssetDesignCommands';
 import type { AssetShapeDeps } from '../application/commands/asset/updateAssetShape';
 import type { DispatchResult } from '../application/commands/DispatchOutcome';
@@ -225,6 +226,7 @@ export interface GuardedAssetDesignServices {
 		readonly setAnchor: GuardedDesignCommand<SetAssetAnchorInput>;
 		readonly setFacing: GuardedDesignCommand<SetAssetFacingInput>;
 		readonly setHeight: GuardedDesignCommand<SetAssetHeightInput>;
+		readonly calibrate: GuardedDesignCommand<CalibrateAssetInput>;
 		readonly get: Query<AssetId, Result<AssetDesignDto, AssetDesignError>>;
 	};
 }
@@ -235,7 +237,7 @@ export interface GuardedAssetDesignServices {
  * `executeWithVersion` is what `ReversibleAssetDesignCommands` dispatches — it must, because
  * rediscovering the version with a second read is a window a peer can land in — and a guard
  * on the door nobody dispatches through is a guard nobody has. Declared as one type rather
- * than spelled at six members so a seventh design command cannot arrive carrying one door.
+ * than spelled at seven members so an eighth design command cannot arrive carrying one door.
  */
 export interface GuardedDesignCommand<TInput>
 	extends Command<TInput, DispatchResult>,
@@ -471,8 +473,9 @@ function designDoors(name: string): { readonly execute: string; readonly execute
  * without the prediction being re-read.
  *
  * One `AssetShapeDeps` rather than three parameters, because that is already the shape the
- * five geometry commands take and the other two are built from its members: re-spelling it
- * here would be a second statement of what a design command needs.
+ * five shape commands take, and the other two — the height and Task B6's calibration — are
+ * built from its members: re-spelling it here would be a second statement of what a design
+ * command needs.
  */
 export function guardAssetDesign(
 	deps: AssetShapeDeps,
@@ -496,10 +499,20 @@ export function guardAssetDesign(
 		logger,
 		map,
 	);
+	const calibrate = guardBothDoors(new CalibrateAssetCommand(deps), designDoors('calibrateAsset'), logger, map);
 	const get = guardQuery(new GetAssetDesignQuery(assets, sidecar), 'query.getAssetDesign.failed', logger, map);
 
 	return {
-		assetDesign: { setFootprint, setFootprintFromDimensions, setClearance, setAnchor, setFacing, setHeight, get },
+		assetDesign: {
+			setFootprint,
+			setFootprintFromDimensions,
+			setClearance,
+			setAnchor,
+			setFacing,
+			setHeight,
+			calibrate,
+			get,
+		},
 	};
 }
 

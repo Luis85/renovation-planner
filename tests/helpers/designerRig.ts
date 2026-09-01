@@ -66,6 +66,7 @@ import {
 	SetAssetFootprintFromDimensionsCommand,
 } from '../../src/application/commands/asset/SetAssetFootprint';
 import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
+import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
 import type { AssetDesignCommandBundle } from '../../src/application/editor/asset/ReversibleAssetDesignCommands';
 import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import type { AssetGeometryDocument } from '../../src/application/ports/AssetGeometrySidecar';
@@ -239,6 +240,7 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		setAnchor: new SetAssetAnchorCommand(commandDeps),
 		setFacing: setFacingCommand,
 		setHeight: new SetAssetHeightCommand(stack.assets, events),
+		calibrate: new CalibrateAssetCommand(commandDeps),
 	};
 
 	const context: AssetDesignerContext = {

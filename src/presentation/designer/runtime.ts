@@ -12,7 +12,10 @@ import { ToolManager } from '../editor/tools/tool-manager';
 import { createToolSwitch } from '../editor/tools/tool-switch';
 import { EDITOR_SNAP_SERVICE } from '../editor/snapping/editorSnapping';
 import { editorViewportAdapter } from '../editor/viewport/editorViewportAdapter';
-import { registerDesignerTools } from './tools/registerDesignerTools';
+import { useDialogStore } from '../dialogs/dialog-store';
+import { tr } from '../i18n/strings';
+import { knownDistanceSupplier } from '../editor/shell/knownDistance';
+import { registerDesignerTools, type DesignerToolDeps } from './tools/registerDesignerTools';
 import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-state-refresh';
 import { wrapDispatcher } from '../editor/tools/wrap-dispatcher';
 import { useSaveStateStore } from '../editor/save-state/save-state-store';
@@ -86,6 +89,43 @@ export interface DesignerRuntime {
  * saying which door faulted stays true while both doors agree what to call themselves.
  */
 const DISPATCH_FAULT_EVENT = 'designer.dispatch.faulted';
+
+/**
+ * The three dependencies `CalibrateTool` needs that no other designer tool does (Task B6),
+ * built here rather than inline so `buildRuntime` stays under its 100-line function budget and
+ * so the two dialogs this gesture may open sit together in the order it opens them.
+ *
+ * Both go through THIS leaf's own `DialogStore`, so a calibration in one split pane cannot trap
+ * the other — `DialogHost` is per view for exactly that reason.
+ *
+ * **`hasGeometryToRescale` asks about the PENDING flags and not about whether a shape exists**,
+ * which is where this surface's answer differs from the Plan Editor's. A plan's calibration
+ * rescales every coordinate it owns, so "are there zones" is the whole question there. An
+ * asset's converts exactly the coordinate groups captured before a scale existed and leaves
+ * every measured one alone, so an asset with a footprint and nothing pending has nothing to
+ * lose and is never asked. It reads `store.design` PER CALL: a designer leaf traces, calibrates
+ * and re-traces without remounting, so a snapshot taken here would answer about the asset as it
+ * was at mount for the rest of the leaf's life.
+ */
+function calibrationDeps(
+	dialogs: ReturnType<typeof useDialogStore>,
+	store: ReturnType<typeof useAssetDesignStore>,
+): Pick<DesignerToolDeps, 'supplyKnownDistance' | 'hasGeometryToRescale' | 'confirmRecalibration'> {
+	return {
+		hasGeometryToRescale: () => {
+			const shape = store.design?.shape ?? null;
+			return shape !== null && (shape.footprintPending || shape.clearancePending || shape.anchorPending);
+		},
+		confirmRecalibration: async () =>
+			(await dialogs.openDialog({
+				kind: 'confirm',
+				title: tr('designer.calibrate.recalibrate.title'),
+				message: tr('designer.calibrate.recalibrate.message'),
+				danger: true,
+			})) === 'confirm',
+		supplyKnownDistance: knownDistanceSupplier(dialogs),
+	};
+}
 
 function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const store = useAssetDesignStore();
@@ -183,12 +223,14 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * A FRESH context per activation, through the same assembler the Plan Editor uses — which
 	 * is the guarantee `ToolManager`'s header states its factory exists for, and which one
 	 * object built once could not give. `subject.calibration` is the live one: an asset's
-	 * background is calibrated by Task B6, and a tool that had captured `null` at mount would
-	 * report placeholder-scale lengths on a calibrated asset for the rest of the leaf's life.
+	 * background is calibrated by the `calibrate` tool this very function registers, and a tool
+	 * that had captured `null` at mount would report placeholder-scale lengths on a calibrated
+	 * asset for the rest of the leaf's life — including the calibration tool's own next gesture,
+	 * which derives its correction against the calibration it finds there.
 	 *
 	 * `writeLedger` is the GEOMETRY one, and the asymmetry is worth naming: `EditorContext`
-	 * declares a single ledger because a Plan is a single resource, and the four tools this
-	 * surface registers all write the sidecar. Nothing reads it through the context today —
+	 * declares a single ledger because a Plan is a single resource, and every tool this surface
+	 * registers that writes anything writes the sidecar. Nothing reads it through the context —
 	 * every adapter takes both ledgers directly — so a tool that reached for it would get the
 	 * right one, which is the only reason there is a defensible answer at all.
 	 */
@@ -208,6 +250,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		edits,
 		reportRejected: reportDispatchFailure,
 		reportInvalidInput: notifyOperationFailure,
+		...calibrationDeps(useDialogStore(), store),
 	});
 
 	/**

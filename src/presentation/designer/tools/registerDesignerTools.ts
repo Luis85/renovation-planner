@@ -2,6 +2,7 @@ import type { AppError } from '../../../core/errors/AppError';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { ReversibleAssetDesignCommands } from '../../../application/editor/asset/ReversibleAssetDesignCommands';
 import type { StringKey } from '../../i18n/locales/en';
+import { CalibrateTool, type KnownDistanceSupplier } from '../../editor/tools/calibrate-tool';
 import { DrawPolygonTool } from '../../editor/tools/draw-polygon-tool';
 import { SelectTool } from '../../editor/tools/select-tool';
 import type { EditorTool } from '../../editor/tools/editor-tool';
@@ -49,8 +50,15 @@ import { SetFacingTool } from './set-facing-tool';
  *
  * Camera mode is deliberately absent. It is "no active tool" (`ToolManager.clearActiveTool`),
  * a toolbar STATE and never an `EditorTool`, for the reason `EditorSurface.vue` states — the
- * camera is ephemeral UI (SDD §15) and is never a command. A fifth entry here would be a tool
- * this function then had to construct and could not.
+ * camera is ephemeral UI (SDD §15) and is never a command. An entry here is a tool this
+ * function then has to construct, and camera mode is not one.
+ *
+ * `calibrate` shares the Plan Editor's `CalibrateTool` rather than a designer copy of it (Task
+ * B6): that tool's two-click gesture, its generation counter, its buffered second point and its
+ * `abandonGesture` asymmetry are two hundred lines of subtle state a second implementation would
+ * have to get right twice. What it does NOT share is a label key — `editor.toolbar.calibrate`
+ * says "Calibrate" about a plan's background, and this table is what the designer's own toolbar
+ * builds its buttons from.
  */
 export const DESIGNER_TOOL_LABELS = {
 	select: 'editor.toolbar.select',
@@ -58,6 +66,7 @@ export const DESIGNER_TOOL_LABELS = {
 	'trace-clearance': 'designer.toolbar.trace-clearance',
 	'set-anchor': 'designer.toolbar.set-anchor',
 	'set-facing': 'designer.toolbar.set-facing',
+	calibrate: 'designer.toolbar.calibrate',
 } as const satisfies Readonly<Record<string, StringKey>>;
 
 /**
@@ -96,6 +105,21 @@ export interface DesignerToolDeps {
 	readonly reportRejected: (error: AppError) => void;
 	/** A refusal a tool made ITSELF, before any command was built. Slice 17's split. */
 	readonly reportInvalidInput: (error: AppError) => void;
+	/**
+	 * What asks the user for the real-world distance once two points are picked — bound to the
+	 * leaf's own `DialogHost` by `runtime.ts`, exactly as the Plan Editor binds it. `null` is
+	 * this seam's word for "dismissed".
+	 */
+	readonly supplyKnownDistance: KnownDistanceSupplier;
+	/**
+	 * Whether a calibration would MOVE anything this asset already holds — which on this
+	 * surface is "does any coordinate group still await a scale", not "is there geometry". A
+	 * calibration converts exactly the groups whose pending flag is set and leaves every
+	 * measured one alone, so an asset with nothing pending has nothing to be warned about.
+	 */
+	readonly hasGeometryToRescale: () => boolean;
+	/** Asks the user to accept that rescale; `true` proceeds. Never called when the above is false. */
+	readonly confirmRecalibration: () => Promise<boolean>;
 }
 
 /**
@@ -183,6 +207,18 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 		}),
 		'set-facing': new SetFacingTool({
 			createCommand: (facing) => edits.setFacing({ assetId, facing }),
+			reportRejected: deps.reportRejected,
+			reportInvalidInput: deps.reportInvalidInput,
+		}),
+		// The Plan Editor's own tool, over this leaf's asset. The ASSET is bound here, in the
+		// one place its branded id already lives — `CalibrateTool` hands back the measurement
+		// and never a subject, because `EditorContext.subject.id` is a bare `EntityId<string>`
+		// so that one tool framework can serve a Plan and an Asset.
+		calibrate: new CalibrateTool({
+			supplyKnownDistance: deps.supplyKnownDistance,
+			hasGeometryToRescale: deps.hasGeometryToRescale,
+			confirmRecalibration: deps.confirmRecalibration,
+			createCommand: (measurement) => edits.calibrate({ assetId, ...measurement }),
 			reportRejected: deps.reportRejected,
 			reportInvalidInput: deps.reportInvalidInput,
 		}),

@@ -10,8 +10,8 @@
  * thing about this task in particular: it had no toolbar component in any Phase B file list
  * while its commit message promised "a toolbar that reaches all of them".
  *
- * So every case here drives ACTIVATION through the MOUNTED designer. Asserting that five
- * buttons render is satisfied by five buttons wired to nothing, exactly as a passing
+ * So every case here drives ACTIVATION through the MOUNTED designer. Asserting that six
+ * buttons render is satisfied by six buttons wired to nothing, exactly as a passing
  * `ToolManager` test is satisfied by a manager nobody drives: each case presses the control and
  * then asks that leaf's own manager what is active. `ToolManager.setActiveTool` throws for an
  * id nothing registered, so a button offering a tool the registration forgot cannot report it
@@ -88,7 +88,7 @@ describe('every tool the toolbar offers', () => {
 
 describe('camera mode', () => {
 	/**
-	 * **"No active tool" and never a fifth `EditorTool`.** The camera is ephemeral UI (SDD §15)
+	 * **"No active tool" and never a seventh `EditorTool`.** The camera is ephemeral UI (SDD §15)
 	 * and is never a command, so the Pan button clears the manager rather than activating
 	 * anything — and it is the state a freshly opened designer rests in, which is what the
 	 * second assertion pins.
@@ -161,8 +161,8 @@ describe('the toolbar itself', () => {
 
 /**
  * The Shift constraint is advertised in the STATUS region while a constraining tool is active,
- * and nowhere else. A modifier no control shows and no menu lists is one nobody finds; three of
- * this surface's five tools take it, so leaving it unmentioned would leave it unmentioned on
+ * and nowhere else. A modifier no control shows and no menu lists is one nobody finds; four of
+ * this surface's six tools take it, so leaving it unmentioned would leave it unmentioned on
  * this surface entirely.
  */
 describe('the shift hint', () => {

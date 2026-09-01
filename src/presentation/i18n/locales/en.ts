@@ -98,7 +98,11 @@ export const en = {
 	'editor.layer.interaction': 'Interaction',
 	'editor.calibrate.distance.title': 'Set the real-world distance',
 	'editor.calibrate.distance.label': 'Distance in millimetres',
-	'editor.calibrate.distance.measured': 'Measured on the plan:',
+	// 'Measured on the plan:' until Task B6, when `KnownDistanceForm` gained a second caller:
+	// the asset designer measures on an asset's reference image, and the background is the one
+	// noun true of both surfaces. The key keeps its `editor.` prefix because the FORM lives in
+	// `presentation/editor/shell/` and a key rename orphans nothing but reads as a move.
+	'editor.calibrate.distance.measured': 'Measured on the background:',
 	'editor.calibrate.recalibrate.title': 'Rescale the zones on this plan?',
 	'editor.calibrate.recalibrate.message': 'This plan already has zones drawn on it. Setting the scale rescales every one of them. You can undo it.',
 	'background.no-plan-open': 'Open a plan editor first.',
@@ -467,12 +471,22 @@ export const en = {
 	// Undo and Redo say the same words as the Plan Editor's and take its keys
 	// (`editor.toolbar.pan`/`.select`/`.undo`/`.redo`) rather than shipping a second translation
 	// of "Undo" for a translator to keep in step with the first. What is designer-specific is
-	// the four gestures below, which have no counterpart on a plan.
+	// the five gestures below. Four have no counterpart on a plan; `calibrate` has one and still
+	// gets a key of its own, because the Plan Editor's says "Calibrate" about a plan's background
+	// and each surface's toolbar builds its buttons from its own table.
 	'designer.toolbar': 'Asset tools',
 	'designer.toolbar.trace-footprint': 'Trace footprint',
 	'designer.toolbar.trace-clearance': 'Trace clearance',
 	'designer.toolbar.set-anchor': 'Set anchor',
 	'designer.toolbar.set-facing': 'Set facing',
+	'designer.toolbar.calibrate': 'Calibrate',
+	// The asset's own recalibration warning. NOT `editor.calibrate.recalibrate.*`, which names
+	// zones and a plan — and the two questions differ in more than the noun: a plan's
+	// calibration rescales every coordinate it owns, while an asset's converts only the
+	// coordinate groups captured before a scale existed.
+	'designer.calibrate.recalibrate.title': 'Rescale what was traced without a scale?',
+	'designer.calibrate.recalibrate.message':
+		'Some of this asset’s geometry was traced before a scale existed. Setting the scale converts it to millimetres. You can undo it.',
 	'designer.loading': 'Loading asset…',
 	'designer.asset-failed.headline': 'This asset could not be loaded',
 	'designer.refresh-failed':

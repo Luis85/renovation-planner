@@ -93,6 +93,43 @@ describe('the inverse a geometry gesture captures', () => {
 	});
 
 	/**
+	 * Task B3b's own calibration case, INHERITED by Task B6 rather than re-derived — that task
+	 * wrote it out as an `it.skip` and said why: `reversible.calibrate` had no command to wrap
+	 * until `CalibrateAsset` existed, and "the rescaled-coordinate assertion is the whole point
+	 * of a calibration undo, and it is the assertion a re-derived version would be likeliest to
+	 * drop."
+	 *
+	 * **It is asserted on BOTH sides of the undo, which the relocated version was not.** A
+	 * restored `SQUARE` is what the seed already held, so a build whose forward write rescaled
+	 * NOTHING restores the same coordinates and passes — the middle assertion is the only thing
+	 * that tells the two apart. `footprintPending` is asserted for the same reason from the
+	 * other end: a calibration takes every flag down, so an inverse that put the coordinates
+	 * back and left the flags cleared would leave a converted-looking outline nothing would
+	 * ever convert again.
+	 */
+	it('restores a calibration undo including every coordinate it rescaled', async () => {
+		const { reversible, assetId, seed, document } = await seeded();
+		await seed({ ...drawn(), footprintPending: true });
+
+		const command = reversible.calibrate({
+			assetId,
+			pointA: { x: 0, y: 0 },
+			pointB: { x: 100, y: 0 },
+			knownDistance: 200,
+		});
+		expect(expectOk(await command.execute())).toBe('wrote');
+		expect((await document()).shape?.footprint.points[2]).toEqual({ x: 200, y: 200 });
+		expect((await document()).shape?.footprintPending).toBe(false);
+
+		expect(expectOk(await command.undo())).toBe('wrote');
+
+		const restored = (await document()).shape;
+		expect(restored?.footprint.points).toEqual(SQUARE);
+		expect(restored?.footprintPending).toBe(true);
+		expect((await document()).calibration).toBeNull();
+	});
+
+	/**
 	 * A REDO re-captures, and the case has to make the two builds DIFFER to say so. A redo whose
 	 * document is the one its own first execute replaced passes against a capture-once adapter
 	 * as well — the pre-state is the same document both times — so a peer leaf writes BETWEEN

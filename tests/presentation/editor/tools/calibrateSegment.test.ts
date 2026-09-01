@@ -59,9 +59,8 @@ describe('the calibration segment it draws', () => {
 		const h = harness();
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
-			planId: h.planId,
 		createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
+			hasGeometryToRescale: h.hasGeometryToRescale,
 			confirmRecalibration: h.confirmRecalibration,
 			reportRejected: h.reportRejected,
 			// Slice 17 split this door from `reportRejected` — a refusal this tool makes before
@@ -133,9 +132,8 @@ describe('the calibration segment it draws', () => {
 		const h = harness();
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
-			planId: h.planId,
 		createCommand: h.createCommand,
-			hasSpatialObjects: () => true,
+			hasGeometryToRescale: () => true,
 			confirmRecalibration: () => Promise.resolve(false),
 			reportRejected: h.reportRejected,
 			// Slice 17 split this door from `reportRejected` — a refusal this tool makes before

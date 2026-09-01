@@ -2,9 +2,6 @@ import type { AppError } from '../../../core/errors/AppError';
 import { distance } from '../../../core/geometry/operations';
 import type { Point } from '../../../core/geometry/Point';
 import { coincidentPointsError } from '../../../domain/plan/Calibration';
-import type { PlanId } from '../../../domain/plan/PlanId';
-import type { CalibratePlanInput } from '../../../application/commands/plan/ReversibleCalibratePlan';
-import type { CalibratePlanTransaction } from '../planEditorCommands';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
 import type { UndoableCommand } from './undoable-command';
@@ -24,41 +21,57 @@ import type { UndoableCommand } from './undoable-command';
  */
 export type KnownDistanceSupplier = (measuredWorldUnits: number) => Promise<number | null>;
 
+/**
+ * What one completed calibration gesture MEASURED, handed to whoever builds the command.
+ *
+ * It exists because this tool serves TWO subjects (design slice B6): a Plan, whose command
+ * takes a branded `PlanId` beside these three fields, and an Asset, whose command takes a
+ * branded `AssetId` beside the identical three. Neither brand can be produced here —
+ * `EditorContext.subject.id` is a bare `EntityId<string>` precisely so ONE tool framework can
+ * serve both — so the SUBJECT is closed over by the caller that already knows it, and the
+ * measurement is all this tool passes.
+ */
+export interface CalibrationMeasurement {
+	readonly pointA: Point;
+	readonly pointB: Point;
+	/** World units (mm) — like every length here (ADR-009). */
+	readonly knownDistance: number;
+}
+
 export interface CalibrateToolDeps {
-	/**
-	 * The Plan this gesture calibrates.
-	 *
-	 * It used to come from `EditorContext.activePlan.id`, and it cannot come from that field's
-	 * successor: `subject.id` is an `EntityId<string>` so that ONE tool framework can serve a
-	 * Plan and an Asset, and `CalibratePlanInput.planId` is a branded `PlanId`. Widening a
-	 * brand is safe and narrowing one is not, so the id arrives here already narrowed, from
-	 * the same single cast in `runtime.ts` that `subject.id` is built from — one value, two
-	 * fields, nothing to drift.
-	 *
-	 * A value rather than a thunk: which plan a leaf shows is fixed for that leaf's whole
-	 * life (`PlanEditorContext.planId`), unlike the calibration beside it on `subject`, which
-	 * this very tool changes.
-	 */
-	readonly planId: PlanId;
 	readonly supplyKnownDistance: KnownDistanceSupplier;
 	/**
-	 * Whether this plan already has geometry a recalibration would rescale. The gate for
-	 * warning the user is whether objects MOVE, not whether a calibration already exists:
+	 * Whether this subject already has geometry a recalibration would rescale. The gate for
+	 * warning the user is whether coordinates MOVE, not whether a calibration already exists:
 	 * an uncalibrated plan with five zones drawn on it has just as much to lose as a
 	 * calibrated one, and a calibrated plan with nothing on it has nothing.
+	 *
+	 * It was `hasSpatialObjects` while a Plan was the only subject, and an asset has no spatial
+	 * objects at all — what moves there is whichever of its three coordinate groups was
+	 * captured before a scale existed. The two surfaces answer the same QUESTION from different
+	 * state, which is exactly what a thunk here is for.
 	 */
-	readonly hasSpatialObjects: () => boolean;
+	readonly hasGeometryToRescale: () => boolean;
 	/**
 	 * Asks the user to confirm a rescale; `true` proceeds. Never called when
-	 * `hasSpatialObjects` is false. A dismissal (Escape, an overlay click, a Cancel
+	 * `hasGeometryToRescale` is false. A dismissal (Escape, an overlay click, a Cancel
 	 * button) resolves `false` — there is no separate "dismissed" outcome for this
 	 * caller to distinguish from an explicit decline. The supplier must never REJECT:
 	 * `pointerUp` dispatches `complete()` with no `.catch`, so a rejection here would
 	 * surface as an unhandled promise rejection rather than as a declined gesture.
 	 */
 	readonly confirmRecalibration: () => Promise<boolean>;
-	/** Per gesture — the reversible command holds that one transaction's inverse state. */
-	readonly createCommand: () => CalibratePlanTransaction;
+	/**
+	 * Per gesture — the reversible command holds that one transaction's inverse state.
+	 *
+	 * It takes the MEASUREMENT and answers a bare `UndoableCommand`, which is what makes this
+	 * tool subject-agnostic: the Plan Editor closes over its `planId` and the asset designer
+	 * over its `assetId`, each already branded by the single cast its own runtime performs, and
+	 * neither brand has to travel through here. The shape `SetAnchorTool` and `SetFacingTool`
+	 * already take, and the half of design slice B5's `DrawPolygonTool` decoupling this tool had
+	 * not needed until a second surface wanted it.
+	 */
+	readonly createCommand: (measurement: CalibrationMeasurement) => UndoableCommand;
 	/**
 	 * Where a refused calibration reaches the user — a revision conflict on the sidecar (a
 	 * second leaf, a synced file, `plan-geometry.external-modification`) or a degenerate
@@ -98,7 +111,7 @@ export interface CalibrateToolDeps {
  * The command is dispatched through `EditorContext.commandDispatcher` only (SDD §58);
  * repositories and the event bus are invisible from here. `complete` gates a rescale on
  * `deps.confirmRecalibration()` (slice 15) before it ever asks for a distance — gated on
- * whether the plan has spatial objects at all, NOT on whether this is the first
+ * whether the subject has geometry to rescale at all, NOT on whether this is the first
  * calibration, so a fresh import with nothing drawn on it is never asked. This tool has
  * no idea that gate is a dialog: it calls a plain dependency and reacts to `true`/`false`.
  */
@@ -341,17 +354,18 @@ export class CalibrateTool implements EditorTool {
 			this.deps.reportInvalidInput(coincidentPointsError());
 			return;
 		}
-		// The plan is bound BEFORE the prompt: whatever the user answers, the points were
-		// picked on this plan and calibrate this plan.
-		const planId = this.deps.planId;
+		// The SUBJECT was bound when this tool was constructed — `createCommand` closes over the
+		// leaf's own plan or asset — so the sentence this line used to carry ("the plan is bound
+		// BEFORE the prompt: whatever the user answers, the points were picked on this plan")
+		// is now a property of the registration rather than of a local read here.
 		const generation = this.generation;
 		this.prompting = true;
 		let knownDistance: number | null;
 		try {
 			// Asked BEFORE the distance, so a user who is going to decline is never made to
 			// type a measurement first — and asked only when there is something to lose:
-			// see `CalibrateToolDeps.hasSpatialObjects`.
-			if (this.deps.hasSpatialObjects() && !(await this.deps.confirmRecalibration())) {
+			// see `CalibrateToolDeps.hasGeometryToRescale`.
+			if (this.deps.hasGeometryToRescale() && !(await this.deps.confirmRecalibration())) {
 				return;
 			}
 			// The SAME re-check the distance prompt below gets, and for the same reason:
@@ -379,17 +393,7 @@ export class CalibrateTool implements EditorTool {
 		if (knownDistance === null || knownDistance <= 0 || !Number.isFinite(knownDistance)) {
 			return;
 		}
-		const command = this.deps.createCommand();
-		const input: CalibratePlanInput = {
-			planId,
-			pointA,
-			pointB,
-			knownDistance,
-		};
-		const gesture: UndoableCommand = {
-			execute: () => command.execute(input),
-			undo: () => command.undo(),
-		};
+		const gesture = this.deps.createCommand({ pointA, pointB, knownDistance });
 		const result = await context.commandDispatcher.run(gesture);
 		if (!result.ok) this.deps.reportRejected(result.error);
 	}

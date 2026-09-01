@@ -27,7 +27,7 @@ import { wrapDispatcher } from './tools/wrap-dispatcher';
 import { useSaveStateStore } from './save-state/save-state-store';
 import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
-import KnownDistanceForm from './shell/KnownDistanceForm.vue';
+import { knownDistanceSupplier } from './shell/knownDistance';
 import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
 import { editorViewportAdapter } from './viewport/editorViewportAdapter';
 import { tr } from '../i18n/strings';
@@ -167,7 +167,7 @@ function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): vo
 			// The two dialogs this gesture may open, in the order it opens them. Both go
 			// through the leaf's OWN store, so a calibration in one split pane cannot trap
 			// the other — `DialogHost` is per view for exactly that reason.
-			hasSpatialObjects: () => projectStore.zones.size > 0,
+			hasGeometryToRescale: () => projectStore.zones.size > 0,
 			confirmRecalibration: async () =>
 				(await dialogs.openDialog({
 					kind: 'confirm',
@@ -175,21 +175,19 @@ function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): vo
 					message: tr('editor.calibrate.recalibrate.message'),
 					danger: true,
 				})) === 'confirm',
-			supplyKnownDistance: async (measured) => {
-				const result = await dialogs.openDialog({
-					kind: 'form',
-					title: tr('editor.calibrate.distance.title'),
-					component: KnownDistanceForm,
-					props: { measured },
-				});
-				// `null` is this seam's word for "dismissed", and the tool refuses a
-				// non-number anyway — but narrowing HERE keeps the `unknown` the form
-				// container deliberately carries from reaching the command's input.
-				if (result === 'cancel' || typeof result.values !== 'number') return null;
-				return result.values;
+			supplyKnownDistance: knownDistanceSupplier(dialogs),
+			// The PLAN is bound here, in the one place this leaf's branded id already lives.
+			// `CalibrateTool` serves two subjects since design slice B6 and can produce neither
+			// brand — `EditorContext.subject.id` is a bare `EntityId<string>` for exactly that
+			// reason — so it hands back the measurement and the caller that knows which plan
+			// this is builds the input.
+			createCommand: (measurement) => {
+				const command = context.commands.calibratePlan();
+				return {
+					execute: () => command.execute({ planId, ...measurement }),
+					undo: () => command.undo(),
+				};
 			},
-			planId,
-			createCommand: () => context.commands.calibratePlan(),
 			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
 		}),

@@ -127,7 +127,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.layer.interaction': 'Interaktion',
 	'editor.calibrate.distance.title': 'Reale Entfernung festlegen',
 	'editor.calibrate.distance.label': 'Entfernung in Millimetern',
-	'editor.calibrate.distance.measured': 'Auf dem Plan gemessen:',
+	'editor.calibrate.distance.measured': 'Auf dem Hintergrund gemessen:',
 	'editor.calibrate.recalibrate.title': 'Die Zonen auf diesem Plan neu skalieren?',
 	'editor.calibrate.recalibrate.message': 'Auf diesem Plan sind bereits Zonen eingezeichnet. Beim Festlegen des Maßstabs werden alle skaliert. Sie können den Vorgang rückgängig machen.',
 	'background.no-plan-open': 'Zuerst einen Grundriss-Editor öffnen.',
@@ -346,6 +346,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.toolbar.trace-clearance': 'Freiraum nachzeichnen',
 	'designer.toolbar.set-anchor': 'Ankerpunkt setzen',
 	'designer.toolbar.set-facing': 'Ausrichtung setzen',
+	'designer.toolbar.calibrate': 'Kalibrieren',
+	'designer.calibrate.recalibrate.title': 'Ohne Maßstab Nachgezeichnetes neu skalieren?',
+	'designer.calibrate.recalibrate.message':
+		'Ein Teil der Geometrie dieses Objekts wurde nachgezeichnet, bevor ein Maßstab vorlag. Beim Festlegen des Maßstabs wird sie in Millimeter umgerechnet. Sie können den Vorgang rückgängig machen.',
 	'designer.loading': 'Objekt wird geladen …',
 	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
 	'designer.refresh-failed':

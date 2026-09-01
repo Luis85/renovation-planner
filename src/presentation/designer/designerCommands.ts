@@ -120,7 +120,7 @@ function refusingCommand<TInput>(): VersionedDesignCommand<TInput> & Command<TIn
 }
 
 /**
- * The six doors, written out rather than proxied, and the asymmetry with the ports above is
+ * The seven doors, written out rather than proxied, and the asymmetry with the ports above is
  * deliberate. A proxy answers a FUNCTION for every property, which is right for a port whose
  * members are called directly and wrong for a bundle whose members are OBJECTS each carrying a
  * door — `commands.setFootprint.executeWithVersion` off a proxy is a property of a function,
@@ -136,6 +136,7 @@ function refusingBundle(): AssetDesignCommandBundle {
 		setAnchor: refusingCommand(),
 		setFacing: refusingCommand(),
 		setHeight: refusingCommand(),
+		calibrate: refusingCommand(),
 	};
 }
 

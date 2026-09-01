@@ -31,6 +31,7 @@ import {
 	SetAssetFootprintFromDimensionsCommand,
 } from '../../src/application/commands/asset/SetAssetFootprint';
 import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
+import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
 import type {
 	AssetGeometryDocument,
 	AssetGeometrySidecar,
@@ -268,6 +269,7 @@ export async function seeded(
 		setAnchor: new SetAssetAnchorCommand(commandDeps),
 		setFacing: setFacingCommand,
 		setHeight: setHeightCommand,
+		calibrate: new CalibrateAssetCommand(commandDeps),
 	};
 
 	// ANNOTATED, and constructed here rather than inline in the returned literal: fallow

@@ -1942,6 +1942,37 @@ increment as residual 4 rather than a second one.
 
 # Phase B — the designer
 
+### Mounting is not optional, and the Files-block entries are the redundant half
+
+**A review found that B4 created `DesignerCanvas.vue`, B8 created
+`DesignerInspector.vue`, and no task mounted either one** — B3 is the only task whose Files block
+names `AssetDesignerRoot.vue`. B5 was worse: no toolbar component existed anywhere in Phase B,
+while its commit message promised one reached the four tools. Every isolated test would have
+passed, every gate would have been green, and a user would have opened the designer to an empty
+shell.
+
+That is design slice 7's `CalibrateTool` exactly, and CLAUDE.md's account of it is why this
+section exists rather than a line in three task headers: *"a tool absent from a registration list
+is invisible to all four gates, because nothing is wrong with the code. It took a human opening
+the toolbar."* It shipped unreachable for two whole slices with a paragraph recording the fact.
+
+**So the mechanism is not here.** B3 ships
+`tests/presentation/designer/regionsReachable.test.ts`, which walks the real import graph and
+requires every `.vue` under `src/presentation/designer/` to be reachable from
+`AssetDesignerView.ts`, beside `assetDesignerRoot.test.ts`'s per-region assertions. A component
+created and mounted nowhere reddens the first; a region dropped while its component stays
+reachable elsewhere reddens the second. **The Files-block entries above are the redundant second
+half** — a reminder for the author, not the thing that catches them, because a list of places
+somebody remembered is what produced this in the first place.
+
+**The toolbar's own test must drive ACTIVATION through the mounted designer.** Asserting that it
+renders four buttons is satisfied by four buttons wired to nothing, exactly as a passing
+`ToolManager` test is satisfied by a manager nobody drives — click the control, then assert that
+leaf's manager reports that tool active. It also owes what `EditorToolbar` owes: the active tool
+visibly distinguished, camera mode as "no active tool" rather than a fifth button, and a focus
+indicator, since `styles/forms.css` records that Obsidian's default button focus shadow falls
+below WCAG 2.2's 3:1 and this increment has already shipped one button that forgot it.
+
 ### Task B1: extract the gesture surface
 
 **Files:**
@@ -2350,6 +2381,9 @@ git commit -m "Reversible adapters for every asset design command"
 **Files:**
 - Create: `src/presentation/designer/layers/backgroundLayer.ts`, `footprintLayer.ts`, `clearanceLayer.ts`, `anchorLayer.ts`
 - Create: `src/presentation/designer/DesignerCanvas.vue`
+- **Modify: `src/presentation/designer/AssetDesignerRoot.vue` — MOUNT the canvas in its canvas
+  region.** Added after a review found that B4 created this component and no task in Phase B ever
+  mounted it: B3 is the only task naming the root. See *Mounting is not optional* above.
 - Test: `tests/presentation/designer/layers.test.ts`
 
 **Interfaces:**
@@ -2395,7 +2429,12 @@ git commit -m "Draw an asset's footprint, clearance, anchor and facing"
 **Files:**
 - Create: `src/presentation/designer/tools/registerDesignerTools.ts`
 - Create: `src/presentation/designer/tools/set-anchor-tool.ts`, `set-facing-tool.ts`
+- **Create: `src/presentation/designer/DesignerToolbar.vue` — the control that reaches these
+  tools.** This task's file list had NONE, in any Phase B task, while its commit message promised
+  "a toolbar that reaches all of them". See *Mounting is not optional* above.
+- **Modify: `src/presentation/designer/AssetDesignerRoot.vue` — mount it in the toolbar region.**
 - Test: `tests/presentation/designer/designerTools.test.ts`
+- Test: `tests/presentation/designer/designerToolbar.test.ts`
 
 **Interfaces:**
 - Consumes: `ToolManager`, `SelectTool`, `DrawPolygonTool` + `PolygonCompletion` (B2), A5/A6's commands through the designer's command bundle.
@@ -2818,6 +2857,8 @@ git commit -m "Give an asset a background, and the designer a picker to choose o
 
 **Files:**
 - Create: `src/presentation/designer/inspector/DesignerInspector.vue`
+- **Modify: `src/presentation/designer/AssetDesignerRoot.vue` — MOUNT the inspector in its
+  region.** Same omission as B4's, found by the same review. See *Mounting is not optional* above.
 - Test: `tests/presentation/designer/designerInspector.test.ts`
 
 **Interfaces:**

@@ -27,9 +27,12 @@ export interface EmptyStateContent {
 	 * from here. Design slice 21's `renovationProject.noPlans` is the third entry that carries
 	 * one, and it carried one from its first commit: `ProjectDetailState.onCreatePlan` opens
 	 * `NewPlanForm` in slice 15's `FormDialog` and dispatches the real `CreatePlanCommand`, so its button was
-	 * never the dead control slice 14's Amendment 1 refuses. THREE entries carry a label and one
-	 * does not — this sentence is that list, so an entry added without appearing in it is the
-	 * stale-comment defect this repository keeps paying for.
+	 * never the dead control slice 14's Amendment 1 refuses. Design slice B3's two `assetDesigner`
+	 * entries both ship WITHOUT one, for two different unbuilt hand-offs — a dimensions form
+	 * for the open asset (Task B8) and a background picker (Task B7) — so the count is now
+	 * THREE entries with a label and THREE without. This sentence is that list, so an entry
+	 * added without appearing in it is the stale-comment defect this repository keeps paying
+	 * for.
 	 */
 	readonly actionLabel?: StringKey;
 }
@@ -89,6 +92,33 @@ export const EMPTY_STATE_CONTENT = {
 			headline: 'empty.plan.no-zones.headline',
 			body: 'empty.plan.no-zones.body',
 			actionLabel: 'empty.plan.no-zones.action',
+		},
+	},
+	/**
+	 * Design slice B3 (ADR-0015), and the first group where BOTH entries ship buttonless.
+	 *
+	 * That is two separate deferrals rather than one rule, which is why they are written out
+	 * here instead of counted. `noShape` hands off to a dimensions form for the asset ALREADY
+	 * OPEN, and no such form exists: `NewAssetForm` creates a different asset, and Task B8's own
+	 * step that builds one says "nothing in this plan built one until this step". `noBackground`
+	 * hands off to Task B7's `BackgroundPicker` port, which is not written either. Slice 14's
+	 * Amendment 1 refuses a live control that does nothing, so neither carries a label and
+	 * `content.test.ts` asserts both absences by name.
+	 *
+	 * **`noBackground` is also the one entry in this whole registry that nothing SELECTS.**
+	 * `selectAssetDesignerEmptyState` cannot reach it: `AssetDesignDto` has no background field
+	 * until Task B7 adds it. The copy ships now so that B7 is a selector arm and an action label
+	 * rather than a whole entry plus four locale keys; `selectors.test.ts` pins the gap with its
+	 * reason attached, so it cannot be read as an oversight.
+	 */
+	assetDesigner: {
+		noShape: {
+			headline: 'empty.asset.no-shape.headline',
+			body: 'empty.asset.no-shape.body',
+		},
+		noBackground: {
+			headline: 'empty.asset.no-background.headline',
+			body: 'empty.asset.no-background.body',
 		},
 	},
 } as const satisfies Record<string, Record<string, EmptyStateContent>>;

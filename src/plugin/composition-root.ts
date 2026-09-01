@@ -38,6 +38,11 @@ import {
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
 import {
+	createAssetDesignerQueries,
+	unavailableAssetDesignerQueries,
+} from '../presentation/read-models/assetDesignerQueries';
+import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
+import {
 	createRenovationProjectQueries,
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
@@ -516,6 +521,30 @@ export function planEditorDeps(
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
 		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
+	};
+}
+
+/**
+ * The asset designer's own dependency bundle (design slice B3, ADR-0015).
+ *
+ * It takes neither a `Workspace` nor a `Vault`, which is the whole difference from its two
+ * siblings and is a fact about the surface rather than an omission: the designer navigates
+ * nowhere and reads no raw file. Task B7's background picker is the member that changes that,
+ * and Task B3a's command bundle is the other one — both are a field added here, not a
+ * relocation.
+ *
+ * TOTAL rather than nullable, for `planEditorDeps`'s reason: with settings unrecovered there is
+ * no query service to hand over, so the view is handed one that REFUSES and draws the same
+ * failure state it draws for any unreadable asset. Not registering the view at all would leave a
+ * restored designer leaf pointing at a view type Obsidian does not know.
+ */
+export function assetDesignerDeps(root: CompositionRoot): AssetDesignerDeps {
+	const persistence = root.persistence;
+	return {
+		queries:
+			persistence === null
+				? unavailableAssetDesignerQueries()
+				: createAssetDesignerQueries(persistence.assetDesign),
 	};
 }
 

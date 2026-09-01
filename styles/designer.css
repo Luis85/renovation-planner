@@ -1,0 +1,104 @@
+/*
+ * The asset designer's shell (design slice B3, ADR-0015) — the same ordinary DOM around a
+ * canvas that `editor.css` describes, for the surface that draws ONE asset instead of one plan.
+ *
+ * Obsidian variables only, no colour literal anywhere: `scripts/styles-assemble.mjs` fails the
+ * build on one (SDD §84), so a themed vault stays themed.
+ *
+ * **The height chain is the load-bearing part**, and it is the part this repository has already
+ * broken once: every ancestor from the leaf down to the canvas needs `min-height: 0`, or a flex
+ * child refuses to shrink below its content and the canvas collapses to a sliver of its pane.
+ * jsdom lays nothing out and cannot see it; `npm run harness-shot` is the only instrument, and
+ * there is nothing to photograph until Task B4 draws something inside the canvas region.
+ *
+ * Three regions here are EMPTY on purpose and each says which task fills it. They are declared
+ * now so that a task adding a component adds a component, rather than also inventing where it
+ * goes — and so that the layout under it is one decision rather than three.
+ */
+
+.renovation-asset-designer-view,
+.renovation-asset-designer {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	color: var(--text-normal);
+}
+
+/*
+ * Only the VUE ROOT is the positioned ancestor, exactly as `.renovation-plan-editor` is and for
+ * the same reason: `DialogHost` mounts as a direct child of this element, so
+ * `styles/dialogs.css`'s `.rp-dialog-overlay` resolves its `position: absolute` against THIS.
+ * The outer host div sits one level further out and would never be the overlay's nearest
+ * positioned ancestor once this one has a position, so giving it `relative` too would assert a
+ * claim nothing needs.
+ */
+.renovation-asset-designer {
+	position: relative;
+}
+
+/*
+ * A fixed height even while empty — Task B5 fills it — because a toolbar that appeared later
+ * would resize every region below it on the day it did.
+ */
+.rp-designer-toolbar {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-8);
+	padding: 0 var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-designer-body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+}
+
+/*
+ * `position: relative` is what makes the empty state an OVERLAY rather than a block above the
+ * canvas: `styles/empty-state.css`'s `.rp-empty-state--overlay` is absolutely positioned, and
+ * it needs this region — not the shell — as its containing block, or it would cover the toolbar
+ * and the inspector too.
+ */
+.rp-designer-canvas {
+	position: relative;
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	min-width: 0;
+}
+
+/*
+ * Task B8's region. A width rather than a flex basis, and a border on the leading edge, so the
+ * canvas keeps every pixel the inspector does not claim — the shape `editor.css` gives the plan
+ * editor's own panels.
+ */
+.rp-designer-inspector {
+	flex: 0 0 auto;
+	min-height: 0;
+	overflow-y: auto;
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.rp-designer-status {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-6);
+	padding: 0 var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * The loading line, and the same treatment `message-panel.css` gives the plan editor's. Centred
+ * in the canvas region rather than pinned to a corner, because while it is showing there is
+ * nothing else in that region to be beside.
+ */
+.rp-designer-message {
+	margin: auto;
+	color: var(--text-muted);
+}

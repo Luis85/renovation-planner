@@ -303,6 +303,17 @@ export const de: Partial<Record<StringKey, string>> = {
 	'form.new-asset.unit.day': 'Tag',
 	'form.new-asset.unit.fixed': 'Pauschale',
 	'view.asset.create': 'Neues Objekt',
+	// Design slice B3 (ADR-0015). "Objekt" für Asset, nie "Material" — siehe den Kommentar
+	// weiter oben in dieser Datei; "Material" ist hier eine Kategorie und kein Synonym.
+	'empty.asset.no-shape.headline': 'Noch kein Umriss',
+	'empty.asset.no-shape.body':
+		'Ein Objekt erhält seinen Umriss aus eingegebenen Maßen oder aus einer über ein Datenblatt gezeichneten Kontur. Beides macht daraus etwas, das ein Grundriss aufnehmen kann.',
+	'empty.asset.no-background.headline': 'Noch kein Datenblatt',
+	'empty.asset.no-background.body':
+		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt.',
+	'view.asset-designer.name': 'Objekt-Designer',
+	'designer.loading': 'Objekt wird geladen …',
+	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
 	'save-state.saved': 'Gespeichert',
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',

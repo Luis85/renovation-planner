@@ -19,9 +19,49 @@ describe('the empty-state content registry', () => {
 	 * the button, are Task 10's — this case exists so that an entry cannot arrive without any
 	 * test naming it at all.
 	 */
-	it('holds exactly the four entries the slices name', () => {
+	it('holds exactly the six entries the slices name', () => {
 		expect(Object.keys(EMPTY_STATE_CONTENT.renovationProject)).toEqual(['noProjects', 'noPlans']);
 		expect(Object.keys(EMPTY_STATE_CONTENT.planEditor)).toEqual(['noBackground', 'noZones']);
+		// Design slice B3's third group. `assetDesigner` and not `designer`: the surface is one
+		// of three now, and a group named for the room rather than for the subject reads as the
+		// only one there is.
+		expect(Object.keys(EMPTY_STATE_CONTENT.assetDesigner)).toEqual(['noShape', 'noBackground']);
+	});
+
+	/**
+	 * **BOTH designer entries ship buttonless, and the two absences have different owners.**
+	 *
+	 * The increment plan's Task B3 says only `noBackground` is buttonless — "`assetDesigner.
+	 * noShape` carries an action that opens the dimensions form". Nothing in this plugin opens
+	 * one for the asset ALREADY OPEN: `NewAssetForm` creates a different asset, and Task B8's
+	 * own Step 1a says in as many words that the dimensions dialog is built there and that
+	 * "nothing in this plan built one until this step". So a button here today would be exactly
+	 * the live control that does nothing slice 14's Amendment 1 refuses.
+	 *
+	 * Asked with `in` rather than by reading the property, for the reason the `planEditor`
+	 * case below gives: the entries are literals with no `actionLabel`, so their TYPE has no
+	 * such key and the read does not compile. The type is the stronger guarantee; this keeps
+	 * the runtime assertion so that B7 (`noBackground`) and B8 (`noShape`) each flip a real
+	 * test rather than closing a gap quietly.
+	 */
+	it.each(['noShape', 'noBackground'] as const)(
+		'gives the designer\u2019s %s state no action, because what it hands off to is not built yet',
+		(key) => {
+			expect('actionLabel' in EMPTY_STATE_CONTENT.assetDesigner[key]).toBe(false);
+		},
+	);
+
+	/**
+	 * The same distinctness claim the two `planEditor` entries carry, and for a sharper reason
+	 * here: an asset with no shape and no spec sheet is one click from both states, so a
+	 * registry pointing them at one key would type-check perfectly and tell a user reaching for
+	 * a background that they have no footprint.
+	 */
+	it.each(LANGUAGES)('resolves the two asset-designer entries to distinct copy in %s', (language) => {
+		const { noShape, noBackground } = EMPTY_STATE_CONTENT.assetDesigner;
+
+		expect(t(language, noShape.headline)).not.toBe(t(language, noBackground.headline));
+		expect(t(language, noShape.body)).not.toBe(t(language, noBackground.body));
 	});
 
 	/**
@@ -95,6 +135,12 @@ describe('the empty-state content registry', () => {
 			EMPTY_STATE_CONTENT.renovationProject.noPlans,
 			EMPTY_STATE_CONTENT.planEditor.noBackground,
 			EMPTY_STATE_CONTENT.planEditor.noZones,
+			// Design slice B3. `noBackground` is here even though nothing SELECTS it yet
+			// (`selectAssetDesignerEmptyState` cannot, until Task B7 gives `AssetDesignDto` a
+			// background field): the copy ships now, so B7 adds a selector arm and an action
+			// label rather than a whole entry and four locale keys.
+			EMPTY_STATE_CONTENT.assetDesigner.noShape,
+			EMPTY_STATE_CONTENT.assetDesigner.noBackground,
 		];
 
 		for (const entry of entries) {

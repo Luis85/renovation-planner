@@ -418,6 +418,30 @@ export const en = {
 	'settings.library-persist-failed':
 		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
 	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
+	// Design slice B3 (ADR-0015): the asset designer's own surface. The two empty states are
+	// OVERLAYS inside the canvas region, never a replacement for it â slice 14's rule, and here
+	// it matters for the same reason it does on a plan: the region exists to show the object
+	// being drawn, and a panel that took its place would hide the thing.
+	//
+	// **Both ship BUTTONLESS, and each absence has a different owner.** `no-shape`'s hand-off is
+	// the dimensions dialog Task B8 builds â `NewAssetForm` creates a DIFFERENT asset, so there
+	// is nothing today that types a rectangle onto the asset already open. `no-background`'s is
+	// Task B7's `BackgroundPicker` port, which does not exist. Slice 14's Amendment 1 refuses a
+	// live control that does nothing, so neither carries an `.action` key yet and
+	// `content.test.ts` asserts both absences, so each of those tasks flips a real assertion
+	// rather than closing a gap quietly.
+	'empty.asset.no-shape.headline': 'No footprint yet',
+	'empty.asset.no-shape.body':
+		'An asset gets its footprint from typed dimensions or from an outline traced over a spec sheet. Either one makes it something a plan can hold.',
+	'empty.asset.no-background.headline': 'No spec sheet yet',
+	'empty.asset.no-background.body':
+		'Set a photograph, drawing or datasheet as this asset’s background, then calibrate it so a traced outline comes out in real units.',
+	// The designer's own shell. `designer.asset-failed.headline` is the counterpart of
+	// `editor.plan-failed.headline`: the BODY under it is `trError(error)`, so an unreadable
+	// vault, unrecovered settings and an asset that is gone each say their own sentence.
+	'view.asset-designer.name': 'Asset designer',
+	'designer.loading': 'Loading asset…',
+	'designer.asset-failed.headline': 'This asset could not be loaded',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

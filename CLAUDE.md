@@ -47,8 +47,13 @@ What is NOT done is slices **20 and 21**, which are written and unbuilt, plus th
 document's amendments rather than here, because a list of exceptions kept in two places is one
 that disagrees with itself.
 
-There are **two workspace surfaces**, both mounting their own isolated Vue app (SDD §12) —
-nothing outside a view knows it is Vue. The **Renovation project** view is a singleton with
+There are **three workspace surfaces**, each mounting its own isolated Vue app (SDD §12) —
+nothing outside a view knows it is Vue. It said TWO for a slice after the third was
+registered, which is this file's own recurring defect and the reason the count is now
+stated against `registerView`: that call appears FOUR times in
+`RenovationPlannerPlugin.ts`, and the fourth is `GEOMETRY_SIDECAR_VIEW`, a registered view
+that mounts no Vue root at all. So three surfaces, four registrations, and the two numbers
+are different facts. The **Renovation project** view is a singleton with
 a ribbon button and a command, and it now draws **a project list** — design slice 16's
 `ProjectList.vue`, not slice 17's: that document is the error-surfacing decision table and
 never once mentions one, so the list was owned by no slice until slice 16 claimed it. This
@@ -109,6 +114,37 @@ the framework into the editor for real, and slice 15 made slice 7's tool reachab
 paragraph said "nothing on that canvas is editable" for four slices after it stopped being
 true, contradicting the sentence immediately below it. The one thing slice 5 writes is which
 document a Plan's background IS.
+
+The **Asset designer** is the third, and it is per-ASSET rather than per-plan — design slice B3,
+ADR-0015, keyed by an `assetId` in Obsidian's own view state exactly as the Plan editor is keyed
+by a plan id. That ADR exists because the code had already taken a decision a `docs/issues/` note
+records as REJECTED: that note is `status: Done` and says slice 05 registers no new view type,
+while `RenovationPlannerPlugin.ts` registers `PLAN_EDITOR_VIEW`. ADR-0015 follows the code rather
+than the note, says so, and the note carries a pointer back — because a contradiction findable
+from only one side is one the next reader resolves the wrong way.
+
+**Its shell regions are held reachable by an import-graph walk, not by a habit.**
+`tests/presentation/designer/regionsReachable.test.ts` requires every `.vue` under
+`src/presentation/designer/` to be reachable by import from `AssetDesignerView.ts`, and
+`assetDesignerRoot.test.ts` asserts each region is drawn. Two instruments for two different
+failure modes: a component created and mounted nowhere, and a region silently dropped while its
+component stays reachable elsewhere. The walk is driven against seven fixtures BEFORE it is
+pointed at `src/` — reached, not reached, transitive, dynamic `import()`, a cycle, an
+unresolvable specifier, a layer bound — because an instrument that reaches nothing looks exactly
+like a clean tree, and it asserts it found something at all.
+
+Written that way because the alternatives all fail in the same direction. A region registry the
+root iterates relocates the forgetting rather than closing it; named slots move it up to whoever
+mounts the root, which is another file in the same task; and a test asserting "this placeholder
+region is empty for a stated reason" stays GREEN on exactly the day somebody forgets, so it
+certifies the gap. `npm run analyze` cannot cover it either — fallow reports an unimported FILE,
+and a component's own test imports it.
+
+**What the walk cannot see is written into its header**: it reads specifier text, so a component
+imported and never rendered counts as reached. Measured rather than assumed — an unrendered import
+in the root reports `'X' is defined but never used` under `@typescript-eslint/no-unused-vars`, so
+imported-implies-rendered is held by lint rather than by this test, and the gap is named where the
+next reader is standing.
 
 **Design slice 11 has landed: no COMMAND or QUERY leaving the composition root can throw
 past the Application layer — two carve-outs excepted, both named below — and that is checked

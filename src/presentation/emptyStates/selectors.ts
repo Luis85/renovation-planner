@@ -1,4 +1,5 @@
 import type { PlanDto, PlanSummaryDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto';
+import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
 
 /**
  * Which empty state a view is in — decided from query results that have ALREADY succeeded,
@@ -71,4 +72,27 @@ export function selectRenovationProjectEmptyState(
  */
 export function selectProjectDetailEmptyState(plans: readonly PlanSummaryDto[]): 'noPlans' | null {
 	return plans.length === 0 ? 'noPlans' : null;
+}
+
+/**
+ * Which empty state the asset designer is in (design slice B3, ADR-0015).
+ *
+ * A function of a design that has ALREADY succeeded, like its three siblings — an `Err` never
+ * reaches it, because a failed read is not an empty state and telling a user to draw their
+ * first footprint because the vault could not be read is the misleading onboarding slice 14
+ * refuses.
+ *
+ * It reads `shape` and not `dimensions`, which are DERIVED from the footprint by
+ * `GetAssetDesign` and would be a second answer to one question: what the canvas has to draw is
+ * the outline, and a measurement is a thing the inspector prints about it.
+ *
+ * **The return type is narrower than `EMPTY_STATE_CONTENT.assetDesigner`, on purpose and
+ * temporarily.** That registry declares `noBackground` too, and nothing here can select it:
+ * `AssetDesignDto` carries no `background` field until Task B7 adds it, together with the
+ * `BackgroundPicker` that would give the state an action. Widening the union now would declare
+ * an arm nothing returns. `selectors.test.ts` pins the absence with that reason attached, so
+ * B7 changes a test rather than finding an unexplained gap.
+ */
+export function selectAssetDesignerEmptyState(design: AssetDesignDto): 'noShape' | null {
+	return design.shape === null ? 'noShape' : null;
 }

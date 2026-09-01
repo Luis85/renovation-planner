@@ -119,7 +119,29 @@
 		// the feature working, not copy-paste to refactor away. `ignoredClones` rather than
 		// `ignore`, so only this REVIEWED pair is silenced and the two files still get every
 		// other duplication check a future edit to either might trip.
-		"ignoredClones": ["dup:7fd5d625:2"]
+		//
+		// The second, reviewed with a different verdict and worth the paragraph. ADR-0015's
+		// `AssetDesignerView` and slice 5's `PlanEditorView` share twenty lines: the tail of
+		// `setState`, the whole of `onOpen` and the whole of `onClose`. Seven statements of it
+		// are code and the rest is each file's own comments.
+		//
+		// Not extracted, and the reason is what the block IS. Six of the seven statements are
+		// Obsidian's INTERFACE rather than a rule of this plugin's — `onOpen`/`onClose` are
+		// hooks every `ItemView` that mounts a framework tree writes the same way, and a base
+		// class holding them would couple two view types for a clone detector rather than for
+		// a reason. What could genuinely drift is asserted instead, per view: "both entry
+		// points route through one `sync`" has a case in each suite (`mounts … once for state
+		// first` / `open first`), "close unmounts" has one in each, and the one line that is a
+		// shared rule of ours — `renovation-planner-container`, which `styles/chrome.css` keys
+		// off — is now asserted in all THREE view suites, having been asserted in two while
+		// the third quietly did without it.
+		//
+		// The trigger for actually merging them is written down where the decision lives:
+		// ADR-0015's *Revisit when* names one view type with a `subject` discriminator, once
+		// the designer and the editor want the same shell badly enough that one is less code
+		// than two. Tasks B1 and B2 already extracted the halves they really do share — the
+		// gesture surface and the tool context.
+		"ignoredClones": ["dup:7fd5d625:2", "dup:6f87acd9:2"]
 	},
 	// The harness page's plugin stylesheet is SERVED, not imported: the dev server answers
 	// `/styles.css` from styles/ (scripts/vite-assembled-styles.mjs), so there is no file on

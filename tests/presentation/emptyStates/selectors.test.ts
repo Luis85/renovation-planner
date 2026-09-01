@@ -6,10 +6,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+	selectAssetDesignerEmptyState,
 	selectPlanEditorEmptyState,
 	selectRenovationProjectEmptyState,
 } from '../../../src/presentation/emptyStates/selectors';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../../src/presentation/read-models/PlanDto';
+import { assetDesign } from '../../helpers/assetDesign';
 
 const PLAN: PlanDto = {
 	id: 'plan-1',
@@ -116,5 +118,58 @@ describe('selectRenovationProjectEmptyState', () => {
 		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', libraryOverlap: false };
 
 		expect(selectRenovationProjectEmptyState([project], 1)).toBeNull();
+	});
+});
+
+/**
+ * Design slice B3's third selector, and the one whose SHAPE is temporarily narrower than its
+ * registry.
+ *
+ * `EMPTY_STATE_CONTENT.assetDesigner` declares two entries and this function can answer only
+ * one of them, because the field the other reads does not exist yet: `AssetDesignDto` gains
+ * `background` in Task B7, which is also where the picker that would act on it is built. The
+ * last case below pins that as a FACT with its reason rather than leaving it as an absence —
+ * so B7 widens a return type and edits a test, instead of finding a registry entry nothing
+ * selects and guessing whether that was deliberate.
+ */
+describe('which empty state the asset designer is in', () => {
+	it('asks for a footprint when the asset has no shape at all', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign({ shape: null }))).toBe('noShape');
+	});
+
+	/**
+	 * The canvas has something to draw, so nothing overlays it. Slice 14's rule read from the
+	 * other end: an empty state over a footprint would be telling the user a region is empty
+	 * while the region shows the very thing they drew.
+	 */
+	it('asks for nothing once a shape exists', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign())).toBeNull();
+	});
+
+	/**
+	 * `dimensions` is DERIVED from the footprint and is `null` exactly when the shape is, so a
+	 * selector reading it would be a second answer to one question. This pins that it reads the
+	 * shape: a design carrying a shape but a `null` measurement — which `GetAssetDesign` cannot
+	 * currently produce, and which a future extent refusal could — still has something to draw.
+	 */
+	it('reads the shape rather than the derived dimensions', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign({ dimensions: null }))).toBeNull();
+	});
+
+	/**
+	 * **`noBackground` is registered content that nothing selects, and this is where that is
+	 * recorded.** `AssetDesignDto` has no `background` field until Task B7 adds it (that task's
+	 * own Files block says so), so there is nothing here to branch on. Asserted as behaviour
+	 * rather than described in a comment, because a comment saying "B7 adds the arm" fails
+	 * nothing on the day B7 does not.
+	 */
+	it('cannot yet ask for a background, because the DTO carries none until Task B7', () => {
+		const answers = [
+			selectAssetDesignerEmptyState(assetDesign()),
+			selectAssetDesignerEmptyState(assetDesign({ shape: null })),
+			selectAssetDesignerEmptyState(assetDesign({ shape: null, calibration: null })),
+		];
+
+		expect(answers).not.toContain('noBackground');
 	});
 });

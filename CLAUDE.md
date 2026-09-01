@@ -8,19 +8,27 @@ has already refused things that look obvious from the code alone, and where this
 the SDD disagree, the SDD is the authority and this file is the bug.
 
 Today the build, the gates, the browser harness and the release pipeline work; the
-settings pane declares **six rows and four of them bind a control** — units, the default
+settings pane declares **seven rows and four of them bind a control** — units, the default
 projects folder (where a NEW project's folder is created, since slice 18; an EXISTING project's
 folder derives from where its `Project.md` sits instead, ADR-0013), the currency increment's
 `defaultCurrency` and slice 11's verbose
-logging, plus slice 19's two library-folder rows, one INFORMATIONAL and one an ACTION, which
-bind none on purpose: `setControlValue` writes through `saveSettings` on every change, and a
-control on `libraryFolder` would persist a folder with no notes moved and strand the catalogue.
+logging, plus slice 19's two library-folder rows, one INFORMATIONAL and one an ACTION, and the
+unreadable-note increment's diagnostics-report ACTION row, the second of that report's two
+doors beside the palette command. The three that bind nothing each have their own reason, and
+only the library pair share one: `setControlValue` writes through `saveSettings` on every
+change, and a control on `libraryFolder` would persist a folder with no notes moved and strand
+the catalogue.
 Counted in `getSettingDefinitions` rather than remembered — this sentence said "the one setting
 there is" for several slices after it stopped being one, then "the three settings there are"
 through slice 19, then **"five rows and only three of them bind a control" for slice 21 and
 through the currency increment that added the sixth row**, which is the same failure a third
 time in a sentence that already recorded the first two. The distinction between a row and a
-control did not save it; only counting did. The persistence layer of design slice 4 is in
+control did not save it; only counting did. **The seventh row arrived by MERGE rather than by
+an edit to this file**, which is the fourth way this count can go wrong and the one no author
+of either branch is looking at: two branches each added a row, each correctly updated the
+sentence to six, and the merge of them is seven with both sentences reading right in isolation.
+`tests/plugin/settings/unrecovered.test.ts` is what caught it, because it asserts the count
+rather than describing it. The persistence layer of design slice 4 is in
 place — Obsidian repositories, the geometry sidecar store, the project index and its
 vault-change pipeline
 (bounded since slice 18 by what a note DECLARES, not by where it sits, which closes slice 4's

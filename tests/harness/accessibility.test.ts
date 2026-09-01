@@ -161,7 +161,7 @@ function detailDeps(over: { projectId: string; plans: readonly PlanSummaryDto[] 
 				Promise.resolve(
 					ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false }),
 				),
-			listPlansByProject: () => Promise.resolve(ok(over.plans)),
+			listPlansByProject: () => Promise.resolve(ok({ plans: over.plans, unreadable: 0 })),
 		},
 	};
 }

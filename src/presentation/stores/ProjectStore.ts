@@ -30,6 +30,17 @@ export const useProjectStore = defineStore('project', () => {
 	const project = ref<ProjectSummaryDto | null>(null);
 	const plan = ref<PlanDto | null>(null);
 	const zones = ref<ReadonlyMap<string, ZoneDto>>(new Map());
+	/**
+	 * How many of this plan's zone notes could not be read.
+	 *
+	 * A separate field from `zones` because it is a fact about the READ rather than about the
+	 * scene: the canvas draws every zone it has AND says how many it does not have, which is
+	 * what makes one bad note cost one zone instead of the whole plan.
+	 *
+	 * Written only on a successful hydrate, beside `zones`, and cleared wherever `zones` is —
+	 * so it can never describe a different read than the one on screen.
+	 */
+	const unreadableZones = ref(0);
 	const status = ref<ProjectStoreStatus>('idle');
 	const error = ref<RepositoryError | null>(null);
 	/**
@@ -75,6 +86,7 @@ export const useProjectStore = defineStore('project', () => {
 	function fail(cause: RepositoryError): void {
 		plan.value = null;
 		zones.value = new Map();
+		unreadableZones.value = 0;
 		error.value = cause;
 		status.value = 'failed';
 		// Nothing is on screen to BE stale: this path blanks the plan and the failure state
@@ -141,6 +153,7 @@ export const useProjectStore = defineStore('project', () => {
 		if (foundPlan.value === null) {
 			plan.value = null;
 			zones.value = new Map();
+			unreadableZones.value = 0;
 			status.value = 'missing';
 			return;
 		}
@@ -157,7 +170,8 @@ export const useProjectStore = defineStore('project', () => {
 		}
 
 		plan.value = foundPlan.value;
-		zones.value = new Map(foundZones.value.map((zone) => [zone.id, zone]));
+		zones.value = new Map(foundZones.value.zones.map((zone) => [zone.id, zone]));
+		unreadableZones.value = foundZones.value.unreadable;
 		status.value = 'ready';
 		// The ONE event that retires a stale-data warning: what is on screen came back from the
 		// vault just now. Every hydration path ends here on success, whatever its options, which
@@ -194,7 +208,9 @@ export const useProjectStore = defineStore('project', () => {
 	 * above `hydrate`), so adding it would not change behaviour, only appear to promise a
 	 * guarantee this store does not keep in the one case that actually needs stating.
 	 */
-	const emptyStateKey = computed(() => selectPlanEditorEmptyState(plan.value, [...zones.value.values()]));
+	const emptyStateKey = computed(() =>
+		selectPlanEditorEmptyState(plan.value, [...zones.value.values()], unreadableZones.value),
+	);
 
 	/**
 	 * Rebuilds this store to its opening state (ADR-005). Nothing calls this today — the
@@ -211,6 +227,7 @@ export const useProjectStore = defineStore('project', () => {
 		project.value = null;
 		plan.value = null;
 		zones.value = new Map();
+		unreadableZones.value = 0;
 		error.value = null;
 		stale.value = false;
 		status.value = 'idle';
@@ -223,6 +240,20 @@ export const useProjectStore = defineStore('project', () => {
 	 * `Zone.area()` is: a declared shape that gets trimmed whenever nothing calls it stops
 	 * being a declared shape.
 	 */
-	// fallow-ignore-next-line unused-store-member
-	return { project, plan, zones, status, error, stale, emptyStateKey, hydrate, reset };
+	return {
+		// The directive means the NEXT LINE literally, so it sits on `project` rather than on
+		// the `return` — where it was, and where it went stale the moment this object stopped
+		// being one line.
+		// fallow-ignore-next-line unused-store-member
+		project,
+		plan,
+		zones,
+		unreadableZones,
+		status,
+		error,
+		stale,
+		emptyStateKey,
+		hydrate,
+		reset,
+	};
 });

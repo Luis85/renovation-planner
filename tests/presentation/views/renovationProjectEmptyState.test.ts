@@ -42,7 +42,7 @@ const commands = unavailableRenovationProjectCommands();
  */
 const detailDoors = {
 	getProject: () => Promise.resolve(ok(null)),
-	listPlansByProject: () => Promise.resolve(ok([])),
+	listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 } satisfies Pick<RenovationProjectQueryServices, 'getProject' | 'listPlansByProject'>;
 
 const PROJECT: ProjectSummaryDto = {

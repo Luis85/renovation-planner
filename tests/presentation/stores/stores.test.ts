@@ -38,7 +38,7 @@ const POINTER = 1;
 function queries(overrides: Partial<PlanEditorQueryServices> = {}): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
-		findZonesByPlan: () => Promise.resolve(ok(FIXTURE_ZONES)),
+		findZonesByPlan: () => Promise.resolve(ok({ zones: FIXTURE_ZONES, unreadable: 0 })),
 		getRequirementsForZone: () => Promise.resolve(ok([])),
 		listAssets: () => Promise.resolve(ok([])),
 		listRequirementsReferencing: () => Promise.resolve(ok([])),
@@ -175,7 +175,7 @@ describe('ProjectStore hydration', () => {
 		const slow = store.hydrate(
 			queries({
 				getPlan: () => slowGate.then(() => ok(stalePlan)),
-				findZonesByPlan: () => Promise.resolve(ok([])),
+				findZonesByPlan: () => Promise.resolve(ok({ zones: [], unreadable: 0 })),
 			}),
 			FIXTURE_PLAN.id,
 		);

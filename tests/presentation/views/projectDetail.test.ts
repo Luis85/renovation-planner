@@ -23,14 +23,14 @@ const PROJECT: ProjectSummaryDto = {
 
 describe('ProjectDetail', () => {
 	it('names the project and renders its status through the shared label', () => {
-		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], emptyState: null } });
+		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: null } });
 
 		expect(wrapper.get('.rp-project-detail__name').text()).toBe('Hallway');
 		expect(wrapper.get('.rp-project-detail__status').text()).toBe(t('en', 'form.new-project.status.idea'));
 	});
 
 	it('emits back, openNote and createPlan from the header', async () => {
-		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], emptyState: null } });
+		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: null } });
 
 		await wrapper.get('.rp-project-detail__back').trigger('click');
 		await wrapper.get('.rp-project-detail__open-note').trigger('click');
@@ -60,7 +60,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('gives the no-plans empty state the plans subsection heading level', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [], emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
 		});
 
 		expect(wrapper.get('.rp-empty-state__headline').element.tagName).toBe('H3');
@@ -75,7 +75,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('keeps back and open note when the project has no plans', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [], emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
 		});
 
 		expect(wrapper.find('.rp-project-detail__back').exists()).toBe(true);
@@ -92,7 +92,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('emits createPlan from the empty state’s own action', async () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [], emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
 		});
 
 		await wrapper.get('.rp-empty-state__action').trigger('click');
@@ -107,7 +107,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('carries a plan row’s id up from PlanList', async () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], emptyState: null },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null },
 		});
 
 		await wrapper.get('.rp-plan-list__row').trigger('click');
@@ -117,7 +117,7 @@ describe('ProjectDetail', () => {
 
 	it('says which currency the project is priced in, beside its status', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: { ...PROJECT, currency: 'GBP' }, plans: [], emptyState: null },
+			props: { project: { ...PROJECT, currency: 'GBP' }, plans: [], unreadablePlans: 0, emptyState: null },
 		});
 
 		expect(wrapper.get('.rp-project-detail__currency').text()).toBe(
@@ -134,7 +134,7 @@ describe('ProjectDetail', () => {
 	it('declares a rule for every class it actually emits', () => {
 		const css = readFileSync('styles/project-detail.css', 'utf8');
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], emptyState: null },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null },
 		});
 
 		const emitted = new Set(

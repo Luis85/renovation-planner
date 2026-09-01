@@ -110,7 +110,10 @@ export function planRepositoryContract(make: () => PlanFixture): void {
 			expectOk(await repository.save(onA, 'absent'));
 			expectOk(await repository.save(alsoOnA, 'absent'));
 			const listed = expectOk(await repository.listByProject(projectA));
-			expect(listed.map((p) => p.entity.name)).toEqual(['A', 'A2']);
+			expect(listed.loaded.map((p) => p.entity.name)).toEqual(['A', 'A2']);
+			// Both implementations answer the same shape over readable notes. See the twin
+			// assertion in `zone-repository.contract.ts`.
+			expect(listed.refused).toBe(0);
 		});
 	});
 }

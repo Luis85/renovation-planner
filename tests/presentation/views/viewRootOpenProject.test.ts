@@ -54,7 +54,7 @@ async function mountOnOneProject(outcome: ProjectOpenOutcome) {
 					queries: {
 						listProjects: () => Promise.resolve(ok({ projects: [KITCHEN], unreadable: 0 })),
 						getProject,
-						listPlansByProject: () => Promise.resolve(ok([])),
+						listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 					},
 					commands: unavailableRenovationProjectCommands(),
 					openProject,

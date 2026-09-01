@@ -40,6 +40,27 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.default-currency.name': 'Standardwährung',
 	'settings.default-currency.desc':
 		'Die Währung, in der ein neues Projekt kalkuliert wird. Ein Projekt ohne eigene Währung folgt dieser Einstellung.',
+	// „Zonen“, nicht „Bereiche“: die deutsche Oberfläche nennt eine Zone überall sonst so
+	// (`editor.zone.default-name`, `editor.inspector.delete-zone.reassign-title`).
+	// „Vault“ bleibt unübersetzt — Obsidians eigener Name dafür, was `strings.test.ts` prüft.
+	'command.show-diagnostics-report': 'Diagnosebericht anzeigen',
+	'settings.diagnostics.name': 'Diagnosebericht',
+	'settings.diagnostics.desc':
+		'Versionen, Schemaversionen und die Notizen, die das Laden in dieser Sitzung verweigert haben.',
+	'diagnostics.title': 'Diagnosebericht',
+	'diagnostics.no-issues': 'In dieser Sitzung hat keine Notiz das Laden verweigert.',
+	'diagnostics.session-only':
+		'Dieser Bericht umfasst nur die aktuelle Sitzung. Beim erneuten Öffnen des Vaults wird er geleert.',
+	'diagnostics.plugin-version': 'Plugin-Version',
+	'diagnostics.obsidian-version': 'Obsidian-Version',
+	'diagnostics.last-migration': 'Zuletzt angewendete Migration',
+	'diagnostics.schema-versions': 'Schemaversionen',
+	'diagnostics.pending-migrations': 'Ausstehende Migrationen',
+	'diagnostics.none': 'Keine',
+	'diagnostics.copy': 'Bericht kopieren',
+	'diagnostics.copied': 'Diagnosebericht kopiert.',
+	'zone.listing-incomplete':
+		'Einige Zonen in diesem Projekt konnten nicht gelesen werden, daher ist die Liste möglicher Ziele unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
 	'settings.verbose-logging.desc': 'Debug-Meldungen in der Entwicklerkonsole anzeigen. Alles bleibt auf diesem Gerät.',
 	'view.geometry.name': 'Geometrie-Seitendatei',
@@ -203,14 +224,19 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.project.failed.headline': 'Projekte konnten nicht geladen werden',
 	'editor.plan-failed.headline': 'Dieser Grundriss konnte nicht geladen werden',
 	'editor.refresh-failed': 'Dieser Grundriss konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
+	// „Zonen“, wie überall sonst in dieser Oberfläche — siehe `zone.listing-incomplete`.
+	'editor.some-zones-unreadable':
+		'{count} Zone(n) in diesem Grundriss konnten nicht gelesen werden und werden nicht gezeichnet. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'editor.plan-missing.headline': 'Diesen Grundriss gibt es nicht mehr',
 	'editor.plan-missing.body': 'Dieser Tab verweist auf einen Grundriss, der nicht mehr im Vault ist.',
 	'editor.plan-missing.action': 'Tab schließen',
 	'view.session-failure.headline': 'Renovation Planner konnte nicht gestartet werden',
 	'view.project.loading': 'Projekte werden geladen …',
-	// Kein zweiter Satz über einen Diagnosebericht: den gibt es in diesem Build nicht — siehe
-	// den Kommentar am gleichen Schlüssel in `en.ts`.
+	// Kein zweiter Satz über einen Diagnosebericht — den gibt es in diesem Build inzwischen
+	// sehr wohl; der Grund steht jetzt am gleichen Schlüssel in `en.ts` und ist ein anderer.
 	'view.project.some-unreadable': 'Einige Projekte konnten nicht aus dem Vault gelesen werden.',
+	'view.project.some-plans-unreadable':
+		'{count} Grundriss(e) in diesem Projekt konnten nicht gelesen werden. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'form.new-project.title': 'Neues Renovierungsprojekt',
 	'form.new-project.name': 'Name',
 	'form.new-project.status': 'Status',

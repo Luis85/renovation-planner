@@ -208,6 +208,19 @@ export class SettingsTab extends PluginSettingTab {
 					defaultValue: DEFAULT_SETTINGS.verboseLogging,
 				},
 			},
+			// An ACTION row and the second door into the diagnostics report, beside the palette
+			// command. It calls the plugin's own method rather than composing a modal here: one
+			// action, every input, and a second composition would drift the moment either is
+			// edited. It is deliberately absent from the unrecovered branch above — see
+			// `showDiagnosticsReport`'s docblock for why an empty report is the wrong answer
+			// there rather than a lesser one.
+			{
+				name: tr('settings.diagnostics.name'),
+				desc: tr('settings.diagnostics.desc'),
+				action: () => {
+					this.host.openDiagnosticsReport();
+				},
+			},
 		];
 	}
 

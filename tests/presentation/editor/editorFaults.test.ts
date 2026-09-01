@@ -127,13 +127,13 @@ describe('an unexpected fault during a dispatch', () => {
 		// Told, not swallowed — the same seam every refused gesture already reports through.
 		expect(Notice.shown.length).toBe(noticesBefore + 1);
 		// Nothing was written, and the panel still shows what it showed.
-		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never))).toHaveLength(1);
+		expect(expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded).toHaveLength(1);
 		expect(harness.wrapper.text()).toContain('Kitchen');
 
 		// And the leaf still works: a second, clean delete goes through.
 		toolbarButton(harness, 'Delete zone').click();
 		await settleUntil(
-			async () => expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).length === 0,
+			async () => expectOk(await zonesRepo.listByPlan('plan-e2e' as never)).loaded.length === 0,
 			'the second delete lands',
 		);
 

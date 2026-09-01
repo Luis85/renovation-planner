@@ -72,6 +72,11 @@ describe('a read that failed', () => {
 		expect(plugin.commands.map((command) => command.id)).toEqual([
 			'open-project',
 			'open-project-detail',
+			// Registered here TOO, and deliberately: a session whose settings could not be read
+			// is one a user reaches for diagnostics in. The command refuses with the
+			// unrecovered sentence rather than opening an empty report — see
+			// `diagnosticsReportDoors.test.ts`, which drives that refusal.
+			'show-diagnostics-report',
 			'open-plan-editor',
 			'set-plan-background',
 			'create-sample-project',
@@ -246,13 +251,18 @@ describe('a fresh install, which is the opposite outcome', () => {
 		const tab = plugin.settingTabs[0] as unknown as SettingsTab;
 
 		expect(plugin.root.settings).toEqual({ ...DEFAULT_SETTINGS });
-		// Six definitions, four of them controls: units, the slice-4 project folder (the one
-		// location field), slice 11's verbose-logging toggle and this slice's default-currency
-		// dropdown, plus slice 19's PAIR of library rows — one a name and a description that
-		// binds no control, because writing that setting without moving the notes first strands
-		// the catalogue, and one an action that runs the migration which moves them and
-		// persists the setting last.
-		expect(tab.getSettingDefinitions()).toHaveLength(6);
+		// Seven definitions, four of them controls: units, the slice-4 project folder (the one
+		// location field), the currency increment's default-currency dropdown and slice 11's
+		// verbose-logging toggle. The other three bind none, each for its own reason — slice 19's
+		// PAIR of library rows, one a name and a description because writing that setting without
+		// moving the notes first strands the catalogue, and one an action that runs the migration
+		// which moves them and persists the setting last, plus the diagnostics report's ACTION
+		// row, the second of its two doors.
+		//
+		// COUNTED in `getSettingDefinitions`, never remembered: this sentence has been wrong three
+		// times in `CLAUDE.md` by being reasoned about instead, and the distinction between a row
+		// and a control did not save it either time.
+		expect(tab.getSettingDefinitions()).toHaveLength(7);
 		expect(tab.getSettingDefinitions().filter((item) => 'control' in item && item.control !== undefined)).toHaveLength(4);
 
 		await plugin.saveSettings({ units: 'imperial' });

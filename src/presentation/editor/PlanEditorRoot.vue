@@ -35,7 +35,7 @@ const context = usePlanEditorContext();
 // every tool and the toolbar already share.
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
-const { status, error, stale } = storeToRefs(projectStore);
+const { status, error, stale, unreadableZones } = storeToRefs(projectStore);
 const { layersPanelOpen, inspectorPanelOpen } = storeToRefs(useWorkspaceStore());
 const { emptyStateKey } = storeToRefs(projectStore);
 
@@ -237,6 +237,20 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 			role="status"
 		>
 			{{ tr('editor.refresh-failed') }}
+		</p>
+		<!--
+			Its OWN `v-if`, never chained into the background `v-if`/`v-else-if` below, for the
+			reason the block above already paid for: "some zones could not be read" and "this
+			plan's background is missing" are independent facts, and a plan can have both. As a
+			link in that chain, one of them silently swallows the other — measured, by making it
+			one and watching `unreadableZonesNotice.test.ts`'s third case go red.
+		-->
+		<p
+			v-if="unreadableZones > 0"
+			class="rp-editor-notice"
+			role="status"
+		>
+			{{ tr('editor.some-zones-unreadable', { count: String(unreadableZones) }) }}
 		</p>
 		<p
 			v-if="backgroundStatus === 'missing'"

@@ -84,7 +84,7 @@ describe('escape while the camera owns the canvas', () => {
 		click(canvas, 520, 120);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -117,7 +117,7 @@ describe('escape while the camera owns the canvas', () => {
 		click(canvas, 520, 120);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -152,7 +152,7 @@ describe('escape while the camera owns the canvas', () => {
 		click(canvas, 202, 202);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -190,7 +190,7 @@ describe('escape while the camera owns the canvas', () => {
 		click(canvas, 202, 202);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -373,7 +373,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		const { harness, canvas, zonesRepo } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 340, 300);
@@ -383,7 +383,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		click(canvas, 900, 500);
 		await settle();
 
-		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).toEqual(before);
+		expect(expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points).toEqual(before);
 		harness.unmount();
 	});
 
@@ -410,7 +410,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		click(canvas, 500, 100);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -436,7 +436,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		click(canvas, 500, 100);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -646,7 +646,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		click(canvas, 500, 100);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});

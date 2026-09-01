@@ -156,7 +156,7 @@ describe('two background loads racing', () => {
 			// `undefined`.
 			listRequirementsReferencing: () => Promise.resolve(ok([])),
 			listReassignmentTargets: () => Promise.resolve(ok([])),
-				findZonesByPlan: () => Promise.resolve(ok([])),
+				findZonesByPlan: () => Promise.resolve(ok({ zones: [], unreadable: 0 })),
 			},
 		});
 

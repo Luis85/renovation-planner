@@ -98,7 +98,7 @@ describe('a pan the pointer walks out of', () => {
 		const { harness, canvas, zonesRepo } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 
 		key(canvas, 'keydown', { key: ' ' });
 		pointer(canvas, 'pointerdown', 300, 300);
@@ -117,7 +117,7 @@ describe('a pan the pointer walks out of', () => {
 		pointer(canvas, 'pointerup', 400, 300);
 		await settle();
 
-		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x).not.toBe(before);
+		expect(expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x).not.toBe(before);
 		harness.unmount();
 	});
 
@@ -214,7 +214,7 @@ describe('a press arriving while a pan is already running', () => {
 
 		// Exactly one zone was drawn — from the three deliberate clicks — not a four-sided one
 		// carrying the stray vertex.
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -223,7 +223,7 @@ describe('a press arriving while a pan is already running', () => {
 		const { harness, canvas, zonesRepo } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
 		key(canvas, 'keydown', { key: ' ' });
 		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
@@ -234,7 +234,7 @@ describe('a press arriving while a pan is already running', () => {
 		pointer(canvas, 'pointerup', 500, 300, 0, 12);
 		await settle();
 
-		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).toEqual(before);
+		expect(expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points).toEqual(before);
 		harness.unmount();
 	});
 });
@@ -301,7 +301,7 @@ describe('a pointer taken away mid-pan', () => {
 		click(canvas, 520, 120);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -508,7 +508,7 @@ describe('a second pointer arriving during a TOOL gesture', () => {
 		const { harness, canvas, zonesRepo } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 
 		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
 		pointer(canvas, 'pointermove', 400, 300, 0, 11);
@@ -523,7 +523,7 @@ describe('a second pointer arriving during a TOOL gesture', () => {
 		pointer(canvas, 'pointerup', 400, 300, 0, 11);
 		await settle();
 
-		const after = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+		const after = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 		harness.unmount();
 		return after - before;
 	}
@@ -596,7 +596,7 @@ describe('the camera during a tool drag', () => {
 		const built = await editor();
 		toolbarButton(built.harness, 'Select').click();
 		await settle();
-		const before = expectOk(await built.zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+		const before = expectOk(await built.zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 		pointer(built.canvas, 'pointerdown', 300, 300);
 		pointer(built.canvas, 'pointermove', 350, 300);
 		return { ...built, before };
@@ -651,7 +651,7 @@ describe('the camera during a tool drag', () => {
 		pointer(canvas, 'pointerup', 400, 300);
 		await settle();
 
-		const after = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+		const after = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 		expect(after).toBeCloseTo(before + 1000, 6);
 		harness.unmount();
 	});
@@ -718,7 +718,7 @@ describe('a foreign pointer hovering during a tool drag', () => {
 		const { harness, canvas, zonesRepo } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
 		pointer(canvas, 'pointerdown', 300, 300, 0, 11); // the mouse grabs zone-a
 		pointer(canvas, 'pointermove', 340, 300, 0, 11);
@@ -726,7 +726,7 @@ describe('a foreign pointer hovering during a tool drag', () => {
 		await settle();
 
 		// The drag is still the mouse's: nothing committed at the pen's position.
-		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).toEqual(before);
+		expect(expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points).toEqual(before);
 		harness.unmount();
 	});
 
@@ -736,7 +736,7 @@ describe('a foreign pointer hovering during a tool drag', () => {
 		const { harness, canvas, zonesRepo } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
 		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
 		pointer(canvas, 'pointermove', 420, 300, 0, 11);
@@ -745,7 +745,7 @@ describe('a foreign pointer hovering during a tool drag', () => {
 		chord(canvas, 440, 300, 0, 4, 11); // the owner's PRIMARY released
 		await settle();
 
-		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).not.toEqual(before);
+		expect(expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points).not.toEqual(before);
 		harness.unmount();
 	});
 });

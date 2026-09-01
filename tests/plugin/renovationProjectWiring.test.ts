@@ -192,7 +192,7 @@ describe('the renovation project dependencies', () => {
 		const plans = await deps.queries.listPlansByProject(saved.entity.id);
 
 		expect(found.ok && found.value?.name).toBe('Hallway');
-		expect(plans.ok && plans.value).toEqual([]);
+		expect(plans.ok && plans.value).toEqual({ plans: [], unreadable: 0 });
 	});
 
 	/**
@@ -237,7 +237,7 @@ describe('the renovation project dependencies', () => {
 
 		expect(deps.commands.createPlan).toBe(persistence.createPlan);
 		expect(created.ok).toBe(true);
-		expect(plans.ok && plans.value?.map((plan) => plan.name)).toEqual(['Ground floor']);
+		expect(plans.ok && plans.value.plans.map((plan) => plan.name)).toEqual(['Ground floor']);
 	});
 
 	it('hands over a refusing createPlan command when settings were never recovered', async () => {

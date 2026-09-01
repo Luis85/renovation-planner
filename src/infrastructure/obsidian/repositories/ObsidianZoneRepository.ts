@@ -2,6 +2,7 @@ import { TFile } from 'obsidian';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
+import type { ZoneListing } from '../../../application/ports/ZoneRepository';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { Zone } from '../../../domain/zone/Zone';
@@ -68,6 +69,33 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  * the method rather than restated, so a widening of its error channel reaches here.
  */
 type SidecarReader = PlanGeometryStore['read'];
+
+/**
+ * Which refusals a listing may swallow: the ones that are about ONE note.
+ *
+ * Enumerated as what MAY be skipped rather than what may not, so the default is to propagate.
+ * A refusal code invented later then fails the listing — today's behaviour, and the safe
+ * direction — instead of being silently folded into a count. Fail-closed on purpose; the
+ * unsafe direction here hides a whole-plan failure behind a per-note notice.
+ *
+ * `zone.schema-version-malformed` is in the set and is the one addition to the reviewed
+ * design's three: `migrateNote` raises it, category `Validation`, for a `schema-version` that
+ * is not a number — which a user produces by typing `v2`. It is as note-local as a refusal
+ * gets, and leaving it out kept the exact defect this listing was changed to close.
+ *
+ * A migration refusal is skippable by CATEGORY: `MigrationError` means this build predates
+ * this note, which is note-local by construction.
+ */
+const SKIPPABLE_ZONE_CODES = new Set([
+	'zone.frontmatter-invalid',
+	'zone.entity-invalid',
+	'zone.geometry-entry-missing',
+	'zone.schema-version-malformed',
+]);
+
+function isSkippableZoneRefusal(error: RepositoryError): boolean {
+	return error.category === 'Migration' || SKIPPABLE_ZONE_CODES.has(error.code);
+}
 
 function validationFailure(message: string): ValidationError {
 	return { category: 'Validation', code: 'zone.pre-write-invalid', message };
@@ -327,11 +355,11 @@ export class ObsidianZoneRepository {
 		});
 	}
 
-	listByPlan(planId: PlanId): Promise<Result<Loaded<Zone>[], RepositoryError>> {
+	listByPlan(planId: PlanId): Promise<Result<ZoneListing, RepositoryError>> {
 		return this.list(this.deps.index.getSpatialObjectIdsByPlan(planId) as ZoneId[]);
 	}
 
-	listByProject(projectId: ProjectId): Promise<Result<Loaded<Zone>[], RepositoryError>> {
+	listByProject(projectId: ProjectId): Promise<Result<ZoneListing, RepositoryError>> {
 		// Narrowed by the index's TYPE rather than by how the id is spelled — see
 		// `ObsidianPlanRepository.listByProject`, which carries the full account. This is the
 		// SECOND of exactly two instances of that shape (grepped: no other id-prefix filter
@@ -351,9 +379,9 @@ export class ObsidianZoneRepository {
 	 * single listing there is nothing to go stale against, because nothing writes.
 	 *
 	 * Keyed by plan, not fixed to one, because `list` takes ids rather than a plan and
-	 * `findByProject` hands it zones from several.
+	 * `listByProject` hands it zones from several.
 	 */
-	private async list(ids: readonly ZoneId[]): Promise<Result<Loaded<Zone>[], RepositoryError>> {
+	private async list(ids: readonly ZoneId[]): Promise<Result<ZoneListing, RepositoryError>> {
 		const sidecars = new Map<PlanId, ReturnType<SidecarReader>>();
 		const readOnce: SidecarReader = (planId) => {
 			const pending = sidecars.get(planId) ?? this.geometry.read(planId);
@@ -362,12 +390,27 @@ export class ObsidianZoneRepository {
 		};
 
 		const loaded: Loaded<Zone>[] = [];
+		let refused = 0;
 		for (const id of ids) {
 			const one = await this.loadOne(id, readOnce);
-			if (!one.ok) return one;
+			if (!one.ok) {
+				// A SHARED failure is not N note failures. `loadOne` answers
+				// `zone.sidecar-unreadable` for every zone in a plan whose geometry sidecar cannot
+				// be read — and `readOnce` memoises that read across this loop — so swallowing it
+				// would answer an EMPTY list with `refused: N`, drawing a bare canvas under a
+				// notice blaming N notes for one file. Propagated instead.
+				if (!isSkippableZoneRefusal(one.error)) return one;
+				// Recorded HERE, because the claim "skipping loses nothing" was false until this
+				// line existed: `openNoteById` records the MIGRATION refusal and nothing else, so
+				// every later arm of `loadOne` reached the ledger not at all. A skipped note the
+				// diagnostics report cannot name is a note the user is told about and cannot find.
+				this.deps.ledger.record('zone', id, one.error);
+				refused += 1;
+				continue;
+			}
 			if (one.value) loaded.push(one.value);
 		}
-		return Promise.resolve(ok(loaded));
+		return ok({ loaded, refused });
 	}
 
 

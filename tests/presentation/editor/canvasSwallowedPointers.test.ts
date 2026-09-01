@@ -129,7 +129,7 @@ describe('a pointer the canvas swallowed, cancelled after the pan ended', () => 
 		click(canvas, 500, 100);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -159,7 +159,7 @@ describe('a pointer the canvas swallowed, cancelled after the pan ended', () => 
 		click(canvas, 500, 100);
 		await settle();
 
-		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).find((l) => l.entity.id !== 'zone-a');
+		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
 		harness.unmount();
 	});
@@ -203,7 +203,7 @@ it('does not strand its id when the pointer LEAVES before it is released', async
 	canvas.dispatchEvent(new PointerEvent('pointerleave', { pointerId: 12, bubbles: true }));
 	pointer(canvas, 'pointerup', 400, 300, 0, 11);
 	await settle();
-	const afterFirst = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+	const afterFirst = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 
 	// The id comes back, and this drag is nobody's business but its own.
 	pointer(canvas, 'pointerdown', 300, 300, 0, 12);
@@ -211,7 +211,7 @@ it('does not strand its id when the pointer LEAVES before it is released', async
 	pointer(canvas, 'pointerup', 500, 300, 0, 12);
 	await settle();
 
-	expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x).not.toBe(afterFirst);
+	expect(expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x).not.toBe(afterFirst);
 	harness.unmount();
 });
 
@@ -249,7 +249,7 @@ async function dragInterruptedByAReturningPointer(interloper: boolean): Promise<
 	const { harness, canvas, zonesRepo } = await editor();
 	toolbarButton(harness, 'Select').click();
 	await settle();
-	const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+	const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 
 	pointer(canvas, 'pointerdown', 300, 300, 0, 11);
 	pointer(canvas, 'pointermove', 400, 300, 0, 11);
@@ -262,7 +262,7 @@ async function dragInterruptedByAReturningPointer(interloper: boolean): Promise<
 	pointer(canvas, 'pointerup', 400, 300, 0, 11);
 	await settle();
 
-	const after = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points[0].x;
+	const after = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 	harness.unmount();
 	return after - before;
 }

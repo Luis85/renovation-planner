@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Decimal } from 'decimal.js';
-import { err } from '../../../src/core/result/Result';
+import { err, ok } from '../../../src/core/result/Result';
 import { GetRequirementsForZone } from '../../../src/application/queries/GetRequirementsForZone';
 import { ListAssets } from '../../../src/application/queries/ListAssets';
 import { ListRequirementsReferencing } from '../../../src/application/queries/ListRequirementsReferencing';
@@ -267,5 +267,37 @@ describe('picker query refusals', () => {
 		expect(unknownZone).toEqual([]);
 		const unknownAsset = expectOk(await targets.execute({ kind: 'asset', assetId: 'asset-none' as never }));
 		expect(unknownAsset).toEqual([]);
+	});
+
+	// These two disagree with the canvas ON PURPOSE, and they sit here rather than in their own
+	// file so that neither reads as an oversight. The canvas draws nineteen zones instead of
+	// twenty and says so — recoverable. This picker offers the zones a Requirement may be
+	// reassigned to BEFORE a zone is deleted, so an incomplete list, silently, is how a user
+	// reassigns to the wrong zone and then deletes the right one. Skip-and-count is a reading
+	// policy; this reader refuses.
+	it('refuses rather than offering a partial set of targets', async () => {
+		const w = await wiredWithLink();
+		const incomplete = overridePort(w.zones, {
+			listByProject: () => Promise.resolve(ok({ loaded: [], refused: 1 })),
+		});
+
+		const refusal = expectErr(
+			await new ListReassignmentTargets(incomplete, w.assets).execute({ kind: 'zone', zoneId: w.zoneId }),
+		);
+
+		expect(refusal.code).toBe('zone.listing-incomplete');
+		expect(refusal.category).toBe('Persistence');
+	});
+
+	it('offers every target when nothing refused', async () => {
+		const w = await wiredWithLink();
+
+		const offered = expectOk(
+			await new ListReassignmentTargets(w.zones, w.assets).execute({ kind: 'zone', zoneId: w.zoneId }),
+		);
+
+		// The contrast case, and it is load-bearing: a query that refused unconditionally would
+		// pass the case above and break the delete flow outright.
+		expect(offered).toEqual([]);
 	});
 });

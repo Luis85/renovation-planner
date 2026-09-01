@@ -133,7 +133,7 @@ describe('seeding the sample project', () => {
 		// thing that makes it resolvable.
 		expect(plan?.entity.projectId).toBe(projectId);
 
-		const zones = expectOk(await stack.zones.listByPlan(planId));
+		const zones = expectOk(await stack.zones.listByPlan(planId)).loaded;
 		expect(zones).toHaveLength(5);
 		expect(zones.map((zone) => zone.entity.name)).toContain(t('en', 'sample.zone.kitchen'));
 	});
@@ -148,7 +148,7 @@ describe('seeding the sample project', () => {
 		const { stack, services } = wired();
 
 		const planId = expectOk(await seedSampleProject(services));
-		const zones = expectOk(await stack.zones.listByPlan(planId)).map((loaded) => loaded.entity);
+		const zones = expectOk(await stack.zones.listByPlan(planId)).loaded.map((loaded) => loaded.entity);
 
 		expect(new Set(zones.map((zone) => zone.status))).toEqual(
 			new Set(['Planned', 'InProgress', 'Complete']),
@@ -169,7 +169,7 @@ describe('seeding the sample project', () => {
 		const { stack, services } = wired();
 
 		const planId = expectOk(await seedSampleProject(services));
-		const kitchen = expectOk(await stack.zones.listByPlan(planId)).find(
+		const kitchen = expectOk(await stack.zones.listByPlan(planId)).loaded.find(
 			(zone) => zone.entity.name === t('en', 'sample.zone.kitchen'),
 		);
 

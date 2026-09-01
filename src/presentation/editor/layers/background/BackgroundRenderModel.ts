@@ -1,10 +1,32 @@
 import { normalizePath, TFile, type Vault } from 'obsidian';
 import type { Point } from '../../../../core/geometry/Point';
-import type { PlanBackgroundRef } from '../../../../domain/plan/PlanBackgroundRef';
 import { renderPdfPage } from './pdfRaster';
 
 /**
- * The Plan's background document, decoded and ready for `<v-image>` (SDD §18, §54–55).
+ * What this pipeline needs of a background REFERENCE, and nothing about whose background it
+ * is — the same slice-of-the-real-thing argument `BackgroundVault` below already makes about
+ * Obsidian's `Vault`, applied to the two entities that own one.
+ *
+ * Structural rather than an import of either, because `PlanBackgroundRef` and
+ * `AssetBackgroundRef` are deliberately separate types (each says so in its own docblock: a
+ * plan and an asset happen to share a background vocabulary today and must not be coupled
+ * through an import the day they diverge). This type is what they have in common AS SEEN FROM
+ * HERE, so a divergence in either shows up as an assignability failure at the mount rather
+ * than as a silent widening.
+ *
+ * `page` admits `undefined` AND `null` because the two spell the same absence in the two
+ * refs — `PlanBackgroundRef.page?: number`, `AssetBackgroundRef.page: number | null` — and
+ * `loadPdf`'s `?? 1` already reads both.
+ */
+export interface BackgroundDocumentRef {
+	readonly path: string;
+	readonly kind: 'image' | 'pdf';
+	readonly page?: number | null;
+}
+
+/**
+ * A background document — a Plan's, or since the asset designer an Asset's — decoded and
+ * ready for `<v-image>` (SDD §18, §54–55).
  *
  * Both source formats converge on one Konva primitive: `<v-image>` needs an already
  * decoded raster (`HTMLImageElement | HTMLCanvasElement`), never a URL, so the LOADING
@@ -18,7 +40,7 @@ import { renderPdfPage } from './pdfRaster';
  *
  * The `unavailable` arm is a deviation from design slice 5's sketch, which had `none |
  * raster` only, and it is the better shape for the same reason the query services keep
- * `ok(null)` apart from `isErr`: a plan whose background file was deleted or is corrupt
+ * `ok(null)` apart from `isErr`: a subject whose background file was deleted or is corrupt
  * has to draw something honest, and a component consuming ONE union renders all three
  * states without a second error channel beside it.
  */
@@ -100,7 +122,7 @@ async function loadImage(file: TFile, vault: BackgroundVault): Promise<Backgroun
 }
 
 async function loadPdf(
-	ref: PlanBackgroundRef,
+	ref: BackgroundDocumentRef,
 	file: TFile,
 	vault: BackgroundVault,
 ): Promise<BackgroundRenderModel> {
@@ -119,7 +141,7 @@ async function loadPdf(
 }
 
 export async function loadBackground(
-	ref: PlanBackgroundRef | null,
+	ref: BackgroundDocumentRef | null,
 	vault: BackgroundVault,
 ): Promise<BackgroundRenderModel> {
 	if (ref === null) {

@@ -29,7 +29,7 @@
  * level up and leaves it unchecked. A registry the root iterates has the same hole — nothing
  * makes a later task add its entry.
  */
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
@@ -43,6 +43,7 @@ import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState, type EmptyStateProps } from '../emptyStates/resolve';
 import { selectAssetDesignerEmptyState } from '../emptyStates/selectors';
 import { constrainsAngle } from '../editor/snapping/editorSnapping';
+import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
 import { useAssetDesignStore } from './stores/assetDesignStore';
@@ -72,6 +73,20 @@ const { design, error, status, stale } = storeToRefs(useAssetDesignStore());
  * the failure state, and this exists only for the case where there IS content to keep showing.
  */
 const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value);
+
+/**
+ * What became of the spec sheet this asset names — the plan editor's own
+ * `backgroundStatus` seam, mounted here for the same reason it exists there.
+ *
+ * A picked background whose file has since been deleted or cannot be decoded draws NOTHING,
+ * and the empty state above it has already stood down (`selectAssetDesignerEmptyState` answers
+ * `noShape` the moment a reference exists, whatever became of the file). So without this the
+ * user is invited to trace an outline over a blank canvas with nothing anywhere saying why the
+ * sheet is not there — a silent wrong picture, which is the failure mode this repository
+ * refuses. It is a NOTICE and not a failure state, because the asset itself read perfectly
+ * well and everything else on this surface still works.
+ */
+const backgroundStatus = ref<BackgroundStatus>('none');
 
 /**
  * The overlay's props, or `null` for none. An OVERLAY inside the canvas region and never a
@@ -187,9 +202,11 @@ async function onEmptyStateAction(): Promise<void> {
 	if (emptyStateKey.value === 'noBackground') {
 		const picker = context.picker;
 		if (picker === null) return;
-		const ref = await picker.pick();
-		if (ref === null) return;
-		await runtime.setBackground(ref);
+		// `picked`, not `ref`: this script imports Vue's own `ref` since the background status
+		// arrived, and `no-shadow` fails the build on the collision.
+		const picked = await picker.pick();
+		if (picked === null) return;
+		await runtime.setBackground(picked);
 		return;
 	}
 	if (emptyStateKey.value === 'noShape') await editDimensions();
@@ -280,7 +297,10 @@ onMounted(() => {
 				>
 					{{ tr('designer.loading') }}
 				</p>
-				<DesignerCanvas v-else>
+				<DesignerCanvas
+					v-else
+					@background-status="(next) => (backgroundStatus = next)"
+				>
 					<EmptyState
 						v-if="overlay !== null"
 						v-bind="overlay"
@@ -312,6 +332,20 @@ onMounted(() => {
 			role="status"
 		>
 			{{ tr('designer.refresh-failed') }}
+		</p>
+		<p
+			v-if="backgroundStatus === 'missing'"
+			class="rp-designer-notice"
+			role="status"
+		>
+			{{ tr('designer.background-missing') }}
+		</p>
+		<p
+			v-else-if="backgroundStatus === 'unreadable'"
+			class="rp-designer-notice"
+			role="status"
+		>
+			{{ tr('designer.background-failed') }}
 		</p>
 		<!--
 			The region keeps NO role, exactly as Task B3 shipped it. `StatusBar` puts the plan

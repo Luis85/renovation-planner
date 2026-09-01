@@ -16,6 +16,7 @@ import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from './planFixtures';
 export { fakeQueries } from './planFixtures';
 import type { PlanEditorQueryServices } from '../../src/presentation/read-models/planEditorQueries';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
+import { emptyBackgroundVault } from './background';
 import { installCanvas } from './canvas';
 import { installObsidianDom } from './dom';
 import { installResizeObserver, placeAt, resizeTo } from './layout';
@@ -77,12 +78,6 @@ export interface EditorHarness {
 	readonly unmount: () => void;
 }
 
-/** A vault with nothing in it — enough for a plan whose background is `null`. */
-const EMPTY_VAULT = {
-	getAbstractFileByPath: () => null,
-	getResourcePath: () => '',
-	readBinary: () => Promise.resolve(new ArrayBuffer(0)),
-} as unknown as BackgroundVault;
 
 /**
  * Two ticks, not one. Hydration awaits two query promises before it sets `ready`, and Vue
@@ -192,7 +187,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		queries:
 			options.queries ?? fakeQueries(plan, options.zones ?? FIXTURE_ZONES, options.unreadableZones),
 		commands: options.commands ?? unavailablePlanEditorCommands(),
-		vault: options.vault ?? EMPTY_VAULT,
+		vault: options.vault ?? emptyBackgroundVault(),
 		onThemeChange: (listener) => {
 			themeListeners.add(listener);
 			return () => themeListeners.delete(listener);

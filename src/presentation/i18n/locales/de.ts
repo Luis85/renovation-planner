@@ -367,6 +367,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
 	'designer.refresh-failed':
 		'Dieses Objekt konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
+	// „Objekt“, nie „Material“ — dasselbe Wort wie in jeder anderen Zeile dieses Abschnitts.
+	'designer.background-missing': 'Die Hintergrunddatei dieses Objekts fehlt.',
+	'designer.background-failed': 'Der Hintergrund dieses Objekts konnte nicht gezeichnet werden.',
 	'designer.inspector': 'Inspektor',
 	'designer.inspector.dimensions': 'Maße',
 	'designer.inspector.dimensions.unscaled':

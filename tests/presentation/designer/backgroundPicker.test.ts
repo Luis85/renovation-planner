@@ -27,6 +27,7 @@ import { ok } from '../../../src/core/result/Result';
 import { recorder } from '../../helpers/logger';
 import { expectOk } from '../../helpers/domain';
 import { seeded } from '../../helpers/assetDesignHarness';
+import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
 
@@ -64,6 +65,10 @@ function context(
 		commands: { designEdits: () => harness.reversible },
 		logger: recorder,
 		picker,
+		// Empty on purpose: this suite is about the PICK, and the file it picks
+		// (`Specs/oven.pdf`) is a path no fixture ever wrote — so the layer answers
+		// `unavailable/missing` for it either way and no assertion here reads a raster.
+		vault: emptyBackgroundVault(),
 		onDesignChanged: () => () => undefined,
 		indexScanCompleted: () => true,
 	};

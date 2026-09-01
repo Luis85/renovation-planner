@@ -1,55 +1,78 @@
 <script setup lang="ts">
 /**
- * §18's background layer: the imported plan, as an image or a rendered PDF page.
+ * §18's background layer: an imported document — a plan scan, or an asset's spec sheet — as
+ * an image or a rendered PDF page.
  *
  * "This layer should redraw rarely" (§18), and under the per-layer viewport transform that
  * is true of every world-space layer — a pan or zoom moves the layer node and re-renders
  * no content. What still makes the background the special case is that its CONTENT changes
- * only when the Plan's background reference does, which is why the load is a `watch` on
+ * only when the subject's background reference does, which is why the load is a `watch` on
  * that reference rather than anything the render path re-runs.
  *
  * `<v-image>` is positioned and scaled in world millimetres like everything else on a
  * world-space layer: the raster's own pixels become millimetres through the model's
- * `worldScale`, which is a placeholder until slice 7 calibrates and is the ONLY thing that
- * changes here when it does.
+ * `worldScale`, which is a placeholder until a calibration converts what was traced over it.
+ *
+ * **It knows nothing about a Plan, and that is a change rather than a tidy-up.** It read
+ * `useProjectStore().plan` and `usePlanEditorContext().vault` directly until the asset
+ * designer needed the same picture, at which point either the designer re-derived the load,
+ * the stamping, the unmount rule and the `<v-image>` arithmetic — four rediscoveries of code
+ * that already works — or this file learned to be told what to draw. It is told. The same
+ * move Task B1 made on `PlanCanvas.vue`'s gesture doors, for the same reason and with the
+ * same consequence: `PlanCanvas` now answers the two questions that name a Plan, and this
+ * file answers none of them.
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { storeToRefs } from 'pinia';
-import { useProjectStore } from '../../../stores/ProjectStore';
-import { usePlanEditorContext } from '../../PlanEditorContext';
 import type { NodeTransform } from '../../viewport/Viewport';
 import {
 	backgroundStatus,
 	loadBackground,
 	NO_BACKGROUND,
+	type BackgroundDocumentRef,
 	type BackgroundRenderModel,
 	type BackgroundStatus,
+	type BackgroundVault,
 } from './BackgroundRenderModel';
 
+/**
+ * What this layer needs of the surface it is mounted in, and nothing about whose surface it
+ * is.
+ *
+ * `name` is REQUIRED rather than defaulted to `'background'`, for the reason
+ * `EditorSurface.canvasLabel` is required: a default is a default somebody inherits silently,
+ * and the designer's own layer order is asserted BY NAME (`layers.test.ts`), so a second
+ * mount quietly announcing itself as the plan editor's layer would pass its own test by
+ * matching the wrong string.
+ *
+ * `reference` is the already-resolved reference rather than a store to read one from: the two
+ * subjects hold theirs in two different stores, and a layer that picked one would be a layer
+ * only one surface can mount.
+ */
 const props = defineProps<{
+	name: string;
+	reference: BackgroundDocumentRef | null;
+	vault: BackgroundVault;
 	transform: NodeTransform;
 	visible: boolean;
 }>();
 
 const emit = defineEmits<{ status: [status: BackgroundStatus] }>();
 
-const context = usePlanEditorContext();
-const { plan } = storeToRefs(useProjectStore());
 const model = ref<BackgroundRenderModel>(NO_BACKGROUND);
 
 /**
  * A load is asynchronous and a background reference can change while one is in flight —
- * a slice-7 calibration re-import, or simply a fast second `SetPlanBackground`. Each load
+ * a calibration re-import, or simply a fast second `SetPlanBackground`. Each load
  * is stamped, and a result whose stamp is no longer the current one is DROPPED: without
  * this, the slower of two loads wins and the canvas shows the previous document.
  */
 let currentLoad = 0;
 
 watch(
-	() => plan.value?.background ?? null,
+	() => props.reference,
 	async (reference) => {
 		const stamp = ++currentLoad;
-		const loaded = await loadBackground(reference, context.vault);
+		const loaded = await loadBackground(reference, props.vault);
 		if (stamp !== currentLoad) return;
 		model.value = loaded;
 		emit('status', backgroundStatus(loaded));
@@ -69,7 +92,7 @@ const raster = computed(() => (model.value.kind === 'raster' ? model.value : nul
 <template>
 	<VLayer
 		:config="{
-			name: 'background',
+			name: props.name,
 			listening: false,
 			visible: props.visible,
 			...props.transform,

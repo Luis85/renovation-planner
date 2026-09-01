@@ -28,6 +28,7 @@ import { isOk } from '../../../src/core/result/Result';
 import { recorder } from '../../helpers/logger';
 import { expectOk } from '../../helpers/domain';
 import { seeded, drawn } from '../../helpers/assetDesignHarness';
+import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
 
@@ -61,6 +62,7 @@ function context(harness: Awaited<ReturnType<typeof seeded>>): AssetDesignerCont
 		commands: { designEdits: () => harness.reversible },
 		logger: recorder,
 		picker: null,
+		vault: emptyBackgroundVault(),
 		onDesignChanged: () => () => undefined,
 		indexScanCompleted: () => true,
 	};

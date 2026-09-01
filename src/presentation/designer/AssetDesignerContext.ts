@@ -1,5 +1,6 @@
 import { inject, type InjectionKey } from 'vue';
 import type { Logger } from '../../application/ports/Logger';
+import type { BackgroundVault } from '../editor/layers/background/BackgroundRenderModel';
 import type { AssetDesignerQueryServices } from '../read-models/assetDesignerQueries';
 import type { AssetDesignerCommandServices } from './designerCommands';
 import type { BackgroundPicker } from './ports';
@@ -8,11 +9,17 @@ import type { BackgroundPicker } from './ports';
  * What the composition root hands an asset designer leaf.
  *
  * A bundle of its own rather than a widening of `PlanEditorDeps`: the two surfaces share a
- * gesture surface (Task B1) and a tool context (Task B2) and share nothing about what they
- * ARE. A Plan Editor needs a `BackgroundVault`, a theme subscription and a plan-change source;
- * a designer needs a design to read. Task B7 adds the background picker here; the guarded
+ * gesture surface (Task B1), a tool context (Task B2) and — since the designer learned to
+ * DRAW the background Task B7 taught it to store — a background pipeline, and share nothing
+ * about what they ARE. A Plan Editor needs a theme subscription and a plan-change source; a
+ * designer needs a design to read. Task B7 adds the background picker here; the guarded
  * command bundle arrived with the first thing that builds a command out of it, which is design
  * slice B5's tools and not Task B3a.
+ *
+ * **This bundle's own header said it needed no `BackgroundVault`** — "it takes an `App` and
+ * neither a `Workspace` nor a `Vault`, which is the whole difference from its two siblings" —
+ * and that was true for exactly as long as the background layer under this surface was empty.
+ * Task B7 stored a reference nothing could read back; the vault is what reads it.
  */
 export interface AssetDesignerDeps {
 	readonly queries: AssetDesignerQueryServices;
@@ -50,6 +57,15 @@ export interface AssetDesignerDeps {
 	 * hand-off: no button rather than a live control that does nothing.
 	 */
 	readonly picker: BackgroundPicker | null;
+	/**
+	 * The three `Vault` members the background pipeline calls, so the spec sheet Task B7 lets a
+	 * user CHOOSE is a spec sheet the canvas can DRAW.
+	 *
+	 * The same slice of Obsidian's `Vault` the Plan Editor takes, and reached through the same
+	 * `loadBackground`/`BackgroundLayer` pair rather than a second decode path: a PNG and a PDF
+	 * page become one `<v-image>` in exactly one place in this plugin.
+	 */
+	readonly vault: BackgroundVault;
 	/**
 	 * Has the initial index scan RUN — zero entries included — rather than "has it found
 	 * anything". Asked per hydration and never captured, because it turns true once per session

@@ -4,6 +4,7 @@ import type { AssetDesignerDeps } from '../../src/presentation/designer/AssetDes
 import type { AssetDesignDto } from '../../src/application/queries/GetAssetDesign';
 import { unavailableAssetDesignerCommands } from '../../src/presentation/designer/designerCommands';
 import type { BackgroundPicker } from '../../src/presentation/designer/ports';
+import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { Logger } from '../../src/application/ports/Logger';
 import type { ObservationToken } from '../../src/application/ports/versioning';
 import { ok } from '../../src/core/result/Result';
@@ -71,6 +72,15 @@ function assetDesignerHarnessDeps(): AssetDesignerDeps {
 		commands: unavailableAssetDesignerCommands(),
 		logger: inertLogger,
 		picker: inertPicker,
+		// A vault with nothing in it, which is the honest stand-in rather than a thin one: the
+		// fixture's `background` is `null`, so `loadBackground` never reaches a member of this.
+		// `planEditor.ts`'s own harness vault is the same three inert answers for the same
+		// reason. The day this page fixtures a real sheet, this is what has to grow one.
+		vault: {
+			getAbstractFileByPath: () => null,
+			getResourcePath: () => '',
+			readBinary: () => Promise.resolve(new ArrayBuffer(0)),
+		} as unknown as BackgroundVault,
 		// The harness holds a fixed fixture and publishes no domain events; both change doors on
 		// the Plan Editor's harness page are inert for the identical reason.
 		indexScanCompleted: () => true,

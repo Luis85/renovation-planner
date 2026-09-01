@@ -31,20 +31,17 @@ import { useSaveStateStore } from '../../../src/presentation/editor/save-state/s
 import {
 	ASSET_DESIGNER_CONTEXT,
 	type AssetDesignerContext,
-	type AssetDesignerDeps,
 } from '../../../src/presentation/designer/AssetDesignerContext';
-import { AssetDesignerView } from '../../../src/presentation/designer/AssetDesignerView';
 import { provideDesignerRuntime, useDesignerRuntime, type DesignerRuntime } from '../../../src/presentation/designer/runtime';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { assetDesign } from '../../helpers/assetDesign';
 import { installObsidianDom } from '../../helpers/dom';
+import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
-import { settle } from '../../helpers/async';
 import { lines, recorder, resetRecorder } from '../../helpers/logger';
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { activateNotices } from '../../../src/presentation/notices/notify';
-import { FakeLeaf } from '../../helpers/workspace';
 import { Notice } from '../../helpers/obsidian-mock';
 
 installObsidianDom();
@@ -57,7 +54,6 @@ installCanvas();
 installResizeObserver();
 
 const THE_ASSET = createAssetId();
-const OTHER_ASSET = createAssetId();
 
 /** A design distinguishable from the fixture's default, so a re-read is visible. */
 const WITH_SHAPE = assetDesign({ assetId: THE_ASSET, height: 900 });
@@ -121,6 +117,7 @@ function harness(options: {
 		// This file is about the dispatcher and the store, not the picker — `null` here is
 		// simply "unused by this suite's cases", never a claim about production.
 		picker: null,
+		vault: emptyBackgroundVault(),
 		onDesignChanged: options.onDesignChanged ?? (() => () => undefined),
 		indexScanCompleted: options.indexScanCompleted ?? ((): boolean => true),
 	};
@@ -591,6 +588,7 @@ describe('reaching the runtime from a region', () => {
 			commands: unavailableAssetDesignerCommands(),
 			logger: recorder,
 			picker: null,
+			vault: emptyBackgroundVault(),
 			onDesignChanged: () => () => undefined,
 			indexScanCompleted: () => true,
 		};
@@ -614,128 +612,5 @@ describe('reaching the runtime from a region', () => {
 		);
 
 		expect(injected).toBe(provided);
-	});
-});
-
-/**
- * The cross-leaf half, driven through the REAL view lifecycle and a REAL bus — because what
- * this section is about is what survives a leaf being closed, and a component harness would let
- * the disposal be tested against a fake that never registered anything.
- */
-/** One bundle for every leaf in a case, so two leaves really do share one composed bus. */
-function leafDeps(bus: ReturnType<typeof createEventBus>, reads: string[]): AssetDesignerDeps {
-	return {
-		queries: {
-			getAssetDesign: (assetId) => {
-				reads.push(assetId);
-				return Promise.resolve(ok(assetDesign({ assetId: createAssetId() })));
-			},
-		},
-		commands: unavailableAssetDesignerCommands(),
-		logger: recorder,
-		picker: null,
-		onDesignChanged: createAssetDesignChangeSource(bus),
-		indexScanCompleted: () => true,
-	};
-}
-
-describe('two designer leaves and one bus', () => {
-	const openViews: AssetDesignerView[] = [];
-
-	async function open(bundle: AssetDesignerDeps, assetId: string): Promise<AssetDesignerView> {
-		const view = new AssetDesignerView(new FakeLeaf() as never, bundle);
-		openViews.push(view);
-		await view.setState({ assetId }, {} as never);
-		await view.onOpen();
-		await settle();
-		return view;
-	}
-
-	afterEach(async () => {
-		for (const view of openViews.splice(0)) await view.onClose();
-		await settle();
-	});
-
-	/**
-	 * A change reaches every leaf showing that asset, not only the one that dispatched: the
-	 * refresh decorator covers the dispatching leaf alone, which is every leaf right up until
-	 * something else writes — a split pane on the same asset, or a synced note.
-	 *
-	 * ONE event for every command, so this holds for `SetAssetHeight` — which changes a field
-	 * the designer draws and touches no geometry — exactly as it does for a footprint edit.
-	 */
-	it('refreshes a second leaf on the same asset', async () => {
-		const bus = createEventBus(() => undefined);
-		const reads: string[] = [];
-		const bundle = leafDeps(bus, reads);
-		await open(bundle, THE_ASSET);
-		await open(bundle, THE_ASSET);
-		reads.length = 0;
-
-		await bus.publish(assetDesignChanged({ assetId: THE_ASSET }));
-		await settle();
-
-		expect(reads).toEqual([THE_ASSET, THE_ASSET]);
-	});
-
-	/** And a leaf on a different asset pays nothing, which is what makes one event per command affordable. */
-	it('leaves a leaf on a different asset alone', async () => {
-		const bus = createEventBus(() => undefined);
-		const reads: string[] = [];
-		const bundle = leafDeps(bus, reads);
-		await open(bundle, THE_ASSET);
-		await open(bundle, OTHER_ASSET);
-		reads.length = 0;
-
-		await bus.publish(assetDesignChanged({ assetId: THE_ASSET }));
-		await settle();
-
-		expect(reads).toEqual([THE_ASSET]);
-	});
-
-	/**
-	 * **A CLOSED leaf is not refreshed** — asserted on the query, never on a disposer having
-	 * been called, because a disposer that unsubscribes nothing satisfies the second and leaves
-	 * the defect standing.
-	 *
-	 * The bus is the composition root's and outlives every leaf; `EventBus.subscribe` removes a
-	 * handler on `dispose` and by no other mechanism. So an undisposed subscription keeps the
-	 * closed leaf's whole Pinia store reachable from the root for the rest of the session and
-	 * issues a vault read from it on every later design edit — one more per designer the user
-	 * has ever opened.
-	 */
-	it('does not refresh a leaf that has been closed', async () => {
-		const bus = createEventBus(() => undefined);
-		const reads: string[] = [];
-		const bundle = leafDeps(bus, reads);
-		const closing = await open(bundle, THE_ASSET);
-		await open(bundle, THE_ASSET);
-		await closing.onClose();
-		reads.length = 0;
-
-		await bus.publish(assetDesignChanged({ assetId: THE_ASSET }));
-		await settle();
-
-		expect(reads).toEqual([THE_ASSET]);
-	});
-
-	/**
-	 * Closing every leaf leaves the bus with nothing at all to deliver to — the same assertion
-	 * one step further, and the one that discriminates a disposer releasing only the FIRST of
-	 * this source's three arms.
-	 */
-	it('leaves nothing subscribed once every leaf is closed', async () => {
-		const bus = createEventBus(() => undefined);
-		const reads: string[] = [];
-		const bundle = leafDeps(bus, reads);
-		const view = await open(bundle, THE_ASSET);
-		await view.onClose();
-		reads.length = 0;
-
-		await bus.publish(assetDesignChanged({ assetId: THE_ASSET }));
-		await bus.publish(projectIndexRebuilt());
-		await settle();
-
-		expect(reads).toEqual([]);
 	});
 });

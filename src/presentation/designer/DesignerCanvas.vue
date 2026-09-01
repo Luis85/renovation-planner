@@ -39,12 +39,15 @@ import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import type { StringKey } from '../i18n/locales/en';
 import { useEditorStore } from '../stores/EditorStore';
 import EditorSurface from '../editor/surface/EditorSurface.vue';
+import BackgroundLayer from '../editor/layers/background/BackgroundLayer.vue';
+import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
 import { resolveThemeTokens } from '../editor/theme/themeTokens';
 import { STAGE_PIXELS, viewportTransform, worldPerScreenPixel } from '../editor/viewport/Viewport';
 import { boundsOfZones } from '../editor/viewport/zoneExtent';
+import { useAssetDesignerContext } from './AssetDesignerContext';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import { useDesignerRuntime } from './runtime';
-import { designerLayerConfig } from './layers/backgroundLayer';
+import { BACKGROUND_LAYER, designerLayerConfig } from './layers/backgroundLayer';
 import { footprintOutline } from './layers/footprintLayer';
 import { clearanceOutline } from './layers/clearanceLayer';
 import { anchorMark, facingArrow } from './layers/anchorLayer';
@@ -56,6 +59,9 @@ import { anchorMark, facingArrow } from './layers/anchorLayer';
  */
 const CANVAS_LABEL: StringKey = 'designer.canvas';
 
+const emit = defineEmits<{ backgroundStatus: [status: BackgroundStatus] }>();
+
+const context = useAssetDesignerContext();
 const editor = useEditorStore();
 /**
  * Kept as the OBJECT `storeToRefs` returns rather than destructured, because
@@ -88,6 +94,13 @@ const transform = computed(() => viewportTransform(viewport.value));
 const worldPerPixel = computed(() => worldPerScreenPixel(viewport.value, STAGE_PIXELS));
 
 const shape = computed(() => design.value?.shape ?? null);
+
+/**
+ * The asset's own spec sheet — Task B7's stored reference, finally read by something that
+ * draws. `AssetBackgroundRef` satisfies `BackgroundDocumentRef` structurally, which is what
+ * lets the plan editor's own layer take it without either entity importing the other's type.
+ */
+const background = computed(() => design.value?.background ?? null);
 
 const footprint = computed(() => footprintOutline(shape.value, tokens.value));
 const clearance = computed(() => clearanceOutline(shape.value, tokens.value));
@@ -125,10 +138,19 @@ function framedBounds(all: boolean): BoundingBox | null {
 		<template #default="{ size }">
 			<VStage :config="size">
 				<!--
-					Empty, and drawn anyway: Task B7 supplies the reference this layer will load.
-					Its position among its siblings is the contract — see `layers/backgroundLayer.ts`.
+					The asset's spec sheet, drawn by the SAME component the plan editor mounts.
+					Its position among its siblings is the contract — see `layers/backgroundLayer.ts`
+					— and `visible` is a literal because this surface has no layer-visibility
+					control to bind: the plan editor's `WorkspaceStore` is a Plan Editor concern.
 				-->
-				<VLayer :config="designerLayerConfig('asset-background', transform)" />
+				<BackgroundLayer
+					:name="BACKGROUND_LAYER"
+					:reference="background"
+					:vault="context.vault"
+					:transform="transform"
+					:visible="true"
+					@status="(status) => emit('backgroundStatus', status)"
+				/>
 				<VLayer :config="designerLayerConfig('asset-footprint', transform)">
 					<VLine
 						v-if="footprint !== null"

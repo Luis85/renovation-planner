@@ -256,6 +256,10 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		// the empty-state picker, so `null` is simply "unused by this rig", never a claim about
 		// production, which binds a real `ObsidianBackgroundPicker` unconditionally.
 		picker: null,
+		// The stack's OWN fake vault, not an inert triple: the designer's background layer reads
+		// through this, and a rig whose vault answered nothing would be a fake thinner than the
+		// one every other read in this file goes through.
+		vault: stack.vault,
 		// The SAME source the composition root binds, over a bus that really dispatches: a
 		// committed write publishes `AssetDesignChanged` and this leaf re-reads because of it,
 		// rather than because a fixture said so.

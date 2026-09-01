@@ -508,6 +508,14 @@ export const en = {
 	'designer.asset-failed.headline': 'This asset could not be loaded',
 	'designer.refresh-failed':
 		'This asset could not be re-read after the last change; what you see may be out of date.',
+	// The spec sheet's own two failures, and the counterparts of `editor.background-missing`
+	// and `editor.background-failed` rather than a reuse of them: those two say "this plan",
+	// and every surface's copy is written from its own subject. They are NOTICES and not a
+	// failure state — the asset read fine and the rest of the designer still works — which is
+	// what the empty state above them cannot say, since a reference that exists retires
+	// `noBackground` whatever became of the file it names.
+	'designer.background-missing': 'The background file for this asset is missing.',
+	'designer.background-failed': 'The background for this asset could not be rendered.',
 	// Task B8's inspector region: derived dimensions, an honest unscaled warning, and the one
 	// editable scalar (height). `designer.inspector` labels the region the same way
 	// `editor.inspector` does the plan editor's own panel.

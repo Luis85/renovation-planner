@@ -18,6 +18,7 @@ import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import type { ThemeTokens } from './theme/themeTokens';
 import { viewportTransform } from './viewport/Viewport';
 import { useProjectStore } from '../stores/ProjectStore';
+import { usePlanEditorContext } from './PlanEditorContext';
 import { useSelectionStore } from './selection/selection-store';
 import { boundsOfZones } from './viewport/zoneExtent';
 import { useEditorRuntime } from './runtime';
@@ -40,8 +41,17 @@ const workspace = useWorkspaceStore();
 const project = useProjectStore();
 const selection = useSelectionStore();
 const runtime = useEditorRuntime();
+const context = usePlanEditorContext();
 const { viewport } = storeToRefs(editor);
 const { layerVisibility } = storeToRefs(workspace);
+
+/**
+ * WHICH document the background layer draws, answered here because it is the one question
+ * that layer asks that names a Plan — the same split `framedBounds` below already makes for
+ * the fit shortcuts. `BackgroundLayer` reads no store and no context of its own since the
+ * asset designer became its second mounter.
+ */
+const background = computed(() => project.plan?.background ?? null);
 
 const transform = computed(() => viewportTransform(viewport.value));
 
@@ -75,6 +85,9 @@ function framedBounds(all: boolean) {
 		<template #default="{ size }">
 			<VStage :config="size">
 				<BackgroundLayer
+					name="background"
+					:reference="background"
+					:vault="context.vault"
 					:transform="transform"
 					:visible="layerVisibility.background"
 					@status="(status) => emit('backgroundStatus', status)"

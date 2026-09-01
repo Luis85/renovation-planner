@@ -2866,6 +2866,36 @@ building it:
   should survive. The guard is `sameBackground(...)` alone now, unconditional on whether a
   calibration exists, which is what makes it protect the calibration the surrounding
   reasoning was written for.
+- **A render can fall BETWEEN two tasks, and neither task is wrong.** Task B4 built the
+  designer's background layer empty and said exactly why — `AssetDesignDto` carried no
+  background reference, so there was nothing to load — and reserved the layer's POSITION,
+  which is the contract a later fill needs. Task B7 then added the field, three frontmatter
+  keys, the mapper, the port, the picker and the composition binding, and named no canvas. So
+  the branch stored a reference nobody could ever see, under a docblock still explaining an
+  emptiness that had stopped having a reason, with 4853 tests green: nothing was WRONG with
+  either task's code, which is the same shape as slice 7's tool registered in no list.
+  `regionsReachable.test.ts` could not see it either — the layer module was imported and the
+  component was mounted; what was missing was content inside it. Found by a whole-branch
+  review, which is the instrument that reads two tasks against each other.
+
+  What closed it is a REUSE and never a second pipeline, following Task B1's own move on
+  `PlanCanvas.vue`: `BackgroundLayer.vue` stopped reading `useProjectStore()` and
+  `usePlanEditorContext()` and takes what it draws as props (`name`, `reference`, `vault`),
+  so both canvases mount the one component and one `loadBackground` decodes both formats for
+  both subjects. `BackgroundRenderModel` gained a STRUCTURAL `BackgroundDocumentRef` for the
+  same reason `BackgroundVault` is a `Pick` of Obsidian's `Vault`: `PlanBackgroundRef` and
+  `AssetBackgroundRef` are deliberately separate types, so the pipeline names what they have
+  in common as seen from itself rather than importing either. `AssetDesignerDeps` gained a
+  `vault` — its own header had said it needed none, true only while the layer was empty — and
+  the required member is what made the compiler name all eight consumers rather than leaving
+  a `?` for somebody to forget.
+
+  **The two failure states came with it, because the empty state cannot cover them.**
+  `selectAssetDesignerEmptyState` retires `noBackground` the moment a reference EXISTS,
+  whatever became of the file it names — so a picked sheet since deleted or corrupt drew
+  nothing under a `noShape` card inviting the user to trace an outline over a blank canvas.
+  `designer.background-missing` and `designer.background-failed` are the plan editor's own two
+  notices, written from this surface's own subject rather than reused.
 - **An adapter spanning two resources needs both of their resulting versions, and
   `VersionedDispatch` had to widen for exactly one caller.** `ReversibleAssetBackgroundEdit`
   is the first inverse in this codebase covering a whole note AND a whole sidecar document in

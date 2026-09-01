@@ -48,6 +48,7 @@ import { installCanvas } from '../../helpers/canvas';
 import { installObsidianDom } from '../../helpers/dom';
 import { installResizeObserver, placeAt, resizeTo } from '../../helpers/layout';
 import { settle } from '../../helpers/editor';
+import { emptyBackgroundVault } from '../../helpers/background';
 
 /** A palette resolved the way the designer resolves its own — never a literal colour. */
 const TOKENS = resolveThemeTokens(document.documentElement);
@@ -187,6 +188,7 @@ function context(design: AssetDesignDto): AssetDesignerContext {
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		picker: null,
+		vault: emptyBackgroundVault(),
 		onDesignChanged: () => () => undefined,
 		indexScanCompleted: () => true,
 	};

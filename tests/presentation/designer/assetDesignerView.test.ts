@@ -26,6 +26,7 @@ import { assetDesign } from '../../helpers/assetDesign';
 import { recorder } from '../../helpers/logger';
 import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { installObsidianDom } from '../../helpers/dom';
+import { emptyBackgroundVault } from '../../helpers/background';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
 import { settle } from '../../helpers/async';
@@ -53,6 +54,7 @@ function deps(overrides: Partial<AssetDesignerDeps> = {}): AssetDesignerDeps {
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		picker: null,
+		vault: emptyBackgroundVault(),
 		onDesignChanged: () => () => undefined,
 		indexScanCompleted: () => true,
 		...overrides,

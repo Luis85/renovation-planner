@@ -500,10 +500,12 @@ export function planEditorDeps(
  * The asset designer's own dependency bundle (design slice B3, ADR-0015; the picker since
  * Task B7).
  *
- * It takes an `App` and neither a `Workspace` nor a `Vault`, which is the whole difference
- * from its two siblings and is a fact about the surface rather than an omission: the designer
- * navigates nowhere and reads no raw file — it only needs Obsidian's own file suggester, which
- * `ObsidianBackgroundPicker` wraps, so an `App` is the narrowest thing that gets it there.
+ * It takes an `App` and no `Workspace`, which is what still separates it from its two siblings
+ * and is a fact about the surface rather than an omission: the designer navigates nowhere and
+ * follows no theme. It DOES read raw files — Obsidian's own file suggester to pick a spec
+ * sheet, and the vault behind it to draw the sheet that was picked — and an `App` is the
+ * narrowest thing that gets it both, which is why the signature did not have to grow a
+ * parameter when the background layer stopped being empty.
  *
  * **The picker is bound UNCONDITIONALLY, independent of `persistence`.** Picking a file needs
  * no vault write of this plugin's own, and the picker's own result reaches a command that
@@ -524,6 +526,9 @@ export function assetDesignerDeps(
 	const persistence = root.persistence;
 	return {
 		picker: new ObsidianBackgroundPicker(app),
+		// Obsidian's real `Vault`, passed straight in: `BackgroundVault` is a `Pick` of it, so
+		// there is nothing to adapt and nothing that can drift from the API.
+		vault: app.vault,
 		queries:
 			persistence === null
 				? unavailableAssetDesignerQueries()

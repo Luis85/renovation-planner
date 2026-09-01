@@ -72,6 +72,7 @@ import ConfirmDialog from './ConfirmDialog.vue';
 import DeleteReferenceDialog from './DeleteReferenceDialog.vue';
 import EntityPickerDialog from './EntityPickerDialog.vue';
 import FormDialog from './FormDialog.vue';
+import AssetDimensionsDialog from './AssetDimensionsDialog.vue';
 import { cancelResultFor, useDialogStore, type DialogResult } from './dialog-store';
 
 /**
@@ -104,8 +105,8 @@ const dialogEl = ref<HTMLElement | null>(null);
  * The id `.rp-dialog`'s `aria-labelledby` points at. `++hostCount` reads the module-scoped
  * counter declared in the plain `<script>` block above — see its comment for why that,
  * rather than Web Crypto, is what makes this collision-free across two `createApp()`
- * instances. Every one of the four kind components renders exactly one `.rp-dialog-title`,
- * unconditionally, so this id always resolves to something; a hypothetical fifth kind that
+ * instances. Every one of the five kind components renders exactly one `.rp-dialog-title`,
+ * unconditionally, so this id always resolves to something; a hypothetical sixth kind that
  * omitted the title element would leave `aria-labelledby` pointing at nothing, which is
  * this decision's one unstated assumption.
  */
@@ -249,7 +250,7 @@ function onKeydown(event: KeyboardEvent): void {
 	}
 	if (event.key !== 'Tab') return;
 
-	// `first`/`last` stay `HTMLElement | undefined` — every one of the four kind components
+	// `first`/`last` stay `HTMLElement | undefined` — every one of the five kind components
 	// renders at least one focusable control (a Cancel/Close button, unconditionally;
 	// `dialogKinds.test.ts` proves that per kind), so `focusable` is never actually empty,
 	// but the guard against it is the optional chaining on `first?.focus()`/`last?.focus()`
@@ -391,14 +392,17 @@ onBeforeUnmount(() => {
 			@keydown="onKeydown"
 		>
 			<!--
-				A fifth `kind` fails `npm run build` because `FormDialog` declares
+				A sixth `kind` fails `npm run build` because `FormDialog` declares
 				`descriptor: FormDescriptor`, and `vue-tsc`'s template narrowing rejects binding
 				the residual union `current` still carries after every `v-if`/`v-else-if` above —
 				not because this chain has no explicit `v-else`. Measured by adding a fifth kind
 				and reading what `vue-tsc` reports, which is also how the one hole in it was
-				found: the rejection is STRUCTURAL, so a fifth descriptor that happened to carry
-				a `title` and a `component` would satisfy `FormDescriptor` and render here
-				silently instead. Every kind that is not a form variant is caught.
+				found: the rejection is STRUCTURAL, so a descriptor that happened to carry a
+				`title` and a `component` would satisfy `FormDescriptor` and render here
+				silently instead — which is exactly the shape `AssetDimensionsDescriptor` was
+				kept OUT of (see its own docblock in `dialog-store.ts`), so it gets its own
+				explicit branch rather than becoming the hole this comment already named. Every
+				kind that is not a form variant is caught.
 			-->
 			<ConfirmDialog
 				v-if="current.kind === 'confirm'"
@@ -414,6 +418,12 @@ onBeforeUnmount(() => {
 			/>
 			<EntityPickerDialog
 				v-else-if="current.kind === 'entity-picker'"
+				:descriptor="current"
+				:title-id="titleId"
+				@resolve="resolve"
+			/>
+			<AssetDimensionsDialog
+				v-else-if="current.kind === 'asset-dimensions'"
 				:descriptor="current"
 				:title-id="titleId"
 				@resolve="resolve"

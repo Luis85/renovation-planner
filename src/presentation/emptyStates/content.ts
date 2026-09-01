@@ -28,11 +28,11 @@ export interface EmptyStateContent {
 	 * one, and it carried one from its first commit: `ProjectDetailState.onCreatePlan` opens
 	 * `NewPlanForm` in slice 15's `FormDialog` and dispatches the real `CreatePlanCommand`, so its button was
 	 * never the dead control slice 14's Amendment 1 refuses. Task B7 gave `assetDesigner.noBackground`
-	 * its own action — the `BackgroundPicker` port it hands off to — so the count is now FOUR
-	 * entries with a label and TWO without: `planEditor.noBackground`, for the reason above, and
-	 * `assetDesigner.noShape`, whose dimensions-form hand-off (Task B8) is still unbuilt. This
-	 * sentence is that list, so an entry added without appearing in it is the stale-comment
-	 * defect this repository keeps paying for.
+	 * its own action — the `BackgroundPicker` port it hands off to — and Task B8 has now given
+	 * `assetDesigner.noShape` its own too, the `asset-dimensions` dialog `AssetDesignerRoot`'s
+	 * `editDimensions` opens. So the count is FIVE entries with a label and ONE without:
+	 * `planEditor.noBackground`, for the reason above. This sentence is that list, so an entry
+	 * added without appearing in it is the stale-comment defect this repository keeps paying for.
 	 */
 	readonly actionLabel?: StringKey;
 }
@@ -95,11 +95,12 @@ export const EMPTY_STATE_CONTENT = {
 		},
 	},
 	/**
-	 * Design slice B3 (ADR-0015). `noShape` still ships buttonless: it hands off to a dimensions
-	 * form for the asset ALREADY OPEN, and no such form exists yet — `NewAssetForm` creates a
-	 * DIFFERENT asset, and Task B8's own step that builds one says "nothing in this plan built
-	 * one until this step". Slice 14's Amendment 1 refuses a live control that does nothing, so
-	 * it carries no label and `content.test.ts` asserts the absence by name.
+	 * Design slice B3 (ADR-0015). `noShape` shipped buttonless through Task B7: it hands off to
+	 * a dimensions form for the asset ALREADY OPEN, and no such form existed yet — `NewAssetForm`
+	 * creates a DIFFERENT asset. **Task B8 built one and this now carries its action** — the
+	 * `asset-dimensions` dialog `AssetDesignerRoot.editDimensions` opens — which is the flip
+	 * `content.test.ts` makes a real assertion rather than closing quietly, per slice 14's
+	 * Amendment 1: a label is added only once something can act on it.
 	 *
 	 * **`noBackground` carries its action since Task B7**, whose `BackgroundPicker` port is what
 	 * the button now opens — `selectAssetDesignerEmptyState` gained the arm that selects this
@@ -109,6 +110,7 @@ export const EMPTY_STATE_CONTENT = {
 		noShape: {
 			headline: 'empty.asset.no-shape.headline',
 			body: 'empty.asset.no-shape.body',
+			actionLabel: 'empty.asset.no-shape.action',
 		},
 		noBackground: {
 			headline: 'empty.asset.no-background.headline',

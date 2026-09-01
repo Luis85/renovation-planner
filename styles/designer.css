@@ -157,13 +157,89 @@
 /*
  * Task B8's region. A width rather than a flex basis, and a border on the leading edge, so the
  * canvas keeps every pixel the inspector does not claim — the shape `editor.css` gives the plan
- * editor's own panels.
+ * editor's own panels. Narrower than the Plan Editor's 17rem: this panel holds one field and a
+ * two-line dimensions block rather than a Requirements list.
  */
 .rp-designer-inspector {
 	flex: 0 0 auto;
+	width: 14rem;
 	min-height: 0;
 	overflow-y: auto;
+	padding: var(--size-4-2);
+	background-color: var(--background-secondary);
 	border-left: 1px solid var(--background-modifier-border);
+}
+
+.rp-designer-panel-title {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	/* Obsidian's own h2 rules would otherwise give a panel heading document proportions. */
+	line-height: var(--line-height-tight);
+}
+
+.rp-designer-inspector-fields {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-4-1) var(--size-4-2);
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-small);
+}
+
+.rp-designer-inspector-fields dt {
+	color: var(--text-muted);
+}
+
+.rp-designer-inspector-fields dd {
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The unscaled warning. `--text-warning`, not `--text-error`: a traced-but-uncalibrated
+ * footprint is an expected, recoverable state on the way to being designed, never a fault.
+ */
+.rp-designer-unscaled {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+}
+
+/*
+ * Qualified with `.rp-designer-inspector`, for the reason `buttonSpecificity.test.ts` exists at
+ * all: Obsidian's own `button:not(.clickable-icon)` sets `background-color` and `box-shadow` at
+ * (0,1,1), which outranks a bare class at (0,1,0) regardless of source order — the exact defect
+ * `.rp-editor-inspector-delete` shipped once and this file's own toolbar rules already avoid.
+ */
+.rp-designer-inspector .rp-designer-edit-dimensions {
+	width: 100%;
+	margin: 0 0 var(--size-4-4);
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-designer-inspector .rp-designer-edit-dimensions:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* The ring, for the reason `editor.css`'s toolbar `:focus-visible` comment gives at length. */
+.rp-designer-inspector .rp-designer-edit-dimensions:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-designer-field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	font-size: var(--font-ui-small);
 }
 
 /*

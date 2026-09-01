@@ -1,6 +1,7 @@
 import { inject, onBeforeUnmount, provide, reactive, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
+import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { useEditorStore } from '../stores/EditorStore';
 import { useSelectionStore } from '../editor/selection/selection-store';
@@ -64,6 +65,22 @@ export interface DesignerRuntime {
 	 * cancelled pick (`null`) never reaches this at all.
 	 */
 	readonly setBackground: (ref: DocumentRef) => Promise<void>;
+	/**
+	 * Task B8's gesture, the same shape as `setBackground` above and for the same reason: a
+	 * click-bound dispatch with no field to show a refusal under, so it swallows the `Result`
+	 * itself through `notifyIfRefused`/`reportDispatchFault` rather than handing it back. TWO
+	 * callers — `AssetDesignerRoot`'s empty-state action for `noShape`, and
+	 * `DesignerInspector`'s own "Edit dimensions" gesture — both reached only once the
+	 * `asset-dimensions` dialog has resolved a real rectangle, never for a cancelled pick.
+	 */
+	readonly setFootprintFromDimensions: (width: number, depth: number) => Promise<void>;
+	/**
+	 * Task B8's height field, dispatched through `toolDispatcher` rather than through
+	 * `setBackground`'s pattern: `useFieldCommit` needs the raw `Result` to route a refusal
+	 * under the field it is about, so this RESOLVES rather than swallowing — the same reason
+	 * every tool gesture below takes `toolDispatcher` instead of the bare `dispatcher`.
+	 */
+	readonly commitHeight: (height: number | null) => Promise<DispatchResult>;
 	/**
 	 * Re-read this leaf's design from nothing, blanking it if the read fails. TWO callers — the
 	 * mount and the failure state's retry — and the cross-leaf subscription is deliberately not
@@ -288,6 +305,18 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			),
 		);
 	}
+	async function setFootprintFromDimensions(width: number, depth: number): Promise<void> {
+		await notifyIfRefused(
+			reportDispatchFault(
+				context.logger,
+				DISPATCH_FAULT_EVENT,
+				dispatcher.run(edits.setFootprintFromDimensions({ assetId, width, depth })),
+			),
+		);
+	}
+	function commitHeight(height: number | null): Promise<DispatchResult> {
+		return toolDispatcher.run(edits.setHeight({ assetId, height }));
+	}
 
 	/**
 	 * A design change reaches every leaf showing that asset, and the index rebuild reaches a
@@ -314,6 +343,8 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		undo,
 		redo,
 		setBackground,
+		setFootprintFromDimensions,
+		commitHeight,
 		hydrate,
 		toolManager,
 		renderState,

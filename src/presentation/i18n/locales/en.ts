@@ -460,16 +460,16 @@ export const en = {
 	// it matters for the same reason it does on a plan: the region exists to show the object
 	// being drawn, and a panel that took its place would hide the thing.
 	//
-	// **Both ship BUTTONLESS, and each absence has a different owner.** `no-shape`'s hand-off is
-	// the dimensions dialog Task B8 builds — `NewAssetForm` creates a DIFFERENT asset, so there
-	// is nothing today that types a rectangle onto the asset already open. `no-background`'s is
-	// Task B7's `BackgroundPicker` port, which does not exist. Slice 14's Amendment 1 refuses a
-	// live control that does nothing, so neither carries an `.action` key yet and
-	// `content.test.ts` asserts both absences, so each of those tasks flips a real assertion
-	// rather than closing a gap quietly.
+	// **Both carry an action now, and each grew one in the task that built what it hands off
+	// to.** `no-shape`'s is Task B8's `asset-dimensions` dialog, reached through
+	// `AssetDesignerRoot.editDimensions` — `NewAssetForm` creates a DIFFERENT asset, so nothing
+	// before this typed a rectangle onto the asset already open. `no-background`'s is Task B7's
+	// `BackgroundPicker` port. Slice 14's Amendment 1 refuses a live control that does nothing,
+	// so `content.test.ts` asserts both actions rather than assuming either.
 	'empty.asset.no-shape.headline': 'No footprint yet',
 	'empty.asset.no-shape.body':
 		'An asset gets its footprint from typed dimensions or from an outline traced over a spec sheet. Either one makes it something a plan can hold.',
+	'empty.asset.no-shape.action': 'Set dimensions',
 	'empty.asset.no-background.headline': 'No spec sheet yet',
 	'empty.asset.no-background.body':
 		'Set a photograph, drawing or datasheet as this asset’s background, then calibrate it so a traced outline comes out in real units.',
@@ -506,6 +506,25 @@ export const en = {
 	'designer.asset-failed.headline': 'This asset could not be loaded',
 	'designer.refresh-failed':
 		'This asset could not be re-read after the last change; what you see may be out of date.',
+	// Task B8's inspector region: derived dimensions, an honest unscaled warning, and the one
+	// editable scalar (height). `designer.inspector` labels the region the same way
+	// `editor.inspector` does the plan editor's own panel.
+	'designer.inspector': 'Inspector',
+	'designer.inspector.dimensions': 'Dimensions',
+	// The warning `dimensionsUnscaled` earns — a traced outline captured before this asset had
+	// a scale, so the numbers beside it are not yet real millimetres (§88, Decision 6).
+	'designer.inspector.dimensions.unscaled':
+		'This footprint was traced before a scale existed, so these numbers are not real measurements yet.',
+	'designer.inspector.edit-dimensions': 'Edit dimensions',
+	'designer.inspector.height': 'Height in millimetres',
+	'designer.inspector.height.unparseable': 'Enter a height as a number, or clear it.',
+	// Task B8's dialog kind (`asset-dimensions`), reached from BOTH the no-shape empty state
+	// and this inspector's own Edit dimensions control — the same width/depth vocabulary
+	// `form.new-asset.width`/`.depth` already uses, minus their "(optional)" suffix: both
+	// fields are required here, since a rectangle needs both halves.
+	'designer.dimensions.edit.title': 'Set this asset’s dimensions',
+	'designer.dimensions.width': 'Width in millimetres',
+	'designer.dimensions.depth': 'Depth in millimetres',
 	// The undo stack's own refusal, keyed by the exact `AppError.code` for the reason the
 	// slice 16 block above states. Without an entry it falls through to
 	// `error.category.validation` — "This data is not in the expected form" — about data that

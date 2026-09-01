@@ -344,6 +344,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.asset.no-shape.headline': 'Noch kein Umriss',
 	'empty.asset.no-shape.body':
 		'Ein Objekt erhält seinen Umriss aus eingegebenen Maßen oder aus einer über ein Datenblatt gezeichneten Kontur. Beides macht daraus etwas, das ein Grundriss aufnehmen kann.',
+	'empty.asset.no-shape.action': 'Maße festlegen',
 	'empty.asset.no-background.headline': 'Noch kein Datenblatt',
 	'empty.asset.no-background.body':
 		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt.',
@@ -364,6 +365,16 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
 	'designer.refresh-failed':
 		'Dieses Objekt konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
+	'designer.inspector': 'Inspektor',
+	'designer.inspector.dimensions': 'Maße',
+	'designer.inspector.dimensions.unscaled':
+		'Dieser Umriss wurde gezeichnet, bevor ein Maßstab vorlag; diese Zahlen sind noch keine echten Maße.',
+	'designer.inspector.edit-dimensions': 'Maße bearbeiten',
+	'designer.inspector.height': 'Höhe in Millimetern',
+	'designer.inspector.height.unparseable': 'Geben Sie eine Höhe als Zahl ein, oder leeren Sie das Feld.',
+	'designer.dimensions.edit.title': 'Maße dieses Objekts festlegen',
+	'designer.dimensions.width': 'Breite in Millimetern',
+	'designer.dimensions.depth': 'Tiefe in Millimetern',
 	'undo.superseded':
 		'Diese Änderung wurde nach diesem Schritt an anderer Stelle bearbeitet; ein Rückgängigmachen würde diese Bearbeitung verwerfen. Laden Sie neu und machen Sie es erneut rückgängig, wenn Sie es weiterhin möchten.',
 	'save-state.saved': 'Gespeichert',

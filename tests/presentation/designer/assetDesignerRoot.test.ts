@@ -183,16 +183,17 @@ describe('what the designer draws inside its canvas region', () => {
 	});
 
 	/**
-	 * And BUTTONLESS, asserted where it is rendered rather than only in the registry. The
-	 * registry case proves no label is declared; this proves nothing draws a control anyway.
-	 * Task B8 builds the dimensions form this hands off to and flips this assertion then.
+	 * And WITH a button, asserted where it is rendered rather than only in the registry — the
+	 * flip Task B8 makes. The registry case (`content.test.ts`) proves the label is declared;
+	 * this proves a control actually draws from it. `assetDimensions.test.ts` is where clicking
+	 * it is driven end to end, against a real command.
 	 */
-	it('draws no action button on the no-shape state, because Task B8 builds what it hands off to', async () => {
+	it('draws an action button on the no-shape state, because Task B8 built what it hands off to', async () => {
 		const { wrapper } = await mounted(
 			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
 		);
 
-		expect(wrapper.find('.rp-empty-state__action').exists()).toBe(false);
+		expect(wrapper.find('.rp-empty-state__action').exists()).toBe(true);
 	});
 
 	/**

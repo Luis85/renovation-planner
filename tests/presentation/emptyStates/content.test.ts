@@ -29,21 +29,17 @@ describe('the empty-state content registry', () => {
 	});
 
 	/**
-	 * **`noShape` still ships buttonless, and Task B7 is why it stands alone now.**
-	 *
-	 * Nothing in this plugin opens a dimensions form for the asset ALREADY OPEN:
-	 * `NewAssetForm` creates a different asset, and Task B8's own Step 1a says in as many words
-	 * that the dimensions dialog is built there and that "nothing in this plan built one until
-	 * this step". So a button here today would be exactly the live control that does nothing
-	 * slice 14's Amendment 1 refuses. `noBackground` flipped the other way in Task B7, below.
-	 *
-	 * Asked with `in` rather than by reading the property, for the reason the `planEditor`
-	 * case below gives: the entry is a literal with no `actionLabel`, so its TYPE has no such
-	 * key and the read does not compile. The type is the stronger guarantee; this keeps the
-	 * runtime assertion so that B8 flips a real test rather than closing a gap quietly.
+	 * **The flip Task B8 makes**, and the same shape as `noProjects`'s own: a hand-off that did
+	 * not exist yet — a dimensions form for the asset ALREADY OPEN, which `NewAssetForm` is not,
+	 * since it creates a DIFFERENT asset — grew one, and slice 14's Amendment 1 makes that a
+	 * deliberate, tested change rather than a quietly closed gap. `noShape`'s is the
+	 * `asset-dimensions` dialog, reached through `AssetDesignerRoot.editDimensions`.
 	 */
-	it('gives the designer’s no-shape state no action, because what it hands off to is not built yet', () => {
-		expect('actionLabel' in EMPTY_STATE_CONTENT.assetDesigner.noShape).toBe(false);
+	it('gives the no-shape state an action, because Task B8 built what it hands off to', () => {
+		const content = EMPTY_STATE_CONTENT.assetDesigner.noShape;
+
+		expect(content.actionLabel).toBeDefined();
+		expect(t('en', content.actionLabel)).not.toBe('');
 	});
 
 	/**
@@ -143,8 +139,8 @@ describe('the empty-state content registry', () => {
 			EMPTY_STATE_CONTENT.renovationProject.noPlans,
 			EMPTY_STATE_CONTENT.planEditor.noBackground,
 			EMPTY_STATE_CONTENT.planEditor.noZones,
-			// Design slice B3, widened by Task B7: `noBackground` now carries an action too, so
-			// both `assetDesigner` entries are listed the same way their siblings are.
+			// Design slice B3, widened by Tasks B7 and B8: both `assetDesigner` entries carry an
+			// action now, so both are listed the same way their siblings are.
 			EMPTY_STATE_CONTENT.assetDesigner.noShape,
 			EMPTY_STATE_CONTENT.assetDesigner.noBackground,
 		];
@@ -154,13 +150,14 @@ describe('the empty-state content registry', () => {
 			expect(t(language, entry.body).length).toBeGreaterThan(0);
 		}
 
-		// The four entries whose `actionLabel` is present in the literal type (not optional), so
+		// The five entries whose `actionLabel` is present in the literal type (not optional), so
 		// these are unconditional rather than a re-check of the branch above. `noPlans` is here
 		// as well as in its own case above, because that one asks `en` alone — a German action
 		// label resolving to `''` would draw a nameless button for exactly the users this plugin
 		// ships a `de.ts` for.
 		expect(t(language, EMPTY_STATE_CONTENT.planEditor.noZones.actionLabel).length).toBeGreaterThan(0);
 		expect(t(language, EMPTY_STATE_CONTENT.renovationProject.noProjects.actionLabel).length).toBeGreaterThan(0);
+		expect(t(language, EMPTY_STATE_CONTENT.assetDesigner.noShape.actionLabel).length).toBeGreaterThan(0);
 		expect(t(language, EMPTY_STATE_CONTENT.assetDesigner.noBackground.actionLabel).length).toBeGreaterThan(0);
 		expect(t(language, EMPTY_STATE_CONTENT.renovationProject.noPlans.actionLabel).length).toBeGreaterThan(0);
 	});

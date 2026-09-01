@@ -6,12 +6,13 @@
  * Hydration happens HERE rather than in `AssetDesignerView` so the view stays what it is: an
  * Obsidian lifecycle object that mounts an app. `PlanEditorRoot` draws the same line.
  *
- * **The four regions below are declared even where nothing fills them yet, and that is the
- * point of this file rather than an accident of ordering.** Task B4 builds `DesignerCanvas`,
- * Task B5 a toolbar and Task B8 `DesignerInspector`, and none of those tasks says "mount it" —
- * so on the plan as written each would ship a component, a passing suite of its own, and no
- * surface. That is this repository's recorded slice-7 defect exactly: a tool registered by
- * nothing, invisible to all four gates because nothing is wrong with the code.
+ * **The four regions below are declared even where nothing fills them yet, and that was the
+ * point of this file rather than an accident of ordering.** Task B4 built `DesignerCanvas`,
+ * Task B5 a toolbar and Task B8 `DesignerInspector`, and none of those tasks by itself says
+ * "mount it" — so on the plan as written each would have shipped a component, a passing suite
+ * of its own, and no surface. That is this repository's recorded slice-7 defect exactly: a tool
+ * registered by nothing, invisible to all four gates because nothing is wrong with the code.
+ * All three are mounted below now, each in the task that built it plus this one.
  *
  * Two instruments hold it, and they catch DIFFERENT mistakes:
  *
@@ -34,6 +35,7 @@ import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import DialogHost from '../dialogs/DialogHost.vue';
+import { useDialogStore } from '../dialogs/dialog-store';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import SaveStateIndicator from '../editor/save-state/SaveStateIndicator.vue';
@@ -46,8 +48,10 @@ import { provideDesignerRuntime } from './runtime';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
+import DesignerInspector from './inspector/DesignerInspector.vue';
 
 const context = useAssetDesignerContext();
+const dialogs = useDialogStore();
 
 /**
  * The leaf's live machinery (Task B3a), provided here so the regions later tasks mount can
@@ -95,9 +99,9 @@ const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value
  * that gap). An opaque centred card therefore sat over the ONLY picture the user could have had
  * of what they were doing.
  *
- * **Task B7 gives `noBackground` its `@action` handler, and `noShape` still has none** — see
- * `onEmptyStateAction` below, and `EMPTY_STATE_CONTENT.assetDesigner.noShape`'s own docblock
- * for why that absence remains Task B8's to close.
+ * **Both entries carry an `@action` handler now.** Task B7 gave `noBackground` its picker;
+ * Task B8 gives `noShape` its dimensions dialog — see `onEmptyStateAction` and `editDimensions`
+ * below, and `EMPTY_STATE_CONTENT.assetDesigner.noShape`'s own docblock for the history.
  */
 /**
  * The Shift constraint, advertised while a tool that takes it is active — asked of the ONE list
@@ -132,6 +136,10 @@ const emptyStateKey = computed<'noShape' | 'noBackground' | null>(() => {
  * bound picker is this button's whole reason to exist. The composition root binds a real one
  * today, so this is the defensive answer rather than a reachable production state; the same
  * shape `AssetDesignerContext.picker`'s own docblock states.
+ *
+ * `noShape` needs no such guard: Task B8's dimensions dialog is a member of THIS component's
+ * own script, not a port that might be unbound, so `EMPTY_STATE_CONTENT.assetDesigner.noShape`'s
+ * `actionLabel` is reachable unconditionally the moment it is declared.
  */
 const overlay = computed<EmptyStateProps | null>(() => {
 	const key = emptyStateKey.value;
@@ -145,19 +153,46 @@ const overlay = computed<EmptyStateProps | null>(() => {
 });
 
 /**
- * The empty state's `@action` — reachable today only from `noBackground`, since `noShape`
- * carries no `actionLabel` for `EmptyState.vue` to draw a button from at all.
+ * Task B8's dimensions gesture, and the ONE place it is written rather than one copy per
+ * caller: the empty state's action below and `DesignerInspector`'s own "Edit dimensions"
+ * control both call it, so the two cannot drift into disagreeing about which dialog opens or
+ * which command answers it. `dialogs.current !== null` mirrors `ViewRoot.onCreateProject`'s own
+ * guard — `EmptyState`'s button and the inspector's have no disabled state of their own, so two
+ * clicks landing in the same tick must not both reach `openDialog`, which throws
+ * `DialogStackingError` on the second.
+ *
+ * `initial` is the asset's OWN current dimensions when it has any — the inspector's caller is
+ * the only one that can ever supply them, since the empty state exists precisely because there
+ * are none yet — so a user editing a rectangle sees it rather than a blank form.
+ */
+async function editDimensions(): Promise<void> {
+	if (dialogs.current !== null) return;
+	const dimensions = design.value?.dimensions ?? null;
+	const result = await dialogs.openDialog({
+		kind: 'asset-dimensions',
+		title: tr('designer.dimensions.edit.title'),
+		...(dimensions !== null ? { initial: dimensions } : {}),
+	});
+	if (result === null) return;
+	await runtime.setFootprintFromDimensions(result.width, result.depth);
+}
+
+/**
+ * The empty state's `@action`, for BOTH entries now that Task B8 has given `noShape` one too.
  *
  * Cancelling the picker (`null`) dispatches nothing: a cancelled pick is not a chosen
  * reference, and `SetAssetBackground` has no meaning applied to data the user never supplied.
  */
 async function onEmptyStateAction(): Promise<void> {
-	if (emptyStateKey.value !== 'noBackground') return;
-	const picker = context.picker;
-	if (picker === null) return;
-	const ref = await picker.pick();
-	if (ref === null) return;
-	await runtime.setBackground(ref);
+	if (emptyStateKey.value === 'noBackground') {
+		const picker = context.picker;
+		if (picker === null) return;
+		const ref = await picker.pick();
+		if (ref === null) return;
+		await runtime.setBackground(ref);
+		return;
+	}
+	if (emptyStateKey.value === 'noShape') await editDimensions();
 }
 
 /**
@@ -254,8 +289,22 @@ onMounted(() => {
 					/>
 				</DesignerCanvas>
 			</div>
-			<!-- Task B8 mounts `DesignerInspector` here. -->
-			<div class="rp-designer-inspector" />
+			<!--
+				Task B8's region. `design !== null` rather than a status check: that is precisely
+				what makes `.rp-designer-inspector` an EMPTY region for both a loading leaf and a
+				hard failure (`AssetDesignStore.fail` blanks `design` for both), so the region
+				survives — per `assetDesignerRoot.test.ts`'s own rule — without drawing a panel
+				over data nobody has read yet.
+			-->
+			<div class="rp-designer-inspector">
+				<DesignerInspector
+					v-if="design !== null"
+					:design="design"
+					:set-height="runtime.commitHeight"
+					:edit-dimensions="editDimensions"
+					:logger="context.logger"
+				/>
+			</div>
 		</div>
 		<p
 			v-if="staleAfterRefresh"

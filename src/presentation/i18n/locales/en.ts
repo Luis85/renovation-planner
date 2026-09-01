@@ -159,6 +159,25 @@ export const en = {
 		"This asset's price is not in this project's currency, so no estimate can be produced. Open the asset's note and price it in this project's currency.",
 	'requirement.project-not-found': 'That zone belongs to a project that is no longer there.',
 	'requirement.project-gone': 'That requirement belongs to a project that is no longer there.',
+	// The two calibration refusals a user can actually PRODUCE, on either surface. Both are
+	// `Calculation`, whose category sentence ("A quantity could not be calculated.") says
+	// nothing about points, nothing about a distance, and nothing a user could act on — and
+	// calibrating is a gesture whose whole failure mode is that the two clicks or the typed
+	// number were wrong.
+	//
+	// Subject-agnostic wording on purpose: `CalibrateTool` is one tool serving a plan's
+	// background and an asset's spec sheet since Task B6, so neither sentence may name a plan.
+	//
+	// `calibration.invalid-distance` is deliberately absent, and slice 17 is where that was
+	// decided: `KnownDistanceForm` disables its submit unless the value parses positive and
+	// finite, so no user can raise it. `calibration.degenerate-scale` has TWO raise sites —
+	// a derived scale that collapsed, and a rescale whose product overflowed — and one
+	// sentence covers both, because from the user's side they are the same event: the two
+	// points and the distance do not describe a usable scale.
+	'calibration.coincident-points':
+		'Those two points are in the same place. Pick two points with a real distance between them.',
+	'calibration.degenerate-scale':
+		'Those two points and that distance do not produce a usable scale. Pick two points further apart, or check the distance you entered.',
 	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`
 	// and a malformed money literal never reach a dispatch, so there is no raised code for
 	// `routeError` to place. Keyed by the field rather than by any code for that reason.

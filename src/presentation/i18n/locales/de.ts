@@ -186,6 +186,13 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Der Preis dieses Objekts ist nicht in der Währung dieses Projekts, daher kann keine Schätzung erstellt werden. Öffnen Sie die Notiz des Objekts und erfassen Sie den Preis in der Währung dieses Projekts.',
 	'requirement.project-not-found': 'Diese Zone gehört zu einem Projekt, das nicht mehr vorhanden ist.',
 	'requirement.project-gone': 'Dieser Bedarf gehört zu einem Projekt, das nicht mehr vorhanden ist.',
+	// Beide Kalibrierungs-Ablehnungen gelten für beide Oberflächen — ein Grundriss und ein
+	// Objekt teilen sich dasselbe Werkzeug —, also nennt keiner der beiden Sätze das eine
+	// oder das andere.
+	'calibration.coincident-points':
+		'Diese beiden Punkte liegen an derselben Stelle. Wählen Sie zwei Punkte mit einem echten Abstand dazwischen.',
+	'calibration.degenerate-scale':
+		'Diese beiden Punkte und dieser Abstand ergeben keinen brauchbaren Maßstab. Wählen Sie zwei weiter entfernte Punkte, oder prüfen Sie den eingegebenen Abstand.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.suffix.schema-version-unsupported':

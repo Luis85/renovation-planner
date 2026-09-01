@@ -2975,6 +2975,21 @@ building it:
   both `assetDesignChangeSource` and `planChangeSource` — the plan editor gained the same
   arm in the same change, since a plan's sidecar and an asset's are one file type under two
   owners and an id alone does not say which leaf a change belongs to.
+- **Two calibration refusals had no copy in either locale, and adding a second raise site is
+  what put them under review.** `calibration.coincident-points` and
+  `calibration.degenerate-scale` both pre-date this increment and both resolved the
+  `Calculation` category sentence — *"A quantity could not be calculated."* — which names no
+  point, no distance and nothing a user could do differently, for a gesture whose entire
+  failure mode is that the two clicks or the typed number were wrong. `CalibrateAsset`'s
+  finite-result guard is the second reachable raise site of the second code, which is how a
+  whole-branch review came to look. Both have copy in both locales now and both are rows in
+  `toUserMessage.test.ts`'s MINTED table, copied from `domain/plan/Calibration.ts`'s own
+  literals rather than from `en.ts`, because a table derived from the locale file would agree
+  with a typo. The wording names neither a plan nor an object: one tool serves both surfaces
+  since Task B6, so one sentence has to. The third code of that union,
+  `calibration.invalid-distance`, stays absent for the reason slice 17 recorded when it
+  WITHDREW a Definition of Done item about it — `KnownDistanceForm` disables its submit unless
+  the value parses positive and finite, so no user can raise it.
 - **A fallow finding traced to a construction site, not a call site.** `AssetSuggestModal`
   reported two unused class members where its three siblings (`PlanSuggestModal`,
   `ProjectSuggestModal`, `PlanBackgroundSuggestModal`) did not, despite an identical shape —

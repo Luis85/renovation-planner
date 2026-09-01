@@ -303,6 +303,24 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.calculation',
 		'application/commands/requirement/RecalculateRequirement.ts',
 	],
+	// The two calibration refusals a user can produce, on either surface. Both pre-date the
+	// asset designer and had no entry in either locale for fifteen slices, so a refused
+	// calibration resolved the `Calculation` category sentence — "A quantity could not be
+	// calculated.", which names no point, no distance and nothing to do differently.
+	//
+	// `calibrationError` is a module-private factory, so these rows are copied from
+	// `domain/plan/Calibration.ts`'s own literals like every other row here — the column names
+	// that module for a reader, and it is a pointer rather than an instrument.
+	//
+	// The third code of that union, `calibration.invalid-distance`, is deliberately absent for
+	// the reason slice 17 recorded when it WITHDREW a Definition of Done item about it:
+	// `KnownDistanceForm` disables its submit unless the value parses positive and finite, so
+	// no user can raise it. `calibration.degenerate-scale` is listed ONCE despite two raise
+	// sites (`deriveCalibration`'s collapsed scale and `nonFiniteRescaleError`'s overflowed
+	// product) — one code, one sentence, and `CalibrateAsset`'s finite-result guard is the
+	// second of the two.
+	['calibration.coincident-points', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
+	['calibration.degenerate-scale', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
 ];
 
 // Named for the shape rather than for a slice: the table below has carried codes from slices

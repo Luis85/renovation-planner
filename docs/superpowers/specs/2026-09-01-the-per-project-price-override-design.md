@@ -355,7 +355,10 @@ document, because a list of exceptions kept in two places disagrees with itself:
    carried**: the affordance ships here, on the project detail state, and it never needed the
    catalogue screen (Decision 1).
 2. The port gains `listByAsset`; the contract block's four methods are five (Decision 3).
-3. `AssetPriceOverride.create` gains a coherence rule the document does not mention (Decision 2).
+3. The coherence rule the document does not mention, and **where it lives**:
+   `SetAssetPriceOverrideCommand`, not `AssetPriceOverride.create` (Decision 2). Recorded with
+   its reason, because "put it on the entity" is the tidier-looking answer and re-adding it there
+   makes every drifted note unreadable.
 4. The note is named by its own id, so the illustrative path `Asset Prices/Porcelain Terrace
    Tile.md` is **not** what ships (Decision 7). `Asset Prices/<AssetPriceOverrideId>.md` is.
 5. Every Definition-of-Done item Amendment 1 item 7 deferred is ticked **or** amended here — none

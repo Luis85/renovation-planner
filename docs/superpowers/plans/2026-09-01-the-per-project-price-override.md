@@ -2090,7 +2090,21 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Interfaces:**
 - Consumes: Task 2's `listByAsset` and `delete`.
-- Produces: `DeleteAssetDeps` gains `readonly overrides: AssetPriceOverrideRepository`.
+- Produces: `DeleteAssetDeps` gains `readonly overrides: AssetPriceOverrideRepository`, and its
+  existing optional `notify` gains a second member:
+
+```ts
+	readonly notify?: {
+		markerClearFailed(entityId: string): void;
+		/** A stray price note was left behind; the asset itself is gone. */
+		priceCleanupFailed(assetId: string): void;
+	};
+```
+
+  Optional for the suite's benefit, which is exactly what makes a composition that forgets it
+  compile and say nothing — so the composition root's binding gets a wiring case, the shape
+  `sequenceNoticeWiring.test.ts` already uses for its sibling. The notice text is a `StringKey`
+  in both locales, never a literal: `NOTICE_TEXT_BAN` watches those doors.
 
 **Why this task exists.** `DeleteAssetCommand` gathers its referents from
 `requirements.listByAsset` alone (`DeleteAsset.ts:79`) and `resolvedReferents` is typed
@@ -2150,7 +2164,7 @@ describe('DeleteAssetCommand and price overrides', () => {
 	 * delete still reports ok, because the asset really is gone and reporting otherwise would
 	 * make a user retry a deletion that already happened.
 	 */
-	it('reports the delete as successful and logs when an override delete fails', async () => {
+	it('reports the delete as successful, and tells BOTH channels, when an override delete fails', async () => {
 		vi.spyOn(overrides, 'delete').mockResolvedValue(err(persistenceError('asset-price.delete-failed', 'no')));
 		const result = await deleteAsset.execute({ assetId });
 		expect(result.ok).toBe(true);
@@ -2158,6 +2172,15 @@ describe('DeleteAssetCommand and price overrides', () => {
 			'asset-price.orphaned-by-asset-delete',
 			expect.objectContaining({ assetId }),
 		);
+		// The user-facing half. Asserting only the log passes against a build where the stray
+		// note is a developer's problem and nobody else's.
+		expect(notify.priceCleanupFailed).toHaveBeenCalledWith(assetId);
+	});
+
+	/** The publication the cleanup must not displace — see Step 3. */
+	it('still publishes AssetDeleted after cleaning the overrides up', async () => {
+		expectOk(await deleteAsset.execute({ assetId }));
+		expect(bus.published.map((e) => e.type)).toContain('AssetDeleted');
 	});
 
 	/** Nothing to do, nothing logged — a delete of an unpriced asset stays silent. */
@@ -2175,14 +2198,35 @@ Expected: FAIL on the first three — the overrides survive the delete.
 
 - [ ] **Step 3: Implement**
 
-Add `overrides` to `DeleteAssetDeps` and to the `ops` bundle, then, in `execute`, after
-`runDeleteResolution` returns ok:
+Add `overrides` to `DeleteAssetDeps` and to the `ops` bundle, then INSERT the cleanup into
+`execute`'s existing tail. **Insert, not replace** — the method already ends with
+`events.publish(assetDeleted(...))`, and `createAssetCatalogueChangeSource` subscribes to
+`AssetDeleted`, so dropping it leaves every mounted catalogue consumer (the assign picker among
+them) showing the deleted asset until some unrelated refresh. The existing tail is:
 
 ```ts
 		if (isErr(resolved)) return resolved;
-		await this.deleteOverridesOf(input.assetId);
-		return resolved;
+
+		await this.ops.events.publish(
+			assetDeleted({ assetId: input.assetId }),
+		);
+		return ok(resolved.value);
 ```
+
+and it becomes:
+
+```ts
+		if (isErr(resolved)) return resolved;
+
+		await this.deleteOverridesOf(input.assetId);
+		await this.ops.events.publish(
+			assetDeleted({ assetId: input.assetId }),
+		);
+		return ok(resolved.value);
+```
+
+Note `ok(resolved.value)` rather than `resolved`: the two have different types, and returning the
+wrapper compiles nowhere.
 
 ```ts
 	/**
@@ -2197,16 +2241,32 @@ Add `overrides` to `DeleteAssetDeps` and to the `ops` bundle, then, in `execute`
 	 *
 	 * It does not fail the delete. The asset IS gone; reporting failure would invite a retry of
 	 * a deletion that already happened.
+	 *
+	 * **A failure is SURFACED, not merely logged**, which is the difference between a residual
+	 * and a silent one. `DeleteAssetDeps.notify` already exists for the sequence's own
+	 * marker-clear failure; this takes the same channel, so a user whose vault keeps a stray
+	 * note is told rather than left to find it.
+	 *
+	 * **Why this is not in the compensated sequence**, restated where the code is because a
+	 * review round proposed moving it twice: that sequence's durable marker is
+	 * `Requirement`-shaped, so carrying overrides means versioning a durable recovery record.
+	 * And the residual is smaller than it first reads — an orphan override is *meaningless*
+	 * data, not lost data: the asset is gone, no Requirement can derive from it, and the user
+	 * can delete the note in Obsidian. The alternative ordering trades that for destroying real
+	 * prices belonging to an asset that still exists.
 	 */
 	private async deleteOverridesOf(assetId: AssetId): Promise<void> {
 		const listed = await this.ops.overrides.listByAsset(assetId);
 		if (isErr(listed)) {
 			this.ops.logger.error('asset-price.orphaned-by-asset-delete', { assetId, cause: listed.error });
+			this.ops.notify?.priceCleanupFailed(assetId);
 			return;
 		}
+		let orphaned = false;
 		for (const override of listed.value) {
 			const deleted = await this.ops.overrides.delete(override.entity.id, override.version);
 			if (isErr(deleted)) {
+				orphaned = true;
 				this.ops.logger.error('asset-price.orphaned-by-asset-delete', {
 					assetId,
 					overrideId: override.entity.id,
@@ -2214,6 +2274,7 @@ Add `overrides` to `DeleteAssetDeps` and to the `ops` bundle, then, in `execute`
 				});
 			}
 		}
+		if (orphaned) this.ops.notify?.priceCleanupFailed(assetId);
 	}
 ```
 
@@ -2581,8 +2642,10 @@ Not optional, and not a tidy-up — a withdrawal recorded only in a spec is one 
 re-adds as an oversight.
 
 - [ ] **`docs/tasks/20`** — a dated Amendment 3 carrying the spec's "Amendments owed" list: the
-  affordance deferral **withdrawn**, the port's fifth method, the entity's coherence rule, the
-  note's id-derived filename (so the illustrative `Asset Prices/Porcelain Terrace Tile.md` is
+  affordance deferral **withdrawn**, the port's fifth method, the coherence rule and the fact
+  that it belongs to `SetAssetPriceOverrideCommand` rather than to `AssetPriceOverride.create`
+  (so a later reader does not re-add it to the entity and make every drifted note unreadable),
+  the note's id-derived filename (so the illustrative `Asset Prices/Porcelain Terrace Tile.md` is
   **not** what ships), and every Amendment 1 item 7 criterion ticked or amended by name.
 - [ ] **`docs/issues/The cost pipeline is told the currency it must produce.md`** — **close it**,
   and only now: its own instruction is *"Until that pair is green, the answer above is a

@@ -437,6 +437,20 @@ review pass that followed:
   whatever touches that id next. The earlier spelling here was "every successful half
   records", which two of its four subjects broke because they are deletes;
   `application/editor/WriteLedger.ts` now states the rule once for all of them.
+  **That was the whole of what the ledger tracked through the asset designer's first
+  increment, and it is no longer the whole story.** A version alone answers a question about
+  the TIP; the question an undo actually asks is about the CHAIN, and the counter-example is
+  a foreign write SANDWICHED between two of this history's own gestures — this history's own
+  later writes overwrite the ledger's memory of the earlier one, so a version comparison at
+  the second undo finds exactly what it wrote and cannot see that a peer's edit sits between
+  the two. The ledger carries a per-entity GENERATION beside the version now: `observe`
+  compares what it last wrote against a gesture's own pre-read and bumps the generation on a
+  mismatch, each gesture records the generation it executed under beside its inverse, and an
+  undo whose generation has since moved refuses (`undoSuperseded`) rather than silently
+  discarding the peer's write. See the asset designer's own section below for the increment
+  that forced the question open, and `application/editor/WriteLedger.ts` for what the
+  detection cannot see (it is a sample taken at forward executes, so a foreign write no later
+  gesture's pre-read ever looks at is invisible).
 - **Every dispatch funnels through ONE object per leaf** — the wrapped dispatcher that
   `runtime.ts` hands to tools as `context.commandDispatcher` and to the toolbar and the
   delete button alike. A dispatch that bypasses it silently breaks the post-command
@@ -2777,6 +2791,208 @@ that came out of it:
   harness's own kill and ran for about forty minutes** while its tracked log already read
   `[killed]`, contending with everything after it. A timeout on a tree with no source change is a
   question about the machine before it is a question about the diff.
+
+**The asset designer's first increment has landed: an `Asset` definition gets a shape.**
+[[Asset designer]]'s epic — a footprint, a clearance boundary, an anchor, a facing and a
+height, drawn on a designer surface of the asset's own rather than typed beside the
+definition — is a first increment rather than closed: it builds every entity and mechanism
+the epic's Definition of Done names, and stops there. `AssetDesignerView` is a THIRD
+workspace surface (ADR-0015), keyed by an `assetId` in Obsidian's own view state exactly as
+the Plan Editor is keyed by a plan id, reached from the Renovation project view's own "New
+asset" door, from `ProjectList`'s header, and from the `open-asset-designer` palette command's
+fuzzy picker over the vault-wide catalogue. Its shell is four regions rather than the Plan
+Editor's five (no layers panel — a single object has nothing to layer), held reachable by the
+import-graph walk this file's own "Asset designer" architectural section above already
+describes (`regionsReachable.test.ts`), which this increment is what finally gives every one
+of those four regions real content to be walked into. The shape lives in a geometry sidecar keyed
+to the asset (ADR-0014), one `.rpgeo` per asset under the library's own `Geometry/` folder —
+the same extension a Plan's sidecar uses, and a deliberately different scope: a footprint
+corrected once must correct itself in every project that references the asset rather than
+living inside any one of them. The rules that came out of
+building it:
+
+- **A subject-agnostic tool is cheaper than a subject-specific copy, and slice 6's own
+  gesture-state machinery is what made that true here.** `CalibrateTool`'s two-click gesture,
+  its generation counter, its buffered second point and its `abandonGesture` asymmetry are
+  roughly two hundred lines this surface needed exactly once more — so `CalibrateAssetCommand`
+  is a new command over a GENERALISED tool rather than a second tool: `createCommand` takes a
+  bare `CalibrationMeasurement` and returns an `UndoableCommand`, with the branded id
+  (`PlanId` or `AssetId`) closed over by whichever runtime constructs it, and
+  `hasSpatialObjects` was renamed `hasGeometryToRescale` to name the question both surfaces
+  actually ask. `KnownDistanceForm`'s dialog logic moved into a shared
+  `knownDistanceSupplier` for the identical reason — `npm run analyze`'s clone detector is
+  what the previous entries in this file cite for exactly this move, and it is the reason
+  again here.
+- **`hasGeometryToRescale` asks about PENDING flags, never about whether a shape exists**,
+  and that is where the designer's own answer differs from the Plan Editor's. A plan's
+  calibration rescales every zone it owns, so "are there zones" is the whole question there;
+  an asset's converts exactly the coordinate groups captured before a scale existed and
+  leaves every already-measured one alone, so a TYPED footprint (never pending — a typed one
+  is authored in millimetres and `validateAssetShape` refuses a typed-and-pending
+  combination outright) skips the recalibration confirmation entirely and goes straight to
+  the distance form, while a TRACED one asks first. The confirmation is therefore a question
+  about PROVENANCE, not about presence, which [[Design an Asset]] steps 15 and 22 hold up
+  against each other on purpose.
+- **One flag per coordinate group, and no conjunction with provenance.** `footprintOrigin`
+  stays `'traced'` for the life of an outline, so it can say where a footprint's coordinates
+  CAME FROM and never what has already happened to them; retyping a traced footprint through
+  the dimensions dialog converts BOTH — origin to `'typed'` and pending to `false` — in the
+  same write, because a typed rectangle is authored in real millimetres regardless of what
+  stood there before. `CalibrateAssetCommand.rescaled` reads three independent flags
+  (`footprintPending`, `clearancePending`, `anchorPending`) and clears all three after a
+  calibration, whether or not each one was set — a group already in millimetres changing
+  `false` to `false` costs nothing, and the one arrangement where a pending flag could
+  survive (an ABSENT clearance still marked pending) is refused by `validateAssetShape`
+  before it can be stored at all. `facing` has no pending flag and nothing in the calibration
+  path touches it, because an angle is scale-invariant — [[Design an Asset]] step 17 is the
+  one place that omission is looked at rather than merely true of the code.
+- **A calibration's own write path shares its existence check with every other design
+  command, and a clone detector is what surfaced the seam.** `CalibrateAssetCommand` does not
+  go through `updateAssetShape` (a calibration replaces `calibration` beside `shape` in one
+  write, where every other design command replaces `shape` alone); it extracts and shares
+  `loadAssetDocument` with `updateAssetShape` instead — the existence check before the
+  sidecar is even opened — which `npm run analyze` had flagged as a clone group in an earlier
+  draft. The finite-result guard is `ReversibleCalibratePlan`'s, copied rather than shared,
+  because a legal-looking pick (a measured ~1e-302 against a known 3200) derives a finite
+  correction whose product with an ordinary coordinate is `Infinity`, which `JSON.stringify`
+  writes as `null` and the schema then refuses on every later read — refusing the calibration
+  keeps the sidecar readable.
+- **A background write's own no-write guard can protect the wrong thing, and reviewing the
+  docblock beside it is what caught the gap.** `SetAssetBackgroundCommand` clears a
+  calibration before writing the new reference (Decision 5: a stale calibration measured
+  against the old document is worse than none), and its FIRST version short-circuited only
+  when the calibration was ALREADY null — so resubmitting the SAME reference while a valid
+  calibration existed still cleared it, precisely the case Decision 5's own reasoning says
+  should survive. The guard is `sameBackground(...)` alone now, unconditional on whether a
+  calibration exists, which is what makes it protect the calibration the surrounding
+  reasoning was written for.
+- **An adapter spanning two resources needs both of their resulting versions, and
+  `VersionedDispatch` had to widen for exactly one caller.** `ReversibleAssetBackgroundEdit`
+  is the first inverse in this codebase covering a whole note AND a whole sidecar document in
+  one gesture, and its first draft recorded only the NOTE's resulting version — so on undo,
+  the GEOMETRY ledger's memory of the calibration-clearing write was always stale, and every
+  undo of a background change refused with `asset-geometry.revision-conflict`. Caught by
+  running the un-skipped, relocated `reversible.setBackground` case from Task B3b's amendment,
+  not by reading the code. `VersionedDispatch` gained an optional `secondaryVersion`, written
+  only by `SetAssetBackground` and read only by this one adapter — this file's own account of
+  that type calls it "A UNION rather than an optional field... the whole of why this type
+  exists" one section up, and the addition here is a second field with exactly one writer and
+  one reader rather than the self-declared shape that sentence argues against. A read-back
+  after the write was rejected for the reason the type's own history already gives: it would
+  reopen the peer-write window `VersionedDispatch` exists to close.
+- **`assetDesignChangeSource`'s four-part event vocabulary closed its own gap without
+  widening its shape.** A designer leaf hears about its subject moving through four disjoint
+  lists — the design events a command publishes for THIS asset, `ProjectIndexRebuilt` for a
+  restored leaf reading an empty index, `ProjectIndexEntryChanged` for a note edited by hand,
+  copied in, or arriving through sync — and, since this increment, `GeometrySidecarChanged`
+  for the SHAPE moving the same way. A `.rpgeo` carries no index entry and, for an asset, no
+  index MAPPING either (ADR-0014 derives its home from a setting rather than from a scan), so
+  nothing the third list filters on is ever raised for one; the pipeline never reads the
+  document, so it cannot honestly publish a design-changed event on its own behalf either.
+  `VaultChangeAdapter.processSidecar` raises the new event instead, filtered identically on
+  both `assetDesignChangeSource` and `planChangeSource` — the plan editor gained the same
+  arm in the same change, since a plan's sidecar and an asset's are one file type under two
+  owners and an id alone does not say which leaf a change belongs to.
+- **A fallow finding traced to a construction site, not a call site.** `AssetSuggestModal`
+  reported two unused class members where its three siblings (`PlanSuggestModal`,
+  `ProjectSuggestModal`, `PlanBackgroundSuggestModal`) did not, despite an identical shape —
+  every sibling has its own dedicated unit test constructing it BY NAME
+  (`new ProjectSuggestModal(...)`), where this one was only ever retrieved from the test
+  double's own generic `FuzzySuggestModal<Asset>` array and cast to the MOCK's base type.
+  Fallow's reachability analysis cannot connect a call through that erased type back to the
+  subclass's own overrides. The fix is the missing sibling test, not a suppression — this
+  repository's fallow section already has a rule against trusting a tool's first suggested
+  remedy, and a hand-added `fallow-ignore-next-line` here would have hidden a real gap in
+  test architecture rather than closed one.
+- **A hand-edited id colliding on a case-insensitive filesystem was refused on the READ door
+  and asked nothing on the DELETE one.** `cabinet-1` and `Cabinet-1` derive two different
+  sidecar paths that are the SAME file on Windows and macOS; the read side had always refused
+  the mismatch (`asset-id-mismatch`), and the delete side derived a path, found a file and
+  trashed it — so deleting either colliding asset silently destroyed the other's design, with
+  nothing to restore from, since a deleted design has no revision behind it. Reported against
+  the read path; found on the delete path by tracing the reported one, which this
+  repository's Testing section already has a name for (a partial fix that reads like a
+  complete one). `declaredAssetOf` closes it: a sidecar positively declaring a DIFFERENT
+  asset is refused before deletion, and one too corrupt to declare anything at all stays
+  deletable, because refusing that would strand a mangled file permanently.
+- **Two path helpers agreed on which characters they refused, and the agreement was
+  accidental.** `isPathSegment` refused the separator hazard (`/`, `\`, `.`, `..`); the same
+  module's `fileNameFor` had a docblock naming the FULL forbidden set
+  (`\ / : * ? " < > | # ^ [ ]` plus edge dots and spaces) that `isPathSegment` did not enforce
+  — nine of ten characters admitted. A colon is not a path-nesting hazard, it is an INVALID
+  FILENAME on Windows only, which is why this plugin's CI carries a Windows leg at all: paths
+  are one of the two things that differ across platforms. The vocabulary is exported and
+  shared now rather than restated per caller, with the two operations kept distinct on
+  purpose — `fileNameFor` STRIPS these from a name a user chose, `entityRefOf` REFUSES them
+  outright, because an id IS the identity and there is nothing to clean it into.
+- **A finite vertex set can have a non-finite AREA, and three separate consumers each read
+  the same wrong number as if it were real.** `(0,0)`, `(1e308,0)`, `(0,1e308)` passes
+  `createPolygon` and its shoelace sum is `Infinity`: `enclosesArea` read that as a genuine
+  area and let the footprint persist, `centroid` divided an infinite accumulator by it and
+  answered a confident `ok` carrying `NaN`, and `area` reported `Infinity` as a measurement —
+  which becomes a Requirement's quantity and its cost the moment this asset is ever placed,
+  since `Zone.area()` is the identical call. The review finding named `enclosesArea` alone;
+  all three were fixed, because fixing only the one named is how this repository has shipped
+  a partial fix that reads like a complete one at least twice already. `polygon-area-overflow`
+  is a code distinct from `polygon-zero-area`, so "cannot weight a centroid by a zero area" is
+  never printed over a footprint whose real defect is the opposite extreme.
+- **A preflight that checks less than the command it precedes is a guarantee the code beside
+  it does not keep.** `NewAssetForm`'s docblock promised "everything purely checkable is
+  checked before anything is written", while its preflight called `footprintFromDimensions`
+  alone and the command composes a whole shape through `validateAssetShape` — so
+  `Number.MIN_VALUE * 2` (four distinct vertices whose shoelace products all underflow to
+  zero) passed the preflight, committed the asset note, and was refused as degenerate only
+  then, leaving a catalogue entry with no footprint and no way to retry into one (the
+  catalogue fields freeze once the note exists, precisely so a vault fault cannot mint two
+  entries). The preflight composes the identical shape the command composes now, so the two
+  cannot disagree in either direction.
+
+**What this increment deliberately does NOT build, because the epic's own Definition of Done
+draws the line here and no item beneath it may claim otherwise:**
+
+- **Nothing draws this shape on a Plan.** A footprint, a clearance, an anchor and a facing
+  exist on the asset's OWN canvas and nowhere else — [[Asset placement]] is a separate epic
+  that does not exist yet, and no code anywhere in this plugin reads an asset's geometry from
+  a Plan's own render path.
+- **Nothing computes with the height, and nothing consumes the clearance.** Both are stored,
+  shown and round-tripped; neither is read by a calculation, a fit check or an overlap test
+  anywhere in the product. *Does the worktop clear the window sill* is a question this
+  increment does not answer and the epic's own Definition of Done refuses in advance.
+- **The designer canvas renders no gesture IN PROGRESS.** `RenderState.polygonSketch` and
+  `RenderState.measurement` are published by these tools exactly as their Plan Editor
+  counterparts are, and no designer layer reads either — no task in this plan builds a
+  designer interaction layer. A traced footprint appears the instant it is committed and a
+  facing arrow the instant it is written; the rubber band or direction line in between is
+  invisible. This is increment-level and outlives it: it will need its own task, not a fix
+  folded into a future one that happens to touch the canvas.
+- **The epic's recoverability condition is not met, and nothing is lost by that today.**
+  [[Asset designer]]'s Definition of Done asks that every attribute a PLACEMENT referenced
+  stay identifiable after the fact, because an approved Plan revision must not silently
+  redraw around an edited definition. One mutable sidecar retains no earlier state, and
+  nothing references a shape yet — so the trigger is the first increment that lets a
+  placement point at one, not this one.
+- **There is no UI to replace an asset's OWN background once one is set.** The "Choose a
+  background" button is the `noBackground` empty state's own action, and
+  `selectAssetDesignerEmptyState` stops answering that key the moment a background exists.
+  Reaching a second background this increment means a second asset.
+
+One residual worth naming rather than leaving to be re-found. **The asset geometry sidecar
+has no migration table at all, where its plan-geometry sibling does.** `AssetGeometryDTO`
+carries its own `schemaVersion: z.literal(1)`, but `DiagnosticEntityKind` — the one union
+`MIGRATION_SET` and `GetDiagnosticsSnapshot` both key on — has no `asset-geometry` member,
+only `plan-geometry` beside `project`, `plan`, `zone`, `asset` and `requirement`. So a future
+version of this document has no registered upgrade path and no line in a diagnostics
+snapshot, where an incompatible PLAN sidecar would have both. `PLAN_GEOMETRY_MIGRATIONS` is
+itself empty, so nothing here has actually exercised either table — this is a gap in the
+STRUCTURE rather than a proven consequence, and it is written down rather than closed because
+closing it means deciding whether an asset's shape is a seventh diagnostic entity kind, which
+is a design decision this increment's own scope does not include.
+
+The `asset` note schema's own migration table (`ASSET_MIGRATIONS`) is empty too, and the six
+migration tables the currency increment's own section above records as still empty remain
+empty here: this increment's note-level schema change (Task B7's background fields) was
+additive, exactly like the currency increment's own project-schema change, so nothing here
+paid down `MigrationRunner`'s proof-on-a-real-chain obligation either.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

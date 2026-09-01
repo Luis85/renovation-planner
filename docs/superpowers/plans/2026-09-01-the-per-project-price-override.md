@@ -73,6 +73,7 @@ try the same three in the same order.
 | `src/application/event-handlers/requirement/onAssetPriceOverrideChanged.ts` | The project-narrowed cascade. |
 | `src/application/queries/ListProjectAssetPrices.ts` | The section's read model. |
 | `src/application/events/projectPricesChangeSource.ts` | Tells an open project pane a price moved. |
+| `src/application/events/requirementFiguresChangeSource.ts` | Tells an open Inspector a requirement's stored figures were rewritten. |
 | `src/presentation/views/AssetPriceList.vue` | The section on the project detail state. |
 
 **Modified:**
@@ -349,9 +350,10 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 **Interfaces:**
 - Consumes: Task 1's `AssetPriceOverride`, `AssetPriceOverrideId`; `Expected`, `EntityVersion`,
   `Loaded` from `application/ports/versioning`; `RepositoryError` from `ports/repositoryErrors`.
-- Produces: `interface AssetPriceOverrideRepository` with `getById`, `getForPair`,
-  `listByProject`, `listByAsset`, `save`, `delete`; and
-  `assetPriceOverrideContract(makeRepo)`, the shared contract test Task 3 reuses.
+- Produces: `interface AssetPriceOverrideRepository` with `getForPair`, `listByProject`,
+  `listByAsset`, `save`, `delete` — **five**, which is the spec's Decision 3 exactly (the task
+  document's four plus `listByAsset`); and `assetPriceOverrideContract(makeRepo)`, the shared
+  contract test Task 3 reuses.
 
 - [ ] **Step 1: Write the port**
 
@@ -377,9 +379,19 @@ import type { Expected, EntityVersion, Loaded } from './versioning';
  * `listByAsset` exists for ONE caller — `onAssetUpdated`'s skip test, which fans out across
  * every project referencing a shared asset and needs the overrides for all of them in one read
  * rather than one read per requirement. It is what makes that correction cost one query.
+ *
+ * **There is deliberately no `getById`, and every sibling entity port has one.** `AssetRepository`
+ * and `ProjectRepository` both declare it because commands there hold an id and want the entity;
+ * nothing in this increment does. The clear command and Task 7a's cleanup both delete from
+ * entities they already loaded, so the sentence above — an id-keyed read answers a question no
+ * caller has — would otherwise sit three lines above a method contradicting it. Uniformity is a
+ * reason and it is not the same reason as necessity: the alternative was to keep it and amend
+ * the spec's Decision 3 from five methods to six, and the argument for dropping it is that a
+ * port method with no caller is a claim nothing rests on, while adding one back is one line the
+ * day a caller exists. The note-backed repository still needs a by-id read for `filterLoaded`
+ * and keeps one as a PRIVATE method.
  */
 export interface AssetPriceOverrideRepository {
-	getById(id: AssetPriceOverrideId): Promise<Result<Loaded<AssetPriceOverride> | null, RepositoryError>>;
 	getForPair(
 		projectId: ProjectId,
 		assetId: AssetId,
@@ -591,12 +603,17 @@ export function assetPriceOverrideContract(
 
 		it('refuses a delete whose expected revision is stale', async () => {
 			const repo = await makeRepo();
-			const saved = expectOk(await repo.save(makeOverride(createProjectId(), createAssetId()), 'absent'));
+			const projectId = createProjectId();
+			const assetId = createAssetId();
+			const saved = expectOk(await repo.save(makeOverride(projectId, assetId), 'absent'));
 			const edited = expectOk(saved.entity.withUnitCost(moneyOf('21.00', 'GBP')));
 			const second = expectOk(await repo.save(edited, saved.version));
 			const stale = await repo.delete(saved.entity.id, saved.version);
 			expect(stale.ok).toBe(false);
-			expect(expectOk(await repo.getById(second.entity.id))).not.toBeNull();
+			// Read it back through the PAIR rather than by id: the port has no `getById`, and
+			// this is the same claim — the note the second save left is still the pair's note.
+			const survivor = expectOk(await repo.getForPair(projectId, assetId));
+			expect(survivor?.entity.id).toBe(second.entity.id);
 		});
 	});
 }
@@ -648,10 +665,6 @@ export class InMemoryAssetPriceOverrideRepository implements AssetPriceOverrideR
 
 	poke(id: AssetPriceOverrideId): void {
 		this.store.poke(id);
-	}
-
-	getById(id: AssetPriceOverrideId): Promise<Result<Loaded<AssetPriceOverride> | null, PersistenceError>> {
-		return Promise.resolve(ok(this.store.get(id)));
 	}
 
 	getForPair(
@@ -1061,7 +1074,12 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 		private readonly logger: Logger,
 	) {}
 
-	getById(id: AssetPriceOverrideId): Promise<Result<Loaded<AssetPriceOverride> | null, RepositoryError>> {
+	/**
+	 * PRIVATE, and not on the port: `filterLoaded` walks the index by id and this is how it
+	 * reads one. No caller above `infrastructure/` asks a price override for its id — see the
+	 * port's own header for why that is a decision rather than an omission.
+	 */
+	private readById(id: AssetPriceOverrideId): Promise<Result<Loaded<AssetPriceOverride> | null, RepositoryError>> {
 		return readNoteBackedEntity(
 			this.deps,
 			'asset-price',
@@ -1139,7 +1157,7 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 		const ids = this.deps.index.getIdsByType('renovation-asset-price') as AssetPriceOverrideId[];
 		const loaded: Loaded<AssetPriceOverride>[] = [];
 		for (const id of ids) {
-			const found = await this.getById(id);
+			const found = await this.readById(id);
 			if (isErr(found)) return found;
 			if (found.value !== null && predicate(found.value.entity)) loaded.push(found.value);
 		}
@@ -3002,16 +3020,27 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Files:**
 - Modify: `src/presentation/editor/shell/RequirementRow.vue`
+- **Create: `src/application/events/requirementFiguresChangeSource.ts`** (step 3a) — the third
+  source. Nothing under `src/application/events/` subscribes to any recalculation event today:
+  `planChangeSource` carries five plan events, `assetCatalogueChangeSource` four catalogue ones
+  plus a filtered index event, and Task 9's `projectPricesChangeSource` two price ones. Without
+  this module every scheduled wiring edit can be completed and `PlanEditorContext` still has no
+  door to hear `RequirementRecalculated` through, which leaves the block showing a new price
+  beside old persisted provenance — the exact defect step 3a's third source exists to close.
 - Modify: `src/presentation/editor/tools/editor-context.ts` (or wherever `PlanEditorContext` is
-  declared) and `src/plugin/composition-root.ts` — the price-change subscription, step 3a.
+  declared) and `src/plugin/composition-root.ts` — **three** subscriptions, step 3a: the price
+  one, the existing `onCatalogueChanged`, and this new one.
 - Modify: `src/presentation/i18n/en.ts`, `src/presentation/i18n/de.ts`
 - Modify: `styles/` (the row's own partial)
 - Test: `tests/presentation/editor/requirementRow.test.ts` (extend)
 - Test: `tests/presentation/editor/inspectorPriceRefresh.test.ts`
+- Test: `tests/application/events/requirementFiguresChangeSource.test.ts`
 
 **Interfaces:**
 - Consumes: Task 8's `RequirementInspectorDTO.unitCost: { catalogue, projectOverride, effective } | null`.
-- Produces: no new exports.
+- Produces: `createRequirementFiguresChangeSource(bus, onChanged)` from
+  `src/application/events/requirementFiguresChangeSource.ts`, and a
+  `PlanEditorContext.onRequirementFiguresChanged` member bound to it at the composition root.
 
 **Why this is its own task.** Task 8 adds the DTO group and populates it, and **nothing renders
 it** — no step in this plan touched `RequirementRow.vue` or `InspectorPanel.vue`, so spec
@@ -3089,6 +3118,26 @@ to no recalculation event at all.
 So the refresh also listens to **`RequirementRecalculated`**, which the cascade publishes after
 each requirement is rewritten — the event that actually means "this requirement's stored figures
 moved".
+
+**That door has to be BUILT, and the first draft of this step named the event and scheduled no
+module.** `src/application/events/` holds three sources and none of them carries a recalculation
+event, so an implementer could finish every wiring edit in this plan with the Inspector still
+unable to hear one. `createRequirementFiguresChangeSource` is the fourth, in the same directory
+and for the same reason the other three live there: `application/` is the layer allowed to know
+both the `EventBus` port and the event names, so `presentation/` takes a callback and learns
+neither.
+
+It subscribes to `RequirementRecalculated` alone and **passes the payload's `projectId` to its
+callback** rather than filtering on one itself. The filter belongs to the caller here, which is
+the opposite of `assetCatalogueChangeSource`'s shape and has a reason: a Plan Editor leaf knows
+its plan id at construction and its PROJECT id only after the plan resolves, so a projectId bound
+when the source is created would be bound to nothing — the "a value derived from two inputs goes
+stale when either moves" shape this repository has already paid for three times. The runtime
+compares the delivered id against the `PlanDto.projectId` it currently holds (`PlanDto` declares
+that field, and `runtime.ts` already consumes the DTO), and rehydrates on a match or when no plan
+has resolved yet. The payload carries no zone id, so the Inspector cannot narrow further than the
+project — which is what the single-flight loader below makes affordable rather than merely
+correct.
 
 **A project-wide cascade fires one of those per requirement, and the request ticket does NOT
 collapse that burst** — an earlier draft of this plan said it did, and reading
@@ -3355,6 +3404,13 @@ Two subscriptions, not one, and the split is by concern rather than by convenien
 
 Filter both, for the reason `assetCatalogueChangeSource`'s header gives: unfiltered, a burst of
 synced zone notes re-reads the whole catalogue once per note.
+
+**This is not the recalculation source.** Task 8a creates
+`src/application/events/requirementFiguresChangeSource.ts` for `RequirementRecalculated`, which
+neither of these two subscribes to — write it in whichever of the two tasks runs first and
+consume it in the other, exactly as this source itself is shared. The project pane does NOT need
+it: this section renders the catalogue price and the project's own, both of which the two
+subscriptions above cover, and no provenance figure that only a recalculation moves.
 
 Both hand rehydration to the SAME request ticket from Step 4 — two sources firing together is
 exactly the concurrent-hydrate race that ticket exists for.

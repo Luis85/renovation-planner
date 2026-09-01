@@ -739,6 +739,16 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Create: `src/infrastructure/persistence/mappers/assetPriceMapper.ts`
 - Create: `src/infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository.ts`
 - Modify: `src/application/ports/ProjectIndex.ts` (the `ENTITY_TYPES` array)
+- **Modify: `src/infrastructure/obsidian/repositories/noteEntityWrite.ts`** — `NoteWriteSpec.indexType`
+  is declared `'renovation-asset' | 'renovation-requirement'`, a hand-written union, so the
+  repository below does not compile at this task's boundary and its promised green commit does
+  not happen. Type it **`EntityType`** rather than adding a third literal: `ENTITY_TYPES`'s own
+  docblock records that this vocabulary had "three spellings … with nothing to notice them
+  drifting" and that the array is the declaration everything else derives from — this field is a
+  fourth spelling, and the same argument applies to it. `infrastructure/` may import
+  `application/ports/ProjectIndex`, and `spec.indexType` is already passed straight to
+  `index.upsert`, whose own field is `EntityType`, so the narrowing was never buying anything the
+  call site did not already require.
 - Modify: `src/application/ports/diagnostics.ts` (`DiagnosticEntityKind`)
 - Modify: `src/infrastructure/persistence/migration/migrationSet.ts`
 - Modify: `src/infrastructure/obsidian/repositories/paths.ts`
@@ -758,6 +768,13 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 without its (empty) migration table is a build error rather than a silent gap. `ENTITY_TYPES`
 is a runtime `includes` test, so adding to it breaks nothing and is checked by the index test
 instead.
+
+**And it was not the whole checklist, which is the lesson rather than the fix.** That paragraph
+enumerated the two closed unions its author had thought of; `NoteWriteSpec.indexType` is a third,
+in `infrastructure/`, and nothing pointed at it. `grep -rn "renovation-requirement" src/` before
+writing the repository is what finds every place this vocabulary is spelled out by hand — the
+same instrument `libraryMigration.ts` already recommends for a new entity type, in a comment
+about notes being "silently left behind by every library move".
 
 - [ ] **Step 1: Write the failing mapper tests**
 
@@ -2736,8 +2753,32 @@ wrapper compiles nowhere.
 	 * data, not lost data: the asset is gone, no Requirement can derive from it, and the user
 	 * can delete the note in Obsidian. The alternative ordering trades that for destroying real
 	 * prices belonging to an asset that still exists.
+	 *
+	 * **It takes the asset's own level-1 lock, in its OWN session, and the read is inside it.**
+	 * `runDeleteResolution` releases its session before returning, so by the time this runs
+	 * nothing holds the asset — and both price commands acquire `[projectId, assetId]` at level
+	 * 1, so without this a clear in another leaf can list the same version and race the
+	 * conditional delete: one side gets a revision conflict, and if that side is this one, the
+	 * user is warned an orphan remains that the clear had in fact removed. A warning about a
+	 * note that is gone is worse than the residual this method exists to report honestly.
+	 *
+	 * The ASSET id alone is enough and the project ids are deliberately not taken: level-1 locks
+	 * are per id, and every price command's acquisition includes this asset, so holding it
+	 * excludes all of them across every project. Taking the project ids too would mean listing
+	 * first to learn them — and `ReferenceLocks` raises on a second acquisition within a level,
+	 * so the read could not then be moved inside the lock it needs to be inside.
 	 */
 	private async deleteOverridesOf(assetId: AssetId): Promise<void> {
+		const session = this.ops.locks.beginSession();
+		await session.acquire([assetId], []);
+		try {
+			await this.deleteOverridesLocked(assetId);
+		} finally {
+			session.release();
+		}
+	}
+
+	private async deleteOverridesLocked(assetId: AssetId): Promise<void> {
 		const listed = await this.ops.overrides.listByAsset(assetId);
 		if (isErr(listed)) {
 			this.ops.logger.error('asset-price.orphaned-by-asset-delete', { assetId, cause: listed.error });
@@ -2760,11 +2801,27 @@ wrapper compiles nowhere.
 	}
 ```
 
+Plus the interleaving the lock exists for:
+
+```ts
+	/**
+	 * A clear landing between the sequence's release and this cleanup. Without the lock both
+	 * paths list the same version and race their conditional deletes: one refuses, and when
+	 * that one is the cleanup the user is warned about an orphan the clear had already removed.
+	 * Assert BOTH halves — the note is gone AND `notify.priceCleanupFailed` was never called —
+	 * because "the note is gone" is equally true of the racing build.
+	 */
+	it('does not warn about an orphan a concurrent clear already removed', async () => {
+		// Hold the clear's own acquisition open until the delete is dispatched, then release.
+	});
+```
+
 - [ ] **Step 4: Run, then mutation-check**
 
 Run the file — PASS. Then delete the `await this.deleteOverridesOf(...)` call: the first three
 cases must redden. If only one does, your fixtures share a project or an asset and the other two
-are not testing what their names say.
+are not testing what their names say. Then delete the `session.acquire([assetId], [])`: the
+interleaving case must redden, and it is the only one that can — the others are sequential.
 
 - [ ] **Step 5: Full gate, then commit**
 
@@ -2926,11 +2983,22 @@ whose `missingTarget` is `'asset'` — do not invent a zero.
 
 **The rendering rule that follows, stated here because it is a property of the group rather than
 of the component:** `catalogue` always draws; `projectOverride` draws when it is not null; and
-`effective` draws whenever it differs from the current resolution (`projectOverride ?? catalogue`)
-— which is the whole point of it being provenance rather than a resolution. The in-force mark
-goes on the figure the displayed cost was DERIVED from, so it lands on whichever drawn figure
-equals `effective`, and on `effective`'s own row when it equals neither. One figure is therefore
-the fresh, unoverridden case only; two and three are the stale ones.
+`effective` draws as its OWN row whenever it differs from the current resolution
+(`projectOverride ?? catalogue`) — which is the whole point of it being provenance rather than a
+resolution.
+
+**The mark is decided by PRECEDENCE, not by equality**, and an earlier draft had it the other way
+round: "the mark lands on whichever drawn figure equals `effective`". A project may perfectly
+well set its own price to the same number the library charges, and then both drawn figures equal
+`effective` and both were marked — the surface saying two different rows are the one in force. So
+the mark goes on the source of the current resolution: the project row whenever an override
+exists, the catalogue row otherwise. The provenance row, when it draws, carries its own label
+("these figures were calculated from") rather than the in-force mark, which is the truer sentence
+anyway: on a stale row the figure in force and the figure the numbers came from are different
+things, and labelling each as what it is beats marking one of them twice.
+
+A mark exists to DISAMBIGUATE, so it is drawn only when more than one figure is. One figure —
+the fresh, unoverridden case — needs none.
 
 **Compare the fields, not with `Money.compare`.** That function returns a `Result` and REFUSES a
 currency mismatch — which is exactly the state this increment exists around, a GBP override
@@ -3090,12 +3158,24 @@ describe('RequirementRow unit cost', () => {
 	 */
 	it('shows the provenance beside the library price when they differ and there is no override', () => {
 		// unitCost: { catalogue: 26.00 EUR, projectOverride: null, effective: 24.00 EUR }
-		// Two figures; the 24.00 carries the in-force mark, because it is what the numbers
-		// beside it were computed from.
+		// Two figures. The in-force mark is on the 26.00 — no override, so the library price
+		// is the current resolution — and the 24.00 draws as the provenance row, labelled as
+		// what the figures beside it were computed from. Two labels, never one mark twice.
 	});
 
 	/** §85: never colour alone. The in-force marker is a word or a glyph plus the colour. */
 	it('marks the figure in force with something a screen reader reads', () => { … });
+
+	/**
+	 * The case every other one here is blind to, because they all use different numbers: a
+	 * project whose own price happens to equal the library's. An equality-based mark marks BOTH
+	 * rows and the surface claims two figures are the one in force; precedence marks the project
+	 * row and only that one.
+	 */
+	it('marks the project row alone when the override equals the library price', () => {
+		// unitCost: { catalogue: 24.00 GBP, projectOverride: 24.00 GBP, effective: 24.00 GBP }
+		// Exactly one in-force mark, on the project row.
+	});
 
 	/** Decision 6's "three numbers in the worst case", and the only shape that needs all three:
 	 *  a project price that moved out of band under a failed recalculation. */

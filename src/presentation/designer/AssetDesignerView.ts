@@ -108,8 +108,14 @@ export class AssetDesignerView extends ItemView {
 	 * it in one place is what keeps a restore from mounting twice.
 	 */
 	setState(state: unknown, _result: ViewStateResult): Promise<void> {
-		const parsed = assetIdFrom(state);
-		if (parsed !== null) this.assetId = parsed.assetId;
+		// **ALWAYS assigned, including when the parse refuses.** Assigning only on success left a
+		// reused leaf showing the asset it already had when handed `{}`, a non-object, or the
+		// empty-id sentinel `getState` itself writes — `assetIdFrom` answers `null` for all of
+		// them. Two consequences, and the second outlived the session: the designer went on
+		// showing an asset nobody asked it to open, and `getState()` reported that asset's id, so
+		// Obsidian persisted it into the workspace layout. A state this view cannot read means it
+		// does not know what is being asked for, and the honest answer to that is nothing.
+		this.assetId = assetIdFrom(state)?.assetId ?? null;
 		this.sync();
 		return Promise.resolve();
 	}
@@ -125,8 +131,10 @@ export class AssetDesignerView extends ItemView {
 	 * alive against a detached tree and the next open would stack a second one on top.
 	 */
 	onClose(): Promise<void> {
+		// `unmount` empties the container now, so the separate call this used to make is gone
+		// rather than left standing: a redundant line that reads as load-bearing is how the next
+		// reader concludes the emptying lives here.
 		this.unmount();
-		this.contentEl.empty();
 		return Promise.resolve();
 	}
 
@@ -146,7 +154,15 @@ export class AssetDesignerView extends ItemView {
 	private mountedAssetId: string | null = null;
 
 	private sync(): void {
-		if (this.assetId === null || this.assetId === this.mountedAssetId) return;
+		// Clearing the field is half a fix, and this is the other half: with no asset this used
+		// to return early WITHOUT unmounting, so the previous tree stayed on screen and nothing a
+		// user could see had changed. `unmount` is idempotent, so the ordinary no-asset case —
+		// a leaf opened before any state arrives — costs nothing.
+		if (this.assetId === null) {
+			this.unmount();
+			return;
+		}
+		if (this.assetId === this.mountedAssetId) return;
 		this.unmount();
 		this.mount(this.assetId);
 	}
@@ -177,9 +193,17 @@ export class AssetDesignerView extends ItemView {
 		this.mountedAssetId = assetId;
 	}
 
+	/**
+	 * **Unmounted means nothing of ours is in the DOM**, which is why the container is emptied
+	 * here rather than by each caller. Unmounting the Vue app leaves the host `div` behind, and
+	 * that went unnoticed because `mount` empties before it builds — so the leftover was always
+	 * swept away by the NEXT mount. With no asset to show there is no next mount, and the pane
+	 * kept a stale, inert shell of the design it had just been told to stop showing.
+	 */
 	private unmount(): void {
 		this.vueApp?.unmount();
 		this.vueApp = null;
 		this.mountedAssetId = null;
+		this.contentEl.empty();
 	}
 }

@@ -135,6 +135,40 @@ describe('the asset a designer leaf is showing', () => {
 	});
 
 	/**
+	 * **A state this view cannot read must not leave the previous asset open.**
+	 *
+	 * `setState` assigned only when the parse SUCCEEDED, so a reused leaf handed `{}` — or an
+	 * empty id, which `assetIdFrom` also answers `null` for — kept the asset it already had.
+	 * Two things followed, and the second outlives the session: the designer went on showing an
+	 * asset nobody asked it to open, and `getState()` reported that asset's id, so Obsidian
+	 * persisted it into the workspace layout.
+	 *
+	 * **Both halves had to move**, which is why this case asserts on the DOM as well as on the
+	 * field. Clearing `assetId` alone changes nothing a user can see: `sync()` returned early on
+	 * `null` without unmounting, so the previous tree stayed on screen — and a case asserting
+	 * only `getState()` would have passed over exactly that.
+	 *
+	 * An empty id and a malformed state are ONE case here rather than two, and this corrects a
+	 * claim I made on the review thread before reading `assetIdFrom`: `''` is what `getState`
+	 * WRITES for "no asset", and the parse maps it to the same `null` a malformed state gets, so
+	 * neither cleared. The sentinel is a fact about the serialised form, not about the parse.
+	 */
+	it.each([
+		['a malformed state', {}],
+		['a non-object state', 'nonsense'],
+		['a state whose id is not a string', { assetId: 42 }],
+		['the empty-id sentinel', { assetId: '' }],
+	])('closes the asset it was showing when handed %s', async (_name, next) => {
+		const view = await opened();
+		expect(view.contentEl.querySelector('.renovation-asset-designer-view')).not.toBeNull();
+
+		await view.setState(next, {} as never);
+
+		expect(view.getState()).toEqual({ assetId: '' });
+		expect(view.contentEl.querySelector('.renovation-asset-designer-view')).toBeNull();
+	});
+
+	/**
 	 * A restored leaf and a leaf Obsidian has just created arrive in the OPPOSITE order —
 	 * `setState` before `onOpen` for the first, `onOpen` before `setState` for the second — and
 	 * Obsidian promises neither. Both route through one `sync`, so the tree is mounted once

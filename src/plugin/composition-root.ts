@@ -1,6 +1,5 @@
-import type { FileManager, MetadataCache, Vault, Workspace } from 'obsidian';
+import type { Vault, Workspace } from 'obsidian';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
-import type { Currency } from '../core/money/Money';
 import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
@@ -30,8 +29,6 @@ import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFile
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
-import { ObsidianAssetRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetRepository';
-import { ObsidianRequirementRepository } from '../infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import {
 	createPlanEditorQueries,
 	unavailablePlanEditorQueries,
@@ -68,15 +65,9 @@ import type { Loaded } from '../application/ports/versioning';
 import type { Project } from '../domain/project/Project';
 import type { Plan } from '../domain/plan/Plan';
 import type { Zone } from '../domain/zone/Zone';
-import { IndexLibraryOverlaps } from '../infrastructure/obsidian/repositories/IndexLibraryOverlaps';
-import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
-import { AssetGeometryStore } from '../infrastructure/obsidian/repositories/AssetGeometryStore';
-import { ObsidianAssetGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
+import type { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
 import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
-import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
-import { ObsidianProjectRepository } from '../infrastructure/obsidian/repositories/ObsidianProjectRepository';
-import { ObsidianZoneRepository } from '../infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { createMigrationRunner, type MigrationRunner } from '../infrastructure/persistence/migration/MigrationRunner';
 import { MIGRATION_SET } from '../infrastructure/persistence/migration/migrationSet';
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
@@ -98,7 +89,14 @@ import {
 	type UnguardedSlice10Services,
 } from './guardedServices';
 import { composeSlice10, sequenceNotices, type Slice10Wiring } from './slice10Composition';
+import { composeRepositories, type VaultStack } from './repositoryComposition';
 import type { RenovationPlannerSettings } from './settings/settings';
+
+// Re-exported so every existing `import { …, type VaultStack } from './composition-root'`
+// keeps resolving: the interface itself moved to `repositoryComposition.ts` alongside the
+// unguarded repository construction it describes, the way `guardedServices.ts` already
+// holds the guarded half of the same seam.
+export type { VaultStack };
 
 /**
  * The ONE place dependencies are composed (SDD §10). At this slice it composes two things,
@@ -255,16 +253,6 @@ export interface PersistenceServices
 }
 
 /**
- * The vault collaborators the persistence stack reads and writes through — the raw
- * `app` surface, gathered once so nothing downstream needs the whole `App`.
- */
-export interface VaultStack {
-	readonly vault: Vault;
-	readonly fileManager: FileManager;
-	readonly metadataCache: MetadataCache;
-}
-
-/**
  * The collaborators that OUTLIVE a root, supplied by the plugin rather than built here.
  * `saveSettings` rebuilds this whole stack, and neither of these may be rebuilt with it:
  * validation issues recorded before the change describe the SESSION's vault reads rather
@@ -278,49 +266,6 @@ export interface VaultStack {
 export interface SessionCollaborators {
 	readonly ledger?: DiagnosticsLedger;
 	readonly markers?: SequenceMarkerStore;
-}
-
-function composeRepositories(
-	deps: NoteVaultDeps,
-	vault: VaultStack,
-	newProjectRoot: string,
-	libraryFolder: string,
-	defaultCurrency: Currency,
-) {
-	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
-	// ONE store, two consumers, and the sharing is the point rather than an economy: the
-	// asset repository holds it for the DELETE (an asset's note and its sidecar go together)
-	// and the design commands write through the port below it, and `KeyedQueues` is per
-	// INSTANCE — so a second store built beside this one would split the per-asset lock those
-	// two share and leave a delete free to interleave with a design write.
-	const assetGeometryStore = new AssetGeometryStore(vault.vault, vault.fileManager, libraryFolder, deps.echo);
-	return {
-		geometryStore,
-		// The port, not the store: `plugin/` is where an infrastructure class becomes the
-		// application's own interface, and the design commands are typed against the port.
-		assetGeometry: new ObsidianAssetGeometrySidecar(assetGeometryStore),
-		// `newProjectRoot` is a real argument, not `deps.projectFolder` read inline — this
-		// repository is the only one that ever writes a note whose folder does not already
-		// exist to be derived from, so it takes the setting as its own constructor
-		// argument rather than through the shared `NoteVaultDeps` field. That field is what
-		// Task 7 deletes; reading it here would have left this call site needing a second
-		// edit the day it goes.
-		projects: new ObsidianProjectRepository(deps, newProjectRoot, libraryFolder, defaultCurrency),
-		plans: new ObsidianPlanRepository(deps, geometryStore),
-		zones: new ObsidianZoneRepository(deps, geometryStore),
-		assets: new ObsidianAssetRepository(deps, libraryFolder, assetGeometryStore),
-		requirements: new ObsidianRequirementRepository(deps),
-		// §83's third site, which has no door to refuse at: ADR-0013 derives a project's
-		// folder from where its `Project.md` sits, so a user moves a project by dragging a
-		// folder in Obsidian's file explorer. Composed here rather than passed as a sixth
-		// argument to `composeGuarded`, which already sits at `max-params`: this is the
-		// bundle built from `deps.index` and the library setting, and both are already here.
-		overlaps: new IndexLibraryOverlaps(deps.index, libraryFolder),
-		// The CreateProjectCommand's own currency argument. Bundled into this return rather
-		// than a sixth composeGuarded parameter — composeGuarded already takes `repositories`
-		// whole and destructures it, the same grouping SessionCollaborators argues for above.
-		defaultCurrency,
-	};
 }
 
 /**

@@ -59,6 +59,7 @@ import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
 import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
+import type { AssetId } from '../../domain/asset/AssetId';
 
 const context = useRenovationProjectContext();
 const store = useRenovationProjectStore();
@@ -152,18 +153,24 @@ async function onCreateProject(): Promise<void> {
  * `hydrate()` re-reads the PROJECT list, and creating an asset changes nothing in it — an
  * Asset is vault-wide and carries no project id at all since design slice 19. Re-reading would
  * be a second answer to what this pane shows, produced by a gesture that did not change it.
- * There is no catalogue list on this surface for the new asset to appear in, which is the
- * honest reason the form's `submit` payload goes nowhere yet: Epic 6's catalogue is what
- * consumes it.
+ * There is no catalogue list on this surface for the new asset to appear in, which is why
+ * what this handler does instead — since Task B9 — is open the designer on what it made:
+ * `context.openAsset` is `renovationProjectOpenAsset` at the root, the same door
+ * `open-asset-designer`'s palette picker opens through, so a just-created asset and a picked
+ * one land in exactly one leaf either way.
  *
  * The two commands are handed down separately because the form's submit is a SEQUENCE over
  * them and it owns the ordering — see `NewAssetForm`'s header for why the pure checks run
  * before the first write and why a retry must not create a second asset.
+ *
+ * `result.values` is the raw payload `NewAssetForm` emitted (`FormDialogResult`'s own
+ * docblock: "typed by the form's own component"), which for this form is the `AssetId` it
+ * created — not an object, unlike the shape a caller might expect by analogy with a DTO.
  */
 async function onCreateAsset(): Promise<void> {
 	if (dialogs.current !== null) return;
 
-	await dialogs.openDialog({
+	const result = await dialogs.openDialog({
 		kind: 'form',
 		title: tr('form.new-asset.title'),
 		component: NewAssetForm,
@@ -179,6 +186,8 @@ async function onCreateAsset(): Promise<void> {
 		},
 		busy: newAssetBusy,
 	});
+	if (result === 'cancel') return;
+	await context.openAsset(result.values as AssetId);
 }
 
 /**

@@ -86,6 +86,10 @@ describe('a read that failed', () => {
 			'show-diagnostics-report',
 			'open-plan-editor',
 			'set-plan-background',
+			// Registered here too, the same shape `open-plan-editor` already takes: with no
+			// index built, the picker below says so through `asset.none` rather than being
+			// missing from the palette.
+			'open-asset-designer',
 			'create-sample-project',
 		]);
 	});

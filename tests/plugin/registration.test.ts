@@ -107,6 +107,9 @@ describe('what onload registers', () => {
 			'show-diagnostics-report',
 			'open-plan-editor',
 			'set-plan-background',
+			// Task B9: what makes ADR-0015's Asset Designer reachable at all — a picker over
+			// the vault's whole catalogue, the same shape `open-plan-editor` already takes.
+			'open-asset-designer',
 			// Scaffolding, and it still has to obey the id rule — a user who binds a hotkey to
 			// it has bound it to this string. `sampleProject.ts` names what deletes it.
 			'create-sample-project',

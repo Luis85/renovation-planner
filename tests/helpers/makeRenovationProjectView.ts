@@ -231,14 +231,16 @@ export const defaultRenovationProjectDeps = (
 		// The LIST state, which is what a harness mount with no query string draws and what
 		// every existing case of this factory has always been asserting against.
 		projectId: null,
-		// `navigate` and `openPlan` are the one place this default is deliberately INERT, and
-		// the reason is the same one `openProject`'s own paragraph gives: both are Obsidian
-		// workspace operations this harness has none of. A default that silently did nothing
-		// would let a view that never calls `navigate` pass a test written to prove that it
-		// does — every case that asserts on either passes its own `deps` instead of taking
-		// this one.
+		// `navigate`, `openPlan` and `openAsset` are the one place this default is deliberately
+		// INERT, and the reason is the same one `openProject`'s own paragraph gives: all three
+		// are Obsidian workspace operations this harness has none of. A default that silently
+		// did nothing would let a view that never calls `navigate` pass a test written to prove
+		// that it does — every case that asserts on any of the three passes its own `deps`
+		// instead of taking this one. `openAsset` joined the other two in Task B9, the same
+		// shape and for the same reason `openPlan` already states.
 		navigate: () => undefined,
 		openPlan: () => Promise.resolve(),
+		openAsset: () => Promise.resolve(),
 		onPlansChanged: () => () => undefined,
 		// TRUE, deliberately: the default vault here is a real in-memory repository that has
 		// already been read, so `ok(null)` from it is authoritative. Defaulting to `false`

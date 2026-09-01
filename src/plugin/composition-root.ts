@@ -52,7 +52,11 @@ import {
 } from '../presentation/read-models/renovationProjectQueries';
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
-import { renovationProjectOpenPlan, renovationProjectOpenProject } from './renovationProjectOpenSeams';
+import {
+	renovationProjectOpenAsset,
+	renovationProjectOpenPlan,
+	renovationProjectOpenProject,
+} from './renovationProjectOpenSeams';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
@@ -601,6 +605,7 @@ export function renovationProjectDeps(
 		navigate: options.navigate,
 		indexScanCompleted: options.indexScanCompleted,
 		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve(),
+		openAsset: persistence ? renovationProjectOpenAsset(workspace, root.logger) : () => Promise.resolve(),
 		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
 		// `onProjectsChanged` states three lines down: the bus is the root's own and exists
 		// either way, and a refusal bundle re-reading simply refuses again.

@@ -45,6 +45,10 @@ function deps() {
 	const listProjects = vi.fn<() => Promise<unknown>>(() =>
 		Promise.resolve(ok({ projects: PROJECTS, unreadable: 0 })),
 	);
+	// Task B9's door: the real one is `renovationProjectOpenAsset` bound to
+	// `revealAssetDesigner` at the composition root, and this is the mock that lets these
+	// cases watch it being reached without a real workspace behind it.
+	const openAsset = vi.fn<(assetId: string) => Promise<void>>(() => Promise.resolve());
 	return {
 		context: {
 			queries: { listProjects },
@@ -61,10 +65,12 @@ function deps() {
 			navigate: vi.fn<() => void>(),
 			onProjectsChanged: () => () => undefined,
 			projectId: null,
+			openAsset,
 		},
 		createAsset,
 		setAssetFootprintFromDimensions,
 		listProjects,
+		openAsset,
 	};
 }
 
@@ -175,6 +181,40 @@ describe('ViewRoot, creating an asset', () => {
 		expect(setAssetFootprintFromDimensions.mock.calls[0][0]).toEqual(
 			expect.objectContaining({ assetId: ASSET.id, width: 1200, depth: 800 }),
 		);
+	});
+
+	/**
+	 * Task B9's hand-off. The dialog's own resolution carries what the sequence made
+	 * (`FormDialogResult.values`, which for THIS form is the `AssetId` `NewAssetForm` emits
+	 * directly rather than an object — see `onCreateAsset`'s own docblock), and `onCreateAsset`
+	 * opens the designer on it through the SAME door `open-asset-designer`'s palette picker
+	 * uses: `context.openAsset`, bound to `revealAssetDesigner` at the composition root. Driven
+	 * end to end rather than asserted on the dialog's return value alone, which is what tells a
+	 * correct wiring from a plausible one — the recurring instrument in this file.
+	 */
+	it('opens the designer on the asset the dialog created', async () => {
+		setActivePinia(createPinia());
+		const { context, openAsset } = deps();
+		const wrapper = await openTheForm(context);
+
+		await wrapper.get('[data-field="name"]').setValue('Kitchen island');
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(openAsset).toHaveBeenCalledTimes(1);
+		expect(openAsset).toHaveBeenCalledWith(ASSET.id);
+	});
+
+	/** The other half: a cancelled dialog made nothing, so there is nothing to open. */
+	it('opens nothing when the dialog is cancelled', async () => {
+		setActivePinia(createPinia());
+		const { context, openAsset } = deps();
+		const wrapper = await openTheForm(context);
+
+		await wrapper.get('[data-rp-action="cancel"]').trigger('click');
+		await flushPromises();
+
+		expect(openAsset).not.toHaveBeenCalled();
 	});
 
 	/**

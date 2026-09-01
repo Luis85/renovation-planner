@@ -18,6 +18,7 @@ import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerCo
 import { ProjectSuggestModal } from '../presentation/modals/ProjectSuggestModal';
 import { entriesOfType } from './indexEntries';
 import { registerPlanEditorCommands } from './planEditorCommands';
+import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import { activateNotices, disposeNotices, notifyFault } from '../presentation/notices/notify';
@@ -285,6 +286,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// "still happen here", and they never did. What this file keeps is the ORDER: every
 		// registration is initiated from this one `onload`, in the sequence SDD §9 states.
 		registerPlanEditorCommands(this);
+
+		// ADR-0015's designer, made reachable (Task B9): a picker over the vault's whole
+		// catalogue, the same shape `registerPlanEditorCommands` gives its own picker.
+		registerAssetDesignerCommands(this);
 
 		// SCAFFOLDING, and its own module says so at length: one command that seeds a
 		// project, a plan and five zones through the real create commands, so slice 5's

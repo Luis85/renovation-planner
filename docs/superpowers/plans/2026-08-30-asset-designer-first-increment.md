@@ -1938,6 +1938,29 @@ that is no longer the id, which breaks the correspondence `libraryGeometryIn` wa
 round and which ADR-0014's layout states. The first is the one to take, and it is the same
 increment as residual 4 rather than a second one.
 
+**6. A geometry write racing the library migration is silently orphaned.** `migrateLibraryFolder`
+evaluates `[...catalogueNotes(source), ...geometrySidecars(source)]` ONCE, at the top of its move
+loop, and persists the new folder several awaits later. A first sidecar write landing in
+between — `NewAssetForm` submitted in another leaf, say — creates `<source>/Geometry/<id>.rpgeo`
+after the snapshot, so the loop never sees it, the setting persists, and the rebuilt store reads
+only `<destination>/Geometry/`. The footprint the user just saved reads back as `shape: null`,
+which `AssetGeometryStore` answers as an ordinary undesigned asset rather than as an error — the
+same property that makes this loss SILENT and that the move loop's own comment already names for
+the sidecar-without-its-note case.
+
+*Why no sweep loop ships*, which is the part worth recording rather than the defect. Re-enumerating
+after the rebuild and moving the latecomers is about ten lines and it is **not** taken, for two
+reasons. It shrinks the window rather than closing it — a write landing after the final
+enumeration is still lost — and a fix that shrinks a window reads exactly like one that closes it,
+which is this plan's own most expensive recurring shape. And it would be a SECOND mechanism for a
+class that already has one remedy identified: residuals 1, 5 and this one all want the same thing,
+which is an exclusive region on `AssetGeometrySidecar` that a caller outside the store can hold.
+`KeyedQueues` is private to `AssetGeometryStore` and keyed per asset; what these three need is that
+region reachable through the port — per-asset for residual 1, and across every asset for this one.
+
+*So the increment that takes residual 4 should take 1, 5 and 6 with it.* Four findings, one
+mechanism, and taking them one at a time is how each would get its own bespoke guard.
+
 ---
 
 # Phase B — the designer

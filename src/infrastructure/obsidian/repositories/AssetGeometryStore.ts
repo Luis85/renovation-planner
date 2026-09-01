@@ -160,7 +160,16 @@ export class AssetGeometryStore {
 	delete(assetId: AssetId): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`asset:${assetId}`, async () => {
 			const resolved = this.pathFor(assetId);
-			if (isErr(resolved)) return resolved;
+			// **An id this store cannot name a file for is an ABSENCE here, not a refusal**, and
+			// delete is the only door where that is true. `read` and `write` keep refusing: a
+			// caller asking to read or design such an asset is asking for something impossible,
+			// and the coded refusal is the honest answer. But the same guard refuses every WRITE
+			// for such an id, so no sidecar of ours can exist at a path this store declines to
+			// name — and `ObsidianAssetRepository.delete` passes this in as `alsoRemove`, so a
+			// refusal arrives AFTER the note is trashed and the sequence compensates by restoring
+			// it. The asset became permanently undeletable, on every retry, over a file that
+			// could never have been created.
+			if (isErr(resolved)) return ok(undefined);
 			const path = resolved.value;
 			const file = this.vault.getAbstractFileByPath(path);
 			if (!(file instanceof TFile)) return ok(undefined);

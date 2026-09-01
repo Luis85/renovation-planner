@@ -343,24 +343,28 @@ describe('ObsidianAssetGeometrySidecar', () => {
 	});
 
 	/**
-	 * The WRITE and the DELETE, not only the read — and this case is named for what it asserts
-	 * because the first draft was not. It said "and the DELETE" while exercising `write` alone,
-	 * which left the delete path's refusal arm uncovered; `coverage-final.json` reported it and
-	 * the gate passed anyway on floor headroom. A test name that outruns its assertions is a
-	 * defect this repository has a rule about, and this is it, written twenty minutes after
-	 * quoting that rule.
+	 * The WRITE, not only the read — and this case has been renamed TWICE for the same reason,
+	 * which is worth keeping as a pair.
 	 *
-	 * `delete` is reached through the STORE rather than the port, because the port has none —
-	 * `PlanGeometrySidecar` does not declare one either, and the repository holds the concrete
-	 * store.
+	 * Its first draft said "and the DELETE" while exercising `write` alone, leaving the delete
+	 * path uncovered while the gate passed on floor headroom: a test name outrunning its
+	 * assertions, written twenty minutes after quoting the rule against it. The delete half was
+	 * then added — and was WRONG, which the next round found: refusing there made an asset with
+	 * an unnameable id permanently undeletable, because `ObsidianAssetRepository.delete` passes
+	 * that call in as `alsoRemove` and compensates a refusal by restoring the note. So the
+	 * assertion is gone rather than corrected, and the behaviour it used to claim now has its
+	 * own case above, asserting the opposite for a stated reason.
+	 *
+	 * A name that outruns its assertions and an assertion that pins the wrong behaviour are the
+	 * same defect from two sides: in both, the case says something the code should not be
+	 * trusted to be doing.
 	 */
-	it('refuses the write and the delete for such an id too, not only the read', async () => {
-		const { sidecar, stack } = seeded();
+	it('refuses the write for such an id too, not only the read', async () => {
+		const { sidecar } = seeded();
 		const id = 'asset:custom' as unknown as Parameters<typeof sidecar.read>[0];
 
 		expect(expectErr(await sidecar.write(id, { calibration: null, shape: rectangle() })).code)
 			.toBe('asset-geometry.unusable-id');
-		expect(expectErr(await stack.assetGeometry.delete(id)).code).toBe('asset-geometry.unusable-id');
 	});
 
 	/**
@@ -421,6 +425,36 @@ describe('ObsidianAssetGeometrySidecar', () => {
 	 * guard extending a platform's rule past what the platform says. Measured as a mutation —
 	 * adding `\u007f` to the class passed all 498 cases in this directory until this one existed.
 	 */
+	/**
+	 * **An id this store cannot name a file for must not make its asset undeletable.**
+	 *
+	 * `delete` derives the path first, so an id that is valid as identity and unusable as a
+	 * filename — `asset:custom`, or one past the byte bound — refused before asking whether a
+	 * sidecar exists. `ObsidianAssetRepository.delete` passes this as `alsoRemove`, so the
+	 * refusal arrived AFTER the note was trashed and the sequence compensated by restoring it:
+	 * the asset could never be deleted at all, on any retry.
+	 *
+	 * And it could never have had a sidecar, which is what makes the answer obvious rather than
+	 * a trade: the same `pathFor` guard refuses every WRITE for such an id, so no file of ours
+	 * exists at a path this store declines to name. An absent sidecar is `ok` here, and that is
+	 * the case this is.
+	 *
+	 * `read` and `write` keep refusing — a caller asking to read or design such an asset is
+	 * asking for something impossible, and the coded refusal is the honest answer. Only DELETE
+	 * treats the unnameable path as an absence, because only delete's caller has already
+	 * destroyed something by the time it hears back.
+	 */
+	it('deletes nothing rather than refusing, for an id it cannot name a file for', async () => {
+		const { stack } = seeded();
+		for (const raw of ['asset:custom', 'a'.repeat(250), 'CON']) {
+			const id = raw as unknown as Parameters<typeof stack.assetGeometry.delete>[0];
+			expectOk(await stack.assetGeometry.delete(id));
+		}
+		// The explicit assertion `expect-expect` asks for, and it says something the loop does
+		// not: nothing was written or removed on the way to answering `ok`.
+		expect([...stack.vault.entries.keys()].some((path) => path.endsWith('.rpgeo'))).toBe(false);
+	});
+
 	it('accepts an id carrying DEL, which no filesystem forbids', async () => {
 		const { sidecar } = seeded();
 		const id = `asset${String.fromCharCode(127)}x` as unknown as Parameters<typeof sidecar.read>[0];

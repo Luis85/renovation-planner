@@ -15,6 +15,7 @@ import type {
 	ProjectIndexEntryChanged,
 } from '../../../../src/application/events/projectIndex.events';
 import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
+import { fileStatAt } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 
 /**
  * The vault-change pipeline ANNOUNCES what it changed, which for four slices it did not.
@@ -313,8 +314,8 @@ describe('the vault-change pipeline announces the entries it changes', () => {
 		 * **The discriminating case, and the same one the note path has: the echo check stays
 		 * AHEAD of the publish.** This plugin's own sidecar write already costs the leaf one
 		 * refresh through the command's own domain event; announcing here as well would make
-		 * every zone drag and every shape edit re-read twice. Hoisting the publish above
-		 * `echo.knows` turns this case red.
+		 * every zone drag and every shape edit re-read twice. Announcing unconditionally turns
+		 * this case red, which is what makes it discriminate rather than merely pass.
 		 */
 		it('says nothing about this plugin echoing its own sidecar write back', async () => {
 			const stack = createRepositoryStack();
@@ -329,9 +330,74 @@ describe('the vault-change pipeline announces the entries it changes', () => {
 		});
 
 		/**
+		 * **The defect this guard was narrowed for, and it is the ordinary case rather than an
+		 * edge one.** The check used to be `echo.knows(path)` — "has this plugin ever written
+		 * here" — and nothing but a delete removes a path from that memory, so the FIRST local
+		 * write silenced every later sync, restore and hand edit of that sidecar for the life of
+		 * the session. Every plan whose zones have been dragged, and every asset anyone has
+		 * actually designed, is exactly the file this door then stopped speaking about.
+		 *
+		 * The case above and this one are the two halves of one question and neither is
+		 * sufficient alone: the echo must survive our own write and must NOT survive somebody
+		 * else's. Note the missing `echo.forget` — the case forty lines up needs one to reach
+		 * this door at all, which is the workaround that made the defect invisible.
+		 */
+		it('announces an edit to a plan sidecar this plugin wrote earlier in the session', async () => {
+			const stack = createRepositoryStack();
+			const planId = await seedPlan(stack);
+			const path = stack.index.getGeometrySidecarPath(planId) ?? '';
+			const { adapter, sidecars } = wired(stack);
+			// Straight into the entries map, which is this fake's outside world: a sync client,
+			// another device, a hand edit in the file explorer.
+			stack.vault.entries.set(path, `{"schemaVersion":1,"planId":"${planId}","revision":9,"unit":"mm","calibration":null,"objects":[]}`);
+
+			adapter.onModify({ path } as never);
+			await settled();
+
+			expect(sidecars).toEqual([{ id: String(planId), type: 'renovation-plan' }]);
+		});
+
+		/**
+		 * The asset half of the case above, and it is what pins the ASSET writer's own stat:
+		 * mutating `AssetGeometryStore.writeText` to record none passed the entire suite, 4581
+		 * cases, with the designer's every save then announcing itself back into the leaf that
+		 * made it. The plan writer had this case from the day the echo check was written; its
+		 * sibling had none.
+		 */
+		it('says nothing about this plugin echoing its own asset sidecar write back', async () => {
+			const stack = createRepositoryStack();
+			const assetId = createAssetId();
+			expectOk(await stack.assets.save(makeAssetEntity({ id: assetId }), 'absent'));
+			expectOk(await stack.assetGeometry.write(assetId, { calibration: null, shape: null }));
+			const path = `${stack.libraryFolder}/Geometry/${assetId}.rpgeo`;
+			const { adapter, sidecars } = wired(stack);
+
+			adapter.onModify({ path } as never);
+			await settled();
+
+			expect(sidecars).toEqual([]);
+		});
+
+		/** The asset half, driven through the store a designer's own save goes through. */
+		it('announces an edit to an asset sidecar this plugin wrote earlier in the session', async () => {
+			const stack = createRepositoryStack();
+			const assetId = createAssetId();
+			expectOk(await stack.assets.save(makeAssetEntity({ id: assetId }), 'absent'));
+			expectOk(await stack.assetGeometry.write(assetId, { calibration: null, shape: null }));
+			const path = `${stack.libraryFolder}/Geometry/${assetId}.rpgeo`;
+			const { adapter, sidecars } = wired(stack);
+			stack.vault.entries.set(path, `{"schemaVersion":1,"assetId":"${assetId}","revision":9,"unit":"mm","calibration":null,"shape":null}`);
+
+			adapter.onModify({ path } as never);
+			await settled();
+
+			expect(sidecars).toEqual([{ id: String(assetId), type: 'renovation-asset' }]);
+		});
+
+		/**
 		 * **The delete branch's echo asymmetry, pinned as BEHAVIOUR rather than left as a
-		 * paragraph.** A modify behind a known echo says nothing; a DELETE says something even
-		 * when the window still holds the path. That is deliberate: both sidecar stores call
+		 * paragraph.** A modify of a file the window still recognises as ours says nothing; a
+		 * DELETE says something regardless. That is deliberate: both sidecar stores call
 		 * `echo.forget` inside their own delete, and `trashFile` is awaited, so whether the
 		 * window still knows the path when Obsidian raises the event is a race rather than a
 		 * fact — an echo test here would decide nondeterministically while reading as
@@ -342,11 +408,15 @@ describe('the vault-change pipeline announces the entries it changes', () => {
 		 * A build that starts gating the delete on the echo fails HERE rather than leaving the
 		 * comment beside that branch quietly wrong.
 		 */
-		it('announces a deleted sidecar even when the echo window still knows the path', async () => {
+		it('announces a deleted sidecar the echo window would have recognised as ours', async () => {
 			const stack = createRepositoryStack();
 			const planId = await seedPlan(stack);
 			const path = stack.index.getGeometrySidecarPath(planId) ?? '';
-			expect(stack.echo.knows(path)).toBe(true);
+			// The precondition, in the terms the modify branch now decides on: this is the file we
+			// wrote, unchanged since. Asserted rather than assumed, so a build whose sidecar
+			// writers stop recording a stat fails HERE instead of turning this case into a
+			// vacuous one about a path the window never knew.
+			expect(stack.echo.wroteFile(path, fileStatAt(stack.vault as never, path) ?? '')).toBe(true);
 			const { adapter, sidecars } = wired(stack);
 			stack.vault.entries.delete(path);
 

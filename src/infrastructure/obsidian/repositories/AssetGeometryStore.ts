@@ -4,7 +4,7 @@ import type { AssetId } from '../../../domain/asset/AssetId';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { checkExpectedVersion } from './versionCheck';
-import { ensureFolder, persistenceError } from './noteIo';
+import { ensureFolder, fileStatAt, persistenceError } from './noteIo';
 import { assetSidecarPathFor, parentOf, usableAsFilename } from './paths';
 import type { AssetGeometryDTO } from '../../persistence/dto/assetGeometry';
 import { AssetGeometrySchemaV1 } from '../../persistence/dto/assetGeometry';
@@ -342,7 +342,10 @@ export class AssetGeometryStore {
 		} catch (cause) {
 			return err(persistenceError('asset-geometry.write-failed', `Could not write sidecar ${path}.`, cause));
 		}
-		this.echo.mark(path, observeSidecar(text));
+		// The stat is read with NOTHING awaited since the write in either arm above, which is
+		// what makes it a statement about the file WE wrote — the rule `fileStatToken`'s docblock
+		// states, and the one the zone repository broke by taking its reading after an await.
+		this.echo.mark(path, observeSidecar(text), fileStatAt(this.vault, path));
 		return ok(undefined);
 	}
 }

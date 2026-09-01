@@ -9,7 +9,7 @@ import {
 import { entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
-import { frontmatterOf } from '../../obsidian/repositories/noteIo';
+import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo';
 
 /**
  * The vault-change pipeline (SDD §46): Obsidian's create/modify/rename/delete events,
@@ -231,13 +231,27 @@ export class VaultChangeAdapter {
 		// working perfectly. The writer owns the mapping in that case, so there is nothing
 		// here to do and nothing to say.
 		//
-		// COARSER than the note path's check, and the sentence has to admit it: notes
-		// compare a digest of what is on disk against what was written, while this asks only
-		// whether this plugin has written here at all — computing a sidecar's digest means
-		// READING the file, and this pipeline is synchronous. What the coarseness costs is
-		// one idempotent `upsert` skipped when someone edits a sidecar we wrote earlier in
-		// the session; the mapping it would have re-affirmed is already the one it holds.
-		if (this.deps.echo.knows(path)) return;
+		// COARSER than the note path's check, and the sentence has to say exactly how: notes
+		// compare a DIGEST of the bytes on disk against the bytes written, while this compares
+		// the file's `mtime:size` against the reading taken immediately after our own write.
+		// Computing a sidecar's digest means READING the file and this pipeline is synchronous,
+		// so `mtime:size` is the whole of what a file states about itself here. What that costs
+		// is `EchoWindow.wroteFile`'s residue: an external write landing within the clock's
+		// granularity of ours AND leaving the byte count alone is taken for our own echo.
+		//
+		// **It used to ask `echo.knows(path)` — "have we written here at all" — and the comment
+		// in this place priced that at one skipped idempotent `upsert`.** That price was honest
+		// while an upsert was the only thing behind the guard, and the announcement below made
+		// it false in the same edit that added it: nothing but a delete forgets a path, so the
+		// first local write silenced every later sync and hand edit of that file for the session
+		// — which is every plan whose zones have been dragged and every asset anyone has
+		// designed. A comment stating what a guard costs is a claim about EVERYTHING behind that
+		// guard, so read this one against the two things now below it before adding a third.
+		//
+		// A path with no recorded stat — one marked by a writer that could not take a reading —
+		// answers `false` and announces. That is the safe direction here: over-announcing costs
+		// the leaf one redundant re-read, under-announcing is the silence above.
+		if (this.deps.echo.wroteFile(path, fileStatToken(file))) return;
 
 		// Everything past the echo check is a change this plugin did not make, whoever the
 		// sidecar belongs to — so the announcement goes here, ABOVE the asset return below and

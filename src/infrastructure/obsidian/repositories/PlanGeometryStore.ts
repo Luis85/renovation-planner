@@ -4,7 +4,7 @@ import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import { checkExpectedVersion } from './versionCheck';
-import { ensureFolder, mappedMigrationFailure, persistenceError } from './noteIo';
+import { ensureFolder, fileStatAt, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';
 import { PlanGeometrySchemaV1 } from '../../persistence/dto/planGeometry';
@@ -141,7 +141,9 @@ export class PlanGeometryStore {
 		} catch (cause) {
 			return err(persistenceError('plan-geometry.create-failed', `Could not create sidecar ${path}.`, cause));
 		}
-		this.echo.mark(path, observeSidecar(document));
+		// The stat is read with NOTHING awaited since the write above, which is what makes it a
+		// statement about the file we wrote rather than about whatever is there now.
+		this.echo.mark(path, observeSidecar(document), fileStatAt(this.vault, path));
 		return ok(undefined);
 	}
 
@@ -219,7 +221,8 @@ export class PlanGeometryStore {
 		} catch (cause) {
 			return err(persistenceError('plan-geometry.write-failed', `Could not write sidecar ${path}.`, cause));
 		}
-		this.echo.mark(path, observeSidecar(text));
+		// Nothing awaited between the `modify` and this reading — see `createLocked`.
+		this.echo.mark(path, observeSidecar(text), fileStatAt(this.vault, path));
 		return ok(undefined);
 	}
 }

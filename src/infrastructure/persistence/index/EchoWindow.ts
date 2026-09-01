@@ -52,20 +52,49 @@ export class EchoWindow {
 		return this.tokens.get(path) === token;
 	}
 
-	mark(path: string, token: ObservationToken): void {
+	/**
+	 * `stat` is the file's own `mtime:size` immediately AFTER this write, and it is what
+	 * `wroteFile` compares against later — the same reading `markFrontmatter` records for a
+	 * note, offered here because the sidecar writers have exactly the same question and had
+	 * no way to ask it. A caller that cannot take one passes none, which withdraws
+	 * `wroteFile` for that path rather than leaving a stale reading standing.
+	 *
+	 * The rule that reading carries is about the CALL SITE and no signature can hold it: it
+	 * is a statement about the file WE wrote, so it must be taken with nothing awaited since
+	 * the write. `fileStatToken`'s docblock carries the account of the one writer that got
+	 * that wrong.
+	 */
+	mark(path: string, token: ObservationToken, stat?: string): void {
 		this.tokens.set(path, token);
+		if (stat === undefined) this.fileStat.delete(path);
+		else this.fileStat.set(path, stat);
 	}
 
 	/**
-	 * Has this plugin written at `path` at all — the question `matches` answers precisely
-	 * and this one answers cheaply.
+	 * Is the file at `path` still the one this plugin last wrote there — `stat` being that
+	 * file's CURRENT `mtime:size`, which the caller reads from the handle it already holds.
 	 *
-	 * For a caller that cannot compute a digest: the geometry sidecars are JSON in a FILE,
-	 * so digesting one means reading it, and `VaultChangeAdapter` is synchronous. It is a
-	 * weaker claim and the caller says what the weakness costs it.
+	 * **This is IDENTITY, and the door it replaced asked mere acquaintance.** `knows(path)`
+	 * answered "has this plugin written here at all", and nothing but a delete removes a path
+	 * from that memory — so once a session had written a sidecar, every later sync, restore
+	 * and hand edit of that file answered the same `true`. That was tolerable while the only
+	 * thing behind the check was an idempotent `upsert`, and it stopped being tolerable the
+	 * moment a REFRESH was put behind it: the leaf showing that plan or that asset was never
+	 * told again. Which is the general shape rather than one bug — a comment stating what a
+	 * guard costs is a claim about everything behind that guard, and it goes stale in the
+	 * edit that puts something new there.
+	 *
+	 * An unrecorded stat answers `false`: a path marked by a caller that took no reading, or
+	 * before this window carried one, is not something this plugin can vouch for. That is the
+	 * safe direction for the one caller — over-answering `false` costs a redundant re-read,
+	 * while over-answering `true` is the silence this method exists to end.
+	 *
+	 * It inherits `observedFileStat`'s residue unchanged: two states can carry one
+	 * `mtime:size`, so an external write landing within the clock's granularity of ours AND
+	 * leaving the byte count alone reads as our own echo.
 	 */
-	knows(path: string): boolean {
-		return this.tokens.has(path);
+	wroteFile(path: string, stat: string): boolean {
+		return this.fileStat.get(path) === stat;
 	}
 
 	/**
@@ -109,12 +138,14 @@ export class EchoWindow {
 		// BEFORE `mark`, which overwrites it: what we had written here previously is a state
 		// the cache may still be about to parse.
 		const previous = this.tokens.get(path);
-		this.mark(path, observeFrontmatter(frontmatter));
+		// The stat goes through `mark` rather than being written here, so this class has ONE
+		// writer of that map: a note and a sidecar record it for the same reason and compare it
+		// the same way, and two spellings of one fact are two facts as soon as either moves.
+		this.mark(path, observeFrontmatter(frontmatter), observed?.stat);
 		this.notes.set(path, { ...frontmatter });
 
 		if (observed === undefined) {
 			this.superseded.delete(path);
-			this.fileStat.delete(path);
 			return;
 		}
 		// A reading equal to what we last wrote means the cache had CAUGHT UP before this
@@ -136,9 +167,6 @@ export class EchoWindow {
 		if (observed.reading !== undefined) chain.add(observed.reading);
 		if (previous !== undefined) chain.add(previous);
 		this.superseded.set(path, chain);
-
-		if (observed.stat === undefined) this.fileStat.delete(path);
-		else this.fileStat.set(path, observed.stat);
 	}
 
 	/**
@@ -156,7 +184,10 @@ export class EchoWindow {
 
 	/**
 	 * The file's own mtime and size as they stood immediately after this plugin last wrote
-	 * at `path`, or `undefined` when that is not known.
+	 * at `path`, or `undefined` when that is not known — read by `frontmatterOf` alone
+	 * (`grep -rn "observedFileStat" src/`, one call site outside this file), because the
+	 * SIDECAR reader of the same recording asks `wroteFile` instead: it holds the current
+	 * reading already and wants the comparison, not the record.
 	 *
 	 * **This is a heuristic, and its two error directions are NOT both safe** — an earlier
 	 * draft of this paragraph said they were, and a review round was right to disbelieve it.

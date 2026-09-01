@@ -17,6 +17,7 @@ import {
 	planFromPersistence,
 } from '../../../../src/infrastructure/persistence/mappers/planMapper';
 import { zoneFromPersistence } from '../../../../src/infrastructure/persistence/mappers/zoneMapper';
+import { fileStatAt } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 import { z } from 'zod';
 
 /**
@@ -623,7 +624,16 @@ describe('a sidecar whose plan is still being written', () => {
 		const pendingPlanId = createPlanId();
 		const pendingPath = `Renovation/Geometry/${pendingPlanId}.rpgeo`;
 		stack.vault.entries.set(pendingPath, '{}');
-		stack.echo.mark(pendingPath, 'whatever-this-plugin-wrote' as never);
+		// The STAT with it, because that is the state `createLocked` really leaves: the echo
+		// window recognises a sidecar of ours by identity now — "is the file still the one we
+		// wrote" — rather than by having heard of the path. Marking without one would build a
+		// window thinner than the writer's, and this case would then pass or fail for a reason
+		// the vault it stands for cannot produce.
+		stack.echo.mark(
+			pendingPath,
+			'whatever-this-plugin-wrote' as never,
+			fileStatAt(stack.vault as never, pendingPath),
+		);
 		expect(stack.index.getPath(pendingPlanId)).toBeUndefined();
 
 		const before = stack.logged.length;

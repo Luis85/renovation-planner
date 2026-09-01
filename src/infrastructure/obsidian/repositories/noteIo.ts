@@ -137,7 +137,11 @@ export interface FrontmatterSource {
 
 /**
  * A file's own mtime and size as one comparable string — what `EchoWindow` records after a
- * write and what `frontmatterOf` compares against on the next read.
+ * write, and what its two readers compare against later: `frontmatterOf` on the next read of
+ * a note, and `VaultChangeAdapter`'s sidecar branch on the next vault event for a `.rpgeo`.
+ * That second reader is why this is exported rather than reached through `fileStatAt`: the
+ * pipeline already holds the `TFile` the event arrived with, and asking the vault for it a
+ * second time is a second lookup that can answer about a different file.
  *
  * Deliberately not a content hash: this is asked on every read, and hashing a note's bytes
  * would mean reading them, which `frontmatterOf` is synchronous precisely to avoid. What that
@@ -147,15 +151,17 @@ export interface FrontmatterSource {
  *
  * **A writer takes this reading with NOTHING AWAITED since its own write**, which is a rule
  * about the CALL SITE that no signature here can carry. It is a statement about the file WE
- * wrote, so it is only true while that is still what is on disk. Four of the five writers
- * have nothing but synchronous index bookkeeping in between; `ObsidianZoneRepository` awaits
- * a whole sidecar mutation after its note write and took the reading after that, so an
+ * wrote, so it is only true while that is still what is on disk. It binds the three sidecar
+ * writers (`PlanGeometryStore`'s create and modify, `AssetGeometryStore`'s write) exactly as
+ * it binds the note ones, and each says so where it takes its reading. Four of the five note
+ * writers have nothing but synchronous index bookkeeping in between; `ObsidianZoneRepository`
+ * awaits a whole sidecar mutation after its note write and took the reading after that, so an
  * external edit landing in that window was recorded as ours — the same overwrite the guard
  * exists to refuse, reached through the one path with an await in the middle of it. Its
  * regression case is 'does not vouch for an external edit that landed while the sidecar write
  * was in flight', in `tests/infrastructure/obsidian/repositories/contract.test.ts`.
  */
-function fileStatToken(file: TFile): string {
+export function fileStatToken(file: TFile): string {
 	return `${file.stat.mtime}:${file.stat.size}`;
 }
 

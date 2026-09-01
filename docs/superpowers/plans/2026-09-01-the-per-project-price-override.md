@@ -1229,7 +1229,10 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   - `class SetAssetPriceOverrideCommand implements Command<SetAssetPriceOverrideInput, Result<SetAssetPriceOverrideResult, SetAssetPriceOverrideErrors>>`
     with `SetAssetPriceOverrideInput = { projectId: ProjectId; assetId: AssetId; unitCost: Money }`
     and `SetAssetPriceOverrideResult = { override: AssetPriceOverride; created: boolean; version: EntityVersion }`.
-  - `class ClearAssetPriceOverrideCommand` with `ClearAssetPriceOverrideInput = { projectId: ProjectId; assetId: AssetId }`
+  - `class ClearAssetPriceOverrideCommand` with
+    `ClearAssetPriceOverrideInput = { projectId: ProjectId; assetId: AssetId; expected: Expected }`
+    — the same expectation, for the same reason: clearing a pair that has moved discards a price
+    the user never saw.
     and a `{ cleared: boolean }` result.
   - `AssetPriceOverrideChanged` is published by BOTH — see Task 7, which subscribes to it.
 
@@ -1331,6 +1334,34 @@ describe('SetAssetPriceOverrideCommand', () => {
 				payload: { projectId, assetId },
 			}),
 		);
+	});
+
+	/**
+	 * The stale row. The pair lock cannot see this one: it protects the command's own
+	 * read-to-write window, and the window that matters opened when the section rendered.
+	 * Watch it fail with the `expectationMismatch` call removed — without it the save conditions
+	 * on the NEWEST revision and succeeds, erasing a price the user never saw.
+	 */
+	it('refuses a submission whose row was rendered before someone else moved the price', async () => {
+		const first = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
+		// Another leaf moves it while the user's row still shows 19.50.
+		expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('30.00', 'GBP'), expected: first.version }));
+
+		const stale = await command.execute({ projectId, assetId, unitCost: moneyOf('21.00', 'GBP'), expected: first.version });
+		expect(stale.ok).toBe(false);
+		if (stale.ok) throw new Error('unreachable');
+		expect(stale.error.code).toBe('asset-price.revision-conflict');
+
+		// And the intervening price is untouched, which is the half that matters.
+		const found = expectOk(await overrides.getForPair(projectId, assetId));
+		expect(found?.entity.unitCost.amount).toBe('30.00');
+	});
+
+	/** The other arm: a row that showed NO price, when someone else has since set one. */
+	it('refuses an absent-expectation submission when a price now exists', async () => {
+		expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('30.00', 'GBP'), expected: 'absent' }));
+		const stale = await command.execute({ projectId, assetId, unitCost: moneyOf('21.00', 'GBP'), expected: 'absent' });
+		expect(stale.ok).toBe(false);
 	});
 
 	/**
@@ -1444,6 +1475,20 @@ export interface SetAssetPriceOverrideInput {
 	readonly projectId: ProjectId;
 	readonly assetId: AssetId;
 	readonly unitCost: Money;
+	/**
+	 * **What the caller's row said about this pair when it rendered** — `'absent'` for a row
+	 * showing no price, or the override's version for one showing a price. REQUIRED, like every
+	 * other member here, because an optional expectation is one a caller can silently omit and
+	 * get a blind overwrite.
+	 *
+	 * Without it this command is a lost update. The pair lock protects the command's own
+	 * read-to-write window and nothing longer: the section hydrates at 19.50, another leaf (or
+	 * sync, or a hand edit) moves it to 30.00, the user edits the row they can still see and
+	 * submits 21.00 — and `getForPair` returns the 30.00 entity, so the save conditions on THAT
+	 * revision and succeeds, erasing a price the user never saw. `Expected` is
+	 * `EntityVersion | 'absent'`, the vocabulary the repository contract already speaks.
+	 */
+	readonly expected: Expected;
 }
 
 export interface SetAssetPriceOverrideResult {
@@ -1521,6 +1566,11 @@ export class SetAssetPriceOverrideCommand
 			return err(referenceError('asset-price.asset-not-found', `Asset ${input.assetId} is not there.`));
 		}
 
+		const existing = await this.deps.overrides.getForPair(input.projectId, input.assetId);
+		if (isErr(existing)) return existing;
+		const stale = expectationMismatch(input.expected, existing.value);
+		if (stale) return err(stale);
+
 		// **The coherence rule lives HERE** (spec Decision 2), not on the entity: the project's
 		// currency is another entity's fact, and the entity's constructor is on the hydration
 		// path, where enforcing it would refuse a stranded note at the read instead of showing
@@ -1540,9 +1590,6 @@ export class SetAssetPriceOverrideCommand
 				),
 			);
 		}
-
-		const existing = await this.deps.overrides.getForPair(input.projectId, input.assetId);
-		if (isErr(existing)) return existing;
 
 		const next = existing.value === null
 			? AssetPriceOverride.create({
@@ -1606,6 +1653,13 @@ export class ClearAssetPriceOverrideCommand … {
 			const listed = await this.deps.overrides.listByAsset(input.assetId);
 			if (isErr(listed)) return listed;
 			const forPair = listed.value.filter((o) => o.entity.projectId === input.projectId);
+
+			// The same question the set command asks, against the WINNER — the note the row was
+			// rendered from. Clearing a pair that has moved is as much a lost update as
+			// overwriting one: the user discards a price they never saw.
+			const stale = expectationMismatch(input.expected, winningDuplicate(forPair));
+			if (stale) return err(stale);
+
 			if (forPair.length === 0) return ok({ cleared: false });
 
 			// **Any write that landed is announced, even when a later one fails.** The rule this
@@ -1770,6 +1824,33 @@ import type { Money } from '../../../core/money/Money';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { AssetPriceOverrideRepository } from '../../ports/AssetPriceOverrideRepository';
+
+/**
+ * **Did the pair move under the caller since their row rendered?** One function, because both
+ * commands ask it and "fixed one, missed its twin" is the defect this plan has already paid
+ * for four times.
+ *
+ * `null` means the caller's view still holds. A `ValidationError` means it does not, and it is
+ * `revisionConflict` from `versioning.ts` rather than a new code — the save-state indicator
+ * already knows those two strings as write-boundary refusals, and a hand-spelled third spelling
+ * is exactly the drift that file refuses.
+ */
+export function expectationMismatch(
+	expected: Expected,
+	found: Loaded<AssetPriceOverride> | null,
+): ValidationError | null {
+	if (expected === 'absent') {
+		// The row showed no price. Something exists now, so somebody else set one and the user
+		// would be overwriting a figure they never saw.
+		return found === null ? null : revisionConflict('asset-price', String(found.entity.id));
+	}
+	// The row showed a price that has since been cleared, or replaced by a different note.
+	if (found === null) return revisionConflict('asset-price', String(expected.revision));
+	if (found.version.revision !== expected.revision) {
+		return revisionConflict('asset-price', String(found.entity.id));
+	}
+	return null;
+}
 
 /**
  * The `??` of the precedence, in ONE place:
@@ -2894,6 +2975,13 @@ describe('AssetPriceList', () => {
 	it('renders one row per asset, with the library price and a dash where there is no override', () => { … });
 
 	it('dispatches a set for a typed price on blur', async () => { … });
+
+	/**
+	 * The row supplies the expectation the command needs — `overrideVersion` when it rendered a
+	 * price, `'absent'` when it rendered a dash. Task 8's DTO carries those fields for exactly
+	 * this; a row that dispatched without them would make the command a blind overwrite.
+	 */
+	it('passes the row expectation into the command', async () => { … });
 
 	/** Slice 16's rule: a rejected commit KEEPS the user's value and shows the error. */
 	it('keeps the typed value and shows an inline error when the command refuses', async () => {

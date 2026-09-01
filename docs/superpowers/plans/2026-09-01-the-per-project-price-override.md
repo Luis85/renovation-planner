@@ -93,7 +93,7 @@ try the same three in the same order.
 | `src/presentation/stores/ProjectDetailStore.ts` | Hold the price rows, behind the request ticket. |
 | `src/presentation/views/ProjectDetailState.vue` | Two more subscriptions; see Task 9 step 4a. |
 | `src/plugin/composition-root.ts`, `src/plugin/guardedServices.ts` | Construct and guard. |
-| `src/presentation/i18n/en.ts`, `de.ts` | The section's copy. |
+| `src/presentation/i18n/locales/en.ts`, `locales/de.ts` | The section's copy, and the `asset-price.*` error copy — one table, since `toUserMessage` looks a code up as a locale key. |
 | `styles/` | The section's rules. |
 
 **A note on where this does NOT belong:** `src/plugin/settings/libraryMigration.ts` carries a
@@ -2563,7 +2563,7 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   is constructed there (`:140`) and `sequenceNotices` is declared there (`:54`); the root only
   imports both. Bind the new `overrides` dep at the construction site, and add
   `priceCleanupFailed` to `sequenceNotices` beside `markerClearFailed`.
-- Modify: `src/presentation/i18n/en.ts`, `src/presentation/i18n/de.ts` — the notice string,
+- Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts` — the notice string,
   through `tr(...)` exactly as `sequence.marker-clear-failed` is. `NOTICE_TEXT_BAN` refuses a
   literal at `notifyWarning`, so this is a gate rather than a convention.
 - Test: `tests/application/commands/asset/deleteAssetWithOverrides.test.ts`
@@ -3113,7 +3113,7 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Modify: `src/presentation/editor/tools/editor-context.ts` (or wherever `PlanEditorContext` is
   declared) and `src/plugin/composition-root.ts` — **three** subscriptions, step 3a: the price
   one, the existing `onCatalogueChanged`, and this new one.
-- Modify: `src/presentation/i18n/en.ts`, `src/presentation/i18n/de.ts`
+- Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
 - Modify: `styles/` (the row's own partial)
 - Test: `tests/presentation/editor/requirementRow.test.ts` (extend)
 - Test: `tests/presentation/editor/inspectorPriceRefresh.test.ts`
@@ -3374,7 +3374,7 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   reach the event bus itself.
 - Modify: `src/plugin/composition-root.ts` — bind both sources, as it already binds
   `onCatalogueChanged` for the editor.
-- Modify: `src/presentation/i18n/en.ts`, `src/presentation/i18n/de.ts`
+- Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
 - Modify: `styles/` (a partial, registered in `styles/index.css`)
 - Test: `tests/presentation/views/assetPriceList.test.ts`
 - Test: extend `tests/harness/accessibility.test.ts`
@@ -3431,7 +3431,7 @@ enter, a rejected commit KEEPS the typed value).
 
 - [ ] **Step 1: Add the copy to both locales**
 
-In `en.ts`:
+In `locales/en.ts`:
 
 ```ts
 	'view.project.prices-title': 'Asset prices',
@@ -3442,27 +3442,32 @@ In `en.ts`:
 	'view.project.no-assets': 'The library has no assets yet',
 ```
 
-In `de.ts`, the same keys. **An Asset is `Objekt`, never `Material`** —
+In `locales/de.ts`, the same keys. **An Asset is `Objekt`, never `Material`** —
 `tests/presentation/i18n/strings.test.ts` refuses that value, and slice 14 reintroduced it forty
 lines below the comment recording its removal. Keep every interpolation hole that `en.ts` has:
 the per-key hole check is what catches a mis-holed translation.
 
-**And the `AppError` copy, which is a SEPARATE table and was scheduled nowhere until this step.**
-`toUserMessage` resolves `error.code` through its own locale entries, and a code with no entry
-does not degrade to silence — it degrades to the category sentence, which is the defect slice 11
-records: two refusals told a user "That entry no longer exists" about an entry whose continued
-existence was the whole reason for the refusal. Every `asset-price.*` code a user can reach needs
-one in both locales:
+**And the `AppError` copy, which goes in the SAME table and was scheduled nowhere until this
+step.** `toUserMessage` asks `hasLocaleKey(error.code)` first, so a code IS a locale key — there
+is no second file — and only then falls back to `CODE_SUFFIX_KEYS` and finally to the category
+sentence. A code that reaches neither of the first two degrades to that category sentence, which
+is the defect slice 11 records: two refusals told a user "That entry no longer exists" about an
+entry whose continued existence was the whole reason for the refusal.
 
-| Code | What it must say |
-| --- | --- |
-| `asset-price.currency-mismatch` | The price has to be in the project's own currency. |
-| `asset-price.revision-conflict` | Someone else changed this price while you were editing; discard your entry to see the current one. **This copy names the recovery**, for the reason Step 3 gives — the snapshot is frozen while the field is dirty, so the discard is what unsticks it. |
-| `asset-price.external-modification` | The note was edited outside the plugin; same recovery. A separate code from the one above *"because the recoveries differ"* — here nothing else is writing, so re-reading is enough. |
-| `asset-price.project-not-found` / `asset-price.asset-not-found` | The project, or the asset, is no longer there. |
-| `asset-price.write-failed` / `asset-price.delete-failed` | The price could not be saved, or removed. |
-| `asset-price.entity-invalid` / `asset-price.frontmatter-invalid` | The note could not be read. |
-| `asset-price.negative-unit-cost` | A price cannot be negative. Unreachable while the field validator below holds, and localized anyway — see the note under the table. |
+**Read the resolver before writing the table, which is what an earlier draft of this step did
+not.** `CODE_SUFFIX_KEYS` already answers `revision-conflict`, `external-modification`,
+`schema-version-unsupported` and `migration-failed` for ANY prefix, so several `asset-price.*`
+codes are already served and listing them as gaps is wrong. What each code needs:
+
+| Code | Entry? | What it must say |
+| --- | --- | --- |
+| `asset-price.currency-mismatch` | **new** | The price has to be in the project's own currency. |
+| `asset-price.revision-conflict` | **new, and it deliberately OVERRIDES the suffix** | The suffix entry says "Reload and try again", which is wrong on this surface: there is nothing to reload, and Step 3's frozen snapshot means the DISCARD is the gesture that unsticks the field. A direct code key beats the suffix because `hasLocaleKey` is asked first — say so where the entry is, or the next reader deletes it as a duplicate of the suffix. |
+| `asset-price.external-modification` | **none** | Already served by the suffix, and its wording ("edited outside the plugin. Reload and try again.") is right here — nothing else is writing, so re-reading really is the recovery. |
+| `asset-price.project-not-found` / `asset-price.asset-not-found` | **new** | The project, or the asset, is no longer there. |
+| `asset-price.write-failed` / `asset-price.delete-failed` | **new** | The price could not be saved, or removed. |
+| `asset-price.entity-invalid` / `asset-price.frontmatter-invalid` | **new** | The note could not be read. |
+| `asset-price.negative-unit-cost` | **new** | A price cannot be negative. Unreachable while the field validator below holds, and localized anyway — see the note under the table. |
 
 Build the test table from the RAISE SITES rather than from `en.ts`, per `toUserMessage.test.ts`'s
 own rule: a table derived from the locale file agrees with a typo. The codes with no user-facing

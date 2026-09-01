@@ -18,6 +18,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createPinia } from 'pinia';
+import VueKonva from 'vue-konva';
 import { flushPromises, mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import AssetDesignerRoot from '../../../src/presentation/designer/AssetDesignerRoot.vue';
@@ -34,6 +35,18 @@ import { EMPTY_STATE_CONTENT } from '../../../src/presentation/emptyStates/conte
 import { assetDesign } from '../../helpers/assetDesign';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { recorder } from '../../helpers/logger';
+import { installCanvas } from '../../helpers/canvas';
+import { installResizeObserver } from '../../helpers/layout';
+
+/**
+ * The canvas region holds a real Konva stage since Task B4, so this file mounts one: jsdom has
+ * no 2D context and no `ResizeObserver`, and `EditorSurface` constructs the second at mount.
+ * `VueKonva` is registered on the test's own app below because `mount` builds it — the real
+ * `AssetDesignerView` registers it on the app it creates, which is what
+ * `assetDesignerView.test.ts` covers.
+ */
+installCanvas();
+installResizeObserver();
 
 const ASSET_ID = 'asset-01JABC';
 
@@ -56,7 +69,7 @@ function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerCo
 async function mounted(ctx: AssetDesignerContext = context()) {
 	const pinia = createPinia();
 	const wrapper = mount(AssetDesignerRoot, {
-		global: { plugins: [pinia], provide: { [ASSET_DESIGNER_CONTEXT as symbol]: ctx } },
+		global: { plugins: [pinia, VueKonva], provide: { [ASSET_DESIGNER_CONTEXT as symbol]: ctx } },
 	});
 	await flushPromises();
 	return { wrapper, pinia };
@@ -241,7 +254,7 @@ describe('a design the canvas can no longer confirm', () => {
 	it('draws an additive stale strip rather than replacing the design it cannot re-read', async () => {
 		const pinia = createPinia();
 		const wrapper = mount(AssetDesignerRoot, {
-			global: { plugins: [pinia], provide: { [ASSET_DESIGNER_CONTEXT as symbol]: context() } },
+			global: { plugins: [pinia, VueKonva], provide: { [ASSET_DESIGNER_CONTEXT as symbol]: context() } },
 		});
 		await flushPromises();
 		const store = useAssetDesignStore(pinia);

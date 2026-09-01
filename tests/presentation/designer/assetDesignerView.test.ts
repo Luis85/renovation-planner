@@ -25,10 +25,21 @@ import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
 import { recorder } from '../../helpers/logger';
 import { installObsidianDom } from '../../helpers/dom';
+import { installCanvas } from '../../helpers/canvas';
+import { installResizeObserver } from '../../helpers/layout';
 import { settle } from '../../helpers/async';
 import { FakeLeaf } from '../../helpers/workspace';
 
 installObsidianDom();
+/**
+ * The designer draws a Konva stage since Task B4, so this file mounts one for real: jsdom
+ * implements no 2D context and no `ResizeObserver`, and `EditorSurface` constructs the second
+ * unconditionally at mount. Installed here rather than stubbed for `tests/helpers/canvas.ts`'s
+ * reason — a stub that accepts every call and draws nothing is the fake kinder than the real
+ * thing this repository has already paid for.
+ */
+installCanvas();
+installResizeObserver();
 
 /** The one door the designer reads through, named so every `vi.fn` here can be typed as it. */
 type ReadDesign = AssetDesignerQueryServices['getAssetDesign'];
@@ -309,6 +320,29 @@ describe('what the designer mounts', () => {
 	});
 
 	/** And a refusal that really tried is offered one, which is the difference the origin makes. */
+	/**
+	 * **The Konva stage, asked of the app the VIEW built.** Task B4 put a canvas in the shell,
+	 * and vue-konva is registered per app instance (ADR-0004) rather than globally — so a view
+	 * that forgets `app.use(VueKonva)` resolves `<VStage>` to nothing, Vue warns to a console
+	 * nobody reads, and the designer draws its regions around an empty hole.
+	 *
+	 * Nothing else here could see that, which is the point of the case rather than a remark
+	 * about it: `layers.test.ts` mounts `AssetDesignerRoot` through `@vue/test-utils` and
+	 * registers the plugin ITSELF, so every canvas assertion in that file passes against a view
+	 * that registers none. Measured — deleting `app.use(VueKonva)` from `AssetDesignerView`
+	 * left both designer suites green until this case existed.
+	 *
+	 * It asserts the CANVAS element rather than `.rp-plan-canvas`: the latter is
+	 * `EditorSurface`'s own div and is drawn whether or not Konva ever resolved, so it reads the
+	 * same in both worlds. Konva builds a `.konvajs-content` wrapper holding real `<canvas>`
+	 * nodes, and that exists only if the stage component did.
+	 */
+	it('registers vue-konva on its own app, so the stage really resolves', async () => {
+		const view = await opened();
+
+		expect(view.contentEl.querySelector('.rp-designer-canvas .rp-plan-canvas canvas')).not.toBeNull();
+	});
+
 	it('offers a retry for a refusal that is not a bootstrap failure', async () => {
 		const view = await opened(
 			deps({

@@ -312,6 +312,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.asset.no-background.body':
 		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt.',
 	'view.asset-designer.name': 'Objekt-Designer',
+	'designer.canvas': 'Objekt-Zeichenfläche',
 	'designer.loading': 'Objekt wird geladen …',
 	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
 	'designer.refresh-failed':

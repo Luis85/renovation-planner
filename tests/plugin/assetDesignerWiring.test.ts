@@ -24,6 +24,8 @@ import { createAssetId, type AssetId } from '../../src/domain/asset/AssetId';
 import { t } from '../../src/presentation/i18n/strings';
 import { createRepositoryStack, type RepositoryStack } from '../helpers/vault';
 import { installObsidianDom } from '../helpers/dom';
+import { installCanvas } from '../helpers/canvas';
+import { installResizeObserver } from '../helpers/layout';
 import { loadedPlugin } from '../helpers/plugin';
 import { expectOk } from '../helpers/domain';
 import { makeAsset } from '../helpers/entities';
@@ -31,6 +33,13 @@ import { settle } from '../helpers/async';
 import { FakeLeaf } from '../helpers/workspace';
 
 installObsidianDom();
+/**
+ * The designer draws a Konva stage since Task B4, and this file mounts the REAL view through
+ * the composed plugin: jsdom implements no 2D context and no `ResizeObserver`, and
+ * `EditorSurface` constructs the second unconditionally at mount.
+ */
+installCanvas();
+installResizeObserver();
 
 /** One catalogue note in the configured library folder, and nothing else. */
 async function vaultWithOneAsset(): Promise<{ stack: RepositoryStack; assetId: AssetId }> {

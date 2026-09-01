@@ -43,6 +43,7 @@ import { selectAssetDesignerEmptyState } from '../emptyStates/selectors';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
 import { useAssetDesignStore } from './stores/assetDesignStore';
+import DesignerCanvas from './DesignerCanvas.vue';
 
 const context = useAssetDesignerContext();
 
@@ -131,10 +132,24 @@ onMounted(() => {
 		<div class="rp-designer-toolbar" />
 		<div class="rp-designer-body">
 			<!--
-				Task B4 mounts `DesignerCanvas` here. The region is ALWAYS drawn — the empty
+				Task B4's `DesignerCanvas`, mounted. The region is ALWAYS drawn — the empty
 				state, the failure state and the loading line all live inside it rather than in
 				place of it, which is what keeps `EmptyState`'s `overlay` modifier meaning what
 				it means on a plan.
+
+				**The empty state moved INSIDE the canvas rather than beside it**, into the
+				surface's own overlay slot, which is where `PlanEditorRoot` puts the plan
+				editor's. Two things follow from that and neither is cosmetic: the overlay
+				resolves its `position: absolute` against the canvas it floats over, and
+				`EditorSurface`'s `display: contents` wrapper swallows a press on an overlay
+				control so it cannot start a camera pan under a user who is merely clicking a
+				button — a defect this repository has already shipped once on the plan side.
+
+				The canvas mounts for a shapeless asset too, which is the whole of slice 14's
+				rule: an empty state that REPLACED the region would hide the one thing the
+				region exists to show. It does not mount over a FAILURE, for slice 17's: a read
+				that refused has nothing to draw, and a canvas beneath the panel would be a
+				stage bound to a design nobody has.
 			-->
 			<div class="rp-designer-canvas">
 				<ViewFailure
@@ -142,17 +157,19 @@ onMounted(() => {
 					v-bind="failure"
 					@action="() => void runtime.hydrate()"
 				/>
-				<EmptyState
-					v-else-if="overlay !== null"
-					v-bind="overlay"
-					overlay
-				/>
 				<p
 					v-else-if="design === null"
 					class="rp-designer-message"
 				>
 					{{ tr('designer.loading') }}
 				</p>
+				<DesignerCanvas v-else>
+					<EmptyState
+						v-if="overlay !== null"
+						v-bind="overlay"
+						overlay
+					/>
+				</DesignerCanvas>
 			</div>
 			<!-- Task B8 mounts `DesignerInspector` here. -->
 			<div class="rp-designer-inspector" />

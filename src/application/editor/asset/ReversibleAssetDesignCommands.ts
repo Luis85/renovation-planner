@@ -126,6 +126,48 @@ async function recordWritten(
 }
 
 /**
+ * What both adapters share: the wrapped command, its input, and the rule deciding which
+ * version each forward write is conditioned on.
+ *
+ * A base class rather than a free function because the rule has STATE — whether this gesture
+ * has run before — and `ReversibleOverrideBase` is the shape this repository already uses for
+ * exactly that. Not exported: nothing outside this module extends it, and exporting it would
+ * trade two `private-type-leak` findings for an `unused-exports` one.
+ *
+ * **The rule lives here once because it is subtle enough that two copies would drift.** Both
+ * halves of it were reported as defects against the first version of this module:
+ *
+ * - **Condition on the snapshot this gesture kept**, or the undo performs a lost update. The
+ *   wrapped command does its own read, so the two reads straddle a window; a peer writing in
+ *   it is MERGED by the command while this adapter still holds the pre-peer state as the
+ *   inverse, and the undo — conditioned on the ledger — then succeeds and puts the pre-peer
+ *   state back, with the peer's edit gone and no refusal anywhere.
+ * - **Capture it PER EXECUTE**, or redo refuses deterministically. The caller's own `expected`
+ *   is an optimistic claim about what IT read, honoured on the first execute and spent there:
+ *   by the time a redo asks, the undo has advanced the resource and that claim names a version
+ *   two writes back.
+ *
+ * `ran` is set AFTER the command resolves rather than before, so a THROWN fault leaves the
+ * gesture in the state it was in — a technical fault is not a gesture that ran.
+ */
+abstract class ReversibleAssetEdit<TInput extends AssetShapeInput> {
+	private ran = false;
+
+	constructor(
+		protected readonly deps: ReversibleAssetDesignDeps,
+		private readonly command: Command<TInput, DispatchResult>,
+		protected readonly input: TInput,
+	) {}
+
+	protected async runForward(version: EntityVersion): Promise<DispatchResult> {
+		const expected = this.ran ? version : (this.input.expected ?? version);
+		const ran = await this.command.execute({ ...this.input, expected });
+		this.ran = true;
+		return ran;
+	}
+}
+
+/**
  * The inverse of any command that writes an asset's geometry sidecar.
  *
  * **The pre-state is the whole DOCUMENT, captured from what the read actually FOUND.** Not the
@@ -161,19 +203,11 @@ async function recordWritten(
  * value across every execute makes redo refuse deterministically, which is the defect this
  * split exists to avoid.
  */
-class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput> implements ReversibleAssetDesignEdit {
+class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput>
+	extends ReversibleAssetEdit<TInput>
+	implements ReversibleAssetDesignEdit
+{
 	private inverse: { readonly document: AssetGeometryDocument; readonly preVersion: EntityVersion } | null = null;
-	/**
-	 * Has the wrapped command run at least once? The one thing that separates the first execute
-	 * from a redo, and therefore whether the caller's own `expected` still describes anything.
-	 */
-	private ran = false;
-
-	constructor(
-		private readonly deps: ReversibleAssetDesignDeps,
-		private readonly command: Command<TInput, DispatchResult>,
-		private readonly input: TInput,
-	) {}
 
 	async execute(): Promise<DispatchResult> {
 		const { sidecar, geometryLedger } = this.deps;
@@ -184,9 +218,7 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput> implements Rev
 		const before = await sidecar.read(assetId);
 		if (isErr(before)) return before;
 
-		const expected = this.ran ? before.value.version : (this.input.expected ?? before.value.version);
-		const ran = await this.command.execute({ ...this.input, expected });
-		this.ran = true;
+		const ran = await this.runForward(before.value.version);
 		// A refusal wrote nothing and a `no-write` wrote nothing: neither has an inverse, and
 		// capturing one would let a later undo write a document no gesture had replaced. An
 		// earlier inverse from a previous `execute` is deliberately KEPT — the net effect of
@@ -237,16 +269,11 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput> implements Rev
  * produced, so the ledger records what the store really minted rather than what a read-back
  * happened to find afterwards.
  */
-class ReversibleAssetNoteEdit<TInput extends AssetShapeInput> implements ReversibleAssetDesignEdit {
+class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
+	extends ReversibleAssetEdit<TInput>
+	implements ReversibleAssetDesignEdit
+{
 	private inverse: { readonly entity: Asset; readonly preVersion: EntityVersion } | null = null;
-	/** As above: the first execute may honour the caller's `expected`, a redo may not. */
-	private ran = false;
-
-	constructor(
-		private readonly deps: ReversibleAssetDesignDeps,
-		private readonly command: Command<TInput, DispatchResult>,
-		private readonly input: TInput,
-	) {}
 
 	async execute(): Promise<DispatchResult> {
 		const { assets, noteLedger } = this.deps;
@@ -260,12 +287,9 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput> implements Reversi
 		if (isErr(before)) return before;
 		if (before.value === null) return err(assetNotFound(assetId));
 
-		// The same conditioning as the geometry adapter, for the same lost update through the
-		// same two-read window — `SetAssetHeightCommand` reads the note itself, so a peer save
-		// landing between that read and this one is merged forward and un-merged by the undo.
-		const expected = this.ran ? before.value.version : (this.input.expected ?? before.value.version);
-		const ran = await this.command.execute({ ...this.input, expected });
-		this.ran = true;
+		// `SetAssetHeightCommand` reads the note itself, so this adapter straddles the same
+		// two-read window the geometry one does — `runForward` states that rule for both.
+		const ran = await this.runForward(before.value.version);
 		if (isErr(ran) || ran.value === 'no-write') return ran;
 
 		this.inverse = { entity: before.value.entity, preVersion: before.value.version };

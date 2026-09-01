@@ -440,6 +440,7 @@ export const en = {
 	// `editor.plan-failed.headline`: the BODY under it is `trError(error)`, so an unreadable
 	// vault, unrecovered settings and an asset that is gone each say their own sentence.
 	'view.asset-designer.name': 'Asset designer',
+	'designer.canvas': 'Asset canvas',
 	'designer.loading': 'Loading asset…',
 	'designer.asset-failed.headline': 'This asset could not be loaded',
 	'designer.refresh-failed':

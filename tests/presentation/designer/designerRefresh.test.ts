@@ -38,6 +38,8 @@ import { provideDesignerRuntime, useDesignerRuntime, type DesignerRuntime } from
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { assetDesign } from '../../helpers/assetDesign';
 import { installObsidianDom } from '../../helpers/dom';
+import { installCanvas } from '../../helpers/canvas';
+import { installResizeObserver } from '../../helpers/layout';
 import { settle } from '../../helpers/async';
 import { lines, recorder, resetRecorder } from '../../helpers/logger';
 import { activateNotices } from '../../../src/presentation/notices/notify';
@@ -45,6 +47,13 @@ import { FakeLeaf } from '../../helpers/workspace';
 import { Notice } from '../../helpers/obsidian-mock';
 
 installObsidianDom();
+/**
+ * The two designer leaves below are REAL views since Task B4, so each mounts a Konva stage:
+ * jsdom implements no 2D context and no `ResizeObserver`, and `EditorSurface` constructs the
+ * second unconditionally at mount.
+ */
+installCanvas();
+installResizeObserver();
 
 const THE_ASSET = createAssetId();
 const OTHER_ASSET = createAssetId();

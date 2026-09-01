@@ -1,5 +1,6 @@
 import { ItemView, type ViewStateResult, type WorkspaceLeaf } from 'obsidian';
 import { createApp, type App as VueApp } from 'vue';
+import VueKonva from 'vue-konva';
 import { createPinia } from 'pinia';
 import AssetDesignerRoot from './AssetDesignerRoot.vue';
 import { ASSET_DESIGNER_CONTEXT, type AssetDesignerContext, type AssetDesignerDeps } from './AssetDesignerContext';
@@ -186,6 +187,16 @@ export class AssetDesignerView extends ItemView {
 		// can be on screen at once.
 		app.config.idPrefix = nextAppIdPrefix();
 		app.use(createPinia());
+		// On the APP instance and not globally, for `PlanEditorView`'s reason: each ItemView's
+		// Vue app is isolated (ADR-0004), and a global `app.use` at plugin scope would leak
+		// vue-konva's registration into every future view whether it draws a canvas or not.
+		//
+		// Task B4 is what made this necessary: without it `<VStage>` and `<VLayer>` resolve to
+		// nothing, Vue warns and moves on, and the designer draws an empty pane with every gate
+		// green — the shape of defect this whole increment's *Mounting is not optional* section
+		// exists for. `assetDesignerView.test.ts` mounts the REAL view, so removing this line
+		// reddens it rather than passing quietly.
+		app.use(VueKonva);
 		app.provide(ASSET_DESIGNER_CONTEXT, context);
 		app.mount(host);
 

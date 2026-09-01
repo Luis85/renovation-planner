@@ -1218,6 +1218,7 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 ### Task 4: the two commands
 
 **Files:**
+- Create: `src/application/commands/asset-price/priceRowExpectation.ts`
 - Create: `src/application/commands/asset-price/SetAssetPriceOverride.ts`
 - Create: `src/application/commands/asset-price/ClearAssetPriceOverride.ts`
 - **Move** `checkExpectedVersion` from `src/infrastructure/obsidian/repositories/versionCheck.ts`
@@ -1241,6 +1242,77 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
     the user never saw.
     and a `{ cleared: boolean }` result.
   - `AssetPriceOverrideChanged` is published by BOTH — see Task 7, which subscribes to it.
+
+- [ ] **Step 0: The expectation type and its check**
+
+Its own module — `src/application/commands/asset-price/priceRowExpectation.ts` — because BOTH
+commands use it, so putting it in either would make the other import a sibling command.
+
+It must live in **Task 4**, not Task 5: the commands here call it, so a definition deferred to a
+later task leaves this task's commit red. (It was in Task 5's `resolveEffectiveUnitCost.ts` for
+one commit, which is a task-ordering error of exactly the kind this plan's green-on-its-own claim
+exists to prevent.)
+
+```ts
+import type { ValidationError } from '../../../core/errors/AppError';
+import type { EntityVersion, Loaded } from '../../ports/versioning';
+import { checkExpectedVersion, revisionConflict } from '../../ports/versioning';
+import type { AssetPriceOverride } from '../../../domain/asset-price/AssetPriceOverride';
+import type { AssetPriceOverrideId } from '../../../domain/asset-price/AssetPriceOverrideId';
+
+/**
+ * What a rendered row believed about its pair: nothing, or one specific note at one version.
+ * ONE field rather than two, so the id and the version cannot disagree.
+ */
+export type PriceRowExpectation = 'absent' | { readonly id: AssetPriceOverrideId; readonly version: EntityVersion };
+
+/**
+ * **Did the pair move under the caller since their row rendered?**
+ *
+ * This is `checkExpectedVersion` — the function `versionCheck.ts` already calls *"the ONE
+ * comparison behind every conditional write"* — with an identity check in front of it. An
+ * earlier draft of this plan hand-rolled a `revision`-only comparison here, which was wrong
+ * three ways and is worth recording rather than quietly replacing:
+ *
+ * - it dropped `EntityVersion.observed`, whose whole job is to detect *"a change no plugin
+ *   made (a hand edit, a sync)"* — the exact case this increment's own residuals say to
+ *   expect, since these notes are user-editable;
+ * - it collapsed two distinct outcomes into one code, where the vocabulary deliberately
+ *   separates `revisionConflict` (another plugin writer) from `externalModification` (a hand
+ *   edit) *"because the recoveries differ"*;
+ * - and it recreated a duplication this repository had **already deleted once**:
+ *   `checkExpected.ts` records that the in-memory store held its own copy of
+ *   revision-then-token, "identical to `checkExpectedVersion` line for line".
+ *
+ * `checkExpectedVersion` therefore MOVES to `application/ports/versioning.ts`, beside the two
+ * error factories it already returns. It is pure — its only imports are that vocabulary — and
+ * it sits in `infrastructure/obsidian/` today by accident of who first needed it, which
+ * `application/` may not import from. `versionOfFrontmatter` stays behind, because it reads
+ * frontmatter. The move updates the importers named in Task 4's file list; it changes no
+ * behaviour, and the existing suites are the check on that.
+ *
+ * The IDENTITY half is what `checkExpectedVersion` cannot answer, and it matters only because
+ * duplicates are tolerated here: the row rendered one specific note, and a different note for
+ * the same pair can carry the same revision. So the expectation is `{ id, version }` rather
+ * than a bare version — one field the row fills from `overrideId`/`overrideVersion` together,
+ * so the two cannot disagree.
+ */
+export function expectationMismatch(
+	expected: PriceRowExpectation,
+	found: Loaded<AssetPriceOverride> | null,
+): ValidationError | null {
+	if (expected === 'absent') {
+		return found === null ? null : revisionConflict('asset-price', 'absent');
+	}
+	// A DIFFERENT note now wins the pair. Same revision is no comfort: ids are ULIDs and a
+	// duplicate's winner can change without any revision moving.
+	if (found !== null && found.entity.id !== expected.id) {
+		return revisionConflict('asset-price', String(found.entity.id));
+	}
+	return checkExpectedVersion('asset-price', String(expected.id), found?.version, expected.version);
+}
+
+```
 
 - [ ] **Step 1: Add the event**
 
@@ -1399,15 +1471,31 @@ describe('SetAssetPriceOverrideCommand', () => {
 	 * under `'absent'` — the duplicate-pair state this design tolerates in a hand-edited vault
 	 * and must never manufacture. Watch it fail with the `locks.acquire` removed.
 	 */
-	it('does not create two overrides when two executions race on one pair', async () => {
+	it('lets one racing create win and refuses the other, leaving one override', async () => {
 		const [a, b] = await Promise.all([
-			command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }),
-			command.execute({ projectId, assetId, unitCost: moneyOf('21.00', 'GBP') }),
+			command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }),
+			command.execute({ projectId, assetId, unitCost: moneyOf('21.00', 'GBP'), expected: 'absent' }),
 		]);
-		expectOk(a);
-		expectOk(b);
+
+		// **One ok, one conflict — not two oks.** An earlier draft asserted both succeeded,
+		// which was written before the expectation check existed and contradicts it: the
+		// second caller's row also said `'absent'`, and by the time the lock lets it through
+		// a price exists, so its view is stale and it must be refused. Asserting two oks would
+		// have invited weakening the very protection the round before added.
+		const results = [a, b];
+		expect(results.filter((r) => r.ok)).toHaveLength(1);
+		const refused = results.find((r) => !r.ok);
+		expect(refused && !refused.ok && refused.error.code).toBe('asset-price.revision-conflict');
 		expect(expectOk(await overrides.listByAsset(assetId))).toHaveLength(1);
 	});
+
+	/**
+	 * The LOCK is still what this pair proves, and it is worth saying which mutation reddens
+	 * which: without the lock both callers read `null`, both satisfy `'absent'`, and both
+	 * create — two oks and two notes. Without the expectation check the second overwrites
+	 * rather than refusing — two oks and one note. The assertions above discriminate all three
+	 * outcomes, which one `toHaveLength(1)` alone would not.
+	 */
 
 	/**
 	 * A failed WRITE must not announce. Otherwise the cascade recalculates against a price
@@ -1730,8 +1818,11 @@ Expected: PASS.
 Run: `npm run check`
 
 ```bash
+# `src/application/ports` and `src/infrastructure` are the checkExpectedVersion MOVE: the
+# function and its six importers. Staging only the commands leaves the tree not building.
 git add src/domain/asset-price/AssetPriceOverride.events.ts \
-        src/application/commands/asset-price tests/application/commands/asset-price
+        src/application/commands/asset-price src/application/ports/versioning.ts \
+        src/infrastructure tests
 git commit -m "feat(commands): set and clear a project's own price
 
 Upsert on the PAIR rather than on an id, because that is the user's intent
@@ -1855,52 +1946,6 @@ import type { Money } from '../../../core/money/Money';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { AssetPriceOverrideRepository } from '../../ports/AssetPriceOverrideRepository';
-
-/**
- * **Did the pair move under the caller since their row rendered?**
- *
- * This is `checkExpectedVersion` — the function `versionCheck.ts` already calls *"the ONE
- * comparison behind every conditional write"* — with an identity check in front of it. An
- * earlier draft of this plan hand-rolled a `revision`-only comparison here, which was wrong
- * three ways and is worth recording rather than quietly replacing:
- *
- * - it dropped `EntityVersion.observed`, whose whole job is to detect *"a change no plugin
- *   made (a hand edit, a sync)"* — the exact case this increment's own residuals say to
- *   expect, since these notes are user-editable;
- * - it collapsed two distinct outcomes into one code, where the vocabulary deliberately
- *   separates `revisionConflict` (another plugin writer) from `externalModification` (a hand
- *   edit) *"because the recoveries differ"*;
- * - and it recreated a duplication this repository had **already deleted once**:
- *   `checkExpected.ts` records that the in-memory store held its own copy of
- *   revision-then-token, "identical to `checkExpectedVersion` line for line".
- *
- * `checkExpectedVersion` therefore MOVES to `application/ports/versioning.ts`, beside the two
- * error factories it already returns. It is pure — its only imports are that vocabulary — and
- * it sits in `infrastructure/obsidian/` today by accident of who first needed it, which
- * `application/` may not import from. `versionOfFrontmatter` stays behind, because it reads
- * frontmatter. The move updates the importers named in Task 4's file list; it changes no
- * behaviour, and the existing suites are the check on that.
- *
- * The IDENTITY half is what `checkExpectedVersion` cannot answer, and it matters only because
- * duplicates are tolerated here: the row rendered one specific note, and a different note for
- * the same pair can carry the same revision. So the expectation is `{ id, version }` rather
- * than a bare version — one field the row fills from `overrideId`/`overrideVersion` together,
- * so the two cannot disagree.
- */
-export function expectationMismatch(
-	expected: PriceRowExpectation,
-	found: Loaded<AssetPriceOverride> | null,
-): ValidationError | null {
-	if (expected === 'absent') {
-		return found === null ? null : revisionConflict('asset-price', 'absent');
-	}
-	// A DIFFERENT note now wins the pair. Same revision is no comfort: ids are ULIDs and a
-	// duplicate's winner can change without any revision moving.
-	if (found !== null && found.entity.id !== expected.id) {
-		return revisionConflict('asset-price', String(found.entity.id));
-	}
-	return checkExpectedVersion('asset-price', String(expected.id), found?.version, expected.version);
-}
 
 /**
  * The `??` of the precedence, in ONE place:
@@ -2932,9 +2977,20 @@ rewrites the requirement, and an already-open Plan Editor keeps rendering the fi
 mount — including the very `unitCost` block this task adds, which would show a project price the
 project no longer has.
 
-Bind `createProjectPricesChangeSource` (Task 9 step 4a — write it in whichever task runs first
-and consume it in the other) into `PlanEditorContext`, and rehydrate the Inspector's rows on it,
-through the store's existing request ticket.
+**Two sources, because the block renders two things.** `unitCost` shows the catalogue price
+beside the project's, so it goes stale from either side:
+
+- `createProjectPricesChangeSource` (Task 9 step 4a — write it in whichever task runs first and
+  consume it in the other), for this project's own price;
+- **the existing `onCatalogueChanged`**, which the editor runtime already holds and which today
+  reloads only the assign picker's options. An asset repriced, renamed or unit-edited in another
+  leaf runs the asset cascade and rewrites the requirement, while a mounted Inspector keeps the
+  catalogue figure it read at mount. Rehydrating the rows on that callback as well is the other
+  half — and wiring only the price half would leave the block showing a stale *library* price
+  next to a fresh project one, which is a worse picture than two stale numbers.
+
+Both rehydrate the Inspector's rows through the store's existing request ticket — two sources
+firing together is exactly the concurrent-hydrate race that ticket exists for.
 
 **Not by widening `PLAN_CHANGE_EVENTS`.** That list is keyed by plan id
 (`planIdOf(event) === planId`) and a price override carries no plan, so an entry there would
@@ -2946,6 +3002,11 @@ it('rehydrates the inspector rows when a project price changes in another leaf',
 	// Mount the editor with a zone selected, publish AssetPriceOverrideChanged for that
 	// project and asset, and assert the row's unitCost moved. Watch it fail with the
 	// subscription removed — with it removed the row keeps the price it mounted with.
+});
+
+it('rehydrates the inspector rows when the catalogue price changes', async () => {
+	// The other source. Watch it fail with only the price subscription wired: the row keeps
+	// the catalogue figure it mounted with, beside a project price that did move.
 });
 ```
 

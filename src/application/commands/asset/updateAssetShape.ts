@@ -82,9 +82,18 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  * before the port is reached, which is why a stale `expected` over an unchanged attribute is
  * not a conflict: there is no field the command owns left to lose.
  *
- * **`AssetDesignChanged` is announced here and nowhere else** — measured rather than
- * asserted: `grep -rn "assetDesignChanged(" src/` prints its definition, its own test and
- * this module. It sits on the `'wrote'` arm alone, BELOW the no-write return and BELOW the
+ * **`AssetDesignChanged` is announced for every GEOMETRY command here, and this is not the
+ * only place it is published.** The sentence used to read "here and nowhere else", and it was
+ * false in the same increment that wrote it — `SetAssetHeightCommand` publishes its own,
+ * because a height is the one design field that lives in the note and so takes none of this
+ * path. `grep -rn "publish(assetDesignChanged" src/`, run in the edit that wrote this
+ * sentence, prints FOUR lines: this one, `SetAssetHeight.ts`, and the two restores in
+ * `application/editor/asset/ReversibleAssetDesignCommands.ts` — an undo that announced
+ * nothing would leave every peer leaf on the forward state. What IS true of this module is
+ * the narrower claim the wider one was reaching for: a sixth geometry command cannot forget
+ * to announce, because this is the only path by which it can write at all.
+ *
+ * It sits on the `'wrote'` arm alone, BELOW the no-write return and BELOW the
  * port's own answer, because the event means "the stored design changed" rather than
  * "somebody pressed something". A peer designer leaf re-reads on it, and a refresh triggered
  * by an idle re-submit or by a write that refused is a re-read of a document nothing moved.

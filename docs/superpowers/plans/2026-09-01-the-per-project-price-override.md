@@ -2258,8 +2258,15 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Files:**
 - Modify: `src/application/commands/asset/DeleteAsset.ts`
-- Modify: `src/plugin/composition-root.ts` (the new dep on `DeleteAssetDeps`)
+- Modify: `src/plugin/slice10Composition.ts` — **not** `composition-root.ts`. `DeleteAssetCommand`
+  is constructed there (`:140`) and `sequenceNotices` is declared there (`:54`); the root only
+  imports both. Bind the new `overrides` dep at the construction site, and add
+  `priceCleanupFailed` to `sequenceNotices` beside `markerClearFailed`.
+- Modify: `src/presentation/i18n/en.ts`, `src/presentation/i18n/de.ts` — the notice string,
+  through `tr(...)` exactly as `sequence.marker-clear-failed` is. `NOTICE_TEXT_BAN` refuses a
+  literal at `notifyWarning`, so this is a gate rather than a convention.
 - Test: `tests/application/commands/asset/deleteAssetWithOverrides.test.ts`
+- Test: `tests/plugin/assetPriceNoticeWiring.test.ts`
 
 **Interfaces:**
 - Consumes: Task 2's `listByAsset` and `delete`.
@@ -2275,9 +2282,22 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 ```
 
   Optional for the suite's benefit, which is exactly what makes a composition that forgets it
-  compile and say nothing — so the composition root's binding gets a wiring case, the shape
-  `sequenceNoticeWiring.test.ts` already uses for its sibling. The notice text is a `StringKey`
-  in both locales, never a literal: `NOTICE_TEXT_BAN` watches those doors.
+  compile and say nothing — and "optional" is not a detail here: omitting the production binding
+  silently reduces the promised user-visible warning back to the log line this task exists to
+  stop it being. So the binding gets a wiring case of its own, the shape
+  `sequenceNoticeWiring.test.ts` already uses for its sibling, watched red with
+  `priceCleanupFailed` deleted from `sequenceNotices`:
+
+```ts
+it('tells the user when an asset delete leaves a price note behind', async () => {
+	// Compose the real slice-10 wiring, fail the override delete, run the delete, and assert a
+	// warning notice was raised — not merely that the logger was called. Asserting the log alone
+	// passes against exactly the build this task is fixing.
+});
+```
+
+  The notice text is a `StringKey` in both locales, never a literal: `NOTICE_TEXT_BAN` watches
+  those doors.
 
 **Why this task exists.** `DeleteAssetCommand` gathers its referents from
 `requirements.listByAsset` alone (`DeleteAsset.ts:79`) and `resolvedReferents` is typed
@@ -2462,7 +2482,7 @@ are not testing what their names say.
 Run: `npm run check`
 
 ```bash
-git add src/application/commands/asset src/plugin tests/application/commands/asset
+git add src/application/commands/asset src/plugin src/presentation/i18n tests
 git commit -m "fix(delete): an asset's price overrides go with the asset
 
 DeleteAssetCommand gathered referents from requirements alone, so an asset
@@ -2746,6 +2766,8 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Create: `src/presentation/views/AssetPriceList.vue`
 - Create: `src/application/events/projectPricesChangeSource.ts` (step 4a)
 - Modify: `src/presentation/views/ProjectDetail.vue`, `src/presentation/views/ProjectDetailState.vue`
+- Modify: `src/presentation/views/renovationProjectCommands.ts` — the write boundary this
+  section dispatches through, plus its unavailable fallback (step 3a).
 - Modify: `src/presentation/stores/ProjectDetailStore.ts`
 - Modify: `src/presentation/views/RenovationProjectContext.ts` — the two change sources reach the
   view through its context, the same seam `onPlanChanged` already uses; `presentation/` may not
@@ -2826,6 +2848,33 @@ what make that honest, which is exactly why this is not a control on the Inspect
 Add the section to `ProjectDetail.vue` below the plans region, and give `ProjectDetailStore` the
 rows plus a request ticket — the store already hydrates from more than one caller, and without a
 ticket the slower earlier read wins and a just-set price vanishes with no error.
+
+- [ ] **Step 3a: Widen the project surface's write boundary, or the section is read-only**
+
+`ProjectDetailState` reaches writes ONLY through `RenovationProjectCommandServices`, which today
+declares exactly `createProject`, `createPlan` and `logger` — all REQUIRED, under a docblock
+saying an optional member "would let a composition forget it and still compile". Constructing the
+two price commands in Task 8 does not make them reachable from this component's `commit`
+callback; without this step the section renders and dispatches nothing, which is the dead
+control slice 14's amendment refuses and would leave the Issue's dead end open after all.
+
+Three edits, and the third is the one a compile error will not catch:
+
+1. `renovationProjectCommands.ts` — add `setAssetPriceOverride` and `clearAssetPriceOverride` to
+   the interface, REQUIRED like their siblings and for the stated reason.
+2. `unavailableRenovationProjectCommands()` — both refusals, through the SAME
+   `persistenceFailure()` the existing pair share, so `settings.unrecovered` cannot drift into
+   two spellings of one state.
+3. `renovationProjectDeps(...)` in `composition-root.ts` — bind the guarded commands. The
+   interface being required makes 1 and 3 build errors; nothing makes 2 one, so it is the entry
+   a composition can quietly leave refusing wrongly.
+
+```ts
+it('refuses a price edit with the unrecovered-settings code when the root could not compose', async () => {
+	const result = await unavailableRenovationProjectCommands().setAssetPriceOverride.execute(input);
+	expect(isErr(result) && result.error.code).toBe('settings.unrecovered');
+});
+```
 
 - [ ] **Step 4a: Make it hear about changes, or it draws the vault it read at mount**
 

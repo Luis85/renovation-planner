@@ -2072,6 +2072,33 @@ Add to the existing `GetRequirementsForZone` tests:
 	/** The memo's hit arm is invisible to every other case — a row renders identically
 	 *  whether it works or not — so it is pinned on the CALL COUNT. */
 	it('reads each (project, asset) pair once for a zone with repeated assets', async () => { … });
+
+	/**
+	 * **The precedence, with BOTH overrides live.** The spec's Testing section asks for it and
+	 * this plan's own self-review said it "belongs in Task 6's suite" without ever adding it —
+	 * so an implementer could tick every task, never prove the interaction, and then apply the
+	 * completion amendments over the gap.
+	 *
+	 * The two overrides sit on opposite sides of the derivation: the price override replaces an
+	 * INPUT, the requirement override replaces the OUTPUT. So moving the price must move
+	 * `cost.calculated` and must NOT move `cost.effective`.
+	 *
+	 * A case with only one override live passes against either precedence, which is why this
+	 * one carries both.
+	 */
+	it('moves calculated but not effective when the price changes under a requirement override', async () => {
+		// A requirement with estimatedCost.override = 500.00 GBP, derived from a 24.00 catalogue.
+		const before = rowFor(requirementId);
+		expect(before.cost.effective.amount).toBe('500.00');
+
+		expectOk(await setOverride.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }));
+		expectOk(await recalculate.execute({ requirementId }));
+
+		const after = rowFor(requirementId);
+		expect(after.cost.calculated.amount).not.toBe(before.cost.calculated.amount);
+		expect(after.cost.effective.amount).toBe('500.00');
+		expect(after.unitCost.effective.amount).toBe('19.50');
+	});
 ```
 
 - [ ] **Step 6: Run everything and watch it pass**
@@ -2587,8 +2614,24 @@ dropped the field, leaving 1594 tests green:
 
 ```ts
 it('drives the price-override cascade through the composed root', async () => {
-	// Compose a real root, set a price, and assert the requirement in THAT project is stale
-	// while one in another project on the same asset is not.
+	// Compose a real root; projects A and B both hold a requirement on the shared asset.
+	expectOk(await root.setAssetPriceOverride.execute({ projectId: projectA, assetId, unitCost: moneyOf('19.50', 'GBP') }));
+
+	// **Assert the RECALCULATED FIGURE, not a stale marker.** `EventBus.publish` awaits its
+	// subscribers and `recalculateOne` is markStale-THEN-recalculate, so by the time `execute`
+	// resolves the requirement has been rewritten and persists as `current` — which is what
+	// `slice10CascadeWiring.test.ts` already asserts after its own equivalent cascades. A test
+	// expecting `stale` here fails against the correct implementation, and the danger is not
+	// that it fails: it is that somebody weakens the cascade to make it pass.
+	const a = expectOk(await requirements.getById(projectARequirementId));
+	expect(a?.entity.recalculationStatus).toBe('current');
+	expect(a?.entity.calculatedFrom.unitCost.amount).toBe('19.50');
+
+	// Project B never referenced this project's price, so nothing about it moved — same
+	// revision, same figure. This is the narrowing, asserted at the composed root.
+	const b = expectOk(await requirements.getById(projectBRequirementId));
+	expect(b?.version.revision).toBe(revisionBefore);
+	expect(b?.entity.calculatedFrom.unitCost.amount).toBe(catalogueAmount);
 });
 
 it('registers the cascade subscriber, not merely the commands', async () => {
@@ -2899,11 +2942,13 @@ written without them. They are Task 4, and their two design decisions (upsert on
 no-op clear announces nothing) are stated there rather than left to be invented. A review bot
 reported the same gap independently; the spec now carries them as Decision 2a.
 
-**A second, left open deliberately:** the spec's precedence case — *"a Requirement with both
-overrides live, asserting the requirement override is in force and that changing the price
-override moves `calculated` and not the effective figure"* — has no task of its own. It belongs
-in Task 6's suite, where both halves already exist. Add it there rather than making a tenth task
-for one case.
+**A second gap, and this section had claimed to handle it without doing so.** The spec's
+precedence case — *"a Requirement with both overrides live, asserting the requirement override is
+in force and that changing the price override moves `calculated` and not the effective figure"* —
+was described here as belonging "in Task 6's suite", and Task 6's listed tests did not contain
+it. A self-review that names a gap and does not close it reads exactly like one that closed it,
+and the completion amendments would then have ticked the criterion over nothing. It is written
+out in Task 6, step 5.
 
 **Type consistency.** `resolveEffectiveUnitCost` (async, repository) and `effectiveUnitCostFrom`
 (pure, map) are two names for two shapes and are used as such in Tasks 5 and 6.

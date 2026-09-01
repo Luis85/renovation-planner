@@ -499,13 +499,14 @@ class ReversibleAssetBackgroundEdit
  * with the document as it was — and "as it was" has to be captured BEFORE the forward write,
  * by the gesture itself, because a later reader cannot reconstruct it.
  *
- * **ONE of the eight factories below carries a `fallow-ignore-next-line unused-class-member`
- * mark, and it used to be four — which is this mark's own documented exit condition arriving.**
- * Fallow resolves a class's members through the annotation where the CONSUMING expression
- * sits. All six were once reached only from the test suite; four of them only through
- * `tests/helpers/assetDesignHarness.ts` — an inferred object property, which it does not
- * follow — while `setFootprint` and `setHeight` were also called on a local the silent-ledger
- * cases build with a bare `new ReversibleAssetDesignCommands(…)`, which it does.
+ * **NONE of the eight factories below carries a `fallow-ignore-next-line unused-class-member`
+ * mark any longer — it was four, then one, and Task B8's `setFootprintFromDimensions` call is
+ * what cleared the last of them, exactly the exit condition this paragraph documented three
+ * tasks early.** Fallow resolves a class's members through the annotation where the CONSUMING
+ * expression sits. All six were once reached only from the test suite; four of them only
+ * through `tests/helpers/assetDesignHarness.ts` — an inferred object property, which it does
+ * not follow — while `setFootprint` and `setHeight` were also called on a local the
+ * silent-ledger cases build with a bare `new ReversibleAssetDesignCommands(…)`, which it does.
  *
  * There were no marks at all while every case lived in one file beside an annotated
  * `const reversible: ReversibleAssetDesignCommands`; the 450-line test budget split those
@@ -516,23 +517,26 @@ class ReversibleAssetBackgroundEdit
  * it — which is what turned two of these marks stale and is a finding of the gate rather than
  * of a reader.
  *
- * The remaining mark is on `setFootprintFromDimensions`, whose only caller is still a test:
+ * The last mark was on `setFootprintFromDimensions`, whose only caller was still a test:
  * design slice B5's `registerDesignerTools` reaches `setFootprint`, `setClearance`,
  * `setAnchor` and `setFacing` from `src/`, so those four marks went STALE the moment it landed
  * and fallow reported all three of the ones it had left. That is what this paragraph said
- * would happen — "the marks go the day something in `src/` constructs this class" — and it is
- * the day. `setFootprintFromDimensions` keeps its mark until Task B8's dimensions form calls
- * it, which is the last consumer this class is missing.
+ * would happen — "the marks go the day something in `src/` constructs this class" — and it was
+ * the day. `setFootprintFromDimensions` kept its mark until Task B8's dimensions dialog called
+ * it, which was the last consumer this class was missing.
  *
- * **Task B6 took that invitation and Task B7 has now taken the rest of it.** This paragraph
- * read "Tasks B6 and B7 extend this module rather than starting a second one", and both have:
- * B6's `calibrate` is one more factory over the geometry adapter already here, and B7's
- * `setBackground` is `ReversibleAssetBackgroundEdit` — the NOTE adapter and the geometry one
- * together, since it writes the reference and clears the calibration, which is the first
- * inverse in this file that spans both resources. `setBackground` carries no
- * `fallow-ignore-next-line` mark, unlike `setFootprintFromDimensions` above: `runtime.ts`
- * wires a real `src/` caller (the designer's `noBackground` empty-state action) in the same
- * task that adds the factory.
+ * **Task B6 took that invitation, Task B7 took the next, and Task B8 has now taken the last of
+ * it.** This paragraph read "Tasks B6 and B7 extend this module rather than starting a second
+ * one" through B7, and all three have: B6's `calibrate` is one more factory over the geometry
+ * adapter already here; B7's `setBackground` is `ReversibleAssetBackgroundEdit` — the NOTE
+ * adapter and the geometry one together, since it writes the reference and clears the
+ * calibration, the first inverse in this file that spans both resources; and B8's
+ * `setFootprintFromDimensions` above needed no new mechanism, only a caller — `runtime.ts`'s
+ * `setFootprintFromDimensions` reaches it through the same annotated
+ * `edits: ReversibleAssetDesignCommands` local that already cleared `setBackground`'s mark in
+ * Task B7. Neither carries a `fallow-ignore-next-line` mark now: each got a real `src/` caller
+ * in the same task that added its factory (B7's `noBackground` empty-state action, B8's
+ * `asset-dimensions` dialog).
  */
 export class ReversibleAssetDesignCommands {
 	constructor(
@@ -540,7 +544,6 @@ export class ReversibleAssetDesignCommands {
 		private readonly commands: AssetDesignCommandBundle,
 	) {}
 
-	// fallow-ignore-next-line unused-class-member
 	setFootprintFromDimensions(input: SetAssetFootprintFromDimensionsInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setFootprintFromDimensions, input);
 	}

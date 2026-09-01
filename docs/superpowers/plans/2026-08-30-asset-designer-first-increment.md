@@ -2285,9 +2285,33 @@ git commit -m "One dispatcher per designer leaf, and a refresh that survives a f
 - Test: `tests/application/editor/reversibleAssetDesign.test.ts`
 
 **Interfaces:**
-- Consumes: A5–A7's commands, B6's `CalibrateAsset`, B7's `SetAssetBackground`, the
-  `AssetGeometrySidecar` port, the `EventBus`, and **two** `WriteLedger`s — `noteLedger` and
-  `geometryLedger` (see the rule below).
+- Consumes: **A5–A7's five design commands ONLY**, the `AssetGeometrySidecar` port, the
+  `EventBus`, and **two** `WriteLedger`s — `noteLedger` and `geometryLedger` (see the rule below).
+
+#### Amendment — the calibrate and background adapters move OUT of this task, 2026-09-01
+
+This task's Interfaces block used to name "B6's `CalibrateAsset`, B7's `SetAssetBackground`", and
+its Step 1 tests `reversible.calibrate` and `reversible.setBackground`. **Neither command exists
+when B3b runs**, so followed in order this task cannot compile, cannot pass its own required
+`npm run check`, and cannot be committed as an independently working increment. Verified against
+the tree: `src/application/commands/asset/` holds `CreateAsset`, `DeleteAsset`, `UpdateAsset`,
+`SetAssetHeight` and the four shape commands, and nothing named for a calibration or a background.
+
+**Split rather than reordered**, and the reason is cohesion rather than convenience. Moving B3b
+after B7 would fix the ordering and leave every adapter in one task, far from the command it
+inverts — while this task's own argument is that the inverse must be captured *by the command
+itself*, because a later reader cannot reconstruct it. So:
+
+- **B3b builds the five adapters whose commands exist**: footprint (typed and traced), clearance,
+  anchor and facing. It is independently gateable the day it runs.
+- **B6 builds `ReversibleCalibrateAsset` alongside `CalibrateAsset`**, and **B7 builds
+  `ReversibleSetAssetBackground` alongside `SetAssetBackground`** — each into the same
+  `ReversibleAssetDesignCommands.ts` module, against the two ledgers B3b establishes.
+
+What B3b therefore OWES its two successors is the shared design, not just five adapters: the two
+`WriteLedger`s, the capture-before-write rule, and the `UndoableCommand` structural conformance.
+Both later tasks extend a module rather than inventing a second one, which is what keeps "one
+reversible adapter per design command" a fact about a file rather than a sentence in a plan.
 - Produces: one reversible adapter per design command, each satisfying `UndoableCommand`
   **structurally** — the interface lives in `presentation/` and the layer ban holds, exactly as
   slice 8's zone adapters do.
@@ -2311,7 +2335,12 @@ it('restores the exact document the forward write replaced', async () => {
 	expect(isOk(before) && isOk(after) && after.value.document).toEqual(before.value.document);
 });
 
-it('restores a calibration undo including every coordinate it rescaled', async () => {
+// MOVED TO B6 by the amendment above — `reversible.calibrate` has no command to wrap until
+// `CalibrateAsset` exists, so this case cannot compile here. It is kept written out because B6
+// inherits it verbatim, and because a case deleted rather than relocated is one nobody rebuilds:
+// the rescaled-coordinate assertion is the whole point of a calibration undo, and it is the
+// assertion a re-derived version would be likeliest to drop.
+it.skip('restores a calibration undo including every coordinate it rescaled', async () => {
 	await seedShape({ footprint: rect(100, 60), footprintOrigin: 'traced', footprintPending: true });
 	const command = reversible.calibrate({ assetId, pointA: a, pointB: b, knownDistance: 200 });
 	await command.execute();
@@ -2366,7 +2395,11 @@ field restores the old document reference over an erased calibration, which is n
 design and is exactly what the undo advertises. Its case seeds a **calibrated** asset:
 
 ```typescript
-it('restores the calibration a background change cleared, not only the reference', async () => {
+// MOVED TO B7 by the amendment above, for the same reason the calibration case moves to B6 —
+// and this is the one whose relocation matters most. It is the case that catches an inverse
+// restoring the background REFERENCE over an erased calibration, which is the exact half of
+// Decision 5 a re-derived snapshot rule would miss. B7 inherits it verbatim.
+it.skip('restores the calibration a background change cleared, not only the reference', async () => {
 	await seedCalibration();
 	const command = reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
 	await command.execute();
@@ -2452,6 +2485,16 @@ git commit -m "Draw an asset's footprint, clearance, anchor and facing"
 **Files:**
 - Create: `src/presentation/designer/tools/registerDesignerTools.ts`
 - Create: `src/presentation/designer/tools/set-anchor-tool.ts`, `set-facing-tool.ts`
+- **Modify: `src/presentation/editor/tools/editor-tool.ts` — widen the `ToolId` union.** It is
+  CLOSED (`'select' | 'pan' | 'draw-polygon' | 'place-asset' | 'measure' | 'annotation' |
+  'calibrate'`, measured), so none of this task's four ids type-checks and the supplied
+  `setActiveTool('trace-footprint')` test cannot compile as written.
+- **Modify: `src/presentation/editor/tools/draw-polygon-tool.ts` — make its id INJECTABLE.** It
+  hardcodes `readonly id: ToolId = 'draw-polygon'` and `ToolManager.register` throws on a
+  duplicate, so two instances cannot be registered for footprint and clearance. Design slice B2
+  injected the tool's COMPLETION and left its identity hardcoded; this is the remaining half of
+  the same decoupling, and taking it as a wrapper tool per id would be a second mechanism for
+  what one constructor argument answers.
 - **Create: `src/presentation/designer/DesignerToolbar.vue` — the control that reaches these
   tools.** This task's file list had NONE, in any Phase B task, while its commit message promised
   "a toolbar that reaches all of them". See *Mounting is not optional* above.

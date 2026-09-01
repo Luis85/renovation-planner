@@ -35,6 +35,7 @@ import { EMPTY_STATE_CONTENT } from '../../../src/presentation/emptyStates/conte
 import { assetDesign } from '../../helpers/assetDesign';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
 import { recorder } from '../../helpers/logger';
+import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
 
@@ -54,6 +55,7 @@ function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerCo
 	return {
 		assetId: ASSET_ID,
 		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())) },
+		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		// A subscription that delivers nothing and disposes cleanly: this file is about what the
 		// shell DRAWS, and `designerRefresh.test.ts` is where the source is driven.

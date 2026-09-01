@@ -121,6 +121,7 @@ export function drawTriangle(tool: DrawPolygonTool): void {
 
 export function build(h: Harness): DrawPolygonTool {
 	return new DrawPolygonTool({
+		id: 'draw-polygon',
 		completion: {
 			commandFor: (geometry) => {
 				h.completions.push(geometry);

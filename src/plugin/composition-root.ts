@@ -44,6 +44,10 @@ import {
 } from '../presentation/read-models/assetDesignerQueries';
 import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
 import {
+	createAssetDesignerCommands,
+	unavailableAssetDesignerCommands,
+} from '../presentation/designer/designerCommands';
+import {
 	createRenovationProjectQueries,
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
@@ -549,6 +553,21 @@ export function assetDesignerDeps(
 			persistence === null
 				? unavailableAssetDesignerQueries()
 				: createAssetDesignerQueries(persistence.assetDesign),
+		// The write side (design slice B5), composed from the GUARDED design bundle plus the
+		// three ports its reversible adapters restore through. Presentation holding a port is
+		// the bargain `PlanEditorCommandServices.zones` already makes and for the same reason:
+		// an inverse writes a whole snapshot back, which is a repository call and not a command.
+		commands:
+			persistence === null
+				? unavailableAssetDesignerCommands()
+				: createAssetDesignerCommands(
+						{
+							sidecar: persistence.assetGeometry,
+							assets: persistence.assets,
+							events: root.eventBus,
+						},
+						persistence.assetDesign,
+					),
 		logger: root.logger,
 		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
 		// `renovationProjectDeps.onPlansChanged` states: the bus is the root's own and exists

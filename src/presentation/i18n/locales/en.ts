@@ -333,6 +333,9 @@ export const en = {
 	'asset.degenerate-clearance': 'That clearance encloses no area.',
 	'asset.invalid-anchor': 'An anchor must have finite coordinates.',
 	'asset.invalid-facing': 'A facing must be a finite angle.',
+	// Raised by `SetFacingTool` before it builds anything, so no save indicator is carrying it
+	// and this sentence is the only account the user gets of a click that set nothing.
+	'asset.facing-without-direction': 'Drag in the direction the object faces; a click alone names none.',
 	'asset.typed-footprint-cannot-be-pending':
 		'A typed footprint is already in millimetres, so it cannot be waiting for a scale.',
 	'asset.absent-clearance-cannot-be-pending': 'There is no clearance to wait for a scale.',
@@ -441,6 +444,16 @@ export const en = {
 	// vault, unrecovered settings and an asset that is gone each say their own sentence.
 	'view.asset-designer.name': 'Asset designer',
 	'designer.canvas': 'Asset canvas',
+	// The designer's toolbar (design slice B5). FOUR labels rather than six: camera mode, Select,
+	// Undo and Redo say the same words as the Plan Editor's and take its keys
+	// (`editor.toolbar.pan`/`.select`/`.undo`/`.redo`) rather than shipping a second translation
+	// of "Undo" for a translator to keep in step with the first. What is designer-specific is
+	// the four gestures below, which have no counterpart on a plan.
+	'designer.toolbar': 'Asset tools',
+	'designer.toolbar.trace-footprint': 'Trace footprint',
+	'designer.toolbar.trace-clearance': 'Trace clearance',
+	'designer.toolbar.set-anchor': 'Set anchor',
+	'designer.toolbar.set-facing': 'Set facing',
 	'designer.loading': 'Loading asset…',
 	'designer.asset-failed.headline': 'This asset could not be loaded',
 	'designer.refresh-failed':

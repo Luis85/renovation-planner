@@ -1,10 +1,24 @@
-import { inject, onBeforeUnmount, provide, type InjectionKey, type Ref } from 'vue';
+import { inject, onBeforeUnmount, provide, reactive, type InjectionKey, type Ref } from 'vue';
+import { storeToRefs } from 'pinia';
+import { SessionWriteLedger } from '../../application/editor/WriteLedger';
+import type { AssetId } from '../../domain/asset/AssetId';
+import { useEditorStore } from '../stores/EditorStore';
+import { useSelectionStore } from '../editor/selection/selection-store';
 import { CommandHistory } from '../editor/tools/command-history';
+import { createEditorContext } from '../editor/tools/editor-context';
+import type { ToolId } from '../editor/tools/editor-tool';
+import { RenderState } from '../editor/tools/render-state';
+import { ToolManager } from '../editor/tools/tool-manager';
+import { createToolSwitch } from '../editor/tools/tool-switch';
+import { EDITOR_SNAP_SERVICE } from '../editor/snapping/editorSnapping';
+import { editorViewportAdapter } from '../editor/viewport/editorViewportAdapter';
+import { registerDesignerTools } from './tools/registerDesignerTools';
 import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-state-refresh';
 import { wrapDispatcher } from '../editor/tools/wrap-dispatcher';
 import { useSaveStateStore } from '../editor/save-state/save-state-store';
 import { withSaveStateTracking } from '../editor/save-state/with-save-state-tracking';
-import { notifyIfRefused, reportDispatchFault } from '../editor/report-failure';
+import { notifyIfRefused, reportDispatchFailure, reportDispatchFault } from '../editor/report-failure';
+import { notifyOperationFailure } from '../notices/notify';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import type { AssetDesignerContext } from './AssetDesignerContext';
 
@@ -44,6 +58,22 @@ export interface DesignerRuntime {
 	 * rewritten by the edit that moves one.
 	 */
 	readonly hydrate: () => Promise<void>;
+	/**
+	 * This leaf's tool framework (design slice B5). Held HERE rather than inside
+	 * `DesignerCanvas`, which is where Task B4 built it while nothing registered a tool: the
+	 * toolbar mounts in the shell's own region and is not the canvas's child, so a manager
+	 * local to the canvas is a manager no control can reach.
+	 */
+	readonly toolManager: ToolManager;
+	/**
+	 * The reactive proxy over `RenderState` (SDD §19's transient visuals). Tools write plain
+	 * fields; a layer reading them reactively is what would DRAW them — and this canvas has no
+	 * such layer yet, which `registerDesignerTools` records where the tools are.
+	 */
+	readonly renderState: RenderState;
+	/** The active tool id, `null` for camera mode; mirrors `ToolManager` reactively. */
+	readonly activeToolId: Ref<ToolId | null>;
+	readonly setTool: (id: ToolId | null) => void;
 }
 
 /**
@@ -104,6 +134,80 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 
 	const { dispatcher, canUndo, canRedo } = wrapDispatcher(history, tracked);
 
+	/**
+	 * The ONE cast in this file, and the shape `presentation/editor/runtime.ts` already draws
+	 * for a plan. Obsidian persists an asset id in its per-leaf view state as an opaque string,
+	 * so `AssetDesignerContext.assetId` is a `string` and nothing at runtime can verify a
+	 * phantom brand. Narrowing it HERE, at the single point that value enters the tool
+	 * framework, is what keeps every command input below honestly branded — and it is read by
+	 * both consumers, `subject` widening it back to the `EntityId<string>` every tool sees and
+	 * the tools' own deps taking it branded, so the two cannot disagree about which asset this
+	 * leaf is designing.
+	 */
+	const assetId = context.assetId as AssetId;
+
+	// Both stores are resolved during SETUP and closed over, never inside the context factory
+	// below: a Pinia store may not be touched without an active instance, and that factory runs
+	// from a toolbar click long after `setup` has returned.
+	const editor = useEditorStore();
+	const selection = useSelectionStore();
+
+	// The camera as a tool sees it — the SAME function the Plan Editor's runtime binds
+	// (`editor/viewport/editorViewportAdapter.ts`), not a second copy of five identical
+	// members. It closes over this leaf's live camera ref.
+	const viewportAdapter = editorViewportAdapter(editor);
+
+	const renderState = reactive(new RenderState());
+	/**
+	 * TWO ledgers, because an asset is two resources under one id — see `DesignWriteLedgers`.
+	 * Only the geometry one is reachable from this slice's tools, all four of which write the
+	 * sidecar; the note ledger exists because the adapters take both and Task B8's height field
+	 * writes through the other.
+	 */
+	const noteLedger = new SessionWriteLedger();
+	const geometryLedger = new SessionWriteLedger();
+	const edits = context.commands.designEdits({ noteLedger, geometryLedger });
+
+	/**
+	 * A FRESH context per activation, through the same assembler the Plan Editor uses — which
+	 * is the guarantee `ToolManager`'s header states its factory exists for, and which one
+	 * object built once could not give. `subject.calibration` is the live one: an asset's
+	 * background is calibrated by Task B6, and a tool that had captured `null` at mount would
+	 * report placeholder-scale lengths on a calibrated asset for the rest of the leaf's life.
+	 *
+	 * `writeLedger` is the GEOMETRY one, and the asymmetry is worth naming: `EditorContext`
+	 * declares a single ledger because a Plan is a single resource, and the four tools this
+	 * surface registers all write the sidecar. Nothing reads it through the context today —
+	 * every adapter takes both ledgers directly — so a tool that reached for it would get the
+	 * right one, which is the only reason there is a defensible answer at all.
+	 */
+	const toolManager = new ToolManager(() =>
+		createEditorContext({
+			bindViewport: () => viewportAdapter,
+			selection,
+			snapService: EDITOR_SNAP_SERVICE,
+			commandDispatcher: dispatcher,
+			writeLedger: geometryLedger,
+			renderState,
+			subject: { id: assetId, calibration: store.design?.calibration ?? null },
+		}),
+	);
+	registerDesignerTools(toolManager, {
+		assetId,
+		edits,
+		reportRejected: reportDispatchFailure,
+		reportInvalidInput: notifyOperationFailure,
+	});
+
+	/**
+	 * The reactive mirror of `ToolManager`'s non-reactive pointer, held in `EditorStore` rather
+	 * than in a second ref beside it — the seam `DesignerCanvas` already reads and hands to
+	 * `EditorSurface`. The manager stays framework-pure (no Vue), so ONE mirror at this seam is
+	 * what a Vue consumer reads, and `setTool` is the one writer of both.
+	 */
+	const { activeToolId } = storeToRefs(editor);
+	const setTool = createToolSwitch(toolManager, activeToolId);
+
 	// Both halves of SDD §65 — a THROWN fault and a RESOLVED refusal — bound straight to
 	// toolbar clicks, which discard the promise they are handed.
 	async function undo(): Promise<void> {
@@ -131,7 +235,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		}),
 	);
 
-	return { dispatcher, canUndo, canRedo, undo, redo, hydrate };
+	return { dispatcher, canUndo, canRedo, undo, redo, hydrate, toolManager, renderState, activeToolId, setTool };
 }
 
 const DESIGNER_RUNTIME: InjectionKey<DesignerRuntime> = Symbol('renovation-planner:designer-runtime');

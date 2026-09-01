@@ -51,6 +51,23 @@ export interface PolygonCompletion {
  * bound in `runtime.ts` beside the command it builds.
  */
 export interface DrawPolygonToolDeps {
+	/**
+	 * Which tool this instance IS — REQUIRED, because one `DrawPolygonTool` class is now two
+	 * registered tools.
+	 *
+	 * The id was `readonly id: ToolId = 'draw-polygon'`, hard-coded, and `ToolManager.register`
+	 * throws on a duplicate — so the asset designer, which needs the identical gesture for a
+	 * footprint and for a clearance, could not register a second instance at all. Design slice
+	 * B2 made the tool's COMPLETION injectable and left its identity fixed; this is the
+	 * remaining half of the same decoupling, and it is one constructor argument rather than a
+	 * wrapper tool per id, which would be a second mechanism answering the same question.
+	 *
+	 * Required rather than defaulted to `'draw-polygon'`, on this repository's own rule for a
+	 * widening: an optional field changes the call sites somebody thought of and leaves the
+	 * rest compiling, so every construction says which tool it is and a third one has to
+	 * decide rather than inherit.
+	 */
+	readonly id: ToolId;
 	readonly completion: PolygonCompletion;
 	/**
 	 * Where a DISPATCHED refusal reaches the user. The tool states the seam instead of
@@ -73,7 +90,9 @@ export interface DrawPolygonToolDeps {
 }
 
 /**
- * The polygon-drawing tool (design slice 8, SDD §57): click places vertices,
+ * The polygon-drawing tool (design slice 8, SDD §57), registered under whichever id its deps
+ * name — `'draw-polygon'` in the Plan Editor, `'trace-footprint'` and `'trace-clearance'` in
+ * the asset designer, which registers two instances of it: click places vertices,
  * clicking near the first vertex of a ≥ 3 vertex buffer closes the shape into ONE command
  * built by the injected `PolygonCompletion`, `Escape` discards. What that command IS — a
  * Zone on a Plan, a footprint on an Asset — is the completion's business and not this
@@ -103,7 +122,7 @@ export interface DrawPolygonToolDeps {
  * keep placing points or cancel deliberately.
  */
 export class DrawPolygonTool implements EditorTool {
-	readonly id: ToolId = 'draw-polygon';
+	readonly id: ToolId;
 
 	private context: EditorContext | null = null;
 	private buffer: Point[] = [];
@@ -127,7 +146,9 @@ export class DrawPolygonTool implements EditorTool {
 	 */
 	private generation = 0;
 
-	constructor(private readonly deps: DrawPolygonToolDeps) {}
+	constructor(private readonly deps: DrawPolygonToolDeps) {
+		this.id = deps.id;
+	}
 
 	activate(context: EditorContext): void {
 		this.context = context;

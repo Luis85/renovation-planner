@@ -367,12 +367,12 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * with the document as it was — and "as it was" has to be captured BEFORE the forward write,
  * by the gesture itself, because a later reader cannot reconstruct it.
  *
- * **FOUR of the six factories below carry a `fallow-ignore-next-line unused-class-member`
- * mark, and the two that do not are the reason the rule is stated rather than the count.**
+ * **ONE of the six factories below carries a `fallow-ignore-next-line unused-class-member`
+ * mark, and it used to be four — which is this mark's own documented exit condition arriving.**
  * Fallow resolves a class's members through the annotation where the CONSUMING expression
- * sits. All six are reached only from the test suite; four of them only through
+ * sits. All six were once reached only from the test suite; four of them only through
  * `tests/helpers/assetDesignHarness.ts` — an inferred object property, which it does not
- * follow — while `setFootprint` and `setHeight` are also called on a local the silent-ledger
+ * follow — while `setFootprint` and `setHeight` were also called on a local the silent-ledger
  * cases build with a bare `new ReversibleAssetDesignCommands(…)`, which it does.
  *
  * There were no marks at all while every case lived in one file beside an annotated
@@ -384,9 +384,13 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * it — which is what turned two of these marks stale and is a finding of the gate rather than
  * of a reader.
  *
- * The marks are the honest answer while nothing in `src/` constructs this class, and they go
- * the day something does — `ReversibleDeleteZoneCommand`'s own account of the same mark, whose
- * `undo` mark this same change removed for the same reason.
+ * The remaining mark is on `setFootprintFromDimensions`, whose only caller is still a test:
+ * design slice B5's `registerDesignerTools` reaches `setFootprint`, `setClearance`,
+ * `setAnchor` and `setFacing` from `src/`, so those four marks went STALE the moment it landed
+ * and fallow reported all three of the ones it had left. That is what this paragraph said
+ * would happen — "the marks go the day something in `src/` constructs this class" — and it is
+ * the day. `setFootprintFromDimensions` keeps its mark until Task B8's dimensions form calls
+ * it, which is the last consumer this class is missing.
  *
  * **Tasks B6 and B7 extend this module rather than starting a second one.** Their commands
  * (`CalibrateAsset`, `SetAssetBackground`) do not exist yet, which is why their adapters are
@@ -409,17 +413,14 @@ export class ReversibleAssetDesignCommands {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setFootprint, input);
 	}
 
-	// fallow-ignore-next-line unused-class-member
 	setClearance(input: SetAssetClearanceInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setClearance, input);
 	}
 
-	// fallow-ignore-next-line unused-class-member
 	setAnchor(input: SetAssetAnchorInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setAnchor, input);
 	}
 
-	// fallow-ignore-next-line unused-class-member
 	setFacing(input: SetAssetFacingInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.setFacing, input);
 	}

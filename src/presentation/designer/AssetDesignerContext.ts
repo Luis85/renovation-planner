@@ -1,6 +1,7 @@
 import { inject, type InjectionKey } from 'vue';
 import type { Logger } from '../../application/ports/Logger';
 import type { AssetDesignerQueryServices } from '../read-models/assetDesignerQueries';
+import type { AssetDesignerCommandServices } from './designerCommands';
 
 /**
  * What the composition root hands an asset designer leaf.
@@ -8,12 +9,22 @@ import type { AssetDesignerQueryServices } from '../read-models/assetDesignerQue
  * A bundle of its own rather than a widening of `PlanEditorDeps`: the two surfaces share a
  * gesture surface (Task B1) and a tool context (Task B2) and share nothing about what they
  * ARE. A Plan Editor needs a `BackgroundVault`, a theme subscription and a plan-change source;
- * a designer needs a design to read. Task B7 adds the background picker here, and Task B3b the
- * reversible adapters — the guarded command bundle arrives with the first thing that builds a
- * command out of it, which Task B3a is not.
+ * a designer needs a design to read. Task B7 adds the background picker here; the guarded
+ * command bundle arrived with the first thing that builds a command out of it, which is design
+ * slice B5's tools and not Task B3a.
  */
 export interface AssetDesignerDeps {
 	readonly queries: AssetDesignerQueryServices;
+	/**
+	 * The write side (design slice B5), which this bundle's own header reserved in writing from
+	 * the day it was written — *"Task B3b the reversible adapters — the guarded command bundle
+	 * arrives with the first thing that builds a command out of it, which Task B3a is not."*
+	 * The designer's four tools are that first thing.
+	 *
+	 * A FACTORY over the leaf's two write ledgers rather than a set of ready-made adapters; see
+	 * `AssetDesignerCommandServices`, which carries the argument.
+	 */
+	readonly commands: AssetDesignerCommandServices;
 	/**
 	 * Where a THROWN fault on a click-bound dispatch is recorded (Task B3a). Beside the
 	 * queries rather than inside them: `reportDispatchFault` is about a door that faulted,

@@ -2,6 +2,7 @@ import type { EntityId } from '../../src/core/identity/EntityId';
 import type { Point } from '../../src/core/geometry/Point';
 import { RenderState } from '../../src/presentation/editor/tools/render-state';
 import { SnapService, type SnapCandidates } from '../../src/presentation/editor/snapping/snap-service';
+import { ANGLE_STEP_RADIANS } from '../../src/presentation/editor/snapping/editorSnapping';
 import type { EditorContext } from '../../src/presentation/editor/tools/editor-context';
 import type { UndoableCommand } from '../../src/presentation/editor/tools/undoable-command';
 import type { EditorPointerEvent } from '../../src/presentation/editor/tools/editor-tool';
@@ -74,13 +75,16 @@ function selectionDouble(): EditorContext['selection'] {
  * compile. Subclassing keeps every method the real one has, so the next addition to
  * `SnapService` is present here the day it is written rather than the day someone notices.
  *
- * The angle step is the editor's, 15 degrees (`runtime.ts`'s `SNAP_SERVICE`), because a
- * constraint test that passed under a quarter-turn step and failed in the app would be worse
- * than no test.
+ * The angle step is the editor's OWN constant rather than a `Math.PI / 12` copied beside it,
+ * because a constraint test that passed under a quarter-turn step and failed in the app would
+ * be worse than no test — and a literal here is exactly how the two would come to disagree.
+ * `ANGLE_STEP_RADIANS` moved out of `presentation/editor/runtime.ts` when the asset designer
+ * became a second surface composing the same service; this comment named that file, and a
+ * caller list is a fact about the routing.
  */
 class HarnessSnapService extends SnapService {
 	constructor(private readonly overridePoint?: (point: Point) => Point) {
-		super({ gridSpacingMm: 100, toleranceMm: 8, angleStepRadians: Math.PI / 12 });
+		super({ gridSpacingMm: 100, toleranceMm: 8, angleStepRadians: ANGLE_STEP_RADIANS });
 	}
 
 	override snapPoint(point: Point, candidates: SnapCandidates): Point {

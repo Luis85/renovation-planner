@@ -40,10 +40,12 @@ import SaveStateIndicator from '../editor/save-state/SaveStateIndicator.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { selectAssetDesignerEmptyState } from '../emptyStates/selectors';
+import { constrainsAngle } from '../editor/snapping/editorSnapping';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import DesignerCanvas from './DesignerCanvas.vue';
+import DesignerToolbar from './DesignerToolbar.vue';
 
 const context = useAssetDesignerContext();
 
@@ -79,6 +81,22 @@ const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value
  * with Task B5, so there is no active tool for an overlay to yield to. Task B5 adds that gate
  * where `PlanEditorRoot` keeps it — here, as a rendering rule, never inside the selector.
  */
+/**
+ * The Shift constraint, advertised while a tool that takes it is active — asked of the ONE list
+ * that holds that question (`editor/snapping/editorSnapping.ts`), which `StatusBar` asks for the
+ * plan editor.
+ *
+ * A modifier is invisible: no control shows it and no menu lists it, which is the standing cost
+ * of the convention every drawing tool in the field uses. This is the cheapest honest
+ * mitigation — present while the gesture it applies to is available, gone the moment it is not
+ * — and three of this surface's five tools take it, so its absence would leave the constraint
+ * mentioned nowhere on this surface at all.
+ *
+ * It sits in the status region rather than in the toolbar for `StatusBar`'s reason: the toolbar
+ * says what you can DO, and this says what is true of the thing you are doing.
+ */
+const showsConstraintHint = computed(() => constrainsAngle(runtime.activeToolId.value));
+
 const overlay = computed(() => {
 	const current = design.value;
 	if (current === null) return null;
@@ -128,8 +146,16 @@ onMounted(() => {
 
 <template>
 	<div class="renovation-asset-designer">
-		<!-- Task B5 mounts the designer's toolbar here. -->
-		<div class="rp-designer-toolbar" />
+		<!--
+			Design slice B5's toolbar, mounted. The REGION is this div and the component is its
+			child, which is the shape the canvas and the status regions already take — and it is
+			what lets the two instruments catch different mistakes: `assetDesignerRoot.test.ts`
+			fails when the region disappears, and `regionsReachable.test.ts` fails when a
+			component under `designer/` stops being reachable from the view.
+		-->
+		<div class="rp-designer-toolbar">
+			<DesignerToolbar />
+		</div>
 		<div class="rp-designer-body">
 			<!--
 				Task B4's `DesignerCanvas`, mounted. The region is ALWAYS drawn — the empty
@@ -181,7 +207,19 @@ onMounted(() => {
 		>
 			{{ tr('designer.refresh-failed') }}
 		</p>
+		<!--
+			The region keeps NO role, exactly as Task B3 shipped it. `StatusBar` puts the plan
+			editor's indicator inside a `role="status"` region and its Shift hint inside a
+			`role="group"` one, and merging the two here would make the hint's appearance an
+			announced status change — it is a standing note about a modifier, not an event. Giving
+			the designer's save state a live region of its own is a decision about THAT surface,
+			which this task does not take.
+		-->
 		<div class="rp-designer-status">
+			<span
+				v-if="showsConstraintHint"
+				class="rp-designer-hint"
+			>{{ tr('editor.hint.constrain-angle') }}</span>
 			<SaveStateIndicator />
 		</div>
 		<!--

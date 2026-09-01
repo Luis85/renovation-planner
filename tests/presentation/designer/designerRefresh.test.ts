@@ -42,6 +42,7 @@ import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
 import { settle } from '../../helpers/async';
 import { lines, recorder, resetRecorder } from '../../helpers/logger';
+import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { activateNotices } from '../../../src/presentation/notices/notify';
 import { FakeLeaf } from '../../helpers/workspace';
 import { Notice } from '../../helpers/obsidian-mock';
@@ -115,6 +116,7 @@ function harness(options: {
 				return options.answers?.() ?? Promise.resolve(ok(WITH_SHAPE));
 			},
 		},
+		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		onDesignChanged: options.onDesignChanged ?? (() => () => undefined),
 		indexScanCompleted: options.indexScanCompleted ?? ((): boolean => true),
@@ -583,7 +585,8 @@ describe('reaching the runtime from a region', () => {
 		const context: AssetDesignerContext = {
 			assetId: THE_ASSET,
 			queries: { getAssetDesign: () => Promise.resolve(ok(WITH_SHAPE)) },
-			logger: recorder,
+			commands: unavailableAssetDesignerCommands(),
+		logger: recorder,
 			onDesignChanged: () => () => undefined,
 			indexScanCompleted: () => true,
 		};
@@ -624,6 +627,7 @@ function leafDeps(bus: ReturnType<typeof createEventBus>, reads: string[]): Asse
 				return Promise.resolve(ok(assetDesign({ assetId: createAssetId() })));
 			},
 		},
+		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		onDesignChanged: createAssetDesignChangeSource(bus),
 		indexScanCompleted: () => true,

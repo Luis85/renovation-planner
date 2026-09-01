@@ -24,6 +24,7 @@ import { unavailableAssetDesignerQueries } from '../../../src/presentation/read-
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
 import { recorder } from '../../helpers/logger';
+import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { installObsidianDom } from '../../helpers/dom';
 import { installCanvas } from '../../helpers/canvas';
 import { installResizeObserver } from '../../helpers/layout';
@@ -49,6 +50,7 @@ const ASSET_ID = 'asset-01JABC';
 function deps(overrides: Partial<AssetDesignerDeps> = {}): AssetDesignerDeps {
 	return {
 		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())) },
+		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		onDesignChanged: () => () => undefined,
 		indexScanCompleted: () => true,

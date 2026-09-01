@@ -38,16 +38,100 @@
 }
 
 /*
- * A fixed height even while empty — Task B5 fills it — because a toolbar that appeared later
- * would resize every region below it on the day it did.
+ * The toolbar REGION. It carried a fixed height while it was empty so that filling it later
+ * would not resize every region below it; design slice B5 filled it, and the height stays
+ * because it is what keeps the bar the same size whether or not a control happens to be
+ * disabled.
  */
 .rp-designer-toolbar {
 	display: flex;
 	align-items: center;
-	gap: var(--size-4-2);
 	min-height: var(--size-4-8);
 	padding: 0 var(--size-4-2);
 	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* `DesignerToolbar`'s own root, filling the region it is mounted into. */
+.rp-designer-tools {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+/*
+ * QUALIFIED WITH `.rp-designer-tools`, and every rule below it for the same reason — the
+ * defect `styles/editor.css` records at length for the plan editor's toolbar and
+ * `styles/dialogs.css` for the destructive dialog button. Obsidian's own
+ * `button:not(.clickable-icon)` sets `background-color`, `color` AND `box-shadow` at
+ * specificity (0,1,1), because `:not()` contributes its argument's specificity, and that
+ * outranks a bare class at (0,1,0) with source order never even consulted. Unqualified, the
+ * active tool would render identically to the inactive ones while `aria-pressed` told a screen
+ * reader otherwise — the inverse of the usual failure, and invisible to every gate here.
+ *
+ * `box-shadow: none` is part of that rather than tidying: Obsidian's rule also sets
+ * `var(--input-shadow)`, so without it these buttons carry the raised chrome of a standalone
+ * button while asking for a transparent background.
+ */
+.rp-designer-tools .rp-designer-tool-button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+/*
+ * THE FOCUS RING, restored explicitly, and the accent rather than Obsidian's own for the reason
+ * measured in `styles/editor.css` and `styles/forms.css`: the rule above sets
+ * `box-shadow: none`, which outranks Obsidian's `button:focus-visible`, and Obsidian's global
+ * `:focus { outline: none }` had already taken the outline — so flattening these buttons would
+ * remove the LAST indicator a keyboard user has. Obsidian's own ring measures 2.29:1 in dark
+ * and 1.88:1 in light against `--background-primary`, both under the 3:1 WCAG 2.2 (1.4.11) asks
+ * of a non-text indicator, where `--interactive-accent` measures 4.00:1 and 3.43:1. Host
+ * deference stops where it would mean adopting a failure.
+ *
+ * This increment has already shipped one button that forgot it, which is why the rule is
+ * written in the same commit as the buttons rather than after somebody looks.
+ */
+.rp-designer-tools .rp-designer-tool-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-designer-tools .rp-designer-tool-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-designer-tools .rp-designer-tool-button:disabled {
+	color: var(--text-faint);
+	cursor: default;
+}
+
+/*
+ * THE ACTIVE TOOL WEARS THE ACCENT AS AN OUTLINE, NOT AS A FILL, for `styles/editor.css`'s
+ * measured reason: a filled accent button cannot carry a readable label here at all, since
+ * `--text-on-accent` is white and `--interactive-accent` measures 4.26:1 in dark and 3.43:1 in
+ * light against it — both under the 4.5:1 AA floor for text this size, with no lighter
+ * foreground than white to reach for.
+ *
+ * FOUR channels, so the accent is reinforcement rather than the carrier: the tint, the accent
+ * border, the weight, and `aria-pressed` in `DesignerToolbar.vue` for a reader who sees none of
+ * them.
+ */
+.rp-designer-tools .rp-designer-tool-active,
+.rp-designer-tools .rp-designer-tool-active:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-active-hover);
+	border-color: var(--interactive-accent);
+	font-weight: var(--bold-weight);
+}
+
+.rp-designer-toolbar-spacer {
+	flex: 1;
 }
 
 .rp-designer-body {
@@ -82,6 +166,11 @@
 	border-left: 1px solid var(--background-modifier-border);
 }
 
+/*
+ * The status region: the Shift hint, then the save-state indicator, pushed to the trailing edge
+ * so the indicator sits where it sits on the plan editor's bar. `justify-content` rather than a
+ * spacer element, because there are only ever these two children.
+ */
 .rp-designer-status {
 	display: flex;
 	align-items: center;
@@ -116,4 +205,13 @@
 	color: var(--text-warning);
 	background-color: var(--background-secondary);
 	border-top: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The Shift hint. Muted and small: it is a standing note about a modifier rather than a message
+ * about anything that has happened, so it must not read as loudly as the save state beside it.
+ */
+.rp-designer-hint {
+	margin-inline-end: auto;
+	color: var(--text-muted);
 }

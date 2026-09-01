@@ -269,6 +269,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'asset.degenerate-clearance': 'Dieser Freiraum umschließt keine Fläche.',
 	'asset.invalid-anchor': 'Ein Ankerpunkt braucht endliche Koordinaten.',
 	'asset.invalid-facing': 'Eine Ausrichtung braucht einen endlichen Winkel.',
+	'asset.facing-without-direction':
+		'Ziehen Sie in die Richtung, in die das Objekt zeigt; ein Klick allein nennt keine.',
 	'asset.typed-footprint-cannot-be-pending':
 		'Ein eingegebener Umriss ist bereits in Millimetern und wartet daher auf keinen Maßstab.',
 	'asset.absent-clearance-cannot-be-pending': 'Es gibt keinen Freiraum, der auf einen Maßstab warten könnte.',
@@ -313,6 +315,11 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt.',
 	'view.asset-designer.name': 'Objekt-Designer',
 	'designer.canvas': 'Objekt-Zeichenfläche',
+	'designer.toolbar': 'Objekt-Werkzeuge',
+	'designer.toolbar.trace-footprint': 'Grundfläche nachzeichnen',
+	'designer.toolbar.trace-clearance': 'Freiraum nachzeichnen',
+	'designer.toolbar.set-anchor': 'Ankerpunkt setzen',
+	'designer.toolbar.set-facing': 'Ausrichtung setzen',
 	'designer.loading': 'Objekt wird geladen …',
 	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
 	'designer.refresh-failed':

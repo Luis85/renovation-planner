@@ -18,6 +18,7 @@ import type { ToolId } from './tools/editor-tool';
 import { ReversibleMoveZoneCommand } from './tools/reversible-move-zone-command';
 import { RenderState } from './tools/render-state';
 import { ToolManager } from './tools/tool-manager';
+import { createToolSwitch } from './tools/tool-switch';
 import { CalibrateTool } from './tools/calibrate-tool';
 import { DrawPolygonTool } from './tools/draw-polygon-tool';
 import { SelectTool } from './tools/select-tool';
@@ -27,8 +28,8 @@ import { useSaveStateStore } from './save-state/save-state-store';
 import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
 import KnownDistanceForm from './shell/KnownDistanceForm.vue';
-import { SnapService } from './snapping/snap-service';
-import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
+import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
+import { editorViewportAdapter } from './viewport/editorViewportAdapter';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
 import { notifyIfRefused, reportDispatchFailure, reportDispatchFault } from './report-failure';
@@ -48,36 +49,11 @@ import { makeCommitField } from './commitField';
  */
 
 /**
- * The snap service's configuration, and a plain statement of what it currently buys:
- * **nothing yet.** `SnapService.snapPoint` ranks the candidate vertices and edges it is
- * handed and never consults the grid, and both tools in this slice pass an EMPTY candidate
- * set — so `snapPoint` is provably the identity function today and these two numbers reach
- * no arithmetic. The service is wired at the seam it will be used from, which is worth
- * having; the grid it is configured with is not reachable until a caller supplies
- * candidates (the neighbouring zones' vertices and edges, plus `snapToGrid`, which has no
- * caller in `src/` at all).
- *
- * Said here because three comments in the tools used to describe grid snapping as
- * something that happens. The manual case had it right all along —
- * `docs/tests/cases/Zone Editing Walkthrough.md`: "SnapService is wired but this slice
- * hands it no candidate geometry, so nothing visibly snaps yet."
- */
-const SNAP_GRID_MM = 100;
-const SNAP_TOLERANCE_MM = 8;
-
-/**
  * The log event name this leaf's click-bound dispatches fault under. Named here rather than
  * spelled at the two call sites, because a log line saying which DOOR faulted is only useful
  * while the two doors agree on what to call themselves.
  */
 const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
-
-/** Stateless (config-only), so one instance serves every leaf. */
-const SNAP_SERVICE = new SnapService({
-	gridSpacingMm: SNAP_GRID_MM,
-	toleranceMm: SNAP_TOLERANCE_MM,
-	angleStepRadians: Math.PI / 12,
-});
 
 export interface EditorRuntime {
 	/** The decorated history every dispatch in this leaf funnels through. */
@@ -150,6 +126,7 @@ function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): vo
 	);
 	toolManager.register(
 		new DrawPolygonTool({
+			id: 'draw-polygon',
 			// What a closed polygon MEANS in the Plan Editor: a new Zone on this plan. The tool
 			// itself names none of it — see `PolygonCompletion`, which the designer supplies a
 			// footprint version of. The zone's default name is counted from what the editor has
@@ -386,21 +363,9 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	const inspector = createInspector(context, wrappedDispatcher, ledger);
 	inspectorRef.current = inspector;
 
-	// The viewport adapter closes over the live camera ref — the same binding
-	// `editor-context.ts` describes for the composition root's side of this seam.
-	const viewportAdapter: EditorContext['viewport'] = {
-		worldToScreen: (point) => worldToScreen(point, editor.viewport, STAGE_PIXELS),
-		screenToWorld: (point) => screenToWorld(point, editor.viewport, STAGE_PIXELS),
-		worldPerScreenPixel: () => worldPerScreenPixel(editor.viewport, STAGE_PIXELS),
-		// Camera mutation is UNIMPLEMENTED, not merely unused: `EditorContext` declares
-		// these two as the path a `PanTool` moves the camera through, and no such tool
-		// exists (slice 5's camera is the canvas's own, outside the tool framework). The
-		// primitives are all in `EditorStore` — `beginPan`/`continuePan`/`endPan`/`zoomAt`
-		// — so the tool that needs them binds them here in one edit; until then a caller
-		// would get silence, which is why this says so rather than looking finished.
-		setPan: () => undefined,
-		setZoom: () => undefined,
-	};
+	// The camera as a tool sees it — `viewport/editorViewportAdapter.ts`, shared with the asset
+	// designer's runtime rather than spelled twice. It closes over this leaf's live camera ref.
+	const viewportAdapter = editorViewportAdapter(editor);
 
 	// A `reactive()` proxy over slice 6's plain class: the tools write through the same
 	// fields their tests set, and the InteractionLayer reads them reactively.
@@ -454,7 +419,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		createEditorContext({
 			bindViewport: () => viewportAdapter,
 			selection,
-			snapService: SNAP_SERVICE,
+			snapService: EDITOR_SNAP_SERVICE,
 			commandDispatcher: wrappedDispatcher,
 			writeLedger: ledger,
 			renderState,
@@ -471,14 +436,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	// what a Vue consumer reads.
 	const { activeToolId } = storeToRefs(editor);
 
-	const setTool = (id: ToolId | null): void => {
-		if (id === null) {
-			toolManager.clearActiveTool();
-		} else {
-			toolManager.setActiveTool(id);
-		}
-		activeToolId.value = id;
-	};
+	const setTool = createToolSwitch(toolManager, activeToolId);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
 	// refusal — bound straight to toolbar clicks. `ReversibleCalibratePlanCommand.undo()`

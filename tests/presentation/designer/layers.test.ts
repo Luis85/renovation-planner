@@ -34,7 +34,6 @@ import {
 import { resolveThemeTokens } from '../../../src/presentation/editor/theme/themeTokens';
 import { fitViewport } from '../../../src/presentation/editor/viewport/Viewport';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
-import { designerToolsUnavailable } from '../../../src/presentation/designer/designerToolContext';
 import { footprintOutline } from '../../../src/presentation/designer/layers/footprintLayer';
 import { clearanceOutline } from '../../../src/presentation/designer/layers/clearanceLayer';
 import { anchorMark, facingArrow } from '../../../src/presentation/designer/layers/anchorLayer';
@@ -44,6 +43,7 @@ import { ok } from '../../../src/core/result/Result';
 import { assetDesign } from '../../helpers/assetDesign';
 import { expectOk } from '../../helpers/domain';
 import { recorder } from '../../helpers/logger';
+import { unavailableAssetDesignerCommands } from '../../../src/presentation/designer/designerCommands';
 import { installCanvas } from '../../helpers/canvas';
 import { installObsidianDom } from '../../helpers/dom';
 import { installResizeObserver, placeAt, resizeTo } from '../../helpers/layout';
@@ -184,6 +184,7 @@ function context(design: AssetDesignDto): AssetDesignerContext {
 	return {
 		assetId: String(design.assetId),
 		queries: { getAssetDesign: () => Promise.resolve(ok(design)) },
+		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
 		onDesignChanged: () => () => undefined,
 		indexScanCompleted: () => true,
@@ -285,19 +286,6 @@ describe('what the designer’s fit shortcuts frame', () => {
 
 		expect(store.viewport).toEqual(before);
 		designer.unmount();
-	});
-});
-
-/**
- * The `ToolManager` context factory this canvas is built with until Task B5.
- *
- * Asserted rather than left as an unreached line: `ToolManager` calls its factory at exactly
- * one moment — activating a tool — and nothing registers a designer tool yet, so the only way
- * to know this refuses rather than silently handing out a hollow context is to ask it.
- */
-describe('the designer’s tool context', () => {
-	it('refuses to hand out a context, because no designer tool exists to receive one', () => {
-		expect(() => designerToolsUnavailable()).toThrow(/Task B5/);
 	});
 });
 

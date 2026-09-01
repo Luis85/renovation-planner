@@ -201,6 +201,7 @@ describe('DrawPolygonTool', () => {
 			snapPoint: (point) => (Math.hypot(point.x, point.y) <= 5 ? { x: 0, y: 0 } : point),
 		});
 		const tool = new DrawPolygonTool({
+			id: 'draw-polygon',
 			completion: { commandFor: () => stubCommand() },
 			reportRejected: () => undefined,
 			reportInvalidInput: () => undefined,
@@ -231,6 +232,7 @@ describe('DrawPolygonTool', () => {
 		const h = harness();
 		const commandFor = vi.fn<PolygonCompletion['commandFor']>(() => stubCommand());
 		const tool = new DrawPolygonTool({
+			id: 'draw-polygon',
 			completion: { commandFor },
 			reportRejected: (error) => h.rejections.push(error.message),
 			reportInvalidInput: (error) => h.rejections.push(error.message),
@@ -260,6 +262,7 @@ describe('DrawPolygonTool', () => {
 		const h = harness();
 		const command = stubCommand();
 		const tool = new DrawPolygonTool({
+			id: 'draw-polygon',
 			completion: { commandFor: () => command },
 			reportRejected: (error) => h.rejections.push(error.message),
 			reportInvalidInput: (error) => h.rejections.push(error.message),
@@ -283,6 +286,7 @@ describe('DrawPolygonTool', () => {
 	it('selects nothing when the completion created no entity, and still ends the gesture', async () => {
 		const h = harness();
 		const tool = new DrawPolygonTool({
+			id: 'draw-polygon',
 			completion: { commandFor: () => stubCommand(null) },
 			reportRejected: (error) => h.rejections.push(error.message),
 			reportInvalidInput: (error) => h.rejections.push(error.message),

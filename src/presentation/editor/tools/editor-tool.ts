@@ -3,14 +3,36 @@ import type { Point, ScreenPoint } from '../viewport/Viewport';
 import type { EditorContext } from './editor-context';
 
 /**
- * Every tool a Plan Editor can have active (SDD §57, design slice 6, Interfaces &
- * Contracts). `'calibrate'` is included even though §57's own roster does not name it:
+ * Every tool EITHER editing surface can have active (SDD §57, design slice 6, Interfaces &
+ * Contracts) — the Plan Editor's and, since design slice B5, the asset designer's.
+ *
+ * **One union across two surfaces rather than one per surface**, because `ToolManager`,
+ * `EditorTool` and `EditorContext` are shared and each names this type: a second union would
+ * have to be widened into every one of those signatures, and the manager would then be generic
+ * over a parameter it does nothing with. The last four members are the designer's — a
+ * `DrawPolygonTool` registered twice under two ids for the footprint and the clearance, plus
+ * its own two point-and-drag tools — and no manager ever holds tools from both surfaces, so a
+ * `setActiveTool('trace-footprint')` against a Plan Editor's manager throws exactly as an
+ * unregistered id always has.
+ *
+ * `'calibrate'` is included even though §57's own roster does not name it:
  * slice 7's `CalibrateTool` is a real `EditorTool`, and this union is what its `id` field
  * must satisfy — a tool that cannot name itself here is a compile error, not a
  * documentation nuance. `WallTool`/`OpeningTool`/`PathTool`/`BooleanTool` are explicitly
  * future (SDD §57) and are deliberately not members yet.
  */
-export type ToolId = 'select' | 'pan' | 'draw-polygon' | 'place-asset' | 'measure' | 'annotation' | 'calibrate';
+export type ToolId =
+	| 'select'
+	| 'pan'
+	| 'draw-polygon'
+	| 'place-asset'
+	| 'measure'
+	| 'annotation'
+	| 'calibrate'
+	| 'trace-footprint'
+	| 'trace-clearance'
+	| 'set-anchor'
+	| 'set-facing';
 
 /**
  * What a tool receives for one pointer interaction (design slice 6, ADR-009).

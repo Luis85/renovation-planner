@@ -177,6 +177,7 @@ export class AssetDesignerView extends ItemView {
 		const context: AssetDesignerContext = {
 			assetId,
 			queries: this.deps.queries,
+			commands: this.deps.commands,
 			logger: this.deps.logger,
 			indexScanCompleted: this.deps.indexScanCompleted,
 			onDesignChanged: (listener) => this.deps.onDesignChanged(assetId, listener),

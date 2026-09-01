@@ -9,12 +9,17 @@
  * and a second canvas re-deriving them would rediscover every one. What this component owns is
  * what is DRAWN inside it and nothing about how it is driven.
  *
- * **Camera-only, today.** `EditorSurface` requires a `ToolManager`, and nothing registers a
- * designer tool until Task B5 — so this one is built with `designerToolsUnavailable` and has
- * no tools in it. That is not a degraded state: "no active tool" IS camera mode in this
- * editor, which is what pans and zooms here. B5 registers into a manager it moves to
- * `DesignerRuntime`, where a toolbar mounted in the shell's own region can reach it; it is
- * local to this component only while this component is its only consumer.
+ * **The `ToolManager` is the LEAF's, not this component's** (design slice B5). Task B4 built
+ * one here with a context factory that threw, because nothing registered a designer tool yet;
+ * B5 registers five and moved the manager to `DesignerRuntime`, which is what the toolbar —
+ * mounted in the shell's own region and not this component's child — can reach. Camera mode is
+ * still what "no active tool" means, and it is still what pans and zooms here.
+ *
+ * **Nothing on this canvas draws a gesture IN PROGRESS.** The four layers below are
+ * world-space and read the committed design; the tools publish their rubber bands to
+ * `RenderState`, which no layer here reads, so a footprint being traced appears only when it
+ * closes. `tools/registerDesignerTools.ts` carries the whole account — it is a gap in the
+ * increment (no task builds a designer interaction layer) rather than one in this file.
  *
  * **The palette is resolved ONCE, at setup, and that is a stated limitation rather than a
  * convention.** A canvas cannot read a CSS variable — `fill: var(--text-normal)` means nothing
@@ -34,12 +39,11 @@ import type { BoundingBox } from '../../core/geometry/BoundingBox';
 import type { StringKey } from '../i18n/locales/en';
 import { useEditorStore } from '../stores/EditorStore';
 import EditorSurface from '../editor/surface/EditorSurface.vue';
-import { ToolManager } from '../editor/tools/tool-manager';
 import { resolveThemeTokens } from '../editor/theme/themeTokens';
 import { STAGE_PIXELS, viewportTransform, worldPerScreenPixel } from '../editor/viewport/Viewport';
 import { boundsOfZones } from '../editor/viewport/zoneExtent';
 import { useAssetDesignStore } from './stores/assetDesignStore';
-import { designerToolsUnavailable } from './designerToolContext';
+import { useDesignerRuntime } from './runtime';
 import { designerLayerConfig } from './layers/backgroundLayer';
 import { footprintOutline } from './layers/footprintLayer';
 import { clearanceOutline } from './layers/clearanceLayer';
@@ -70,7 +74,10 @@ const viewport = editorRefs.viewport;
 const { design } = storeToRefs(useAssetDesignStore());
 
 const tokens = ref(resolveThemeTokens(document.documentElement));
-const toolManager = new ToolManager(designerToolsUnavailable);
+// The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
+// one object. A manager built here would be a second one nothing outside this component could
+// reach — the shape Task B4 shipped while there were no tools to reach.
+const { toolManager } = useDesignerRuntime();
 
 const transform = computed(() => viewportTransform(viewport.value));
 

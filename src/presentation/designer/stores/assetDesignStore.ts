@@ -146,7 +146,20 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 			// `ProjectIndexRebuilt` arm is what re-reads once the scan lands. Both halves, or the
 			// leaf either flashes a failure it retracts or never draws at all.
 			if (found.error.code === MISSING_ASSET_CODE && !options.indexScanCompleted) return;
-			if (options.keepPreviousOnFailure === true && status.value === 'ready') {
+			// **Keep-previous covers a read that FAILED, never one that answered.** The whole
+			// argument for it — `ProjectStore.hydrate` draws the same line — is that blanking
+			// replaces "possibly stale" with definitely nothing "over data the vault has". An
+			// authoritative `asset.not-found` is the case where the vault does not have it: the
+			// note is gone, so a design left on screen is a canvas the user can go on drawing
+			// on while every write it dispatches refuses, which is the live-control-that-does-
+			// nothing this repository refuses everywhere else. It fails, and the failure state
+			// says the asset is not there.
+			//
+			// Narrow on purpose, and asked AFTER the pre-scan hold above so the two miss rules
+			// stay one ordered pair rather than two competing ones: a miss before the scan is
+			// not authoritative and holds the line; a miss after it is, and blanks.
+			const authoritativeMiss = found.error.code === MISSING_ASSET_CODE;
+			if (options.keepPreviousOnFailure === true && status.value === 'ready' && !authoritativeMiss) {
 				error.value = found.error;
 				// Real content is still on screen and the vault has moved past it.
 				stale.value = true;

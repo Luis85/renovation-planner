@@ -34,9 +34,14 @@ export interface DesignerRuntime {
 	readonly undo: () => Promise<void>;
 	readonly redo: () => Promise<void>;
 	/**
-	 * Re-read this leaf's design. THE hydration routine, with three callers — the mount, the
-	 * failure state's retry, and the cross-leaf subscription below — rather than one per site,
-	 * which is what keeps "what is this leaf showing" a single question.
+	 * Re-read this leaf's design from nothing, blanking it if the read fails. TWO callers — the
+	 * mount and the failure state's retry — and the cross-leaf subscription is deliberately not
+	 * one of them: it has content on screen to keep, so it takes `refresh` below instead.
+	 *
+	 * It said "three callers", the third being that subscription, and it was accurate about the
+	 * routing and wrong about the split — see `refresh` below, which is where the subscription
+	 * belongs and now goes. A comment naming its callers is a fact about the routing, so it is
+	 * rewritten by the edit that moves one.
 	 */
 	readonly hydrate: () => Promise<void>;
 }
@@ -66,12 +71,32 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	const hydrate = (): Promise<void> => read(false);
 
 	/**
-	 * The post-command read-back keeps what is on screen when it fails, and the plain one does
-	 * not — the same split `ProjectStore` draws. A refresh runs over a write that already
-	 * landed, so blanking the canvas would replace "possibly stale" with definitely nothing
-	 * over data the vault has; a first load or a retry after a failure has nothing to keep.
+	 * The two doors are the SPLIT, named rather than spelled as a boolean at each call site:
+	 * a refresh keeps what is on screen when its read fails, a hydration has nothing to keep.
+	 * The same split `ProjectStore` draws, and the reason is that a refresh runs over content
+	 * the vault already holds — blanking the canvas would replace "possibly stale" with
+	 * definitely nothing.
+	 *
+	 * **`refresh` has TWO callers, and the second is why this is a named door.** The
+	 * post-command read-back is the obvious one; the cross-leaf subscription below is the one
+	 * that took `hydrate` and should not have. Whether WE made the write or a peer leaf did is
+	 * not a difference the user's canvas can tell, so a transient failure re-reading after a
+	 * peer's edit blanked a valid design and put the failure panel over it. A flag at each call
+	 * site is a rule somebody has to remember at a third door; a named function is not.
+	 *
+	 * **What it cannot suppress**, in the two places `AssetDesignStore.hydrate` bounds it. A leaf
+	 * with nothing on screen: the keep-previous arm is guarded on `status === 'ready'`, so the
+	 * `ProjectIndexRebuilt` arm of `createAssetDesignChangeSource` — which reaches a leaf
+	 * restored before the scan ran, and therefore not ready — falls through to `fail` exactly as
+	 * it did before. And a read that ANSWERED rather than failed: an authoritative
+	 * `asset.not-found` blanks, because the argument for keeping is "over data the vault has"
+	 * and a deleted note is the case where it has none. That second bound was NARROWED by this
+	 * change rather than merely inherited — `assetDesignerWiring.test.ts`'s design-change case
+	 * is what found it, by using a deleted asset as its observable.
 	 */
-	const refreshed = withStateRefresh(history, () => read(true));
+	const refresh = (): Promise<void> => read(true);
+
+	const refreshed = withStateRefresh(history, refresh);
 
 	// Outside the refresh decorator, so `Saved` never appears while the canvas still shows the
 	// pre-command state; inside `wrapDispatcher`, which is the one object a leaf hands out.
@@ -96,13 +121,13 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 * **DISPOSED from the Vue lifecycle, and that is not tidiness.** The bus is the composition
 	 * root's and outlives every leaf; `EventBus.subscribe` removes a handler on `dispose` and
 	 * by no other mechanism. An undisposed handler therefore keeps this leaf's whole Pinia
-	 * store reachable from the root for the rest of the session and issues a hydration query
+	 * store reachable from the root for the rest of the session and issues a design read
 	 * from a dead leaf on every later design edit — one more per designer the user has ever
 	 * opened. `PlanEditorRoot` disposes `onPlanChanged` the same way and for the same reason.
 	 */
 	onBeforeUnmount(
 		context.onDesignChanged(() => {
-			void hydrate();
+			void refresh();
 		}),
 	);
 

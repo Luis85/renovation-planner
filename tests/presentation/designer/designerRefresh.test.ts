@@ -268,6 +268,72 @@ describe('the read-back after a dispatch', () => {
 	});
 });
 
+describe('a refresh a PEER leaf provoked', () => {
+	/**
+	 * A cross-leaf refresh has content on screen to keep, exactly as the post-command read-back
+	 * does — whether WE made the write or a peer leaf did is not a difference the user's canvas
+	 * can tell. The subscription took `hydrate`, whose failure arm BLANKS the design, so a
+	 * transient read failure after a peer's edit replaced a valid canvas with the failure panel.
+	 *
+	 * BOTH halves are asserted. "The design is still on screen" alone passes against a build
+	 * that keeps it and never raises the warning, which would be a canvas quietly drawing the
+	 * pre-edit design as though it were current.
+	 *
+	 * The opposite over-correction — every failure made survivable — is held by
+	 * 'fails once the scan has run, even though the same read missed before it' above, whose
+	 * leaf is not `'ready'` and therefore still falls through to `fail`. Not restated here: a
+	 * second case asserting what that one already asserts discriminates nothing.
+	 */
+	it('keeps the design on screen when a peer-provoked re-read fails, and marks it stale', async () => {
+		const bus = createEventBus(() => undefined);
+		let answers: () => Promise<Result<AssetDesignDto, AssetDesignError>> = () => Promise.resolve(ok(WITH_SHAPE));
+		harness({
+			answers: () => answers(),
+			onDesignChanged: (listener) => createAssetDesignChangeSource(bus)(THE_ASSET, listener),
+		});
+		await flushPromises();
+		expect(useAssetDesignStore().status).toBe('ready');
+
+		answers = () => Promise.resolve(err(VAULT_FAILED));
+		await bus.publish(assetDesignChanged({ assetId: THE_ASSET }));
+		await flushPromises();
+
+		const store = useAssetDesignStore();
+		expect(store.design?.height).toBe(900);
+		expect(store.status).toBe('ready');
+		expect(store.stale).toBe(true);
+	});
+
+	/**
+	 * And keep-previous covers a read that FAILED, never one that ANSWERED. Its whole argument
+	 * is that blanking replaces "possibly stale" with definitely nothing over data the vault
+	 * HAS — and an authoritative `asset.not-found` is exactly the case where the vault does not
+	 * have it. A design left on screen there is a canvas the user goes on drawing on while every
+	 * write refuses.
+	 *
+	 * The pairing with the case above is the point: neither alone discriminates. A build that
+	 * blanks on every failure passes this one, and a build that keeps on every failure passes
+	 * that one.
+	 */
+	it('fails rather than keeping the design of an asset the vault no longer has', async () => {
+		const bus = createEventBus(() => undefined);
+		let answers: () => Promise<Result<AssetDesignDto, AssetDesignError>> = () => Promise.resolve(ok(WITH_SHAPE));
+		harness({
+			answers: () => answers(),
+			onDesignChanged: (listener) => createAssetDesignChangeSource(bus)(THE_ASSET, listener),
+		});
+		await flushPromises();
+
+		answers = () => Promise.resolve(err(NOT_FOUND));
+		await bus.publish(assetDesignChanged({ assetId: THE_ASSET }));
+		await flushPromises();
+
+		const store = useAssetDesignStore();
+		expect(store.status).toBe('failed');
+		expect(store.design).toBeNull();
+	});
+});
+
 describe('two reads in flight at once', () => {
 	/**
 	 * The plan's own case: a store two things hydrate needs a request ticket, or the slower

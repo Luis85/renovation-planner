@@ -2915,16 +2915,25 @@ building it:
   complete one). `declaredAssetOf` closes it: a sidecar positively declaring a DIFFERENT
   asset is refused before deletion, and one too corrupt to declare anything at all stays
   deletable, because refusing that would strand a mangled file permanently.
-- **Two path helpers agreed on which characters they refused, and the agreement was
-  accidental.** `isPathSegment` refused the separator hazard (`/`, `\`, `.`, `..`); the same
-  module's `fileNameFor` had a docblock naming the FULL forbidden set
-  (`\ / : * ? " < > | # ^ [ ]` plus edge dots and spaces) that `isPathSegment` did not enforce
-  — nine of ten characters admitted. A colon is not a path-nesting hazard, it is an INVALID
-  FILENAME on Windows only, which is why this plugin's CI carries a Windows leg at all: paths
-  are one of the two things that differ across platforms. The vocabulary is exported and
-  shared now rather than restated per caller, with the two operations kept distinct on
-  purpose — `fileNameFor` STRIPS these from a name a user chose, `entityRefOf` REFUSES them
-  outright, because an id IS the identity and there is nothing to clean it into.
+- **A filename-safety rule was placed at the wrong door, moved, and the move is the finding —
+  not which helper refuses what today.** The rule started life AT `entityRefOf`: refuse an id
+  that holds an Obsidian-forbidden character, an edge dot or space, or a reserved Windows
+  device name, before the note is ever indexed. Correct as a set of hazards and wrong as a
+  place to ask about them — a project, zone or requirement whose HAND-WRITTEN id held a `:` or
+  a `#` stopped being indexed at all and became unopenable in the app, a bad WRITE traded for
+  lost READ access, in the direction this repository elsewhere refuses to trade. Every one of
+  these hazards is a WRITE hazard and none of them stops a note being read, so the rule moved
+  to the one place that actually derives a path: `usableAsFilename`
+  (`infrastructure/obsidian/repositories/paths.ts`), called from `AssetGeometryStore.pathFor`
+  before every sidecar read and write, refusing with `asset-geometry.unusable-id`. `entityRefOf`
+  is back to checking only `type` and a non-empty `id`, exactly what it was before either
+  attempt — the narrower, EARLIER version of the same idea at that door no longer exists
+  anywhere in `src/`. **Stated this way on purpose, because the first draft of this bullet was
+  wrong in exactly the shape it describes**: it compared two functions as they stood at one
+  commit, and the very next commit had already moved the rule and deleted one of them — a
+  claim sourced from a commit message is a claim about the moment that commit was written, and
+  this file's own account has to be checked against the LIVE tree the way everything else in
+  it is, not against the history that produced it.
 - **A finite vertex set can have a non-finite AREA, and three separate consumers each read
   the same wrong number as if it were real.** `(0,0)`, `(1e308,0)`, `(0,1e308)` passes
   `createPolygon` and its shoelace sum is `Infinity`: `enclosesArea` read that as a genuine

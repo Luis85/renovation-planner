@@ -564,7 +564,7 @@ describe('the headless harness capture script', () => {
 		expect(source).not.toContain('createHash');
 	});
 
-	it('still defines the fourteen fixed shots, so an argumentless run is unchanged', () => {
+	it('still defines the fifteen fixed shots, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
 		for (const name of [
@@ -577,6 +577,7 @@ describe('the headless harness capture script', () => {
 			'plan-editor-light',
 			'asset-designer-dark',
 			'asset-designer-light',
+			'asset-designer-narrow',
 			'index-dark',
 			'index-light',
 			'index-focus',
@@ -611,6 +612,22 @@ describe('the headless harness capture script', () => {
 		// dark. Pinned for the same reason the index shots pin theirs: a scheme chosen by
 		// measurement and recorded only in prose is a scheme that silently flips back.
 		expect(source).toMatch(/name: 'project-detail-narrow'[^}]*theme=light/);
+	});
+
+	/**
+	 * The asset designer's sidebar-width shot (Task B10's own toolbar-overflow fix) — pinned the
+	 * same way `project-detail-narrow` is above, so a width or route dropped from either shot
+	 * fails HERE rather than being noticed only by re-running the ad-hoc capture that found the
+	 * defect in the first place. `width: 460` is the property that makes this shot different from
+	 * `asset-designer-dark`; losing it would silently photograph the same wide layout twice under
+	 * two names, which is the exact failure `resolveShots` refuses for a blank entry argument
+	 * elsewhere in this file.
+	 */
+	it('takes the asset designer at a sidebar width, through the route that opens it', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'asset-designer-narrow'[^}]*query: '\?view=asset-designer'/);
+		expect(source).toMatch(/name: 'asset-designer-narrow'[^}]*width: 460/);
 	});
 
 	/**

@@ -39,9 +39,10 @@
 
 /*
  * The toolbar REGION. It carried a fixed height while it was empty so that filling it later
- * would not resize every region below it; design slice B5 filled it, and the height stays
- * because it is what keeps the bar the same size whether or not a control happens to be
- * disabled.
+ * would not resize every region below it; design slice B5 filled it, and `min-height` stays
+ * because it is what keeps the bar no SHORTER than one row whether or not a control happens to
+ * be disabled. It is a FLOOR rather than a fixed height for the reason immediately below: at a
+ * sidebar leaf's width the bar is two rows, not one, and a fixed height would clip the second.
  */
 .rp-designer-toolbar {
 	display: flex;
@@ -51,10 +52,27 @@
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-/* `DesignerToolbar`'s own root, filling the region it is mounted into. */
+/*
+ * `DesignerToolbar`'s own root, filling the region it is mounted into.
+ *
+ * `flex-wrap: wrap`, measured rather than assumed necessary: this toolbar carries SEVEN tool
+ * buttons plus Undo/Redo (`registerDesignerTools.ts` registers six designer tools beside camera
+ * mode, one more than the Plan Editor's four), and at 460px — an Obsidian SIDEBAR leaf's real
+ * width, per `npm run harness-shot`'s own `--width` convention — a single `nowrap` row silently
+ * truncated "Set anchor" to "Set f" and pushed Calibrate off the pane entirely, reachable by
+ * neither pointer nor keyboard and with nothing on screen saying so. The Plan Editor's own
+ * six-button toolbar has no such rule and does not need one at this width — it simply has fewer,
+ * shorter-labelled buttons that already fit — so there was no existing pattern here to copy
+ * rather than invent; `flex-wrap: wrap` is this repository's own vocabulary for a row that must
+ * reflow instead of overflow (`styles/editor-requirements.css`, `styles/dialogs.css`,
+ * `styles/work-packages.css` all reach for it already), chosen over a horizontal scroll this
+ * stylesheet uses nowhere. `.rp-designer-toolbar`'s `min-height` above is what lets the region
+ * grow to a second row rather than clipping it.
+ */
 .rp-designer-tools {
 	display: flex;
 	flex: 1;
+	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--size-4-2);
 }

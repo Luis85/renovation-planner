@@ -14,15 +14,18 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the fourteen fixed surfaces (the project
+ * Headless capture of the browser harness — either the fifteen fixed surfaces (the project
  * view's list state in its dark scheme, light scheme and `?phone`; its detail state wide and
  * at a sidebar's width; the Plan Editor's dark and light schemes; the asset designer's dark and
- * light schemes (Task B10); and the harness index at rest in both schemes, focused, focused on
- * the current row, and showing its failure card) — or, given an entry id, one named prototype
- * or component in both schemes — for a look nobody has to open a browser for. This is how a
- * real layout defect was found earlier in this plan (the view collapsing to 39px of a 700px
- * pane): nothing in the suite could see it because jsdom draws nothing, and a screenshot is the
- * only artifact that shows it.
+ * light schemes plus its own sidebar width (Task B10); and the harness index at rest in both
+ * schemes, focused, focused on the current row, and showing its failure card) — or, given an
+ * entry id, one named prototype or component in both schemes — for a look nobody has to open a
+ * browser for. This is how a real layout defect was found earlier in this plan (the view
+ * collapsing to 39px of a 700px pane): nothing in the suite could see it because jsdom draws
+ * nothing, and a screenshot is the only artifact that shows it. The asset designer's sidebar-
+ * width shot is the same shape found a second time, in this same task: an AD-HOC capture at
+ * this width, taken once and never watched again, is what found the toolbar overflow this
+ * script's own SHOTS array now watches permanently.
  *
  * What this is NOT: a test. It draws; it asserts no appearance, and there is no baseline
  * to diff against — the same reason `npm run harness` itself is outside `npm run check`.
@@ -148,6 +151,16 @@ const SHOTS = [
 	// `accessibility.test.ts`'s designer case scans, through the same mount function.
 	{ name: 'asset-designer-dark', query: '?view=asset-designer', selector: ASSET_DESIGNER_VIEW },
 	{ name: 'asset-designer-light', query: '?view=asset-designer&theme=light', selector: ASSET_DESIGNER_VIEW },
+	// AND AT A SIDEBAR LEAF'S WIDTH, added after an ad-hoc capture at this width — never
+	// committed, never watched again — found the toolbar's seven tool buttons plus Undo/Redo
+	// silently overflowing `nowrap`: "Set anchor" truncated to "Set f", Calibrate pushed off the
+	// pane, neither reachable, with no affordance that anything was missing. `styles/designer.css`
+	// now wraps that row; this shot is what keeps the regression from going back to being ad-hoc
+	// and unwatched. DARK rather than light, and deliberately for no measured reason: unlike
+	// `project-detail-narrow` above, which picked light because a contrast measurement favoured
+	// it, wrapping is not a colour question — nothing here behaves differently by scheme, so
+	// there is nothing to measure and dark is simply this file's own default.
+	{ name: 'asset-designer-narrow', query: '?view=asset-designer', selector: ASSET_DESIGNER_VIEW, width: 460 },
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

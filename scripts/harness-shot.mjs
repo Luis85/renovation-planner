@@ -14,14 +14,15 @@ import { resolveChromiumExecutable } from './chromium.mjs';
 import { resolveShots } from './entryShots.mjs';
 
 /**
- * Headless capture of the browser harness — either the twelve fixed surfaces (the project
+ * Headless capture of the browser harness — either the fourteen fixed surfaces (the project
  * view's list state in its dark scheme, light scheme and `?phone`; its detail state wide and
- * at a sidebar's width; the Plan Editor's dark and light schemes; and the harness index at
- * rest in both schemes, focused, focused on the current row, and showing its failure card) —
- * or, given an entry id, one named prototype or component in both schemes — for a
- * look nobody has to open a browser for. This is how a real layout defect was found earlier
- * in this plan (the view collapsing to 39px of a 700px pane): nothing in the suite could see
- * it because jsdom draws nothing, and a screenshot is the only artifact that shows it.
+ * at a sidebar's width; the Plan Editor's dark and light schemes; the asset designer's dark and
+ * light schemes (Task B10); and the harness index at rest in both schemes, focused, focused on
+ * the current row, and showing its failure card) — or, given an entry id, one named prototype
+ * or component in both schemes — for a look nobody has to open a browser for. This is how a
+ * real layout defect was found earlier in this plan (the view collapsing to 39px of a 700px
+ * pane): nothing in the suite could see it because jsdom draws nothing, and a screenshot is the
+ * only artifact that shows it.
  *
  * What this is NOT: a test. It draws; it asserts no appearance, and there is no baseline
  * to diff against — the same reason `npm run harness` itself is outside `npm run check`.
@@ -45,6 +46,7 @@ const VIEWPORT = { width: 1280, height: 800 };
 // out on a page that had rendered perfectly.
 const PROJECT_VIEW = '.renovation-planner-view';
 const PLAN_EDITOR_VIEW = '.renovation-plan-editor-view';
+const ASSET_DESIGNER_VIEW = '.renovation-asset-designer-view';
 // The harness's own picker. Present from the first paint and with nothing async under it — the
 // index at `?index` opens no entry — so unlike the two surfaces above there is no "has it really
 // drawn" question to answer here beyond the element existing.
@@ -139,6 +141,13 @@ const SHOTS = [
 	// surfaces; add one when §61 changes.
 	{ name: 'plan-editor-dark', query: '?view=plan-editor', selector: PLAN_EDITOR_VIEW },
 	{ name: 'plan-editor-light', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW },
+	// The asset designer (Task B10, ADR-0015) in both schemes — the plugin's third workspace
+	// view, and the first look at it against a real theme rather than jsdom's semantics-only
+	// scan. `mountAssetDesignerHarness` seeds no shape and no background, so this photographs the
+	// `noBackground` empty state over the toolbar, canvas and inspector shell — the same surface
+	// `accessibility.test.ts`'s designer case scans, through the same mount function.
+	{ name: 'asset-designer-dark', query: '?view=asset-designer', selector: ASSET_DESIGNER_VIEW },
+	{ name: 'asset-designer-light', query: '?view=asset-designer&theme=light', selector: ASSET_DESIGNER_VIEW },
 	// The harness's own index — the one surface here this command could not photograph. That is
 	// not a gap worth leaving in a tool whose whole argument is that a capture read by eye
 	// reaches defects no gate can: the index's own chrome went unlooked-at while it accumulated

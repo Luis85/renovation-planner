@@ -564,7 +564,7 @@ describe('the headless harness capture script', () => {
 		expect(source).not.toContain('createHash');
 	});
 
-	it('still defines the twelve fixed shots, so an argumentless run is unchanged', () => {
+	it('still defines the fourteen fixed shots, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
 		for (const name of [
@@ -575,6 +575,8 @@ describe('the headless harness capture script', () => {
 			'project-detail-narrow',
 			'plan-editor-dark',
 			'plan-editor-light',
+			'asset-designer-dark',
+			'asset-designer-light',
 			'index-dark',
 			'index-light',
 			'index-focus',

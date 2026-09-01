@@ -57,7 +57,7 @@ describe('ListPlansByProject', () => {
 			projectId: PROJECT,
 		});
 
-		expect(isOk(result) && result.value).toEqual([]);
+		expect(isOk(result) && result.value).toEqual({ plans: [], unreadable: 0 });
 	});
 
 	it('answers the project’s plans as domain entities', async () => {
@@ -66,8 +66,8 @@ describe('ListPlansByProject', () => {
 
 		const result = await new ListPlansByProject(plans).execute({ projectId: PROJECT });
 
-		expect(isOk(result) && result.value.map((plan) => plan.name)).toEqual(['Ground floor']);
-		expect(isOk(result) && result.value[0]?.id).toBe(ground.entity.id);
+		expect(isOk(result) && result.value.plans.map((plan) => plan.name)).toEqual(['Ground floor']);
+		expect(isOk(result) && result.value.plans[0]?.id).toBe(ground.entity.id);
 	});
 
 	/**
@@ -87,15 +87,19 @@ describe('ListPlansByProject', () => {
 	});
 
 	/**
-	 * The PASS-THROUGH property, not the drop itself: whatever array the port answers is what
-	 * this query hands back, entity for `Loaded<Plan>`, with no filtering, counting or
-	 * reconciliation added on top. This double can only ever answer an already-filtered
-	 * `[survivor]` — it has no way to also hold an indexed id whose note is gone — so it
-	 * cannot tell a project that genuinely has one plan from one where a second plan's note
-	 * vanished and got dropped underneath it. That distinction, and the drop behaviour itself,
-	 * is pinned at `ObsidianPlanRepository.listByProject` in
+	 * The PASS-THROUGH property, not the drop itself: whatever listing the port answers is what
+	 * this query hands back, entity for `Loaded<Plan>` and `unreadable` for `refused`, with no
+	 * filtering, counting or reconciliation added on top. This double can only ever answer an
+	 * already-filtered `[survivor]` — it has no way to also hold an indexed id whose note is
+	 * gone — so it cannot tell a project that genuinely has one plan from one where a second
+	 * plan's note vanished and got dropped underneath it. That distinction, and the drop
+	 * behaviour itself, is pinned at `ObsidianPlanRepository.listByProject` in
 	 * `tests/infrastructure/obsidian/repositories/contract.test.ts`, against a real index/note
 	 * loop this fixture cannot produce.
+	 *
+	 * The `refused` half travels the same way and is asserted here as a NON-ZERO number the
+	 * query never invents: a double answering 2 must come back as `unreadable: 2`, which a
+	 * mapping that hard-coded 0 would fail.
 	 */
 	it('passes the port’s array through unchanged, adding no reconciliation of its own', async () => {
 		const survivor: Loaded<Plan> = {
@@ -107,9 +111,10 @@ describe('ListPlansByProject', () => {
 		};
 
 		const result = await new ListPlansByProject(
-			repositoryAnswering(() => Promise.resolve(ok([survivor]))),
+			repositoryAnswering(() => Promise.resolve(ok({ loaded: [survivor], refused: 2 }))),
 		).execute({ projectId: PROJECT });
 
-		expect(isOk(result) && result.value.map((plan) => plan.name)).toEqual(['First floor']);
+		expect(isOk(result) && result.value.plans.map((plan) => plan.name)).toEqual(['First floor']);
+		expect(isOk(result) && result.value.unreadable).toBe(2);
 	});
 });

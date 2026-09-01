@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Plan editor and canvas]]"
 order: 5
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-08-31
+finished: 2026-08-31
 horizon: Now
 start: ""
 due: ""
@@ -40,8 +40,9 @@ project note with an unparseable `schema-version` hid every project in the vault
 counts now, and the count reaches the user as a warning.
 
 The zone and plan listings still fail fast. `ObsidianZoneRepository`'s private `list` — where
-both `listByPlan` and `listByProject` end up, so it is **one site behind three entry points**
-— and `ObsidianPlanRepository.listByProject` each read `if (!one.ok) return one;`.
+both `listByPlan` and `listByProject` end up, so it is **one site behind two entry points**
+(this sentence said three; see the Resolution for where the third came from) — and
+`ObsidianPlanRepository.listByProject` each read `if (!one.ok) return one;`.
 
 The consequence is worse than the one just fixed, because it lands on the surface with
 something to lose: a single unreadable Zone note fails the whole listing, so the Plan Editor
@@ -97,6 +98,39 @@ the canvas as a strip (the project view's answer), as a per-zone marker, or as a
 line is a design question the editor's own shell should answer. Whoever takes it should decide
 in one go for both repositories, since a third listing left fail-fast recreates exactly the
 asymmetry this note is about.
+
+## Resolution — 2026-08-31
+
+Both listings skip and count. `ZoneListing` and `PlanListing` answer `{ loaded, refused }`,
+following `ProjectListing`; the count travels to the Plan Editor canvas and to slice 21's
+project detail state as a counted warning strip, and `ListReassignmentTargets` refuses on it
+instead — an incomplete picker offered before a delete is a destructive silence rather than a
+recoverable one. **The count is not a decision**: skip-and-count is a reading policy, and each
+consumer chooses.
+
+Three things this Issue got wrong or left implicit, corrected where they were measured:
+
+- **"One site behind three entry points" is two.** `grep -n "this\.list("` over
+  `ObsidianZoneRepository.ts` prints two call sites. The third came from that file's own
+  docblock, which named a `findByProject` handing it "zones from several" plans — and
+  `grep -rn "findByProject" src/` returned that comment and nothing else. The method does not
+  exist. The clause is deleted.
+- **Not every refusal may be swallowed.** `loadOne` answers `zone.sidecar-unreadable` for
+  EVERY zone when the plan's shared geometry sidecar cannot be read, so folding it into a
+  count would answer an empty list with `refused: N` — blaming N notes for one file, this
+  Issue's own claim inverted. The skippable codes are an allowlist, fail-closed. A PLAN's
+  sidecar is per-plan and IS skippable, which is the same code shape with the opposite answer.
+- **Skipping lost something until the listings recorded it.** `openNoteById` reaches the
+  diagnostics ledger for the migration refusal and no other arm does, so every later refusal
+  in `loadOne` was recorded nowhere. Both listings record at the skip site now — a skipped
+  note the report cannot name is a note the user is told about and cannot find.
+
+`zone.schema-version-malformed` is in the skippable set beyond what the design named: it is
+category `Validation` rather than `Migration`, a user produces it by typing `v2`, and leaving
+it out kept the exact defect this Issue is about.
+
+The two strips and the report are looked at in
+[[A note that cannot be read]], which is written and **not yet run in a vault**.
 
 ## References
 

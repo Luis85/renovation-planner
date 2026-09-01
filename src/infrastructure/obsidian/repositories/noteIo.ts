@@ -7,6 +7,7 @@ import type { MigrationRunner } from '../../persistence/migration/MigrationRunne
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { EchoWindow } from '../../persistence/index/EchoWindow';
 import type { ObservationToken } from '../../../application/ports/versioning';
+import { persistenceError } from '../../../application/errors';
 import { parentOf } from './paths';
 import { observeFrontmatter } from './digest';
 
@@ -23,11 +24,13 @@ import { observeFrontmatter } from './digest';
 /**
  * Every `PersistenceError` this layer produces, from one place — the geometry store and
  * the three repositories all call THIS rather than each keeping a copy, and the `cause`
- * spread is the reason it is worth a function at all.
+ * spread is the reason it is worth a function at all. The definition itself moved to
+ * `application/errors.ts` when a QUERY became a raise site: `application/` may not import
+ * `infrastructure/`, so the shared factory has to sit on the side both layers can reach.
+ * Re-exported here so this layer's importers keep naming the module they read notes
+ * through, and so there is still exactly one definition to drift from.
  */
-export function persistenceError(code: string, message: string, cause?: unknown): PersistenceError {
-	return { category: 'Persistence', code, message, ...(cause === undefined ? {} : { cause }) };
-}
+export { persistenceError };
 
 /**
  * The `MigrationError` twin of the factory above. The runner throws tagged `Error`
@@ -66,14 +69,21 @@ export function mappedMigrationFailure(kind: string, cause: unknown): MigrationE
  * predates, a gap in the chain — keeps the runner's `Migration` category. Both are
  * scoped to THIS note: the caller answers 'error' for this entity and the rest of the
  * project loads on (SDD §92 item 13). **That second half is a property of the CALLER, and
- * exactly one listing has it today**: `ObsidianProjectRepository.listAll` skips a note this
- * refuses and returns the rest. `ObsidianPlanRepository.listByProject` and
- * `ObsidianZoneRepository`'s private `list` — which is where both `listByPlan` and
- * `listByProject` end up, so it is ONE site and THREE entry points — still `return one` on
- * the first failure they meet, so
- * one unreadable Zone note blanks every Zone on a Plan Editor canvas rather than costing the
- * user that one Zone. Written down here rather than fixed here, because the sentence above
- * read as settled for three entry points that disprove it. The index scan is the other half of that scope and
+ * all three listings have it now**: `ObsidianProjectRepository.listAll`,
+ * `ObsidianPlanRepository.listByProject` and `ObsidianZoneRepository`'s private `list` each
+ * skip a note this refuses, count it, and return the rest.
+ *
+ * This paragraph asserted the opposite for several slices — that "exactly one listing has it
+ * today", the other two still returning on the first failure they met, so one unreadable Zone
+ * note blanked every Zone on a Plan Editor canvas. It was written down here rather than fixed,
+ * and the increment that finally fixed it did not come back to this docblock: two of the three
+ * clauses were false the moment the code changed, and the third — "ONE site and THREE entry
+ * points" — was never true, since `grep -n "this\.list("` prints two.
+ *
+ * **What the callers may swallow is theirs to decide, not this function's.** Each keeps a
+ * fail-closed allowlist of note-local codes, and the two disagree on purpose: a PLAN's
+ * geometry sidecar is its own file and its failure is skippable, while a ZONE's belongs to
+ * the plan and is shared by every zone on it. The index scan is the other half of that scope and
  * it works by NOT calling this: `buildProjectIndexEntries` never reads `schema-version`,
  * so a note this refuses is indexed like any other and costs nobody their session.
  *

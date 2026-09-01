@@ -4,7 +4,7 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
-import type { ZoneRepository } from '../../../application/ports/ZoneRepository';
+import type { ZoneListing, ZoneRepository } from '../../../application/ports/ZoneRepository';
 import type {
 	EntityVersion,
 	Expected,
@@ -40,15 +40,19 @@ export class InMemoryZoneRepository implements ZoneRepository {
 		return Promise.resolve(this.store.remove(id, expected, 'zone'));
 	}
 
-	listByPlan(planId: PlanId): Promise<Result<Loaded<Zone>[], PersistenceError>> {
+	/**
+	 * `refused` is 0 by construction — this store holds entities, not text, so there is no
+	 * parse step to refuse at. The non-zero arm belongs to the Obsidian implementation.
+	 */
+	listByPlan(planId: PlanId): Promise<Result<ZoneListing, PersistenceError>> {
 		return Promise.resolve(
-			ok(this.store.values().filter((z) => z.entity.planId === planId)),
+			ok({ loaded: this.store.values().filter((z) => z.entity.planId === planId), refused: 0 }),
 		);
 	}
 
-	listByProject(projectId: ProjectId): Promise<Result<Loaded<Zone>[], PersistenceError>> {
+	listByProject(projectId: ProjectId): Promise<Result<ZoneListing, PersistenceError>> {
 		return Promise.resolve(
-			ok(this.store.values().filter((z) => z.entity.projectId === projectId)),
+			ok({ loaded: this.store.values().filter((z) => z.entity.projectId === projectId), refused: 0 }),
 		);
 	}
 }

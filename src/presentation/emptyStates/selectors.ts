@@ -38,9 +38,22 @@ export type PlanEditorEmptyStateKey = 'noBackground' | 'noZones';
 export function selectPlanEditorEmptyState(
 	plan: PlanDto | null,
 	zones: readonly ZoneDto[],
+	unreadable: number,
 ): PlanEditorEmptyStateKey | null {
 	if (plan === null) return null;
 	if (plan.background === null) return 'noBackground';
+	// The third argument, and the LAST of the three selectors to get it — which is the thing
+	// worth remembering rather than the rule. Both siblings guard on `unreadable`, and this one
+	// was left out of the increment that added the guard to `selectProjectDetailEmptyState`,
+	// on the surface that increment is named for: a plan whose zones all refused drew "No zones
+	// yet / Draw a zone" over the canvas, beside a strip saying three of them could not be
+	// read. Two answers to "why is this canvas empty", and the actionable one is the wrong one.
+	//
+	// It goes BELOW the background check rather than above it, and that ordering is the
+	// short-circuit this file's own header describes: a plan with no background cannot have
+	// been asked for its zones in a way the user can act on, so the first missing step of
+	// PRD §93's sequence still wins.
+	if (unreadable > 0) return null;
 	if (zones.length === 0) return 'noZones';
 	return null;
 }
@@ -67,10 +80,21 @@ export function selectRenovationProjectEmptyState(
 
 /**
  * A project with no plans yet (design slice 21). A function of QUERY RESULTS, like its two
- * siblings — `status` is the store's structural gate above it, never a fourth argument here,
+ * siblings — `status` is the store's structural gate above it, never a further argument here,
  * which is what keeps "which state is this project in" answerable by a node test.
+ *
+ * `unreadable` is here for exactly the reason it is on `selectRenovationProjectEmptyState`
+ * above, and it arrived later only because the state it guards against was UNREACHABLE until
+ * the plan listing learned to skip and count: one bad plan note used to fail the whole listing,
+ * so a project with zero readable plans and a refusal behind them drew the failure screen and
+ * never this. Now it draws the plans it has — none — and "Create your first plan" beside "1
+ * plan could not be read" is two sentences contradicting each other about one project.
  */
-export function selectProjectDetailEmptyState(plans: readonly PlanSummaryDto[]): 'noPlans' | null {
+export function selectProjectDetailEmptyState(
+	plans: readonly PlanSummaryDto[],
+	unreadable: number,
+): 'noPlans' | null {
+	if (unreadable > 0) return null;
 	return plans.length === 0 ? 'noPlans' : null;
 }
 

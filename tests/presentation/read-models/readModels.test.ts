@@ -173,7 +173,13 @@ describe('the plan editor query boundary', () => {
 	it('answers a plan zones as DTOs', async () => {
 		const { plan, zone, queries } = await wired();
 
-		expect(expectOk(await queries.findZonesByPlan(plan.id))).toEqual([toZoneDto(zone)]);
+		// The whole `ZoneScene`, not just its zones: `unreadable` crossing this seam is the
+		// property the canvas strip rests on, and asserting the array alone would pass against a
+		// mapping that dropped the count.
+		expect(expectOk(await queries.findZonesByPlan(plan.id))).toEqual({
+			zones: [toZoneDto(zone)],
+			unreadable: 0,
+		});
 	});
 
 	it('surfaces a failed zone read as an error rather than an empty list', async () => {
@@ -479,7 +485,8 @@ describe('createRenovationProjectQueries — the detail state’s two reads', ()
 
 		const listed = expectOk(await queries.listPlansByProject(projectId));
 
-		expect(listed.map((plan) => plan.name)).toEqual(['Ground floor']);
+		expect(listed.plans.map((plan) => plan.name)).toEqual(['Ground floor']);
+		expect(listed.unreadable).toBe(0);
 	});
 
 	/**

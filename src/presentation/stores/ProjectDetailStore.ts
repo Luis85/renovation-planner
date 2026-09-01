@@ -29,6 +29,14 @@ type ProjectDetailStatus = 'idle' | 'loading' | 'ready' | 'failed' | 'gone';
 export const useProjectDetailStore = defineStore('project-detail', () => {
 	const project = ref<ProjectSummaryDto | null>(null);
 	const plans = ref<readonly PlanSummaryDto[]>([]);
+	/**
+	 * How many of this project's plan notes could not be read. `ProjectStore.unreadableZones`
+	 * on the other surface, for the same reason: the region draws every plan it has AND says
+	 * how many it does not, so one bad note costs one plan rather than the project's list.
+	 *
+	 * Cleared at all three places `plans` is, so it can never outlive the read it describes.
+	 */
+	const unreadablePlans = ref(0);
 	const status = ref<ProjectDetailStatus>('idle');
 	const error = ref<RepositoryError | null>(null);
 
@@ -45,6 +53,7 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	function fail(cause: RepositoryError): void {
 		project.value = null;
 		plans.value = [];
+		unreadablePlans.value = 0;
 		error.value = cause;
 		status.value = 'failed';
 	}
@@ -115,7 +124,8 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 		}
 
 		project.value = found.value;
-		plans.value = listed.value;
+		plans.value = listed.value.plans;
+		unreadablePlans.value = listed.value.unreadable;
 		status.value = 'ready';
 	}
 
@@ -148,6 +158,7 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 		latestHydration += 1;
 		project.value = null;
 		plans.value = [];
+		unreadablePlans.value = 0;
 		error.value = null;
 		status.value = 'gone';
 	}
@@ -157,7 +168,9 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 	 * from an empty state rather than merely unreached by convention.
 	 */
 	const emptyStateKey = computed(() =>
-		status.value === 'ready' ? selectProjectDetailEmptyState(plans.value) : null,
+		status.value === 'ready'
+			? selectProjectDetailEmptyState(plans.value, unreadablePlans.value)
+			: null,
 	);
 
 	/**
@@ -171,9 +184,20 @@ export const useProjectDetailStore = defineStore('project-detail', () => {
 		latestHydration += 1;
 		project.value = null;
 		plans.value = [];
+		unreadablePlans.value = 0;
 		error.value = null;
 		status.value = 'idle';
 	}
 
-	return { project, plans, status, error, emptyStateKey, hydrate, markGone, reset };
+	return {
+		project,
+		plans,
+		unreadablePlans,
+		status,
+		error,
+		emptyStateKey,
+		hydrate,
+		markGone,
+		reset,
+	};
 });

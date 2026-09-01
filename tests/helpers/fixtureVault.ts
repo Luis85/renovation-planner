@@ -588,3 +588,71 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		},
 	});
 };
+
+/**
+ * The four ways a checked-in fixture note is made unreadable, at RUN TIME rather than on disk.
+ *
+ * They live here rather than in the one test file that needs them because each is a statement
+ * about what `loadOne` refuses, and the plan and zone listings refuse in the same shapes — a
+ * second copy spelled per suite is the drift `repositoryStack.ts` exists to prevent. They are
+ * deliberately NOT a stack builder: `openFixtureVault` stays the one constructor.
+ *
+ * Each is written as a textual edit of the note's own frontmatter rather than through a
+ * repository, because a repository would REFUSE to write most of these — which is the point of
+ * them. A vault holds whatever a user, a sync client or another plugin last put there.
+ *
+ * `catchUp()` after every write, because the fixture cache models Obsidian's parse queue: the
+ * bytes are on disk immediately and the CACHE is what a read path asks, so without it every
+ * one of these would corrupt a note that no later read could see corrupted.
+ */
+export type CorruptibleStack = Pick<FixtureStack, 'vault' | 'metadataCache'>;
+
+const rewriteNote = async (
+	stack: CorruptibleStack,
+	path: string,
+	rewrite: (text: string) => string,
+): Promise<void> => {
+	const file = stack.vault.getAbstractFileByPath(path);
+	// Not a defensive arm: a fixture path that has been renamed would otherwise corrupt
+	// nothing and leave the case asserting a refusal that never happens, which is a green
+	// test about a different program.
+	if (!(file instanceof TFile)) throw new Error(`No fixture note at ${path}`);
+	const before = await stack.vault.read(file);
+	const after = rewrite(before);
+	if (after === before) throw new Error(`Corrupting ${path} changed nothing — the fixture's frontmatter has moved`);
+	await stack.vault.modify(file, after);
+	stack.metadataCache.catchUp();
+};
+
+/**
+ * A note from a build this one predates: `migrateToLatest` refuses it with a tagged
+ * `schema-version-unsupported` of category `Migration`, before Zod ever sees the shape.
+ */
+export const corruptSchemaVersion = (stack: CorruptibleStack, path: string): Promise<void> =>
+	rewriteNote(stack, path, (text) => text.replace('schema-version: 1', 'schema-version: 999'));
+
+/**
+ * A `schema-version` that is not a number at all — the one a user produces by typing `v2`.
+ * `migrateNote` answers `<kind>.schema-version-malformed`, category `Validation`, which is as
+ * note-local as a refusal gets and is why the skippable sets name it explicitly.
+ */
+export const malformSchemaVersion = (stack: CorruptibleStack, path: string): Promise<void> =>
+	rewriteNote(stack, path, (text) => text.replace('schema-version: 1', 'schema-version: "v2"'));
+
+/**
+ * A CURRENT-schema note whose frontmatter the mapper refuses: `<kind>.frontmatter-invalid`.
+ *
+ * Driving only `corruptSchemaVersion` would pass while every later refusal in `loadOne`
+ * recorded nothing, because the migration arm is the one refusal `openNoteById` already
+ * reaches the ledger with. This one exercises the recording the listing itself performs.
+ */
+export const invalidateFrontmatter = (stack: CorruptibleStack, path: string, field: string): Promise<void> =>
+	rewriteNote(stack, path, (text) => text.replace(new RegExp(`^${field}: .*$`, 'm'), `${field}: "not-a-valid-value"`));
+
+/**
+ * The SHARED failure, and the only one of the four that must not be skipped: one unreadable
+ * geometry sidecar refuses every zone in its plan, so folding it into a count would blame N
+ * notes for one file and draw an empty canvas under a notice saying so.
+ */
+export const corruptSidecar = (stack: CorruptibleStack, path: string): Promise<void> =>
+	rewriteNote(stack, path, () => 'not json at all');

@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Errors, diagnostics and the test harness]]"
 order: 40
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-08-31
+finished: 2026-08-31
 start: ""
 due: ""
 risk: ""
@@ -95,8 +95,53 @@ framing; a view is the most useful and the most expensive. Whichever is chosen, 
 removed from `view.project.some-unreadable` is what should come back, and the string is a
 one-line revert once the surface exists.
 
+## Resolution — 2026-08-31
+
+`src/plugin/diagnostics/DiagnosticsReportModal.ts`, reached by a palette command
+(`show-diagnostics-report`) and a settings ACTION row, both through
+`showDiagnosticsReport` — one action, every input.
+
+**A plain-DOM `Modal`, and not slice 15's `DialogHost`.** That host is scoped to an
+ItemView's Vue app, and a palette command has no such host when no view is open; mounting
+this in Vue would have meant a third Vue app — the plugin-global one SDD §12 would need an
+exception for and slice 13 deliberately never built. `createDiv`/`createEl` is what the
+notice live regions and the settings pane already use.
+
+**The ledger's compile-time guarantee is untouched**, checked rather than assumed:
+`git diff main -- tests/application/ports/diagnostics.test-d.ts src/application/ports/diagnostics.ts`
+is empty. The VIEW joins an id to a path through the project index so the user can find the
+broken note; `diagnosticsReportText` takes the snapshot and NOTHING else — there is no
+`resolvePath` parameter to pass — so what leaves the device carries no path, and a future
+edit wanting one there has to widen the signature. Both directions of that asymmetry are
+measured as mutations rather than argued.
+
+Two limitations remain, both written where they are met rather than only here:
+
+- **Session scope.** The ledger is in-memory, so reopening the vault empties the report. The
+  modal says so on its own surface (`diagnostics.session-only`), because an empty report
+  after a restart means "not recorded yet" and never "nothing is wrong".
+- **A strip's count and the report's rows can disagree, and that is not reconciled.** A strip
+  counts ONE listing; the report holds every refusal this session, deduplicated on
+  `(kind, id, code)` and bounded at `MAX_ISSUES`.
+
+**A session whose settings could not be read gets a refusal rather than a report.** The query
+is composed inside `persistence`, which is `null` exactly when `settings` is, so there is no
+snapshot to draw — and an empty report would say "No notes have refused to load in this
+session" about a session that never attempted a read.
+
+`view.project.some-unreadable` still carries no second sentence pointing here, and that is now
+a choice rather than a constraint: the project LIST's own strip is count-free (the polish
+slice's "Deliberate narrowing" this Issue's References already name), so widening it is a
+change to that sentence's surface rather than to this one.
+
+Looked at in [[A note that cannot be read]], steps 8 to 12 — written, **not yet run in a
+vault**. Nothing anywhere reads `styles/diagnostics.css`: the vendored harness stylesheet
+declares no modal chrome, exactly as it declares no `.notice`.
+
 ## References
 
+- `src/plugin/diagnostics/DiagnosticsReportModal.ts` and
+  `src/plugin/diagnostics/showDiagnosticsReport.ts` — the surface and its one function.
 - `src/application/queries/GetDiagnosticsSnapshot.ts` and `src/plugin/guardedServices.ts` —
   built, guarded, composed, unconsumed.
 - `src/infrastructure/logging/diagnosticsLedger.ts` — `MAX_ISSUES`, the dedup key, the

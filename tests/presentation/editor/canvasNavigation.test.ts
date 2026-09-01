@@ -96,7 +96,7 @@ describe('holding space to pan', () => {
 		const { harness, canvas, zonesRepo } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
 		key(canvas, 'keydown', { key: ' ' });
 		pointer(canvas, 'pointerdown', 300, 300); // inside zone-a's footprint
@@ -104,7 +104,7 @@ describe('holding space to pan', () => {
 		pointer(canvas, 'pointerup', 400, 300);
 		await settle();
 
-		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).toEqual(before);
+		expect(expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points).toEqual(before);
 		harness.unmount();
 	});
 
@@ -135,7 +135,7 @@ describe('holding space to pan', () => {
 		click(canvas, 520, 120);
 		await settle();
 
-		const listed = expectOk(await zonesRepo.listByPlan(PLAN));
+		const listed = expectOk(await zonesRepo.listByPlan(PLAN)).loaded;
 		expect(listed).toHaveLength(2);
 		const drawn = listed.find((loaded) => loaded.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);

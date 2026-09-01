@@ -408,7 +408,7 @@ describe('plan repository failure branches', () => {
 		const zone = makeZoneEntity({ id: zoneId, projectId, planId });
 		expectOk(await stack.zones.save(zone, 'absent'));
 
-		const plans = expectOk(await stack.plans.listByProject(projectId));
+		const plans = expectOk(await stack.plans.listByProject(projectId)).loaded;
 		expect(plans.map((loaded) => loaded.entity.id)).toEqual([planId]);
 	});
 

@@ -101,6 +101,10 @@ describe('what onload registers', () => {
 			// behind the first for exactly the reason above: a user's hotkey on `open-project`
 			// means "show me the pane", and it must not start meaning "open a fuzzy picker".
 			'open-project-detail',
+			// One of the diagnostics report's TWO doors; the settings action row is the other,
+			// and both reach `openDiagnosticsReport`. Pinned here as an id like the rest,
+			// because a user's hotkey binds to this string.
+			'show-diagnostics-report',
 			'open-plan-editor',
 			'set-plan-background',
 			// Scaffolding, and it still has to obey the id rule — a user who binds a hotkey to

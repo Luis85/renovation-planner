@@ -64,7 +64,7 @@ function makeQueries(options?: { failZonesReadsFrom?: number }) {
 				};
 				return Promise.resolve(err(failure));
 			}
-			return Promise.resolve(ok([zoneDto('zone-1')]));
+			return Promise.resolve(ok({ zones: [zoneDto('zone-1')], unreadable: 0 }));
 		},
 		zoneReads: () => zoneReads,
 	};
@@ -200,7 +200,7 @@ describe('withEditorStateRefresh', () => {
 				}
 				return Promise.resolve(ok(planDto()));
 			},
-			findZonesByPlan: () => Promise.resolve(ok([zoneDto('zone-1')])),
+			findZonesByPlan: () => Promise.resolve(ok({ zones: [zoneDto('zone-1')], unreadable: 0 })),
 		};
 		const projectStore = useProjectStore();
 		await projectStore.hydrate(queries, PLAN_ID);
@@ -244,10 +244,10 @@ describe('withEditorStateRefresh', () => {
 					signalFirstReadStarted(); // tell the test this read has begun
 					await firstReadGate;
 					lastLanded = 'first';
-					return ok([zoneDto('zone-a')]);
+					return ok({ zones: [zoneDto('zone-a')], unreadable: 0 });
 				}
 				lastLanded = 'second';
-				return ok([zoneDto('zone-a'), zoneDto('zone-b')]);
+				return ok({ zones: [zoneDto('zone-a'), zoneDto('zone-b')], unreadable: 0 });
 			},
 		};
 

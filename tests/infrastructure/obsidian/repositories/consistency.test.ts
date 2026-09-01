@@ -302,7 +302,7 @@ describe('immediate usability and location', () => {
 
 		const zone = makeZoneEntity({ id: createZoneId(), projectId, planId });
 		expectOk(await stack.zones.save(zone, 'absent'));
-		expect(expectOk(await stack.zones.listByPlan(planId))).toHaveLength(1);
+		expect(expectOk(await stack.zones.listByPlan(planId)).loaded).toHaveLength(1);
 	});
 
 	it('writes sidecars under <project folder>/Geometry/, keyed by the full plan ID', async () => {

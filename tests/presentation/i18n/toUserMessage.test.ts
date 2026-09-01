@@ -200,6 +200,16 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.persistence',
 		'infrastructure/obsidian/repositories/ObsidianProjectRepository.ts',
 	],
+	// The skip-and-count increment's one refusal. `Persistence`, because `persistenceError`
+	// is what the query raises — and the category sentence is wrong for it twice over: nothing
+	// failed unexpectedly, and the user needs to know the LIST is short rather than that a
+	// read broke.
+	[
+		'zone.listing-incomplete',
+		'Persistence',
+		'error.category.persistence',
+		'application/queries/ListReassignmentTargets.ts',
+	],
 	// Slice 19's library-folder migration, and the four rows are the four ways it can
 	// refuse. Each category below is copied from the RAISE SITE rather than from what the
 	// sentence sounds like: the two refusals are `Validation` because nothing has been read

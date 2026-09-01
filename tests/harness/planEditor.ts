@@ -136,7 +136,8 @@ export function harnessDeps(): PlanEditorDeps {
 			// re-opened one seam over. Both clones are needed: this one covers hydration, that
 			// one covers the synchronous seed, and neither path goes through the other.
 			getPlan: () => Promise.resolve(ok(structuredClone(HARNESS_PLAN))),
-			findZonesByPlan: () => Promise.resolve(ok(structuredClone(HARNESS_ZONES))),
+			findZonesByPlan: () =>
+				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0 })),
 			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`
 			// for why EMPTY rather than refused, and for what a refusal bundle costs a READ.
 			...emptyRequirementReads(),

@@ -3,11 +3,13 @@ import type { LibraryOverlaps } from '../../application/ports/LibraryOverlaps';
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { Query } from '../../application/queries/Query';
 import type { GetProjectInput } from '../../application/queries/GetProject';
-import type { ListPlansByProjectInput } from '../../application/queries/ListPlansByProject';
+import type {
+	ListPlansByProjectInput,
+	PlanListResult,
+} from '../../application/queries/ListPlansByProject';
 import type { ProjectListResult } from '../../application/queries/ListProjects';
 import type { Loaded } from '../../application/ports/versioning';
 import type { Project } from '../../domain/project/Project';
-import type { Plan } from '../../domain/plan/Plan';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import { toPlanSummaryDto, toProjectSummaryDto, type PlanSummaryDto, type ProjectSummaryDto } from './PlanDto';
 
@@ -18,6 +20,15 @@ import { toPlanSummaryDto, toProjectSummaryDto, type PlanSummaryDto, type Projec
  */
 export interface ProjectListView {
 	readonly projects: readonly ProjectSummaryDto[];
+	readonly unreadable: number;
+}
+
+/**
+ * The detail state's own shape of a plan listing: summaries it can render, and how many plans
+ * it cannot show. `ProjectListView`'s twin one level down.
+ */
+export interface PlanListView {
+	readonly plans: readonly PlanSummaryDto[];
 	readonly unreadable: number;
 }
 
@@ -37,8 +48,8 @@ export interface RenovationProjectQueryServices {
 	 * their vault hiccuped.
 	 */
 	getProject(projectId: string): Promise<Result<ProjectSummaryDto | null, RepositoryError>>;
-	/** That project's plans, as list rows read them. */
-	listPlansByProject(projectId: string): Promise<Result<readonly PlanSummaryDto[], RepositoryError>>;
+	/** That project's plans, as list rows read them, and how many notes refused to be read. */
+	listPlansByProject(projectId: string): Promise<Result<PlanListView, RepositoryError>>;
 }
 
 /**
@@ -96,7 +107,7 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
 export function createRenovationProjectQueries(
 	listProjects: Query<void, Result<ProjectListResult, RepositoryError>>,
 	getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>,
-	listPlansByProject: Query<ListPlansByProjectInput, Result<Plan[], RepositoryError>>,
+	listPlansByProject: Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>,
 	overlaps: LibraryOverlaps,
 ): RenovationProjectQueryServices {
 	return {
@@ -144,7 +155,10 @@ export function createRenovationProjectQueries(
 		async listPlansByProject(projectId) {
 			const listed = await listPlansByProject.execute({ projectId: projectId as ProjectId });
 			if (isErr(listed)) return listed;
-			return ok(listed.value.map(toPlanSummaryDto));
+			return ok({
+				plans: listed.value.plans.map(toPlanSummaryDto),
+				unreadable: listed.value.unreadable,
+			});
 		},
 	};
 }

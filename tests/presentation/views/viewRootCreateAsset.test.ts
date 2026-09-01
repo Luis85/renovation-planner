@@ -78,6 +78,54 @@ async function openTheForm(context: unknown) {
 	return wrapper;
 }
 
+/**
+ * **A FRESH VAULT, which is where this button was unreachable.**
+ *
+ * `ViewRoot` draws `EmptyState` when the selector answers one and `ProjectList` only as the
+ * `v-else` — so with no projects the list, its header and this button were not mounted at all,
+ * and the first thing a user could do with a brand-new vault was create a project they may not
+ * want. An Asset is VAULT-WIDE since design slice 19: it carries no project id, needs none, and
+ * a catalogue is a perfectly ordinary thing to build first.
+ *
+ * The helper above says so in its own comment — *"an empty vault draws `EmptyState` instead"* —
+ * which is this repository's recurring shape once more: the limitation was written down in the
+ * file that shipped it, as an explanation of the fixture rather than as a gap.
+ *
+ * Asserted by DRIVING the button through to the composed command, not by finding it. A build
+ * that rendered a second button wired to nothing, or to `createProject`, passes an existence
+ * check and fails here.
+ */
+describe('ViewRoot, creating an asset in a vault with no projects', () => {
+	it('offers the asset action beside the empty state, wired to the real command', async () => {
+		setActivePinia(createPinia());
+		const { context, createAsset } = deps();
+		context.queries.listProjects = vi.fn<() => Promise<unknown>>(() =>
+			Promise.resolve(ok({ projects: [], unreadable: 0 })),
+		);
+
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+		});
+		await flushPromises();
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
+		expect(wrapper.find('.rp-project-list').exists()).toBe(false);
+
+		await wrapper.get('.rp-view-aside__create-asset').trigger('click');
+		await flushPromises();
+		const form = wrapper.findComponent(NewAssetForm);
+		expect(form.exists()).toBe(true);
+
+		for (const [field, value] of [['name', 'Tiles'], ['unitCostAmount', '12.00'], ['currency', 'EUR']]) {
+			await form.get(`[data-field="${field}"]`).setValue(value);
+		}
+		await form.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(createAsset).toHaveBeenCalledTimes(1);
+		expect(createAsset.mock.calls[0][0].name).toBe('Tiles');
+	});
+});
+
 describe('ViewRoot, creating an asset', () => {
 	it('opens the New asset form from the project list header', async () => {
 		setActivePinia(createPinia());

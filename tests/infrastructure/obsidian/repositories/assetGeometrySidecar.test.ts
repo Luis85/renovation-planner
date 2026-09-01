@@ -364,12 +364,6 @@ describe('ObsidianAssetGeometrySidecar', () => {
 	});
 
 	/**
-	 * The control that keeps the reserved rule from over-refusing: `console` and `my.CON` are
-	 * ordinary strings that merely CONTAIN a device name, and an id is refused only when the
-	 * device name is its whole stem. Measured, because widening the match to a substring would
-	 * pass every case above while rejecting legitimate ids.
-	 */
-	/**
 	 * LENGTH, measured in BYTES rather than characters — which is the half a character count
 	 * gets wrong. `.rpgeo` is 6 bytes, so a 250-character ASCII id yields a 256-byte filename
 	 * against the 255-byte component limit on ext4 and APFS; and `'é'.repeat(130)` is 130
@@ -394,6 +388,99 @@ describe('ObsidianAssetGeometrySidecar', () => {
 		// 249 bytes + `.rpgeo` is exactly 255.
 		const id = 'a'.repeat(249) as unknown as Parameters<typeof sidecar.read>[0];
 		expect(expectOk(await sidecar.read(id)).document.shape).toBeNull();
+	});
+
+	/**
+	 * CONTROL CHARACTERS, U+0000 to U+001F — the range Windows forbids in a filename outright,
+	 * and the one `FORBIDDEN_IN_FILENAME` did not name while its docblock listed "all ten"
+	 * punctuation hazards as though the set were complete.
+	 *
+	 * Reachable the same way every other id hazard here is: an id is a user-editable
+	 * frontmatter field, so a hand edit or a paste can carry an escaped U+0001 through
+	 * `entityRefOf`, which asks only that the id be non-empty. The asset stays indexed and
+	 * readable and becomes impossible to design.
+	 *
+	 * U+007F (DEL) is deliberately NOT in the range, and the reason is that the range is
+	 * Windows's own rule rather than a guess at what looks unprintable: `DEL` is a legal
+	 * filename character there. Refusing it would be this guard over-reaching into a
+	 * platform's business, which is the direction that costs a user their asset.
+	 */
+	it('refuses an id carrying a control character', async () => {
+		const { sidecar, stack } = seeded();
+		for (const raw of ['asset\u0001custom', `asset${String.fromCharCode(0)}`, 'a\u001fb']) {
+			const id = raw as unknown as Parameters<typeof sidecar.read>[0];
+			expect(expectErr(await sidecar.read(id)).code).toBe('asset-geometry.unusable-id');
+		}
+		expect([...stack.vault.entries.keys()].some((p) => p.endsWith('.rpgeo'))).toBe(false);
+	});
+
+	/**
+	 * The control that keeps the control-character range from over-reaching, and it exists
+	 * because the docblock beside that range makes a claim about U+007F that nothing else here
+	 * would check: DEL is a LEGAL filename character on Windows, so refusing it would be this
+	 * guard extending a platform's rule past what the platform says. Measured as a mutation —
+	 * adding `\u007f` to the class passed all 498 cases in this directory until this one existed.
+	 */
+	it('accepts an id carrying DEL, which no filesystem forbids', async () => {
+		const { sidecar } = seeded();
+		const id = `asset${String.fromCharCode(127)}x` as unknown as Parameters<typeof sidecar.read>[0];
+		expect(expectOk(await sidecar.read(id)).document.shape).toBeNull();
+	});
+
+	/**
+	 * The control that keeps the reserved rule from over-refusing: `console` and `my.CON` are
+	 * ordinary strings that merely CONTAIN a device name, and an id is refused only when the
+	 * device name is its whole stem. Measured, because widening the match to a substring would
+	 * pass every case above while rejecting legitimate ids.
+	 */
+	/**
+	 * **The DELETE had no id check at all, and that is the half a case-fold collision makes
+	 * dangerous.**
+	 *
+	 * `read` compares the sidecar's declared `assetId` against the one asked for, so a
+	 * hand-renamed, copied or case-colliding `.rpgeo` surfaces as `asset-id-mismatch` rather
+	 * than being loaded under the wrong name. `delete` derived the path, found a file and
+	 * trashed it — asking nothing. So on a case-insensitive filesystem, where `cabinet-1` and
+	 * `Cabinet-1` name ONE file, deleting either asset destroyed the other's design silently,
+	 * with no error anywhere and nothing to restore from (`AssetGeometryStore.delete`'s own
+	 * header records that an asset's deleted design is gone with it).
+	 *
+	 * The guard REFUSES only on a declared mismatch, never on a sidecar that will not parse —
+	 * a corrupt or schema-invalid `.rpgeo` is garbage and must stay deletable, or an asset
+	 * whose sidecar got mangled could never be cleaned up. That asymmetry is the whole design
+	 * of the guard and each half has a case here.
+	 *
+	 * Driven through the vault rather than through a case-insensitive filesystem, which
+	 * nothing here can simulate: the same file is written declaring a DIFFERENT asset, which
+	 * is exactly the state a collision produces and is also what a copied sidecar produces.
+	 */
+	it('refuses to delete a sidecar that declares a different asset', async () => {
+		const { sidecar, stack } = seeded();
+		const mine = 'asset-01MINE' as unknown as Parameters<typeof sidecar.read>[0];
+		expectOk(await sidecar.write(mine, { calibration: null, shape: rectangle() }));
+		const path = [...stack.vault.entries.keys()].find((p) => p.endsWith('.rpgeo')) as string;
+		const document = JSON.parse(stack.vault.entries.get(path) as string) as { assetId: string };
+		stack.vault.entries.set(path, JSON.stringify({ ...document, assetId: 'asset-01OTHER' }));
+
+		expect(expectErr(await stack.assetGeometry.delete(mine)).code)
+			.toBe('asset-geometry.asset-id-mismatch');
+		expect(stack.vault.entries.has(path)).toBe(true);
+	});
+
+	/**
+	 * The other half of that guard, and the reason it is a mismatch test rather than a
+	 * successful-read test: a sidecar nothing can parse is garbage, and refusing to delete it
+	 * would leave an asset whose geometry file can never be cleaned up.
+	 */
+	it('still deletes a sidecar too corrupt to declare anything', async () => {
+		const { sidecar, stack } = seeded();
+		const mine = 'asset-01MINE' as unknown as Parameters<typeof sidecar.read>[0];
+		expectOk(await sidecar.write(mine, { calibration: null, shape: rectangle() }));
+		const path = [...stack.vault.entries.keys()].find((p) => p.endsWith('.rpgeo')) as string;
+		stack.vault.entries.set(path, 'not json at all');
+
+		expectOk(await stack.assetGeometry.delete(mine));
+		expect(stack.vault.entries.has(path)).toBe(false);
 	});
 
 	it('accepts an id that merely contains a device name', async () => {

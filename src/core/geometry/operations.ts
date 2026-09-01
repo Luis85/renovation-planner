@@ -103,12 +103,47 @@ function chainLength(points: readonly Point[]): number {
  * `enclosesArea` refused the footprint.
  *
  * Sound because the signed area is translation-invariant: subtracting a constant point from
- * every vertex changes no correct answer, and the first vertex is chosen because it needs no
- * search and is guaranteed to exist (`validatePolygonPoints` has already refused an empty
- * list at every caller).
+ * every vertex changes no correct answer, whatever point that is.
+ *
+ * **WHICH point is what decides whether the translation overflows, and the first vertex was the
+ * wrong one.** It needs no search and is guaranteed to exist, which is why it was chosen — and
+ * for a polygon spanning the double range it makes the differences as large as they can be:
+ * `(-1e308, 0), (1e308, 1e-308), (1e308, 0)` has a raw sum of `-2` and an area of about 1, and
+ * subtracting its first vertex gives `1e308 - (-1e308) === Infinity` and a sum of `NaN`. A
+ * representable area refused as unrepresentable — the cancellation fix's own mirror image,
+ * introduced by the fix and found by review rather than by any gate.
+ *
+ * `boundsMidpoint` minimises the largest difference instead, which is the property both ends
+ * need: it is close to a far-flung cluster (the cancellation case) and central to a spanning
+ * one (the overflow case). Measured across four polygons before it was taken: identical sums
+ * for the far-from-origin square and the 3-4-5 triangle, `-2` for the spanning one where the
+ * first vertex gives `NaN`, and still non-finite for a genuinely unrepresentable area, which is
+ * what the callers' guards read.
+ *
+ * Its arithmetic is `min / 2 + max / 2` rather than `(min + max) / 2` because the sum of two
+ * extremes is what can overflow — and **no input distinguishes the two spellings through this
+ * module, which is why there is no test for it and why this sentence says so.** `min + max`
+ * overflows only for a polygon out near 1e308, and doubles there are about 2e292 apart, so its
+ * smallest possible extent already squares past the double range: every such polygon has a
+ * non-representable area and is refused whichever spelling is used. The safer form is kept
+ * because it costs nothing, not because anything here can catch its loss.
  */
+function boundsMidpoint(points: readonly Point[]): Point {
+	let minX = Infinity;
+	let maxX = -Infinity;
+	let minY = Infinity;
+	let maxY = -Infinity;
+	for (const point of points) {
+		if (point.x < minX) minX = point.x;
+		if (point.x > maxX) maxX = point.x;
+		if (point.y < minY) minY = point.y;
+		if (point.y > maxY) maxY = point.y;
+	}
+	return { x: minX / 2 + maxX / 2, y: minY / 2 + maxY / 2 };
+}
+
 function signedAreaSum(points: readonly Point[]): number {
-	const origin = points[0];
+	const origin = boundsMidpoint(points);
 	let sum = 0;
 	for (let i = 0; i < points.length; i++) {
 		const a = points[i];
@@ -193,14 +228,20 @@ export function area(polygon: Polygon): Result<number, GeometryError> {
  * so the halving is dropped rather than carried for a comparison that cannot see it.
  *
  * **A REPRESENTABLE area, which is two questions and not one.** The shoelace sum of finite
- * coordinates can overflow — (0,0), (1e308,0), (0,1e308) sums to `Infinity` — and `Math.abs`
- * of that is greater than zero, so a bare magnitude test read an overflow as a real area and
+ * coordinates can overflow — (0,0), (1e308,0), (0,1e308) — and `Math.abs` of a non-finite sum
+ * is greater than zero, so a bare magnitude test read that overflow as a real area and
  * `validateAssetShape` persisted the footprint. Both failures answer `false` here because both
  * mean the same thing to a caller asking whether there is an area to work with; the two are
  * kept DISTINGUISHABLE at `area` and `centroid`, which have a `Result` to say which happened
- * in. `Number.isFinite` also excludes `NaN`, which no finite coordinate set produces (0 x
- * Infinity is the only route and there are no infinite coordinates) and which would otherwise
- * pass a `> 0` test by being incomparable rather than by being large.
+ * in.
+ *
+ * **`Number.isFinite` and not a test against `Infinity`**, because a finite coordinate set
+ * really does produce `NaN`: the translated products of that triangle straddle zero and
+ * infinity, and `Infinity - Infinity` is `NaN`. An earlier draft of this paragraph asserted the
+ * opposite — that no finite coordinate set can — which was true of the untranslated sum and
+ * false of the one below it, in a comment written beside the code that translates. A `> 0` test
+ * lets `NaN` through by making it incomparable rather than by making it large, which is the
+ * quieter of the two ways to pass.
  */
 export function enclosesArea(polygon: Polygon): boolean {
 	const sum = signedAreaSum(polygon.points);
@@ -246,14 +287,20 @@ export function centroid(polygon: Polygon): Result<Point, GeometryError> {
 			'Cannot weight a centroid by an area that is not representable.',
 		);
 	}
-	// Accumulated relative to the first vertex for the reason `signedAreaSum` gives, and then
+	// Accumulated relative to the bounding box's midpoint for the reason `signedAreaSum` gives,
+	// and the SAME origin as the `cross` above so the weights and their divisor are terms of one
+	// calculation. **Narrow claim, measured**: the signed area is translation-invariant, so two
+	// origins would agree exactly in real arithmetic and differ only where one of them overflows
+	// — and every such polygon is already refused by the guard below or by `cross`'s own. Nothing
+	// in the suite tells the two apart, so this is written as the reason it is spelled this way
+	// rather than as a behaviour something checks. And then
 	// shifted back. A centroid is not translation-INVARIANT the way an area is, but it is
 	// translation-EQUIVARIANT — centroid(P − o) + o = centroid(P) — so the same subtraction is
 	// sound here with one addition at the end. Fixing the shared accumulator alone left this
 	// loop still multiplying raw coordinates, so the guard above stopped refusing a real
 	// square while this answered the wrong point for it: a refusal replaced by a quiet error,
 	// which is the worse of the two.
-	const origin = polygon.points[0];
+	const origin = boundsMidpoint(polygon.points);
 	let cx = 0;
 	let cy = 0;
 	const n = polygon.points.length;
@@ -268,7 +315,21 @@ export function centroid(polygon: Polygon): Result<Point, GeometryError> {
 		cx += (ax + bx) * w;
 		cy += (ay + by) * w;
 	}
-	return ok({ x: cx / (3 * cross) + origin.x, y: cy / (3 * cross) + origin.y });
+	const x = cx / (3 * cross) + origin.x;
+	const y = cy / (3 * cross) + origin.y;
+	// The guard on the RESULT, not on the sum it came from — the two are different questions and
+	// this one is asked last for that reason. A finite `cross` and finite weights can still shift
+	// back out of the translated frame into infinity: the spanning triangle's centroid is
+	// genuinely not representable, and without this it came back as a confident `ok` carrying
+	// `Infinity`. Found while checking the area fix rather than by any report; it is the same
+	// class, one step further along the calculation.
+	if (!Number.isFinite(x) || !Number.isFinite(y)) {
+		return geometryErr(
+			'polygon-centroid-overflow',
+			'This polygon encloses an area, but its centroid is not representable.',
+		);
+	}
+	return ok({ x, y });
 }
 
 /** Undefined on an empty or non-finite point set — a min/max over nothing answers nothing. */

@@ -100,6 +100,39 @@ export class AssetGeometryStore {
 	}
 
 	/**
+	 * WHICH ASSET THIS FILE SAYS IT IS, or `null` when it will not say.
+	 *
+	 * `read` has compared the sidecar's declared `assetId` against the one asked for since it
+	 * was written — a hand-renamed file, a copied `.rpgeo`, a hand-edited id — and `delete` had
+	 * no such check at all: it derived a path, found a file and trashed it. On a
+	 * case-insensitive filesystem `cabinet-1` and `Cabinet-1` name ONE file, so deleting either
+	 * asset destroyed the other's design, silently, with nothing to restore from — this class's
+	 * own header records that a deleted design is gone with its asset. Reported for the READ
+	 * path; the delete was the half that could lose data.
+	 *
+	 * **`null` for anything that will not parse, and that asymmetry is the design.** A refusal
+	 * belongs to a sidecar that positively declares somebody else; a corrupt or schema-invalid
+	 * one is garbage, and refusing to delete it would leave an asset whose geometry file can
+	 * never be cleaned up. So this asks one question and answers it three ways — someone else's,
+	 * mine, or unreadable — and only the first is a refusal. Both halves have a case.
+	 *
+	 * It does NOT close the collision itself: two assets whose ids differ only in case still
+	 * share one file, and the second is still undesignable. Closing that needs either the INDEX
+	 * inside a path derivation (the same shape as ADR-0014's recorded residual) or a filename
+	 * that is no longer the id — which `libraryGeometryIn` now depends on. Recorded in this
+	 * increment's plan; what ships here is that the failure cannot be a silent deletion.
+	 */
+	private async declaredAssetOf(file: TFile): Promise<string | null> {
+		try {
+			const parsed: unknown = JSON.parse(await this.vault.read(file));
+			const validated = AssetGeometrySchemaV1.safeParse(parsed);
+			return validated.success ? validated.data.assetId : null;
+		} catch {
+			return null;
+		}
+	}
+
+	/**
 	 * Asset-DELETE path only: removes the file, and an ABSENT file is still success — the
 	 * ordinary state of an asset nobody has designed, which is the same sentence `read`
 	 * answers with an empty document rather than a refusal.
@@ -131,6 +164,15 @@ export class AssetGeometryStore {
 			const path = resolved.value;
 			const file = this.vault.getAbstractFileByPath(path);
 			if (!(file instanceof TFile)) return ok(undefined);
+			const claimed = await this.declaredAssetOf(file);
+			if (claimed !== null && claimed !== assetId) {
+				return err(
+					persistenceError(
+						'asset-geometry.asset-id-mismatch',
+						`Sidecar ${path} declares asset ${claimed}, not ${assetId}. It was not deleted.`,
+					),
+				);
+			}
 			try {
 				await this.fileManager.trashFile(file);
 			} catch (cause) {

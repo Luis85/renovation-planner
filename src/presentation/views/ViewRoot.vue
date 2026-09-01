@@ -264,11 +264,36 @@ if (openProjectId === null) {
 	<div class="renovation-planner-view">
 		<template v-if="openProjectId === null">
 			<template v-if="status === 'ready'">
-				<EmptyState
-					v-if="empty !== null"
-					v-bind="empty"
-					@action="onCreateProject"
-				/>
+				<template v-if="empty !== null">
+					<EmptyState
+						v-bind="empty"
+						@action="onCreateProject"
+					/>
+					<!--
+						**A fresh vault must still be able to build a catalogue.** The asset
+						action lives in `ProjectList`'s header, and the list is the `v-else`
+						below — so with no projects it was not mounted at all, and the only
+						thing a new vault offered was creating a project. An Asset is
+						VAULT-WIDE since design slice 19: it carries no project id and needs
+						none.
+
+						A SIBLING of the empty state rather than a second action ON it. The
+						empty state's message is "create your first project" and its button is
+						that sentence's verb; `EMPTY_STATE_CONTENT` is a typed registry whose
+						entries carry one action each, so a second one would be a widening
+						every entry inherits for the sake of one. This is an unrelated
+						affordance and is drawn as one.
+					-->
+					<p class="rp-view-aside">
+						<button
+							type="button"
+							class="rp-view-aside__create-asset"
+							@click="onCreateAsset"
+						>
+							{{ tr('view.asset.create') }}
+						</button>
+					</p>
+				</template>
 				<!--
 					`@open` NAVIGATES (design slice 21, criterion 1) rather than opening the
 					project's own note, which is what it did for five slices. `Project.md` stays

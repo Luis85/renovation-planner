@@ -153,6 +153,11 @@ export function assetSidecarPathFor(libraryFolder: string, assetId: AssetId | st
  *
  * Not global: a `g` flag makes `RegExp.test` stateful through `lastIndex`, which a shared constant
  * with two call sites must not be. `fileNameFor` builds its own global copy from `.source`.
+ *
+ * **The CONTROL characters are the eleventh hazard and they are deliberately NOT in here.** A
+ * regex is the wrong instrument for them: `no-control-regex` refuses the character class
+ * outright, and this repository permits no inline suppression to argue with it.
+ * `hasControlCharacter` below is the predicate instead, and both callers ask it beside this.
  */
 const FORBIDDEN_IN_FILENAME = /[/\\:*?"<>|#^[\]]/;
 
@@ -184,6 +189,33 @@ const RESERVED_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
  * looser for non-ASCII and identical for ASCII, so the byte rule covers both.
  */
 const MAX_FILENAME_BYTES = 255;
+
+/**
+ * U+0000 to U+001F — the range Windows forbids in a filename outright, and the eleventh hazard
+ * the punctuation class above does not name.
+ *
+ * Reachable the same way every other id hazard is: an id is a user-editable frontmatter field,
+ * so a hand edit or a paste carrying an escaped U+0001 passes `entityRefOf`, which asks only
+ * that the id be non-empty — and the asset stays indexed, readable and impossible to design.
+ *
+ * **A loop and not a regex**, which is a lint constraint that turned out to be the better
+ * spelling anyway: `no-control-regex` refuses the character class, this repository permits no
+ * inline suppression, and a `charCodeAt` bound says what it means without an escape sequence a
+ * reader has to decode. `fileNameFor` filters with this same predicate rather than through
+ * `FORBIDDEN_IN_FILENAME.source`, so the two paths cannot disagree about the range.
+ *
+ * U+007F (DEL) is deliberately OUTSIDE it. This is Windows's own rule rather than a guess at
+ * what looks unprintable, and DEL is a legal filename character there — over-refusing costs a
+ * user an asset they cannot rename, so the range is the documented one and not a wider one that
+ * feels safer. Asserted in BOTH directions, because a comment saying "deliberately excluded" is
+ * exactly the claim nothing would otherwise check.
+ */
+function hasControlCharacter(value: string): boolean {
+	for (let i = 0; i < value.length; i++) {
+		if (value.charCodeAt(i) < 0x20) return true;
+	}
+	return false;
+}
 
 /**
  * UTF-8 byte length, through `TextEncoder` rather than through Node's `Buffer`.
@@ -220,7 +252,8 @@ function utf8Bytes(value: string): number {
  * previous two attempts went wrong.
  */
 export function usableAsFilename(id: string, extensionBytes = 0): boolean {
-	if (FORBIDDEN_IN_FILENAME.test(id) || EDGE_DOT_OR_SPACE.test(id)) return false;
+	if (FORBIDDEN_IN_FILENAME.test(id) || hasControlCharacter(id)) return false;
+	if (EDGE_DOT_OR_SPACE.test(id)) return false;
 	if (utf8Bytes(id) + extensionBytes > MAX_FILENAME_BYTES) return false;
 	return id !== '.' && id !== '..' && !RESERVED_DEVICE_NAME.test(id);
 }
@@ -235,7 +268,9 @@ export function usableAsFilename(id: string, extensionBytes = 0): boolean {
  * trimmed of edge dots and spaces, which Windows and the app both dislike.
  */
 export function fileNameFor(name: string): string {
-	const clean = name
+	const clean = [...name]
+		.filter((character) => !hasControlCharacter(character))
+		.join('')
 		.replace(new RegExp(FORBIDDEN_IN_FILENAME.source, 'g'), '')
 		.replace(/^[\s.]+|[\s.]+$/g, '')
 		.slice(0, 80)

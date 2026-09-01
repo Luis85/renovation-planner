@@ -1917,6 +1917,27 @@ derives from a SETTING, where a plan's derives from its own note's folder — pl
 reading the index with derivation as the repair path. **The ADR's decision stands; what is missing
 is its implementation**, so nothing in it is narrowed — this residual is the record of the gap.
 
+**5. Two asset ids differing only in CASE share one sidecar file.** `assetSidecarPathFor` names
+the file after the whole id, and `entityRefOf` accepts any non-empty one — so hand-authored ids
+`cabinet-1` and `Cabinet-1` derive two paths that are ONE file on the case-insensitive filesystems
+Windows and macOS normally use. The second asset is then undesignable. Generated ids cannot
+collide; this needs a hand edit, a paste or an import.
+
+*What ships*: the READ already refused, through the `asset-id-mismatch` comparison it has always
+had — and **the DELETE asked nothing at all**, which is the half that could lose data rather than
+merely refuse. It derived a path, found a file and trashed it, so deleting either colliding asset
+destroyed the other's design silently, with nothing to restore from (`AssetGeometryStore.delete`'s
+own header records that a deleted design is gone with its asset). `declaredAssetOf` closes that:
+a sidecar positively declaring somebody else is refused, and one too corrupt to declare anything
+is still deletable, because refusing that would strand a mangled file forever. Reported for the
+read path; found on the delete path by tracing the reported one.
+
+*The remedy for the collision itself*, which is NOT taken: either a path derivation that can see
+the other ids — the index inside `pathFor`, which is residual 4's shape exactly — or a filename
+that is no longer the id, which breaks the correspondence `libraryGeometryIn` was moved onto this
+round and which ADR-0014's layout states. The first is the one to take, and it is the same
+increment as residual 4 rather than a second one.
+
 ---
 
 # Phase B — the designer

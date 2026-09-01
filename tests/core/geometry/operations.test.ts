@@ -170,6 +170,53 @@ describe('a polygon whose vertices are finite and whose area is not', () => {
 });
 
 /**
+ * The translation that rescues the cancelling case can itself OVERFLOW, and the origin it
+ * translates to is what decides whether it does.
+ *
+ * Every coordinate here is finite and the area is about 1 — computed on the raw coordinates the
+ * shoelace sum is `-2`. Translating to the FIRST vertex subtracts `-1e308` from `1e308`, which
+ * is `Infinity`, and the sum is then `NaN`: a polygon with a perfectly representable area
+ * refused as unrepresentable. The remedy is not to stop translating, which reopens the
+ * cancellation defect above, but to translate to the origin that MINIMISES the largest
+ * difference — the midpoint of the bounding box, computed as `min / 2 + max / 2` so the
+ * midpoint's own arithmetic cannot overflow either.
+ *
+ * Measured across all four cases before it was taken: the midpoint gives `-2` here where the
+ * first vertex gives `NaN`, and gives the far-from-origin square and the 3-4-5 triangle exactly
+ * the sums they already had.
+ */
+describe('a polygon whose coordinates span the whole double range', () => {
+	const SPANNING = createPolygon([
+		{ x: -1e308, y: 0 },
+		{ x: 1e308, y: 1e-308 },
+		{ x: 1e308, y: 0 },
+	]);
+
+	it('has its real area rather than being refused as unrepresentable', () => {
+		expect(SPANNING.ok && area(SPANNING.value)).toEqual({ ok: true, value: expect.closeTo(1, 10) });
+	});
+
+	it('encloses an area', () => {
+		expect(SPANNING.ok && enclosesArea(SPANNING.value)).toBe(true);
+	});
+
+	/**
+	 * The same class one step further on, found by computing this polygon's centroid while
+	 * checking the area fix: the WEIGHTS are finite and the shift back out of the translated
+	 * frame is not, so `cx / (3 * cross) + origin.x` is `Infinity` and the point came back
+	 * inside a confident `ok`. A refusal is the honest answer — the centroid of this triangle
+	 * is genuinely not representable — and it is the same rule the area guard keeps, applied to
+	 * the value this function actually returns rather than to the sum it derives it from.
+	 */
+	it('refuses a centroid it cannot place, rather than answering an infinite coordinate', () => {
+		expect(SPANNING.ok && centroid(SPANNING.value)).toEqual({
+			ok: false,
+			error: expect.objectContaining({ code: 'polygon-centroid-overflow' }),
+		});
+	});
+});
+
+/**
  * The degenerate case keeps its OWN code, so the two refusals stay distinguishable: a
  * collinear vertex set encloses nothing, and an overflowing one encloses something nobody can
  * represent. Collapsing them would put "these vertices are collinear" over a triangle with

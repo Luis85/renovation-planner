@@ -224,8 +224,19 @@ export function area(polygon: Polygon): Result<number, GeometryError> {
  * axis-aligned collinear case and passes the diagonal one. Measured rather than reasoned,
  * because a partial fix here would read exactly like a complete one.
  *
- * Unsigned and undivided: `Math.abs(sum) / 2 > 0` and `Math.abs(sum) > 0` answer identically,
- * so the halving is dropped rather than carried for a comparison that cannot see it.
+ * **The halving is CARRIED, and the comment that dropped it was wrong.** It read "`Math.abs(sum)
+ * / 2 > 0` and `Math.abs(sum) > 0` answer identically" — false for exactly one double, since
+ * `Number.MIN_VALUE` is greater than zero and halves to zero. A polygon summing to it would
+ * enclose an area by this predicate and none by `area`, and `validateAssetShape` would persist a
+ * footprint `area()` reports as `0`.
+ *
+ * **No polygon found produces it**, which is said here rather than left implied: the reported
+ * triangle sums to `MIN_VALUE` only under the FIRST-VERTEX origin this module used before the
+ * overflow fix, and to exactly `0` under the midpoint it uses now, and a search over 4096
+ * (width, height) pairs in denormal steps landed on it never. So this is not a fix for a
+ * reachable case. It is that two functions answering one question should agree BY CONSTRUCTION
+ * rather than by an argument about denormals — an argument this comment has already got wrong
+ * once, which is the whole reason to stop making it.
  *
  * **A REPRESENTABLE area, which is two questions and not one.** The shoelace sum of finite
  * coordinates can overflow — (0,0), (1e308,0), (0,1e308) — and `Math.abs` of a non-finite sum
@@ -245,7 +256,7 @@ export function area(polygon: Polygon): Result<number, GeometryError> {
  */
 export function enclosesArea(polygon: Polygon): boolean {
 	const sum = signedAreaSum(polygon.points);
-	return Number.isFinite(sum) && Math.abs(sum) > 0;
+	return Number.isFinite(sum) && Math.abs(sum) / 2 > 0;
 }
 
 export function perimeter(polygon: Polygon): Result<number, GeometryError> {
@@ -301,22 +312,43 @@ export function centroid(polygon: Polygon): Result<Point, GeometryError> {
 	// square while this answered the wrong point for it: a refusal replaced by a quiet error,
 	// which is the worse of the two.
 	const origin = boundsMidpoint(polygon.points);
+	// **SCALED as well as translated, because the moments are one power higher than the area.**
+	// `(ax + bx) * w` is cubic in the coordinates where the shoelace sum is quadratic, so a
+	// rectangle at (+/-5e153, +/-2.5e153) has a finite `cross` of 1e308, an area of 5e307 and a
+	// centroid of exactly (0, 0) while these accumulators reach opposing infinities and cancel to
+	// `NaN` — the guard below then refusing a centroid that is not merely representable but IS
+	// the origin. Sound because the centroid is scale-equivariant as well as translation-
+	// equivariant: scaling every vertex by k scales `w` by k squared, the moments by k cubed and
+	// their quotient by k, so the same division answers in either frame and only the
+	// intermediates change size. `scale` cannot be zero — a polygon whose translated coordinates
+	// are all zero has `cross === 0` and returned above — so no guard is owed for it.
+	//
+	// `cross` above stays UNSCALED on purpose: it is the AREA's question, and it is what keeps
+	// this function refusing the polygon whose area genuinely is not representable. The scaled
+	// `crossScaled` below is this function's own divisor, in the frame its moments were summed
+	// in.
+	let scale = 0;
+	for (const point of polygon.points) {
+		scale = Math.max(scale, Math.abs(point.x - origin.x), Math.abs(point.y - origin.y));
+	}
+	let crossScaled = 0;
 	let cx = 0;
 	let cy = 0;
 	const n = polygon.points.length;
 	for (let i = 0; i < n; i++) {
 		const a = polygon.points[i];
 		const b = polygon.points[(i + 1) % n];
-		const ax = a.x - origin.x;
-		const ay = a.y - origin.y;
-		const bx = b.x - origin.x;
-		const by = b.y - origin.y;
+		const ax = (a.x - origin.x) / scale;
+		const ay = (a.y - origin.y) / scale;
+		const bx = (b.x - origin.x) / scale;
+		const by = (b.y - origin.y) / scale;
 		const w = ax * by - bx * ay;
+		crossScaled += w;
 		cx += (ax + bx) * w;
 		cy += (ay + by) * w;
 	}
-	const x = cx / (3 * cross) + origin.x;
-	const y = cy / (3 * cross) + origin.y;
+	const x = (cx / (3 * crossScaled)) * scale + origin.x;
+	const y = (cy / (3 * crossScaled)) * scale + origin.y;
 	// The guard on the RESULT, not on the sum it came from — the two are different questions and
 	// this one is asked last for that reason. A finite `cross` and finite weights can still shift
 	// back out of the translated frame into infinity: the spanning triangle's centroid is

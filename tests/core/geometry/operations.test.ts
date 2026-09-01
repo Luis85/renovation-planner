@@ -217,6 +217,109 @@ describe('a polygon whose coordinates span the whole double range', () => {
 });
 
 /**
+ * The OTHER non-finite sum, and the reason `enclosesArea` needs its finiteness conjunct at all.
+ *
+ * The overflow case above sums to `NaN`, because its translated cross products straddle zero and
+ * infinity — and `Math.abs(NaN) / 2 > 0` is already `false`, so that case cannot tell whether the
+ * `Number.isFinite` half is doing any work. A square whose vertices all share a magnitude sums to
+ * `+Infinity` instead, with no opposing term to cancel it, and there `Math.abs(sum) / 2 > 0` is
+ * `TRUE`: without the finiteness test `validateAssetShape` would accept it.
+ *
+ * Measured rather than assumed — deleting that conjunct left the whole geometry suite green until
+ * this case existed, which is the untested-conjunct shape this repository has a rule about.
+ */
+describe('a polygon whose area sum saturates rather than cancelling', () => {
+	const SATURATED = createPolygon([
+		{ x: -1e160, y: -1e160 },
+		{ x: 1e160, y: -1e160 },
+		{ x: 1e160, y: 1e160 },
+		{ x: -1e160, y: 1e160 },
+	]);
+
+	it('does not enclose a representable area', () => {
+		expect(SATURATED.ok && enclosesArea(SATURATED.value)).toBe(false);
+	});
+
+	it('refuses to report an area', () => {
+		expect(SATURATED.ok && area(SATURATED.value)).toEqual({
+			ok: false,
+			error: expect.objectContaining({ code: 'polygon-area-overflow' }),
+		});
+	});
+});
+
+/**
+ * A polygon whose AREA is representable and whose third moments are not.
+ *
+ * `centroid` accumulates `(ax + bx) * w`, one power of the coordinates above the shoelace sum
+ * itself — so a rectangle at `(±5e153, ±2.5e153)` has a finite `cross` of `1e308`, an area of
+ * `5e307`, and a centroid of exactly `(0, 0)`, while the accumulators reach opposing infinities
+ * and cancel to `NaN`. The overflow guard added one round earlier then refused a centroid that
+ * is not merely representable but is the ORIGIN.
+ *
+ * The remedy is conditioning rather than a wider guard: the accumulation runs on coordinates
+ * divided by the largest translated magnitude, and the answer is multiplied back. Sound because
+ * the centroid is translation-equivariant AND scale-equivariant — scaling every vertex by `k`
+ * scales `w` by `k²`, the moments by `k³` and their quotient by `k` — so the same subtraction
+ * and the same division answer in either frame, and only the intermediates change size.
+ */
+describe('a polygon whose third moments overflow but whose centroid does not', () => {
+	const HUGE = createPolygon([
+		{ x: -5e153, y: -2.5e153 },
+		{ x: 5e153, y: -2.5e153 },
+		{ x: 5e153, y: 2.5e153 },
+		{ x: -5e153, y: 2.5e153 },
+	]);
+
+	it('has a representable area', () => {
+		expect(HUGE.ok && area(HUGE.value)).toEqual({ ok: true, value: 5e307 });
+	});
+
+	it('centroids at the origin rather than refusing as unrepresentable', () => {
+		expect(HUGE.ok && centroid(HUGE.value)).toEqual({ ok: true, value: { x: 0, y: 0 } });
+	});
+});
+
+/**
+ * `enclosesArea` and `area` must answer the same question, and a docblock claiming they did was
+ * the thing that was wrong.
+ *
+ * That comment read: *"`Math.abs(sum) / 2 > 0` and `Math.abs(sum) > 0` answer identically, so the
+ * halving is dropped."* False for exactly one double — `Number.MIN_VALUE` is greater than zero
+ * and halves to zero — so a polygon summing to it would enclose an area by one function and none
+ * by the other, and `validateAssetShape` would persist a footprint `area()` reports as `0`.
+ *
+ * **Measured, and the honest report is that no polygon found produces it.** The reported triangle
+ * `(0,0), (1,0), (0, MIN_VALUE)` sums to `MIN_VALUE` under the FIRST-VERTEX origin this module
+ * used before the overflow fix, and to exactly `0` under the bounding-box midpoint it uses now —
+ * so it is correctly refused today, and a search over 4096 (width, height) pairs in denormal
+ * steps found none that lands on `MIN_VALUE` either. The fix is therefore not driven by a
+ * reachable case: it is that two functions answering one question should agree BY CONSTRUCTION
+ * rather than by an argument about denormals that has already been wrong once.
+ */
+describe('the degeneracy predicate and the area it stands for', () => {
+	it.each([
+		['a unit triangle', [{ x: 0, y: 0 }, { x: 4, y: 0 }, { x: 0, y: 3 }]],
+		['a collinear set', [{ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 }]],
+		['a denormal sliver', [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: Number.MIN_VALUE }]],
+		['a subnormal square', [
+			{ x: -Number.MIN_VALUE, y: -Number.MIN_VALUE },
+			{ x: Number.MIN_VALUE, y: -Number.MIN_VALUE },
+			{ x: Number.MIN_VALUE, y: Number.MIN_VALUE },
+			{ x: -Number.MIN_VALUE, y: Number.MIN_VALUE },
+		]],
+	])('agree for %s', (_name, points) => {
+		const polygon = createPolygon(points);
+		expect(polygon.ok).toBe(true);
+		if (!polygon.ok) return;
+		const measured = area(polygon.value);
+		expect(measured.ok).toBe(true);
+		if (!measured.ok) return;
+		expect(enclosesArea(polygon.value)).toBe(measured.value > 0);
+	});
+});
+
+/**
  * The degenerate case keeps its OWN code, so the two refusals stay distinguishable: a
  * collinear vertex set encloses nothing, and an overflowing one encloses something nobody can
  * represent. Collapsing them would put "these vertices are collinear" over a triangle with

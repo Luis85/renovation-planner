@@ -99,7 +99,7 @@ export function selectProjectDetailEmptyState(
 }
 
 /**
- * Which empty state the asset designer is in (design slice B3, ADR-0015).
+ * Which empty state the asset designer is in (design slice B3, ADR-0015; widened by Task B7).
  *
  * A function of a design that has ALREADY succeeded, like its three siblings — an `Err` never
  * reaches it, because a failed read is not an empty state and telling a user to draw their
@@ -110,13 +110,19 @@ export function selectProjectDetailEmptyState(
  * `GetAssetDesign` and would be a second answer to one question: what the canvas has to draw is
  * the outline, and a measurement is a thing the inspector prints about it.
  *
- * **The return type is narrower than `EMPTY_STATE_CONTENT.assetDesigner`, on purpose and
- * temporarily.** That registry declares `noBackground` too, and nothing here can select it:
- * `AssetDesignDto` carries no `background` field until Task B7 adds it, together with the
- * `BackgroundPicker` that would give the state an action. Widening the union now would declare
- * an arm nothing returns. `selectors.test.ts` pins the absence with that reason attached, so
- * B7 changes a test rather than finding an unexplained gap.
+ * **Once a shape exists, neither overlay draws — the same "nothing to say once there is
+ * something to look at" rule slice 14 states for the other two selectors.** A background nag
+ * kept alive over a typed footprint would be nagging over real content for no reason a user
+ * asked for: `AssetShape.footprintOrigin` can be `'typed'`, which needs no background at all,
+ * so an asset with a shape and no spec sheet is not a gap this selector treats as one.
+ *
+ * **Among the shapeless states, `noBackground` outranks `noShape`** — the same "first missing
+ * step of the sequence" ordering `selectPlanEditorEmptyState` states for its own pair, read from
+ * the asset designer's side: `noShape`'s hand-off (Task B8's dimensions form) works with no
+ * background at all, but a user who has picked nothing yet is offered the more foundational
+ * action first. `selectors.test.ts` pins both halves of the ordering as behaviour.
  */
-export function selectAssetDesignerEmptyState(design: AssetDesignDto): 'noShape' | null {
-	return design.shape === null ? 'noShape' : null;
+export function selectAssetDesignerEmptyState(design: AssetDesignDto): 'noBackground' | 'noShape' | null {
+	if (design.shape !== null) return null;
+	return design.background === null ? 'noBackground' : 'noShape';
 }

@@ -95,10 +95,15 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  * only place it is published.** The sentence used to read "here and nowhere else", and it was
  * false in the same increment that wrote it — `SetAssetHeightCommand` publishes its own,
  * because a height is the one design field that lives in the note and so takes none of this
- * path. `grep -rn "publish(assetDesignChanged" src/`, run in the edit that wrote this
- * sentence, prints FIVE lines: this one, `SetAssetHeight.ts`, `CalibrateAsset.ts`, and the two
- * restores in `application/editor/asset/ReversibleAssetDesignCommands.ts` — an undo that
- * announced nothing would leave every peer leaf on the forward state.
+ * path. `grep -rn "publish(assetDesignChanged" src/`, run in the edit that wrote this sentence,
+ * prints SEVEN real call sites (the pattern also appears once more, inside this very
+ * paragraph, which is not a call): this one, `SetAssetHeight.ts`, `CalibrateAsset.ts`, Task
+ * B7's `SetAssetBackground.ts`, and THREE restores in
+ * `application/editor/asset/ReversibleAssetDesignCommands.ts` — the geometry edit's, the note
+ * edit's, and the background edit's, since B7's inverse spans both resources and announces once
+ * for the pair rather than once per resource. This sentence read "FIVE" and "the two restores"
+ * through Task B6; an undo that announced nothing would leave every peer leaf on the forward
+ * state.
  *
  * **And the narrower claim this paragraph used to end on has ALSO stopped being true.** It read
  * "a sixth geometry command cannot forget to announce, because this is the only path by which

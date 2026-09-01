@@ -473,6 +473,7 @@ export const en = {
 	'empty.asset.no-background.headline': 'No spec sheet yet',
 	'empty.asset.no-background.body':
 		'Set a photograph, drawing or datasheet as this asset’s background, then calibrate it so a traced outline comes out in real units.',
+	'empty.asset.no-background.action': 'Choose a background',
 	// The designer's own shell. `designer.asset-failed.headline` is the counterpart of
 	// `editor.plan-failed.headline`: the BODY under it is `trError(error)`, so an unreadable
 	// vault, unrecovered settings and an asset that is gone each say their own sentence.
@@ -498,6 +499,9 @@ export const en = {
 	'designer.calibrate.recalibrate.title': 'Rescale what was traced without a scale?',
 	'designer.calibrate.recalibrate.message':
 		'Some of this asset’s geometry was traced before a scale existed. Setting the scale converts it to millimetres. You can undo it.',
+	// Task B7's picker placeholder — `ObsidianBackgroundPicker`'s modal, the same affordance
+	// `PlanBackgroundSuggestModal.ts` uses `command.set-plan-background` for.
+	'designer.background.pick': 'Choose a background for this asset',
 	'designer.loading': 'Loading asset…',
 	'designer.asset-failed.headline': 'This asset could not be loaded',
 	'designer.refresh-failed':

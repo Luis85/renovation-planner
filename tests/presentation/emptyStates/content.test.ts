@@ -29,27 +29,35 @@ describe('the empty-state content registry', () => {
 	});
 
 	/**
-	 * **BOTH designer entries ship buttonless, and the two absences have different owners.**
+	 * **`noShape` still ships buttonless, and Task B7 is why it stands alone now.**
 	 *
-	 * The increment plan's Task B3 says only `noBackground` is buttonless — "`assetDesigner.
-	 * noShape` carries an action that opens the dimensions form". Nothing in this plugin opens
-	 * one for the asset ALREADY OPEN: `NewAssetForm` creates a different asset, and Task B8's
-	 * own Step 1a says in as many words that the dimensions dialog is built there and that
-	 * "nothing in this plan built one until this step". So a button here today would be exactly
-	 * the live control that does nothing slice 14's Amendment 1 refuses.
+	 * Nothing in this plugin opens a dimensions form for the asset ALREADY OPEN:
+	 * `NewAssetForm` creates a different asset, and Task B8's own Step 1a says in as many words
+	 * that the dimensions dialog is built there and that "nothing in this plan built one until
+	 * this step". So a button here today would be exactly the live control that does nothing
+	 * slice 14's Amendment 1 refuses. `noBackground` flipped the other way in Task B7, below.
 	 *
 	 * Asked with `in` rather than by reading the property, for the reason the `planEditor`
-	 * case below gives: the entries are literals with no `actionLabel`, so their TYPE has no
-	 * such key and the read does not compile. The type is the stronger guarantee; this keeps
-	 * the runtime assertion so that B7 (`noBackground`) and B8 (`noShape`) each flip a real
-	 * test rather than closing a gap quietly.
+	 * case below gives: the entry is a literal with no `actionLabel`, so its TYPE has no such
+	 * key and the read does not compile. The type is the stronger guarantee; this keeps the
+	 * runtime assertion so that B8 flips a real test rather than closing a gap quietly.
 	 */
-	it.each(['noShape', 'noBackground'] as const)(
-		'gives the designer\u2019s %s state no action, because what it hands off to is not built yet',
-		(key) => {
-			expect('actionLabel' in EMPTY_STATE_CONTENT.assetDesigner[key]).toBe(false);
-		},
-	);
+	it('gives the designer’s no-shape state no action, because what it hands off to is not built yet', () => {
+		expect('actionLabel' in EMPTY_STATE_CONTENT.assetDesigner.noShape).toBe(false);
+	});
+
+	/**
+	 * **The flip Task B7 makes**, and the same shape as `noProjects`'s own: a hand-off that did
+	 * not exist yet grew one, and slice 14's Amendment 1 makes that a deliberate, tested change
+	 * rather than a quietly closed gap. `noBackground`'s is `BackgroundPicker`
+	 * (`presentation/designer/ports.ts`), reached from `AssetDesignerRoot`'s empty-state action.
+	 */
+	it('gives the no-background state an action, because Task B7 built what it hands off to', () => {
+		const content = EMPTY_STATE_CONTENT.assetDesigner.noBackground;
+
+		expect(content.actionLabel).toBeDefined();
+		expect(t('en', content.actionLabel)).not.toBe('');
+	});
 
 	/**
 	 * The same distinctness claim the two `planEditor` entries carry, and for a sharper reason
@@ -135,10 +143,8 @@ describe('the empty-state content registry', () => {
 			EMPTY_STATE_CONTENT.renovationProject.noPlans,
 			EMPTY_STATE_CONTENT.planEditor.noBackground,
 			EMPTY_STATE_CONTENT.planEditor.noZones,
-			// Design slice B3. `noBackground` is here even though nothing SELECTS it yet
-			// (`selectAssetDesignerEmptyState` cannot, until Task B7 gives `AssetDesignDto` a
-			// background field): the copy ships now, so B7 adds a selector arm and an action
-			// label rather than a whole entry and four locale keys.
+			// Design slice B3, widened by Task B7: `noBackground` now carries an action too, so
+			// both `assetDesigner` entries are listed the same way their siblings are.
 			EMPTY_STATE_CONTENT.assetDesigner.noShape,
 			EMPTY_STATE_CONTENT.assetDesigner.noBackground,
 		];
@@ -148,13 +154,14 @@ describe('the empty-state content registry', () => {
 			expect(t(language, entry.body).length).toBeGreaterThan(0);
 		}
 
-		// The three entries whose `actionLabel` is present in the literal type (not optional), so
+		// The four entries whose `actionLabel` is present in the literal type (not optional), so
 		// these are unconditional rather than a re-check of the branch above. `noPlans` is here
 		// as well as in its own case above, because that one asks `en` alone — a German action
 		// label resolving to `''` would draw a nameless button for exactly the users this plugin
 		// ships a `de.ts` for.
 		expect(t(language, EMPTY_STATE_CONTENT.planEditor.noZones.actionLabel).length).toBeGreaterThan(0);
 		expect(t(language, EMPTY_STATE_CONTENT.renovationProject.noProjects.actionLabel).length).toBeGreaterThan(0);
+		expect(t(language, EMPTY_STATE_CONTENT.assetDesigner.noBackground.actionLabel).length).toBeGreaterThan(0);
 		expect(t(language, EMPTY_STATE_CONTENT.renovationProject.noPlans.actionLabel).length).toBeGreaterThan(0);
 	});
 });

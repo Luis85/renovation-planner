@@ -143,18 +143,17 @@ describe('selectRenovationProjectEmptyState', () => {
 });
 
 /**
- * Design slice B3's third selector, and the one whose SHAPE is temporarily narrower than its
- * registry.
+ * Design slice B3's third selector, widened in Task B7 to answer the entry that used to be
+ * registered content nothing selected.
  *
- * `EMPTY_STATE_CONTENT.assetDesigner` declares two entries and this function can answer only
- * one of them, because the field the other reads does not exist yet: `AssetDesignDto` gains
- * `background` in Task B7, which is also where the picker that would act on it is built. The
- * last case below pins that as a FACT with its reason rather than leaving it as an absence —
- * so B7 widens a return type and edits a test, instead of finding a registry entry nothing
- * selects and guessing whether that was deliberate.
+ * `EMPTY_STATE_CONTENT.assetDesigner` declares two entries and this function now answers
+ * both: `AssetDesignDto` gained `background` in Task B7, which is also where the picker that
+ * acts on it is built. The fixture's own `background` default is non-null for exactly this
+ * reason — every case below that touches only `shape` continues to mean what it always did,
+ * and a case has to say `background: null` explicitly to reach the new arm.
  */
 describe('which empty state the asset designer is in', () => {
-	it('asks for a footprint when the asset has no shape at all', () => {
+	it('asks for a footprint when the asset has no shape at all, and already has a background', () => {
 		expect(selectAssetDesignerEmptyState(assetDesign({ shape: null }))).toBe('noShape');
 	});
 
@@ -168,6 +167,16 @@ describe('which empty state the asset designer is in', () => {
 	});
 
 	/**
+	 * **A shape suppresses the background nag too**, which is the half of the ordering an
+	 * unqualified "shape wins" reading would miss: an asset typed from dimensions never needed
+	 * a background at all (`AssetShape.footprintOrigin` can be `'typed'`), so an asset with a
+	 * shape and no spec sheet is not a gap this selector treats as one.
+	 */
+	it('asks for nothing once a shape exists, even with no background at all', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign({ background: null }))).toBeNull();
+	});
+
+	/**
 	 * `dimensions` is DERIVED from the footprint and is `null` exactly when the shape is, so a
 	 * selector reading it would be a second answer to one question. This pins that it reads the
 	 * shape: a design carrying a shape but a `null` measurement — which `GetAssetDesign` cannot
@@ -178,19 +187,10 @@ describe('which empty state the asset designer is in', () => {
 	});
 
 	/**
-	 * **`noBackground` is registered content that nothing selects, and this is where that is
-	 * recorded.** `AssetDesignDto` has no `background` field until Task B7 adds it (that task's
-	 * own Files block says so), so there is nothing here to branch on. Asserted as behaviour
-	 * rather than described in a comment, because a comment saying "B7 adds the arm" fails
-	 * nothing on the day B7 does not.
+	 * **`noBackground` outranks `noShape`** — the "first missing step" ordering
+	 * `selectPlanEditorEmptyState` states for its own pair, asked of an asset with neither.
 	 */
-	it('cannot yet ask for a background, because the DTO carries none until Task B7', () => {
-		const answers = [
-			selectAssetDesignerEmptyState(assetDesign()),
-			selectAssetDesignerEmptyState(assetDesign({ shape: null })),
-			selectAssetDesignerEmptyState(assetDesign({ shape: null, calibration: null })),
-		];
-
-		expect(answers).not.toContain('noBackground');
+	it('asks for a background before a footprint, when the asset has neither', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign({ shape: null, background: null }))).toBe('noBackground');
 	});
 });

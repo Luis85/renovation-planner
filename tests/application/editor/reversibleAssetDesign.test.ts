@@ -11,12 +11,13 @@
  * split is along that seam rather than at whatever line the budget fell on.
  */
 import { describe, expect, it } from 'vitest';
-import type { VersionedDispatchResult } from '../../../src/application/commands/DispatchOutcome';
-import { ok } from '../../../src/core/result/Result';
+import { leftWritesBehind, type VersionedDispatchResult } from '../../../src/application/commands/DispatchOutcome';
+import { isErr, ok } from '../../../src/core/result/Result';
 import { CommandHistory } from '../../../src/presentation/editor/tools/command-history';
 import { expectErr, expectOk } from '../../helpers/domain';
 import { makeAsset } from '../../helpers/entities';
 import {
+	CALIBRATION,
 	SQUARE,
 	TRIANGLE,
 	WIDER,
@@ -130,6 +131,29 @@ describe('the inverse a geometry gesture captures', () => {
 	});
 
 	/**
+	 * **Task B3b's own case, relocated to Task B7 rather than re-derived.** The amendment that
+	 * moved it said why: `SetAssetBackground` writes the note AND clears the sidecar's
+	 * calibration, so a snapshot rule capturing only the background field would restore the old
+	 * REFERENCE over an erased calibration — which is not the pre-command state, and exactly the
+	 * half of Decision 5 a re-derived snapshot rule would miss. Seeding a CALIBRATED asset is
+	 * what makes that visible: the calibration this undo restores is the one the forward write
+	 * cleared, not one this adapter invented.
+	 */
+	it('restores the calibration a background change cleared, not only the reference', async () => {
+		const { reversible, assetId, seedCalibration, sidecar } = await seeded();
+		await seedCalibration();
+
+		const command = reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+		expect(expectOk(await command.execute())).toBe('wrote');
+		expect(expectOk(await sidecar.read(assetId)).document.calibration).toBeNull();
+
+		expect(expectOk(await command.undo())).toBe('wrote');
+
+		const after = await sidecar.read(assetId);
+		expect(expectOk(after).document.calibration).toEqual(CALIBRATION);
+	});
+
+	/**
 	 * A REDO re-captures, and the case has to make the two builds DIFFER to say so. A redo whose
 	 * document is the one its own first execute replaced passes against a capture-once adapter
 	 * as well — the pre-state is the same document both times — so a peer leaf writes BETWEEN
@@ -214,6 +238,41 @@ describe('what an undo reports when there is nothing to reverse', () => {
 
 		expect(await height()).toBe(700);
 		expect(designChanges).toEqual([]);
+	});
+
+	/**
+	 * The BACKGROUND adapter's own three no-write shapes: an undo with nothing captured yet
+	 * (never executed), a forward refusal (the command's own cheap kind check), and the
+	 * command's own no-write outcome (re-submitting an unchanged, already-uncalibrated
+	 * reference) — asked separately because this is the one adapter whose forward door writes
+	 * TWO resources and reports a `secondaryVersion` the other adapters never touch.
+	 */
+	it('reports no-write on a background undo that never executed', async () => {
+		const { reversible, assetId } = await seeded();
+
+		const command = reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+
+		expect(await command.undo()).toEqual(ok('no-write'));
+	});
+
+	it('captures nothing when the background command refuses an unsupported kind', async () => {
+		const { reversible, assetId } = await seeded();
+
+		const command = reversible.setBackground({ assetId, path: 'Specs/oven.docx', kind: 'docx', page: null });
+		expect(expectErr(await command.execute()).code).toBe('asset.unsupported-background');
+
+		expect(await command.undo()).toEqual(ok('no-write'));
+	});
+
+	it('reports no-write when re-submitting the reference the asset already carries', async () => {
+		const { reversible, assetId } = await seeded();
+		const first = reversible.setBackground({ assetId, path: 'Specs/oven.pdf', kind: 'pdf', page: 2 });
+		expect(expectOk(await first.execute())).toBe('wrote');
+
+		const again = reversible.setBackground({ assetId, path: 'Specs/oven.pdf', kind: 'pdf', page: 2 });
+		expect(expectOk(await again.execute())).toBe('no-write');
+
+		expect(await again.undo()).toEqual(ok('no-write'));
 	});
 
 	/** A spent inverse is dropped, so a second undo re-writes nothing and bumps nothing. */
@@ -329,6 +388,50 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 
 		expect(expectErr(await command.undo()).code).toBe('asset.revision-conflict');
 		expect(await height()).toBe(1200);
+	});
+
+	/**
+	 * The BACKGROUND adapter's own version of the note half: a peer note write between execute
+	 * and undo refuses the restore with an ordinary revision conflict, exactly as the height
+	 * adapter's does. The sidecar is untouched by this peer, so this alone does not reach the
+	 * compensate path below — that needs a peer on the OTHER resource.
+	 */
+	it('refuses a background undo rather than overwriting a NOTE write this history did not make', async () => {
+		const { reversible, assetId, plain, height } = await seeded();
+		const command = reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+		await command.execute();
+
+		expect(expectOk(await plain.setHeight.execute({ assetId, height: 1200 }))).toBe('wrote');
+
+		expect(expectErr(await command.undo()).code).toBe('asset.revision-conflict');
+		expect(await height()).toBe(1200);
+	});
+
+	/**
+	 * **The background adapter's own compensate-on-undo failure.** A peer write to the SIDECAR
+	 * between execute and undo leaves the note restore free to succeed while the geometry
+	 * restore refuses — a genuinely HALF-undone state, since the note now points at the old
+	 * reference again but the calibration it implies is still gone. Reported via
+	 * `markUncompensated` rather than swallowed, mirroring the forward command's own
+	 * compensate failure for the identical reason.
+	 */
+	it('reports an uncompensated background undo when the note restores but the sidecar does not', async () => {
+		const { reversible, assetId, seed, plain, document, stack } = await seeded();
+		await seed(drawn()); // a shape to seed a document, so `plain.setFacing` has something to write
+		const command = reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+		expect(expectOk(await command.execute())).toBe('wrote');
+
+		// A peer designer leaf, writing the sidecar OUTSIDE this history.
+		expect(expectOk(await plain.setFacing.execute({ assetId, facing: 1.2 }))).toBe('wrote');
+		const outsider = await document();
+
+		const result = await command.undo();
+		expect(isErr(result) && leftWritesBehind(result.error)).toBe(true);
+		// The note WAS restored — the background reference is back to what it was before this
+		// gesture, which is no reference at all.
+		expect(expectOk(await stack.assets.getById(assetId))?.entity.background).toBeNull();
+		// ...and the sidecar is exactly what the peer left it, untouched by the refused restore.
+		expect(await document()).toEqual(outsider);
 	});
 });
 
@@ -522,6 +625,42 @@ describe('a read this adapter cannot complete', () => {
 		const command = reversible.setHeight({ assetId: absent, height: 900 });
 		expect(expectErr(await command.execute()).code).toBe('asset.not-found');
 		expect(await command.undo()).toEqual(ok('no-write'));
+	});
+
+	/**
+	 * The BACKGROUND adapter's own three reads, asked separately because it is the one adapter
+	 * that spans two resources and reads BOTH before dispatching — a failure at either one, or
+	 * an absent asset, must surface exactly as it does for the single-resource adapters above.
+	 */
+	it('surfaces a failed NOTE read for a background gesture rather than reporting the asset missing', async () => {
+		const { reversible, assetId, corrupt } = await seeded();
+		corrupt();
+
+		expect(
+			expectErr(
+				await reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null }).execute(),
+			).code,
+		).toBe('asset.entity-invalid');
+	});
+
+	it('refuses an asset that is not there for a background gesture rather than writing an orphan sidecar', async () => {
+		const { reversible, stack } = await seeded();
+		const written = expectOk(await stack.assets.save(makeAsset(), 'absent'));
+		const absent = written.entity.id;
+		expectOk(await stack.assets.delete(absent, written.version));
+
+		const command = reversible.setBackground({ assetId: absent, path: 'Specs/other.png', kind: 'image', page: null });
+		expect(expectErr(await command.execute()).code).toBe('asset.not-found');
+		expect(await command.undo()).toEqual(ok('no-write'));
+	});
+
+	/** The background adapter's own geometry pre-read — the one this class alone performs. */
+	it('surfaces a failed sidecar pre-read for a background gesture', async () => {
+		const { reversible, assetId } = await seeded({ sidecar: (real) => sidecarFailingReadsAfter(real, 0) });
+
+		const command = reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+
+		expect(expectErr(await command.execute()).code).toBe('vault.unexpected-failure');
 	});
 
 	/**

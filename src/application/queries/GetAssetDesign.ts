@@ -1,6 +1,6 @@
 import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { GeometryError, ReferenceError } from '../../core/errors/AppError';
-import type { Asset } from '../../domain/asset/Asset';
+import type { Asset, AssetBackgroundRef } from '../../domain/asset/Asset';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { assetNotFound } from '../../domain/asset/Asset.errors';
 import type { AssetShape, Dimensions } from '../../domain/asset/AssetShape';
@@ -27,6 +27,8 @@ export interface AssetDesignDto {
 	readonly name: string;
 	/** Millimetres, or `null` for an asset that says nothing about how tall it is. */
 	readonly height: number | null;
+	/** The designer's spec sheet (Task B7), or `null` for an asset with none picked yet. */
+	readonly background: AssetBackgroundRef | null;
 	readonly calibration: Calibration | null;
 	/** `null` is the ordinary starting state of a designed asset, not a failure to read one. */
 	readonly shape: AssetShape | null;
@@ -119,6 +121,7 @@ export class GetAssetDesignQuery
 			assetId: asset.id,
 			name: asset.name,
 			height: asset.height,
+			background: asset.background,
 			calibration: document.calibration,
 			shape,
 			dimensions,

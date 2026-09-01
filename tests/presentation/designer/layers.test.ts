@@ -186,6 +186,7 @@ function context(design: AssetDesignDto): AssetDesignerContext {
 		queries: { getAssetDesign: () => Promise.resolve(ok(design)) },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
+		picker: null,
 		onDesignChanged: () => () => undefined,
 		indexScanCompleted: () => true,
 	};

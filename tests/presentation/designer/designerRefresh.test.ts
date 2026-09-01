@@ -118,6 +118,9 @@ function harness(options: {
 		},
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
+		// This file is about the dispatcher and the store, not the picker — `null` here is
+		// simply "unused by this suite's cases", never a claim about production.
+		picker: null,
 		onDesignChanged: options.onDesignChanged ?? (() => () => undefined),
 		indexScanCompleted: options.indexScanCompleted ?? ((): boolean => true),
 	};
@@ -586,7 +589,8 @@ describe('reaching the runtime from a region', () => {
 			assetId: THE_ASSET,
 			queries: { getAssetDesign: () => Promise.resolve(ok(WITH_SHAPE)) },
 			commands: unavailableAssetDesignerCommands(),
-		logger: recorder,
+			logger: recorder,
+			picker: null,
 			onDesignChanged: () => () => undefined,
 			indexScanCompleted: () => true,
 		};
@@ -629,6 +633,7 @@ function leafDeps(bus: ReturnType<typeof createEventBus>, reads: string[]): Asse
 		},
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
+		picker: null,
 		onDesignChanged: createAssetDesignChangeSource(bus),
 		indexScanCompleted: () => true,
 	};

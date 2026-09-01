@@ -67,6 +67,7 @@ import {
 } from '../../src/application/commands/asset/SetAssetFootprint';
 import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
 import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
+import { SetAssetBackgroundCommand } from '../../src/application/commands/asset/SetAssetBackground';
 import type { AssetDesignCommandBundle } from '../../src/application/editor/asset/ReversibleAssetDesignCommands';
 import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import type { AssetGeometryDocument } from '../../src/application/ports/AssetGeometrySidecar';
@@ -241,6 +242,7 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		setFacing: setFacingCommand,
 		setHeight: new SetAssetHeightCommand(stack.assets, events),
 		calibrate: new CalibrateAssetCommand(commandDeps),
+		setBackground: new SetAssetBackgroundCommand(commandDeps),
 	};
 
 	const context: AssetDesignerContext = {
@@ -250,6 +252,10 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 			? unavailableAssetDesignerCommands()
 			: createAssetDesignerCommands(commandDeps, bundle),
 		logger: recorder,
+		// This rig is about the canvas, the toolbar and the gestures — nothing here asserts on
+		// the empty-state picker, so `null` is simply "unused by this rig", never a claim about
+		// production, which binds a real `ObsidianBackgroundPicker` unconditionally.
+		picker: null,
 		// The SAME source the composition root binds, over a bus that really dispatches: a
 		// committed write publishes `AssetDesignChanged` and this leaf re-reads because of it,
 		// rather than because a fixture said so.

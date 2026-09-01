@@ -69,6 +69,10 @@ function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerCo
 		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())) },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
+		// This file is about the shell's regions and the shape/failure states, not the
+		// background picker — see `backgroundPicker.test.ts` for that. `null` is simply "unused
+		// here", not a claim about production, which binds a real one unconditionally.
+		picker: null,
 		// A subscription that delivers nothing and disposes cleanly: this file is about what the
 		// shell DRAWS, and `designerRefresh.test.ts` is where the source is driven.
 		onDesignChanged: () => () => undefined,

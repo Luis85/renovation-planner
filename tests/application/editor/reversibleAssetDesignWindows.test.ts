@@ -64,6 +64,44 @@ describe('a foreign write sandwiched between two design gestures', () => {
 		expect((await document()).shape?.facing).toBe(1);
 	});
 
+	/**
+	 * The BACKGROUND adapter's own version of the sandwich, on EACH of its two ledgers
+	 * separately — it is the one adapter that checks both, and each check has to refuse on its
+	 * own before the write it guards is ever attempted.
+	 */
+	it('refuses a background undo when the NOTE ledger has moved since, via a sandwiched peer', async () => {
+		const { reversible, assetId, plain } = await seeded();
+
+		const gestureOne = reversible.setBackground({ assetId, path: 'Specs/a.png', kind: 'image', page: null });
+		expect(expectOk(await gestureOne.execute())).toBe('wrote');
+
+		// A peer, foreign to this history, writing the NOTE this gesture also touches.
+		expect(expectOk(await plain.setHeight.execute({ assetId, height: 1200 }))).toBe('wrote');
+
+		const gestureTwo = reversible.setHeight({ assetId, height: 1500 });
+		expect(expectOk(await gestureTwo.execute())).toBe('wrote');
+		expect(expectOk(await gestureTwo.undo())).toBe('wrote');
+
+		expect(expectErr(await gestureOne.undo()).code).toBe('undo.superseded');
+	});
+
+	it('refuses a background undo when the GEOMETRY ledger has moved since, via a sandwiched peer', async () => {
+		const { reversible, assetId, seed, plain } = await seeded();
+		await seed(drawn());
+
+		const gestureOne = reversible.setBackground({ assetId, path: 'Specs/a.png', kind: 'image', page: null });
+		expect(expectOk(await gestureOne.execute())).toBe('wrote');
+
+		// A peer, foreign to this history, writing the SIDECAR this gesture also touches.
+		expect(expectOk(await plain.setFacing.execute({ assetId, facing: 1 }))).toBe('wrote');
+
+		const gestureTwo = reversible.setFacing({ assetId, facing: 2 });
+		expect(expectOk(await gestureTwo.execute())).toBe('wrote');
+		expect(expectOk(await gestureTwo.undo())).toBe('wrote');
+
+		expect(expectErr(await gestureOne.undo()).code).toBe('undo.superseded');
+	});
+
 	/** The NOTE half of the same rule, whose inverse is a whole `Asset` and not one field. */
 	it('refuses a note gesture undo rather than restoring an entity that predates a peer', async () => {
 		const { reversible, assetId, plain, height } = await seeded();

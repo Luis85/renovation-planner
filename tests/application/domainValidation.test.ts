@@ -102,6 +102,55 @@ describe('Asset validation', () => {
 		expect(fine.value.name).toBe('Better tile');
 		expect(fine.value.unitCost.amount).toBe('45');
 	});
+
+	/**
+	 * `SetAssetBackground`'s own cheap kind check makes two of `checkBackground`'s three arms
+	 * unreachable through that command: a path with no extension is refused before the domain
+	 * ever sees it, and the kind it constructs is always `'image' | 'pdf'`. So the domain's own
+	 * guarantee — that `Asset.create` refuses a background a hand-built object or a future
+	 * caller could still hand it — is asked directly, here, rather than through the command.
+	 */
+	it('refuses a background with an empty path, an unknown kind or a non-positive page', () => {
+		const emptyPath = Asset.create({
+			id: 'asset-1' as never,
+			...VALID_ASSET,
+			background: { path: '   ', kind: 'image', page: null },
+		});
+		if (emptyPath.ok) throw new Error('unexpected success');
+		expect(emptyPath.error.code).toBe('asset.empty-background-path');
+
+		const unknownKind = Asset.create({
+			id: 'asset-1' as never,
+			...VALID_ASSET,
+			background: { path: 'Specs/oven.pdf', kind: 'docx' as never, page: null },
+		});
+		if (unknownKind.ok) throw new Error('unexpected success');
+		expect(unknownKind.error.code).toBe('asset.unknown-background-kind');
+
+		const invalidPage = Asset.create({
+			id: 'asset-1' as never,
+			...VALID_ASSET,
+			background: { path: 'Specs/oven.pdf', kind: 'pdf', page: -1 },
+		});
+		if (invalidPage.ok) throw new Error('unexpected success');
+		expect(invalidPage.error.code).toBe('asset.invalid-background-page');
+	});
+
+	/** `withChanges` can clear a background back to `null`, the same as every other optional field. */
+	it('clears a background back to null through withChanges', () => {
+		const asset = expectOk(
+			Asset.create({
+				id: 'asset-1' as never,
+				...VALID_ASSET,
+				background: { path: 'Specs/oven.pdf', kind: 'pdf', page: 2 },
+			}),
+		);
+		expect(asset.background).toEqual({ path: 'Specs/oven.pdf', kind: 'pdf', page: 2 });
+
+		const cleared = expectOk(asset.withChanges({ background: null }));
+
+		expect(cleared.background).toBeNull();
+	});
 });
 
 describe('RecalculateRequirementCommand edges', () => {

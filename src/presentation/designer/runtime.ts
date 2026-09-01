@@ -29,6 +29,8 @@ import {
 import { notifyOperationFailure } from '../notices/notify';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import type { AssetDesignerContext } from './AssetDesignerContext';
+import type { ReversibleAssetDesignCommands } from '../../application/editor/asset/ReversibleAssetDesignCommands';
+import type { DocumentRef } from './ports';
 
 /**
  * One asset designer leaf's live machinery (Task B3a): the undo history, the refresh that
@@ -55,6 +57,13 @@ export interface DesignerRuntime {
 	readonly canRedo: Readonly<Ref<boolean>>;
 	readonly undo: () => Promise<void>;
 	readonly redo: () => Promise<void>;
+	/**
+	 * Task B7's gesture: dispatch a picked reference through the reversible adapter, the same
+	 * `undo`/`redo` shape every other click-bound gesture here takes. The empty state's action
+	 * is its only caller — `AssetDesignerRoot.vue` awaits `context.picker.pick()` first, and a
+	 * cancelled pick (`null`) never reaches this at all.
+	 */
+	readonly setBackground: (ref: DocumentRef) => Promise<void>;
 	/**
 	 * Re-read this leaf's design from nothing, blanking it if the read fails. TWO callers — the
 	 * mount and the failure state's retry — and the cross-leaf subscription is deliberately not
@@ -217,7 +226,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	 */
 	const noteLedger = new SessionWriteLedger();
 	const geometryLedger = new SessionWriteLedger();
-	const edits = context.commands.designEdits({ noteLedger, geometryLedger });
+	const edits: ReversibleAssetDesignCommands = context.commands.designEdits({ noteLedger, geometryLedger });
 
 	/**
 	 * A FRESH context per activation, through the same assembler the Plan Editor uses — which
@@ -270,6 +279,15 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 	async function redo(): Promise<void> {
 		await notifyIfRefused(reportDispatchFault(context.logger, DISPATCH_FAULT_EVENT, dispatcher.redo()));
 	}
+	async function setBackground(ref: DocumentRef): Promise<void> {
+		await notifyIfRefused(
+			reportDispatchFault(
+				context.logger,
+				DISPATCH_FAULT_EVENT,
+				dispatcher.run(edits.setBackground({ assetId, path: ref.path, kind: ref.kind, page: ref.page })),
+			),
+		);
+	}
 
 	/**
 	 * A design change reaches every leaf showing that asset, and the index rebuild reaches a
@@ -289,7 +307,19 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 		}),
 	);
 
-	return { dispatcher, canUndo, canRedo, undo, redo, hydrate, toolManager, renderState, activeToolId, setTool };
+	return {
+		dispatcher,
+		canUndo,
+		canRedo,
+		undo,
+		redo,
+		setBackground,
+		hydrate,
+		toolManager,
+		renderState,
+		activeToolId,
+		setTool,
+	};
 }
 
 const DESIGNER_RUNTIME: InjectionKey<DesignerRuntime> = Symbol('renovation-planner:designer-runtime');

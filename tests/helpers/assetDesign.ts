@@ -31,6 +31,10 @@ export function assetDesign(overrides: Partial<AssetDesignDto> = {}): AssetDesig
 		assetId,
 		name: 'Base cabinet 600',
 		height: 900,
+		// A default this thing HAS, not the absence `noBackground` cases explicitly opt into:
+		// several existing fixtures at `assetDesign({ shape: null })` rely on the background
+		// default staying non-null so the selector's `noShape` arm is what they still exercise.
+		background: { path: 'Specs/base-cabinet.png', kind: 'image', page: null },
 		calibration: null,
 		shape: {
 			footprint: FIXTURE_FOOTPRINT,

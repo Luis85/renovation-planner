@@ -120,12 +120,12 @@ function refusingCommand<TInput>(): VersionedDesignCommand<TInput> & Command<TIn
 }
 
 /**
- * The seven doors, written out rather than proxied, and the asymmetry with the ports above is
+ * The eight doors, written out rather than proxied, and the asymmetry with the ports above is
  * deliberate. A proxy answers a FUNCTION for every property, which is right for a port whose
  * members are called directly and wrong for a bundle whose members are OBJECTS each carrying a
  * door — `commands.setFootprint.executeWithVersion` off a proxy is a property of a function,
  * which is `undefined`, and the failure would be a `TypeError` at the one moment this bundle
- * exists to produce a clean refusal. Total over `AssetDesignCommandBundle`, so a seventh design
+ * exists to produce a clean refusal. Total over `AssetDesignCommandBundle`, so a ninth design
  * command is a build error here rather than an `undefined` door.
  */
 function refusingBundle(): AssetDesignCommandBundle {
@@ -137,6 +137,7 @@ function refusingBundle(): AssetDesignCommandBundle {
 		setFacing: refusingCommand(),
 		setHeight: refusingCommand(),
 		calibrate: refusingCommand(),
+		setBackground: refusingCommand(),
 	};
 }
 

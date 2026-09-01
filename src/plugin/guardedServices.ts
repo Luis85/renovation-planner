@@ -50,6 +50,7 @@ import { SetAssetAnchorCommand, type SetAssetAnchorInput } from '../application/
 import { SetAssetFacingCommand, type SetAssetFacingInput } from '../application/commands/asset/SetAssetFacing';
 import { SetAssetHeightCommand, type SetAssetHeightInput } from '../application/commands/asset/SetAssetHeight';
 import { CalibrateAssetCommand, type CalibrateAssetInput } from '../application/commands/asset/CalibrateAsset';
+import { SetAssetBackgroundCommand, type SetAssetBackgroundInput } from '../application/commands/asset/SetAssetBackground';
 import type { VersionedDesignCommand } from '../application/editor/asset/ReversibleAssetDesignCommands';
 import type { AssetShapeDeps } from '../application/commands/asset/updateAssetShape';
 import type { DispatchResult } from '../application/commands/DispatchOutcome';
@@ -227,6 +228,8 @@ export interface GuardedAssetDesignServices {
 		readonly setFacing: GuardedDesignCommand<SetAssetFacingInput>;
 		readonly setHeight: GuardedDesignCommand<SetAssetHeightInput>;
 		readonly calibrate: GuardedDesignCommand<CalibrateAssetInput>;
+		/** Task B7's, the eighth door of this bundle. */
+		readonly setBackground: GuardedDesignCommand<SetAssetBackgroundInput>;
 		readonly get: Query<AssetId, Result<AssetDesignDto, AssetDesignError>>;
 	};
 }
@@ -473,9 +476,9 @@ function designDoors(name: string): { readonly execute: string; readonly execute
  * without the prediction being re-read.
  *
  * One `AssetShapeDeps` rather than three parameters, because that is already the shape the
- * five shape commands take, and the other two — the height and Task B6's calibration — are
- * built from its members: re-spelling it here would be a second statement of what a design
- * command needs.
+ * five shape commands take, and the other three — the height, Task B6's calibration and
+ * Task B7's background — are built from its members: re-spelling it here would be a second
+ * statement of what a design command needs.
  */
 export function guardAssetDesign(
 	deps: AssetShapeDeps,
@@ -500,6 +503,12 @@ export function guardAssetDesign(
 		map,
 	);
 	const calibrate = guardBothDoors(new CalibrateAssetCommand(deps), designDoors('calibrateAsset'), logger, map);
+	const setBackground = guardBothDoors(
+		new SetAssetBackgroundCommand(deps),
+		designDoors('setAssetBackground'),
+		logger,
+		map,
+	);
 	const get = guardQuery(new GetAssetDesignQuery(assets, sidecar), 'query.getAssetDesign.failed', logger, map);
 
 	return {
@@ -511,6 +520,7 @@ export function guardAssetDesign(
 			setFacing,
 			setHeight,
 			calibrate,
+			setBackground,
 			get,
 		},
 	};

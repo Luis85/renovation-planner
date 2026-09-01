@@ -179,6 +179,7 @@ export class AssetDesignerView extends ItemView {
 			queries: this.deps.queries,
 			commands: this.deps.commands,
 			logger: this.deps.logger,
+			picker: this.deps.picker,
 			indexScanCompleted: this.deps.indexScanCompleted,
 			onDesignChanged: (listener) => this.deps.onDesignChanged(assetId, listener),
 		};

@@ -93,10 +93,20 @@ export type DispatchResult = Result<DispatchOutcome, AppError>;
  * convention: a caller could read `'wrote'` and find `null`, or record a version for a
  * dispatch that wrote nothing, and neither is a build error. Discriminating on `outcome` makes
  * "wrote, and here is what it produced" the only representable success that carries one.
+ *
+ * **`secondaryVersion` is OPTIONAL, and Task B7's `SetAssetBackground` is its first and only
+ * writer.** Every design command but that one touches exactly one resource, so `version` alone
+ * has always been the whole answer; `SetAssetBackground` writes the note AND clears the
+ * sidecar's calibration in one gesture, and its adapter needs BOTH resulting versions to
+ * restore either resource conditionally on undo — the exact reasoning above (a read-back would
+ * reopen the peer-write window this type exists to close) applied to the SECOND resource a
+ * two-write command touches. Every other command leaves it absent, and every other adapter
+ * ignores it, which is what keeps this an addition rather than a second thing every caller has
+ * to reason about.
  */
 export type VersionedDispatch =
 	| { readonly outcome: 'no-write' }
-	| { readonly outcome: 'wrote'; readonly version: EntityVersion };
+	| { readonly outcome: 'wrote'; readonly version: EntityVersion; readonly secondaryVersion?: EntityVersion };
 
 export type VersionedDispatchResult = Result<VersionedDispatch, AppError>;
 
@@ -105,9 +115,9 @@ export type VersionedDispatchResult = Result<VersionedDispatch, AppError>;
  * the shape `SetRequirementQuantityOverrideCommand.execute` already takes over its own
  * `executeWithVersion`.
  *
- * One function rather than six copies of `if (!x.ok) return x; return ok(x.value.outcome)`,
- * so the six design commands cannot drift on what `execute` means, and so a seventh has one
- * obvious thing to call.
+ * One function rather than eight copies of `if (!x.ok) return x; return ok(x.value.outcome)`,
+ * so the eight design commands (five shape, height, calibrate, and Task B7's background)
+ * cannot drift on what `execute` means, and so a ninth has one obvious thing to call.
  */
 export async function plainDispatch(versioned: Promise<VersionedDispatchResult>): Promise<DispatchResult> {
 	const done = await versioned;

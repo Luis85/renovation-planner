@@ -347,6 +347,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'empty.asset.no-background.headline': 'Noch kein Datenblatt',
 	'empty.asset.no-background.body':
 		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt.',
+	'empty.asset.no-background.action': 'Hintergrund wählen',
 	'view.asset-designer.name': 'Objekt-Designer',
 	'designer.canvas': 'Objekt-Zeichenfläche',
 	'designer.toolbar': 'Objekt-Werkzeuge',
@@ -358,6 +359,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.calibrate.recalibrate.title': 'Ohne Maßstab Nachgezeichnetes neu skalieren?',
 	'designer.calibrate.recalibrate.message':
 		'Ein Teil der Geometrie dieses Objekts wurde nachgezeichnet, bevor ein Maßstab vorlag. Beim Festlegen des Maßstabs wird sie in Millimeter umgerechnet. Sie können den Vorgang rückgängig machen.',
+	'designer.background.pick': 'Hintergrund für dieses Objekt wählen',
 	'designer.loading': 'Objekt wird geladen …',
 	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
 	'designer.refresh-failed':

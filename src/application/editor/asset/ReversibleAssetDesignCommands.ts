@@ -3,7 +3,7 @@ import type { EventBus } from '../../../core/events/EventBus';
 import type { Asset } from '../../../domain/asset/Asset';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import { assetNotFound } from '../../../domain/asset/Asset.errors';
-import type { DispatchResult, VersionedDispatchResult } from '../../commands/DispatchOutcome';
+import { markUncompensated, type DispatchResult, type VersionedDispatchResult } from '../../commands/DispatchOutcome';
 import type { AssetShapeInput } from '../../commands/asset/updateAssetShape';
 import type {
 	SetAssetFootprintFromDimensionsInput,
@@ -14,6 +14,7 @@ import type { SetAssetAnchorInput } from '../../commands/asset/SetAssetAnchor';
 import type { SetAssetFacingInput } from '../../commands/asset/SetAssetFacing';
 import type { SetAssetHeightInput } from '../../commands/asset/SetAssetHeight';
 import type { CalibrateAssetInput } from '../../commands/asset/CalibrateAsset';
+import type { SetAssetBackgroundInput } from '../../commands/asset/SetAssetBackground';
 import type {
 	AssetGeometryDocument,
 	AssetGeometrySidecar,
@@ -38,7 +39,7 @@ export interface VersionedDesignCommand<TInput> {
 }
 
 /**
- * The seven design commands this module inverts, as DOORS rather than as classes.
+ * The eight design commands this module inverts, as DOORS rather than as classes.
  *
  * Structural on purpose: the composition root hands presentation a GUARDED facade (design
  * slice 11), which is a wrapper object and never an instance, so naming the concrete command
@@ -53,9 +54,10 @@ export interface VersionedDesignCommand<TInput> {
  * doors for that reason, and `tests/plugin/guardCategory.test.ts` drives every door the root
  * hands out rather than trusting anyone to remember.
  *
- * SEVEN doors and FIVE mechanisms: both footprint commands and Task B6's calibration are
+ * EIGHT doors and SIX mechanisms: both footprint commands and Task B6's calibration are
  * inverted by the same geometry adapter, because what an inverse restores is the sidecar's
- * whole document and none of the three writes anything else.
+ * whole document and none of the three writes anything else. Task B7's background is its
+ * own mechanism, `ReversibleAssetBackgroundEdit`, being the one door that spans both resources.
  */
 export interface AssetDesignCommandBundle {
 	readonly setFootprintFromDimensions: VersionedDesignCommand<SetAssetFootprintFromDimensionsInput>;
@@ -65,6 +67,8 @@ export interface AssetDesignCommandBundle {
 	readonly setFacing: VersionedDesignCommand<SetAssetFacingInput>;
 	readonly setHeight: VersionedDesignCommand<SetAssetHeightInput>;
 	readonly calibrate: VersionedDesignCommand<CalibrateAssetInput>;
+	/** Task B7's, the eighth door and the first that writes both resources in one gesture. */
+	readonly setBackground: VersionedDesignCommand<SetAssetBackgroundInput>;
 }
 
 /**
@@ -357,6 +361,132 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
 }
 
 /**
+ * The inverse of `SetAssetBackground` (Task B7) — the first inverse in this file that spans
+ * BOTH resources, because the command it wraps writes both: the note's reference and the
+ * sidecar's calibration, cleared in the same gesture (Decision 5).
+ *
+ * **A snapshot narrowed to the background field would restore the old REFERENCE over an
+ * erased calibration**, which is not the pre-command state — the exact half of Decision 5 a
+ * re-derived snapshot rule misses, and the reason B3b's own relocated case seeds a CALIBRATED
+ * asset before dispatching. So the inverse captures the whole NOTE entity and the whole
+ * SIDECAR document, exactly as `ReversibleAssetNoteEdit` and `ReversibleAssetGeometryEdit`
+ * each capture their own resource, and restores both on undo.
+ *
+ * **Two ledgers, two generations, one inverse** — the pair travels together because both
+ * reads happen before the same forward write, and a caller undoing this gesture is undoing
+ * ONE thing the user did, not two independently supersedable ones.
+ *
+ * **`expected` names the NOTE version**, matching `SetAssetBackgroundInput`'s own field: the
+ * sidecar clear is a housekeeping side effect of this gesture that no caller versions
+ * independently, exactly as the wrapped command itself conditions the sidecar write on
+ * whatever its own read found rather than on anything the caller supplied.
+ *
+ * **The GEOMETRY version this adapter needs to condition its own restore on is not the one
+ * `runForward` returns, and the first draft of this class got that wrong — measured, not
+ * assumed: the relocated case failed with `asset-geometry.revision-conflict` on every run.**
+ * `VersionedDispatch.version` names the NOTE (this command's primary resource, per
+ * `SetAssetBackgroundInput.expected`'s own docblock), so recording only it left the geometry
+ * ledger holding the PRE-clear version forever — undo then presented that stale version to a
+ * sidecar the clear write had already moved past, refusing every time. A read-back after the
+ * forward write would reopen exactly the peer-write window `VersionedDispatch`'s own docblock
+ * describes and this file already paid to close once; the fix is what that same docblock calls
+ * for instead — the command reports the second version it produced.
+ * `VersionedDispatch.secondaryVersion` is that report, `SetAssetBackground.ts` is its one
+ * writer, and this is its one reader.
+ *
+ * **Undo restores in the REVERSE of the forward order** — the note first, then the sidecar —
+ * mirroring `deleteResolution.ts`'s "undo is the same compensated sequence run backwards".
+ * A failure restoring the sidecar AFTER the note has already been put back is a genuinely
+ * half-undone state — the note points at the OLD reference again, but the calibration that
+ * reference implies is still gone — so it is reported the same way the forward command's own
+ * compensation failure is: `markUncompensated`, not swallowed. The inverse is kept rather
+ * than cleared in that case, so a retry re-attempts the (idempotent) note write and the
+ * still-outstanding sidecar restore rather than losing the gesture's inverse outright.
+ */
+class ReversibleAssetBackgroundEdit
+	extends ReversibleAssetEdit<SetAssetBackgroundInput>
+	implements ReversibleAssetDesignEdit
+{
+	private inverse: {
+		readonly entity: Asset;
+		readonly notePreVersion: EntityVersion;
+		readonly noteGeneration: number;
+		readonly document: AssetGeometryDocument;
+		readonly geometryPreVersion: EntityVersion;
+		readonly geometryGeneration: number;
+	} | null = null;
+
+	async execute(): Promise<DispatchResult> {
+		const { assets, sidecar, noteLedger, geometryLedger } = this.deps;
+		const assetId = this.input.assetId;
+
+		const beforeNote = await assets.getById(assetId);
+		if (isErr(beforeNote)) return beforeNote;
+		if (beforeNote.value === null) return err(assetNotFound(assetId));
+		const noteGeneration = noteLedger.observe(assetId, beforeNote.value.version);
+
+		const beforeGeometry = await sidecar.read(assetId);
+		if (isErr(beforeGeometry)) return beforeGeometry;
+		const geometryGeneration = geometryLedger.observe(assetId, beforeGeometry.value.version);
+
+		// The NOTE's pre-write version is what this gesture's own `expected` claim is about —
+		// `runForward` states the rule; `SetAssetBackgroundCommand` reads the sidecar itself
+		// and conditions that half of its write on nothing this adapter supplies.
+		const ran = await this.runForward(beforeNote.value.version);
+		if (isErr(ran)) return ran;
+		if (ran.value.outcome === 'no-write') return ok('no-write');
+
+		this.inverse = {
+			entity: beforeNote.value.entity,
+			notePreVersion: beforeNote.value.version,
+			noteGeneration,
+			document: beforeGeometry.value.document,
+			geometryPreVersion: beforeGeometry.value.version,
+			geometryGeneration,
+		};
+		noteLedger.record(assetId, ran.value.version);
+		// `secondaryVersion` is the SIDECAR's — the version the command's own calibration-clear
+		// write produced. Without recording it, the geometry ledger stays at its PRE-clear
+		// entry and the undo below conditions the restore on a version the store has already
+		// moved past, refusing every time. `VersionedDispatch`'s own docblock states why this
+		// is a reported value rather than a read-back.
+		if (ran.value.secondaryVersion !== undefined) {
+			geometryLedger.record(assetId, ran.value.secondaryVersion);
+		}
+		return ok('wrote');
+	}
+
+	async undo(): Promise<DispatchResult> {
+		const inverse = this.inverse;
+		if (inverse === null) return ok('no-write');
+
+		const { assets, sidecar, events, noteLedger, geometryLedger } = this.deps;
+		const assetId = this.input.assetId;
+		if (this.supersededSince(noteLedger, inverse.noteGeneration)) return err(undoSuperseded(assetId));
+		if (this.supersededSince(geometryLedger, inverse.geometryGeneration)) return err(undoSuperseded(assetId));
+
+		const noteExpected = noteLedger.lastWritten(assetId) ?? inverse.notePreVersion;
+		const savedNote = await assets.save(inverse.entity, noteExpected);
+		if (isErr(savedNote)) return savedNote;
+		noteLedger.record(assetId, savedNote.value.version);
+
+		const geometryExpected = geometryLedger.lastWritten(assetId) ?? inverse.geometryPreVersion;
+		const savedGeometry = await sidecar.write(assetId, inverse.document, geometryExpected);
+		if (isErr(savedGeometry)) {
+			// The note IS restored; the calibration it implies is not. Reported rather than
+			// swallowed, for `DispatchOutcome`'s reason: a "Saved" badge here would claim a
+			// vault as safe as it was before, which it is not.
+			return err(markUncompensated(savedGeometry.error));
+		}
+		geometryLedger.record(assetId, savedGeometry.value);
+
+		this.inverse = null;
+		await events.publish(assetDesignChanged({ assetId }));
+		return ok('wrote');
+	}
+}
+
+/**
  * One reversible adapter per asset design command (Task B3b, PRD §88).
  *
  * Each method mints a PER-GESTURE adapter — the shape `inspector-wiring.ts` already uses —
@@ -369,7 +499,7 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * with the document as it was — and "as it was" has to be captured BEFORE the forward write,
  * by the gesture itself, because a later reader cannot reconstruct it.
  *
- * **ONE of the seven factories below carries a `fallow-ignore-next-line unused-class-member`
+ * **ONE of the eight factories below carries a `fallow-ignore-next-line unused-class-member`
  * mark, and it used to be four — which is this mark's own documented exit condition arriving.**
  * Fallow resolves a class's members through the annotation where the CONSUMING expression
  * sits. All six were once reached only from the test suite; four of them only through
@@ -394,12 +524,15 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * the day. `setFootprintFromDimensions` keeps its mark until Task B8's dimensions form calls
  * it, which is the last consumer this class is missing.
  *
- * **Task B6 took that invitation and Task B7 still owes it.** This paragraph read "Tasks B6 and
- * B7 extend this module rather than starting a second one", and B6's `calibrate` below is what
- * that looks like when it happens: no new mechanism, no second module, one factory over the
- * geometry adapter already here. `SetAssetBackground` is the one left, and it will need the
- * NOTE adapter and the geometry one together — it writes the reference and clears the
- * calibration — which is the first inverse in this file that spans both resources.
+ * **Task B6 took that invitation and Task B7 has now taken the rest of it.** This paragraph
+ * read "Tasks B6 and B7 extend this module rather than starting a second one", and both have:
+ * B6's `calibrate` is one more factory over the geometry adapter already here, and B7's
+ * `setBackground` is `ReversibleAssetBackgroundEdit` — the NOTE adapter and the geometry one
+ * together, since it writes the reference and clears the calibration, which is the first
+ * inverse in this file that spans both resources. `setBackground` carries no
+ * `fallow-ignore-next-line` mark, unlike `setFootprintFromDimensions` above: `runtime.ts`
+ * wires a real `src/` caller (the designer's `noBackground` empty-state action) in the same
+ * task that adds the factory.
  */
 export class ReversibleAssetDesignCommands {
 	constructor(
@@ -442,5 +575,14 @@ export class ReversibleAssetDesignCommands {
 	 */
 	calibrate(input: CalibrateAssetInput): ReversibleAssetDesignEdit {
 		return new ReversibleAssetGeometryEdit(this.deps, this.commands.calibrate, input);
+	}
+
+	/**
+	 * Task B7's background, through the ONE adapter that spans both resources — see
+	 * `ReversibleAssetBackgroundEdit`'s own docblock for why neither of the other two shapes
+	 * fits.
+	 */
+	setBackground(input: SetAssetBackgroundInput): ReversibleAssetDesignEdit {
+		return new ReversibleAssetBackgroundEdit(this.deps, this.commands.setBackground, input);
 	}
 }

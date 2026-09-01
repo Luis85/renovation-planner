@@ -38,7 +38,7 @@ import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
 import SaveStateIndicator from '../editor/save-state/SaveStateIndicator.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
-import { resolveEmptyState } from '../emptyStates/resolve';
+import { resolveEmptyState, type EmptyStateProps } from '../emptyStates/resolve';
 import { selectAssetDesignerEmptyState } from '../emptyStates/selectors';
 import { constrainsAngle } from '../editor/snapping/editorSnapping';
 import { useAssetDesignerContext } from './AssetDesignerContext';
@@ -95,9 +95,9 @@ const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value
  * that gap). An opaque centred card therefore sat over the ONLY picture the user could have had
  * of what they were doing.
  *
- * There is still no `@action` handler, and that absence remains a decision: neither designer
- * entry carries a label today (see `EMPTY_STATE_CONTENT.assetDesigner`), so `EmptyState` renders
- * no button and there is nothing to handle.
+ * **Task B7 gives `noBackground` its `@action` handler, and `noShape` still has none** — see
+ * `onEmptyStateAction` below, and `EMPTY_STATE_CONTENT.assetDesigner.noShape`'s own docblock
+ * for why that absence remains Task B8's to close.
  */
 /**
  * The Shift constraint, advertised while a tool that takes it is active — asked of the ONE list
@@ -115,12 +115,50 @@ const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value
  */
 const showsConstraintHint = computed(() => constrainsAngle(runtime.activeToolId.value));
 
-const overlay = computed(() => {
+/**
+ * The KEY, held separately from its resolved props so `onEmptyStateAction` below can ask
+ * which entry is showing without re-deriving it — the same split `overlay` used to collapse
+ * into one step before Task B7 gave one of the two entries something to DO.
+ */
+const emptyStateKey = computed<'noShape' | 'noBackground' | null>(() => {
 	const current = design.value;
 	if (current === null || runtime.activeToolId.value !== null) return null;
-	const key = selectAssetDesignerEmptyState(current);
-	return key === null ? null : resolveEmptyState(EMPTY_STATE_CONTENT.assetDesigner[key]);
+	return selectAssetDesignerEmptyState(current);
 });
+
+/**
+ * **The action label is withheld when no picker is bound**, even though the registry declares
+ * one unconditionally — slice 14's Amendment 1 refuses a live control that does nothing, and a
+ * bound picker is this button's whole reason to exist. The composition root binds a real one
+ * today, so this is the defensive answer rather than a reachable production state; the same
+ * shape `AssetDesignerContext.picker`'s own docblock states.
+ */
+const overlay = computed<EmptyStateProps | null>(() => {
+	const key = emptyStateKey.value;
+	if (key === null) return null;
+	const resolved = resolveEmptyState(EMPTY_STATE_CONTENT.assetDesigner[key]);
+	if (key === 'noBackground' && context.picker === null) {
+		const { actionLabel: _actionLabel, ...withoutAction } = resolved;
+		return withoutAction;
+	}
+	return resolved;
+});
+
+/**
+ * The empty state's `@action` — reachable today only from `noBackground`, since `noShape`
+ * carries no `actionLabel` for `EmptyState.vue` to draw a button from at all.
+ *
+ * Cancelling the picker (`null`) dispatches nothing: a cancelled pick is not a chosen
+ * reference, and `SetAssetBackground` has no meaning applied to data the user never supplied.
+ */
+async function onEmptyStateAction(): Promise<void> {
+	if (emptyStateKey.value !== 'noBackground') return;
+	const picker = context.picker;
+	if (picker === null) return;
+	const ref = await picker.pick();
+	if (ref === null) return;
+	await runtime.setBackground(ref);
+}
 
 /**
  * The read replaced by the reason it has none.
@@ -212,6 +250,7 @@ onMounted(() => {
 						v-if="overlay !== null"
 						v-bind="overlay"
 						overlay
+						@action="onEmptyStateAction"
 					/>
 				</DesignerCanvas>
 			</div>

@@ -2,6 +2,7 @@ import { inject, type InjectionKey } from 'vue';
 import type { Logger } from '../../application/ports/Logger';
 import type { AssetDesignerQueryServices } from '../read-models/assetDesignerQueries';
 import type { AssetDesignerCommandServices } from './designerCommands';
+import type { BackgroundPicker } from './ports';
 
 /**
  * What the composition root hands an asset designer leaf.
@@ -41,6 +42,14 @@ export interface AssetDesignerDeps {
 	 * file that holds it rather than being remembered here.)
 	 */
 	readonly onDesignChanged: (assetId: string, listener: () => void) => () => void;
+	/**
+	 * Task B7's port, reserved above in writing since design slice B3. `null` where nothing is
+	 * bound — the composition root binds a real one unconditionally today, so this is the
+	 * defensive answer rather than a reachable production state, and `AssetDesignerRoot.vue`'s
+	 * empty-state action treats it exactly like `planEditor.noBackground` treats an unreachable
+	 * hand-off: no button rather than a live control that does nothing.
+	 */
+	readonly picker: BackgroundPicker | null;
 	/**
 	 * Has the initial index scan RUN — zero entries included — rather than "has it found
 	 * anything". Asked per hydration and never captured, because it turns true once per session

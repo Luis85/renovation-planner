@@ -7,32 +7,88 @@ import { isAssetCategory, type AssetCategory } from './AssetCategory';
 import type { AssetId } from './AssetId';
 import { assetError } from './Asset.errors';
 
-export interface CreateAssetProps {
+/**
+ * The file formats a designer's spec sheet may be (Task B7) — the same two the Plan Editor's
+ * background reference admits (`PlanBackgroundRef`), and deliberately its OWN type rather than
+ * an import of that one: a plan and an asset are two different entities whose backgrounds
+ * happen to share a vocabulary today, and importing across `domain/plan/` would make an
+ * asset's shape depend on a plan's the moment the two diverge.
+ */
+export type AssetBackgroundKind = 'image' | 'pdf';
+
+/**
+ * The reference to an asset's own spec sheet — the Vault-relative path plus enough to open it
+ * (kind, and a page for a PDF). Never the raw bytes, exactly as `PlanBackgroundRef` is not.
+ *
+ * `page` is `number | null` rather than optional, unlike `PlanBackgroundRef.page`: this field
+ * round-trips through a `.nullable().catch(null)` frontmatter key (Task B7's Step 0), and a
+ * DTO shape that mirrors what the schema actually stores is what keeps the mapper a straight
+ * copy in both directions.
+ */
+export interface AssetBackgroundRef {
+	readonly path: string;
+	readonly kind: AssetBackgroundKind;
+	readonly page: number | null;
+}
+
+/**
+ * The ONE answer to "is this a usable background reference" — shared by `create` and
+ * `withChanges` so an Asset cannot be constructed with a reference that setting the same one
+ * later would refuse. Mirrors `Plan.ts`'s `validateBackground`: an empty path, an unknown kind
+ * and a non-positive page are each refused, and a page on an `image` is deliberately NOT —
+ * `SetAssetBackground` never writes one, but a hand-edited note carrying a stray
+ * `background-page` beside `background-kind: image` is a file a user still has to be able to
+ * open.
+ */
+function checkBackground(value: AssetBackgroundRef | null): Result<AssetBackgroundRef | null, ValidationError> {
+	if (value === null) return ok(null);
+	if (!value.path.trim()) {
+		return err(assetError('empty-background-path', 'A background reference needs a path.'));
+	}
+	if (value.kind !== 'image' && value.kind !== 'pdf') {
+		return err(assetError('unknown-background-kind', `"${String(value.kind)}" is not a background kind.`));
+	}
+	if (value.page !== null && (!Number.isInteger(value.page) || value.page < 1)) {
+		return err(
+			assetError('invalid-background-page', `A background page must be a positive integer; got ${value.page}.`),
+		);
+	}
+	return ok(value);
+}
+
+/**
+ * The five fields `CreateAssetProps` and `AssetFields` agree on exactly, with no optionality
+ * to disagree about — kept in ONE place so the two do not drift field-by-field. Everything
+ * past this (`supplier` through `background`) is optional-with-a-default on the caller's side
+ * and resolved on the entity's, which is a real difference and stays declared twice.
+ */
+export interface AssetIdentity {
 	readonly id: AssetId;
 	readonly name: string;
 	readonly category: AssetCategory;
-	readonly supplier?: string | null;
-	readonly sku?: string | null;
 	readonly unit: MeasurementUnit;
 	readonly unitCost: Money;
+}
+
+export interface CreateAssetProps extends AssetIdentity {
+	readonly supplier?: string | null;
+	readonly sku?: string | null;
 	/** Fraction in [0, 1] (`0.10` = 10% waste); defaults to 0. */
 	readonly wasteFactorDefault?: Decimal;
 	readonly notes?: string | null;
 	/** Millimetres (ADR-009), or `null` for an asset that says nothing about how tall it is. */
 	readonly height?: number | null;
+	/** The designer's spec sheet (Task B7), or `null` for an asset with none picked yet. */
+	readonly background?: AssetBackgroundRef | null;
 }
 
-interface AssetFields {
-	readonly id: AssetId;
-	readonly name: string;
-	readonly category: AssetCategory;
+interface AssetFields extends AssetIdentity {
 	readonly supplier: string | null;
 	readonly sku: string | null;
-	readonly unit: MeasurementUnit;
-	readonly unitCost: Money;
 	readonly wasteFactorDefault: Decimal;
 	readonly notes: string | null;
 	readonly height: number | null;
+	readonly background: AssetBackgroundRef | null;
 }
 
 /**
@@ -122,6 +178,8 @@ export class Asset {
 	readonly unitCost: Money;
 	readonly wasteFactorDefault: Decimal;
 	readonly notes: string | null;
+	/** The designer's spec sheet (Task B7), or `null` for an asset with none picked yet. */
+	readonly background: AssetBackgroundRef | null;
 	/**
 	 * How tall this thing is, in millimetres — the one asset scalar that is NOT geometry.
 	 * The footprint, the clearance, the anchor and the facing live in the geometry sidecar
@@ -146,6 +204,7 @@ export class Asset {
 		this.unitCost = fields.unitCost;
 		this.wasteFactorDefault = fields.wasteFactorDefault;
 		this.notes = fields.notes;
+		this.background = fields.background;
 		this.height = fields.height;
 	}
 
@@ -170,6 +229,8 @@ export class Asset {
 		}
 		const heightCheck = checkHeight(props.height ?? null);
 		if (!heightCheck.ok) return heightCheck;
+		const backgroundCheck = checkBackground(props.background ?? null);
+		if (!backgroundCheck.ok) return backgroundCheck;
 		const wasteCheck = checkWasteFraction(
 			props.wasteFactorDefault ?? new Decimal(0),
 			'waste-factor-default',
@@ -189,6 +250,7 @@ export class Asset {
 				wasteFactorDefault: props.wasteFactorDefault ?? new Decimal(0),
 				notes: props.notes ?? null,
 				height: heightCheck.value,
+				background: backgroundCheck.value,
 			}),
 		);
 	}
@@ -211,6 +273,7 @@ export class Asset {
 			wasteFactorDefault: changes.wasteFactorDefault ?? this.wasteFactorDefault,
 			notes: 'notes' in changes ? (changes.notes ?? null) : this.notes,
 			height: 'height' in changes ? (changes.height ?? null) : this.height,
+			background: 'background' in changes ? (changes.background ?? null) : this.background,
 		});
 	}
 

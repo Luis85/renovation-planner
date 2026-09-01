@@ -32,6 +32,7 @@ import {
 } from '../../src/application/commands/asset/SetAssetFootprint';
 import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
 import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
+import { SetAssetBackgroundCommand } from '../../src/application/commands/asset/SetAssetBackground';
 import type {
 	AssetGeometryDocument,
 	AssetGeometrySidecar,
@@ -44,6 +45,7 @@ import { err, isErr } from '../../src/core/result/Result';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { AssetDesignChanged } from '../../src/domain/asset/Asset.events';
 import type { AssetShape } from '../../src/domain/asset/AssetShape';
+import type { Calibration } from '../../src/domain/plan/Calibration';
 import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { expectOk } from './domain';
 import { makeAsset } from './entities';
@@ -68,6 +70,14 @@ export const WIDER: readonly Point[] = [
 	{ x: 150, y: 150 },
 	{ x: -50, y: 150 },
 ];
+
+/** A calibration Task B7's `seedCalibration` seeds, so every case has one to lose. */
+export const CALIBRATION: Calibration = {
+	pointA: { x: 0, y: 0 },
+	pointB: { x: 800, y: 0 },
+	knownDistance: 800,
+	pixelsPerWorldUnit: 1,
+};
 
 /** A shape somebody has already drawn on, so every adapter has a pre-state to restore. */
 export const drawn = (): AssetShape => ({
@@ -222,6 +232,8 @@ export interface AssetDesignHarness {
 	/** The adapters over a bundle a case has replaced one door of. */
 	reversibleWith(overrides: Partial<AssetDesignCommandBundle>): ReversibleAssetDesignCommands;
 	seed(shape: AssetShape | null): Promise<void>;
+	/** A calibration to lose — Task B7's cases each seed one before clearing it. */
+	seedCalibration(): Promise<void>;
 	document(): Promise<AssetGeometryDocument>;
 	geometryVersion(): Promise<EntityVersion>;
 	height(): Promise<number | null | undefined>;
@@ -270,6 +282,7 @@ export async function seeded(
 		setFacing: setFacingCommand,
 		setHeight: setHeightCommand,
 		calibrate: new CalibrateAssetCommand(commandDeps),
+		setBackground: new SetAssetBackgroundCommand(commandDeps),
 	};
 
 	// ANNOTATED, and constructed here rather than inline in the returned literal: fallow
@@ -309,6 +322,16 @@ export async function seeded(
 		},
 		async seed(shape: AssetShape | null): Promise<void> {
 			expectOk(await real.write(assetId, { calibration: null, shape }));
+		},
+		/**
+		 * Adds `CALIBRATION` to whatever the sidecar already holds, rather than replacing the
+		 * document — Task B7's cases seed a SHAPE and a calibration together (`seedShape` then
+		 * `seedCalibration`), and a document-replacing seed here would silently drop the shape
+		 * the case just wrote.
+		 */
+		async seedCalibration(): Promise<void> {
+			const current = expectOk(await real.read(assetId));
+			expectOk(await real.write(assetId, { ...current.document, calibration: CALIBRATION }, current.version));
 		},
 		async document(): Promise<AssetGeometryDocument> {
 			return expectOk(await real.read(assetId)).document;

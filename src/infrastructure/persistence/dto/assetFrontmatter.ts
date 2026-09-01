@@ -49,4 +49,15 @@ export const AssetFrontmatterSchemaV1 = z.object({
 	 * `Asset.create` can see that `-10` is not a height.
 	 */
 	height: z.number().nullable().catch(null),
+	/**
+	 * The designer's spec sheet reference (Task B7) — three flat keys rather than one string,
+	 * for `planFrontmatter.ts`'s reason: a bare path would silently lose which PDF page the
+	 * asset was calibrated against. Nullable and `.catch(null)` on all three, unlike
+	 * `PlanFrontmatterSchemaV1`'s non-nullable `background-path`: a Plan always writes SOME
+	 * string (empty means none), while every other optional asset field already uses this
+	 * pattern, and additive fields owe no schema version bump.
+	 */
+	'background-path': z.string().nullable().catch(null),
+	'background-kind': z.enum(['image', 'pdf']).nullable().catch(null),
+	'background-page': z.number().int().positive().nullable().catch(null),
 });

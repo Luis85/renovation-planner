@@ -1,4 +1,5 @@
-import type { Vault, Workspace } from 'obsidian';
+import type { App, Vault, Workspace } from 'obsidian';
+import { ObsidianBackgroundPicker } from './assetBackgroundPicker';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
@@ -492,13 +493,19 @@ export function planEditorDeps(
 }
 
 /**
- * The asset designer's own dependency bundle (design slice B3, ADR-0015).
+ * The asset designer's own dependency bundle (design slice B3, ADR-0015; the picker since
+ * Task B7).
  *
- * It takes neither a `Workspace` nor a `Vault`, which is the whole difference from its two
- * siblings and is a fact about the surface rather than an omission: the designer navigates
- * nowhere and reads no raw file. Task B7's background picker is the member that changes that,
- * and Task B3a's command bundle is the other one — both are a field added here, not a
- * relocation.
+ * It takes an `App` and neither a `Workspace` nor a `Vault`, which is the whole difference
+ * from its two siblings and is a fact about the surface rather than an omission: the designer
+ * navigates nowhere and reads no raw file — it only needs Obsidian's own file suggester, which
+ * `ObsidianBackgroundPicker` wraps, so an `App` is the narrowest thing that gets it there.
+ *
+ * **The picker is bound UNCONDITIONALLY, independent of `persistence`.** Picking a file needs
+ * no vault write of this plugin's own, and the picker's own result reaches a command that
+ * refuses through the ordinary refused-write path when there is nothing to dispatch it to —
+ * the same reasoning `onDesignChanged` above already states for wiring off the bus regardless
+ * of session state.
  *
  * TOTAL rather than nullable, for `planEditorDeps`'s reason: with settings unrecovered there is
  * no query service to hand over, so the view is handed one that REFUSES and draws the same
@@ -507,10 +514,12 @@ export function planEditorDeps(
  */
 export function assetDesignerDeps(
 	root: CompositionRoot,
+	app: App,
 	options: { indexScanCompleted: () => boolean },
 ): AssetDesignerDeps {
 	const persistence = root.persistence;
 	return {
+		picker: new ObsidianBackgroundPicker(app),
 		queries:
 			persistence === null
 				? unavailableAssetDesignerQueries()

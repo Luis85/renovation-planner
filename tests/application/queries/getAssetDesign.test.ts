@@ -13,6 +13,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { GetAssetDesignQuery } from '../../../src/application/queries/GetAssetDesign';
+import { SetAssetBackgroundCommand } from '../../../src/application/commands/asset/SetAssetBackground';
+import { createEventBus } from '../../../src/core/events/EventBus';
 import { ObsidianAssetGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { assetSidecarPathFor } from '../../../src/infrastructure/obsidian/repositories/paths';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
@@ -119,6 +121,25 @@ describe('GetAssetDesign', () => {
 	});
 
 	/**
+	 * **Task A8's Amendment 1 case, closed by Task B7.** A seeded document can show that
+	 * `dimensionsUnscaled` takes no second term (row 3 below); it cannot show that
+	 * `SetAssetBackground` itself leaves a measured outline's millimetres and its
+	 * `footprintPending` flag alone — only a real command dispatch proves that, end to end.
+	 */
+	it('keeps a measured outline measured when its background is replaced', async () => {
+		const { query, assetId, seed, sidecar, stack } = await seeded();
+		await seed({ calibration: CALIBRATION, shape: shapeWith('traced', false) });
+		const setBackground = new SetAssetBackgroundCommand({ sidecar, assets: stack.assets, events: createEventBus() });
+
+		expect(expectOk(await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null })))
+			.toBe('wrote');
+
+		const dto = expectOk(await query.execute(assetId));
+		expect(dto.calibration).toBeNull();
+		expect(dto.dimensionsUnscaled).toBe(false);
+	});
+
+	/**
 	 * `dimensionsUnscaled` IS `footprintPending`, with no second term — the per-attribute
 	 * model's whole point. Both directions of the join a reader is tempted to write are
 	 * closed here, and each by a row the other cannot see:
@@ -129,9 +150,8 @@ describe('GetAssetDesign', () => {
 	 * - `pending && calibration !== null` — a fresh trace on a surface that already carries
 	 *   a scale nothing has applied to it is row 5, and it is still unscaled.
 	 *
-	 * Row 3 is the case the plan spells with `SetAssetBackground`, which is Task B7 and does
-	 * not exist yet; the property it is about — no join against `calibration` — is exactly
-	 * what a seeded document states without it.
+	 * Row 3 is the seeded-document version of the case above: it pins the JOIN's own property
+	 * (no read of `calibration` in the unscaled derivation) without needing a real command.
 	 */
 	it.each([
 		['typed', false, 'uncalibrated', false],

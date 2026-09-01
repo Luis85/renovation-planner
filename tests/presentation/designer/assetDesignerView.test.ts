@@ -52,6 +52,7 @@ function deps(overrides: Partial<AssetDesignerDeps> = {}): AssetDesignerDeps {
 		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())) },
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
+		picker: null,
 		onDesignChanged: () => () => undefined,
 		indexScanCompleted: () => true,
 		...overrides,

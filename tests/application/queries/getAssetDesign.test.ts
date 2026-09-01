@@ -76,6 +76,17 @@ async function seeded(props: { readonly name?: string; readonly height?: number 
 		async seed(document: AssetGeometryDocument): Promise<void> {
 			expectOk(await sidecar.write(assetId, document));
 		},
+		/**
+		 * A hand edit every schema ACCEPTS: the note's `id` is rewritten to another asset's,
+		 * which is what a user editing frontmatter does. The index keeps the entry it scanned,
+		 * so the path still resolves — this is a DISPLACED entry, not a broken note.
+		 */
+		displaceNote(): void {
+			const path = stack.index.getPath(assetId) ?? '';
+			const { frontmatter, body } = parseFrontmatter(stack.vault.entries.get(path) ?? '');
+			stack.vault.entries.set(path, serializeFrontmatter({ ...frontmatter, id: createAssetId() }) + body);
+			stack.metadataCache.catchUp();
+		},
 		/** A hand edit no schema would accept, so the next read of the NOTE fails. */
 		corruptNote(): void {
 			const path = stack.index.getPath(assetId) ?? '';
@@ -173,6 +184,34 @@ describe('GetAssetDesign', () => {
 		corruptNote();
 
 		expect(expectErr(await query.execute(assetId)).code).toBe('asset.entity-invalid');
+	});
+
+	/**
+	 * The reported symptom of the note-side identity hole, pinned where it was actually
+	 * visible. This is the one read in the plugin that JOINS a second file keyed on the id it
+	 * was asked for, so a displaced index entry did not merely answer the wrong asset — it
+	 * answered `assetId` and `name` from the note it happened to load beside a `shape` and a
+	 * `geometryVersion` read from the REQUESTED id's sidecar. One DTO, two identities, and
+	 * every geometry command the designer dispatched from that leaf went on conditioning
+	 * itself on the other asset's revision.
+	 *
+	 * The fix is not here: `openNoteById` compares the loaded note's declared id against the
+	 * requested one, so `assets.getById` refuses and this query propagates that refusal the
+	 * same way it propagates any other failed note read. The case belongs here anyway,
+	 * because the guarantee this query owes is about the DTO — that its `assetId` and its
+	 * geometry can never name two different assets — and nothing at the repository states it.
+	 */
+	it('cannot answer a DTO whose note and sidecar name different assets', async () => {
+		const { query, assetId, seed, displaceNote } = await seeded();
+		await seed({ calibration: CALIBRATION, shape: shapeWith('traced', false) });
+		displaceNote();
+
+		const result = await query.execute(assetId);
+
+		// Before the guard this resolved `ok`, and `design.assetId` was the STRANGER's — so a
+		// case reaching straight for the code would have failed at a helper rather than here.
+		expect(result.ok).toBe(false);
+		expect(expectErr(result).code).toBe('asset.note-id-mismatch');
 	});
 
 	/**

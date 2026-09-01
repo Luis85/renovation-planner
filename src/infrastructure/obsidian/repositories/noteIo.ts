@@ -283,6 +283,64 @@ export function cacheReading(source: FrontmatterSource, file: TFile | null): Obs
 }
 
 /**
+ * Does the note the index sent us to actually DECLARE the id it was looked up under?
+ *
+ * A note's `id` is frontmatter, so a user can edit it — and the index keeps the OLD id's
+ * entry pointing at that path until the next full rebuild. Every read in this layer resolves
+ * through the index, so without this comparison a displaced entry serves a STRANGER's note
+ * under the requested id, and each caller then parses what it was handed. The worst of it is
+ * a read that JOINS a second file keyed on the id it did not check — `GetAssetDesignQuery`
+ * returned the loaded note's `assetId` beside a `shape` and a `geometryVersion` read from the
+ * requested id's sidecar, so one DTO described two assets and the designer went on editing
+ * the other one's geometry. `AssetGeometryStore` has asked this same question of a `.rpgeo`
+ * since design slice A4 (`asset-geometry.asset-id-mismatch`); the note side never did.
+ *
+ * **An ERROR rather than a `missing`, and the two are not interchangeable at any caller.**
+ * `missing` is `ok(null)` at both `getById` doors and a revision conflict at the delete one —
+ * so a displaced entry would be reported as "that entity is gone", which is a believable
+ * sentence about a note whose bytes are sitting on disk and is exactly the collapse this
+ * repository has already shipped three times. It would also record nothing, and this is a
+ * repairable vault state whose only account is the diagnostics ledger. A coded refusal names
+ * the state, records it, and refuses the WRITE paths that open a note before touching it.
+ *
+ * **A POSITIVE disagreement only**: a declared id that is a non-empty string and is not the
+ * one asked for. A note declaring no id, an empty one, or a non-string is left to whatever the
+ * schema already made of it — `asset.entity-invalid` and its siblings, which name the malformed
+ * note precisely, where this code would claim a displacement that did not happen. It is also
+ * the conservative direction for a new guard, and it costs nothing: the index is built from a
+ * NON-EMPTY `id` (`buildProjectIndexEntries`), so a note with no id has displaced nothing.
+ *
+ * **What the suite says about that narrowing, measured rather than argued.** Widening the test
+ * to `declared === id` — an absent id counting as a disagreement — reddens exactly ONE case in
+ * the whole suite, this guard's own 'says nothing about a note that declares no id at all'. So
+ * that case is not a nicety, it is the entire instrument for the narrowing, and an earlier
+ * draft of this paragraph justified the narrowing by the metadata cache's create window, which
+ * the widened run disproves: `frontmatterOf` falls back to the ECHO record for a note this
+ * plugin just wrote, and that record carries the id.
+ *
+ * Two callers, from a grep in this edit: `openNoteById` below, and
+ * `ObsidianProjectRepository.readEntity`, which is the one note-backed read that does not
+ * come through that door. Neither the caller list nor the category is asserted by a list —
+ * the instrument is behavioural, and it is the five-kind table in
+ * `tests/infrastructure/obsidian/repositories/errorPaths.test.ts`, which drives every
+ * note-backed kind through its REAL repository and is itself checked against `MIGRATION_SET`
+ * so a sixth kind cannot arrive without arriving there.
+ */
+export function noteIdMismatch(
+	kind: DiagnosticEntityKind,
+	id: EntityId<string>,
+	raw: Record<string, unknown>,
+	path: string,
+): PersistenceError | null {
+	const declared = raw['id'];
+	if (typeof declared !== 'string' || declared === '' || declared === id) return null;
+	return persistenceError(
+		`${kind}.note-id-mismatch`,
+		`Note ${path} declares ${kind} ${declared}, not ${id}. The index entry is stale.`,
+	);
+}
+
+/**
  * Resolves an entity's note through the index and reads its cached frontmatter plus the
  * migrated document — the identical preamble of all three repositories' `getById`. A
  * missing note is 'missing', never an error ("not found" is ok(null), §36).
@@ -310,6 +368,11 @@ export function openNoteById(
 	const abstractFile = deps.vault.getAbstractFileByPath(path);
 	if (!(abstractFile instanceof TFileValue)) return { status: 'missing' };
 	const raw = frontmatterOf(deps, abstractFile);
+	const displaced = noteIdMismatch(kind, id, raw, path);
+	if (displaced) {
+		deps.ledger.record(kind, id, displaced);
+		return { status: 'error', error: displaced };
+	}
 	const migrated = migrateNote(deps.migrations, kind, raw);
 	if (!migrated.ok) {
 		deps.ledger.record(kind, id, migrated.error);

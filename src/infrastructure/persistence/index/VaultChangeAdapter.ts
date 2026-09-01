@@ -152,6 +152,25 @@ export class VaultChangeAdapter {
 		// wrote there. Equal means our own write echoed back through Obsidian's events.
 		if (this.deps.echo.matches(path, observeFrontmatter(frontmatter))) return;
 
+		// The note is still ours and has become a DIFFERENT entity — a hand-edited `id`. Without
+		// this, the upsert below adds the new id and the old one's entry goes on pointing at
+		// this same file, so every read that resolves through the index served this note under
+		// an id it no longer declares. `existing` is found by PATH, which is what makes the
+		// comparison possible here and impossible inside `applyUpsert` (that one displaces by
+		// ID, for the different case of one id changing TYPE).
+		//
+		// The `!== 'ours'` arm above has removed such an entry since this pipeline was written;
+		// the case it does not cover is a note that stayed ours. `echo.forget` is deliberately
+		// NOT called with it — that arm forgets because the path stops being one of ours, and
+		// this one is about to re-index the very same path.
+		//
+		// It is the SECOND remedy, never a substitute for `noteIdMismatch` at the read door:
+		// this fires one vault event late, not at all for an edit made while Obsidian is
+		// closed, and only the read guard fails closed. What it buys is that the refusal is
+		// transient — once the pipeline has seen the edit, the old id is absent rather than
+		// refusing for the life of the session.
+		if (existing && existing.id !== ref.id) this.applyRemove(existing);
+
 		this.warnOnDuplicateId(ref.id, path);
 
 		this.applyUpsert({

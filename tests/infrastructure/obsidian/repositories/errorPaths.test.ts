@@ -480,3 +480,164 @@ describe('geometry store failure branches', () => {
 		expect(expectErr(await stack.store.mutate(planId, (dto) => ({ ...dto }))).code).toBe('plan-geometry.missing');
 	});
 });
+
+/**
+ * A hand edit of the one frontmatter key the index is built from, made the way a user makes
+ * it: on the BYTES, with the index left holding what it scanned beforehand. The `id:` LINE is
+ * rewritten rather than the id's every occurrence, because a zone note names its plan and a
+ * requirement names its asset, and replacing those would be planting a different defect.
+ *
+ * At module scope rather than inside the describe that uses it because
+ * `unicorn/consistent-function-scoping` fails the build for a nested function capturing
+ * nothing — which is also where `plantFutureSchemaVersion` above sits.
+ */
+function plantForeignId(stack: RepositoryStack, id: EntityId<string>, foreign: string): string {
+	const path = stack.index.getPath(id) ?? '';
+	expect(path).not.toBe('');
+	const before = stack.vault.entries.get(path) ?? '';
+	const after = before.replace(/^id: .*$/m, `id: ${JSON.stringify(foreign)}`);
+	expect(after).not.toBe(before);
+	stack.vault.entries.set(path, after);
+	return path;
+}
+
+/**
+ * A note's `id` is frontmatter, so a user can edit it — and when one does, the index keeps
+ * the OLD id's entry pointing at that path until the next full rebuild. Every read here
+ * resolves through the index, so the question "is the note I just loaded the one I asked
+ * for" had no asker: `openNoteById` looked a path up, read it, migrated it and returned it,
+ * and the four callers each parsed what they were handed.
+ *
+ * The symptom with teeth is `GetAssetDesignQuery`, which is the one read that JOINS a second
+ * file keyed on the id it did not check: it answered `assetId: asset.id` — the loaded note's
+ * — beside a `shape` and a `geometryVersion` read from the REQUESTED id's sidecar, so one DTO
+ * described two assets and every edit dispatched from that leaf went on targeting the other
+ * one. But the door is shared, so the defect was never the asset's: a displaced entry served
+ * the wrong note for a plan, a zone, a requirement and an asset alike, and
+ * `ObsidianProjectRepository` — which reads through the index without going through that door
+ * at all — had the same hole one file over.
+ *
+ * The cases below are driven off the SAME table the ledger cases use, which is what makes
+ * this a claim about the class rather than about the kind that was reported. That table is
+ * itself checked against `MIGRATION_SET` above, so a sixth note-backed kind cannot arrive
+ * without arriving here too.
+ */
+describe('a note that no longer declares the id it was asked for', () => {
+	it.each(NOTE_BACKED_CASES.map((testCase) => [testCase.kind, testCase] as const))(
+		'a displaced %s entry refuses instead of serving the note it points at',
+		async (kind, testCase) => {
+			const stack = createRepositoryStack();
+			const id = await testCase.seed(stack);
+			plantForeignId(stack, id, `${id}-somebody-else`);
+
+			const result = await testCase.read(stack, id);
+
+			// Asserted before the code, because the pre-guard build answers `ok` carrying the
+			// STRANGER's entity — so a case that reached straight for the error would fail at a
+			// helper rather than at an assertion, and would read the same against a build that
+			// answered `ok(null)`.
+			expect(result.ok).toBe(false);
+			expect(expectErr(result).code).toBe(`${kind}.note-id-mismatch`);
+			// Recorded like every other read refusal (SDD §68): opaque id, code, nothing else.
+			expect(stack.ledger.issues()).toEqual([
+				{ entityType: kind, entityId: id, issue: `${kind}.note-id-mismatch` },
+			]);
+		},
+	);
+
+	/**
+	 * The write half, and the one where believing the index DESTROYS something. A delete
+	 * resolves through the same door, so a caller holding a version it read AFTER the hand
+	 * edit — which is the ordinary flow: read, show, press Delete — passed the conditional
+	 * check and trashed a note it had never been asked about.
+	 *
+	 * The expectation is taken off the planted BYTES for exactly that reason: a version
+	 * captured before the edit is refused by `checkExpectedVersion` anyway, so a case built
+	 * that way would pass against the defect and pin nothing.
+	 */
+	it('refuses to DELETE the stranger note a displaced entry points at', async () => {
+		const stack = createRepositoryStack();
+		const assetId = expectOk(await stack.assets.save(makeAssetEntity(), 'absent')).entity.id;
+		const path = plantForeignId(stack, assetId, `${assetId}-somebody-else`);
+		const current = versionOfFrontmatter(parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter);
+
+		const result = await stack.assets.delete(assetId, current);
+
+		expect(result.ok).toBe(false);
+		expect(expectErr(result).code).toBe('asset.note-id-mismatch');
+		// The note somebody else's id is on is still there: a refusal, never a partial delete.
+		expect(stack.vault.entries.has(path)).toBe(true);
+	});
+
+	/**
+	 * **What this guard does NOT reach, pinned as behaviour rather than described** — the same
+	 * shape, and for the same reason, as the 'is a READ gate' case above. `saveNoteBackedEntity`
+	 * resolves existence through `deps.index.getPath(entity.id)` directly, never through
+	 * `openNoteById`, so a save holding an expectation that matches the displaced note's own
+	 * bytes writes over the stranger and stamps the requested id onto it. Measured, not
+	 * reasoned: the id on disk afterwards is the SAVER's.
+	 *
+	 * It is unreachable through this plugin today, which is a property of the CALLERS and not
+	 * of the write path: every command loads before it saves, that load now refuses, and an
+	 * expectation captured BEFORE the hand edit fails `checkExpectedVersion` on the digest. The
+	 * expectation below is therefore built from the planted bytes by hand, which nothing above
+	 * this layer can do. Closing it properly means the save path asking the same question — a
+	 * change to how a WRITE establishes existence, not to this guard, and one that owes its own
+	 * increment. This case exists so that the day it lands, it goes red here rather than
+	 * leaving a paragraph quietly stale.
+	 */
+	it('is a READ guard: a save with a matching expectation still overwrites the stranger note', async () => {
+		const stack = createRepositoryStack();
+		const asset = makeAssetEntity();
+		expectOk(await stack.assets.save(asset, 'absent'));
+		const path = plantForeignId(stack, asset.id, `${asset.id}-somebody-else`);
+		const current = versionOfFrontmatter(parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter);
+
+		expectOk(await stack.assets.save(asset, current));
+
+		expect(parseFrontmatter(stack.vault.entries.get(path) ?? '').frontmatter['id']).toBe(asset.id);
+	});
+
+	/**
+	 * The NARROWING, pinned so that the guard's shape cannot quietly widen. It refuses a
+	 * POSITIVE disagreement — a note declaring a different id — and says nothing about a note
+	 * declaring none, which stays whatever the schema already made of it.
+	 *
+	 * The reason is that a malformed note already has a PRECISER refusal — the code asserted
+	 * below is the schema's, and it names what is actually wrong — while `*.note-id-mismatch`
+	 * would claim a displacement that did not happen. The index is built from a NON-EMPTY `id`,
+	 * so a note declaring none has displaced nothing.
+	 *
+	 * **This case is the whole instrument for that narrowing, and that is measured rather than
+	 * assumed.** Widening the guard to treat an absent id as a disagreement reddens exactly this
+	 * one case in a suite of 4573: nothing else in the tree reads a note through the index whose
+	 * frontmatter carries no id. So it is not a nicety beside the refusals above — a build that
+	 * widens the guard fails HERE or nowhere — and an earlier draft of this comment justified
+	 * the narrowing by the metadata cache's create window, which that same run disproves:
+	 * `frontmatterOf` falls back to the ECHO record for a note this plugin just wrote, and that
+	 * record carries the id.
+	 */
+	it('says nothing about a note that declares no id at all', async () => {
+		const stack = createRepositoryStack();
+		const assetId = expectOk(await stack.assets.save(makeAssetEntity(), 'absent')).entity.id;
+		const path = stack.index.getPath(assetId) ?? '';
+		stack.vault.entries.set(path, (stack.vault.entries.get(path) ?? '').replace(/^id: .*$\n/m, ''));
+
+		expect(expectErr(await stack.assets.getById(assetId)).code).toBe('asset.entity-invalid');
+	});
+
+	/**
+	 * The over-correction control, at the door rather than through a repository: the guard
+	 * must be invisible to every read whose note says what the index says. The rest of this
+	 * suite is the wider version of this assertion — a guard that refused legitimate reads
+	 * would redden hundreds of cases — and this one exists so that the intent is written down
+	 * beside the refusals rather than inferred from what did not break.
+	 */
+	it('is invisible to a note whose id still matches', async () => {
+		const stack = createRepositoryStack();
+		const assetId = expectOk(await stack.assets.save(makeAssetEntity(), 'absent')).entity.id;
+
+		expect(expectFound(await stack.assets.getById(assetId)).entity.id).toBe(assetId);
+		expect(stack.ledger.issues()).toEqual([]);
+	});
+});

@@ -203,6 +203,40 @@ describe('pipeline negatives', () => {
 		expect(stack.index.getPath(projectId)).toBeUndefined();
 	});
 
+	/**
+	 * The other half of the note-identity defect, at the end that stops the stale entry
+	 * EXISTING rather than the end that stops it being believed. `existing` is found by PATH,
+	 * so a note whose `id` a user rewrites arrives here as an upsert of the NEW id while the
+	 * old id's entry goes on pointing at the same file — and every read resolves through the
+	 * index, so that entry then served this note under an id it no longer declares.
+	 *
+	 * The `!== 'ours'` arm three lines above has removed such an entry since the pipeline was
+	 * written ("if it USED to be [ours], it changed into something we cannot index"); a note
+	 * that stayed ours and changed WHICH entity it is was the case that arm does not cover.
+	 *
+	 * This is not the guard and does not replace it: it is one vault event late by
+	 * construction, does not fire at all for an edit made while Obsidian is closed, and the
+	 * index is rebuilt from scratch at every load anyway. `openNoteById`'s comparison is what
+	 * is fail-closed. What this buys is that the refusal is TRANSIENT — once the pipeline has
+	 * seen the edit, the old id reads as genuinely absent instead of refusing forever.
+	 */
+	it('a note whose id is rewritten loses the OLD id\'s entry rather than keeping a stale one', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const adapter = adapterOf(stack);
+		const path = stack.index.getPath(planId) ?? '';
+
+		const text = stack.vault.entries.get(path) ?? '';
+		stack.vault.entries.set(path, text.replace(/^id: "[^"]*"/m, 'id: "01JPLANSOMEBODYELSE0000000"'));
+		adapter.onModify(stack.vault.getAbstractFileByPath(path) as never);
+		adapter.flush();
+
+		// The stale entry is gone...
+		expect(stack.index.getPath(planId)).toBeUndefined();
+		// ...and the note is indexed under what it now declares, at the same path.
+		expect(stack.index.getPath('01JPLANSOMEBODYELSE0000000' as never)).toBe(path);
+	});
+
 	it('a note of ours without a readable id is excluded with a diagnostic', async () => {
 		const stack = createRepositoryStack();
 		const { planId, projectId } = await seed(stack);

@@ -39,7 +39,7 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 			// `undefined`.
 			listRequirementsReferencing: () => Promise.resolve(ok([])),
 			listReassignmentTargets: () => Promise.resolve(ok([])),
-			findZonesByPlan: () => Promise.resolve(ok(FIXTURE_ZONES)),
+			findZonesByPlan: () => Promise.resolve(ok({ zones: FIXTURE_ZONES, unreadable: 0 })),
 		},
 		// The lifecycle tests here dispatch nothing; the refusal commands keep that honest.
 		commands: unavailablePlanEditorCommands(),

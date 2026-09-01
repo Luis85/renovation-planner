@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { err } from '../../../../src/core/result/Result';
 import { createRepositoryStack, type RepositoryStack } from '../../../helpers/vault';
 import { expectErr, expectFound, expectOk } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
@@ -88,11 +89,43 @@ describe('plan repository: update failures and listing', () => {
 		expect(stack.index.getPath(planId)).toBeUndefined();
 	});
 
-	it('listByProject propagates read failures', async () => {
+	/**
+	 * This case used to be named 'listByProject propagates read failures' and asserted
+	 * `ok === false` for exactly this input. That was the behaviour until one bad note stopped
+	 * costing the project's whole plan list: `plan.schema-version-malformed` is note-local, so
+	 * it is in `SKIPPABLE_PLAN_CODES` and the listing now skips and counts it. The input is
+	 * unchanged; the expectation is inverted, deliberately, and the propagating half moved to
+	 * the case below.
+	 */
+	it('listByProject skips a note whose schema-version is malformed, and counts it', async () => {
 		const stack = createRepositoryStack();
 		const { projectId, planId } = await seed(stack);
 		stack.vault.entries.set(notePathOf(stack, planId), (stack.vault.entries.get(notePathOf(stack, planId)) ?? '').replace('schema-version: 1', 'schema-version: "junk"'));
-		expect((await stack.plans.listByProject(projectId)).ok).toBe(false);
+
+		const listed = expectOk(await stack.plans.listByProject(projectId));
+
+		expect(listed.loaded).toHaveLength(0);
+		expect(listed.refused).toBe(1);
+	});
+
+	/**
+	 * The fail-closed half of the allowlist, and the arm no fixture can reach through the
+	 * production migration table: every code that table can produce is either note-local or
+	 * tagged `Migration`. Driven by overriding `getById` on the repository itself — an own
+	 * property, which `listByProject`'s own `this.getById` then resolves to — so the code under
+	 * test is the real loop and only its per-note read is stood in for.
+	 */
+	it('listByProject propagates a refusal that is not on the skippable list', async () => {
+		const stack = createRepositoryStack();
+		const { projectId } = await seed(stack);
+		const propagating = Object.assign(Object.create(Object.getPrototypeOf(stack.plans)), stack.plans, {
+			getById: () =>
+				Promise.resolve(err({ category: 'Persistence', code: 'plan.migration-failed', message: 'Injected.' })),
+		}) as typeof stack.plans;
+
+		const refusal = expectErr(await propagating.listByProject(projectId));
+
+		expect(refusal.code).toBe('plan.migration-failed');
 	});
 });
 

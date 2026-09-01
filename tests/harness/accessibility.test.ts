@@ -159,7 +159,7 @@ function detailDeps(over: { projectId: string; plans: readonly PlanSummaryDto[] 
 			...base.queries,
 			getProject: () =>
 				Promise.resolve(ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', libraryOverlap: false })),
-			listPlansByProject: () => Promise.resolve(ok(over.plans)),
+			listPlansByProject: () => Promise.resolve(ok({ plans: over.plans, unreadable: 0 })),
 		},
 	};
 }

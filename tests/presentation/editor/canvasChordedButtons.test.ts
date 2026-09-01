@@ -308,7 +308,7 @@ describe('a TOOL drag whose primary button is released inside a chord', () => {
 		const { harness, canvas, zonesRepo } = await editor();
 		toolbarButton(harness, 'Select').click();
 		await settle();
-		const before = expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points;
+		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
 		pointer(canvas, 'pointerdown', 300, 300); // on zone-a
 		pointer(canvas, 'pointermove', 420, 300);
@@ -317,7 +317,7 @@ describe('a TOOL drag whose primary button is released inside a chord', () => {
 		pointer(canvas, 'pointerup', 440, 300, 1); // the last button up, naming the middle one
 		await settle();
 
-		expect(expectOk(await zonesRepo.listByPlan(PLAN))[0].entity.geometry.points).not.toEqual(before);
+		expect(expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points).not.toEqual(before);
 		harness.unmount();
 	});
 });

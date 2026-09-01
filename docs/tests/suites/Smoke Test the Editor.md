@@ -328,3 +328,13 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   `onChooseItem`/`onClose` ordering, which `obsidian.d.ts` does not state, and its step 12
   is the first time §83's row marker is rendered through its own data path rather than by
   injecting the span.
+- [[A note that cannot be read]] — the increment where one bad note costs one note: the two
+  listings skip and count, two surfaces draw the count, the reassignment picker refuses
+  instead, and the diagnostics snapshot gets its first door. Every step needs a vault for
+  one of three separate reasons — no gate DRAWS either strip (jsdom lays nothing out, and
+  the harness holds entities rather than text, so no page it can draw has a note that
+  refused), the report is a `Modal` and the vendored `obsidian.css` declares no modal chrome
+  any more than it declares a `.notice`, so `styles/diagnostics.css` is read by nothing
+  anywhere, and the clipboard is a real permission the suite stubs. Its step 7 is the one
+  surface in the increment that deliberately REFUSES rather than counting, and step 11 is a
+  recorded limitation looked at rather than described.

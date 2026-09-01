@@ -63,6 +63,12 @@ export function installObsidianDom(): void {
 	proto.createDiv = function (this: HTMLElement, options?: CreateOptions | string): HTMLElement {
 		return (this as HTMLElement & { createEl: (t: string, o?: CreateOptions | string) => HTMLElement }).createEl('div', options);
 	};
+	// The PROTOTYPE method, which is a different thing from the global `createSpan` installed
+	// above: `el.createSpan(...)` appends to `el`, and only the global existed here until the
+	// diagnostics report called the method form. Obsidian declares both.
+	proto.createSpan = function (this: HTMLElement, options?: CreateOptions | string): HTMLElement {
+		return (this as HTMLElement & { createEl: (t: string, o?: CreateOptions | string) => HTMLElement }).createEl('span', options);
+	};
 	proto.empty = function (this: HTMLElement): void {
 		this.replaceChildren();
 	};

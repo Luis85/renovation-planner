@@ -23,7 +23,7 @@ function queriesAnswering(overrides: Partial<RenovationProjectQueryServices>): R
 	return {
 		listProjects: () => Promise.reject(new Error('not exercised')),
 		getProject: () => Promise.resolve(ok(PROJECT)),
-		listPlansByProject: () => Promise.resolve(ok([])),
+		listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
 		...overrides,
 	};
 }
@@ -36,7 +36,7 @@ describe('ProjectDetailStore', () => {
 	it('is ready with the project and its plans when both reads answer', async () => {
 		const store = useProjectDetailStore();
 
-		await store.hydrate(queriesAnswering({ listPlansByProject: () => Promise.resolve(ok([{ id: 'plan-1', name: 'Ground floor' }])) }), PROJECT.id, true);
+		await store.hydrate(queriesAnswering({ listPlansByProject: () => Promise.resolve(ok({ plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadable: 0 })) }), PROJECT.id, true);
 
 		expect(store.status).toBe('ready');
 		expect(store.project?.name).toBe('Hallway');
@@ -45,6 +45,45 @@ describe('ProjectDetailStore', () => {
 		// asserted here rather than in a case of its own, since this is the one hydration in
 		// the file that is both `'ready'` and holds a plan.
 		expect(store.emptyStateKey).toBeNull();
+	});
+
+	/**
+	 * Zero readable plans with a refusal behind them is NOT an empty state, and this state was
+	 * unreachable until the plan listing learned to skip and count: one bad plan note used to
+	 * fail the whole read, so the store went to `'failed'` and never got here.
+	 *
+	 * Both halves are the assertion. `unreadablePlans` alone would pass against a build that
+	 * still offered "Create your first plan" beside "1 plan could not be read"; `emptyStateKey`
+	 * alone would pass against one that never carried the count this far.
+	 */
+	it('offers no empty state when every plan note in the project refused', async () => {
+		const store = useProjectDetailStore();
+
+		await store.hydrate(
+			queriesAnswering({
+				listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 1 })),
+			}),
+			PROJECT.id,
+			true,
+		);
+
+		expect(store.status).toBe('ready');
+		expect(store.unreadablePlans).toBe(1);
+		expect(store.emptyStateKey).toBeNull();
+	});
+
+	it('still offers the empty state for a project whose plans all read as none', async () => {
+		const store = useProjectDetailStore();
+
+		await store.hydrate(
+			queriesAnswering({
+				listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
+			}),
+			PROJECT.id,
+			true,
+		);
+
+		expect(store.emptyStateKey).toBe('noPlans');
 	});
 
 	/**
@@ -181,7 +220,7 @@ describe('ProjectDetailStore', () => {
 	it('keeps a ready detail state and its content when a re-hydrate misses before the scan has completed', async () => {
 		const store = useProjectDetailStore();
 		await store.hydrate(
-			queriesAnswering({ listPlansByProject: () => Promise.resolve(ok([{ id: 'plan-1', name: 'Ground floor' }])) }),
+			queriesAnswering({ listPlansByProject: () => Promise.resolve(ok({ plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadable: 0 })) }),
 			PROJECT.id,
 			true,
 		);
@@ -238,7 +277,7 @@ describe('ProjectDetailStore', () => {
 			queriesAnswering({
 				listPlansByProject: async () => {
 					await slow;
-					return ok([{ id: 'stale-plan', name: 'Stale' }]);
+					return ok({ plans: [{ id: 'stale-plan', name: 'Stale' }], unreadable: 0 });
 				},
 			}),
 			PROJECT.id,

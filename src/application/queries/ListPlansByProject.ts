@@ -10,6 +10,17 @@ export interface ListPlansByProjectInput {
 }
 
 /**
+ * The plans of one project, and how many of its plan notes could not be read.
+ *
+ * `unreadable` is the query-side name for the port's `refused` — the rename
+ * `ProjectListResult` already makes across this same boundary.
+ */
+export interface PlanListResult {
+	readonly plans: readonly Plan[];
+	readonly unreadable: number;
+}
+
+/**
  * One project's plans — the project detail state's read (design slice 21).
  *
  * A thin wrapper over `listByProject`, which slice 3 declared on the port and slice 4
@@ -20,28 +31,35 @@ export interface ListPlansByProjectInput {
  * the mapping to `PlanSummaryDto` happens in the read-model bundle the view is handed, beside
  * every other `to*Dto`.
  *
- * **It has no `unreadable` half, and that is inherited rather than decided.** `ListProjects`
- * can report a partial listing because `ProjectRepository.listAll` answers `{ loaded,
- * refused }`; `PlanRepository.listByProject` answers a bare array whose loop fails the whole
- * list for one bad note and silently drops an id whose note is gone. This class does neither
- * reconciliation, counting nor validation of its own — it passes the port's array straight
- * through, which is what `listPlansByProject.test.ts` pins. The FAIL-whole-list half is also
- * pinned there, at this class, because a repository double can produce it (a failed read is a
- * `Result` value, nothing more). The DROP half cannot be produced by a double honestly — it
- * needs a real index/note loop with a missing note behind an indexed id — so it is pinned at
- * `ObsidianPlanRepository.listByProject` itself, in
- * `tests/infrastructure/obsidian/repositories/contract.test.ts`. Widening either needs the
- * PORT's contract to change, which `ListAssets` and `ListReassignmentTargets` also read
- * through.
+ * **It HAS an `unreadable` half now, and this paragraph used to say the opposite.** It read
+ * "no `unreadable` half, and that is inherited rather than decided", because
+ * `PlanRepository.listByProject` answered a bare array whose loop failed the whole list for
+ * one bad note — so the project detail state drew its failure screen rather than the plans it
+ * could read. The port answers `{ loaded, refused }` now, the same shape `ProjectRepository.
+ * listAll` always had, and this query renames it across the boundary exactly as
+ * `ProjectListResult` does.
+ *
+ * Still no reconciliation, counting or validation of its own: the count is the port's, and
+ * WHICH refusals were folded into it is the repository's decision (`SKIPPABLE_PLAN_CODES`),
+ * not this query's. The other half of the old paragraph survives unchanged — an id whose note
+ * is gone is silently DROPPED rather than counted, because `getById` answers `ok(null)` for a
+ * missing note and that is not a refusal. It cannot be produced by a repository double
+ * honestly, so it stays pinned at `ObsidianPlanRepository.listByProject` itself, in
+ * `tests/infrastructure/obsidian/repositories/contract.test.ts`.
  */
 export class ListPlansByProject
-	implements Query<ListPlansByProjectInput, Result<Plan[], RepositoryError>>
+	implements Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>
 {
 	constructor(private readonly plans: PlanRepository) {}
 
-	async execute({ projectId }: ListPlansByProjectInput): Promise<Result<Plan[], RepositoryError>> {
+	async execute({
+		projectId,
+	}: ListPlansByProjectInput): Promise<Result<PlanListResult, RepositoryError>> {
 		const listed = await this.plans.listByProject(projectId);
 		if (isErr(listed)) return listed;
-		return ok(listed.value.map((loaded) => loaded.entity));
+		return ok({
+			plans: listed.value.loaded.map((loaded) => loaded.entity),
+			unreadable: listed.value.refused,
+		});
 	}
 }

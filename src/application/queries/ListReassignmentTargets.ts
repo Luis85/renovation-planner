@@ -1,4 +1,5 @@
-import { isErr, ok, type Result } from '../../core/result/Result';
+import { err, isErr, ok, type Result } from '../../core/result/Result';
+import { persistenceError } from '../errors';
 import type { RepositoryError } from '../ports/repositoryErrors';
 import { UNIT_KIND } from '../../core/units/MeasurementUnit';
 import type { ReassignmentTargetDto } from './reassignmentTypes';
@@ -53,8 +54,20 @@ export class ListReassignmentTargets {
 		const projectId = zoneListed.value.entity.projectId;
 		const all = await this.zones.listByProject(projectId);
 		if (isErr(all)) return all;
+		if (all.value.refused > 0) {
+			// The one consumer that must NOT carry the count. This list is offered before a
+			// delete, so an incomplete one is how a user reassigns to the wrong zone and then
+			// destroys the right one. A refusal is recoverable by asking again; a silently short
+			// picker is not recoverable at all.
+			return err(
+				persistenceError(
+					'zone.listing-incomplete',
+					`${String(all.value.refused)} zone note(s) in this project could not be read, so the set of reassignment targets is incomplete`,
+				),
+			);
+		}
 		return ok(
-			all.value
+			all.value.loaded
 				.filter((z) => z.entity.id !== target.zoneId)
 				.map((z) => ({ id: z.entity.id, label: z.entity.name })),
 		);

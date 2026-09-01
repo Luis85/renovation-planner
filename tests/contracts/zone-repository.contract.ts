@@ -121,11 +121,16 @@ export function zoneRepositoryContract(make: () => ZoneFixture): void {
 			expectOk(await f.repository.save(otherProjectZone, 'absent'));
 
 			expect(
-				expectOk(await f.repository.listByPlan(onTarget.planId)).map((z) => z.entity.name),
+				expectOk(await f.repository.listByPlan(onTarget.planId)).loaded.map((z) => z.entity.name),
 			).toEqual(['A', 'A2']);
 			expect(
-				expectOk(await f.repository.listByProject(onTarget.projectId)).map((z) => z.entity.name),
+				expectOk(await f.repository.listByProject(onTarget.projectId)).loaded.map((z) => z.entity.name),
 			).toEqual(['A', 'A2', 'B']);
+			// Part of the contract rather than of one implementation: every zone here is readable,
+			// so BOTH must answer zero. The disk-backed one has a non-zero arm and the in-memory
+			// one cannot — it holds entities rather than text — and this is the assertion that
+			// keeps the shape one shape across that difference.
+			expect(expectOk(await f.repository.listByPlan(onTarget.planId)).refused).toBe(0);
 		});
 	});
 }

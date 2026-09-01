@@ -2726,7 +2726,8 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Produces:
   - `interface AssetPriceRowDto { assetId: string; assetName: string; catalogue: Money; override: Money | null; overrideId: string | null; overrideVersion: EntityVersion | null; }`
   - `class ListProjectAssetPrices` with `execute(projectId): Promise<Result<AssetPriceRowDto[], RepositoryError>>`
-  - `RequirementInspectorDTO.unitCost: { catalogue: Money; projectOverride: Money | null; effective: Money }`
+  - `RequirementInspectorDTO.unitCost: { catalogue: Money; projectOverride: Money | null; effective: Money } | null`
+    — `effective` is the PERSISTED provenance, not the current resolution; see the block below.
 
 - [ ] **Step 1: Write the failing query tests**
 
@@ -2812,14 +2813,30 @@ In `GetRequirementsForZone`, extend `RequirementInspectorDTO` beside `quantity` 
 	 * something to discover while building the panel.
 	 */
 	unitCost: {
+		/** The library's price NOW. */
 		catalogue: Money;
+		/** This project's own price NOW, or `null`. */
 		projectOverride: Money | null;
+		/**
+		 * **The unit cost these figures were actually DERIVED FROM** — `r.calculatedFrom.unitCost`,
+		 * NOT the current resolution.
+		 *
+		 * The two differ exactly when the row is stale: an override moved out of band, or a
+		 * recalculation failed. Taking Task 6's freshly-resolved value here would label a price
+		 * that was never used as the one in force, on a row simultaneously marked `stale` — the
+		 * surface contradicting its own status field.
+		 *
+		 * It also keeps this group consistent with the one beside it: `cost.calculated` is
+		 * historical, so the unit cost it was computed from must be too. `catalogue` and
+		 * `projectOverride` are CURRENT, and the gap between them and this figure is precisely
+		 * what a stale row exists to show.
+		 */
 		effective: Money;
 	};
 ```
 
-Populate it in `buildRow` from the values Task 6 already resolved there. `catalogue` is
-`assetEntity.unitCost`; when the asset is gone the whole group is unavailable, so make it
+`effective` comes from `r.calculatedFrom.unitCost` — the persisted provenance — while `catalogue`
+is `assetEntity.unitCost` and `projectOverride` is the value Task 6 resolved. when the asset is gone the whole group is unavailable, so make it
 `unitCost: … | null` and set `null` for a row whose `missingTarget` is `'asset'` — do not invent
 a zero.
 
@@ -3040,6 +3057,8 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Create: `src/presentation/views/AssetPriceList.vue`
 - Create: `src/application/events/projectPricesChangeSource.ts` (step 4a)
 - Modify: `src/presentation/views/ProjectDetail.vue`, `src/presentation/views/ProjectDetailState.vue`
+- Modify: `src/presentation/read-models/PlanDto.ts` — `ProjectSummaryDto.currency`'s docblock,
+  which claims the field is display-only with no consumer. It has one now.
 - Modify: `src/presentation/views/renovationProjectCommands.ts` — the write boundary this
   section dispatches through, plus its unavailable fallback (step 3a).
 - Modify: `src/presentation/stores/ProjectDetailStore.ts`
@@ -3055,7 +3074,27 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Interfaces:**
 - Consumes: Task 8's `AssetPriceRowDto` and `ListProjectAssetPrices`, Task 4's two commands.
-- Produces: `AssetPriceList.vue` with `defineProps<{ rows: readonly AssetPriceRowDto[]; commit: (edit: AssetPriceEdit) => Promise<DispatchResult>; logger: Logger }>()`.
+- Produces: `AssetPriceList.vue` with
+  `defineProps<{ rows: readonly AssetPriceRowDto[]; currency: string; commit: (edit: AssetPriceEdit) => Promise<DispatchResult>; logger: Logger }>()`.
+
+**`currency` is the PROJECT's, and it is load-bearing rather than decoration.** The increment's
+central case is a GBP project pricing an EUR catalogue asset with no override yet — and the row's
+only available currency there is the catalogue's EUR. Following `RequirementRow`'s pattern of
+minting `Money` from the row's own effective currency would submit EUR,
+`SetAssetPriceOverrideCommand` would refuse it on the coherence rule, and **the dead end this
+increment exists to close would be reachable through the shipped surface**. The typed amount
+becomes `createMoney(typed, props.currency)` — the validating door, so a malformed currency
+refuses rather than being asserted.
+
+A prop on the LIST rather than a field on every row: one project, one currency, and a per-row
+copy is a value that can disagree with itself.
+
+`ProjectDetail` already holds it (`ProjectSummaryDto.currency`, which slice 21 renders in the
+header). **That field's docblock calls it "for display only… this surface prints it and compares
+nothing, and a brand at a boundary with no consumer is a claim nothing rests on" — and this
+increment makes that false.** Update the comment in the same edit. It stays a plain `string`
+rather than gaining the brand, because `createMoney` is the validating door and a brand would
+move that check earlier without removing it.
 
 **Read `PlanList.vue` and `RequirementRow.vue` first.** This is `PlanList`'s sibling in shape
 (a header, then a `<ul>`) and `RequirementRow`'s in commit behaviour (`useFieldCommit`, blur and
@@ -3107,6 +3146,18 @@ describe('AssetPriceList', () => {
 	 */
 	it('dispatches nothing when clear is pressed on a row that has no override', async () => {
 		expect(commit).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The increment's central case, at the surface: a GBP project, an EUR catalogue asset, no
+	 * override. The submitted `Money` must be GBP. Watch it fail against a component that mints
+	 * from the row's effective currency — the command refuses, and the dead end is back.
+	 */
+	it('submits the typed price in the project currency, not the catalogue currency', async () => {
+		// rows: [{ catalogue: 24.00 EUR, override: null, … }], currency: 'GBP'
+		expect(commit).toHaveBeenCalledWith(expect.objectContaining({
+			unitCost: expect.objectContaining({ amount: '19.50', currency: 'GBP' }),
+		}));
 	});
 
 	it('renders the empty state when the library is empty', () => { … });

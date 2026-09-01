@@ -30,7 +30,8 @@ is the single boundary where display units appear. [[Plan]] and [[Spatial object
 persistence side of the same rule.
 
 **Checked by.** Not yet. Every conversion is required to be a function in `domain/` asked by a node
-test rather than by a screen — the *Calibration and measurement* epic's own definition of done.
+test rather than by a screen — part of the [[Calibration and measurement]] Feature's Outcome
+contract.
 
 **Sources.** PRD §70 · SDD §22–23 · ADR-009
 ([`docs/development/adrs/0009-world-coordinates-in-millimeters.md`](../../development/adrs/0009-world-coordinates-in-millimeters.md)).

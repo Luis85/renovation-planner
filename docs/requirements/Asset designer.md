@@ -1,10 +1,10 @@
 ---
 type: Epic
-order: 155
+order: 25
 status: New
 started: ""
 finished: ""
-horizon:
+horizon: MVP
 start: ""
 due: ""
 risk: ""
@@ -24,7 +24,7 @@ effort: ""
 complexity: ""
 business-value: ""
 business-value-model: ""
-release: "[[Mighty Dragon]]"
+release: "[[MVP]]"
 ---
 
 # Asset designer
@@ -83,11 +83,12 @@ An item beneath this epic is done when:
   at approval is **that epic's to decide**; the obligation here is only that the state a placement
   used is recoverable rather than overwritten in place.
 - The calibration a designer surface takes belongs to **that object** and never reaches a plan's.
-  The act itself stays [[Calibration and measurement]]'s, and this epic inherits **every rule that
-  epic states**, with exactly one replaced: *calibration belongs to the plan* becomes *an object's
-  calibration belongs to the object*, a replacement rather than an exception, because the two
-  notes cannot both be read as owning it. Inheriting wholesale and naming the single exception is
-  deliberate. An earlier wording here listed the three rules it inherited, which silently dropped
+  The act itself stays [[Calibration and measurement]]'s, and this epic inherits **every rule
+  stated by that Feature**, with exactly one replaced: *calibration belongs to the plan* becomes
+  *an object's calibration belongs to the object*, a replacement rather than an exception,
+  because the two notes cannot both be read as owning it. Inheriting wholesale and naming the
+  single exception is deliberate. An earlier wording here listed the three rules it inherited,
+  which silently dropped
   the other two — a list of somebody else's rules is stale the day they state a sixth. The one
   worth reading twice: **an uncalibrated surface says so wherever a measurement would otherwise
   appear.** An object traced before its background is calibrated is exactly that surface, and

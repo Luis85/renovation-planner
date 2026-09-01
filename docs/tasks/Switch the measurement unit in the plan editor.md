@@ -1,11 +1,11 @@
 ---
-type: PBI
-parent: "[[Canvas navigation]]"
+type: Task
+parent: "[[Measuring tools]]"
 order: 10
 status: New
 started: ""
 finished: ""
-horizon: Now
+horizon: "MVP"
 start: ""
 due: ""
 risk: ""
@@ -25,9 +25,12 @@ effort: ""
 complexity: ""
 business-value: ""
 business-value-model: ""
+release: "[[MVP]]"
 ---
 
 # Switch the measurement unit in the plan editor
+
+## Evidence
 
 The world unit is the millimetre and always will be — PRD §70 normalizes length to mm, ADR-009
 makes `1 world unit = 1 mm` mandatory rather than recommended, and
@@ -35,15 +38,54 @@ makes `1 world unit = 1 mm` mandatory rather than recommended, and
 None of it is in question here. What is in question is that a renovator planning a whole estate
 is *shown* those millimetres, and a six-digit figure is not a number anybody reads.
 
+This is the display half of PRD §71's separation, made into a control. §71 insists internal and
+display precision are different things and gives `42718432 mm²` / `42.72 m²` as its example; it
+never said who picks the second one. This task says the renovator does.
+
+### Sources
+
+PRD §4 (target users), PRD §39 (User Experience Requirements — the editor's regions), PRD §66
+(Save Strategy — what may not reach the vault), PRD §70 (Unit System), PRD §71 (Measurement
+Precision), PRD §82 (calibration model), PRD §83 (Configuration Model); SDD §23 (World Coordinate
+System), SDD §24 (Viewport Transform), SDD §25 (Calibration), SDD §57 (Initial Editor Tools),
+SDD §60 (UI Layout), SDD §61 (Responsive Strategy — the toolbar's width problem).
+
+ADR-009 ([`docs/development/adrs/0009-world-coordinates-in-millimeters.md`](../development/adrs/0009-world-coordinates-in-millimeters.md))
+— read for what it refuses (a per-plan choice of the *persisted* unit) and for its *Revisit when*.
+This note does not trigger it: the sidecar's `unit` field stays `"mm"` and the preference itself
+is never written there, which is the choice the ADR forbids. It does **influence** one persisted
+number — calibration's scale, derived from a distance typed in the displayed unit — and that is
+not what the ADR refuses: the scale is stored in millimetres like everything else. Saying "never
+reaches the sidecar" without this clause would read as "calibration is unaffected", which is the
+opposite of what *The unit is read in both directions* establishes.
+
+Business rules read: [[World coordinates are millimetres, converted once at the engine boundary]]
+(BR-SPATIAL-001 — **clarified** by this note, not amended; its invariant is unchanged) and
+[[An uncalibrated plan never presents a measurement as true]].
+
+Components read: [[Toolbar]], [[Tool button]], [[Measurement label]], [[Status bar]],
+[[Inspector]], [[Plan canvas]].
+
+Design slices read: [`05-canvas-rendering-and-editor-shell`](../tasks/05-canvas-rendering-and-editor-shell.md)
+(the shell's regions and the toolbar), [`06-editor-tool-framework-undo-redo-and-inspector`](../tasks/06-editor-tool-framework-undo-redo-and-inspector.md)
+(the tool registry the trailing group sits beside), [`07-calibration`](../tasks/07-calibration.md)
+(whose "Plan's display unit" this note turned out to define) and
+[`09-quantity-and-cost-engine`](../tasks/09-quantity-and-cost-engine.md) (`toMeasuredQuantity`'s
+signature, the `MeasurementUnit` vocabulary and the worked pipeline — why a display unit may not
+reach the pricing boundary). Also
+[`Architecture and Software Design`](../requirements/Architecture%20and%20Software%20Design.md) for layer
+ownership, and `src/plugin/settings/settings.ts` for the shipped `units` vocabulary.
+
+Every section number names its document, since `docs/requirements/` reads a bare `§` as the PRD
+and the two documents number independently — PRD §60 is the Identity Model, SDD §60 is UI Layout.
+
+## Why it matters
+
 Estate-scale work is **comparative** — is this terrace bigger than that one, does the drive reach
 the outbuilding — and comparison is done by scanning, not by arithmetic. A column of `42718`,
 `128400`, `9630` defeats scanning entirely, so the renovator shifts decimals in their head to get
 back to the metres they think in. Room-scale work in the same session wants the millimetres back,
 because a worktop 18 mm out does not fit. One plan, one session, two scales, and today one unit.
-
-This is the display half of PRD §71's separation, made into a control. §71 insists internal and
-display precision are different things and gives `42718432 mm²` / `42.72 m²` as its example; it
-never said who picks the second one. This use case says the renovator does.
 
 **It is not purely cosmetic, and the opening has to say so.** Switching writes nothing *to the
 vault* and moves no stored geometry — it does write the per-plan preference to local storage
@@ -52,12 +94,14 @@ what calibration reads a typed known distance *in*, which reaches something pers
 who takes "cosmetic" at face value is the reader who ships a scale error; *The unit is read in
 both directions* below is the whole story.
 
-## Actor
+## Approach
+
+### Actor
 
 [[Private renovator]] — PRD §4's primary persona, renovating their own house and garden, and
 therefore the person who has both an estate and a bathroom in one vault.
 
-## Preconditions
+### Preconditions
 
 - A plan is open in the plan editor.
 
@@ -66,7 +110,7 @@ no real-world figure to express in any unit, but the use case still starts — e
 Listing it above would let an implementation satisfy the preconditions and omit what the
 uncalibrated state owes.
 
-## Main flow
+### Main flow
 
 1. The renovator has a plan open, showing figures in the unit that plan was last read in — or,
    where it has never been switched, in whatever *Which unit a plan opens in* resolves to.
@@ -78,7 +122,7 @@ uncalibrated state owes.
 5. The choice is remembered for that plan, outside the vault. Reopening the plan comes back in
    the unit it was left in.
 
-## Extensions
+### Extensions
 
 - **2a** — No calibration, and none in progress. The picker is present and **disabled**, saying
   why, so the renovator is pointed at [[Scale calibration]] rather than left wondering where the
@@ -110,7 +154,7 @@ uncalibrated state owes.
 - **5c** — The store cannot be written to. The switch still applies to the open editor; only the
   remembering is lost. Not worth an error dialog, and not worth refusing the switch.
 
-## Guarantee
+### Guarantee
 
 Whatever the renovator picks, and whichever branch above is taken:
 
@@ -122,15 +166,16 @@ Whatever the renovator picks, and whichever branch above is taken:
   metres produce the same budget to the last cent — not because the figures are reconciled, but
   because the budget was never shown the question.
 - **Nothing about *switching* a unit reaches the vault.** No note modified, no sidecar rewritten,
-  no save state dirtied — which is why this belongs under [[Canvas navigation]], whose own rule
-  (PRD §66) is that the editor's transient state must not reach the vault.
+  no save state dirtied. This belongs under [[Measuring tools]] because the choice governs how
+  calibrated measurements are read and entered; it still obeys [[Canvas navigation]]'s rule
+  (PRD §66) that transient editor state must not reach the vault.
 
 **Scope of the second bullet:** it covers the output and pricing paths. The unit has exactly one
 input role — calibration's typed distance — and the guarantee is silent about it by design, not
 by omission. Stated as an absolute it would invite an implementation to pass a typed `5` as 5 mm
 where the renovator meant 5 m, persisting a scale off by a thousand.
 
-## The unit is read in both directions, and calibration is why
+### The unit is read in both directions, and calibration is why
 
 **This note defines a term slice 7 already uses.** [`07-calibration`](../tasks/07-calibration.md)
 converts the typed known distance "from the **Plan's display unit** into world units (mm) …
@@ -142,7 +187,7 @@ The stakes are why this is stated in the opening rather than a footnote. Calibra
 the scale every later length, area, quantity and cost inherits, and unlike everything else here
 that scale is **persisted**. An implementation reading this note as output-only, against a
 calibration flow reading the same unit as input, gets a scale wrong by 10 or 1000 — a plausible,
-wrong budget, which the *Calibration and measurement* epic calls the worst available outcome.
+wrong budget, which the *Calibration and measurement* feature calls the worst available outcome.
 
 So the unit is cosmetic **except** as the interpretation of calibration's typed distance. The
 Guarantee is unaffected: it is *calibrating* that persists, not *switching*.
@@ -156,7 +201,7 @@ That earns one rule the picker would not otherwise need:
   alternative — the prompt is exactly when the renovator needs it, so disabling would defeat
   **2b** while appearing to satisfy this rule.
 
-## Which unit a plan opens in
+### Which unit a plan opens in
 
 A stated chain, resolved where the picker is initialised:
 
@@ -207,7 +252,7 @@ property — **what the renovator can see is what the number means.** A unit tha
 interpretation from a settings pane the renovator is not looking at would be the same defect
 wearing a tidier justification.
 
-## What this forces elsewhere
+### What this forces elsewhere
 
 Each is an edit to something already written. A requirement that rewrites a rule silently is
 worse than one that says it is doing it.
@@ -250,7 +295,7 @@ worse than one that says it is doing it.
    presentation layer converts the typed distance from the plan's display unit into mm "using
    slice 2's unit conversion" — but slice 2 says `core/units/` holds the world-unit fact and
    explicitly "does not hold the measurement vocabulary", and
-   [`Architecture and Software Design`](Architecture%20and%20Software%20Design.md) assigns units
+   [`Architecture and Software Design`](../requirements/Architecture%20and%20Software%20Design.md) assigns units
    to slice 9. So that sentence names a thing that does not exist where it points. The **layer**
    it names is right and the **module** is not: calibration's input conversion is the same
    presentation-layer conversion criterion 5 places there, run inverse. One module, used both
@@ -262,7 +307,7 @@ worse than one that says it is doing it.
    prose, so leaving that entry standing reintroduces exactly the misplacement this item
    rejects. Slice 2 supplies the world-unit *convention* to that slice, not a unit conversion.
 
-## Out of scope
+### Out of scope
 
 - **A unit of measure assigned to an object or an asset** — the other half of the original ask,
   and a different kind of thing: a *stored fact* that travels with the note and appears in
@@ -317,7 +362,7 @@ worse than one that says it is doing it.
    behaviour, whole, living and tested in `presentation/`; the **pricing** conversion stays where
    slice 9 has it. There is no core primitive to split off: converting mm to centimetres for a
    label is not a domain fact, and
-   [`Architecture and Software Design`](Architecture%20and%20Software%20Design.md) assigns units
+   [`Architecture and Software Design`](../requirements/Architecture%20and%20Software%20Design.md) assigns units
    to slice 9, with slice 2's `core/units/` holding only the world-unit convention.
 6. The formatter converts from the **unrounded** world value. A test that rounds first and formats
    second produces a different figure at some input, and that input is the test.
@@ -366,7 +411,7 @@ worse than one that says it is doing it.
     alternative (extension 2b). The case a test must fail on is a conversion that quietly zeroes a
     small distance.
 
-## Assumptions
+## Risks
 
 Each is something this note decided that its sources did not settle.
 
@@ -414,39 +459,8 @@ Each is something this note decided that its sources did not settle.
    (step 4's "every figure") while staying "a readout, not a control" — its Contract still emits
    nothing.
 
-## Sources
+## Outcome
 
-PRD §4 (target users), PRD §39 (User Experience Requirements — the editor's regions), PRD §66
-(Save Strategy — what may not reach the vault), PRD §70 (Unit System), PRD §71 (Measurement
-Precision), PRD §82 (calibration model), PRD §83 (Configuration Model); SDD §23 (World Coordinate
-System), SDD §24 (Viewport Transform), SDD §25 (Calibration), SDD §57 (Initial Editor Tools),
-SDD §60 (UI Layout), SDD §61 (Responsive Strategy — the toolbar's width problem).
-
-ADR-009 ([`docs/development/adrs/0009-world-coordinates-in-millimeters.md`](../development/adrs/0009-world-coordinates-in-millimeters.md))
-— read for what it refuses (a per-plan choice of the *persisted* unit) and for its *Revisit when*.
-This note does not trigger it: the sidecar's `unit` field stays `"mm"` and the preference itself
-is never written there, which is the choice the ADR forbids. It does **influence** one persisted
-number — calibration's scale, derived from a distance typed in the displayed unit — and that is
-not what the ADR refuses: the scale is stored in millimetres like everything else. Saying "never
-reaches the sidecar" without this clause would read as "calibration is unaffected", which is the
-opposite of what *The unit is read in both directions* establishes.
-
-Business rules read: [[World coordinates are millimetres, converted once at the engine boundary]]
-(BR-SPATIAL-001 — **clarified** by this note, not amended; its invariant is unchanged) and
-[[An uncalibrated plan never presents a measurement as true]].
-
-Components read: [[Toolbar]], [[Tool button]], [[Measurement label]], [[Status bar]],
-[[Inspector]], [[Plan canvas]].
-
-Design slices read: [`05-canvas-rendering-and-editor-shell`](../tasks/05-canvas-rendering-and-editor-shell.md)
-(the shell's regions and the toolbar), [`06-editor-tool-framework-undo-redo-and-inspector`](../tasks/06-editor-tool-framework-undo-redo-and-inspector.md)
-(the tool registry the trailing group sits beside), [`07-calibration`](../tasks/07-calibration.md)
-(whose "Plan's display unit" this note turned out to define) and
-[`09-quantity-and-cost-engine`](../tasks/09-quantity-and-cost-engine.md) (`toMeasuredQuantity`'s
-signature, the `MeasurementUnit` vocabulary and the worked pipeline — why a display unit may not
-reach the pricing boundary). Also
-[`Architecture and Software Design`](Architecture%20and%20Software%20Design.md) for layer
-ownership, and `src/plugin/settings/settings.ts` for the shipped `units` vocabulary.
-
-Every section number names its document, since `docs/requirements/` reads a bare `§` as the PRD
-and the two documents number independently — PRD §60 is the Identity Model, SDD §60 is UI Layout.
+A renovator can switch a plan editor between metres, centimetres and millimetres without changing
+canonical geometry or cost calculations, while calibration interprets typed distances in the
+unit the renovator can see.

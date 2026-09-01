@@ -1,10 +1,10 @@
 ---
 type: Epic
-order: 140
+order: 95
 status: ""
 started: ""
 finished: ""
-horizon:
+horizon: Later
 start: ""
 due: ""
 risk: ""

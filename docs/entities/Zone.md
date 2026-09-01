@@ -23,7 +23,7 @@ A semantically meaningful area: the kitchen, the bathroom, the terrace, the fron
 flower bed, the driveway, the roof. §8's definition is short and the important half is the
 second sentence — *a Zone owns geometry and can expose derived length and area.*
 
-The epic note [[Zones and spatial objects]] states the framing this entity depends on: **a
+The Feature note [[Zones and spatial objects]] states the framing this entity depends on: **a
 zone is a domain object that happens to have geometry, not a drawing that happens to have a
 name.** It has to stay usable from ordinary Obsidian — a wikilink, a [[Bases]] table, a search
 — by someone who never opens the canvas. That is why it is a note and its geometry is a

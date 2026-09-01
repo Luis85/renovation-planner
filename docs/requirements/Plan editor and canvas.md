@@ -1,7 +1,7 @@
 ---
 type: PBI
-parent: "[[Architecture and Software Design]]"
-order: 50
+parent: "[[Editor foundation]]"
+order: 0
 status: Done
 started: ""
 finished: 2026-08-25

@@ -21,8 +21,8 @@ about the same mistake, in the dimension where the magnitudes are large enough t
 **Where it holds.** Formatting is a presentation concern and lives there; the domain never holds a
 display string. [[Quantity]] and [[Plan]] both state it from their own side.
 
-**Checked by.** Not yet. The *Calibration and measurement* epic's definition of done requires it,
-and it is a natural lint-shaped rule: the forbidden thing is a formatter's output re-entering the
-domain.
+**Checked by.** Not yet. The [[Calibration and measurement]] Feature's Outcome contract requires
+it, and it is a natural lint-shaped rule: the forbidden thing is a formatter's output re-entering
+the domain.
 
 **Sources.** PRD §71.

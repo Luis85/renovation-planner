@@ -117,7 +117,9 @@ export class SetAssetFootprintFromDimensionsCommand
  * `footprintPending` is recorded AT CAPTURE from whether that surface carried a scale —
  * a fact about the past, never re-derived later from whether a calibration happens to
  * exist now, which would re-flag a genuinely measured outline the moment its background
- * was replaced.
+ * was replaced. `captureAwaitsScale` is what answers "carried a scale"; retracing over a
+ * typed rectangle with no spec sheet is a capture in millimetres, and the first outline
+ * drawn freehand on an empty canvas is still one a later calibration has to convert.
  *
  * The points cross into the domain unvalidated and are refused by the one polygon
  * validator through `validateAssetShape`, rather than by a `createPolygon` call here that
@@ -142,8 +144,8 @@ export class SetAssetFootprintCommand
 		return updateAssetShape(
 			this.deps,
 			input,
-			(current, calibrated) =>
-				ok(withFootprint(current, { points: input.points }, 'traced', !calibrated)),
+			(current, awaitsScale) =>
+				ok(withFootprint(current, { points: input.points }, 'traced', awaitsScale)),
 			sameFootprint,
 		);
 	}

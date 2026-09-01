@@ -169,6 +169,16 @@ export interface DesignerRigOptions {
 	/** The shape the sidecar starts with. `null` is an asset nobody has drawn on. */
 	readonly shape?: AssetShape | null;
 	/**
+	 * Give the asset a spec sheet.
+	 *
+	 * It changes what a CAPTURE records, which is why it is a knob rather than a constant:
+	 * `captureAwaitsScale` reads an unscaled background as the frame a click lands in, so the
+	 * same gesture over the same typed footprint answers `pending` with a sheet and
+	 * `already in millimetres` without one. Nothing here draws it — the rig's vault holds no
+	 * such file, so the layer answers `unavailable` and the canvas is blank behind the shape.
+	 */
+	readonly background?: boolean;
+	/**
 	 * Compose the leaf with the bundle a session whose settings could not be recovered gets —
 	 * `unavailableAssetDesignerCommands()`, every door refusing `settings.unrecovered`.
 	 *
@@ -220,7 +230,17 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 	const stack = createRepositoryStack();
 	const events = createEventBus();
 	const sidecar = new FaultingSidecar(stack.assetGeometry);
-	const written = expectOk(await stack.assets.save(makeAsset({ height: 700 }), 'absent'));
+	const written = expectOk(
+		await stack.assets.save(
+			makeAsset({
+				height: 700,
+				...(options.background === true
+					? { background: { path: 'Specs/oven.png', kind: 'image' as const, page: null } }
+					: {}),
+			}),
+			'absent',
+		),
+	);
 	const assetId = written.entity.id;
 	expectOk(await sidecar.write(assetId, { calibration: null, shape: options.shape ?? null }));
 

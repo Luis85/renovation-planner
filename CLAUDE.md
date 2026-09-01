@@ -2833,6 +2833,38 @@ building it:
   the distance form, while a TRACED one asks first. The confirmation is therefore a question
   about PROVENANCE, not about presence, which [[Design an Asset]] steps 15 and 22 hold up
   against each other on purpose.
+- **"Was this captured before a scale existed" is not "is there a calibration", and the
+  approximation was reachable through the shipped UI.** The three capture commands set their
+  flag from `!calibrated`, which asks nothing about the SURFACE — so an asset created with a
+  Width and a Depth typed, whose designer opens on a 1200 x 800 rectangle in true millimetres
+  with no spec sheet at all, recorded a *Set anchor* click as pending. Pick a background,
+  calibrate, and `rescaled()` faithfully multiplied that anchor by `scaleCorrection` while
+  correctly leaving the typed footprint alone: the anchor lands outside the object,
+  permanently, with `anchorPending` now false so nothing marks it. Same shape for a clearance
+  traced around a typed footprint. `captureAwaitsScale` is the one answer now, asked once per
+  write in `updateAssetShape` — calibrated, no; an UNCALIBRATED BACKGROUND, yes; no
+  background, yes only while the object's own footprint is not already in millimetres.
+
+  **The middle arm is what stops the fix being an over-correction, and it needed its own
+  cases.** Without it, a clearance genuinely traced on a spec sheet beside a typed footprint
+  stops being flagged and the calibration that follows converts nothing —
+  `calibrateAsset.test.ts`'s "converts a pending clearance and leaves a typed footprint alone"
+  becomes a state nothing can produce. Both mutations were run rather than argued: reverting
+  to `!calibrated` reddens three cases at their assertions, and dropping the background arm
+  reddens seven.
+
+  **What it deliberately does not resolve** is an uncalibrated background BESIDE a typed
+  footprint, where two frames are overlaid and one click cannot say which the user meant. It
+  resolves towards the sheet, because a user who has just picked one is tracing it, and that
+  is an approximation stated where the code is rather than a fact.
+
+  **Five existing cases were named for a surface their fixture did not have** — "when the
+  surface carries no scale", over an asset with no background at all — and were green because
+  `!calibrated` asked nothing about a sheet. They seed one now, which is the fixture their own
+  names always described. `designerTools.test.ts`'s "records the placed anchor as awaiting a
+  scale" was the reported defect asserted end to end, under a docblock saying "a point picked
+  over an uncalibrated BACKGROUND" beside a rig that had none; it is inverted, with the
+  sentence its old docblock promised now a case of its own beside it.
 - **One flag per coordinate group, and no conjunction with provenance.** `footprintOrigin`
   stays `'traced'` for the life of an outline, so it can say where a footprint's coordinates
   CAME FROM and never what has already happened to them; retyping a traced footprint through

@@ -37,9 +37,14 @@ function sameAnchor(current: AssetShape, next: AssetShape): boolean {
  * origin precisely so that default means something.
  *
  * **`anchorPending` is recorded AT CAPTURE**, like every other flag here: an anchor pointed
- * at on an uncalibrated surface is in placeholder coordinates awaiting a scale, and that is a
+ * at on an unscaled surface is in placeholder coordinates awaiting a scale, and that is a
  * fact about the moment it was placed rather than about whether a calibration exists now.
  * This command sets its own flag and neither of the other two.
+ *
+ * **What "an unscaled surface" IS, is `captureAwaitsScale`'s question and not `!calibrated`.**
+ * This command was the reported instance of that difference: an anchor clicked onto a TYPED
+ * footprint with no spec sheet is in true millimetres, and the old rule flagged it pending and
+ * let the next calibration multiply it out of the object.
  *
  * The coordinates cross into the domain unvalidated and are refused for finiteness by
  * `validateAssetShape`, so the one anchor rule lives at the one place that states it.
@@ -60,10 +65,10 @@ export class SetAssetAnchorCommand implements Command<SetAssetAnchorInput, Dispa
 		return updateAssetShape(
 			this.deps,
 			input,
-			(current, calibrated) => {
+			(current, awaitsScale) => {
 				const shape = requireShape(current);
 				if (isErr(shape)) return shape;
-				return ok({ ...shape.value, anchor: input.anchor, anchorPending: !calibrated });
+				return ok({ ...shape.value, anchor: input.anchor, anchorPending: awaitsScale });
 			},
 			sameAnchor,
 		);

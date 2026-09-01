@@ -140,9 +140,11 @@ export class CalibrateAssetCommand implements Command<CalibrateAssetInput, Dispa
 		// THE ASSET FIRST and the sidecar second, through the one function that asks it — a
 		// calibration writing a real `.rpgeo` for an invented id leaves exactly the orphan that
 		// check exists to prevent, and `loadAssetDocument` carries the whole argument.
-		const snapshot = await loadAssetDocument(this.deps, input.assetId);
-		if (isErr(snapshot)) return snapshot;
-		const { document, version } = snapshot.value;
+		const read = await loadAssetDocument(this.deps, input.assetId);
+		if (isErr(read)) return read;
+		// The background this read also carries is nothing to a calibration: `rescaled` below
+		// keys on the per-group flags a CAPTURE recorded, never on the surface as it stands now.
+		const { document, version } = read.value.snapshot;
 
 		const derived = deriveCalibration(
 			input.pointA,

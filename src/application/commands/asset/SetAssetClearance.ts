@@ -45,7 +45,9 @@ function sameClearance(current: AssetShape, next: AssetShape): boolean {
  * now, which would re-flag a genuinely measured boundary the moment its background was
  * replaced. One flag per coordinate group: this command sets its own and neither of the
  * other two, because a clearance capture is not an event in the footprint's history or the
- * anchor's.
+ * anchor's. Whether the surface carried a scale is `captureAwaitsScale`'s question — a
+ * boundary drawn around a TYPED footprint with no spec sheet is already in millimetres, which
+ * `!calibrated` could not say.
  *
  * **Removal is not a capture.** `points: null` clears the flag UNCONDITIONALLY rather than
  * deriving it from the surface, because there are no coordinates left for a scale to convert
@@ -76,7 +78,7 @@ export class SetAssetClearanceCommand implements Command<SetAssetClearanceInput,
 		return updateAssetShape(
 			this.deps,
 			input,
-			(current, calibrated) => {
+			(current, awaitsScale) => {
 				const shape = requireShape(current);
 				if (isErr(shape)) return shape;
 				if (input.points === null) {
@@ -85,7 +87,7 @@ export class SetAssetClearanceCommand implements Command<SetAssetClearanceInput,
 				return ok({
 					...shape.value,
 					clearance: { points: input.points },
-					clearancePending: !calibrated,
+					clearancePending: awaitsScale,
 				});
 			},
 			sameClearance,

@@ -107,10 +107,25 @@ function designChangesHeardOn(bus: EventBus): AssetId[] {
 }
 
 /**
+ * A spec sheet, for the cases whose subject is a capture MADE ON ONE.
+ *
+ * `captureAwaitsScale` asks three things, and the second is whether an unscaled background
+ * exists — so a case named "when the surface carries no scale" needs a surface for the
+ * sentence to be about. Five cases below said that and seeded no background at all: they were
+ * green on `!calibrated`, which asked nothing about a sheet, and they were therefore
+ * indistinguishable from the state that used to be flagged WRONGLY — a typed footprint with
+ * no sheet at all, where a click is already in millimetres.
+ */
+const SHEET = { path: 'Specs/oven.png', kind: 'image', page: null } as const;
+
+/**
  * Every command is constructed HERE. A command built beside a case is a command a mutation
  * run silently leaves un-mutated, which Task A5a paid for once already.
+ *
+ * `background` is OFF by default, so a case that says nothing about a spec sheet is a case
+ * about an asset that has none — which is the honest default now that the two differ.
  */
-async function seeded() {
+async function seeded(options: { readonly background?: boolean } = {}) {
 	const stack = createRepositoryStack();
 	const assetId = createAssetId();
 	const sidecar = new ObsidianAssetGeometrySidecar(stack.assetGeometry);
@@ -119,7 +134,12 @@ async function seeded() {
 	// only a sidecar until that check landed, so 47 cases across these two files were driving
 	// commands against an asset that does not exist — measured, and the reason the check is
 	// worth having rather than a nicety.
-	expectOk(await stack.assets.save(makeAsset({ id: assetId }), 'absent'));
+	expectOk(
+		await stack.assets.save(
+			makeAsset({ id: assetId, ...(options.background === true ? { background: SHEET } : {}) }),
+			'absent',
+		),
+	);
 	return {
 		stack,
 		assetId,
@@ -152,7 +172,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('captures a boundary and flags it pending when the surface carries no scale', async () => {
-		const { clearance, assetId, seed, storedShape } = await seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded({ background: true });
 		await seed({ calibration: null, shape: measured() });
 
 		expect(expectOk(await clearance.execute({ assetId, points: WIDER }))).toBe('wrote');
@@ -172,6 +192,24 @@ describe('SetAssetClearance', () => {
 	});
 
 	/**
+	 * The anchor's reported defect, in the sibling command: a boundary drawn around a TYPED
+	 * rectangle with no spec sheet on the canvas is drawn in the only frame there is, which is
+	 * millimetres. `!calibrated` flagged it and the next calibration expanded it away from the
+	 * object it belongs to.
+	 */
+	it('leaves a boundary drawn around a typed footprint with no spec sheet already in millimetres', async () => {
+		const { clearance, assetId, seed, storedShape } = await seeded();
+		await seed({
+			calibration: null,
+			shape: { ...measured(), footprintOrigin: 'typed', footprintPending: false },
+		});
+
+		expect(expectOk(await clearance.execute({ assetId, points: WIDER }))).toBe('wrote');
+
+		expect((await storedShape())?.clearancePending).toBe(false);
+	});
+
+	/**
 	 * Removal is not a capture. There are no coordinates left to convert, so the flag goes
 	 * down whatever the surface says — and a build deriving it from calibration alone does not
 	 * merely store something odd, it fails at the write, because `validateAssetShape` refuses
@@ -179,7 +217,7 @@ describe('SetAssetClearance', () => {
 	 * calibrated surface the wrong derivation and the right answer agree.
 	 */
 	it('clears the clearance when given null, and clears its pending flag with it', async () => {
-		const { clearance, assetId, seed, storedShape } = await seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded({ background: true });
 		await seed({ calibration: null, shape: measured() });
 		expect(expectOk(await clearance.execute({ assetId, points: WIDER }))).toBe('wrote');
 		expect((await storedShape())?.clearancePending).toBe(true);
@@ -192,7 +230,7 @@ describe('SetAssetClearance', () => {
 	});
 
 	it('sets only its own pending flag, leaving a measured footprint measured', async () => {
-		const { clearance, assetId, seed, storedShape } = await seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded({ background: true });
 		await seed({ calibration: null, shape: measured() });
 
 		await clearance.execute({ assetId, points: WIDER });
@@ -247,7 +285,7 @@ describe('SetAssetClearance', () => {
 	 * outline changing, and the re-trace is what records that it has been through one.
 	 */
 	it('rewrites a boundary whose coordinates are unchanged but which is no longer awaiting a scale', async () => {
-		const { clearance, assetId, seed, storedShape } = await seeded();
+		const { clearance, assetId, seed, storedShape } = await seeded({ background: true });
 		await seed({ calibration: null, shape: measured() });
 		await clearance.execute({ assetId, points: WIDER });
 		await seed({ calibration: CALIBRATION, shape: await storedShape() });
@@ -300,7 +338,7 @@ describe('SetAssetAnchor', () => {
 	});
 
 	it('places the anchor and flags it pending when the surface carries no scale', async () => {
-		const { anchor, assetId, seed, storedShape } = await seeded();
+		const { anchor, assetId, seed, storedShape } = await seeded({ background: true });
 		await seed({ calibration: null, shape: measured() });
 
 		expect(expectOk(await anchor.execute({ assetId, anchor: { x: 10, y: 10 } }))).toBe('wrote');
@@ -317,6 +355,49 @@ describe('SetAssetAnchor', () => {
 		await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
 
 		expect((await storedShape())?.anchorPending).toBe(false);
+	});
+
+	/**
+	 * **The reported defect, from the surface a user actually reaches it through.** Create an
+	 * asset with a Width and a Depth typed and the designer opens on a drawn rectangle in true
+	 * millimetres, with no spec sheet and no calibration. A click on that rectangle is a click
+	 * in millimetres — and `!calibrated` recorded it as pending, so the calibration that
+	 * followed multiplied the anchor out of the object it was placed inside, permanently, with
+	 * the flag now down and nothing marking it.
+	 *
+	 * Seeded with `footprintOrigin: 'typed'` and NO background, because both halves are
+	 * load-bearing: add a sheet and the second arm of `captureAwaitsScale` correctly answers
+	 * pending again (the case below), and make the footprint traced-and-pending and the third
+	 * arm does too.
+	 */
+	it('leaves an anchor placed on a typed footprint with no spec sheet already in millimetres', async () => {
+		const { anchor, assetId, seed, storedShape } = await seeded();
+		await seed({
+			calibration: null,
+			shape: { ...measured(), footprintOrigin: 'typed', footprintPending: false },
+		});
+
+		expect(expectOk(await anchor.execute({ assetId, anchor: { x: 10, y: 10 } }))).toBe('wrote');
+
+		expect((await storedShape())?.anchorPending).toBe(false);
+	});
+
+	/**
+	 * And the other side of that pair, which is what stops the fix from being "never flag an
+	 * anchor on a typed footprint": the SHEET is unscaled, and it is what the user is pointing
+	 * at. The two frames are genuinely overlaid here and `captureAwaitsScale` resolves towards
+	 * the sheet on purpose — a user who has just picked one is tracing it.
+	 */
+	it('still flags an anchor placed over an unscaled spec sheet, typed footprint or not', async () => {
+		const { anchor, assetId, seed, storedShape } = await seeded({ background: true });
+		await seed({
+			calibration: null,
+			shape: { ...measured(), footprintOrigin: 'typed', footprintPending: false },
+		});
+
+		await anchor.execute({ assetId, anchor: { x: 10, y: 10 } });
+
+		expect((await storedShape())?.anchorPending).toBe(true);
 	});
 
 	it('sets only its own pending flag, leaving the footprint and clearance awaiting their scale', async () => {

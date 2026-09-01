@@ -199,12 +199,38 @@ describe('placing the anchor', () => {
 	});
 
 	/**
-	 * The anchor is recorded as AWAITING A SCALE, because a point picked over an uncalibrated
-	 * background is in placeholder coordinates — a fact about the moment it was placed, and the
-	 * flag Task B6's rescale keys on.
+	 * **This case asserted the defect, end to end, and is the reported one inverted.** It read
+	 * "records the placed anchor as awaiting a scale" and passed: `TYPED` is a 1200 x 800
+	 * rectangle in true millimetres and this rig's asset has no spec sheet, so the click is a
+	 * click in millimetres — and `!calibrated` flagged it, after which the calibration that
+	 * follows multiplies the anchor out of the object it was placed inside, permanently, with
+	 * the flag now down and nothing marking it. Reachable entirely through the shipped UI:
+	 * create an asset with Width and Depth typed, Set anchor, click, pick a background,
+	 * Calibrate.
+	 *
+	 * Its old docblock said "a point picked over an uncalibrated BACKGROUND", which is the
+	 * right rule and was not the fixture: there was no background to pick over. The sibling
+	 * case below is that sentence with a fixture that means it.
 	 */
-	it('records the placed anchor as awaiting a scale', async () => {
+	it('leaves an anchor placed on a typed footprint with no spec sheet already in millimetres', async () => {
 		const rig = await designerRig({ shape: TYPED });
+
+		await activate(rig, 'designer.toolbar.set-anchor');
+		click(rig, { x: 120, y: 40 });
+		await settle();
+
+		expect((await rig.document()).shape?.anchorPending).toBe(false);
+		rig.unmount();
+	});
+
+	/**
+	 * And the pair: a point picked over an UNCALIBRATED SPEC SHEET is in that sheet's
+	 * placeholder coordinates and awaits a scale, whatever the footprint beside it is. Both
+	 * halves, because a fix that never flagged an anchor on a typed footprint would pass the
+	 * case above and silently stop converting a real trace.
+	 */
+	it('records an anchor placed over an unscaled spec sheet as awaiting a scale', async () => {
+		const rig = await designerRig({ shape: TYPED, background: true });
 
 		await activate(rig, 'designer.toolbar.set-anchor');
 		click(rig, { x: 120, y: 40 });

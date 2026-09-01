@@ -4,6 +4,7 @@ import type { Polygon } from '../../../core/geometry/Polygon';
 import { coincident } from '../../../core/geometry/operations';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { AssetId } from '../../../domain/asset/AssetId';
+import type { AssetBackgroundRef } from '../../../domain/asset/Asset';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import type { AssetShape } from '../../../domain/asset/AssetShape';
 import { validateAssetShape } from '../../../domain/asset/AssetShape';
@@ -25,14 +26,18 @@ export interface AssetShapeInput {
 }
 
 /**
- * The candidate a command proposes, given what is stored and whether the surface it was
- * captured on carries a scale. Unvalidated on purpose — `updateAssetShape` below runs every
- * candidate through `validateAssetShape`, so the polygon rules and the incoherent-state
- * rules are asked in ONE place for every command rather than once per command.
+ * The candidate a command proposes, given what is stored and whether coordinates captured on
+ * this surface right now still AWAIT A SCALE. Unvalidated on purpose — `updateAssetShape`
+ * below runs every candidate through `validateAssetShape`, so the polygon rules and the
+ * incoherent-state rules are asked in ONE place for every command rather than once per
+ * command.
+ *
+ * The second parameter used to be `calibrated`, which every caller negated; see
+ * `captureAwaitsScale` for why the question is no longer that one.
  */
 export type ShapeChange = (
 	current: AssetShape | null,
-	calibrated: boolean,
+	awaitsScale: boolean,
 ) => Result<AssetShape, ValidationError>;
 
 /**
@@ -163,14 +168,76 @@ export interface AssetShapeDeps {
  * It answers the SNAPSHOT and drops the `Loaded<Asset>`, because neither caller reads the
  * entity — what they needed the note for was the existence check.
  */
+/**
+ * What a design command reads before it writes: the sidecar's snapshot, and the one fact
+ * about the NOTE that a capture rule needs.
+ *
+ * The note was always being opened — the existence check above is what opens it — and its
+ * background was always being thrown away. `captureAwaitsScale` is what needed it, so the
+ * function that reads it hands it back rather than a second `getById` rediscovering it.
+ */
+export interface AssetDesignRead {
+	readonly snapshot: AssetGeometrySnapshot;
+	/** The asset's spec sheet, or `null` for an asset with none picked. */
+	readonly background: AssetBackgroundRef | null;
+}
+
 export async function loadAssetDocument(
 	deps: AssetShapeDeps,
 	assetId: AssetId,
-): Promise<Result<AssetGeometrySnapshot, RepositoryError | ReferenceError>> {
+): Promise<Result<AssetDesignRead, RepositoryError | ReferenceError>> {
 	const loaded = await deps.assets.getById(assetId);
 	if (isErr(loaded)) return loaded;
 	if (loaded.value === null) return err(assetNotFound(assetId));
-	return deps.sidecar.read(assetId);
+	const snapshot = await deps.sidecar.read(assetId);
+	if (isErr(snapshot)) return snapshot;
+	return ok({ snapshot: snapshot.value, background: loaded.value.entity.background });
+}
+
+/**
+ * Do coordinates captured on this surface RIGHT NOW await a scale, or are they already true
+ * millimetres? The one answer, asked once per write and handed to whichever command is
+ * proposing a change.
+ *
+ * **It used to be `!calibrated`, and that was wrong in a way the shipped UI could reach.**
+ * Create an asset with a Width and a Depth typed: the designer opens on a drawn 1200 x 800
+ * rectangle, in true millimetres, with no background and no calibration. Click *Set anchor*
+ * and click a point on it — the coordinates are millimetres, and `!calibrated` recorded them
+ * as pending. Pick a background, calibrate, and `rescaled()` faithfully multiplied that
+ * anchor by `scaleCorrection` while correctly leaving the typed footprint alone. The anchor
+ * lands outside the object, permanently, with `anchorPending` now false so nothing marks it.
+ * The same shape for a clearance traced around a typed footprint. Found by a whole-branch
+ * review, and reachable entirely through the shipped surface.
+ *
+ * The three arms, in the order they are asked and for the reason each is asked:
+ *
+ * - **Calibrated: no.** A scale exists and every coordinate on this surface is in it. This
+ *   arm is the whole of what the old rule got right.
+ * - **An UNCALIBRATED BACKGROUND: yes.** A spec sheet with no scale is drawn at the
+ *   placeholder one source pixel per millimetre, and it is the reason the user is pointing
+ *   where they are pointing. This is the arm that keeps `calibrateAsset.test.ts`'s "converts
+ *   a pending clearance and leaves a typed footprint alone" a state the UI can still produce:
+ *   a clearance traced on a sheet beside a typed footprint really is in the sheet's space.
+ * - **No background: yes only while the OBJECT is not already in millimetres.** With no sheet
+ *   there is nothing else on the canvas to point at, so a capture is in whatever frame the
+ *   object's own footprint establishes. A typed footprint (never pending) establishes
+ *   millimetres; a traced-and-still-pending one establishes the placeholder frame it was
+ *   drawn in; no footprint at all establishes nothing, and a first outline drawn freehand
+ *   still has to be convertible by the calibration that follows it.
+ *
+ * **What it deliberately does NOT resolve, because nothing can:** an uncalibrated background
+ * BESIDE a typed footprint overlays two frames, and a single click cannot say which one the
+ * user meant. The second arm resolves that towards the sheet, which is the dominant intent —
+ * a user who has just picked a spec sheet is tracing it — and it is an approximation rather
+ * than a fact. The reported defect is not in that state: it has no background at all.
+ */
+export function captureAwaitsScale(
+	document: AssetGeometryDocument,
+	background: AssetBackgroundRef | null,
+): boolean {
+	if (document.calibration !== null) return false;
+	if (background !== null) return true;
+	return document.shape === null || document.shape.footprintPending;
 }
 
 export async function updateAssetShape(
@@ -180,11 +247,11 @@ export async function updateAssetShape(
 	unchanged: ShapeUnchanged,
 ): Promise<VersionedDispatchResult> {
 	const { sidecar, events } = deps;
-	const snapshot = await loadAssetDocument(deps, input.assetId);
-	if (isErr(snapshot)) return snapshot;
-	const { document, version } = snapshot.value;
+	const read = await loadAssetDocument(deps, input.assetId);
+	if (isErr(read)) return read;
+	const { document, version } = read.value.snapshot;
 
-	const candidate = change(document.shape, document.calibration !== null);
+	const candidate = change(document.shape, captureAwaitsScale(document, read.value.background));
 	if (isErr(candidate)) return candidate;
 	const shape = validateAssetShape(candidate.value);
 	if (isErr(shape)) return shape;

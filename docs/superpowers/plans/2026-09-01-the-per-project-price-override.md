@@ -3302,7 +3302,29 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 **Interfaces:**
 - Consumes: Task 8's `AssetPriceRowDto` and `ListProjectAssetPrices`, Task 4's two commands.
 - Produces: `AssetPriceList.vue` with
-  `defineProps<{ rows: readonly AssetPriceRowDto[]; currency: string; commit: (edit: AssetPriceEdit) => Promise<DispatchResult>; logger: Logger }>()`.
+  `defineProps<{ rows: readonly AssetPriceRowDto[]; currency: string; commit: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>; logger: Logger }>()`,
+  and `interface AssetPriceCommitResult { readonly dispatch: DispatchResult; readonly settled: PriceRowExpectation | null }`.
+
+**`commit` returns more than a `DispatchResult`, and it has to.** `DispatchResult` is
+`Result<DispatchOutcome, AppError>` and `DispatchOutcome` is `'wrote' | 'no-write'` — it carries
+no entity at all, deliberately, because slice 13 minted it to answer one question. So Step 3's
+rule that a successful command replaces the row's frozen expectation with its own result is
+unimplementable through that type: the component would have nothing to write. `settled` is what
+the command actually established about the pair — `{ id, version }` from
+`SetAssetPriceOverrideResult`, `'absent'` after a clear, and `null` when the command refused, so
+a refusal leaves the snapshot exactly where it was.
+
+The component still hands `useFieldCommit` a plain `DispatchResult`: its `history` adapter calls
+`props.commit(edit)`, writes `settled` into the snapshot when it is not null, and returns
+`dispatch`. **`useFieldCommit` is not widened**, which is the point of putting the seam here —
+it is a composable eight other fields already use, and the one thing this surface needs that the
+others do not is a fact about a pair.
+
+Without it the pending-clear case from Step 2 cannot work at all: the queued clear is built
+before the dirty field can adopt refreshed props, so with no channel from the set's own result it
+would submit `'absent'` against a pair the set had just created, and the clear would refuse — the
+user's cancellation failing for the second time in one gesture. Reported by review against the
+first version of the Step 3 rule, which asserted a result the seam could not deliver.
 
 **`currency` is the PROJECT's, and it is load-bearing rather than decoration.** The increment's
 central case is a GBP project pricing an EUR catalogue asset with no override yet — and the row's
@@ -3360,14 +3382,34 @@ one in both locales:
 | `asset-price.project-not-found` / `asset-price.asset-not-found` | The project, or the asset, is no longer there. |
 | `asset-price.write-failed` / `asset-price.delete-failed` | The price could not be saved, or removed. |
 | `asset-price.entity-invalid` / `asset-price.frontmatter-invalid` | The note could not be read. |
+| `asset-price.negative-unit-cost` | A price cannot be negative. Unreachable while the field validator below holds, and localized anyway — see the note under the table. |
 
 Build the test table from the RAISE SITES rather than from `en.ts`, per `toUserMessage.test.ts`'s
 own rule: a table derived from the locale file agrees with a typo. The codes with no user-facing
 door — `asset-price.duplicate-pair` (a diagnostic), `asset-price.orphaned-by-asset-delete` (its
-own notice), `asset-price.negative-unit-cost` and `asset-price.pre-write-invalid` (unreachable
-through any surface, since the component refuses a negative literal before dispatching) — get NO
-entry, and that absence is stated here so it reads as a decision rather than an omission, exactly
-as `project.negative-amount` already is in that file's minted table.
+own notice) and `asset-price.pre-write-invalid` (no user-facing door) — get NO entry, and that
+absence is stated here so it reads as a decision rather than an omission, exactly as
+`project.negative-amount` already is in that file's minted table.
+
+**`asset-price.negative-unit-cost` is NOT in that list, and an earlier draft put it there on a
+claim nothing implemented.** It said the component "refuses a negative literal before
+dispatching" and scheduled no such refusal: `Money` is signed on purpose, `createMoney('-1.00',
+'GBP')` succeeds, so `-1` typed into the field reached `AssetPriceOverride.create`, raised that
+code, and — with no locale entry — rendered the generic Validation sentence instead of saying a
+price cannot be negative. Both halves are scheduled now, and the reason for taking both rather
+than either is the kind of unreachability involved:
+
+- **the refusal**, as `useFieldCommit`'s own `validate?: (draft) => string | null` — which exists
+  precisely so the guard is not re-remembered at each call site — rejecting a draft that is not a
+  monetary literal or is negative, with resolved copy and no dispatch at all. `RequirementRow`'s
+  `isMonetaryLiteral` is the pattern; a negative test is the added conjunct. Step 2 gains a case
+  for it, watched failing against a component with no validator, where the dispatch happens and
+  the command refuses;
+- **and the copy**, because this code is unreachable only while that guard exists. That is a
+  different thing from `project.negative-amount`, which is unreachable because no caller sets the
+  field at all — a structural absence no edit can quietly undo. A code held out of reach by a
+  guard degrades to the WRONG sentence the day the guard moves, so it gets copy that costs two
+  strings and reads correctly either way.
 
 - [ ] **Step 2: Write the failing component test**
 
@@ -3403,7 +3445,10 @@ describe('AssetPriceList', () => {
 
 	/** Slice 16's rule: a rejected commit KEEPS the user's value and shows the error. */
 	it('keeps the typed value and shows an inline error when the command refuses', async () => {
-		commit.mockResolvedValue(err({ category: 'Validation', code: 'asset-price.currency-mismatch', message: '' }));
+		commit.mockResolvedValue({
+			dispatch: err({ category: 'Validation', code: 'asset-price.currency-mismatch', message: '' }),
+			settled: null, // a refusal establishes nothing, so the snapshot must not move
+		});
 		// … expect the input still to hold what was typed, and a .rp-field-error to be present.
 	});
 
@@ -3444,6 +3489,19 @@ describe('AssetPriceList', () => {
 		}));
 	});
 
+	/**
+	 * A negative price never reaches the command. `Money` is signed on purpose and
+	 * `createMoney('-1.00', 'GBP')` succeeds, so without `useFieldCommit`'s `validate` the
+	 * dispatch happens, `AssetPriceOverride.create` refuses with `asset-price.negative-unit-cost`,
+	 * and the user is told nothing useful. Watch it fail against a component with no validator:
+	 * `commit` is called, which is the assertion below inverted.
+	 */
+	it('refuses a negative price at the field, dispatching nothing', async () => {
+		// type '-1.00', blur
+		expect(commit).not.toHaveBeenCalled();
+		// … and a .rp-field-error saying a price cannot be negative.
+	});
+
 	it('renders the empty state when the library is empty', () => { … });
 });
 ```
@@ -3465,10 +3523,12 @@ whole point of the change source in step 4a. Two writers, one field:
 
 - while the field is CLEAN, the snapshot tracks the row (`overrideId`/`overrideVersion`, or
   `'absent'` for a dash) — a clean field has nothing to protect and must follow the vault;
-- a SUCCESSFUL command overwrites it with its own result — `SetAssetPriceOverride` returns
-  `{ override, version }`, which is the newest thing this component knows to be true about the
-  pair, and it is what makes the pending-clear case above correct: the queued clear is built
-  after the set settles and expects exactly what the set wrote.
+- a SUCCESSFUL command overwrites it with `AssetPriceCommitResult.settled` — the pair as the
+  command actually left it, which is the newest thing this component knows to be true about it,
+  and what makes the pending-clear case above correct: the queued clear is built after the set
+  settles and expects exactly what the set wrote. It arrives through `commit`'s own return type
+  rather than through `DispatchResult`, which carries `'wrote' | 'no-write'` and no entity —
+  see this task's Interfaces for why the seam is there and not in `useFieldCommit`.
 
 While the field is dirty the snapshot is frozen, so a refresh underneath an uncommitted draft
 cannot move it. A resubmit against a pair that really did move therefore refuses with

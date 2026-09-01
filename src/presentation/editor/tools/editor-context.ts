@@ -70,10 +70,17 @@ export interface EditorContext {
 	 *
 	 * The id is `EntityId<string>` rather than a branded `PlanId`, which is the whole point
 	 * and also the whole cost: a tool that needs the id NARROWED to its own subject's brand
-	 * cannot get it from here. `CalibrateTool` is that tool, and it takes a `PlanId` through
-	 * its own deps instead — see `CalibrateToolDeps.planId`, which `runtime.ts` binds from
-	 * the same single cast this field's id comes from, so the two cannot disagree about which
-	 * plan is open.
+	 * cannot get it from here. No tool asks it to — a tool that needs a branded id takes a
+	 * FACTORY through its own deps and never the id, so each runtime closes over the brand its
+	 * own single cast already produced. `CalibrateToolDeps.createCommand(measurement)` is the
+	 * worked example, and `SetAnchorTool` and `SetFacingTool` take the same shape.
+	 *
+	 * **This paragraph named `CalibrateToolDeps.planId` until a whole-branch review greped
+	 * for it.** That member existed while a Plan was the only subject; Task B6's generalisation
+	 * replaced it with `createCommand`, and the sentence describing the old mechanism went on
+	 * reading as a live account of the current one — the shape this repository's own rule about
+	 * "the only place X" exists for, arriving at a docblock that named a MEMBER rather than a
+	 * count.
 	 *
 	 * `calibration` is nullable: a Plan renders and is editable before it is calibrated
 	 * (slice 5's placeholder scale), so a tool that assumed a value here would break on

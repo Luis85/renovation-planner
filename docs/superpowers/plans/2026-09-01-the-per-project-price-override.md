@@ -1668,8 +1668,19 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Create: `src/application/commands/requirement/resolveEffectiveUnitCost.ts`
 - Modify: `src/application/commands/requirement/AssignAsset.ts`
 - Modify: `src/application/commands/requirement/RecalculateRequirement.ts`
+- Modify: `src/plugin/composition-root.ts` — construct `ObsidianAssetPriceOverrideRepository`
+  (Task 3) and pass it to `RecalculateRequirementCommand` (`:383`).
+- Modify: `src/plugin/slice10Composition.ts` — `AssignAssetCommand` (`:150`).
+- Modify: `src/presentation/editor/planEditorCommands.ts` — `AssignAssetCommand` (`:224`).
 - Test: `tests/application/commands/requirement/effectiveUnitCost.test.ts`
 - Test: `tests/application/commands/requirement/overrideSatisfiesRefusal.test.ts` (**the witness**)
+
+**The wiring is in THIS task, not Task 8, and that is what makes the commit green.** A required
+`overrides` member is a build error at every construction site the moment it exists, and there
+are **three** — measured with
+`grep -rn "new AssignAssetCommand\|new RecalculateRequirementCommand" src/`, not remembered.
+Deferring the repository's construction to Task 8 would leave this task's `npm run check` red,
+which contradicts the plan's own "each task ends green on its own".
 
 **Interfaces:**
 - Consumes: Task 2's port, Task 4's commands.
@@ -1879,7 +1890,7 @@ avoid the edits — an optional collaborator is one a composition can silently f
 Run: `npm run check`
 
 ```bash
-git add src/application/commands tests/application/commands
+git add src/application/commands src/plugin src/presentation/editor/planEditorCommands.ts tests
 git commit -m "feat(cost): a project's own price reaches the pipeline, and the refusal is passable
 
 The witness the Issue asks for: an assign refuses on a currency mismatch, a
@@ -2100,7 +2111,14 @@ Add to the existing `GetRequirementsForZone` tests:
 		const after = rowFor(requirementId);
 		expect(after.cost.calculated.amount).not.toBe(before.cost.calculated.amount);
 		expect(after.cost.effective.amount).toBe('500.00');
-		expect(after.unitCost.effective.amount).toBe('19.50');
+
+		// **Read the input through `calculatedFrom`, NOT through `unitCost`.** That DTO group is
+		// Task 8's and does not exist at this task boundary, so asserting it here would leave
+		// Task 6's suite failing to type-check — green-on-its-own is a claim this plan makes
+		// about every task, and a test reaching forward breaks it. The persisted provenance is
+		// the honest source anyway: it records what the figures were actually derived from.
+		const persisted = expectOk(await requirements.getById(requirementId));
+		expect(persisted?.entity.calculatedFrom.unitCost.amount).toBe('19.50');
 	});
 ```
 
@@ -2618,8 +2636,10 @@ a zero.
 
 - [ ] **Step 4: Compose and guard**
 
-In `src/plugin/composition-root.ts`, construct the repository beside its siblings and the two
-commands and the query beside theirs. In `src/plugin/guardedServices.ts`, wrap both commands and
+In `src/plugin/composition-root.ts`, construct the two COMMANDS and the query beside their
+siblings. The repository itself was already constructed in Task 5 — it had to be, because a
+required dep is a build error at three call sites — so this step adds only what Task 4 and this
+task created. In `src/plugin/guardedServices.ts`, wrap both commands and
 the query, exactly as their neighbours are.
 
 **`tests/plugin/guardCategory.test.ts` will tell you if you missed a door** — it composes a real
@@ -2686,9 +2706,12 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Files:**
 - Modify: `src/presentation/editor/shell/RequirementRow.vue`
+- Modify: `src/presentation/editor/tools/editor-context.ts` (or wherever `PlanEditorContext` is
+  declared) and `src/plugin/composition-root.ts` — the price-change subscription, step 3a.
 - Modify: `src/presentation/i18n/en.ts`, `src/presentation/i18n/de.ts`
 - Modify: `styles/` (the row's own partial)
 - Test: `tests/presentation/editor/requirementRow.test.ts` (extend)
+- Test: `tests/presentation/editor/inspectorPriceRefresh.test.ts`
 
 **Interfaces:**
 - Consumes: Task 8's `RequirementInspectorDTO.unitCost: { catalogue, projectOverride, effective } | null`.
@@ -2736,6 +2759,33 @@ Add the field to the fixture FIRST, or the red proves only that the test data is
 Sentence case; German for an Asset is `Objekt`. No literal reaches the template —
 `I18N_LITERAL_BAN` does not watch a Vue interpolation, so this one rests on review.
 
+- [ ] **Step 3a: Make a mounted Inspector hear the change, or it shows the old figures**
+
+Measured: `PLAN_CHANGE_EVENTS` is `PlanBackgroundChanged`, `PlanCalibrated`, `ZoneCreated`,
+`ZoneGeometryChanged`, `ZoneDeleted` (`planChangeSource.ts:25-30`). It carries neither
+`AssetPriceOverrideChanged` nor any requirement recalculation event, and `onCatalogueChanged`
+only reloads the assign picker's options. So a price set in the project pane runs the cascade,
+rewrites the requirement, and an already-open Plan Editor keeps rendering the figures it read at
+mount — including the very `unitCost` block this task adds, which would show a project price the
+project no longer has.
+
+Bind `createProjectPricesChangeSource` (Task 9 step 4a — write it in whichever task runs first
+and consume it in the other) into `PlanEditorContext`, and rehydrate the Inspector's rows on it,
+through the store's existing request ticket.
+
+**Not by widening `PLAN_CHANGE_EVENTS`.** That list is keyed by plan id
+(`planIdOf(event) === planId`) and a price override carries no plan, so an entry there would
+either never match or would have to bypass the filter the list exists for. A second source is
+the shape this codebase already uses for a second question.
+
+```ts
+it('rehydrates the inspector rows when a project price changes in another leaf', async () => {
+	// Mount the editor with a zone selected, publish AssetPriceOverrideChanged for that
+	// project and asset, and assert the row's unitCost moved. Watch it fail with the
+	// subscription removed — with it removed the row keeps the price it mounted with.
+});
+```
+
 - [ ] **Step 4: Render it, then look at it**
 
 Follow the row's existing quantity/cost blocks — this is the same §89 "beside what it replaced"
@@ -2747,7 +2797,7 @@ two is exactly where spacing and wrapping break, and no gate here measures eithe
 - [ ] **Step 5: Full gate, then commit**
 
 ```bash
-git add src/presentation styles tests
+git add src/presentation src/application/events src/plugin styles tests
 git commit -m "feat(inspector): the price beside the price it replaced
 
 Task 8 added the DTO group and nothing rendered it, so the three figures

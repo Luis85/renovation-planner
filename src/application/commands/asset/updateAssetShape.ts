@@ -230,8 +230,14 @@ export async function loadAssetDocument(
  * user meant. The second arm resolves that towards the sheet, which is the dominant intent —
  * a user who has just picked a spec sheet is tracing it — and it is an approximation rather
  * than a fact. The reported defect is not in that state: it has no background at all.
+ *
+ * **Module-private, and that is a fallow finding rather than a preference.** Its only caller is
+ * `updateAssetShape` below, in this file; exported, `npm run analyze` reports it as an unused
+ * export. Nothing in `tests/` imports it either, and deliberately: every case about this rule
+ * drives a real command, because what a reader needs held is that the anchor a user PLACES is
+ * not flagged, never that a predicate answers `false`.
  */
-export function captureAwaitsScale(
+function captureAwaitsScale(
 	document: AssetGeometryDocument,
 	background: AssetBackgroundRef | null,
 ): boolean {

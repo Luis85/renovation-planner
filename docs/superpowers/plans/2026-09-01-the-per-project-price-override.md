@@ -1913,6 +1913,10 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 **Files:**
 - Modify: `src/application/event-handlers/requirement/onAssetUpdated.ts`
 - Modify: `src/application/queries/GetRequirementsForZone.ts`
+- Modify: `src/plugin/slice10Composition.ts` — **both** construction sites break the moment these
+  deps are required: `registerOnAssetUpdated(events, {…})` at `:127` gains `overrides`, and
+  `new GetRequirementsForZone(requirements, zones, assets, projects)` at `:155` takes a fifth
+  argument. The repository itself already exists, constructed in Task 5.
 - Test: `tests/application/events/assetCascadeWithOverrides.test.ts`
 - Test: extend `tests/application/queries/…` (the existing `GetRequirementsForZone` suite)
 
@@ -2138,7 +2142,7 @@ Restore after each.
 - [ ] **Step 7: Full gate, then commit**
 
 ```bash
-git add src/application tests/application
+git add src/application src/plugin tests/application
 git commit -m "fix(cascade): compare against the cost a requirement was actually derived from
 
 Under a price override calculatedFrom.unitCost holds the effective cost, so
@@ -2163,7 +2167,14 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Files:**
 - Create: `src/application/event-handlers/requirement/onAssetPriceOverrideChanged.ts`
+- Modify: `src/plugin/slice10Composition.ts` — **register it**, beside `registerOnAssetUpdated`
+  at `:127`, on the same `CascadeDeps`. A handler nobody registers is a file the suite exercises
+  and production never runs; no task scheduled this site until a sweep looked for it, and no
+  gate reports it, because the module has a test caller and therefore is not an unused file.
 - Test: `tests/application/events/assetPriceOverrideCascade.test.ts`
+- Test: `tests/plugin/assetPriceWiring.test.ts` — the registration itself, watched red with the
+  `registerOnAssetPriceOverrideChanged(...)` line deleted. Task 8 already carries a case of this
+  shape; this is the one that makes it fail for the right reason.
 
 **Interfaces:**
 - Consumes: Task 4's `AssetPriceOverrideChanged`, the existing `CascadeDeps` and
@@ -2259,7 +2270,7 @@ your fixture has only one project and the case is not testing the narrowing at a
 - [ ] **Step 5: Full gate, then commit**
 
 ```bash
-git add src/application/event-handlers tests/application/events
+git add src/application/event-handlers src/plugin tests
 git commit -m "feat(cascade): a price override invalidates one project, not every project
 
 The narrowing is the whole difference from onAssetUpdated, and it takes two
@@ -2529,6 +2540,8 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 **Files:**
 - Create: `src/application/queries/ListProjectAssetPrices.ts`
 - Modify: `src/application/queries/GetRequirementsForZone.ts` (the DTO's `unitCost` group)
+- Modify: `src/presentation/read-models/renovationProjectQueries.ts` — the read boundary the
+  section hydrates through, plus its unavailable fallback (step 3b).
 - Modify: `src/plugin/composition-root.ts`, `src/plugin/guardedServices.ts`
 - Test: `tests/application/queries/listProjectAssetPrices.test.ts`
 - Test: `tests/plugin/assetPriceWiring.test.ts`
@@ -2634,6 +2647,25 @@ Populate it in `buildRow` from the values Task 6 already resolved there. `catalo
 `unitCost: … | null` and set `null` for a row whose `missingTarget` is `'asset'` — do not invent
 a zero.
 
+- [ ] **Step 3b: Widen the project surface's READ boundary**
+
+The exact sibling of Task 9's step 3a, and it was missed in the round that added that one —
+fixing the write half and not the read half is this plan's own recurring failure, so it is
+called out rather than quietly patched.
+
+`ProjectDetailStore` reads only through `RenovationProjectQueryServices`, which declares
+`listProjects`, `getProject` and `listPlansByProject` and nothing else. Constructing
+`ListProjectAssetPrices` at the root does not make it reachable through `context.queries`, so
+without this the section has no read operation to call and hydrates nothing.
+
+1. `src/presentation/read-models/renovationProjectQueries.ts` — add
+   `listAssetPrices(projectId: string): Promise<Result<AssetPriceRowDto[], RepositoryError>>` to
+   the interface and to `createRenovationProjectQueries(...)`.
+2. Its **unavailable fallback** — the refusal an unrecovered composition serves, through the
+   same shared failure the existing entries use. As with the write boundary, this is the entry
+   no compiler forces, so it gets its own assertion.
+3. `renovationProjectDeps(...)` in `composition-root.ts` — bind the guarded query.
+
 - [ ] **Step 4: Compose and guard**
 
 In `src/plugin/composition-root.ts`, construct the two COMMANDS and the query beside their
@@ -2688,7 +2720,7 @@ it('registers the cascade subscriber, not merely the commands', async () => {
 Run: `npm run check`
 
 ```bash
-git add src/application/queries src/plugin tests
+git add src/application/queries src/presentation/read-models src/plugin tests
 git commit -m "feat(query): what this project pays, and the Inspector's third figure
 
 One query joining the catalogue with the project's overrides, carrying each

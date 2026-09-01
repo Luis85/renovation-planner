@@ -656,3 +656,18 @@ export const invalidateFrontmatter = (stack: CorruptibleStack, path: string, fie
  */
 export const corruptSidecar = (stack: CorruptibleStack, path: string): Promise<void> =>
 	rewriteNote(stack, path, () => 'not json at all');
+
+/**
+ * A DISPLACED note: its own `id` edited to something else, while the index still points the
+ * ORIGINAL id at this path. `openNoteById` answers `<kind>.note-id-mismatch`.
+ *
+ * Not a contrivance — `id` is frontmatter, so editing it is one keystroke in the editor the
+ * user already has open, and the index keeps the old entry until the next full rebuild. That
+ * window is the whole reason the guard exists.
+ *
+ * It rewrites the `id:` line rather than a named field, so it cannot be reached through
+ * `invalidateFrontmatter`: that one writes a deliberately invalid VALUE, and the point here is
+ * a perfectly valid id that belongs to somebody else.
+ */
+export const displaceNoteId = (stack: CorruptibleStack, path: string, to: string): Promise<void> =>
+	rewriteNote(stack, path, (text) => text.replace(/^id: .*$/m, `id: "${to}"`));

@@ -695,6 +695,42 @@ informational-row shape), so a user meeting the refusal can at least see which c
 project is in without opening the note. That is a smaller thing than an affordance and is not
 claimed as one.
 
+### Amendment 3 (2026-09-01): the read named a different project than the write
+
+Found by a review bot on PR 60, against the merge commit, and reproduced before it was accepted.
+
+**What was wrong.** `GetRequirementsForZone` resolved the project currency from the QUERIED
+ZONE's project, once per call. `RecalculateRequirementCommand` resolves it from
+`requirement.projectId`. Those are two independent frontmatter keys — `requirementMapper` reads
+`project` and `origin-zone` with no cross-check, and `Requirement.create` validates only the
+origin KIND — so a hand-edited note parts them, and the Inspector then reported `current` for a
+figure the command refuses as `cost.currency-mismatch`. `AssignAsset` writes them consistently
+(it takes the Requirement's project FROM the Zone), so nothing this plugin creates is affected;
+the exposure is a hand edit or a note arriving through sync.
+
+**Not a design decision reversed.** The one-read shape came with a comment arguing it from an
+invariant nothing enforces — *"one project backs every row this call can return"* — which is
+this repository's own recurring shape: a rule stated in a docblock is a rule some door is not
+following.
+
+**What shipped.** The currency is resolved from `loaded.entity.projectId`, memoized per
+`execute` in a `Map<ProjectId, Currency | null>`, so the read and the write name the same field
+and cannot disagree, while the ordinary case stays at one project read. The reviewer's
+alternative — treat a project/zone ownership mismatch as stale — was declined: it neutralises
+the symptom and leaves two derivations of one fact in place to drift again.
+
+**Tests.** One case asserts the PAIR (the row reads `stale` AND recalculate refuses), watched
+failing at `expected 'current' to be 'stale'`. One pins the memo on the CALL COUNT, because a row
+renders identically whether the memo works or not; mutation-checked at 2 reads against 1.
+`propagates a failed zone read while resolving the project currency` named a path that no longer
+exists and was REPLACED by the project-read arm, not deleted; `propagates a failed origin-zone
+read` lost the call-count override whose only reason was the doubled zone read this removes.
+
+**Still not enforced, and deliberately.** Nothing makes `requirement.projectId` agree with its
+origin Zone's project at the domain or persistence layer. Closing that is a validation change
+with its own refusal code and locale copy, which is not a review-round line; what this amendment
+buys is that the two SURFACES no longer disagree about the data as it stands.
+
 ## Genuinely undecided, and left so
 
 - **Where a user creates a price override.** There is no Asset surface at all — slice 10 records

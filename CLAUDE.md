@@ -2542,7 +2542,9 @@ later check could tell from a right answer. `core/money` mints a branded `Curren
 `CostPipelineInput.expectedCurrency` is REQUIRED and `computeEstimatedCost` refuses a mismatch
 with `cost.currency-mismatch` **before any arithmetic**; `Project` has a `currency` defaulted from
 a new `defaultCurrency` setting; `AssignAsset` and `RecalculateRequirement` each read the project
-and pass it; `GetRequirementsForZone`'s backstop reads a Requirement whose project moved as stale;
+and pass it; `GetRequirementsForZone`'s backstop reads a Requirement whose project moved as stale, resolving
+the currency from that Requirement's OWN `projectId` — the same field the command reads, which it
+did not do until a review bot found the two disagreeing;
 and the project detail row says which currency the project is priced in. **This is design slice
 20's FIRST HALF** — the per-project price override is its own increment, and `docs/tasks/20`'s
 Amendment 1 is where the split, the three WITHDRAWALS and the deferrals are written down, because
@@ -2606,6 +2608,38 @@ that came out of it:
   is what makes the docblock's claim true rather than merely stated. Leaving the duplication alone
   was the wrong call, not a decision to pin; it is pinned by a regression test now that there is one
   function to regress.
+- **The READ and the WRITE resolved the project currency from DIFFERENT FIELDS, which is one
+  fact with two derivations rather than two facts.** `GetRequirementsForZone` took it from the
+  QUERIED ZONE's project — once per call, under a comment arguing the optimisation from an
+  invariant it did not check ("one project backs every row … a Zone belongs to exactly one
+  Project") — while `RecalculateRequirementCommand` takes it from `requirement.projectId`. A
+  Requirement carries `projectId` and `origin.zoneId` as two independent frontmatter keys that
+  `requirementMapper` reads with no cross-check, and `Requirement.create` validates only the
+  origin KIND, so a hand edit parts them. Then the Inspector reported `current` for a figure
+  recalculate refuses as `cost.currency-mismatch` — the surface vouching for exactly the data
+  the command rejects. Reported by a review bot on the pull request, and reproduced before it
+  was believed: the case failed at `expected 'current' to be 'stale'`. Three things worth
+  keeping:
+  - **The fix is the field, not a reconciliation.** Resolving from `loaded.entity.projectId`
+    makes the two agree BY CONSTRUCTION rather than detecting when they do not; the reviewer's
+    other offer — treat a project/zone mismatch as stale — neutralises the symptom while leaving
+    two derivations in place to drift again. Prefer making the disagreement unrepresentable to
+    checking for it, which is this file's own rule about a value derived from two inputs.
+  - **A per-row read costs a repository call per row, and the memo that fixes that needed its
+    own case.** `Map<ProjectId, Currency | null>` per `execute` keeps the ordinary case — every
+    row naming one project — at one read, with `null` a CACHED answer and `undefined` the only
+    miss. Its hit arm is invisible to every other case in the file, since a row renders
+    identically whether the memo works or not, so it is pinned on the CALL COUNT and
+    mutation-checked (defeating the cache reads 2 where 1 is asserted).
+  - **The call-order lesson from this same file paid out a second time, in the other
+    direction.** A prior round had made `propagates a failed origin-zone read` call-count-aware
+    precisely BECAUSE `loadProjectCurrency` reached `zones.getById` first with an identical
+    failure mode; removing that first read left the counter stepping over a call that no longer
+    exists, and the case went red. Its sibling, `propagates a failed zone read while resolving
+    the project currency`, named a path that had ceased to exist and would have gone on passing
+    as a duplicate of the case below it — REPLACED by the project-read arm that survived the
+    move rather than deleted or left standing. A test whose name outlives its path is the
+    shadowing defect this file records, arriving in the commit that removes the shadow.
 - **A settings control's vocabulary was decided by `MINOR_UNIT_PLACES`, not by taste.**
   `Money.round` finalizes at two decimal places, so a zero-minor-unit currency rounds every total
   wrong, and `CURRENCIES` is therefore the two-minor-unit codes (`CHF`, `EUR`, `GBP`, `USD`) with

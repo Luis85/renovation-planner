@@ -7,10 +7,10 @@ import { ListRequirementsReferencing } from '../../../src/application/queries/Li
 import { ListReassignmentTargets } from '../../../src/application/queries/ListReassignmentTargets';
 import type { PersistenceError } from '../../../src/core/errors/AppError';
 import type { RequirementRepository } from '../../../src/application/ports/RequirementRepository';
-import type { ZoneId } from '../../../src/domain/zone/ZoneId';
 import { InMemoryProjectRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { expectErr, expectFound, expectOk } from '../../helpers/domain';
-import { makeAsset, makeZone } from '../../helpers/entities';
+import { makeAsset, makeProject, makeZone } from '../../helpers/entities';
+import { currencyOf } from '../../../src/core/money/Money';
 import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
 
 /**
@@ -93,35 +93,35 @@ describe('GetRequirementsForZone error propagation', () => {
 		expect(error.code).toBe('test.injected-failure');
 	});
 
-	it('propagates a failed zone read while resolving the project currency', async () => {
+	/**
+	 * Replaces a case named 'propagates a failed zone read while resolving the project
+	 * currency', whose path no longer exists: the currency came from the queried Zone's
+	 * project, so resolving it reached `zones.getById` before any row. It is read from the
+	 * Requirement's own `projectId` now, and this is the refusal arm that survived the move.
+	 */
+	it('propagates a failed project read while resolving a row’s currency', async () => {
 		const w = await wiredWithLink();
-		// `execute` reads the zone FIRST, inside `loadProjectCurrency`, before it ever
-		// reaches a row — this failure never gets as far as `loadOriginZone` below.
-		const zones = overridePort(w.zones, {
+		const projects = overridePort(w.projects, {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, zones, w.assets, w.projects).execute(w.zoneId),
+			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
 
 	it('propagates a failed origin-zone read', async () => {
 		const w = await wiredWithLink();
-		// A call-count-aware override, because `loadProjectCurrency` and `loadOriginZone`
-		// both call `zones.getById` with the SAME id here (one zone, one requirement) — an
-		// override that fails unconditionally would be caught by the first call and never
-		// reach this function's own branch at all, which is exactly the defect a prior
-		// review round found: `execute` used to read the zone only once, inside
-		// `buildRow`'s `loadOriginZone`, and a call ordering change made that call site
-		// unreachable behind an earlier one with an identical failure mode.
-		let calls = 0;
+		// Unconditional again, and the history is the point. This case needed a
+		// call-count-aware override for as long as `loadProjectCurrency` reached
+		// `zones.getById` with the SAME id before any row did: failing every call was
+		// caught by that earlier one, leaving this function's own arm unreached behind a
+		// failure that looked identical. The currency comes from the Requirement's
+		// `projectId` now, the zone is read exactly once, and the counter has nothing left
+		// to step over — so it is removed rather than kept as scaffolding around a
+		// structure that no longer exists.
 		const zones = overridePort(w.zones, {
-			getById: (id: ZoneId) => {
-				calls += 1;
-				if (calls === 1) return w.zones.getById(id);
-				return Promise.resolve(err(injectedPersistenceError()));
-			},
+			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
 			await new GetRequirementsForZone(w.requirements, zones, w.assets, w.projects).execute(w.zoneId),
@@ -170,6 +170,63 @@ describe('GetRequirementsForZone staleness readings', () => {
 		Object.assign(stored?.entity.calculatedFrom as object, { assetUnit: 'm' });
 		const rows = expectOk(await w.query.execute(w.zoneId));
 		expect(rows[0]?.recalculationStatus).toBe('stale');
+	});
+
+	/**
+	 * The memo's own case. Resolving the currency per ROW rather than once per CALL is
+	 * what fixes the read/write disagreement below, and it would otherwise cost one
+	 * project read per requirement — so the ordinary case, where every row names the same
+	 * project, is pinned at ONE read. Asserted on the call count rather than on the rows,
+	 * because every row renders identically whether the memo works or not.
+	 */
+	it('reads a shared project once, however many requirements name it', async () => {
+		const w = await wiredWithLink();
+		const second = expectOk(await w.assets.save(makeAsset(), 'absent'));
+		expectOk(await w.assign.execute({ zoneId: w.zoneId, assetId: second.entity.id }));
+
+		let reads = 0;
+		const projects = overridePort(w.projects, {
+			getById: (id: never) => {
+				reads += 1;
+				return w.projects.getById(id);
+			},
+		});
+		const rows = expectOk(
+			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects).execute(w.zoneId),
+		);
+
+		expect(rows).toHaveLength(2);
+		expect(reads).toBe(1);
+	});
+
+	/**
+	 * The READ and the WRITE must name the same project, or the Inspector vouches for a
+	 * figure `RecalculateRequirementCommand` refuses. A Requirement carries `projectId` and
+	 * `origin.zoneId` as two independent frontmatter keys (`requirementMapper` reads
+	 * `project` and `origin-zone` with no cross-check), and `Requirement.create` validates
+	 * only the origin KIND — so a hand edit can point them at different projects, which is
+	 * the state this drives.
+	 *
+	 * Asserted as a PAIR on purpose: "the row reads stale" alone is equally true of a build
+	 * that reads every row stale, and "recalculate refuses" alone was already true before
+	 * the read learned about currency at all. What the case pins is that the two agree.
+	 */
+	it('a requirement whose project is not its origin zone’s reads stale, as recalculate refuses it', async () => {
+		const w = await wiredWithLink();
+		const elsewhere = expectOk(
+			await w.projects.save(makeProject({ currency: currencyOf('GBP') }), 'absent'),
+		);
+		// The hand edit: this requirement now claims a GBP project while its origin zone
+		// stays in the EUR one its figures were derived against.
+		const stored = expectOk(await w.requirements.getById(w.requirementId));
+		Object.assign(stored?.entity as object, { projectId: elsewhere.entity.id });
+
+		const rows = expectOk(await w.query.execute(w.zoneId));
+		expect(rows).toHaveLength(1);
+		expect(rows[0]?.recalculationStatus).toBe('stale');
+
+		const refused = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
+		expect(refused.code).toBe('cost.currency-mismatch');
 	});
 
 	it('a requirement whose origin kind this version does not represent renders stale', async () => {

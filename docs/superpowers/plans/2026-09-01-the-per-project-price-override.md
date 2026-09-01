@@ -114,9 +114,13 @@ nothing. Do not add it there.
   from `core/money/Money`, `ValidationError` from `core/errors/AppError`.
 - Produces: `AssetPriceOverrideId`, `createAssetPriceOverrideId()`,
   `assetPriceError(code, message)`, `class AssetPriceOverride` with
-  `static create(props: CreateAssetPriceOverrideProps, projectCurrency: Currency):
-  Result<AssetPriceOverride, ValidationError>` and
-  `withUnitCost(unitCost: Money, projectCurrency: Currency): Result<AssetPriceOverride, ValidationError>`.
+  `static create(props: CreateAssetPriceOverrideProps): Result<AssetPriceOverride, ValidationError>`
+  and `withUnitCost(unitCost: Money): Result<AssetPriceOverride, ValidationError>`.
+
+**The currency coherence rule is NOT here.** Spec Decision 2: it belongs to
+`SetAssetPriceOverrideCommand` (Task 4), because the project's currency is another entity's fact
+and this constructor is on the HYDRATION path too — enforcing it here would refuse a stranded or
+hand-edited note at the read, making a file the user can see on disk invisible to the plugin.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -128,11 +132,8 @@ import { AssetPriceOverride } from '../../../src/domain/asset-price/AssetPriceOv
 import { createAssetPriceOverrideId } from '../../../src/domain/asset-price/AssetPriceOverrideId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
-import { currencyOf, of as moneyOf } from '../../../src/core/money/Money';
+import { of as moneyOf } from '../../../src/core/money/Money';
 import { expectOk } from '../../helpers/result';
-
-const GBP = currencyOf('GBP');
-const EUR = currencyOf('EUR');
 
 function props() {
 	return {
@@ -144,28 +145,24 @@ function props() {
 }
 
 describe('AssetPriceOverride', () => {
-	it('is created when its unit cost is in the project currency', () => {
-		const created = expectOk(AssetPriceOverride.create(props(), GBP));
+	it('is created from a project, an asset and a price', () => {
+		const created = expectOk(AssetPriceOverride.create(props()));
 		expect(created.unitCost.amount).toBe('19.50');
 		expect(created.unitCost.currency).toBe('GBP');
 	});
 
 	/**
-	 * The coherence rule. An override denominated in anything but the project's currency is a
-	 * DEAD entry: the pipeline refuses it, so the only thing it can ever do is make the assign
-	 * it was created to rescue refuse again. Rejected at the entity because the constructor is
-	 * private, which is the reason `Project.create` gives for its own budget/contingency rule.
+	 * The entity does NOT police the project's currency — that is the command's (Task 4), and
+	 * this case pins the absence so a later author does not "fix" it back onto the constructor
+	 * and silently make every stranded note unreadable.
 	 */
-	it('refuses a unit cost that is not in the project currency', () => {
-		const result = AssetPriceOverride.create({ ...props(), unitCost: moneyOf('19.50', 'EUR') }, GBP);
-		expect(result.ok).toBe(false);
-		if (result.ok) throw new Error('unreachable');
-		expect(result.error.code).toBe('asset-price.currency-mismatch');
-		expect(result.error.category).toBe('Validation');
+	it('accepts a unit cost in any currency, because the project is not its fact', () => {
+		const created = expectOk(AssetPriceOverride.create({ ...props(), unitCost: moneyOf('19.50', 'EUR') }));
+		expect(created.unitCost.currency).toBe('EUR');
 	});
 
 	it('refuses a negative unit cost', () => {
-		const result = AssetPriceOverride.create({ ...props(), unitCost: moneyOf('-1.00', 'GBP') }, GBP);
+		const result = AssetPriceOverride.create({ ...props(), unitCost: moneyOf('-1.00', 'GBP') });
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error('unreachable');
 		expect(result.error.code).toBe('asset-price.negative-unit-cost');
@@ -173,20 +170,20 @@ describe('AssetPriceOverride', () => {
 
 	/** Zero is a real price — a supplier throwing in offcuts free of charge is not an error. */
 	it('accepts a zero unit cost', () => {
-		const created = expectOk(AssetPriceOverride.create({ ...props(), unitCost: moneyOf('0.00', 'GBP') }, GBP));
+		const created = expectOk(AssetPriceOverride.create({ ...props(), unitCost: moneyOf('0.00', 'GBP') }));
 		expect(created.unitCost.amount).toBe('0.00');
 	});
 
-	/** `withUnitCost` rebuilds through `create`, so every edit re-runs both refusals. */
+	/** `withUnitCost` rebuilds through `create`, so every edit re-runs the refusal. */
 	it('re-validates on edit and keeps identity', () => {
-		const created = expectOk(AssetPriceOverride.create(props(), GBP));
-		const edited = expectOk(created.withUnitCost(moneyOf('21.00', 'GBP'), GBP));
+		const created = expectOk(AssetPriceOverride.create(props()));
+		const edited = expectOk(created.withUnitCost(moneyOf('21.00', 'GBP')));
 		expect(edited.id).toBe(created.id);
 		expect(edited.projectId).toBe(created.projectId);
 		expect(edited.assetId).toBe(created.assetId);
 		expect(edited.unitCost.amount).toBe('21.00');
 
-		const refused = created.withUnitCost(moneyOf('21.00', 'EUR'), GBP);
+		const refused = created.withUnitCost(moneyOf('-1.00', 'GBP'));
 		expect(refused.ok).toBe(false);
 	});
 });
@@ -231,7 +228,7 @@ export function assetPriceError(code: string, message: string): ValidationError 
 
 ```ts
 import type { ValidationError } from '../../core/errors/AppError';
-import { isNegative, type Currency, type Money } from '../../core/money/Money';
+import { isNegative, type Money } from '../../core/money/Money';
 import { err, ok, type Result } from '../../core/result/Result';
 import type { ProjectId } from '../project/ProjectId';
 import type { AssetId } from '../asset/AssetId';
@@ -280,28 +277,17 @@ export class AssetPriceOverride {
 	}
 
 	/**
-	 * `projectCurrency` is a PARAMETER rather than a field, because it is not this entity's
-	 * fact — it belongs to the Project, it can move independently, and storing a copy here
-	 * would be a second answer to what currency a project prices in.
+	 * **The project's currency is deliberately NOT checked here**, and the reason is which
+	 * entity owns the fact. `Project.create` can compare its own `budget` against its own
+	 * `currency`; this entity would have to be TOLD the project's — and this constructor is on
+	 * the hydration path, so enforcing it here refuses a stranded or hand-edited note at the
+	 * READ, making a file the user can see on disk invisible to the plugin. The rule lives at
+	 * `SetAssetPriceOverrideCommand`, where a user's intent arrives and where a refusal is
+	 * something they can act on.
 	 *
-	 * The mismatch refusal is NOT a second expression of `computeEstimatedCost`'s. That one
-	 * asks *may this figure be computed*; this asks *is this override capable of ever being
-	 * used*. They answer differently on different inputs, which is the test for whether a
-	 * second check is duplication rather than a guard.
+	 * What survives here is what this entity can own alone.
 	 */
-	static create(
-		props: CreateAssetPriceOverrideProps,
-		projectCurrency: Currency,
-	): Result<AssetPriceOverride, ValidationError> {
-		if (props.unitCost.currency !== projectCurrency) {
-			return err(
-				assetPriceError(
-					'currency-mismatch',
-					`A price override must be in the project's currency (${projectCurrency}); `
-						+ `got ${props.unitCost.amount} ${props.unitCost.currency}.`,
-				),
-			);
-		}
+	static create(props: CreateAssetPriceOverrideProps): Result<AssetPriceOverride, ValidationError> {
 		// Money itself is signed (ADR-010); a unit price is a FIELD that cannot go below zero,
 		// so the guard lives here where the field enters — the split `Asset.create` makes too.
 		if (isNegative(props.unitCost)) {
@@ -315,12 +301,9 @@ export class AssetPriceOverride {
 		return ok(new AssetPriceOverride(props));
 	}
 
-	/** Rebuilds through `create`, so an edit re-runs both refusals. `id` is identity. */
-	withUnitCost(unitCost: Money, projectCurrency: Currency): Result<AssetPriceOverride, ValidationError> {
-		return AssetPriceOverride.create(
-			{ id: this.id, projectId: this.projectId, assetId: this.assetId, unitCost },
-			projectCurrency,
-		);
+	/** Rebuilds through `create`, so an edit re-runs the refusal. `id` is identity. */
+	withUnitCost(unitCost: Money): Result<AssetPriceOverride, ValidationError> {
+		return AssetPriceOverride.create({ id: this.id, projectId: this.projectId, assetId: this.assetId, unitCost });
 	}
 }
 ```
@@ -429,10 +412,12 @@ const GBP = currencyOf('GBP');
 
 export function makeOverride(projectId: ProjectId, assetId: AssetId, amount = '19.50'): AssetPriceOverride {
 	return expectOk(
-		AssetPriceOverride.create(
-			{ id: createAssetPriceOverrideId(), projectId, assetId, unitCost: moneyOf(amount, 'GBP') },
-			GBP,
-		),
+		AssetPriceOverride.create({
+			id: createAssetPriceOverrideId(),
+			projectId,
+			assetId,
+			unitCost: moneyOf(amount, 'GBP'),
+		}),
 	);
 }
 
@@ -488,7 +473,7 @@ export function assetPriceOverrideContract(
 			const repo = await makeRepo();
 			const override = makeOverride(createProjectId(), createAssetId());
 			const saved = expectOk(await repo.save(override, 'absent'));
-			const edited = expectOk(saved.entity.withUnitCost(moneyOf('21.00', 'GBP'), GBP));
+			const edited = expectOk(saved.entity.withUnitCost(moneyOf('21.00', 'GBP')));
 			expectOk(await repo.save(edited, saved.version));
 			const stale = await repo.save(edited, saved.version);
 			expect(stale.ok).toBe(false);
@@ -525,7 +510,7 @@ export function assetPriceOverrideContract(
 		it('refuses a delete whose expected revision is stale', async () => {
 			const repo = await makeRepo();
 			const saved = expectOk(await repo.save(makeOverride(createProjectId(), createAssetId()), 'absent'));
-			const edited = expectOk(saved.entity.withUnitCost(moneyOf('21.00', 'GBP'), GBP));
+			const edited = expectOk(saved.entity.withUnitCost(moneyOf('21.00', 'GBP')));
 			const second = expectOk(await repo.save(edited, saved.version));
 			const stale = await repo.delete(saved.entity.id, saved.version);
 			expect(stale.ok).toBe(false);
@@ -693,15 +678,12 @@ const GBP = currencyOf('GBP');
 
 function override(amount = '19.50') {
 	return expectOk(
-		AssetPriceOverride.create(
-			{
-				id: createAssetPriceOverrideId(),
-				projectId: createProjectId(),
-				assetId: createAssetId(),
-				unitCost: moneyOf(amount, 'GBP'),
-			},
-			GBP,
-		),
+		AssetPriceOverride.create({
+			id: createAssetPriceOverrideId(),
+			projectId: createProjectId(),
+			assetId: createAssetId(),
+			unitCost: moneyOf(amount, 'GBP'),
+		}),
 	);
 }
 
@@ -720,7 +702,7 @@ describe('assetPriceMapper', () => {
 			currency: 'GBP',
 		});
 
-		const read = expectOk(assetPriceFromPersistence(dto, GBP));
+		const read = expectOk(assetPriceFromPersistence(dto));
 		expect(read.id).toBe(entity.id);
 		expect(read.projectId).toBe(entity.projectId);
 		expect(read.assetId).toBe(entity.assetId);
@@ -731,30 +713,29 @@ describe('assetPriceMapper', () => {
 	it('preserves a three-decimal amount through both directions', () => {
 		const dto = assetPriceToPersistence(override('594.005'), 1);
 		expect(dto['unit-cost']).toBe('594.005');
-		expect(expectOk(assetPriceFromPersistence(dto, GBP)).unitCost.amount).toBe('594.005');
+		expect(expectOk(assetPriceFromPersistence(dto)).unitCost.amount).toBe('594.005');
 	});
 
 	it('refuses a note whose amount is a YAML float rather than a string', () => {
 		const dto = { ...assetPriceToPersistence(override(), 1), 'unit-cost': 19.5 };
-		expect(assetPriceFromPersistence(dto, GBP).ok).toBe(false);
+		expect(assetPriceFromPersistence(dto).ok).toBe(false);
 	});
 
 	it('refuses a note whose currency is not ISO-4217 shaped', () => {
 		const dto = { ...assetPriceToPersistence(override(), 1), currency: 'pounds' };
-		expect(assetPriceFromPersistence(dto, GBP).ok).toBe(false);
+		expect(assetPriceFromPersistence(dto).ok).toBe(false);
 	});
 
 	/**
-	 * The entity's coherence rule reaches the READ path too, because a user can hand-edit the
-	 * note. This is the residual the spec records: such an override is refused at the read
-	 * rather than silently feeding the pipeline a figure it will reject later.
+	 * Spec Decision 2, pinned as behaviour: a note that disagrees with its project's currency
+	 * is READ, not refused. A build that starts refusing it here makes a file the user can see
+	 * on disk invisible to the plugin — unlistable, unclearable, and with nothing saying why —
+	 * so this case is what stops that being "tightened" back in.
 	 */
-	it('refuses a hand-edited note whose currency is not the project currency', () => {
-		const dto = assetPriceToPersistence(override(), 1);
-		const result = assetPriceFromPersistence(dto, currencyOf('EUR'));
-		expect(result.ok).toBe(false);
-		if (result.ok) throw new Error('unreachable');
-		expect(result.error.code).toBe('asset-price.currency-mismatch');
+	it('reads a note whose currency is not the project currency, so it can be shown', () => {
+		const dto = { ...assetPriceToPersistence(override(), 1), 'unit-cost': '24.00', currency: 'EUR' };
+		const read = expectOk(assetPriceFromPersistence(dto));
+		expect(read.unitCost.currency).toBe('EUR');
 	});
 });
 ```
@@ -808,7 +789,7 @@ import { AssetPriceOverride } from '../../../domain/asset-price/AssetPriceOverri
 import type { AssetPriceOverrideId } from '../../../domain/asset-price/AssetPriceOverrideId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { AssetId } from '../../../domain/asset/AssetId';
-import { createMoney, type Currency } from '../../../core/money/Money';
+import { createMoney } from '../../../core/money/Money';
 import { ok, type Result } from '../../../core/result/Result';
 import { parsePersisted } from './parse';
 import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../dto/assetPriceFrontmatter';
@@ -830,15 +811,14 @@ export function assetPriceToPersistence(
 }
 
 /**
- * Takes the project's currency because the entity's smart constructor does — the coherence
- * rule has to reach the READ path, since the notes are user-editable and a hand edit can part
- * an override from the project it prices for. Refusing here is the narrow, honest answer: the
- * note is skipped with a diagnostic rather than feeding the pipeline a figure it would reject
- * later with a message about a mismatch the user cannot see the origin of.
+ * **No project currency, and that is spec Decision 2.** A note that has drifted from its
+ * project's currency is READ and SHOWN, not refused: refusing it here would make a file the
+ * user can see on disk invisible to the plugin, which is the same trade the duplicate-pair rule
+ * already refuses. The pipeline is what stops a wrong-currency figure being computed, and the
+ * section's marker is what tells the user why their price is not being used.
  */
 export function assetPriceFromPersistence(
 	rawFrontmatter: unknown,
-	projectCurrency: Currency,
 ): Result<AssetPriceOverride, ValidationError> {
 	const frontmatter = parsePersisted(
 		AssetPriceFrontmatterSchemaV1,
@@ -852,15 +832,12 @@ export function assetPriceFromPersistence(
 	const unitCost = createMoney(dto['unit-cost'], dto.currency);
 	if (!unitCost.ok) return unitCost;
 
-	const created = AssetPriceOverride.create(
-		{
-			id: dto.id as AssetPriceOverrideId,
-			projectId: dto.project as ProjectId,
-			assetId: dto.asset as AssetId,
-			unitCost: unitCost.value,
-		},
-		projectCurrency,
-	);
+	const created = AssetPriceOverride.create({
+		id: dto.id as AssetPriceOverrideId,
+		projectId: dto.project as ProjectId,
+		assetId: dto.asset as AssetId,
+		unitCost: unitCost.value,
+	});
 	if (!created.ok) return created;
 	return ok(created.value);
 }
@@ -943,11 +920,9 @@ import type { AssetPriceOverride } from '../../../domain/asset-price/AssetPriceO
 import type { AssetPriceOverrideId } from '../../../domain/asset-price/AssetPriceOverrideId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { AssetId } from '../../../domain/asset/AssetId';
-import type { Currency } from '../../../core/money/Money';
 import type { AssetPriceOverrideRepository } from '../../../application/ports/AssetPriceOverrideRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import type { Logger } from '../../../application/ports/Logger';
-import type { ProjectRepository } from '../../../application/ports/ProjectRepository';
 import { projectFolderOf, assetPricesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import type { NoteVaultDeps } from './NoteVaultDeps';
@@ -974,12 +949,11 @@ function assetPriceFileName(override: AssetPriceOverride): string {
 }
 
 /**
- * The note-backed half of the conditional-write contract, without a sidecar.
+ * The note-backed half of the conditional-write contract, without a sidecar. It is
+ * `ObsidianRequirementRepository` with a different mapper, and deliberately nothing more.
  *
- * **The read needs the project's currency**, because the mapper's coherence rule does — so
- * this repository holds a `ProjectRepository`. That is a real dependency and it is stated
- * rather than hidden: an override note names its project, the project names its currency, and
- * a note that has drifted from it is refused rather than fed to the pipeline.
+ * **It holds no `ProjectRepository`**, because spec Decision 2 moved the currency rule to the
+ * command: hydration constructs unconditionally, so the read needs nothing but the note.
  *
  * **A duplicated pair is a DIAGNOSTIC and last-writer-wins, never a refusal.** Ids are ULIDs,
  * so two notes for one (project, asset) is a state nothing structurally prevents, and these
@@ -992,14 +966,17 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 
 	constructor(
 		private readonly deps: NoteVaultDeps,
-		private readonly projects: ProjectRepository,
 		private readonly logger: Logger,
 	) {}
 
-	async getById(
-		id: AssetPriceOverrideId,
-	): Promise<Result<Loaded<AssetPriceOverride> | null, RepositoryError>> {
-		return this.readOne(id);
+	getById(id: AssetPriceOverrideId): Promise<Result<Loaded<AssetPriceOverride> | null, RepositoryError>> {
+		return readNoteBackedEntity(
+			this.deps,
+			'asset-price',
+			id,
+			assetPriceFromPersistence,
+			'asset-price.entity-invalid',
+		);
 	}
 
 	async getForPair(
@@ -1042,7 +1019,6 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 		// Resolved per save (ADR-0013) and consumed only on the INSERT path — an UPDATE writes
 		// where the note already sits and needs no folder at all.
 		const folder = projectFolderOf(this.deps.index, override.projectId);
-		const currency = override.unitCost.currency;
 		const spec: NoteWriteSpec<AssetPriceOverride> = {
 			kind: 'asset-price',
 			indexType: 'renovation-asset-price',
@@ -1050,10 +1026,7 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 			projectId: (entity) => entity.projectId,
 			entryName: assetPriceFileName,
 			toPersistence: assetPriceToPersistence,
-			// The entity we are writing is coherent by construction, so its own currency is
-			// the right thing to re-validate against here: this checks the DTO round-trips,
-			// not that the project still agrees, which the read is what asks.
-			preWriteValid: (dto) => assetPriceFromPersistence({ ...dto }, currency).ok,
+			preWriteValid: (dto) => assetPriceFromPersistence({ ...dto }).ok,
 			validationCode: 'asset-price.pre-write-invalid',
 			writeFailedCode: 'asset-price.write-failed',
 		};
@@ -1066,41 +1039,13 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 		);
 	}
 
-	private async readOne(
-		id: AssetPriceOverrideId,
-	): Promise<Result<Loaded<AssetPriceOverride> | null, RepositoryError>> {
-		// The project's currency is needed BEFORE the note can be mapped, and the note is what
-		// names the project — so the id-keyed read resolves it from the index entry's own
-		// project, which `buildProjectIndexEntries` records from the note's `project` key.
-		const projectId = this.deps.index
-			.entries()
-			.find((entry) => entry.id === id)?.projectId;
-		if (projectId === undefined) return ok(null);
-		const currency = await this.projectCurrency(projectId);
-		if (isErr(currency)) return currency;
-		if (currency.value === null) return ok(null);
-		return readNoteBackedEntity(
-			this.deps,
-			'asset-price',
-			id,
-			(raw: unknown) => assetPriceFromPersistence(raw, currency.value as Currency),
-			'asset-price.entity-invalid',
-		);
-	}
-
-	private async projectCurrency(projectId: ProjectId): Promise<Result<Currency | null, RepositoryError>> {
-		const project = await this.projects.getById(projectId);
-		if (isErr(project)) return project;
-		return ok(project.value?.entity.currency ?? null);
-	}
-
 	private async filterLoaded(
 		predicate: (o: AssetPriceOverride) => boolean,
 	): Promise<Result<Loaded<AssetPriceOverride>[], RepositoryError>> {
 		const ids = this.deps.index.getIdsByType('renovation-asset-price') as AssetPriceOverrideId[];
 		const loaded: Loaded<AssetPriceOverride>[] = [];
 		for (const id of ids) {
-			const found = await this.readOne(id);
+			const found = await this.getById(id);
 			if (isErr(found)) return found;
 			if (found.value !== null && predicate(found.value.entity)) loaded.push(found.value);
 		}
@@ -1258,7 +1203,11 @@ describe('SetAssetPriceOverrideCommand', () => {
 		expect(listed).toHaveLength(1);
 	});
 
-	/** The entity's rule, reached through the command — the user's actual door to it. */
+	/**
+	 * The coherence rule, which is this command's rather than the entity's (spec Decision 2).
+	 * Watch it fail with the check deleted: the entity accepts any currency by design, so
+	 * nothing else in the suite refuses this.
+	 */
 	it('refuses a price that is not in the project currency', async () => {
 		const result = await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'EUR') });
 		expect(result.ok).toBe(false);
@@ -1327,6 +1276,7 @@ import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import { AssetPriceOverride } from '../../../domain/asset-price/AssetPriceOverride';
 import { createAssetPriceOverrideId } from '../../../domain/asset-price/AssetPriceOverrideId';
+import { assetPriceError } from '../../../domain/asset-price/AssetPriceOverride.errors';
 import { assetPriceOverrideChanged } from '../../../domain/asset-price/AssetPriceOverride.events';
 import type { AssetPriceOverrideRepository } from '../../ports/AssetPriceOverrideRepository';
 import type { ProjectRepository } from '../../ports/ProjectRepository';
@@ -1394,21 +1344,37 @@ export class SetAssetPriceOverrideCommand
 			return err(referenceError('asset-price.asset-not-found', `Asset ${input.assetId} is not there.`));
 		}
 
+		// **The coherence rule lives HERE** (spec Decision 2), not on the entity: the project's
+		// currency is another entity's fact, and the entity's constructor is on the hydration
+		// path, where enforcing it would refuse a stranded note at the read instead of showing
+		// it. This is where a user's intent arrives, so it is where a refusal is actionable.
+		//
+		// It is not the guard Amendment 1 item 4 withdrew. That one duplicated a check on the
+		// very path it sat in front of; the pipeline is not invoked at all when a price is set,
+		// so without this a GBP price on a EUR project succeeds silently and the user finds out
+		// at the next assign — the failure this whole increment exists to end.
 		const currency = project.value.entity.currency;
+		if (input.unitCost.currency !== currency) {
+			return err(
+				assetPriceError(
+					'currency-mismatch',
+					`A price override must be in the project's currency (${currency}); `
+						+ `got ${input.unitCost.amount} ${input.unitCost.currency}.`,
+				),
+			);
+		}
+
 		const existing = await this.deps.overrides.getForPair(input.projectId, input.assetId);
 		if (isErr(existing)) return existing;
 
 		const next = existing.value === null
-			? AssetPriceOverride.create(
-				{
-					id: createAssetPriceOverrideId(),
-					projectId: input.projectId,
-					assetId: input.assetId,
-					unitCost: input.unitCost,
-				},
-				currency,
-			)
-			: existing.value.entity.withUnitCost(input.unitCost, currency);
+			? AssetPriceOverride.create({
+				id: createAssetPriceOverrideId(),
+				projectId: input.projectId,
+				assetId: input.assetId,
+				unitCost: input.unitCost,
+			})
+			: existing.value.entity.withUnitCost(input.unitCost);
 		if (isErr(next)) return next;
 
 		const saved = await this.deps.overrides.save(
@@ -2032,6 +1998,177 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 ---
 
+### Task 7a: deleting an asset takes its price overrides with it
+
+**Files:**
+- Modify: `src/application/commands/asset/DeleteAsset.ts`
+- Modify: `src/plugin/composition-root.ts` (the new dep on `DeleteAssetDeps`)
+- Test: `tests/application/commands/asset/deleteAssetWithOverrides.test.ts`
+
+**Interfaces:**
+- Consumes: Task 2's `listByAsset` and `delete`.
+- Produces: `DeleteAssetDeps` gains `readonly overrides: AssetPriceOverrideRepository`.
+
+**Why this task exists.** `DeleteAssetCommand` gathers its referents from
+`requirements.listByAsset` alone (`DeleteAsset.ts:79`) and `resolvedReferents` is typed
+`readonly RequirementId[]`. An asset carrying a price override and **no** Requirement therefore
+deletes with no referents observed, and the override's `asset` id dangles. Worse than a stale
+field, because of Task 8's join: `ListProjectAssetPrices` builds its rows from `listAll`, so an
+override whose asset is gone renders in **no** row — unreachable, unlistable and undeletable by
+the user who made it.
+
+**The overrides go WITH the asset; they are not referents that refuse it.** A referent is work a
+user must decide about — the four choices
+[[A delete reports what references it and offers four choices]] describes. A price for a deleted
+asset names nothing, can derive no Requirement, and offers no other outcome.
+
+**Where it goes, and why NOT inside the compensated sequence.** The obvious home is
+`runDeleteResolution`'s own steps, and it is the wrong call for this increment: that sequence's
+durable marker is `Requirement`-shaped (`SequenceMarker.affectedBefore: readonly
+Loaded<Requirement>[]`), so carrying overrides in it means widening that type and bumping
+`SEQUENCE_MARKER_SCHEMA_VERSION` — a versioned change to a **durable recovery record**, which is
+precisely the "first schema change that cannot be a redefinition" CLAUDE.md says should be
+scheduled deliberately rather than discovered inside another increment.
+
+So the deletion runs **after** the sequence returns ok, and the ORDER is the safety argument:
+the asset is gone first, then its overrides. A failure at that point leaves exactly the state
+this repository is in today — an orphan override — plus a log line, which is a strictly better
+failure than the reverse order's, where a crash between the two would destroy a user's prices
+and leave the asset standing.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+describe('DeleteAssetCommand and price overrides', () => {
+	/**
+	 * THE case: an asset with an override and no Requirement. Today this deletes cleanly with
+	 * no referents observed, which is why the defect is invisible.
+	 */
+	it('deletes the price overrides of an asset that has no requirements', async () => {
+		expectOk(await setOverride.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }));
+		expectOk(await deleteAsset.execute({ assetId }));
+		// Assert what MOVED, not that the delete succeeded — it succeeds either way.
+		expect(expectOk(await overrides.listByAsset(assetId))).toHaveLength(0);
+	});
+
+	it('deletes overrides across every project that had one', async () => {
+		// Projects A and B both price the shared asset.
+		expectOk(await deleteAsset.execute({ assetId, resolution: 'remove-references' }));
+		expect(expectOk(await overrides.listByAsset(assetId))).toHaveLength(0);
+	});
+
+	it('leaves the overrides of a different asset alone', async () => {
+		expectOk(await deleteAsset.execute({ assetId }));
+		expect(expectOk(await overrides.listByAsset(otherAssetId))).toHaveLength(1);
+	});
+
+	/**
+	 * The failure degrades to today's behaviour rather than to data loss, and says so. The
+	 * delete still reports ok, because the asset really is gone and reporting otherwise would
+	 * make a user retry a deletion that already happened.
+	 */
+	it('reports the delete as successful and logs when an override delete fails', async () => {
+		vi.spyOn(overrides, 'delete').mockResolvedValue(err(persistenceError('asset-price.delete-failed', 'no')));
+		const result = await deleteAsset.execute({ assetId });
+		expect(result.ok).toBe(true);
+		expect(logger.error).toHaveBeenCalledWith(
+			'asset-price.orphaned-by-asset-delete',
+			expect.objectContaining({ assetId }),
+		);
+	});
+
+	/** Nothing to do, nothing logged — a delete of an unpriced asset stays silent. */
+	it('logs nothing when the asset had no overrides', async () => {
+		expectOk(await deleteAsset.execute({ assetId }));
+		expect(logger.error).not.toHaveBeenCalled();
+	});
+});
+```
+
+- [ ] **Step 2: Run and watch them fail**
+
+Run: `npx vitest run tests/application/commands/asset/deleteAssetWithOverrides.test.ts`
+Expected: FAIL on the first three — the overrides survive the delete.
+
+- [ ] **Step 3: Implement**
+
+Add `overrides` to `DeleteAssetDeps` and to the `ops` bundle, then, in `execute`, after
+`runDeleteResolution` returns ok:
+
+```ts
+		if (isErr(resolved)) return resolved;
+		await this.deleteOverridesOf(input.assetId);
+		return resolved;
+```
+
+```ts
+	/**
+	 * A price override for a deleted Asset names nothing: no Requirement can derive from it, and
+	 * `ListProjectAssetPrices` joins on the catalogue, so it renders in no row — unreachable and
+	 * undeletable by the user who made it. It goes with the asset rather than refusing its
+	 * deletion, because there is no second outcome to offer.
+	 *
+	 * AFTER the sequence, and the order is the safety argument: a failure here leaves the orphan
+	 * this repository already produces today, plus a line saying so. The reverse order would
+	 * destroy a user's prices and leave the asset standing if it failed in between.
+	 *
+	 * It does not fail the delete. The asset IS gone; reporting failure would invite a retry of
+	 * a deletion that already happened.
+	 */
+	private async deleteOverridesOf(assetId: AssetId): Promise<void> {
+		const listed = await this.ops.overrides.listByAsset(assetId);
+		if (isErr(listed)) {
+			this.ops.logger.error('asset-price.orphaned-by-asset-delete', { assetId, cause: listed.error });
+			return;
+		}
+		for (const override of listed.value) {
+			const deleted = await this.ops.overrides.delete(override.entity.id, override.version);
+			if (isErr(deleted)) {
+				this.ops.logger.error('asset-price.orphaned-by-asset-delete', {
+					assetId,
+					overrideId: override.entity.id,
+					cause: deleted.error,
+				});
+			}
+		}
+	}
+```
+
+- [ ] **Step 4: Run, then mutation-check**
+
+Run the file — PASS. Then delete the `await this.deleteOverridesOf(...)` call: the first three
+cases must redden. If only one does, your fixtures share a project or an asset and the other two
+are not testing what their names say.
+
+- [ ] **Step 5: Full gate, then commit**
+
+Run: `npm run check`
+
+```bash
+git add src/application/commands/asset src/plugin tests/application/commands/asset
+git commit -m "fix(delete): an asset's price overrides go with the asset
+
+DeleteAssetCommand gathered referents from requirements alone, so an asset
+with an override and no requirement deleted with none observed — and the
+orphan then rendered in no row, because the price list joins on the
+catalogue. Unreachable, unlistable, undeletable.
+
+They go with the asset rather than refusing its deletion: a price for a
+deleted asset names nothing and there is no second outcome to offer.
+
+After the sequence rather than inside it, deliberately: that sequence's
+durable marker is Requirement-shaped, and carrying overrides in it means
+versioning a recovery record — a schema change to schedule rather than to
+slip into this increment. The order is the safety argument: a failure here
+leaves the orphan we produce today, where the reverse order would destroy a
+user's prices and leave the asset standing.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
+```
+
+---
+
 ### Task 8: the read model, and the composition root
 
 **Files:**
@@ -2343,16 +2480,18 @@ re-adds as an oversight.
 
 Run against the spec, section by section.
 
-**Spec coverage.** Decision 1 → Task 9. Decision 2 → Task 1. Decision 3 → Task 2. Decision 4 →
-Task 5. Decision 5 → Task 6. Decision 6 → Task 8. Decision 7 → Task 3. Persistence → Task 3.
+**Spec coverage.** Decision 1 → Task 9. Decision 2 → Task 4 (the rule) and Task 1 (its
+deliberate absence, pinned). Decision 2a → Task 4. Decision 2b → Task 7a. Decision 3 → Task 2.
+Decision 4 → Task 5. Decision 5 → Task 6. Decision 6 → Task 8. Decision 7 → Task 3. Persistence → Task 3.
 Testing → the witness is Task 5 step 1; the precedence, the false-mismatch arms, the unit arm,
 the narrowed cascade, the duplicate-pair diagnostic and the create refusal are Tasks 1, 3, 6, 7.
 Residuals → the documents section above.
 
-**One gap found and closed while reviewing:** the spec names the commands nowhere — it says
+**One gap found and closed while reviewing:** the spec named the commands nowhere — it said
 "the affordance" and "the create path" without giving them names — and the witness cannot be
 written without them. They are Task 4, and their two design decisions (upsert on the pair; a
-no-op clear announces nothing) are stated there rather than left to be invented.
+no-op clear announces nothing) are stated there rather than left to be invented. A review bot
+reported the same gap independently; the spec now carries them as Decision 2a.
 
 **A second, left open deliberately:** the spec's precedence case — *"a Requirement with both
 overrides live, asserting the requirement override is in force and that changing the price

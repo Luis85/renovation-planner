@@ -59,22 +59,82 @@ is the comparison [[A manual override is stored as an override, beside what it r
 **Recorded as the trigger rather than as a closed question:** a vault whose library outgrows one
 readable list is when the sparse-plus-picker shape becomes right, and nothing here forecloses it.
 
-## Decision 2: a coherence rule on `create`, mirroring the first half's
+## Decision 2: the coherence rule is the COMMAND's, not the entity's
 
-`AssetPriceOverride.create` takes the project's currency and refuses a `unitCost` denominated in
-anything else. The constructor is private, so the entity is the one place every path passes — which
-is the reason Amendment 1 item 5 gives for `Project.create`'s own budget/contingency rule, applied
-to the same question one level down.
+**Corrected after review.** The first draft put it on `AssetPriceOverride.create`, taking the
+project's currency and refusing a `unitCost` denominated in anything else — on the reasoning that
+the constructor is private, so the entity is the one place every path passes, which is what
+Amendment 1 item 5 says about `Project.create`'s budget/contingency rule.
 
-**This is not a second expression of the pipeline's refusal**, and the distinction is what keeps it
-from being the guard Amendment 1 item 4 withdrew. The pipeline asks *may this figure be computed*.
-This asks *is this override capable of ever being used* — and an override in a currency the project
-does not price in is a dead entry: it can only ever make the assign it was created to rescue refuse
-again, with a message about a mismatch the user just created. The two questions have different
-answers on different inputs, which is the test for whether a second check is duplication.
+That reasoning does not transfer, and a review bot found the contradiction it produced. The
+difference is **whose fact the currency is**. `Project.create` compares two of its OWN fields.
+Here the project's currency belongs to another entity, so the rule can only be enforced by
+TELLING the constructor — and the constructor is on the hydration path too. Follow it through and
+the spec contradicts itself:
 
-A Zod refinement was available and is refused for that function's own stated reason: it would be a
-second answer to the same question, on the read side only.
+- Every persisted override is rebuilt through `create`, so the mapper must supply a currency.
+- Supply the **project's**, and a note that has drifted from it is REFUSED at the read — so a
+  stranded override becomes invisible rather than visible-and-wrong, which is the opposite of what
+  this document's own residuals promise, and it silently hides a note the user can see on disk.
+- Supply the **override's own**, and the check is tautological on every read: it can never fire.
+
+So the rule moves to `SetAssetPriceOverrideCommand` (Decision 2a), which is where a user's intent
+actually arrives, and `AssetPriceOverride.create` keeps only what it can own alone: a unit cost
+may not be negative. Hydration constructs through the same `create`, unconditionally, and a
+mismatched note is **read, shown and refused by the pipeline** — which is what makes both of this
+document's residuals true rather than aspirational.
+
+**It is still not a second expression of the pipeline's refusal**, and that distinction survives
+the move intact. The pipeline asks *may this figure be computed*, and it is not invoked at all
+when a price is set; this asks *is this override capable of ever being used*. Without it, setting
+a GBP price on a EUR project succeeds silently and the user discovers it at the next assign, which
+is the failure this whole increment exists to end. It is not the guard Amendment 1 item 4 withdrew:
+that one duplicated a check on the very path it sat in front of.
+
+**The general shape, and it is this repository's own:** a rule that reads as belonging to an entity
+belongs there only if the entity holds every fact it compares. When one of them is another
+entity's, "the constructor is the one place every path passes" stops being an argument for the
+entity and becomes an argument against it, because hydration is one of those paths.
+
+## Decision 2a: the two commands, named
+
+The first draft named neither, and said only "the affordance" and "the create path" — which a
+review bot reported as unschedulable, correctly: the surface has no operation to dispatch, and a
+direct repository write would not drive the cascade.
+
+- **`SetAssetPriceOverrideCommand`** — upsert on the **pair**, not on an id. "Set the price for
+  this asset in this project" is one intent whether or not a note exists, and the id is a ULID the
+  caller does not hold. It checks both endpoints exist, enforces Decision 2's currency rule against
+  the project it just read, saves conditionally, and publishes `AssetPriceOverrideChanged` **only
+  after a successful save** — an announcement whose write failed would recalculate a project
+  against a price no note holds.
+- **`ClearAssetPriceOverrideCommand`** — removes it, so the catalogue default applies again. A pair
+  with no override reports `cleared: false` and **announces nothing**: nothing moved, and an
+  announcement for a no-op is how a project's whole requirement set gets recalculated because a
+  control was clicked twice.
+
+## Decision 2b: deleting an asset deletes its price overrides
+
+Also found by review, and it is a dangling reference this document did not consider.
+`DeleteAssetCommand` gathers its referents from `requirements.listByAsset` alone
+(`DeleteAsset.ts:79`), and `resolvedReferents` is typed `readonly RequirementId[]`. So an asset
+carrying a price override and **no** Requirement is deleted with no referents observed, and the
+override's `asset` id dangles.
+
+The damage is worse than a stale field, because of Decision 6's join: `ListProjectAssetPrices`
+builds its rows from `listAll`, so an override whose asset is gone renders in **no** row. The note
+is unreachable through the UI, unlistable, and undeletable by the user who made it.
+
+**The overrides go WITH the asset; they are not referents that refuse it.** A referent is work that would be
+orphaned and that a user must decide about — the four choices
+[[A delete reports what references it and offers four choices]] describes. A price for a deleted asset is not a decision:
+it names nothing, no Requirement can be derived from it, and there is no other outcome to offer.
+The precedent is the sibling increment's own — an asset's geometry sidecar is deleted with the
+asset, for the same reason.
+
+It goes **inside the existing delete-resolution sequence**, under the same locks and the same
+compensation, rather than beside it: a delete interrupted between the overrides and the asset must
+be recoverable exactly as one interrupted between the requirements and the asset already is.
 
 ## Decision 3: the port needs `listByAsset`, which the contract block omits
 
@@ -225,7 +285,12 @@ Then the cases whose absence would leave a defect that reads as working:
 - **The duplicate-pair diagnostic** — two notes for one pair, asserting the `warn` call AND that a
   price is still returned. Asserting only the warning passes against a build that then refuses.
 - **The create refusal** — a `unitCost` in a currency that is not the project's, refused at the
-  entity.
+  COMMAND (Decision 2), with the companion case that a note already carrying one is still READ:
+  asserting only the refusal passes against a build that also hides the stranded note.
+- **Deleting an asset takes its price overrides with it** (Decision 2b), including the case that
+  makes it a defect rather than an untidiness: an asset with an override and NO requirement, which
+  today deletes with no referents observed. Assert the override is gone, not merely that the delete
+  succeeded — it succeeds either way.
 
 **Branches are the metric to watch, and the headroom is one covered unit.** This increment is
 branch-heavy: the `??`, the create refusal's two sides, the duplicate fork and the two batched
@@ -291,10 +356,12 @@ against a shared definition"* — is met by this increment and the epic should s
   remedy is named so the next author does not redesign it: a marker on that row, derived per read
   from the two currencies, never stored.
 - **A hand-edited price note can disagree with the project's currency.** Decision 2's rule is on
-  `create`, and the notes are user-editable. Such an override is read, and the assign it feeds
-  refuses at the pipeline — correct, and the message names the wrong relationship, because
-  `toUserMessage` takes no params. That widening is the first half's recorded residual and is not
-  reopened here.
+  the COMMAND, and the notes are user-editable, so such an override is **read and shown** — which
+  is deliberate, and is what the second residual's marker is for. The assign it feeds refuses at
+  the pipeline; that message names the wrong relationship, because `toUserMessage` takes no params.
+  That widening is the first half's recorded residual and is not reopened here. Refusing the note
+  at the READ was the alternative and is rejected: it makes a note the user can see on disk
+  invisible to the plugin, which is the same trade the duplicate-pair rule already refuses.
 
 ## What this does not change
 

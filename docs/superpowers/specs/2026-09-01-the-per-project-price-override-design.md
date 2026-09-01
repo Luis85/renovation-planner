@@ -146,6 +146,14 @@ last-writer-wins meant literally, and identical in both implementations however 
 It lives beside the port that declares the contract, and the shared repository contract test is
 what holds both implementations to it.
 
+**Four sites need it, not three**, which is worth stating because the correction had to be made
+twice: `getForPair` in each repository, `ListProjectAssetPrices`' fold, **and** `onAssetUpdated`'s
+own per-project map. The first correction fixed three and left the fourth, so the skip test would
+have compared against a different price than recalculation resolves and every overridden
+requirement in a duplicated-pair vault would false-invalidate on enumeration order alone. The
+remedy is `winnersBy`, a grouping helper over the same rule — `new Map(list.map(...))` reads as a
+grouping and is really "whichever entry came last", and it is the spelling that keeps arriving.
+
 **These are not in tension.** Tolerating a duplicate on READ is about not making a vault
 unreadable; refusing to CREATE one and clearing all of them is about not lying to a user. The
 repository stays permissive and the commands are strict, which is the same division
@@ -253,8 +261,11 @@ joining them in Pinia — a join in a store is a read model nothing can test wit
 something.
 
 The Inspector's **three figures** (§89's *beside what it replaced*, at both levels) come from
-`RequirementInspectorDTO` gaining a `unitCost: { catalogue, projectOverride, effective }` group
-beside the `quantity` and `cost` groups it already carries. The row then shows the shared default,
+`RequirementInspectorDTO` gaining a `unitCost: { catalogue, projectOverride, effective } | null`
+group beside the `quantity` and `cost` groups it already carries — `null` where the asset is gone,
+rather than an invented zero. **The DTO is half of it**: `RequirementRow.vue` has to render the
+group, or the promise ships as a field nobody reads and no gate notices, which is how the plan's
+first draft had it. The row then shows the shared default,
 this project's price, and the requirement's own figure, each labelled and the one in force marked.
 
 ## Decision 7: the note is named by its own id, like every other nameless entity

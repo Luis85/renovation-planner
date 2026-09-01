@@ -413,6 +413,35 @@ export function winningDuplicate(
 		null,
 	);
 }
+
+/**
+ * The same rule applied to a GROUPED list, which is what every caller but `getForPair` actually
+ * needs — the cascade keys by project, the price list by asset.
+ *
+ * It exists because `new Map(list.map(...))` is the shape that keeps arriving: it reads as a
+ * grouping and is really "whichever entry came last in enumeration order", which is a third
+ * answer to the question `winningDuplicate` states. That spelling had already been written into
+ * three call sites of this plan and corrected; the FOURTH — `onAssetUpdated`'s own map — survived
+ * that correction and was found a round later. A rule with a function has one place to be wrong.
+ */
+export function winnersBy<K>(
+	overrides: readonly Loaded<AssetPriceOverride>[],
+	keyOf: (o: Loaded<AssetPriceOverride>) => K,
+): Map<K, Loaded<AssetPriceOverride>> {
+	const grouped = new Map<K, Loaded<AssetPriceOverride>[]>();
+	for (const override of overrides) {
+		const key = keyOf(override);
+		const bucket = grouped.get(key);
+		if (bucket) bucket.push(override);
+		else grouped.set(key, [override]);
+	}
+	const winners = new Map<K, Loaded<AssetPriceOverride>>();
+	for (const [key, bucket] of grouped) {
+		const best = winningDuplicate(bucket);
+		if (best !== null) winners.set(key, best);
+	}
+	return winners;
+}
 ```
 
 - [ ] **Step 2: Write the shared contract test**
@@ -1355,6 +1384,32 @@ fails:
 	});
 ```
 
+And the one that only a partial failure reaches:
+
+```ts
+	/**
+	 * A partial clear HAS written. The survivor is now the effective price, so a cascade that
+	 * never hears about it leaves every requirement derived from the note that is gone. Asserting
+	 * only the refusal passes against a build that stays silent.
+	 */
+	it('announces what it deleted even when a later delete fails', async () => {
+		// Seed two notes for the pair, then fail the SECOND delete.
+		const result = await command.execute({ projectId, assetId });
+		expect(result.ok).toBe(false);
+		expect(bus.published).toContainEqual(
+			expect.objectContaining({ type: 'AssetPriceOverrideChanged', payload: { projectId, assetId } }),
+		);
+	});
+
+	/** And the other side, so the rule is not "always announce": a FIRST delete that fails
+	 *  has written nothing, so there is nothing to announce. */
+	it('announces nothing when the first delete fails', async () => {
+		const result = await command.execute({ projectId, assetId });
+		expect(result.ok).toBe(false);
+		expect(bus.published).toHaveLength(0);
+	});
+```
+
 - [ ] **Step 3: Run and watch them fail**
 
 Run: `npx vitest run tests/application/commands/asset-price/`
@@ -1550,16 +1605,25 @@ export class ClearAssetPriceOverrideCommand … {
 			const forPair = listed.value.filter((o) => o.entity.projectId === input.projectId);
 			if (forPair.length === 0) return ok({ cleared: false });
 
+			// **Any write that landed is announced, even when a later one fails.** The rule this
+			// file states elsewhere — a failed write must not announce — is about a command that
+			// wrote NOTHING. A partial clear has written: deleting the highest-id note moves the
+			// effective price to the survivor, so the cascade and every open pane are looking at
+			// a figure derived from a note that is gone. Returning the failure without the event
+			// leaves them there indefinitely, which is worse than the refusal itself.
+			let removed = false;
 			for (const override of forPair) {
 				const deleted = await this.deps.overrides.delete(override.entity.id, override.version);
-				// Reported rather than swallowed: a partial clear leaves a price in force, and
-				// saying `cleared: true` over it is the lie this whole method exists to avoid.
-				if (isErr(deleted)) return deleted;
+				if (isErr(deleted)) {
+					if (removed) await this.announce(input);
+					// Reported rather than swallowed: a partial clear leaves a price in force,
+					// and saying `cleared: true` over it is the lie this method exists to avoid.
+					return deleted;
+				}
+				removed = true;
 			}
 
-			await this.deps.events.publish(
-				assetPriceOverrideChanged({ projectId: input.projectId, assetId: input.assetId }),
-			);
+			await this.announce(input);
 			return ok({ cleared: true });
 		} finally {
 			release();
@@ -1892,6 +1956,17 @@ describe('onAssetUpdated with price overrides', () => {
 		expect(recalculate).toHaveBeenCalledWith(expect.objectContaining({ requirementId: projectBRequirementId }));
 	});
 
+	/**
+	 * The duplicate-winner rule reaches this map too. With `new Map(list.map(...))` the skip
+	 * test compares against whichever note came last in `listByAsset` order while recalculation
+	 * resolves the highest id, so an overridden requirement false-invalidates on enumeration
+	 * order alone. Seed two notes for one pair, lower id last.
+	 */
+	it('skips using the same override recalculation would resolve, when the pair is duplicated', async () => {
+		await publishAssetUpdated(assetId);
+		expect(recalculate).not.toHaveBeenCalled();
+	});
+
 	/** One read for the whole fan-out, not one per requirement. */
 	it('reads the overrides once however many requirements the asset has', async () => {
 		const spy = vi.spyOn(overrides, 'listByAsset');
@@ -1924,7 +1999,15 @@ Add `overrides` to `AssetCascadeDeps`, then between loading the asset and filter
 			await runRecalculationCascade(deps, listed.value);
 			return;
 		}
-		const byProject = new Map(overrides.value.map((o) => [o.entity.projectId, o.entity.unitCost]));
+		// `winnersBy`, NOT `new Map(list.map(...))`. That spelling keeps whichever note came last
+		// in `listByAsset` order, while `getForPair` and the price list both answer the highest
+		// id — so this skip test would compare against a different price than recalculation
+		// resolves, and every overridden requirement in a duplicated-pair vault would
+		// false-invalidate on enumeration order alone.
+		const winners = winnersBy(overrides.value, (o) => o.entity.projectId);
+		const byProject = new Map(
+			[...winners].map(([projectId, override]) => [projectId, override.entity.unitCost]),
+		);
 
 		const changed = listed.value.filter(
 			(r) =>
@@ -2437,15 +2520,9 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 		const overrides = await this.overrides.listByProject(projectId);
 		if (isErr(overrides)) return overrides;
 
-		// Grouped then resolved through `winningDuplicate`, never `new Map(list.map(...))`:
-		// that keeps whichever entry came last in `listByProject` order, which is a third
-		// answer to a question the port states once.
-		const byAsset = new Map<AssetId, Loaded<AssetPriceOverride>>();
-		for (const override of overrides.value) {
-			const assetId = override.entity.assetId;
-			const best = winningDuplicate([...(byAsset.has(assetId) ? [byAsset.get(assetId)!] : []), override]);
-			if (best !== null) byAsset.set(assetId, best);
-		}
+		// `winnersBy`, never `new Map(list.map(...))`: that keeps whichever entry came last in
+		// `listByProject` order, which is a different answer from the one `getForPair` gives.
+		const byAsset = winnersBy(overrides.value, (o) => o.entity.assetId);
 		const rows = assets.value.map((loaded) => {
 			const override = byAsset.get(loaded.entity.id) ?? null;
 			return {
@@ -2532,6 +2609,84 @@ One query joining the catalogue with the project's overrides, carrying each
 override's id and revision because clearing one is a conditional write. The
 requirement DTO gains a unitCost group beside quantity and cost — the INPUT
 level beside the OUTPUT level, which is §89 at both.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
+```
+
+---
+
+### Task 8a: the Inspector actually shows the three figures
+
+**Files:**
+- Modify: `src/presentation/editor/shell/RequirementRow.vue`
+- Modify: `src/presentation/i18n/en.ts`, `src/presentation/i18n/de.ts`
+- Modify: `styles/` (the row's own partial)
+- Test: `tests/presentation/editor/requirementRow.test.ts` (extend)
+
+**Interfaces:**
+- Consumes: Task 8's `RequirementInspectorDTO.unitCost: { catalogue, projectOverride, effective } | null`.
+- Produces: no new exports.
+
+**Why this is its own task.** Task 8 adds the DTO group and populates it, and **nothing renders
+it** — no step in this plan touched `RequirementRow.vue` or `InspectorPanel.vue`, so spec
+Decision 6's *"three numbers in the worst case, each labelled with what it is and which of them is
+in force"* would have shipped as an unused DTO field. A promise in a document and a field nobody
+reads: exactly the gap between promise and check this repository's own rules refuse, and it was
+found by review rather than by any gate, because an unread DTO field fails nothing.
+
+- [ ] **Step 1: Write the failing component test**
+
+```ts
+describe('RequirementRow unit cost', () => {
+	it('shows the library price beside this project price, marking the one in force', () => {
+		// unitCost: { catalogue: 24.00 EUR, projectOverride: 19.50 GBP, effective: 19.50 GBP }
+		// Both figures present; the override carries the in-force mark.
+	});
+
+	it('shows the library price alone when the project has no override', () => {
+		// projectOverride: null → one figure, no comparison, no dangling label.
+	});
+
+	/** §85: never colour alone. The in-force marker is a word or a glyph plus the colour. */
+	it('marks the figure in force with something a screen reader reads', () => { … });
+
+	/** The asset is gone, so there is no catalogue price to compare against — Task 8 sets the
+	 *  whole group to null rather than inventing a zero, and the row must not render an empty
+	 *  comparison for it. */
+	it('renders no unit-cost block when the asset is missing', () => { … });
+});
+```
+
+- [ ] **Step 2: Run and watch it fail at the assertion**
+
+Run: `npx vitest run tests/presentation/editor/requirementRow.test.ts`
+Expected: FAIL because nothing renders the figures — not because the fixture lacks the field.
+Add the field to the fixture FIRST, or the red proves only that the test data is stale.
+
+- [ ] **Step 3: Add the copy to both locales**
+
+`view.inspector.price-library`, `view.inspector.price-project`, `view.inspector.price-in-force`.
+Sentence case; German for an Asset is `Objekt`. No literal reaches the template —
+`I18N_LITERAL_BAN` does not watch a Vue interpolation, so this one rests on review.
+
+- [ ] **Step 4: Render it, then look at it**
+
+Follow the row's existing quantity/cost blocks — this is the same §89 "beside what it replaced"
+shape one level up, so it should read as their sibling rather than as a third idea.
+
+Run: `npm run harness-shot` and read the picture. A third figure in a row that already carries
+two is exactly where spacing and wrapping break, and no gate here measures either.
+
+- [ ] **Step 5: Full gate, then commit**
+
+```bash
+git add src/presentation styles tests
+git commit -m "feat(inspector): the price beside the price it replaced
+
+Task 8 added the DTO group and nothing rendered it, so the three figures
+existed as a field no component read. §89 at the input level, beside the
+output level the row already shows.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
@@ -2733,7 +2888,7 @@ Run against the spec, section by section.
 
 **Spec coverage.** Decision 1 → Task 9. Decision 2 → Task 4 (the rule) and Task 1 (its
 deliberate absence, pinned). Decision 2a → Task 4. Decision 2b → Task 7a. Decision 3 → Task 2.
-Decision 4 → Task 5. Decision 5 → Task 6. Decision 6 → Task 8. Decision 7 → Task 3. Persistence → Task 3.
+Decision 4 → Task 5. Decision 5 → Task 6. Decision 6 → Tasks 8 and 8a (the query and the renderer; the DTO group alone is a field nobody reads). Decision 7 → Task 3. Persistence → Task 3.
 Testing → the witness is Task 5 step 1; the precedence, the false-mismatch arms, the unit arm,
 the narrowed cascade, the duplicate-pair diagnostic and the create refusal are Tasks 1, 3, 6, 7.
 Residuals → the documents section above.

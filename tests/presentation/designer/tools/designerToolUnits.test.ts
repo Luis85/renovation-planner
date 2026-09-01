@@ -265,12 +265,76 @@ describe('SetFacingTool', () => {
 	});
 
 	/**
-	 * A REFUSED dispatch reaches the report door — and a gesture cancelled while that dispatch
-	 * was in flight does NOT, because the refusal belongs to a gesture the user has taken back.
-	 * That is what the generation counter is for, and the two halves are one case because a
-	 * build with no counter passes the first.
+	 * **A REFUSED dispatch reaches the report door, and a gesture that ended while it was in
+	 * flight does not change that** — which is the correction of what this case used to assert.
+	 *
+	 * It was written as "reports a refused facing, UNLESS the gesture was cancelled while it was
+	 * in flight", on the reasoning that "the refusal belongs to a gesture the user has taken
+	 * back". Two things were wrong with it. The name promised the first half and the body
+	 * asserted only the second, so nothing here ever watched a refusal being reported at all;
+	 * and the reasoning confuses two subjects. A generation counter answers "is the PREVIEW I am
+	 * about to touch still mine". A refusal answers "the vault declined a write that really was
+	 * attempted" — a fact about the vault, true however the tool has been switched since, and
+	 * `SetAnchorTool`'s own docblock already says exactly this about its own missing counter.
+	 * `asset.no-footprint` is a pre-write code, so `affectsSaveState` leaves the indicator
+	 * neutral and the notice door was the only channel that refusal had.
+	 *
+	 * Both halves in ONE case, deliberately: a build that reports nothing at all passes either
+	 * one alone, and the pair is what says the report is unconditional rather than merely
+	 * present on the happy path.
 	 */
-	it('reports a refused facing, unless the gesture was cancelled while it was in flight', async () => {
+	it('reports a refused facing, whether or not the gesture ended while it was in flight', async () => {
+		const refused: AppError[] = [];
+		const refusal = {
+			ok: false as const,
+			error: { category: 'Persistence', code: 'vault.unexpected-failure', message: 'x' } as AppError,
+		};
+		let settle!: (result: DispatchResult) => void;
+		const harness = toolContext({
+			commandDispatcher: {
+				run: () =>
+					new Promise<DispatchResult>((resolve) => {
+						settle = resolve;
+					}),
+			},
+		});
+		const tool = new SetFacingTool({
+			createCommand: recordingCommand,
+			reportRejected: (error) => refused.push(error),
+			reportInvalidInput: (error) => refused.push(error),
+		});
+		tool.activate(harness.context);
+
+		// An ordinary drag, refused.
+		tool.pointerDown(pointerAt(0, 0));
+		tool.pointerUp(pointerAt(100, 0));
+		settle(refusal);
+		await flushGesture();
+
+		// And a second drag the user cancels out of before its refusal lands. `cancel()` bumps
+		// nothing this continuation reads any more, which is the whole change.
+		tool.pointerDown(pointerAt(0, 0));
+		tool.pointerUp(pointerAt(0, 100));
+		tool.cancel();
+		settle(refusal);
+		await flushGesture();
+
+		expect(refused.map((error) => error.code)).toEqual([
+			'vault.unexpected-failure',
+			'vault.unexpected-failure',
+		]);
+	});
+
+	/**
+	 * What a tool switch DOES still take with it: the preview. Cleared by `deactivate` and left
+	 * cleared by a refusal resolving afterwards — the tool must not repaint a segment for a
+	 * gesture whose surface has moved on.
+	 *
+	 * Its own case rather than an extra assertion above, because the two are separate claims:
+	 * "the refusal is reported" and "the picture is not restored" are what a build that dropped
+	 * the report to protect the picture would have conflated.
+	 */
+	it('leaves the preview cleared when a refusal lands after the tool was switched away', async () => {
 		let settle!: (result: DispatchResult) => void;
 		const harness = toolContext({
 			commandDispatcher: {
@@ -290,10 +354,11 @@ describe('SetFacingTool', () => {
 
 		tool.pointerDown(pointerAt(0, 0));
 		tool.pointerUp(pointerAt(100, 0));
-		tool.cancel();
+		tool.deactivate();
 		settle({ ok: false, error: { category: 'Persistence', code: 'vault.unexpected-failure', message: 'x' } });
 		await flushGesture();
 
-		expect(refused).toEqual([]);
+		expect(refused).toHaveLength(1);
+		expect(harness.context.renderState.measurement).toBeNull();
 	});
 });

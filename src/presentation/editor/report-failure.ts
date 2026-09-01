@@ -1,6 +1,8 @@
 import type { AppError } from '../../core/errors/AppError';
-import { noticeOnlySinks, notifyFault, notifyOperationFailure } from '../notices/notify';
+import { err } from '../../core/result/Result';
+import { faultError, noticeOnlySinks, notifyFault, notifyOperationFailure } from '../notices/notify';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
+import type { UndoableCommand } from './tools/undoable-command';
 import type { Logger } from '../../application/ports/Logger';
 import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
 import { isTechnicalFault } from '../../core/errors/technical-fault';
@@ -8,7 +10,12 @@ import { affectsSaveState } from './save-state/affects-save-state';
 
 /**
  * Where an editing leaf's failure goes once the save indicator has had its chance at it, and
- * the two last-stop doors a dispatch bound to a click needs.
+ * the three last-stop doors a dispatch that nobody awaits needs.
+ *
+ * TWO of them are for a dispatch bound to a CLICK — `reportDispatchFault` and `notifyIfRefused`,
+ * which the toolbar's undo and redo chain together. The third, `mapDispatchFaults`, is for a
+ * dispatch bound to a GESTURE, which is every tool on both surfaces and which had none at all
+ * until a review round asked what happens when `run(...)` rejects.
  *
  * Extracted from `runtime.ts` so the rule is ONE function with several importers rather than
  * one spelled out at each of them — `CLAUDE.md`'s "one rule with two doors is two rules unless
@@ -135,4 +142,86 @@ export async function notifyIfRefused(operation: Promise<DispatchResult | null>)
 	const result = await operation;
 	if (result === null || result.ok) return;
 	reportDispatchFailure(result.error);
+}
+
+/**
+ * The phantom brand that makes "this dispatcher's faults have been mapped" a fact a type can
+ * hold, borrowed verbatim from `errorSurfacePolicy.ts`'s `Routed` and for the same reason.
+ *
+ * `declare const` plus `unique symbol`: nothing reads it at runtime and the returned object
+ * carries no extra property, so a test may still compare a dispatcher as plain data.
+ */
+declare const FAULT_MAPPED: unique symbol;
+
+type FaultMapped = { readonly [FAULT_MAPPED]: true };
+
+/**
+ * The door a tool dispatches through — a dispatcher whose `run` is guaranteed to RESOLVE, never
+ * to reject.
+ *
+ * `EditorContextDeps.commandDispatcher` is typed as this, which is the whole mechanism: a
+ * surface cannot assemble an `EditorContext` without having put its dispatcher through
+ * `mapDispatchFaults` first, because nothing outside this module can produce the brand. A THIRD
+ * editing surface therefore inherits the guarantee rather than having to remember it — the
+ * failure this closes is precisely that the two surfaces that exist today each composed their
+ * context by hand and neither wrapped `run`.
+ *
+ * State it narrowly: the type holds that the mapping was APPLIED, never that the `event` name
+ * passed with it is the right one. Two runtimes, two names, and review is the whole instrument
+ * for that half.
+ */
+// `FaultMapped` is UNEXPORTABLE on purpose, and this is the third leak in this repository that
+// must not be "fixed" the way the report suggests: exporting it would let a runtime hand
+// `createEditorContext` a raw `wrapDispatcher` result with the brand asserted onto it, which is
+// the exact composition this type exists to make impossible.
+//
+// "next line" is LITERAL, and the reported line is the one the private type is NAMED on — not
+// this alias's head.
+export type ToolDispatcher =
+	// fallow-ignore-next-line private-type-leak
+	{ run(command: UndoableCommand): Promise<DispatchResult> } & FaultMapped;
+
+/**
+ * The THIRD last-stop door in this file, and the one every canvas gesture goes through.
+ *
+ * `reportDispatchFault` above covers `undo()` and `redo()`, which are bound straight to toolbar
+ * clicks. It never covered `run(...)` — what all five tools across both surfaces call — and
+ * `withStateRefresh`/`withEditorStateRefresh` RE-THROW on rejection by design, while every tool
+ * launches its dispatch detached (`void this.commit(...)`, `void this.dispatch(...)`). So a
+ * vault fault under a drag was an unhandled rejection: nothing told the user, nothing logged the
+ * cause, and the gesture silently did nothing — the one failure mode SDD §66 exists to prevent,
+ * standing in the plan editor since design slices 7 and 8.
+ *
+ * **It MAPS and LOGS, and deliberately does not notify.** `faultError` is the map-once,
+ * log-once half of the fault door; the failed `Result` it returns is then indistinguishable in
+ * SHAPE from a refusal the command produced, which is exactly what lets the five tools go on
+ * inspecting `if (!result.ok)` unchanged and report through the door they already have. That
+ * door is `reportDispatchFailure` above, which asks `isTechnicalFault` FIRST and gives a fault
+ * its own sentence rather than a "Save error" badge with no cause. Notifying here as well would
+ * be the double-report design slice 17 closed.
+ *
+ * **The `Result` is preserved rather than replaced**, which is the property to keep: a tool that
+ * holds a buffer keeps it on a fault exactly as it does on a refusal, because the two arrive on
+ * the same channel and the write may or may not have landed either way.
+ *
+ * The alternative — a `.catch` at each of the five tool call sites — is the shape `runDetached`
+ * and `notifyFault` were both written against: a sixth tool would have to remember a `.catch`
+ * that nothing checks. Here it is one function, and `ToolDispatcher`'s brand makes it one the
+ * compiler will not let a surface skip.
+ */
+export function mapDispatchFaults(
+	dispatcher: { run(command: UndoableCommand): Promise<DispatchResult> },
+	logger: Logger,
+	event: string,
+): ToolDispatcher {
+	const mapped = {
+		run: async (command: UndoableCommand): Promise<DispatchResult> => {
+			try {
+				return await dispatcher.run(command);
+			} catch (cause) {
+				return err(faultError(cause, logger, event));
+			}
+		},
+	};
+	return mapped as ToolDispatcher;
 }

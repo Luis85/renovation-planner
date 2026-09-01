@@ -49,6 +49,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import { ok } from '../../../../src/core/result/Result';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
+import { mapDispatchFaults } from '../../../../src/presentation/editor/report-failure';
+import { recorder } from '../../../helpers/logger';
 import { SnapService } from '../../../../src/presentation/editor/snapping/snap-service';
 import { RenderState } from '../../../../src/presentation/editor/tools/render-state';
 import { screenPoint, type Point, type ScreenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
@@ -111,9 +113,14 @@ function stubDeps(): EditorContextDeps {
 		bindViewport: stubViewport,
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
-		commandDispatcher: {
-			run: (_command: UndoableCommand): Promise<DispatchResult> => Promise.resolve(ok('wrote')),
-		},
+		// Through the real mapper, because `EditorContextDeps.commandDispatcher` requires the
+		// brand only `mapDispatchFaults` can apply — which is the point of the brand: a
+		// composition cannot hand a tool a dispatcher whose `run` may still reject.
+		commandDispatcher: mapDispatchFaults(
+			{ run: (_command: UndoableCommand): Promise<DispatchResult> => Promise.resolve(ok('wrote')) },
+			recorder,
+			'test.dispatch.faulted',
+		),
 		writeLedger: new SessionWriteLedger(),
 		renderState: new RenderState(),
 		subject: { id: createPlanId(), calibration: null },

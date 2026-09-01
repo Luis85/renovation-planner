@@ -56,6 +56,15 @@ export function harness(options: { worldPerScreenPixel?: number } = {}): Harness
 					const release = gate;
 					gate = null;
 					return release().then(() => {
+						// The failure is re-asked on the far side of the gate, so a case can hold a
+						// dispatch open AND have it refuse — the combination a slow write that the
+						// vault then declines actually has. It used to be reachable only on the
+						// ungated path, which left "a refusal that lands after the gesture ended"
+						// inexpressible, and that is precisely the window a generation check sits in.
+						if (failNext) {
+							failNext = false;
+							return err({ category: 'Persistence', code: 'test.injected-failure', message: 'injected' });
+						}
 						dispatched.push(runnable);
 						return runnable.execute();
 					});

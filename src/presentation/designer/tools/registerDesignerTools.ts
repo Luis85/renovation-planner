@@ -82,7 +82,17 @@ type DesignerToolId = keyof typeof DESIGNER_TOOL_LABELS;
 export interface DesignerToolDeps {
 	readonly assetId: AssetId;
 	readonly edits: ReversibleAssetDesignCommands;
-	/** A DISPATCHED refusal — one a command ran and returned. */
+	/**
+	 * A DISPATCHED failure — one the dispatcher answered with, rather than one a tool refused
+	 * for itself.
+	 *
+	 * It used to read "one a command ran and returned", which stopped being the whole story when
+	 * `mapDispatchFaults` was put in front of `EditorContext.commandDispatcher.run`: a vault
+	 * fault below the boundary now arrives here as a resolved failed `Result` too, carrying the
+	 * technical-fault stamp. That is deliberate and it is what `reportDispatchFailure` — what
+	 * this is bound to — asks about FIRST, so a fault keeps its own sentence instead of a "Save
+	 * error" badge with no cause.
+	 */
 	readonly reportRejected: (error: AppError) => void;
 	/** A refusal a tool made ITSELF, before any command was built. Slice 17's split. */
 	readonly reportInvalidInput: (error: AppError) => void;

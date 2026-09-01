@@ -75,11 +75,29 @@ const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value
  * the region exists to show the object being drawn, so a panel taking its place would hide the
  * one thing both exist for.
  *
- * There is no `@action` handler and no `activeToolId` gate, and both absences are decisions.
- * Neither designer entry carries a label today (see `EMPTY_STATE_CONTENT.assetDesigner`), so
- * `EmptyState` renders no button and there is nothing to handle; and the tool framework arrives
- * with Task B5, so there is no active tool for an overlay to yield to. Task B5 adds that gate
- * where `PlanEditorRoot` keeps it — here, as a rendering rule, never inside the selector.
+ * **TWO gates answering different questions**, exactly as `PlanEditorRoot` keeps them.
+ * `selectAssetDesignerEmptyState` is "is this asset legitimately undrawn", decided from an
+ * already-succeeded query result alone; `activeToolId` is "is the user mid-task", and it is
+ * checked HERE rather than folded into the selector because it is a RENDERING rule — folding it
+ * in would make "which state is this asset in" unanswerable without a live `ToolManager`, and a
+ * node test could no longer ask it.
+ *
+ * **The gate arrived one task late and the account is worth keeping.** This docblock used to
+ * record its absence as a decision — "the tool framework arrives with Task B5, so there is no
+ * active tool for an overlay to yield to. Task B5 adds that gate where `PlanEditorRoot` keeps
+ * it" — and Task B5 shipped the tools without it, while the line above this one was already
+ * reading `runtime.activeToolId.value` for the Shift hint. A trigger stated in prose fires with
+ * nothing to notice it, which is this repository's own recurring shape.
+ *
+ * It is worse on this surface than on a plan, which is why it is not merely a consistency fix:
+ * design slice B4 gave the designer four world-space layers and no transient one, so a gesture
+ * in progress draws no vertices and no close target at all (`registerDesignerTools.ts` records
+ * that gap). An opaque centred card therefore sat over the ONLY picture the user could have had
+ * of what they were doing.
+ *
+ * There is still no `@action` handler, and that absence remains a decision: neither designer
+ * entry carries a label today (see `EMPTY_STATE_CONTENT.assetDesigner`), so `EmptyState` renders
+ * no button and there is nothing to handle.
  */
 /**
  * The Shift constraint, advertised while a tool that takes it is active — asked of the ONE list
@@ -99,7 +117,7 @@ const showsConstraintHint = computed(() => constrainsAngle(runtime.activeToolId.
 
 const overlay = computed(() => {
 	const current = design.value;
-	if (current === null) return null;
+	if (current === null || runtime.activeToolId.value !== null) return null;
 	const key = selectAssetDesignerEmptyState(current);
 	return key === null ? null : resolveEmptyState(EMPTY_STATE_CONTENT.assetDesigner[key]);
 });

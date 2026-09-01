@@ -150,6 +150,16 @@ export interface DesignerRig {
 	 * refresh decorator regardless of the bus.
 	 */
 	readonly peer: { setFacing: SetAssetFacingCommand };
+	/**
+	 * Arm the geometry sidecar to THROW on its next read — a vault fault below the boundary,
+	 * which SDD §65 reserves throws for, rather than a refusal any command returns.
+	 *
+	 * A method rather than a construction option because a rig armed at build time would fault
+	 * the mount's own read and never reach a gesture at all; the interesting moment is one
+	 * gesture in, with a design already on screen. `editorFaults.test.ts`'s `ThrowingRead` is the
+	 * same instrument on the Plan Editor's zone repository.
+	 */
+	faultNextGeometryRead(): void;
 	unmount(): void;
 }
 
@@ -169,6 +179,29 @@ export interface DesignerRigOptions {
 }
 
 /**
+ * The real sidecar, with one door that can be made to THROW.
+ *
+ * Subclassed rather than hand-written, for this repository's fake-too-thin rule: every other
+ * door stays the production one, so a case armed with this is still driving the real read,
+ * write and version handling everywhere it did not arm.
+ *
+ * `read` is the door because it is the first thing every design command does — see
+ * `SetAssetAnchorCommand` — so arming it faults a gesture BEFORE anything is written, which is
+ * the case a save indicator cannot carry and a toast therefore has to.
+ */
+class FaultingSidecar extends ObsidianAssetGeometrySidecar {
+	throwNext = false;
+
+	override read(assetId: AssetId): ReturnType<ObsidianAssetGeometrySidecar['read']> {
+		if (this.throwNext) {
+			this.throwNext = false;
+			throw new Error('the vault went away mid-gesture');
+		}
+		return super.read(assetId);
+	}
+}
+
+/**
  * The real designer over the real in-memory persistence stack.
  *
  * Everything below the view is genuine: `ObsidianAssetGeometrySidecar` over the fake vault's
@@ -184,7 +217,7 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 
 	const stack = createRepositoryStack();
 	const events = createEventBus();
-	const sidecar = new ObsidianAssetGeometrySidecar(stack.assetGeometry);
+	const sidecar = new FaultingSidecar(stack.assetGeometry);
 	const written = expectOk(await stack.assets.save(makeAsset({ height: 700 }), 'absent'));
 	const assetId = written.entity.id;
 	expectOk(await sidecar.write(assetId, { calibration: null, shape: options.shape ?? null }));
@@ -265,6 +298,9 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		},
 		activeToolId: () => editor.activeToolId,
 		peer: { setFacing: setFacingCommand },
+		faultNextGeometryRead: () => {
+			sidecar.throwNext = true;
+		},
 		unmount: () => {
 			wrapper.unmount();
 			host.remove();

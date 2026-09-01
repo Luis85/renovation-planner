@@ -69,6 +69,20 @@ const DIRECTION_EPSILON_PX = 4;
  * invisible while it is being made and its result appears only once the facing arrow is
  * redrawn from the committed design. That is a gap in the increment rather than in this tool,
  * and it is written here because this is the file whose behaviour it makes invisible.
+ *
+ * **No generation counter, and its absence is a decision** — the same one `SetAnchorTool`'s
+ * docblock states, reached here by DELETING one. This tool carried a counter whose docblock said
+ * it let "the continuation after `dispatch`'s awaited run tell whether the preview it is about
+ * to clear is still its own", and that continuation clears no preview: `pointerUp` clears it
+ * synchronously, before the dispatch is even started. So the counter guarded nothing it claimed
+ * to, and the one statement it did guard was the REPORT — a drag whose command refused after the
+ * user switched tools was reported nowhere at all, with `asset.no-footprint` being a pre-write
+ * code that leaves the save indicator neutral and no second channel behind it.
+ *
+ * The rule the deletion leaves behind, and it is the one `DrawPolygonTool` and `CalibrateTool`
+ * still need their counters for: a generation guards MUTATIONS of gesture-owned state — a vertex
+ * buffer, a pending point, a selection — and never the reporting of a refusal, which is a fact
+ * about a write that really was attempted.
  */
 export class SetFacingTool implements EditorTool {
 	readonly id: ToolId = 'set-facing';
@@ -76,27 +90,18 @@ export class SetFacingTool implements EditorTool {
 	private context: EditorContext | null = null;
 	/** Where the button went down — the anchor of both the constraint and the direction. */
 	private origin: Point | null = null;
-	/**
-	 * Bumped by everything that abandons the current gesture, so the continuation after
-	 * `dispatch`'s awaited run can tell whether the preview it is about to clear is still its
-	 * own. Without it a drag cancelled with Escape, followed immediately by a second drag,
-	 * would have the FIRST dispatch's late resolution wipe the second one's rubber band.
-	 */
-	private generation = 0;
 
 	constructor(private readonly deps: SetFacingToolDeps) {}
 
 	activate(context: EditorContext): void {
 		this.context = context;
 		this.origin = null;
-		this.generation += 1;
 		this.clearPreview(context);
 	}
 
 	deactivate(): void {
 		const context = this.context;
 		this.origin = null;
-		this.generation += 1;
 		if (context !== null) this.clearPreview(context);
 		this.context = null;
 	}
@@ -141,7 +146,6 @@ export class SetFacingTool implements EditorTool {
 	cancel(): void {
 		const context = this.context;
 		this.origin = null;
-		this.generation += 1;
 		if (context !== null) this.clearPreview(context); // no command dispatched
 	}
 
@@ -180,13 +184,20 @@ export class SetFacingTool implements EditorTool {
 		context.renderState.measurement = null;
 	}
 
+	/**
+	 * **The continuation touches nothing but the report door, which is why there is no
+	 * generation check in it** — see the class docblock for the counter this tool used to carry.
+	 *
+	 * Everything the gesture owned is already gone by the time this runs: `pointerUp` nulls the
+	 * origin and clears the preview BEFORE it calls this, so a later `activate`, `deactivate` or
+	 * `cancel` has nothing here to protect from a late resolution.
+	 */
 	private async dispatch(context: EditorContext, facing: number): Promise<void> {
-		const generation = this.generation;
 		const result = await context.commandDispatcher.run(this.deps.createCommand(facing));
-		// The gesture this dispatch belonged to may be over — Escape, a tool switch or a
-		// re-activation while it was in flight. The write landed either way and the refresh
-		// decorator puts it on the canvas; the preview now belongs to somebody else.
-		if (generation !== this.generation) return;
+		// Reported however the gesture ended. The write really was attempted and the vault
+		// really declined it, which stays true whatever the user has done since — and
+		// `asset.no-footprint` is a PRE-WRITE code, so `affectsSaveState` resolves neutral and
+		// no indicator is carrying it. Returning early here made that refusal silent.
 		if (!result.ok) this.deps.reportRejected(result.error);
 	}
 }

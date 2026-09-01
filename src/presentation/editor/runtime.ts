@@ -32,7 +32,7 @@ import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
 import { editorViewportAdapter } from './viewport/editorViewportAdapter';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
-import { notifyIfRefused, reportDispatchFailure, reportDispatchFault } from './report-failure';
+import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispatchFault } from './report-failure';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
@@ -360,6 +360,13 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 
 	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, tracked);
 
+	// The SAME object every tool dispatches through, with its `run` mapped so it cannot reject:
+	// a tool launches its dispatch detached, so a rejection here reached nobody at all. Required
+	// by `EditorContextDeps.commandDispatcher`'s type rather than remembered — see
+	// `mapDispatchFaults`. `undo`/`redo` below deliberately take the plain object instead, since
+	// `reportDispatchFault` is their own door and notifies at it.
+	const toolDispatcher = mapDispatchFaults(wrappedDispatcher, context.commands.logger, DISPATCH_FAULT_EVENT);
+
 	const inspector = createInspector(context, wrappedDispatcher, ledger);
 	inspectorRef.current = inspector;
 
@@ -420,7 +427,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 			bindViewport: () => viewportAdapter,
 			selection,
 			snapService: EDITOR_SNAP_SERVICE,
-			commandDispatcher: wrappedDispatcher,
+			commandDispatcher: toolDispatcher,
 			writeLedger: ledger,
 			renderState,
 			subject: subject(),

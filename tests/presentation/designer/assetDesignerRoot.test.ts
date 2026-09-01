@@ -19,7 +19,7 @@
 import { describe, expect, it } from 'vitest';
 import { createPinia } from 'pinia';
 import VueKonva from 'vue-konva';
-import { flushPromises, mount } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import AssetDesignerRoot from '../../../src/presentation/designer/AssetDesignerRoot.vue';
 import {
@@ -31,6 +31,7 @@ import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { unavailableAssetDesignerQueries } from '../../../src/presentation/read-models/assetDesignerQueries';
 import { err, ok } from '../../../src/core/result/Result';
 import { t } from '../../../src/presentation/i18n/strings';
+import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { EMPTY_STATE_CONTENT } from '../../../src/presentation/emptyStates/content';
 import { assetDesign } from '../../helpers/assetDesign';
 import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
@@ -50,6 +51,17 @@ installCanvas();
 installResizeObserver();
 
 const ASSET_ID = 'asset-01JABC';
+
+/**
+ * A toolbar button by the string key its label resolves from — read through `t` rather than
+ * spelled, so a copy change moves both ends at once.
+ */
+function toolButton(wrapper: VueWrapper, label: StringKey): HTMLButtonElement {
+	const found = wrapper.findAll('.rp-designer-tools button').find((button) => button.text() === t('en', label));
+	if (found === undefined) throw new Error(`no designer toolbar button labelled ${t('en', label)}`);
+	return found.element as HTMLButtonElement;
+}
+
 
 function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerContext {
 	return {
@@ -177,6 +189,53 @@ describe('what the designer draws inside its canvas region', () => {
 		);
 
 		expect(wrapper.find('.rp-empty-state__action').exists()).toBe(false);
+	});
+
+	/**
+	 * **The overlay YIELDS to an active tool**, which is slice 14's rule and the one this root's
+	 * own `overlay` docblock deferred to design slice B5: "Task B5 adds that gate where
+	 * `PlanEditorRoot` keeps it — here, as a rendering rule, never inside the selector." B5
+	 * landed with the tools and without the gate, so an opaque centred card sat over every
+	 * gesture made on a shapeless asset.
+	 *
+	 * It is worse here than on a plan and that is why it is asserted through the REAL toolbar
+	 * rather than by writing the mirror: this canvas draws no in-progress vertices and no close
+	 * target (`registerDesignerTools.ts` records that gap), so the card covers a gesture the
+	 * user has no other picture of at all.
+	 *
+	 * The canvas is asserted STILL PRESENT beside it, because a build that yielded by unmounting
+	 * the region would satisfy the overlay's absence just as well.
+	 */
+	it('yields the overlay to an active tool, keeping the canvas it floats over', async () => {
+		const { wrapper } = await mounted(
+			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+		);
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
+
+		toolButton(wrapper, 'designer.toolbar.trace-footprint').click();
+		await nextTick();
+
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(false);
+		expect(wrapper.find('.rp-designer-canvas').exists()).toBe(true);
+	});
+
+	/**
+	 * The OVER-CORRECTION, as its own case: a gate reading "this surface has tools" rather than
+	 * "one is active" would hide the guidance for the whole life of the leaf, and every other
+	 * case in this file passes against it. Camera mode is "no active tool"
+	 * (`ToolManager.clearActiveTool`), so returning to it must bring the overlay back.
+	 */
+	it('brings the overlay back when the user returns to camera mode', async () => {
+		const { wrapper } = await mounted(
+			context({ queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign({ shape: null }))) } }),
+		);
+
+		toolButton(wrapper, 'designer.toolbar.trace-footprint').click();
+		await nextTick();
+		toolButton(wrapper, 'editor.toolbar.pan').click();
+		await nextTick();
+
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
 	});
 
 	it('overlays nothing once the asset has a shape', async () => {

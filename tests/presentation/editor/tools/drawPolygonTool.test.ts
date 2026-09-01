@@ -303,6 +303,47 @@ describe('DrawPolygonTool', () => {
 		expect(h.context.renderState.polygonSketch).toBeNull();
 	});
 
+	/**
+	 * **The same window, with the dispatch REFUSING rather than succeeding — and the two halves
+	 * of the generation check part company there.**
+	 *
+	 * A refusal is a fact about a write that really was attempted: the vault declined it, and
+	 * that stays true however the user has switched, cancelled or redrawn since. What the
+	 * counter exists to protect is the gesture-owned STATE the continuation would otherwise
+	 * mutate — this buffer, its sketch, the selection — all of which now belong to the polygon
+	 * being drawn instead. So the report goes out and nothing else moves.
+	 *
+	 * Both assertions in one case, because each alone passes a build that is wrong in the other
+	 * direction: reporting nothing satisfies the second, and dropping the guard entirely
+	 * satisfies the first while wiping the two vertices the user has just placed.
+	 */
+	it('reports a refusal that lands after a cancel, and leaves the gesture that replaced it alone', async () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		const release = h.gateNextDispatch();
+		h.failNextDispatch();
+		tool.pointerDown(at(0, 0));
+		tool.pointerDown(at(100, 0));
+		tool.pointerDown(at(100, 100));
+		tool.pointerDown(at(0, 0)); // close — now awaiting a gated dispatch that will refuse
+
+		tool.cancel();
+		tool.pointerDown(at(500, 500));
+		tool.pointerDown(at(600, 500));
+
+		release();
+		await flush();
+
+		expect(h.rejections).toHaveLength(1);
+		expect(h.context.renderState.polygonSketch?.vertices).toEqual([
+			{ x: 500, y: 500 },
+			{ x: 600, y: 500 },
+		]);
+		expect(h.context.selection.selectedIds).toEqual([]);
+	});
+
 	it('Escape during an in-flight close does not let the LATE success wipe the next polygon', async () => {
 		// `cancel()` clears `closing`, so clicks are accepted again while the dispatch is
 		// still in flight. Without a generation counter the resolved continuation then ran

@@ -8,6 +8,7 @@ import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import type { UndoableCommand } from './undoable-command';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { RenderState } from './render-state';
+import type { ToolDispatcher } from '../report-failure';
 
 /**
  * The entire API an `EditorTool` gets (SDD §58, design slice 6). Deliberately excludes
@@ -110,7 +111,22 @@ export interface EditorContextDeps {
 	bindViewport(): EditorContext['viewport'];
 	selection: SelectionStore;
 	snapService: SnapService;
-	commandDispatcher: EditorContext['commandDispatcher'];
+	/**
+	 * The one field here that is NOT simply the context's own type, and the difference is a
+	 * guarantee rather than a decoration.
+	 *
+	 * `ToolDispatcher` is `EditorContext['commandDispatcher']` plus a phantom brand only
+	 * `mapDispatchFaults` can apply, so a surface cannot assemble a context around a dispatcher
+	 * whose `run` may still REJECT. Every tool launches its dispatch detached — `void
+	 * this.commit(...)`, `void this.dispatch(...)` — and both refresh decorators re-throw on
+	 * rejection by design, so an unmapped one was an unhandled rejection reaching nobody while
+	 * the gesture silently did nothing. Both surfaces composed their context by hand and neither
+	 * remembered; a brand is what stops the third from having to.
+	 *
+	 * The context member below stays unbranded on purpose: a TOOL has no business knowing, and
+	 * `createEditorContext` passes the same object straight through either way.
+	 */
+	commandDispatcher: ToolDispatcher;
 	writeLedger: WriteLedger;
 	renderState: RenderState;
 	subject: EditorContext['subject'];

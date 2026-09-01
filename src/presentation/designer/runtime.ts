@@ -17,7 +17,12 @@ import { withStateRefresh, type RefreshedHistory } from '../editor/tools/with-st
 import { wrapDispatcher } from '../editor/tools/wrap-dispatcher';
 import { useSaveStateStore } from '../editor/save-state/save-state-store';
 import { withSaveStateTracking } from '../editor/save-state/with-save-state-tracking';
-import { notifyIfRefused, reportDispatchFailure, reportDispatchFault } from '../editor/report-failure';
+import {
+	mapDispatchFaults,
+	notifyIfRefused,
+	reportDispatchFailure,
+	reportDispatchFault,
+} from '../editor/report-failure';
 import { notifyOperationFailure } from '../notices/notify';
 import { useAssetDesignStore } from './stores/assetDesignStore';
 import type { AssetDesignerContext } from './AssetDesignerContext';
@@ -36,7 +41,7 @@ import type { AssetDesignerContext } from './AssetDesignerContext';
  * A command writes the note or the sidecar and answers a `Result`; nothing re-reads, so the
  * canvas goes on drawing what it read at mount. `provideEditorRuntime` solves the same problem
  * for the plan editor, and the three mechanisms it solves it with are shared rather than
- * copied — `withStateRefresh`, `wrapDispatcher` and `report-failure.ts`'s two last-stop doors
+ * copied — `withStateRefresh`, `wrapDispatcher` and `report-failure.ts`'s three last-stop doors
  * are all in `presentation/editor/` and take their subject as a parameter.
  */
 export interface DesignerRuntime {
@@ -134,6 +139,12 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 
 	const { dispatcher, canUndo, canRedo } = wrapDispatcher(history, tracked);
 
+	// The tools' own door: the same dispatcher, with `run` mapped so it RESOLVES a coded refusal
+	// instead of rejecting. A tool dispatches detached, so an unmapped rejection was an unhandled
+	// one and the gesture said nothing. `EditorContextDeps` requires the mapped form, which is
+	// what stops this surface — or a third — from composing a context without it.
+	const toolDispatcher = mapDispatchFaults(dispatcher, context.logger, DISPATCH_FAULT_EVENT);
+
 	/**
 	 * The ONE cast in this file, and the shape `presentation/editor/runtime.ts` already draws
 	 * for a plan. Obsidian persists an asset id in its per-leaf view state as an opaque string,
@@ -186,7 +197,7 @@ function buildRuntime(context: AssetDesignerContext): DesignerRuntime {
 			bindViewport: () => viewportAdapter,
 			selection,
 			snapService: EDITOR_SNAP_SERVICE,
-			commandDispatcher: dispatcher,
+			commandDispatcher: toolDispatcher,
 			writeLedger: geometryLedger,
 			renderState,
 			subject: { id: assetId, calibration: store.design?.calibration ?? null },

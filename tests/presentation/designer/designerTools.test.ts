@@ -22,6 +22,12 @@
  * and says at each case why the mounted path could not.
  */
 import { describe, expect, it } from 'vitest';
+// Mock-only surface, imported BY NAME: `Notice` carries statics (`shown`, `constructed`) the
+// real `obsidian` module does not declare, so reaching them through the `'obsidian'` specifier
+// would type-check against a surface that has no such thing. The vitest alias points that
+// specifier at this very file, so this is the SAME class and the same statics.
+import { Notice } from '../../helpers/obsidian-mock';
+import { activateNotices } from '../../../src/presentation/notices/notify';
 import { t } from '../../../src/presentation/i18n/strings';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
 import { footprintFromDimensions } from '../../../src/domain/asset/AssetShape';
@@ -352,6 +358,48 @@ describe('a gesture in a session with no persistence', () => {
  * doing. A rig whose dispatching bus nothing depends on is a rig that would not notice losing
  * it.
  */
+/**
+ * A vault FAULT under a gesture — a THROW, which SDD §65 reserves for exactly this and which is
+ * a different channel from the refusal the case above drives.
+ *
+ * The designer's half of a class defect: `EditorContext.commandDispatcher.run` is what all five
+ * tools on both surfaces dispatch through, `withStateRefresh` re-throws on rejection by design,
+ * and every tool launches its dispatch DETACHED — so a fault below the boundary was an unhandled
+ * rejection that reached nobody. Only `undo()`/`redo()` were ever wrapped, and no tool calls
+ * those.
+ *
+ * Both surfaces have this case, because the claim is a CATEGORY one and a single surface's case
+ * would prove only that one composition remembered. `editorFaults.test.ts` is the other half.
+ */
+describe('a vault fault under a gesture', () => {
+	it('reaches the user as a notice rather than an unhandled rejection, and the leaf goes on working', async () => {
+		// The queue is inert until something activates it, which `onload` does in production —
+		// and it is done per TEST because the queue dedups an identical sentence into a `(×N)`
+		// suffix rather than constructing a second `Notice`.
+		activateNotices();
+		Notice.shown.length = 0;
+		const rig = await designerRig({ shape: TYPED });
+
+		await activate(rig, 'designer.toolbar.set-anchor');
+		rig.faultNextGeometryRead();
+		click(rig, { x: 120, y: 40 });
+		await settle();
+
+		expect(Notice.shown).toHaveLength(1);
+		// Nothing landed: the fault is BEFORE the write, which is what makes the notice the only
+		// channel — a pre-write failure leaves the save indicator neutral.
+		expect((await rig.document()).shape?.anchor).toEqual({ x: 0, y: 0 });
+
+		// And the leaf still works, which is the half a swallowed rejection also destroys: the
+		// button stopped responding for the rest of the session.
+		click(rig, { x: 120, y: 40 });
+		await settle();
+
+		expect((await rig.document()).shape?.anchor?.x).toBeCloseTo(120, 6);
+		rig.unmount();
+	});
+});
+
 describe('a change made outside this leaf', () => {
 	it('re-reads the design when a peer writes it, through the subscription and not a dispatch', async () => {
 		const rig = await designerRig({ shape: TYPED });

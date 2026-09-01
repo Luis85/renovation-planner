@@ -315,16 +315,25 @@ export class DrawPolygonTool implements EditorTool {
 			const command = this.deps.completion.commandFor(geometry);
 			// Through the dispatcher, never by the completion itself: see `PolygonCompletion`.
 			const result = await context.commandDispatcher.run(command);
+			// **Reported BEFORE the generation check, and the order is the whole of it.** A
+			// refusal is a fact about a write that really was attempted and really was declined,
+			// which stays true however the gesture ended — and many of the codes a close can
+			// refuse with are PRE-WRITE, so `affectsSaveState` resolves neutral and the notice
+			// door is the only channel carrying them. Guarding the report made exactly those
+			// silent. `SetFacingTool`'s class docblock records the same correction, arrived at
+			// from the opposite direction: a counter whose ONLY guarded statement was a report
+			// is a counter guarding nothing, and it was deleted there rather than reordered.
+			if (!result.ok) {
+				this.deps.reportRejected(result.error);
+				return; // buffer intact here too — and, if the gesture is over, it is not ours anyway
+			}
 			// The gesture this close belonged to may be over: Escape, a tool switch or a
 			// re-activation happened while the dispatch was in flight. The write landed
 			// either way — the refresh decorator puts it on the canvas — but the buffer,
 			// the preview and the selection now belong to somebody else and must be left
-			// exactly as they are.
+			// exactly as they are. THAT is what a generation guards: a mutation of
+			// gesture-owned state, never the reporting of a refusal.
 			if (generation !== this.generation) return;
-			if (!result.ok) {
-				this.deps.reportRejected(result.error);
-				return; // buffer intact here too
-			}
 			this.buffer = [];
 			this.clearSketch(context);
 			// Selecting what was just drawn is safe now: by the time the dispatch resolves, the

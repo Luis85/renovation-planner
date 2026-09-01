@@ -119,6 +119,30 @@ function sidecarFailingReadsAfter(real: AssetGeometrySidecar, reads: number): As
 }
 
 /**
+ * A sidecar that lets a peer write land in the window BETWEEN the adapter's pre-state read and
+ * the wrapped command's own read — which is the window the forward conditioning closes, and the
+ * only way to drive it: both reads go through this port, one after the other, with nothing else
+ * between them that a test could reach.
+ *
+ * `after` counts reads, so `1` means "immediately after the adapter has taken its snapshot".
+ */
+function sidecarWritingBetweenReads(
+	real: AssetGeometrySidecar,
+	after: number,
+	peer: () => Promise<unknown>,
+): AssetGeometrySidecar {
+	let seen = 0;
+	return {
+		read: async (assetId) => {
+			const answer = await real.read(assetId);
+			if (++seen === after) await peer();
+			return answer;
+		},
+		write: (assetId, document, expected) => real.write(assetId, document, expected),
+	};
+}
+
+/**
  * Every command and both ledgers are constructed HERE, once. A command built beside a case is
  * a command a mutation run silently leaves un-mutated, which this epic has already paid for.
  */
@@ -458,6 +482,106 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 
 		expect(expectErr(await command.undo()).code).toBe('asset.revision-conflict');
 		expect(await height()).toBe(1200);
+	});
+});
+
+/**
+ * The FORWARD write is conditional too, and these two cases are the reason.
+ *
+ * Both were reported against the first version of this module, which passed `this.input`
+ * straight through and let each command condition on its OWN read.
+ */
+describe('the window between this gesture\'s snapshot and the command\'s own read', () => {
+	/**
+	 * **A peer writing in that window used to be silently un-written by the undo.** The command
+	 * reads AFTER this adapter does, so it merged the peer's document and saved it forward,
+	 * while the inverse held the pre-peer one. The undo is conditioned on the ledger — which
+	 * holds the version the forward write produced — so it succeeded, put the pre-peer document
+	 * back, and the peer's clearance was gone with no refusal anywhere.
+	 *
+	 * Asserted on the REFUSAL rather than on the document, because a build that captured the
+	 * peer's document as its inverse would also leave the clearance intact and pass a
+	 * document-only assertion while the lost update sat one gesture away.
+	 */
+	it('refuses the forward write rather than capturing an inverse that predates a peer', async () => {
+		const { stack, sidecar, assetId } = await seeded();
+		expectOk(await sidecar.write(assetId, { calibration: null, shape: drawn() }));
+
+		const peerRan = { done: false };
+		const intercepted = sidecarWritingBetweenReads(sidecar, 1, async () => {
+			const current = expectOk(await sidecar.read(assetId));
+			expectOk(
+				await sidecar.write(
+					assetId,
+					{ ...current.document, shape: { ...drawn(), clearance: { points: [...WIDER] } } },
+					current.version,
+				),
+			);
+			peerRan.done = true;
+		});
+		const events = createEventBus();
+		const adapters: ReversibleAssetDesignCommands = new ReversibleAssetDesignCommands(
+			{
+				sidecar: intercepted,
+				assets: stack.assets,
+				events,
+				noteLedger: new SessionWriteLedger(),
+				geometryLedger: new SessionWriteLedger(),
+			},
+			{
+				setFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand({ sidecar: intercepted, assets: stack.assets, events }),
+				setFootprint: new SetAssetFootprintCommand({ sidecar: intercepted, assets: stack.assets, events }),
+				setClearance: new SetAssetClearanceCommand({ sidecar: intercepted, assets: stack.assets, events }),
+				setAnchor: new SetAssetAnchorCommand({ sidecar: intercepted, assets: stack.assets, events }),
+				setFacing: new SetAssetFacingCommand({ sidecar: intercepted, assets: stack.assets, events }),
+				setHeight: new SetAssetHeightCommand(stack.assets, events),
+			},
+		);
+
+		const gesture = adapters.setFootprint({ assetId, points: [...TRIANGLE] });
+		const outcome = await gesture.execute();
+
+		expect(peerRan.done).toBe(true);
+		expect(expectErr(outcome).code).toBe('asset-geometry.revision-conflict');
+		// And the peer's document is still what is stored, which is the consequence the refusal
+		// exists to buy rather than a restatement of it.
+		const after = expectOk(await sidecar.read(assetId));
+		expect(after.document.shape?.clearance).toEqual({ points: [...WIDER] });
+	});
+
+	/**
+	 * **A caller's own `expected` is spent by the first execute**, and holding it across every
+	 * one makes redo refuse deterministically: the undo advances the resource, so the version
+	 * the caller named is two writes behind by the time the redo asks.
+	 *
+	 * Both halves are asserted. The first execute must still HONOUR the caller's claim — that is
+	 * what an `expected` is for — so a build that simply ignored it would pass the redo half
+	 * alone. The refusal case below is what holds that end.
+	 */
+	it('redoes a gesture the caller gave an expected version for', async () => {
+		const { reversible, assetId, sidecar, geometryVersion } = await seeded();
+		await sidecar.write(assetId, { calibration: null, shape: drawn() });
+
+		const gesture = reversible.setAnchor({ assetId, anchor: { x: 9, y: 9 }, expected: await geometryVersion() });
+		expect(expectOk(await gesture.execute())).toBe('wrote');
+		expect(expectOk(await gesture.undo())).toBe('wrote');
+
+		expect(expectOk(await gesture.execute())).toBe('wrote');
+		const after = expectOk(await sidecar.read(assetId));
+		expect(after.document.shape?.anchor).toEqual({ x: 9, y: 9 });
+	});
+
+	it('still refuses a FIRST execute whose caller named a version the store has moved past', async () => {
+		const { reversible, assetId, sidecar, geometryVersion } = await seeded();
+		await sidecar.write(assetId, { calibration: null, shape: drawn() });
+		const stale = await geometryVersion();
+		// Somebody else writes, so the caller's claim about what it read is now false.
+		const current = expectOk(await sidecar.read(assetId));
+		expectOk(await sidecar.write(assetId, current.document, current.version));
+
+		const gesture = reversible.setAnchor({ assetId, anchor: { x: 9, y: 9 }, expected: stale });
+
+		expect(expectErr(await gesture.execute()).code).toBe('asset-geometry.revision-conflict');
 	});
 });
 

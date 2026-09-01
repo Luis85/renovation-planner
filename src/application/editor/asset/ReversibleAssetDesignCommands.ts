@@ -144,9 +144,30 @@ async function recordWritten(
  * undo-the-clearance, the sidecar sits two writes past the footprint's, and a per-adapter
  * expectation would refuse the exact sequence undo/redo exists to make work. A sidecar edited
  * OUTSIDE this history since still refuses: its version left the ledger's behind.
+ *
+ * **And the FORWARD write is conditional on the snapshot this gesture kept**, which closes a
+ * lost update the undo would otherwise perform. The wrapped command does its own read, so
+ * without this the two reads straddle a window: a peer designer writing in it is MERGED by the
+ * command — its document is what the command read — while this adapter still holds the
+ * pre-peer document as the inverse. The undo is then conditioned on the ledger, which holds
+ * the version the forward write produced, so it succeeds and puts the pre-peer document back.
+ * The peer's edit is gone with no refusal anywhere. Passing the snapshot's own version makes
+ * the command refuse instead, which is the answer a user can act on.
+ *
+ * **Captured PER EXECUTE, which is what keeps redo working.** The caller's own `expected` — an
+ * optimistic claim about what it read — is honoured on the first execute and spent there: a
+ * redo re-reads and conditions on what it finds, because by then the caller has already seen
+ * this gesture land and its claim describes a version two writes ago. Holding the caller's
+ * value across every execute makes redo refuse deterministically, which is the defect this
+ * split exists to avoid.
  */
 class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput> implements ReversibleAssetDesignEdit {
 	private inverse: { readonly document: AssetGeometryDocument; readonly preVersion: EntityVersion } | null = null;
+	/**
+	 * Has the wrapped command run at least once? The one thing that separates the first execute
+	 * from a redo, and therefore whether the caller's own `expected` still describes anything.
+	 */
+	private ran = false;
 
 	constructor(
 		private readonly deps: ReversibleAssetDesignDeps,
@@ -163,7 +184,9 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput> implements Rev
 		const before = await sidecar.read(assetId);
 		if (isErr(before)) return before;
 
-		const ran = await this.command.execute(this.input);
+		const expected = this.ran ? before.value.version : (this.input.expected ?? before.value.version);
+		const ran = await this.command.execute({ ...this.input, expected });
+		this.ran = true;
 		// A refusal wrote nothing and a `no-write` wrote nothing: neither has an inverse, and
 		// capturing one would let a later undo write a document no gesture had replaced. An
 		// earlier inverse from a previous `execute` is deliberately KEPT — the net effect of
@@ -216,6 +239,8 @@ class ReversibleAssetGeometryEdit<TInput extends AssetShapeInput> implements Rev
  */
 class ReversibleAssetNoteEdit<TInput extends AssetShapeInput> implements ReversibleAssetDesignEdit {
 	private inverse: { readonly entity: Asset; readonly preVersion: EntityVersion } | null = null;
+	/** As above: the first execute may honour the caller's `expected`, a redo may not. */
+	private ran = false;
 
 	constructor(
 		private readonly deps: ReversibleAssetDesignDeps,
@@ -235,7 +260,12 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput> implements Reversi
 		if (isErr(before)) return before;
 		if (before.value === null) return err(assetNotFound(assetId));
 
-		const ran = await this.command.execute(this.input);
+		// The same conditioning as the geometry adapter, for the same lost update through the
+		// same two-read window — `SetAssetHeightCommand` reads the note itself, so a peer save
+		// landing between that read and this one is merged forward and un-merged by the undo.
+		const expected = this.ran ? before.value.version : (this.input.expected ?? before.value.version);
+		const ran = await this.command.execute({ ...this.input, expected });
+		this.ran = true;
 		if (isErr(ran) || ran.value === 'no-write') return ran;
 
 		this.inverse = { entity: before.value.entity, preVersion: before.value.version };

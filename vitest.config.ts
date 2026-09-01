@@ -850,8 +850,16 @@ export default defineConfig({
 			// arithmetic; the project read `AssignAsset` and `RecalculateRequirement` each
 			// gained; `inputsStillMatch`'s project-currency comparison in
 			// `GetRequirementsForZone`; and the currency on the project detail row:
-			// 5950/5994 statements, 2956/3010 branches, 1534/1548 functions, 5285/5313 lines
+			// 5950/5994 statements, 2954/3008 branches, 1534/1548 functions, 5285/5313 lines
 			// — 99.26 / 98.20 / 99.09 / 99.47.
+			//
+			// **The branch figure was 2956/3010 until this increment's own final review**, and
+			// the two branches it lost are the point rather than noise: `inputsStillMatch` had
+			// hand-spelled the three comparisons `assetMatchesCalculatedFrom` already makes, and
+			// the review's structural fix made it CALL that function instead. Two duplicated
+			// arms stopped existing, two stopped being covered, and the percentage did not move
+			// — which is what deleting a duplicate looks like from here, and is the reason this
+			// line records COUNTS beside the percentages rather than percentages alone.
 			//
 			// NOTHING RATCHETS: rounded down these are 99 / 98 / 99 / 99, exactly the floors
 			// already in force, which is what slices 5, 11, 13, 15, 16, 18 and 19 also

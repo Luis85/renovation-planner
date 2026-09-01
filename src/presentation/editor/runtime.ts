@@ -4,7 +4,6 @@ import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import { createInspector } from './inspector-wiring';
-import type { Logger } from '../../application/ports/Logger';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
@@ -23,6 +22,7 @@ import { CalibrateTool } from './tools/calibrate-tool';
 import { DrawPolygonTool } from './tools/draw-polygon-tool';
 import { SelectTool } from './tools/select-tool';
 import { withEditorStateRefresh } from './tools/with-editor-state-refresh';
+import { wrapDispatcher } from './tools/wrap-dispatcher';
 import { useSaveStateStore } from './save-state/save-state-store';
 import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
@@ -31,7 +31,7 @@ import { SnapService } from './snapping/snap-service';
 import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
-import { reportDispatchFailure } from './report-failure';
+import { notifyIfRefused, reportDispatchFailure, reportDispatchFault } from './report-failure';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
@@ -64,6 +64,13 @@ import { makeCommitField } from './commitField';
  */
 const SNAP_GRID_MM = 100;
 const SNAP_TOLERANCE_MM = 8;
+
+/**
+ * The log event name this leaf's click-bound dispatches fault under. Named here rather than
+ * spelled at the two call sites, because a log line saying which DOOR faulted is only useful
+ * while the two doors agree on what to call themselves.
+ */
+const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 /** Stateless (config-only), so one instance serves every leaf. */
 const SNAP_SERVICE = new SnapService({
@@ -210,109 +217,6 @@ function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): vo
 			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
-}
-
-/**
- * The last stop for an UNEXPECTED technical fault on a dispatch (SDD §65 reserves throws
- * for those; every expected failure is a `Result`). Resolves `null` when one happened, so
- * a caller can tell "the dispatch reported a refusal" from "the dispatch never got to
- * report anything".
- *
- * It exists because every dispatch in this leaf is ultimately bound to a click handler —
- * `@click="runtime.undo()"`, the Inspector's delete — and a Vue click handler discards the
- * promise it is handed. Without this, a fault surfaced as a console unhandled rejection
- * and the UI simply stopped responding to that button, which is the one failure mode worse
- * than an error message.
- */
-async function reportFault(logger: Logger, operation: Promise<DispatchResult>): Promise<DispatchResult | null> {
-	try {
-		return await operation;
-	} catch (cause) {
-		// A technical fault escaping a dispatch. There is no `AppError` to translate here —
-		// it never reached a guard, or it came from one of the raw repository PORTS this
-		// interface still hands out — so `notifyFault` maps it into the same coded
-		// `PersistenceError` a guarded service would have produced, LOGS the raw cause under
-		// this door's event name, and prints the mapped copy. The exception's own message
-		// never reaches the user, and the developer half is not lost with it: no guard ran
-		// below this, so this is the only step in THIS path where both representations can be
-		// produced together (SDD §66). This is one of TWO such doors in this file; the other is
-		// `createDeleteZoneAction`'s catch, and both go through the same function so neither
-		// can drift into printing the raw text or into notifying without logging.
-		notifyFault(cause, logger, 'editor.dispatch.faulted');
-		return null;
-	}
-}
-
-/**
- * `reportFault`'s other half: an EXPECTED refusal that RESOLVES rather than throws
- * (SDD §65). `CommandHistory.undoNow`/`redoNow` deliberately leave a refused undo/redo ON
- * its stack rather than popping it, so without this the button stays enabled, does
- * nothing, and says nothing about why. A caller chains `notifyIfRefused(reportFault(op))`
- * to cover both halves — throw and resolved refusal — in one line.
- *
- * **Design slice 17 narrowed it, and the narrowing is the point.** Every dispatch reaching
- * here has already passed through `withSaveStateTracking`, which asks `affectsSaveState` and
- * flips the save indicator for anything that wrote or might have. Toasting it as well reported
- * ONE failure through TWO widgets that can drift apart — the toast dismisses and the indicator
- * does not, or the reverse — which is the reconciliation slice 11's own illustrative code left
- * open and this slice's Definition of Done forbids by name.
- *
- * So the origin is `autosave-write`, the table answers `save-state`, and this door stays shut
- * for it. The `saveState` sink is deliberately a NO-OP: the indicator is driven by the
- * DECORATOR one layer down, off the same `Result`, so there is nothing left for this site to
- * do — the policy's whole job here is to decide that no toast is owed. If indicator-flipping
- * ever moves out of `withSaveStateTracking`, this is the line that has to grow a body.
- *
- * A refusal the indicator does NOT report still reaches the user: `surfaceError` sends
- * anything the table routes elsewhere to `unrenderable`, which raises the notice.
- */
-async function notifyIfRefused(operation: Promise<DispatchResult | null>): Promise<void> {
-	const result = await operation;
-	if (result === null || result.ok) return;
-	reportDispatchFailure(result.error);
-}
-
-/**
- * The ONE dispatcher a leaf hands out — tools, toolbar and Inspector alike — wrapped so the
- * history-flag mirror hears about a tool gesture as well as a toolbar one. A dispatch that
- * bypasses this object silently breaks the reactive undo/redo flags and nothing errors.
- *
- * Two plain refs re-read from the history rather than an invalidation counter that two
- * computeds subscribed to with a `void revision.value` statement: that spelling put a line
- * with no visible effect above each `return`, and any tidy-up of it froze the Undo/Redo
- * buttons in whatever state they had at mount with nothing erroring.
- *
- * `finally`, not the resolved path: an unexpected technical fault can still leave the stacks
- * moved (SDD §65), and flags that stop tracking after one throw are wrong for the rest of
- * the leaf's life.
- */
-function wrapDispatcher(
-	history: CommandHistory,
-	dispatcher: ReturnType<typeof withEditorStateRefresh>,
-): {
-	readonly dispatcher: EditorRuntime['dispatcher'];
-	readonly canUndo: Ref<boolean>;
-	readonly canRedo: Ref<boolean>;
-} {
-	const canUndo = ref(history.canUndo);
-	const canRedo = ref(history.canRedo);
-	async function stepping(operation: () => Promise<DispatchResult>): Promise<DispatchResult> {
-		try {
-			return await operation();
-		} finally {
-			canUndo.value = history.canUndo;
-			canRedo.value = history.canRedo;
-		}
-	}
-	return {
-		dispatcher: {
-			run: (command) => stepping(() => dispatcher.run(command)),
-			undo: () => stepping(() => dispatcher.undo()),
-			redo: () => stepping(() => dispatcher.redo()),
-		},
-		canUndo,
-		canRedo,
-	};
 }
 
 /**
@@ -582,10 +486,10 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	// sidecar since (every zone create, move and delete does), and this is what makes THAT
 	// refusal say something rather than nothing.
 	async function undo(): Promise<void> {
-		await notifyIfRefused(reportFault(context.commands.logger, wrappedDispatcher.undo()));
+		await notifyIfRefused(reportDispatchFault(context.commands.logger, DISPATCH_FAULT_EVENT, wrappedDispatcher.undo()));
 	}
 	async function redo(): Promise<void> {
-		await notifyIfRefused(reportFault(context.commands.logger, wrappedDispatcher.redo()));
+		await notifyIfRefused(reportDispatchFault(context.commands.logger, DISPATCH_FAULT_EVENT, wrappedDispatcher.redo()));
 	}
 
 	// `commitField.ts` carries the guard's own doc; this is just the one line that binds it

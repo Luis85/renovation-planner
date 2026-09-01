@@ -63,9 +63,9 @@ export class AssetDesignerView extends ItemView {
 	 * what it was already showing: `assetId` is this view's own field and a rebind never touches
 	 * it, which is what stops a settings save moving a leaf to a different asset.
 	 *
-	 * The cost, stated rather than glossed: a remount discards the designer's transient state.
-	 * Today that is the read; from Task B3a it is the undo history and the camera too, exactly as
-	 * on the plan editor, and for the same reason — the alternative is a canvas that goes on
+	 * The cost, stated rather than glossed: a remount discards the designer's transient state —
+	 * the read, and since Task B3a the undo history and the save-state batch with it, exactly as
+	 * on the plan editor and for the same reason. The alternative is a canvas that goes on
 	 * writing through a root the vault has stopped agreeing with.
 	 */
 	rebind(deps: AssetDesignerDeps): void {
@@ -154,7 +154,16 @@ export class AssetDesignerView extends ItemView {
 	private mount(assetId: string): void {
 		this.contentEl.empty();
 		const host = this.contentEl.createDiv('renovation-asset-designer-view');
-		const context: AssetDesignerContext = { assetId, queries: this.deps.queries };
+		// `onDesignChanged` is partially applied HERE and nowhere else: the composition root
+		// composes services and knows nothing about which leaf this is, while the asset is exactly
+		// what this leaf IS — `PlanEditorView` binds its plan-change source the same way.
+		const context: AssetDesignerContext = {
+			assetId,
+			queries: this.deps.queries,
+			logger: this.deps.logger,
+			indexScanCompleted: this.deps.indexScanCompleted,
+			onDesignChanged: (listener) => this.deps.onDesignChanged(assetId, listener),
+		};
 
 		const app = createApp(AssetDesignerRoot);
 		// Two Vue apps' `useId()` calls must not collide, and this view is the third app that

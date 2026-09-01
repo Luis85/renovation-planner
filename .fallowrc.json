@@ -141,7 +141,35 @@
 		// the designer and the editor want the same shell badly enough that one is less code
 		// than two. Tasks B1 and B2 already extracted the halves they really do share — the
 		// gesture surface and the tool context.
-		"ignoredClones": ["dup:7fd5d625:2", "dup:6f87acd9:2"]
+		//
+		// **A clone key is a hash of the clone's own CONTENT, so editing either side retires the
+		// suppression** — measured rather than assumed: Task B3a added three members to
+		// `AssetDesignerView.mount`'s context literal, the fingerprint moved from `6f87acd9` to
+		// `c77b3abb6f87acd9`, and the pair reappeared unhidden having been reviewed once already.
+		// Worth knowing before the next edit to either view: a re-keyed group is the same
+		// reviewed decision, not a new one, and re-reading the paragraph above is the whole of
+		// what it asks for. The key is the id fallow PRINTS plus `:<instance count>`, so
+		// `dup:c77b3abb6f87acd9-1` in the report is `dup:c77b3abb6f87acd9-1:2` here — the bare
+		// printed id is rejected by the config parser, and a fingerprint without its group index
+		// parses and then matches nothing, which is a suppression that hides no group while
+		// reading exactly like one that does. Both were measured; the second is the dangerous
+		// spelling, because `analyze` still exits 0 for an unhidden duplicate and only the
+		// printed report says the key stopped working.
+		//
+		// The third, and it is a REAL overlap rather than an interface. `createAssetDesignChangeSource`
+		// and `createAssetCatalogueChangeSource` share seven lines: the `...EVENTS.map((type) =>
+		// events.subscribe(...))` spread and the disposer that walks the list. So do the three
+		// other sources in that directory — `planChangeSource`, `projectListChangeSource` and
+		// `projectPlansChangeSource` — which is exactly why nothing was extracted for the two the
+		// detector happens to pair. A helper adopted by two of five is a third spelling of one
+		// mechanism, and half-adoption is how the count of places that disagree becomes
+		// unknowable. What the clone spans is MECHANISM and never policy: the event LISTS and the
+		// filters differ in every one, and those are the parts a reader has to get right.
+		//
+		// The trigger: a sixth source, or any change to how a subscription is released — at which
+		// point one `subscribeToAll(events, registrations)` in `application/events/` should take
+		// ALL FIVE in one edit, and this key should go rather than grow.
+		"ignoredClones": ["dup:7fd5d625:2", "dup:c77b3abb6f87acd9-1:2", "dup:c77b3abb6f87acd9-2:2"]
 	},
 	// The harness page's plugin stylesheet is SERVED, not imported: the dev server answers
 	// `/styles.css` from styles/ (scripts/vite-assembled-styles.mjs), so there is no file on

@@ -28,13 +28,11 @@
  * level up and leaves it unchecked. A registry the root iterates has the same hole — nothing
  * makes a later task add its entry.
  */
-import { computed, onMounted, shallowRef } from 'vue';
+import { computed, onMounted } from 'vue';
+import { storeToRefs } from 'pinia';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
-import { isErr } from '../../core/result/Result';
-import type { AppError } from '../../core/errors/AppError';
-import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
 import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
@@ -43,32 +41,30 @@ import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { selectAssetDesignerEmptyState } from '../emptyStates/selectors';
 import { useAssetDesignerContext } from './AssetDesignerContext';
+import { provideDesignerRuntime } from './runtime';
+import { useAssetDesignStore } from './stores/assetDesignStore';
 
 const context = useAssetDesignerContext();
 
 /**
- * The design this leaf is drawing, and why it has no store yet.
- *
- * Task B3a owns `AssetDesignStore` and the per-leaf dispatcher that re-reads after every
- * committed command — which is what makes a WRITE visible. This is the read that has to exist
- * before then, because without it the empty state below has nothing to be a function of, and an
- * empty state nothing can select is the very defect this file's header is about. B3a replaces
- * these two refs with the store; there is one hydrate routine either way, so it is a move
- * rather than a second answer to what the canvas is showing.
+ * The leaf's live machinery (Task B3a), provided here so the regions later tasks mount can
+ * inject it. The return value is used immediately: `runtime.hydrate` is THE read — the mount,
+ * the retry below, and the cross-leaf subscription the runtime itself disposes all go through
+ * one routine rather than three spellings of it.
  */
-const design = shallowRef<AssetDesignDto | null>(null);
-const error = shallowRef<AppError | null>(null);
+const runtime = provideDesignerRuntime(context);
+const { design, error, status, stale } = storeToRefs(useAssetDesignStore());
 
-async function hydrate(): Promise<void> {
-	const result = await context.queries.getAssetDesign(context.assetId);
-	if (isErr(result)) {
-		design.value = null;
-		error.value = result.error;
-		return;
-	}
-	design.value = result.value;
-	error.value = null;
-}
+/**
+ * The canvas is drawing a design it can no longer confirm.
+ *
+ * A post-command read-back reads with `keepPreviousOnFailure`, which deliberately keeps
+ * `status === 'ready'` and the previous design when the read fails. Nothing rendered that, so
+ * the write succeeded, the indicator said Saved, and the canvas silently showed pre-command
+ * geometry. `'ready'` is the whole point of the guard: any other status is already replaced by
+ * the failure state, and this exists only for the case where there IS content to keep showing.
+ */
+const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value);
 
 /**
  * The overlay's props, or `null` for none. An OVERLAY inside the canvas region and never a
@@ -111,7 +107,11 @@ const overlay = computed(() => {
  */
 const failure = computed(() => {
 	const failed = error.value;
-	if (failed === null) return null;
+	// `status` and not `error` alone: a keep-on-failure refresh sets `error` beside content that
+	// is still real and still drawn, and replacing the canvas with a failure panel there would
+	// hide a design the user can go on working on in order to report a read that failed. That
+	// case is `staleAfterRefresh` above.
+	if (status.value !== 'failed' || failed === null) return null;
 	const session = surfaceFor(failed, viewHydrationOrigin(failed)).kind === 'session-failure';
 	return {
 		headline: tr(session ? 'view.session-failure.headline' : 'designer.asset-failed.headline'),
@@ -121,7 +121,7 @@ const failure = computed(() => {
 });
 
 onMounted(() => {
-	void hydrate();
+	void runtime.hydrate();
 });
 </script>
 
@@ -140,7 +140,7 @@ onMounted(() => {
 				<ViewFailure
 					v-if="failure !== null"
 					v-bind="failure"
-					@action="() => void hydrate()"
+					@action="() => void runtime.hydrate()"
 				/>
 				<EmptyState
 					v-else-if="overlay !== null"
@@ -157,6 +157,13 @@ onMounted(() => {
 			<!-- Task B8 mounts `DesignerInspector` here. -->
 			<div class="rp-designer-inspector" />
 		</div>
+		<p
+			v-if="staleAfterRefresh"
+			class="rp-designer-notice"
+			role="status"
+		>
+			{{ tr('designer.refresh-failed') }}
+		</p>
 		<div class="rp-designer-status">
 			<SaveStateIndicator />
 		</div>

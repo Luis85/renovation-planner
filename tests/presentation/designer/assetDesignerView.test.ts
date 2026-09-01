@@ -23,6 +23,7 @@ import type { AssetDesignerQueryServices } from '../../../src/presentation/read-
 import { unavailableAssetDesignerQueries } from '../../../src/presentation/read-models/assetDesignerQueries';
 import { t } from '../../../src/presentation/i18n/strings';
 import { assetDesign } from '../../helpers/assetDesign';
+import { recorder } from '../../helpers/logger';
 import { installObsidianDom } from '../../helpers/dom';
 import { settle } from '../../helpers/async';
 import { FakeLeaf } from '../../helpers/workspace';
@@ -37,6 +38,9 @@ const ASSET_ID = 'asset-01JABC';
 function deps(overrides: Partial<AssetDesignerDeps> = {}): AssetDesignerDeps {
 	return {
 		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())) },
+		logger: recorder,
+		onDesignChanged: () => () => undefined,
+		indexScanCompleted: () => true,
 		...overrides,
 	};
 }

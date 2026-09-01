@@ -102,3 +102,18 @@
 	margin: auto;
 	color: var(--text-muted);
 }
+
+/*
+ * The stale-data strip: a read that failed while real content is still on screen. Styled as
+ * `.rp-editor-notice` is rather than as a failure panel, because that is what it means — the
+ * design beside it is real and was true a moment ago, so replacing the canvas would hide the
+ * thing the user is being told may be out of date.
+ */
+.rp-designer-notice {
+	margin: 0;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+	background-color: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+}

@@ -32,6 +32,8 @@ import { err, ok } from '../../../src/core/result/Result';
 import { t } from '../../../src/presentation/i18n/strings';
 import { EMPTY_STATE_CONTENT } from '../../../src/presentation/emptyStates/content';
 import { assetDesign } from '../../helpers/assetDesign';
+import { useAssetDesignStore } from '../../../src/presentation/designer/stores/assetDesignStore';
+import { recorder } from '../../helpers/logger';
 
 const ASSET_ID = 'asset-01JABC';
 
@@ -39,6 +41,14 @@ function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerCo
 	return {
 		assetId: ASSET_ID,
 		queries: { getAssetDesign: () => Promise.resolve(ok(assetDesign())) },
+		logger: recorder,
+		// A subscription that delivers nothing and disposes cleanly: this file is about what the
+		// shell DRAWS, and `designerRefresh.test.ts` is where the source is driven.
+		onDesignChanged: () => () => undefined,
+		// The scan has run, so a miss here is authoritative and the failure cases below mean what
+		// their names say — a leaf reading before the scan holds its loading line instead, which
+		// is `designerRefresh.test.ts`'s restored-leaf case.
+		indexScanCompleted: () => true,
 		...overrides,
 	};
 }
@@ -218,6 +228,38 @@ describe('what the designer draws inside its canvas region', () => {
 
 		expect(wrapper.find('.rp-view-failure').exists()).toBe(true);
 		expect(wrapper.find('.rp-view-failure__action').exists()).toBe(false);
+	});
+});
+
+/**
+ * The read-back after a committed command keeps the previous design when it fails
+ * (`keepPreviousOnFailure`), so the canvas goes on drawing content that is real and may be out
+ * of date. Slice 17's rule: a view showing valid-but-STALE data is not a view that failed, so
+ * the failure panel is the wrong surface and an additive strip is the right one.
+ */
+describe('a design the canvas can no longer confirm', () => {
+	it('draws an additive stale strip rather than replacing the design it cannot re-read', async () => {
+		const pinia = createPinia();
+		const wrapper = mount(AssetDesignerRoot, {
+			global: { plugins: [pinia], provide: { [ASSET_DESIGNER_CONTEXT as symbol]: context() } },
+		});
+		await flushPromises();
+		const store = useAssetDesignStore(pinia);
+
+		await store.hydrate(
+			{
+				getAssetDesign: () =>
+					Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' })),
+			},
+			ASSET_ID,
+			{ indexScanCompleted: true, keepPreviousOnFailure: true },
+		);
+		await nextTick();
+
+		expect(wrapper.find('.rp-designer-notice').text()).toBe(t('en', 'designer.refresh-failed'));
+		// BOTH halves: a build that replaced the canvas with the failure panel would satisfy the
+		// strip's absence just as well as one that reported nothing at all.
+		expect(wrapper.find('.rp-view-failure').exists()).toBe(false);
 	});
 });
 

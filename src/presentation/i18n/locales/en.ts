@@ -442,6 +442,8 @@ export const en = {
 	'view.asset-designer.name': 'Asset designer',
 	'designer.loading': 'Loading asset…',
 	'designer.asset-failed.headline': 'This asset could not be loaded',
+	'designer.refresh-failed':
+		'This asset could not be re-read after the last change; what you see may be out of date.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

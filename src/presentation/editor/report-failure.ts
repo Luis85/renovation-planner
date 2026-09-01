@@ -1,16 +1,21 @@
 import type { AppError } from '../../core/errors/AppError';
-import { noticeOnlySinks, notifyOperationFailure } from '../notices/notify';
+import { noticeOnlySinks, notifyFault, notifyOperationFailure } from '../notices/notify';
+import type { DispatchResult } from '../../application/commands/DispatchOutcome';
+import type { Logger } from '../../application/ports/Logger';
 import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
 import { isTechnicalFault } from '../../core/errors/technical-fault';
 import { affectsSaveState } from './save-state/affects-save-state';
 
 /**
- * Where a Plan Editor failure goes once the save indicator has had its chance at it.
+ * Where an editing leaf's failure goes once the save indicator has had its chance at it, and
+ * the two last-stop doors a dispatch bound to a click needs.
  *
  * Extracted from `runtime.ts` so the rule is ONE function with several importers rather than
  * one spelled out at each of them — `CLAUDE.md`'s "one rule with two doors is two rules unless
  * one function holds it", and this rule has already been got wrong at five separate sites in
- * as many review rounds.
+ * as many review rounds. The asset designer is the second surface to dispatch through it, which
+ * is what moved `reportDispatchFault` and `notifyIfRefused` in here beside it: both were
+ * `runtime.ts` locals under docblocks that said "in this leaf", and there are two leaves now.
  *
  * The file is `report-failure` and not `report-refusal`, which is what it was called for one
  * round: a REFUSAL is precisely the thing the function below distinguishes from a fault, so
@@ -73,4 +78,61 @@ export function reportDispatchFailure(error: AppError): void {
 		return;
 	}
 	notifyOperationFailure(error);
+}
+
+/**
+ * The last stop for an UNEXPECTED technical fault on a dispatch (SDD §65 reserves throws
+ * for those; every expected failure is a `Result`). Resolves `null` when one happened, so
+ * a caller can tell "the dispatch reported a refusal" from "the dispatch never got to
+ * report anything".
+ *
+ * It exists because every dispatch in an editing leaf is ultimately bound to a click handler
+ * — `@click="runtime.undo()"`, the Inspector's delete — and a Vue click handler discards the
+ * promise it is handed. Without this, a fault surfaced as a console unhandled rejection and
+ * the UI simply stopped responding to that button, which is the one failure mode worse than
+ * an error message.
+ *
+ * There is no `AppError` to translate here — the throw never reached a guard, or it came from
+ * one of the raw repository PORTS a leaf's bundle still hands out — so `notifyFault` maps it
+ * into the same coded `PersistenceError` a guarded service would have produced, LOGS the raw
+ * cause under the caller's event name, and prints the mapped copy. The exception's own message
+ * never reaches the user, and the developer half is not lost with it: no guard ran below this,
+ * so this is the only step in THIS path where both representations can be produced together
+ * (SDD §66).
+ *
+ * `event` is the CALLER's, because two surfaces dispatch through this and a log line has to
+ * say which door faulted. It is the one thing this function cannot know for itself.
+ */
+export async function reportDispatchFault(
+	logger: Logger,
+	event: string,
+	operation: Promise<DispatchResult>,
+): Promise<DispatchResult | null> {
+	try {
+		return await operation;
+	} catch (cause) {
+		notifyFault(cause, logger, event);
+		return null;
+	}
+}
+
+/**
+ * `reportDispatchFault`'s other half: an EXPECTED refusal that RESOLVES rather than throws
+ * (SDD §65). `CommandHistory.undoNow`/`redoNow` deliberately leave a refused undo/redo ON
+ * its stack rather than popping it, so without this the button stays enabled, does
+ * nothing, and says nothing about why. A caller chains
+ * `notifyIfRefused(reportDispatchFault(logger, event, op))` to cover both halves — throw and
+ * resolved refusal — in one line.
+ *
+ * **Design slice 17 narrowed what happens next, and the narrowing is the point.** Every
+ * dispatch reaching here has already passed through `withSaveStateTracking`, which asks
+ * `affectsSaveState` and flips the save indicator for anything that wrote or might have.
+ * Toasting it as well reported ONE failure through TWO widgets that can drift apart — the
+ * toast dismisses and the indicator does not, or the reverse. `reportDispatchFailure` above is
+ * where that decision is made, once, for both surfaces.
+ */
+export async function notifyIfRefused(operation: Promise<DispatchResult | null>): Promise<void> {
+	const result = await operation;
+	if (result === null || result.ok) return;
+	reportDispatchFailure(result.error);
 }

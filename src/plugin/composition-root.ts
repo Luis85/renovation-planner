@@ -3,6 +3,7 @@ import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
+import { createAssetDesignChangeSource } from '../application/events/assetDesignChangeSource';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
 import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
@@ -538,13 +539,22 @@ export function planEditorDeps(
  * failure state it draws for any unreadable asset. Not registering the view at all would leave a
  * restored designer leaf pointing at a view type Obsidian does not know.
  */
-export function assetDesignerDeps(root: CompositionRoot): AssetDesignerDeps {
+export function assetDesignerDeps(
+	root: CompositionRoot,
+	options: { indexScanCompleted: () => boolean },
+): AssetDesignerDeps {
 	const persistence = root.persistence;
 	return {
 		queries:
 			persistence === null
 				? unavailableAssetDesignerQueries()
 				: createAssetDesignerQueries(persistence.assetDesign),
+		logger: root.logger,
+		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
+		// `renovationProjectDeps.onPlansChanged` states: the bus is the root's own and exists
+		// either way, and a refusal bundle re-reading simply refuses again.
+		onDesignChanged: createAssetDesignChangeSource(root.eventBus),
+		indexScanCompleted: options.indexScanCompleted,
 	};
 }
 

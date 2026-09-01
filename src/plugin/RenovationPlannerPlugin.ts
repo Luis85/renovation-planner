@@ -546,7 +546,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */
 	private assetDesignerViewDeps(): AssetDesignerDeps {
-		return assetDesignerDeps(this.root);
+		return assetDesignerDeps(this.root, { indexScanCompleted: () => this.indexScanCompleted });
 	}
 
 	/**

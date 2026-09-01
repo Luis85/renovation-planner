@@ -16,6 +16,7 @@ describe('resolving settings from stored data', () => {
 			units: 'imperial',
 			projectFolder: DEFAULT_SETTINGS.projectFolder,
 			libraryFolder: DEFAULT_SETTINGS.libraryFolder,
+			defaultCurrency: DEFAULT_SETTINGS.defaultCurrency,
 			verboseLogging: DEFAULT_SETTINGS.verboseLogging,
 		});
 	});
@@ -25,6 +26,7 @@ describe('resolving settings from stored data', () => {
 			units: DEFAULT_SETTINGS.units,
 			projectFolder: 'Renovations/Main',
 			libraryFolder: DEFAULT_SETTINGS.libraryFolder,
+			defaultCurrency: DEFAULT_SETTINGS.defaultCurrency,
 			verboseLogging: DEFAULT_SETTINGS.verboseLogging,
 		});
 	});
@@ -98,6 +100,7 @@ describe('resolving settings from stored data', () => {
 			units: 'imperial',
 			projectFolder: DEFAULT_SETTINGS.projectFolder,
 			libraryFolder: DEFAULT_SETTINGS.libraryFolder,
+			defaultCurrency: DEFAULT_SETTINGS.defaultCurrency,
 			verboseLogging: DEFAULT_SETTINGS.verboseLogging,
 		});
 	});

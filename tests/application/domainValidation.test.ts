@@ -53,7 +53,7 @@ async function wiredRecalculate() {
 		zoneId: zoneEntity.entity.id,
 		zoneVersion: zoneEntity.version,
 		assetId: assetEntity.entity.id,
-		recalculate: new RecalculateRequirementCommand(w.requirements, w.zones, w.assets, w.events),
+		recalculate: new RecalculateRequirementCommand(w.requirements, w.zones, w.assets, w.events, w.projects),
 	};
 }
 
@@ -179,7 +179,7 @@ describe('GetRequirementsForZone readings', () => {
 		const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 		if (!assigned.ok) throw new Error('unexpected success');
 
-		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets);
+		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects);
 		const rows = expectOk(await readModel.execute(zoneEntity.entity.id));
 		expect(rows[0]?.recalculationStatus).toBe('current');
 	});
@@ -213,7 +213,7 @@ describe('GetRequirementsForZone readings', () => {
 		};
 		expectOk(await w.requirements.save(tampered.entity, loaded.version));
 
-		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets);
+		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects);
 		const rows = expectOk(await readModel.execute(zoneEntity.entity.id));
 		expect(rows[0]?.recalculationStatus).toBe('stale');
 		void FailingListRepository;

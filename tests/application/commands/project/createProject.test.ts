@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest';
+import { currencyOf } from '../../../../src/core/money/Money';
 import { CreateProjectCommand } from '../../../../src/application/commands/project/CreateProject';
 import { InMemoryProjectRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { expectErr, expectOk, injectedPersistenceError, RecordingEventBus } from '../../../helpers/domain';
+
+const EUR = currencyOf('EUR');
 
 describe('CreateProjectCommand', () => {
 	it('creates, persists and publishes exactly one ProjectCreated', async () => {
 		const projects = new InMemoryProjectRepository();
 		const events = new RecordingEventBus();
-		const result = await new CreateProjectCommand(projects, events).execute({ name: ' Kitchen ' });
+		const result = await new CreateProjectCommand(projects, events, EUR).execute({ name: ' Kitchen ' });
 
 		const { project } = expectOk(result);
 		expect(project.entity.name).toBe('Kitchen');
@@ -26,7 +29,7 @@ describe('CreateProjectCommand', () => {
 	it('refuses an empty name without saving or publishing', async () => {
 		const projects = new InMemoryProjectRepository();
 		const events = new RecordingEventBus();
-		const error = expectErr(await new CreateProjectCommand(projects, events).execute({ name: '  ' }));
+		const error = expectErr(await new CreateProjectCommand(projects, events, EUR).execute({ name: '  ' }));
 
 		expect(error.code).toBe('project.empty-name');
 		expect(events.published).toHaveLength(0);
@@ -37,7 +40,7 @@ describe('CreateProjectCommand', () => {
 		const projects = new InMemoryProjectRepository();
 		const events = new RecordingEventBus();
 		const error = expectErr(
-			await new CreateProjectCommand(projects, events).execute({ name: 'X', status: 'PAUSED' as never }),
+			await new CreateProjectCommand(projects, events, EUR).execute({ name: 'X', status: 'PAUSED' as never }),
 		);
 		expect(error.code).toBe('project.unknown-status');
 		expect(events.published).toHaveLength(0);
@@ -52,7 +55,7 @@ describe('CreateProjectCommand', () => {
 		}
 		const projects = new FailingSave();
 		const error = expectErr(
-			await new CreateProjectCommand(projects, events).execute({ name: 'Kitchen' }),
+			await new CreateProjectCommand(projects, events, EUR).execute({ name: 'Kitchen' }),
 		);
 
 		expect(error).toEqual(injectedPersistenceError());

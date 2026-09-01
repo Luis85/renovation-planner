@@ -167,16 +167,69 @@ These follow from the proposal *if it is adopted*, and none of them is settled t
   [[Asset library]]'s definition of done requires and no slice defines. The two are not
   separable: an override supplied at creation is also an answer to the question above.
 
+## The answer (2026-09-01), and why this note stays open
+
+The closing question — whether a supplied override **replaces** the proposed refusal or merely
+**satisfies** it — is answered: **it satisfies it.** The check belongs to the pipeline and stands
+for every caller; an override is how a project *passes* that check, not a way around it. A design
+in which supplying an override removed the refusal would put the invariant back where this note
+already refused to leave it, at one caller's discretion.
+
+**What has shipped, and it is the refusal half only.**
+`CostPipelineInput.expectedCurrency` is **required** and `computeEstimatedCost` refuses a mismatch
+with a `CalculationError` coded `cost.currency-mismatch`, **before any arithmetic** — which is the
+proposal at the top of this note, taken in its non-optional form for the reason the open
+sub-question named: *an invariant a caller can omit is one a caller can silently bypass.* All
+three blockers are cleared, each differently from what was expected:
+
+1. **A `Project` has a `currency`**, defaulted from a new `defaultCurrency` plugin setting. It
+   arrives through a **schema redefinition rather than a migration**: the project schema stays at
+   version 1 with an optional key, and a note that states none follows the setting until something
+   saves it.
+2. **A currency change is caught by the read-model backstop, with no new persisted field.** This
+   note's blocker 2 said the provenance holds no currency; it holds one after all —
+   `calculatedFrom.unitCost.currency` **is** the project's currency at calculation time once the
+   invariant above holds, because the requirement note carries one `currency:` key for the
+   calculated cost, the override and the calculated-from unit cost alike. So
+   `inputsStillMatch` gained one comparison and nothing else. Narrow claim, unchanged from the
+   proposal: it reads **stale**, it is not recalculated.
+3. **`Requirement.estimatedCost` still is not optional, and it did not need to become one.** The
+   pairing refuses before a Requirement is constructed, so there is never a Requirement with no
+   value to be constructed with — the "require the override up front" option, minus the override.
+
+**Of the three withdrawn attempts recorded above, one is withdrawn a second time.** *Refuse at
+`AssignAssetCommand`* was re-proposed by slice 20's design as a **third** check, in front of the
+pipeline's, and it did not ship: `AssignAssetCommand` builds its figures through
+`deriveRequirementFigures`, which **is** the pipeline, so it already fails on a mismatch and a
+second guard buys wording rather than protection — at the price of two codes, two categories and
+two surfaces for one failure. It propagates instead. The wording it would have bought is smaller
+than it looks anyway: `toUserMessage` takes no params, so the user-facing sentence cannot name the
+two currencies whatever raises it, and both codes live in the developer-English `message`.
+
+**Why this note is answered and NOT closed.** The answer above is a decision, and it is recorded
+here rather than only in a slice document — which is what this note was owed. The *implementation*
+the answer describes is half-written: the refusal exists and the override does not, so the sentence
+"an override is how a project passes the check" names a mechanism a user cannot yet reach. In a
+two-currency vault the refusal is therefore a **dead end**, with no way to price a shared asset in
+the project's own currency. Closing this note over that would be closing it over code nobody has
+written, which is the failure its own status guard exists to prevent.
+
 ## Revisit when
 
-The override lands and a project can supply its own price for a shared definition — at which
-point the question becomes whether a supplied override replaces the proposed refusal or
-merely satisfies it.
+**The per-project price override lands**, giving a user the way to pass the check that this note's
+answer names. That is the override increment, split out of
+[20 — The Currency the Pipeline Is Told](../tasks/20-the-currency-the-pipeline-is-told.md) and
+enumerated in that document's Amendment 1, item 7: `AssetPriceOverride` and its two repositories,
+`AssetPriceOverrideChanged` and its project-narrowed cascade, the duplicate-pair diagnostic, the
+Inspector's three figures, and the affordance itself, which waits on the catalogue screen.
 
-**That is [20 — The Currency the Pipeline Is Told](../tasks/20-the-currency-the-pipeline-is-told.md)**,
-which clears all three blockers above and answers the question as *satisfies*: the pipeline's
-check stands for every caller, and the override is how a project passes it. This Issue closes
-when that slice does, and its outcome is recorded here rather than only there.
+**Close this note then, and the specific thing to assert first** is the pair this note's question
+is actually about: an assign that refuses on a currency mismatch, then a price override in the
+project's currency, then the *same* assign succeeding — satisfaction demonstrated rather than
+asserted. Until that pair is green, the answer above is a decision without an end-to-end witness.
+
+The first half — the refusal, the project's currency, the setting and the staleness backstop —
+landed on 2026-09-01 and is recorded in that document's Amendment 1.
 
 ## References
 

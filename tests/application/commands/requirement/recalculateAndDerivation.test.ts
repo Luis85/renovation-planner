@@ -9,7 +9,7 @@ import {
 	deriveRequirementFigures,
 } from '../../../../src/application/commands/requirement/deriveRequirementFigures';
 import { ListReassignmentTargets } from '../../../../src/application/queries/ListReassignmentTargets';
-import { of as moneyOf } from '../../../../src/core/money/Money';
+import { currencyOf, of as moneyOf } from '../../../../src/core/money/Money';
 import { expectErr, expectFound, expectOk, injectedPersistenceError } from '../../../helpers/domain';
 import { makeAsset, makeRequirement } from '../../../helpers/entities';
 import { requirementFixture } from '../../../helpers/slice10';
@@ -33,11 +33,41 @@ describe('RecalculateRequirementCommand refusals', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new RecalculateRequirementCommand(requirements, w.zones, w.assets, w.events).execute({
+			await new RecalculateRequirementCommand(
+				requirements,
+				w.zones,
+				w.assets,
+				w.events,
+				w.projects,
+			).execute({
 				requirementId: w.requirementId,
 			}),
 		);
 		expect(error.code).toBe('test.injected-failure');
+	});
+
+	/**
+	 * Unlike `AssignAsset.ts`, which propagates a failed project read as itself, this
+	 * command wraps BOTH a failed read and a missing project as `requirement.project-gone`
+	 * — the same shape `loadZone`/`loadAsset` already give `requirement.zone-gone` and
+	 * `requirement.asset-gone` above. Deliberately left as-is; the asymmetry with
+	 * `AssignAsset` is recorded for the whole-branch review rather than changed here.
+	 */
+	it('propagates a failed project read as requirement.project-gone', async () => {
+		const w = await wiredWithLink();
+		const projects = overridePort(w.projects, {
+			getById: () => Promise.resolve(err(injectedPersistenceError())),
+		});
+		const error = expectErr(
+			await new RecalculateRequirementCommand(
+				w.requirements,
+				w.zones,
+				w.assets,
+				w.events,
+				projects,
+			).execute({ requirementId: w.requirementId }),
+		);
+		expect((error as { code: string }).code).toBe('requirement.project-gone');
 	});
 
 	it('wraps a vanished zone as requirement.zone-gone', async () => {
@@ -55,6 +85,13 @@ describe('RecalculateRequirementCommand refusals', () => {
 		expectOk(await w.assets.delete(w.assetId, asset.version));
 		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
 		expect((error as { code: string }).code).toBe('requirement.asset-gone');
+	});
+
+	it('wraps a vanished project as requirement.project-gone', async () => {
+		const w = await wiredWithLink();
+		expectOk(await w.projects.delete(w.project.entity.id, w.project.version));
+		const error = expectErr(await w.recalculate.execute({ requirementId: w.requirementId }));
+		expect((error as { code: string }).code).toBe('requirement.project-gone');
 	});
 
 	it('wraps a failing area computation as requirement.area-failed', async () => {
@@ -83,6 +120,7 @@ describe('RecalculateRequirementCommand refusals', () => {
 				w.zones,
 				w.assets,
 				w.events,
+				w.projects,
 			).execute({ requirementId: w.requirementId }),
 		);
 		expect(error.category).toBe('Validation');
@@ -120,6 +158,7 @@ describe('deriveRequirementFigures stage refusals', () => {
 			assetUnit: 'm2',
 			unitCost: moneyOf('45.00', 'EUR'),
 			wasteFactor: new Decimal('0.10'),
+			expectedCurrency: currencyOf('EUR'),
 		});
 		expect(result).toMatchObject({ ok: false, error: { code: 'quantity.negative' } });
 	});
@@ -130,6 +169,7 @@ describe('deriveRequirementFigures stage refusals', () => {
 			assetUnit: 'm2',
 			unitCost: moneyOf('45.00', 'EUR'),
 			wasteFactor: new Decimal('-0.10'),
+			expectedCurrency: currencyOf('EUR'),
 		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error('expected a refusal');
@@ -142,6 +182,7 @@ describe('deriveRequirementFigures stage refusals', () => {
 			assetUnit: 'm2',
 			unitCost: moneyOf('-45.00', 'EUR'),
 			wasteFactor: new Decimal('0.10'),
+			expectedCurrency: currencyOf('EUR'),
 		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error('expected a refusal');

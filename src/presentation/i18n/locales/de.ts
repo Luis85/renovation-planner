@@ -39,6 +39,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-persist-failed':
 		'Der Katalog wurde verschoben, aber die Einstellung konnte nicht gespeichert werden. Bitte den Bibliotheksordner auf den neuen Ort setzen.',
 	'project.folder-overlaps-library': 'Dieser Projektordner würde den Bibliotheksordner überlappen.',
+	'settings.default-currency.name': 'Standardwährung',
+	'settings.default-currency.desc':
+		'Die Währung, in der ein neues Projekt kalkuliert wird. Ein Projekt ohne eigene Währung folgt dieser Einstellung.',
 	// „Zonen“, nicht „Bereiche“: die deutsche Oberfläche nennt eine Zone überall sonst so
 	// (`editor.zone.default-name`, `editor.inspector.delete-zone.reassign-title`).
 	// „Vault“ bleibt unübersetzt — Obsidians eigener Name dafür, was `strings.test.ts` prüft.
@@ -177,6 +180,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'reference.row.project-at-path': '{name} — {path}',
 	'requirement.unit-not-area': 'Dieses Objekt wird nicht in Fläche gemessen; die Fläche einer Zone kann seine Menge daher nicht bestimmen.',
 	'requirement.negative-quantity': 'Eine Menge darf nicht negativ sein.',
+	'cost.currency-mismatch':
+		'Der Preis dieses Objekts ist nicht in der Währung dieses Projekts, daher kann keine Schätzung erstellt werden. Öffnen Sie die Notiz des Objekts und erfassen Sie den Preis in der Währung dieses Projekts.',
+	'requirement.project-not-found': 'Diese Zone gehört zu einem Projekt, das nicht mehr vorhanden ist.',
+	'requirement.project-gone': 'Dieser Bedarf gehört zu einem Projekt, das nicht mehr vorhanden ist.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.suffix.schema-version-unsupported':
@@ -255,6 +262,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	// 'Grundriss-Editor öffnen') — the vocabulary comes from the file, never from a dictionary.
 	'view.project.back': 'Zurück zu den Projekten',
 	'view.project.open-note': 'Notiz öffnen',
+	'view.project.currency': 'Kalkuliert in {currency}',
 	'view.project.plans-title': 'Grundrisse',
 	'view.project.create-plan': 'Neuer Grundriss',
 	'form.new-plan.title': 'Neuer Grundriss',

@@ -286,6 +286,23 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.persistence',
 		'plugin/settings/libraryMigration.ts',
 	],
+	// The currency invariant: `expectedCurrency`, required, refused before arithmetic. The
+	// category sentence for `Calculation` ("A quantity could not be calculated.") says
+	// nothing about currency, and for `Reference` ("That entry no longer exists.") says
+	// nothing about which entry or why it matters here.
+	['cost.currency-mismatch', 'Calculation', 'error.category.calculation', 'domain/cost/costPipeline.ts'],
+	[
+		'requirement.project-not-found',
+		'Reference',
+		'error.category.reference',
+		'application/commands/requirement/AssignAsset.ts',
+	],
+	[
+		'requirement.project-gone',
+		'Calculation',
+		'error.category.calculation',
+		'application/commands/requirement/RecalculateRequirement.ts',
+	],
 ];
 
 // Named for the shape rather than for a slice: the table below has carried codes from slices

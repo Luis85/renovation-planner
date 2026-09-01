@@ -16,6 +16,7 @@ import {
 	scale,
 	subtract,
 	zero,
+	type Currency,
 	type Money,
 } from '../../core/money/Money';
 
@@ -56,6 +57,15 @@ export interface CostPipelineInput {
 	/** Priced PER ONE of `quantity.unit` unless `pricedPer` says otherwise. */
 	readonly unitPrice: Money;
 	/**
+	 * The currency this estimate MUST be denominated in — the project's. Required, and the
+	 * asymmetry with `pricedPer?` above is deliberate: `pricedPer` omitted means no basis
+	 * check runs and the result is the same number either way, while this omitted would mean
+	 * no currency check runs and the result is a well-formed number no later check can tell
+	 * from a correct one. An invariant a caller can omit is one a caller can silently
+	 * bypass.
+	 */
+	readonly expectedCurrency: Currency;
+	/**
 	 * What `unitPrice` is priced per, when the caller KNOWS it — slice 10 supplies it
 	 * from the Asset's persisted unit. Declaring it buys a check: a different UNIT KIND
 	 * than the quantity's (a length price on an area quantity) is a CalculationError.
@@ -91,6 +101,27 @@ function negativePercent(percent: Decimal): CalculationError | null {
 		message:
 			'A discount or tax rate cannot be negative; a negative rate would move money in '
 			+ `the wrong direction. Got ${percent.toString()}.`,
+	};
+}
+
+/**
+ * A mismatched unit or currency is an error, not a coercion, at the one place that can
+ * state it: the pipeline knows both the price it was handed and the currency it was told to
+ * produce, and this product has no exchange rate and no date to read one at.
+ *
+ * Only `unitPrice` is compared. `add`'s own `currencyMismatch` already refuses a `shipping`
+ * or `surcharge` in another currency against the unit price's, so one comparison makes every
+ * component transitively `expectedCurrency` — and a second check here would be a second
+ * answer to a question `core/money` already owns.
+ */
+function currencyMismatchError(input: CostPipelineInput): CalculationError | null {
+	if (input.unitPrice.currency === input.expectedCurrency) return null;
+	return {
+		category: 'Calculation',
+		code: 'cost.currency-mismatch',
+		message:
+			`The unit price is in ${input.unitPrice.currency} but the estimate must be in `
+			+ `${input.expectedCurrency}. This product converts no currency.`,
 	};
 }
 
@@ -157,7 +188,8 @@ function negativeAmount(label: string, value: Money | undefined): CalculationErr
  */
 function inputError(input: CostPipelineInput): CalculationError | null {
 	return (
-		pricingBasisError(input)
+		currencyMismatchError(input)
+		?? pricingBasisError(input)
 		?? negativeQuantity(input.quantity)
 		?? discountError(input.discount)
 		?? (input.taxRate ? negativePercent(input.taxRate) : null)

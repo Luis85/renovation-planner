@@ -1,6 +1,6 @@
 import { isErr, ok, type Result } from '../../../core/result/Result';
 import type { EventBus } from '../../../core/events/EventBus';
-import type { Money } from '../../../core/money/Money';
+import type { Currency, Money } from '../../../core/money/Money';
 import { Project } from '../../../domain/project/Project';
 import { createProjectId } from '../../../domain/project/ProjectId';
 import type { ProjectStatus } from '../../../domain/project/ProjectStatus';
@@ -33,6 +33,7 @@ export class CreateProjectCommand
 	constructor(
 		private readonly projects: ProjectRepository,
 		private readonly events: EventBus,
+		private readonly defaultCurrency: Currency,
 	) {}
 
 	// The return type is ANNOTATED, not inferred, for the reason `SetPlanBackground` states
@@ -43,7 +44,7 @@ export class CreateProjectCommand
 	async execute(
 		input: CreateProjectInput,
 	): Promise<Result<{ project: Loaded<Project> }, CreateProjectError>> {
-		const created = Project.create({ ...input, id: createProjectId() });
+		const created = Project.create({ ...input, id: createProjectId(), currency: this.defaultCurrency });
 		if (isErr(created)) {
 			return created;
 		}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import { currencyOf } from '../../../../src/core/money/Money';
 import { expectErr } from '../../../helpers/domain';
 import { makePlan as makePlanEntity, makeZone as makeZoneEntity, squareAt } from '../../../helpers/entities';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
@@ -38,7 +39,7 @@ describe('mappers: refusals and merges', () => {
 
 	it('projectFromPersistence refuses a domain-invalid row (empty name survives schema)', () => {
 		const raw = { type: 'renovation-project', 'schema-version': 1, id: 'project-x', revision: 1, name: '   ', status: 'idea' };
-		const result = projectFromPersistence(raw);
+		const result = projectFromPersistence(raw, currencyOf('EUR'));
 		expect(result.ok).toBe(false);
 	});
 

@@ -838,6 +838,83 @@ export default defineConfig({
 			// say so: the branch floor still needs `ceil(0.98 × 2835) = 2779` against 2780
 			// covered, and the function floor now needs `ceil(0.99 × 1446) = 1432` against
 			// 1433 — one unit each, still the tightest either metric has been.
+			//
+			// Measured 2026-09-01 at the end of the CURRENCY increment — design slice 20's
+			// first half, the currency the pipeline is told: `core/money`'s branded `Currency`
+			// with `parseCurrency` (the untrusted-input door, a `Result`) beside `currencyOf`
+			// (the program-literal door, which throws); `Project.currency` and the
+			// budget/contingency coherence guard beside it; the `defaultCurrency` setting and
+			// its `CURRENCIES` vocabulary; `projectFrontmatter`'s optional `currency` key and
+			// `projectFromPersistence`'s default for an absent one; `CostPipelineInput.
+			// expectedCurrency` REQUIRED with `cost.currency-mismatch` refused before any
+			// arithmetic; the project read `AssignAsset` and `RecalculateRequirement` each
+			// gained; `inputsStillMatch`'s project-currency comparison in
+			// `GetRequirementsForZone`; and the currency on the project detail row:
+			// 5950/5994 statements, 2954/3008 branches, 1534/1548 functions, 5285/5313 lines
+			// — 99.26 / 98.20 / 99.09 / 99.47.
+			//
+			// **The branch figure was 2956/3010 until this increment's own final review**, and
+			// the two branches it lost are the point rather than noise: `inputsStillMatch` had
+			// hand-spelled the three comparisons `assetMatchesCalculatedFrom` already makes, and
+			// the review's structural fix made it CALL that function instead. Two duplicated
+			// arms stopped existing, two stopped being covered, and the percentage did not move
+			// — which is what deleting a duplicate looks like from here, and is the reason this
+			// line records COUNTS beside the percentages rather than percentages alone.
+			//
+			// NOTHING RATCHETS: rounded down these are 99 / 98 / 99 / 99, exactly the floors
+			// already in force, which is what slices 5, 11, 13, 15, 16, 18 and 19 also
+			// measured.
+			//
+			// **THE BLOCK ABOVE DOES NOT MEASURE THE TREE THIS ONE STARTED FROM**, and the
+			// paragraph is here because this file has recorded the cost of leaving that
+			// unsaid three times already. The previous entry is slice 19's; design slice 21
+			// landed on `main` without adding one at all, so the jump in every denominator
+			// between that entry and this is TWO increments wide. Branches grew from
+			// 2780/2835 to 2956/3010 — 175 arms of denominator and 176 of covered count, so
+			// somewhere in those two increments one previously uncovered arm also became
+			// covered. What this increment's OWN contribution is cannot be read off this
+			// artifact, and no figure here should be attributed to it alone.
+			//
+			// The headroom, in UNITS with the arithmetic written out so the next increment
+			// does not redo it: statements need `ceil(0.99 × 5994) = 5935` covered and 5950
+			// are (**15**); branches need `ceil(0.98 × 3010) = 2950` against 2956 (**6**);
+			// functions need `ceil(0.99 × 1548) = 1533` against 1534 (**1**); lines need
+			// `ceil(0.99 × 5313) = 5260` against 5285 (**25**). **FUNCTIONS is the tightest
+			// and is still ONE**, unchanged from slice 19 — the next untested callback
+			// anywhere in `src/` fails this gate outright. Branches widened from one unit to
+			// six, which is room a later increment can lose without anything visible
+			// happening: one branch is 0.033pp, below the hundredth this summary prints.
+			// Read it as slack to be careful in, not as a licence.
+			//
+			// **Every file this increment changed that carries an uncovered position carries
+			// only INHERITED ones**, measured by reading `coverage-final.json` per changed
+			// file rather than by the summary, which cannot see one arm. Five files report
+			// something and `git log -L` traces every one to an earlier slice:
+			// `costPipeline.ts`'s `!afterDiscount.ok` and `!taxed.ok` — slice 9's pair,
+			// already named in that paragraph above; `AssignAsset.ts`'s `isErr(requirement)`,
+			// `RecalculateRequirement.ts`'s `isErr(updated)` and both of
+			// `SetRequirementQuantityOverride.ts`'s domain-method forwards — all four slice
+			// 10's, at `d7d8ee0`, and NONE of them named in the slice-10 paragraph above, so
+			// they are named here rather than left for the next reader to rediscover;
+			// `slice10Composition.ts`'s `cascadeNotices.cascadeAborted`, which the slice-13
+			// paragraph names at its old address in `composition-root.ts`; and
+			// `planEditorCommands.ts`'s refusal-bundle event-bus callback. Every OTHER file this
+			// increment wrote into measures 100% of all four: `Money.ts`,
+			// `Project.ts`, `projectFrontmatter.ts`, `projectMapper.ts`, `settings.ts`,
+			// `SettingsTab.ts`, `GetRequirementsForZone.ts`, `deriveRequirementFigures.ts`,
+			// `CreateProject.ts`, `composition-root.ts`, `ObsidianProjectRepository.ts`,
+			// `PlanDto.ts`, `ProjectDetail.vue` and both locale files.
+			//
+			// **One thing about the INSTRUMENT, because the plan's own per-file command was
+			// written to print nothing and printed four lines.** Its filter is a substring
+			// regex, so `Project\.ts` also matches `sampleProject.ts` — a file this increment
+			// never touched, whose uncovered `reportFault` closure was reported as though it
+			// were a finding. The same filter MISSED two changed files that do carry
+			// inherited arms (`SetRequirementQuantityOverride.ts` and `slice10Composition.ts`),
+			// because their names contain none of the words it looks for. A hand-written
+			// filename filter over-matches and under-matches at the same time; the question
+			// the check is actually asking is "which files did this branch change", and
+			// `git diff --name-only` is the instrument that answers it.
 			thresholds: {
 				statements: 99,
 				functions: 99,

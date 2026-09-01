@@ -15,6 +15,12 @@ import { expectOk, RecordingEventBus } from '../helpers/domain';
 import { InMemoryPlanGeometrySidecar } from '../helpers/geometry-sidecar';
 import { squareAt } from '../helpers/entities';
 import { distance } from '../../src/core/geometry/operations';
+// `DEFAULT_SETTINGS.defaultCurrency` rather than a direct `currencyOf` import: this file
+// already imports `distance` straight from `core/geometry/operations`, and that module and
+// `core/money/Money` both export a `scale` — fallow's duplicate-exports check flags a file
+// that imports directly from both as an ambiguity risk. Going through settings avoids a
+// second direct import of `core/money/Money` here without touching either module.
+import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 
 const origin = { x: 0, y: 0 };
 
@@ -34,7 +40,9 @@ describe('the domain loop, end to end', () => {
 		const events = new RecordingEventBus();
 
 		const project = expectOk(
-			await new CreateProjectCommand(projects, events).execute({ name: 'Flat renovation' }),
+			await new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency).execute({
+				name: 'Flat renovation',
+			}),
 		).project.entity;
 
 		const plan = expectOk(

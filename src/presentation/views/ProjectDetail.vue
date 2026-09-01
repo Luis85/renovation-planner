@@ -57,6 +57,9 @@ defineEmits<{ back: []; openNote: []; openPlan: [planId: string]; createPlan: []
 				{{ project.name }}
 			</h2>
 			<span class="rp-project-detail__status">{{ statusLabel(project.status) }}</span>
+			<span class="rp-project-detail__currency">
+				{{ tr('view.project.currency', { currency: project.currency }) }}
+			</span>
 			<button
 				type="button"
 				class="rp-project-detail__open-note"

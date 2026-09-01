@@ -207,7 +207,7 @@ export const defaultRenovationProjectDeps = (
 			overlaps,
 		),
 		commands: {
-			createProject: new CreateProjectCommand(projects, events),
+			createProject: new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency),
 			createPlan: new CreatePlanCommand(plans, projects, events),
 			// Design slice A10's pair, and REAL commands over real in-memory collaborators
 			// rather than stubs — the same argument `overlaps` above makes. A stub answering

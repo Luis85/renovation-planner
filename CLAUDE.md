@@ -8,16 +8,27 @@ has already refused things that look obvious from the code alone, and where this
 the SDD disagree, the SDD is the authority and this file is the bug.
 
 Today the build, the gates, the browser harness and the release pipeline work; the
-settings pane declares **five rows and only three of them bind a control** — units, the default
+settings pane declares **seven rows and four of them bind a control** — units, the default
 projects folder (where a NEW project's folder is created, since slice 18; an EXISTING project's
-folder derives from where its `Project.md` sits instead, ADR-0013) and slice 11's verbose
-logging, plus slice 19's two library-folder rows, one INFORMATIONAL and one an ACTION, which
-bind none on purpose: `setControlValue` writes through `saveSettings` on every change, and a
-control on `libraryFolder` would persist a folder with no notes moved and strand the catalogue.
+folder derives from where its `Project.md` sits instead, ADR-0013), the currency increment's
+`defaultCurrency` and slice 11's verbose
+logging, plus slice 19's two library-folder rows, one INFORMATIONAL and one an ACTION, and the
+unreadable-note increment's diagnostics-report ACTION row, the second of that report's two
+doors beside the palette command. The three that bind nothing each have their own reason, and
+only the library pair share one: `setControlValue` writes through `saveSettings` on every
+change, and a control on `libraryFolder` would persist a folder with no notes moved and strand
+the catalogue.
 Counted in `getSettingDefinitions` rather than remembered — this sentence said "the one setting
 there is" for several slices after it stopped being one, then "the three settings there are"
-through slice 19, which is the same failure one increment later and is why the count now comes
-with the distinction between a row and a control. The persistence layer of design slice 4 is in
+through slice 19, then **"five rows and only three of them bind a control" for slice 21 and
+through the currency increment that added the sixth row**, which is the same failure a third
+time in a sentence that already recorded the first two. The distinction between a row and a
+control did not save it; only counting did. **The seventh row arrived by MERGE rather than by
+an edit to this file**, which is the fourth way this count can go wrong and the one no author
+of either branch is looking at: two branches each added a row, each correctly updated the
+sentence to six, and the merge of them is seven with both sentences reading right in isolation.
+`tests/plugin/settings/unrecovered.test.ts` is what caught it, because it asserts the count
+rather than describing it. The persistence layer of design slice 4 is in
 place — Obsidian repositories, the geometry sidecar store, the project index and its
 vault-change pipeline
 (bounded since slice 18 by what a note DECLARES, not by where it sits, which closes slice 4's
@@ -42,8 +53,14 @@ save state through. **That group is now complete: 14 and 15 landed first, then 1
 17 — the integration slice the map calls "17 integrates them" — has closed it.** **Design slice
 19 has closed since**, which is what took slice 10's own document from seven open criteria to
 none: the Asset catalogue left the project, so a catalogue entry carries no project id at all.
-What is NOT done is slices **20 and 21**, which are written and unbuilt, plus the items slices
-16, 17 and 19 WITHDREW or narrowed rather than ticked; each is recorded in its own task
+**Design slice 21 has closed too**, and slice **20 has closed its FIRST HALF** — the currency
+invariant, split from the per-project price override, which is the one increment written and
+unbuilt now. This sentence said "slices **20 and 21**, which are written and unbuilt" for a slice
+after 21 landed and through the increment that halved 20, in a file whose own section on slice 21
+sits 2325 lines below it — the same shape as the settings-pane count above and the
+canvas-editability paragraph below, which is three passages in this file that went on describing
+a state the file itself elsewhere records as over. Also not done are the items slices 16, 17, 19,
+**20** and 21 WITHDREW or narrowed rather than ticked; each is recorded in its own task
 document's amendments rather than here, because a list of exceptions kept in two places is one
 that disagrees with itself.
 
@@ -262,6 +279,27 @@ own first draft included:
   invisible either way. One table with two importers cannot drift; two tables had nothing to
   notice them drifting. The test-side importer is `tests/helpers/repositoryStack.ts` now,
   since both stacks build their runner there rather than each building its own.
+
+  **All six tables are still EMPTY, and since the currency increment they stay empty BY A
+  DECISION rather than for want of a schema change.** That increment's design specified a real
+  Project v1→v2 step — *"this one is a real migration rather than a redefinition"* — and took
+  the redefinition instead: `ProjectFrontmatterSchemaV1` gains an optional `currency` and the
+  mapper supplies the default. Two reasons, and the second is the one that decided it.
+  Migrations here run on READ (the bullet below narrows that claim), so neither shape rewrites a
+  vault and the distinction is smaller than it reads. And the step's value would have to come
+  from the plugin's `defaultCurrency`, which `Migration.migrate(input: unknown): unknown`
+  cannot see — reaching it means `MIGRATION_SET` becomes `createMigrationSet(settings)`, which
+  is a structural change to the one table whose single-ness is the asserted property this very
+  bullet exists to protect, in service of a version number.
+
+  **The cost is named rather than hidden: the runner is still unproven on a real chain.** Every
+  table has been empty since slice 4, so `migrateNote` has never executed a non-empty one
+  outside a synthetic fixture, and each redefinition taken instead of a bump postpones that
+  proof again. The risk lands on **the first schema change that cannot be a redefinition** —
+  a key that moves, splits or changes meaning rather than merely arriving — and that change
+  should be SCHEDULED with the proof in mind rather than discovered by whoever needs it. Slice
+  19's Asset schema and the currency increment's Project schema are the two that could be
+  redefinitions; a third would make this a habit rather than two judgements.
 - **The fail-closed schema gate is a READ gate**, and the claim is narrowed to that where
   the code lives. No save path calls `migrateNote`, so a future-version note is protected
   from being overwritten only because every command loads before it saves and the load
@@ -2532,6 +2570,213 @@ invisible to `npm run check`:
   through — and a jsdom case in `harness.test.ts` pins that it really reaches the detail state,
   because both captures wait on `.renovation-planner-view`, which the LIST satisfies just as
   well.
+
+**The currency increment has landed: the cost pipeline is told the currency it must produce, and
+refuses another.** An EUR-priced asset assigned into an EUR project still prices; assigned into a
+GBP one it now refuses, where before it returned an arithmetically correct EUR estimate that no
+later check could tell from a right answer. `core/money` mints a branded `Currency`;
+`CostPipelineInput.expectedCurrency` is REQUIRED and `computeEstimatedCost` refuses a mismatch
+with `cost.currency-mismatch` **before any arithmetic**; `Project` has a `currency` defaulted from
+a new `defaultCurrency` setting; `AssignAsset` and `RecalculateRequirement` each read the project
+and pass it; `GetRequirementsForZone`'s backstop reads a Requirement whose project moved as stale, resolving
+the currency from that Requirement's OWN `projectId` — the same field the command reads, which it
+did not do until a review bot found the two disagreeing;
+and the project detail row says which currency the project is priced in. **This is design slice
+20's FIRST HALF** — the per-project price override is its own increment, and `docs/tasks/20`'s
+Amendment 1 is where the split, the three WITHDRAWALS and the deferrals are written down, because
+a withdrawal recorded only in a spec is one the next author re-adds as an oversight. The rules
+that came out of it:
+
+- **A brand on the way OUT costs nothing; a brand on the way IN costs 142 call sites — measured
+  before choosing, not after.** `createMoney`, `of` and `currencyOf` already refused a
+  non-conforming code, so branding what they RETURN states a fact rather than adding a hope, and
+  it moves no test fixture at all. Branding the PARAMETERS is the more coherent shape and buys a
+  guarantee those constructors already give, for **142 call sites** plus every fixture — which
+  would have been the bulk of the diff in the increment least able to afford attention elsewhere.
+  That figure was measured on `main` before the work, counting currency literals reaching
+  `Money`'s constructors: 142 in `tests/` against 2 in `src/`, which is the whole asymmetry.
+  **Do not re-run it with a wider pattern and expect the same number** — a bare grep for the four
+  codes answers in the hundreds today, because it also sees comments, DTO fixtures and the tests
+  this increment added. The decision rested on the narrower count, and which count it was is part
+  of the record.
+
+  **State what a brand actually holds, because it invites a wider claim than it has:** this one
+  stops a caller passing a *bare string* and cannot stop one passing the wrong *validated*
+  currency. Nothing type-shaped can, which is
+  precisely why the pipeline's refusal exists and why it is not redundant with the type.
+- **A `Result`-returning door forces an unreachable error arm at every program literal**, which
+  is why there are two doors and only one of them is a `Result`. `parseCurrency(raw: unknown)`
+  answers a `Result` and is the untrusted-input door — `data.json`, note frontmatter, anything a
+  user types, and it takes `unknown` rather than `string` because both of those can hold a number
+  or an object. `currencyOf(code: string)` **throws**, and is the program-literal door: a
+  hard-coded currency that does not parse is a programmer error, and making its caller unwrap a
+  `Result` would put a dead arm at every module-level constant that needs one — `CURRENCIES` in
+  `settings.ts` is four of them in one line. That is the `createMoney`/`of` split this module
+  already had, applied to a second value type rather than re-decided.
+- **"Not recoverable" was a claim about the DOMAIN, made without reading the NOTE.** The task
+  document wanted a `projectCurrency` field on `CalculatedFrom`, a `project-currency` frontmatter
+  key, a Requirement v1→v2 schema step and a **deliberate under-report** — every migrated
+  Requirement written as `current` rather than `stale` — all four resting on one sentence: *"the
+  project's currency at the time of the original calculation is not recoverable."* It is
+  recoverable. `RequirementFrontmatterSchemaV1` declares a single `currency` key and
+  `requirementMapper` hands it to `cost-calculated`, `cost-override` **and**
+  `calculated-from-unit-cost` alike, so `calculatedFrom.unitCost.currency` IS the project's
+  currency at calculation time once the pipeline's invariant holds. Four artefacts dissolved into
+  one added conjunct in `inputsStillMatch`.
+
+  **And the version that reads the note is TRUER, which is the argument for it rather than its
+  cheapness.** It flags exactly the Requirements really denominated in something other than their
+  project's currency and leaves every other reading `current`. The document's own two candidates
+  were a vault-wide false alarm (mark everything stale on upgrade) and a vault-wide false
+  reassurance (the under-report). A design that dissolves work is worth re-deriving even when the
+  work is specified: the sentence that justified all four had never been checked against the
+  persistence layer it was a claim about.
+- **`assetMatchesCalculatedFrom`'s own docblock called itself shared by two callers before it had
+  a second one.** `inputsStillMatch` — the read-model backstop — hand-spelled the same three
+  comparisons (asset amount, asset currency, asset unit) rather than calling it, so the docblock's
+  "the cascade-skip test AND the read model's staleness backstop share it" was false: they were
+  two copies of one predicate, not one predicate with two callers, and a field added where the
+  docblock pointed would have left the backstop comparing the old three. `inputsStillMatch` calls
+  it now, adding only the two conjuncts specific to a read model — the zone's own area and the
+  project's currency, the latter needing no new field because the requirement note carries one
+  `currency` key for both the recorded unit cost and the project it was priced against, so a
+  project whose currency has moved no longer matches what its own figures were derived from — which
+  is what makes the docblock's claim true rather than merely stated. Leaving the duplication alone
+  was the wrong call, not a decision to pin; it is pinned by a regression test now that there is one
+  function to regress.
+- **The READ and the WRITE resolved the project currency from DIFFERENT FIELDS, which is one
+  fact with two derivations rather than two facts.** `GetRequirementsForZone` took it from the
+  QUERIED ZONE's project — once per call, under a comment arguing the optimisation from an
+  invariant it did not check ("one project backs every row … a Zone belongs to exactly one
+  Project") — while `RecalculateRequirementCommand` takes it from `requirement.projectId`. A
+  Requirement carries `projectId` and `origin.zoneId` as two independent frontmatter keys that
+  `requirementMapper` reads with no cross-check, and `Requirement.create` validates only the
+  origin KIND, so a hand edit parts them. Then the Inspector reported `current` for a figure
+  recalculate refuses as `cost.currency-mismatch` — the surface vouching for exactly the data
+  the command rejects. Reported by a review bot on the pull request, and reproduced before it
+  was believed: the case failed at `expected 'current' to be 'stale'`. Three things worth
+  keeping:
+  - **The fix is the field, not a reconciliation.** Resolving from `loaded.entity.projectId`
+    makes the two agree BY CONSTRUCTION rather than detecting when they do not; the reviewer's
+    other offer — treat a project/zone mismatch as stale — neutralises the symptom while leaving
+    two derivations in place to drift again. Prefer making the disagreement unrepresentable to
+    checking for it, which is this file's own rule about a value derived from two inputs.
+  - **A per-row read costs a repository call per row, and the memo that fixes that needed its
+    own case.** `Map<ProjectId, Currency | null>` per `execute` keeps the ordinary case — every
+    row naming one project — at one read, with `null` a CACHED answer and `undefined` the only
+    miss. Its hit arm is invisible to every other case in the file, since a row renders
+    identically whether the memo works or not, so it is pinned on the CALL COUNT and
+    mutation-checked (defeating the cache reads 2 where 1 is asserted).
+  - **The call-order lesson from this same file paid out a second time, in the other
+    direction.** A prior round had made `propagates a failed origin-zone read` call-count-aware
+    precisely BECAUSE `loadProjectCurrency` reached `zones.getById` first with an identical
+    failure mode; removing that first read left the counter stepping over a call that no longer
+    exists, and the case went red. Its sibling, `propagates a failed zone read while resolving
+    the project currency`, named a path that had ceased to exist and would have gone on passing
+    as a duplicate of the case below it — REPLACED by the project-read arm that survived the
+    move rather than deleted or left standing. A test whose name outlives its path is the
+    shadowing defect this file records, arriving in the commit that removes the shadow.
+- **A settings control's vocabulary was decided by `MINOR_UNIT_PLACES`, not by taste.**
+  `Money.round` finalizes at two decimal places, so a zero-minor-unit currency rounds every total
+  wrong, and `CURRENCIES` is therefore the two-minor-unit codes (`CHF`, `EUR`, `GBP`, `USD`) with
+  that constraint written where the list is rather than in a design document. **What it bounds is
+  the DEFAULT and not a hand-written note**: an asset note's own `currency: JPY` passes
+  `/^[A-Z]{3}$/` and rounds at two places just as it did before — pre-existing since slice 10, out
+  of scope, and recorded so that it stops being invisible rather than left to read as covered by
+  the list. The row itself is a dropdown rather than a text field for the reason slice 19 already
+  paid for: `setControlValue` writes through `saveSettings` on every change, so a text field
+  persists every half-typed prefix and `settingsFrom` drops each one back to the default. Unlike
+  `libraryFolder` nothing moves and nothing is stranded, so a control is legal here — it is
+  simply that only one kind of control is any good.
+- **A test can be shadowed by a changed call ORDER, not only by a changed assertion.**
+  `queryRefusals.test.ts`'s 'propagates a failed origin-zone read' overrode `zones.getById`
+  unconditionally. The new project lookup calls that method BEFORE `buildRow` does, so the case
+  began failing at the new call site while its name still described the old one, and
+  `loadOriginZone`'s own `isErr` branch went dead underneath it — green throughout, because the
+  refusal it asserts is the same either way. This is the repository's own "a test can pass on the
+  wrong refusal" arriving through a mechanism no assertion mentions. **Nothing in any gate reads
+  call order**; a reviewer found it. The fix needed BOTH halves — a call-count-aware override so
+  the first `getById` succeeds and the second fails, AND a rename, because a case whose name says
+  where its failure is caught is the only thing that would have made the drift visible.
+- **A guard that cannot change behaviour can still earn its place by NARROWING A TYPE, and that
+  is a different reason from its neighbours'.** `isStaleReading`'s `projectCurrency === null` arm
+  does not discriminate under mutation: a null project currency cannot equal a recorded one, so
+  `inputsStillMatch`'s own tail conjunct already yields stale. It stays because without it
+  `projectCurrency` is `Currency | null` at a call site that requires `Currency` and the build
+  fails. Not the `boundsOfZones` dead-branch shape this file records deleting, which was
+  UNREACHABLE; this one is reachable and its job is narrowing, where its zone and asset siblings
+  prevent a crash. **Uniformity is a reason and it is not the same reason as necessity** — the two
+  are written down separately at the code, because an arm defended as "consistent with the ones
+  beside it" is one whose actual justification nobody has stated.
+- **A THIRD caller of the pipeline that neither the design nor the plan named, found by grep
+  rather than by the compiler.** `SetRequirementQuantityOverride` calls `computeEstimatedCost`
+  directly and passes its own `unitPrice` as `expectedCurrency`, so the guard there is
+  tautological and cannot fire. Judged CORRECT on review rather than tightened: that call
+  re-prices a *snapshot* rather than live inputs, and reading the project there would lock the
+  user out entirely, since `RecalculateRequirementCommand` refuses on the same mismatch. **The
+  residue is real and is pinned by a test rather than described**: a project note with no
+  `currency:` key follows the plugin's `defaultCurrency`, so changing that setting re-denominates
+  every legacy project, after which this override path writes an estimate the invariant does not
+  reach. **It is not the only such door, and the unnamed one is less guarded**:
+  `SetRequirementCostOverrideCommand.write` writes `estimatedCost.override` — the estimate
+  `effectiveValue` actually renders — from a caller-supplied `Money` with no currency comparison at
+  all, `Requirement` performs none either, and the same scenario reproduces there through
+  `RequirementRow.vue`'s cost override, which mints its `Money` in the row's own — possibly
+  stale — currency. Neither is guarded, for one reason: "recalculate first" is not a remedy once
+  recalculate refuses too. A required parameter makes every caller a compile error, which is what
+  found the two the design predicted; it does not make the third one WRONG, and only reading it
+  said whether it was.
+- **A failed READ and an ABSENT referent collapsed into one code, for the fourth recorded time —
+  in code this increment wrote, one file away from a sibling that gets it right.** `AssignAsset`
+  propagates the repository's own error unchanged (`if (isErr(project)) return project;`) and
+  raises `requirement.project-not-found` only for `project.value === null`.
+  `RecalculateRequirement`, written in the same task, gives BOTH arms
+  `requirement.project-gone`. The branches are separate and the developer `message` is preserved,
+  so the damage is narrower than `redoCreate`'s was — and it is exactly the same user-facing half:
+  `toUserMessage` tells a user whose vault could not be READ that their project *"is no longer
+  there"*, about a project whose continued existence is not in doubt. Left standing rather than
+  fixed, named here and in `docs/tasks/20`'s Amendment 2, because it is one code in one command
+  and closing it inside a documentation task would be a production change nobody reviewed.
+  **The shape to carry is that two files edited in one task disagreed about a rule this file
+  already states twice**: knowing a rule is not reaching for it, and the SECOND of two sibling
+  call sites is where it goes missing.
+- **An absence with a reason and an absence without one read identically, so the reason is
+  written down.** `project.currency-mismatch` — the coherence refusal `Project.create` raises when
+  a `budget` or `contingency` disagrees with the project's own currency — gets no locale copy,
+  because no caller sets either field on `CreateProjectInput` and the code is unroutable from any
+  surface, exactly as its sibling `project.negative-amount` already is in `toUserMessage.test.ts`'s
+  MINTED table. `cost.currency-mismatch`, which a user CAN reach, has copy in both locales — and
+  it names the wrong RELATIONSHIP rather than the two currencies, because `toUserMessage` takes no
+  params: `t` gained a third parameter in slice 19 and that function did not, so the codes live in
+  the developer-English `message` for the log line and widening that seam was refused inside a
+  currency increment.
+- **A plan's branch arithmetic is a claim, and this one undercounted by one.** The plan said its
+  first task *"removes two branches and adds none"*; `parseCurrency`'s `typeof raw !== 'string'`
+  arm is genuinely new, because the checks it replaced took a `string` parameter and could never
+  see a non-string. It was tested in the same commit, so the constraint the claim was protecting
+  held — but a framing that undercounts a new arm is exactly what hides one in a slack metric, and
+  at this repository's headroom the slack metric is where an untested arm survives.
+- **A per-file coverage check with a hand-written filename filter over-matches and under-matches
+  at the same time.** The plan's own instrument was written to print nothing and printed four
+  lines: its regex includes `Project\.ts`, which substring-matches `sampleProject.ts` — a file the
+  increment never touched — while missing `SetRequirementQuantityOverride.ts` and
+  `slice10Composition.ts`, two files it DID touch that carry inherited arms, because their names
+  contain none of the words it looks for. Every position it reported and every one it missed
+  traced to an earlier slice by `git log -L`, so the increment is clean either way; the finding is
+  about the instrument. The question the check is actually asking is *which files did this branch
+  change*, and `git diff --name-only` is what answers it — a filter naming files by hand is a list,
+  and this file's own rule is that a list goes stale while a rule does not.
+- **`npm run check` under default parallelism failed two files on a busy machine and 290/290 files
+  passed serially, and the ratio is worth recording because this file already carries a different
+  one.** The measured cost here was 590s serial against 97s parallel — SIX times, where the
+  paragraph about `tests/build/` records two — and both figures are right, because they measure
+  different things on different machines: twelve ESLint-booting files on a two-core container
+  there, the whole suite on this machine here. The diagnostic is unchanged (re-run serially before
+  believing a timeout) and so is the conclusion (serial is not the remedy). What is new is the
+  platform hazard underneath it: **an orphaned `vitest --no-file-parallelism` process survived the
+  harness's own kill and ran for about forty minutes** while its tracked log already read
+  `[killed]`, contending with everything after it. A timeout on a tree with no source change is a
+  question about the machine before it is a question about the diff.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

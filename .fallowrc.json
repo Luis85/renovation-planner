@@ -14,7 +14,7 @@
 	// background, and it imports nothing under `src/` or `tests/`. `scripts/chromium.mjs` deliberately does NOT: both of them import it, so fallow
 	// reaches it through the graph — and it having to be reachable is the point of it being
 	// one file rather than a copy in each.
-	// The five `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
+	// The seven `*.test-d.ts` files are a fourth kind, next to `scripts/lint-edited.mjs` above:
 	// nothing imports them and no npm script runs them either — `vue-tsc -noEmit`
 	// type-checks them because `tsconfig.json`'s `include` names each one directly, and
 	// compiling is the whole point. `type-safety.test-d.ts` holds the screen/world brand
@@ -27,8 +27,13 @@
 	// is to have asked `surfaceFor`; `exceptionMapper.test-d.ts` holds the obligation that every
 	// mapper stamp the fault it mints, which is a claim about mappers NOT YET WRITTEN and so has
 	// no runtime form either — the rule in its earlier, remembered form was kept at one of its
-	// two sites and missed the one every guarded command goes through. In all five, an unsatisfied
-	// `@ts-expect-error` or assignment failure is itself a compile error, which is the
+	// two sites and missed the one every guarded command goes through; `currency.test-d.ts` holds
+	// the branded `Currency`'s ACCESS rule — a `unique symbol` this module never exports, so the
+	// only way to hold one is to have gone through `parseCurrency` or `currencyOf`;
+	// `costPipelineInput.test-d.ts` holds `CostPipelineInput.expectedCurrency` being REQUIRED — a
+	// claim only the compiler can hold, since a runtime test cannot distinguish "omitted" from
+	// "omitted and defaulted". In all seven, an
+	// unsatisfied `@ts-expect-error` or assignment failure is itself a compile error, which is the
 	// mechanism. Named one at a time rather than
 	// globbed `tests/**/*.test-d.ts`, for the reason `dynamicallyLoaded`'s own comment gives:
 	// a glob absorbs the next file and tells nobody — and here it would absorb one whose
@@ -68,6 +73,8 @@
 		"tests/helpers/fixtureVault.test-d.ts",
 		"tests/presentation/errors/errorSurfacePolicy.test-d.ts",
 		"tests/application/errors/exceptionMapper.test-d.ts",
+		"tests/core/money/currency.test-d.ts",
+		"tests/domain/cost/costPipelineInput.test-d.ts",
 		"src/prototypes/**/*.vue",
 		"tests/fixtures/promotion/ZoneSummary.promoted.vue",
 		"tests/build/fixtures/brokenFake.fixture.ts",

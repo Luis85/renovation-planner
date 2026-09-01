@@ -267,10 +267,31 @@ changed touches one.
 
 ## Interfaces & Contracts
 
+**Corrected by Amendment 1 below.**
+The block below wrote `Currency` as though the type existed — it did not, and `core/money`
+had to mint it — and it wrote `CalculatedFrom` as gaining a field that it does **not** gain.
+Both are corrected here rather than left to be discovered, since a contract block is what an
+implementer transcribes.
+
 ```ts
+// core/money/Money.ts — INVENTED by this increment; there was no `Currency` type
+declare const currencyBrand: unique symbol;
+export type Currency = string & { readonly [currencyBrand]: true };
+export function parseCurrency(raw: unknown): Result<Currency, ValidationError>;  // untrusted input
+export function currencyOf(code: string): Currency;                             // program literal; THROWS
+
 // domain/project/Project.ts
 readonly currency: Currency;
 
+// domain/cost/costPipeline.ts
+readonly expectedCurrency: Currency;   // required — see the design section
+
+// domain/requirement/Requirement.ts — UNCHANGED. `calculatedFrom.unitCost.currency` already
+// IS the project's currency at calculation time, once the pipeline's invariant holds, so no
+// `projectCurrency` field is added and no Requirement migration is registered.
+interface CalculatedFrom { zoneArea; unitCost; assetUnit; }
+
+// ————— the override increment's, NOT this one's —————
 // domain/asset-price/AssetPriceOverride.ts — the slice 3 module pattern
 export class AssetPriceOverride { readonly id; readonly projectId; readonly assetId; readonly unitCost: Money; }
 
@@ -279,15 +300,16 @@ getForPair(projectId: ProjectId, assetId: AssetId): Promise<Result<Loaded<AssetP
 listByProject(projectId: ProjectId): Promise<Result<Loaded<AssetPriceOverride>[], PersistenceError>>;
 save(o: AssetPriceOverride, expected: Expected): …
 delete(id: AssetPriceOverrideId, expected: EntityVersion): …
-
-// domain/cost/costPipeline.ts
-readonly expectedCurrency: Currency;   // required — see the design section
-
-// domain/requirement/Requirement.ts — provenance gains the second operand
-interface CalculatedFrom { zoneArea; unitCost; assetUnit; projectCurrency: Currency; }
 ```
 
 ## Persistence Impact
+
+**Amended by Amendment 1 below: NONE of the three bullets shipped as written.** The Project
+schema stays at version 1 and gains an optional key instead (item 3); the Requirement bullet is
+WITHDRAWN as unnecessary rather than deferred, because the value it exists to persist is
+already in the note (item 6); and the `Asset Prices/` folder belongs to the override increment
+(item 7). The bullets are left standing rather than rewritten, because what they say was
+DESIGNED is the record the amendment is an amendment to.
 
 - `Project` gains `currency:`, and a real v1→v2 step in `PROJECT_MIGRATIONS` takes the project
   schema to 2.
@@ -348,52 +370,366 @@ with the code.
 
 ## Definition of Done
 
-- [ ] `Project.currency` exists, is ISO-4217-shaped, defaults from a new `defaultCurrency` plugin
-      setting, and a v1 Project note migrates to it — the first non-empty chain the migration
-      runner has executed outside a synthetic fixture.
-- [ ] `CostPipelineInput.expectedCurrency` is **required**, and `computeEstimatedCost` refuses a
+**Read Amendment 1 below before this list.** The slice was split: this list was written
+for one increment carrying both the currency invariant and the per-project price override,
+and the override is now its own. Every item below says which. Three of them are
+**withdrawn** rather than deferred — a withdrawn item left looking merely unticked is one
+the next reader re-adds as an oversight, which is the whole reason the annotations are
+inline rather than only in the amendment.
+
+- [x] **PARTLY — the migration clause is WITHDRAWN, see Amendment 1 item 3.** `Project.currency`
+      exists, is ISO-4217-shaped and defaults from a new `defaultCurrency` plugin setting. It does
+      **not** arrive through a migration: `ProjectFrontmatterSchemaV1` gains an optional key and
+      `projectFromPersistence` supplies the default, `PROJECT_MIGRATIONS` stays empty, and the
+      clause promising *"the first non-empty chain the migration runner has executed outside a
+      synthetic fixture"* is withdrawn. The runner stays unproven on a real chain.
+- [x] `CostPipelineInput.expectedCurrency` is **required**, and `computeEstimatedCost` refuses a
       mismatch with a `CalculationError` **before any arithmetic** — asserted on both directions,
       and the requiredness asserted by the compiler in the one type-checked test file, since a
       `// @ts-expect-error` nothing enforces is just a comment.
-- [ ] `AssetPriceOverride` follows §78's module pattern and has in-memory and Obsidian
-      repositories passing one shared contract test, like every other entity.
-- [ ] The effective unit cost is `override ?? asset.unitCost`, resolved by the two commands and
-      **not** inside `deriveRequirementFigures` — checked by that function still taking exactly one
-      `unitCost` and holding no repository. A derivation that reached for one would be a second
-      answer to what a Requirement costs.
-- [ ] `assetMatchesCalculatedFrom` compares against the **effective** cost: a Requirement under a
-      price override reads `"current"`, not a permanent false `"stale"`. This is the regression a
-      naive edit produces and it gets its own test.
-- [ ] `calculatedFrom` carries `projectCurrency`, and a Requirement whose project currency changed
-      reads `"stale"` **after a reload**. **Narrow claim**: it reads stale, it is not recalculated
-      — nothing recalculates until something dispatches, and no `ProjectUpdated` cascade is added.
-- [ ] `AssignAssetCommand` refuses a pairing whose effective price is not in the project's
-      currency, names both currencies, and creates nothing — **and the same assign succeeds once a
-      price override in the project's currency exists.** That pair of tests is the answer to
-      [[The cost pipeline is told the currency it must produce]]'s closing question: an override
-      **satisfies** the refusal rather than replacing it.
-- [ ] Both overrides are live on one Requirement and the stated precedence holds: the requirement
-      override is in force, and changing the price override moves `calculated` without moving the
-      effective figure. A test with one override at a time passes against either precedence, so
-      the both-live fixture is the check.
-- [ ] The Inspector shows the shared default, the project's price and the requirement's figure,
-      each labelled and with the one in force marked (§52, §89).
-- [ ] `AssetPriceOverrideChanged` cascades **only within its project**, asserted with the same
-      asset referenced from two projects. A single-project fixture passes against no narrowing at
-      all.
-- [ ] Two override notes for one (project, asset) produce a diagnostic and still return a price —
-      last-writer-wins, the shape `warnOnDuplicate` already uses. Deliberately not a refusal: the
-      notes are user-editable markdown.
-- [ ] The Requirement v1→v2 migration writes the project's **current** currency into the
-      provenance, so migrated Requirements read `"current"` — asserted, because it is a deliberate
-      under-report and a test is what stops the next reader correcting it into a vault-wide false
-      alarm.
-- [ ] [[The cost pipeline is told the currency it must produce]] is closed, with its outcome
-      recorded in the note rather than only in this document — it carries the reasoning, and an
-      Issue that stays New after its question is answered is worse than one never filed.
-- [ ] [[Asset library]]'s definition-of-done item — *"A project can record its own price against a
-      shared definition"* — is met, and that epic says so.
-- [ ] `npm run check` passes, and `vitest.config.ts` records a fresh measurement.
+      (`tests/domain/cost/currencyInvariant.test.ts`, `tests/domain/cost/costPipelineInput.test-d.ts`.)
+- [ ] **DEFERRED to the override increment.** `AssetPriceOverride` follows §78's module pattern and
+      has in-memory and Obsidian repositories passing one shared contract test, like every other
+      entity.
+- [ ] **DEFERRED to the override increment — but its second half is TRUE TODAY and is what keeps it
+      cheap.** The effective unit cost is `override ?? asset.unitCost`, resolved by the two commands
+      and **not** inside `deriveRequirementFigures` — checked by that function still taking exactly
+      one `unitCost` and holding no repository. There is no override to resolve yet; the derivation
+      still takes exactly one `unitCost` and holds no repository, and this increment's project read
+      was added to the two COMMANDS for that reason.
+- [ ] **DEFERRED to the override increment, and it is that increment's item rather than a gap
+      here.** `assetMatchesCalculatedFrom` compares against the **effective** cost: a Requirement
+      under a price override reads `"current"`, not a permanent false `"stale"`. The defect
+      **cannot exist until an override does**, so this increment left that predicate untouched
+      deliberately and pinned the fact with a regression test rather than saying "we did not touch
+      it".
+- [x] **MET BY ANOTHER ROUTE; the `projectCurrency` field is WITHDRAWN as unnecessary, see
+      Amendment 1 item 6.** A Requirement whose project currency changed reads `"stale"` **after a
+      reload**. `calculatedFrom` does **not** carry `projectCurrency` and gains no field: the
+      requirement note's single `currency:` key already IS the project's currency at calculation
+      time once the pipeline's invariant holds, so `inputsStillMatch` compares
+      `project.currency === recordedFrom.unitCost.currency` and needs nothing persisted that was
+      not already there. **Narrow claim, unchanged**: it reads stale, it is not recalculated —
+      nothing recalculates until something dispatches, and no `ProjectUpdated` cascade is added.
+- [ ] **AMENDED — the pre-check is WITHDRAWN, see Amendment 1 item 4; the override half is the
+      override increment's.** `AssignAssetCommand` adds no guard of its own. It PROPAGATES the
+      pipeline's `cost.currency-mismatch`, because it builds the Requirement's figures through
+      `deriveRequirementFigures`, which is that pipeline — so a mismatched pairing already refuses
+      and creates nothing. The copy **cannot name both currencies**: `toUserMessage` takes no
+      params, so the sentence names the wrong relationship and the two codes live in the
+      developer-English `message`. The *"same assign succeeds once a price override exists"* half
+      is the override increment's, and it is where the Issue's closing question gets its end-to-end
+      assertion — the ANSWER is recorded in the Issue now regardless.
+- [ ] **DEFERRED to the override increment.** Both overrides are live on one Requirement and the
+      stated precedence holds.
+- [ ] **DEFERRED to the override increment.** The Inspector shows the shared default, the project's
+      price and the requirement's figure, each labelled and with the one in force marked (§52, §89).
+- [ ] **DEFERRED to the override increment.** `AssetPriceOverrideChanged` cascades **only within
+      its project**.
+- [ ] **DEFERRED to the override increment.** Two override notes for one (project, asset) produce a
+      diagnostic and still return a price.
+- [ ] **WITHDRAWN as unnecessary, not deferred — see Amendment 1 item 6.** The Requirement v1→v2
+      migration writing the project's **current** currency into the provenance was a remedy for a
+      value the document believed unrecoverable. It is recoverable, so there is no step, no key and
+      no under-report to assert. **Nothing in a later increment should re-add this**: adding the
+      field would create a second answer to a question the note already answers.
+- [x] **ANSWERED, and deliberately NOT closed.**
+      [[The cost pipeline is told the currency it must produce]] carries its answer — *an override
+      **satisfies** the refusal rather than replacing it* — recorded in the note rather than only
+      here. Its `status` stays `New` with a *Revisit when* naming the override increment, because
+      the second half of what it describes is unwritten. An Issue answered and left open is not the
+      failure this item was guarding against; an Issue whose answer lives only in a slice document
+      is, and that is closed.
+- [ ] **NOT MET, and the epic is NOT ticked.** [[Asset library]]'s definition-of-done item — *"A
+      project can record its own price against a shared definition"* — belongs to the override
+      increment, and that epic now carries one line saying so rather than being left to read as
+      though this increment forgot it.
+- [x] `npm run check` passes, and `vitest.config.ts` records a fresh measurement — 5950/5994
+      statements, 2956/3010 branches, 1534/1548 functions, 5285/5313 lines
+      (99.26 / 98.20 / 99.09 / 99.47). **NOTHING RATCHETS**: rounded down those are the floors
+      already in force, as slices 5, 11, 13, 15, 16, 18 and 19 also measured.
+
+### Amendment 1 (2026-09-01): the slice is split, and this half has landed
+
+Dated at the writing rather than at the design, which is 2026-08-31: the increment ran across
+midnight and its last commits carry the later date. The design delta is
+[`docs/superpowers/specs/2026-08-31-the-currency-the-pipeline-is-told-design.md`](../superpowers/specs/2026-08-31-the-currency-the-pipeline-is-told-design.md),
+which is the authority for the reasoning behind every item here. This section exists because a
+reader opens **this** document, and a withdrawal recorded only in a spec is a withdrawal the next
+author re-adds as an oversight.
+
+1. **The slice is split, and this increment is the first half — the currency invariant.** The
+   per-project price override is its own increment. The reason is this document's own *Genuinely
+   undecided* section: the affordance *"belongs to whichever slice first gives the catalogue a
+   screen"*, and that screen is being built separately, so the override lands **with** its
+   affordance rather than several commits before it. This half closes the correctness hole on its
+   own — an EUR-priced asset can no longer yield an estimate inside a GBP project.
+
+2. **`Currency` did not exist, and it is branded on the way OUT rather than on the way in.** This
+   document's `Interfaces & Contracts` wrote `Currency` as though the type were there;
+   `Money.currency` was a bare `string`, validated by a pattern inside `createMoney` and `of`.
+   `core/money` mints it now. **The brand goes on the RESULT**: `createMoney`, `of` and
+   `currencyOf` already refused a non-conforming code, so branding what they return states a fact
+   rather than adding a hope, and it moves none of the 142 currency literals in `tests/`. Branding
+   the INPUT was the more coherent shape and was measured before being rejected: 142 call sites
+   plus every fixture, for a guarantee the validating constructors already give. **State the claim
+   narrowly** — it stops a caller passing a bare string; it cannot stop one passing the wrong
+   *validated* currency, which is exactly what the pipeline's refusal is for.
+
+   Two doors, not one: `parseCurrency(raw: unknown): Result<Currency, ValidationError>` for
+   untrusted input (`data.json`, note frontmatter) and `currencyOf(code: string): Currency`, which
+   **throws**, for program literals. That is the split `createMoney`/`of` already had, applied to a
+   second value type — a `Result`-returning door would force an unreachable error arm at every
+   module-level literal that needs a currency.
+
+3. **No Project schema bump, and `PROJECT_MIGRATIONS` stays empty BY A DECISION.**
+   `ProjectFrontmatterSchemaV1` stays at version 1 and gains an optional `currency`, slice 19's
+   Asset pattern; `projectFromPersistence` takes a `defaultCurrency` and applies it when the key is
+   absent. Migrations here run on **read**, so neither shape rewrites a vault and the distinction
+   this document called load-bearing is smaller than it reads — and the step's value would have to
+   come from `defaultCurrency`, which a pure `migrate(input)` cannot see without turning
+   `MIGRATION_SET` into a builder, which is the one table whose single-ness is an asserted
+   property.
+
+   **The Definition-of-Done clause promising *"the first non-empty chain the migration runner has
+   executed outside a synthetic fixture"* is WITHDRAWN, not ticked.** The cost is named rather than
+   hidden: the runner remains unproven on a real chain, and that risk moves to the first schema
+   change that cannot be a redefinition — which should be **scheduled** deliberately rather than
+   discovered.
+
+   The consequence is behaviour rather than a footnote: a project note with no `currency:` key
+   **follows the setting**, and keeps following it until something saves that note. For a
+   single-currency vault that is the feature. For a two-currency vault it is a footgun, because
+   changing `defaultCurrency` silently re-denominates every project that never stated one — pinned
+   as a test rather than described, so that a later reader who "fixes" the floating fails a case.
+
+4. **One refusal, in the pipeline. `AssignAssetCommand`'s pre-check is WITHDRAWN.**
+   `computeEstimatedCost` refuses a mismatch before any arithmetic with a `CalculationError` coded
+   `cost.currency-mismatch`; `AssignAssetCommand` propagates it and adds no guard of its own,
+   because it builds its figures through `deriveRequirementFigures`, which **is** that pipeline. A
+   second refusal buys wording and not protection, and pays for it with two codes, two categories
+   and two surfaces for one failure. *"Two expressions of one question, three lines apart, drift
+   immediately."*
+
+   **The wording is bought smaller than this document wanted.** `toUserMessage(language, error)`
+   takes no params — `t` gained a third parameter in slice 19 and `toUserMessage` did not — so the
+   user-facing sentence **cannot name the two currencies**. It names the wrong *relationship*
+   instead, and both codes live in the developer-English `message` for the log line. Widening
+   `toUserMessage` is a deliberate change to the one seam where an `AppError` becomes copy, and it
+   does not belong inside a currency increment.
+
+   What both commands DID gain is a `ProjectRepository` — not the `AssetPriceOverride` repository
+   this document predicted, since there is no override yet. `AssignAsset` and
+   `RecalculateRequirement` each read the project and pass `expectedCurrency`;
+   `deriveRequirementFigures` keeps taking exactly the figures it is given and holds no repository.
+
+5. **`Project.create` gains a coherence rule this document does not mention** — an ADDITION rather
+   than a withdrawal. `Project` already carried two currencies before this increment (`budget` and
+   `contingency`, both `Money | null`, neither persisted), so `Project.currency` would have been a
+   *third* answer to "what currency is this project in". The constructor refuses a `budget` or
+   `contingency` whose currency is not the project's, beside `negativeAmount` and for that
+   function's own stated reason: the constructor is private, so the entity is the one place every
+   path passes, and a Zod refinement would be a second answer to the same question.
+
+6. **`CalculatedFrom` is UNCHANGED. The `projectCurrency` field, the Requirement v1→v2 step and
+   the deliberate under-report are WITHDRAWN AS UNNECESSARY, not deferred.**
+
+   This document argued that *"the project's currency at the time of the original calculation is
+   not recoverable"*, and built four things on that claim: a provenance field, a persisted
+   `project-currency` key, a migration step, and a deliberate under-report so that migrated
+   Requirements read `"current"` rather than `"stale"`. **The claim was about the DOMAIN and was
+   made without reading the NOTE.** `RequirementFrontmatterSchemaV1` declares a single `currency`
+   key which `requirementMapper` hands to `cost-calculated`, `cost-override` **and**
+   `calculated-from-unit-cost` alike — so `calculatedFrom.unitCost.currency` **is** the project's
+   currency at calculation time, once item 4's invariant holds. Nothing had to be added, persisted
+   or migrated.
+
+   **And the version that reads the note is *truer* than either candidate this document weighed.**
+   It flags exactly the Requirements really denominated in something other than their project's
+   currency, and leaves every other reading `"current"`. The two options here were a vault-wide
+   false alarm (mark everything stale) and a vault-wide false reassurance (the under-report). This
+   is neither.
+
+   **Do not re-add the field.** It would be a second answer to a question the note already answers.
+
+   The comparison is also SPLIT by which question each caller asks, which one shared predicate had
+   conflated:
+   - **`assetMatchesCalculatedFrom`** — the cascade-skip test, used by `onAssetUpdated` — is
+     **untouched**. Its question is about the ASSET, and it already compares
+     `asset.unitCost.currency`, so a re-denominated asset already invalidates. Adding a project
+     read here would cost one read per project across a shared asset's whole fan-out to answer a
+     question nobody asked. Pinned by a regression test rather than left as *"we did not touch
+     it"*.
+   - **`inputsStillMatch`** in `GetRequirementsForZone` — the read-model backstop — gains exactly
+     one comparison, and the query gains a `ProjectRepository`. One read per call; the zone
+     supplies the `projectId`.
+
+7. **Deferred to the override increment, by name, so that a closed increment's history does not
+   swallow them:** `AssetPriceOverride`, its id, schema, errors, events and both repositories with
+   one shared contract test; `AssetPriceOverrideChanged` and its project-narrowed cascade; the
+   duplicate-pair diagnostic and its last-writer-wins, deliberately not a refusal; the
+   `Asset Prices/` folder and a sixth `ENTITY_TYPES` entry; the Inspector's three figures, each
+   labelled with the one in force marked (§52, §89); where a user creates an override, which waits
+   on the catalogue screen; and **the effective-cost correction to `assetMatchesCalculatedFrom`**,
+   which is a defect only once an override exists and is therefore that increment's
+   Definition-of-Done item rather than a gap in this one.
+
+### Amendment 2 (2026-09-01): five measurements that made a written sentence false, and six minors left standing
+
+Recorded separately from Amendment 1 because none of these is a scope decision. Each is something
+the increment measured that corrects this document, its plan, or both.
+
+- **The constant is `MINOR_UNIT_PLACES`, not `MINOR_UNITS`.** The design delta named it twice and
+  the plan three times, and no such constant exists. Corrected in both at `0c6bcec`, before it
+  could reach an implementer transcribing a symbol that would not resolve. It matters beyond the
+  typo because it is what BOUNDS the settings vocabulary: `Money.round` finalizes at two decimal
+  places, so `CURRENCIES` is the currencies with two minor units (`CHF`, `EUR`, `GBP`, `USD`) — a
+  list decided by that constant rather than by taste. **It bounds the DEFAULT and not a
+  hand-written note**: an asset note's own `currency: JPY` still passes `/^[A-Z]{3}$/` and still
+  rounds at two places. Pre-existing, out of scope here, and recorded so it stops being invisible.
+
+- **The plan's claim that its first task *"removes two branches and adds none"* undercounts by
+  one.** `parseCurrency`'s `typeof raw !== 'string'` arm is genuinely NEW — the checks it replaced
+  took a `string` parameter and could never see a non-string. It is tested in the same commit, so
+  the constraint that motivated the claim held; the framing was wrong, and a framing that
+  undercounts a new arm is exactly what hides one in a slack metric.
+
+- **`project.currency-mismatch` gets no locale copy, and that is deliberate rather than a gap.**
+  No caller sets `budget` or `contingency` on `CreateProjectInput`, so item 5's coherence refusal
+  is UNROUTABLE from any surface — exactly as its sibling `project.negative-amount` already is,
+  which `toUserMessage.test.ts` records in its MINTED table. `cost.currency-mismatch`, which a user
+  CAN reach, has copy in both locales. Written down because an absence with a reason and an
+  absence without one read identically.
+
+- **There is a THIRD pipeline caller this document and its plan never named.**
+  `SetRequirementQuantityOverride` calls `computeEstimatedCost` directly. It passes its own
+  `unitPrice` as `expectedCurrency`, so the guard there **cannot fire** — judged correct on review
+  rather than left as an oversight, because that call re-prices a *snapshot* rather than live
+  inputs, and reading the project there would lock the user out entirely, since
+  `RecalculateRequirementCommand` refuses on the same mismatch. **The residue is real and is pinned
+  by a test**: a project note with no `currency:` key takes the plugin's `defaultCurrency`
+  (item 3), so changing that setting re-denominates every legacy project — after which this
+  override path writes an estimate the invariant does not reach. **It is not the only such
+  door, and the unnamed one is less guarded**: `SetRequirementCostOverrideCommand.write` writes
+  `estimatedCost.override` — the estimate `effectiveValue` actually renders — from a
+  caller-supplied `Money`, with no currency comparison at all, and `Requirement` performs none
+  either; the same scenario reproduces there through `RequirementRow.vue`'s cost override, which
+  mints its `Money` in the row's own — possibly stale — currency, and it can additionally accept
+  a genuinely foreign currency from any application-layer caller. Neither is guarded, for the
+  same reason: "recalculate first" is not a remedy once recalculate refuses too. The hazard
+  beneath both — `requirementMapper` writes one `currency` key for all three money fields, so a
+  foreign override is silently re-denominated on reload — is pre-existing and belongs to
+  whichever increment reconciles a Requirement's currency against its Project's.
+
+- **`isStaleReading`'s `projectCurrency === null` arm does not discriminate under mutation, and it
+  stays.** Removing it changes no behaviour: a null project currency cannot equal a recorded one,
+  so `inputsStillMatch`'s own tail conjunct already yields `stale`. It stays because without it
+  `projectCurrency` is `Currency | null` at a call site that requires `Currency` — **its job is
+  narrowing a TYPE, where its zone and asset siblings prevent a crash.** Not the dead-branch shape
+  this repository deletes, which was unreachable; this one is reachable. *Uniformity is a reason,
+  and it is not the same reason as necessity* — so the two reasons are written down separately
+  rather than the arm being defended as consistent with its neighbours.
+
+**Three more are not corrections at all — the branch shipping something better or narrower than
+the design said, recorded so a later reader does not read the divergence as drift.**
+
+- **`parseCurrency` is not the door the spec assigned it.** Decision 1 says it is "the one door"
+  for the two boundaries that begin with untrusted text, `settingsFrom` and the project
+  frontmatter schema. Neither uses it. `settingsFrom`'s `currencyFrom` is a `CURRENCIES.find`
+  instead — narrower than `parseCurrency`, and deliberately so: the question there is not "is
+  this a well-formed code" but "is this one of the codes this pane offers," which is what keeps
+  a hand-edited `JPY` in `data.json` out of `round`, where `parseCurrency` would have let it
+  through. The project frontmatter schema uses a zod `.regex(/^[A-Z]{3}$/).nullable().catch(null)`
+  with `currencyOf` in the mapper instead — also correct, because `.catch(null)` is what lets an
+  absent key take the project's default rather than refusing the whole note, which `parseCurrency`
+  returning a `Result` cannot express at a zod boundary. `parseCurrency`'s only production caller
+  is `createMoney`. Both shipped choices are better than routing through the door the spec named.
+- **The brand-assignability test covered two of three constructors.** `currency.test.ts` asserted
+  `of` and `zero` produce a `Money` whose `currency` satisfies the brand; `createMoney`'s result
+  was asserted nowhere against it. Closed in the same pass with one added case.
+- **`.fallowrc.json`'s enumeration justification is half fiction.** Its comment says the seven
+  `*.test-d.ts` files are named one at a time rather than globbed because a glob "would absorb one
+  whose tsconfig `include` entry had been forgotten." There is no per-file `include` entry to
+  forget: `tsconfig.json`'s `include` is `tests/**/*.ts`, already a glob that reaches every one of
+  them automatically, so nothing about adding a file there requires a second edit anywhere. The
+  general half still stands on its own — "a glob absorbs the next file and tells nobody" is a real
+  reason to enumerate, because it forces a reviewable decision each time one is added — so the
+  enumeration is still the right call, for one real reason and one dead one. Recorded so the next
+  editor does not re-derive the dead half and re-justify the same choice for a reason that is not
+  true.
+
+**Six minors were deferred rather than fixed, and they are listed here because the only other
+place they exist is an execution ledger under `.superpowers/`, which is a working artefact rather
+than a document anybody opens twice.** None is a scope decision and none blocks anything; each is
+small enough that the next author to be in the file should take it, and invisible enough that
+nobody will find it otherwise.
+
+- **`RecalculateRequirement` collapses a failed project READ and an absent project into one
+  code** (`requirement.project-gone`), where `AssignAsset` — the sibling written in the same
+  task — propagates the read error unchanged and reserves `requirement.project-not-found` for the
+  absent case. The branches are separate and the developer message survives, so this is the
+  milder form of a class `CLAUDE.md` already records three times; what it costs is that a user
+  whose vault could not be read is told their project is gone.
+- **`makeDeleteZoneCommand`'s `projects` default is a fake HARSHER than the real thing** — inert
+  today because nothing reaches it, and armed for the first caller that does.
+- **`RecalculateRequirementCommand` now sits at exactly five positional parameters.** The next
+  collaborator it gains forces the deps-object conversion; taking it early is cheaper than taking
+  it under a change that needed the parameter.
+- **`overridePort` is duplicated verbatim in two test files.** Invited by the task brief rather
+  than a defect of the work; dedup when a third caller appears.
+- **`.fallowrc.json`'s comment still says `tsconfig.json` "names each one directly"**, and the
+  `include` is a glob. Pre-existing, passed over by this increment's edit to that file.
+- **The provenance of `tests/build/tsconfig-emit.test.ts` is UNRESOLVED.** It appeared untracked
+  in the working tree during the pipeline task; the implementer that committed the
+  `tsconfig.json` change it checks states it authored neither, and no agent dispatched for this
+  increment was writable at the time. The content is sound and was verified before being
+  committed at `10f4454`. The risk recorded is not the file, which reads correctly, but the
+  not-knowing — written down rather than explained away.
+
+**One sentence in *Genuinely undecided* is now differently true.** It said *"the refusal in
+`AssignAssetCommand` is therefore a dead end for a real user"*. There is no refusal in
+`AssignAssetCommand` any more (Amendment 1 item 4) — the pipeline's is what a user meets — and it
+is still a dead end for a user in a two-currency vault, because the override does not exist yet.
+What this increment adds against that is the project's currency on the detail row (§85's
+informational-row shape), so a user meeting the refusal can at least see which currency the
+project is in without opening the note. That is a smaller thing than an affordance and is not
+claimed as one.
+
+### Amendment 3 (2026-09-01): the read named a different project than the write
+
+Found by a review bot on PR 60, against the merge commit, and reproduced before it was accepted.
+
+**What was wrong.** `GetRequirementsForZone` resolved the project currency from the QUERIED
+ZONE's project, once per call. `RecalculateRequirementCommand` resolves it from
+`requirement.projectId`. Those are two independent frontmatter keys — `requirementMapper` reads
+`project` and `origin-zone` with no cross-check, and `Requirement.create` validates only the
+origin KIND — so a hand-edited note parts them, and the Inspector then reported `current` for a
+figure the command refuses as `cost.currency-mismatch`. `AssignAsset` writes them consistently
+(it takes the Requirement's project FROM the Zone), so nothing this plugin creates is affected;
+the exposure is a hand edit or a note arriving through sync.
+
+**Not a design decision reversed.** The one-read shape came with a comment arguing it from an
+invariant nothing enforces — *"one project backs every row this call can return"* — which is
+this repository's own recurring shape: a rule stated in a docblock is a rule some door is not
+following.
+
+**What shipped.** The currency is resolved from `loaded.entity.projectId`, memoized per
+`execute` in a `Map<ProjectId, Currency | null>`, so the read and the write name the same field
+and cannot disagree, while the ordinary case stays at one project read. The reviewer's
+alternative — treat a project/zone ownership mismatch as stale — was declined: it neutralises
+the symptom and leaves two derivations of one fact in place to drift again.
+
+**Tests.** One case asserts the PAIR (the row reads `stale` AND recalculate refuses), watched
+failing at `expected 'current' to be 'stale'`. One pins the memo on the CALL COUNT, because a row
+renders identically whether the memo works or not; mutation-checked at 2 reads against 1.
+`propagates a failed zone read while resolving the project currency` named a path that no longer
+exists and was REPLACED by the project-read arm, not deleted; `propagates a failed origin-zone
+read` lost the call-count override whose only reason was the doubled zone read this removes.
+
+**Still not enforced, and deliberately.** Nothing makes `requirement.projectId` agree with its
+origin Zone's project at the domain or persistence layer. Closing that is a validation change
+with its own refusal code and locale copy, which is not a review-round line; what this amendment
+buys is that the two SURFACES no longer disagree about the data as it stands.
 
 ## Genuinely undecided, and left so
 

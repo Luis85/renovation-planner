@@ -1,4 +1,5 @@
 import type { TFile } from 'obsidian';
+import type { Currency } from '../../../core/money/Money';
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import type { Project } from '../../../domain/project/Project';
@@ -79,6 +80,7 @@ export class ObsidianProjectRepository {
 		private readonly deps: NoteVaultDeps,
 		private readonly newProjectRoot: string,
 		private readonly libraryFolder: string,
+		private readonly defaultCurrency: Currency,
 	) {}
 
 	getById(id: ProjectId): Promise<Result<Loaded<Project> | null, RepositoryError>> {
@@ -242,7 +244,7 @@ export class ObsidianProjectRepository {
 		if (displaced) return err(displaced);
 		const migrated = migrateNote(this.deps.migrations, 'project', raw);
 		if (!migrated.ok) return migrated;
-		const entity = projectFromPersistence(migrated.value);
+		const entity = projectFromPersistence(migrated.value, this.defaultCurrency);
 		if (!entity.ok) {
 			return err(persistenceError('project.frontmatter-invalid', entity.error.message));
 		}

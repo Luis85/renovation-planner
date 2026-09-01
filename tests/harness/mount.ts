@@ -36,6 +36,7 @@
  * this surface rather than by any gate.
  */
 import type { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
+import { currencyOf } from '../../src/core/money/Money';
 import { Plan } from '../../src/domain/plan/Plan';
 import { Project } from '../../src/domain/project/Project';
 import type { PlanId } from '../../src/domain/plan/PlanId';
@@ -143,7 +144,12 @@ const expectSeeded = (saved: Promise<{ ok: boolean }>): void => {
 const seedProject = (projectId: string) => ({ projects, plans }: SeedRepositories): void => {
 	const id = projectId as ProjectId;
 	const project = expectOk(
-		Project.create({ id, name: 'Maple Street, ground floor refit', status: 'EXECUTION' }),
+		Project.create({
+			id,
+			name: 'Maple Street, ground floor refit',
+			status: 'EXECUTION',
+			currency: currencyOf('EUR'),
+		}),
 	);
 
 	// Checked rather than discarded, and the reason is what this fixture is for: a failed save

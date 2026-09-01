@@ -48,6 +48,14 @@ let hostCount = 0;
  * belongs to Obsidian, not to a dialog trapped inside one pane. That boundary is accepted,
  * not a defect.
  *
+ * A THIRD route existed and is closed elsewhere, recorded here because this list is where the
+ * next reader will look for it: the APP blurring a control itself, by making it `:disabled`
+ * while the user is standing on it. There is no mousedown to intercept and focus never leaves
+ * the view, so neither remedy above reaches it. It is held at the source instead — no control
+ * inside an open dialog may be `:disabled` (`FormDialog.vue` states the invariant,
+ * `useDialogFormBusy` makes the replacement real) — and `formBusy.test.ts` drives both of its
+ * producers through this trap.
+ *
  * **This is not an Obsidian `Modal`, so Obsidian's own keymap stays live behind it.** No
  * `Scope` is pushed anywhere in this framework, and `onKeydown` calls `preventDefault()`
  * without `stopPropagation()` — so a key pressed inside the panel also reaches Obsidian's
@@ -70,6 +78,19 @@ import { cancelResultFor, useDialogStore, type DialogResult } from './dialog-sto
  * What counts as focusable, for the trap's two ends. A named list rather than a general
  * "is this reachable" test: this check sees exactly these spellings, and the alternative —
  * walking computed styles for visibility — cannot work in jsdom, where the trap is tested.
+ *
+ * **It excludes `[disabled]` and deliberately says nothing about `[aria-disabled]`.** An
+ * inoperative control STAYS in the cycle: that is the whole point of this framework's
+ * "`aria-disabled`, never `:disabled`" invariant (`FormDialog.vue`), and it is what APG asks
+ * for — a keyboard or screen-reader user reaches the control and is told it is unavailable,
+ * rather than finding it silently absent. Every inoperative control in the plugin is refused in
+ * its own handler instead: `FormDialog.onCancel` early-returns, and `useDialogFormBusy` reads
+ * these same two spellings off the control to refuse and restore an edit.
+ *
+ * So this string must NOT grow an `:not([aria-disabled="true"])` clause. Doing so would thin
+ * the trap by exactly the controls the invariant exists to keep in it — and in the case that
+ * produced it (`NewAssetForm`'s catalogue freeze, five controls at once) it would empty the
+ * trap of the whole field set while the dialog was still open.
  */
 const FOCUSABLE =
 	'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';

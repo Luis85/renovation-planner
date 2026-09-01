@@ -5,14 +5,24 @@
  * flight, neither Cancel nor Escape may resolve the dialog out from under it — the
  * framework never started that write, so it has no way to stop it either. `busy` is the
  * one flag both ends read, passed straight through from `useFormCommit().submitting`.
+ *
+ * And the framework invariant that window is held by: **no control inside an open dialog may
+ * become `:disabled`.** `busy` is one thing that makes controls inoperative and it is not the
+ * only one — `NewAssetForm` freezes its five catalogue fields the moment the asset exists,
+ * which is a SECOND state that flips while the dialog is open. The second describe block below
+ * is that state, driven through the same trap as the first, because a rule with two producers
+ * and a case for one of them is a rule half checked.
  */
 import { describe, expect, it } from 'vitest';
 import { ref, nextTick } from 'vue';
 import { flushPromises } from '@vue/test-utils';
 import { mountDialogHost, type DialogHarness } from '../../helpers/dialogs';
 import NewProjectForm from '../../../src/presentation/views/NewProjectForm.vue';
-import type { Result } from '../../../src/core/result/Result';
+import NewAssetForm from '../../../src/presentation/views/NewAssetForm.vue';
+import { err, ok, type Result } from '../../../src/core/result/Result';
+import type { AppError } from '../../../src/core/errors/AppError';
 import type { Logger } from '../../../src/application/ports/Logger';
+import { makeAsset } from '../../helpers/entities';
 
 let harness: DialogHarness | null = null;
 
@@ -288,6 +298,81 @@ describe('a form dialog with a write in flight', () => {
 
 		await expect(pending).resolves.toBe('cancel');
 
+		harness = null;
+	});
+});
+
+/**
+ * **The reported P2, and a THIRD route into the stranded-Escape state `DialogHost`'s own
+ * header enumerates two of.** Its two are a press on the backdrop (which `onMousedown` fixes)
+ * and a click into Obsidian's own chrome (an accepted boundary). Neither covers this one:
+ * there is no mousedown to intercept and the focus never leaves the view — the APP blurs the
+ * control itself, by disabling it, while the user is standing on it.
+ *
+ * `NewAssetForm`'s catalogue freeze is the producer. Asset creation succeeds, the footprint
+ * write fails, `createdAssetId` is set, and five controls flip inoperative under a dialog that
+ * is still open and whose whole purpose is now the retry.
+ *
+ * **jsdom cannot see the browser's half of it, measured rather than assumed**: setting
+ * `disabled` on the focused element leaves `document.activeElement` exactly where it was, so a
+ * case asserting "focus stayed inside the dialog" would pass against the live defect and pin
+ * nothing. The sibling block's own case says the same thing and answers it by re-stating
+ * `DialogHost`'s focusable selector; this one drives the REAL Tab trap instead, which is a
+ * stronger instrument and adds no third copy of that string: `onKeydown` wraps from the last
+ * focusable to `focusableWithin()[0]`, and with the name input `:disabled` that first element
+ * is not the name input at all.
+ */
+describe('a form dialog whose fields freeze while it is open', () => {
+	it('keeps the frozen catalogue controls inside the Tab trap', async () => {
+		harness = mountDialogHost();
+		void harness.store.openDialog({
+			kind: 'form',
+			title: 'New asset',
+			component: NewAssetForm,
+			props: {
+				createAsset: () => Promise.resolve(ok(makeAsset())),
+				// The failure that freezes the catalogue: the note is committed and the sidecar
+				// write is not, which is the one state this dialog stays open to be retried in.
+				setFootprintFromDimensions: () =>
+					Promise.resolve(
+						err({
+							category: 'Persistence',
+							code: 'vault.unexpected-failure',
+							message: 'developer english',
+						} as AppError),
+					),
+				logger,
+			},
+		});
+		await nextTick();
+
+		for (const [field, value] of [
+			['name', 'Kitchen island'],
+			['unitCostAmount', '450.00'],
+			['currency', 'EUR'],
+			['width', '1200'],
+			['depth', '800'],
+		]) {
+			await harness.wrapper.get(`[data-field="${field}"]`).setValue(value);
+		}
+		await harness.wrapper.get('form').trigger('submit');
+		await flushPromises();
+		// The precondition, asserted rather than assumed: without the freeze this case would
+		// drive the trap over an ordinary form and pass for the wrong reason.
+		expect(harness.wrapper.find('.rp-new-asset__created').exists()).toBe(true);
+
+		// Stand on the LAST focusable — Cancel, which `FormDialog` renders unconditionally —
+		// and Tab off the end, which is the one edge `onKeydown` handles itself.
+		const cancel = harness.wrapper.get('[data-rp-action="cancel"]').element as HTMLElement;
+		cancel.focus();
+		expect(document.activeElement).toBe(cancel);
+		pressKey(cancel, 'Tab');
+
+		// The frozen NAME input, not the width input three controls past it: `:disabled` would
+		// have taken all five catalogue controls out of `focusableWithin()` at once.
+		expect(document.activeElement).toBe(harness.wrapper.get('[data-field="name"]').element);
+
+		harness.unmount();
 		harness = null;
 	});
 });

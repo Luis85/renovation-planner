@@ -217,11 +217,21 @@ const createdAssetId = ref<AssetId | null>(null);
  * no reason to own: the entry exists and is editable everywhere an asset is. What is left of
  * this form's job is the footprint, so what stays live is exactly what a retry re-dispatches.
  *
- * `disabled` rather than `readonly`, because two of the five are `<select>`s, which `readonly`
- * does nothing to at all — a rule kept on the three inputs alone would look identical in the
- * markup and be false for the halves that matter most.
+ * **Inoperative, never `:disabled`** — the framework invariant `FormDialog.vue` states, and
+ * this form broke it: the freeze flips WHILE the dialog is open, so the control it disables is
+ * the one the user is standing on, and Chromium blurs a disabled element to `<body>` — outside
+ * `.rp-dialog`, where `DialogHost` binds `Escape`. That is a THIRD route into the stranded-key
+ * state `DialogHost`'s own header enumerates two of, and neither of its two covers it: there is
+ * no mousedown to intercept and focus never leaves the view. The app blurred the control itself.
+ *
+ * `readonly` on the three text inputs and `aria-disabled` on the two `<select>`s, which is the
+ * split `useDialogFormBusy` already states and `styles/dialogs.css` already dims. `readonly`
+ * does nothing at all to a `<select>`, so what makes those two real is that composable's
+ * restore — which reads the inoperative state off the CONTROL, so this template is its single
+ * statement and the two cannot disagree.
  */
 const catalogueFrozen = computed(() => createdAssetId.value !== null);
+
 
 /**
  * The whole sequence, as `useFormCommit`'s single `dispatch`. Ordered so that everything
@@ -284,6 +294,14 @@ const form = useFormCommit<NewAssetValues, { readonly assetId: AssetId }>({
 });
 
 const refuseWhileSubmitting = useDialogFormBusy(form.submitting, props.busy);
+/**
+ * The five catalogue controls' rendered state, stated once rather than five times. `submitting`
+ * is the form-wide half every dialog form has; `catalogueFrozen` is this form's own, and the
+ * two dimensions below deliberately take the first alone — they are exactly what a retry
+ * re-dispatches, so freezing them would leave the retry unable to change the numbers it exists
+ * for.
+ */
+const catalogueInoperative = computed(() => form.submitting.value || catalogueFrozen.value);
 
 /**
  * `:value` + `@input`, calling `setField` — never `v-model`, which would assign straight past
@@ -369,8 +387,7 @@ async function onSubmit(): Promise<void> {
 					type="text"
 					data-field="name"
 					:value="form.values.value.name"
-					:readonly="form.submitting.value"
-					:disabled="catalogueFrozen"
+					:readonly="catalogueInoperative"
 					@input="onFieldInput('name', $event)"
 				>
 			</label>
@@ -389,8 +406,7 @@ async function onSubmit(): Promise<void> {
 					v-bind="aria"
 					data-field="category"
 					:value="form.values.value.category"
-					:aria-disabled="form.submitting.value"
-					:disabled="catalogueFrozen"
+					:aria-disabled="catalogueInoperative"
 					@change="onFieldInput('category', $event)"
 				>
 					<option
@@ -417,8 +433,7 @@ async function onSubmit(): Promise<void> {
 					v-bind="aria"
 					data-field="unit"
 					:value="form.values.value.unit"
-					:aria-disabled="form.submitting.value"
-					:disabled="catalogueFrozen"
+					:aria-disabled="catalogueInoperative"
 					@change="onFieldInput('unit', $event)"
 				>
 					<option
@@ -447,8 +462,7 @@ async function onSubmit(): Promise<void> {
 					inputmode="decimal"
 					data-field="unitCostAmount"
 					:value="form.values.value.unitCostAmount"
-					:readonly="form.submitting.value"
-					:disabled="catalogueFrozen"
+					:readonly="catalogueInoperative"
 					@input="onFieldInput('unitCostAmount', $event)"
 				>
 			</label>
@@ -468,8 +482,7 @@ async function onSubmit(): Promise<void> {
 					type="text"
 					data-field="currency"
 					:value="form.values.value.currency"
-					:readonly="form.submitting.value"
-					:disabled="catalogueFrozen"
+					:readonly="catalogueInoperative"
 					@input="onFieldInput('currency', $event)"
 				>
 			</label>
@@ -488,6 +501,7 @@ async function onSubmit(): Promise<void> {
 					v-bind="aria"
 					type="number"
 					min="0"
+					step="any"
 					data-field="width"
 					:value="form.values.value.width"
 					:readonly="form.submitting.value"
@@ -509,6 +523,7 @@ async function onSubmit(): Promise<void> {
 					v-bind="aria"
 					type="number"
 					min="0"
+					step="any"
 					data-field="depth"
 					:value="form.values.value.depth"
 					:readonly="form.submitting.value"

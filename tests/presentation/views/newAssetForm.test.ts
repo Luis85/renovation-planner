@@ -346,13 +346,163 @@ describe('NewAssetForm', () => {
 			{ width: '1200', depth: '800' },
 		);
 
-		for (const field of ['name', 'category', 'unit', 'unitCostAmount', 'currency']) {
-			expect(wrapper.get(`[data-field="${field}"]`).attributes('disabled')).toBeDefined();
+		// NEVER `:disabled`, which is the framework invariant `FormDialog.vue` states and
+		// `formBusy.test.ts` drives through the real Tab trap: a disabled control matches no
+		// focusable selector, and Chromium blurs it to `<body>` — outside `.rp-dialog`, where
+		// `DialogHost` binds `Escape`. The freeze flips WHILE the dialog is open, so the
+		// control the user is standing on is exactly the one that would be blurred.
+		//
+		// `readonly` on the three inputs and `aria-disabled` on the two selects, which is the
+		// split `useDialogFormBusy`'s docblock already states and the split
+		// `styles/dialogs.css` already dims: `readonly` does nothing at all to a `<select>`.
+		for (const field of ['name', 'unitCostAmount', 'currency']) {
+			const control = wrapper.get(`[data-field="${field}"]`);
+			expect(control.attributes('readonly')).toBeDefined();
+			expect(control.attributes('disabled')).toBeUndefined();
+		}
+		for (const field of ['category', 'unit']) {
+			const control = wrapper.get(`[data-field="${field}"]`);
+			expect(control.attributes('aria-disabled')).toBe('true');
+			expect(control.attributes('disabled')).toBeUndefined();
 		}
 		for (const field of ['width', 'depth']) {
-			expect(wrapper.get(`[data-field="${field}"]`).attributes('disabled')).toBeUndefined();
+			const control = wrapper.get(`[data-field="${field}"]`);
+			expect(control.attributes('disabled')).toBeUndefined();
+			expect(control.attributes('readonly')).toBeUndefined();
+			expect(control.attributes('aria-disabled')).toBeUndefined();
 		}
 		expect(wrapper.find('.rp-new-asset__created').exists()).toBe(true);
+	});
+
+	/**
+	 * **The half that matters most, and the one an `<input>`-only case would miss entirely.**
+	 *
+	 * The five frozen controls are inoperative rather than `:disabled`, and `aria-disabled` is
+	 * advisory: it blocks nothing in the DOM. For the three text inputs `readonly` is a real
+	 * native refusal, so they are safe either way — but `readonly` does NOTHING to a
+	 * `<select>`, which is the reason this form reached for `:disabled` in the first place.
+	 * What stands between a frozen select and an edit the code behind it silently discards is
+	 * `useDialogFormBusy`'s restore, and nothing else.
+	 *
+	 * Asserted twice on purpose. The value immediately after the change is the RESTORE — the
+	 * composable putting the committed value back into the DOM node the browser already moved.
+	 * The value after a tick is that no re-render disagreed with it, which is what says
+	 * `setField` was never called: had the edit landed, `form.values.category` would hold
+	 * `building-element` and the binding would paint it straight back.
+	 */
+	it('refuses an edit to a frozen select, restoring the value the created asset carries', async () => {
+		const createAsset = createOk();
+		const setFootprintFromDimensions = vi
+			.fn<SetFootprint>()
+			.mockResolvedValue(err(refusal('Persistence', 'vault.unexpected-failure')));
+
+		const wrapper = await mountAndSubmit(
+			{ createAsset, setFootprintFromDimensions },
+			{ width: '1200', depth: '800' },
+		);
+		const category = wrapper.get('[data-field="category"]');
+
+		await category.setValue('building-element');
+
+		expect((category.element as HTMLSelectElement).value).toBe('material');
+		await flushPromises();
+		expect((category.element as HTMLSelectElement).value).toBe('material');
+	});
+
+	/**
+	 * **A fractional millimetre is an ordinary dimension, and without `step` the browser
+	 * refuses to submit the form at all.** HTML's default step for `type="number"` is 1 and the
+	 * step base is `min`, so `600.5` is a `stepMismatch`; the `<form>` carries no `novalidate`,
+	 * and `@submit.prevent` only prevents the default AFTER submit fires — it does not disable
+	 * constraint validation. So `onSubmit` never runs, none of this form's own routing happens,
+	 * and the user gets an untranslated native bubble instead of a field error.
+	 *
+	 * The domain accepts it: the only `Number.isInteger` guard in `src/domain/` is a PDF page
+	 * number. `KnownDistanceForm.vue` already pairs `min="0"` with `step="any"` for this exact
+	 * reason, and a grep for `type="number"` across `src/presentation/` returns three inputs —
+	 * that one and these two — so the class is closed by this case. `any` rather than a
+	 * fractional step, because a concrete `0.1` would silently reject `600.55`.
+	 *
+	 * **Driven through `checkValidity()` rather than by asserting the attribute**, which is a
+	 * stronger instrument than it first looks: jsdom really does implement `stepMismatch`, so
+	 * this reads the CONDITION the browser would refuse on rather than the markup that avoids
+	 * it — measured, `600.5` in a `min="0"` number input with no `step` reports
+	 * `stepMismatch: true`. What jsdom cannot reproduce is the half after that: `trigger()`
+	 * dispatches the event directly and never runs the form's implicit submission algorithm, so
+	 * no case here can watch a real browser withhold `submit`. That half is a vault walkthrough.
+	 */
+	it('accepts a fractional millimetre in either dimension', async () => {
+		const wrapper = mount(NewAssetForm, {
+			props: {
+				createAsset: createOk(),
+				setFootprintFromDimensions: footprintOk(),
+				logger: recorder,
+			},
+		});
+		await fill(wrapper, { width: '600.5', depth: '399.25' });
+
+		for (const field of ['width', 'depth']) {
+			const control = wrapper.get(`[data-field="${field}"]`).element as HTMLInputElement;
+			expect(control.validity.stepMismatch).toBe(false);
+			expect(control.checkValidity()).toBe(true);
+		}
+	});
+
+	/**
+	 * The input half of the case above, kept beside it because the two are ONE rule with two
+	 * spellings and a case for only one of them reads as if the other were covered. Found by
+	 * mutation: un-marking the three frozen inputs reddened the attribute assertion and nothing
+	 * behavioural, so what a frozen NAME field actually does was asserted by no case at all.
+	 *
+	 * `readonly` is a real native refusal in a browser, which is why the inputs take it rather
+	 * than `aria-disabled` — but `setValue` writes straight past it, so what this case exercises
+	 * is the same restore the select relies on. That is the honest reading of it: it proves the
+	 * belt, and the braces are the attribute the case above pins.
+	 */
+	it('refuses an edit to a frozen text field, restoring the value the created asset carries', async () => {
+		const createAsset = createOk();
+		const setFootprintFromDimensions = vi
+			.fn<SetFootprint>()
+			.mockResolvedValue(err(refusal('Persistence', 'vault.unexpected-failure')));
+
+		const wrapper = await mountAndSubmit(
+			{ createAsset, setFootprintFromDimensions },
+			{ width: '1200', depth: '800' },
+		);
+		const name = wrapper.get('[data-field="name"]');
+
+		await name.setValue('Something else');
+
+		expect((name.element as HTMLInputElement).value).toBe('Kitchen island');
+		await flushPromises();
+		expect((name.element as HTMLInputElement).value).toBe('Kitchen island');
+	});
+
+	/**
+	 * The other direction, and the one an over-correction breaks: widening the refusal to
+	 * "every field while frozen" leaves the retry unable to change the very numbers it exists
+	 * to re-dispatch. Asserted on the COMMAND INPUT rather than on the rendered value, because
+	 * a restored DOM node and a committed one look identical in the markup a tick later.
+	 */
+	it('keeps the two dimensions editable while the catalogue is frozen', async () => {
+		const createAsset = createOk();
+		const setFootprintFromDimensions = vi
+			.fn<SetFootprint>()
+			.mockResolvedValueOnce(err(refusal('Persistence', 'vault.unexpected-failure')))
+			.mockResolvedValueOnce(ok('wrote'));
+
+		const wrapper = await mountAndSubmit(
+			{ createAsset, setFootprintFromDimensions },
+			{ width: '1200', depth: '800' },
+		);
+
+		await wrapper.get('[data-field="width"]').setValue('1500');
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+
+		expect(setFootprintFromDimensions.mock.calls[1][0]).toEqual(
+			expect.objectContaining({ width: 1500, depth: 800 }),
+		);
 	});
 
 	it('leaves every field editable while nothing has been created', async () => {

@@ -58,7 +58,7 @@ try the same three in the same order.
 
 | Path | Responsibility |
 | --- | --- |
-| `src/domain/asset-price/AssetPriceOverride.ts` | The entity and its smart constructor, including the currency coherence rule. |
+| `src/domain/asset-price/AssetPriceOverride.ts` | The entity and its smart constructor — a unit cost may not be negative, and **nothing about the project's currency**: that rule is `SetAssetPriceOverride`'s (Decision 2), because this constructor is on the hydration path and a drifted note must stay readable. |
 | `src/domain/asset-price/AssetPriceOverrideId.ts` | The branded id and its factory. |
 | `src/domain/asset-price/AssetPriceOverride.errors.ts` | `assetPriceError(code, message)`. |
 | `src/domain/asset-price/AssetPriceOverride.events.ts` | `AssetPriceOverrideChanged` and its factory. |
@@ -323,11 +323,14 @@ Run: `npm run check`
 git add src/domain/asset-price tests/domain/asset-price
 git commit -m "feat(domain): a project's own price for a shared asset
 
-The entity, its id and its error factory. The coherence rule is the one
-thing here the task document does not specify: an override denominated in
-anything but the project's currency is a dead entry, refused at the entity
-because the constructor is private. Not a second expression of the
-pipeline's refusal — the two answer differently on different inputs.
+The entity, its id and its error factory. It owns exactly one invariant — a
+unit cost may not be negative — and deliberately NOT the project's currency:
+that rule is `SetAssetPriceOverrideCommand`'s, because this constructor is
+also the hydration path, and enforcing it here would refuse a stranded or
+hand-edited note at the READ rather than showing it.
+
+A case pins that acceptance, so a later reader cannot tighten the rule back
+onto the entity and make every drifted note unreadable.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
@@ -2741,8 +2744,14 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Files:**
 - Create: `src/presentation/views/AssetPriceList.vue`
+- Create: `src/application/events/projectPricesChangeSource.ts` (step 4a)
 - Modify: `src/presentation/views/ProjectDetail.vue`, `src/presentation/views/ProjectDetailState.vue`
 - Modify: `src/presentation/stores/ProjectDetailStore.ts`
+- Modify: `src/presentation/views/RenovationProjectContext.ts` — the two change sources reach the
+  view through its context, the same seam `onPlanChanged` already uses; `presentation/` may not
+  reach the event bus itself.
+- Modify: `src/plugin/composition-root.ts` — bind both sources, as it already binds
+  `onCatalogueChanged` for the editor.
 - Modify: `src/presentation/i18n/en.ts`, `src/presentation/i18n/de.ts`
 - Modify: `styles/` (a partial, registered in `styles/index.css`)
 - Test: `tests/presentation/views/assetPriceList.test.ts`
@@ -2882,7 +2891,11 @@ this repository — this is the only instrument that reaches them, and it has ca
 Run: `npm run check`
 
 ```bash
-git add src/presentation styles tests
+# `src/application` and `src/plugin` are NOT optional here: step 4a creates the change source
+# and binds it at the root, and staging only the presentation half commits a context member
+# with no binding behind it — a commit that either fails to build or ships the section without
+# the subscription that keeps its rows true.
+git add src/presentation src/application/events src/plugin styles tests
 git commit -m "feat(view): a project can price a shared asset in its own currency
 
 The affordance, on the project detail state rather than the Inspector's

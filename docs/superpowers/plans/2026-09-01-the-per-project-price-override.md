@@ -1223,10 +1223,19 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Create: `src/application/commands/asset-price/ClearAssetPriceOverride.ts`
 - **Move** `checkExpectedVersion` from `src/infrastructure/obsidian/repositories/versionCheck.ts`
   into `src/application/ports/versioning.ts`, beside the error factories it returns, and update
-  its importers — `noteEntityWrite.ts`, `ObsidianProjectRepository.ts`, `ObsidianPlanRepository.ts`,
-  `ObsidianZoneRepository.ts`, `PlanGeometryStore.ts`, `persistence/in-memory/checkExpected.ts`.
-  `versionOfFrontmatter` stays where it is. A pure move: no behaviour changes, and every
-  existing conditional-write case is the check on that.
+  its importers. Six in `src/` — `noteEntityWrite.ts`, `ObsidianProjectRepository.ts`,
+  `ObsidianPlanRepository.ts`, `ObsidianZoneRepository.ts`, `PlanGeometryStore.ts`,
+  `persistence/in-memory/checkExpected.ts` — **and one in `tests/`**:
+  `tests/infrastructure/obsidian/repositories/completion.test.ts`, which calls it directly at
+  its lines 301–302. That import is a JOINT one — `{ versionOfFrontmatter, checkExpectedVersion }`
+  from `versionCheck` — so it has to be SPLIT rather than repointed: `versionOfFrontmatter`
+  stays behind because it reads frontmatter. `tsconfig.json`'s `include` is `src/**` plus
+  `tests/**`, so a `tests/` importer left pointing at the old home fails `npm run build`
+  exactly as a `src/` one would, and this task's promised green commit does not happen.
+  Measure the list rather than copying this one: `grep -rn "checkExpectedVersion" src/ tests/`
+  before the move, and again after, is what says it is complete.
+  A pure move: no behaviour changes, and every existing conditional-write case is the check
+  on that.
 - Test: `tests/application/commands/asset-price/setAssetPriceOverride.test.ts`
 - Test: `tests/application/commands/asset-price/clearAssetPriceOverride.test.ts`
 
@@ -1364,14 +1373,19 @@ import { expectOk } from '../../../helpers/result';
 describe('SetAssetPriceOverrideCommand', () => {
 	it('creates an override for a pair that has none, and reports created', async () => {
 		// seed: a GBP project, an EUR-priced asset
-		const result = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }));
+		const result = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
 		expect(result.created).toBe(true);
 		expect(result.override.unitCost.amount).toBe('19.50');
 	});
 
 	it('replaces the existing override for a pair that has one, and reports created false', async () => {
-		expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }));
-		const second = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('21.00', 'GBP') }));
+		const first = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
+		const second = expectOk(await command.execute({
+			projectId,
+			assetId,
+			unitCost: moneyOf('21.00', 'GBP'),
+			expected: { id: first.override.id, version: first.version },
+		}));
 		expect(second.created).toBe(false);
 		expect(second.override.unitCost.amount).toBe('21.00');
 		const listed = expectOk(await overrides.listByProject(projectId));
@@ -1384,28 +1398,38 @@ describe('SetAssetPriceOverrideCommand', () => {
 	 * nothing else in the suite refuses this.
 	 */
 	it('refuses a price that is not in the project currency', async () => {
-		const result = await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'EUR') });
+		const result = await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'EUR'), expected: 'absent' });
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error('unreachable');
 		expect(result.error.code).toBe('asset-price.currency-mismatch');
 	});
 
 	it('refuses when the project is not there', async () => {
-		const result = await command.execute({ projectId: createProjectId(), assetId, unitCost: moneyOf('1.00', 'GBP') });
+		const result = await command.execute({
+			projectId: createProjectId(),
+			assetId,
+			unitCost: moneyOf('1.00', 'GBP'),
+			expected: 'absent',
+		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error('unreachable');
 		expect(result.error.code).toBe('asset-price.project-not-found');
 	});
 
 	it('refuses when the asset is not there', async () => {
-		const result = await command.execute({ projectId, assetId: createAssetId(), unitCost: moneyOf('1.00', 'GBP') });
+		const result = await command.execute({
+			projectId,
+			assetId: createAssetId(),
+			unitCost: moneyOf('1.00', 'GBP'),
+			expected: 'absent',
+		});
 		expect(result.ok).toBe(false);
 		if (result.ok) throw new Error('unreachable');
 		expect(result.error.code).toBe('asset-price.asset-not-found');
 	});
 
 	it('publishes AssetPriceOverrideChanged carrying BOTH ids', async () => {
-		expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }));
+		expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
 		expect(bus.published).toContainEqual(
 			expect.objectContaining({
 				type: 'AssetPriceOverrideChanged',
@@ -1423,9 +1447,19 @@ describe('SetAssetPriceOverrideCommand', () => {
 	it('refuses a submission whose row was rendered before someone else moved the price', async () => {
 		const first = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
 		// Another leaf moves it while the user's row still shows 19.50.
-		expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('30.00', 'GBP'), expected: first.version }));
+		expectOk(await command.execute({
+			projectId,
+			assetId,
+			unitCost: moneyOf('30.00', 'GBP'),
+			expected: { id: first.override.id, version: first.version },
+		}));
 
-		const stale = await command.execute({ projectId, assetId, unitCost: moneyOf('21.00', 'GBP'), expected: first.version });
+		const stale = await command.execute({
+			projectId,
+			assetId,
+			unitCost: moneyOf('21.00', 'GBP'),
+			expected: { id: first.override.id, version: first.version },
+		});
 		expect(stale.ok).toBe(false);
 		if (stale.ok) throw new Error('unreachable');
 		expect(stale.error.code).toBe('asset-price.revision-conflict');
@@ -1504,7 +1538,7 @@ describe('SetAssetPriceOverrideCommand', () => {
 	 */
 	it('publishes nothing when the save fails', async () => {
 		vi.spyOn(overrides, 'save').mockResolvedValue(err(persistenceError('asset-price.write-failed', 'no')));
-		const result = await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') });
+		const result = await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' });
 		expect(result.ok).toBe(false);
 		expect(bus.published).toHaveLength(0);
 	});
@@ -1517,6 +1551,12 @@ none (there is nothing to invalidate, so a cascade would be pure cost); publishe
 `AssetPriceOverrideChanged` when it did clear one; and propagates a failed delete without
 publishing.
 
+`expected` is REQUIRED on this command too, so every one of those carries what its row
+believed: `'absent'` for the pair that has none, and `{ id: seeded.entity.id, version:
+seeded.version }` — built from what `overrides.save` handed back — for the ones that clear.
+Reaching for a bare `seeded.version` does not compile, which is the field being one thing
+rather than two.
+
 Plus the one that only a hand-edited vault can reach, and which a `getForPair`-based clear
 fails:
 
@@ -1528,14 +1568,21 @@ fails:
 	 * command cannot produce it, which is the point of the lock case above.
 	 */
 	it('clears every note for the pair, not just the one the read returns', async () => {
-		await overrides.save(makeOverride(projectId, assetId, '19.50'), 'absent');
-		await overrides.save(makeOverride(projectId, assetId, '21.00'), 'absent');
-		expect(expectOk(await command.execute({ projectId, assetId })).cleared).toBe(true);
+		expectOk(await overrides.save(makeOverride(projectId, assetId, '19.50'), 'absent'));
+		// The WINNER, and it is the second deliberately: ids are monotonic ULIDs, so the later
+		// save mints the higher one and `winningDuplicate` returns it. That is the note the
+		// row rendered, so it is the note the expectation names.
+		const winner = expectOk(await overrides.save(makeOverride(projectId, assetId, '21.00'), 'absent'));
+		const expected = { id: winner.entity.id, version: winner.version };
+		expect(expectOk(await command.execute({ projectId, assetId, expected })).cleared).toBe(true);
 		expect(expectOk(await overrides.listByAsset(assetId))).toHaveLength(0);
 	});
 ```
 
-And the one that only a partial failure reaches:
+And the one that only a partial failure reaches. `seedPair` is a local helper in this file:
+it saves two notes for the pair through the repository and hands back
+`{ id, version }` for the winner, which is what every clear in the file needs and what the
+command itself cannot produce.
 
 ```ts
 	/**
@@ -1545,7 +1592,8 @@ And the one that only a partial failure reaches:
 	 */
 	it('announces what it deleted even when a later delete fails', async () => {
 		// Seed two notes for the pair, then fail the SECOND delete.
-		const result = await command.execute({ projectId, assetId });
+		const winner = seedPair(projectId, assetId);
+		const result = await command.execute({ projectId, assetId, expected: winner });
 		expect(result.ok).toBe(false);
 		expect(bus.published).toContainEqual(
 			expect.objectContaining({ type: 'AssetPriceOverrideChanged', payload: { projectId, assetId } }),
@@ -1555,7 +1603,8 @@ And the one that only a partial failure reaches:
 	/** And the other side, so the rule is not "always announce": a FIRST delete that fails
 	 *  has written nothing, so there is nothing to announce. */
 	it('announces nothing when the first delete fails', async () => {
-		const result = await command.execute({ projectId, assetId });
+		const winner = seedPair(projectId, assetId);
+		const result = await command.execute({ projectId, assetId, expected: winner });
 		expect(result.ok).toBe(false);
 		expect(bus.published).toHaveLength(0);
 	});
@@ -1819,7 +1868,9 @@ Run: `npm run check`
 
 ```bash
 # `src/application/ports` and `src/infrastructure` are the checkExpectedVersion MOVE: the
-# function and its six importers. Staging only the commands leaves the tree not building.
+# function and its SEVEN importers, one of which is a test file — `tests` is already staged
+# below, and it has to be, because `tests/**` is type-checked. Staging only the commands
+# leaves the tree not building.
 git add src/domain/asset-price/AssetPriceOverride.events.ts \
         src/application/commands/asset-price src/application/ports/versioning.ts \
         src/infrastructure tests
@@ -1903,7 +1954,7 @@ describe('a price override satisfies the pipeline refusal', () => {
 		// Nothing was created — the refusal is BEFORE any arithmetic and before any save.
 		expect(expectOk(await requirements.listByZone(zoneId))).toHaveLength(0);
 
-		expectOk(await setOverride.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }));
+		expectOk(await setOverride.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
 
 		const second = expectOk(await assignAsset.execute({ zoneId, assetId }));
 		expect(second.created).toBe(true);
@@ -1919,7 +1970,12 @@ describe('a price override satisfies the pipeline refusal', () => {
 	 * become a way around the refusal.
 	 */
 	it('cannot be satisfied by an override in the asset currency', async () => {
-		const refused = await setOverride.execute({ projectId, assetId, unitCost: moneyOf('24.00', 'EUR') });
+		const refused = await setOverride.execute({
+			projectId,
+			assetId,
+			unitCost: moneyOf('24.00', 'EUR'),
+			expected: 'absent',
+		});
 		expect(refused.ok).toBe(false);
 		const still = await assignAsset.execute({ zoneId, assetId });
 		expect(still.ok).toBe(false);
@@ -2285,7 +2341,12 @@ Add to the existing `GetRequirementsForZone` tests:
 		const before = rowFor(requirementId);
 		expect(before.cost.effective.amount).toBe('500.00');
 
-		expectOk(await setOverride.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }));
+		expectOk(await setOverride.execute({
+			projectId,
+			assetId,
+			unitCost: moneyOf('19.50', 'GBP'),
+			expected: 'absent',
+		}));
 		expectOk(await recalculate.execute({ requirementId }));
 
 		const after = rowFor(requirementId);
@@ -2540,7 +2601,12 @@ describe('DeleteAssetCommand and price overrides', () => {
 	 * no referents observed, which is why the defect is invisible.
 	 */
 	it('deletes the price overrides of an asset that has no requirements', async () => {
-		expectOk(await setOverride.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP') }));
+		expectOk(await setOverride.execute({
+			projectId,
+			assetId,
+			unitCost: moneyOf('19.50', 'GBP'),
+			expected: 'absent',
+		}));
 		expectOk(await deleteAsset.execute({ assetId }));
 		// Assert what MOVED, not that the delete succeeded — it succeeds either way.
 		expect(expectOk(await overrides.listByAsset(assetId))).toHaveLength(0);
@@ -2883,7 +2949,12 @@ dropped the field, leaving 1594 tests green:
 ```ts
 it('drives the price-override cascade through the composed root', async () => {
 	// Compose a real root; projects A and B both hold a requirement on the shared asset.
-	expectOk(await root.setAssetPriceOverride.execute({ projectId: projectA, assetId, unitCost: moneyOf('19.50', 'GBP') }));
+	expectOk(await root.setAssetPriceOverride.execute({
+		projectId: projectA,
+		assetId,
+		unitCost: moneyOf('19.50', 'GBP'),
+		expected: 'absent',
+	}));
 
 	// **Assert the RECALCULATED FIGURE, not a stale marker.** `EventBus.publish` awaits its
 	// subscribers and `recalculateOne` is markStale-THEN-recalculate, so by the time `execute`
@@ -3017,11 +3088,30 @@ to no recalculation event at all.
 
 So the refresh also listens to **`RequirementRecalculated`**, which the cascade publishes after
 each requirement is rewritten — the event that actually means "this requirement's stored figures
-moved". A project-wide cascade fires one per requirement; the store's request ticket is what
-collapses that burst, which is a second job for it beyond ordering the three sources against each
-other.
+moved".
 
-All three rehydrate through that one ticket.
+**A project-wide cascade fires one of those per requirement, and the request ticket does NOT
+collapse that burst** — an earlier draft of this plan said it did, and reading
+`inspector-store.ts` says otherwise: `queryZone` and `requirementsQuery.execute` both run to
+completion BEFORE `if (request !== latestRequest) return`, so the ticket discards a superseded
+result and never a superseded READ. Ten recalculations would buy ten pairs of vault reads and
+nine discarded answers. The ticket's job is ordering — it stops the slower earlier read winning
+— and it was never a rate limit.
+
+What collapses a burst is a **single-flight loader with a trailing request**, and this repository
+already has one to copy: `createAssetOptionsLoader` in `src/presentation/editor/runtime.ts`,
+which the editor runtime already uses for the assign picker's own catalogue reload. A call
+while a read is running sets `requestedAgain`
+rather than starting a second read, and the running read loops once more when it finishes — so
+*"ten events during one scan buy one more scan, not ten"*, and the trailing read is a REQUEST
+rather than a queue. What that gives up is knowing which event the final read answers, which is
+exactly as harmless here as it is there: the rows are a full snapshot of the block either way.
+
+So the three sources call ONE entry point, which single-flights the read; the request
+ticket stays underneath it, because a hydrate can still be raced by a caller the loader does not
+own (a fresh mount, a navigation) and because dropping it would reintroduce the race it was added
+for. Two mechanisms, two jobs — and the reason they are not one is that neither does the other's:
+the ticket cannot stop a read starting, and the loader cannot order reads it did not issue.
 
 ```ts
 it('shows the recalculated provenance, not the new price beside the old one', async () => {
@@ -3052,6 +3142,13 @@ it('rehydrates the inspector rows when a project price changes in another leaf',
 it('rehydrates the inspector rows when the catalogue price changes', async () => {
 	// The other source. Watch it fail with only the price subscription wired: the row keeps
 	// the catalogue figure it mounted with, beside a project price that did move.
+});
+
+it('answers a burst of recalculations with one trailing read, not one read each', async () => {
+	// Count the query calls. Publish RequirementRecalculated ten times inside one in-flight
+	// read, and assert the loader issued TWO — the one already running and one trailing.
+	// Watch it fail with the loader replaced by a bare call per event: ten reads, and every
+	// one of them a pair of vault round trips the ticket would have discarded nine of.
 });
 ```
 

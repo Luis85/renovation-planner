@@ -281,6 +281,29 @@ describe('SetAssetBackground', () => {
 	});
 
 	/**
+	 * The sibling of the case above, over a document that is NOT already uncalibrated. Decision
+	 * 5's whole reasoning is that a calibration dies when the document it measures actually
+	 * CHANGES — an unchanged reference is not a change, so a valid calibration must survive
+	 * resubmitting it, exactly as it survives when the calibration was already null. A guard
+	 * conditioned on `document.calibration === null` passes the case above and fails this one:
+	 * it would clear a valid calibration and rewrite an identical note for no reason at all.
+	 */
+	it('resubmitting the SAME background reference while a calibration exists leaves that calibration intact and reports no-write', async () => {
+		const { setBackground, assetId, stack, sidecar, seedCalibration } = await seeded();
+		expect(expectOk(await setBackground.execute({ assetId, path: 'Specs/oven.pdf', kind: 'pdf', page: 2 })))
+			.toBe('wrote');
+		await seedCalibration();
+		const before = expectOk(await stack.assets.getById(assetId))?.version;
+
+		const result = await setBackground.execute({ assetId, path: 'Specs/oven.pdf', kind: 'pdf', page: 2 });
+
+		expect(expectOk(result)).toBe('no-write');
+		expect(expectOk(await stack.assets.getById(assetId))?.version).toEqual(before);
+		const stored = await sidecar.read(assetId);
+		expect(isOk(stored) && stored.value.document.calibration).not.toBeNull();
+	});
+
+	/**
 	 * A read that FAULTS is not an asset that is absent — collapsing the two tells a user their
 	 * catalogue entry no longer exists about a note whose bytes are sitting on disk, the relabel
 	 * this repository has already paid for more than once.

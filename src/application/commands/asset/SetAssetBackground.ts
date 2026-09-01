@@ -121,8 +121,13 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 		const { document, version: geometryVersion } = snapshot.value;
 
 		// `ok` is not evidence that anything was written: re-submitting the reference this
-		// asset already carries, over a document that is already uncalibrated, has to say so.
-		if (document.calibration === null && sameBackground(candidate.value.background, current.background)) {
+		// asset already carries is a no-write REGARDLESS of whether a calibration is present —
+		// Decision 5's whole reasoning is that a calibration dies when the document it measures
+		// actually CHANGES, and an unchanged reference is not a change. Conditioning this on
+		// `document.calibration === null` would clear and rewrite over an unchanged background
+		// specifically when a valid calibration exists, destroying the one calibration this
+		// guard exists to protect.
+		if (sameBackground(candidate.value.background, current.background)) {
 			return ok({ outcome: 'no-write' });
 		}
 

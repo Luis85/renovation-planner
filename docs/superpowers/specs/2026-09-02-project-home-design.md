@@ -198,18 +198,23 @@ to one would have left the other comparing the old three. Delegating makes the p
 and the Inspector row unable to disagree about whether a figure is stale, **by construction
 rather than by care**.
 
-### The memo
+### The currency is read once, and the memo that used to do it is gone
 
-`GetRequirementsForZone.execute` gains an optional currency memo parameter. It already threads
-`Map<ProjectId, Currency | null>` through `projectCurrency` as an argument; it is simply built
-per-`execute` today. Passing one memo across the whole walk keeps the project read at **one**
-rather than one per zone. An absent memo means "scoped to this call", which is today's exact
-behaviour, so no existing caller moves.
+An earlier draft gave `GetRequirementsForZone.execute` an optional currency memo, so one map
+could be threaded across a per-zone walk and keep the project read at one rather than one per
+zone. **That contract died when the walk became project-scoped and I did not notice**: nothing
+calls `execute` once per zone any more, so no caller could pass a memo "across the whole walk",
+and the API change and its N-zone call-count test were both dead — a test that cannot fail
+proving a property nothing has.
 
-This is the one shape this repository warns about — an optional parameter with a default — and
-the warning does not bite here: the `notify` case was dangerous because the default was a
-**no-op that silenced a user-facing failure**. A memo is a pure cache; an absent one changes
-the number of reads and no answer.
+`GetProjectSummary` resolves the project's currency ONCE and hands it to the shared row builder.
+That is simpler than the memo and it is what the memo was reaching for: the summary reads one
+project, so a cache keyed by project id was always solving a problem that only the per-zone
+shape had.
+
+`GetRequirementsForZone` keeps its own per-`execute` memo, unchanged. It still walks one zone at
+a time for the Inspector, where rows can name different projects, and that is the case the memo
+was written for.
 
 ### The result
 
@@ -844,7 +849,7 @@ mistake, per this repository's rule.
 | Summary | the total sums `cost.effective` across two plans and four zones | — |
 | Summary | one stale row is counted AND still in the total | summing only current rows understates it; dropping the count hides it |
 | Summary | a foreign-currency override lands in `unsummable` and the total survives | assuming one currency throws on a reachable input |
-| Summary | the memo makes it ONE project read for N zones | defeating the memo reads N; pinned on the CALL COUNT, since the figure renders identically either way |
+| Summary | one summary read resolves the project currency ONCE | the figure renders identically however many times it is read, so this is pinned on the CALL COUNT |
 | Delegation | the project total's staleness agrees with `GetRequirementsForZone` | a second derivation passes every other case in the file |
 | Invalidation | a `RequirementRecalculated` for THIS project refreshes the summary; one for another project does not | an unfiltered list re-reads on every requirement in the vault |
 | Invalidation | a `CostEstimateChanged` refreshes the summary even though its payload names no project | omitting it makes a cost override in another leaf invisible until remount — the case `RequirementRecalculated` cannot cover |
@@ -873,7 +878,8 @@ mistake, per this repository's rule.
 | Wiring | the warning strip's action reaches `openDiagnosticsReport` | without the deps member it is a live control that does nothing — the shape slice 14 refuses |
 | Keyboard | a restored leaf and a `rebind` do NOT move focus | an unconditional focus-on-mount steals it during layout restoration |
 | Invalidation | a manual index rebuild refreshes an already-mounted Overview | `ProjectIndexRebuilt` carries no payload, so nothing per-entry fires |
-| Coalescing | a cascade over 8 requirements causes ONE summary read | forwarding each event directly issues up to 3R+1 walks; asserted on reads, since a notification count passes either way |
+| Coalescing | a cascade whose writes settle within the debounce causes ONE summary read | forwarding each event directly issues up to 3R+1 walks; asserted on reads, since a notification count passes either way |
+| Coalescing | a cascade whose writes OUTLAST the debounce causes at most one read per settled burst, never one per event | asserting ONE here fails a correct trailing coalescer on a slow repository — the prose declines a completion boundary, so the test may not demand one |
 | Coalescing | a slower earlier read cannot overwrite a later one | without the request ticket a just-recalculated figure reverts |
 | Sweep | every adapter matching `UndoableCommand\|Reversible` that writes also publishes | five of eleven publish nothing today; a per-adapter test lets the sixth ship |
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
@@ -912,8 +918,8 @@ Decision 6; the manual test case.
 the five reversible adapters that write and publish nothing —
 `reversible-create-zone-command.ts`, `reversible-delete-zone-command.ts`,
 `reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — plus `DeleteAsset.ts`
-(Decision 7); `GetRequirementsForZone.ts` (the optional memo,
-and `projectId` on the DTO); `RenovationProjectView.ts` (parse, `sync`, `setState`);
+(Decision 7); `GetRequirementsForZone.ts` (`projectId` on the DTO, and
+its per-row builder extracted for sharing); `RenovationProjectView.ts` (parse, `sync`, `setState`);
 `RenovationProjectContext.ts` (`navigate` gains a section), and with it
 `RenovationPlannerPlugin`'s `navigate` binding and `navigateToProject.ts`, whose written state
 is hard-coded to `{ projectId }` — all three, because the binding's arity keeps it compiling

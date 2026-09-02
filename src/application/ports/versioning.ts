@@ -70,8 +70,8 @@ export function externalModification(entity: string, id: string): ValidationErro
  * (another plugin writer), then the observed token (a change no plugin made). Distinct
  * codes, because the caller's recovery differs — re-read and retry vs. surface a
  * conflict. Shared by all three Obsidian repositories, the geometry store, the in-memory
- * `VersionedStore`, and `expectationMismatch` (design slice 22's price override, which
- * layers an identity check in front of it).
+ * `VersionedStore`, and `expectationMismatch` (slice 20's second half, the per-project
+ * price override, which layers an identity check in front of it).
  *
  * It is pure — its only names are this module's own vocabulary — and lives here rather
  * than beside the Obsidian repositories that were its first callers, because

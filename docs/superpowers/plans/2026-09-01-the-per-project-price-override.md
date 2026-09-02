@@ -47,6 +47,16 @@ try the same three in the same order.
   capitalised word mid-sentence fails the build.
 - **Every error code is copied from its RAISE SITE**, never guessed from a field name. A
   `FieldErrorMap` keyed on a code nothing raises is invisible to every gate.
+- **A REQUIRED member is a compile error at every construction site, and `tests/**` is
+  type-checked.** Before writing any task's file list, grep for the constructions the widening
+  breaks — `new XCommand(`, `registerX(`, `createXServices(`, and every typed literal of the
+  interface — across `src/` AND `tests/`, and list them. **Five separate review rounds on this
+  branch each reported one instance of this**, always because a list had been written from
+  `src/` alone, where the callers are a small minority: `AssignAssetCommand` (3 sites, one in
+  `presentation/`), `AssetCascadeDeps` + `GetRequirementsForZone` (24 in tests),
+  `DeleteAssetDeps` (11 in tests), `RenovationProjectQueryServices` (11 factory calls plus six
+  files with typed literals) and `RenovationProjectCommandServices` (eight files). The grep
+  belongs in the file list beside the names: names go stale, the command does not.
 - **Commit after every task, with ONE deliberate exception.** Each task below ends green on its
   own — strictly stronger than the spec's four-commit sequencing, which is the coarse grouping
   these tasks fall into. **Tasks 5 and 6 share a commit**, because the spec requires resolution
@@ -3477,6 +3487,17 @@ without this the section has no read operation to call and hydrates nothing.
    same shared failure the existing entries use. As with the write boundary, this is the entry
    no compiler forces, so it gets its own assertion.
 3. `renovationProjectDeps(...)` in `composition-root.ts` — bind the guarded query.
+4. **Every OTHER construction, in `tests/`, which is type-checked.** Measured with
+   `grep -rn "createRenovationProjectQueries(" src/ tests/` and
+   `grep -rln "RenovationProjectQueryServices" src/ tests/`: thirteen factory calls, **eleven of
+   them in tests** — ten in `tests/presentation/read-models/readModels.test.ts` and one in
+   `tests/helpers/makeRenovationProjectView.ts` — plus typed service literals in six more files
+   (`projectDetailStore.test.ts`, `renovationProjectStore.test.ts`, `viewRootProjectDetail.test.ts`,
+   `viewRootFailure.test.ts`, `renovationProjectEmptyState.test.ts`, `harness/accessibility.test.ts`).
+   Every one needs the new member: an ANSWERING query where the fixture has repositories to
+   answer from — `makeRenovationProjectView.ts` above all, since the browser harness reads
+   through it and a refusing double would make the new section unshowable there — and a
+   deliberate refusal elsewhere.
 
 - [ ] **Step 4: Compose and guard**
 
@@ -3586,6 +3607,15 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Test: `tests/presentation/editor/requirementRow.test.ts` (extend)
 - Test: `tests/presentation/editor/inspectorPriceRefresh.test.ts`
 - Test: `tests/application/events/requirementFiguresChangeSource.test.ts`
+- **Modify: every TEST construction of `PlanEditorContext`, which gains two members here.**
+  `grep -rn ": PlanEditorContext" src/ tests/` finds the literal builders —
+  `tests/helpers/editor.ts` and `tests/harness/fixture.ts`'s `harnessEditorContext()` — and both
+  are explicitly typed, so two required callbacks are a compile error at each. A no-op
+  unsubscribe satisfies the helper; the HARNESS one should wire the real sources, because a
+  context whose refresh callbacks do nothing is a harness that cannot show the behaviour this
+  task exists to add. This bullet is here because the standing rule at the top of the plan says
+  to grep before writing the list — it is the sixth required-member widening in this increment,
+  and the first found before a review round reported it.
 
 **Interfaces:**
 - Consumes: Task 8's `RequirementInspectorDTO.unitCost: { catalogue, projectOverride, effective } | null`.
@@ -4194,6 +4224,17 @@ Three edits, and the third is the one a compile error will not catch:
 3. `renovationProjectDeps(...)` in `composition-root.ts` — bind the guarded commands. The
    interface being required makes 1 and 3 build errors; nothing makes 2 one, so it is the entry
    a composition can quietly leave refusing wrongly.
+4. **Every typed `RenovationProjectCommandServices` literal in `tests/`**, measured with
+   `grep -rln "RenovationProjectCommandServices\|unavailableRenovationProjectCommands" src/ tests/`:
+   eight test files — `makeRenovationProjectView.ts`, `viewRoot.test.ts`,
+   `viewRootProjectDetail.test.ts`, `viewRootFailure.test.ts`, `viewRootIndexRebuild.test.ts`,
+   `viewRootOpenProject.test.ts`, `renovationProjectEmptyState.test.ts` and
+   `harness/accessibility.test.ts`. `makeRenovationProjectView.ts` builds its `commands` literal
+   from `createProject`, `createPlan` and `logger` alone and is explicitly typed, so it is a
+   compile error the moment these two are required — and it must get REAL commands over the same
+   repositories its queries use, not refusals: its own docblock records that this fixture
+   answering rather than refusing is what makes the harness show a working surface, and the
+   section is unusable there otherwise.
 
 ```ts
 it('refuses a price edit with the unrecovered-settings code when the root could not compose', async () => {

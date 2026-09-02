@@ -47,8 +47,15 @@ try the same three in the same order.
   capitalised word mid-sentence fails the build.
 - **Every error code is copied from its RAISE SITE**, never guessed from a field name. A
   `FieldErrorMap` keyed on a code nothing raises is invisible to every gate.
-- **Commit after every task.** Each task below ends green on its own — strictly stronger than
-  the spec's four-commit sequencing, which is the coarse grouping these nine tasks fall into.
+- **Commit after every task, with ONE deliberate exception.** Each task below ends green on its
+  own — strictly stronger than the spec's four-commit sequencing, which is the coarse grouping
+  these tasks fall into. **Tasks 5 and 6 share a commit**, because the spec requires resolution
+  and the effective-cost correction to land together and gives the reason: *"the correction is
+  only correct once something resolves an override, and the resolution is only safe once the
+  predicate stops false-mismatching."* Between them every overridden requirement reads
+  permanently `stale`, and `npm run check` is green the whole time — a task boundary the gate
+  approves is not the same as a state to stop at, which is why that exception is stated here
+  rather than left to whoever runs Task 5.
 
 ---
 
@@ -2239,26 +2246,29 @@ to compile until it supplies `overrides`. That is the required-field property wo
 `new InMemoryAssetPriceOverrideRepository()` at each, and do not make the field optional to
 avoid the edits — an optional collaborator is one a composition can silently forget.
 
-- [ ] **Step 8: Full gate, then commit**
+- [ ] **Step 8: Full gate, then go straight to Task 6 — do NOT commit here**
 
-Run: `npm run check`
+Run: `npm run check`. It passes, and passing is not the same as being finished, which is why
+this is the one task in the plan that does not end at a commit.
 
-```bash
-git add src/application/commands src/plugin src/presentation/editor/planEditorCommands.ts tests
-git commit -m "feat(cost): a project's own price reaches the pipeline, and the refusal is passable
+**Tasks 5 and 6 are ONE commit, because the spec says so and because the gate cannot see the
+reason.** *"`resolveEffectiveUnitCost` in both commands, and the `assetMatchesCalculatedFrom`
+correction — together, because the correction is only correct once something resolves an
+override, and the resolution is only safe once the predicate stops false-mismatching."* Splitting
+them into two tasks was this plan's own departure from that, and the cost is exactly what the
+spec predicts: after Task 5 the write path derives figures from an override while
+`assetMatchesCalculatedFrom` still compares them against the CATALOGUE price, so every overridden
+requirement reports itself permanently `stale` and `onAssetUpdated` recalculates it on every
+catalogue-price change that cannot possibly have moved it.
 
-The witness the Issue asks for: an assign refuses on a currency mismatch, a
-price override in the project's currency is set, the same assign succeeds
-with the estimate denominated in the project's currency. Application-level,
-so it proves the mechanism rather than the affordance.
+**`npm run check` is green throughout that**, which is the part worth carrying: no existing case
+has an override, and Task 5's own cases assert the assign rather than the read model, so nothing
+in the suite is in a position to notice. A task boundary that the gate approves is not the same
+as a state anyone should stop at.
 
-One shared resolveEffectiveUnitCost rather than the lookup spelled out at
-each of the two callers slice 10 routed through one derivation. The
-derivation itself stays pure and holds no repository.
-
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
-```
+The tasks stay two — they are two pieces of work with two sets of tests — and the COMMIT is one.
+Task 6's staging line covers both, which is why it stages `src/application` rather than
+`src/application/commands`.
 
 ---
 
@@ -2501,12 +2511,22 @@ Restore after each.
 - [ ] **Step 7: Full gate, then commit**
 
 ```bash
-git add src/application src/plugin tests/application
-git commit -m "fix(cascade): compare against the cost a requirement was actually derived from
+# BOTH tasks: Task 5 deliberately did not commit, for the reason its last step gives.
+git add src/application src/plugin src/presentation/editor/planEditorCommands.ts tests
+git commit -m "feat(cost): a project's own price reaches the pipeline, and the predicate follows it
 
-Under a price override calculatedFrom.unitCost holds the effective cost, so
-comparing it against the catalogue default false-mismatches every overridden
-requirement forever — the cascade never skips and the read model reads stale.
+The witness the Issue asks for: an assign refuses on a currency mismatch, a
+price override in the project's currency is set, the same assign succeeds
+with the estimate denominated in the project's currency. Application-level,
+so it proves the mechanism rather than the affordance. One shared
+resolveEffectiveUnitCost rather than the lookup spelled out at each of the
+two callers slice 10 routed through one derivation.
+
+The predicate correction rides with it rather than following, because the
+two are only correct together. Under a price override calculatedFrom.unitCost
+holds the effective cost, so comparing it against the catalogue default
+false-mismatches every overridden requirement forever — the cascade never
+skips and the read model reads stale.
 
 The correction is to the predicate's INPUT; assetMatchesCalculatedFrom is
 untouched and its two callers stay two questions. Batched at both: one

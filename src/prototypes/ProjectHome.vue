@@ -142,6 +142,13 @@ const plans = [
 
 const staleCount = 3;
 const unsummableCount = 1;
+const foreignCount = 1;
+/**
+ * Supplied, never derived. `requirements - unsummable - foreign` double-subtracts a row that is
+ * both, and the exclusion counts are deliberately independent — only the query knows the size of
+ * their union.
+ */
+const summedCount = 22;
 
 </script>
 
@@ -202,8 +209,10 @@ const unsummableCount = 1;
 				amount="€42,300.00"
 				:requirements="counts[2]?.value ?? 0"
 				:rooms="counts[1]?.value ?? 0"
+				:summed="summedCount"
 				:stale="staleCount"
 				:unsummable="unsummableCount"
+				:foreign="foreignCount"
 			/>
 
 			<div class="rp-counts">

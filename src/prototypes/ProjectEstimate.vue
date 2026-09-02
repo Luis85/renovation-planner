@@ -49,13 +49,26 @@ const props = withDefaults(
 		/** Already formatted in the PROJECT's currency, never the reader's — `PRODUCT.md`'s rule. */
 		amount?: string;
 		requirements?: number;
+		/**
+		 * The rows that actually CONTRIBUTED to `amount`, supplied rather than derived.
+		 *
+		 * The first version computed `requirements - unsummable`, which was right for exactly
+		 * one exclusion category and broke the moment a second arrived: with `foreign` rows also
+		 * excluded it over-claimed, and subtracting both double-counts a row that is BOTH
+		 * foreign and currency-mismatched — the exclusion counts are independent, which this
+		 * design states in so many words and the arithmetic then ignored. Only the query knows
+		 * the size of the union, so only the query can answer this.
+		 */
+		summed?: number;
 		rooms?: number;
 		/** Figures whose inputs have moved. They ARE in the amount, and the badge says so. */
 		stale?: number;
 		/** Figures the total cannot take, because their currency is not the project's. */
 		unsummable?: number;
+		/** Rows reached through this project's zones whose own `projectId` names another. */
+		foreign?: number;
 	}>(),
-	{ amount: '€42,300.00', requirements: 24, rooms: 11, stale: 3, unsummable: 1 },
+	{ amount: '€42,300.00', requirements: 24, summed: 22, rooms: 11, stale: 3, unsummable: 1, foreign: 1 },
 );
 
 /**
@@ -70,10 +83,9 @@ const props = withDefaults(
  * sentence; with any excluded it says `23 of 24`, and the badge then explains the gap.
  */
 const provenance = computed(() => {
-	const summed = props.requirements - props.unsummable;
 	const inputs =
-		props.unsummable > 0
-			? `${summed} of ${props.requirements} requirements`
+		props.summed < props.requirements
+			? `${props.summed} of ${props.requirements} requirements`
 			: `${props.requirements} requirements`;
 	return `Summed from ${inputs} across ${props.rooms} rooms.`;
 });
@@ -88,10 +100,11 @@ const provenance = computed(() => {
  * a shared `<circle>` is a fact about the icon set rather than an accident of the collapse.
  */
 const flags = computed(() => {
-	const rows: { health: string; d: string; text: string }[] = [];
+	const rows: { health: string; key: string; d: string; text: string }[] = [];
 	if (props.stale > 0) {
 		rows.push({
 			health: 'stale',
+			key: 'stale',
 			d: 'M12 7v5l3 2',
 			text: `${props.stale} need recalculating`,
 		});
@@ -99,8 +112,19 @@ const flags = computed(() => {
 	if (props.unsummable > 0) {
 		rows.push({
 			health: 'excluded',
+			key: 'currency',
 			d: 'M5.6 5.6l12.8 12.8',
 			text: `${props.unsummable} in another currency, not counted`,
+		});
+	}
+	// An exclusion the user is never told about is the silent understatement Decision 3 refuses,
+	// so `foreign` gets a badge of its own rather than only a field on the summary.
+	if (props.foreign > 0) {
+		rows.push({
+			health: 'excluded',
+			key: 'foreign',
+			d: 'M5.6 5.6l12.8 12.8',
+			text: `${props.foreign} in another project, not counted`,
 		});
 	}
 	return rows;
@@ -124,7 +148,7 @@ const flags = computed(() => {
 		>
 			<span
 				v-for="flag in flags"
-				:key="flag.health"
+				:key="flag.key"
 				class="rp-badge"
 				:data-health="flag.health"
 			>

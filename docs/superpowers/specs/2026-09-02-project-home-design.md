@@ -104,6 +104,34 @@ changed*. Overview→Design is one history entry; a restore that changes nothing
 which is the rule slice 21 already states — an unconditional assignment claims a navigation
 where there is none.
 
+### The remount costs a keyboard user their place, and that has to be paid back
+
+**Found by review, and it is a consequence of this decision rather than an oversight in the
+mock.** The prototype's arrow-key handler moves focus by swapping a local `ref`, so the tab it
+focuses is still in the document. After promotion a section change is a `setViewState` round
+trip: `sync()` unmounts the whole tree and builds a new one, so the element `focusTab` reached
+for no longer exists and the newly selected tab comes back unfocused. The user's next Tab leaves
+the switch entirely — a keyboard user is thrown out of the control they were operating, every
+time they operate it.
+
+`ProjectNav` restores focus on mount, and the condition is what keeps it from being theft:
+**focus is restored only if focus was inside this switch when the previous tree unmounted.** A
+restored leaf at startup, a `rebind` after a settings save and a back-arrow navigation all
+unmount with focus elsewhere, so none of them steals it; a user pressing an arrow key unmounts
+with focus on a tab, so that one gets it back.
+
+`document.activeElement` at `onBeforeUnmount` is the reading, and it is a fact about THIS leaf,
+so it is held per leaf rather than in a module-level flag — two split leaves navigating in the
+same tick would otherwise hand one leaf's focus to the other.
+
+**The alternative is to stop remounting the shell**, keeping header and nav mounted and swapping
+only the section pane. That is Decision 1's rejected middle option arriving through a different
+door, and it costs the same reactive `section` in the view context. Paying focus back is the
+smaller price.
+
+Its test drives the real view-state round trip rather than the local `ref`, because the local
+`ref` is exactly what made the defect invisible.
+
 ### Which sections exist
 
 `SECTIONS = ['overview', 'design']` — the built ones, and the only thing the nav renders. The
@@ -155,6 +183,14 @@ interface ProjectSummary {
 	zoneCount: number;
 	/** Requirement rows reached, whatever their state. */
 	requirementCount: number;
+	/**
+	 * The rows that actually CONTRIBUTED to `total`. Supplied, never derived by a caller.
+	 *
+	 * `requirementCount - unsummable` was right for one exclusion category and broke when
+	 * `foreign` arrived; subtracting both double-counts a row that is BOTH. The counts below are
+	 * independent by design, so only this query knows the size of their union.
+	 */
+	summed: number;
 	/**
 	 * Always denominated in the PROJECT's own currency, and zero — not `null` — when there is
 	 * nothing to sum. `null` means the project's currency could not be resolved at all, which
@@ -379,8 +415,15 @@ so `RequirementRecalculated` never fires for it — omit this event and an overr
 leaf is invisible to the Overview until a remount.
 
 **Index entries**, for a note that arrives out of band — a hand edit, a copy, a sync.
-`ProjectIndexEntryChanged` filtered to the plan, zone and requirement entity types, which is
-`projectPlansChangeSource`'s own arm widened by two types rather than a new mechanism.
+`ProjectIndexEntryChanged` filtered to the plan, zone, requirement **and project** entity types.
+
+**The project type is not padding, and leaving it out was a real hole.** A hand edit or a sync
+that changes the project note's `currency` publishes `ProjectIndexEntryChanged` with
+`entityType === 'renovation-project'` — the same value `projectListChangeSource` already filters
+on. The shell's own `onProjectsChanged` hydrate then updates the header while leaving a ready
+Overview mounted, so the header would read the new currency above a total still denominated in
+the old one, with `unsummable` counted against a currency the project no longer uses. Currency
+is this summary's denominator; a change to it invalidates every figure on the surface.
 
 ### The undo/redo path publishes nothing at all, and that is a category
 
@@ -531,6 +574,10 @@ mistake, per this repository's rule.
 | Invalidation | undo of a zone create and undo of a zone delete each refresh the summary | the replayed side restores through `restoreZone` and announces nothing |
 | Invalidation | undo of a cost override and of a quantity override each refresh the total | `ReversibleOverrideBase.undo` saves directly and publishes nothing |
 | Invalidation | a `.rpgeo` edit arriving out of band refreshes the stale count | it publishes `GeometrySidecarChanged` and deliberately not `ProjectIndexEntryChanged` |
+| Invalidation | a project note whose currency changed out of band refreshes the summary | the header updates without it and the total keeps the old denominator |
+| Summary | `summed` is the query's own count, and a row that is both foreign and currency-mismatched is subtracted once | deriving it in the component double-subtracts, and the counts are independent by design |
+| Keyboard | after a section change through view state, focus is on the newly selected tab | the mock's local `ref` hides this; only the real round trip unmounts the element |
+| Keyboard | a restored leaf and a `rebind` do NOT move focus | an unconditional focus-on-mount steals it during layout restoration |
 | Invalidation | a manual index rebuild refreshes an already-mounted Overview | `ProjectIndexRebuilt` carries no payload, so nothing per-entry fires |
 | Sweep | every adapter matching `UndoableCommand\|Reversible` that writes also publishes | five of eleven publish nothing today; a per-adapter test lets the sixth ship |
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |

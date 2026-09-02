@@ -3415,22 +3415,42 @@ Plus the interleaving the lock exists for:
 	 * with or without its lock. Waiting for one operation to finish is exactly what a race
 	 * test must not do, and this instruction did it twice under two different pauses.
 	 *
-	 * **Both must have LISTED before either DELETES**, because that is what a conditional
-	 * delete races on. Pause the CLEANUP between its `listByProject` and its first `delete`;
-	 * run the clear to completion inside that window; then release the cleanup. Its conditional
-	 * delete now targets a note the clear removed, so it refuses, `orphaned` is set, and
-	 * `notify.priceCleanupFailed` fires — the wrong warning this lock exists to prevent, about
-	 * an orphan that is not one.
+	 * **The THIRD draft DEADLOCKED against the correct implementation, which is the worst of
+	 * the three.** It said "pause the CLEANUP between its list and its first delete, then run
+	 * the clear to completion" — and `deleteOverridesOf` acquires `[assetId]` at level 1
+	 * BEFORE it lists, so at that pause the cleanup HOLDS the lock the clear needs. The clear
+	 * blocks; the script waits for the clear before releasing the cleanup; nothing moves. It
+	 * hangs on the good build and passes on the mutation — the test inverted.
 	 *
-	 * That ordering is deterministic rather than a genuine interleave, which is the point: with
-	 * the lock present the cleanup blocks at `session.acquire([assetId], [])` until the clear
-	 * releases, so it lists AFTER and finds nothing, and no warning is raised. Delete the
-	 * acquisition and the same script produces the warning. One script, both outcomes decided
+	 * **All three failures share one cause: reasoning about WHERE to pause without tracing WHO
+	 * HOLDS WHICH LOCK there.** So the ordering below is written as a lock ledger, and each step
+	 * says what is held. Both operations must have LISTED before either DELETES, because that is
+	 * what a conditional delete races on, and neither may be holding the other's lock while the
+	 * script waits on it.
+	 *
+	 * 1. Let the delete run `runDeleteResolution` and RELEASE its session. Held: nothing.
+	 * 2. Pause the delete BEFORE `deleteOverridesOf` acquires. Held: nothing — this is the whole
+	 *    reason the pause moves above the acquisition rather than below the list.
+	 * 3. Start the clear (do NOT await it) and pause it after its `listByProject`, before its
+	 *    first `delete`. Held: the clear has `[projectId, assetId]`, and it has read v1.
+	 * 4. Release the cleanup, still without awaiting. WITH the lock it blocks at
+	 *    `session.acquire([assetId], [])`; WITHOUT it, it proceeds and lists v1 too.
+	 * 5. Release the clear. Its conditional delete at v1 succeeds, the note is gone, and it
+	 *    releases the lock.
+	 * 6. Await both.
+	 *    - **With the lock**: the cleanup only now acquires, lists, finds NOTHING, and warns
+	 *      about nothing.
+	 *    - **Without it**: the cleanup already holds a v1 listing, deletes at v1, refuses on a
+	 *      note that is gone, sets `orphaned` and fires `notify.priceCleanupFailed` — the wrong
+	 *      warning, about an orphan that is not one.
+	 *
+	 * Deterministic in both worlds and blocked in neither: one script, and the outcome decided
 	 * solely by the line under test.
 	 */
 	it('does not warn about an orphan a concurrent clear already removed', async () => {
-		// Pause deleteOverridesOf between its list and its first delete; run the clear to
-		// completion; release the cleanup. Assert the note is gone AND notify was never called.
+		// Pause the delete BEFORE deleteOverridesOf acquires. Start the clear without awaiting
+		// and pause it after its list. Release the cleanup without awaiting. Release the clear.
+		// Await both. Assert the note is gone AND notify was never called.
 	});
 ```
 
@@ -3449,10 +3469,16 @@ already failed to reach its race twice, in two different ways:
 2. **The pause in the right window, with the clear AWAITED to completion** — the cleanup then
    lists after the note is already gone, finds nothing, and warns about nothing whether or not
    its lock exists.
+3. **The pause BELOW the cleanup's own acquisition** — it then holds `[assetId]` while the
+   script waits for a clear that needs the same lock, so the case does not go green, it HANGS,
+   and only on the correct build. A timeout rather than a failure, on the build that is right.
 
-Neither is a hypothetical; both were instructed here, one per review round. The mutation is the
-only thing that reports either, because a case which cannot reach its race is green in every
-build — including the broken one it was written to catch.
+None of these is a hypothetical; all three were instructed here, one per review round, each
+written while fixing the one before it. **The common cause is reasoning about where to pause
+without tracing who holds which lock there** — which is why the case's docblock is now a lock
+ledger rather than a sentence. A case that cannot reach its race is green in every build,
+including the broken one it was written to catch; a case that deadlocks is worse, because it is
+red on the only build that deserves green.
 
 - [ ] **Step 5: Full gate, then commit**
 

@@ -53,6 +53,7 @@ async function wiredWithLink() {
 		events: w.events,
 		locks: w.locks,
 		logger: silentLogger(),
+		overrides: w.overrides,
 	});
 	const deleteRequirement = new DeleteRequirementCommand(w.requirements);
 	return {

@@ -293,6 +293,7 @@ function slice10Services(): Fixture[] {
 				events,
 				locks,
 				logger,
+				overrides,
 			}) as never,
 			'command.deleteAsset.failed',
 			{ assetId: asset.id },

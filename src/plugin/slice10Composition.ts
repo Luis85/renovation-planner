@@ -57,6 +57,14 @@ export const sequenceNotices = {
 	markerClearFailed: () => {
 		notifyWarning(tr('sequence.marker-clear-failed'));
 	},
+	/**
+	 * Task 7a: an asset's price overrides go with it, and a failure clearing one is a residual
+	 * the user should hear about the same way a stray recovery marker is — see
+	 * `DeleteAssetCommand.deleteOverridesOf`'s header for why it does not fail the delete.
+	 */
+	priceCleanupFailed: () => {
+		notifyWarning(tr('asset-price.cleanup-failed'));
+	},
 };
 
 export interface Slice10Wiring {
@@ -157,6 +165,7 @@ export function composeSlice10(
 			locks,
 			logger,
 			markers,
+			overrides,
 			notify: sequenceNotices,
 		}),
 		assignAsset: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides }),

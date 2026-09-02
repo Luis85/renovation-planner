@@ -67,6 +67,7 @@ export const en = {
 	'editor.inspector.override.reset': 'Reset to calculated',
 	'editor.inspector.delete-zone.reassign-title': 'Move these requirements to which zone?',
 	'sequence.marker-clear-failed': 'The delete was saved, but its recovery record could not be cleared from the vault. It is cleared the next time this vault opens.',
+	'asset-price.cleanup-failed': 'The asset was deleted, but a price note for it could not be removed from the vault. Delete it by hand if you find it.',
 	'cascade.stale-marker-failed': 'A requirement could not be marked out of date. Its figures may be wrong until it is recalculated.',
 	'cascade.aborted': 'Requirements linked to this change could not be updated. Their figures may be out of date.',
 	'editor.zone.default-name': 'Zone',

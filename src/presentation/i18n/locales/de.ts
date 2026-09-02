@@ -105,6 +105,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.inspector.override.reset': 'Auf berechneten Wert zurücksetzen',
 	'editor.inspector.delete-zone.reassign-title': 'Zu welcher Zone sollen diese Anforderungen verschoben werden?',
 	'sequence.marker-clear-failed': 'Das Löschen wurde gespeichert, aber der Wiederherstellungseintrag konnte nicht aus dem Vault entfernt werden. Er wird beim nächsten Öffnen dieses Vaults entfernt.',
+	'asset-price.cleanup-failed': 'Das Objekt wurde gelöscht, aber eine Preisnotiz dafür konnte nicht aus dem Vault entfernt werden. Löschen Sie sie von Hand, falls Sie sie finden.',
 	'cascade.stale-marker-failed': 'Eine Anforderung konnte nicht als veraltet markiert werden. Ihre Werte können falsch sein, bis sie neu berechnet wird.',
 	'cascade.aborted': 'Mit dieser Änderung verknüpfte Anforderungen konnten nicht aktualisiert werden. Ihre Werte können veraltet sein.',
 	'editor.zone.default-name': 'Zone',

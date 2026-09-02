@@ -3090,10 +3090,24 @@ it('tells the user when an asset delete leaves a price note behind', async () =>
 **Why this task exists.** `DeleteAssetCommand` gathers its referents from
 `requirements.listByAsset` alone (`DeleteAsset.ts:79`) and `resolvedReferents` is typed
 `readonly RequirementId[]`. An asset carrying a price override and **no** Requirement therefore
-deletes with no referents observed, and the override's `asset` id dangles. Worse than a stale
-field, because of Task 8's join: `ListProjectAssetPrices` builds its rows from `listAll`, so an
-override whose asset is gone renders in **no** row — unreachable, unlistable and undeletable by
-the user who made it.
+deletes with no referents observed, and the override's `asset` id dangles.
+
+**This paragraph used to end "unreachable, unlistable and undeletable by the user who made it",
+and that stopped being true one task along.** It rested on Task 8's join dropping any override
+whose asset `listAll` no longer names — which was the first draft's behaviour and is no longer:
+`ListProjectAssetPrices` emits an ORPHAN ROW, so the price is listed and clearable. The
+correction is recorded rather than the sentence quietly softened, because the argument it made
+was load-bearing for this task's existence and a reader who checks it against the query would
+find it false.
+
+**Why the task still earns its place, on the true argument.** The orphan row is a BACKSTOP for
+the paths no command covers — a hand delete in the file explorer, a sync removal — and a backstop
+is not a reason to leave a mess the command path can prevent. An override for an asset this
+plugin itself deleted is meaningless data that the user never has to see, let alone repair by
+hand; making them clear a row for a decision they already made would be the surface asking them
+to finish the plugin's work. So: the command cleans up what it deletes, and the read model
+surfaces what nothing cleaned up. The two are complements rather than alternatives, and the
+review round that found the missing orphan row is what forced them to be stated as such.
 
 **The overrides go WITH the asset; they are not referents that refuse it.** A referent is work a
 user must decide about — the four choices
@@ -3356,7 +3370,10 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Interfaces:**
 - Produces:
-  - `interface AssetPriceRowDto { assetId: string; assetName: string; catalogue: Money; override: Money | null; overrideId: string | null; overrideVersion: EntityVersion | null; }`
+  - `interface AssetPriceRowDto { assetId: string; assetName: string | null; catalogue: Money | null; override: Money | null; overrideId: string | null; overrideVersion: EntityVersion | null; }`
+    — the first two are nullable for the ORPHAN row (an override whose asset was deleted out of
+    band), on `RequirementInspectorDTO.assetName`'s precedent. `assetName === null` is the whole
+    discriminator; step 2 carries the reasoning and the alternative that was refused.
   - `class ListProjectAssetPrices` with `execute(projectId): Promise<Result<AssetPriceRowDto[], RepositoryError>>`,
     constructed with `(assets, overrides, logger)` — the logger for the duplicate diagnostic,
     which this query is the only surface for on a project that has no requirements
@@ -3391,6 +3408,37 @@ describe('ListProjectAssetPrices', () => {
 	it('is sorted by asset name, so the list does not reshuffle between reads', async () => { … });
 
 	it('returns an empty list for a vault whose library is empty', async () => { … });
+
+	/**
+	 * The ORPHAN, and the case a catalogue-only join cannot pass: an override whose asset was
+	 * deleted OUT OF BAND — by hand in the file explorer, or by sync — so Task 7a's cleanup
+	 * never ran. `VaultChangeAdapter.onDelete` drops the index entry and publishes
+	 * `ProjectIndexEntryChanged`; it dispatches no command.
+	 *
+	 * Assert the row is PRESENT and CLEARABLE, not merely present: `overrideId` and
+	 * `overrideVersion` are what let the clear button build a conditional write, and a row
+	 * carrying neither is a row the user can look at and not act on.
+	 *
+	 * Watch it fail against `rows = assets.value.map(...)` alone, which is what shipped in the
+	 * first draft: the row is simply absent and the price is unreachable through every door
+	 * the plugin offers.
+	 */
+	it('lists an override whose asset was deleted out of band, with no name and no library price', async () => {
+		// Seed an asset, override it, then remove the asset from the index WITHOUT the command.
+		const orphan = rows.find((r) => r.assetId === deletedAssetId);
+		expect(orphan?.assetName).toBeNull();
+		expect(orphan?.catalogue).toBeNull();
+		expect(orphan?.overrideId).not.toBeNull();
+		expect(orphan?.overrideVersion).not.toBeNull();
+	});
+
+	/**
+	 * Orphans sort LAST and among themselves by id — they are a repair queue rather than part
+	 * of the catalogue the section compares against, and they have no name to sort by. Also the
+	 * regression for the comparator itself: `localeCompare` on a null throws, so a sort written
+	 * without the null test takes the whole query down rather than misordering it.
+	 */
+	it('puts orphans after every named row, ordered by asset id', async () => { … });
 
 	it('propagates a failed catalogue read', async () => { … });
 	it('propagates a failed override read', async () => { … });
@@ -3439,7 +3487,7 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 				count: notes.length,
 			});
 		});
-		const rows = assets.value.map((loaded) => {
+		const rows: AssetPriceRowDto[] = assets.value.map((loaded) => {
 			const override = byAsset.get(loaded.entity.id) ?? null;
 			return {
 				assetId: loaded.entity.id,
@@ -3450,13 +3498,65 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 				overrideVersion: override?.version ?? null,
 			};
 		});
+
+		// **The ORPHANS, and without them this list is a trap.** Task 7a cleans overrides up
+		// when `DeleteAssetCommand` runs — and an asset note deleted by hand in the file
+		// explorer, or removed by sync, runs no command at all: `VaultChangeAdapter.onDelete`
+		// drops the index entry and publishes `ProjectIndexEntryChanged`, and dispatches
+		// nothing. So the override survives, `listAll` no longer names its asset, and a
+		// catalogue-only join drops it from the one surface that can clear it. Unreachable, and
+		// undeletable through any door the plugin offers.
+		const seen = new Set(assets.value.map((loaded) => loaded.entity.id));
+		for (const [assetId, override] of byAsset) {
+			if (seen.has(assetId)) continue;
+			rows.push({
+				assetId,
+				assetName: null,
+				catalogue: null,
+				override: override.entity.unitCost,
+				overrideId: override.entity.id,
+				overrideVersion: override.version,
+			});
+		}
+
 		// Sorted so the list does not reshuffle between reads — `listAll` is index order, which
 		// is a fact about the vault's write history rather than anything a reader expects.
-		rows.sort((a, b) => a.assetName.localeCompare(b.assetName));
+		// Orphans last, together, and by id among themselves: they are a repair queue rather
+		// than part of the catalogue the section exists to compare against, and they have no
+		// name to sort by. `localeCompare` on a null would throw, so the null test is not a
+		// nicety.
+		rows.sort((a, b) => {
+			if (a.assetName === null || b.assetName === null) {
+				if (a.assetName !== null) return -1;
+				if (b.assetName !== null) return 1;
+				return a.assetId.localeCompare(b.assetId);
+			}
+			return a.assetName.localeCompare(b.assetName);
+		});
 		return ok(rows);
 	}
 }
 ```
+
+**`assetName` and `catalogue` are NULLABLE, and that is this repository's own precedent rather
+than a new idea.** `RequirementInspectorDTO.assetName` is nullable for exactly this reason, and
+CLAUDE.md states why: *"A Requirement whose Asset was deleted renders from its id plus the
+reason; typed `string`, the query would have had to fail or drop the row, and the stale warning
+would be unreachable for exactly the rows that need it."* The first draft of this query made the
+opposite choice one entity along — a catalogue-only join, dropping the row — without noticing
+that the question had already been asked and answered here.
+
+`catalogue` is null on an orphan because there is no library price: the asset is gone. Inventing
+a zero would render a comparison against a number that does not exist, which is the same defect
+as dropping the row wearing better clothes.
+
+**The remedy is a READ, deliberately, and not the other one the report offered.** "Handle
+out-of-band asset removal" would mean the vault-change pipeline dispatching `DeleteAssetCommand`
+— a mechanism nothing here has: `VaultChangeAdapter` is the index's writer and publishes one
+payload-carrying event; giving it a command bus makes every hand edit a domain transaction, with
+its locks, its cascade and its recovery marker, for a case a read can answer. Rendering the
+orphan needs no new seam: the query already reads `listByProject`, and `AssetPriceEdit` already
+carries `assetId` and `expected`, so the existing clear button clears it unchanged.
 
 - [ ] **Step 3: Add the Inspector's third figure**
 
@@ -4378,6 +4478,23 @@ describe('AssetPriceList', () => {
 	 * override. The submitted `Money` must be GBP. Watch it fail against a component that mints
 	 * from the row's effective currency — the command refuses, and the dead end is back.
 	 */
+	/**
+	 * The ORPHAN row: an override whose asset was deleted out of band, so `assetName` and
+	 * `catalogue` are both null. It must be VISIBLE and CLEARABLE and must not accept a new
+	 * price — a set on a missing asset mints data nothing can price, and the command reads the
+	 * asset and refuses, so a live input here is a control that cannot succeed.
+	 *
+	 * Assert all three, because each is a different mistake: a component that drops the row
+	 * leaves the price unreachable, one that disables the whole row leaves it undeletable, and
+	 * one that leaves the input live ships a guaranteed refusal.
+	 */
+	it('renders an orphaned override with its id, no library price, and only Clear live', async () => {
+		// rows: [{ assetId: 'a1', assetName: null, catalogue: null, override: 19.50, … }]
+		expect(wrapper.text()).toContain('a1');
+		expect(wrapper.find('input').attributes('disabled')).toBeDefined();
+		expect(wrapper.find('.rp-asset-price-clear').attributes('disabled')).toBeUndefined();
+	});
+
 	it('submits the typed price in the project currency, not the catalogue currency', async () => {
 		// rows: [{ catalogue: 24.00 EUR, override: null, … }], currency: 'GBP'
 		expect(commit).toHaveBeenCalledWith(expect.objectContaining({
@@ -4439,6 +4556,21 @@ coalescing already answers. The two cases are one keyboard gesture and one point
 different right answers, and the plan says which is which rather than leaving the next reader to
 find a file asserting two outcomes for what reads as the same act. That sentence is lifted from
 `RequirementRow.vue`'s own docblock, which states the carve-out where the guard is.
+
+**An ORPHAN row draws differently, and it is the one row whose only useful control is Clear.**
+`assetName === null` is the discriminator (Task 8's DTO), and it means the asset this price names
+was deleted out of band — by hand in the file explorer, or by sync — so no command ran to clean
+it up. Render the asset ID in place of the name with a translated reason beside it, draw no
+library price (`catalogue` is null; there is nothing to compare against), and **disable the
+price input while leaving Clear live**: setting a new price on an asset that does not exist mints
+data nothing can ever price, and `SetAssetPriceOverrideCommand` reads the asset and would refuse
+anyway — a live control that dispatches a guaranteed refusal is the same defect slice 14's
+amendment refuses. The row exists so the user can get RID of it.
+
+This is `RequirementRow`'s own shape for the same situation, which is where the pattern comes
+from rather than being invented here: a Requirement whose Asset was deleted renders from its id
+plus the reason, because the alternative is a row the user cannot see and therefore cannot act
+on.
 
 **The project-wide warning belongs here.** A price set on this row moves every requirement in
 the project on that asset; the section's own heading and its placement on a project surface are

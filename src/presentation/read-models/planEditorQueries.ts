@@ -50,9 +50,9 @@ export interface ZoneScene {
  * repositories are wired at the composition root; the view is handed this and never
  * learns that a vault exists.
  *
- * Both methods hand back slice 4's query `Result` **verbatim in shape**: a missing Plan
- * is `ok(null)` and a failed read is `isErr`. Flattening either into a bare
- * `PlanDto | null` would make "no such plan" and "the vault read failed" indistinguishable
+ * `getPlan` and `getProject` hand back slice 4's query `Result` **verbatim in shape**: a
+ * missing entity is `ok(null)` and a failed read is `isErr`. Flattening either into a bare
+ * nullable DTO would make "no such entity" and "the vault read failed" indistinguishable
  * — which is exactly the distinction slice 14's empty-state selectors and slice 17's
  * error routing both branch on, and neither could recover it afterwards.
  */

@@ -46,6 +46,30 @@ function handleFailedRead(
 	fail(cause);
 }
 
+/** The refs `markMissing` blanks, bundled the same way `HydrationFailureRefs` is. */
+interface HydrationMissingRefs {
+	readonly project: Ref<ProjectSummaryDto | null>;
+	readonly plan: Ref<PlanDto | null>;
+	readonly zones: Ref<ReadonlyMap<string, ZoneDto>>;
+	readonly unreadableZones: Ref<number>;
+	readonly status: Ref<ProjectStoreStatus>;
+}
+
+/**
+ * `hydrate` reaches this from two places — a plan `GetPlan` never found, and a project
+ * `GetProject` never found for a plan that otherwise resolved — and blanks the same five
+ * fields either way: a plan whose project is gone is a plan nothing owns, the same
+ * dangling state as a missing plan, drawn the same way. `GetPlan` cannot see the second
+ * case; only the project read can.
+ */
+function markMissing(refs: HydrationMissingRefs): void {
+	refs.project.value = null;
+	refs.plan.value = null;
+	refs.zones.value = new Map();
+	refs.unreadableZones.value = 0;
+	refs.status.value = 'missing';
+}
+
 /**
  * The Plan Editor's working copy of persisted data (SDD §14), and never a write path:
  * nothing here calls a repository, and everything in it is rebuildable by re-running the
@@ -157,6 +181,7 @@ export const useProjectStore = defineStore('project', () => {
 		const superseded = (): boolean => request !== latestHydration;
 		const keepOnFailure = options?.keepPreviousOnFailure === true;
 		const failureRefs: HydrationFailureRefs = { status, error, stale };
+		const missingRefs: HydrationMissingRefs = { project, plan, zones, unreadableZones, status };
 		// A RE-hydration does not blank the editor. The root mounts its canvas on `ready`, so
 		// dropping to `loading` here would unmount the Konva stage and build a fresh one on
 		// every committed command — the whole canvas flashing because one background
@@ -178,11 +203,7 @@ export const useProjectStore = defineStore('project', () => {
 			return;
 		}
 		if (foundPlan.value === null) {
-			project.value = null;
-			plan.value = null;
-			zones.value = new Map();
-			unreadableZones.value = 0;
-			status.value = 'missing';
+			markMissing(missingRefs);
 			return;
 		}
 
@@ -193,13 +214,7 @@ export const useProjectStore = defineStore('project', () => {
 			return;
 		}
 		if (foundProject.value === null) {
-			// A plan whose project is gone is a plan nothing owns: the same dangling state as a
-			// missing plan, drawn the same way. `GetPlan` cannot see this; only the project read can.
-			project.value = null;
-			plan.value = null;
-			zones.value = new Map();
-			unreadableZones.value = 0;
-			status.value = 'missing';
+			markMissing(missingRefs);
 			return;
 		}
 

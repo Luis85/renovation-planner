@@ -193,6 +193,61 @@ describe('ProjectStore hydration', () => {
 		expect(store.zones.size).toBe(FIXTURE_ZONES.length);
 	});
 
+	/**
+	 * The same race, gated on the PROJECT read rather than the plan read — its own
+	 * `if (superseded()) return;`, right after `queries.getProject`, needs its own proof.
+	 *
+	 * Answering the STALE read `ok(null)` rather than a stale-but-real project is deliberate:
+	 * a stale SUCCESS is still caught by the `superseded()` check after the later
+	 * `findZonesByPlan` await, so mutating only this guard would not redden a case built on
+	 * that path. `foundProject.value === null` calls `markMissing` and returns immediately,
+	 * with no later guard behind it — so this is the one place a missing project-read guard
+	 * is observable on its own: a project that vanishes on a stale read must not blank a
+	 * plan a fresher hydration has already put on screen.
+	 */
+	it('a SLOW earlier hydration does not blank a fresher one when its project read supersedes', async () => {
+		const store = useProjectStore();
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+
+		let releaseSlow!: () => void;
+		const slowGate = new Promise<void>((resolve) => {
+			releaseSlow = resolve;
+		});
+		// The slow hydration's OWN `getPlan` is the fast default, which resolves after a single
+		// microtask — the same tick a synchronously-started fresh hydration bumps
+		// `latestHydration` in. Without waiting for the slow hydration to actually REACH its
+		// `getProject` call, starting the fresh one right away races the PLAN guard instead of
+		// the PROJECT guard this case exists to exercise, and the slow read never gets far
+		// enough to reach the branch under test.
+		let projectReadStarted!: () => void;
+		const projectReadStartedPromise = new Promise<void>((resolve) => {
+			projectReadStarted = resolve;
+		});
+		const slow = store.hydrate(
+			queries({
+				getProject: () => {
+					projectReadStarted();
+					return slowGate.then(() => ok(null));
+				},
+			}),
+			FIXTURE_PLAN.id,
+		);
+		await projectReadStartedPromise;
+
+		// A second hydration starts and finishes entirely inside the first one's getProject await.
+		await store.hydrate(queries(), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+
+		releaseSlow();
+		await slow;
+
+		// The slow hydration's project vanished, but it started before the fresh one and must
+		// not retroactively blank what the fresh hydration already established.
+		expect(store.status).toBe('ready');
+		expect(store.plan).toEqual(FIXTURE_PLAN);
+	});
+
 	it('a reset invalidates a hydration still in flight', async () => {
 		// A leaf closing must not have the plan it was reading painted back a tick later.
 		const store = useProjectStore();

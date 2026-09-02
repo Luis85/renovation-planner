@@ -362,6 +362,25 @@ Four sections, in this order:
    Reported by a review bot: the first version offered groups or "not used" and nothing else, so
    an unreadable usage graph rendered as an unused asset.
 
+   **It re-reads while the asset stays selected, and one half of that is unreachable.** A Plan
+   Editor in another leaf assigning this asset publishes `RequirementCreated`, so the panel
+   subscribes to it, filtered to the selected asset, and re-runs the query. **Undoing that
+   assignment publishes nothing at all**: `ReversibleAssignAssetCommand.undo` calls
+   `requirements.delete` directly, and `Requirement.events.ts` declares `RequirementCreated`,
+   `RequirementInvalidated`, `RequirementRecalculated` and `CostEstimateChanged` — there is no
+   `RequirementDeleted` to subscribe to. So this panel can grow a row it will not lose until the
+   asset is reselected, and that is a limitation of the event vocabulary rather than of this
+   design.
+
+   Written down rather than worked around, because the workaround is worse: polling, or
+   re-reading on every event of any kind, turns one peer's undo into a scan of every requirement
+   in the vault. Closing it properly is a `RequirementDeleted` event — a domain-layer addition,
+   not a view's to make — and §11 carries it. **This is the second time this repository has met
+   this exact shape**: `projectListChangeSource`'s own docblock once said "there is no
+   `ProjectDeleted` to add here until something raises one", which CLAUDE.md records as reading
+   like a survey of the ground while actually describing a missing publisher one layer down. One
+   entity over, same sentence.
+
    **It shows no per-project price.** The epic's last open item is §89's override — a project
    recording its own price against a shared definition — and when it lands, the number in section 1
    is still the **shared default**, because that is the only price a vault-wide surface has any
@@ -497,6 +516,22 @@ Bounded three ways:
 1. Marks are fetched **per expanded shelf**, in one batched query, never for the whole catalogue.
 2. A row **never waits** for its mark: it renders in the *not yet read* state and the mark fills in.
 3. Collapsing a shelf cancels nothing already in flight but requests nothing further.
+
+**The inspector does not read through this batch, and cannot.** The shelf batch is bound to
+expanded shelves and carries an OUTLINE and a state, which is all a 20px mark needs. The
+inspector needs more and needs it in cases the batch never covers:
+
+- a restored view state can name an `assetId` whose shelf is **collapsed**, so no batch has run
+  for it and `CatalogueEntryDto` carries no shape data at all — the panel would draw a valid
+  selection with no dimensions and no shape state;
+- §3.4 sends the clearance, the anchor and the facing to the inspector precisely because they are
+  mush at 20px, and an outline-only batch cannot supply any of them.
+
+So **selection triggers its own read**, independent of shelf expansion: `GetAssetDesign`, which
+already exists and already joins the note and the sidecar into one DTO — dimensions, the
+`dimensionsUnscaled` flag, the calibration, the background reference and both versions. The
+designer reads exactly this. Reported by a review bot; the batch and the panel were specified in
+different sections and neither said which fed the other.
 
 **And the batch settles per entry, never as a whole.** One damaged sidecar must not fail the
 shelf it is in, and it must not leave the other rows loading either. So the query answers a
@@ -665,6 +700,8 @@ view.asset-library.used-in          view.asset-library.used-in.none
 view.asset-library.used-in.project  (interpolated: {name}, {count})
 view.asset-library.open-designer    view.asset-library.open-note
 view.asset-library.shape.none       view.asset-library.shape.unscaled
+view.asset-library.shape.pending    view.asset-library.shape.unreadable
+view.asset-library.used-in.loading  view.asset-library.used-in.failed
 empty.asset-library.no-assets.headline / .body / .action
 empty.asset-library.no-matches.headline / .body / .action
 ```
@@ -768,7 +805,11 @@ Each of these is a thing a reader will reasonably expect, refused for a stated r
    fourth one** (§5.4). The picker shares `createAssetCatalogueChangeSource` and would pay for
    any widening of it — re-reading every asset note on a design event it has no use for — so the
    cheap edit is the one with a cost on a surface this document does not own.
-8. **Whether this surface ships a Bases view beside it** (§2a). The epic's Definition of Done is
+8. **Whether a `RequirementDeleted` event is raised** (§3.5). Without one, *Used in* can grow a
+   row it will not lose until the asset is reselected. It is a domain-layer addition with
+   consequences past this surface — `projectListChangeSource` has wanted its sibling for
+   slices — and it is not a view's to introduce.
+9. **Whether this surface ships a Bases view beside it** (§2a). The epic's Definition of Done is
    not discharged by a plugin view, and *"reachable through Bases"* has at least three readings —
    a `.base` file this plugin writes, a documented recipe, or nothing at all on the grounds that a
    user's own Bases view over `type: renovation-asset` already works. Picking one is a product
@@ -924,6 +965,24 @@ A fifth round found four more, and the shape of one of them is worth more than t
 - **A loaded mark had no invalidation contract** (§5.4). The picker's change source carries no
   geometry events and the designer's needs an asset id; this surface watches many assets and
   draws their shapes, which is a third shape neither has.
+
+A sixth round found three, and all three are one shape: **a section grew and its neighbour did
+not.** §3.4 gained two mark states and §8's key list did not gain their copy. §5.3 bound the
+geometry read to expanded shelves while §3.5 promised the inspector a clearance, an anchor and a
+facing that batch could never carry — and neither section said which read fed the panel, so a
+restored selection in a collapsed shelf had no shape data at all. §3.5 gained its own states in
+round five and did not gain a rule for staying fresh while the asset stays selected.
+
+That is the same defect this document keeps finding in itself, which is worth stating plainly:
+**a specification is a set of promises that reference each other, and every edit to one section
+is an unchecked claim about the others.** Nothing here can gate that — the gates read code — so
+it is review, and after six rounds the honest summary is that the reviewer found what the author
+could not, repeatedly, and that the count of rounds is a property of the method rather than a
+sign it is failing.
+
+One of the three is also a limitation rather than a defect, and it is recorded as one: undoing an
+assignment publishes nothing, so `Used in` has no event for the removal half. That is the
+`RequirementDeleted` gap in §11.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

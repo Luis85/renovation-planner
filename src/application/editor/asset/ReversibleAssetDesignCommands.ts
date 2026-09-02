@@ -149,9 +149,14 @@ abstract class ReversibleAssetEdit<TInput extends AssetShapeInput> {
 		protected readonly input: TInput,
 	) {}
 
-	protected async runForward(version: EntityVersion): Promise<VersionedDispatchResult> {
+	/**
+	 * `extra` is what a two-resource gesture conditions its SECOND resource on — the background
+	 * adapter's `expectedGeometry` — merged before `expected` so the note rule below still owns
+	 * that one field. One-resource adapters pass nothing.
+	 */
+	protected async runForward(version: EntityVersion, extra: Partial<TInput> = {}): Promise<VersionedDispatchResult> {
 		const expected = this.ran ? version : (this.input.expected ?? version);
-		const ran = await this.command.executeWithVersion({ ...this.input, expected });
+		const ran = await this.command.executeWithVersion({ ...this.input, ...extra, expected });
 		this.ran = true;
 		return ran;
 	}
@@ -376,10 +381,9 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * reads happen before the same forward write, and a caller undoing this gesture is undoing
  * ONE thing the user did, not two independently supersedable ones.
  *
- * **`expected` names the NOTE version**, matching `SetAssetBackgroundInput`'s own field: the
- * sidecar clear is a housekeeping side effect of this gesture that no caller versions
- * independently, exactly as the wrapped command itself conditions the sidecar write on
- * whatever its own read found rather than on anything the caller supplied.
+ * **`expected` names the NOTE version and `expectedGeometry` the SIDECAR's**, both read by this
+ * adapter before the forward write, so the command refuses a peer that landed in either window
+ * rather than merging it into a document this adapter's inverse predates.
  *
  * **The GEOMETRY version this adapter needs to condition its own restore on is not the one
  * `runForward` returns, and the first draft of this class got that wrong — measured, not
@@ -429,10 +433,14 @@ class ReversibleAssetBackgroundEdit
 		if (isErr(beforeGeometry)) return beforeGeometry;
 		const geometryGeneration = geometryLedger.observe(assetId, beforeGeometry.value.version);
 
-		// The NOTE's pre-write version is what this gesture's own `expected` claim is about —
-		// `runForward` states the rule; `SetAssetBackgroundCommand` reads the sidecar itself
-		// and conditions that half of its write on nothing this adapter supplies.
-		const ran = await this.runForward(beforeNote.value.version);
+		// BOTH snapshots travel forward: the note's as `expected`, per `runForward`'s rule, and
+		// the sidecar's as `expectedGeometry`. The first draft conditioned the sidecar half on
+		// nothing this adapter supplied, and a peer landing between this read and the command's
+		// own was merged by the command and then undone over — measured, the peer's anchor
+		// reverted with no refusal anywhere.
+		const ran = await this.runForward(beforeNote.value.version, {
+			expectedGeometry: beforeGeometry.value.version,
+		});
 		if (isErr(ran)) return ran;
 		if (ran.value.outcome === 'no-write') return ok('no-write');
 

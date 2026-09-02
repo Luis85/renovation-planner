@@ -19,6 +19,7 @@ import {
 	repositoryWritingAfterSave,
 	seeded,
 	sidecarWritingAfterWrite,
+	sidecarWritingBetweenReads,
 } from '../../helpers/assetDesignHarness';
 
 /**
@@ -275,5 +276,34 @@ describe('an undo whose ledger answers nothing at all', () => {
 
 		expect(expectErr(await gesture.undo()).code).toBe('asset.revision-conflict');
 		expect(await w.height()).toBe(900);
+	});
+});
+
+describe('the window between the background adapter\'s sidecar read and the command\'s own', () => {
+	it('refuses the gesture rather than merging a peer\'s sidecar edit into an inverse that predates it', async () => {
+		// Wrapped in an object, matching the sibling `hook` fixtures above: a bare
+		// `let peer: () => Promise<unknown> = () => Promise.resolve();` trips
+		// `unicorn/consistent-function-scoping` (its initial value captures nothing), where a
+		// function expression held as an object property does not.
+		const peer: { run: () => Promise<unknown> } = { run: () => Promise.resolve() };
+		// The adapter's read is the sidecar's FIRST read; the peer lands right after it and
+		// before the command reads for itself.
+		const w = await seeded({ sidecar: (real) => sidecarWritingBetweenReads(real, 1, () => peer.run()) });
+		await w.seed(drawn());
+		await w.seedCalibration();
+		peer.run = async () => {
+			expect(expectOk(await w.plain.setFacing.execute({ assetId: w.assetId, facing: 1 }))).toBe('wrote');
+		};
+
+		const gesture = w.reversible.setBackground({ assetId: w.assetId, path: 'Specs/a.png', kind: 'image', page: null });
+		expect(expectErr(await gesture.execute()).code).toBe('asset-geometry.revision-conflict');
+
+		// Neither half applied, and the peer's edit is exactly where the peer left it.
+		const after = await w.document();
+		expect(after.calibration).not.toBeNull();
+		expect(after.shape?.facing).toBe(1);
+		expect(present(expectOk(await w.stack.assets.getById(w.assetId))).entity.background).toBeNull();
+		// A refused gesture has no inverse to spend.
+		expect(expectOk(await gesture.undo())).toBe('no-write');
 	});
 });

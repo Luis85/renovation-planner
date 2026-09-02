@@ -50,6 +50,14 @@ export interface SetAssetBackgroundInput {
 	readonly page: number | null;
 	/** The NOTE's version this gesture read, if the caller already has one (an undo does). */
 	readonly expected?: EntityVersion;
+	/**
+	 * The SIDECAR's version this gesture read, if the caller already has one — the reversible
+	 * adapter does, and without it the calibration clear below is conditioned on the command's
+	 * OWN read, a second read a peer can land between: the peer's edit is merged here, the
+	 * adapter's inverse predates it, and the undo restores over it with no refusal. The same
+	 * two-read window `updateAssetShape` closes for every one-resource command with `expected`.
+	 */
+	readonly expectedGeometry?: EntityVersion;
 }
 
 /**
@@ -132,7 +140,7 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 		}
 
 		const cleared: AssetGeometryDocument = { ...document, calibration: null };
-		const clearedWrite = await sidecar.write(input.assetId, cleared, geometryVersion);
+		const clearedWrite = await sidecar.write(input.assetId, cleared, input.expectedGeometry ?? geometryVersion);
 		if (isErr(clearedWrite)) return clearedWrite;
 
 		const saved = await assets.save(candidate.value, input.expected ?? noteVersion);

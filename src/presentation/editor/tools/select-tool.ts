@@ -6,7 +6,7 @@ import type { Vector } from '../../../core/geometry/Vector';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import { VERTEX_GRAB_RADIUS_PX } from '../handleMetrics';
-import { resolveSelectionTarget } from '../selection/resolveSelectionTarget';
+import { resolveSelectionTarget, type SelectionTarget } from '../selection/resolveSelectionTarget';
 import type { UndoableCommand } from './undoable-command';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
@@ -141,20 +141,11 @@ export class SelectTool implements EditorTool {
 		const context = this.context;
 		if (context === null || event.button !== 'primary') return;
 
-		// ONE materialisation of the candidate list per gesture. `spatialObjects()` maps the
-		// store's reactive zone map into fresh wrapper objects on every call, and this method
-		// used to invoke it twice — once for the handle test and again inside the resolver's
-		// own scan.
-		const candidates = this.deps.spatialObjects();
-		const target = resolveSelectionTarget({
-			candidates,
-			selectedIds: context.selection.selectedIds.map(String),
-			worldPoint: event.worldPoint,
-			handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
-		});
-		// A gesture starting is exactly when the predicted hover stops meaning anything: the
-		// pointer is about to move for a reason other than looking, and the resolved target
-		// below is what the drag or the deselect actually acts on.
+		const { candidates, target } = this.targetAt(context, event.worldPoint);
+		// A press is exactly when the predicted hover stops meaning anything, on every path
+		// out of this method — a body hit, a handle hit, a miss that clears the selection, and
+		// a target the candidate list no longer has: the pointer is about to act rather than
+		// merely look, and the resolved target below is what that action works from.
 		context.renderState.hoveredObjectId = null;
 		if (target === null) {
 			context.selection.clear();
@@ -189,12 +180,7 @@ export class SelectTool implements EditorTool {
 			// No drag in flight: this move is a HOVER, so it predicts rather than acts —
 			// `resolveSelectionTarget` is the same question `pointerDown` asks, which is what
 			// keeps the cursor's promise and the click's outcome unable to disagree.
-			const target = resolveSelectionTarget({
-				candidates: this.deps.spatialObjects(),
-				selectedIds: context.selection.selectedIds.map(String),
-				worldPoint: event.worldPoint,
-				handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
-			});
+			const { target } = this.targetAt(context, event.worldPoint);
 			context.renderState.hoveredObjectId = target === null ? null : target.id;
 			return;
 		}
@@ -279,6 +265,28 @@ export class SelectTool implements EditorTool {
 	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
 	hasDraft(): boolean {
 		return this.gesture !== null;
+	}
+
+	/**
+	 * `resolveSelectionTarget`'s input, built ONCE — `pointerDown` and `pointerMove`'s hover
+	 * arm ask the identical question of the identical state, and a second hand-built copy of
+	 * this object is a second place a future field has to be added. Candidates travel back out
+	 * alongside the target because `pointerDown` still needs the materialised list for its own
+	 * `.find` afterwards, and re-calling `spatialObjects()` there would be the two-calls-per-
+	 * gesture cost this method already exists to avoid.
+	 */
+	private targetAt(
+		context: EditorContext,
+		worldPoint: Point,
+	): { readonly candidates: readonly SpatialObjectCandidate[]; readonly target: SelectionTarget } {
+		const candidates = this.deps.spatialObjects();
+		const target = resolveSelectionTarget({
+			candidates,
+			selectedIds: context.selection.selectedIds.map(String),
+			worldPoint,
+			handleToleranceWorld: VERTEX_GRAB_RADIUS_PX * context.viewport.worldPerScreenPixel(),
+		});
+		return { candidates, target };
 	}
 
 	private async commit(

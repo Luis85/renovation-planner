@@ -167,9 +167,20 @@ Also found by review, and it is a dangling reference this document did not consi
 carrying a price override and **no** Requirement is deleted with no referents observed, and the
 override's `asset` id dangles.
 
-The damage is worse than a stale field, because of Decision 6's join: `ListProjectAssetPrices`
-builds its rows from `listAll`, so an override whose asset is gone renders in **no** row. The note
-is unreachable through the UI, unlistable, and undeletable by the user who made it.
+**This paragraph said the orphan renders in no row and is "unreachable through the UI,
+unlistable, and undeletable by the user who made it", and Decision 6 has since been amended so
+that it does not.** `ListProjectAssetPrices` emits an ORPHAN ROW — `assetName` and `catalogue`
+null, the override and its version present, so the row lists and clears. The correction is
+recorded here rather than the sentence quietly rewritten, because it was this decision's stated
+justification and a reader who checks it against Decision 6 would otherwise find the two
+documents contradicting each other.
+
+**The decision stands, on the argument that survives.** The orphan row is a BACKSTOP for the
+paths no command covers — a hand delete in the file explorer, a sync removal, neither of which
+dispatches anything — and a backstop is not a reason to leave a mess the command path can
+prevent. An override for an asset this plugin itself deleted is meaningless data the user never
+has to see, let alone repair by hand. So the command cleans up what it deletes, and the read
+model surfaces what nothing cleaned up; the two are complements rather than alternatives.
 
 **The overrides go WITH the asset; they are not referents that refuse it.** A referent is work that would be
 orphaned and that a user must decide about — the four choices
@@ -278,6 +289,26 @@ or replacing it is a conditional write and a row that cannot supply an `Expected
 view to re-read before every save. One query returning a DTO, rather than a view calling two and
 joining them in Pinia — a join in a store is a read model nothing can test without mounting
 something.
+
+**It is a FULL OUTER join, not a catalogue-driven one, and that was found by review after the
+first version had it the other way.** An override whose asset was deleted OUT OF BAND — by hand
+in the file explorer, or by sync — is cleaned up by nothing: `VaultChangeAdapter.onDelete` drops
+the index entry, publishes `ProjectIndexEntryChanged`, and dispatches no command, so Decision 2b's
+cleanup never runs. A catalogue-driven join then drops that override from the one surface that
+could clear it. So the query emits an **orphan row**: `assetName` and `catalogue` both `null`, the
+override and its version present, the asset id rendered in place of the name with a reason beside
+it, the price input disabled and Clear live.
+
+`assetName` nullable is this codebase's own precedent rather than a new idea —
+`RequirementInspectorDTO.assetName` is nullable for exactly this situation, so that a Requirement
+whose Asset was deleted renders from its id plus the reason instead of being dropped. `catalogue`
+is `null` rather than zero for the same reason the paragraph below gives about the Inspector's
+group: an invented number renders a comparison against a price that does not exist.
+
+The remedy is a READ. Making the vault-change pipeline dispatch `DeleteAssetCommand` was the
+alternative and is refused: the index writer has no command bus, and giving it one turns every
+hand edit into a domain transaction with its lock, its cascade and its recovery marker, for a
+case one more loop over data the query already holds can answer.
 
 The Inspector's **three figures** (§89's *beside what it replaced*, at both levels) come from
 `RequirementInspectorDTO` gaining a `unitCost: { catalogue, projectOverride, effective } | null`

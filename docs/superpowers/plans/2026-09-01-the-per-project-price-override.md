@@ -2243,12 +2243,28 @@ export class ClearAssetPriceOverrideCommand … {
 	async execute(input: ClearAssetPriceOverrideInput): Promise<Result<{ cleared: boolean }, …>> {
 		const release = await this.deps.locks.acquire([input.projectId, input.assetId], []);
 		try {
-			// `listByAsset` filtered rather than `getForPair`, because every note for the pair
-			// has to go. One query: a shared asset is priced by few projects, where a project
-			// may hold many assets.
-			const listed = await this.deps.overrides.listByAsset(input.assetId);
+			// **Filtered rather than `getForPair`, because every note for the pair has to go —
+			// and `listByProject`, NOT `listByAsset`, because this command has the project.**
+			//
+			// An earlier draft read `listByAsset` and filtered by project, arguing list length:
+			// "a shared asset is priced by few projects, where a project may hold many assets."
+			// That is true and it is the wrong axis to optimise. `listByAsset` calls
+			// `loadedEverywhere` — the index has no asset axis, so it cannot be narrowed and
+			// hydrates every asset-price note in the VAULT. One malformed note in one unrelated
+			// project therefore refuses the hydration, and "Use the library price" stops working
+			// for every healthy pair everywhere. `listByProject` calls `loadedInProject`, so the
+			// blast radius of a malformed note is the project that contains it.
+			//
+			// It still finds every DUPLICATE for the pair, which is what `getForPair` cannot do:
+			// duplicates are two notes with the same (project, asset), both inside the project's
+			// folder, so both are in this list.
+			//
+			// The same narrowing was applied to `getForPair` and `listByProject` in an earlier
+			// round, for this same hazard, and this call site was left on the vault-wide method —
+			// the fix applied to the sites in the report and not to the class.
+			const listed = await this.deps.overrides.listByProject(input.projectId);
 			if (isErr(listed)) return listed;
-			const forPair = listed.value.filter((o) => o.entity.projectId === input.projectId);
+			const forPair = listed.value.filter((o) => o.entity.assetId === input.assetId);
 
 			// The same question the set command asks, against the WINNER — the note the row was
 			// rendered from. Clearing a pair that has moved is as much a lost update as
@@ -3311,9 +3327,23 @@ Plus the interleaving the lock exists for:
 	 * that one is the cleanup the user is warned about an orphan the clear had already removed.
 	 * Assert BOTH halves — the note is gone AND `notify.priceCleanupFailed` was never called —
 	 * because "the note is gone" is equally true of the racing build.
+	 *
+	 * **WHERE the pause goes is the whole case, and the first draft put it somewhere that
+	 * cannot reach the race.** It said "hold the clear's own acquisition open until the delete
+	 * is dispatched" — but `runDeleteResolution` acquires the SAME asset's level-1 lock in its
+	 * own prepare step (`deleteResolution.ts:260`, `session.acquire([ops.entityId], [])`), so a
+	 * clear already holding `[projectId, assetId]` BLOCKS the delete outright. The delete waits,
+	 * the clear finishes, the cleanup then lists nothing and there is no interleaving at all —
+	 * green, and green with the cleanup's own acquisition deleted, which is the mutation this
+	 * case exists to fail.
+	 *
+	 * The window this lock actually protects opens AFTER `runDeleteResolution` releases its
+	 * session and closes when the cleanup acquires: pause the DELETE there — between the
+	 * sequence returning and `deleteOverridesOf` listing — and start the clear inside it.
 	 */
 	it('does not warn about an orphan a concurrent clear already removed', async () => {
-		// Hold the clear's own acquisition open until the delete is dispatched, then release.
+		// Pause the delete after runDeleteResolution resolves and before deleteOverridesOf
+		// lists; dispatch the clear; let it settle; then release the delete.
 	});
 ```
 
@@ -3323,6 +3353,12 @@ Run the file — PASS. Then delete the `await this.deleteOverridesOf(...)` call:
 cases must redden. If only one does, your fixtures share a project or an asset and the other two
 are not testing what their names say. Then delete the `session.acquire([assetId], [])`: the
 interleaving case must redden, and it is the only one that can — the others are sequential.
+
+**If it does NOT redden, the pause is in the wrong place** — almost certainly before the delete
+is dispatched, where `runDeleteResolution`'s own level-1 acquisition on the asset serialises the
+two and there is no window left to race in. That is not a hypothetical: it is what the first
+draft of the case instructed, and the mutation is the only thing that reports it, because a
+case which cannot reach its race is green in every build.
 
 - [ ] **Step 5: Full gate, then commit**
 

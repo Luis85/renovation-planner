@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 import { ReversibleAssetDesignCommands } from '../../../src/application/editor/asset/ReversibleAssetDesignCommands';
 import type { WriteLedger } from '../../../src/application/editor/WriteLedger';
+import { leftWritesBehind } from '../../../src/application/commands/DispatchOutcome';
 import { expectErr, expectOk } from '../../helpers/domain';
 import {
 	SQUARE,
@@ -18,6 +19,7 @@ import {
 	present,
 	repositoryWritingAfterSave,
 	seeded,
+	sidecarFailingReadsAfter,
 	sidecarWritingAfterWrite,
 	sidecarWritingBetweenReads,
 } from '../../helpers/assetDesignHarness';
@@ -305,5 +307,55 @@ describe('the window between the background adapter\'s sidecar read and the comm
 		expect(present(expectOk(await w.stack.assets.getById(w.assetId))).entity.background).toBeNull();
 		// A refused gesture has no inverse to spend.
 		expect(expectOk(await gesture.undo())).toBe('no-write');
+	});
+});
+
+describe('a background undo after a peer has written the sidecar', () => {
+	it('refuses BEFORE touching the note, so nothing is half-undone and nothing churns', async () => {
+		const w = await seeded();
+		await w.seed(drawn());
+		await w.seedCalibration();
+		const gesture = w.reversible.setBackground({ assetId: w.assetId, path: 'Specs/a.png', kind: 'image', page: null });
+		expect(expectOk(await gesture.execute())).toBe('wrote');
+		const noteAfterGesture = present(expectOk(await w.stack.assets.getById(w.assetId)));
+
+		// A peer designer leaf, through the plain door, moves the sidecar past this history.
+		expect(expectOk(await w.plain.setFacing.execute({ assetId: w.assetId, facing: 1 }))).toBe('wrote');
+
+		const refused = expectErr(await gesture.undo());
+		expect(refused.code).toBe('undo.superseded');
+		expect(leftWritesBehind(refused)).toBe(false);
+
+		// The note is untouched: same version, still the new reference.
+		const noteAfterUndo = present(expectOk(await w.stack.assets.getById(w.assetId)));
+		expect(noteAfterUndo.version).toEqual(noteAfterGesture.version);
+		expect(noteAfterUndo.entity.background?.path).toBe('Specs/a.png');
+		expect((await w.document()).shape?.facing).toBe(1);
+
+		// And pressing again does not buy a note revision either.
+		expectErr(await gesture.undo());
+		expect(present(expectOk(await w.stack.assets.getById(w.assetId))).version).toEqual(noteAfterGesture.version);
+	});
+
+	/**
+	 * The pre-flight read's OTHER failure mode: the sidecar is not merely stale, it is
+	 * unreadable. `sidecarFailingReadsAfter(real, 2)` names the two reads a background
+	 * gesture's own `execute` makes — this adapter's pre-read and the command's own snapshot
+	 * read — so the third read, the undo's new pre-flight one, is the one that faults.
+	 */
+	it('propagates a failed pre-flight sidecar read rather than touching the note', async () => {
+		const w = await seeded({ sidecar: (real) => sidecarFailingReadsAfter(real, 2) });
+		await w.seed(drawn());
+		await w.seedCalibration();
+		const gesture = w.reversible.setBackground({ assetId: w.assetId, path: 'Specs/a.png', kind: 'image', page: null });
+		expect(expectOk(await gesture.execute())).toBe('wrote');
+		const noteAfterGesture = present(expectOk(await w.stack.assets.getById(w.assetId)));
+
+		const refused = expectErr(await gesture.undo());
+		expect(refused.code).toBe('vault.unexpected-failure');
+
+		// The note is untouched: the failed read is asked BEFORE either resource is written.
+		const noteAfterUndo = present(expectOk(await w.stack.assets.getById(w.assetId)));
+		expect(noteAfterUndo.version).toEqual(noteAfterGesture.version);
 	});
 });

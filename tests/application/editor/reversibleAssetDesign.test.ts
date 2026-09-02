@@ -408,22 +408,34 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 	});
 
 	/**
-	 * **The background adapter's own compensate-on-undo failure.** A peer write to the SIDECAR
-	 * between execute and undo leaves the note restore free to succeed while the geometry
-	 * restore refuses — a genuinely HALF-undone state, since the note now points at the old
-	 * reference again but the calibration it implies is still gone. Reported via
-	 * `markUncompensated` rather than swallowed, mirroring the forward command's own
-	 * compensate failure for the identical reason.
+	 * **The background adapter's own compensate-on-undo failure.** Task 3 gave the undo a
+	 * pre-flight sidecar read, so a peer write landing BEFORE the undo is even called is caught
+	 * cleanly now — a pre-write `undo.superseded`, asserted in
+	 * `reversibleAssetDesignWindows.test.ts`'s "a background undo after a peer has written the
+	 * sidecar". A read-then-write is not atomic, though, so a peer landing IN that gap — after
+	 * the pre-flight read has matched, before the restoring write reaches the store — still
+	 * reaches the store's own refusal. The note restore is free to succeed first, so this is a
+	 * genuinely HALF-undone state: the note points at the old reference again, but the
+	 * calibration it implies is still gone. Reported via `markUncompensated` rather than
+	 * swallowed, mirroring the forward command's own compensate failure for the identical
+	 * reason.
 	 */
-	it('reports an uncompensated background undo when the note restores but the sidecar does not', async () => {
-		const { reversible, assetId, seed, plain, document, stack } = await seeded();
+	it('reports an uncompensated background undo when a peer writes the sidecar between the undo\'s pre-flight read and its restore', async () => {
+		const peer: { run: () => Promise<unknown> } = { run: () => Promise.resolve() };
+		// Three reads reach the wrapped sidecar before the peer must run: the adapter's own
+		// pre-state read and the command's own snapshot read, both during `execute`, then the
+		// undo's own pre-flight read — `after: 3` fires the peer the instant that third read has
+		// resolved, landing it exactly in the gap between the read and the restoring write.
+		const { reversible, assetId, seed, plain, document, stack } = await seeded({
+			sidecar: (real) => sidecarWritingBetweenReads(real, 3, () => peer.run()),
+		});
 		await seed(drawn()); // a shape to seed a document, so `plain.setFacing` has something to write
 		const command = reversible.setBackground({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
 		expect(expectOk(await command.execute())).toBe('wrote');
 
-		// A peer designer leaf, writing the sidecar OUTSIDE this history.
-		expect(expectOk(await plain.setFacing.execute({ assetId, facing: 1.2 }))).toBe('wrote');
-		const outsider = await document();
+		peer.run = async () => {
+			expect(expectOk(await plain.setFacing.execute({ assetId, facing: 1.2 }))).toBe('wrote');
+		};
 
 		const result = await command.undo();
 		expect(isErr(result) && leftWritesBehind(result.error)).toBe(true);
@@ -431,7 +443,7 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 		// gesture, which is no reference at all.
 		expect(expectOk(await stack.assets.getById(assetId))?.entity.background).toBeNull();
 		// ...and the sidecar is exactly what the peer left it, untouched by the refused restore.
-		expect(await document()).toEqual(outsider);
+		expect((await document()).shape?.facing).toBe(1.2);
 	});
 });
 

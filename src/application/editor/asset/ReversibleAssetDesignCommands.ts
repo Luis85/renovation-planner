@@ -20,7 +20,7 @@ import type {
 	AssetGeometrySidecar,
 } from '../../ports/AssetGeometrySidecar';
 import type { AssetRepository } from '../../ports/AssetRepository';
-import type { EntityVersion } from '../../ports/versioning';
+import { sameVersion, type EntityVersion } from '../../ports/versioning';
 import { undoSuperseded, type WriteLedger } from '../WriteLedger';
 
 /**
@@ -398,14 +398,18 @@ class ReversibleAssetNoteEdit<TInput extends AssetShapeInput>
  * `VersionedDispatch.secondaryVersion` is that report, `SetAssetBackground.ts` is its one
  * writer, and this is its one reader.
  *
- * **Undo restores in the REVERSE of the forward order** — the note first, then the sidecar —
- * mirroring `deleteResolution.ts`'s "undo is the same compensated sequence run backwards".
- * A failure restoring the sidecar AFTER the note has already been put back is a genuinely
- * half-undone state — the note points at the OLD reference again, but the calibration that
- * reference implies is still gone — so it is reported the same way the forward command's own
- * compensation failure is: `markUncompensated`, not swallowed. The inverse is kept rather
- * than cleared in that case, so a retry re-attempts the (idempotent) note write and the
- * still-outstanding sidecar restore rather than losing the gesture's inverse outright.
+ * **Undo asks the sidecar FIRST and then restores in the REVERSE of the forward order** — the
+ * note, then the sidecar — mirroring `deleteResolution.ts`'s "undo is the same compensated
+ * sequence run backwards". A peer sidecar write since the gesture is refused pre-write as
+ * `undo.superseded`, from a read taken before the note is touched, because the generation
+ * check only sees peers a LATER gesture sampled. A failure restoring the sidecar AFTER the note
+ * has already been put back can still happen in the window between that read and the write,
+ * and is a genuinely half-undone state — the note points at the OLD reference again, but the
+ * calibration that reference implies is still gone — so it is reported the same way the
+ * forward command's own compensation failure is: `markUncompensated`, not swallowed. The
+ * inverse is kept rather than cleared in that case, so a retry re-attempts the (idempotent)
+ * note write and the still-outstanding sidecar restore rather than losing the gesture's
+ * inverse outright.
  */
 class ReversibleAssetBackgroundEdit
 	extends ReversibleAssetEdit<SetAssetBackgroundInput>
@@ -473,12 +477,22 @@ class ReversibleAssetBackgroundEdit
 		if (this.supersededSince(noteLedger, inverse.noteGeneration)) return err(undoSuperseded(assetId));
 		if (this.supersededSince(geometryLedger, inverse.geometryGeneration)) return err(undoSuperseded(assetId));
 
+		// The sidecar is asked FIRST, before either resource is written. A restore of the note
+		// that is then followed by a refused sidecar restore is a genuinely half-undone state —
+		// and the generation check above cannot see a peer no later gesture sampled, so without
+		// this read the note was restored, the sidecar refused, the inverse was kept, and every
+		// further press re-saved the note and refused again. A read-then-write is not atomic,
+		// so the `markUncompensated` arm below is kept for the peer that lands between them.
+		const geometryExpected = geometryLedger.lastWritten(assetId) ?? inverse.geometryPreVersion;
+		const current = await sidecar.read(assetId);
+		if (isErr(current)) return current;
+		if (!sameVersion(current.value.version, geometryExpected)) return err(undoSuperseded(assetId));
+
 		const noteExpected = noteLedger.lastWritten(assetId) ?? inverse.notePreVersion;
 		const savedNote = await assets.save(inverse.entity, noteExpected);
 		if (isErr(savedNote)) return savedNote;
 		noteLedger.record(assetId, savedNote.value.version);
 
-		const geometryExpected = geometryLedger.lastWritten(assetId) ?? inverse.geometryPreVersion;
 		const savedGeometry = await sidecar.write(assetId, inverse.document, geometryExpected);
 		if (isErr(savedGeometry)) {
 			// The note IS restored; the calibration it implies is not. Reported rather than

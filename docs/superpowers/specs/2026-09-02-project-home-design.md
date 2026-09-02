@@ -171,23 +171,38 @@ One new query, `GetProjectSummary`, guarded at the composition root like every o
 walks:
 
 ```text
-ListPlansByProject(projectId)                      -> plans, unreadable
-  FindZonesByPlan(planId)                          -> zones          (per plan)
-
-listByProject(projectId) ∩ getIdsByType(requirement) -> requirements, refused
-  buildRow(requirement)                            -> RequirementInspectorDTO
+ListPlansByProject(projectId)                         -> plans, unreadablePlans
+ZoneRepository.listByProject(projectId)               -> zones, unreadableZones
+listByProject(projectId) ∩ getIdsByType(requirement)  -> requirements, refused
+  buildRow(requirement)                               -> RequirementInspectorDTO
 ```
 
-**TWO walks, and this diagram showed only the old one for four rounds.** It was the document's
-first and most canonical definition of `GetProjectSummary` while Decision 3 below it specified
-something else — a per-zone walk that loses requirements whose zones were deleted, reintroduces
-`zones × all-requirements` I/O, and lets an unrelated malformed requirement fault the summary
-through a strict `listByZone`. Everything the sections below argue against, in the code block an
-implementer reads first. The third artifact on this branch to contradict the prose beside it.
+**THREE walks, each rooted at the project and none of them reached through another.** Every
+count this surface prints is a question about the PROJECT, so every walk asks the project
+directly — which is what makes each one's failure cost only its own count.
 
-The plan walk answers the ROOM count; the project-scoped requirement listing answers everything
-else. They are separate because a requirement that outlived its zone is exactly where they
-disagree.
+**This diagram showed one walk for four rounds and a half-corrected two for two more.** It was
+the document's first and most canonical definition of `GetProjectSummary` while Decision 3 below
+it specified something else — a per-zone walk that loses requirements whose zones were deleted,
+reintroduces `zones × all-requirements` I/O, and lets an unrelated malformed requirement fault
+the summary through a strict `listByZone`. Everything the sections below argue against, in the
+code block an implementer reads first.
+
+**The correction was then applied to one entity and not the one beside it**, which is this
+repository's own partial-fix shape arriving in the edit that fixed the other half: the
+requirement walk became project-scoped and the zone walk was left started at plans, in the same
+code block, in the same round. A project whose only plan note is deleted out of band still owns
+its zone notes — the plan-started walk reaches none of them, so `zoneCount` reads zero with
+nothing refused, and with no requirements either the empty state then invites the user to create
+a plan over a project full of rooms. `ZoneRepository.listByProject` already exists and is
+already skip-and-count, so closing it costs a call rather than a port.
+
+**A shared failure is still shared, and that bounds what the third walk buys.**
+`ObsidianZoneRepository.list` propagates a plan's unreadable geometry sidecar rather than
+counting it N times — deliberately, and its own comment carries the account. So an unreadable
+sidecar refuses the ZONE walk. `GetProjectSummary` catches that at the walk rather than at the
+query: the room count is withheld and reported, while the plan and requirement figures still
+print. One walk failing may cost its own count and never the surface.
 
 **It shares `GetRequirementsForZone`'s row builder rather than re-deriving a row.** That query
 owns the
@@ -221,8 +236,16 @@ was written for.
 ```ts
 interface ProjectSummary {
 	planCount: number;
-	/** Zones across every plan of this project, not per plan. */
-	zoneCount: number;
+	/**
+	 * Rooms this PROJECT owns, read from `ZoneRepository.listByProject` rather than reached
+	 * through its plans — a zone whose plan note was deleted out of band is still the project's.
+	 *
+	 * `null` when the zone walk refused outright, which is the one state in which no room count
+	 * can honestly be printed: an unreadable geometry sidecar is one shared failure and
+	 * `ObsidianZoneRepository.list` propagates it rather than blaming every zone in the plan.
+	 * Same spelling and the same reason as `total` below, deliberately not a second one.
+	 */
+	zoneCount: number | null;
 	/** Requirement rows reached, whatever their state. */
 	requirementCount: number;
 	/**
@@ -245,7 +268,11 @@ interface ProjectSummary {
 	stale: number;
 	/** `ListPlansByProject`'s own count, passed through. */
 	unreadablePlans: number;
-	/** Plans whose zone read refused. */
+	/**
+	 * Zone NOTES that refused, one per note — the zone listing's own `refused`, passed through
+	 * exactly as `unreadablePlans` is. It used to mean "plans whose zone read refused", which
+	 * counted a different thing on a different axis for as long as the walk started at plans.
+	 */
 	unreadableZones: number;
 	/** Rows whose currency the total cannot take. */
 	unsummable: number;
@@ -417,10 +444,13 @@ closed rather than inherited.
 here, and an orphaned requirement is counted and rendered from its id plus the reason, the way
 an asset-less row already is.
 
-**Two walks, not one, and the counts say which is which.** `zoneCount` still comes from
-plans → zones; `requirementCount` comes from the project-scoped requirement read. They are
-different questions and a requirement that outlived its zone is precisely the case where the
-two disagree — so collapsing them would reintroduce the blindness this section closes.
+**Three walks, not one, and the counts say which is which.** `planCount`, `zoneCount` and
+`requirementCount` each come from their own project-scoped listing. They are different
+questions, and an entity that outlived its parent is precisely where any two of them disagree:
+a requirement whose zone was deleted, a zone whose plan note was deleted. Reaching either
+through its parent answers zero for something the project still owns, which is the blindness
+this section closes — twice, one entity at a time, because fixing it for requirements alone
+left the identical hole one row up in the same diagram.
 
 ## Decision 4 — this surface says "Rooms"
 
@@ -488,6 +518,9 @@ is worth listing because each item was an invention standing where a decision al
   small label, supporting stats, accent" as a scaffold.
 - **The counts follow `.rc-counts`** — a hairline grid, `tabular-nums`, and a zero that dims
   rather than colours. One rule is deliberately NOT followed and Decision 6a says why.
+  **A withheld count is an em dash, never a dimmed zero**: `zoneCount: null` means the room
+  read refused, and drawing the same glyph as an empty project would state a fact the query
+  explicitly declined to state. The warning strip carries the reason beside it.
 - **The qualifiers are `.rp-badge`**, whose `data-health="stale"` variant this screen needs by
   name; a label first and a mark second, hue on the border and the icon, never on the word.
 
@@ -748,7 +781,7 @@ command, same dialog, same `'gone'` handling and the same `dialogs.resolve` on a
 watcher. It acquires an address and nothing else.
 
 `ProjectOverview.vue` is new. It draws slice 21's existing `renovationProject.noPlans` empty
-state when the project has no plans **AND no requirements**, whose action navigates to Design
+state when the project has no plans, **no rooms and no requirements**, whose action navigates to Design
 rather than opening the form in place — the header and nav stay mounted around every section,
 which is slice 14's rule arriving on a fourth surface: an empty state that replaces a region
 hides the thing the region exists to show, and here that thing is the way back.
@@ -756,11 +789,16 @@ hides the thing the region exists to show, and here that thing is the way back.
 **The second half of that condition is a correction, and it is Decision 3's own consequence
 catching up with this rule.** Gating on plans alone was right while the walk reached
 requirements through a plan's zones — no plans meant no figures, so an empty state hid nothing.
-The project-scoped walk recovers a project's persisted requirements whether or not a plan note
-survives, so a project whose only plan note was deleted out of band still has counts and a total
-worth showing, and gating on plans would replace them with an invitation to create a plan. That
-is the same failure the rule is quoted against, one layer up: an empty state hiding the thing
-the region exists to show.
+The project-scoped walks recover a project's persisted rooms and requirements whether or not a
+plan note survives, so a project whose only plan note was deleted out of band still has counts
+and possibly a total worth showing, and gating on plans would replace them with an invitation to
+create a plan. That is the same failure the rule is quoted against, one layer up: an empty state
+hiding the thing the region exists to show.
+
+**Rooms joined that condition a round after requirements did**, and the delay is the argument
+for how the sentence below is written: the correction was made for one entity while the entity
+beside it, in the same walk diagram, kept the parent-started read that produced the same wrong
+onboarding screen from a project holding rooms and no requirements.
 
 **Empty means nothing to show, never nothing of one kind.** Written that way rather than as
 "plans and requirements" so the next entity the summary learns to count joins the condition
@@ -874,6 +912,8 @@ mistake, per this repository's rule.
 | Keyboard | after a section change through view state, focus is on the newly selected tab | the mock's local `ref` hides this; only the real round trip unmounts the element |
 | Overview | a project whose only plan note is unreadable draws the notice, never the empty state | zero visible counts otherwise select onboarding, and following it creates a second plan |
 | Overview | a project with no plans but surviving requirements shows the summary, not the empty state | gating on plans alone hides figures the project-scoped walk recovered |
+| Overview | a project with no plans and no requirements but surviving zones shows the summary, not the empty state | the same rule for the entity whose walk was corrected a round later |
+| Overview | a withheld room count draws an em dash and the strip, never a dimmed zero | `?? 0` at the render site reads identically and states what the query refused to |
 | Overview | a project with a start or target date renders it; a project with neither renders no line at all | the DTO carried neither field, so the promise was undeliverable rather than merely unbuilt |
 | Wiring | the warning strip's action reaches `openDiagnosticsReport` | without the deps member it is a live control that does nothing — the shape slice 14 refuses |
 | Keyboard | a restored leaf and a `rebind` do NOT move focus | an unconditional focus-on-mount steals it during layout restoration |
@@ -885,6 +925,9 @@ mistake, per this repository's rule.
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
 | Summary | a requirement whose `projectId` names another project is never reached | a zone-started walk reaches it and, on one shared currency, sums it into the wrong project silently |
 | Summary | a requirement whose zone was deleted IS reached and reports `missingTarget: 'zone'` | a zone-started walk cannot produce that row at all |
+| Summary | a project whose only plan note is deleted still counts its surviving zones | a plan-started zone walk reads zero with nothing refused, and the empty state then offers onboarding over a project holding rooms |
+| Summary | one unreadable zone NOTE costs one count, not the walk | a strict listing would blank the room count for a single bad note |
+| Summary | an unreadable geometry sidecar withholds `zoneCount` and leaves the plan and requirement figures printed | `ObsidianZoneRepository.list` propagates a shared failure, so an uncaught one faults the whole summary |
 | Invalidation | the Design section does NOT re-read its plan list on a requirement event | folding this into `projectPlansChangeSource` passes every Overview case and costs Design a read per requirement in the vault |
 | Errors | a partial read draws the section plus the strip; a faulted read draws `ViewFailure` inside Overview with header and nav still mounted | replacing the whole shell takes the back control with it |
 | Accessibility | the Overview scan asserts `.rp-empty-state`, `.rp-project-detail__back` and the nav's current-section marker are in the scanned DOM | grading a component instead of a surface |
@@ -912,6 +955,11 @@ the extraction of `GetRequirementsForZone`'s per-row builder so both callers agr
 `ProjectOverview.vue`, `ProjectEstimate.vue`, `ProjectDesign.vue`; a `styles/` partial carrying
 `.rp-badge` and its variants, the section switch, the counts and the warning strip, per
 Decision 6; the manual test case.
+
+**Unchanged and worth naming:** `ZoneRepository.listByProject` and its two implementations.
+The room count needs a project-scoped zone listing and the port already has one, already
+skip-and-count — so this is a call site rather than an addition, which is why it appears in no
+list above.
 
 **Changed:** `ProjectSummaryDto` gains `start` and `targetCompletion` (Decision 8);
 `RenovationProjectDeps` gains `openDiagnostics` and the composition root binds it (Decision 8);
@@ -973,6 +1021,7 @@ slice 16 an uncovered arm found only by reading `coverage-final.json` for the ch
 So: plan the test with the code, read the floor as a floor, and re-measure rather than trusting
 this table once the editor branch has merged — it will land on a third tree nobody has measured.
 
-`viewStateFrom`'s fallback arm and every `unsummable` / `unreadableZones` arm are new branches,
-and `GetProjectSummary` is several new functions. Each needs a case in the commit that writes
+`viewStateFrom`'s fallback arm, every `unsummable` / `unreadableZones` arm and both arms of
+`zoneCount`'s withheld reading are new branches, and `GetProjectSummary` is several new
+functions. Each needs a case in the commit that writes
 it, the functions especially.

@@ -420,13 +420,13 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 	 * swallowed, mirroring the forward command's own compensate failure for the identical
 	 * reason.
 	 */
-	it('reports an uncompensated background undo when a peer writes the sidecar between the undo\'s pre-flight read and its restore', async () => {
+	it('reports an uncompensated background undo when a peer writes the sidecar between the undo\'s pre-flight read and its restore, and announces the half it did land', async () => {
 		const peer: { run: () => Promise<unknown> } = { run: () => Promise.resolve() };
 		// Three reads reach the wrapped sidecar before the peer must run: the adapter's own
 		// pre-state read and the command's own snapshot read, both during `execute`, then the
 		// undo's own pre-flight read — `after: 3` fires the peer the instant that third read has
 		// resolved, landing it exactly in the gap between the read and the restoring write.
-		const { reversible, assetId, seed, plain, document, stack } = await seeded({
+		const { reversible, assetId, seed, plain, document, stack, designChanges } = await seeded({
 			sidecar: (real) => sidecarWritingBetweenReads(real, 3, () => peer.run()),
 		});
 		await seed(drawn()); // a shape to seed a document, so `plain.setFacing` has something to write
@@ -444,6 +444,10 @@ describe('an undo is CONDITIONAL, because somebody else may have written', () =>
 		expect(expectOk(await stack.assets.getById(assetId))?.entity.background).toBeNull();
 		// ...and the sidecar is exactly what the peer left it, untouched by the refused restore.
 		expect((await document()).shape?.facing).toBe(1.2);
+		// The forward gesture published one and the peer's own `setFacing` a second; the third
+		// is this undo's, for its restored NOTE, and it is what stops every leaf going on
+		// drawing a background the undo really did remove.
+		expect(designChanges).toHaveLength(3);
 	});
 });
 

@@ -512,6 +512,13 @@ class ReversibleAssetBackgroundEdit
 			// The note IS restored; the calibration it implies is not. Reported rather than
 			// swallowed, for `DispatchOutcome`'s reason: a "Saved" badge here would claim a
 			// vault as safe as it was before, which it is not.
+			//
+			// And ANNOUNCED, for the reason `SetAssetBackground`'s own uncompensated arm is:
+			// the note restore landed, `withStateRefresh` re-hydrates on `ok` alone, and this
+			// plugin's own write is suppressed by `EchoWindow` — so without this, every leaf
+			// including the one that pressed undo goes on drawing the background this undo
+			// really did remove, with nothing else coming to correct it.
+			await events.publish(assetDesignChanged({ assetId }));
 			return err(markUncompensated(savedGeometry.error));
 		}
 		geometryLedger.record(assetId, savedGeometry.value);

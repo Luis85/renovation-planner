@@ -94,10 +94,15 @@ async function seeded() {
 			noteWritesFail ? Promise.resolve(err(VAULT_FAULT)) : stack.assets.save(asset, expected),
 	};
 
+	const designChanges: string[] = [];
+	events.subscribe('AssetDesignChanged', () => designChanges.push('AssetDesignChanged'));
+
 	return {
 		stack,
 		assetId,
 		sidecar: real,
+		/** What a peer leaf would have heard — the only thing that makes one re-read. */
+		designChanges,
 		setBackground: new SetAssetBackgroundCommand({ sidecar, assets, events }),
 		async seedShape(shape: AssetShape | null): Promise<void> {
 			expectOk(await real.write(assetId, { calibration: null, shape }));
@@ -252,6 +257,49 @@ describe('SetAssetBackground', () => {
 		const result = await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
 
 		expect(isErr(result) && leftWritesBehind(result.error)).toBe(true);
+	});
+
+	/**
+	 * And it ANNOUNCES, which the stamp above does not do on anybody's behalf.
+	 *
+	 * The clear landed and the restore refused, so the calibration really is gone from the
+	 * sidecar. `withStateRefresh` re-hydrates on `ok` alone, so the initiating leaf keeps the
+	 * pre-command calibration and so does every peer — indefinitely, since nothing else is
+	 * coming: the write was this plugin's own, so `EchoWindow` suppresses the vault event it
+	 * raised. The badge says something went wrong and every surface goes on drawing a
+	 * calibration the vault no longer holds.
+	 *
+	 * Asserted TOGETHER with the refusal, because "a change was published" is equally true of
+	 * a build that stopped refusing, and "it refuses" is equally true of the defect.
+	 */
+	it('announces the calibration it could not put back, so no leaf keeps drawing it', async () => {
+		const { setBackground, assetId, seedCalibration, noteWriteFails, sidecarWriteFails, designChanges } =
+			await seeded();
+		await seedCalibration();
+		noteWriteFails();
+		sidecarWriteFails(2);
+
+		const result = await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null });
+
+		expect(isErr(result) && leftWritesBehind(result.error)).toBe(true);
+		expect(designChanges).toHaveLength(1);
+	});
+
+	/**
+	 * The contrast, and it is what stops the case above from being satisfied by an
+	 * unconditional publish: a compensation that SUCCEEDED leaves the vault at its pre-state,
+	 * so there is nothing for a leaf to re-read and an announcement would be a false one.
+	 */
+	it('announces nothing when the calibration was put back', async () => {
+		const { setBackground, assetId, seedCalibration, noteWriteFails, designChanges } = await seeded();
+		await seedCalibration();
+		noteWriteFails();
+
+		expect(isErr(await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null }))).toBe(
+			true,
+		);
+
+		expect(designChanges).toHaveLength(0);
 	});
 
 	/** `dot <= 0` refuses BOTH a plain extensionless name and a dotfile — the `<=` is load-bearing. */

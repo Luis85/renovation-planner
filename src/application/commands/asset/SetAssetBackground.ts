@@ -156,6 +156,15 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 			// read-back, for `VersionedDispatch`'s reason.
 			const restored = await sidecar.write(input.assetId, document, clearedWrite.value);
 			if (isErr(restored)) {
+				// The clear LANDED and could not be put back, so the sidecar on disk really has
+				// lost its calibration. `withStateRefresh` re-hydrates on `ok` alone and this
+				// plugin's own write is suppressed by `EchoWindow`, so without this publication
+				// no leaf — the initiating one included — ever hears: every surface goes on
+				// drawing a calibration the vault no longer holds, indefinitely, behind a badge
+				// that says only that something failed. A SUCCESSFUL restore deliberately
+				// announces nothing, for the reason `markCompensated` states below: the vault is
+				// back at its pre-state and there is nothing to re-read.
+				await events.publish(assetDesignChanged({ assetId: input.assetId }));
 				return err(markUncompensated(saved.error));
 			}
 			// The restore SUCCEEDED, and it is a write this gesture's history has to record:

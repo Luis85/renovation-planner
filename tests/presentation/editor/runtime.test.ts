@@ -183,9 +183,9 @@ describe('a refused redo', () => {
 });
 
 describe('Select is the default tool (Task 10)', () => {
-	it('activates Select the first time the plan becomes ready, and never on a later refresh', async () => {
+	it('activates Select once the plan becomes ready, and a refresh that keeps status ready does not re-arm it', async () => {
 		// `rig()` awaits hydration to `'ready'` before handing the harness back, so the
-		// FIRST-ready transition has already happened by this line — Select is what a fresh
+		// transition INTO `'ready'` has already happened by this line — Select is what a fresh
 		// Plan Editor leaf opens onto rather than camera mode.
 		const { harness } = await rig();
 
@@ -196,9 +196,10 @@ describe('Select is the default tool (Task 10)', () => {
 		expect(toolbarButton(harness, 'Draw zone').getAttribute('aria-pressed')).toBe('true');
 
 		// `PlanEditorRoot` subscribes a plain re-hydration to `onPlanChanged`, and
-		// `ProjectStore.hydrate` only drops `status` to `'loading'` when it was not already
-		// `'ready'` — so this refresh keeps `status === 'ready'` throughout, the watch never
-		// sees a `previous !== 'ready'` transition, and the tool the user chose must survive it.
+		// `ProjectStore.hydrate` only sets `status = 'loading'` when it was not already
+		// `'ready'` — so this refresh never actually CHANGES `status`, Vue's `watch` never
+		// invokes its callback for a same-value write, and the tool the user chose survives it
+		// without the watch needing to ask what the status used to be.
 		harness.changePlan();
 		await settle();
 		expect(toolbarButton(harness, 'Draw zone').getAttribute('aria-pressed')).toBe('true');

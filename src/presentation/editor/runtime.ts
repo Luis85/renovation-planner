@@ -460,15 +460,21 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 
 	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect });
 
-	// Select is the safe default (design spec M01): armed the FIRST time the plan is ready and
-	// left alone on every later refresh, which keeps `status === 'ready'` throughout (a
-	// re-hydration never drops it back to `'loading'`) and must not yank a tool the user
-	// chose. Watched on the status rather than on `hydrate`'s own promise, because the root
-	// owns the call to `hydrate` and a second caller (`onPlanChanged`) already exists.
+	// Select is the safe default (design spec M01), armed whenever `projectStore.status`
+	// BECOMES `'ready'` — and a `previous !== 'ready'` guard would be dead code here, not a
+	// narrowing: Vue's `watch` calls its callback only on a genuine change (`hasChanged`), and
+	// `ProjectStore.hydrate` sets `status.value = 'loading'` before every read except one
+	// already `'ready'` — so the ONLY way this callback runs with `status === 'ready'` is a
+	// transition INTO it from something else, which is exactly the fresh-scene case Select
+	// belongs to. A post-command or `onPlanChanged` refresh that finds the plan still `'ready'`
+	// never reassigns the ref to the same value, so the watcher never wakes for it and never
+	// re-arms Select over a tool the user chose — no comparison against `previous` required.
+	// Watched on the status rather than on `hydrate`'s own promise, because the root owns the
+	// call to `hydrate` and a second caller (`onPlanChanged`) already exists.
 	watch(
 		() => projectStore.status,
-		(status, previous) => {
-			if (status === 'ready' && previous !== 'ready') setTool('select');
+		(status) => {
+			if (status === 'ready') setTool('select');
 		},
 	);
 

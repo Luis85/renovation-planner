@@ -3702,8 +3702,21 @@ what forced it rather than a change of mind: `RequirementInvalidated`'s payload 
 all. The requirement id is also the NARROWER filter — the Inspector renders the requirements of
 one selected zone, so a recalculation of a requirement outside that set moves nothing it draws —
 and it needs neither the plan's `projectId` nor the resolution timing that made delivering one
-awkward. The runtime tests membership against the rows the Inspector currently holds; with
-nothing selected there are no rows and the refresh is correctly a no-op.
+awkward.
+
+**The filter applies only to rows the Inspector has SETTLED, and an earlier draft would have
+dropped events during hydration.** `inspector.requirements` is empty while the first read for a
+selection is in flight — and that read has already fetched an old requirement by the time the
+asset and project reads finish, so a recalculation landing in that window names a requirement the
+rows do not yet contain, is filtered out, and the hydration then settles with the old provenance
+and nothing scheduled to correct it. A stale row for the life of the selection, from a race whose
+window is exactly the read that renders it.
+
+So: filter when a hydrate has settled, admit everything while one is in flight. The cost of
+admitting is bounded at ONE extra trailing read, because the single-flight loader collapses the
+window's events into one — which is what makes "when in doubt, refresh" affordable here rather
+than the usual bad answer. With NOTHING selected there are no rows and no read in flight, so the
+refresh is still correctly a no-op.
 
 **A project-wide cascade fires one of those per requirement, and the request ticket does NOT
 collapse that burst** — an earlier draft of this plan said it did, and reading
@@ -3759,6 +3772,15 @@ it('rehydrates the inspector rows when the catalogue price changes', async () =>
 	// the catalogue figure it mounted with, beside a project price that did move.
 });
 
+/**
+ * The hydration window. Select a zone, and while its first read is still in flight publish
+ * `RequirementRecalculated` for a requirement that read will return. The row must settle on the
+ * RECALCULATED provenance. Watch it fail against a filter that tests the committed rows
+ * unconditionally: `inspector.requirements` is empty at that moment, the event is dropped, and
+ * the stale row stands for the life of the selection.
+ */
+it('does not drop a figure event that arrives during the first hydration', async () => { … });
+
 it('answers a burst of recalculations with one trailing read, not one read each', async () => {
 	// Count the query calls. Publish RequirementInvalidated/RequirementRecalculated ten times
 	// inside one in-flight read, and assert the loader issued TWO — the one already running
@@ -3809,9 +3831,19 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Modify: `src/plugin/composition-root.ts` — bind both sources, as it already binds
   `onCatalogueChanged` for the editor.
 - Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
-- Modify: `src/presentation/i18n/toUserMessage.ts` — one row in `CODE_SUFFIX_KEYS` for
-  `schema-version-malformed`, beside the `-unsupported` one it has. See the error-copy table in
-  step 1 for why that code is a suffix rather than a per-kind entry.
+- Modify: `src/presentation/i18n/toUserMessage.ts` — **two** rows in `CODE_SUFFIX_KEYS`, for
+  `schema-version-malformed` and `project-folder-unresolved`, beside the `-unsupported` one it
+  has. See the error-copy table in step 1 for why both are suffixes rather than per-kind
+  entries: each is raised from ONE shared site parameterised by kind, so a direct entry answers
+  it for one kind and leaves the siblings on the generic sentence.
+
+  **`grep -rno '\${spec\.kind}\.[a-z-]*\|\${kind}\.[a-z-]*' src/infrastructure/` is the
+  instrument** that finds this class, and it is written here because two review rounds found one
+  member of it each. Run it once rather than meeting the third by report — and it was run:
+  **four** shared raise sites exist, `migration-failed`, `schema-version-unsupported`,
+  `schema-version-malformed` and `project-folder-unresolved`. The first two already have suffix
+  entries; these two rows are the other half. **With them the class is closed**, which is a
+  claim the grep can be re-run against rather than a hope.
 - Modify: `styles/` (a partial, registered in `styles/index.css`)
 - Test: `tests/presentation/views/assetPriceList.test.ts`
 - Test: extend `tests/harness/accessibility.test.ts`
@@ -3914,6 +3946,7 @@ codes are already served and listing them as gaps is wrong. What each code needs
 | `asset-price.project-not-found` / `asset-price.asset-not-found` | **new** | The project, or the asset, is no longer there. |
 | `asset-price.write-failed` / `asset-price.delete-failed` | **new** | The price could not be saved, or removed. |
 | `asset-price.entity-invalid` / `asset-price.frontmatter-invalid` | **new** | The note could not be read. |
+| `asset-price.project-folder-unresolved` | **a new SUFFIX entry, same shape as the row below** | `noteEntityWrite.ts:116` raises `` `${spec.kind}.project-folder-unresolved` `` when an insert cannot resolve the owning project's folder — reachable here when a project note is deleted out of band between this command's project read and its save. No locale entry exists for it under ANY kind (measured), so `zone.` and `plan.` already render the generic Persistence sentence too. One suffix row, three kinds. |
 | `asset-price.schema-version-malformed` | **a new SUFFIX entry, not a direct one** | `noteIo.ts` raises `` `${kind}.schema-version-malformed` `` before any mapper runs, so it reaches the section's read and has neither a direct key nor a `CODE_SUFFIX_KEYS` match — the whole price list would fail with the generic Validation sentence rather than saying a price note is unreadable. **Fix it as a suffix**, beside `schema-version-unsupported`: the code is generated from ONE shared raise site for every entity kind, so a per-kind entry would answer that site five more times and leave five kinds disagreeing. Measured: `grep -n "schema-version-malformed" locales/en.ts` finds nothing today, so `plan.` and `zone.` already render the generic sentence — **pre-existing, and this is a one-row fix that closes it for all of them** rather than a widening this increment invented. |
 | `asset-price.negative-unit-cost` | **new** | A price cannot be negative. Unreachable while the field validator below holds, and localized anyway — see the note under the table. |
 

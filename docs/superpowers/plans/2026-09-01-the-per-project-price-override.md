@@ -4658,6 +4658,48 @@ re-adds as an oversight.
   repository records more often than any other, in a checklist whose whole job is to stop a
   known fact being dropped.
 
+- [ ] **Gate, then commit — the TENTH commit, and this section had none.** Four checkboxes sat
+  here after Task 9's `git commit` block with no staging command and no commit step, so an agent
+  following the plan literally would finish the increment with every one of these edits sitting
+  unstaged in the working tree. *"A withdrawal recorded only in a spec is one the next author
+  re-adds as an oversight"* is this section's own first sentence; a withdrawal recorded only in
+  an uncommitted file is worse, because it is invisible even to the author who wrote it.
+
+  **A tenth commit rather than folding these into Task 9's, which was the other remedy offered
+  and is the wrong one here.** Two reasons. These documents are about the WHOLE increment, not
+  about the view Task 9 builds, and mixing an increment-wide documentation change into a feature
+  commit breaks this plan's one-commit-per-task shape for no gain. And two of the four can only
+  be TRUE after Task 9 has landed — the Issue's own instruction is *"Until that pair is green,
+  the answer above is a decision without an end-to-end witness"*, and `Asset library.md`'s item
+  is met by the affordance existing. Closing them in the commit that creates the thing they
+  attest to would be closing them one commit early.
+
+  Run `npm run check` first. **Be honest about what that proves here**: none of these four files
+  is compiled, linted or read by any gate — `docs/` is the vault (user land) and `CLAUDE.md` is
+  prose — so the gate says nothing about the edits themselves. What it does say is that the tree
+  is still green, which catches a Task 9 left half-finished under a section that reads like
+  paperwork.
+
+```bash
+npm run check
+
+git add docs/tasks docs/issues docs/requirements CLAUDE.md
+git commit -m "docs: record what the price-override increment withdrew and left standing
+
+Amendment 3 on task 20: the affordance deferral withdrawn, the port's fifth
+method, the coherence rule and why it belongs to the command rather than the
+entity, and the note's id-derived filename.
+
+Closes the currency issue now that both halves of its witness exist, ticks
+the Asset library definition-of-done item, and carries all four residuals
+into CLAUDE.md — including the out-of-band price change, which is
+PRE-EXISTING and symmetrical with onAssetUpdated, so a later reader does not
+meet it as this increment's defect.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
+```
+
 ---
 
 ## Self-review

@@ -3428,10 +3428,33 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Interfaces:**
 - Produces:
-  - `interface AssetPriceRowDto { assetId: string; assetName: string | null; catalogue: Money | null; override: Money | null; overrideId: string | null; overrideVersion: EntityVersion | null; }`
-    — the first two are nullable for the ORPHAN row (an override whose asset was deleted out of
-    band), on `RequirementInspectorDTO.assetName`'s precedent. `assetName === null` is the whole
-    discriminator; step 2 carries the reasoning and the alternative that was refused.
+  - `interface AssetPriceRowDto { assetId: string; assetName: string | null; catalogue: Money | null; override: Money | null; overrideId: AssetPriceOverrideId | null; overrideVersion: EntityVersion | null; }`
+    — `assetName` and `catalogue` are nullable for the ORPHAN row (an override whose asset was
+    deleted out of band), on `RequirementInspectorDTO.assetName`'s precedent. `assetName === null`
+    is the whole discriminator; step 2 carries the reasoning and the alternative that was refused.
+
+    **`overrideId` is BRANDED, and typing it `string | null` was a contradiction rather than a
+    looseness.** The component builds `AssetPriceEdit.expected`, which is a
+    `PriceRowExpectation` — `'absent' | { id: AssetPriceOverrideId; version: EntityVersion }` —
+    so a `string` id forces a cast at the one seam this plan spends a whole step making
+    type-safe. The claim beside `AssetPriceEdit` that "branding happens where the state mints the
+    command input" is true of `assetId` and was false of this field: the state never sees the
+    expectation unbranded, because the component has already built it.
+
+    **Moving the expectation to the state was the alternative and it unravels Step 3.** The
+    expectation is SNAPSHOT state, frozen for exactly as long as the row's field is dirty — that
+    is per-row draft state the component owns, and a state-side construction would read the
+    refreshed props instead, which is the lost update the snapshot exists to prevent.
+
+    **The precedent is exact, and it is a rule rather than a preference:** `RequirementInspectorDTO`
+    carries `requirementId: RequirementId` branded and `assetId: string` plain
+    (`GetRequirementsForZone.ts:31-32`). The id the row ACTS ON is branded; the ids it merely
+    displays or passes through stay strings. This row acts on the override, so `overrideId` is
+    branded and `assetId` is not.
+
+    The query already PRODUCED branded values — both assignments are `override.entity.id` — so
+    only the declared type was wrong, which is the quiet kind: the annotation was narrower than
+    the code and nothing in the plan could disagree with it until a consumer needed the brand.
   - `class ListProjectAssetPrices` with `execute(projectId): Promise<Result<AssetPriceRowDto[], RepositoryError>>`,
     constructed with `(assets, overrides, logger)` — the logger for the duplicate diagnostic,
     which this query is the only surface for on a project that has no requirements
@@ -4290,9 +4313,16 @@ import type { PriceRowExpectation } from '../../application/commands/asset-price
  * **`projectId` is deliberately ABSENT.** The component has none and must not: it renders the
  * rows of whichever project the detail state is already on, so a project id in the edit would
  * be a second answer to a question `ProjectDetailState` already owns — and the two could
- * disagree across a navigation. `assetId` is a plain `string` because that is what
- * `AssetPriceRowDto` carries; branding happens where the state mints the command input, the
- * same seam every other id crosses on this surface.
+ * disagree across a navigation.
+ *
+ * **`assetId` is a plain `string` and `expected` carries a BRANDED id, which is not an
+ * inconsistency.** `assetId` is passed through, so the state brands it when it mints the command
+ * input, the same seam every other id crosses on this surface. `expected` is not passed through:
+ * it is a `PriceRowExpectation` the component CONSTRUCTS from its frozen snapshot, so it must be
+ * branded here or the type is a lie with a cast in it. `AssetPriceRowDto.overrideId` is therefore
+ * `AssetPriceOverrideId | null` — `RequirementInspectorDTO`'s own split, where the id the row acts
+ * on is branded and the ids it displays are not. An earlier draft of this docblock said branding
+ * happens in the state FULL STOP, which was true of one field and false of the other.
  */
 export type AssetPriceEdit =
 	| {

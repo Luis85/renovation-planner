@@ -504,12 +504,10 @@ import {
 	createAssetPriceOverrideId,
 	type AssetPriceOverrideId,
 } from '../../src/domain/asset-price/AssetPriceOverrideId';
-import { currencyOf, of as moneyOf } from '../../src/core/money/Money';
+import { of as moneyOf } from '../../src/core/money/Money';
 import { expectOk } from '../helpers/result';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { AssetId } from '../../src/domain/asset/AssetId';
-
-const GBP = currencyOf('GBP');
 
 export function makeOverride(projectId: ProjectId, assetId: AssetId, amount = '19.50'): AssetPriceOverride {
 	return expectOk(
@@ -896,10 +894,8 @@ import { AssetPriceOverride } from '../../../src/domain/asset-price/AssetPriceOv
 import { createAssetPriceOverrideId } from '../../../src/domain/asset-price/AssetPriceOverrideId';
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
-import { currencyOf, of as moneyOf } from '../../../src/core/money/Money';
+import { of as moneyOf } from '../../../src/core/money/Money';
 import { expectOk } from '../../helpers/result';
-
-const GBP = currencyOf('GBP');
 
 function override(amount = '19.50') {
 	return expectOk(
@@ -2387,10 +2383,26 @@ Task 6's staging line covers both, which is why it stages `src/application` rath
 **Files:**
 - Modify: `src/application/event-handlers/requirement/onAssetUpdated.ts`
 - Modify: `src/application/queries/GetRequirementsForZone.ts`
-- Modify: `src/plugin/slice10Composition.ts` — **both** construction sites break the moment these
-  deps are required: `registerOnAssetUpdated(events, {…})` at `:127` gains `overrides`, and
-  `new GetRequirementsForZone(requirements, zones, assets, projects)` at `:155` takes a fifth
-  argument. The repository itself already exists, constructed in Task 5.
+- Modify: `src/plugin/slice10Composition.ts` — **both** production construction sites break the
+  moment these deps are required: `registerOnAssetUpdated(events, {…})` at `:127` gains
+  `overrides`, and `new GetRequirementsForZone(requirements, zones, assets, projects)` at `:155`
+  takes a fifth argument. The repository itself already exists, constructed in Task 5.
+- **Modify: every TEST caller of the same two, because `tests/**` is type-checked and there are
+  far more of them than production sites.** Measured rather than remembered —
+  `grep -rn "registerOnAssetUpdated\|new GetRequirementsForZone(" src/ tests/`:
+  - `registerOnAssetUpdated` — **nine** calls across three files:
+    `tests/helpers/planEditorRig.ts`, `tests/application/event-handlers/cascade.test.ts` (three)
+    and `tests/application/slice10Branches.test.ts` (four). Each passes a deps OBJECT LITERAL, so
+    a required `overrides` is a type error at every one.
+  - `new GetRequirementsForZone(` — **fifteen** four-argument constructions in `tests/`:
+    `queryRefusals.test.ts` (seven), `domainValidation.test.ts` and
+    `requirementStaleness.test.ts` (two each), and one each in `assetCommands.test.ts`,
+    `guardAgainstThrowing.test.ts`, `cascade.test.ts` and `planEditorRig.ts`.
+
+  Give `planEditorRig.ts` a real `InMemoryAssetPriceOverrideRepository` rather than a stub — it
+  is the e2e rig, and a fake thinner than the thing it stands for is what this repository
+  records paying for repeatedly. The rest may take an empty in-memory repository; only the cases
+  this task WRITES need an override in one.
 - Test: `tests/application/events/assetCascadeWithOverrides.test.ts`
 - Test: extend `tests/application/queries/…` (the existing `GetRequirementsForZone` suite)
 

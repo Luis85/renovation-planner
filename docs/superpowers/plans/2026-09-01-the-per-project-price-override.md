@@ -920,12 +920,30 @@ each of those checks exists to make a new kind impossible to add silently, and t
 predict this task by name. `grep -rn "MIGRATION_SET" tests/` is the instrument, and it is a
 different one from the `src/` grep above — a `src/`-only sweep finds none of them.
 
-Run that grep and it reports five files; the two beyond the three above were checked and
-neither fails. `tests/helpers/repositoryStack.ts` passes the table to `createMigrationRunner`
-and enumerates nothing. `tests/infrastructure/persistence/migration/legacyFixture.test.ts`
-names it only in a comment — *"empty for all six kinds"* — which becomes wrong at seven while
-failing nothing, so correct that number in the same commit. A count in a comment is this
-repository's most-repeated stale claim, and this one is now one edit away from being wrong.
+Run that grep and it reports **six** files, not five — this paragraph said five, in the same
+breath as calling a stale count *"this repository's most-repeated stale claim"*, which is as
+neat an illustration as the rule will ever get. The three beyond the ones above were each
+checked:
+
+- `tests/helpers/repositoryStack.ts` passes the table to `createMigrationRunner` and enumerates
+  nothing. Nothing to do.
+- `tests/infrastructure/persistence/migration/legacyFixture.test.ts:15` names it only in a
+  comment — *"The production `MIGRATION_SET` is empty for all six kinds"* — which becomes wrong
+  at seven while failing nothing.
+- **`tests/vault/legacy-schema/README.md:7`** says the same thing in different words —
+  *"`MIGRATION_SET` is empty, so `latest` derives to 1 for all six kinds"* — and is the file the
+  five-count missed. It is markdown inside a FIXTURE VAULT, so no gate compiles it, no gate
+  lints it, and `tests/vault` is not in this task's `git add` line; correcting the number
+  without adding that path is a correction that never lands.
+
+Fix both numbers in this commit and stage `tests/vault` with them.
+
+**A third file mentions six and must NOT be touched**, which is the reason to read the hits
+rather than sed them: `tests/infrastructure/persistence/index/index.test.ts:61` says *"it listed
+four of the six kinds that existed"* about a case that USED to enumerate them, and the sentence
+is the history of a defect rather than a claim about today — it ends *"driven through a fixture
+table so a seventh kind needs no edit to this file"*. A blanket six-to-seven sweep would falsify
+a true sentence about the past.
 
 - [ ] **Step 1: Write the failing mapper tests**
 
@@ -1463,7 +1481,8 @@ forgotten to use `assetPricesFolderFor` in the write spec.
 # `tests/plugin` is here for the schema-version snapshot, which is the third suite the
 # new MIGRATION_SET kind reddens — the other two are under tests/infrastructure.
 git add src/infrastructure src/application/ports/ProjectIndex.ts \
-        src/application/ports/diagnostics.ts tests/infrastructure tests/plugin
+        src/application/ports/diagnostics.ts tests/infrastructure tests/plugin \
+        tests/vault/legacy-schema/README.md
 git commit -m "feat(persistence): an override is a note in the project's own folder
 
 A sixth entity type, a seventh diagnostic kind and an empty migration
@@ -1510,7 +1529,10 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Consumes: Tasks 1–3; `ProjectRepository`, `AssetRepository`, `EventBus`, `Command`.
 - Produces:
   - `class SetAssetPriceOverrideCommand implements Command<SetAssetPriceOverrideInput, Result<SetAssetPriceOverrideResult, SetAssetPriceOverrideErrors>>`
-    with `SetAssetPriceOverrideInput = { projectId: ProjectId; assetId: AssetId; unitCost: Money }`
+    with `SetAssetPriceOverrideInput = { projectId: ProjectId; assetId: AssetId; unitCost: Money; expected: PriceRowExpectation }`
+    — **`expected` was missing from this summary while the interface below carries it**, which is
+    two copies of one type disagreeing, the defect class this plan keeps producing. Found while
+    verifying round 46 rather than reported.
     and `SetAssetPriceOverrideResult = { override: AssetPriceOverride; created: boolean; version: EntityVersion }`.
   - `class ClearAssetPriceOverrideCommand` with
     `ClearAssetPriceOverrideInput = { projectId: ProjectId; assetId: AssetId; expected: PriceRowExpectation }`
@@ -4009,6 +4031,9 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Files:**
 - Create: `src/presentation/views/AssetPriceList.vue`
+- **Create: `src/presentation/views/assetPriceEdit.ts`** — the `AssetPriceEdit` union the
+  component's `commit` prop takes. Its own module rather than the SFC, because `<script setup>`
+  cannot export a binding, and the state on the other side of the seam has to name the type.
 - Create: `src/application/events/projectPricesChangeSource.ts` (step 4a)
 - Modify: `src/presentation/views/ProjectDetail.vue`, `src/presentation/views/ProjectDetailState.vue`
 - Modify: `src/presentation/read-models/PlanDto.ts` — `ProjectSummaryDto.currency`'s docblock,
@@ -4080,9 +4105,50 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Interfaces:**
 - Consumes: Task 8's `AssetPriceRowDto` and `ListProjectAssetPrices`, Task 4's two commands.
-- Produces: `AssetPriceList.vue` with
+- Produces: `src/presentation/views/assetPriceEdit.ts`, then `AssetPriceList.vue` with
   `defineProps<{ rows: readonly AssetPriceRowDto[]; currency: string; commit: (edit: AssetPriceEdit) => Promise<AssetPriceCommitResult>; logger: Logger }>()`,
   and `interface AssetPriceCommitResult { readonly dispatch: DispatchResult; readonly settled: PriceRowExpectation | null }`.
+
+**`AssetPriceEdit` is the component-to-state boundary and has to be WRITTEN, not assumed.** An
+earlier draft used it in that `defineProps` and defined it nowhere — its only occurrence in the
+plan, and nothing of that name exists in `src/`. It is a discriminated union over the two
+commands, in its own module beside the component:
+
+```ts
+import type { Money } from '../../core/money/Money';
+import type { PriceRowExpectation } from '../../application/commands/asset-price/priceRowExpectation';
+
+/**
+ * One row's submitted gesture. A UNION rather than an optional `unitCost`, so "clear" cannot be
+ * spelled as a set with the price left off — the two dispatch different commands and a shape
+ * that admits both in one branch is a shape the state has to re-derive the intent from.
+ *
+ * **`expected` travels with the edit**, frozen at the moment the field went dirty (Step 3),
+ * because the state builds the command at dispatch time and by then the props may be a
+ * different pair at a different version. That is the whole point of the change source in step
+ * 4a, and it is why this is not `{ assetId, unitCost }` with the state looking the expectation
+ * up.
+ *
+ * **`projectId` is deliberately ABSENT.** The component has none and must not: it renders the
+ * rows of whichever project the detail state is already on, so a project id in the edit would
+ * be a second answer to a question `ProjectDetailState` already owns — and the two could
+ * disagree across a navigation. `assetId` is a plain `string` because that is what
+ * `AssetPriceRowDto` carries; branding happens where the state mints the command input, the
+ * same seam every other id crosses on this surface.
+ */
+export type AssetPriceEdit =
+	| {
+			readonly kind: 'set';
+			readonly assetId: string;
+			readonly expected: PriceRowExpectation;
+			readonly unitCost: Money;
+	  }
+	| {
+			readonly kind: 'clear';
+			readonly assetId: string;
+			readonly expected: PriceRowExpectation;
+	  };
+```
 
 **`commit` returns more than a `DispatchResult`, and it has to.** `DispatchResult` is
 `Result<DispatchOutcome, AppError>` and `DispatchOutcome` is `'wrote' | 'no-write'` — it carries

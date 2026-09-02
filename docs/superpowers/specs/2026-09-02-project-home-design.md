@@ -382,42 +382,82 @@ leaf is invisible to the Overview until a remount.
 `ProjectIndexEntryChanged` filtered to the plan, zone and requirement entity types, which is
 `projectPlansChangeSource`'s own arm widened by two types rather than a new mechanism.
 
-### Two write paths publish nothing, and a subscription cannot fix that
+### The undo/redo path publishes nothing at all, and that is a category
 
-**Both found by review, both verified in the code, and neither is closable by adding an event
-name to a list** — which is why they are tasks in this increment rather than lines in the source.
+**Three review rounds each reported one more silent write path.** After the second I wrote that
+"the other half is auditing which write paths raise none" and then audited the two that had been
+reported. That is the partial fix this repository already has a name for, so the third round is
+answered with the sweep instead — every reversible adapter, counted rather than sampled:
 
-**Assign Asset's undo and redo are silent.** `reversible-assign-asset-command.ts` contains
-**zero** `publish` calls — grepped, not assumed — while `undo()` deletes through
-`requirements.delete` and `redoCreate()` restores through `requirements.save`. So undoing an
-asset assignment in the Inspector changes the requirement count and the total and announces
-nothing. `ProjectIndexEntryChanged` cannot compensate: a plugin-owned write updates the index
-synchronously and `EchoWindow` suppresses the vault event it raised, which is the mechanism
-`VaultChangeAdapter`'s echo check exists for.
+```
+$ for f in $(grep -rln "UndoableCommand\|Reversible" --include=*.ts src/application); do
+    printf "%s publishes=%s writes=%s\n" "$f" $(grep -c "publish(" $f) \
+      $(grep -cE "\.(save|delete|restoreZone|markStale)\(" $f)
+  done
+```
 
-`redoCreate` publishes `RequirementCreated`, which already exists. **The undo half has no event
-to publish** — the vocabulary is `RequirementCreated`, `RequirementRecalculated` and
-`RequirementInvalidated`, and none of them means "this requirement is gone". So this increment
-either mints `RequirementDeleted` or gives `undo()` `RequirementInvalidated`, and the two are
-not interchangeable: `RequirementInvalidated` carries a bare id and says a figure stopped being
-trustworthy, which is a different claim from the row no longer existing. **Minting the event is
-the honest option** and it is a domain change, so it is named here rather than decided in a
-review round.
+| adapter | publishes | writes |
+|---|---|---|
+| `zone/reversible-create-zone-command.ts` | **0** | 1 |
+| `zone/reversible-delete-zone-command.ts` | **0** | 2 |
+| `requirement/reversible-assign-asset-command.ts` | **0** | 2 |
+| `requirement/reversible-override-commands.ts` | **0** | 1 |
+| `plan/ReversibleSetPlanBackground.ts` | **0** | 1 |
+| `plan/ReversibleCalibratePlan.ts` | 2 | 0 |
+| `zone/MoveSpatialObject.ts` | 1 | 1 |
+| `editor/asset/ReversibleAssetDesignCommands.ts` | 4 | 2 |
+| `asset/SetAssetBackground.ts`, `asset/CalibrateAsset.ts`, `asset/updateAssetShape.ts` | 1–2 | 0–1 |
 
-**Asset deletion's resolutions are silent too.** `DeleteAsset` publishes exactly one event —
-`assetDeleted({ assetId })`, at one call site — after a resolution that has already deleted
-requirements (`remove-references`) or marked them stale (`delete-anyway`). The first moves the
-total and the requirement count, the second moves the stale count, and neither is announced.
+**Five adapters write and announce nothing**, and the fifth — `ReversibleSetPlanBackground` — was
+reported by nobody. The sweep found it, which is the whole argument for doing the sweep: three
+rounds of one-at-a-time would have taken three more rounds to reach it, and it would have shipped.
 
-Subscribing to `AssetDeleted` unfiltered is the cheap fix and it is the wrong one twice over: it
-carries no project id, so every project's summary re-reads on any asset deletion, and it reports
-a change to the ASSET when what moved is this project's requirements. The resolution paths
-publish requirement-level events, which is also what makes them visible to any future subscriber
-rather than to this one surface.
+**It is one defect, not five.** The forward commands publish; the reversible adapters restore
+snapshots through the repository PORTS directly, and `CLAUDE.md` records exactly why those ports
+are raw — "the boundary stops at the repository PORTS … because the reversible adapters restore
+snapshots through them". Publishing was never part of that path. So every undo and every redo in
+the plugin is invisible to every subscriber, and this surface is simply the first one that reads
+enough of the vault to notice.
 
-**The shape worth carrying:** a change source can only hear what something publishes, so
-"subscribe to the right events" is only half a design. The other half is auditing which write
-paths raise none — and two of the three that move this summary raise nothing at all.
+**Nothing downstream can compensate**, which is what makes it this increment's problem rather
+than a nice-to-have: a plugin-owned write updates the index synchronously and `EchoWindow`
+suppresses the vault event it raised, so `ProjectIndexEntryChanged` never fires either.
+
+The increment therefore makes the reversible adapters announce. Concretely:
+
+- `reversible-create-zone-command` and `reversible-delete-zone-command` publish `ZoneCreated` /
+  `ZoneDeleted` on the replayed side, and the delete adapter's `undoDeleteResolution` publishes
+  for the requirements it restores.
+- `reversible-assign-asset-command`'s `redoCreate` publishes `RequirementCreated`.
+- `reversible-override-commands`' `undo` publishes `CostEstimateChanged`, since a cost-override
+  undo changes the effective total and a quantity-override undo reprices the calculated cost.
+- `DeleteAsset`'s resolution paths publish requirement-level events rather than leaving
+  `assetDeleted({ assetId })` — which carries no project id — to stand for them.
+
+**One event has to be minted.** The vocabulary is `RequirementCreated`, `RequirementRecalculated`
+and `RequirementInvalidated`, and none means "this row is gone", so the assign adapter's `undo`
+has nothing to publish. `RequirementInvalidated` is the tempting substitute and it says something
+different — a figure stopped being trustworthy, not a row stopped existing. This increment mints
+`RequirementDeleted`.
+
+**`ReversibleSetPlanBackground` is out of this increment's scope and is recorded anyway.** A
+background is not a cost input, so it moves nothing this summary shows; what it moves is the Plan
+Editor's own picture in a second leaf on the same plan. Named here because the sweep found it and
+a finding recorded nowhere is one the next sweep re-discovers.
+
+### Two events the first draft's lists simply missed
+
+Both reported, both verified, both pure additions rather than design changes:
+
+- **`GeometrySidecarChanged`.** A zone's geometry lives in the plan's `.rpgeo`, and a sync or
+  hand edit to it publishes this event and deliberately NOT `ProjectIndexEntryChanged`, because
+  the index mapping did not move. `GetRequirementsForZone` reads that geometry to decide whether
+  a persisted figure is still current, so the stale count moves and nothing said so. It is
+  already consumed by `planChangeSource` and `assetDesignChangeSource`; this source was the one
+  that forgot it.
+- **`ProjectIndexRebuilt`.** Published at `RenovationPlannerPlugin.ts:680` with no per-entry
+  events at all, so a manual index rebuild left the summary on the pre-repair index. It joins the
+  unfiltered list, since a rebuild carries no payload and cannot say which entities changed.
 
 ### Why not fold this into `projectPlansChangeSource`
 
@@ -488,6 +528,11 @@ mistake, per this repository's rule.
 | Invalidation | a `CostEstimateChanged` refreshes the summary even though its payload names no project | omitting it makes a cost override in another leaf invisible until remount — the case `RequirementRecalculated` cannot cover |
 | Invalidation | `ZoneGeometryChanged` refreshes the summary | a moved vertex changes an area, and an area is an input to the total |
 | Invalidation | undo and redo of Assign Asset each refresh the summary | both write paths publish nothing today, so a subscription-only fix passes no case at all |
+| Invalidation | undo of a zone create and undo of a zone delete each refresh the summary | the replayed side restores through `restoreZone` and announces nothing |
+| Invalidation | undo of a cost override and of a quantity override each refresh the total | `ReversibleOverrideBase.undo` saves directly and publishes nothing |
+| Invalidation | a `.rpgeo` edit arriving out of band refreshes the stale count | it publishes `GeometrySidecarChanged` and deliberately not `ProjectIndexEntryChanged` |
+| Invalidation | a manual index rebuild refreshes an already-mounted Overview | `ProjectIndexRebuilt` carries no payload, so nothing per-entry fires |
+| Sweep | every adapter matching `UndoableCommand\|Reversible` that writes also publishes | five of eleven publish nothing today; a per-adapter test lets the sixth ship |
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
 | Summary | a requirement whose `projectId` names another project lands in `foreign`, out of the total | with both projects on one currency it is otherwise summed into the wrong project silently |
 | Invalidation | the Design section does NOT re-read its plan list on a requirement event | folding this into `projectPlansChangeSource` passes every Overview case and costs Design a read per requirement in the vault |
@@ -516,8 +561,10 @@ a `RequirementDeleted` domain event (Decision 7);
 `.rp-badge` and its variants, the section switch, the counts and the warning strip, per
 Decision 6; the manual test case.
 
-**Changed:** `reversible-assign-asset-command.ts` and `DeleteAsset.ts`, which publish nothing
-for writes this summary depends on (Decision 7); `GetRequirementsForZone.ts` (the optional memo,
+**Changed:** the five reversible adapters that write and publish nothing —
+`reversible-create-zone-command.ts`, `reversible-delete-zone-command.ts`,
+`reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — plus `DeleteAsset.ts`
+(Decision 7); `GetRequirementsForZone.ts` (the optional memo,
 and `projectId` on the DTO); `RenovationProjectView.ts` (parse, `sync`, `setState`);
 `RenovationProjectContext.ts` (`navigate` gains a section); `ProjectDetailState.vue` (becomes
 the shell); `ProjectDetail.vue` (splits); the read-model bundle; `composition-root.ts` / `guardedServices.ts`; `errorSurfacePolicy.ts` (one

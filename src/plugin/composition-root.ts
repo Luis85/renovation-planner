@@ -67,6 +67,7 @@ import type { PlanRepository } from '../application/ports/PlanRepository';
 import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
 import type { Loaded } from '../application/ports/versioning';
+import type { Currency } from '../core/money/Money';
 import type { Project } from '../domain/project/Project';
 import type { Plan } from '../domain/plan/Plan';
 import type { Zone } from '../domain/zone/Zone';
@@ -211,6 +212,7 @@ export interface PersistenceServices
 	 * compared. One instrument, so the two surfaces cannot disagree about one project.
 	 */
 	readonly overlaps: LibraryOverlaps;
+	readonly defaultCurrency: Currency;
 	/**
 	 * The read side the Plan Editor actually consumes: slice 4's queries mapped into
 	 * presentation read models. Composed here rather than in the view, so the view is handed
@@ -408,6 +410,7 @@ export function createCompositionRoot(
 			locks,
 			files,
 			overlaps: repositories.overlaps,
+			defaultCurrency: repositories.defaultCurrency,
 			...guarded,
 			planEditorQueries: createPlanEditorQueries({
 				...guarded.queries,
@@ -634,6 +637,7 @@ export function renovationProjectDeps(
 					createAsset: persistence.createAsset,
 					setAssetFootprintFromDimensions: persistence.assetDesign.setFootprintFromDimensions,
 					logger: root.logger,
+					defaultCurrency: persistence.defaultCurrency,
 				}
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence

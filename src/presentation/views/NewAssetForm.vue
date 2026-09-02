@@ -82,6 +82,7 @@ const props = defineProps<{
 	 * exists at all.
 	 */
 	logger: Logger;
+	defaultCurrency: string;
 }>();
 
 const emit = defineEmits<{ submit: [assetId: AssetId] }>();
@@ -177,7 +178,7 @@ const INITIAL: NewAssetValues = {
 	category: 'material',
 	unit: 'piece',
 	unitCostAmount: '0',
-	currency: 'EUR',
+	currency: '',
 	width: '',
 	depth: '',
 };
@@ -286,7 +287,7 @@ async function createAssetAndFootprint(
 }
 
 const form = useFormCommit<NewAssetValues, { readonly assetId: AssetId }>({
-	initial: INITIAL,
+	initial: { ...INITIAL, currency: props.defaultCurrency },
 	dispatch: createAssetAndFootprint,
 	errorMap: NEW_ASSET_ERRORS,
 	toUserMessage: trError,

@@ -20,6 +20,7 @@ import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
 import { ok } from '../../../src/core/result/Result';
 import { makeAsset } from '../../helpers/entities';
 import { recorder } from '../../helpers/logger';
+import { DEFAULT_SETTINGS } from '../../../src/plugin/settings/settings';
 import type { CreateAssetInput } from '../../../src/application/commands/asset/CreateAsset';
 import type { SetAssetFootprintFromDimensionsInput } from '../../../src/application/commands/asset/SetAssetFootprint';
 
@@ -60,6 +61,7 @@ function deps() {
 				createAsset: { execute: createAsset },
 				setAssetFootprintFromDimensions: { execute: setAssetFootprintFromDimensions },
 				logger: recorder,
+				defaultCurrency: DEFAULT_SETTINGS.defaultCurrency,
 			},
 			openProject: vi.fn<() => Promise<'opened'>>(() => Promise.resolve('opened')),
 			navigate: vi.fn<() => void>(),
@@ -129,6 +131,30 @@ describe('ViewRoot, creating an asset in a vault with no projects', () => {
 
 		expect(createAsset).toHaveBeenCalledTimes(1);
 		expect(createAsset.mock.calls[0][0].name).toBe('Tiles');
+	});
+
+	it('prefills the asset currency from the bundle default', async () => {
+		setActivePinia(createPinia());
+		const { context } = deps();
+		context.queries.listProjects = vi.fn<() => Promise<unknown>>(() =>
+			Promise.resolve(ok({ projects: [], unreadable: 0 })),
+		);
+
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+		});
+		await flushPromises();
+		expect(wrapper.find('.rp-empty-state').exists()).toBe(true);
+		expect(wrapper.find('.rp-project-list').exists()).toBe(false);
+
+		await wrapper.get('.rp-view-aside__create-asset').trigger('click');
+		await flushPromises();
+		const form = wrapper.findComponent(NewAssetForm);
+		expect(form.exists()).toBe(true);
+
+		expect((wrapper.get('[data-field="currency"]').element as HTMLInputElement).value).toBe(
+			DEFAULT_SETTINGS.defaultCurrency,
+		);
 	});
 });
 

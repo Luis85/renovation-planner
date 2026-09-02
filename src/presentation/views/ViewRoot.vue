@@ -183,6 +183,7 @@ async function onCreateAsset(): Promise<void> {
 			// commands means they cannot — but the guard is the ROOT's property, not this call
 			// site's, and `useFormCommit` requires the door rather than assuming the caller.
 			logger: context.commands.logger,
+			defaultCurrency: context.commands.defaultCurrency,
 		},
 		busy: newAssetBusy,
 	});

@@ -94,4 +94,8 @@ describe('unavailableRenovationProjectCommands', () => {
 			logger.error('e', { cause: new Error('ignored') });
 		}).not.toThrow();
 	});
+
+	it('carries a valid default currency even while every write refuses', () => {
+		expect(unavailableRenovationProjectCommands().defaultCurrency).toBe('EUR');
+	});
 });

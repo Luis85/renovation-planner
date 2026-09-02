@@ -342,6 +342,7 @@ describe('a form dialog whose fields freeze while it is open', () => {
 						} as AppError),
 					),
 				logger,
+				defaultCurrency: 'EUR',
 			},
 		});
 		await nextTick();

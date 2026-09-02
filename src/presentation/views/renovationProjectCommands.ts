@@ -1,4 +1,5 @@
 import { err, type Result } from '../../core/result/Result';
+import { currencyOf, type Currency } from '../../core/money/Money';
 import type { AppError, PersistenceError } from '../../core/errors/AppError';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
 import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
@@ -80,6 +81,13 @@ export interface RenovationProjectCommandServices {
 	 * that exists at all.
 	 */
 	readonly logger: Logger;
+	/**
+	 * The plugin's `defaultCurrency` setting, for the creation form's prefill. `CreateProject`
+	 * takes it at the composition root; `CreateAsset` takes its currency from its input, so the
+	 * FORM is where an asset's default is decided, and a literal there re-denominated every
+	 * new asset in a vault configured otherwise.
+	 */
+	readonly defaultCurrency: Currency;
 }
 
 const noop = (): void => undefined;
@@ -134,5 +142,8 @@ export function unavailableRenovationProjectCommands(): RenovationProjectCommand
 		// does: this bundle's only failure is the refusal above, which is a resolved `Result`
 		// rather than a fault, so there is nothing here for a real logger to be told about.
 		logger: { debug: noop, info: noop, warn: noop, error: noop },
+		// The refusal bundle writes nothing, so its prefill is never persisted; a valid code is
+		// all the form needs.
+		defaultCurrency: currencyOf('EUR'),
 	};
 }

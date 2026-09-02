@@ -225,6 +225,7 @@ export const defaultRenovationProjectDeps = (
 				events,
 			}),
 			logger: recorder,
+			defaultCurrency: DEFAULT_SETTINGS.defaultCurrency,
 		},
 		openProject: () => Promise.resolve('opened'),
 		onProjectsChanged: () => () => undefined,

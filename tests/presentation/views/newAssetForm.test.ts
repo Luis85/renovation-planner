@@ -100,7 +100,7 @@ async function mountAndSubmit(
 	props: { createAsset: CreateAsset; setFootprintFromDimensions: SetFootprint },
 	typed: Typed,
 ): Promise<VueWrapper> {
-	const wrapper = mount(NewAssetForm, { props: { ...props, logger: recorder } });
+	const wrapper = mount(NewAssetForm, { props: { ...props, logger: recorder, defaultCurrency: 'EUR' } });
 	await fill(wrapper, typed);
 	await wrapper.get('form').trigger('submit');
 	await flushPromises();
@@ -108,6 +108,19 @@ async function mountAndSubmit(
 }
 
 describe('NewAssetForm', () => {
+	it('prefills the currency from the configured default rather than from a literal', async () => {
+		const createAsset = createOk();
+		const wrapper = mount(NewAssetForm, {
+			props: { createAsset, setFootprintFromDimensions: footprintOk(), logger: recorder, defaultCurrency: 'GBP' },
+		});
+		expect((wrapper.get('[data-field="currency"]').element as HTMLInputElement).value).toBe('GBP');
+		await wrapper.get('[data-field="name"]').setValue('Kitchen island');
+		await wrapper.get('[data-field="unitCostAmount"]').setValue('450.00');
+		await wrapper.get('form').trigger('submit');
+		await flushPromises();
+		expect(createAsset.mock.calls[0][0]).toMatchObject({ currency: 'GBP' });
+	});
+
 	it('creates the asset and, when dimensions are given, its rectangle footprint', async () => {
 		const asset = makeAsset();
 		const createAsset = createOk(asset);
@@ -437,6 +450,7 @@ describe('NewAssetForm', () => {
 				createAsset: createOk(),
 				setFootprintFromDimensions: footprintOk(),
 				logger: recorder,
+				defaultCurrency: 'EUR',
 			},
 		});
 		await fill(wrapper, { width: '600.5', depth: '399.25' });
@@ -511,6 +525,7 @@ describe('NewAssetForm', () => {
 				createAsset: createOk(),
 				setFootprintFromDimensions: footprintOk(),
 				logger: recorder,
+				defaultCurrency: 'EUR',
 			},
 		});
 		await fill(wrapper, {});
@@ -533,7 +548,12 @@ describe('NewAssetForm', () => {
 	it('sends the category and the unit the user chose', async () => {
 		const createAsset = createOk();
 		const wrapper = mount(NewAssetForm, {
-			props: { createAsset, setFootprintFromDimensions: footprintOk(), logger: recorder },
+			props: {
+				createAsset,
+				setFootprintFromDimensions: footprintOk(),
+				logger: recorder,
+				defaultCurrency: 'EUR',
+			},
 		});
 		await fill(wrapper, {});
 
@@ -567,7 +587,12 @@ describe('NewAssetForm', () => {
 				}),
 		);
 		const wrapper = mount(NewAssetForm, {
-			props: { createAsset, setFootprintFromDimensions: footprintOk(), logger: recorder },
+			props: {
+				createAsset,
+				setFootprintFromDimensions: footprintOk(),
+				logger: recorder,
+				defaultCurrency: 'EUR',
+			},
 		});
 		await fill(wrapper, { name: 'Kitchen island' });
 		await wrapper.get('form').trigger('submit');
@@ -594,7 +619,12 @@ describe('NewAssetForm', () => {
 				}),
 		);
 		const wrapper = mount(NewAssetForm, {
-			props: { createAsset, setFootprintFromDimensions: footprintOk(), logger: recorder },
+			props: {
+				createAsset,
+				setFootprintFromDimensions: footprintOk(),
+				logger: recorder,
+				defaultCurrency: 'EUR',
+			},
 		});
 		await fill(wrapper, {});
 

@@ -2027,6 +2027,17 @@ function samePrice(a: Money, b: Money): boolean {
 	const ordering = compareMoney(a, b);
 	return isOk(ordering) && ordering.value === 0;
 }
+```
+
+**This function moves to `core/money/Money.ts` as `sameMoney` in Task 6, and the two tasks must
+not both define it.** Task 6 needs the identical question for `assetMatchesCalculatedFrom`, whose
+string comparison reads `19.5` and `19.50` as different money — see that task for the defect and
+why `Money.compare` alone is not the answer. Write it here as `samePrice` local to this file if
+Task 4 lands first, and MOVE it in Task 6 rather than leaving a second copy; a question worth
+asking at two doors is a function, which is this plan's own rule and the reason the shared
+predicate had a comparison bug for a round.
+
+```ts
 
 export interface SetAssetPriceOverrideInput {
 	readonly projectId: ProjectId;
@@ -2657,8 +2668,44 @@ amount and the currency (`deriveRequirementFigures.ts:108-117`), under its own c
 requirement whose asset's unit changed is invalidated exactly as much as any other. The override
 replaces one of the three compared fields, not the question.
 
-**`assetMatchesCalculatedFrom` itself does not change.** The correction is to its INPUT. Its two
-callers stay two questions, which Amendment 1 item 6 split deliberately.
+**Its two callers stay two questions**, which Amendment 1 item 6 split deliberately, and the
+correction for the override is to the predicate's INPUT rather than to its logic. An earlier
+draft of this paragraph said flatly *"`assetMatchesCalculatedFrom` itself does not change"* —
+true of the override correction, and read as a blanket instruction to leave the function alone,
+which is how the next defect stayed in it for a round.
+
+**One line of it DOES change, and it is a comparison bug this increment makes more reachable.**
+`deriveRequirementFigures.ts:113` is `asset.unitCost.amount === calculatedFrom.unitCost.amount` —
+a STRING comparison, and `19.5` and `19.50` are different strings for the same money. The schema
+regex `/^(0|[1-9]\d*)(\.\d+)?$/` accepts both spellings, `createMoney` stores the amount
+VERBATIM, and a `Money` is compared here by its rendering rather than by its value. The
+consequence is a false mismatch in both directions the predicate serves: the read model reports
+`stale` for a requirement whose inputs did not move, and `onAssetUpdated` recalculates it —
+churn and a wrong status badge over an unchanged figure.
+
+**PRE-EXISTING, and this increment raises the odds rather than creating it.** The comparison has
+been a string one since slice 10. What is new is a SECOND writer for `calculatedFrom.unitCost` —
+an override, minted on a different command path from the catalogue price, from a value the user
+typed — plus the duplicate-winner path, where the winning note and the one the figures came from
+are different notes that may spell the same amount differently. Two writers of one compared field
+is when a by-rendering comparison stops being theoretical.
+
+**The fix is the helper this plan already mints, promoted rather than copied.** Task 4 defines
+`samePrice(a, b)` for the set command's no-op test — currency by field, amount by VALUE through
+`compareMoney` — for exactly this reason, and its docblock already explains why the naive
+spelling does not type-check. Two functions asking one question is what this plan's own rule
+refuses, so it moves to `core/money/Money.ts` as **`sameMoney(a, b)`** (a pure money question,
+importable by `core`'s every dependent) and both sites call it: Task 4's command and this
+predicate's amount/currency pair.
+
+`Money.compare` is deliberately NOT the answer on its own — it returns a `Result` and REFUSES a
+currency mismatch, which is exactly the state this increment exists around, so the currency test
+has to come first and by field. That is what `sameMoney` wraps.
+
+**Both callers get a case**, because the predicate has two and they fail differently: the read
+model reports a wrong STATUS, `onAssetUpdated` performs a wrong WRITE. Drive `19.5` against
+`19.50` through each — the read model must answer `current`, and the cascade must not
+recalculate. Watch both fail against the string comparison.
 
 - [ ] **Step 1: Write the failing cascade test**
 
@@ -3877,6 +3924,38 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   disposed on unmount the way the catalogue one already is — and the recalculation source's
   callback filters on whether the delivered `requirementId` is among the rows the Inspector
   currently holds before it asks the loader for anything.
+
+  **That filter FAILS OPEN on an empty snapshot, and without that it converts a transient
+  failure into a permanent one.** `InspectorStore.refresh` ends with
+  `requirements.value = isErr(rows) ? [] : rows.value` — so one transient requirements-query
+  error blanks the rows. An id-membership filter over an empty set then admits NOTHING, no
+  trailing read is ever scheduled, and the panel stays empty until the user changes selection.
+  The pre-existing defect self-heals on the next post-command refresh; the filter is what makes
+  it stick, which is this increment turning a recoverable fault into an unrecoverable one.
+
+  Two changes, both small, and neither adds state:
+
+  1. **Keep the previous rows when the rows query fails**, exactly as the same method already
+     keeps the previous `dto` when `queryZone` fails. That method's own docblock argues the rule
+     at length — *"a refresh that cannot confirm a change is not evidence the entity is gone"* —
+     and the line below it blanks the sibling field for the same class of failure. One rule, two
+     fields; the asymmetry is PRE-EXISTING and is fixed here because this filter is what makes it
+     bite.
+  2. **Admit the event when the snapshot is empty.** Preserving rows does not cover a FIRST
+     hydrate whose rows query failed: there is nothing to preserve, so `[]` is legitimately
+     incomplete rather than legitimately empty, and no flag distinguishes them. A filter exists
+     to skip work, so the safe direction under uncertainty is to do the work: empty → re-read.
+
+  **The cost is named rather than waved past**: a selected zone that genuinely has no
+  requirements now re-reads once per recalculation event anywhere in the vault. That is one
+  query against a zone with no rows, and it is the price of not tracking completeness in a
+  second flag — which this plan's own rule prefers, since a flag is a thing that can go stale
+  and an empty list cannot.
+
+  Both halves need a case. Preserving rows alone passes a test that only drives a *later* failed
+  refresh; failing open alone passes one that only drives a first hydrate. Drive both: a settled
+  panel whose refresh query then fails must still admit its own requirement's event, and a panel
+  whose FIRST rows read failed must admit one too.
 
   Its absence was invisible to every gate, which is the shape rather than the fact: nothing
   fails when a callback source has no subscriber. The three-part edit — declare, bind,

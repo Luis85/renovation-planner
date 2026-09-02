@@ -303,7 +303,9 @@ nothing. Reported by a review bot. The 20px column is held by the `<svg>` elemen
 the empty one — removing it would let the grid pull every later slot one column left.
 
 The clearance boundary, the anchor and the facing are **not** drawn at 20px — they are mush at
-that size, and they belong to the inspector.
+that size. **The clearance's extent goes to the inspector as a number; the anchor and the facing
+go to the DESIGNER**, and §3.5 carries the reason that reversal took three review rounds to
+reach.
 
 The mark is `aria-hidden`; the shape's state is written in words in the inspector, so nothing is
 carried by the drawing alone.
@@ -339,12 +341,33 @@ Four sections, in this order:
    | --- | --- | --- |
    | Footprint | `1200 × 190 mm`, the extent derived from the outline | omitted |
    | Clearance | its own extent, `1400 × 400 mm` | `None` |
-   | Anchor | `Centre`, or `340 × 0 mm from centre` | never — it always has one |
-   | Facing | `90°`, converted from radians | never — it always has one |
    | Height | `720 mm` | omitted |
    | Spec sheet | the file's name | omitted |
 
-   plus the unscaled warning when it is owed, and **Open designer**.
+   plus **a pending warning per coordinate group**, and **Open designer**.
+
+   **The anchor and the facing are NOT here, and that reverses what §3.4 promised.** They were,
+   for three review rounds, and each round found the copy wrong in a different way: `Set` /
+   `Not set` was unrepresentable, `Centre` was false for a traced footprint whose origin is
+   wherever the canvas origin fell, and an offset needed a bounding-box computation to be true at
+   all. Every fix was buildable. The question none of them asked is whether the rows serve this
+   surface's jobs — and they do not: an anchor coordinate answers nothing about *finding an asset
+   I already defined*, *correcting its price*, or *seeing where it is used*. They are spatial
+   facts, a definition list is the wrong instrument for one, and the Asset designer **draws**
+   them, one click away, where they can be read rather than parsed.
+
+   So the narrowing is a design decision rather than a retreat from a hard fix, and this is where
+   this repository's own rule lands: *write the guarantee to the check, and if narrowing makes the
+   sentence ugly, the sentence has become honest.* The clearance stays because an extent is a
+   number and a fitting question is the one spatial thing a catalogue reader might ask; that it
+   earns its row is a weaker claim than the footprint's, and it is stated as one.
+
+   **A pending warning belongs to its own coordinate group, not to the shape.** `AssetShape`
+   carries `footprintPending`, `clearancePending` and `anchorPending` independently — one flag per
+   group, which the Asset designer's own increment records as the rule — so a typed footprint can
+   sit beside a clearance traced before a scale existed. A single shape-level state would then
+   print `1200 × 700 mm` over placeholder-space coordinates. Each row withholds its unit and
+   carries its own warning while its group is pending.
 
    **Neither the anchor nor the facing has an absent state, and the first version of this table
    invented one for both.** `AssetShape` makes `anchor: Point` and `facing: number` mandatory,
@@ -378,8 +401,18 @@ Four sections, in this order:
 
    - **In flight** — a loading line in this section alone; the definition fields are already
      drawn from the catalogue read and stay usable.
-   - **Refused** — §3.4's `unreadable` wording, in this section, and **`Open designer` stays
-     available**, because the designer is where a damaged shape is repaired.
+   - **Refused** — and **which refusal decides both the wording and whether `Open designer`
+     stays**, because `AssetDesignError` is `RepositoryError | ReferenceError | GeometryError`
+     and only one of those three is a damaged sidecar:
+
+     | Cause | Says | `Open designer` |
+     | --- | --- | --- |
+     | `asset.not-found` — deleted since the catalogue was read | the asset is gone, with a way back to the list | **withdrawn** — there is nothing to open |
+     | `RepositoryError` — the note or the sidecar could not be read | the vault read failed, retryable | withdrawn until a read succeeds |
+     | `GeometryError` — the sidecar parsed and its shape is invalid | §3.4's `unreadable` wording | **stays** — the designer is where a damaged shape is repaired |
+
+     A single branch would have told a user whose asset had just been deleted that *a stored
+     shape file could not be read*, and offered to open a designer on nothing.
    - **Answered** — the rows above.
 
    §4's failure row covers the catalogue read and cannot cover this one: replacing the whole
@@ -780,10 +813,10 @@ view.asset-library.used-in.project  (interpolated: {name}, {count})
 view.asset-library.open-designer    view.asset-library.open-note
 view.asset-library.back             view.asset-library.delete
 view.asset-library.shape            view.asset-library.footprint
-view.asset-library.clearance        view.asset-library.anchor
-view.asset-library.facing           view.asset-library.spec-sheet
-view.asset-library.anchor.centre     view.asset-library.anchor.offset  (interpolated: {x}, {y})
+view.asset-library.clearance        view.asset-library.spec-sheet
 view.asset-library.none             view.asset-library.shape.loading
+view.asset-library.shape.gone       view.asset-library.shape.read-failed
+view.asset-library.clearance.unscaled
 view.asset-library.new-asset        view.asset-library.results
 view.asset-library.category         view.asset-library.unit
 view.asset-library.unit-cost        view.asset-library.waste
@@ -1155,6 +1188,31 @@ will be wrong in the model's own units, in its own absences, and in its own fail
 ways, from one cause.** The previous round's fix for "a promise with no representation" created
 three new claims and every one of them was false. Reading `AssetShape` first would have cost five
 minutes.
+
+A tenth round found three, **all in the Shape section again — the third consecutive round on one
+section**, which is a signal about the section rather than about the findings. Each of the three
+was a fresh way for its rows to be wrong against the model: `Centre` is false for a traced
+footprint, whose origin is wherever the canvas origin fell rather than its middle (the mock's own
+`box(600, 580)` proved it, anchoring at a corner and calling it the centre); the pending flags are
+per coordinate group, so a clearance traced before a scale existed printed placeholder numbers as
+millimetres beside a typed footprint; and `AssetDesignError` is three error kinds, so one Refused
+branch told a user whose asset had just been deleted that a stored shape file could not be read,
+and offered to open a designer on nothing.
+
+All three were buildable. **The question none of the three rounds asked is whether those rows
+serve this surface's jobs** — and the anchor and the facing do not: neither answers *find the
+asset I already defined*, *correct its price*, or *see where it is used*. They are spatial facts,
+a definition list is the wrong instrument for one, and the Asset designer DRAWS them one click
+away. So they are gone, and §3.4's promise is reversed rather than patched a fourth time.
+
+**The lesson is about when to stop fixing.** Three rounds of correct, buildable repairs to a row
+that should not have existed is what it costs to keep answering *is this right?* without ever
+asking *does this belong?* This repository's own rule is the one that lands: write the guarantee
+to the check, and when narrowing makes the sentence ugly, the sentence has become honest.
+
+One partial fix inside the same round, recorded because it is this file's oldest shape: the
+pending-unit finding named the clearance, the footprint had it too one row up, and fixing only
+the row in the report would have shipped `600 × 580 mm` over coordinates that are not millimetres.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

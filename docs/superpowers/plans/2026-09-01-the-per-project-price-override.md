@@ -1678,6 +1678,25 @@ describe('SetAssetPriceOverrideCommand', () => {
 	});
 
 	/**
+	 * The same rule against a DIFFERENT SPELLING of the same price. `createMoney` normalizes
+	 * nothing, so `19.5` and `19.50` are two strings for one value — and a string comparison
+	 * calls this a change, writes, publishes, and recalculates every requirement for the asset
+	 * in the project. Watch it fail with the amount compared as a string.
+	 */
+	it('writes nothing when the submitted price differs only in spelling', async () => {
+		const first = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
+		bus.published.length = 0;
+		const again = expectOk(await command.execute({
+			projectId,
+			assetId,
+			unitCost: moneyOf('19.5', 'GBP'),
+			expected: { id: first.override.id, version: first.version },
+		}));
+		expect(again.version.revision).toBe(first.version.revision);
+		expect(bus.published).toHaveLength(0);
+	});
+
+	/**
 	 * And the ORDER, which one assertion on the case above cannot show: the expectation is
 	 * checked BEFORE the no-op test, so a stale row is refused even when its value happens to
 	 * match. Watch it fail with the two swapped — this passes, and the conditional write has
@@ -2044,14 +2063,25 @@ export class SetAssetPriceOverrideCommand
 		// the caller knew — and would quietly turn the concurrent-create case below into a pass
 		// whenever both callers happen to submit the same price.
 		//
-		// FIELD comparison, never `Money.compare`: that returns a `Result` and REFUSES a
-		// currency mismatch, which is the state this whole increment is about. The coherence
-		// rule above has already refused a foreign currency here, so the currency half is
-		// belt-and-braces — and it is kept, because this predicate must stay true if that rule
-		// ever moves.
-		const unchanged = existing.value !== null
-			&& existing.value.entity.unitCost.amount === input.unitCost.amount
+		// **CURRENCY by field, AMOUNT by value**, and an earlier draft compared both as strings.
+		// `createMoney` stores the amount VERBATIM — it validates the spelling and normalizes
+		// nothing — so `19.5` and `19.50` are two strings for one price, and a user retyping
+		// their own price without the trailing zero would have bumped the revision, published,
+		// and recalculated every requirement for that asset in the project. The no-op rule this
+		// sits under exists to stop exactly that.
+		//
+		// `Money.compare` is the value comparison, and it is safe HERE only because the
+		// currency test runs first: it returns a `Result` and REFUSES a mismatch, which is the
+		// state this whole increment is about. That ordering is the rule — an earlier note in
+		// this file said "never `Money.compare`" without it, which is true of an unguarded call
+		// and wrong as a blanket ban. The coherence rule above has already refused a foreign
+		// currency, so the field test is belt-and-braces; it is kept, because this predicate
+		// must stay correct if that rule ever moves.
+		const sameCurrency = existing.value !== null
 			&& existing.value.entity.unitCost.currency === input.unitCost.currency;
+		const sameAmount = sameCurrency
+			&& compareMoney(existing.value!.entity.unitCost, input.unitCost);
+		const unchanged = isOk(sameAmount) && sameAmount.value === 0;
 		if (unchanged) {
 			return ok({
 				override: existing.value.entity,
@@ -3752,6 +3782,9 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Modify: `src/plugin/composition-root.ts` — bind both sources, as it already binds
   `onCatalogueChanged` for the editor.
 - Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
+- Modify: `src/presentation/i18n/toUserMessage.ts` — one row in `CODE_SUFFIX_KEYS` for
+  `schema-version-malformed`, beside the `-unsupported` one it has. See the error-copy table in
+  step 1 for why that code is a suffix rather than a per-kind entry.
 - Modify: `styles/` (a partial, registered in `styles/index.css`)
 - Test: `tests/presentation/views/assetPriceList.test.ts`
 - Test: extend `tests/harness/accessibility.test.ts`
@@ -3854,6 +3887,7 @@ codes are already served and listing them as gaps is wrong. What each code needs
 | `asset-price.project-not-found` / `asset-price.asset-not-found` | **new** | The project, or the asset, is no longer there. |
 | `asset-price.write-failed` / `asset-price.delete-failed` | **new** | The price could not be saved, or removed. |
 | `asset-price.entity-invalid` / `asset-price.frontmatter-invalid` | **new** | The note could not be read. |
+| `asset-price.schema-version-malformed` | **a new SUFFIX entry, not a direct one** | `noteIo.ts` raises `` `${kind}.schema-version-malformed` `` before any mapper runs, so it reaches the section's read and has neither a direct key nor a `CODE_SUFFIX_KEYS` match — the whole price list would fail with the generic Validation sentence rather than saying a price note is unreadable. **Fix it as a suffix**, beside `schema-version-unsupported`: the code is generated from ONE shared raise site for every entity kind, so a per-kind entry would answer that site five more times and leave five kinds disagreeing. Measured: `grep -n "schema-version-malformed" locales/en.ts` finds nothing today, so `plan.` and `zone.` already render the generic sentence — **pre-existing, and this is a one-row fix that closes it for all of them** rather than a widening this increment invented. |
 | `asset-price.negative-unit-cost` | **new** | A price cannot be negative. Unreachable while the field validator below holds, and localized anyway — see the note under the table. |
 
 Build the test table from the RAISE SITES rather than from `en.ts`, per `toUserMessage.test.ts`'s

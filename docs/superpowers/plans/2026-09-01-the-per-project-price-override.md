@@ -1970,7 +1970,7 @@ Expected: FAIL — cannot resolve either command.
 - [ ] **Step 4: Write `SetAssetPriceOverride`**
 
 ```ts
-import { err, isErr, ok, type Result } from '../../../core/result/Result';
+import { err, isErr, isOk, ok, type Result } from '../../../core/result/Result';
 import type { ReferenceError, ValidationError } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { EventBus } from '../../../core/events/EventBus';
@@ -1992,8 +1992,14 @@ import type { EntityVersion } from '../../ports/versioning';
 // `SetAssetPriceOverrideInput.expected`, the function in `upsert` — and an earlier draft of
 // this block declared neither, which is a build failure at the very task that writes them.
 import { expectationMismatch, type PriceRowExpectation } from './priceRowExpectation';
+// `compare` is a VALUE import beside the `import type { Money }` above, and that split is legal
+// here — measured, not assumed. `.oxlintrc.json:117` sets `import/no-duplicates` to error, and
+// **27 files in `src/` already import one module twice as a type-only and a value statement**,
+// `requirementMapper.ts` doing it with this very module. The rule as configured does not treat
+// that pair as a duplicate. What it DOES refuse is two VALUE imports of one module, which is why
+// `isOk` is folded into the Result import above rather than added as a line here — an earlier
+// draft of this block had it separate, which was a real lint error at the task that writes it.
 import { compare as compareMoney } from '../../../core/money/Money';
-import { isOk } from '../../../core/result/Result';
 
 /**
  * **Same price, whatever it is spelled like.** Currency first, then VALUE — `Money.compare`

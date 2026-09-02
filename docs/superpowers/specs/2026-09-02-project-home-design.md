@@ -307,6 +307,63 @@ partial is a new line in the Files list below rather than an implementation deta
 colour check runs over the assembled sheet and never sees inside an SFC, so the mock's
 `<style scoped>` block does not travel.
 
+## Decision 7 — the summary needs a change source of its own
+
+**A gap in the first draft of this document, found by review.** The spec named no invalidation
+for the summary, so Overview would have drawn the vault as it stood at mount and gone stale
+while the pane sat open — in exactly the arrangement this product is for, a Plan Editor leaf
+beside the project surface.
+
+`createProjectPlansChangeSource` cannot serve it, and that is a fact about its lists rather
+than an oversight: it subscribes to `PlanCreated` plus `ProjectIndexEntryChanged` filtered to
+`entityType === 'renovation-plan'`. Nothing zone- or requirement-shaped reaches it. It stays
+exactly as it is — Design asks "did this project's plans change" and that is the right
+question for a plan list.
+
+So Overview takes a **fourth** change source, `createProjectSummaryChangeSource`, and the
+remount decision is what makes that affordable: only the mounted section subscribes, so the
+wider question is asked only while the surface that needs it is on screen.
+
+### The three lists, and why it is three rather than one
+
+**Filterable by project** — every one of these carries `projectId` in its payload, verified in
+`Zone.events.ts` and `Requirement.events.ts`:
+
+`PlanCreated`, `ZoneCreated`, `ZoneDeleted`, `ZoneGeometryChanged`, `RequirementCreated`,
+`RequirementRecalculated`.
+
+`ZoneGeometryChanged` is in that list for the reason the whole product exists: an area is an
+input to a cost, so a moved vertex changes the total and marks figures stale.
+
+**Not filterable, and this is the finding under the finding.** Two of the seven carry no owning
+project at all:
+
+- `RequirementInvalidated`'s factory takes a bare `requirementId` — there is no payload object
+  to filter on.
+- `CostEstimateChanged`'s `CostChangePayload` is `{ costType, scope: { kind, id }, currency }`.
+  It names the requirement and the currency and never the project.
+
+They are delivered **unfiltered**, so an event for any project in the vault re-reads this one
+project's summary. That is the identical trade `PLAN_ENTRY_EVENTS` already states and it is
+affordable for the identical reason: the view is a singleton and the query is project-scoped.
+*Trigger to narrow it: either payload gaining the owning project id.*
+
+Leaving `CostEstimateChanged` out was the tempting simplification and it is the one that breaks
+the reviewer's own scenario. A cost OVERRIDE changes the total without recalculating anything,
+so `RequirementRecalculated` never fires for it — omit this event and an override in another
+leaf is invisible to the Overview until a remount.
+
+**Index entries**, for a note that arrives out of band — a hand edit, a copy, a sync.
+`ProjectIndexEntryChanged` filtered to the plan, zone and requirement entity types, which is
+`projectPlansChangeSource`'s own arm widened by two types rather than a new mechanism.
+
+### Why not fold this into `projectPlansChangeSource`
+
+Two sections ask two questions. Widening the plans source would make the Design tab re-read its
+plan list on every requirement recalculation in the vault, which is the "once per synced zone
+note" cost the project list's own filter exists to avoid. The list is the extension point
+within one question, never across two.
+
 ## Components
 
 ```text
@@ -365,6 +422,10 @@ mistake, per this repository's rule.
 | Summary | a foreign-currency override lands in `unsummable` and the total survives | assuming one currency throws on a reachable input |
 | Summary | the memo makes it ONE project read for N zones | defeating the memo reads N; pinned on the CALL COUNT, since the figure renders identically either way |
 | Delegation | the project total's staleness agrees with `GetRequirementsForZone` | a second derivation passes every other case in the file |
+| Invalidation | a `RequirementRecalculated` for THIS project refreshes the summary; one for another project does not | an unfiltered list re-reads on every requirement in the vault |
+| Invalidation | a `CostEstimateChanged` refreshes the summary even though its payload names no project | omitting it makes a cost override in another leaf invisible until remount — the case `RequirementRecalculated` cannot cover |
+| Invalidation | `ZoneGeometryChanged` refreshes the summary | a moved vertex changes an area, and an area is an input to the total |
+| Invalidation | the Design section does NOT re-read its plan list on a requirement event | folding this into `projectPlansChangeSource` passes every Overview case and costs Design a read per requirement in the vault |
 | Errors | a partial read draws the section plus the strip; a faulted read draws `ViewFailure` inside Overview with header and nav still mounted | replacing the whole shell takes the back control with it |
 | Accessibility | the Overview scan asserts `.rp-empty-state`, `.rp-project-detail__back` and the nav's current-section marker are in the scanned DOM | grading a component instead of a surface |
 | Accessibility | the switch is a `tablist` whose tabs carry `aria-selected` and a roving `tabindex`, and ArrowLeft/ArrowRight move the selection | a row of buttons with `aria-current` passes every rendering case and fails the `PerspectiveSwitch` contract |
@@ -381,7 +442,9 @@ navigation case.
 
 ## Files
 
-**New:** `src/application/queries/GetProjectSummary.ts`; `src/presentation/views/sections.ts`
+**New:** `src/application/queries/GetProjectSummary.ts`;
+`src/application/events/projectSummaryChangeSource.ts` (Decision 7);
+`src/presentation/views/sections.ts`
 (the `SECTIONS` list and the parse); `ProjectHeader.vue`, `ProjectNav.vue`,
 `ProjectOverview.vue`, `ProjectEstimate.vue`, `ProjectDesign.vue`; a `styles/` partial carrying
 `.rp-badge` and its variants, the section switch, the counts and the warning strip, per

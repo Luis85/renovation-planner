@@ -33,13 +33,14 @@ describe('RecalculateRequirementCommand refusals', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new RecalculateRequirementCommand(
+			await new RecalculateRequirementCommand({
 				requirements,
-				w.zones,
-				w.assets,
-				w.events,
-				w.projects,
-			).execute({
+				zones: w.zones,
+				assets: w.assets,
+				events: w.events,
+				projects: w.projects,
+				overrides: w.overrides,
+			}).execute({
 				requirementId: w.requirementId,
 			}),
 		);
@@ -59,13 +60,14 @@ describe('RecalculateRequirementCommand refusals', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new RecalculateRequirementCommand(
-				w.requirements,
-				w.zones,
-				w.assets,
-				w.events,
+			await new RecalculateRequirementCommand({
+				requirements: w.requirements,
+				zones: w.zones,
+				assets: w.assets,
+				events: w.events,
 				projects,
-			).execute({ requirementId: w.requirementId }),
+				overrides: w.overrides,
+			}).execute({ requirementId: w.requirementId }),
 		);
 		expect((error as { code: string }).code).toBe('requirement.project-gone');
 	});
@@ -115,13 +117,14 @@ describe('RecalculateRequirementCommand refusals', () => {
 	it('propagates a lost race on its conditional save', async () => {
 		const w = await wiredWithLink();
 		const error = expectErr(
-			await new RecalculateRequirementCommand(
-				withConflictingReads(w.requirements),
-				w.zones,
-				w.assets,
-				w.events,
-				w.projects,
-			).execute({ requirementId: w.requirementId }),
+			await new RecalculateRequirementCommand({
+				requirements: withConflictingReads(w.requirements),
+				zones: w.zones,
+				assets: w.assets,
+				events: w.events,
+				projects: w.projects,
+				overrides: w.overrides,
+			}).execute({ requirementId: w.requirementId }),
 		);
 		expect(error.category).toBe('Validation');
 	});

@@ -242,7 +242,7 @@ describe('DeleteAssetCommand', () => {
 		const { GetRequirementsForZone } = await import(
 			'../../../../src/application/queries/GetRequirementsForZone'
 		);
-		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects);
+		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects, w.overrides);
 
 		expectOk(
 			await w.deleteAsset.execute({

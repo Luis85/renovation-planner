@@ -20,6 +20,7 @@ import { UpdateAssetCommand } from '../application/commands/asset/UpdateAsset';
 import { DeleteAssetCommand } from '../application/commands/asset/DeleteAsset';
 import { AssignAssetCommand } from '../application/commands/requirement/AssignAsset';
 import type { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
+import type { AssetPriceOverrideRepository } from '../application/ports/AssetPriceOverrideRepository';
 import { SetRequirementQuantityOverrideCommand } from '../application/commands/requirement/SetRequirementQuantityOverride';
 import { SetRequirementCostOverrideCommand } from '../application/commands/requirement/SetRequirementCostOverride';
 import { DeleteRequirementCommand } from '../application/commands/requirement/DeleteRequirement';
@@ -74,6 +75,8 @@ export interface Slice10Wiring {
 	readonly locks: ReferenceLocks;
 	readonly logger: Logger;
 	readonly markers?: SequenceMarkerStore;
+	/** The precedence's input half: a project may price a shared asset in its own currency. */
+	readonly overrides: AssetPriceOverrideRepository;
 }
 
 /**
@@ -89,7 +92,7 @@ export interface Slice10Wiring {
 export function composeSlice10(
 	wiring: Slice10Wiring,
 ): UnguardedSlice10Services & { subscriptions: { dispose(): void }[] } {
-	const { zones, assets, requirements, projects, index, recalculate, events, locks, logger, markers } = wiring;
+	const { zones, assets, requirements, projects, index, recalculate, events, locks, logger, markers, overrides } = wiring;
 
 	/**
 	 * The cascade runs in the BACKGROUND — nothing the user clicked is waiting on it — so a
@@ -127,6 +130,7 @@ export function composeSlice10(
 		registerOnAssetUpdated(events, {
 			requirements,
 			assets,
+			overrides,
 			events,
 			logger,
 			notify: cascadeNotices,
@@ -147,12 +151,12 @@ export function composeSlice10(
 			markers,
 			notify: sequenceNotices,
 		}),
-		assignAsset: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects }),
+		assignAsset: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides }),
 		setRequirementQuantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
 		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events, locks),
 		deleteRequirement: new DeleteRequirementCommand(requirements),
 		queries: {
-			getRequirementsForZone: new GetRequirementsForZone(requirements, zones, assets, projects),
+			getRequirementsForZone: new GetRequirementsForZone(requirements, zones, assets, projects, overrides),
 			listAssets: new ListAssets(assets),
 			listRequirementsReferencing: new ListRequirementsReferencing(
 				requirements,

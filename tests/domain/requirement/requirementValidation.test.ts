@@ -141,3 +141,68 @@ describe('Asset.withChanges field-presence semantics', () => {
 		expect(edited.notes).toBe(asset.notes);
 	});
 });
+
+describe('Requirement.withRecalculation preserves either override', () => {
+	/**
+	 * The class header's own invariant — an override is a user's answer sitting BESIDE a
+	 * derived figure, never a claim about the derivation — applies to a FULL recalculation
+	 * exactly as it already applies to `withCalculatedCost`'s narrower quantity-override
+	 * trigger. Found by the per-project price override increment's own precedence case: a
+	 * price change recalculating `calculated` was silently discarding a negotiated
+	 * `estimatedCost.override` on every cascade run.
+	 */
+	it('keeps a cost override across a full recalculation that moves the calculated figure', () => {
+		const withOverride = expectOk(
+			Requirement.create(requirementProps()),
+		).withCostOverride(moneyOf('500.00', 'EUR'));
+		const requirement = expectOk(withOverride);
+
+		const recalculated = expectOk(
+			requirement.withRecalculation(
+				{ value: new Decimal(12), unit: 'm2' },
+				moneyOf('550.00', 'EUR'),
+				requirement.calculatedFrom,
+			),
+		);
+
+		expect(recalculated.estimatedCost.calculated.amount).toBe('550');
+		expect(recalculated.estimatedCost.override?.amount).toBe('500');
+	});
+
+	/** The quantity side of the same rule, driven independently of the cost side. */
+	it('keeps a quantity override across a full recalculation that moves the calculated quantity', () => {
+		const requirement = expectOk(
+			expectOk(Requirement.create(requirementProps())).withQuantityOverride({
+				value: new Decimal(9),
+				unit: 'm2',
+			}),
+		);
+
+		const recalculated = expectOk(
+			requirement.withRecalculation(
+				{ value: new Decimal(12), unit: 'm2' },
+				moneyOf('550.00', 'EUR'),
+				requirement.calculatedFrom,
+			),
+		);
+
+		expect(recalculated.quantity.calculated.value.toNumber()).toBe(12);
+		expect(recalculated.quantity.override?.value.toNumber()).toBe(9);
+	});
+
+	/** With no override set on either side, a recalculation still leaves neither one present. */
+	it('leaves both overrides absent when neither was set', () => {
+		const requirement = expectOk(Requirement.create(requirementProps()));
+
+		const recalculated = expectOk(
+			requirement.withRecalculation(
+				{ value: new Decimal(12), unit: 'm2' },
+				moneyOf('550.00', 'EUR'),
+				requirement.calculatedFrom,
+			),
+		);
+
+		expect(recalculated.quantity.override).toBeUndefined();
+		expect(recalculated.estimatedCost.override).toBeUndefined();
+	});
+});

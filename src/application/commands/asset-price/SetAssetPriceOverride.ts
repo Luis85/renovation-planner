@@ -1,4 +1,4 @@
-import { err, isErr, isOk, ok, type Result } from '../../../core/result/Result';
+import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { ReferenceError, ValidationError } from '../../../core/errors/AppError';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { EventBus } from '../../../core/events/EventBus';
@@ -20,35 +20,13 @@ import type { EntityVersion } from '../../ports/versioning';
 // `SetAssetPriceOverrideInput.expected`, the function in `upsert` — and an earlier draft of
 // this block declared neither, which is a build failure at the very task that writes them.
 import { expectationMismatch, type PriceRowExpectation } from './priceRowExpectation';
-// `compare` is a VALUE import beside the `import type { Money }` above, and that split is legal
-// here — measured, not assumed. `.oxlintrc.json:117` sets `import/no-duplicates` to error, and
-// **27 files in `src/` already import one module twice as a type-only and a value statement**,
-// `requirementMapper.ts` doing it with this very module. The rule as configured does not treat
-// that pair as a duplicate. What it DOES refuse is two VALUE imports of one module, which is why
-// `isOk` is folded into the Result import above rather than added as a line here — an earlier
-// draft of this block had it separate, which was a real lint error at the task that writes it.
-import { compare as compareMoney } from '../../../core/money/Money';
-
-/**
- * **Same price, whatever it is spelled like.** Currency first, then VALUE — `Money.compare`
- * refuses a currency mismatch, so it is safe only behind that test, and it is the only thing
- * that answers the question: `createMoney` stores the amount string verbatim, so `19.5` and
- * `19.50` are two spellings of one price.
- *
- * A named function rather than an expression at the call site, because an earlier draft of
- * this block wrote it inline as `sameCurrency && compareMoney(...)` and did not type-check at
- * all: that is `false | Result<…>`, which `isOk` does not accept. The guard has to narrow
- * before the `Result` is examined, and a function is where a guard narrows cleanly.
- *
- * This function moves to `core/money/Money.ts` as `sameMoney` in Task 6, and the two tasks
- * must not both define it — see that task for the identical need at
- * `assetMatchesCalculatedFrom`. Local to this file until then.
- */
-function samePrice(a: Money, b: Money): boolean {
-	if (a.currency !== b.currency) return false;
-	const ordering = compareMoney(a, b);
-	return isOk(ordering) && ordering.value === 0;
-}
+// `sameMoney` is a VALUE import beside the `import type { Money }` above, and that split is
+// legal here — measured, not assumed. `.oxlintrc.json:117` sets `import/no-duplicates` to
+// error, and **27 files in `src/` already import one module twice as a type-only and a value
+// statement**, `requirementMapper.ts` doing it with this very module. The rule as configured
+// does not treat that pair as a duplicate; what it DOES refuse is two VALUE imports of one
+// module.
+import { sameMoney } from '../../../core/money/Money';
 
 export interface SetAssetPriceOverrideInput {
 	readonly projectId: ProjectId;
@@ -203,14 +181,13 @@ export class SetAssetPriceOverrideCommand
 		// and recalculated every requirement for that asset in the project. The no-op rule this
 		// sits under exists to stop exactly that.
 		//
-		// `Money.compare` is the value comparison, and it is safe HERE only because the
-		// currency test runs first: it returns a `Result` and REFUSES a mismatch, which is the
-		// state this whole increment is about. That ordering is the rule — an earlier note in
-		// this file said "never `Money.compare`" without it, which is true of an unguarded call
-		// and wrong as a blanket ban. The coherence rule above has already refused a foreign
-		// currency, so the field test is belt-and-braces; it is kept, because this predicate
-		// must stay correct if that rule ever moves.
-		const unchanged = existing.value !== null && samePrice(existing.value.entity.unitCost, input.unitCost);
+		// `sameMoney` (`core/money/Money.ts`) is the value comparison, and it is safe HERE only
+		// because it tests currency BEFORE it asks `compare`, which returns a `Result` and
+		// REFUSES a mismatch — the state this whole increment is about. The coherence rule
+		// above has already refused a foreign currency, so `sameMoney`'s own currency test is
+		// belt-and-braces here; it stays, because this predicate must stay correct if that rule
+		// ever moves.
+		const unchanged = existing.value !== null && sameMoney(existing.value.entity.unitCost, input.unitCost);
 		if (unchanged) {
 			return ok({
 				override: existing.value.entity,

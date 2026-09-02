@@ -305,6 +305,31 @@ export function compare(a: Money, b: Money): Result<-1 | 0 | 1, CalculationError
 }
 
 /**
+ * Whether two Moneys represent the same VALUE, whatever either is spelled like. Currency by
+ * FIELD, then amount by VALUE through `compare` — never by string, because `createMoney`
+ * stores the amount verbatim and `19.5`/`19.50` are two spellings of one price.
+ *
+ * Currency has to come first: `compare` itself refuses a currency mismatch (returns an
+ * `err`), so calling it unguarded on two different currencies would need its `Result`
+ * unwrapped before this function could even ask whether the values are equal — the
+ * naive `sameCurrency && compare(...)` spelling does not type-check, since that is
+ * `false | Result<…>`.
+ *
+ * Promoted from `SetAssetPriceOverrideCommand`'s local `samePrice`
+ * (`application/commands/asset-price/SetAssetPriceOverride.ts`) to here, where
+ * `assetMatchesCalculatedFrom` (`application/commands/requirement/
+ * deriveRequirementFigures.ts`) needs the identical question for the identical reason: two
+ * writers of one compared field — a catalogue default and a price override — are exactly
+ * when a by-rendering comparison stops being theoretical. Two functions asking one question
+ * is what this module's own rule refuses.
+ */
+export function sameMoney(a: Money, b: Money): boolean {
+	if (a.currency !== b.currency) return false;
+	const ordering = compare(a, b);
+	return ordering.ok && ordering.value === 0;
+}
+
+/**
  * The sign, asked of the module that owns the representation: nothing outside
  * `core/money` may parse an `amount` itself (ADR-010), and a FIELD that must not go below
  * zero — a unit price, a shipping charge, a budget — is guarded by whoever validates that

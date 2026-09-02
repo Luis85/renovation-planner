@@ -197,11 +197,24 @@ export class Requirement {
 	 * The recalculation result, persisted TOGETHER with the inputs it was produced from —
 	 * always written when writes are working, never when they are not. Clears the stale
 	 * marker: only a successful recalculation may do that.
+	 *
+	 * **Preserves either override, the same pattern `withCalculatedCost` already keeps.**
+	 * The class header's own invariant is that an override is a user's answer sitting
+	 * BESIDE a derived figure, never a claim about the derivation — so a recalculation
+	 * replaces `calculated` and leaves `override` exactly where `withCalculatedCost`
+	 * already leaves it for a narrower trigger. Found by the per-project price override
+	 * increment's own precedence case (Decision 5's Testing section): a price change
+	 * recalculating `calculated` was silently discarding a requirement's own negotiated
+	 * `estimatedCost.override` on every cascade run, which the sibling method next to
+	 * this one had already been written to avoid for the narrower quantity-override path.
 	 */
 	withRecalculation(quantity: Quantity, estimatedCost: Money, calculatedFrom: CalculatedFrom): Result<Requirement, ValidationError> {
 		return this.with({
-			quantity: { calculated: quantity },
-			estimatedCost: { calculated: estimatedCost },
+			quantity: { calculated: quantity, ...(this.quantity.override ? { override: this.quantity.override } : {}) },
+			estimatedCost: {
+				calculated: estimatedCost,
+				...(this.estimatedCost.override ? { override: this.estimatedCost.override } : {}),
+			},
 			calculatedFrom,
 			recalculationStatus: 'current',
 		});

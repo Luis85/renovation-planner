@@ -209,6 +209,7 @@ describe('DeleteZoneCommand reference integrity', () => {
 			events: w.events,
 			locks: w.locks,
 			projects: w.projects,
+			overrides: w.overrides,
 		}).execute({ zoneId: w.zoneId, assetId: otherAsset.entity.id });
 
 		const results = await Promise.all([deleting, assigning] as const);

@@ -76,3 +76,44 @@ export function winningDuplicate(
 		null,
 	);
 }
+
+/**
+ * The same rule applied to a GROUPED list, which is what every caller but `getForPair` actually
+ * needs — the cascade keys by project, the price list by asset.
+ *
+ * It exists because `new Map(list.map(...))` is the shape that keeps arriving: it reads as a
+ * grouping and is really "whichever entry came last in enumeration order", which is a third
+ * answer to the question `winningDuplicate` states. That spelling had already been written into
+ * three call sites of this plan and corrected; the FOURTH — `onAssetUpdated`'s own map — survived
+ * that correction and was found a round later. A rule with a function has one place to be wrong.
+ */
+export function winnersBy<K>(
+	overrides: readonly Loaded<AssetPriceOverride>[],
+	keyOf: (o: Loaded<AssetPriceOverride>) => K,
+	/**
+	 * **Called once per key that had more than one note, and it is REQUIRED reading rather
+	 * than an option.** `getForPair` logs `asset-price.duplicate-pair` when it resolves one,
+	 * and every other resolution goes through this function — so without a door here, a
+	 * project whose only surface is the price section (no requirements, so no `getForPair`
+	 * on that pair) resolves duplicates silently for the life of the vault, and the design's
+	 * promised diagnostic is one no user can ever provoke. Optional-with-a-no-op default is
+	 * the shape this repository has already paid for twice (`CascadeDeps.notify`,
+	 * `ResolutionOps.notify`): the caller that forgets it compiles, passes and says nothing.
+	 */
+	onDuplicate: (key: K, notes: readonly Loaded<AssetPriceOverride>[]) => void,
+): Map<K, Loaded<AssetPriceOverride>> {
+	const grouped = new Map<K, Loaded<AssetPriceOverride>[]>();
+	for (const override of overrides) {
+		const key = keyOf(override);
+		const bucket = grouped.get(key);
+		if (bucket) bucket.push(override);
+		else grouped.set(key, [override]);
+	}
+	const winners = new Map<K, Loaded<AssetPriceOverride>>();
+	for (const [key, bucket] of grouped) {
+		if (bucket.length > 1) onDuplicate(key, bucket);
+		const best = winningDuplicate(bucket);
+		if (best !== null) winners.set(key, best);
+	}
+	return winners;
+}

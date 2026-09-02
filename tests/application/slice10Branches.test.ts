@@ -133,6 +133,7 @@ describe('handler list-failure branches', () => {
 		registerOnAssetUpdated(w.events, {
 			requirements: failingLists(w.requirements),
 			assets: w.assets,
+			overrides: w.overrides,
 			events: w.events,
 			logger,
 			// See the sibling case above: a method, not the command object.
@@ -258,6 +259,7 @@ function makeAdapter(w: Awaited<ReturnType<typeof requirementFixture>> & { zoneI
 		events: w.events,
 		locks: w.locks,
 		projects: w.projects,
+		overrides: w.overrides,
 	});
 	return new ReversibleAssignAssetCommand(
 		assign,
@@ -348,7 +350,14 @@ describe('ReversibleAssignAssetCommand guards', () => {
 describe('recalculation against a hand-tampered record', () => {
 	it('refuses an unsupported origin kind instead of guessing a rule', async () => {
 		const w = await requirementFixture();
-		const recalculate = new RecalculateRequirementCommand(w.requirements, w.zones, w.assets, w.events, w.projects);
+		const recalculate = new RecalculateRequirementCommand({
+			requirements: w.requirements,
+			zones: w.zones,
+			assets: w.assets,
+			events: w.events,
+			projects: w.projects,
+			overrides: w.overrides,
+		});
 		const requirement = makeRequirement({
 			projectId: w.project.entity.id,
 			assetId: 'asset-x' as never,
@@ -370,6 +379,7 @@ describe('asset-cascade isolation arms', () => {
 		registerOnAssetUpdated(w.events, {
 			requirements: w.requirements,
 			assets: w.assets,
+			overrides: w.overrides,
 			events: w.events,
 			logger,
 			recalculate: (input) => w.recalculate.execute(input as never),
@@ -400,6 +410,7 @@ describe('asset-cascade isolation arms', () => {
 		registerOnAssetUpdated(w.events, {
 			requirements: failingStaleMarkers(w.requirements),
 			assets: w.assets,
+			overrides: w.overrides,
 			events: w.events,
 			logger,
 			recalculate: (input) => w.recalculate.execute(input as never),
@@ -454,6 +465,7 @@ describe('asset-cascade isolation arms', () => {
 		registerOnAssetUpdated(w.events, {
 			requirements: w.requirements,
 			assets: w.assets,
+			overrides: w.overrides,
 			events: w.events,
 			logger,
 			recalculate: (input) => w.recalculate.execute(input as never),

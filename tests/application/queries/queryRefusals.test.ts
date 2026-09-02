@@ -66,7 +66,7 @@ async function wiredWithLink() {
 		zoneId: zoneEntity.entity.id,
 		assetId: assetEntity.entity.id,
 		requirementId: assigned.value.requirement.id,
-		query: new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects),
+		query: new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects, w.overrides),
 	};
 }
 
@@ -77,7 +77,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			listByZone: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(requirements, w.zones, w.assets, w.projects).execute(w.zoneId),
+			await new GetRequirementsForZone(requirements, w.zones, w.assets, w.projects, w.overrides).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -88,7 +88,22 @@ describe('GetRequirementsForZone error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, w.zones, assets, w.projects).execute(w.zoneId),
+			await new GetRequirementsForZone(w.requirements, w.zones, assets, w.projects, w.overrides).execute(w.zoneId),
+		);
+		expect(error.code).toBe('test.injected-failure');
+	});
+
+	/**
+	 * The override read `effectiveAsset` adds ahead of the staleness comparison — the same
+	 * propagation shape as the asset and zone reads above, one hop further in.
+	 */
+	it('propagates a failed override read while resolving a row’s effective cost', async () => {
+		const w = await wiredWithLink();
+		const overrides = overridePort(w.overrides, {
+			getForPair: () => Promise.resolve(err(injectedPersistenceError())),
+		});
+		const error = expectErr(
+			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects, overrides).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -105,7 +120,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects).execute(w.zoneId),
+			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects, w.overrides).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -124,7 +139,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, zones, w.assets, w.projects).execute(w.zoneId),
+			await new GetRequirementsForZone(w.requirements, zones, w.assets, w.projects, w.overrides).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -192,7 +207,7 @@ describe('GetRequirementsForZone staleness readings', () => {
 			},
 		});
 		const rows = expectOk(
-			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects).execute(w.zoneId),
+			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects, w.overrides).execute(w.zoneId),
 		);
 
 		expect(rows).toHaveLength(2);
@@ -246,7 +261,7 @@ describe('GetRequirementsForZone staleness readings', () => {
 			},
 		});
 		const rows = expectOk(
-			await new GetRequirementsForZone(requirements, w.zones, w.assets, w.projects).execute(w.zoneId),
+			await new GetRequirementsForZone(requirements, w.zones, w.assets, w.projects, w.overrides).execute(w.zoneId),
 		);
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.recalculationStatus).toBe('stale');

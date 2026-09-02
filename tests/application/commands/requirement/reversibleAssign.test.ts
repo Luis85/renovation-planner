@@ -45,7 +45,7 @@ async function wired() {
 function makeAdapter(
 	w: Awaited<ReturnType<typeof wired>>,
 ) {
-	const assign = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+	const assign = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 	return new ReversibleAssignAssetCommand(assign, {
 		requirements: w.requirements,
 		zones: w.zones,
@@ -80,7 +80,7 @@ describe('ReversibleAssignAssetCommand', () => {
 
 	it('on the idempotent path undo deletes NOTHING and preserves overrides', async () => {
 		const w = await wired();
-		const assign = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assign = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const preExisting = await assign.execute({ zoneId: w.zoneId, assetId: w.assetId });
 		if (!preExisting.ok) throw new Error('unexpected failure');
 

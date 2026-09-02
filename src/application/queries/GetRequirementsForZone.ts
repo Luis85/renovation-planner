@@ -8,9 +8,11 @@ import type { RequirementId } from '../../domain/requirement/RequirementId';
 import type { CalculatedFrom, Requirement } from '../../domain/requirement/Requirement';
 import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { AssetRepository } from '../ports/AssetRepository';
+import type { AssetId } from '../../domain/asset/AssetId';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { ProjectRepository } from '../ports/ProjectRepository';
 import type { RequirementRepository } from '../ports/RequirementRepository';
+import type { AssetPriceOverrideRepository } from '../ports/AssetPriceOverrideRepository';
 import type { Loaded } from '../ports/versioning';
 import type { Zone } from '../../domain/zone/Zone';
 import type { ZoneRepository } from '../ports/ZoneRepository';
@@ -112,6 +114,7 @@ export class GetRequirementsForZone
 		private readonly zones: ZoneRepository,
 		private readonly assets: AssetRepository,
 		private readonly projects: ProjectRepository,
+		private readonly overrides: AssetPriceOverrideRepository,
 	) {}
 
 	async execute(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], RepositoryError>> {
@@ -134,12 +137,16 @@ export class GetRequirementsForZone
 		// Memoized rather than read per row, because they DO agree in the ordinary case:
 		// one Zone, one project, one read, which is what the previous shape got right.
 		const currencies = new Map<ProjectId, Currency | null>();
+		// Keyed on the PAIR, unlike the currency memo above: one zone's rows share a project
+		// but not an asset, so a project-keyed memo would answer the first row's asset for
+		// every row.
+		const overrideMemo = new Map<string, Money | null>();
 
 		const rows: RequirementInspectorDTO[] = [];
 		for (const loaded of listed.value) {
 			const currency = await this.projectCurrency(loaded.entity.projectId, currencies);
 			if (isErr(currency)) return err(currency.error);
-			const row = await this.buildRow(loaded.entity, currency.value);
+			const row = await this.buildRow(loaded.entity, currency.value, overrideMemo);
 			if (isErr(row)) return row;
 			rows.push(row.value);
 		}
@@ -162,9 +169,46 @@ export class GetRequirementsForZone
 		return ok(currency);
 	}
 
+	private async projectOverride(
+		projectId: ProjectId,
+		assetId: AssetId,
+		memo: Map<string, Money | null>,
+	): Promise<Result<Money | null, RepositoryError>> {
+		const key = `${projectId}:${assetId}`;
+		// `null` is a CACHED answer (no override for this pair), never a miss — the same
+		// `undefined`-means-a-miss rule `projectCurrency`'s memo already carries.
+		const cached = memo.get(key);
+		if (cached !== undefined) return ok(cached);
+		const found = await this.overrides.getForPair(projectId, assetId);
+		if (isErr(found)) return err(found.error);
+		const unitCost = found.value?.entity.unitCost ?? null;
+		memo.set(key, unitCost);
+		return ok(unitCost);
+	}
+
+	/**
+	 * The effective cost — this project's own price where it has one, the catalogue
+	 * default otherwise — is what `assetMatchesCalculatedFrom` must be compared against
+	 * under an override, since that is what `calculatedFrom.unitCost` records. `null` for
+	 * a `null` asset, which is what lets `buildRow` ask this unconditionally: `isStaleReading`
+	 * already reads "stale" for a `null` asset without inspecting it further, and pulling the
+	 * branch out here is what keeps `buildRow`'s own complexity under budget.
+	 */
+	private async effectiveAsset(
+		r: Requirement,
+		assetEntity: { readonly unit: MeasurementUnit; readonly unitCost: Money } | null,
+		overrideMemo: Map<string, Money | null>,
+	): Promise<Result<{ unit: MeasurementUnit; unitCost: Money } | null, RepositoryError>> {
+		if (assetEntity === null) return ok(null);
+		const override = await this.projectOverride(r.projectId, r.assetId, overrideMemo);
+		if (isErr(override)) return err(override.error);
+		return ok({ unit: assetEntity.unit, unitCost: override.value ?? assetEntity.unitCost });
+	}
+
 	private async buildRow(
 		r: Requirement,
 		projectCurrency: Currency | null,
+		overrideMemo: Map<string, Money | null>,
 	): Promise<Result<RequirementInspectorDTO, RepositoryError>> {
 		const asset = await this.assets.getById(r.assetId);
 		if (isErr(asset)) return err(asset.error);
@@ -173,10 +217,13 @@ export class GetRequirementsForZone
 		const zone = await this.loadOriginZone(r);
 		if (isErr(zone)) return err(zone.error);
 
+		const effective = await this.effectiveAsset(r, assetEntity, overrideMemo);
+		if (isErr(effective)) return err(effective.error);
+
 		const stale = isStaleReading(
 			r,
 			zone.value?.entity ?? null,
-			assetEntity,
+			effective.value,
 			projectCurrency,
 		);
 

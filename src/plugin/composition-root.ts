@@ -64,6 +64,7 @@ import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/reposito
 import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
 import { ObsidianProjectRepository } from '../infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../infrastructure/obsidian/repositories/ObsidianZoneRepository';
+import { ObsidianAssetPriceOverrideRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository';
 import { createMigrationRunner, type MigrationRunner } from '../infrastructure/persistence/migration/MigrationRunner';
 import { MIGRATION_SET } from '../infrastructure/persistence/migration/migrationSet';
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
@@ -274,6 +275,7 @@ function composeRepositories(
 		zones: new ObsidianZoneRepository(deps, geometryStore),
 		assets: new ObsidianAssetRepository(deps, libraryFolder),
 		requirements: new ObsidianRequirementRepository(deps),
+		overrides: new ObsidianAssetPriceOverrideRepository(deps),
 		// §83's third site, which has no door to refuse at: ADR-0013 derives a project's
 		// folder from where its `Project.md` sits, so a user moves a project by dragging a
 		// folder in Obsidian's file explorer. Composed here rather than passed as a sixth
@@ -285,6 +287,53 @@ function composeRepositories(
 		// whole and destructures it, the same grouping SessionCollaborators argues for above.
 		defaultCurrency,
 	};
+}
+
+/**
+ * Design slice 10's lock set, the `RecalculateRequirementCommand` both the write side and
+ * the cascade handlers dispatch through, and the `Slice10Wiring` bundle `composeSlice10` and
+ * `composeGuarded` both take — pulled out of `createCompositionRoot`'s own body when the
+ * currency-override increment's wiring pushed that function over its 100-line cap.
+ *
+ * **An extraction, not a second collapsed literal.** `runtime.ts` already recorded the wrong
+ * remedy for this shape: a budget bought back by reformatting is a budget already spent, and
+ * the next line of code — of any size — trips the cap again. This is that next line, in the
+ * same file, one slice later; the fix is the seam `composeRepositories`/`composeGuarded`
+ * already model, not a third one.
+ */
+function composeSlice10Wiring(
+	repositories: ReturnType<typeof composeRepositories>,
+	index: ProjectIndex,
+	events: EventBus,
+	logger: Logger,
+	markers: SequenceMarkerStore | undefined,
+): { locks: ReferenceLocks; wiring: Slice10Wiring; slice10: ReturnType<typeof composeSlice10> } {
+	const { projects, zones, assets, requirements, overrides } = repositories;
+	// One lock set per plugin: assignment, unit changes and delete resolutions across
+	// every view serialize against the same keys.
+	const locks = new ReferenceLocks();
+	const recalculate = new RecalculateRequirementCommand({
+		requirements,
+		zones,
+		assets,
+		events,
+		projects,
+		overrides,
+	});
+	const wiring: Slice10Wiring = {
+		zones,
+		assets,
+		requirements,
+		projects,
+		index,
+		recalculate,
+		events,
+		locks,
+		logger,
+		markers,
+		overrides,
+	};
+	return { locks, wiring, slice10: composeSlice10(wiring) };
 }
 
 /**
@@ -376,24 +425,7 @@ export function createCompositionRoot(
 		settings.defaultCurrency,
 	);
 	const { geometryStore, projects, plans, zones, assets, requirements } = repositories;
-
-	// One lock set per plugin: assignment, unit changes and delete resolutions across
-	// every view serialize against the same keys.
-	const locks = new ReferenceLocks();
-	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, eventBus, projects);
-	const wiring: Slice10Wiring = {
-		zones,
-		assets,
-		requirements,
-		projects,
-		index,
-		recalculate,
-		events: eventBus,
-		locks,
-		logger,
-		markers,
-	};
-	const slice10 = composeSlice10(wiring);
+	const { locks, wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, markers);
 
 	const files = createVaultFileProbe(vault.vault);
 	const guarded = composeGuarded(repositories, slice10, wiring, files, {

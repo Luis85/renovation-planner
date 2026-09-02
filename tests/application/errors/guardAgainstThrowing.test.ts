@@ -27,6 +27,7 @@ import type { ProjectRepository } from '../../../src/application/ports/ProjectRe
 import type { ZoneRepository } from '../../../src/application/ports/ZoneRepository';
 import type { VaultFileProbe } from '../../../src/application/ports/VaultFileProbe';
 import type { AssetRepository } from '../../../src/application/ports/AssetRepository';
+import type { AssetPriceOverrideRepository } from '../../../src/application/ports/AssetPriceOverrideRepository';
 import type { Command } from '../../../src/application/commands/Command';
 import type { Query } from '../../../src/application/queries/Query';
 import { CreateAssetCommand } from '../../../src/application/commands/asset/CreateAsset';
@@ -98,6 +99,7 @@ const PORT_MEMBERS: ReadonlySet<string> = new Set([
 	'listByPlan',
 	'listByZone',
 	'listByAsset',
+	'getForPair',
 	'markStale',
 	'fileExists',
 	'read',
@@ -134,6 +136,7 @@ const projects = rejecting<ProjectRepository>('projects');
 const zones = rejecting<ZoneRepository>('zones');
 const assets = rejecting<AssetRepository>('assets');
 const requirements = rejecting<RequirementRepository>('requirements');
+const overrides = rejecting<AssetPriceOverrideRepository>('overrides');
 const files = rejecting<VaultFileProbe>('files');
 // The shared bus rather than a `{ publish }` object literal, which is not an `EventBus`:
 // `subscribe` was simply absent, so this fake could never have delivered anything and every
@@ -296,13 +299,13 @@ function slice10Services(): Fixture[] {
 		),
 		commandCase(
 			'AssignAssetCommand',
-			new AssignAssetCommand({ zones, assets, requirements, events, locks, projects }) as never,
+			new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides }) as never,
 			'command.assignAsset.failed',
 			{ zoneId: zone.id, assetId: asset.id },
 		),
 		commandCase(
 			'RecalculateRequirementCommand',
-			new RecalculateRequirementCommand(requirements, zones, assets, events, projects) as never,
+			new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides }) as never,
 			'command.recalculateRequirement.failed',
 			{ requirementId: requirement.id },
 		),
@@ -336,7 +339,7 @@ function slice10Services(): Fixture[] {
 		),
 		queryCase(
 			'GetRequirementsForZone',
-			new GetRequirementsForZone(requirements, zones, assets, projects) as never,
+			new GetRequirementsForZone(requirements, zones, assets, projects, overrides) as never,
 			'query.getRequirementsForZone.failed',
 			zone.id,
 		),

@@ -24,7 +24,7 @@ import {
 describe('AssignAssetCommand refusals', () => {
 	it('answers requirement.asset-not-found for an unknown asset', async () => {
 		const w = await wiredWithLink();
-		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const error = expectErr(await assigning.execute({ zoneId: w.zoneId, assetId: 'asset-none' as never }));
 		expect(error.code).toBe('requirement.asset-not-found');
 	});
@@ -34,7 +34,7 @@ describe('AssignAssetCommand refusals', () => {
 		const assets = overridePort(w.assets, {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
-		const assigning = new AssignAssetCommand({ zones: w.zones, assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const error = expectErr(await assigning.execute({ zoneId: w.zoneId, assetId: w.assetId }));
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -44,7 +44,7 @@ describe('AssignAssetCommand refusals', () => {
 		const zones = overridePort(w.zones, {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
-		const assigning = new AssignAssetCommand({ zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assigning = new AssignAssetCommand({ zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const error = expectErr(await assigning.execute({ zoneId: w.zoneId, assetId: w.assetId }));
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -54,7 +54,7 @@ describe('AssignAssetCommand refusals', () => {
 		const requirements = overridePort(w.requirements, {
 			listByZone: () => Promise.resolve(err(injectedPersistenceError())),
 		});
-		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const otherZone = expectOk(
 			await w.zones.save(
 				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }),
@@ -79,7 +79,7 @@ describe('AssignAssetCommand refusals', () => {
 		Object.assign(stored?.entity as object, {
 			area: () => ({ ok: false, error: { category: 'Calculation', code: 'test.no-area', message: 'x' } }),
 		});
-		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const error = expectErr(
 			await assigning.execute({ zoneId: otherZone.entity.id, assetId: w.assetId }),
 		);
@@ -98,7 +98,7 @@ describe('AssignAssetCommand refusals', () => {
 		// migration can still land one, and the pipeline must refuse it.
 		const stored = expectOk(await w.assets.getById(w.assetId));
 		Object.assign(stored?.entity as object, { wasteFactorDefault: new Decimal('-0.10') });
-		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const error = expectErr(
 			await assigning.execute({ zoneId: otherZone.entity.id, assetId: w.assetId }),
 		);
@@ -110,7 +110,7 @@ describe('AssignAssetCommand refusals', () => {
 		const requirements = overridePort(w.requirements, {
 			save: () => Promise.resolve(err(injectedPersistenceError())),
 		});
-		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const otherZone = expectOk(
 			await w.zones.save(
 				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }),
@@ -128,7 +128,7 @@ describe('AssignAssetCommand refusals', () => {
 		const projects = overridePort(w.projects, {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
-		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects });
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects, overrides: w.overrides });
 		const otherZone = expectOk(
 			await w.zones.save(
 				makeZone({ projectId: w.project.entity.id, planId: w.plan.entity.id }),
@@ -150,7 +150,7 @@ describe('AssignAssetCommand refusals', () => {
 			),
 		);
 		expectOk(await w.projects.delete(w.project.entity.id, w.project.version));
-		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assigning = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const error = expectErr(
 			await assigning.execute({ zoneId: otherZone.entity.id, assetId: w.assetId }),
 		);

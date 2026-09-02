@@ -8,6 +8,7 @@ import { InMemoryPlanRepository } from '../../../../src/infrastructure/persisten
 import { InMemoryProjectRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryAssetRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryRequirementRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
+import { InMemoryAssetPriceOverrideRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { ReferenceLocks } from '../../../../src/application/reference/ReferenceLocks';
 import { currencyOf, of as moneyOf } from '../../../../src/core/money/Money';
 import { expectErr, expectOk, RecordingEventBus } from '../../../helpers/domain';
@@ -27,6 +28,7 @@ async function seed(projectCurrency: string, assetCurrency: string) {
 	const zones = new InMemoryZoneRepository();
 	const assets = new InMemoryAssetRepository();
 	const requirements = new InMemoryRequirementRepository();
+	const overrides = new InMemoryAssetPriceOverrideRepository();
 	const events = new RecordingEventBus();
 
 	const project = expectOk(
@@ -63,8 +65,8 @@ async function seed(projectCurrency: string, assetCurrency: string) {
 		projectId: project.entity.id,
 		zoneId: zone.entity.id,
 		assetId: asset.entity.id,
-		assign: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects }),
-		recalculate: new RecalculateRequirementCommand(requirements, zones, assets, events, projects),
+		assign: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides }),
+		recalculate: new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides }),
 		quantityOverride: new SetRequirementQuantityOverrideCommand(requirements, events, locks),
 	};
 }

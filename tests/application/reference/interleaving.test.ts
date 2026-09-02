@@ -79,6 +79,7 @@ describe('two commands racing for the same reference lock', () => {
 			events: w.events,
 			locks: w.locks,
 			projects: w.projects,
+			overrides: w.overrides,
 		});
 
 		// The asset has NO referents yet, so the unit change is legal at the moment it starts.

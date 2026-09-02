@@ -38,6 +38,7 @@ import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryAssetRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryRequirementRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
+import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { projectFolderOf } from '../../src/infrastructure/obsidian/repositories/paths';
@@ -120,6 +121,7 @@ export async function rig(seed?: (repos: {
 	// its assign/override controls drive actual repositories through the ONE dispatcher.
 	const assetsRepo = new InMemoryAssetRepository();
 	const requirementsRepo = new InMemoryRequirementRepository();
+	const overridesRepo = new InMemoryAssetPriceOverrideRepository();
 	const locks = new ReferenceLocks();
 	// A DISPATCHING bus, not a recording one. `RecordingEventBus.subscribe` discards its
 	// handler, so a rig built on it has no recalculation cascade at all — every
@@ -127,7 +129,14 @@ export async function rig(seed?: (repos: {
 	// no assertion here could see it. The composition root registers exactly the two
 	// handlers below; a rig that registered neither is a fake kinder than the real app.
 	const events = dispatchingEventBus();
-	const recalculate = new RecalculateRequirementCommand(requirementsRepo, zonesRepo, assetsRepo, events, projects);
+	const recalculate = new RecalculateRequirementCommand({
+		requirements: requirementsRepo,
+		zones: zonesRepo,
+		assets: assetsRepo,
+		events,
+		projects,
+		overrides: overridesRepo,
+	});
 	registerOnZoneGeometryChanged(events, {
 		requirements: requirementsRepo,
 		events,
@@ -137,6 +146,7 @@ export async function rig(seed?: (repos: {
 	registerOnAssetUpdated(events, {
 		requirements: requirementsRepo,
 		assets: assetsRepo,
+		overrides: overridesRepo,
 		events,
 		logger: recorder,
 		recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
@@ -145,7 +155,7 @@ export async function rig(seed?: (repos: {
 	const queries = createPlanEditorQueries({
 		getPlan: new GetPlan(plans),
 		findZonesByPlan: new FindZonesByPlan(zonesRepo),
-		getRequirementsForZone: new GetRequirementsForZone(requirementsRepo, zonesRepo, assetsRepo, projects),
+		getRequirementsForZone: new GetRequirementsForZone(requirementsRepo, zonesRepo, assetsRepo, projects, overridesRepo),
 		listAssets: new ListAssets(assetsRepo),
 		listRequirementsReferencing: new ListRequirementsReferencing(
 			requirementsRepo,
@@ -204,6 +214,7 @@ export async function rig(seed?: (repos: {
 				events,
 				locks,
 				projects,
+				overrides: overridesRepo,
 			}),
 			setQuantityOverride: new SetRequirementQuantityOverrideCommand(requirementsRepo, events, locks),
 			setCostOverride: new SetRequirementCostOverrideCommand(requirementsRepo, events, locks),

@@ -556,6 +556,10 @@ export function assetDesignerDeps(
 		// `renovationProjectDeps.onPlansChanged` states: the bus is the root's own and exists
 		// either way, and a refusal bundle re-reading simply refuses again.
 		onDesignChanged: createAssetDesignChangeSource(root.eventBus),
+		// The SAME `css-change` source the Plan Editor takes, from the same workspace. Two
+		// surfaces resolve an Obsidian palette into canvas colours and both need telling when
+		// it moves; a second mechanism here would be a second answer to one question.
+		onThemeChange: createThemeChangeSource(app.workspace),
 		indexScanCompleted: options.indexScanCompleted,
 	};
 }

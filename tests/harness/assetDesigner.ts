@@ -85,6 +85,10 @@ function assetDesignerHarnessDeps(): AssetDesignerDeps {
 		// the Plan Editor's harness page are inert for the identical reason.
 		indexScanCompleted: () => true,
 		onDesignChanged: () => () => undefined,
+		// No theme switching in the harness page: the palette it resolves at setup is the one it
+		// keeps. A source that never fires, rather than one omitted, because the member is
+		// required precisely so no surface can forget to answer the question.
+		onThemeChange: () => () => undefined,
 	};
 }
 

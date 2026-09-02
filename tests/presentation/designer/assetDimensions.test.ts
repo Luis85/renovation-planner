@@ -65,6 +65,7 @@ function context(harness: Awaited<ReturnType<typeof seeded>>): AssetDesignerCont
 		picker: null,
 		vault: emptyBackgroundVault(),
 		onDesignChanged: () => () => undefined,
+		onThemeChange: () => () => undefined,
 		indexScanCompleted: () => true,
 	};
 }

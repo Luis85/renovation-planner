@@ -78,6 +78,7 @@ function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerCo
 		// A subscription that delivers nothing and disposes cleanly: this file is about what the
 		// shell DRAWS, and `designerRefresh.test.ts` is where the source is driven.
 		onDesignChanged: () => () => undefined,
+		onThemeChange: () => () => undefined,
 		// The scan has run, so a miss here is authoritative and the failure cases below mean what
 		// their names say — a leaf reading before the scan holds its loading line instead, which
 		// is `designerRefresh.test.ts`'s restored-leaf case.

@@ -63,6 +63,7 @@ function leafDeps(bus: ReturnType<typeof createEventBus>, reads: string[]): Asse
 		// exactly what a suite about the BUS wants the canvas to be doing.
 		vault: emptyBackgroundVault(),
 		onDesignChanged: createAssetDesignChangeSource(bus),
+		onThemeChange: () => () => undefined,
 		indexScanCompleted: () => true,
 	};
 }

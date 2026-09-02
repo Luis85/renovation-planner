@@ -284,6 +284,7 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		// committed write publishes `AssetDesignChanged` and this leaf re-reads because of it,
 		// rather than because a fixture said so.
 		onDesignChanged: (listener) => createAssetDesignChangeSource(events)(assetId, listener),
+		onThemeChange: () => () => undefined,
 		indexScanCompleted: () => true,
 	};
 

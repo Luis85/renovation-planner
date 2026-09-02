@@ -56,6 +56,7 @@ function deps(overrides: Partial<AssetDesignerDeps> = {}): AssetDesignerDeps {
 		picker: null,
 		vault: emptyBackgroundVault(),
 		onDesignChanged: () => () => undefined,
+		onThemeChange: () => () => undefined,
 		indexScanCompleted: () => true,
 		...overrides,
 	};

@@ -92,7 +92,7 @@ function onEmptyStateAction(): void {
 const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value);
 
 const root = ref<HTMLElement | null>(null);
-const { tokens, refresh } = useThemeTokens(root);
+const { tokens, refresh } = useThemeTokens(root, context.onThemeChange);
 const backgroundStatus = ref<BackgroundStatus>('none');
 
 function hydrate(): void {

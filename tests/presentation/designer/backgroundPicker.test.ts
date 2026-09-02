@@ -70,6 +70,7 @@ function context(
 		// `unavailable/missing` for it either way and no assertion here reads a raster.
 		vault: emptyBackgroundVault(),
 		onDesignChanged: () => () => undefined,
+		onThemeChange: () => () => undefined,
 		indexScanCompleted: () => true,
 	};
 }

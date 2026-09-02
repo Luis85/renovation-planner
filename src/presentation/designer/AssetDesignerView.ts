@@ -182,6 +182,7 @@ export class AssetDesignerView extends ItemView {
 			picker: this.deps.picker,
 			vault: this.deps.vault,
 			indexScanCompleted: this.deps.indexScanCompleted,
+			onThemeChange: this.deps.onThemeChange,
 			onDesignChanged: (listener) => this.deps.onDesignChanged(assetId, listener),
 		};
 

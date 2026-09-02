@@ -23,17 +23,22 @@
  * `registerDesignerTools.ts` and `AssetDesignerRoot.vue` recorded as a gap and nothing
  * scheduled. The arithmetic is `editor/layers/gestureGeometry.ts`, shared with the plan editor.
  *
- * **The palette is resolved ONCE, at setup, and that is a stated limitation rather than a
- * convention.** A canvas cannot read a CSS variable — `fill: var(--text-normal)` means nothing
- * to a 2D context — so `resolveThemeTokens` is the bridge, exactly as it is for the plan
- * editor. What the plan editor has and this does not is `PlanEditorContext.onThemeChange`:
- * `AssetDesignerDeps` carries no theme subscription, so a user who switches theme or toggles
- * dark mode with a designer open keeps the old palette until the leaf is reopened. Closing
- * that is one member on the deps bundle plus the composition root's existing `css-change`
- * binding, and it is written here rather than left to be rediscovered. It resolves against
- * `document.documentElement` for the same reason `useThemeTokens` does at setup: this
- * component's own element does not exist yet, and the subtree-scoped refinement is what the
- * missing subscription would buy back.
+ * **The palette follows the theme.** A canvas cannot read a CSS variable —
+ * `fill: var(--text-normal)` means nothing to a 2D context — so `resolveThemeTokens` is the
+ * bridge, exactly as it is for the plan editor, and `useThemeTokens` is what keeps that bridge
+ * current: `AssetDesignerDeps.onThemeChange` carries Obsidian's `css-change` to this surface
+ * the way `PlanEditorContext.onThemeChange` carries it to the other one. It resolved ONCE at
+ * setup for two tasks, which is why a user who switched theme with a designer open kept a
+ * light-theme stroke on a dark ground until the leaf was reopened; `designerTheme.test.ts`
+ * replaced that sentence with a case.
+ *
+ * **What is still resolved against `document.documentElement`, said plainly rather than
+ * implied:** the plan editor passes its own root element so a theme scoping variables to a
+ * subtree is read where the canvas actually sits, and this component owns no such element —
+ * its outermost node belongs to `EditorSurface`. So it passes `ref(null)`, which is the
+ * composable's documented fallback. A subtree-scoped theme is therefore read from the document
+ * here; closing that means hoisting the tokens to `AssetDesignerRoot`, which owns
+ * `.renovation-asset-designer`, and handing them down as a prop.
  */
 import { computed, ref } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -43,7 +48,7 @@ import { useEditorStore } from '../stores/EditorStore';
 import EditorSurface from '../editor/surface/EditorSurface.vue';
 import BackgroundLayer from '../editor/layers/background/BackgroundLayer.vue';
 import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
-import { resolveThemeTokens } from '../editor/theme/themeTokens';
+import { useThemeTokens } from '../editor/theme/useThemeTokens';
 import { STAGE_PIXELS, viewportTransform, worldPerScreenPixel } from '../editor/viewport/Viewport';
 import { boundsOfZones } from '../editor/viewport/zoneExtent';
 import { useAssetDesignerContext } from './AssetDesignerContext';
@@ -82,7 +87,7 @@ const editorRefs = storeToRefs(editor);
 const viewport = editorRefs.viewport;
 const { design } = storeToRefs(useAssetDesignStore());
 
-const tokens = ref(resolveThemeTokens(document.documentElement));
+const { tokens } = useThemeTokens(ref(null), context.onThemeChange);
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.

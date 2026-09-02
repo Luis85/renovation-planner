@@ -119,6 +119,7 @@ function harness(options: {
 		picker: null,
 		vault: emptyBackgroundVault(),
 		onDesignChanged: options.onDesignChanged ?? (() => () => undefined),
+		onThemeChange: () => () => undefined,
 		indexScanCompleted: options.indexScanCompleted ?? ((): boolean => true),
 	};
 
@@ -590,6 +591,7 @@ describe('reaching the runtime from a region', () => {
 			picker: null,
 			vault: emptyBackgroundVault(),
 			onDesignChanged: () => () => undefined,
+			onThemeChange: () => () => undefined,
 			indexScanCompleted: () => true,
 		};
 		let provided!: DesignerRuntime;

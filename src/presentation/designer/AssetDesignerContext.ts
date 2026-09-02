@@ -74,6 +74,19 @@ export interface AssetDesignerDeps {
 	 * "populated" is the wrong question.
 	 */
 	readonly indexScanCompleted: () => boolean;
+	/**
+	 * Obsidian's `css-change`, as a subscription that hands back its own unsubscribe — the same
+	 * member `PlanEditorContext` carries, bound by the composition root to the same
+	 * `createThemeChangeSource(workspace)`.
+	 *
+	 * A canvas cannot read a CSS variable, so `resolveThemeTokens` is the bridge and something
+	 * has to tell it the bridge is stale. Without this member the designer resolved its palette
+	 * once at setup and a user who switched theme with a designer open kept the old one until
+	 * the leaf was reopened. A callback rather than the `Workspace` itself, for the reason the
+	 * plan editor's own member gives: the components' only interest is "the theme changed,
+	 * re-resolve", and handing them a workspace would let any of them reach for the rest of it.
+	 */
+	readonly onThemeChange: (listener: () => void) => () => void;
 }
 
 /**

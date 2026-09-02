@@ -84,6 +84,7 @@ function context(design: AssetDesignDto, vault: BackgroundVault): AssetDesignerC
 		picker: null,
 		vault,
 		onDesignChanged: () => () => undefined,
+		onThemeChange: () => () => undefined,
 		indexScanCompleted: () => true,
 	};
 }

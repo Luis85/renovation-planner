@@ -273,6 +273,34 @@ also closes a pre-existing exposure rather than only serving this surface**: tod
 requirement note blanks the Plan Editor's Requirements panel for every zone, which nothing has
 noticed because nothing else reads that many notes at once.
 
+### A row's own referent reads must not fault the summary either
+
+**The same class as the listing finding, one layer down, and broader than it was reported.**
+`buildRow` propagates every referent read it makes:
+
+```ts
+if (isErr(asset)) return err(asset.error);          // line 170
+const zone = await this.loadOriginZone(r);
+if (isErr(zone)) return err(zone.error);            // line 174
+```
+
+So a malformed ZONE note faults the row, which faults the whole summary — the finding as
+reported. Checking it found the **asset** read one line above has the identical shape, which
+nobody named: a malformed asset note in the shared catalogue would take every project's Overview
+down with it. Fixing only the zone would have been the partial fix that reads like a complete
+one.
+
+The project-level builder tolerates a failed referent read, counts it, and produces a row rather
+than propagating. `unreadableRequirements` covers the row and its referents, because the user's
+question is "how many figures could not be read" and the answer does not improve by naming which
+note underneath it was at fault — the diagnostics report is where that belongs.
+
+**A read that FAILED and a referent that is ABSENT stay different, and the DTO already draws
+that line.** `getById` answering `ok(null)` is a deleted asset: the row renders with
+`missingTarget: 'asset'` and its stale reason, which is information the user can act on.
+`isErr` is a note that could not be read: excluded and counted. Collapsing them would either
+hide a deletion or invent one.
+
 ### The foreign-row category dissolved, and that is worth recording rather than deleting
 
 An earlier round found that a requirement whose `origin.zoneId` sits in this project while its
@@ -700,6 +728,10 @@ mistake, per this repository's rule.
 | Invalidation | undo of a cost override and of a quantity override each refresh the total | `ReversibleOverrideBase.undo` saves directly and publishes nothing |
 | Invalidation | a `.rpgeo` edit arriving out of band refreshes the stale count | it publishes `GeometrySidecarChanged` and deliberately not `ProjectIndexEntryChanged` |
 | Invalidation | a project note whose currency changed out of band refreshes the summary | the header updates without it and the total keeps the old denominator |
+| Summary | a malformed ZONE note leaves every other figure drawn | `buildRow` propagates the zone read, so one bad zone faults the whole summary |
+| Summary | a malformed ASSET note leaves every other project's figures drawn | the same propagation one line above, in the SHARED catalogue — unreported, found by checking the reported one |
+| Summary | a DELETED asset still renders its row with `missingTarget: 'asset'` | collapsing absent into unreadable hides a deletion the user can act on |
+| Invalidation | an asset price change whose cascade cannot enumerate referents still refreshes the summary | the cascade returns before publishing, so `AssetUpdated` is the only notice there is |
 | Summary | one malformed requirement note leaves every other figure drawn, counted once in `unreadableRequirements` | an unscoped walk counts it once per zone, and a per-zone widening counts another project's note too |
 | Summary | a malformed requirement in ANOTHER project is invisible here | an unscoped walk both faults on it and miscounts it |
 | Commands | `DeleteZoneCommand` still refuses when a referent cannot be read | widening the shared `listByZone` lets it delete a zone whose referent it never saw |

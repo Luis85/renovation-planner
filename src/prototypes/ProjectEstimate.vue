@@ -60,15 +60,19 @@ const props = withDefaults(
 		 * the size of the union, so only the query can answer this.
 		 */
 		summed?: number;
+		/**
+		 * There was a second exclusion badge here — rows belonging to another project — and the
+		 * project-scoped walk made that state unreachable, so it went. The SHAPE stays: `flags`
+		 * is a list because a summary can have more than one thing to disclaim, and the next
+		 * exclusion category joins it without touching the template.
+		 */
 		rooms?: number;
 		/** Figures whose inputs have moved. They ARE in the amount, and the badge says so. */
 		stale?: number;
 		/** Figures the total cannot take, because their currency is not the project's. */
 		unsummable?: number;
-		/** Rows reached through this project's zones whose own `projectId` names another. */
-		foreign?: number;
 	}>(),
-	{ amount: '€42,300.00', requirements: 24, summed: 22, rooms: 11, stale: 3, unsummable: 1, foreign: 1 },
+	{ amount: '€42,300.00', requirements: 24, summed: 23, rooms: 11, stale: 3, unsummable: 1 },
 );
 
 /**
@@ -115,16 +119,6 @@ const flags = computed(() => {
 			key: 'currency',
 			d: 'M5.6 5.6l12.8 12.8',
 			text: `${props.unsummable} in another currency, not counted`,
-		});
-	}
-	// An exclusion the user is never told about is the silent understatement Decision 3 refuses,
-	// so `foreign` gets a badge of its own rather than only a field on the summary.
-	if (props.foreign > 0) {
-		rows.push({
-			health: 'excluded',
-			key: 'foreign',
-			d: 'M5.6 5.6l12.8 12.8',
-			text: `${props.foreign} in another project, not counted`,
 		});
 	}
 	return rows;

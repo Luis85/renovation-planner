@@ -187,8 +187,10 @@ interface ProjectSummary {
 	 * The rows that actually CONTRIBUTED to `total`. Supplied, never derived by a caller.
 	 *
 	 * `requirementCount - unsummable` was right for one exclusion category and broke when
-	 * `foreign` arrived; subtracting both double-counts a row that is BOTH. The counts below are
-	 * independent by design, so only this query knows the size of their union.
+	 * a second exclusion category arrived; subtracting every category double-counts a row caught
+	 * by two of them. The counts below are independent by design, so only this query knows the
+	 * size of their union — and it stays supplied even now that `unsummable` is the only
+	 * exclusion left, because the next category to arrive must not re-open this.
 	 */
 	summed: number;
 	/**
@@ -205,8 +207,6 @@ interface ProjectSummary {
 	unreadableZones: number;
 	/** Rows whose currency the total cannot take. */
 	unsummable: number;
-	/** Rows reached through this project's zones whose own `projectId` names another project. */
-	foreign: number;
 	/** Requirement notes that could not be read at all. One bad note costs one note. */
 	unreadableRequirements: number;
 }
@@ -273,51 +273,50 @@ also closes a pre-existing exposure rather than only serving this surface**: tod
 requirement note blanks the Plan Editor's Requirements panel for every zone, which nothing has
 noticed because nothing else reads that many notes at once.
 
-### The walk's real cost, stated rather than discovered
+### The foreign-row category dissolved, and that is worth recording rather than deleting
 
-The same `filterLoaded` shape has a second consequence this document should not leave for
-whoever builds it. `listByZone` reads EVERY requirement note in the vault and filters afterwards,
-so delegating per zone costs `zones × all-requirements` reads — for a modest project of 11 rooms
-in a vault of 500 requirements, 5,500 note reads per summary, on every invalidation.
+An earlier round found that a requirement whose `origin.zoneId` sits in this project while its
+own `projectId` names another would be summed into the wrong total — the walk started at zones,
+`RequirementInspectorDTO` exposed no `projectId`, and with both projects on one currency nothing
+could tell. The answer then was a `foreign` count: exclude and report.
 
-The currency memo fixed the project reads and does nothing for this. The honest options are a
-`listByProject` on the requirement port (which the orphan-requirement limitation below also
-wants) or an index-side filter by zone; both are larger than a memo, and neither should be
-discovered by whoever first opens Overview on a real vault.
+**The project-scoped walk makes that state unreachable.** `getIdsByProject` selects on the index
+entry's project, which `buildProjectIndexEntries` reads from the note's own `project`
+frontmatter — the same field the entity carries and the same field
+`RecalculateRequirementCommand` resolves from. A row reached here is this project's by
+construction, so `foreign` has nothing to count and is gone from `ProjectSummary`.
 
-### A row reached through this project's zones may belong to another project
+`RequirementInspectorDTO` still gains `projectId`. It costs nothing, and it is what lets a test
+assert the walk really is scoped rather than trusting that it is.
 
-**Found by review, and it is the currency increment's own defect arriving from the other side.**
-The walk reaches requirements through `zones`, and a Requirement carries `projectId` and
-`origin.zoneId` as two independent frontmatter keys that `requirementMapper` reads with no
-cross-check — `Requirement.create` validates only the origin KIND, so a hand edit parts them.
-`RequirementInspectorDTO` exposes no `projectId`, so the rollup cannot see the difference: with
-both projects on the same currency the row is silently summed into the wrong project's total.
+**The mirror case survives and is the honest residue.** A requirement whose `projectId` names
+THIS project while its `origin.zoneId` points into another project's plan is reached and counted
+here, and its area comes from that foreign zone. That is not a defect to fix: `projectId` is the
+authority the command reads, so the summary and `RecalculateRequirementCommand` agree about the
+row — which was the whole point of reading the same field. A surface that disagreed with the
+command would be the worse failure.
 
-The DTO gains `projectId`. The Inspector does not need it and the rollup cannot work without
-it, which is the same shape as the memo — a field added for the caller that has the question.
+**Prefer making a state unrepresentable to counting it.** The `foreign` count was a correct
+answer to the question as posed; changing the walk meant the question stopped being asked. The
+category is recorded here rather than quietly removed, so the next reader meets the reasoning
+instead of wondering why a reviewed finding left no trace.
 
-Such a row is **excluded and counted**, never silently dropped, per Decision 3: `ProjectSummary`
-gains `foreign`, the count of rows reached through this project's zones whose own `projectId`
-names another project. Dropping them quietly would be the understatement that decision refuses,
-and counting them into the total is the defect itself.
+### The orphan limitation closed, by the same change
 
-**Why not "resolve from the zone and move on".** The currency increment already answered this:
-the command resolves from `requirement.projectId`, so a summary resolving from the zone would
-put the two derivations back into disagreement — the exact thing that made `GetRequirementsForZone`
-vouch for a figure `RecalculateRequirementCommand` refuses. The summary reads the same field the
-command reads, and reports the mismatch rather than papering over it.
+The previous draft recorded that a requirement whose zone was deleted is invisible to the total,
+because the walk started at zones — and said closing it "needs `listByProject` on the requirement
+port, which is its own increment". This increment builds exactly that, so the limitation is
+closed rather than inherited.
 
-### The limitation this surface does not close
+`RequirementInspectorDTO`'s own docblock predicted this surface by name: *"the union gains
+`'zone'` with the project-level surface that can produce it"*. `missingTarget` gains `'zone'`
+here, and an orphaned requirement is counted and rendered from its id plus the reason, the way
+an asset-less row already is.
 
-The walk starts at zones, so **a requirement whose zone was deleted is invisible to the
-total.** `RequirementInspectorDTO`'s own docblock predicts a surface that would close it —
-*"the union gains `'zone'` with the project-level surface that can produce it"* — and this is
-not that surface: it reaches requirements only through zones it found, so it can never
-produce a `missingTarget: 'zone'` row. Closing it needs `listByProject` on the requirement
-port, which is its own increment.
-
-Written into the query's header, this spec, and the slice document. Not a TODO.
+**Two walks, not one, and the counts say which is which.** `zoneCount` still comes from
+plans → zones; `requirementCount` comes from the project-scoped requirement read. They are
+different questions and a requirement that outlived its zone is precisely the case where the
+two disagree — so collapsing them would reintroduce the blindness this section closes.
 
 ## Decision 4 — this surface says "Rooms"
 
@@ -666,10 +665,13 @@ mistake, per this repository's rule.
 | Invalidation | undo of a cost override and of a quantity override each refresh the total | `ReversibleOverrideBase.undo` saves directly and publishes nothing |
 | Invalidation | a `.rpgeo` edit arriving out of band refreshes the stale count | it publishes `GeometrySidecarChanged` and deliberately not `ProjectIndexEntryChanged` |
 | Invalidation | a project note whose currency changed out of band refreshes the summary | the header updates without it and the total keeps the old denominator |
-| Summary | one malformed requirement note leaves every other figure drawn, counted in `unreadableRequirements` | `filterLoaded` returns the first read error today, so the whole summary faults on a note it does not count |
+| Summary | one malformed requirement note leaves every other figure drawn, counted once in `unreadableRequirements` | an unscoped walk counts it once per zone, and a per-zone widening counts another project's note too |
+| Summary | a malformed requirement in ANOTHER project is invisible here | an unscoped walk both faults on it and miscounts it |
+| Commands | `DeleteZoneCommand` still refuses when a referent cannot be read | widening the shared `listByZone` lets it delete a zone whose referent it never saw |
+| Summary | one summary read issues one project-scoped requirement listing | per-zone delegation is `zones × all-requirements`, which coalescing shrinks in count and not in size |
 | Invalidation | an asset price edited out of band refreshes the stale count | no `AssetUpdated` cascade runs for a hand edit; the index entry is the only notice |
 | Invalidation | `RequirementDeleted` refreshes the summary | it was specified as published and not subscribed to for a round — published-and-unheard passes every publishing test |
-| Summary | `summed` is the query's own count, and a row that is both foreign and currency-mismatched is subtracted once | deriving it in the component double-subtracts, and the counts are independent by design |
+| Summary | `summed` is the query's own count rather than the component's arithmetic | deriving it double-subtracts a row caught by two exclusion categories, and the counts are independent by design |
 | Keyboard | after a section change through view state, focus is on the newly selected tab | the mock's local `ref` hides this; only the real round trip unmounts the element |
 | Keyboard | a restored leaf and a `rebind` do NOT move focus | an unconditional focus-on-mount steals it during layout restoration |
 | Invalidation | a manual index rebuild refreshes an already-mounted Overview | `ProjectIndexRebuilt` carries no payload, so nothing per-entry fires |
@@ -677,7 +679,8 @@ mistake, per this repository's rule.
 | Coalescing | a slower earlier read cannot overwrite a later one | without the request ticket a just-recalculated figure reverts |
 | Sweep | every adapter matching `UndoableCommand\|Reversible` that writes also publishes | five of eleven publish nothing today; a per-adapter test lets the sixth ship |
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
-| Summary | a requirement whose `projectId` names another project lands in `foreign`, out of the total | with both projects on one currency it is otherwise summed into the wrong project silently |
+| Summary | a requirement whose `projectId` names another project is never reached | a zone-started walk reaches it and, on one shared currency, sums it into the wrong project silently |
+| Summary | a requirement whose zone was deleted IS reached and reports `missingTarget: 'zone'` | a zone-started walk cannot produce that row at all |
 | Invalidation | the Design section does NOT re-read its plan list on a requirement event | folding this into `projectPlansChangeSource` passes every Overview case and costs Design a read per requirement in the vault |
 | Errors | a partial read draws the section plus the strip; a faulted read draws `ViewFailure` inside Overview with header and nav still mounted | replacing the whole shell takes the back control with it |
 | Accessibility | the Overview scan asserts `.rp-empty-state`, `.rp-project-detail__back` and the nav's current-section marker are in the scanned DOM | grading a component instead of a surface |
@@ -697,8 +700,9 @@ navigation case.
 
 **New:** `src/application/queries/GetProjectSummary.ts`;
 `src/application/events/projectSummaryChangeSource.ts` (Decision 7);
-a `RequirementDeleted` domain event (Decision 7); the `{ loaded, refused }` widening of
-`RequirementRepository.listByZone` and its partial result through `GetRequirementsForZone`;
+a `RequirementDeleted` domain event (Decision 7); `RequirementRepository.listByProject`
+with a `{ loaded, refused }` result over the `getIdsByProject` axis the index already has, plus
+the extraction of `GetRequirementsForZone`'s per-row builder so both callers agree on a row;
 `src/presentation/views/sections.ts`
 (the `SECTIONS` list and the parse); `ProjectHeader.vue`, `ProjectNav.vue`,
 `ProjectOverview.vue`, `ProjectEstimate.vue`, `ProjectDesign.vue`; a `styles/` partial carrying

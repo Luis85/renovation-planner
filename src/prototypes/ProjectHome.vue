@@ -142,13 +142,12 @@ const plans = [
 
 const staleCount = 3;
 const unsummableCount = 1;
-const foreignCount = 1;
 /**
- * Supplied, never derived. `requirements - unsummable - foreign` double-subtracts a row that is
- * both, and the exclusion counts are deliberately independent — only the query knows the size of
- * their union.
+ * Supplied, never derived. subtracting every exclusion category double-counts a row caught by two
+ * of them, and the counts are deliberately independent — only the query knows the size of their
+ * union.
  */
-const summedCount = 22;
+const summedCount = 23;
 
 </script>
 
@@ -212,7 +211,6 @@ const summedCount = 22;
 				:summed="summedCount"
 				:stale="staleCount"
 				:unsummable="unsummableCount"
-				:foreign="foreignCount"
 			/>
 
 			<div class="rp-counts">

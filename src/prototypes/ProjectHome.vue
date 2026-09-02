@@ -60,13 +60,30 @@
 	rule that a surface renders no control rather than a live one that does nothing.
 -->
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, useId } from 'vue';
 import ProjectEstimate from './ProjectEstimate.vue';
 
 const sections = ['Overview', 'Design'] as const;
 type Section = (typeof sections)[number];
 
 const active = ref<Section>('Overview');
+
+/**
+ * One id root per MOUNTED APP, not per section name.
+ *
+ * `rp-tab-Overview` looks stable and is the wrong kind of stable: the Renovation Project view
+ * can be split, and each leaf mounts its own Vue app, so two panes would emit the same
+ * `aria-controls` target and a screen reader would resolve one pane's tab to the other pane's
+ * panel. That is the exact hazard `app-id-prefix.ts` exists for — `app.config.idPrefix` is set
+ * at BOTH `createApp` sites so two apps' `useId()` calls cannot collide — and a hand-built id
+ * walks straight past it, because a literal is not a `useId()` call.
+ *
+ * `FieldError` is the house pattern and it mints its own ids the same way.
+ */
+const idRoot = useId();
+
+const tabId = (section: Section): string => `${idRoot}-tab-${section}`;
+const panelId = (section: Section): string => `${idRoot}-panel-${section}`;
 
 /**
  * A roving `tabindex`: exactly one tab is in the document's tab order and the arrow keys move
@@ -157,14 +174,14 @@ const unsummableCount = 1;
 		>
 			<button
 				v-for="(section, index) in sections"
-				:id="`rp-tab-${section}`"
+				:id="tabId(section)"
 				:key="section"
 				type="button"
 				role="tab"
 				class="rp-project-nav__tab"
 				:class="{ 'rp-project-nav__tab--on': section === active }"
 				:aria-selected="section === active"
-				:aria-controls="`rp-panel-${section}`"
+				:aria-controls="panelId(section)"
 				:tabindex="section === active ? 0 : -1"
 				@click="active = section"
 				@keydown="onKey($event, index)"
@@ -175,10 +192,10 @@ const unsummableCount = 1;
 
 		<div
 			v-if="active === 'Overview'"
-			:id="`rp-panel-${active}`"
+			:id="panelId(active)"
 			class="rp-project-section"
 			role="tabpanel"
-			:aria-labelledby="`rp-tab-${active}`"
+			:aria-labelledby="tabId(active)"
 			tabindex="0"
 		>
 			<ProjectEstimate
@@ -220,10 +237,10 @@ const unsummableCount = 1;
 
 		<div
 			v-else
-			:id="`rp-panel-${active}`"
+			:id="panelId(active)"
 			class="rp-project-section"
 			role="tabpanel"
-			:aria-labelledby="`rp-tab-${active}`"
+			:aria-labelledby="tabId(active)"
 			tabindex="0"
 		>
 			<div class="rp-plan-list__header">

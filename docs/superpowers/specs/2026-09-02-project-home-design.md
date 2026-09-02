@@ -169,10 +169,12 @@ interface ProjectSummary {
 	unreadableZones: number;
 	/** Rows whose currency the total cannot take. */
 	unsummable: number;
+	/** Rows reached through this project's zones whose own `projectId` names another project. */
+	foreign: number;
 }
 ```
 
-**The three counts are independent, not a partition**, and the qualifier says so rather than
+**These counts are independent, not a partition**, and the qualifier says so rather than
 implying arithmetic that does not hold: a row may be both `stale` and `unsummable`, and
 `stale + unsummable` is therefore not a count of anything. Each answers its own question.
 
@@ -200,6 +202,29 @@ counted out and named.
 
 **This is not a licence to leave that residue open.** It is the read side declining to hide
 it.
+
+### A row reached through this project's zones may belong to another project
+
+**Found by review, and it is the currency increment's own defect arriving from the other side.**
+The walk reaches requirements through `zones`, and a Requirement carries `projectId` and
+`origin.zoneId` as two independent frontmatter keys that `requirementMapper` reads with no
+cross-check — `Requirement.create` validates only the origin KIND, so a hand edit parts them.
+`RequirementInspectorDTO` exposes no `projectId`, so the rollup cannot see the difference: with
+both projects on the same currency the row is silently summed into the wrong project's total.
+
+The DTO gains `projectId`. The Inspector does not need it and the rollup cannot work without
+it, which is the same shape as the memo — a field added for the caller that has the question.
+
+Such a row is **excluded and counted**, never silently dropped, per Decision 3: `ProjectSummary`
+gains `foreign`, the count of rows reached through this project's zones whose own `projectId`
+names another project. Dropping them quietly would be the understatement that decision refuses,
+and counting them into the total is the defect itself.
+
+**Why not "resolve from the zone and move on".** The currency increment already answered this:
+the command resolves from `requirement.projectId`, so a summary resolving from the zone would
+put the two derivations back into disagreement — the exact thing that made `GetRequirementsForZone`
+vouch for a figure `RecalculateRequirementCommand` refuses. The summary reads the same field the
+command reads, and reports the mismatch rather than papering over it.
 
 ### The limitation this surface does not close
 
@@ -357,6 +382,43 @@ leaf is invisible to the Overview until a remount.
 `ProjectIndexEntryChanged` filtered to the plan, zone and requirement entity types, which is
 `projectPlansChangeSource`'s own arm widened by two types rather than a new mechanism.
 
+### Two write paths publish nothing, and a subscription cannot fix that
+
+**Both found by review, both verified in the code, and neither is closable by adding an event
+name to a list** — which is why they are tasks in this increment rather than lines in the source.
+
+**Assign Asset's undo and redo are silent.** `reversible-assign-asset-command.ts` contains
+**zero** `publish` calls — grepped, not assumed — while `undo()` deletes through
+`requirements.delete` and `redoCreate()` restores through `requirements.save`. So undoing an
+asset assignment in the Inspector changes the requirement count and the total and announces
+nothing. `ProjectIndexEntryChanged` cannot compensate: a plugin-owned write updates the index
+synchronously and `EchoWindow` suppresses the vault event it raised, which is the mechanism
+`VaultChangeAdapter`'s echo check exists for.
+
+`redoCreate` publishes `RequirementCreated`, which already exists. **The undo half has no event
+to publish** — the vocabulary is `RequirementCreated`, `RequirementRecalculated` and
+`RequirementInvalidated`, and none of them means "this requirement is gone". So this increment
+either mints `RequirementDeleted` or gives `undo()` `RequirementInvalidated`, and the two are
+not interchangeable: `RequirementInvalidated` carries a bare id and says a figure stopped being
+trustworthy, which is a different claim from the row no longer existing. **Minting the event is
+the honest option** and it is a domain change, so it is named here rather than decided in a
+review round.
+
+**Asset deletion's resolutions are silent too.** `DeleteAsset` publishes exactly one event —
+`assetDeleted({ assetId })`, at one call site — after a resolution that has already deleted
+requirements (`remove-references`) or marked them stale (`delete-anyway`). The first moves the
+total and the requirement count, the second moves the stale count, and neither is announced.
+
+Subscribing to `AssetDeleted` unfiltered is the cheap fix and it is the wrong one twice over: it
+carries no project id, so every project's summary re-reads on any asset deletion, and it reports
+a change to the ASSET when what moved is this project's requirements. The resolution paths
+publish requirement-level events, which is also what makes them visible to any future subscriber
+rather than to this one surface.
+
+**The shape worth carrying:** a change source can only hear what something publishes, so
+"subscribe to the right events" is only half a design. The other half is auditing which write
+paths raise none — and two of the three that move this summary raise nothing at all.
+
 ### Why not fold this into `projectPlansChangeSource`
 
 Two sections ask two questions. Widening the plans source would make the Design tab re-read its
@@ -425,6 +487,9 @@ mistake, per this repository's rule.
 | Invalidation | a `RequirementRecalculated` for THIS project refreshes the summary; one for another project does not | an unfiltered list re-reads on every requirement in the vault |
 | Invalidation | a `CostEstimateChanged` refreshes the summary even though its payload names no project | omitting it makes a cost override in another leaf invisible until remount — the case `RequirementRecalculated` cannot cover |
 | Invalidation | `ZoneGeometryChanged` refreshes the summary | a moved vertex changes an area, and an area is an input to the total |
+| Invalidation | undo and redo of Assign Asset each refresh the summary | both write paths publish nothing today, so a subscription-only fix passes no case at all |
+| Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
+| Summary | a requirement whose `projectId` names another project lands in `foreign`, out of the total | with both projects on one currency it is otherwise summed into the wrong project silently |
 | Invalidation | the Design section does NOT re-read its plan list on a requirement event | folding this into `projectPlansChangeSource` passes every Overview case and costs Design a read per requirement in the vault |
 | Errors | a partial read draws the section plus the strip; a faulted read draws `ViewFailure` inside Overview with header and nav still mounted | replacing the whole shell takes the back control with it |
 | Accessibility | the Overview scan asserts `.rp-empty-state`, `.rp-project-detail__back` and the nav's current-section marker are in the scanned DOM | grading a component instead of a surface |
@@ -444,16 +509,18 @@ navigation case.
 
 **New:** `src/application/queries/GetProjectSummary.ts`;
 `src/application/events/projectSummaryChangeSource.ts` (Decision 7);
+a `RequirementDeleted` domain event (Decision 7);
 `src/presentation/views/sections.ts`
 (the `SECTIONS` list and the parse); `ProjectHeader.vue`, `ProjectNav.vue`,
 `ProjectOverview.vue`, `ProjectEstimate.vue`, `ProjectDesign.vue`; a `styles/` partial carrying
 `.rp-badge` and its variants, the section switch, the counts and the warning strip, per
 Decision 6; the manual test case.
 
-**Changed:** `RenovationProjectView.ts` (parse, `sync`, `setState`);
+**Changed:** `reversible-assign-asset-command.ts` and `DeleteAsset.ts`, which publish nothing
+for writes this summary depends on (Decision 7); `GetRequirementsForZone.ts` (the optional memo,
+and `projectId` on the DTO); `RenovationProjectView.ts` (parse, `sync`, `setState`);
 `RenovationProjectContext.ts` (`navigate` gains a section); `ProjectDetailState.vue` (becomes
-the shell); `ProjectDetail.vue` (splits); `GetRequirementsForZone.ts` (optional memo); the
-read-model bundle; `composition-root.ts` / `guardedServices.ts`; `errorSurfacePolicy.ts` (one
+the shell); `ProjectDetail.vue` (splits); the read-model bundle; `composition-root.ts` / `guardedServices.ts`; `errorSurfacePolicy.ts` (one
 origin); `en.ts` / `de.ts`; `scripts/harness-shot.mjs`; `tests/harness/page.ts`; `CLAUDE.md`.
 
 ## Deliberately out of scope

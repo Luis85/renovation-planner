@@ -61,10 +61,22 @@ const props = withDefaults(
 /**
  * Built from the same numbers the figure was built from, rather than written as copy, so a
  * fixture change cannot leave the derivation describing a total it no longer explains.
+ *
+ * **It names the rows actually SUMMED, not the rows reached**, which is the correction a review
+ * caught and the one this line could least afford to get wrong. `Summed from 24 requirements`
+ * beside a badge reading `1 in another currency, not counted` is a sentence contradicting the
+ * badge under it — and provenance is the entire job of this component, so a provenance line that
+ * overstates its own inputs is worse than none. With every row counted it stays the plain
+ * sentence; with any excluded it says `23 of 24`, and the badge then explains the gap.
  */
-const provenance = computed(
-	() => `Summed from ${props.requirements} requirements across ${props.rooms} rooms.`,
-);
+const provenance = computed(() => {
+	const summed = props.requirements - props.unsummable;
+	const inputs =
+		props.unsummable > 0
+			? `${summed} of ${props.requirements} requirements`
+			: `${props.requirements} requirements`;
+	return `Summed from ${inputs} across ${props.rooms} rooms.`;
+});
 
 /**
  * The qualifiers as DATA rather than as two hand-copied `<span>` blocks — `npm run analyze`

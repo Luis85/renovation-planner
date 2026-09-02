@@ -80,6 +80,18 @@ try the same three in the same order.
   "<TYPE> = {" ` for the build errors and `grep -rn "<INJECTION_KEY> as symbol"` for the silent
   ones. Task 9's bullet carries that worked list, including which fixtures deliberately get
   nothing.
+- **A corrected CLAIM is swept in the same edit, and this plan has paid three rounds to learn
+  it.** When a design decision changes, the sentence justifying the old one is rarely in one
+  place: *"the orphan renders in no row, so it is unreachable, unlistable and undeletable"* lived
+  in a task's "why this task exists" paragraph, in the spec's Decision 2b, in a **production
+  docblock** destined for `DeleteAsset.ts`, and in a **proposed commit message** — and it was
+  fixed one copy per review round, each round reporting the copy the previous fix had missed.
+  The instrument is a grep for the CLAIM's distinctive words across BOTH documents (here:
+  `grep -n "unreachable\|unlistable\|undeletable\|joins on the catalogue" docs/superpowers/`),
+  run in the edit that makes the correction. **Two homes are easy to remember and the other two
+  are not**: prose inside a fenced code block reads as code and gets skipped, and a commit
+  message is not prose anybody re-reads. Correct in place with the old claim quoted rather than
+  deleting it — a justification that changes silently is one the next author re-derives.
 - **Commit after every task, with ONE deliberate exception.** Each task below ends green on its
   own — strictly stronger than the spec's four-commit sequencing, which is the coarse grouping
   these tasks fall into. **Tasks 5 and 6 share a commit**, because the spec requires resolution
@@ -3247,9 +3259,17 @@ wrapper compiles nowhere.
 ```ts
 	/**
 	 * A price override for a deleted Asset names nothing: no Requirement can derive from it, and
-	 * `ListProjectAssetPrices` joins on the catalogue, so it renders in no row — unreachable and
-	 * undeletable by the user who made it. It goes with the asset rather than refusing its
-	 * deletion, because there is no second outcome to offer.
+	 * there is no second outcome to offer, so it goes WITH the asset rather than refusing its
+	 * deletion.
+	 *
+	 * **This is about avoidable meaningless data, not about reachability.** An earlier draft
+	 * argued that `ListProjectAssetPrices` joins on the catalogue so the orphan "renders in no
+	 * row — unreachable and undeletable"; that stopped being true when Task 8's query became a
+	 * FULL OUTER join and started emitting a clearable orphan row. The row is the backstop for
+	 * the paths no command covers — a hand delete in the file explorer, a sync removal, neither
+	 * of which dispatches anything — and a backstop is not a reason to leave a mess this command
+	 * can prevent. An override for an asset the plugin ITSELF deleted is data the user should
+	 * never have to see, let alone repair by hand.
 	 *
 	 * AFTER the sequence, and the order is the safety argument: a failure here leaves the orphan
 	 * this repository already produces today, plus a line saying so. The reverse order would
@@ -3369,12 +3389,14 @@ git add src/application/commands/asset src/plugin src/presentation/i18n tests
 git commit -m "fix(delete): an asset's price overrides go with the asset
 
 DeleteAssetCommand gathered referents from requirements alone, so an asset
-with an override and no requirement deleted with none observed — and the
-orphan then rendered in no row, because the price list joins on the
-catalogue. Unreachable, unlistable, undeletable.
+with an override and no requirement deleted with none observed, leaving a
+price note naming an asset that no longer exists.
 
 They go with the asset rather than refusing its deletion: a price for a
-deleted asset names nothing and there is no second outcome to offer.
+deleted asset names nothing and there is no second outcome to offer. The
+price list's own orphan row is the backstop for the paths no command covers
+— a hand delete, a sync removal — and a backstop is not a reason to leave a
+mess the command path can prevent.
 
 After the sequence rather than inside it, deliberately: that sequence's
 durable marker is Requirement-shaped, and carrying overrides in it means

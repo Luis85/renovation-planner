@@ -1581,6 +1581,41 @@ describe('SetAssetPriceOverrideCommand', () => {
 		expect(result.error.code).toBe('asset-price.asset-not-found');
 	});
 
+	/**
+	 * The no-op set, and the rule the clear command already keeps: nothing to change, so nothing
+	 * is written and nothing is announced. Assert ALL THREE — no publish, no revision bump, and
+	 * `created: false` — because "the price is 19.50 afterwards" is equally true of the build
+	 * that saves and cascades for nothing, which is what makes this case worth writing.
+	 */
+	it('writes nothing and announces nothing when the submitted price already holds', async () => {
+		const first = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
+		bus.published.length = 0;
+		const again = expectOk(await command.execute({
+			projectId,
+			assetId,
+			unitCost: moneyOf('19.50', 'GBP'),
+			expected: { id: first.override.id, version: first.version },
+		}));
+		expect(again.created).toBe(false);
+		expect(again.version.revision).toBe(first.version.revision);
+		expect(bus.published).toHaveLength(0);
+	});
+
+	/**
+	 * And the ORDER, which one assertion on the case above cannot show: the expectation is
+	 * checked BEFORE the no-op test, so a stale row is refused even when its value happens to
+	 * match. Watch it fail with the two swapped — this passes, and the conditional write has
+	 * quietly become conditional on the data.
+	 */
+	it('refuses a stale row even when the submitted price equals the stored one', async () => {
+		const first = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
+		const result = await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' });
+		expect(result.ok).toBe(false);
+		if (result.ok) throw new Error('unreachable');
+		expect(result.error.code).toBe('asset-price.revision-conflict');
+		expect(first.version.revision).toBe(1);
+	});
+
 	it('publishes AssetPriceOverrideChanged carrying BOTH ids', async () => {
 		expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
 		expect(bus.published).toContainEqual(
@@ -1915,6 +1950,40 @@ export class SetAssetPriceOverrideCommand
 						+ `got ${input.unitCost.amount} ${input.unitCost.currency}.`,
 				),
 			);
+		}
+
+		// **A set that changes nothing writes nothing and announces nothing**, which is the same
+		// rule the clear command already keeps one file over: it reports `cleared: false` and
+		// publishes NOTHING for a pair that has no override, "there is nothing to invalidate, so
+		// a cascade would be pure cost". Setting a price to the value it already holds is that
+		// case from the other side — a user who edits the field and puts the original value back
+		// — and without this it saves a revision and publishes, and Task 7's subscriber performs
+		// no skip test by design, so every requirement for that asset in that project is
+		// recalculated because nothing moved.
+		//
+		// AFTER the expectation check, deliberately. A submission that happens to match the
+		// stored value is not evidence that the caller saw it: expected `'absent'` against an
+		// existing note is a stale row whatever it holds, and letting a value coincidence
+		// through would make the conditional write conditional on the DATA rather than on what
+		// the caller knew — and would quietly turn the concurrent-create case below into a pass
+		// whenever both callers happen to submit the same price.
+		//
+		// FIELD comparison, never `Money.compare`: that returns a `Result` and REFUSES a
+		// currency mismatch, which is the state this whole increment is about. The coherence
+		// rule above has already refused a foreign currency here, so the currency half is
+		// belt-and-braces — and it is kept, because this predicate must stay true if that rule
+		// ever moves.
+		const unchanged = existing.value !== null
+			&& existing.value.entity.unitCost.amount === input.unitCost.amount
+			&& existing.value.entity.unitCost.currency === input.unitCost.currency;
+		if (unchanged) {
+			return ok({
+				override: existing.value.entity,
+				created: false,
+				// The CURRENT version, so a caller's row snapshot adopts the truth rather than
+				// holding whatever it believed before this call.
+				version: existing.value.version,
+			});
 		}
 
 		const next = existing.value === null

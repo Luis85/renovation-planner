@@ -252,6 +252,61 @@ increment.
 entities that already exist — uncalibrated plans, plans with no rooms, stale figures. The empty
 space is where it goes.
 
+## Decision 6 — the editor concept is the visual authority, and this surface conforms to it
+
+`docs/user-experience/renovation-planner-editor-specs/` and `docs/user-experience/concepts/`
+have already decided most of this screen. The mock was rebuilt against them, and what changed
+is worth listing because each item was an invention standing where a decision already existed:
+
+- **The shell is REUSED, not redrawn.** `.rp-project-detail__header` already solves the grid
+  (back at `grid-column: 1 / -1; justify-self: start`), the ellipsing name (`min-width: 0`, so a
+  long name does not shove the status off a 460px leaf) and — the one that matters — the focus
+  rings, which both header buttons opt back in because Obsidian's global `:focus { outline:
+  none }` reaches buttons and the vendored reduction puts nothing back. The redrawn header
+  inherited none of it and shipped **no visible focus indicator at all**, a WCAG 2.2 2.4.7
+  failure at AA on a standard `PRODUCT.md` binds by name. The copy was invented too: the string
+  is `view.project.back` — "Back to projects" — translated since slice 21.
+- **The section switch takes `PerspectiveSwitch`'s contract**: tablist semantics, arrow-key
+  navigation, explicit active state. A roving `tabindex` is what makes that real; a row of
+  buttons carrying `aria-current` is reachable and is not what the contract asks for.
+- **The estimate is a `CalculatedValue`**, which the component library requires to "expose
+  provenance and cannot masquerade as a manually editable stored value". So the derivation is
+  printed under the figure rather than implied. `canvas.css` states the same rule from the other
+  side about the planning meter: a bare number is "exactly the derived-value-that-is-not-derived
+  the README caught in the areas". This is the product's central positioning claim rendered as
+  a sentence, and it is why the figure is not a hero tile — the craft floor refuses "big number,
+  small label, supporting stats, accent" as a scaffold.
+- **The counts follow `.rc-counts`** — a hairline grid, `tabular-nums`, and a zero that dims
+  rather than colours. One rule is deliberately NOT followed and Decision 6a says why.
+- **The qualifiers are `.rp-badge`**, whose `data-health="stale"` variant this screen needs by
+  name; a label first and a mark second, hue on the border and the icon, never on the word.
+
+### Decision 6a — the counts are not controls yet
+
+`canvas.css` makes each count a control, on the grounds that a count is "navigation to a
+filtered list". Here they are not, for two reasons a capture settled. Only Plans has a
+destination built, and mixing a `<button>` cell with two `<div>` ones drew two different
+backgrounds in one grid, because Obsidian styles every button. And the destination a Plans cell
+would navigate to is the Design tab, sitting three centimetres above it — a count that
+duplicates an adjacent route is a second door to one room rather than navigation.
+
+They become controls when Rooms and Requirements have somewhere to go. The concept's rule is
+waiting for them, and the column-button `align-items` trap it records is kept in the CSS for
+that day rather than deleted and rediscovered.
+
+### What promotion additionally costs
+
+**`concept.css` is a drawing in `docs/`, not a stylesheet the product has.** The first rebuild
+reused `.rp-badge` by name and the badges rendered as bare run-on text, because the harness
+serves the plugin's own assembled `/styles.css` and no such rule is in it. Nothing in
+`npm run check` can see that class of mistake — no gate reads `docs/`.
+
+So promoting these components adds a `styles/` partial carrying `.rp-badge` and its variants,
+at `concept.css`'s own values, plus the section switch, the counts and the warning strip. That
+partial is a new line in the Files list below rather than an implementation detail: SDD §84's
+colour check runs over the assembled sheet and never sees inside an SFC, so the mock's
+`<style scoped>` block does not travel.
+
 ## Components
 
 ```text
@@ -312,6 +367,8 @@ mistake, per this repository's rule.
 | Delegation | the project total's staleness agrees with `GetRequirementsForZone` | a second derivation passes every other case in the file |
 | Errors | a partial read draws the section plus the strip; a faulted read draws `ViewFailure` inside Overview with header and nav still mounted | replacing the whole shell takes the back control with it |
 | Accessibility | the Overview scan asserts `.rp-empty-state`, `.rp-project-detail__back` and the nav's current-section marker are in the scanned DOM | grading a component instead of a surface |
+| Accessibility | the switch is a `tablist` whose tabs carry `aria-selected` and a roving `tabindex`, and ArrowLeft/ArrowRight move the selection | a row of buttons with `aria-current` passes every rendering case and fails the `PerspectiveSwitch` contract |
+| Accessibility | every control this surface adds has a `:focus-visible` rule | Obsidian's global `:focus { outline: none }` reaches buttons and the vendored reduction restores nothing |
 
 **A harness shot**, `?project=project-1&section=overview` at both widths, joining the existing
 `project-detail` pair: the nav is a row of controls under a header, and row spacing, wrapping
@@ -326,7 +383,9 @@ navigation case.
 
 **New:** `src/application/queries/GetProjectSummary.ts`; `src/presentation/views/sections.ts`
 (the `SECTIONS` list and the parse); `ProjectHeader.vue`, `ProjectNav.vue`,
-`ProjectOverview.vue`, `ProjectDesign.vue`; a `styles/` partial; the manual test case.
+`ProjectOverview.vue`, `ProjectEstimate.vue`, `ProjectDesign.vue`; a `styles/` partial carrying
+`.rp-badge` and its variants, the section switch, the counts and the warning strip, per
+Decision 6; the manual test case.
 
 **Changed:** `RenovationProjectView.ts` (parse, `sync`, `setState`);
 `RenovationProjectContext.ts` (`navigate` gains a section); `ProjectDetailState.vue` (becomes

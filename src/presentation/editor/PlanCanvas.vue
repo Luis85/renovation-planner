@@ -53,6 +53,9 @@ const { layerVisibility } = storeToRefs(workspace);
  */
 const background = computed(() => project.plan?.background ?? null);
 
+/** The plan's calibration as the ONE number the raster's drawn size needs; `1` uncalibrated. */
+const pixelsPerWorldUnit = computed(() => project.plan?.calibration?.pixelsPerWorldUnit ?? 1);
+
 const transform = computed(() => viewportTransform(viewport.value));
 
 /**
@@ -90,6 +93,7 @@ function framedBounds(all: boolean) {
 					:vault="context.vault"
 					:transform="transform"
 					:visible="layerVisibility.background"
+					:pixels-per-world-unit="pixelsPerWorldUnit"
 					@status="(status) => emit('backgroundStatus', status)"
 				/>
 				<EmptyLayer

@@ -183,10 +183,29 @@ describe('an asset with a spec sheet', () => {
 
 		const image = await drawnSheet(designer);
 
-		// One source pixel is one world millimetre until a calibration converts what was traced
-		// over it — the asset's placeholder scale is the plan's, because `rescaled()` moves the
-		// object's own coordinate groups and leaves the sheet exactly where it is.
+		// One source pixel is one world millimetre until a calibration says otherwise; the
+		// calibrated case below is the one where the sheet grows with what was traced on it.
 		expect({ width: image.width(), height: image.height() }).toEqual({ width: 400, height: 300 });
+		expect({ x: image.x(), y: image.y() }).toEqual({ x: 0, y: 0 });
+	});
+
+	it('draws the sheet at the CALIBRATED scale, so a rescaled trace still sits on it', async () => {
+		registerResource(`app://fake/${SHEET}`, pngFixture(400, 300));
+		const designer = await mountDesigner(
+			assetDesign({
+				background: { path: SHEET, kind: 'image', page: null },
+				// 0.5 source pixels per world millimetre: the user said a 400-unit bar was 800 mm.
+				calibration: {
+					pointA: { x: 0, y: 0 },
+					pointB: { x: 800, y: 0 },
+					knownDistance: 800,
+					pixelsPerWorldUnit: 0.5,
+				},
+			}),
+			vaultWith([SHEET]),
+		);
+		const image = await drawnSheet(designer);
+		expect({ width: image.width(), height: image.height() }).toEqual({ width: 800, height: 600 });
 		expect({ x: image.x(), y: image.y() }).toEqual({ x: 0, y: 0 });
 	});
 

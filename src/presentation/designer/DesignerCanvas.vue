@@ -102,6 +102,9 @@ const shape = computed(() => design.value?.shape ?? null);
  */
 const background = computed(() => design.value?.background ?? null);
 
+/** The asset's OWN calibration, reduced to the raster's drawn scale; `1` uncalibrated. */
+const pixelsPerWorldUnit = computed(() => design.value?.calibration?.pixelsPerWorldUnit ?? 1);
+
 const footprint = computed(() => footprintOutline(shape.value, tokens.value));
 const clearance = computed(() => clearanceOutline(shape.value, tokens.value));
 const anchor = computed(() => anchorMark(shape.value, tokens.value, worldPerPixel.value));
@@ -149,6 +152,7 @@ function framedBounds(all: boolean): BoundingBox | null {
 					:vault="context.vault"
 					:transform="transform"
 					:visible="true"
+					:pixels-per-world-unit="pixelsPerWorldUnit"
 					@status="(status) => emit('backgroundStatus', status)"
 				/>
 				<VLayer :config="designerLayerConfig('asset-footprint', transform)">

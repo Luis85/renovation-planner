@@ -61,10 +61,29 @@ describe('a plan with a background', () => {
 		const image = backgroundImage(harness);
 
 		expect(image).toBeDefined();
-		// One source pixel is one world millimetre until slice 7 calibrates, so the node's
-		// world size is the raster's own pixel count.
+		// One source pixel is one world millimetre for an uncalibrated plan; the calibrated
+		// case below is where the raster follows what slice 7 rescaled.
 		expect({ width: image?.width(), height: image?.height() }).toEqual({ width: 400, height: 300 });
 		expect({ x: image?.x(), y: image?.y() }).toEqual({ x: 0, y: 0 });
+	});
+
+	it('draws the raster at the CALIBRATED scale, so the zones traced on it stay over it', async () => {
+		registerResource(`app://fake/${PNG}`, pngFixture(400, 300));
+		harness = await mountPlanEditor({
+			plan: {
+				...planWith({ path: PNG, kind: 'image' }),
+				calibration: {
+					pointA: { x: 0, y: 0 },
+					pointB: { x: 800, y: 0 },
+					knownDistance: 800,
+					pixelsPerWorldUnit: 0.5,
+				},
+			},
+			vault: vaultWith([PNG]),
+		});
+		await settle();
+		const image = backgroundImage(harness);
+		expect({ width: image?.width(), height: image?.height() }).toEqual({ width: 800, height: 600 });
 	});
 
 	it('draws nothing on the background layer for a plan that has none', async () => {

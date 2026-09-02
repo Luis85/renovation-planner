@@ -10,8 +10,9 @@
  * that reference rather than anything the render path re-runs.
  *
  * `<v-image>` is positioned and scaled in world millimetres like everything else on a
- * world-space layer: the raster's own pixels become millimetres through the model's
- * `worldScale`, which is a placeholder until a calibration converts what was traced over it.
+ * world-space layer: the raster's own pixels become millimetres through `drawnWorldScale`,
+ * the decoded scale corrected by the subject's `pixelsPerWorldUnit`, so the picture grows with
+ * the coordinates a calibration multiplies.
  *
  * **It knows nothing about a Plan, and that is a change rather than a tidy-up.** It read
  * `useProjectStore().plan` and `usePlanEditorContext().vault` directly until the asset
@@ -26,6 +27,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import type { NodeTransform } from '../../viewport/Viewport';
 import {
 	backgroundStatus,
+	drawnWorldScale,
 	loadBackground,
 	NO_BACKGROUND,
 	type BackgroundDocumentRef,
@@ -54,6 +56,13 @@ const props = defineProps<{
 	vault: BackgroundVault;
 	transform: NodeTransform;
 	visible: boolean;
+	/**
+	 * The subject's calibration, reduced to the one number the raster's drawn size depends on;
+	 * `1` for an uncalibrated subject. REQUIRED rather than defaulted, for `name`'s reason: a
+	 * default is what let this layer draw every calibrated plan at the placeholder scale for
+	 * eight slices with nothing failing.
+	 */
+	pixelsPerWorldUnit: number;
 }>();
 
 const emit = defineEmits<{ status: [status: BackgroundStatus] }>();
@@ -104,8 +113,8 @@ const raster = computed(() => (model.value.kind === 'raster' ? model.value : nul
 				image: raster.image,
 				x: raster.worldOrigin.x,
 				y: raster.worldOrigin.y,
-				width: raster.width * raster.worldScale,
-				height: raster.height * raster.worldScale,
+				width: raster.width * drawnWorldScale(raster.worldScale, props.pixelsPerWorldUnit),
+				height: raster.height * drawnWorldScale(raster.worldScale, props.pixelsPerWorldUnit),
 				listening: false,
 			}"
 		/>

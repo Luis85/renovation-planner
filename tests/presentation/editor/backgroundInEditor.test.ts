@@ -210,16 +210,23 @@ describe('two background loads racing', () => {
 	 * Counted at the VAULT rather than at the drawn node, because the redundant load produces
 	 * a byte-identical picture — `backgroundImage(...)` reads the same either way, which is
 	 * exactly why nothing caught this.
+	 *
+	 * **`getResourcePath` and not `getAbstractFileByPath`**, which the first version counted and
+	 * which stopped discriminating the moment the key learned to read the file's `mtime:size`:
+	 * the key itself now looks the file up on every rehydrate, so that counter answers "the key
+	 * was recomputed" as well as "a load ran". `getResourcePath` is reached only from
+	 * `loadBackground`, so it counts the thing this case is about.
 	 */
 	it('does not reload an unchanged sheet when the subject is rehydrated', async () => {
 		registerResource(`app://fake/${PNG}`, pngFixture(64, 64));
-		let lookups = 0;
+		let loads = 0;
 		const real = vaultWith([PNG]);
 		const counting = {
 			...real,
-			getAbstractFileByPath(path: string) {
-				lookups += 1;
-				return real.getAbstractFileByPath(path);
+			getAbstractFileByPath: (path: string) => real.getAbstractFileByPath(path),
+			getResourcePath(file: { path: string }) {
+				loads += 1;
+				return real.getResourcePath(file as never);
 			},
 		} as unknown as BackgroundVault;
 
@@ -237,14 +244,14 @@ describe('two background loads racing', () => {
 			},
 		});
 		await settleUntil(() => backgroundImage(harness) !== undefined, 'the background to land');
-		const afterMount = lookups;
+		const afterMount = loads;
 
 		// The same sheet, a different object — what a mapper hands back after any edit.
 		plan = planWith({ path: PNG, kind: 'image' });
 		harness.changePlan();
 		for (let round = 0; round < 5; round += 1) await settle();
 
-		expect(lookups).toBe(afterMount);
+		expect(loads).toBe(afterMount);
 		// ...and the picture is still there, so "no reload" is not "no background".
 		expect(backgroundImage(harness)).toBeDefined();
 	});
@@ -277,6 +284,68 @@ describe('two background loads racing', () => {
 		// human and `expect-expect` as a case that asserts nothing.
 		await settleUntil(() => backgroundImage(harness)?.width() === 120, 'the second sheet');
 		expect(backgroundImage(harness)?.width()).toBe(120);
+	});
+
+	/**
+	 * The other side of watching a KEY, reported the moment the key shipped: a reference whose
+	 * three fields have not moved is not the same thing as a FILE that has not moved. Replace
+	 * the PNG at that path — or delete it — and `{kind, page, path}` is unchanged, so a watch
+	 * over those three alone would keep the decoded raster on screen and never emit `missing`.
+	 *
+	 * Watching identity used to repair this BY ACCIDENT, and only sometimes: a rehydrate minted
+	 * a new object, so the next unrelated command re-decoded and picked the change up. The key
+	 * fixed the redundant decode and took the accident with it, which is a fair description of
+	 * how a fix earns its own follow-up.
+	 *
+	 * So the key carries the file's `mtime:size` too. It is read through
+	 * `getAbstractFileByPath`, already on `BackgroundVault`, so nothing widens — and being a
+	 * `computed` over `props.reference`, it is re-evaluated exactly when a rehydrate happens.
+	 * That is strictly more than identity bought: a changed file reloads, an unchanged one does
+	 * not.
+	 *
+	 * **What it still does not cover, and no assertion here should imply otherwise:** a file
+	 * changing while the surface sits idle, with no rehydrate to re-evaluate the key. Nothing
+	 * subscribes this layer to vault events, and nothing did before either.
+	 */
+	it('reloads a sheet whose bytes changed under an unchanged reference', async () => {
+		registerResource(`app://fake/${PNG}`, pngFixture(64, 64));
+		const stat = { ctime: 1, mtime: 1, size: 10 };
+		const vault = {
+			getAbstractFileByPath(path: string) {
+				if (path !== PNG) return null;
+				const file = new TFile();
+				file.path = path;
+				file.stat = { ...stat };
+				return file;
+			},
+			getResourcePath: (file: { path: string }) => `app://fake/${file.path}`,
+			readBinary: () => Promise.resolve(new ArrayBuffer(0)),
+		} as unknown as BackgroundVault;
+
+		let plan = planWith({ path: PNG, kind: 'image' });
+		harness = await mountPlanEditor({
+			plan,
+			vault,
+			queries: {
+				getPlan: () => Promise.resolve(ok(plan)),
+				getRequirementsForZone: () => Promise.resolve(ok([])),
+				listAssets: () => Promise.resolve(ok([])),
+				listRequirementsReferencing: () => Promise.resolve(ok([])),
+				listReassignmentTargets: () => Promise.resolve(ok([])),
+				findZonesByPlan: () => Promise.resolve(ok({ zones: [], unreadable: 0 })),
+			},
+		});
+		await settleUntil(() => backgroundImage(harness)?.width() === 64, 'the first bytes');
+
+		// The user replaces the file: same path, same reference, different content.
+		registerResource(`app://fake/${PNG}`, pngFixture(150, 150));
+		stat.mtime = 2;
+		stat.size = 4096;
+		plan = planWith({ path: PNG, kind: 'image' });
+		harness.changePlan();
+
+		await settleUntil(() => backgroundImage(harness)?.width() === 150, 'the replaced bytes');
+		expect(backgroundImage(harness)?.width()).toBe(150);
 	});
 
 	/** Nothing in flight may land after the view is gone and write to a detached ref. */

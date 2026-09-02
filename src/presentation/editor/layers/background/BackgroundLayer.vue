@@ -24,6 +24,7 @@
  * file answers none of them.
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { TFile } from 'obsidian';
 import type { NodeTransform } from '../../viewport/Viewport';
 import {
 	backgroundStatus,
@@ -85,11 +86,25 @@ let currentLoad = 0;
  * rasterization, per save, of a document that did not change. `page` is normalised because
  * absent and `null` are one document and only one of the two spellings reaches here.
  */
-const documentKey = computed(() =>
-	props.reference === null
-		? null
-		: `${props.reference.kind}:${props.reference.page ?? ''}:${props.reference.path}`,
-);
+const documentKey = computed(() => {
+	const reference = props.reference;
+	if (reference === null) return null;
+	// The FILE's own state as well as the reference's, because a reference whose three fields
+	// have not moved is not the same thing as a file that has not moved: replace the PNG at that
+	// path, or delete it, and identity-free watching would keep the decoded raster on screen and
+	// never emit `missing`. `mtime:size` is the whole of what a file states about itself
+	// synchronously here, which is the same reading `EchoWindow` compares for the same reason.
+	//
+	// Being a `computed` over `props.reference`, this is re-evaluated exactly when a rehydrate
+	// mints a new one — so a changed file reloads and an unchanged one does not. What it does
+	// NOT cover is a file changing while the surface sits idle: nothing subscribes this layer to
+	// vault events, and nothing did before the key either.
+	const file = props.vault.getAbstractFileByPath(reference.path);
+	// `instanceof TFile` and not a null check, the same narrowing `loadBackground` states its
+	// own reason for: a folder at that path is not a background, and only a `TFile` has a stat.
+	const stat = file instanceof TFile ? `${file.stat.mtime}:${file.stat.size}` : 'absent';
+	return `${reference.kind}:${reference.page ?? ''}:${stat}:${reference.path}`;
+});
 
 watch(
 	documentKey,

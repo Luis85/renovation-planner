@@ -948,6 +948,13 @@ export default defineConfig({
 			// are inherited (`AssetGeometryStore.ts`'s malformed-sidecar `catch` from the derived-
 			// filename task, `DesignerCanvas.vue`'s empty-bounds arm from the layers task), each
 			// attributed with `git log -L <line>,<line>:<file>`.
+			//
+			// **The follow-up the key itself produced (2026-09-02):** 99.39 / 98.31 / 99.07 / 99.54.
+			// NOTHING RATCHETS; branches headroom 12, functions 1. Watching `{kind, page, path}`
+			// fixed a redundant decode and removed the accidental repair identity-watching had
+			// given a CHANGED file, so the key carries the file's `mtime:size` too — reported by
+			// a review bot on the push that shipped the key, which is the shortest round trip
+			// between a fix and its own consequence this branch has had.
 			thresholds: {
 				statements: 99,
 				functions: 99,

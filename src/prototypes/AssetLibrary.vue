@@ -62,6 +62,30 @@ const matches = computed((): readonly CatalogueAsset[] => {
  * at the 460px capture, which is the width that composition only exists for.
  */
 const searching = computed(() => query.value.trim() !== '');
+
+/**
+ * The shelves: the DECLARED vocabulary first in its declared order, every one of them drawn
+ * whether or not it holds anything, then every category the vault actually names that the
+ * vocabulary does not, alphabetically.
+ *
+ * Derived rather than written out, because the epic's Definition of Done asks for configurable
+ * categories (PRD §84) and for an unrecognised one to be KEPT AS WRITTEN. A literal seven is the
+ * one arrangement that cannot answer either: a configured eighth would need an edit here, and a
+ * category a user typed would have nowhere to go but a bucket that renames it.
+ *
+ * The two groups differ in one property and it is worth saying out loud: a declared shelf can be
+ * empty and an undeclared one cannot, because the only evidence it exists is an asset sitting in
+ * it. So the "draw the empty ones too" rule applies to the first group alone, and needs no
+ * exception for the second.
+ */
+const shelves = computed((): readonly string[] => {
+	const declared = new Set<string>(CATEGORIES);
+	const extra = [...new Set(ASSETS.map((a) => a.category))]
+		.filter((c) => !declared.has(c))
+		.toSorted((a, b) => a.localeCompare(b));
+	return [...CATEGORIES, ...extra];
+});
+
 const selected = computed(() => ASSETS.find((a) => a.id === selectedId.value) ?? null);
 const shelfOf = (category: string): readonly CatalogueAsset[] =>
 	matches.value.filter((a) => a.category === category);
@@ -134,7 +158,7 @@ function toggle(category: string): void {
 					</button>
 				</div>
 				<AssetShelf
-					v-for="category in (searching ? [] : CATEGORIES)"
+					v-for="category in (searching ? [] : shelves)"
 					:key="category"
 					:label="category"
 					:assets="shelfOf(category)"

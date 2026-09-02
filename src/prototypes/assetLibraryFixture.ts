@@ -86,6 +86,15 @@ const box = (w: number, d: number): readonly Point[] =>
 
 const at = (x: number, y: number): Point => ({ x, y });
 
+/**
+ * The DECLARED vocabulary — `AssetCategory`'s seven members, in the order
+ * `ASSET_CATEGORY_LABELS` renders them, which is the order `NewAssetForm`'s own control uses.
+ *
+ * Declared, not exhaustive. The Asset library epic's Definition of Done asks that categories be
+ * configurable (PRD §84) and that "an unrecognised category is kept as written", so the shelves
+ * are built from this list UNION whatever the vault actually holds — see `AssetLibrary.vue`.
+ * A seven-shelf surface hard-coded to seven is the one composition that cannot survive that.
+ */
 export const CATEGORIES = [
 	'Material',
 	'Furniture',
@@ -191,6 +200,21 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		unitCost: '86.40', unit: 'm²', waste: '+7%', supplier: null, sku: null,
 		heightMm: null, notes: null, shape: 'measured', outline: box(2400, 100),
 		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 1 }],
+	},
+	/*
+	 * THE §84 CASE, and the one entry here that today's persistence layer cannot produce.
+	 * `kebabEnum` adds a schema issue and returns `z.NEVER` for a category outside the union, so
+	 * the whole note fails to parse and the asset lands in the library's `unreadable` count
+	 * rather than on a shelf — the OPPOSITE of "kept as written". It is drawn here because the
+	 * shelves have to work when that is fixed, and a structure whose behaviour under its own
+	 * stated future is untested is a structure nobody has actually checked.
+	 */
+	{
+		id: 'insulation-mineral-wool', name: 'Mineral wool, 100 mm', category: 'insulation',
+		unitCost: '12.75', unit: 'm²', waste: '+8%', supplier: 'Dämmstoff Ritter', sku: 'MW-100',
+		heightMm: 100, notes: 'Category typed by hand; not one of the seven the build declares.',
+		shape: 'none', outline: null,
+		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 2 }],
 	},
 	{
 		id: 'site-skip-8yd', name: 'Site skip, 8 yd', category: 'Custom',

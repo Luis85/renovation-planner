@@ -3136,9 +3136,16 @@ recurring shapes arriving again:**
 draws the line here and no item beneath it may claim otherwise:**
 
 - **Nothing draws this shape on a Plan.** A footprint, a clearance, an anchor and a facing
-  exist on the asset's OWN canvas and nowhere else — [[Asset placement]] is a separate epic
-  that does not exist yet, and no code anywhere in this plugin reads an asset's geometry from
-  a Plan's own render path.
+  exist on the asset's OWN canvas and nowhere else, and no code anywhere in this plugin reads
+  an asset's geometry from a Plan's own render path. This bullet said "[[Asset placement]] is a
+  separate epic that does not exist yet" and both halves were false: that note is `type:
+  Feature` with `parent: "[[Asset library]]"`, so it is a sibling of [[Searchable asset catalog]],
+  [[Asset definitions and categories]] and [[Geometry-linked quantities]] under an **Active MVP
+  epic** — which makes the exclusion sharper rather than softer, since the epic it belongs to is
+  not done without it. Found while reading that epic's children against
+  `docs/user-experience/asset-library-overview-DESIGN-SPEC.md`, which carried the identical
+  sentence; a claim living in two files is one a reader can only check from the side they are
+  standing on.
 - **Nothing computes with the height, and nothing consumes the clearance.** Both are stored,
   shown and round-tripped; neither is read by a calculation, a fit check or an overlap test
   anywhere in the product. *Does the worktop clear the window sill* is a question this

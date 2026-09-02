@@ -75,9 +75,15 @@ export class AssetPriceOverride {
 	/**
 	 * Rebuilds through `create`, so an edit re-runs the refusal. `id` is identity.
 	 *
-	 * Still unconsumed in `src/` — all callers are in tests. `SetAssetPriceOverrideCommand`
-	 * (Task 4) is what dispatches it. Suppressed rather than deleted: deleting it is how a
-	 * declared capability rots.
+	 * `SetAssetPriceOverrideCommand.upsert` is the real caller
+	 * (`existing.value.entity.withUnitCost(input.unitCost)`), which `fallow dead-code
+	 * --type-aware --symbol-impact` confirms as a direct consumer. The DEFAULT (non-type-aware)
+	 * check still reports this member unused: the receiver is narrowed through
+	 * `Result<Loaded<T> | null, E>` — `isErr`'s type-guard narrowing, then a ternary's
+	 * null-narrowing — and the lightweight resolver does not follow that chain, the same class
+	 * of gap this repository already suppresses at `ReversibleSetPlanBackgroundCommand.execute`
+	 * (a structural wrapper rather than a generic chain, same result: a real caller the
+	 * lightweight graph cannot see). Suppressed for that reason rather than deleted.
 	 */
 	// fallow-ignore-next-line unused-class-member
 	withUnitCost(unitCost: Money): Result<AssetPriceOverride, ValidationError> {

@@ -3,7 +3,7 @@ import type { MigrationError, PersistenceError, ValidationError } from '../../..
 import { err, ok, type Result } from '../../../core/result/Result';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { EntityVersion } from '../../../application/ports/versioning';
-import { checkExpectedVersion } from './versionCheck';
+import { checkExpectedVersion } from '../../../application/ports/versioning';
 import { ensureFolder, mappedMigrationFailure, persistenceError } from './noteIo';
 import { parentOf } from './paths';
 import type { PlanGeometryDTO } from '../../persistence/dto/planGeometry';

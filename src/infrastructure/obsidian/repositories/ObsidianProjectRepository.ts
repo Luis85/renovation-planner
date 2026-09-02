@@ -6,7 +6,7 @@ import type { Project } from '../../../domain/project/Project';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import type { ProjectListing } from '../../../application/ports/ProjectRepository';
-import { revisionConflict } from '../../../application/ports/versioning';
+import { checkExpectedVersion, revisionConflict } from '../../../application/ports/versioning';
 import { projectFromPersistence, projectToPersistence } from '../../persistence/mappers/projectMapper';
 import {
 	cacheReading,
@@ -20,7 +20,7 @@ import {
 	writeOwnedFrontmatter,
 } from './noteIo';
 import { observeFrontmatter } from './digest';
-import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
+import { versionOfFrontmatter } from './versionCheck';
 import { freshNotePath, freshProjectFolder } from './paths';
 import { foldersOverlap } from './foldersOverlap';
 import { KeyedQueues } from './KeyedQueues';

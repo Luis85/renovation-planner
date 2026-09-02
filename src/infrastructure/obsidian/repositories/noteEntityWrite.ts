@@ -9,7 +9,7 @@ import type {
 	Expected,
 	Loaded,
 } from '../../../application/ports/versioning';
-import { revisionConflict } from '../../../application/ports/versioning';
+import { checkExpectedVersion, revisionConflict } from '../../../application/ports/versioning';
 import {
 	cacheReading,
 	fileStatAt,
@@ -20,7 +20,7 @@ import {
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from './noteIo';
-import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
+import { versionOfFrontmatter } from './versionCheck';
 import { observeFrontmatter } from './digest';
 import { freshNotePath } from './paths';
 import { fileAt } from './NoteVaultDeps';

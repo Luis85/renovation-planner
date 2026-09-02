@@ -32,8 +32,8 @@ import {
 	writeOwnedFrontmatter,
 } from './noteIo';
 import { observeFrontmatter } from './digest';
-import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
-import { revisionConflict } from '../../../application/ports/versioning';
+import { versionOfFrontmatter } from './versionCheck';
+import { checkExpectedVersion, revisionConflict } from '../../../application/ports/versioning';
 import { freshNotePath, projectFolderOf, zonesFolderFor } from './paths';
 import { KeyedQueues } from './KeyedQueues';
 import { fileAt } from './NoteVaultDeps';

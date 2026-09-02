@@ -142,7 +142,7 @@ describe('Asset.withChanges field-presence semantics', () => {
 	});
 });
 
-describe('Requirement.withRecalculation preserves either override', () => {
+describe('Requirement.withRecalculation preserves the cost override, not the quantity one', () => {
 	/**
 	 * The class header's own invariant — an override is a user's answer sitting BESIDE a
 	 * derived figure, never a claim about the derivation — applies to a FULL recalculation
@@ -169,8 +169,24 @@ describe('Requirement.withRecalculation preserves either override', () => {
 		expect(recalculated.estimatedCost.override?.amount).toBe('500');
 	});
 
-	/** The quantity side of the same rule, driven independently of the cost side. */
-	it('keeps a quantity override across a full recalculation that moves the calculated quantity', () => {
+	/**
+	 * **RECORDED RESIDUAL, not desired behaviour.** A quantity override does NOT survive a
+	 * full recalculation — deliberately reverted to `main`'s pre-existing behaviour after a
+	 * review bot found that preserving it (as `withRecalculation` briefly did) decouples the
+	 * override from the cost: `deriveRequirementFigures` prices from the CALCULATED quantity
+	 * always, never the effective one, so a kept `quantity.override` of 9 m² would sit beside
+	 * an `estimatedCost.calculated` priced at the recalculated 12 m², with nothing saying the
+	 * two no longer agree. Dropping the override on recalculation is lossy, and it is at least
+	 * internally consistent — both figures speak of 12.
+	 *
+	 * The real fix is not this method preserving the override — it is re-pricing from the
+	 * EFFECTIVE quantity, the way `SetRequirementQuantityOverride`'s own docblock already
+	 * states the rule ("then re-runs the Cost Pipeline against the new EFFECTIVE quantity").
+	 * That is a change to what a full recalculation MEANS and needs its own cases; it does not
+	 * belong inside a price-override increment. **A future fix along those lines should REDDEN
+	 * this case** — read this docblock rather than treating a red result here as a regression.
+	 */
+	it('drops a quantity override across a full recalculation — a recorded residual, not a design', () => {
 		const requirement = expectOk(
 			expectOk(Requirement.create(requirementProps())).withQuantityOverride({
 				value: new Decimal(9),
@@ -187,7 +203,7 @@ describe('Requirement.withRecalculation preserves either override', () => {
 		);
 
 		expect(recalculated.quantity.calculated.value.toNumber()).toBe(12);
-		expect(recalculated.quantity.override?.value.toNumber()).toBe(9);
+		expect(recalculated.quantity.override).toBeUndefined();
 	});
 
 	/** With no override set on either side, a recalculation still leaves neither one present. */

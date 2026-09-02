@@ -531,13 +531,29 @@ It carries the same `RequirementEventPayload` its siblings do, so it filters by 
 `ZoneGeometryChanged` is in that list for the reason the whole product exists: an area is an
 input to a cost, so a moved vertex changes the total and marks figures stale.
 
-**Not filterable, and this is the finding under the finding.** Two of the seven carry no owning
-project at all:
+**Not filterable, and this is the finding under the finding.** Four carry no owning project at
+all. **This list is the authority; two of its members reached it late and by correction, and the
+reason is recorded below it.**
 
 - `RequirementInvalidated`'s factory takes a bare `requirementId` — there is no payload object
   to filter on.
 - `CostEstimateChanged`'s `CostChangePayload` is `{ costType, scope: { kind, id }, currency }`.
   It names the requirement and the currency and never the project.
+- `ProjectIndexRebuilt` carries no payload by design, so it cannot say which entities changed.
+  See *Two events the first draft's lists simply missed*.
+- `AssetUpdated` is the FAILURE-PATH notification: when a cascade cannot enumerate an asset's
+  referents it returns before publishing anything, and this is the only notice that the summary
+  moved. See *A row's own referent reads must not fault the summary either*.
+
+**How the last two came to be missing is worth more than the fact.** Both were argued in their
+own sections, given test rows, and reported as absent from THIS list one round later — because
+the edits that were meant to add them targeted a comma-separated sentence that does not exist
+here. The list is bullets. `str.replace` on an absent anchor changes nothing and says nothing,
+so two additions silently did not happen while their prose and their tests said they had.
+
+An implementer reads the list, not the prose around it. **A specification with a canonical list
+must have exactly one, and every claim about its membership belongs in it rather than beside
+it.**
 
 They are delivered **unfiltered**, so an event for any project in the vault re-reads this one
 project's summary. That is the identical trade `PLAN_ENTRY_EVENTS` already states and it is
@@ -708,11 +724,24 @@ form move wholesale into `ProjectDesign.vue`. Nothing about plan creation change
 command, same dialog, same `'gone'` handling and the same `dialogs.resolve` on a status
 watcher. It acquires an address and nothing else.
 
-`ProjectOverview.vue` is new. When the project has no plans it draws slice 21's existing
-`renovationProject.noPlans` empty state, whose action navigates to Design rather than opening
-the form in place — the header and nav stay mounted around every section, which is slice 14's
-rule arriving on a fourth surface: an empty state that replaces a region hides the thing the
-region exists to show, and here that thing is the way back.
+`ProjectOverview.vue` is new. It draws slice 21's existing `renovationProject.noPlans` empty
+state when the project has no plans **AND no requirements**, whose action navigates to Design
+rather than opening the form in place — the header and nav stay mounted around every section,
+which is slice 14's rule arriving on a fourth surface: an empty state that replaces a region
+hides the thing the region exists to show, and here that thing is the way back.
+
+**The second half of that condition is a correction, and it is Decision 3's own consequence
+catching up with this rule.** Gating on plans alone was right while the walk reached
+requirements through a plan's zones — no plans meant no figures, so an empty state hid nothing.
+The project-scoped walk recovers a project's persisted requirements whether or not a plan note
+survives, so a project whose only plan note was deleted out of band still has counts and a total
+worth showing, and gating on plans would replace them with an invitation to create a plan. That
+is the same failure the rule is quoted against, one layer up: an empty state hiding the thing
+the region exists to show.
+
+**Empty means nothing to show, never nothing of one kind.** Written that way rather than as
+"plans and requirements" so the next entity the summary learns to count joins the condition
+instead of reopening this.
 
 `toProjectSummaryDto` lives in the read-model bundle beside every other `to*Dto`, because
 `application/` may not name `presentation/`.
@@ -807,6 +836,7 @@ mistake, per this repository's rule.
 | Invalidation | `RequirementDeleted` refreshes the summary | it was specified as published and not subscribed to for a round — published-and-unheard passes every publishing test |
 | Summary | `summed` is the query's own count rather than the component's arithmetic | deriving it double-subtracts a row caught by two exclusion categories, and the counts are independent by design |
 | Keyboard | after a section change through view state, focus is on the newly selected tab | the mock's local `ref` hides this; only the real round trip unmounts the element |
+| Overview | a project with no plans but surviving requirements shows the summary, not the empty state | gating on plans alone hides figures the project-scoped walk recovered |
 | Overview | a project with a start or target date renders it; a project with neither renders no line at all | the DTO carried neither field, so the promise was undeliverable rather than merely unbuilt |
 | Wiring | the warning strip's action reaches `openDiagnosticsReport` | without the deps member it is a live control that does nothing — the shape slice 14 refuses |
 | Keyboard | a restored leaf and a `rebind` do NOT move focus | an unconditional focus-on-mount steals it during layout restoration |

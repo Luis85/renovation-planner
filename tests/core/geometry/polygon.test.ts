@@ -54,4 +54,23 @@ describe('createPolygon', () => {
 	it('accepts a well-formed triangle without repeating the closing point', () => {
 		expect(createPolygon(TRIANGLE)).toEqual({ ok: true, value: { points: TRIANGLE } });
 	});
+
+	it('detaches the VERTICES as well as the array, so a later write cannot invalidate it', () => {
+		// The array half was already copied; the Point objects were shared, so a caller that
+		// kept a mutable-typed handle could reach through a validated polygon.
+		const vertices = [
+			{ x: 0, y: 0 },
+			{ x: 10, y: 0 },
+			{ x: 10, y: 10 },
+		];
+		const result = createPolygon(vertices);
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+
+		vertices.push({ x: 0, y: 10 });
+		vertices[0].x = Number.NaN;
+
+		expect(result.value.points).toHaveLength(3);
+		expect(result.value.points[0]).toEqual({ x: 0, y: 0 });
+	});
 });

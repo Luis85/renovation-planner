@@ -11,7 +11,7 @@ import type { DispatchOutcome } from '../../application/commands/DispatchOutcome
 import type { Query } from '../../application/queries/Query';
 import type { CalibratePlanInput } from '../../application/commands/plan/ReversibleCalibratePlan';
 import type { CreateZoneInput } from '../../application/commands/zone/CreateZone';
-import type { MoveSpatialObjectInput } from '../../application/commands/zone/MoveSpatialObject';
+import type { MoveSpatialObjectInput, MoveSpatialObjectResult } from '../../application/commands/zone/MoveSpatialObject';
 import type { DeleteZoneInput } from '../../application/commands/zone/DeleteZone';
 import type { GetZoneInspectorInput, ZoneInspectorFields } from '../../application/queries/GetZoneInspector';
 import { AssignAssetCommand } from '../../application/commands/requirement/AssignAsset';
@@ -64,7 +64,7 @@ export interface PlanEditorCommandServices {
 	>;
 	readonly moveObject: Command<
 		MoveSpatialObjectInput,
-		Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>
+		Result<MoveSpatialObjectResult, ReferenceError | GeometryError | RepositoryError>
 	>;
 	/**
 	 * Slice 10's reference-aware delete: the payload carries what the resolution touched

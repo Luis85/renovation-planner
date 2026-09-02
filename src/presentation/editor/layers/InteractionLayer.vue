@@ -14,8 +14,9 @@
  * The drawing tool's close target therefore lights up from GEOMETRY rather than from a Konva
  * `mouseover`: a layer that hears no pointer events cannot have a hover state of its own, so
  * it asks `closesPolygon` — the same predicate the tool's close click takes — of the pointer
- * the sketch carries. Asked here per render rather than stored by the tool, because a zoom
- * moves the target under a pointer that has not moved.
+ * the sketch carries, through `gestureGeometry.ts` rather than directly, since the asset
+ * designer's own gesture layer asks the identical question. Asked per render rather than
+ * stored by the tool, because a zoom moves the target under a pointer that has not moved.
  */
 import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -31,8 +32,8 @@ import {
 	POLYGON_VERTEX_RADIUS_PX,
 	VERTEX_HANDLE_RADIUS_PX,
 } from '../handleMetrics';
-import { closesPolygon } from '../closeTarget';
-import { paintRulerMarks, rulerMarks } from './rulerGeometry';
+import { paintRulerMarks } from './rulerGeometry';
+import { measurementScreenMarks, sketchScreenGeometry } from './gestureGeometry';
 
 const props = defineProps<{ tokens: ThemeTokens }>();
 
@@ -60,68 +61,10 @@ const previewFlat = computed(() => {
 	});
 });
 
-/**
- * The polygon being drawn, projected once for both the outline and the vertex circles.
- *
- * The vertices the user has PLACED and the loose end their pointer is at are separate on
- * purpose (`RenderState.PolygonSketch`): every placed vertex gets a circle, and the pointer
- * gets none — a click that has landed and a mouse that happens to be somewhere are different
- * facts, and drawing them the same way is what made this gesture unreadable before.
- */
-const sketchVertices = computed(() => {
-	const sketch = runtime.renderState.polygonSketch;
-	return sketch === null ? null : sketch.vertices.map((point) => toScreen(point));
-});
+/** The sketch, projected once per render through the ONE module both surfaces share. */
+const sketch = computed(() => sketchScreenGeometry(runtime.renderState.polygonSketch, toScreen));
 
 /**
- * The dashed outline: the placed vertices plus the loose end, when there is one.
- *
- * The loose end is `nextVertex` — where a click would LAND — not the raw pointer. With Shift
- * held those differ, and showing the hand rather than the result would make the constraint
- * invisible at exactly the moment it is doing something.
- */
-const sketchOutlineFlat = computed(() => {
-	const sketch = runtime.renderState.polygonSketch;
-	const vertices = sketchVertices.value;
-	if (sketch === null || vertices === null) return null;
-	const loose = sketch.nextVertex === null ? [] : [toScreen(sketch.nextVertex)];
-	const points = [...vertices, ...loose];
-	if (points.length < 2) return null;
-	return points.flatMap((at) => [at.x, at.y]);
-});
-
-/**
- * True while a click would CLOSE the polygon; the first vertex says so by growing.
- *
- * Asked per render rather than read off a flag the tool stored, because this depends on the
- * CAMERA as well as on the pointer: wheel and keyboard zoom stay live while a drawing tool is
- * active, so a stored answer goes on promising a close after a zoom has slid the vertex out
- * from under a stationary pointer. Reading `sketchVertices` — itself a `computed` over the
- * viewport — is what makes this re-run on a zoom with no pointer event at all. It is the same
- * predicate the tool's own close click takes.
- */
-const closeArmed = computed(() => {
-	const sketch = runtime.renderState.polygonSketch;
-	const vertices = sketchVertices.value;
-	if (sketch === null || sketch.pointer === null || vertices === null) return false;
-	const first = vertices.at(0);
-	if (first === undefined) return false;
-	// The RAW pointer, matching what the close click is judged by: with Shift held the point a
-	// click would place can be pulled well away from the first vertex while the pointer is
-	// squarely on it, and the mark has to follow the click rather than the constraint.
-	return closesPolygon(vertices.length, toScreen(sketch.pointer), first);
-});
-
-/**
- * The calibration segment's marks: the spine, a perpendicular bar at each end and the ticks
- * along it, all from `rulerGeometry` so the arithmetic is testable without a canvas.
- *
- * Bars rather than the plain dots this drew until now, because a dot is where a vertex is
- * and a bar is where a measurement ENDS — the same reason the segment is solid and open
- * where a polygon preview is dashed and closed. Both endpoints project independently, for
- * the reason the whole layer works this way: screen space, so a zoom does not scale the
- * stroke or the marks.
- *
  * **The bars and every tick are ONE node, and that is a performance rule rather than a
  * tidiness one.** They were a `v-for` of `VLine`s — up to fifty of them at the tick cap —
  * so a Vue render and a vue-konva `setAttrs` ran per tick on EVERY pointer move, and this
@@ -139,11 +82,7 @@ const closeArmed = computed(() => {
  * empty arrays, which is the vacuous assertion this project keeps finding rather than a
  * saving.
  */
-const measurementMarks = computed(() => {
-	const segment = runtime.renderState.measurement;
-	if (segment === null) return null;
-	return rulerMarks(toScreen(segment.start), toScreen(segment.end));
-});
+const measurementMarks = computed(() => measurementScreenMarks(runtime.renderState.measurement, toScreen));
 
 /**
  * The selected zone's outline and vertex handles. Exactly one zone is selectable in this
@@ -172,12 +111,12 @@ const selectedFlat = computed(() =>
  */
 function vertexRadius(index: number): number {
 	if (index !== 0) return POLYGON_VERTEX_RADIUS_PX;
-	return closeArmed.value ? POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX : POLYGON_CLOSE_TARGET_RADIUS_PX;
+	return sketch.value?.closeArmed === true ? POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX : POLYGON_CLOSE_TARGET_RADIUS_PX;
 }
 
 /** Filled while armed: colour is the second channel, size is the first (§85). */
 function vertexFill(index: number): string {
-	return index === 0 && closeArmed.value ? props.tokens.accent : props.tokens.canvasBackground;
+	return index === 0 && sketch.value?.closeArmed === true ? props.tokens.accent : props.tokens.canvasBackground;
 }
 </script>
 
@@ -195,11 +134,11 @@ function vertexFill(index: number): string {
 				listening: false,
 			}"
 		/>
-		<template v-if="sketchVertices !== null">
+		<template v-if="sketch !== null">
 			<VLine
-				v-if="sketchOutlineFlat !== null"
+				v-if="sketch.outlineFlat !== null"
 				:config="{
-					points: sketchOutlineFlat,
+					points: sketch.outlineFlat,
 					closed: true,
 					stroke: props.tokens.accent,
 					strokeWidth: 1.5,
@@ -209,7 +148,7 @@ function vertexFill(index: number): string {
 				}"
 			/>
 			<VCircle
-				v-for="(vertex, index) in sketchVertices"
+				v-for="(vertex, index) in sketch.vertices"
 				:key="index"
 				:config="{
 					x: vertex.x,

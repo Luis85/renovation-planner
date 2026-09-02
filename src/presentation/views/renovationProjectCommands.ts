@@ -1,5 +1,10 @@
 import { err, type Result } from '../../core/result/Result';
-import type { PersistenceError } from '../../core/errors/AppError';
+import { currencyOf, type Currency } from '../../core/money/Money';
+import type { AppError, PersistenceError } from '../../core/errors/AppError';
+import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
+import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
+import type { DispatchResult } from '../../application/commands/DispatchOutcome';
+import type { Asset } from '../../domain/asset/Asset';
 import type { Command } from '../../application/commands/Command';
 import type { CreatePlanError, CreatePlanInput } from '../../application/commands/plan/CreatePlan';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
@@ -46,6 +51,27 @@ export interface RenovationProjectCommandServices {
 	 */
 	readonly createPlan: Command<CreatePlanInput, CreatePlanResult>;
 	/**
+	 * Design slice A10's creation form, and the pair of doors its submit is a SEQUENCE over.
+	 *
+	 * **They sit on THIS bundle rather than on a catalogue view's, because there is no
+	 * catalogue view.** An Asset is vault-wide since design slice 19 — a catalogue entry
+	 * carries no project id at all — so the surface that owns it is the vault-level one, which
+	 * is this view's LIST state. When Epic 6's catalogue arrives these two move to it; until
+	 * then, putting them anywhere else would mean inventing a second Vue app or a second
+	 * dialog host, which is a slice rather than a wiring.
+	 *
+	 * REQUIRED, like both members above: an optional member would let a composition forget one
+	 * and still compile, which is the self-declared shape this repository refuses everywhere.
+	 */
+	readonly createAsset: Command<CreateAssetInput, Result<Asset, AppError>>;
+	/**
+	 * The second half of that sequence, and the reason it is a separate member rather than
+	 * something the form composes: it is a guarded door of `GuardedAssetDesignServices`, whose
+	 * whole bundle belongs to the designer view Phase B builds. Handing the form the one door
+	 * it uses is what keeps this bundle from becoming a second spelling of that one.
+	 */
+	readonly setAssetFootprintFromDimensions: Command<SetAssetFootprintFromDimensionsInput, DispatchResult>;
+	/**
 	 * The composition root's logger, reaching this view — the same member
 	 * `PlanEditorCommandServices` carries, for the same reason and with the same limit.
 	 *
@@ -55,6 +81,13 @@ export interface RenovationProjectCommandServices {
 	 * that exists at all.
 	 */
 	readonly logger: Logger;
+	/**
+	 * The plugin's `defaultCurrency` setting, for the creation form's prefill. `CreateProject`
+	 * takes it at the composition root; `CreateAsset` takes its currency from its input, so the
+	 * FORM is where an asset's default is decided, and a literal there re-denominated every
+	 * new asset in a vault configured otherwise.
+	 */
+	readonly defaultCurrency: Currency;
 }
 
 const noop = (): void => undefined;
@@ -90,9 +123,27 @@ export function unavailableRenovationProjectCommands(): RenovationProjectCommand
 				return Promise.resolve(err(persistenceFailure()) as CreatePlanResult);
 			},
 		},
+		// Design slice A10's pair. Both are writes, so the refusal bundle is the honest
+		// stand-in for exactly the reason the docblock above gives — and `createAsset` in
+		// particular has nowhere to write to: without settings there is no library folder for
+		// the catalogue note to land in, which is `freshProjectFolder`'s own argument one
+		// entity across.
+		createAsset: {
+			execute(): Promise<Result<Asset, AppError>> {
+				return Promise.resolve(err(persistenceFailure()));
+			},
+		},
+		setAssetFootprintFromDimensions: {
+			execute(): Promise<DispatchResult> {
+				return Promise.resolve(err(persistenceFailure()));
+			},
+		},
 		// A logger member that records nothing, exactly as `unavailablePlanEditorCommands`'s
 		// does: this bundle's only failure is the refusal above, which is a resolved `Result`
 		// rather than a fault, so there is nothing here for a real logger to be told about.
 		logger: { debug: noop, info: noop, warn: noop, error: noop },
+		// The refusal bundle writes nothing, so its prefill is never persisted; a valid code is
+		// all the form needs.
+		defaultCurrency: currencyOf('EUR'),
 	};
 }

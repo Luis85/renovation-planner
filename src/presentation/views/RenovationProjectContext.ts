@@ -88,6 +88,15 @@ export interface RenovationProjectDeps {
 	 */
 	readonly openPlan: (planId: string) => Promise<void>;
 	/**
+	 * Open the Asset Designer on ONE asset — bound to `revealAssetDesigner` at the root
+	 * (`renovationProjectOpenAsset`), `openPlan`'s exact shape and for the same reason:
+	 * `presentation/` may not reach Obsidian's workspace, and this is what makes ADR-0015's
+	 * designer reachable from the create-asset dialog (Task B9) — the form emits the id of
+	 * what it just created, and this is the door that shows it, the same one
+	 * `open-asset-designer`'s palette picker opens through.
+	 */
+	readonly openAsset: (assetId: string) => Promise<void>;
+	/**
 	 * "Some plan of THIS project changed — re-read it." The third change source
 	 * (`projectPlansChangeSource`), filtered on the owning project, which `PlanCreated`'s
 	 * payload carries.

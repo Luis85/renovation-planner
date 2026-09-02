@@ -35,7 +35,7 @@ function requirePositiveFinite(value: number, field: string): void {
 
 /**
  * Candidate geometry a calling tool supplies, sourced from the active plan's
- * already-loaded zones (`EditorContext.activePlan`). `SnapService` never queries for
+ * already-loaded zones (`EditorContext.subject`). `SnapService` never queries for
  * this itself — it only ever ranks what it is handed.
  */
 export interface SnapCandidates {

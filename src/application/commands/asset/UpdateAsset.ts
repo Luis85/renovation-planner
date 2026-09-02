@@ -12,6 +12,7 @@ import type { AssetCategory } from '../../../domain/asset/AssetCategory';
 import type { Asset } from '../../../domain/asset/Asset';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import { assetUpdated } from '../../../domain/asset/Asset.events';
+import { assetNotFound } from '../../../domain/asset/Asset.errors';
 import type { Expected } from '../../ports/versioning';
 import type { Command } from '../Command';
 import type { AssetRepository } from '../../ports/AssetRepository';
@@ -34,10 +35,6 @@ export interface UpdateAssetInput {
 }
 
 export type UpdateAssetErrors = DomainError | ReferenceError | RepositoryError;
-
-function notFound(assetId: AssetId): ReferenceError {
-	return { category: 'Reference', code: 'asset.not-found', message: `Asset ${assetId} not found.` };
-}
 
 /**
  * Edits a catalog item and publishes `AssetUpdated` on EVERY successful save — including
@@ -68,7 +65,7 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 	async execute(input: UpdateAssetInput): Promise<Result<Asset, UpdateAssetErrors>> {
 		const loaded = await this.assets.getById(input.assetId);
 		if (isErr(loaded)) return loaded;
-		if (loaded.value === null) return err(notFound(input.assetId));
+		if (loaded.value === null) return err(assetNotFound(input.assetId));
 		const current: Asset = loaded.value.entity;
 		const nextUnit = input.changes.unit ?? current.unit;
 		const kindChanges = UNIT_KIND[nextUnit] !== UNIT_KIND[current.unit];
@@ -111,7 +108,7 @@ export class UpdateAssetCommand implements Command<UpdateAssetInput, Result<Asse
 	): Promise<Result<{ candidate: Asset; expected: Expected }, UpdateAssetErrors>> {
 		const reread = await this.assets.getById(current.id);
 		if (isErr(reread)) return reread;
-		if (reread.value === null) return err(notFound(current.id));
+		if (reread.value === null) return err(assetNotFound(current.id));
 		const candidate = reread.value.entity.withChanges(changes);
 		if (isErr(candidate)) return candidate;
 

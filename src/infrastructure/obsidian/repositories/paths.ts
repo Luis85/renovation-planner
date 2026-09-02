@@ -1,4 +1,5 @@
 import { normalizePath, type Vault } from 'obsidian';
+import type { AssetId } from '../../../domain/asset/AssetId';
 import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { ProjectId } from '../../../domain/project/ProjectId';
@@ -30,9 +31,31 @@ const ZONES_FOLDER = 'Zones';
 const ASSETS_FOLDER = 'Assets';
 const REQUIREMENTS_FOLDER = 'Requirements';
 
-/** The user-editable setting passes through `normalizePath` before any Vault call. */
+/**
+ * The user-editable setting passes through `normalizePath` before any Vault call — and then
+ * through one more rule this module owns: **the vault root is `''`, never `'/'`.**
+ *
+ * `joinFolder` below already treats `''` as the root, which is the reason it is a function
+ * rather than a template literal in five places. What it cannot survive is being handed
+ * `'/'`: it is truthy, so `joinFolder('/', 'Geometry')` is `'//Geometry'`, a path Obsidian
+ * refuses to write and finds nothing at — a designed asset would read as shapeless because
+ * its sidecar was looked for somewhere it never was.
+ *
+ * `/` is reachable: it is a folder a user can type into a hand-edited `data.json`, and
+ * `settingsFrom` hands back a string rather than a vocabulary for this field.
+ *
+ * **The collapse is here rather than left to `normalizePath` because which of the two that
+ * function returns cannot be settled from this repository.** The `obsidian` dependency is
+ * types-only, there is no implementation to read, and the suite's own mock strips the
+ * slashes and answers `''` while the real one is believed to fall back to `'/'`. Doing it
+ * here makes every caller correct under BOTH readings, which is worth more than being right
+ * about the one nobody can check — and it means the mock being kinder than the real thing in
+ * exactly this case, which is this repository's oldest recurring defect, no longer decides
+ * whether the code works.
+ */
 export function normalizeFolder(raw: string): string {
-	return normalizePath(raw.trim());
+	const normalized = normalizePath(raw.trim());
+	return normalized === '/' ? '' : normalized;
 }
 
 /**
@@ -82,6 +105,160 @@ export function sidecarPathFor(projectFolder: string, planId: PlanId | string): 
 }
 
 /**
+ * The library's own geometry folder: a SIBLING of `Assets/`, not a child of it (ADR-0014).
+ *
+ * `normalizeFolder` here and not at the call site, because `libraryFolder` is a
+ * user-typed setting rather than a path this plugin derived — the same trust boundary
+ * `freshProjectFolder` applies to the configured project root, and the reason
+ * `assetSidecarPathFor` below can take the raw setting from any caller.
+ */
+export function libraryGeometryFolderFor(libraryFolder: string): string {
+	return joinFolder(normalizeFolder(libraryFolder), GEOMETRY_FOLDER);
+}
+
+/**
+ * ADR-0014: one file per asset, in the library's own `Geometry/`, named by the FULL
+ * prefixed id — so the note's `id` field, the sidecar's own `assetId` field and the
+ * filename are one comparable string.
+ *
+ * **This one IS a read path, and that is the difference from `sidecarPathFor` above.** A
+ * plan's sidecar is resolved through the Project Index because ADR-011 scopes it to a
+ * project folder, which is itself derived from a note the index holds; an asset's is
+ * derived from the SETTING, which no index knows and nothing else answers. So there is no
+ * mapping to consult and deriving is not a second lookup mechanism — it is the only one.
+ * ADR-0014's own Consequences say resolution goes through the index "as it does for plan
+ * sidecars", and that sentence is inherited from ADR-011 rather than measured against this
+ * decision: the index holds no asset-sidecar mapping, and its Decision section states the
+ * derived path as the rule.
+ */
+export function assetSidecarPathFor(libraryFolder: string, assetId: AssetId | string): string {
+	return `${libraryGeometryFolderFor(libraryFolder)}/${String(assetId)}.rpgeo`;
+}
+
+/**
+ * WHAT A FILENAME MAY NOT CONTAIN — Obsidian's own forbidden set, `\ / : * ? " < > | # ^ [ ]`.
+ *
+ * Module-private, because both consumers live in this file: a second regex that agrees today is
+ * how they stop agreeing, and keeping them here is what makes that impossible rather than merely
+ * unlikely. It was briefly exported for a THIRD consumer at the index, which is the placement two
+ * rounds of review established was wrong. `fileNameFor` below STRIPS these from a
+ * user's chosen name; `entityRefOf` REFUSES an id that contains one, because an id is
+ * interpolated into a filename rather than cleaned into one — there is nothing to strip when the
+ * string IS the identity.
+ *
+ * That split was found the hard way: the id rule originally refused only `/` and `\`, which is the
+ * SEPARATOR hazard (escaping a folder), and admitted the other nine characters — while this
+ * docblock had already named all ten. `Geometry/asset:custom.rpgeo` is a legal path on Linux and
+ * macOS and invalid on Windows, so it fails for users and works for whoever wrote it.
+ *
+ * Not global: a `g` flag makes `RegExp.test` stateful through `lastIndex`, which a shared constant
+ * with two call sites must not be. `fileNameFor` builds its own global copy from `.source`.
+ *
+ * **The CONTROL characters are the eleventh hazard and they are deliberately NOT in here.** A
+ * regex is the wrong instrument for them: `no-control-regex` refuses the character class
+ * outright, and this repository permits no inline suppression to argue with it.
+ * `hasControlCharacter` below is the predicate instead, and both callers ask it beside this.
+ */
+const FORBIDDEN_IN_FILENAME = /[/\\:*?"<>|#^[\]]/;
+
+/**
+ * EDGE DOTS AND SPACES, which Windows and Obsidian both dislike — trimmed by `fileNameFor` and
+ * refused by `entityRefOf`, for the same reason the character set above is.
+ */
+const EDGE_DOT_OR_SPACE = /^[\s.]|[\s.]$/;
+
+/**
+ * Windows' reserved DEVICE names, which are reserved **with an extension too** — `CON.rpgeo` and
+ * `CON.shape` both name the console rather than a file. Case-insensitive, because the reservation
+ * is.
+ *
+ * Applied to the stem BEFORE THE FIRST DOT, which is the correction this rule needed: anchored on
+ * the whole id it caught `CON` and let `CON.shape` through, and the sidecar path appends `.rpgeo`
+ * to whatever it is given. Anchored on the stem rather than matched as a substring, so `console`,
+ * `console.log` and `my.CON` stay legal — measured, since over-refusing here rejects ids nobody
+ * should have to rename.
+ */
+const RESERVED_DEVICE_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
+
+/**
+ * The filename-component limit ext4 and APFS enforce, in BYTES.
+ *
+ * Bytes and not characters, which is the half a length check gets wrong: `'é'.repeat(130)` is 130
+ * characters and 260 bytes, so a character bound passes it and the filesystem still refuses — the
+ * same defect one encoding over. Windows' limit is 255 CHARACTERS of a path component, which is
+ * looser for non-ASCII and identical for ASCII, so the byte rule covers both.
+ */
+const MAX_FILENAME_BYTES = 255;
+
+/**
+ * U+0000 to U+001F — the range Windows forbids in a filename outright, and the eleventh hazard
+ * the punctuation class above does not name.
+ *
+ * Reachable the same way every other id hazard is: an id is a user-editable frontmatter field,
+ * so a hand edit or a paste carrying an escaped U+0001 passes `entityRefOf`, which asks only
+ * that the id be non-empty — and the asset stays indexed, readable and impossible to design.
+ *
+ * **A loop and not a regex**, which is a lint constraint that turned out to be the better
+ * spelling anyway: `no-control-regex` refuses the character class, this repository permits no
+ * inline suppression, and a `charCodeAt` bound says what it means without an escape sequence a
+ * reader has to decode. `fileNameFor` filters with this same predicate rather than through
+ * `FORBIDDEN_IN_FILENAME.source`, so the two paths cannot disagree about the range.
+ *
+ * U+007F (DEL) is deliberately OUTSIDE it. This is Windows's own rule rather than a guess at
+ * what looks unprintable, and DEL is a legal filename character there — over-refusing costs a
+ * user an asset they cannot rename, so the range is the documented one and not a wider one that
+ * feels safer. Asserted in BOTH directions, because a comment saying "deliberately excluded" is
+ * exactly the claim nothing would otherwise check.
+ */
+function hasControlCharacter(value: string): boolean {
+	for (let i = 0; i < value.length; i++) {
+		if (value.charCodeAt(i) < 0x20) return true;
+	}
+	return false;
+}
+
+/**
+ * UTF-8 byte length, through `TextEncoder` rather than through Node's `Buffer`.
+ *
+ * `Buffer` is a NODE global and this plugin's manifest declares `isDesktopOnly: false`, so on
+ * Obsidian mobile there is no Node and `Buffer.byteLength` is a `ReferenceError` — raised at
+ * every sidecar path derivation, on exactly the platform the manifest promises. `TextEncoder`
+ * is a web standard and is present in both. Caught by the mobile-safety lint rule, which
+ * reports as a warning and is failed by `--max-warnings 0`; nothing in the suite could have
+ * seen it, because the tests run under Node.
+ */
+function utf8Bytes(value: string): number {
+	return new TextEncoder().encode(value).length;
+}
+
+/**
+ * CAN THIS STRING BE A FILENAME — asked of an ENTITY ID, which is interpolated into a path
+ * rather than cleaned into one, so there is nothing to strip and the only answer is yes or no.
+ *
+ * Four rules, the last two each arriving a round after the ones before: the forbidden characters,
+ * the edge dots and spaces, the reserved device names, and the LENGTH. `.` and `..` are refused as whole strings
+ * rather than by the character class, because a name merely CONTAINING a dot is fine.
+ *
+ * **Where this is asked is the part that took three attempts.** It belongs at the site that
+ * derives a PATH, not at the index that reads a note: every one of these hazards is a write
+ * hazard, and refusing at the index made a note the user can see on disk unopenable in the app —
+ * lost access traded for a bad write, which is the wrong direction.
+ *
+ * **What it deliberately does not cover**: `fileNameFor` above strips the characters but passes a
+ * reserved NAME through unchanged (`fileNameFor('CON') === 'CON'`, measured), so a note named for
+ * a device still lands at an invalid Windows path through `freshNotePath`. That is pre-existing,
+ * it is the same class one layer over, and it wants the same treatment at the five repositories'
+ * insert paths — recorded here rather than fixed, because widening this change again is how the
+ * previous two attempts went wrong.
+ */
+export function usableAsFilename(id: string, extensionBytes = 0): boolean {
+	if (FORBIDDEN_IN_FILENAME.test(id) || hasControlCharacter(id)) return false;
+	if (EDGE_DOT_OR_SPACE.test(id)) return false;
+	if (utf8Bytes(id) + extensionBytes > MAX_FILENAME_BYTES) return false;
+	return id !== '.' && id !== '..' && !RESERVED_DEVICE_NAME.test(id);
+}
+
+/**
  * Human-chosen filename derived from the entity's name at creation time
  * ("deduplicated on collision" is the caller's job: it knows what already exists, and
  * appends the entity ID when the plain name is taken). Filename is NEVER identity (§83):
@@ -91,8 +268,10 @@ export function sidecarPathFor(projectFolder: string, planId: PlanId | string): 
  * trimmed of edge dots and spaces, which Windows and the app both dislike.
  */
 export function fileNameFor(name: string): string {
-	const clean = name
-		.replace(/[/\\:*?"<>|#^[\]]/g, '')
+	const clean = [...name]
+		.filter((character) => !hasControlCharacter(character))
+		.join('')
+		.replace(new RegExp(FORBIDDEN_IN_FILENAME.source, 'g'), '')
 		.replace(/^[\s.]+|[\s.]+$/g, '')
 		.slice(0, 80)
 		.replace(/[\s.]+$/g, '');

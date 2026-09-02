@@ -52,6 +52,28 @@ describe('validateCalibration', () => {
 		expect(error.category).toBe('Calculation');
 	});
 
+	/**
+	 * FINITE as well as positive, which the guard beside it already knew and this one did not.
+	 *
+	 * `knownDistance` two checks above is `!Number.isFinite(...) || <= 0`; the point distance
+	 * was `> 0` alone, and `Infinity > 0` is true — so endpoints at ±1e308 overflow their
+	 * subtraction, pass, and expose a calibration whose scale cannot be derived or rescaled as
+	 * a usable one. `updateAssetShape` reads `calibration !== null` to decide
+	 * `footprintPending`, so a fresh trace over it is recorded as already scaled.
+	 *
+	 * One guard learned the rule and its neighbour did not, which is the shape this repository
+	 * keeps finding rather than a fact about this pair.
+	 */
+	it('rejects endpoints whose separation overflows to infinity, not merely coincident ones', () => {
+		const error = expectErr(validateCalibration({
+			...wellFormed,
+			pointA: { x: -1e308, y: 0 },
+			pointB: { x: 1e308, y: 0 },
+		}));
+		expect(error.code).toBe('plan.degenerate-points');
+		expect(error.category).toBe('Calculation');
+	});
+
 	it('rejects a non-finite or non-positive scale', () => {
 		for (const pixelsPerWorldUnit of [0, -1, Number.NaN]) {
 			expect(expectErr(validateCalibration({ ...wellFormed, pixelsPerWorldUnit })).code)

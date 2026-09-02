@@ -90,6 +90,12 @@ const SKIPPABLE_ZONE_CODES = new Set([
 	'zone.frontmatter-invalid',
 	'zone.entity-invalid',
 	'zone.geometry-entry-missing',
+	// One note's frontmatter disagreeing with one stale index entry — note-local on the axis
+	// this set and the plan one actually differ on, which is whether the failing DOCUMENT is
+	// shared. A `.rpgeo` is shared by every zone on its plan and stays out; an `id` is not.
+	// `ObsidianPlanRepository`'s own set carries the twin of this line and the account of how
+	// both came to be missing.
+	'zone.note-id-mismatch',
 	'zone.schema-version-malformed',
 ]);
 

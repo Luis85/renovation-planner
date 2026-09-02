@@ -122,6 +122,90 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	// codes `Plan.create` also mints are absent for the plainer reason that no form sends a
 	// background.
 	['plan.empty-name', 'Validation', 'error.category.validation', 'domain/plan/Plan.ts'],
+	// Design slice A10's New asset form, and the asset designer's whole vocabulary behind it.
+	//
+	// **Copied from the RAISE SITES, and the count is the point.** The task that added these
+	// enumerated seven codes and then said to trust the grep over the enumeration; the grep
+	// prints SEVENTEEN — sixteen distinct `assetError` codes plus `assetNotFound`'s.
+	//
+	// `assetError(code, message)` mints `asset.${code}` from a template, so no whole code string
+	// appears anywhere in `src/`: the instrument has to be
+	// `grep -rn "assetError(" src/domain/asset src/application/commands/asset` read together
+	// with the argument on the FOLLOWING line. Measured rather than eyeballed — 17 call sites,
+	// 9 written inline and 8 WRAPPED — and a single-line `grep -o "assetError('[a-z-]*'"`
+	// finds only the 9, which is this repository's own recorded "measure a set with an
+	// instrument that can see all of it" defect reproduced exactly. `asset.not-found` escapes
+	// both spellings, being `assetNotFound`'s own object literal.
+	//
+	// An earlier draft of this very comment said "nine of the sixteen calls wrap", which is
+	// wrong twice over and was written from the shape of the grep output rather than from a
+	// count of it.
+	//
+	// Every one gets a row rather than only the nine the form routes to a field: a code with
+	// no entry does not degrade to silence, it degrades to the generic Validation sentence,
+	// and absence from the form's `FieldErrorMap` means "put it in the BANNER" — where the
+	// generic sentence is exactly what would appear.
+	['asset.empty-name', 'Validation', 'error.category.validation', 'domain/asset/Asset.ts'],
+	['asset.unknown-category', 'Validation', 'error.category.validation', 'domain/asset/Asset.ts'],
+	['asset.negative-unit-cost', 'Validation', 'error.category.validation', 'domain/asset/Asset.ts'],
+	['asset.invalid-height', 'Validation', 'error.category.validation', 'domain/asset/Asset.ts'],
+	['asset.negative-height', 'Validation', 'error.category.validation', 'domain/asset/Asset.ts'],
+	['asset.non-positive-dimension', 'Validation', 'error.category.validation', 'domain/asset/AssetShape.ts'],
+	['asset.dimension-underflow', 'Validation', 'error.category.validation', 'domain/asset/AssetShape.ts'],
+	['asset.invalid-footprint', 'Validation', 'error.category.validation', 'domain/asset/AssetShape.ts'],
+	['asset.degenerate-footprint', 'Validation', 'error.category.validation', 'domain/asset/AssetShape.ts'],
+	['asset.invalid-clearance', 'Validation', 'error.category.validation', 'domain/asset/AssetShape.ts'],
+	['asset.degenerate-clearance', 'Validation', 'error.category.validation', 'domain/asset/AssetShape.ts'],
+	['asset.invalid-anchor', 'Validation', 'error.category.validation', 'domain/asset/AssetShape.ts'],
+	['asset.invalid-facing', 'Validation', 'error.category.validation', 'domain/asset/AssetShape.ts'],
+	[
+		'asset.typed-footprint-cannot-be-pending',
+		'Validation',
+		'error.category.validation',
+		'domain/asset/AssetShape.ts',
+	],
+	[
+		'asset.absent-clearance-cannot-be-pending',
+		'Validation',
+		'error.category.validation',
+		'domain/asset/AssetShape.ts',
+	],
+	// The one `assetError` call outside the domain, and the only one of the seventeen whose
+	// module is an application command.
+	['asset.no-footprint', 'Validation', 'error.category.validation', 'application/commands/asset/updateAssetShape.ts'],
+	// `assetNotFound` rather than `assetError`, which is why a grep for the latter misses it
+	// and why it is a `Reference` refusal: nothing about the input is wrong, the thing it
+	// names is not there. Its category sentence is the one slice 11 recorded as actively
+	// misleading — it says an entry no longer exists, which here is true, so the row earns
+	// its place on the OTHER assertion: the entry names the asset rather than "that entry".
+	['asset.not-found', 'Reference', 'error.category.reference', 'domain/asset/Asset.errors.ts'],
+	// The picker-race refusal on BOTH surfaces, and the pair is two rows rather than one because
+	// the sentences send the user back to different nouns — a spec sheet and a plan document. The
+	// asset half arrived with the probe that raises it; the plan half's guard has existed since
+	// slice 5 and its copy had not, so a plan whose background file went missing between the
+	// picker and the dispatch resolved "That entry no longer exists." about a plan that had not.
+	[
+		'asset.background-not-found',
+		'Reference',
+		'error.category.reference',
+		'application/commands/asset/SetAssetBackground.ts',
+	],
+	[
+		'plan.background-not-found',
+		'Reference',
+		'error.category.reference',
+		'application/commands/plan/SetPlanBackground.ts',
+	],
+	// Minted in PRESENTATION, like `reference.no-reassignment-target` above: a rectangle needs
+	// both halves and no command refuses one given without the other, because none is asked.
+	['asset.dimensions-incomplete', 'Validation', 'error.category.validation', 'presentation/views/NewAssetForm.vue'],
+	// `createMoney`'s two, which `NewAssetForm` runs as a PRE-CHECK. They earn their rows for
+	// a reason none of the rows above has: `CreateAssetCommand` reaches `Money.of` on its
+	// first line and `of` THROWS on either input rather than refusing, so without that
+	// pre-check neither code is ever minted at all — the user gets `vault.unexpected-failure`
+	// about a vault nothing opened. The rows are what say the refusing path has copy.
+	['money.invalid-amount', 'Validation', 'error.category.validation', 'core/money/Money.ts'],
+	['money.invalid-currency', 'Validation', 'error.category.validation', 'core/money/Money.ts'],
 	// Design slice 19's §83 overlap guard. A `Persistence` refusal rather than a `Validation`
 	// one, because it is `persistenceError` at the repository that mints it — and that is
 	// precisely why the row earns its place: the generic Persistence sentence is "reading or
@@ -166,6 +250,16 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	// told the wrong thing about which folder is the problem has nothing to act on.
 	[
 		'settings.library-overlaps-source',
+		'Validation',
+		'error.category.validation',
+		'plugin/settings/libraryMigration.ts',
+	],
+	// The SOURCE being the vault root, and it is a third row rather than a synonym of the
+	// second for the same reason the second is not a synonym of the first: the overlap
+	// sentence names the DESTINATION, and the root overlaps every folder there is, so a user
+	// reading it picks another folder and is refused again with nothing naming the state.
+	[
+		'settings.library-source-is-vault-root',
 		'Validation',
 		'error.category.validation',
 		'plugin/settings/libraryMigration.ts',
@@ -226,6 +320,24 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.calculation',
 		'application/commands/requirement/RecalculateRequirement.ts',
 	],
+	// The two calibration refusals a user can produce, on either surface. Both pre-date the
+	// asset designer and had no entry in either locale for fifteen slices, so a refused
+	// calibration resolved the `Calculation` category sentence — "A quantity could not be
+	// calculated.", which names no point, no distance and nothing to do differently.
+	//
+	// `calibrationError` is a module-private factory, so these rows are copied from
+	// `domain/plan/Calibration.ts`'s own literals like every other row here — the column names
+	// that module for a reader, and it is a pointer rather than an instrument.
+	//
+	// The third code of that union, `calibration.invalid-distance`, is deliberately absent for
+	// the reason slice 17 recorded when it WITHDREW a Definition of Done item about it:
+	// `KnownDistanceForm` disables its submit unless the value parses positive and finite, so
+	// no user can raise it. `calibration.degenerate-scale` is listed ONCE despite two raise
+	// sites (`deriveCalibration`'s collapsed scale and `nonFiniteRescaleError`'s overflowed
+	// product) — one code, one sentence, and `CalibrateAsset`'s finite-result guard is the
+	// second of the two.
+	['calibration.coincident-points', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
+	['calibration.degenerate-scale', 'Calculation', 'error.category.calculation', 'domain/plan/Calibration.ts'],
 ];
 
 // Named for the shape rather than for a slice: the table below has carried codes from slices

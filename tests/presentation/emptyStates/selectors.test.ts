@@ -6,10 +6,12 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+	selectAssetDesignerEmptyState,
 	selectPlanEditorEmptyState,
 	selectRenovationProjectEmptyState,
 } from '../../../src/presentation/emptyStates/selectors';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../../src/presentation/read-models/PlanDto';
+import { assetDesign } from '../../helpers/assetDesign';
 
 const PLAN: PlanDto = {
 	id: 'plan-1',
@@ -137,5 +139,58 @@ describe('selectRenovationProjectEmptyState', () => {
 		const project: ProjectSummaryDto = { id: 'project-1', name: 'Kitchen refit', status: 'Planning', currency: 'EUR', libraryOverlap: false };
 
 		expect(selectRenovationProjectEmptyState([project], 1)).toBeNull();
+	});
+});
+
+/**
+ * Design slice B3's third selector, widened in Task B7 to answer the entry that used to be
+ * registered content nothing selected.
+ *
+ * `EMPTY_STATE_CONTENT.assetDesigner` declares two entries and this function now answers
+ * both: `AssetDesignDto` gained `background` in Task B7, which is also where the picker that
+ * acts on it is built. The fixture's own `background` default is non-null for exactly this
+ * reason — every case below that touches only `shape` continues to mean what it always did,
+ * and a case has to say `background: null` explicitly to reach the new arm.
+ */
+describe('which empty state the asset designer is in', () => {
+	it('asks for a footprint when the asset has no shape at all, and already has a background', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign({ shape: null }))).toBe('noShape');
+	});
+
+	/**
+	 * The canvas has something to draw, so nothing overlays it. Slice 14's rule read from the
+	 * other end: an empty state over a footprint would be telling the user a region is empty
+	 * while the region shows the very thing they drew.
+	 */
+	it('asks for nothing once a shape exists', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign())).toBeNull();
+	});
+
+	/**
+	 * **A shape suppresses the background nag too**, which is the half of the ordering an
+	 * unqualified "shape wins" reading would miss: an asset typed from dimensions never needed
+	 * a background at all (`AssetShape.footprintOrigin` can be `'typed'`), so an asset with a
+	 * shape and no spec sheet is not a gap this selector treats as one.
+	 */
+	it('asks for nothing once a shape exists, even with no background at all', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign({ background: null }))).toBeNull();
+	});
+
+	/**
+	 * `dimensions` is DERIVED from the footprint and is `null` exactly when the shape is, so a
+	 * selector reading it would be a second answer to one question. This pins that it reads the
+	 * shape: a design carrying a shape but a `null` measurement — which `GetAssetDesign` cannot
+	 * currently produce, and which a future extent refusal could — still has something to draw.
+	 */
+	it('reads the shape rather than the derived dimensions', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign({ dimensions: null }))).toBeNull();
+	});
+
+	/**
+	 * **`noBackground` outranks `noShape`** — the "first missing step" ordering
+	 * `selectPlanEditorEmptyState` states for its own pair, asked of an asset with neither.
+	 */
+	it('asks for a background before a footprint, when the asset has neither', () => {
+		expect(selectAssetDesignerEmptyState(assetDesign({ shape: null, background: null }))).toBe('noBackground');
 	});
 });

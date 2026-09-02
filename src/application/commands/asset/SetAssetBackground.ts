@@ -1,0 +1,249 @@
+import { err, isErr, ok } from '../../../core/result/Result';
+import type { AssetId } from '../../../domain/asset/AssetId';
+import type { AssetBackgroundRef } from '../../../domain/asset/Asset';
+import { assetDesignChanged } from '../../../domain/asset/Asset.events';
+import { assetError, assetNotFound } from '../../../domain/asset/Asset.errors';
+import { referenceError } from '../../errors';
+import type { Command } from '../Command';
+import {
+	markCompensated,
+	markUncompensated,
+	plainDispatch,
+	type DispatchResult,
+	type VersionedDispatchResult,
+} from '../DispatchOutcome';
+import type { AssetGeometryDocument } from '../../ports/AssetGeometrySidecar';
+import type { VaultFileProbe } from '../../ports/VaultFileProbe';
+import type { EntityVersion } from '../../ports/versioning';
+import type { AssetShapeDeps } from './updateAssetShape';
+
+/**
+ * The extension → kind mapping this command validates a caller's claim against — its own copy
+ * of `PlanBackgroundRef.backgroundKindFor` rather than an import of it: `domain/asset/` and
+ * `domain/plan/` are two entities that happen to share this vocabulary today, and importing
+ * across them would tie an asset's background to a plan's the moment the two diverge (the
+ * same argument `AssetBackgroundRef`'s own docblock makes about the TYPE). A pure string
+ * function costs nothing to keep twice; a cross-domain import costs a coupling neither entity
+ * asked for.
+ */
+function backgroundKindOf(path: string): 'image' | 'pdf' | null {
+	const name = path.slice(path.lastIndexOf('/') + 1);
+	const dot = name.lastIndexOf('.');
+	if (dot <= 0) return null;
+	const extension = name.slice(dot + 1).toLowerCase();
+	if (extension === 'png' || extension === 'jpg' || extension === 'jpeg') return 'image';
+	if (extension === 'pdf') return 'pdf';
+	return null;
+}
+
+function sameBackground(a: AssetBackgroundRef | null, b: AssetBackgroundRef | null): boolean {
+	if (a === null || b === null) return a === b;
+	return a.path === b.path && a.kind === b.kind && a.page === b.page;
+}
+
+/**
+ * What one background-picking gesture supplies (Task B7).
+ *
+ * `kind` is a bare `string`, not `AssetBackgroundKind` — this is the untrusted-input door
+ * (`parseCurrency`'s reasoning, applied to a second value type): a caller may be a hand-typed
+ * fixture, a note nobody has read yet, or a picker that DID narrow it, and refusing an
+ * unsupported kind is this command's job rather than a precondition on its input type. A
+ * `BackgroundPicker` result satisfies this shape without narrowing, since its own `kind` is
+ * already `'image' | 'pdf'`.
+ */
+export interface SetAssetBackgroundInput {
+	readonly assetId: AssetId;
+	readonly path: string;
+	readonly kind: string;
+	readonly page: number | null;
+	/** The NOTE's version this gesture read, if the caller already has one (an undo does). */
+	readonly expected?: EntityVersion;
+	/**
+	 * The SIDECAR's version this gesture read, if the caller already has one — the reversible
+	 * adapter does, and without it the calibration clear below is conditioned on the command's
+	 * OWN read, a second read a peer can land between: the peer's edit is merged here, the
+	 * adapter's inverse predates it, and the undo restores over it with no refusal. The same
+	 * two-read window `updateAssetShape` closes for every one-resource command with `expected`.
+	 */
+	readonly expectedGeometry?: EntityVersion;
+}
+
+/**
+ * Point an asset's designer at the spec sheet it is drawn over, and clear the calibration
+ * measured off whatever it pointed at before (Decision 5, Task B7).
+ *
+ * **Two resources, one gesture.** The reference lives in the NOTE (Task B7's Step 0 adds the
+ * three frontmatter keys `planFrontmatter.ts` already models); the calibration lives in the
+ * geometry SIDECAR. A stale calibration is worse than none: two points measured against the
+ * OLD document would go on reporting a scale that names nothing about the new one, silently,
+ * for every dimension the designer derives from it.
+ *
+ * **Order: clear the calibration first, then write the reference.** A failure between the two
+ * writes leaves a surface that says it is uncalibrated — true, and recoverable by calibrating
+ * again — where the reverse order leaves a NEW picture measured by the OLD document's scale,
+ * which is a wrong answer that looks like a right one.
+ *
+ * **Compensate: if the note write then fails, restore the calibration that was just
+ * cleared**, from the snapshot taken before clearing it. Without this, a failed background
+ * change leaves the user on their OLD background with its perfectly valid calibration
+ * destroyed, for a change that never happened — the write half refused and the read half
+ * (the calibration) paid for it anyway.
+ *
+ * **A failed compensation is reported, not swallowed.** `markUncompensated` stamps the
+ * returned refusal so the save-state indicator does not settle at `Saved` over a vault whose
+ * calibration is gone — `DispatchOutcome`'s own account of `deleteResolution.ts`'s `compensate`
+ * is the rule this command re-derives for a two-write gesture rather than a multi-entity one.
+ */
+export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInput, DispatchResult> {
+	/**
+	 * `files` is a SECOND constructor parameter rather than a member of `AssetShapeDeps`, which
+	 * is the shape `SetPlanBackgroundCommand` already takes. The other seven design commands
+	 * write geometry or a height and have no raw file to ask about; folding the probe into the
+	 * bundle they share would state a dependency seven of them do not have, and every fixture
+	 * that builds one would then supply a port it never reaches.
+	 */
+	constructor(
+		private readonly deps: AssetShapeDeps,
+		private readonly files: VaultFileProbe,
+	) {}
+
+	execute(input: SetAssetBackgroundInput): Promise<DispatchResult> {
+		return plainDispatch(this.executeWithVersion(input));
+	}
+
+	/**
+	 * The reversible adapter's door: the same write, plus the NOTE version it produced — the
+	 * resource `ReversibleAssetDesignCommands`'s spanning adapter conditions its own `expected`
+	 * on, for the reason `SetAssetHeightCommand`'s sibling door already states.
+	 */
+	async executeWithVersion(input: SetAssetBackgroundInput): Promise<VersionedDispatchResult> {
+		const { locks } = this.deps;
+		// The two cheap refusals are OUTSIDE the region on purpose: neither reads the vault, so
+		// taking a lock to answer them would make a mislabelled path or a missing file queue
+		// behind whatever else is touching this asset. The region starts where the reads do.
+		//
+		// The cheap refusal, before any read: a kind that does not match the path's own
+		// extension is refused here rather than left to the domain, mirroring
+		// `SetPlanBackgroundCommand` — a mislabeled or unsupported file would otherwise reach
+		// the sidecar clear and the note write before failing at neither.
+		const kind = backgroundKindOf(input.path);
+		if (kind === null || kind !== input.kind) {
+			return err(
+				assetError('unsupported-background', `"${input.path}" is not a supported ${input.kind} background.`),
+			);
+		}
+
+		// The SECOND cheap refusal, and cheap for the reason the first one is: a path naming no
+		// vault file is refused before either resource is opened, exactly as
+		// `SetPlanBackgroundCommand` refuses one. The picker snapshots the vault's candidates and
+		// the user picks out of that snapshot, so a file deleted or renamed in between arrives
+		// here as a perfectly well-formed path naming nothing — and without this the extension
+		// check passed it, the calibration was cleared, the note was saved pointing at a file
+		// that is not there, and the command answered `wrote`. The designer then drew no sheet
+		// and had lost the scale it had, for a gesture that could not have worked.
+		//
+		// **ABOVE the `sameBackground` no-write return, deliberately.** A re-submit of the
+		// reference the asset already carries therefore REFUSES once that file has gone rather
+		// than reporting `no-write`, which is the honest answer: the user is asking to point at a
+		// file that is not there. Pinned as behaviour, because a guard below that return passes
+		// every other case in this command's suite.
+		//
+		// What it does NOT buy, stated where it is made: the file can go at any moment after this
+		// line, so a stored reference is never trustworthy on the strength of this check. What
+		// REPORTS that is `BackgroundRenderModel`'s own not-found status, and since PR 43's third
+		// finding the surface hears about it promptly — `BackgroundLayer` subscribes to vault file
+		// events rather than noticing only on the next rehydrate. What this closes is the window
+		// between one gesture's own two halves, where the COMMAND is the thing writing a dangling
+		// reference over a calibration it destroyed on the way.
+		if (!this.files.fileExists(input.path)) {
+			return err(referenceError('asset.background-not-found', `No vault file at "${input.path}".`));
+		}
+
+		// Both resources under ONE exclusive region, for `updateAssetShape`'s reason and more
+		// sharply here than anywhere else: this gesture CLEARS the calibration first, and for an
+		// asset with no sidecar that clear CREATES one. So an asset deleted between the note read
+		// and that clear was left with a `.rpgeo` written by a gesture that then failed at the
+		// note it was for. `ReferenceLocks.withLevel1` carries the account.
+		return await locks.withLevel1(input.assetId, () => this.write(input, kind));
+	}
+
+	/**
+	 * The read-and-write half, inside the caller's exclusive region.
+	 *
+	 * Split from `executeWithVersion` rather than nested in a closure there, because the two
+	 * halves answer different questions and the file's `max-lines-per-function` budget is the
+	 * gate that says so: above, what can be refused without touching the vault; here, the pair
+	 * of writes and the compensation between them.
+	 *
+	 * `kind` is passed in already validated rather than re-derived, so the value the note is
+	 * saved with is the one the refusal above compared — a second `backgroundKindOf` call would
+	 * be a second derivation of one fact.
+	 */
+	private async write(
+		input: SetAssetBackgroundInput,
+		kind: 'image' | 'pdf',
+	): Promise<VersionedDispatchResult> {
+		const { assets, sidecar, events } = this.deps;
+
+		const loaded = await assets.getById(input.assetId);
+		if (isErr(loaded)) return loaded;
+		if (loaded.value === null) return err(assetNotFound(input.assetId));
+		const { entity: current, version: noteVersion } = loaded.value;
+
+		const background: AssetBackgroundRef = { path: input.path, kind, page: input.page };
+		// Validated (and re-validated: `Asset.create` never trusts the candidate that reaches
+		// it) BEFORE either write, so a domain refusal — an empty path, an invalid page —
+		// touches neither resource.
+		const candidate = current.withChanges({ background });
+		if (isErr(candidate)) return candidate;
+
+		const snapshot = await sidecar.read(input.assetId);
+		if (isErr(snapshot)) return snapshot;
+		const { document, version: geometryVersion } = snapshot.value;
+
+		// `ok` is not evidence that anything was written: re-submitting the reference this
+		// asset already carries is a no-write REGARDLESS of whether a calibration is present —
+		// Decision 5's whole reasoning is that a calibration dies when the document it measures
+		// actually CHANGES, and an unchanged reference is not a change. Conditioning this on
+		// `document.calibration === null` would clear and rewrite over an unchanged background
+		// specifically when a valid calibration exists, destroying the one calibration this
+		// guard exists to protect.
+		if (sameBackground(candidate.value.background, current.background)) {
+			return ok({ outcome: 'no-write' });
+		}
+
+		const cleared: AssetGeometryDocument = { ...document, calibration: null };
+		const clearedWrite = await sidecar.write(input.assetId, cleared, input.expectedGeometry ?? geometryVersion);
+		if (isErr(clearedWrite)) return clearedWrite;
+
+		const saved = await assets.save(candidate.value, input.expected ?? noteVersion);
+		if (isErr(saved)) {
+			// Restore what was just cleared, from the snapshot taken before clearing it —
+			// conditioned on the version the clearing write itself produced, never on a
+			// read-back, for `VersionedDispatch`'s reason.
+			const restored = await sidecar.write(input.assetId, document, clearedWrite.value);
+			if (isErr(restored)) {
+				// The clear LANDED and could not be put back, so the sidecar on disk really has
+				// lost its calibration. `withStateRefresh` re-hydrates on `ok` alone and this
+				// plugin's own write is suppressed by `EchoWindow`, so without this publication
+				// no leaf — the initiating one included — ever hears: every surface goes on
+				// drawing a calibration the vault no longer holds, indefinitely, behind a badge
+				// that says only that something failed. A SUCCESSFUL restore deliberately
+				// announces nothing, for the reason `markCompensated` states below: the vault is
+				// back at its pre-state and there is nothing to re-read.
+				await events.publish(assetDesignChanged({ assetId: input.assetId }));
+				return err(markUncompensated(saved.error));
+			}
+			// The restore SUCCEEDED, and it is a write this gesture's history has to record:
+			// `CompensatedWrite` says why a refusal carries a version at all.
+			return err(markCompensated(saved.error, restored.value));
+		}
+
+		await events.publish(assetDesignChanged({ assetId: input.assetId }));
+		// `secondaryVersion` is the SIDECAR's — `VersionedDispatch`'s own docblock states why a
+		// two-write command reports both rather than leaving the second to a read-back: without
+		// it, `ReversibleAssetBackgroundEdit` would condition its calibration restore on the
+		// PRE-clear version, which the store has already moved past.
+		return ok({ outcome: 'wrote', version: saved.value.version, secondaryVersion: clearedWrite.value });
+	}
+}

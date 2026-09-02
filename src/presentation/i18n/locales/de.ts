@@ -26,6 +26,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-folder-empty': 'Ein Bibliotheksordner darf nicht leer sein.',
 	'settings.library-overlaps-project': 'Dieser Ordner liegt in einem Projektordner oder enthält einen.',
 	'settings.library-overlaps-source': 'Dieser Ordner überlappt den aktuellen Bibliotheksordner.',
+	'settings.library-source-is-vault-root':
+		'Der Bibliotheksordner ist derzeit der gesamte Vault, es gibt also nichts, woraus er verschoben werden könnte. Setzen Sie ihn zuerst in der data.json auf einen echten Ordner.',
 	'settings.library-source-case-mismatch':
 		'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
 	'settings.library-refresh-failed':
@@ -67,8 +69,10 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.plan-editor.name': 'Grundriss-Editor',
 	'command.open-plan-editor': 'Grundriss-Editor öffnen',
 	'command.set-plan-background': 'Grundriss-Hintergrund festlegen',
+	'command.open-asset-designer': 'Objekt-Designer öffnen',
 	'command.create-sample-project': 'Beispielprojekt anlegen',
 	'plan.none': 'In diesem Vault gibt es noch keine Grundrisse.',
+	'asset.none': 'In diesem Vault gibt es noch keine Objekte.',
 	'sample.project.name': 'Beispiel-Renovierung',
 	'sample.plan.name': 'Erdgeschoss',
 	'sample.zone.kitchen': 'Küche',
@@ -128,7 +132,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.layer.interaction': 'Interaktion',
 	'editor.calibrate.distance.title': 'Reale Entfernung festlegen',
 	'editor.calibrate.distance.label': 'Entfernung in Millimetern',
-	'editor.calibrate.distance.measured': 'Auf dem Plan gemessen:',
+	'editor.calibrate.distance.measured': 'Auf dem Hintergrund gemessen:',
 	'editor.calibrate.recalibrate.title': 'Die Zonen auf diesem Plan neu skalieren?',
 	'editor.calibrate.recalibrate.message': 'Auf diesem Plan sind bereits Zonen eingezeichnet. Beim Festlegen des Maßstabs werden alle skaliert. Sie können den Vorgang rückgängig machen.',
 	'background.no-plan-open': 'Zuerst einen Grundriss-Editor öffnen.',
@@ -182,6 +186,13 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Der Preis dieses Objekts ist nicht in der Währung dieses Projekts, daher kann keine Schätzung erstellt werden. Öffnen Sie die Notiz des Objekts und erfassen Sie den Preis in der Währung dieses Projekts.',
 	'requirement.project-not-found': 'Diese Zone gehört zu einem Projekt, das nicht mehr vorhanden ist.',
 	'requirement.project-gone': 'Dieser Bedarf gehört zu einem Projekt, das nicht mehr vorhanden ist.',
+	// Beide Kalibrierungs-Ablehnungen gelten für beide Oberflächen — ein Grundriss und ein
+	// Objekt teilen sich dasselbe Werkzeug —, also nennt keiner der beiden Sätze das eine
+	// oder das andere.
+	'calibration.coincident-points':
+		'Diese beiden Punkte liegen an derselben Stelle. Wählen Sie zwei Punkte mit einem echten Abstand dazwischen.',
+	'calibration.degenerate-scale':
+		'Diese beiden Punkte und dieser Abstand ergeben keinen brauchbaren Maßstab. Wählen Sie zwei weiter entfernte Punkte, oder prüfen Sie den eingegebenen Abstand.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.suffix.schema-version-unsupported':
@@ -283,6 +294,111 @@ export const de: Partial<Record<StringKey, string>> = {
 	'project.target-before-start': 'Der Fertigstellungstermin muss am oder nach dem Beginn liegen.',
 	'project.invalid-date': 'Geben Sie ein echtes Kalenderdatum ein.',
 	'plan.empty-name': 'Ein Grundriss braucht einen Namen.',
+	// Design slice A10. „Objekt“ für Asset, nie „Material“ — siehe die Korrektur in Slice 11.
+	//
+	// Die Kategorie `material` heißt hier deshalb „Baustoff“ und nicht „Material“: das ist
+	// das treffendere deutsche Wort für eine Baustoff-Kategorie UND es hält die Regel ein,
+	// die `strings.test.ts` als Teilstring über die ganze Datei prüft. Zwei Gründe, ein Wort.
+	'asset.empty-name': 'Ein Objekt braucht einen Namen.',
+	'asset.unknown-category': 'Wählen Sie eine Kategorie aus der Liste.',
+	'asset.negative-unit-cost': 'Ein Stückpreis kann nicht negativ sein.',
+	'asset.invalid-height': 'Geben Sie eine Höhe als Zahl in Millimetern ein.',
+	'asset.negative-height': 'Eine Höhe kann nicht negativ sein.',
+	'asset.non-positive-dimension': 'Breite und Tiefe müssen jeweils größer als null sein.',
+	'asset.dimension-underflow': 'Diese Maße sind zu klein für ein Rechteck.',
+	'asset.invalid-footprint': 'Dieser Umriss ist keine Form, die gespeichert werden kann.',
+	'asset.degenerate-footprint': 'Dieser Umriss umschließt keine Fläche.',
+	'asset.invalid-clearance': 'Dieser Freiraum ist keine Form, die gespeichert werden kann.',
+	'asset.degenerate-clearance': 'Dieser Freiraum umschließt keine Fläche.',
+	'asset.invalid-anchor': 'Ein Ankerpunkt braucht endliche Koordinaten.',
+	'asset.invalid-facing': 'Eine Ausrichtung braucht einen endlichen Winkel.',
+	'asset.facing-without-direction':
+		'Ziehen Sie in die Richtung, in die das Objekt zeigt; ein Klick allein nennt keine.',
+	'asset.typed-footprint-cannot-be-pending':
+		'Ein eingegebener Umriss ist bereits in Millimetern und wartet daher auf keinen Maßstab.',
+	'asset.absent-clearance-cannot-be-pending': 'Es gibt keinen Freiraum, der auf einen Maßstab warten könnte.',
+	'asset.no-footprint':
+		'Geben Sie diesem Objekt zuerst einen Umriss; Freiraum, Ankerpunkt und Ausrichtung beziehen sich jeweils darauf.',
+	'asset.not-found': 'Dieses Objekt existiert nicht mehr.',
+	'asset.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Datenblatt.',
+	'plan.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Plandokument.',
+	'asset.dimensions-incomplete': 'Ein Rechteck braucht Breite und Tiefe.',
+	'money.invalid-amount': 'Geben Sie einen Betrag als einfache Dezimalzahl ein, zum Beispiel 45.00.',
+	'money.invalid-currency': 'Geben Sie einen dreibuchstabigen Währungscode in Großbuchstaben ein.',
+	'form.new-asset.title': 'Neues Objekt',
+	'form.new-asset.name': 'Name',
+	'form.new-asset.category': 'Kategorie',
+	'form.new-asset.unit': 'Einheit',
+	'form.new-asset.unit-cost': 'Stückpreis',
+	'form.new-asset.currency': 'Währung',
+	'form.new-asset.width': 'Breite in Millimetern (optional)',
+	'form.new-asset.depth': 'Tiefe in Millimetern (optional)',
+	'form.new-asset.already-created':
+		'Das Objekt ist gespeichert. Seine Angaben lassen sich im Katalog bearbeiten; nur die Maße unten stehen noch aus.',
+	'form.new-asset.category.material': 'Baustoff',
+	'form.new-asset.category.furniture': 'Möbel',
+	'form.new-asset.category.fixture': 'Einbauteil',
+	'form.new-asset.category.plant': 'Pflanze',
+	'form.new-asset.category.equipment': 'Gerät',
+	'form.new-asset.category.building-element': 'Bauteil',
+	'form.new-asset.category.custom': 'Sonstiges',
+	'form.new-asset.unit.piece': 'Stück',
+	'form.new-asset.unit.m': 'Meter',
+	'form.new-asset.unit.m2': 'Quadratmeter',
+	'form.new-asset.unit.m3': 'Kubikmeter',
+	'form.new-asset.unit.hour': 'Stunde',
+	'form.new-asset.unit.day': 'Tag',
+	'form.new-asset.unit.fixed': 'Pauschale',
+	'view.asset.create': 'Neues Objekt',
+	// Design slice B3 (ADR-0015). "Objekt" für Asset, nie "Material" — siehe den Kommentar
+	// weiter oben in dieser Datei; "Material" ist hier eine Kategorie und kein Synonym.
+	'empty.asset.no-shape.headline': 'Noch kein Umriss',
+	'empty.asset.no-shape.body':
+		'Ein Objekt erhält seinen Umriss aus eingegebenen Maßen oder aus einer über ein Datenblatt gezeichneten Kontur. Beides macht daraus etwas, das ein Grundriss aufnehmen kann.',
+	'empty.asset.no-shape.action': 'Maße festlegen',
+	'empty.asset.no-background.headline': 'Noch kein Datenblatt',
+	'empty.asset.no-background.body':
+		'Legen Sie ein Foto, eine Zeichnung oder ein Datenblatt als Hintergrund dieses Objekts fest und kalibrieren Sie es, damit eine gezeichnete Kontur in echten Einheiten herauskommt.',
+	'empty.asset.no-background.action': 'Hintergrund wählen',
+	'view.asset-designer.name': 'Objekt-Designer',
+	'designer.canvas': 'Objekt-Zeichenfläche',
+	'designer.toolbar': 'Objekt-Werkzeuge',
+	'designer.toolbar.trace-footprint': 'Umriss nachzeichnen',
+	'designer.toolbar.trace-clearance': 'Freiraum nachzeichnen',
+	'designer.toolbar.set-anchor': 'Ankerpunkt setzen',
+	'designer.toolbar.set-facing': 'Ausrichtung setzen',
+	'designer.toolbar.calibrate': 'Kalibrieren',
+	'designer.calibrate.recalibrate.title': 'Ohne Maßstab Nachgezeichnetes neu skalieren?',
+	'designer.calibrate.recalibrate.message':
+		'Ein Teil der Geometrie dieses Objekts wurde nachgezeichnet, bevor ein Maßstab vorlag. Beim Festlegen des Maßstabs wird sie in Millimeter umgerechnet. Sie können den Vorgang rückgängig machen.',
+	'designer.background.pick': 'Hintergrund für dieses Objekt wählen',
+	'designer.loading': 'Objekt wird geladen …',
+	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
+	'designer.asset-missing.headline': 'Dieses Objekt gibt es nicht mehr',
+	'designer.asset-missing.body': 'Dieser Tab verweist auf ein Objekt, das nicht mehr im Vault ist.',
+	'designer.asset-missing.action': 'Tab schließen',
+	'designer.refresh-failed':
+		'Dieses Objekt konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
+	// „Objekt“, nie „Material“ — dasselbe Wort wie in jeder anderen Zeile dieses Abschnitts.
+	'designer.background-missing': 'Die Hintergrunddatei dieses Objekts fehlt.',
+	'designer.background-failed': 'Der Hintergrund dieses Objekts konnte nicht gezeichnet werden.',
+	'designer.inspector': 'Inspektor',
+	'designer.inspector.dimensions': 'Maße',
+	'designer.inspector.dimensions.unscaled':
+		'Dieser Umriss wurde gezeichnet, bevor ein Maßstab vorlag; diese Zahlen sind noch keine echten Maße.',
+	'designer.inspector.edit-dimensions': 'Maße bearbeiten',
+	'designer.inspector.set-dimensions': 'Maße festlegen',
+	'designer.inspector.height': 'Höhe in Millimetern',
+	'designer.inspector.height.unparseable': 'Geben Sie eine Höhe als Zahl ein, oder leeren Sie das Feld.',
+	'designer.dimensions.edit.title': 'Maße dieses Objekts festlegen',
+	// „Objekt“, nie „Material“. Statt der aktuellen Zahlen und nicht daneben: das Formular
+	// bleibt leer, damit Platzhalterwerte nicht als echte Millimeter gespeichert werden.
+	'designer.dimensions.unscaled':
+		'Dieser Umriss wurde gezeichnet, bevor ein Maßstab vorlag; seine aktuelle Größe ist kein echtes Maß. Geben Sie die echte Breite und Tiefe ein, oder kalibrieren Sie zuerst den Hintergrund.',
+	'designer.dimensions.width': 'Breite in Millimetern',
+	'designer.dimensions.depth': 'Tiefe in Millimetern',
+	'undo.superseded':
+		'Diese Änderung wurde nach diesem Schritt an anderer Stelle bearbeitet; ein Rückgängigmachen würde diese Bearbeitung verwerfen. Laden Sie neu und machen Sie es erneut rückgängig, wenn Sie es weiterhin möchten.',
 	'save-state.saved': 'Gespeichert',
 	'save-state.saving': 'Wird gespeichert',
 	'save-state.unsaved-changes': 'Nicht gespeicherte Änderungen',

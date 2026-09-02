@@ -1,4 +1,5 @@
 import type { PlanDto, PlanSummaryDto, ProjectSummaryDto, ZoneDto } from '../read-models/PlanDto';
+import type { AssetDesignDto } from '../../application/queries/GetAssetDesign';
 
 /**
  * Which empty state a view is in — decided from query results that have ALREADY succeeded,
@@ -95,4 +96,40 @@ export function selectProjectDetailEmptyState(
 ): 'noPlans' | null {
 	if (unreadable > 0) return null;
 	return plans.length === 0 ? 'noPlans' : null;
+}
+
+/**
+ * Which empty state the asset designer is in (design slice B3, ADR-0015; widened by Task B7).
+ *
+ * A function of a design that has ALREADY succeeded, like its three siblings — an `Err` never
+ * reaches it, because a failed read is not an empty state and telling a user to draw their
+ * first footprint because the vault could not be read is the misleading onboarding slice 14
+ * refuses.
+ *
+ * It reads `shape` and not `dimensions`, which are DERIVED from the footprint by
+ * `GetAssetDesign` and would be a second answer to one question: what the canvas has to draw is
+ * the outline, and a measurement is a thing the inspector prints about it.
+ *
+ * **Once a shape exists, neither overlay draws — the same "nothing to say once there is
+ * something to look at" rule slice 14 states for the other two selectors.** A background nag
+ * kept alive over a typed footprint would be nagging over real content for no reason a user
+ * asked for: `AssetShape.footprintOrigin` can be `'typed'`, which needs no background at all,
+ * so an asset with a shape and no spec sheet is not a gap this selector treats as one.
+ *
+ * **Among the shapeless states, `noBackground` outranks `noShape`** — the same "first missing
+ * step of the sequence" ordering `selectPlanEditorEmptyState` states for its own pair, read from
+ * the asset designer's side: `noShape`'s hand-off (Task B8's dimensions form) works with no
+ * background at all, but a user who has picked nothing yet is offered the more foundational
+ * action first. `selectors.test.ts` pins both halves of the ordering as behaviour.
+ *
+ * **That ordering is a matter of which action is OFFERED FIRST and no longer one of what is
+ * reachable at all**, which it was until a review bot pointed out that it was: with the
+ * dimensions gesture living only on `noShape`, a shapeless asset with no sheet could not type
+ * a width and a depth without first choosing an unrelated file. `DesignerInspector` is mounted
+ * in every state and offers that gesture unconditionally now, so this selector decides
+ * prominence rather than access — which is the only thing an empty state should be deciding.
+ */
+export function selectAssetDesignerEmptyState(design: AssetDesignDto): 'noBackground' | 'noShape' | null {
+	if (design.shape !== null) return null;
+	return design.background === null ? 'noBackground' : 'noShape';
 }

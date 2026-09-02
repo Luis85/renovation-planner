@@ -17,6 +17,7 @@ import {
 } from '../../src/presentation/views/RenovationProjectView';
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../../src/presentation/views/GeometrySidecarView';
 import { PLAN_EDITOR_VIEW } from '../../src/presentation/views/PlanEditorView';
+import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { t } from '../../src/presentation/i18n/strings';
 import { loadedPlugin, type LoadedPlugin } from '../helpers/plugin';
@@ -44,7 +45,27 @@ beforeEach(async () => {
 
 describe('what onload registers', () => {
 	it('registers each view under its persisted type', () => {
-		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW, GEOMETRY_SIDECAR_VIEW]);
+		expect([...plugin.views.keys()]).toEqual([
+			RENOVATION_PROJECT_VIEW,
+			PLAN_EDITOR_VIEW,
+			// ADR-0015's fourth registration and third workspace surface. A view type is DATA:
+			// Obsidian persists it in the layout, so this list is asserted rather than counted.
+			ASSET_DESIGNER_VIEW,
+			GEOMETRY_SIDECAR_VIEW,
+		]);
+	});
+
+	/**
+	 * A factory that returns the wrong thing registers fine and fails when a user clicks, which
+	 * is why the project view already has this case. The designer's is the one that MATTERS
+	 * most of the four: it is the only registered view whose factory has to reach a bundle that
+	 * did not exist before this task, so a composition that forgot `assetDesignerDeps` would
+	 * register perfectly and throw on the first open.
+	 */
+	it('registers a factory that builds the asset designer', () => {
+		const built = plugin.views.get(ASSET_DESIGNER_VIEW)?.(new FakeLeaf() as never);
+
+		expect(built).toBeInstanceOf(AssetDesignerView);
 	});
 
 	// A factory that returns the wrong thing registers fine and fails when a user clicks.
@@ -86,6 +107,9 @@ describe('what onload registers', () => {
 			'show-diagnostics-report',
 			'open-plan-editor',
 			'set-plan-background',
+			// Task B9: what makes ADR-0015's Asset Designer reachable at all — a picker over
+			// the vault's whole catalogue, the same shape `open-plan-editor` already takes.
+			'open-asset-designer',
 			// Scaffolding, and it still has to obey the id rule — a user who binds a hotkey to
 			// it has bound it to this string. `sampleProject.ts` names what deletes it.
 			'create-sample-project',

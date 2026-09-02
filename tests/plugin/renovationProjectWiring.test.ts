@@ -50,6 +50,15 @@ vi.mock('../../src/infrastructure/obsidian/workspace/revealPlanEditor', () => ({
 }));
 import { revealPlanEditor as revealPlanEditorSpy } from '../../src/infrastructure/obsidian/workspace/revealPlanEditor';
 
+// Task B9's sibling mock, for the identical reason: `renovationProjectOpenAsset` imports the
+// binding directly, so a spy on the export a caller already holds a reference to would never
+// be seen by that caller.
+vi.mock('../../src/infrastructure/obsidian/workspace/revealAssetDesigner', () => ({
+	revealAssetDesigner: vi.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue(undefined),
+}));
+import { revealAssetDesigner as revealAssetDesignerSpy } from '../../src/infrastructure/obsidian/workspace/revealAssetDesigner';
+import { ASSET_DESIGNER_VIEW } from '../../src/presentation/designer/AssetDesignerView';
+
 installObsidianDom();
 
 // A notice is INERT until something activates the queue — `onload` is what does that in
@@ -328,6 +337,27 @@ describe('the renovation project dependencies', () => {
 	});
 
 	/**
+	 * TOTAL rather than nullable, `openPlan`'s exact shape and for the same reason: with no
+	 * persistence there is no vault-backed asset to open, so this answers a no-op rather than
+	 * reaching for `revealAssetDesigner` at all.
+	 */
+	it('opens no asset when settings were never recovered', async () => {
+		// Cleared rather than relying on execution order: the spy is module-scoped and shared
+		// with every other case in this file that calls `openAsset` for real.
+		vi.mocked(revealAssetDesignerSpy).mockClear();
+		const root = createCompositionRoot(null, recorder, vaultStack());
+
+		const deps = renovationProjectDeps(root, new FakeWorkspace() as never, vaultStack().vault, {
+			projectId: null,
+			navigate: () => undefined,
+			indexScanCompleted: () => true,
+		});
+
+		await expect(deps.openAsset('asset-1')).resolves.toBeUndefined();
+		expect(revealAssetDesignerSpy).not.toHaveBeenCalled();
+	});
+
+	/**
 	 * The other half of the outcome, and the one a review round asked for: an id the index
 	 * does not resolve answers `'missing'`, which is what lets the view clear the row that was
 	 * drawn from a project note deleted since the list was read. Asserted HERE as well as in
@@ -476,6 +506,29 @@ describe('the renovation project dependencies', () => {
 		await deps.openPlan('plan-01JXXX');
 
 		expect(revealPlanEditorSpy).toHaveBeenCalledWith(expect.objectContaining({ workspace }), PLAN_EDITOR_VIEW, 'plan-01JXXX');
+	});
+
+	/**
+	 * `openAsset`'s exact sibling case: bound to the REAL `revealAssetDesigner`, which is
+	 * Task B9's route from the create-asset dialog and from `open-asset-designer`'s palette
+	 * picker — two different doors sharing one function, provable only by a spy on the
+	 * function rather than by inspecting the leaf a composition happened to produce.
+	 */
+	it('binds openAsset to the real revealAssetDesigner', async () => {
+		const { root, workspace, vault } = composedRoot();
+		const deps = renovationProjectDeps(root, workspace as never, vault, {
+			projectId: null,
+			navigate: () => undefined,
+			indexScanCompleted: () => true,
+		});
+
+		await deps.openAsset('asset-01JXXX');
+
+		expect(revealAssetDesignerSpy).toHaveBeenCalledWith(
+			expect.objectContaining({ workspace }),
+			ASSET_DESIGNER_VIEW,
+			'asset-01JXXX',
+		);
 	});
 });
 

@@ -21,6 +21,21 @@ does not yet. Said plainly rather than left for the next reader to work out from
 file, because fixture content nothing exercises as a scenario is indistinguishable from
 content that happens to be correct.
 
+**`Library/` holds a designed asset and an undesigned one** (ADR-0014), read by
+`tests/infrastructure/obsidian/repositories/assetGeometrySidecar.test.ts` through the
+`AssetGeometrySidecar` port. `Base cabinet 600.md` (`asset-designed`) has a sidecar at
+`Library/Geometry/asset-designed.rpgeo`; `Worktop oak 40mm.md` (`asset-undesigned`) has
+none, on purpose. The PAIR is the fixture — an asset with no geometry is the ordinary
+starting state of every asset ever created, and a fixture that could only express the
+designed one would hide every "no shape yet" path in the suite behind a `.rpgeo` somebody
+remembered to add. This is scenario-shaped content in the sense the paragraph above says
+`valid-project/` did not yet have: both cases assert what the bytes MEAN, and removing the
+sidecar turns the first one red rather than quietly changing nothing.
+
+`Library/` is a top-level folder here rather than a child of `Renovation/`, matching
+`openFixtureVault`'s own `DEFAULT_LIBRARY_FOLDER` and the §83 rule it was chosen for: a
+library nested under the project root would overlap every project this stack creates.
+
 **Must contain at least one file in a SUBFOLDER.** `Plans/Ground.md` is that file. The
 adapter's path-enumeration conformance case (`fixtureVault.test.ts`, "enumerates
 vault-relative, forward-slashed paths") asserts that no enumerated path carries a native

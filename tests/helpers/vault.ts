@@ -5,6 +5,7 @@ import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/reposi
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { ObsidianAssetRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetRepository';
+import { AssetGeometryStore } from '../../src/infrastructure/obsidian/repositories/AssetGeometryStore';
 import { ObsidianRequirementRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import { stackFoundation, type StackFoundation } from './repositoryStack';
 
@@ -364,8 +365,45 @@ class FakeVault {
 		return '';
 	}
 
-	on(): { off(): void } {
-		return { off: () => undefined };
+	/**
+	 * Obsidian's event surface, RECORDED and releasable — and it was neither until
+	 * `createVaultFileChangeSource` arrived. `on()` took no arguments and answered `{ off }`, a
+	 * shape the real `Vault` has not had for years: it hands back an `EventRef` and `offref` is
+	 * what retires one. So a component that registered four listeners and released them on unmount
+	 * met `vault.offref is not a function` — measured, on `assetDesignerWiring.test.ts`, which
+	 * mounts the real composed plugin. A fake thinner than the real thing, in the one member a new
+	 * subscription had to use.
+	 *
+	 * `trigger` is the driver that comes with modelling it properly: a case can now fire what
+	 * Obsidian would rather than reaching for the listener set through a fixture, which is what
+	 * makes the designer's own file-event thread assertable end to end.
+	 */
+	private readonly listeners = new Map<object, { name: string; callback: (...args: never[]) => void }>();
+
+	on(name: string, callback: (...args: never[]) => void): object {
+		const reference = {};
+		this.listeners.set(reference, { name, callback });
+		return reference;
+	}
+
+	offref(reference: object): void {
+		this.listeners.delete(reference);
+	}
+
+	/** Fire one vault event at every listener registered for it, as Obsidian would. */
+	trigger(name: string, ...args: readonly unknown[]): void {
+		// The map itself, not a copy: a Map skips entries deleted before it reaches them and
+		// visits ones added, so a listener that unsubscribes from inside its own callback — a
+		// layer unmounting mid-reload — is handled without a snapshot. `unicorn/no-useless-spread`
+		// refuses the copy, and it is right that it buys nothing.
+		for (const entry of this.listeners.values()) {
+			if (entry.name === name) entry.callback(...(args as never[]));
+		}
+	}
+
+	/** How many listeners are still registered — the release check a leak would fail. */
+	get eventListenerCount(): number {
+		return this.listeners.size;
 	}
 
 	private op(name: string, path: string): void {
@@ -505,6 +543,13 @@ export interface RepositoryStack extends StackFoundation {
 	zones: ObsidianZoneRepository;
 	assets: ObsidianAssetRepository;
 	requirements: ObsidianRequirementRepository;
+	/**
+	 * ADR-0014's asset geometry store, beside the foundation's plan one. Here rather than on
+	 * `StackFoundation` for the same reason the five repositories are: it takes the library
+	 * root, and the `new` expression has to sit in the file its members are consumed from —
+	 * see the fallow measurement below.
+	 */
+	assetGeometry: AssetGeometryStore;
 	vault: FakeVault;
 	fileManager: FakeFileManager;
 	metadataCache: FakeMetadataCache;
@@ -550,6 +595,9 @@ export function createRepositoryStack(projectFolder = 'Renovation', libraryFolde
 	const fileManager = new FakeFileManager(vault);
 	const metadataCache = new FakeMetadataCache(vault);
 	const base = stackFoundation({ vault, fileManager, metadataCache }, projectFolder);
+	// Before the asset repository, which takes it: an asset DELETE owns the note and the
+	// geometry sidecar together.
+	const assetGeometry = new AssetGeometryStore(vault as never, fileManager as never, libraryFolder, base.echo, base.index);
 
 	return {
 		vault,
@@ -559,8 +607,9 @@ export function createRepositoryStack(projectFolder = 'Renovation', libraryFolde
 		projects: new ObsidianProjectRepository(base.deps, projectFolder, libraryFolder, currencyOf('EUR')),
 		plans: new ObsidianPlanRepository(base.deps, base.store),
 		zones: new ObsidianZoneRepository(base.deps, base.store),
-		assets: new ObsidianAssetRepository(base.deps, libraryFolder),
+		assets: new ObsidianAssetRepository(base.deps, libraryFolder, assetGeometry),
 		requirements: new ObsidianRequirementRepository(base.deps),
+		assetGeometry,
 		libraryFolder,
 	};
 }

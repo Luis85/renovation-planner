@@ -27,9 +27,12 @@ export interface EmptyStateContent {
 	 * from here. Design slice 21's `renovationProject.noPlans` is the third entry that carries
 	 * one, and it carried one from its first commit: `ProjectDetailState.onCreatePlan` opens
 	 * `NewPlanForm` in slice 15's `FormDialog` and dispatches the real `CreatePlanCommand`, so its button was
-	 * never the dead control slice 14's Amendment 1 refuses. THREE entries carry a label and one
-	 * does not — this sentence is that list, so an entry added without appearing in it is the
-	 * stale-comment defect this repository keeps paying for.
+	 * never the dead control slice 14's Amendment 1 refuses. Task B7 gave `assetDesigner.noBackground`
+	 * its own action — the `BackgroundPicker` port it hands off to — and Task B8 has now given
+	 * `assetDesigner.noShape` its own too, the `asset-dimensions` dialog `AssetDesignerRoot`'s
+	 * `editDimensions` opens. So the count is FIVE entries with a label and ONE without:
+	 * `planEditor.noBackground`, for the reason above. This sentence is that list, so an entry
+	 * added without appearing in it is the stale-comment defect this repository keeps paying for.
 	 */
 	readonly actionLabel?: StringKey;
 }
@@ -89,6 +92,30 @@ export const EMPTY_STATE_CONTENT = {
 			headline: 'empty.plan.no-zones.headline',
 			body: 'empty.plan.no-zones.body',
 			actionLabel: 'empty.plan.no-zones.action',
+		},
+	},
+	/**
+	 * Design slice B3 (ADR-0015). `noShape` shipped buttonless through Task B7: it hands off to
+	 * a dimensions form for the asset ALREADY OPEN, and no such form existed yet — `NewAssetForm`
+	 * creates a DIFFERENT asset. **Task B8 built one and this now carries its action** — the
+	 * `asset-dimensions` dialog `AssetDesignerRoot.editDimensions` opens — which is the flip
+	 * `content.test.ts` makes a real assertion rather than closing quietly, per slice 14's
+	 * Amendment 1: a label is added only once something can act on it.
+	 *
+	 * **`noBackground` carries its action since Task B7**, whose `BackgroundPicker` port is what
+	 * the button now opens — `selectAssetDesignerEmptyState` gained the arm that selects this
+	 * entry in the same task, so this is not a label added ahead of anything that can act on it.
+	 */
+	assetDesigner: {
+		noShape: {
+			headline: 'empty.asset.no-shape.headline',
+			body: 'empty.asset.no-shape.body',
+			actionLabel: 'empty.asset.no-shape.action',
+		},
+		noBackground: {
+			headline: 'empty.asset.no-background.headline',
+			body: 'empty.asset.no-background.body',
+			actionLabel: 'empty.asset.no-background.action',
 		},
 	},
 } as const satisfies Record<string, Record<string, EmptyStateContent>>;

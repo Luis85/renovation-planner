@@ -29,6 +29,7 @@ import { ObsidianPlanRepository } from '../../src/infrastructure/obsidian/reposi
 import { ObsidianProjectRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianProjectRepository';
 import { ObsidianZoneRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { ObsidianAssetRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetRepository';
+import { AssetGeometryStore } from '../../src/infrastructure/obsidian/repositories/AssetGeometryStore';
 import { ObsidianRequirementRepository } from '../../src/infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import { stackFoundation, type StackFoundation } from './repositoryStack';
 
@@ -461,6 +462,8 @@ export interface FixtureStack extends StackFoundation {
 	zones: ObsidianZoneRepository;
 	assets: ObsidianAssetRepository;
 	requirements: ObsidianRequirementRepository;
+	/** ADR-0014's asset geometry store, constructed here for the fallow reason above. */
+	assetGeometry: AssetGeometryStore;
 	vault: FixtureVaultAdapter;
 	fileManager: FixtureFileManager;
 	metadataCache: FixtureMetadataCache;
@@ -555,6 +558,15 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 	const metadataCache = new FixtureMetadataCache(vault);
 	const fileManager = new FixtureFileManager(vault);
 	const base = stackFoundation({ vault, fileManager, metadataCache }, DEFAULT_PROJECT_FOLDER);
+	// Before the asset repository, which takes it: an asset DELETE owns the note and the
+	// geometry sidecar together.
+	const assetGeometry = new AssetGeometryStore(
+		vault as never,
+		fileManager as never,
+		DEFAULT_LIBRARY_FOLDER,
+		base.echo,
+		base.index,
+	);
 
 	// The five repositories are constructed here rather than inside `stackFoundation`, for the
 	// reason `createRepositoryStack`'s own docblock measures: fallow cannot resolve a class's
@@ -568,8 +580,9 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 		projects: new ObsidianProjectRepository(base.deps, DEFAULT_PROJECT_FOLDER, DEFAULT_LIBRARY_FOLDER, currencyOf('EUR')),
 		plans: new ObsidianPlanRepository(base.deps, base.store),
 		zones: new ObsidianZoneRepository(base.deps, base.store),
-		assets: new ObsidianAssetRepository(base.deps, DEFAULT_LIBRARY_FOLDER),
+		assets: new ObsidianAssetRepository(base.deps, DEFAULT_LIBRARY_FOLDER, assetGeometry),
 		requirements: new ObsidianRequirementRepository(base.deps),
+		assetGeometry,
 		// `projectFolder` arrives through `base`; the library root does not, because slice 19
 		// gave it to the two repositories that write into it rather than to the foundation.
 		libraryFolder: DEFAULT_LIBRARY_FOLDER,
@@ -650,3 +663,18 @@ export const invalidateFrontmatter = (stack: CorruptibleStack, path: string, fie
  */
 export const corruptSidecar = (stack: CorruptibleStack, path: string): Promise<void> =>
 	rewriteNote(stack, path, () => 'not json at all');
+
+/**
+ * A DISPLACED note: its own `id` edited to something else, while the index still points the
+ * ORIGINAL id at this path. `openNoteById` answers `<kind>.note-id-mismatch`.
+ *
+ * Not a contrivance — `id` is frontmatter, so editing it is one keystroke in the editor the
+ * user already has open, and the index keeps the old entry until the next full rebuild. That
+ * window is the whole reason the guard exists.
+ *
+ * It rewrites the `id:` line rather than a named field, so it cannot be reached through
+ * `invalidateFrontmatter`: that one writes a deliberately invalid VALUE, and the point here is
+ * a perfectly valid id that belongs to somebody else.
+ */
+export const displaceNoteId = (stack: CorruptibleStack, path: string, to: string): Promise<void> =>
+	rewriteNote(stack, path, (text) => text.replace(/^id: .*$/m, `id: "${to}"`));

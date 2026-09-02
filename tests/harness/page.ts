@@ -1,17 +1,18 @@
 /**
- * The bundle's entry point. Everything real is in `mount.ts`, `planEditor.ts` and
- * `IndexPage.vue`, each of which a test can drive.
+ * The bundle's entry point. Everything real is in `mount.ts`, `planEditor.ts`,
+ * `assetDesigner.ts` and `IndexPage.vue`, each of which a test can drive.
  *
- * `?view=plan-editor` opens the Plan Editor instead of the project surface, `?project=<id>`
- * opens the Renovation Project view's DETAIL state on a seeded project of that id rather than
- * its list, and `?index` (or an `?entry=`) opens the harness index. A query parameter rather
- * than a second page, for the same reason `?theme` and `?phone` are ones: a headless
- * screenshot needs a URL and nothing to click.
+ * `?view=plan-editor` opens the Plan Editor instead of the project surface, `?view=asset-designer`
+ * (Task B10) opens the asset designer the same way, `?project=<id>` opens the Renovation Project
+ * view's DETAIL state on a seeded project of that id rather than its list, and `?index` (or an
+ * `?entry=`) opens the harness index. A query parameter rather than a second page, for the same
+ * reason `?theme` and `?phone` are ones: a headless screenshot needs a URL and nothing to click.
  */
 import { createApp } from 'vue';
 import VueKonva from 'vue-konva';
 import { mountHarness } from './mount';
 import { mountPlanEditorHarness } from './planEditor';
+import { mountAssetDesignerHarness } from './assetDesigner';
 import { seedFixture, harnessEditorContext } from './fixture';
 import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorContext';
 import { componentEntries, prototypeEntries, registerEntries, registrableComponents } from './entries';
@@ -46,6 +47,7 @@ const params = new URLSearchParams(window.location.search);
  */
 const wantsIndex = params.has('index') || params.has('entry');
 const wantsPlanEditor = params.get('view') === 'plan-editor';
+const wantsAssetDesigner = params.get('view') === 'asset-designer';
 
 let view: unknown = null;
 
@@ -137,7 +139,9 @@ if (wantsIndex) {
 	 */
 	view = wantsPlanEditor
 		? mountPlanEditorHarness(document.body).view
-		: mountHarness(document.body, params.get('project')).view;
+		: wantsAssetDesigner
+			? mountAssetDesignerHarness(document.body).view
+			: mountHarness(document.body, params.get('project')).view;
 }
 
 // After the mount: the toggle is the harness's own furniture and is appended to the body,

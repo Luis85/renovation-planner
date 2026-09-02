@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
 	corruptSchemaVersion,
 	corruptSidecar,
+	displaceNoteId,
 	invalidateFrontmatter,
 	malformSchemaVersion,
 	openFixtureVault,
@@ -98,6 +99,25 @@ describe('the zone listing skips a note it cannot read', () => {
 		expect(listed.value.refused).toBe(1);
 		expect(stack.ledger.issues()).toEqual([
 			{ entityType: 'zone', entityId: 'pantry', issue: 'zone.schema-version-malformed' },
+		]);
+	});
+
+	it('skips a zone whose note declares a different id', async () => {
+		// The plan listing's twin, and the pair is the point: both sets were missing this code
+		// after a merge, so a case in only one of them would have left the other's listing able
+		// to blank a whole canvas. Note-local on the axis these two sets actually differ on —
+		// the failing document is this ONE note, never the shared `.rpgeo` below.
+		const stack = await openStack();
+		await displaceNoteId(stack, CASUALTY, 'zone-somebody-else');
+
+		const listed = await stack.zones.listByPlan(PLAN);
+
+		expect(listed.ok).toBe(true);
+		if (!listed.ok) return;
+		expect(listed.value.loaded).toHaveLength(1);
+		expect(listed.value.refused).toBe(1);
+		expect(stack.ledger.issues()).toEqual([
+			{ entityType: 'zone', entityId: 'pantry', issue: 'zone.note-id-mismatch' },
 		]);
 	});
 

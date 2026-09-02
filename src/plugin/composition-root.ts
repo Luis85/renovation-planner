@@ -1,9 +1,10 @@
-import type { FileManager, MetadataCache, Vault, Workspace } from 'obsidian';
+import type { App, Vault, Workspace } from 'obsidian';
+import { ObsidianBackgroundPicker } from './assetBackgroundPicker';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
-import type { Currency } from '../core/money/Money';
 import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
+import { createAssetDesignChangeSource } from '../application/events/assetDesignChangeSource';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
 import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
@@ -27,10 +28,9 @@ import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import type { LibraryOverlaps } from '../application/ports/LibraryOverlaps';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
+import { createVaultFileChangeSource } from '../infrastructure/obsidian/vault/vaultFileChanges';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
-import { ObsidianAssetRepository } from '../infrastructure/obsidian/repositories/ObsidianAssetRepository';
-import { ObsidianRequirementRepository } from '../infrastructure/obsidian/repositories/ObsidianRequirementRepository';
 import {
 	createPlanEditorQueries,
 	unavailablePlanEditorQueries,
@@ -39,31 +39,42 @@ import {
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
 import {
+	createAssetDesignerQueries,
+	unavailableAssetDesignerQueries,
+} from '../presentation/read-models/assetDesignerQueries';
+import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
+import {
+	createAssetDesignerCommands,
+	unavailableAssetDesignerCommands,
+} from '../presentation/designer/designerCommands';
+import {
 	createRenovationProjectQueries,
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
-import { renovationProjectOpenPlan, renovationProjectOpenProject } from './renovationProjectOpenSeams';
+import {
+	renovationProjectOpenAsset,
+	renovationProjectOpenPlan,
+	renovationProjectOpenProject,
+} from './renovationProjectOpenSeams';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
+import type { AssetGeometrySidecar } from '../application/ports/AssetGeometrySidecar';
 import type { AssetRepository as AssetRepositoryPort } from '../application/ports/AssetRepository';
 import type { RequirementRepository as RequirementRepositoryPort } from '../application/ports/RequirementRepository';
 import type { PlanRepository } from '../application/ports/PlanRepository';
 import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
 import type { Loaded } from '../application/ports/versioning';
+import type { Currency } from '../core/money/Money';
 import type { Project } from '../domain/project/Project';
 import type { Plan } from '../domain/plan/Plan';
 import type { Zone } from '../domain/zone/Zone';
-import { IndexLibraryOverlaps } from '../infrastructure/obsidian/repositories/IndexLibraryOverlaps';
-import { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
+import type { PlanGeometryStore } from '../infrastructure/obsidian/repositories/PlanGeometryStore';
 import type { NoteVaultDeps } from '../infrastructure/obsidian/repositories/NoteVaultDeps';
 import { ObsidianPlanGeometrySidecar } from '../infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
-import { ObsidianPlanRepository } from '../infrastructure/obsidian/repositories/ObsidianPlanRepository';
-import { ObsidianProjectRepository } from '../infrastructure/obsidian/repositories/ObsidianProjectRepository';
-import { ObsidianZoneRepository } from '../infrastructure/obsidian/repositories/ObsidianZoneRepository';
 import { createMigrationRunner, type MigrationRunner } from '../infrastructure/persistence/migration/MigrationRunner';
 import { MIGRATION_SET } from '../infrastructure/persistence/migration/migrationSet';
 import { EchoWindow } from '../infrastructure/persistence/index/EchoWindow';
@@ -74,16 +85,25 @@ import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnostics
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import {
 	VAULT_EXCEPTION_MAPPER,
+	guardAssetDesign,
 	guardCalibratePlan,
 	guardSlice10,
 	guardedEditorServices,
+	type GuardedAssetDesignServices,
 	type GuardedEditorServices,
 	type GuardedSlice10Services,
 	type QueryServices,
 	type UnguardedSlice10Services,
 } from './guardedServices';
 import { composeSlice10, sequenceNotices, type Slice10Wiring } from './slice10Composition';
+import { composeRepositories, type VaultStack } from './repositoryComposition';
 import type { RenovationPlannerSettings } from './settings/settings';
+
+// Re-exported so every existing `import { …, type VaultStack } from './composition-root'`
+// keeps resolving: the interface itself moved to `repositoryComposition.ts` alongside the
+// unguarded repository construction it describes, the way `guardedServices.ts` already
+// holds the guarded half of the same seam.
+export type { VaultStack };
 
 /**
  * The ONE place dependencies are composed (SDD §10). At this slice it composes two things,
@@ -148,11 +168,14 @@ export interface CompositionRoot {
 /**
  * Everything the persistence stack hands out, with the Error Boundary already around it:
  * every `Command` and `Query` member here is a GUARDED wrapper (SDD §66), which is why the
- * two guarded groups are EXTENDED rather than re-declared — the shapes and the guards that
+ * three guarded groups are EXTENDED rather than re-declared — the shapes and the guards that
  * produce them live together in `guardedServices.ts`, so a member added there cannot be
  * forgotten here.
  */
-export interface PersistenceServices extends GuardedEditorServices, GuardedSlice10Services {
+export interface PersistenceServices
+	extends GuardedEditorServices,
+		GuardedSlice10Services,
+		GuardedAssetDesignServices {
 	readonly index: ProjectIndex;
 	readonly vaultDeps: NoteVaultDeps;
 	readonly migrations: MigrationRunner;
@@ -162,6 +185,15 @@ export interface PersistenceServices extends GuardedEditorServices, GuardedSlice
 	 * collaborator here that reads and writes calibration rather than an entity note.
 	 */
 	readonly geometry: PlanGeometrySidecar;
+	/**
+	 * ADR-0014's asset sidecar as a PORT, beside the plan one — the collaborator every asset
+	 * design command writes through, exposed for the reason `geometry` above is: a port a
+	 * command holds and nothing hands out is a port no test can detonate, and
+	 * `tests/plugin/guardCategory.test.ts` proves the boundary by breaking exactly the
+	 * collaborators a service reads through. Phase B's reversible design adapters restore
+	 * snapshots through it, the way the Inspector's restore through `zones`.
+	 */
+	readonly assetGeometry: AssetGeometrySidecar;
 	readonly projects: ProjectRepository;
 	readonly plans: PlanRepository;
 	readonly zones: ZoneRepository;
@@ -181,6 +213,7 @@ export interface PersistenceServices extends GuardedEditorServices, GuardedSlice
 	 * compared. One instrument, so the two surfaces cannot disagree about one project.
 	 */
 	readonly overlaps: LibraryOverlaps;
+	readonly defaultCurrency: Currency;
 	/**
 	 * The read side the Plan Editor actually consumes: slice 4's queries mapped into
 	 * presentation read models. Composed here rather than in the view, so the view is handed
@@ -228,16 +261,6 @@ export interface PersistenceServices extends GuardedEditorServices, GuardedSlice
 }
 
 /**
- * The vault collaborators the persistence stack reads and writes through — the raw
- * `app` surface, gathered once so nothing downstream needs the whole `App`.
- */
-export interface VaultStack {
-	readonly vault: Vault;
-	readonly fileManager: FileManager;
-	readonly metadataCache: MetadataCache;
-}
-
-/**
  * The collaborators that OUTLIVE a root, supplied by the plugin rather than built here.
  * `saveSettings` rebuilds this whole stack, and neither of these may be rebuilt with it:
  * validation issues recorded before the change describe the SESSION's vault reads rather
@@ -253,40 +276,6 @@ export interface SessionCollaborators {
 	readonly markers?: SequenceMarkerStore;
 }
 
-function composeRepositories(
-	deps: NoteVaultDeps,
-	vault: VaultStack,
-	newProjectRoot: string,
-	libraryFolder: string,
-	defaultCurrency: Currency,
-) {
-	const geometryStore = new PlanGeometryStore(vault.vault, vault.fileManager, deps.index, deps.migrations, deps.echo);
-	return {
-		geometryStore,
-		// `newProjectRoot` is a real argument, not `deps.projectFolder` read inline — this
-		// repository is the only one that ever writes a note whose folder does not already
-		// exist to be derived from, so it takes the setting as its own constructor
-		// argument rather than through the shared `NoteVaultDeps` field. That field is what
-		// Task 7 deletes; reading it here would have left this call site needing a second
-		// edit the day it goes.
-		projects: new ObsidianProjectRepository(deps, newProjectRoot, libraryFolder, defaultCurrency),
-		plans: new ObsidianPlanRepository(deps, geometryStore),
-		zones: new ObsidianZoneRepository(deps, geometryStore),
-		assets: new ObsidianAssetRepository(deps, libraryFolder),
-		requirements: new ObsidianRequirementRepository(deps),
-		// §83's third site, which has no door to refuse at: ADR-0013 derives a project's
-		// folder from where its `Project.md` sits, so a user moves a project by dragging a
-		// folder in Obsidian's file explorer. Composed here rather than passed as a sixth
-		// argument to `composeGuarded`, which already sits at `max-params`: this is the
-		// bundle built from `deps.index` and the library setting, and both are already here.
-		overlaps: new IndexLibraryOverlaps(deps.index, libraryFolder),
-		// The CreateProjectCommand's own currency argument. Bundled into this return rather
-		// than a sixth composeGuarded parameter — composeGuarded already takes `repositories`
-		// whole and destructures it, the same grouping SessionCollaborators argues for above.
-		defaultCurrency,
-	};
-}
-
 /**
  * Everything that leaves the root through the Error Boundary, in ONE place: the guard is
  * applied here and nowhere else, so "is this service guarded?" is answered by whether it
@@ -300,7 +289,7 @@ function composeGuarded(
 	files: VaultFileProbe,
 	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
 ) {
-	const { projects, plans, zones, requirements, overlaps, defaultCurrency } = repositories;
+	const { projects, plans, zones, assets, assetGeometry, requirements, overlaps, defaultCurrency } = repositories;
 	const { events: eventBus, logger, recalculate, locks, markers } = wiring;
 	const map = VAULT_EXCEPTION_MAPPER;
 	const deleteZone = new DeleteZoneCommand({
@@ -321,6 +310,10 @@ function composeGuarded(
 	return {
 		...editor,
 		...guardSlice10(slice10, recalculate, logger, map),
+		// The SAME `locks` the delete resolution takes — `wiring.locks`, one instance per root. A
+		// second `new ReferenceLocks()` here would be two mutual-exclusion sets that exclude
+		// nothing from each other, which is the shape this file already refuses for the event bus.
+		...guardAssetDesign({ sidecar: assetGeometry, assets, events: eventBus, locks }, files, logger, map),
 		createProject: guardCommand(new CreateProjectCommand(projects, eventBus, defaultCurrency), 'command.createProject.failed', logger, map),
 		createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, map),
 		createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, map),
@@ -412,6 +405,7 @@ export function createCompositionRoot(
 			migrations,
 			geometryStore,
 			geometry: new ObsidianPlanGeometrySidecar(geometryStore),
+			assetGeometry: repositories.assetGeometry,
 			projects,
 			plans,
 			zones,
@@ -420,6 +414,7 @@ export function createCompositionRoot(
 			locks,
 			files,
 			overlaps: repositories.overlaps,
+			defaultCurrency: repositories.defaultCurrency,
 			...guarded,
 			planEditorQueries: createPlanEditorQueries({
 				...guarded.queries,
@@ -505,6 +500,73 @@ export function planEditorDeps(
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
 		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
+		onVaultFileChanged: createVaultFileChangeSource(vault),
+	};
+}
+
+/**
+ * The asset designer's own dependency bundle (design slice B3, ADR-0015; the picker since
+ * Task B7).
+ *
+ * It takes an `App` and no `Workspace`, which is what still separates it from its two siblings
+ * and is a fact about the surface rather than an omission: the designer navigates nowhere and
+ * follows no theme. It DOES read raw files — Obsidian's own file suggester to pick a spec
+ * sheet, and the vault behind it to draw the sheet that was picked — and an `App` is the
+ * narrowest thing that gets it both, which is why the signature did not have to grow a
+ * parameter when the background layer stopped being empty.
+ *
+ * **The picker is bound UNCONDITIONALLY, independent of `persistence`.** Picking a file needs
+ * no vault write of this plugin's own, and the picker's own result reaches a command that
+ * refuses through the ordinary refused-write path when there is nothing to dispatch it to —
+ * the same reasoning `onDesignChanged` above already states for wiring off the bus regardless
+ * of session state.
+ *
+ * TOTAL rather than nullable, for `planEditorDeps`'s reason: with settings unrecovered there is
+ * no query service to hand over, so the view is handed one that REFUSES and draws the same
+ * failure state it draws for any unreadable asset. Not registering the view at all would leave a
+ * restored designer leaf pointing at a view type Obsidian does not know.
+ */
+export function assetDesignerDeps(
+	root: CompositionRoot,
+	app: App,
+	options: { indexScanCompleted: () => boolean },
+): AssetDesignerDeps {
+	const persistence = root.persistence;
+	return {
+		picker: new ObsidianBackgroundPicker(app),
+		// Obsidian's real `Vault`, passed straight in: `BackgroundVault` is a `Pick` of it, so
+		// there is nothing to adapt and nothing that can drift from the API.
+		vault: app.vault,
+		queries:
+			persistence === null
+				? unavailableAssetDesignerQueries()
+				: createAssetDesignerQueries(persistence.assetDesign),
+		// The write side (design slice B5), composed from the GUARDED design bundle plus the
+		// three ports its reversible adapters restore through. Presentation holding a port is
+		// the bargain `PlanEditorCommandServices.zones` already makes and for the same reason:
+		// an inverse writes a whole snapshot back, which is a repository call and not a command.
+		commands:
+			persistence === null
+				? unavailableAssetDesignerCommands()
+				: createAssetDesignerCommands(
+						{
+							sidecar: persistence.assetGeometry,
+							assets: persistence.assets,
+							events: root.eventBus,
+						},
+						persistence.assetDesign,
+					),
+		logger: root.logger,
+		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
+		// `renovationProjectDeps.onPlansChanged` states: the bus is the root's own and exists
+		// either way, and a refusal bundle re-reading simply refuses again.
+		onDesignChanged: createAssetDesignChangeSource(root.eventBus),
+		// The SAME `css-change` source the Plan Editor takes, from the same workspace. Two
+		// surfaces resolve an Obsidian palette into canvas colours and both need telling when
+		// it moves; a second mechanism here would be a second answer to one question.
+		onThemeChange: createThemeChangeSource(app.workspace),
+		onVaultFileChanged: createVaultFileChangeSource(app.vault),
+		indexScanCompleted: options.indexScanCompleted,
 	};
 }
 
@@ -561,6 +623,7 @@ export function renovationProjectDeps(
 		navigate: options.navigate,
 		indexScanCompleted: options.indexScanCompleted,
 		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve(),
+		openAsset: persistence ? renovationProjectOpenAsset(workspace, root.logger) : () => Promise.resolve(),
 		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
 		// `onProjectsChanged` states three lines down: the bus is the root's own and exists
 		// either way, and a refusal bundle re-reading simply refuses again.
@@ -574,7 +637,18 @@ export function renovationProjectDeps(
 				)
 			: unavailableRenovationProjectQueries(),
 		commands: persistence
-			? { createProject: persistence.createProject, createPlan: persistence.createPlan, logger: root.logger }
+			? {
+					createProject: persistence.createProject,
+					createPlan: persistence.createPlan,
+					// Design slice A10. `assetDesign` is the guarded bundle slice A9 composed, and
+					// only the one door the creation form dispatches is handed over: the rest of
+					// that bundle belongs to the designer view Phase B builds, and spreading it
+					// here would make this the second place its membership is decided.
+					createAsset: persistence.createAsset,
+					setAssetFootprintFromDimensions: persistence.assetDesign.setFootprintFromDimensions,
+					logger: root.logger,
+					defaultCurrency: persistence.defaultCurrency,
+				}
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
 			? renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)

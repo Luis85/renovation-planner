@@ -16,6 +16,8 @@ import { lines, resetRecorder } from '../../helpers/logger';
 import { loadedPlugin } from '../../helpers/plugin';
 import { GEOMETRY_SIDECAR_VIEW } from '../../../src/presentation/views/GeometrySidecarView';
 import { PLAN_EDITOR_VIEW } from '../../../src/presentation/views/PlanEditorView';
+import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../../src/presentation/designer/AssetDesignerView';
+import { FakeLeaf } from '../../helpers/workspace';
 import { RENOVATION_PROJECT_VIEW } from '../../../src/presentation/views/RenovationProjectView';
 import { t } from '../../../src/presentation/i18n/strings';
 import { SettingsTab } from '../../../src/plugin/settings/SettingsTab';
@@ -68,7 +70,12 @@ describe('a read that failed', () => {
 	it('registers the view and the command anyway', async () => {
 		const { plugin } = await unrecovered();
 
-		expect([...plugin.views.keys()]).toEqual([RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW, GEOMETRY_SIDECAR_VIEW]);
+		expect([...plugin.views.keys()]).toEqual([
+			RENOVATION_PROJECT_VIEW,
+			PLAN_EDITOR_VIEW,
+			ASSET_DESIGNER_VIEW,
+			GEOMETRY_SIDECAR_VIEW,
+		]);
 		expect(plugin.commands.map((command) => command.id)).toEqual([
 			'open-project',
 			'open-project-detail',
@@ -79,8 +86,27 @@ describe('a read that failed', () => {
 			'show-diagnostics-report',
 			'open-plan-editor',
 			'set-plan-background',
+			// Registered here too, the same shape `open-plan-editor` already takes: with no
+			// index built, the picker below says so through `asset.none` rather than being
+			// missing from the palette.
+			'open-asset-designer',
 			'create-sample-project',
 		]);
+	});
+
+	/**
+	 * Registering the TYPE is only half of what an unrecovered session owes a restored leaf: the
+	 * factory has to build too, or Obsidian's restore throws on a view type it was told exists.
+	 * `assetDesignerDeps` answers `unavailableAssetDesignerQueries()` for a root with no
+	 * persistence, which is the TOTAL-rather-than-nullable shape both other views already take —
+	 * so the designer draws its failure state instead of failing to construct.
+	 */
+	it('builds an asset designer whose queries refuse, rather than one that cannot be built', async () => {
+		const { plugin } = await unrecovered();
+
+		const built = plugin.views.get(ASSET_DESIGNER_VIEW)?.(new FakeLeaf() as never);
+
+		expect(built).toBeInstanceOf(AssetDesignerView);
 	});
 
 	/**

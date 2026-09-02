@@ -10,6 +10,8 @@ import { createPlanChangeSource } from '../../../src/application/events/planChan
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { planBackgroundChanged, planCalibrated } from '../../../src/domain/plan/Plan.events';
 import { zoneCreated, zoneDeleted, zoneGeometryChanged } from '../../../src/domain/zone/Zone.events';
+import { geometrySidecarChanged } from '../../../src/application/events/projectIndex.events';
+import type { EntityId } from '../../../src/core/identity/EntityId';
 
 const GROUND = { planId: 'plan-ground' as never, projectId: 'project-1' as never };
 const GROUND_ZONE = { ...GROUND, zoneId: 'zone-1' as never };
@@ -101,6 +103,60 @@ describe('subscribing to one plan changes', () => {
 		expect(listener).not.toHaveBeenCalled();
 	});
 
+	/**
+	 * **A plan's ZONES live in its `.rpgeo`, so a sidecar edited or deleted out of band is a
+	 * change to everything this editor draws — and no other arm hears it.** The sidecar path
+	 * moves an index MAPPING at most, which `ProjectIndexEntryChanged` announces and this
+	 * source does not subscribe to; a delete out of band moves nothing at all once the mapping
+	 * has already been cleared. Without this arm the canvas drew the zone set it read at mount
+	 * indefinitely and hit-tested against zones the vault no longer had.
+	 */
+	it('fires when this plan\'s geometry sidecar changes out of band', async () => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createPlanChangeSource(events)('plan-ground', listener);
+
+		await events.publish(
+			geometrySidecarChanged({ entityId: 'plan-ground' as EntityId<string>, entityType: 'renovation-plan' }),
+		);
+
+		expect(listener).toHaveBeenCalledTimes(1);
+	});
+
+	/**
+	 * BOTH halves of that filter, because a build testing one of them passes with the other
+	 * inverted. The TYPE half is not decoration: a plan's `.rpgeo` and an asset's are the same
+	 * file type under two owners, so an asset id colliding with a plan id would otherwise
+	 * re-read every editor showing that plan.
+	 */
+	it.each([
+		['a different plan', 'plan-first' as EntityId<string>, 'renovation-plan' as const],
+		['an entity of another kind carrying this id', 'plan-ground' as EntityId<string>, 'renovation-asset' as const],
+	])('stays silent for a sidecar change for %s', async (_name, entityId, entityType) => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createPlanChangeSource(events)('plan-ground', listener);
+
+		await events.publish(geometrySidecarChanged({ entityId, entityType }));
+
+		expect(listener).not.toHaveBeenCalled();
+	});
+
+	/**
+	 * The sidecar arm reads a payload of its own, so it needs the same narrowing the plan-id
+	 * guard has: an event of that type carrying nothing must be dropped rather than compared,
+	 * or an `undefined` id matches whichever leaf also has none.
+	 */
+	it('stays silent for a sidecar change carrying no payload', async () => {
+		const events = createEventBus();
+		const listener = vi.fn<() => void>();
+		createPlanChangeSource(events)('plan-ground', listener);
+
+		await events.publish({ type: 'GeometrySidecarChanged' });
+
+		expect(listener).not.toHaveBeenCalled();
+	});
+
 	it('delivers to each subscriber independently', async () => {
 		const events = createEventBus();
 		const source = createPlanChangeSource(events);
@@ -128,6 +184,9 @@ describe('subscribing to one plan changes', () => {
 		unsubscribe();
 		await events.publish(planBackgroundChanged(GROUND));
 		await events.publish(planCalibrated(GROUND));
+		await events.publish(
+			geometrySidecarChanged({ entityId: 'plan-ground' as EntityId<string>, entityType: 'renovation-plan' }),
+		);
 
 		expect(listener).not.toHaveBeenCalled();
 	});

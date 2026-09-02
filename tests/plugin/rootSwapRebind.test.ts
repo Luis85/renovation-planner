@@ -22,6 +22,7 @@ import { installObsidianDom } from '../helpers/dom';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
+import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
 import { loadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
 import { resetRecorder } from '../helpers/logger';
@@ -49,9 +50,14 @@ async function openViewOnLeaf(
 	// `views` is the plugin's own registry and not part of its public surface — reached here on
 	// purpose, because a rebind test has to get at the view instance the plugin built.
 	const views = (plugin as unknown as { views: Map<string, (leaf: never) => unknown> }).views;
+	// `getState` is declared here rather than asserted at each call site: every `View` Obsidian
+	// knows has one, the fake is playing Obsidian's part, and two cases below ask a rebound view
+	// which subject it is still showing. It used to be a second `as never` per case — a cast
+	// added because the helper's own shape was thinner than the thing it stands for.
 	const view = views.get(type)?.(leaf as never) as never as {
 		onOpen: () => Promise<void>;
 		setState?: (state: unknown, result: unknown) => Promise<void>;
+		getState: () => Record<string, unknown>;
 		deps: Record<string, unknown>;
 	};
 	leaf.view = view;
@@ -136,6 +142,43 @@ describe('a view already open when the root is replaced', () => {
 		expect(view.deps).not.toBe(before);
 	});
 
+	/**
+	 * The third member of the category, added with ADR-0015's view.
+	 *
+	 * `rebindOpenViews` is a LOOP PER VIEW TYPE, so a third registered view whose loop nobody
+	 * wrote is the guard-nobody-dispatches-through shape: `AssetDesignerView.rebind` can be
+	 * present, unit-tested and green while `saveSettings` never calls it, and a designer left
+	 * open across a settings save goes on reading through a root nothing maintains. Nothing in
+	 * `npm run check` can see a missing loop — the view compiles, the method has callers in its
+	 * own suite, and `fallow` counts it used.
+	 */
+	it('rebinds the asset designer too, which is the third member of the same category', async () => {
+		resetRecorder();
+		const { plugin, workspace } = await loadedPlugin();
+		const { view } = await openViewOnLeaf(plugin, workspace, ASSET_DESIGNER_VIEW, { assetId: 'asset-1' });
+		expect(view).toBeInstanceOf(AssetDesignerView);
+		const before = view.deps;
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		expect(view.deps).not.toBe(before);
+	});
+
+	/**
+	 * The remount's one real risk, asked of the designer for the reason it is asked of the
+	 * editor below: `assetId` is this view's own field and a rebind must not touch it, or a
+	 * settings save would blank a designer the user was working in.
+	 */
+	it('leaves the asset designer showing the same asset it was showing', async () => {
+		resetRecorder();
+		const { plugin, workspace } = await loadedPlugin();
+		const { view } = await openViewOnLeaf(plugin, workspace, ASSET_DESIGNER_VIEW, { assetId: 'asset-1' });
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		expect(view.getState()).toEqual({ assetId: 'asset-1' });
+	});
+
 	it('leaves the plan editor showing the same plan it was showing', async () => {
 		// The remount's one real risk: `planId` is this view's own field and a rebind must not
 		// touch it, or a settings save would blank an editor the user was working in.
@@ -145,7 +188,7 @@ describe('a view already open when the root is replaced', () => {
 
 		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
 
-		expect((view as never as { getState: () => Record<string, unknown> }).getState()).toEqual({ planId: 'plan-1' });
+		expect(view.getState()).toEqual({ planId: 'plan-1' });
 	});
 
 	it('delivers the new root rebuild to the rebound project view, and not the old root', async () => {
@@ -175,7 +218,7 @@ describe('a view already open when the root is replaced', () => {
 		// which is a `TypeError` inside `saveSettings` rather than a wrong picture.
 		resetRecorder();
 		const { plugin, workspace } = await loadedPlugin();
-		for (const type of [RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW]) {
+		for (const type of [RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW, ASSET_DESIGNER_VIEW]) {
 			const leaf = new FakeLeaf();
 			await leaf.setViewState({ type });
 			leaf.view = { notOneOfOurs: true };

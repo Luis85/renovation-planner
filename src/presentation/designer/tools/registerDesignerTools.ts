@@ -4,7 +4,6 @@ import type { ReversibleAssetDesignCommands } from '../../../application/editor/
 import type { StringKey } from '../../i18n/locales/en';
 import { CalibrateTool, type KnownDistanceSupplier } from '../../editor/tools/calibrate-tool';
 import { DrawPolygonTool } from '../../editor/tools/draw-polygon-tool';
-import { SelectTool } from '../../editor/tools/select-tool';
 import type { EditorTool } from '../../editor/tools/editor-tool';
 import type { ToolManager } from '../../editor/tools/tool-manager';
 import { SetAnchorTool } from './set-anchor-tool';
@@ -55,8 +54,16 @@ import { SetFacingTool } from './set-facing-tool';
  * says "Calibrate" about a plan's background, and this table is what the designer's own toolbar
  * builds its buttons from.
  */
+
+/**
+ * FIVE tools and no Select. The designer shipped a `SelectTool` over an empty candidate set
+ * with a move factory that threw, under a docblock saying Task B8 would give the surface a
+ * selection; B8 shipped an inspector that reads the design and no selection, and the button
+ * stayed — a live control that did nothing but stop a primary-button pan, which slice 14's
+ * amendment refuses. Selection returns with the first thing on this canvas that can be
+ * selected and moved, and it returns with its candidates and its gesture together.
+ */
 export const DESIGNER_TOOL_LABELS = {
-	select: 'editor.toolbar.select',
 	'trace-footprint': 'designer.toolbar.trace-footprint',
 	'trace-clearance': 'designer.toolbar.trace-clearance',
 	'set-anchor': 'designer.toolbar.set-anchor',
@@ -117,50 +124,6 @@ export interface DesignerToolDeps {
 	readonly confirmRecalibration: () => Promise<boolean>;
 }
 
-/**
- * The designer's `SelectTool`, and the honest account of what it does here.
- *
- * It hit-tests an EMPTY candidate list, because nothing on this canvas is selectable yet: the
- * footprint, the clearance and the anchor are drawn on `listening: false` layers and there is
- * no inspector for a selection to fill until Task B8. So a click in Select mode clears the
- * selection and nothing else.
- *
- * That is not the live-control-that-does-nothing this repository refuses, and the distinction
- * is worth stating because it looks like one. Select mode differs OBSERVABLY from camera mode:
- * with no tool active a primary drag pans the view, and with this tool active it does not. The
- * button therefore switches between two real behaviours today, and grows a third — hit-testing
- * — when there is something to hit.
- *
- * `createMoveGesture` THROWS rather than returning a no-op command, on
- * `planEditorRig.calibratePlan`'s reasoning: it is unreachable (a move gesture can only start
- * on a hit, and nothing can be hit), and whoever first makes it reachable needs this sentence
- * rather than a silent success. Its signature takes a `ZoneId`, which is the shape of the
- * remaining work: moving an asset's outline is a `SetAssetFootprint` over translated points,
- * not a zone move, so this seam is what changes when Task B8 gives the designer a selection.
- *
- * It is a NAMED export rather than an inline arrow, and for the reason the module this task
- * deleted was written with: `ToolManager`'s own context factory was a named export whose throw
- * `layers.test.ts` asserted, because "the only way to know this refuses rather than silently
- * handing out a hollow one is to ask it". An unreachable inline arrow is a function no test can
- * ask anything of — and, on this repository's coverage floors, one nothing can cover either.
- */
-export function noSelectableObjectsYet(): never {
-	throw new Error(
-		'The asset designer has nothing selectable to move: SelectTool is registered with an empty '
-			+ 'candidate set until Task B8 gives this surface a selection. Give it real candidates and a '
-			+ 'footprint-move gesture together, not one without the other.',
-	);
-}
-
-function designerSelectTool(deps: DesignerToolDeps): SelectTool {
-	return new SelectTool({
-		spatialObjects: () => [],
-		createMoveGesture: noSelectableObjectsYet,
-		reportRejected: deps.reportRejected,
-		reportInvalidInput: deps.reportInvalidInput,
-	});
-}
-
 export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDeps): void {
 	const { assetId, edits } = deps;
 	/**
@@ -169,7 +132,6 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 	 * second list of "the ones to register".
 	 */
 	const tools: Readonly<Record<DesignerToolId, EditorTool>> = {
-		select: designerSelectTool(deps),
 		// `createdId` is `null` for both traces, which is the second of the two states
 		// `PolygonCommand.createdId` declares and the one that interface predicted: tracing an
 		// Asset's outline REPLACES a field of the asset already open, so there is no new entity

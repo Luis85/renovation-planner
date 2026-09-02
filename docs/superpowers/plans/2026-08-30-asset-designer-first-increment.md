@@ -2574,6 +2574,16 @@ git add src/presentation/designer tests/presentation/designer
 git commit -m "The designer's tools, and a toolbar that reaches all of them"
 ```
 
+#### Amendment — Select withdrawn from the designer, 2026-09-02
+
+The spec's toolbar list names "select" and B5 registered a `SelectTool` over an empty
+candidate set whose move factory threw "until Task B8 gives this surface a selection". B8 built
+an inspector that reads the design and no selection, so the tool stayed registered with nothing
+to select and a button that did nothing. Withdrawn by the review-fixes plan
+(`2026-09-02-asset-designer-review-fixes.md`, Task 6): the designer offers five tools and Pan.
+Selection returns with the first selectable thing on this canvas, candidates and gesture
+together, and the spec's list is read as the tools that exist rather than as a promise.
+
 ---
 
 ### Task B6: `CalibrateAsset`

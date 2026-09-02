@@ -84,6 +84,22 @@ describe('every tool the toolbar offers', () => {
 		expect(marked[0]?.text()).toBe(t('en', 'designer.toolbar.set-anchor'));
 		rig.unmount();
 	});
+
+	it('offers Pan, the five design tools, Undo and Redo — and no Select, because nothing here is selectable', async () => {
+		const rig = await designerRig();
+		const labels = rig.wrapper.findAll('.rp-designer-tools button').map((button) => button.text());
+		expect(labels).toEqual([
+			t('en', 'editor.toolbar.pan'),
+			t('en', 'designer.toolbar.trace-footprint'),
+			t('en', 'designer.toolbar.trace-clearance'),
+			t('en', 'designer.toolbar.set-anchor'),
+			t('en', 'designer.toolbar.set-facing'),
+			t('en', 'designer.toolbar.calibrate'),
+			t('en', 'editor.toolbar.undo'),
+			t('en', 'editor.toolbar.redo'),
+		]);
+		rig.unmount();
+	});
 });
 
 describe('camera mode', () => {

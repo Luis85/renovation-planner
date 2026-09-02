@@ -160,22 +160,24 @@ describe('tracing an outline', () => {
 });
 
 /**
- * Select mode, and the honest account of what it does on this surface today: it hit-tests an
- * EMPTY candidate list, because nothing on this canvas is selectable until Task B8. So a click
- * writes nothing and selects nothing — and the case asserts exactly that rather than pretending
- * otherwise, because a build that had quietly given the designer's `SelectTool` the Plan
- * Editor's zone candidates would dispatch a move against a zone this surface has never heard of.
+ * Camera mode, and the click it takes without writing anything.
  *
- * It is not the live-control-that-does-nothing this repository refuses: Select differs
- * observably from camera mode, where a primary drag pans the view and here does not.
+ * This used to be the Select tool's case: Select hit-tested an EMPTY candidate list, because
+ * nothing on this canvas was selectable until Task B8, so a click through it wrote nothing and
+ * selected nothing. The review-fixes plan's Task 6 withdrew that tool — a live control that did
+ * nothing but stop a primary-button pan, which slice 14's amendment refuses — so this canvas now
+ * rests in camera mode whenever no design tool is active, which is the state Select's own click
+ * used to reach anyway for everything except the pan it blocked. The claim that survives the
+ * tool's removal is the one this case pins: a click on this canvas, with nothing active to
+ * receive it, writes nothing.
  */
-describe('selecting', () => {
-	it('writes nothing, because this canvas has nothing selectable yet', async () => {
+describe('camera mode', () => {
+	it('writes nothing for a click, because no tool is active to receive it', async () => {
 		const rig = await designerRig({ shape: TYPED });
 		const before = await rig.document();
 
-		await activate(rig, 'editor.toolbar.select');
-		// Inside the typed 1200 x 800 footprint, which is drawn but not a candidate.
+		// No `activate(...)` call: camera mode is what the designer opens in.
+		// Inside the typed 1200 x 800 footprint, which is drawn but has nothing to hit.
 		click(rig, { x: 0, y: 0 });
 		await settle();
 

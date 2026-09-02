@@ -24,7 +24,6 @@ import { describe, expect, it } from 'vitest';
 import { ok } from '../../../../src/core/result/Result';
 import type { DispatchResult } from '../../../../src/application/commands/DispatchOutcome';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
-import { noSelectableObjectsYet } from '../../../../src/presentation/designer/tools/registerDesignerTools';
 import { SetAnchorTool } from '../../../../src/presentation/designer/tools/set-anchor-tool';
 import { SetFacingTool } from '../../../../src/presentation/designer/tools/set-facing-tool';
 import type { AppError } from '../../../../src/core/errors/AppError';
@@ -86,19 +85,6 @@ function facingRig(): FacingRig {
 	});
 	return { tool, harness, set, refused };
 }
-
-/**
- * The designer's `SelectTool` is registered with an EMPTY candidate set, because nothing on
- * this canvas is selectable until Task B8. Its move factory is therefore unreachable through
- * every door a user has, and asserting the refusal is the only way to know it refuses rather
- * than silently handing back a command that writes nothing — the same reason the module this
- * task deleted exported its throwing context factory and had it asserted.
- */
-describe('the designer’s selection', () => {
-	it('refuses to build a move gesture, because nothing here is selectable yet', () => {
-		expect(() => noSelectableObjectsYet()).toThrow(/Task B8/);
-	});
-});
 
 describe('SetAnchorTool', () => {
 	it('places nothing for a secondary press, because the invariant is the tool’s own', () => {

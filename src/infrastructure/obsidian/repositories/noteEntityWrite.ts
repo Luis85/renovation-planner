@@ -25,6 +25,7 @@ import { observeFrontmatter } from './digest';
 import { freshNotePath } from './paths';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
+import type { ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 
 /**
  * The conditional note write the asset and requirement repositories share — the Zone
@@ -173,10 +174,12 @@ export interface NoteDeleteSpec {
  *
  * Where `spec.alsoRemove` is given, the note's bytes are snapshotted BEFORE anything is
  * deleted and restored when that second removal refuses, so a failed `Result` never means
- * "partly done" (SDD §42). The index entry survives such a refusal untouched, which is what
- * keeps the restored note READABLE — every read here resolves through the index, so
- * removing the entry first and putting the file back afterwards would leave a note on disk
- * that nothing can find.
+ * "partly done" (SDD §42). This function never removes the index entry until it succeeds —
+ * which is what keeps the restored note READABLE, every read here resolving through the
+ * index — and that is a statement about this function and NOT about the vault. Obsidian's
+ * own delete event can take the entry out from under it, so the entry and the echo record
+ * are captured and PUT BACK beside the bytes; the inline comments at both sites carry the
+ * race and what each half costs on its own.
  */
 export async function trashNoteBackedEntity(
 	deps: NoteVaultDeps,
@@ -197,7 +200,16 @@ export async function trashNoteBackedEntity(
 	// delete that has no use for what the read returns. The empty default is never READ:
 	// `alsoRemove` gates both the assignment and the only site that consumes it.
 	let noteText = '';
+	// What the index held BEFORE anything was trashed. The docblock above says the entry
+	// "survives such a refusal untouched", which is true of what THIS function does and is
+	// not a claim about the vault: trashing the note raises Obsidian's delete event, and
+	// `VaultChangeAdapter.processPath` finds no `TFile` at the path and takes the entry and
+	// the echo record out — possibly before `alsoRemove` has even refused. Restoring the
+	// bytes then leaves an entity nothing can find, because every read here resolves through
+	// the index. Captured for the same reason `PlanGeometryStore`'s delete captures its path.
+	let indexed: ProjectIndexEntry | undefined;
 	if (spec.alsoRemove) {
+		indexed = deps.index.entries().find((entry) => entry.id === id);
 		try {
 			noteText = await deps.vault.read(opened.file);
 		} catch (cause) {
@@ -214,7 +226,15 @@ export async function trashNoteBackedEntity(
 	const removed = spec.alsoRemove ? await spec.alsoRemove() : ok(undefined);
 	if (!removed.ok) {
 		const restored = await restoreNoteText(deps.vault, kind, notePath, noteText);
-		if (!restored.ok) {
+		if (restored.ok) {
+			// BOTH halves, because the pipeline needs both and each fails differently. Without
+			// the entry the note is on disk and unreachable. Without the echo mark the RESTORE's
+			// own create event is read inside Obsidian's parse lag, where the cache has no entry
+			// and `frontmatterOf` has no echo to fall back on, so the note reads as none of ours
+			// and the entry just put back is taken out again — with no later event to repair it.
+			if (indexed) deps.index.upsert(indexed);
+			deps.echo.markFrontmatter(notePath, opened.raw, { reading: undefined, stat: fileStatAt(deps.vault, notePath) });
+		} else {
 			// Logged, never swallowed (SDD §42): the ORIGINAL failure is what the caller is
 			// owed, and a compensation that could not write is the only account of the note
 			// that is now gone with its second file still there.

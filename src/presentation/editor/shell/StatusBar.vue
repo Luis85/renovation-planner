@@ -18,6 +18,7 @@ import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
 import type { ToolId } from '../tools/editor-tool';
+import { constrainsAngle } from '../snapping/editorSnapping';
 import { useEditorStore } from '../../stores/EditorStore';
 import { useProjectStore } from '../../stores/ProjectStore';
 import SaveStateIndicator from '../save-state/SaveStateIndicator.vue';
@@ -36,21 +37,17 @@ const { plan } = storeToRefs(useProjectStore());
 const { viewport, pointerWorld } = storeToRefs(useEditorStore());
 
 /**
- * The tools that take the Shift angle constraint, and therefore the ones whose hint is worth
- * showing. A list rather than "any tool": Select constrains nothing, and camera mode has no
- * tool at all, so announcing it there would be advertising a key that does nothing.
+ * Whether the active tool takes the Shift angle constraint, asked of the ONE list that holds
+ * that question (`snapping/editorSnapping.ts`).
  *
- * It is the one place the constraint is mentioned to the user at all. A modifier is invisible
- * — no control shows it, no menu lists it — which is the standing cost of the convention every
- * drawing tool in the field uses, and this is the cheapest honest mitigation: present while
- * the gesture it applies to is available, gone the moment it is not.
+ * The list used to live here, naming this surface's two tools. Design slice B5 gave the asset
+ * designer a status region owing the identical hint about three tools of its own, and two
+ * lists would be two answers to "does this tool constrain" — a tool that grows the constraint
+ * would be advertised in whichever list its author happened to open. The ids of the two
+ * surfaces are disjoint and each status bar asks about its own manager's active tool, so one
+ * list can never make this bar advertise a tool the Plan Editor cannot activate.
  */
-const CONSTRAINING_TOOLS: readonly ToolId[] = ['draw-polygon', 'calibrate'];
-
-const showsConstraintHint = computed(() => {
-	const active = props.activeToolId ?? null;
-	return active !== null && CONSTRAINING_TOOLS.includes(active);
-});
+const showsConstraintHint = computed(() => constrainsAngle(props.activeToolId ?? null));
 
 const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`);
 

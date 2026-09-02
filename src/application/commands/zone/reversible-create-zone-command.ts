@@ -12,7 +12,7 @@ import type { ZoneRepository } from '../../ports/ZoneRepository';
 import type { Loaded } from '../../ports/versioning';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
-import type { WriteLedger } from '../../editor/WriteLedger';
+import { undoSuperseded, type WriteLedger } from '../../editor/WriteLedger';
 import { referenceError } from '../../errors';
 import { restoreZone } from './restore-zone';
 
@@ -79,6 +79,19 @@ function nothingToUndo(): ReferenceError {
  */
 export class ReversibleCreateZoneCommand {
 	private snapshot: Loaded<Zone> | null = null;
+	/**
+	 * The ledger generation this gesture's last execute ran under, refreshed on every one
+	 * (a redo restores and is a fresh premise) and compared again at `undo`.
+	 *
+	 * **This adapter can never DETECT a foreign write and it still needs the counter**, which
+	 * is the clearest illustration of why the generation lives on the shared ledger rather
+	 * than on each adapter. A first execute MINTS the id, so there is no prior entry for it to
+	 * disagree with; a redo restores with `'absent'`, which refuses if anything is there. But
+	 * its undo DELETES, conditioned on the ledger's tip — and a sibling gesture's own undo
+	 * advances that tip past a peer's write, after which the delete matches and takes the
+	 * peer's edit with it. What refuses is another adapter's observation, read here.
+	 */
+	private generation: number | null = null;
 
 	constructor(
 		private readonly createCommand: CreateCommand,
@@ -95,18 +108,25 @@ export class ReversibleCreateZoneCommand {
 			if (isErr(result)) return result;
 			this.snapshot = result.value.zone;
 			this.ledger.record(result.value.zone.entity.id, result.value.zone.version);
+			this.generation = this.ledger.generation(result.value.zone.entity.id);
 			return ok('wrote');
 		}
 		const written = await restoreZone(this.zones, this.ledger, snapshot);
 		if (isErr(written)) return written;
 		// The next undo must delete what THIS redo wrote, not what the original create did.
 		this.snapshot = written.value;
+		// And it must rest on the premise THIS redo ran under: the restore succeeded against
+		// an `'absent'` condition, so whatever a foreign write did before it is now moot.
+		this.generation = this.ledger.generation(written.value.entity.id);
 		return ok('wrote');
 	}
 
 	async undo(): Promise<DispatchResult> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) return err(nothingToUndo());
+		if (this.generation !== null && this.ledger.generation(snapshot.entity.id) !== this.generation) {
+			return err(undoSuperseded(snapshot.entity.id));
+		}
 		const expected = this.ledger.lastWritten(snapshot.entity.id) ?? snapshot.version;
 		const input: DeleteZoneInput = { zoneId: snapshot.entity.id, expected };
 		const result = await this.deleteCommand.execute(input);

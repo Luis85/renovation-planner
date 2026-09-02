@@ -18,8 +18,8 @@ export class InMemoryProjectIndex implements ProjectIndex {
 		return this.byId.get(id)?.path;
 	}
 
-	getGeometrySidecarPath(planId: PlanId): string | undefined {
-		return this.byId.get(planId)?.geometrySidecarPath;
+	getGeometrySidecarPath(entityId: EntityId<string>): string | undefined {
+		return this.byId.get(entityId)?.geometrySidecarPath;
 	}
 
 	getIdsByType(type: EntityType): EntityId<string>[] {

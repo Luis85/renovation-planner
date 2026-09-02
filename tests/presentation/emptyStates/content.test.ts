@@ -19,9 +19,53 @@ describe('the empty-state content registry', () => {
 	 * the button, are Task 10's — this case exists so that an entry cannot arrive without any
 	 * test naming it at all.
 	 */
-	it('holds exactly the four entries the slices name', () => {
+	it('holds exactly the six entries the slices name', () => {
 		expect(Object.keys(EMPTY_STATE_CONTENT.renovationProject)).toEqual(['noProjects', 'noPlans']);
 		expect(Object.keys(EMPTY_STATE_CONTENT.planEditor)).toEqual(['noBackground', 'noZones']);
+		// Design slice B3's third group. `assetDesigner` and not `designer`: the surface is one
+		// of three now, and a group named for the room rather than for the subject reads as the
+		// only one there is.
+		expect(Object.keys(EMPTY_STATE_CONTENT.assetDesigner)).toEqual(['noShape', 'noBackground']);
+	});
+
+	/**
+	 * **The flip Task B8 makes**, and the same shape as `noProjects`'s own: a hand-off that did
+	 * not exist yet — a dimensions form for the asset ALREADY OPEN, which `NewAssetForm` is not,
+	 * since it creates a DIFFERENT asset — grew one, and slice 14's Amendment 1 makes that a
+	 * deliberate, tested change rather than a quietly closed gap. `noShape`'s is the
+	 * `asset-dimensions` dialog, reached through `AssetDesignerRoot.editDimensions`.
+	 */
+	it('gives the no-shape state an action, because Task B8 built what it hands off to', () => {
+		const content = EMPTY_STATE_CONTENT.assetDesigner.noShape;
+
+		expect(content.actionLabel).toBeDefined();
+		expect(t('en', content.actionLabel)).not.toBe('');
+	});
+
+	/**
+	 * **The flip Task B7 makes**, and the same shape as `noProjects`'s own: a hand-off that did
+	 * not exist yet grew one, and slice 14's Amendment 1 makes that a deliberate, tested change
+	 * rather than a quietly closed gap. `noBackground`'s is `BackgroundPicker`
+	 * (`presentation/designer/ports.ts`), reached from `AssetDesignerRoot`'s empty-state action.
+	 */
+	it('gives the no-background state an action, because Task B7 built what it hands off to', () => {
+		const content = EMPTY_STATE_CONTENT.assetDesigner.noBackground;
+
+		expect(content.actionLabel).toBeDefined();
+		expect(t('en', content.actionLabel)).not.toBe('');
+	});
+
+	/**
+	 * The same distinctness claim the two `planEditor` entries carry, and for a sharper reason
+	 * here: an asset with no shape and no spec sheet is one click from both states, so a
+	 * registry pointing them at one key would type-check perfectly and tell a user reaching for
+	 * a background that they have no footprint.
+	 */
+	it.each(LANGUAGES)('resolves the two asset-designer entries to distinct copy in %s', (language) => {
+		const { noShape, noBackground } = EMPTY_STATE_CONTENT.assetDesigner;
+
+		expect(t(language, noShape.headline)).not.toBe(t(language, noBackground.headline));
+		expect(t(language, noShape.body)).not.toBe(t(language, noBackground.body));
 	});
 
 	/**
@@ -95,6 +139,10 @@ describe('the empty-state content registry', () => {
 			EMPTY_STATE_CONTENT.renovationProject.noPlans,
 			EMPTY_STATE_CONTENT.planEditor.noBackground,
 			EMPTY_STATE_CONTENT.planEditor.noZones,
+			// Design slice B3, widened by Tasks B7 and B8: both `assetDesigner` entries carry an
+			// action now, so both are listed the same way their siblings are.
+			EMPTY_STATE_CONTENT.assetDesigner.noShape,
+			EMPTY_STATE_CONTENT.assetDesigner.noBackground,
 		];
 
 		for (const entry of entries) {
@@ -102,13 +150,15 @@ describe('the empty-state content registry', () => {
 			expect(t(language, entry.body).length).toBeGreaterThan(0);
 		}
 
-		// The three entries whose `actionLabel` is present in the literal type (not optional), so
+		// The five entries whose `actionLabel` is present in the literal type (not optional), so
 		// these are unconditional rather than a re-check of the branch above. `noPlans` is here
 		// as well as in its own case above, because that one asks `en` alone — a German action
 		// label resolving to `''` would draw a nameless button for exactly the users this plugin
 		// ships a `de.ts` for.
 		expect(t(language, EMPTY_STATE_CONTENT.planEditor.noZones.actionLabel).length).toBeGreaterThan(0);
 		expect(t(language, EMPTY_STATE_CONTENT.renovationProject.noProjects.actionLabel).length).toBeGreaterThan(0);
+		expect(t(language, EMPTY_STATE_CONTENT.assetDesigner.noShape.actionLabel).length).toBeGreaterThan(0);
+		expect(t(language, EMPTY_STATE_CONTENT.assetDesigner.noBackground.actionLabel).length).toBeGreaterThan(0);
 		expect(t(language, EMPTY_STATE_CONTENT.renovationProject.noPlans.actionLabel).length).toBeGreaterThan(0);
 	});
 });

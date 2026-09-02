@@ -29,7 +29,7 @@ export interface PlanDto {
 	 * uncalibrated and drawing at the placeholder scale of 1.
 	 *
 	 * It is on the DTO because the query side is the only thing that can supply it, and a
-	 * consumer that needs it had no way to ask: `EditorContext.activePlan.calibration`
+	 * consumer that needs it had no way to ask: `EditorContext.subject.calibration`
 	 * declares this exact value to every tool, and the runtime filled it with a hard-coded
 	 * `null` because this field did not exist — so any tool reading it would have measured
 	 * a calibrated plan at the uncalibrated scale, with the type satisfied and no gate able

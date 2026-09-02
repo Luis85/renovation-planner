@@ -11,10 +11,10 @@
  * A service composed next month without a guard passed all four gates, because nothing is
  * wrong with the code.
  *
- * So this file NAMES no service. It composes a real root, DETONATES seven named
- * collaborators underneath it — the five repositories, the geometry port and the file probe,
- * each port method replaced by a thrower — walks everything the root hands out, and drives a
- * hostile input through EVERY DOOR of everything it finds.
+ * So this file NAMES no service. It composes a real root, DETONATES eight named
+ * collaborators underneath it — the five repositories, the plan and asset geometry ports and
+ * the file probe, each port method replaced by a thrower — walks everything the root hands
+ * out, and drives a hostile input through EVERY DOOR of everything it finds.
  *
  * Four hand-written lists live in this file — that detonation array, `SERVICE_CARVE_OUTS`,
  * `DOOR_CARVE_OUTS`, and the skip test's `owners`. The last three are each asserted by exact
@@ -488,6 +488,7 @@ describe('every service leaving the composition root is guarded', () => {
 			persistence.assets,
 			persistence.requirements,
 			persistence.geometry,
+			persistence.assetGeometry,
 			persistence.files,
 		]) {
 			detonate(collaborator);

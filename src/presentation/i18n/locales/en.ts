@@ -29,8 +29,10 @@ export const en = {
 	'view.plan-editor.name': 'Plan editor',
 	'command.open-plan-editor': 'Open plan editor',
 	'command.set-plan-background': 'Set plan background',
+	'command.open-asset-designer': 'Open asset designer',
 	'command.create-sample-project': 'Create sample renovation project',
 	'plan.none': 'This vault has no renovation plans yet.',
+	'asset.none': 'This vault has no assets yet.',
 	'sample.project.name': 'Sample renovation',
 	'sample.plan.name': 'Ground floor',
 	'sample.zone.kitchen': 'Kitchen',
@@ -101,7 +103,11 @@ export const en = {
 	'editor.layer.interaction': 'Interaction',
 	'editor.calibrate.distance.title': 'Set the real-world distance',
 	'editor.calibrate.distance.label': 'Distance in millimetres',
-	'editor.calibrate.distance.measured': 'Measured on the plan:',
+	// 'Measured on the plan:' until Task B6, when `KnownDistanceForm` gained a second caller:
+	// the asset designer measures on an asset's reference image, and the background is the one
+	// noun true of both surfaces. The key keeps its `editor.` prefix because the FORM lives in
+	// `presentation/editor/shell/` and a key rename orphans nothing but reads as a move.
+	'editor.calibrate.distance.measured': 'Measured on the background:',
 	'editor.calibrate.recalibrate.title': 'Rescale the zones on this plan?',
 	'editor.calibrate.recalibrate.message': 'This plan already has zones drawn on it. Setting the scale rescales every one of them. You can undo it.',
 	'background.no-plan-open': 'Open a plan editor first.',
@@ -153,6 +159,25 @@ export const en = {
 		"This asset's price is not in this project's currency, so no estimate can be produced. Open the asset's note and price it in this project's currency.",
 	'requirement.project-not-found': 'That zone belongs to a project that is no longer there.',
 	'requirement.project-gone': 'That requirement belongs to a project that is no longer there.',
+	// The two calibration refusals a user can actually PRODUCE, on either surface. Both are
+	// `Calculation`, whose category sentence ("A quantity could not be calculated.") says
+	// nothing about points, nothing about a distance, and nothing a user could act on — and
+	// calibrating is a gesture whose whole failure mode is that the two clicks or the typed
+	// number were wrong.
+	//
+	// Subject-agnostic wording on purpose: `CalibrateTool` is one tool serving a plan's
+	// background and an asset's spec sheet since Task B6, so neither sentence may name a plan.
+	//
+	// `calibration.invalid-distance` is deliberately absent, and slice 17 is where that was
+	// decided: `KnownDistanceForm` disables its submit unless the value parses positive and
+	// finite, so no user can raise it. `calibration.degenerate-scale` has TWO raise sites —
+	// a derived scale that collapsed, and a rescale whose product overflowed — and one
+	// sentence covers both, because from the user's side they are the same event: the two
+	// points and the distance do not describe a usable scale.
+	'calibration.coincident-points':
+		'Those two points are in the same place. Pick two points with a real distance between them.',
+	'calibration.degenerate-scale':
+		'Those two points and that distance do not produce a usable scale. Pick two points further apart, or check the distance you entered.',
 	// The row's own parse guard (design slice 16), not an `AppError` code: `Number('abc')`
 	// and a malformed money literal never reach a dispatch, so there is no raised code for
 	// `routeError` to place. Keyed by the field rather than by any code for that reason.
@@ -331,6 +356,110 @@ export const en = {
 	// view notifies and navigates. The three background codes `Plan.create` also mints have no
 	// entry for the plainer reason: that form sends no background.
 	'plan.empty-name': 'A plan needs a name.',
+	// Design slice A10's creation form, and the asset designer's whole refusal vocabulary
+	// behind it. Keyed by the exact `AppError.code`, for the reason the slice 16 block above
+	// states: `toUserMessage`'s lookup is `error.code in en`, so an `error.`-prefixed key
+	// would never resolve and every one of these would fall through to the generic Validation
+	// sentence — under a field the user can see, for the nine this form routes.
+	//
+	// **This list is copied from the RAISE SITES rather than from the form's own error map,
+	// and the two are deliberately different sizes.** The map routes nine codes to fields;
+	// this block gives copy to every code `assetError` and `assetNotFound` mint
+	// (`src/domain/asset/Asset.errors.ts`, `Asset.ts`, `AssetShape.ts`,
+	// `application/commands/asset/updateAssetShape.ts`), because absence from the MAP means
+	// "not about a field" and routes to the banner, while absence from HERE means the banner
+	// says "the information given is not valid" about a refusal that knows exactly what is
+	// wrong. The eleven with no field are the designer's own — clearance, anchor, facing and
+	// the two pending-flag invariants — plus height, which is `SetAssetHeightCommand`'s.
+	//
+	// The two pending-flag entries look like programmer errors and are reachable by a user:
+	// `validateAssetShape` runs on every READ of a stored sidecar, and a `.rpgeo` a user has
+	// hand-edited is exactly the document that can carry a typed footprint marked pending.
+	'asset.empty-name': 'An asset needs a name.',
+	'asset.unknown-category': 'Choose a category from the list.',
+	'asset.negative-unit-cost': 'A unit cost cannot be negative.',
+	'asset.invalid-height': 'Enter a height as a number of millimetres.',
+	'asset.negative-height': 'A height cannot be negative.',
+	'asset.non-positive-dimension': 'A width and a depth must each be greater than zero.',
+	'asset.dimension-underflow': 'Those dimensions are too small to describe a rectangle.',
+	'asset.invalid-footprint': 'That outline is not a shape this plugin can store.',
+	'asset.degenerate-footprint': 'That outline encloses no area.',
+	'asset.invalid-clearance': 'That clearance is not a shape this plugin can store.',
+	'asset.degenerate-clearance': 'That clearance encloses no area.',
+	'asset.invalid-anchor': 'An anchor must have finite coordinates.',
+	'asset.invalid-facing': 'A facing must be a finite angle.',
+	// Raised by `SetFacingTool` before it builds anything, so no save indicator is carrying it
+	// and this sentence is the only account the user gets of a click that set nothing.
+	'asset.facing-without-direction': 'Drag in the direction the object faces; a click alone names none.',
+	'asset.typed-footprint-cannot-be-pending':
+		'A typed footprint is already in millimetres, so it cannot be waiting for a scale.',
+	'asset.absent-clearance-cannot-be-pending': 'There is no clearance to wait for a scale.',
+	'asset.no-footprint':
+		'Give this asset a footprint first; a clearance, an anchor and a facing are each relative to one.',
+	'asset.not-found': 'That asset no longer exists.',
+	// The one background refusal a USER can reach, on either surface: both pickers snapshot the
+	// vault's candidates and the user picks out of that snapshot, so a file deleted or renamed in
+	// between arrives at the command as a well-formed path naming nothing. Without these two the
+	// `Reference` category sentence answered — "That entry no longer exists." — which names the
+	// asset or the plan rather than the FILE, and neither of those has gone anywhere. The two
+	// sentences differ in the noun they send the user back to, which is the only thing they can
+	// usefully say: `toUserMessage` takes no params, so neither can name the path.
+	//
+	// The two SIBLING codes each command also mints stay absent, and the reason is reachability
+	// rather than oversight: `asset.unsupported-background` and `asset.invalid-background-page`
+	// need a picker that returns an unsupported kind or a page below one, and both pickers narrow
+	// those before they answer.
+	'asset.background-not-found': 'That file is no longer in the vault. Choose another spec sheet.',
+	'plan.background-not-found': 'That file is no longer in the vault. Choose another plan document.',
+	// The one code the FORM mints rather than routes: a rectangle needs both halves, and
+	// nothing downstream refuses one given without the other because nothing downstream is
+	// asked. `NewAssetForm.dimensionsIncomplete` is the raise site.
+	'asset.dimensions-incomplete': 'A rectangle needs both a width and a depth.',
+	// `createMoney`'s two refusals (`src/core/money/Money.ts`), which this form runs as a
+	// pre-check because `CreateAssetCommand` reaches `Money.of` first and `of` THROWS on
+	// either — so without the pre-check both of these would reach the user as
+	// `vault.unexpected-failure`, about a vault nothing had opened.
+	'money.invalid-amount': 'Enter an amount as a plain decimal number, such as 45.00.',
+	'money.invalid-currency': 'Enter a three-letter currency code in capitals.',
+	// Design slice A10's creation form. Seven controls, because five of them are exactly the
+	// fields `CreateAssetInput` REQUIRES — a defaulted currency would price an asset in one
+	// nobody chose — and the last two are the optional pair that becomes its footprint.
+	'form.new-asset.title': 'New asset',
+	'form.new-asset.name': 'Name',
+	'form.new-asset.category': 'Category',
+	'form.new-asset.unit': 'Unit',
+	'form.new-asset.unit-cost': 'Unit cost',
+	'form.new-asset.currency': 'Currency',
+	// The unit is named in the LABEL rather than left to a placeholder: every world
+	// coordinate in this plugin is millimetres (ADR-009), and a bare `Width` invites metres.
+	'form.new-asset.width': 'Width in millimetres (optional)',
+	'form.new-asset.depth': 'Depth in millimetres (optional)',
+	// Shown only after the catalogue entry has been written and the footprint has not. It
+	// names the state rather than apologising for it: the asset exists, its details are no
+	// longer this dialog's to change, and the dimensions are what a retry re-sends.
+	'form.new-asset.already-created':
+		'The asset is saved. Its details can be edited from the catalogue; only the dimensions below are still pending.',
+	// One label per `AssetCategory`, so the control never shows the raw union member
+	// (`building-element`). `ASSET_CATEGORY_LABELS` is the `Record` that makes a missing one
+	// a build failure; `assetLabels.test.ts` is what asks whether these resolve.
+	'form.new-asset.category.material': 'Material',
+	'form.new-asset.category.furniture': 'Furniture',
+	'form.new-asset.category.fixture': 'Fixture',
+	'form.new-asset.category.plant': 'Plant',
+	'form.new-asset.category.equipment': 'Equipment',
+	'form.new-asset.category.building-element': 'Building element',
+	'form.new-asset.category.custom': 'Custom',
+	// One label per `MeasurementUnit`, for the same reason and with the same pair of gates.
+	'form.new-asset.unit.piece': 'Piece',
+	'form.new-asset.unit.m': 'Metres',
+	'form.new-asset.unit.m2': 'Square metres',
+	'form.new-asset.unit.m3': 'Cubic metres',
+	'form.new-asset.unit.hour': 'Hour',
+	'form.new-asset.unit.day': 'Day',
+	'form.new-asset.unit.fixed': 'Fixed price',
+	// The project list header's second action. The catalogue is VAULT-wide since design slice
+	// 19, so this sits on the list state rather than inside a project's detail state.
+	'view.asset.create': 'New asset',
 	// Slice 19's coded refusals. Keyed by the exact `AppError.code`, for the reason the slice
 	// 16 block above states: `toUserMessage`'s lookup is `error.code in en`, so an
 	// `error.`-prefixed key would never resolve and each of these would silently fall through
@@ -343,6 +472,10 @@ export const en = {
 	'settings.library-folder-empty': 'A library folder cannot be empty.',
 	'settings.library-overlaps-project': 'That folder is inside a project folder, or contains one.',
 	'settings.library-overlaps-source': 'That folder overlaps the current library folder.',
+	// Names the SOURCE, because the overlap sentence above names the destination and would
+	// send a user round the folder picker forever: the vault root overlaps everything.
+	'settings.library-source-is-vault-root':
+		'The library folder is currently the whole vault, so there is nothing to move it out of. Set it to a real folder in data.json first.',
 	'settings.library-source-case-mismatch':
 		'The library folder does not exist at the spelling this setting names, though a similarly named folder does. Rename that folder to match before moving.',
 	// The REFRESH failure is step 0's, and its sentence is the only one in this group that
@@ -357,6 +490,116 @@ export const en = {
 	'settings.library-persist-failed':
 		'The catalogue moved, but the setting could not be saved. Set the library folder to the new location.',
 	'project.folder-overlaps-library': 'That project folder would overlap the library folder.',
+	// Design slice B3 (ADR-0015): the asset designer's own surface. The two empty states are
+	// OVERLAYS inside the canvas region, never a replacement for it — slice 14's rule, and here
+	// it matters for the same reason it does on a plan: the region exists to show the object
+	// being drawn, and a panel that took its place would hide the thing.
+	//
+	// **Both carry an action now, and each grew one in the task that built what it hands off
+	// to.** `no-shape`'s is Task B8's `asset-dimensions` dialog, reached through
+	// `AssetDesignerRoot.editDimensions` — `NewAssetForm` creates a DIFFERENT asset, so nothing
+	// before this typed a rectangle onto the asset already open. `no-background`'s is Task B7's
+	// `BackgroundPicker` port. Slice 14's Amendment 1 refuses a live control that does nothing,
+	// so `content.test.ts` asserts both actions rather than assuming either.
+	'empty.asset.no-shape.headline': 'No footprint yet',
+	'empty.asset.no-shape.body':
+		'An asset gets its footprint from typed dimensions or from an outline traced over a spec sheet. Either one makes it something a plan can hold.',
+	'empty.asset.no-shape.action': 'Set dimensions',
+	'empty.asset.no-background.headline': 'No spec sheet yet',
+	'empty.asset.no-background.body':
+		'Set a photograph, drawing or datasheet as this asset’s background, then calibrate it so a traced outline comes out in real units.',
+	'empty.asset.no-background.action': 'Choose a background',
+	// The designer's own shell. `designer.asset-failed.headline` is the counterpart of
+	// `editor.plan-failed.headline`: the BODY under it is `trError(error)`, so an unreadable
+	// vault, unrecovered settings and an asset that is gone each say their own sentence.
+	'view.asset-designer.name': 'Asset designer',
+	'designer.canvas': 'Asset canvas',
+	// The designer's toolbar (design slice B5). FOUR labels rather than six: camera mode, Select,
+	// Undo and Redo say the same words as the Plan Editor's and take its keys
+	// (`editor.toolbar.pan`/`.select`/`.undo`/`.redo`) rather than shipping a second translation
+	// of "Undo" for a translator to keep in step with the first. What is designer-specific is
+	// the five gestures below. Four have no counterpart on a plan; `calibrate` has one and still
+	// gets a key of its own, because the Plan Editor's says "Calibrate" about a plan's background
+	// and each surface's toolbar builds its buttons from its own table.
+	'designer.toolbar': 'Asset tools',
+	'designer.toolbar.trace-footprint': 'Trace footprint',
+	'designer.toolbar.trace-clearance': 'Trace clearance',
+	'designer.toolbar.set-anchor': 'Set anchor',
+	'designer.toolbar.set-facing': 'Set facing',
+	'designer.toolbar.calibrate': 'Calibrate',
+	// The asset's own recalibration warning. NOT `editor.calibrate.recalibrate.*`, which names
+	// zones and a plan — and the two questions differ in more than the noun: a plan's
+	// calibration rescales every coordinate it owns, while an asset's converts only the
+	// coordinate groups captured before a scale existed.
+	'designer.calibrate.recalibrate.title': 'Rescale what was traced without a scale?',
+	'designer.calibrate.recalibrate.message':
+		'Some of this asset’s geometry was traced before a scale existed. Setting the scale converts it to millimetres. You can undo it.',
+	// Task B7's picker placeholder — `ObsidianBackgroundPicker`'s modal, the same affordance
+	// `PlanBackgroundSuggestModal.ts` uses `command.set-plan-background` for.
+	'designer.background.pick': 'Choose a background for this asset',
+	'designer.loading': 'Loading asset…',
+	'designer.asset-failed.headline': 'This asset could not be loaded',
+	// The DANGLING state, and the three keys are the designer's own rather than a reuse of
+	// `editor.plan-missing.*`. The first two must be: every surface's copy is written from its
+	// own subject, and the plan editor's say "plan". The ACTION says "Close this tab" on both
+	// surfaces and could have been borrowed — the toolbar borrows `editor.toolbar.undo` on
+	// exactly that argument — and is minted anyway, because the key that would be borrowed is
+	// `editor.plan-missing.action`: its NAME claims the plan editor's state, so a later change
+	// to that state reaches into this one with nothing to notice. A borrowed key whose name
+	// names a sibling's state is not the same trade as a borrowed word.
+	'designer.asset-missing.headline': 'This asset no longer exists',
+	'designer.asset-missing.body': 'This tab points at an asset that is not in the vault any more.',
+	'designer.asset-missing.action': 'Close this tab',
+	'designer.refresh-failed':
+		'This asset could not be re-read after the last change; what you see may be out of date.',
+	// The spec sheet's own two failures, and the counterparts of `editor.background-missing`
+	// and `editor.background-failed` rather than a reuse of them: those two say "this plan",
+	// and every surface's copy is written from its own subject. They are NOTICES and not a
+	// failure state — the asset read fine and the rest of the designer still works — which is
+	// what the empty state above them cannot say, since a reference that exists retires
+	// `noBackground` whatever became of the file it names.
+	'designer.background-missing': 'The background file for this asset is missing.',
+	'designer.background-failed': 'The background for this asset could not be rendered.',
+	// Task B8's inspector region: derived dimensions, an honest unscaled warning, and the one
+	// editable scalar (height). `designer.inspector` labels the region the same way
+	// `editor.inspector` does the plan editor's own panel.
+	'designer.inspector': 'Inspector',
+	'designer.inspector.dimensions': 'Dimensions',
+	// The warning `dimensionsUnscaled` earns — a traced outline captured before this asset had
+	// a scale, so the numbers beside it are not yet real millimetres (§88, Decision 6).
+	'designer.inspector.dimensions.unscaled':
+		'This footprint was traced before a scale existed, so these numbers are not real measurements yet.',
+	'designer.inspector.edit-dimensions': 'Edit dimensions',
+	// The same gesture named for what it DOES in the state it is offered from: with no shape
+	// there is nothing to edit, and this is the one control that creates one.
+	'designer.inspector.set-dimensions': 'Set dimensions',
+	'designer.inspector.height': 'Height in millimetres',
+	'designer.inspector.height.unparseable': 'Enter a height as a number, or clear it.',
+	// Task B8's dialog kind (`asset-dimensions`), reached from BOTH the no-shape empty state
+	// and this inspector's own Edit dimensions control — the same width/depth vocabulary
+	// `form.new-asset.width`/`.depth` already uses, minus their "(optional)" suffix: both
+	// fields are required here, since a rectangle needs both halves.
+	'designer.dimensions.edit.title': 'Set this asset’s dimensions',
+	// Shown INSTEAD of the current numbers, not beside them: this footprint's dimensions are
+	// placeholder-space coordinates, and offering them as the form's default is how they get
+	// saved back as authored millimetres in two clicks. It says the same thing
+	// `designer.inspector.dimensions.unscaled` says and cannot be that key: there, numbers are
+	// on screen for "these numbers" to point at, and here the fields are deliberately empty.
+	'designer.dimensions.unscaled':
+		'This footprint was traced before a scale existed, so its current size is not a real measurement. Type the real width and depth, or calibrate the background first.',
+	'designer.dimensions.width': 'Width in millimetres',
+	'designer.dimensions.depth': 'Depth in millimetres',
+	// The undo stack's own refusal, keyed by the exact `AppError.code` for the reason the
+	// slice 16 block above states. Without an entry it falls through to
+	// `error.category.validation` — "This data is not in the expected form" — about data that
+	// is perfectly well formed and an undo refused to protect somebody else's edit, which is
+	// the wrong-sentence failure slice 11 recorded rather than a silent one.
+	//
+	// It names the CONSEQUENCE rather than the mechanism: a user has no model of a write
+	// ledger, and what they need to know is that the step is still undoable by hand and that
+	// something they did not do is what stands in the way.
+	'undo.superseded':
+		'This change was edited elsewhere after this step, so undoing it would discard that edit. Reload and undo again if you still want it reversed.',
 	// The diagnostics report's own keys. `session-only` is the first of this increment's two
 	// recorded limitations, put on the surface where the user meets it rather than only in a
 	// docblock: the ledger is in-memory, so reopening the vault empties the report.

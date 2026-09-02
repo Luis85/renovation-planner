@@ -29,6 +29,16 @@ business-value-model: ""
 
 # The plan editor is a mode, not a second view
 
+> **Superseded in practice by ADR-0015.** The code took the alternative this note rejects:
+> `src/presentation/views/PlanEditorView.ts` declares `PLAN_EDITOR_VIEW =
+> 'renovation-plan-editor'` and `RenovationPlannerPlugin.ts` registers it, so the plan editor
+> is a second view type and the *Consequences* below — "slice 05 registers no new view type" —
+> describe a build that never shipped. `docs/development/adrs/0015-asset-designer-workspace-surface.md`
+> records that, says why the decision is not being reversed (a view type is data a workspace
+> layout and a user's hotkey already hold), and takes the same shape a third time for the asset
+> designer. This note is left as written rather than rewritten: what it decided is a fact about
+> 2026-08-23, and the pointer is here so the contradiction cannot be found from only one side.
+
 A decision taken, recorded with what it rejected. It was [[Sitemap]]'s open question 3, and it
 blocked design slice 05 — which cannot register a view without knowing whether there is one or
 two.
@@ -115,6 +125,8 @@ type is the answer.
   the pinned floor, so an API `minAppVersion` promises.
 - `CLAUDE.md` — *one action, every input*; a view type and a command id are data, not text; and
   `settingsFrom` as the shape a trust boundary on persisted state takes.
+- ADR-0015 (`docs/development/adrs/0015-asset-designer-workspace-surface.md`) — where the
+  gap between this note and `src/` is recorded, and where *Revisit when* above is answered.
 - [[Sitemap]] — its open question 3, and the false restoration claim this note corrects.
   [[Disclosure ladder]] — which mode is the default, and why that is a rung question.
   [[User Experience]] — the Feature that owns when a surface appears.

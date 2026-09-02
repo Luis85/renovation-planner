@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { currencyOf } from '../../../../src/core/money/Money';
 import { createRepositoryStack, serializeFrontmatter } from '../../../helpers/vault';
 import { expectErr, expectOk } from '../../../helpers/domain';
-import { makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
+import { makeAsset as makeAssetEntity, makePlan as makePlanEntity, makeProject as makeProjectEntity, makeZone as makeZoneEntity } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
+import { createAssetId } from '../../../../src/domain/asset/AssetId';
 import { createEventBus } from '../../../../src/core/events/EventBus';
 import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
 import { buildProjectIndexEntries } from '../../../../src/infrastructure/persistence/index/buildProjectIndexEntries';
@@ -17,6 +18,7 @@ import {
 	planFromPersistence,
 } from '../../../../src/infrastructure/persistence/mappers/planMapper';
 import { zoneFromPersistence } from '../../../../src/infrastructure/persistence/mappers/zoneMapper';
+import { fileStatAt } from '../../../../src/infrastructure/obsidian/repositories/noteIo';
 import { z } from 'zod';
 
 /**
@@ -115,6 +117,51 @@ describe('pipeline negatives', () => {
 	});
 
 	/**
+	 * An ASSET's sidecar arriving out of band, which this door used to call an orphan.
+	 *
+	 * `processSidecar` recovers an id from the basename and asks the index for it (ADR-011).
+	 * For an asset that lookup SUCCEEDS — the id is a real catalogue entry — and the type test
+	 * below it then reported `reason: 'no indexed plan carries this id'`, which is false twice
+	 * over: an indexed ASSET carries it, and nothing about the file is wrong. Every hand move,
+	 * every sync, every restore of an asset sidecar produced that line.
+	 *
+	 * Silence rather than a corrected warning, because there is no INDEX WORK here: ADR-0014
+	 * gives an asset's sidecar one derived home, so no mapping is stored for it and none can go
+	 * stale. What the ADR ALSO asks for — resolution through the index, as plans have — is not
+	 * built, and is recorded as a residual in this increment's plan rather than left implied by
+	 * a diagnostic nobody can act on.
+	 *
+	 * **Silence in the LOG only, which this case is about, and not silence at the event bus.**
+	 * An earlier version of this paragraph said "nothing here to do", conflating the two, and
+	 * that reading was the defect: a designer showing the asset still has to hear its shape
+	 * moved. `announcements.test.ts`'s sidecar cases are where the announcement is asserted.
+	 *
+	 * The genuine orphan above keeps its warning, which is what stops this from being a
+	 * silencing: measured, returning early for every non-plan entry leaves that case green
+	 * only because a stray `.rpgeo` resolves to no entry at all.
+	 */
+	it('says nothing about an asset sidecar arriving out of band, since nothing is wrong with it', async () => {
+		const stack = createRepositoryStack();
+		await seed(stack);
+		const assetId = createAssetId();
+		expectOk(await stack.assets.save(makeAssetEntity({ id: assetId }), 'absent'));
+		const adapter = adapterOf(stack);
+
+		// Written straight into the vault rather than through the store, so the echo window
+		// does not know it — an echoed path returns two lines earlier and would pass here
+		// whatever the type test did.
+		const sidecarPath = `${stack.libraryFolder}/Geometry/${assetId}.rpgeo`;
+		stack.vault.entries.set(sidecarPath, '{}');
+		const before = stack.logged.length;
+		adapter.onModify(stack.vault.getAbstractFileByPath(sidecarPath) as never);
+		adapter.flush();
+
+		expect(
+			stack.logged.slice(before).some((line) => line.event === 'persistence.pipeline.sidecar-skipped'),
+		).toBe(false);
+	});
+
+	/**
 	 * A sidecar deleted OUT OF BAND — the file explorer, a sync client — must clear the
 	 * index mapping rather than re-affirm a path that is gone. Leaving it would break every
 	 * Zone read on that Plan with no future event to repair it: the sidecar path lives only
@@ -158,6 +205,40 @@ describe('pipeline negatives', () => {
 		expect(stack.index.getPath(projectId)).toBeUndefined();
 	});
 
+	/**
+	 * The other half of the note-identity defect, at the end that stops the stale entry
+	 * EXISTING rather than the end that stops it being believed. `existing` is found by PATH,
+	 * so a note whose `id` a user rewrites arrives here as an upsert of the NEW id while the
+	 * old id's entry goes on pointing at the same file — and every read resolves through the
+	 * index, so that entry then served this note under an id it no longer declares.
+	 *
+	 * The `!== 'ours'` arm three lines above has removed such an entry since the pipeline was
+	 * written ("if it USED to be [ours], it changed into something we cannot index"); a note
+	 * that stayed ours and changed WHICH entity it is was the case that arm does not cover.
+	 *
+	 * This is not the guard and does not replace it: it is one vault event late by
+	 * construction, does not fire at all for an edit made while Obsidian is closed, and the
+	 * index is rebuilt from scratch at every load anyway. `openNoteById`'s comparison is what
+	 * is fail-closed. What this buys is that the refusal is TRANSIENT — once the pipeline has
+	 * seen the edit, the old id reads as genuinely absent instead of refusing forever.
+	 */
+	it('a note whose id is rewritten loses the OLD id\'s entry rather than keeping a stale one', async () => {
+		const stack = createRepositoryStack();
+		const { planId } = await seed(stack);
+		const adapter = adapterOf(stack);
+		const path = stack.index.getPath(planId) ?? '';
+
+		const text = stack.vault.entries.get(path) ?? '';
+		stack.vault.entries.set(path, text.replace(/^id: "[^"]*"/m, 'id: "01JPLANSOMEBODYELSE0000000"'));
+		adapter.onModify(stack.vault.getAbstractFileByPath(path) as never);
+		adapter.flush();
+
+		// The stale entry is gone...
+		expect(stack.index.getPath(planId)).toBeUndefined();
+		// ...and the note is indexed under what it now declares, at the same path.
+		expect(stack.index.getPath('01JPLANSOMEBODYELSE0000000' as never)).toBe(path);
+	});
+
 	it('a note of ours without a readable id is excluded with a diagnostic', async () => {
 		const stack = createRepositoryStack();
 		const { planId, projectId } = await seed(stack);
@@ -182,6 +263,7 @@ describe('pipeline negatives', () => {
 		).toBe(true);
 		void projectId;
 	});
+
 });
 
 describe('index builder negatives', () => {
@@ -543,7 +625,16 @@ describe('a sidecar whose plan is still being written', () => {
 		const pendingPlanId = createPlanId();
 		const pendingPath = `Renovation/Geometry/${pendingPlanId}.rpgeo`;
 		stack.vault.entries.set(pendingPath, '{}');
-		stack.echo.mark(pendingPath, 'whatever-this-plugin-wrote' as never);
+		// The STAT with it, because that is the state `createLocked` really leaves: the echo
+		// window recognises a sidecar of ours by identity now — "is the file still the one we
+		// wrote" — rather than by having heard of the path. Marking without one would build a
+		// window thinner than the writer's, and this case would then pass or fail for a reason
+		// the vault it stands for cannot produce.
+		stack.echo.mark(
+			pendingPath,
+			'whatever-this-plugin-wrote' as never,
+			fileStatAt(stack.vault as never, pendingPath),
+		);
 		expect(stack.index.getPath(pendingPlanId)).toBeUndefined();
 
 		const before = stack.logged.length;

@@ -5,6 +5,7 @@
  * kind component has. Mounted bare, with no store and no host: a kind that needed either
  * would be reaching past the seam that keeps `store.resolve` to one call site.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { mount } from '@vue/test-utils';
@@ -12,6 +13,7 @@ import ConfirmDialog from '../../../src/presentation/dialogs/ConfirmDialog.vue';
 import DeleteReferenceDialog from '../../../src/presentation/dialogs/DeleteReferenceDialog.vue';
 import EntityPickerDialog from '../../../src/presentation/dialogs/EntityPickerDialog.vue';
 import FormDialog from '../../../src/presentation/dialogs/FormDialog.vue';
+import AssetDimensionsDialog from '../../../src/presentation/dialogs/AssetDimensionsDialog.vue';
 import { t } from '../../../src/presentation/i18n/strings';
 
 const EN = 'en';
@@ -267,6 +269,86 @@ describe('FormDialog', () => {
 	});
 });
 
+describe('AssetDimensionsDialog', () => {
+	it('resolves the typed width and depth on submit', async () => {
+		const wrapper = mount(AssetDimensionsDialog, {
+			props: { descriptor: { kind: 'asset-dimensions', title: 'Dimensions' }, titleId: TITLE_ID },
+		});
+
+		await wrapper.find('input[name="width"]').setValue('1200');
+		await wrapper.find('input[name="depth"]').setValue('800');
+		await wrapper.find('form').trigger('submit');
+
+		expect(wrapper.emitted('resolve')).toEqual([[{ width: 1200, depth: 800 }]]);
+	});
+
+	it('resolves cancel from its cancel control, and null rather than the string', async () => {
+		const wrapper = mount(AssetDimensionsDialog, {
+			props: { descriptor: { kind: 'asset-dimensions', title: 'Dimensions' }, titleId: TITLE_ID },
+		});
+
+		await wrapper.find('[data-rp-action="cancel"]').trigger('click');
+
+		expect(wrapper.emitted('resolve')).toEqual([[null]]);
+	});
+
+	it('pre-fills both fields from the descriptor’s initial dimensions', () => {
+		const wrapper = mount(AssetDimensionsDialog, {
+			props: {
+				descriptor: { kind: 'asset-dimensions', title: 'Dimensions', initial: { width: 1200, depth: 800 } },
+				titleId: TITLE_ID,
+			},
+		});
+
+		expect((wrapper.find('input[name="width"]').element as HTMLInputElement).value).toBe('1200');
+		expect((wrapper.find('input[name="depth"]').element as HTMLInputElement).value).toBe('800');
+	});
+
+	/**
+	 * Neither field alone is enough to submit — the whole point of a rectangle needing both —
+	 * and a submit while either is missing or non-positive resolves nothing at all, which is
+	 * `KnownDistanceForm`'s own guard, met at two fields instead of one.
+	 */
+	it('submits nothing while either dimension is blank, zero or negative', async () => {
+		const wrapper = mount(AssetDimensionsDialog, {
+			props: { descriptor: { kind: 'asset-dimensions', title: 'Dimensions' }, titleId: TITLE_ID },
+		});
+
+		await wrapper.find('input[name="width"]').setValue('1200');
+		await wrapper.find('form').trigger('submit');
+		expect(wrapper.emitted('resolve')).toBeUndefined();
+
+		await wrapper.find('input[name="depth"]').setValue('-5');
+		await wrapper.find('form').trigger('submit');
+		expect(wrapper.emitted('resolve')).toBeUndefined();
+	});
+
+	it('renders the caller warning above the fields, in a class the stylesheet declares', () => {
+		const warned = mount(AssetDimensionsDialog, {
+			props: {
+				descriptor: { kind: 'asset-dimensions', title: 'Set dimensions', warning: 'Not measured yet.' },
+				titleId: TITLE_ID,
+			},
+		});
+		const warning = warned.get('.rp-dialog-warning');
+		expect(warning.text()).toBe('Not measured yet.');
+		// Above the fields: the warning is a claim about the PAIR, so it precedes both inputs.
+		expect(warned.element.innerHTML.indexOf('rp-dialog-warning')).toBeLessThan(
+			warned.element.innerHTML.indexOf('name="width"'),
+		);
+		// jsdom resolves no CSS, so the class the template emits is checked against the sheet
+		// by text — the `rp-save-state-error` defect, refused here before it can recur.
+		expect(readFileSync('styles/dialogs.css', 'utf8')).toContain('.rp-dialog-warning {');
+	});
+
+	it('renders no warning element at all when the caller sends none', () => {
+		const silent = mount(AssetDimensionsDialog, {
+			props: { descriptor: { kind: 'asset-dimensions', title: 'Set dimensions' }, titleId: TITLE_ID },
+		});
+		expect(silent.find('.rp-dialog-warning').exists()).toBe(false);
+	});
+});
+
 /**
  * `DialogHost` binds `.rp-dialog`'s `aria-labelledby` to an id it generates and then relies
  * on the kind it rendered to put that id on a titled element — its own header calls that
@@ -277,7 +359,7 @@ describe('FormDialog', () => {
  * name axe accepts and a screen-reader user cannot use.
  *
  * Enumerated rather than derived, because there is nothing to derive it from — the kinds are
- * four hand-written components. That is as wide as this check reaches: a fifth kind that
+ * five hand-written components. That is as wide as this check reaches: a sixth kind that
  * forgot its title is caught by review and by `dialogHost.test.ts`'s own pairing case, not
  * by anything here.
  */
@@ -293,11 +375,12 @@ describe('every kind labels the dialog with the id it is handed', () => {
 		],
 		['EntityPickerDialog', EntityPickerDialog, { kind: 'entity-picker', title: 'T', candidates: [] }],
 		['FormDialog', FormDialog, { kind: 'form', title: 'T', component: StubForm }],
+		['AssetDimensionsDialog', AssetDimensionsDialog, { kind: 'asset-dimensions', title: 'T' }],
 	] as const)('%s renders exactly one titled element carrying it', (_name, component, descriptor) => {
 		// Each row pairs a component with the descriptor IT takes, and TypeScript cannot see that
-		// correlation: it checks the descriptor union against the union of all four prop types and
+		// correlation: it checks the descriptor union against the union of all five prop types and
 		// so demands every member of every variant at once. One cast at the seam where the pairing
-		// is known, rather than four near-identical cases that would each lose the shared body.
+		// is known, rather than five near-identical cases that would each lose the shared body.
 		const wrapper = mount(component, { props: { descriptor, titleId: TITLE_ID } as never });
 		const titles = wrapper.findAll('.rp-dialog-title');
 

@@ -1,8 +1,8 @@
 import type { PanButton } from './viewport/pan-override';
 
 /**
- * What a DOM pointer event's BUTTON means to this editor — the vocabulary `PlanCanvas` routes
- * on, extracted when that file crossed its line cap — twice, `isPrimary` arriving on the
+ * What a DOM pointer event's BUTTON means to this editor — the vocabulary `EditorSurface`
+ * routes on, extracted from `PlanCanvas` when that file crossed its line cap — twice, `isPrimary` arriving on the
  * second — and kept together because every fact here is one fact: `PointerEvent.button` and `PointerEvent.buttons` are different numberings
  * of the same hardware, and confusing them has produced seven defects in this canvas.
  *
@@ -52,7 +52,7 @@ export function panButtonOf(event: PointerEvent): PanButton | null {
  *
  * It used to justify itself by saying the middle button is paste-on-Linux and the right one
  * the context menu, "and claiming either would take a gesture the host owns". Half of that
- * is now false: `PlanCanvas`'s pan override CLAIMS the middle button, and `onPointerDown`
+ * is now false: `EditorSurface`'s pan override CLAIMS the middle button, and `onPointerDown`
  * asks `panButtonOf` before reaching this filter for exactly that reason. X11's
  * primary-selection paste is a TEXT INPUT gesture and a canvas is not one; Obsidian's own
  * Canvas documents middle-drag as its pan. The right button stays unclaimed, and that half

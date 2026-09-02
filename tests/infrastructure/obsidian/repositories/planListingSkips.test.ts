@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
 	corruptSchemaVersion,
 	corruptSidecar,
+	displaceNoteId,
 	invalidateFrontmatter,
 	malformSchemaVersion,
 	openFixtureVault,
@@ -71,6 +72,27 @@ describe('the plan listing skips a note it cannot read', () => {
 		expect(listed.value.refused).toBe(1);
 		expect(stack.ledger.issues()).toEqual([
 			{ entityType: 'plan', entityId: 'plan-first', issue: 'plan.schema-version-malformed' },
+		]);
+	});
+
+	it('skips a plan whose note declares a different id', async () => {
+		// The arm that arrived across a merge. `note-id-mismatch` is raised by a guard written on
+		// a branch that predates this set, so it merged in textually clean and NOT enumerated —
+		// one displaced plan note failing the whole listing again, which is the defect this file
+		// exists to hold closed. Reachable with one keystroke: `id` is frontmatter, and the index
+		// keeps the old entry until the next full rebuild.
+		const stack = await openStack();
+		await displaceNoteId(stack, CASUALTY, 'plan-somebody-else');
+
+		const listed = await stack.plans.listByProject(PROJECT);
+
+		expect(listed.ok).toBe(true);
+		if (!listed.ok) return;
+		expect(listed.value.loaded).toHaveLength(1);
+		expect(listed.value.loaded[0]?.entity.name).toBe('Ground');
+		expect(listed.value.refused).toBe(1);
+		expect(stack.ledger.issues()).toEqual([
+			{ entityType: 'plan', entityId: 'plan-first', issue: 'plan.note-id-mismatch' },
 		]);
 	});
 

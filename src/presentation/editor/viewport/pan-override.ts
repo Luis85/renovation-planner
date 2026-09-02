@@ -9,7 +9,7 @@
  * That is the exact opposite of what the gesture is for: the user reaches for it BECAUSE
  * the thing they are drawing runs off the edge of the pane. Overriding above the manager
  * means the interrupted tool is not told anything happened, so there is nothing for it to
- * lose. `PlanCanvas.vue` is where that routing lives; this is the machine it asks.
+ * lose. `surface/EditorSurface.vue` is where that routing lives; this is the machine it asks.
  *
  * Everything here is a decision about STATE and none of it touches a DOM or a Vue ref,
  * which is why it is a module with node tests rather than a handful of refs inside the
@@ -199,7 +199,7 @@ export class PanOverride {
 	/**
 	 * End a running pan that no release will ever arrive for, keeping a held space bar.
 	 *
-	 * TWO callers, both in `PlanCanvas.vue`: `pointerleave` (the pointer walked out of the
+	 * TWO callers, both in `EditorSurface.vue`: `pointerleave` (the pointer walked out of the
 	 * pane) and `pointercancel` (the OS took it away). Neither names a button, and both leave
 	 * the keyboard alone — a space bar still physically held is still held, so the canvas
 	 * returns to `armed` and the user's next press pans without a second keypress. `cancel`

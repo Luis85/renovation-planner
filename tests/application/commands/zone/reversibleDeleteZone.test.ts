@@ -12,6 +12,8 @@ import {
 import { makePlan, makeZone, squareAt } from '../../../helpers/entities';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import { CommandHistory } from '../../../../src/presentation/editor/tools/command-history';
+import { MoveSpatialObjectCommand } from '../../../../src/application/commands/zone/MoveSpatialObject';
+import { ReversibleMoveZoneCommand } from '../../../../src/presentation/editor/tools/reversible-move-zone-command';
 
 /**
  * Design slice 8 — `ReversibleDeleteZoneCommand` (docs/tasks/08-zone-editing.md,
@@ -169,5 +171,74 @@ describe('ReversibleDeleteZoneCommand', () => {
 		// The ledger is what every sibling adapter reads its expectation from; a restore
 		// that went unrecorded hands the next move command a stale version.
 		expect(ledger.lastWritten(zone.id)).not.toBeNull();
+	});
+});
+
+/**
+ * **This adapter takes NEITHER half of the generation guard, and that is a measurement rather
+ * than an omission** — the sibling adapters all take one, so its absence is exactly what a
+ * later reader would tidy away. Both halves of the sandwich (`WriteLedger`'s five steps) are
+ * already closed here by mechanisms this adapter had before:
+ *
+ * - it cannot be the SECOND gesture, the one that writes past a peer and advances the tip.
+ *   Its forward delete is conditioned on `ledger.lastWritten`, so a foreign write since our
+ *   last one makes the delete itself refuse — there is no successful write to record and no
+ *   tip for a later undo to match;
+ * - it cannot be the FIRST gesture, the one whose inverse goes stale. Its undo restores
+ *   through `restoreZone`, which writes `'absent'`, and its Requirement restores present the
+ *   expectations the forward resolution's own result reported. Every one of them refuses a
+ *   foreign write on its own.
+ *
+ * Both are asserted, because "it refused" is the same word for two different mechanisms and
+ * an argument in prose is what goes stale.
+ */
+const seededZone = async () => {
+	const zones = new InMemoryZoneRepository();
+	const events = new RecordingEventBus();
+	const ledger: WriteLedger = new SessionWriteLedger();
+	const plan = makePlan({ projectId: createProjectId() });
+	const zone = makeZone({ projectId: plan.projectId, planId: plan.id, geometry: squareAt(0, 0) });
+	await zones.save(zone, 'absent');
+	return { zones, events, ledger, zone, move: new MoveSpatialObjectCommand(zones, events) };
+};
+
+describe('a foreign write around a delete gesture', () => {
+	it('refuses the delete itself when a peer wrote since this history last did', async () => {
+		const { zones, events, ledger, zone, move } = await seededZone();
+		const history = new CommandHistory();
+		expectOk(await history.run(new ReversibleMoveZoneCommand(move, ledger, zone.id, squareAt(10, 10), squareAt(0, 0))));
+
+		expectOk(await move.execute({ zoneId: zone.id, geometry: squareAt(50, 50) }));
+
+		const deletion = new ReversibleDeleteZoneCommand(
+			makeDeleteZoneCommand(zones, events),
+			zones,
+			ledger,
+			{ zoneId: zone.id },
+			zoneUndoDeps(),
+		);
+		expect(expectErr(await history.run(deletion)).code).toBe('zone.revision-conflict');
+		expect(expectOk(await zones.getById(zone.id))).not.toBeNull();
+	});
+
+	it('refuses to restore over a note that arrived at the deleted id', async () => {
+		const { zones, events, ledger, zone } = await seededZone();
+		const deletion = new ReversibleDeleteZoneCommand(
+			makeDeleteZoneCommand(zones, events),
+			zones,
+			ledger,
+			{ zoneId: zone.id },
+			zoneUndoDeps(),
+		);
+		expect(expectOk(await deletion.execute())).toBe('wrote');
+
+		// A note now holds that id again — a peer re-creating it, or a sync bringing it back
+		// with different contents. Written through the repository at the SAME id, because a
+		// restore keyed on anything else would not be a restore at all.
+		const arrived = expectOk(zone.withGeometry(squareAt(99, 99)));
+		expectOk(await zones.save(arrived, 'absent'));
+
+		expect(expectErr(await deletion.undo()).code).toBe('zone.revision-conflict');
+		expect(expectOk(await zones.getById(zone.id))?.entity.geometry).toEqual(squareAt(99, 99));
 	});
 });

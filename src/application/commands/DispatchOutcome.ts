@@ -1,5 +1,6 @@
-import type { Result } from '../../core/result/Result';
+import { isErr, ok, type Result } from '../../core/result/Result';
 import type { AppError } from '../../core/errors/AppError';
+import type { EntityVersion } from '../ports/versioning';
 
 /**
  * What a dispatched reversible gesture DID, beside whether it succeeded.
@@ -75,6 +76,55 @@ export type DispatchOutcome = 'wrote' | 'no-write';
 export type DispatchResult = Result<DispatchOutcome, AppError>;
 
 /**
+ * The same answer, plus the version the write actually produced — what a reversible adapter
+ * needs and a plain dispatcher does not.
+ *
+ * **A UNION rather than an optional field, and that is the whole of why this type exists.**
+ * The adapters used to learn the version by reading the port back after the command returned,
+ * and a peer writing in the window between those two operations was recorded as this
+ * gesture's: the undo then presented the PEER's version, matched the store, and restored the
+ * pre-gesture document over their edit. The read-back helper's own header named that residue
+ * and named this remedy — "only a version reported by the write itself closes that" — and
+ * writing it down bought nothing, which is this repository's own "a documented residue reads
+ * as surveyed ground" arriving in the file that wrote the sentence. That helper is gone with
+ * the read it performed; `ReversibleAssetDesignCommands` records `ran.value.version` instead.
+ *
+ * A `version: EntityVersion | null` beside a free `outcome` would have left the pairing to a
+ * convention: a caller could read `'wrote'` and find `null`, or record a version for a
+ * dispatch that wrote nothing, and neither is a build error. Discriminating on `outcome` makes
+ * "wrote, and here is what it produced" the only representable success that carries one.
+ *
+ * **`secondaryVersion` is OPTIONAL, and Task B7's `SetAssetBackground` is its first and only
+ * writer.** Every design command but that one touches exactly one resource, so `version` alone
+ * has always been the whole answer; `SetAssetBackground` writes the note AND clears the
+ * sidecar's calibration in one gesture, and its adapter needs BOTH resulting versions to
+ * restore either resource conditionally on undo — the exact reasoning above (a read-back would
+ * reopen the peer-write window this type exists to close) applied to the SECOND resource a
+ * two-write command touches. Every other command leaves it absent, and every other adapter
+ * ignores it, which is what keeps this an addition rather than a second thing every caller has
+ * to reason about.
+ */
+export type VersionedDispatch =
+	| { readonly outcome: 'no-write' }
+	| { readonly outcome: 'wrote'; readonly version: EntityVersion; readonly secondaryVersion?: EntityVersion };
+
+export type VersionedDispatchResult = Result<VersionedDispatch, AppError>;
+
+/**
+ * The plain `execute` door, expressed as the versioned one with its extra fact dropped —
+ * the shape `SetRequirementQuantityOverrideCommand.execute` already takes over its own
+ * `executeWithVersion`.
+ *
+ * One function rather than eight copies of `if (!x.ok) return x; return ok(x.value.outcome)`,
+ * so the eight design commands (five shape, height, calibrate, and Task B7's background)
+ * cannot drift on what `execute` means, and so a ninth has one obvious thing to call.
+ */
+export async function plainDispatch(versioned: Promise<VersionedDispatchResult>): Promise<DispatchResult> {
+	const done = await versioned;
+	return isErr(done) ? done : ok(done.value.outcome);
+}
+
+/**
  * The same question on the OTHER channel of the same `Result`: a refusal that left writes
  * standing in the vault.
  *
@@ -99,11 +149,13 @@ export type DispatchResult = Result<DispatchOutcome, AppError>;
  * every consumer that reads them reads exactly what it read before, and the one consumer that
  * asks about persistence gets an answer nothing had to infer.
  *
- * **Its only producer today is `compensate` in `application/reference/deleteResolution.ts`**,
- * at the one moment the vault is KNOWN to be half-written — a restore that refused, or a
- * completed forward write compensation could not find a snapshot for. A compensation that
- * succeeds leaves the vault at its pre-state and is deliberately NOT marked: neutral is the
- * true answer there, and marking it would be the false badge this shape exists to avoid.
+ * **Four producers in three files** — `grep -rn "markUncompensated(" src/`, run in the edit that
+ * wrote this: `deleteResolution.ts`'s `compensate` and its `markStalePersisted` re-read,
+ * `SetAssetBackground.ts`'s failed calibration restore, and
+ * `ReversibleAssetDesignCommands.ts`'s failed sidecar restore on a background undo. Each is
+ * at a moment the vault is KNOWN to be half-written. A compensation that succeeds leaves the
+ * vault at its pre-state and is deliberately NOT marked with this: neutral is the true answer
+ * for the indicator, and `CompensatedWrite` below is how the LEDGER still hears of it.
  */
 export interface UncompensatedWrite {
 	readonly uncompensatedWrite: true;
@@ -128,4 +180,34 @@ export function markUncompensated<TError extends AppError>(
  */
 export function leftWritesBehind(error: AppError): boolean {
 	return (error as Partial<UncompensatedWrite>).uncompensatedWrite === true;
+}
+
+/**
+ * The other outcome a compensation can have: it SUCCEEDED, and the resource it put back now
+ * carries a version the dispatching history has to learn.
+ *
+ * `UncompensatedWrite` covers the compensation that refused. This covers the one that worked —
+ * which is neutral for the save indicator (the vault is back at its pre-state) and is NOT
+ * neutral for a `WriteLedger`: the compensating write was this history's own, dispatched by
+ * the command it ran, and a ledger that never hears of it refuses the next undo below as a
+ * revision conflict and reads the following gesture's pre-read as a foreign write. Measured:
+ * a refused background pick left every earlier sidecar gesture un-undoable for the leaf's life.
+ * A read-back by the adapter would reopen the peer window `VersionedDispatch` exists to close,
+ * so the command that wrote reports it, on the failure channel, beside the refusal.
+ */
+export interface CompensatedWrite {
+	readonly compensatedVersion: EntityVersion;
+}
+
+/** Stamp a refusal with the version its successful compensation produced. Returns a copy. */
+export function markCompensated<TError extends AppError>(
+	error: TError,
+	version: EntityVersion,
+): TError & CompensatedWrite {
+	return { ...error, compensatedVersion: version };
+}
+
+/** The version a refusal's compensation produced, or `null` when it compensated nothing. */
+export function compensatedVersionOf(error: AppError): EntityVersion | null {
+	return (error as Partial<CompensatedWrite>).compensatedVersion ?? null;
 }

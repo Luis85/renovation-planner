@@ -99,6 +99,16 @@ function allPointsFinite(document: PlanGeometryDocument): boolean {
  * restored snapshot is only valid against the exact bytes it was computed from. A ledger
  * would wave precisely that intervening sibling move through.
  *
+ * **That also makes it the one adapter IMMUNE to the sandwich the shared ledger's generation
+ * counter exists for, and this was measured rather than reasoned.** A private field is
+ * per-GESTURE: this gesture conditions its restore on the version IT wrote, and a peer write
+ * plus a later gesture's own writes on top all leave the sidecar somewhere that version is
+ * not, so the store refuses. The shared ledger is precisely the thing that would carry a
+ * later gesture's progress back to this one. `reversibleCalibratePlan.test.ts`'s last block
+ * drives the five-step sandwich and pins the refusal, so moving this adapter onto the shared
+ * ledger — the obvious tidy-up, since its four siblings are on one — fails at an assertion
+ * instead of quietly reintroducing a lost update.
+ *
  * The cascade travels both directions: `execute` publishes `PlanCalibrated` plus one
  * `ZoneGeometryChanged` per rescaled object, and `undo` re-publishes those geometry
  * events for what it un-rescaled — restoring coordinates without re-driving slice 10's

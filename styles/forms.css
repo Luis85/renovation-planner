@@ -40,6 +40,19 @@
 }
 
 /*
+ * NOT a banner, and drawn so that it cannot be mistaken for one. `.rp-form-banner` above is a
+ * FAILURE — error colour, error border — and this line appears in the same region, at the same
+ * moment, saying the opposite thing: the write that mattered succeeded. A user who has just
+ * been shown a red box needs the sentence beside it to read as an explanation rather than as a
+ * second fault, so it takes the muted body colour and no chrome at all.
+ */
+.rp-new-asset__created {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
  * THE LIST'S HEADER IS A ROW, and it took a capture to find out it was not one.
  *
  * `ProjectList.vue` shipped `.rp-project-list__header`, `__title`, `__create` and `__name`
@@ -81,9 +94,27 @@
  * `outline-offset` is POSITIVE here and negative on the row: the row is edge-to-edge in the
  * pane, so an outside ring would be clipped, while this button is inset and has room.
  */
-.rp-project-list__header .rp-project-list__create:focus-visible {
+.rp-project-list__header .rp-project-list__create:focus-visible,
+.rp-project-list__header .rp-project-list__create-asset:focus-visible,
+.rp-view-aside .rp-view-aside__create-asset:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
+}
+
+/*
+ * The catalogue affordance that sits BESIDE the empty state, for the reason `ViewRoot`'s own
+ * comment gives: an Asset needs no project, so a fresh vault must be able to build one.
+ *
+ * Centred under the empty state and muted, because it is genuinely secondary — the empty
+ * state's own action is the sentence's verb and this is a second path out of the same screen.
+ * It is not `.rp-empty-state__action`'s twin and must not read as one.
+ */
+.rp-view-aside {
+	margin: 0;
+	padding-block-start: var(--size-4-2);
+	text-align: center;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
 }
 
 .rp-project-list {

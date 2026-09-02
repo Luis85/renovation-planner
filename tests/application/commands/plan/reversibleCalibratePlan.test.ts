@@ -295,3 +295,51 @@ describe('ReversibleCalibratePlanCommand', () => {
 		expect(error.code).toBe('plan.nothing-to-undo');
 	});
 });
+
+/**
+ * The SANDWICH, asked of the one adapter that keeps its own `lastWritten` field rather than
+ * sharing the history's `WriteLedger` — a foreign write between two of this history's own
+ * gestures, whose damage on every ledger-backed adapter is that the second gesture's undo
+ * advances the ledger's tip and the FIRST gesture's undo then matches it and writes a
+ * pre-peer snapshot back.
+ *
+ * **Measured rather than assumed, because the shape of the field is not the shape of the
+ * exposure.** A private field is per-GESTURE, so gesture one conditions its restore on the
+ * version IT wrote and nothing else: a peer write, plus everything the second gesture and its
+ * own undo then wrote on top, all leave the sidecar somewhere that version is not, and the
+ * store refuses. The `WriteLedger` is the thing that would have carried the second gesture's
+ * progress back to the first, and this adapter deliberately does not have one — for the
+ * OPPOSITE reason, stated in its own header: design slice 7's DoD refuses an undo when
+ * anything at all touched the sidecar in between, including a legitimate sibling.
+ *
+ * So this case pins an IMMUNITY rather than a repair. It is here so that a later change
+ * moving this adapter onto the shared ledger — the obvious tidy-up, since its four siblings
+ * are on one — fails at an assertion rather than reintroducing a P1 quietly.
+ */
+describe('a foreign write sandwiched between two calibration gestures', () => {
+	it('refuses the first gesture undo, because a private lastWritten is not a shared tip', async () => {
+		const w = await wired([zoneEntry('zone-1' as never, 10)]);
+		const gestureOne = w.command;
+		expectOk(await gestureOne.execute({ planId: w.planId, pointA: PICKED_A, pointB: PICKED_B, knownDistance: KNOWN_MM }));
+		const afterOne = expectOk(await w.sidecar.read(w.planId));
+
+		// A peer leaf, or a synced change: outside this history entirely.
+		expectOk(
+			await w.sidecar.write(
+				w.planId,
+				{ ...afterOne.document, objects: [zoneEntry('zone-1' as never, 999)] },
+				afterOne.version,
+			),
+		);
+
+		const gestureTwo = new ReversibleCalibratePlanCommand(w.plans, w.sidecar, w.events);
+		expectOk(await gestureTwo.execute({ planId: w.planId, pointA: PICKED_A, pointB: PICKED_B, knownDistance: KNOWN_MM }));
+		expectOk(await gestureTwo.undo());
+
+		const error = expectErr(await gestureOne.undo());
+		expect(error.code).toBe('plan-geometry.revision-conflict');
+		// The peer's object survives, which is the consequence the refusal buys rather than a
+		// restatement of it.
+		expect(expectOk(await w.sidecar.read(w.planId)).document.objects[0]?.points[0]?.x).toBeCloseTo(999);
+	});
+});

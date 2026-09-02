@@ -2,7 +2,7 @@
 type: Epic
 order: 25
 status: Active
-started: 2026-09-01
+started: 2026-08-30
 finished: ""
 horizon: MVP
 start: ""

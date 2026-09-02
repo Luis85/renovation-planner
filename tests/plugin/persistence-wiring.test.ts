@@ -325,7 +325,7 @@ describe('persistence composition', () => {
 
 	/**
 	 * `composeRepositories(deps, vault, settings.projectFolder)` is the seam that actually
-	 * reads the setting (`src/plugin/composition-root.ts`); `perProjectFolders.test.ts`'s
+	 * reads the setting (`src/plugin/repositoryComposition.ts`); `perProjectFolders.test.ts`'s
 	 * "takes the configured root" only exercises `createRepositoryStack`, which builds a
 	 * `ObsidianProjectRepository` directly and never passes through the composition root at
 	 * all. Driven through the REAL plugin so a future composition-root edit that stopped

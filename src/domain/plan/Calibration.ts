@@ -52,7 +52,12 @@ export function validateCalibration(
 	if (!Number.isFinite(calibration.knownDistance) || calibration.knownDistance <= 0) {
 		return err(planError('non-positive-distance', 'The known distance must be positive.'));
 	}
-	if (!(distance(calibration.pointA, calibration.pointB) > 0)) {
+	// FINITE as well as positive, matching the `knownDistance` guard two lines above. `> 0`
+	// alone admits `Infinity`, which endpoints at ±1e308 produce by overflowing their own
+	// subtraction — a separation that is neither derivable nor rescalable, exposed as a usable
+	// calibration. NaN is refused by the same expression, since every NaN comparison is false.
+	const separation = distance(calibration.pointA, calibration.pointB);
+	if (!(separation > 0) || !Number.isFinite(separation)) {
 		return err({
 			category: 'Calculation',
 			code: 'plan.degenerate-points',

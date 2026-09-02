@@ -52,6 +52,19 @@
 	color: var(--text-muted);
 }
 
+/*
+ * A descriptor's `warning` — a sentence about the values a form is asking for, not a refusal.
+ * `--text-warning` rather than `--text-muted`, which is what tells it from `.rp-dialog-message`
+ * beside it: the message says what the dialog is about, and this says something is not right
+ * about the data behind it. The same variable `.rp-designer-unscaled` uses on the inspector,
+ * because it is the same claim reaching the user on a second surface.
+ */
+.rp-dialog-warning {
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+}
+
 .rp-dialog-references,
 .rp-dialog-candidates {
 	margin: 0;

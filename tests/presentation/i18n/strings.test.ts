@@ -104,6 +104,21 @@ describe('the German locale', () => {
 
 		expect(offenders, 'Vault is Obsidian’s own name and is not translated').toEqual([]);
 	});
+
+	it('addresses the user formally throughout: no du-form imperative anywhere in de.ts', () => {
+		// The locale used the formal Sie in every sentence until one increment added six
+		// du-form imperatives beside fourteen Sie-form ones. A register is a fact about the whole
+		// file, so the check is over every value rather than over the six that were found.
+		const informal = /\b(Gib|Wähle|Setze|Lege|Zeichne|Tippe|Klicke|Ziehe)\b/;
+		const offenders = Object.entries(de)
+			.filter(([, german]) => informal.test(german))
+			.map(([key]) => key);
+		expect(offenders).toEqual([]);
+	});
+
+	it('calls a footprint an Umriss everywhere, including the toolbar', () => {
+		expect(de['designer.toolbar.trace-footprint']).toBe('Umriss nachzeichnen');
+	});
 });
 
 /** Every `{name}`-shaped hole in a template, sorted so two lists compare by content alone. */

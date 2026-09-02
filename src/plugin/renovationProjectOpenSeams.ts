@@ -3,7 +3,9 @@ import type { Logger } from '../application/ports/Logger';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import { openProjectNote, type ProjectNoteOpenOutcome } from '../infrastructure/obsidian/workspace/openNote';
 import { revealPlanEditor } from '../infrastructure/obsidian/workspace/revealPlanEditor';
+import { revealAssetDesigner } from '../infrastructure/obsidian/workspace/revealAssetDesigner';
 import { PLAN_EDITOR_VIEW } from '../presentation/views/PlanEditorView';
+import { ASSET_DESIGNER_VIEW } from '../presentation/designer/AssetDesignerView';
 import { notifyFault } from '../presentation/notices/notify';
 
 /**
@@ -24,6 +26,27 @@ export function renovationProjectOpenPlan(workspace: Workspace, logger: Logger):
 			},
 			PLAN_EDITOR_VIEW,
 			planId,
+		);
+}
+
+/**
+ * `RenovationProjectDeps.openAsset`, bound to the real `revealAssetDesigner` — the same
+ * line-budget extraction as `renovationProjectOpenPlan` above, and the same door Task B9's
+ * `open-asset-designer` picker opens through: a just-created asset and a picked one both land
+ * in exactly one leaf, because both callers share this one binding rather than each deciding
+ * activation for itself.
+ */
+export function renovationProjectOpenAsset(workspace: Workspace, logger: Logger): (assetId: string) => Promise<void> {
+	return (assetId) =>
+		revealAssetDesigner(
+			{
+				workspace,
+				reportFault: (cause: unknown): void => {
+					notifyFault(cause, logger, 'view.asset-designer.reveal-failed');
+				},
+			},
+			ASSET_DESIGNER_VIEW,
+			assetId,
 		);
 }
 

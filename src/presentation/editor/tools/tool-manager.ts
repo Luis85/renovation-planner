@@ -176,9 +176,12 @@ export class ToolManager {
 	 * left the element or the tool was switched out from under it. A no-op when nothing is in
 	 * flight, and that guard is the entire difference from `cancelGesture` above.
 	 *
-	 * `PlanCanvas`'s `onBlur` is its one caller, and it had no cleanup at all for two slices:
-	 * an Alt+Tab mid-drag delivers no `pointerup` — the user releases the button in another
-	 * application — so the gesture outlived the hand. `gestureInFlight` then refused every
+	 * TWO callers, both in `EditorSurface.vue`: `onBlur` and `onPointerCancel`. This sentence
+	 * said "`PlanCanvas`'s `onBlur` is its one caller" through the round that gave it a second
+	 * one and through the extraction that moved both, which is the caller-list defect twice
+	 * over. `onBlur` had no cleanup at all for two slices: an Alt+Tab mid-drag delivers no
+	 * `pointerup` — the user releases the button in another application — so the gesture
+	 * outlived the hand. `gestureInFlight` then refused every
 	 * wheel and both fit shortcuts through `cameraIsLocked()` for the rest of the session, and
 	 * `SelectTool` kept a translated preview whose delta the user's next click anywhere
 	 * committed.

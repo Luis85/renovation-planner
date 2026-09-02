@@ -8,6 +8,7 @@ import { runDetached } from '../runDetached';
 import { CURRENCIES, DEFAULT_SETTINGS, UNITS, type RenovationPlannerSettings } from './settings';
 import {
 	catalogueNotesIn,
+	libraryGeometryIn,
 	libraryDestinations,
 	migrateLibraryFolder,
 	projectFolderPaths,
@@ -321,6 +322,12 @@ export class SettingsTab extends PluginSettingTab {
 			// see `catalogueNotesIn`. Asking the folder alone swept a project filed under the
 			// library into the destination.
 			catalogueNotes: (from) => catalogueNotesIn(this.host.root.persistence, vault.getFiles(), from),
+			// The same `getFiles()` list and the same INDEX, asked a different question — a
+			// catalogue note is found by its own entry's path, a sidecar by its basename being
+			// a catalogue id. See `libraryGeometryIn` for why the id and not the `asset-`
+			// prefix, which is a fact about how ids are minted and not about which are valid.
+			geometrySidecars: (from) =>
+				libraryGeometryIn(this.host.root.persistence, vault.getFiles(), from),
 			ensureFolder: (path) => ensureFolder(vault, path),
 			renameFile: (file, to) => renameNote(fileManager, file, to),
 			rebuildIndex: () => {

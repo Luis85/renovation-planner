@@ -4,7 +4,6 @@ import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import { createInspector } from './inspector-wiring';
-import type { Logger } from '../../application/ports/Logger';
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
 import type { ZoneId } from '../../domain/zone/ZoneId';
@@ -19,19 +18,21 @@ import type { ToolId } from './tools/editor-tool';
 import { ReversibleMoveZoneCommand } from './tools/reversible-move-zone-command';
 import { RenderState } from './tools/render-state';
 import { ToolManager } from './tools/tool-manager';
+import { createToolSwitch } from './tools/tool-switch';
 import { CalibrateTool } from './tools/calibrate-tool';
 import { DrawPolygonTool } from './tools/draw-polygon-tool';
 import { SelectTool } from './tools/select-tool';
 import { withEditorStateRefresh } from './tools/with-editor-state-refresh';
+import { wrapDispatcher } from './tools/wrap-dispatcher';
 import { useSaveStateStore } from './save-state/save-state-store';
 import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
-import KnownDistanceForm from './shell/KnownDistanceForm.vue';
-import { SnapService } from './snapping/snap-service';
-import { STAGE_PIXELS, screenToWorld, worldPerScreenPixel, worldToScreen } from './viewport/Viewport';
+import { knownDistanceSupplier } from './shell/knownDistance';
+import { EDITOR_SNAP_SERVICE } from './snapping/editorSnapping';
+import { editorViewportAdapter } from './viewport/editorViewportAdapter';
 import { tr } from '../i18n/strings';
 import { notifyFault, notifyOperationFailure } from '../notices/notify';
-import { reportDispatchFailure } from './report-failure';
+import { mapDispatchFaults, notifyIfRefused, reportDispatchFailure, reportDispatchFault } from './report-failure';
 import type { PlanEditorContext } from './PlanEditorContext';
 import { deleteZoneWithReferences, type DeleteZoneFlowDeps } from './deleteZoneFlow';
 import { makeCommitField } from './commitField';
@@ -48,29 +49,11 @@ import { makeCommitField } from './commitField';
  */
 
 /**
- * The snap service's configuration, and a plain statement of what it currently buys:
- * **nothing yet.** `SnapService.snapPoint` ranks the candidate vertices and edges it is
- * handed and never consults the grid, and both tools in this slice pass an EMPTY candidate
- * set — so `snapPoint` is provably the identity function today and these two numbers reach
- * no arithmetic. The service is wired at the seam it will be used from, which is worth
- * having; the grid it is configured with is not reachable until a caller supplies
- * candidates (the neighbouring zones' vertices and edges, plus `snapToGrid`, which has no
- * caller in `src/` at all).
- *
- * Said here because three comments in the tools used to describe grid snapping as
- * something that happens. The manual case had it right all along —
- * `docs/tests/cases/Zone Editing Walkthrough.md`: "SnapService is wired but this slice
- * hands it no candidate geometry, so nothing visibly snaps yet."
+ * The log event name this leaf's click-bound dispatches fault under. Named here rather than
+ * spelled at the two call sites, because a log line saying which DOOR faulted is only useful
+ * while the two doors agree on what to call themselves.
  */
-const SNAP_GRID_MM = 100;
-const SNAP_TOLERANCE_MM = 8;
-
-/** Stateless (config-only), so one instance serves every leaf. */
-const SNAP_SERVICE = new SnapService({
-	gridSpacingMm: SNAP_GRID_MM,
-	toleranceMm: SNAP_TOLERANCE_MM,
-	angleStepRadians: Math.PI / 12,
-});
+const DISPATCH_FAULT_EVENT = 'editor.dispatch.faulted';
 
 export interface EditorRuntime {
 	/** The decorated history every dispatch in this leaf funnels through. */
@@ -108,14 +91,26 @@ export interface EditorRuntime {
 }
 
 
+/**
+ * What the concrete tools of this leaf are built from.
+ *
+ * A bundle rather than a sixth positional parameter: adding `planId` took the argument list
+ * past `max-params`, and five positional arguments of which three are stores was already at
+ * that budget for a reason. `planId` is passed rather than re-derived from `context.planId`,
+ * so the one cast that turns Obsidian's opaque per-leaf string into a branded id stays a
+ * single site — see `subject` below, which is built from the same value.
+ */
+interface EditorToolDeps {
+	readonly context: PlanEditorContext;
+	readonly planId: PlanId;
+	readonly projectStore: ReturnType<typeof useProjectStore>;
+	readonly ledger: SessionWriteLedger;
+	readonly dialogs: ReturnType<typeof useDialogStore>;
+}
+
 /** The concrete tools of this slice, registered against one shared context factory. */
-function registerEditorTools(
-	toolManager: ToolManager,
-	context: PlanEditorContext,
-	projectStore: ReturnType<typeof useProjectStore>,
-	ledger: SessionWriteLedger,
-	dialogs: ReturnType<typeof useDialogStore>,
-): void {
+function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
+	const { context, planId, projectStore, ledger, dialogs } = deps;
 	toolManager.register(
 		new SelectTool({
 			spatialObjects: () =>
@@ -131,15 +126,38 @@ function registerEditorTools(
 	);
 	toolManager.register(
 		new DrawPolygonTool({
-			createCommand: (input) =>
-				new ReversibleCreateZoneCommand(
-					context.commands.createZone,
-					context.commands.deleteZone,
-					context.commands.zones,
-					ledger,
-					input,
-				),
-			nextZoneName: () => `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
+			id: 'draw-polygon',
+			// What a closed polygon MEANS in the Plan Editor: a new Zone on this plan. The tool
+			// itself names none of it — see `PolygonCompletion`, which the designer supplies a
+			// footprint version of. The zone's default name is counted from what the editor has
+			// hydrated, until a creation form asks instead.
+			completion: {
+				commandFor: (geometry) => {
+					const command = new ReversibleCreateZoneCommand(
+						context.commands.createZone,
+						context.commands.deleteZone,
+						context.commands.zones,
+						ledger,
+						{
+							planId,
+							name: `${tr('editor.zone.default-name')} ${projectStore.zones.size + 1}`,
+							zoneType: 'Room',
+							geometry,
+						},
+					);
+					// An adapter rather than the command itself: `createdZoneId` is the
+					// application layer's own word for this and is named by its tests and by
+					// design slice 8's document, so the translation into the tool's
+					// subject-agnostic `createdId` happens here, where the Zone is already known.
+					return {
+						execute: () => command.execute(),
+						undo: () => command.undo(),
+						get createdId() {
+							return command.createdZoneId;
+						},
+					};
+				},
+			},
 			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
 		}),
@@ -149,7 +167,7 @@ function registerEditorTools(
 			// The two dialogs this gesture may open, in the order it opens them. Both go
 			// through the leaf's OWN store, so a calibration in one split pane cannot trap
 			// the other — `DialogHost` is per view for exactly that reason.
-			hasSpatialObjects: () => projectStore.zones.size > 0,
+			hasGeometryToRescale: () => projectStore.zones.size > 0,
 			confirmRecalibration: async () =>
 				(await dialogs.openDialog({
 					kind: 'confirm',
@@ -157,127 +175,23 @@ function registerEditorTools(
 					message: tr('editor.calibrate.recalibrate.message'),
 					danger: true,
 				})) === 'confirm',
-			supplyKnownDistance: async (measured) => {
-				const result = await dialogs.openDialog({
-					kind: 'form',
-					title: tr('editor.calibrate.distance.title'),
-					component: KnownDistanceForm,
-					props: { measured },
-				});
-				// `null` is this seam's word for "dismissed", and the tool refuses a
-				// non-number anyway — but narrowing HERE keeps the `unknown` the form
-				// container deliberately carries from reaching the command's input.
-				if (result === 'cancel' || typeof result.values !== 'number') return null;
-				return result.values;
+			supplyKnownDistance: knownDistanceSupplier(dialogs),
+			// The PLAN is bound here, in the one place this leaf's branded id already lives.
+			// `CalibrateTool` serves two subjects since design slice B6 and can produce neither
+			// brand — `EditorContext.subject.id` is a bare `EntityId<string>` for exactly that
+			// reason — so it hands back the measurement and the caller that knows which plan
+			// this is builds the input.
+			createCommand: (measurement) => {
+				const command = context.commands.calibratePlan();
+				return {
+					execute: () => command.execute({ planId, ...measurement }),
+					undo: () => command.undo(),
+				};
 			},
-			createCommand: () => context.commands.calibratePlan(),
 			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
 		}),
 	);
-}
-
-/**
- * The last stop for an UNEXPECTED technical fault on a dispatch (SDD §65 reserves throws
- * for those; every expected failure is a `Result`). Resolves `null` when one happened, so
- * a caller can tell "the dispatch reported a refusal" from "the dispatch never got to
- * report anything".
- *
- * It exists because every dispatch in this leaf is ultimately bound to a click handler —
- * `@click="runtime.undo()"`, the Inspector's delete — and a Vue click handler discards the
- * promise it is handed. Without this, a fault surfaced as a console unhandled rejection
- * and the UI simply stopped responding to that button, which is the one failure mode worse
- * than an error message.
- */
-async function reportFault(logger: Logger, operation: Promise<DispatchResult>): Promise<DispatchResult | null> {
-	try {
-		return await operation;
-	} catch (cause) {
-		// A technical fault escaping a dispatch. There is no `AppError` to translate here —
-		// it never reached a guard, or it came from one of the raw repository PORTS this
-		// interface still hands out — so `notifyFault` maps it into the same coded
-		// `PersistenceError` a guarded service would have produced, LOGS the raw cause under
-		// this door's event name, and prints the mapped copy. The exception's own message
-		// never reaches the user, and the developer half is not lost with it: no guard ran
-		// below this, so this is the only step in THIS path where both representations can be
-		// produced together (SDD §66). This is one of TWO such doors in this file; the other is
-		// `createDeleteZoneAction`'s catch, and both go through the same function so neither
-		// can drift into printing the raw text or into notifying without logging.
-		notifyFault(cause, logger, 'editor.dispatch.faulted');
-		return null;
-	}
-}
-
-/**
- * `reportFault`'s other half: an EXPECTED refusal that RESOLVES rather than throws
- * (SDD §65). `CommandHistory.undoNow`/`redoNow` deliberately leave a refused undo/redo ON
- * its stack rather than popping it, so without this the button stays enabled, does
- * nothing, and says nothing about why. A caller chains `notifyIfRefused(reportFault(op))`
- * to cover both halves — throw and resolved refusal — in one line.
- *
- * **Design slice 17 narrowed it, and the narrowing is the point.** Every dispatch reaching
- * here has already passed through `withSaveStateTracking`, which asks `affectsSaveState` and
- * flips the save indicator for anything that wrote or might have. Toasting it as well reported
- * ONE failure through TWO widgets that can drift apart — the toast dismisses and the indicator
- * does not, or the reverse — which is the reconciliation slice 11's own illustrative code left
- * open and this slice's Definition of Done forbids by name.
- *
- * So the origin is `autosave-write`, the table answers `save-state`, and this door stays shut
- * for it. The `saveState` sink is deliberately a NO-OP: the indicator is driven by the
- * DECORATOR one layer down, off the same `Result`, so there is nothing left for this site to
- * do — the policy's whole job here is to decide that no toast is owed. If indicator-flipping
- * ever moves out of `withSaveStateTracking`, this is the line that has to grow a body.
- *
- * A refusal the indicator does NOT report still reaches the user: `surfaceError` sends
- * anything the table routes elsewhere to `unrenderable`, which raises the notice.
- */
-async function notifyIfRefused(operation: Promise<DispatchResult | null>): Promise<void> {
-	const result = await operation;
-	if (result === null || result.ok) return;
-	reportDispatchFailure(result.error);
-}
-
-/**
- * The ONE dispatcher a leaf hands out — tools, toolbar and Inspector alike — wrapped so the
- * history-flag mirror hears about a tool gesture as well as a toolbar one. A dispatch that
- * bypasses this object silently breaks the reactive undo/redo flags and nothing errors.
- *
- * Two plain refs re-read from the history rather than an invalidation counter that two
- * computeds subscribed to with a `void revision.value` statement: that spelling put a line
- * with no visible effect above each `return`, and any tidy-up of it froze the Undo/Redo
- * buttons in whatever state they had at mount with nothing erroring.
- *
- * `finally`, not the resolved path: an unexpected technical fault can still leave the stacks
- * moved (SDD §65), and flags that stop tracking after one throw are wrong for the rest of
- * the leaf's life.
- */
-function wrapDispatcher(
-	history: CommandHistory,
-	dispatcher: ReturnType<typeof withEditorStateRefresh>,
-): {
-	readonly dispatcher: EditorRuntime['dispatcher'];
-	readonly canUndo: Ref<boolean>;
-	readonly canRedo: Ref<boolean>;
-} {
-	const canUndo = ref(history.canUndo);
-	const canRedo = ref(history.canRedo);
-	async function stepping(operation: () => Promise<DispatchResult>): Promise<DispatchResult> {
-		try {
-			return await operation();
-		} finally {
-			canUndo.value = history.canUndo;
-			canRedo.value = history.canRedo;
-		}
-	}
-	return {
-		dispatcher: {
-			run: (command) => stepping(() => dispatcher.run(command)),
-			undo: () => stepping(() => dispatcher.undo()),
-			redo: () => stepping(() => dispatcher.redo()),
-		},
-		canUndo,
-		canRedo,
-	};
 }
 
 /**
@@ -444,44 +358,47 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 
 	const { dispatcher: wrappedDispatcher, canUndo, canRedo } = wrapDispatcher(history, tracked);
 
+	// The SAME object every tool dispatches through, with its `run` mapped so it cannot reject:
+	// a tool launches its dispatch detached, so a rejection here reached nobody at all. Required
+	// by `EditorContextDeps.commandDispatcher`'s type rather than remembered — see
+	// `mapDispatchFaults`. `undo`/`redo` below deliberately take the plain object instead, since
+	// `reportDispatchFault` is their own door and notifies at it.
+	const toolDispatcher = mapDispatchFaults(wrappedDispatcher, context.commands.logger, DISPATCH_FAULT_EVENT);
+
 	const inspector = createInspector(context, wrappedDispatcher, ledger);
 	inspectorRef.current = inspector;
 
-	// The viewport adapter closes over the live camera ref — the same binding
-	// `editor-context.ts` describes for the composition root's side of this seam.
-	const viewportAdapter: EditorContext['viewport'] = {
-		worldToScreen: (point) => worldToScreen(point, editor.viewport, STAGE_PIXELS),
-		screenToWorld: (point) => screenToWorld(point, editor.viewport, STAGE_PIXELS),
-		worldPerScreenPixel: () => worldPerScreenPixel(editor.viewport, STAGE_PIXELS),
-		// Camera mutation is UNIMPLEMENTED, not merely unused: `EditorContext` declares
-		// these two as the path a `PanTool` moves the camera through, and no such tool
-		// exists (slice 5's camera is the canvas's own, outside the tool framework). The
-		// primitives are all in `EditorStore` — `beginPan`/`continuePan`/`endPan`/`zoomAt`
-		// — so the tool that needs them binds them here in one edit; until then a caller
-		// would get silence, which is why this says so rather than looking finished.
-		setPan: () => undefined,
-		setZoom: () => undefined,
-	};
+	// The camera as a tool sees it — `viewport/editorViewportAdapter.ts`, shared with the asset
+	// designer's runtime rather than spelled twice. It closes over this leaf's live camera ref.
+	const viewportAdapter = editorViewportAdapter(editor);
 
 	// A `reactive()` proxy over slice 6's plain class: the tools write through the same
 	// fields their tests set, and the InteractionLayer reads them reactively.
 	const renderState = reactive(new RenderState());
 
 	/**
-	 * The plan a tool is working on, re-read on every activation.
+	 * The one unavoidable cast in this file. Obsidian persists a plan id in its per-leaf view
+	 * state as an opaque string, so `PlanEditorContext.planId` is a `string` and nothing at
+	 * runtime can verify a phantom brand. Narrowing it here — at the single point that value
+	 * enters the tool framework — is what keeps every tool's own signature honestly branded.
+	 * (`as never` was the previous spelling and is strictly worse: `never` is assignable to
+	 * anything, so a project id would have passed too.)
+	 *
+	 * ONE site, read by both consumers: `subject` below widens it back to the
+	 * `EntityId<string>` every tool sees, and `CalibrateTool` takes it branded through its own
+	 * deps because `CalibratePlanInput` needs a `PlanId` and a brand cannot be narrowed back.
+	 * A second cast would be a second answer to which plan this leaf is showing.
+	 */
+	const planId = context.planId as PlanId;
+
+	/**
+	 * What the tools are working on, re-read on every activation.
 	 *
 	 * `calibration` comes from the hydrated `PlanDto` and is `null` only while the plan
 	 * genuinely is uncalibrated. It used to be a hard-coded `null` beside a comment calling
 	 * it a placeholder, which is a different thing from what `EditorContext` declares to
 	 * every tool: the first tool to believe it would have reported lengths at the
 	 * uncalibrated scale of 1 on a calibrated plan.
-	 *
-	 * The id carries the one unavoidable cast in this file. Obsidian persists a plan id in
-	 * its per-leaf view state as an opaque string, so `PlanEditorContext.planId` is a
-	 * `string` and nothing at runtime can verify a phantom brand. Narrowing it here — at the
-	 * single point that value enters the tool framework — is what keeps every tool's own
-	 * signature honestly branded. (`as never` was the previous spelling and is strictly
-	 * worse: `never` is assignable to anything, so a project id would have passed too.)
 	 *
 	 * **This was collapsed onto one line for the `max-lines` budget and no longer needs to be.**
 	 * The file sat at EXACTLY its 400-line cap (`max-lines`, `skipBlankLines` and
@@ -493,28 +410,28 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	 * extraction. So the literal is back in its natural shape, which is the point of taking
 	 * the extraction rather than shaving another line.
 	 */
-	const activePlan = (): EditorContext['activePlan'] => ({
-		id: context.planId as PlanId,
+	const subject = (): EditorContext['subject'] => ({
+		id: planId,
 		calibration: projectStore.plan?.calibration ?? null,
 	});
 
 	// A FRESH context per activation, assembled through the same one assembler — which is
 	// the guarantee `ToolManager`'s header states its factory exists for, and which a
 	// single object built once and handed back forever could not give. Everything but
-	// `activePlan` is stable by construction (the viewport adapter and the render state
+	// `subject` is stable by construction (the viewport adapter and the render state
 	// close over live refs), so re-assembling it is cheap.
 	const toolManager = new ToolManager(() =>
 		createEditorContext({
 			bindViewport: () => viewportAdapter,
 			selection,
-			snapService: SNAP_SERVICE,
-			commandDispatcher: wrappedDispatcher,
+			snapService: EDITOR_SNAP_SERVICE,
+			commandDispatcher: toolDispatcher,
 			writeLedger: ledger,
 			renderState,
-			activePlan: activePlan(),
+			subject: subject(),
 		}),
 	);
-	registerEditorTools(toolManager, context, projectStore, ledger, dialogs);
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs });
 
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
 	// than in a second `ref` beside it. There were three copies of the active tool id — the
@@ -524,14 +441,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	// what a Vue consumer reads.
 	const { activeToolId } = storeToRefs(editor);
 
-	const setTool = (id: ToolId | null): void => {
-		if (id === null) {
-			toolManager.clearActiveTool();
-		} else {
-			toolManager.setActiveTool(id);
-		}
-		activeToolId.value = id;
-	};
+	const setTool = createToolSwitch(toolManager, activeToolId);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
 	// refusal — bound straight to toolbar clicks. `ReversibleCalibratePlanCommand.undo()`
@@ -539,10 +449,10 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	// sidecar since (every zone create, move and delete does), and this is what makes THAT
 	// refusal say something rather than nothing.
 	async function undo(): Promise<void> {
-		await notifyIfRefused(reportFault(context.commands.logger, wrappedDispatcher.undo()));
+		await notifyIfRefused(reportDispatchFault(context.commands.logger, DISPATCH_FAULT_EVENT, wrappedDispatcher.undo()));
 	}
 	async function redo(): Promise<void> {
-		await notifyIfRefused(reportFault(context.commands.logger, wrappedDispatcher.redo()));
+		await notifyIfRefused(reportDispatchFault(context.commands.logger, DISPATCH_FAULT_EVENT, wrappedDispatcher.redo()));
 	}
 
 	// `commitField.ts` carries the guard's own doc; this is just the one line that binds it

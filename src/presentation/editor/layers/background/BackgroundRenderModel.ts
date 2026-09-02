@@ -1,10 +1,32 @@
 import { normalizePath, TFile, type Vault } from 'obsidian';
 import type { Point } from '../../../../core/geometry/Point';
-import type { PlanBackgroundRef } from '../../../../domain/plan/PlanBackgroundRef';
 import { renderPdfPage } from './pdfRaster';
 
 /**
- * The Plan's background document, decoded and ready for `<v-image>` (SDD §18, §54–55).
+ * What this pipeline needs of a background REFERENCE, and nothing about whose background it
+ * is — the same slice-of-the-real-thing argument `BackgroundVault` below already makes about
+ * Obsidian's `Vault`, applied to the two entities that own one.
+ *
+ * Structural rather than an import of either, because `PlanBackgroundRef` and
+ * `AssetBackgroundRef` are deliberately separate types (each says so in its own docblock: a
+ * plan and an asset happen to share a background vocabulary today and must not be coupled
+ * through an import the day they diverge). This type is what they have in common AS SEEN FROM
+ * HERE, so a divergence in either shows up as an assignability failure at the mount rather
+ * than as a silent widening.
+ *
+ * `page` admits `undefined` AND `null` because the two spell the same absence in the two
+ * refs — `PlanBackgroundRef.page?: number`, `AssetBackgroundRef.page: number | null` — and
+ * `loadPdf`'s `?? 1` already reads both.
+ */
+export interface BackgroundDocumentRef {
+	readonly path: string;
+	readonly kind: 'image' | 'pdf';
+	readonly page?: number | null;
+}
+
+/**
+ * A background document — a Plan's, or since the asset designer an Asset's — decoded and
+ * ready for `<v-image>` (SDD §18, §54–55).
  *
  * Both source formats converge on one Konva primitive: `<v-image>` needs an already
  * decoded raster (`HTMLImageElement | HTMLCanvasElement`), never a URL, so the LOADING
@@ -18,7 +40,7 @@ import { renderPdfPage } from './pdfRaster';
  *
  * The `unavailable` arm is a deviation from design slice 5's sketch, which had `none |
  * raster` only, and it is the better shape for the same reason the query services keep
- * `ok(null)` apart from `isErr`: a plan whose background file was deleted or is corrupt
+ * `ok(null)` apart from `isErr`: a subject whose background file was deleted or is corrupt
  * has to draw something honest, and a component consuming ONE union renders all three
  * states without a second error channel beside it.
  */
@@ -44,19 +66,41 @@ export type BackgroundRenderModel =
 export type BackgroundVault = Pick<Vault, 'getAbstractFileByPath' | 'getResourcePath' | 'readBinary'>;
 
 /**
- * The placeholder scale, until Increment 5 (slice 7) calibrates.
+ * The placeholder scale a raster is decoded at: one source pixel is one world millimetre.
  *
- * Increment 4 precedes Increment 5 in the SDD's own roadmap, so a Plan can — and per the
- * increment's success criterion MUST — render a background before it has been calibrated.
- * A raster has no physical size of its own, so one source pixel is declared to be one
- * world millimetre and nothing pretends otherwise.
+ * A raster has no physical size of its own, so nothing pretends otherwise until a calibration
+ * says so — and the calibration does NOT become a parameter of `worldToScreen`, because §24
+ * fixes that transform's components as translation, zoom, rotation and device pixel ratio.
+ * What a calibration changes is the size the raster is DRAWN at: `drawnWorldScale` below,
+ * which the layer asks with the subject's own `pixelsPerWorldUnit`.
  *
- * When slice 7 lands, what changes is the VALUE of `worldScale` and nothing else in this
- * pipeline: calibration does not become a parameter of `worldToScreen`, because §24 fixes
- * that transform's components as translation, zoom, rotation and device pixel ratio, and
- * calibration is none of them.
+ * **This value was drawn unmodified for eight slices after slice 7 landed.** Slice 7's own
+ * design gave `pixelsPerWorldUnit` two jobs and named this one first — "how many world
+ * millimetres one source pixel of this Plan's background covers … after, it is this value's
+ * reciprocal" — and nothing in `presentation/` ever read it. The plan's zones were multiplied
+ * by `scaleCorrection` and the image was not, so a zone drawn after calibrating had its area
+ * wrong by the scale squared. The asset designer inherited it, and there it broke the
+ * increment's central workflow: a footprint traced on an uncalibrated sheet was rescaled off
+ * the sheet, and a clearance traced afterwards was recorded as millimetres while being sheet
+ * pixels, because `captureAwaitsScale` correctly reads a calibrated surface as millimetres.
+ * Found by an adversarial review reading the model against slice 7's document.
  */
 export const PLACEHOLDER_WORLD_SCALE = 1;
+
+/**
+ * World millimetres per source pixel as DRAWN: the raster's own decoded scale, corrected by
+ * the subject's calibration. `pixelsPerWorldUnit` is `1` for an uncalibrated subject, which
+ * is why the uncalibrated case is the identity and why callers pass `?? 1` rather than a
+ * nullable.
+ *
+ * Division rather than a second stored field, because `deriveCalibration` already defines
+ * `pixelsPerWorldUnit` as the placeholder divided by every `scaleCorrection` so far, and a
+ * calibration multiplies every world coordinate by that same correction — so this is the one
+ * expression that keeps a traced outline over the pixels it was traced on.
+ */
+export function drawnWorldScale(rasterWorldScale: number, pixelsPerWorldUnit: number): number {
+	return rasterWorldScale / pixelsPerWorldUnit;
+}
 
 /** Where a background's top-left corner sits until calibration says otherwise. */
 const WORLD_ORIGIN: Point = { x: 0, y: 0 };
@@ -100,7 +144,7 @@ async function loadImage(file: TFile, vault: BackgroundVault): Promise<Backgroun
 }
 
 async function loadPdf(
-	ref: PlanBackgroundRef,
+	ref: BackgroundDocumentRef,
 	file: TFile,
 	vault: BackgroundVault,
 ): Promise<BackgroundRenderModel> {
@@ -119,7 +163,7 @@ async function loadPdf(
 }
 
 export async function loadBackground(
-	ref: PlanBackgroundRef | null,
+	ref: BackgroundDocumentRef | null,
 	vault: BackgroundVault,
 ): Promise<BackgroundRenderModel> {
 	if (ref === null) {

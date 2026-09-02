@@ -49,6 +49,8 @@ import { createPinia, setActivePinia } from 'pinia';
 import { ok } from '../../../../src/core/result/Result';
 import { createPlanId } from '../../../../src/domain/plan/PlanId';
 import { SessionWriteLedger } from '../../../../src/application/editor/WriteLedger';
+import { mapDispatchFaults } from '../../../../src/presentation/editor/report-failure';
+import { recorder } from '../../../helpers/logger';
 import { SnapService } from '../../../../src/presentation/editor/snapping/snap-service';
 import { RenderState } from '../../../../src/presentation/editor/tools/render-state';
 import { screenPoint, type Point, type ScreenPoint } from '../../../../src/presentation/editor/viewport/Viewport';
@@ -111,12 +113,17 @@ function stubDeps(): EditorContextDeps {
 		bindViewport: stubViewport,
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
-		commandDispatcher: {
-			run: (_command: UndoableCommand): Promise<DispatchResult> => Promise.resolve(ok('wrote')),
-		},
+		// Through the real mapper, because `EditorContextDeps.commandDispatcher` requires the
+		// brand only `mapDispatchFaults` can apply — which is the point of the brand: a
+		// composition cannot hand a tool a dispatcher whose `run` may still reject.
+		commandDispatcher: mapDispatchFaults(
+			{ run: (_command: UndoableCommand): Promise<DispatchResult> => Promise.resolve(ok('wrote')) },
+			recorder,
+			'test.dispatch.faulted',
+		),
 		writeLedger: new SessionWriteLedger(),
 		renderState: new RenderState(),
-		activePlan: { id: createPlanId(), calibration: null },
+		subject: { id: createPlanId(), calibration: null },
 	};
 }
 
@@ -127,7 +134,7 @@ const SPEC_MEMBERS = [
 	'commandDispatcher',
 	'writeLedger',
 	'renderState',
-	'activePlan',
+	'subject',
 ].toSorted();
 
 /** Property names shaped like a repository or Vault-API method — the surface DoD 11 bans. */
@@ -221,7 +228,7 @@ describe('EditorContext', () => {
 		expect(context.commandDispatcher).toBe(deps.commandDispatcher);
 		expect(context.writeLedger).toBe(deps.writeLedger);
 		expect(context.renderState).toBe(deps.renderState);
-		expect(context.activePlan).toBe(deps.activePlan);
+		expect(context.subject).toBe(deps.subject);
 	});
 
 	it('DoD 11: has exactly the seven spec members, nothing more and nothing fewer', () => {

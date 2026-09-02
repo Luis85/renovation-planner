@@ -1,0 +1,311 @@
+/*
+ * The asset designer's shell (design slice B3, ADR-0015) — the same ordinary DOM around a
+ * canvas that `editor.css` describes, for the surface that draws ONE asset instead of one plan.
+ *
+ * Obsidian variables only, no colour literal anywhere: `scripts/styles-assemble.mjs` fails the
+ * build on one (SDD §84), so a themed vault stays themed.
+ *
+ * **The height chain is the load-bearing part**, and it is the part this repository has already
+ * broken once: every ancestor from the leaf down to the canvas needs `min-height: 0`, or a flex
+ * child refuses to shrink below its content and the canvas collapses to a sliver of its pane.
+ * jsdom lays nothing out and cannot see it; `npm run harness-shot` is the only instrument, and
+ * there is nothing to photograph until Task B4 draws something inside the canvas region.
+ *
+ * Three regions here are EMPTY on purpose and each says which task fills it. They are declared
+ * now so that a task adding a component adds a component, rather than also inventing where it
+ * goes — and so that the layout under it is one decision rather than three.
+ */
+
+.renovation-asset-designer-view,
+.renovation-asset-designer {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+	color: var(--text-normal);
+}
+
+/*
+ * Only the VUE ROOT is the positioned ancestor, exactly as `.renovation-plan-editor` is and for
+ * the same reason: `DialogHost` mounts as a direct child of this element, so
+ * `styles/dialogs.css`'s `.rp-dialog-overlay` resolves its `position: absolute` against THIS.
+ * The outer host div sits one level further out and would never be the overlay's nearest
+ * positioned ancestor once this one has a position, so giving it `relative` too would assert a
+ * claim nothing needs.
+ */
+.renovation-asset-designer {
+	position: relative;
+}
+
+/*
+ * The toolbar REGION. It carried a fixed height while it was empty so that filling it later
+ * would not resize every region below it; design slice B5 filled it, and `min-height` stays
+ * because it is what keeps the bar no SHORTER than one row whether or not a control happens to
+ * be disabled. It is a FLOOR rather than a fixed height for the reason immediately below: at a
+ * sidebar leaf's width the bar is two rows, not one, and a fixed height would clip the second.
+ */
+.rp-designer-toolbar {
+	display: flex;
+	align-items: center;
+	min-height: var(--size-4-8);
+	padding: 0 var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * `DesignerToolbar`'s own root, filling the region it is mounted into.
+ *
+ * `flex-wrap: wrap`, measured rather than assumed necessary: this toolbar carries SEVEN tool
+ * buttons plus Undo/Redo (`registerDesignerTools.ts` registers six designer tools beside camera
+ * mode, one more than the Plan Editor's four), and at 460px — an Obsidian SIDEBAR leaf's real
+ * width, per `npm run harness-shot`'s own `--width` convention — a single `nowrap` row silently
+ * truncated "Set anchor" to "Set f" and pushed Calibrate off the pane entirely, reachable by
+ * neither pointer nor keyboard and with nothing on screen saying so. The Plan Editor's own
+ * six-button toolbar has no such rule and does not need one at this width — it simply has fewer,
+ * shorter-labelled buttons that already fit — so there was no existing pattern here to copy
+ * rather than invent; `flex-wrap: wrap` is this repository's own vocabulary for a row that must
+ * reflow instead of overflow (`styles/editor-requirements.css`, `styles/dialogs.css`,
+ * `styles/work-packages.css` all reach for it already), chosen over a horizontal scroll this
+ * stylesheet uses nowhere. `.rp-designer-toolbar`'s `min-height` above is what lets the region
+ * grow to a second row rather than clipping it.
+ */
+.rp-designer-tools {
+	display: flex;
+	flex: 1;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+}
+
+/*
+ * QUALIFIED WITH `.rp-designer-tools`, and every rule below it for the same reason — the
+ * defect `styles/editor.css` records at length for the plan editor's toolbar and
+ * `styles/dialogs.css` for the destructive dialog button. Obsidian's own
+ * `button:not(.clickable-icon)` sets `background-color`, `color` AND `box-shadow` at
+ * specificity (0,1,1), because `:not()` contributes its argument's specificity, and that
+ * outranks a bare class at (0,1,0) with source order never even consulted. Unqualified, the
+ * active tool would render identically to the inactive ones while `aria-pressed` told a screen
+ * reader otherwise — the inverse of the usual failure, and invisible to every gate here.
+ *
+ * `box-shadow: none` is part of that rather than tidying: Obsidian's rule also sets
+ * `var(--input-shadow)`, so without it these buttons carry the raised chrome of a standalone
+ * button while asking for a transparent background.
+ */
+.rp-designer-tools .rp-designer-tool-button {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid transparent;
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+/*
+ * THE FOCUS RING, restored explicitly, and the accent rather than Obsidian's own for the reason
+ * measured in `styles/editor.css` and `styles/forms.css`: the rule above sets
+ * `box-shadow: none`, which outranks Obsidian's `button:focus-visible`, and Obsidian's global
+ * `:focus { outline: none }` had already taken the outline — so flattening these buttons would
+ * remove the LAST indicator a keyboard user has. Obsidian's own ring measures 2.29:1 in dark
+ * and 1.88:1 in light against `--background-primary`, both under the 3:1 WCAG 2.2 (1.4.11) asks
+ * of a non-text indicator, where `--interactive-accent` measures 4.00:1 and 3.43:1. Host
+ * deference stops where it would mean adopting a failure.
+ *
+ * This increment has already shipped one button that forgot it, which is why the rule is
+ * written in the same commit as the buttons rather than after somebody looks.
+ */
+.rp-designer-tools .rp-designer-tool-button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-designer-tools .rp-designer-tool-button:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-designer-tools .rp-designer-tool-button:disabled {
+	color: var(--text-faint);
+	cursor: default;
+}
+
+/*
+ * THE ACTIVE TOOL WEARS THE ACCENT AS AN OUTLINE, NOT AS A FILL, for `styles/editor.css`'s
+ * measured reason: a filled accent button cannot carry a readable label here at all, since
+ * `--text-on-accent` is white and `--interactive-accent` measures 4.26:1 in dark and 3.43:1 in
+ * light against it — both under the 4.5:1 AA floor for text this size, with no lighter
+ * foreground than white to reach for.
+ *
+ * FOUR channels, so the accent is reinforcement rather than the carrier: the tint, the accent
+ * border, the weight, and `aria-pressed` in `DesignerToolbar.vue` for a reader who sees none of
+ * them.
+ */
+.rp-designer-tools .rp-designer-tool-active,
+.rp-designer-tools .rp-designer-tool-active:hover {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-active-hover);
+	border-color: var(--interactive-accent);
+	font-weight: var(--bold-weight);
+}
+
+.rp-designer-toolbar-spacer {
+	flex: 1;
+}
+
+.rp-designer-body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+}
+
+/*
+ * `position: relative` is what makes the empty state an OVERLAY rather than a block above the
+ * canvas: `styles/empty-state.css`'s `.rp-empty-state--overlay` is absolutely positioned, and
+ * it needs this region — not the shell — as its containing block, or it would cover the toolbar
+ * and the inspector too.
+ */
+.rp-designer-canvas {
+	position: relative;
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	min-width: 0;
+}
+
+/*
+ * Task B8's region. A width rather than a flex basis, and a border on the leading edge, so the
+ * canvas keeps every pixel the inspector does not claim — the shape `editor.css` gives the plan
+ * editor's own panels. Narrower than the Plan Editor's 17rem: this panel holds one field and a
+ * two-line dimensions block rather than a Requirements list.
+ */
+.rp-designer-inspector {
+	flex: 0 0 auto;
+	width: 14rem;
+	min-height: 0;
+	overflow-y: auto;
+	padding: var(--size-4-2);
+	background-color: var(--background-secondary);
+	border-left: 1px solid var(--background-modifier-border);
+}
+
+.rp-designer-panel-title {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+	color: var(--text-muted);
+	/* Obsidian's own h2 rules would otherwise give a panel heading document proportions. */
+	line-height: var(--line-height-tight);
+}
+
+.rp-designer-inspector-fields {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-4-1) var(--size-4-2);
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-small);
+}
+
+.rp-designer-inspector-fields dt {
+	color: var(--text-muted);
+}
+
+.rp-designer-inspector-fields dd {
+	margin: 0;
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The unscaled warning. `--text-warning`, not `--text-error`: a traced-but-uncalibrated
+ * footprint is an expected, recoverable state on the way to being designed, never a fault.
+ */
+.rp-designer-unscaled {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+}
+
+/*
+ * Qualified with `.rp-designer-inspector`, for the reason `buttonSpecificity.test.ts` exists at
+ * all: Obsidian's own `button:not(.clickable-icon)` sets `background-color` and `box-shadow` at
+ * (0,1,1), which outranks a bare class at (0,1,0) regardless of source order — the exact defect
+ * `.rp-editor-inspector-delete` shipped once and this file's own toolbar rules already avoid.
+ */
+.rp-designer-inspector .rp-designer-edit-dimensions {
+	width: 100%;
+	margin: 0 0 var(--size-4-4);
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-designer-inspector .rp-designer-edit-dimensions:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* The ring, for the reason `editor.css`'s toolbar `:focus-visible` comment gives at length. */
+.rp-designer-inspector .rp-designer-edit-dimensions:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-designer-field {
+	display: flex;
+	flex-direction: column;
+	gap: var(--size-4-1);
+	font-size: var(--font-ui-small);
+}
+
+/*
+ * The status region: the Shift hint, then the save-state indicator, pushed to the trailing edge
+ * so the indicator sits where it sits on the plan editor's bar. `justify-content` rather than a
+ * spacer element, because there are only ever these two children.
+ */
+.rp-designer-status {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-6);
+	padding: 0 var(--size-4-2);
+	border-top: 1px solid var(--background-modifier-border);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * The loading line, and the same treatment `message-panel.css` gives the plan editor's. Centred
+ * in the canvas region rather than pinned to a corner, because while it is showing there is
+ * nothing else in that region to be beside.
+ */
+.rp-designer-message {
+	margin: auto;
+	color: var(--text-muted);
+}
+
+/*
+ * The stale-data strip: a read that failed while real content is still on screen. Styled as
+ * `.rp-editor-notice` is rather than as a failure panel, because that is what it means — the
+ * design beside it is real and was true a moment ago, so replacing the canvas would hide the
+ * thing the user is being told may be out of date.
+ */
+.rp-designer-notice {
+	margin: 0;
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-warning);
+	background-color: var(--background-secondary);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+/*
+ * The Shift hint. Muted and small: it is a standing note about a modifier rather than a message
+ * about anything that has happened, so it must not read as loudly as the save state beside it.
+ */
+.rp-designer-hint {
+	margin-inline-end: auto;
+	color: var(--text-muted);
+}

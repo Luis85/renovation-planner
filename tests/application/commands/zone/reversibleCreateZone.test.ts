@@ -111,6 +111,41 @@ describe('ReversibleCreateZoneCommand', () => {
 		expect(restored?.entity.geometry.points).toEqual(moved.points);
 	});
 
+	/**
+	 * **The SANDWICH: a foreign write between this creation and its undo, with one of this
+	 * history's own gestures in between.** Undoing a creation DELETES the zone, and the delete
+	 * is conditional on the ledger's tip — which the intervening gesture's own undo has just
+	 * advanced to a version the store really holds. So without the generation the delete
+	 * succeeds and takes the peer's edit with it, silently. `WriteLedger` walks all five steps.
+	 *
+	 * The detector here is the MOVE adapter rather than this one: a freshly minted id has no
+	 * prior ledger entry for a first execute to disagree with, so a creation can observe
+	 * nothing. What protects it is a sibling's observation, which is the whole reason the
+	 * counter lives on the shared ledger rather than on each adapter.
+	 */
+	it('refuses to un-create a zone something outside this history has written', async () => {
+		const { zones, ledger, makeCommand } = await wired();
+		const events = new RecordingEventBus();
+		const move = new MoveSpatialObjectCommand(zones, events);
+		const history = new CommandHistory();
+
+		const creation = makeCommand();
+		expectOk(await history.run(creation));
+		const zoneId = expectId(creation.createdZoneId);
+
+		// A peer leaf, or a synced change, through the plain command.
+		expectOk(await move.execute({ zoneId, geometry: squareAt(50, 50) }));
+
+		const drag = new ReversibleMoveZoneCommand(move, ledger, zoneId, squareAt(60, 60), squareAt(50, 50));
+		expectOk(await history.run(drag));
+		expectOk(await history.undo());
+
+		const error = expectErr(await history.undo());
+		expect(error.code).toBe('undo.superseded');
+		// The zone is still there, which is the consequence the refusal buys.
+		expect(expectOk(await zones.getById(zoneId))?.entity.geometry).toEqual(squareAt(50, 50));
+	});
+
 	it('refuses an undo when nothing has been executed yet', async () => {
 		const { makeCommand } = await wired();
 		const error = expectErr(await makeCommand().undo());
@@ -129,6 +164,12 @@ describe('ReversibleCreateZoneCommand', () => {
 			lastWritten: () => null,
 			record: () => undefined,
 			forget: () => undefined,
+			// A ledger that never answers has never seen anything either, so its generation
+			// stays where a gesture found it and the guard cannot fire. Spelled out rather than
+			// left to a partial object, because the point of this fake is that it answers
+			// NOTHING and a missing member would answer `undefined` instead.
+			generation: () => 0,
+			observe: () => 0,
 		};
 		const command = new ReversibleCreateZoneCommand(
 			new CreateZoneCommand(zones, plans, events),

@@ -26,6 +26,7 @@ installEditorEnvironment();
 let themeListeners = 0;
 let planListeners = 0;
 let catalogueListeners = 0;
+let fileListeners = 0;
 
 function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 	return {
@@ -66,6 +67,15 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 				catalogueListeners -= 1;
 			};
 		},
+		// COUNTED like its three siblings, so this file's subscription-leak cases cover the fourth
+		// door too: a view that stopped releasing it would leak a vault listener per leaf, which is
+		// exactly what those cases exist to refuse.
+		onVaultFileChanged: () => {
+			fileListeners += 1;
+			return () => {
+				fileListeners -= 1;
+			};
+		},
 	};
 }
 
@@ -101,6 +111,7 @@ beforeEach(() => {
 	themeListeners = 0;
 	planListeners = 0;
 	catalogueListeners = 0;
+	fileListeners = 0;
 });
 
 afterEach(async () => {
@@ -225,6 +236,11 @@ describe('mount and unmount', () => {
 		// one that subscribed both to `onPlanChanged` would read 2 and 0 again.
 		expect(planListeners).toBe(1);
 		expect(catalogueListeners).toBe(1);
+		// The FOURTH door, and it is `BackgroundLayer`'s rather than a root-level subscription: the
+		// layer registers it at setup and releases it on unmount, so it is one per mounted canvas.
+		// Counted here for the reason the three above are — a listener a leaf does not release is
+		// one that re-decodes a raster into a detached ref on every file the user ever touches.
+		expect(fileListeners).toBe(1);
 
 		await view.onClose();
 		await settle();
@@ -233,6 +249,7 @@ describe('mount and unmount', () => {
 		expect(themeListeners).toBe(0);
 		expect(planListeners).toBe(0);
 		expect(catalogueListeners).toBe(0);
+		expect(fileListeners).toBe(0);
 		expect(view.contentEl.childElementCount).toBe(0);
 	});
 
@@ -250,6 +267,7 @@ describe('mount and unmount', () => {
 		}
 
 		expect(themeListeners).toBe(0);
+		expect(fileListeners).toBe(0);
 	});
 
 	/**

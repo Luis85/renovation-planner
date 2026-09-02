@@ -13,13 +13,17 @@ import { buildProjectIndexEntries } from '../infrastructure/persistence/index/bu
 import { projectIndexRebuilt } from '../application/events/projectIndex.events';
 import type { VaultChangeAdapter } from '../infrastructure/persistence/index/VaultChangeAdapter';
 import { PLAN_EDITOR_VIEW, PlanEditorView, type PlanEditorDeps } from '../presentation/views/PlanEditorView';
+import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../presentation/designer/AssetDesignerView';
+import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
 import { ProjectSuggestModal } from '../presentation/modals/ProjectSuggestModal';
 import { entriesOfType } from './indexEntries';
 import { registerPlanEditorCommands } from './planEditorCommands';
+import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import { activateNotices, disposeNotices, notifyFault } from '../presentation/notices/notify';
 import {
+	assetDesignerDeps,
 	createCompositionRoot,
 	planEditorDeps,
 	renovationProjectDeps,
@@ -214,6 +218,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// The Plan Editor is per-plan rather than a singleton, so its factory is asked for a
 		// view many times.
 		this.registerView(PLAN_EDITOR_VIEW, (leaf) => new PlanEditorView(leaf, this.planEditorViewDeps()));
+		// ADR-0015's third workspace surface, per ASSET for the same reason the editor is per
+		// plan: comparing two objects means having both open. Task B9 builds the doors into it;
+		// registering the type here is what lets a leaf restored from the workspace layout find
+		// a view at all, which is why the registration does not wait for a command to open it.
+		this.registerView(ASSET_DESIGNER_VIEW, (leaf) => new AssetDesignerView(leaf, this.assetDesignerViewDeps()));
 		// Sidecars are visible, openable files (ADR-011): without the extension
 		// registration they render as unsupported attachments in the explorer.
 		this.registerExtensions(['rpgeo'], GEOMETRY_SIDECAR_VIEW);
@@ -277,6 +286,10 @@ export default class RenovationPlannerPlugin extends Plugin {
 		// "still happen here", and they never did. What this file keeps is the ORDER: every
 		// registration is initiated from this one `onload`, in the sequence SDD §9 states.
 		registerPlanEditorCommands(this);
+
+		// ADR-0015's designer, made reachable (Task B9): a picker over the vault's whole
+		// catalogue, the same shape `registerPlanEditorCommands` gives its own picker.
+		registerAssetDesignerCommands(this);
 
 		// SCAFFOLDING, and its own module says so at length: one command that seeds a
 		// project, a plan and five zones through the real create commands, so slice 5's
@@ -546,6 +559,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 		return planEditorDeps(this.root, this.app.workspace, this.app.vault);
 	}
 
+	/** ONE spelling of the asset designer's bundle, for the factory and the rebind. */
+	private assetDesignerViewDeps(): AssetDesignerDeps {
+		return assetDesignerDeps(this.root, this.app, { indexScanCompleted: () => this.indexScanCompleted });
+	}
+
 	/**
 	 * Points every view already on screen at the root that has just replaced the one it was
 	 * built against.
@@ -559,8 +577,11 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * in review as a P1 against the Renovation Project view, and true of the Plan Editor for
 	 * the same reason and since three slices earlier.
 	 *
-	 * It walks BOTH view types rather than the one that was reported, because "a view built
-	 * against a replaced root" is a category and the second member of it was already there.
+	 * It walks EVERY view type that holds a composition root rather than the one that was
+	 * reported, because "a view built against a replaced root" is a category and the second
+	 * member of it was already there when the first was found. It has been THREE since ADR-0015
+	 * (the sidecar viewer is the one registered view that holds no root and needs no loop) — a
+	 * category, so a fourth is a loop here rather than a decision.
 	 * `instanceof` rather than a view-type string comparison: `getLeavesOfType` is already
 	 * keyed by type, and what this needs to know is that the object has the method — a leaf
 	 * holding some other plugin's view under our type is not a thing to guess about.
@@ -583,6 +604,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 			if (!(leaf.view instanceof PlanEditorView)) continue;
 			const view: PlanEditorView = leaf.view;
 			view.rebind(this.planEditorViewDeps());
+		}
+		for (const leaf of this.app.workspace.getLeavesOfType(ASSET_DESIGNER_VIEW)) {
+			if (!(leaf.view instanceof AssetDesignerView)) continue;
+			// ANNOTATED, for the reason the two loops above give: `fallow` resolves a class member
+			// through an explicit type and never through a property access, so a `rebind` reached
+			// only via `instanceof` is reported as an unused class member.
+			const view: AssetDesignerView = leaf.view;
+			view.rebind(this.assetDesignerViewDeps());
 		}
 	}
 

@@ -561,6 +561,38 @@ Both reported, both verified, both pure additions rather than design changes:
   events at all, so a manual index rebuild left the summary on the pre-repair index. It joins the
   unfiltered list, since a rebuild carries no payload and cannot say which entities changed.
 
+### The source coalesces, because one edit is a burst rather than an event
+
+**Reported, verified, and it multiplies with the read cost recorded above rather than sitting
+beside it.** A single geometry or asset-price change is not one notification.
+`cascadeOne` publishes `requirementInvalidated` for each affected requirement and then calls
+`recalculate`, which publishes its own event and often `CostEstimateChanged` with it — on top of
+the `ZoneGeometryChanged` or `AssetUpdated` that started the cascade. An edit touching **R**
+requirements therefore emits up to **3R + 1** events that this source is subscribed to.
+
+Forwarded straight to `hydrate`, that is 3R+1 full project-summary walks. Each walk already
+costs `zones × all-requirements` reads for the reason recorded above, so the two compound:
+moving one vertex in a room with 8 requirements, in a vault of 500, is 25 walks of 5,500 reads.
+Not a slow surface — an unusable one, and overlapping hydrations racing each other besides.
+
+So `createProjectSummaryChangeSource` **coalesces**: every event in a burst schedules one
+trailing refresh rather than its own. The listener is called once when the burst settles, which
+is the only shape that stays correct as the cascade's event count changes, since a fix counting
+today's three would go stale the next time a command learns to announce something.
+
+**Coalescing is not deduplication and the distinction matters here**: the events differ, and
+collapsing them is legitimate only because the ANSWER is the same — one re-read of one summary,
+whatever moved. That is true of this source and would not be true of a source whose listener
+took the event.
+
+It pairs with a request ticket on the store, which is this repository's existing answer to two
+things hydrating one store: without it the slower earlier read wins and a just-recalculated
+figure reverts. `ProjectStore` and `InspectorStore` both carry one already.
+
+Its test drives a multi-row cascade and counts the READS, not the notifications — a
+notification count passes against a build that coalesces nothing, because the events really were
+delivered.
+
 ### Why not fold this into `projectPlansChangeSource`
 
 Two sections ask two questions. Widening the plans source would make the Design tab re-read its
@@ -641,6 +673,8 @@ mistake, per this repository's rule.
 | Keyboard | after a section change through view state, focus is on the newly selected tab | the mock's local `ref` hides this; only the real round trip unmounts the element |
 | Keyboard | a restored leaf and a `rebind` do NOT move focus | an unconditional focus-on-mount steals it during layout restoration |
 | Invalidation | a manual index rebuild refreshes an already-mounted Overview | `ProjectIndexRebuilt` carries no payload, so nothing per-entry fires |
+| Coalescing | a cascade over 8 requirements causes ONE summary read | forwarding each event directly issues up to 3R+1 walks; asserted on reads, since a notification count passes either way |
+| Coalescing | a slower earlier read cannot overwrite a later one | without the request ticket a just-recalculated figure reverts |
 | Sweep | every adapter matching `UndoableCommand\|Reversible` that writes also publishes | five of eleven publish nothing today; a per-adapter test lets the sixth ship |
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
 | Summary | a requirement whose `projectId` names another project lands in `foreign`, out of the total | with both projects on one currency it is otherwise summed into the wrong project silently |

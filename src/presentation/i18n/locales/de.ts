@@ -27,7 +27,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-overlaps-project': 'Dieser Ordner liegt in einem Projektordner oder enthält einen.',
 	'settings.library-overlaps-source': 'Dieser Ordner überlappt den aktuellen Bibliotheksordner.',
 	'settings.library-source-is-vault-root':
-		'Der Bibliotheksordner ist derzeit der gesamte Vault, es gibt also nichts, woraus er verschoben werden könnte. Setze ihn zuerst in der data.json auf einen echten Ordner.',
+		'Der Bibliotheksordner ist derzeit der gesamte Vault, es gibt also nichts, woraus er verschoben werden könnte. Setzen Sie ihn zuerst in der data.json auf einen echten Ordner.',
 	'settings.library-source-case-mismatch':
 		'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
 	'settings.library-refresh-failed':
@@ -300,9 +300,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	// das treffendere deutsche Wort für eine Baustoff-Kategorie UND es hält die Regel ein,
 	// die `strings.test.ts` als Teilstring über die ganze Datei prüft. Zwei Gründe, ein Wort.
 	'asset.empty-name': 'Ein Objekt braucht einen Namen.',
-	'asset.unknown-category': 'Wähle eine Kategorie aus der Liste.',
+	'asset.unknown-category': 'Wählen Sie eine Kategorie aus der Liste.',
 	'asset.negative-unit-cost': 'Ein Stückpreis kann nicht negativ sein.',
-	'asset.invalid-height': 'Gib eine Höhe als Zahl in Millimetern ein.',
+	'asset.invalid-height': 'Geben Sie eine Höhe als Zahl in Millimetern ein.',
 	'asset.negative-height': 'Eine Höhe kann nicht negativ sein.',
 	'asset.non-positive-dimension': 'Breite und Tiefe müssen jeweils größer als null sein.',
 	'asset.dimension-underflow': 'Diese Maße sind zu klein für ein Rechteck.',
@@ -318,11 +318,11 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Ein eingegebener Umriss ist bereits in Millimetern und wartet daher auf keinen Maßstab.',
 	'asset.absent-clearance-cannot-be-pending': 'Es gibt keinen Freiraum, der auf einen Maßstab warten könnte.',
 	'asset.no-footprint':
-		'Gib diesem Objekt zuerst einen Umriss; Freiraum, Ankerpunkt und Ausrichtung beziehen sich jeweils darauf.',
+		'Geben Sie diesem Objekt zuerst einen Umriss; Freiraum, Ankerpunkt und Ausrichtung beziehen sich jeweils darauf.',
 	'asset.not-found': 'Dieses Objekt existiert nicht mehr.',
 	'asset.dimensions-incomplete': 'Ein Rechteck braucht Breite und Tiefe.',
-	'money.invalid-amount': 'Gib einen Betrag als einfache Dezimalzahl ein, zum Beispiel 45.00.',
-	'money.invalid-currency': 'Gib einen dreibuchstabigen Währungscode in Großbuchstaben ein.',
+	'money.invalid-amount': 'Geben Sie einen Betrag als einfache Dezimalzahl ein, zum Beispiel 45.00.',
+	'money.invalid-currency': 'Geben Sie einen dreibuchstabigen Währungscode in Großbuchstaben ein.',
 	'form.new-asset.title': 'Neues Objekt',
 	'form.new-asset.name': 'Name',
 	'form.new-asset.category': 'Kategorie',
@@ -361,7 +361,7 @@ export const de: Partial<Record<StringKey, string>> = {
 	'view.asset-designer.name': 'Objekt-Designer',
 	'designer.canvas': 'Objekt-Zeichenfläche',
 	'designer.toolbar': 'Objekt-Werkzeuge',
-	'designer.toolbar.trace-footprint': 'Grundfläche nachzeichnen',
+	'designer.toolbar.trace-footprint': 'Umriss nachzeichnen',
 	'designer.toolbar.trace-clearance': 'Freiraum nachzeichnen',
 	'designer.toolbar.set-anchor': 'Ankerpunkt setzen',
 	'designer.toolbar.set-facing': 'Ausrichtung setzen',

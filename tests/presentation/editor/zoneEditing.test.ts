@@ -97,6 +97,13 @@ describe('the wired Plan Editor (design slice 8)', () => {
 			{ x: 5520, y: 1520 },
 		]);
 
+		// The completion the plan editor hands `DrawPolygonTool` — plan id, counted name, Room —
+		// used to be asserted at the tool and is asserted at the CLOSURE now, which is the only
+		// place it exists since the tool stopped hard-wiring `CreateZone`.
+		expect(created.entity.planId).toBe('plan-e2e');
+		expect(created.entity.name).toBe('Zone 2');
+		expect(created.entity.zoneType).toBe('Room');
+
 		// The panel shows the selection the draw left behind (DoD 3's Inspector half):
 		// one fixture zone existed, so the drawn one is named "Zone 2".
 		expect(harness.wrapper.text()).toContain('Zone 2');

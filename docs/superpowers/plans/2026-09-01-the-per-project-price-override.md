@@ -467,22 +467,28 @@ export function winnersBy<K>(
 
 - [ ] **Step 2: Write the shared contract test**
 
-Read `tests/infrastructure/persistence/` first and follow whatever the existing shared
-contract file is called and how it is parameterised — there is one already for the other
-repositories, and this must be its sibling rather than a second convention. Create
-`tests/contracts/asset-price-override-repository.contract.ts`:
+Read `tests/contracts/` first — the five existing contracts are there and this is their sibling,
+not a second convention. Create `tests/contracts/asset-price-override-repository.contract.ts`.
+
+**The import depth is `../../src/`, and it is one level shallower than an earlier draft of this
+block had it.** That draft was written when the file was going to live under
+`tests/infrastructure/persistence/`; moving it up a directory and leaving `../../../src/`
+resolves outside the repository entirely, so the file fails module resolution before a single
+case runs. Every sibling in `tests/contracts/` uses `../../src/`, and `tests/helpers/` is
+`../helpers/` from here. Copy the depth from the file next to it rather than from this block.
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import type { AssetPriceOverrideRepository } from '../../../src/application/ports/AssetPriceOverrideRepository';
-import { AssetPriceOverride } from '../../../src/domain/asset-price/AssetPriceOverride';
-import { createAssetPriceOverrideId } from '../../../src/domain/asset-price/AssetPriceOverrideId';
-import { createProjectId } from '../../../src/domain/project/ProjectId';
-import { createAssetId } from '../../../src/domain/asset/AssetId';
-import { currencyOf, of as moneyOf } from '../../../src/core/money/Money';
-import { expectOk } from '../../helpers/result';
-import type { ProjectId } from '../../../src/domain/project/ProjectId';
-import type { AssetId } from '../../../src/domain/asset/AssetId';
+import type { AssetPriceOverrideRepository } from '../../src/application/ports/AssetPriceOverrideRepository';
+import { AssetPriceOverride } from '../../src/domain/asset-price/AssetPriceOverride';
+import {
+	createAssetPriceOverrideId,
+	type AssetPriceOverrideId,
+} from '../../src/domain/asset-price/AssetPriceOverrideId';
+import { currencyOf, of as moneyOf } from '../../src/core/money/Money';
+import { expectOk } from '../helpers/result';
+import type { ProjectId } from '../../src/domain/project/ProjectId';
+import type { AssetId } from '../../src/domain/asset/AssetId';
 
 const GBP = currencyOf('GBP');
 
@@ -3279,7 +3285,15 @@ Add the field to the fixture FIRST, or the red proves only that the test data is
 
 - [ ] **Step 3: Add the copy to both locales**
 
-`view.inspector.price-library`, `view.inspector.price-project`, `view.inspector.price-in-force`.
+`view.inspector.price-library`, `view.inspector.price-project`, `view.inspector.price-in-force`
+and **`view.inspector.price-derived-from`** — the provenance row's label, which the row draws
+whenever `effective` differs from `projectOverride ?? catalogue`. That fourth key was missing
+until review caught it: the provenance row arrived with the precedence rule two rounds after
+this list was written, and a row that exists with no key of its own leaves an implementer two
+bad choices — reuse `price-in-force`, which says the opposite of what that row means, or write
+a literal, which the step below forbids. Its own component case asserts the label, so the key
+cannot quietly go unused either.
+
 Sentence case; German for an Asset is `Objekt`. No literal reaches the template —
 `I18N_LITERAL_BAN` does not watch a Vue interpolation, so this one rests on review.
 

@@ -305,7 +305,7 @@ describe('the designer canvas, mounted', () => {
 	 * The layers in their order, by NAME — an assertion about the scene rather than about the
 	 * template, so a layer dropped from the canvas fails here even if its module survives.
 	 */
-	it('draws the four layers, beneath-to-above, with the background first', async () => {
+	it('draws the five layers, beneath-to-above, with the background first and the gesture last', async () => {
 		const designer = await mountDesigner(assetDesign());
 
 		expect(designer.stage?.getLayers().map((layer) => layer.name())).toEqual([
@@ -313,6 +313,7 @@ describe('the designer canvas, mounted', () => {
 			'asset-footprint',
 			'asset-clearance',
 			'asset-anchor',
+			'asset-gesture',
 		]);
 		designer.unmount();
 	});
@@ -323,14 +324,24 @@ describe('the designer canvas, mounted', () => {
 	 * against world points, exactly as `SelectTool` does.
 	 *
 	 * Asked of the STAGE rather than of the config objects, because that is the end that can
-	 * answer it: `designerLayerConfig` builds one shape for all four layers, so a build that
-	 * dropped the flag drops it everywhere at once and a check on a single config would still
-	 * only be reading back what the same expression put there.
+	 * answer it: `designerLayerConfig` builds one shape for all four world-space layers, so a
+	 * build that dropped the flag drops it everywhere at once and a check on a single config
+	 * would still only be reading back what the same expression put there. The FIFTH entry —
+	 * the gesture layer — does not pass through that function at all: it declares its own
+	 * `listening: false` in `DesignerGestureLayer.vue`'s template, so it is the one member of
+	 * this list a shared expression cannot vouch for and the reason the list is read from the
+	 * stage rather than counted.
 	 */
 	it('leaves every layer inert, because nothing on this canvas is hit-tested', async () => {
 		const designer = await mountDesigner(assetDesign({ shape: WITH_CLEARANCE }));
 
-		expect(designer.stage?.getLayers().map((layer) => layer.listening())).toEqual([false, false, false, false]);
+		expect(designer.stage?.getLayers().map((layer) => layer.listening())).toEqual([
+			false,
+			false,
+			false,
+			false,
+			false,
+		]);
 		designer.unmount();
 	});
 

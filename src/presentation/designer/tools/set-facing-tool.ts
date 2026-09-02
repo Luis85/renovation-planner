@@ -63,12 +63,12 @@ const DIRECTION_EPSILON_PX = 4;
  *
  * **The preview is written to `RenderState.measurement`**, the field `CalibrateTool` uses for
  * its tape measure: a facing drag is a direction indicated between two points and not a shape
- * being drawn, so `polygonSketch` would say the wrong thing about it. **Nothing draws that
- * field on this canvas yet** — the asset designer has no interaction layer (design slice B4
- * shipped four world-space layers and no transient one), so this gesture is currently
- * invisible while it is being made and its result appears only once the facing arrow is
- * redrawn from the committed design. That is a gap in the increment rather than in this tool,
- * and it is written here because this is the file whose behaviour it makes invisible.
+ * being drawn, so `polygonSketch` would say the wrong thing about it. **`DesignerGestureLayer`
+ * draws that field**, as a tape measure in screen space, through the same `gestureGeometry.ts`
+ * the plan editor's interaction layer uses — so the direction is visible while the drag is
+ * being made rather than only once the facing arrow is redrawn from the committed design. It
+ * was invisible for a whole increment, which is recorded here because this is the file whose
+ * behaviour that gap made invisible.
  *
  * **No generation counter, and its absence is a decision** — the same one `SetAnchorTool`'s
  * docblock states, reached here by DELETING one. This tool carried a counter whose docblock said

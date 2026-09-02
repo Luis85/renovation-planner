@@ -33,7 +33,12 @@ import type { NodeTransform } from '../../editor/viewport/Viewport';
  * export as unused, and un-exporting it trips `@typescript-eslint/no-unused-vars`'s "assigned
  * a value but only used as a type", which is precisely the true statement about it.
  */
-export type DesignerLayerName = 'asset-background' | 'asset-footprint' | 'asset-clearance' | 'asset-anchor';
+export type DesignerLayerName =
+	| 'asset-background'
+	| 'asset-footprint'
+	| 'asset-clearance'
+	| 'asset-anchor'
+	| 'asset-gesture';
 
 /**
  * The background layer's name, as a CONSTANT because its node is built by a shared component
@@ -43,6 +48,14 @@ export type DesignerLayerName = 'asset-background' | 'asset-footprint' | 'asset-
  * other string it hands to a shared component.
  */
 export const BACKGROUND_LAYER: DesignerLayerName = 'asset-background';
+
+/**
+ * The gesture layer's name — the one SCREEN-space layer, drawn last, above every world-space
+ * one, because a rubber band and a close target are sized in pixels and must not scale with
+ * the camera. A constant for `BACKGROUND_LAYER`'s reason: its node is built by a component
+ * whose `name` is not checked against this union anywhere else.
+ */
+export const GESTURE_LAYER: DesignerLayerName = 'asset-gesture';
 
 /** What a designer layer node's `config` holds: its name, its inertness and the camera. */
 export interface DesignerLayerConfig extends NodeTransform {

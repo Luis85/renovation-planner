@@ -207,13 +207,14 @@ describe('SetFacingTool', () => {
 
 	/**
 	 * **The preview is written while the drag runs and cleared when it ends**, which is the
-	 * field a designer interaction layer will read. It is `measurement` and not
+	 * field `DesignerGestureLayer` reads. It is `measurement` and not
 	 * `polygonSketch` — a direction indicated between two points is not a shape being drawn,
 	 * and `polygonSketch` renders as a dashed closing outline with a vertex circle per point.
 	 *
-	 * Nothing draws either field on the designer's canvas today (see
-	 * `registerDesignerTools.ts`), so this is the only instrument there is for it — which is
-	 * exactly why it is asserted here rather than left to an eye.
+	 * Nothing drew either field on the designer's canvas for a whole increment, which is why
+	 * this was the only instrument there was for it. `designerGesture.test.ts` reads the layer
+	 * now; this case still holds the FIELD, which is the half a scene assertion cannot see —
+	 * that the preview is cleared on release rather than merely drawn.
 	 */
 	it('previews the drag as a measurement while it runs, and clears it on release', async () => {
 		const rig = facingRig();

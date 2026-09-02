@@ -1,7 +1,9 @@
 <script setup lang="ts">
 /**
- * The asset designer's Konva stage: the four layers of `layers/`, drawn through the same
- * gesture surface the plan editor uses (design slice B4, ADR-0015).
+ * The asset designer's Konva stage: the five layers of `layers/` — four world-space and the
+ * gesture layer above them — drawn through the same gesture surface the plan editor uses
+ * (design slice B4, ADR-0015). It was four until the review fixes gave the designer a
+ * transient layer; counted from `DesignerLayerName` rather than remembered.
  *
  * **`EditorSurface` is shared, not copied.** Task B1 lifted every pointer, wheel and key door
  * out of `PlanCanvas.vue` for exactly this mount — some thirty documented findings about
@@ -15,11 +17,11 @@
  * mounted in the shell's own region and not this component's child — can reach. Camera mode is
  * still what "no active tool" means, and it is still what pans and zooms here.
  *
- * **Nothing on this canvas draws a gesture IN PROGRESS.** The four layers below are
- * world-space and read the committed design; the tools publish their rubber bands to
- * `RenderState`, which no layer here reads, so a footprint being traced appears only when it
- * closes. `tools/registerDesignerTools.ts` carries the whole account — it is a gap in the
- * increment (no task builds a designer interaction layer) rather than one in this file.
+ * **The gesture in progress is drawn by `DesignerGestureLayer`, last and in screen space.**
+ * For a whole increment it was not — no task built a designer interaction layer, and a user
+ * traced against a close target drawn nowhere — which the docblocks of this file,
+ * `registerDesignerTools.ts` and `AssetDesignerRoot.vue` recorded as a gap and nothing
+ * scheduled. The arithmetic is `editor/layers/gestureGeometry.ts`, shared with the plan editor.
  *
  * **The palette is resolved ONCE, at setup, and that is a stated limitation rather than a
  * convention.** A canvas cannot read a CSS variable — `fill: var(--text-normal)` means nothing
@@ -51,6 +53,7 @@ import { BACKGROUND_LAYER, designerLayerConfig } from './layers/backgroundLayer'
 import { footprintOutline } from './layers/footprintLayer';
 import { clearanceOutline } from './layers/clearanceLayer';
 import { anchorMark, facingArrow } from './layers/anchorLayer';
+import DesignerGestureLayer from './layers/DesignerGestureLayer.vue';
 
 /**
  * What a screen reader calls this surface. `EditorSurface` requires it rather than defaulting
@@ -83,7 +86,7 @@ const tokens = ref(resolveThemeTokens(document.documentElement));
 // The LEAF's manager, so the toolbar in the shell above and the gestures on this canvas drive
 // one object. A manager built here would be a second one nothing outside this component could
 // reach — the shape Task B4 shipped while there were no tools to reach.
-const { toolManager } = useDesignerRuntime();
+const { toolManager, renderState } = useDesignerRuntime();
 
 const transform = computed(() => viewportTransform(viewport.value));
 
@@ -181,6 +184,14 @@ function framedBounds(all: boolean): BoundingBox | null {
 						:config="{ ...facing.head, name: 'asset-facing-head' }"
 					/>
 				</VLayer>
+				<!--
+					Screen space and LAST: the gesture in progress sits over every committed
+					picture, sized in pixels. `layers.test.ts` asserts this order by name.
+				-->
+				<DesignerGestureLayer
+					:render-state="renderState"
+					:tokens="tokens"
+				/>
 			</VStage>
 		</template>
 		<template #overlay>

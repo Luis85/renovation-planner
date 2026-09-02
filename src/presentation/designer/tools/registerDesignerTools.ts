@@ -31,14 +31,9 @@ import { SetFacingTool } from './set-facing-tool';
  *   active. `ToolManager.setActiveTool` throws for an id nothing registered, which is what
  *   makes that a real check rather than a count of buttons.
  *
- * **What no gate here can show: the gesture while it is being made.** Design slice B4 gave the
- * designer four world-space layers and no transient one, so `RenderState.polygonSketch` and
- * `RenderState.measurement` — which these tools publish exactly as their Plan Editor
- * counterparts do — are drawn by nothing on this canvas. A traced footprint appears when it is
- * committed and the facing arrow when it is written; the rubber band in between is invisible.
- * That is an increment-level gap (no task in this plan builds a designer interaction layer)
- * rather than a defect in a tool, and it is written here because this is the file that decides
- * these tools exist at all.
+ * **What these tools publish to `RenderState` is drawn by `DesignerGestureLayer`** — the sketch
+ * and the tape both — through the same `gestureGeometry.ts` the plan editor's interaction layer
+ * uses. It was not for a whole increment, and the close target a trace has to hit was invisible.
  */
 
 /**

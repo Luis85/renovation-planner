@@ -353,6 +353,12 @@ export function click(rig: DesignerRig, world: Point, options: { shiftKey?: bool
 	pointer(rig.canvasEl, 'pointerup', at.x, at.y, options);
 }
 
+/** A hover: a move with NO button held, which is the input a rubber band follows. */
+export function move(rig: DesignerRig, world: Point): void {
+	const at = rig.at(world);
+	pointer(rig.canvasEl, 'pointermove', at.x, at.y, { buttons: 0 });
+}
+
 /**
  * A real DRAG: down, at least one move, up — with `buttons` carrying the held bit on the moves
  * and nothing on the release, which is what the spec says a device sends.

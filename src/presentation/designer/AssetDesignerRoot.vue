@@ -109,10 +109,8 @@ const backgroundStatus = ref<BackgroundStatus>('none');
  * nothing to notice it, which is this repository's own recurring shape.
  *
  * It is worse on this surface than on a plan, which is why it is not merely a consistency fix:
- * design slice B4 gave the designer four world-space layers and no transient one, so a gesture
- * in progress draws no vertices and no close target at all (`registerDesignerTools.ts` records
- * that gap). An opaque centred card therefore sat over the ONLY picture the user could have had
- * of what they were doing.
+ * the designer's gesture layer draws the vertices and the close target now, and an opaque
+ * centred card over them would hide exactly the picture a user mid-gesture is steering by.
  *
  * **Both entries carry an `@action` handler now.** Task B7 gave `noBackground` its picker;
  * Task B8 gives `noShape` its dimensions dialog — see `onEmptyStateAction` and `editDimensions`

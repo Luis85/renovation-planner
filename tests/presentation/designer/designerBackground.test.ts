@@ -229,6 +229,7 @@ describe('an asset with a spec sheet', () => {
 			'asset-footprint',
 			'asset-clearance',
 			'asset-anchor',
+			'asset-gesture',
 		]);
 	});
 

@@ -397,6 +397,20 @@ export const en = {
 	'asset.no-footprint':
 		'Give this asset a footprint first; a clearance, an anchor and a facing are each relative to one.',
 	'asset.not-found': 'That asset no longer exists.',
+	// The one background refusal a USER can reach, on either surface: both pickers snapshot the
+	// vault's candidates and the user picks out of that snapshot, so a file deleted or renamed in
+	// between arrives at the command as a well-formed path naming nothing. Without these two the
+	// `Reference` category sentence answered — "That entry no longer exists." — which names the
+	// asset or the plan rather than the FILE, and neither of those has gone anywhere. The two
+	// sentences differ in the noun they send the user back to, which is the only thing they can
+	// usefully say: `toUserMessage` takes no params, so neither can name the path.
+	//
+	// The two SIBLING codes each command also mints stay absent, and the reason is reachability
+	// rather than oversight: `asset.unsupported-background` and `asset.invalid-background-page`
+	// need a picker that returns an unsupported kind or a page below one, and both pickers narrow
+	// those before they answer.
+	'asset.background-not-found': 'That file is no longer in the vault. Choose another spec sheet.',
+	'plan.background-not-found': 'That file is no longer in the vault. Choose another plan document.',
 	// The one code the FORM mints rather than routes: a rectangle needs both halves, and
 	// nothing downstream refuses one given without the other because nothing downstream is
 	// asked. `NewAssetForm.dimensionsIncomplete` is the raise site.

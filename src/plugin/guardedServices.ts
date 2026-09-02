@@ -480,9 +480,15 @@ function designDoors(name: string): { readonly execute: string; readonly execute
  * five shape commands take, and the other three — the height, Task B6's calibration and
  * Task B7's background — are built from its members: re-spelling it here would be a second
  * statement of what a design command needs.
+ *
+ * `files` sits BESIDE that bundle rather than inside it, for the reason
+ * `SetAssetBackgroundCommand`'s own constructor states: it is the only one of the eight that
+ * has a raw file to ask about, and the seven that write geometry or a height would then
+ * declare a dependency they never reach.
  */
 export function guardAssetDesign(
 	deps: AssetShapeDeps,
+	files: VaultFileProbe,
 	logger: Logger,
 	map: VaultExceptionMapper,
 ): GuardedAssetDesignServices {
@@ -505,7 +511,7 @@ export function guardAssetDesign(
 	);
 	const calibrate = guardBothDoors(new CalibrateAssetCommand(deps), designDoors('calibrateAsset'), logger, map);
 	const setBackground = guardBothDoors(
-		new SetAssetBackgroundCommand(deps),
+		new SetAssetBackgroundCommand(deps, files),
 		designDoors('setAssetBackground'),
 		logger,
 		map,

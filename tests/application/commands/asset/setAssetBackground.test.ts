@@ -12,6 +12,7 @@ import { SetAssetBackgroundCommand } from '../../../../src/application/commands/
 import { leftWritesBehind } from '../../../../src/application/commands/DispatchOutcome';
 import type { AssetGeometrySidecar } from '../../../../src/application/ports/AssetGeometrySidecar';
 import type { AssetRepository } from '../../../../src/application/ports/AssetRepository';
+import type { VaultFileProbe } from '../../../../src/application/ports/VaultFileProbe';
 import { createEventBus } from '../../../../src/core/events/EventBus';
 import { err, isErr, isOk } from '../../../../src/core/result/Result';
 import { createAssetId } from '../../../../src/domain/asset/AssetId';
@@ -50,6 +51,11 @@ function shapeWith(overrides: Partial<AssetShape> = {}): AssetShape {
 	};
 }
 
+/** Every path in `present` exists; everything else does not — `setPlanBackground.test.ts`'s own probe. */
+function probe(present: readonly string[]): VaultFileProbe {
+	return { fileExists: (path) => present.includes(path) };
+}
+
 /**
  * The command is constructed HERE, once, for the reason this epic has already paid for: a
  * command built beside a case is a command a mutation run silently leaves un-mutated.
@@ -58,7 +64,7 @@ function shapeWith(overrides: Partial<AssetShape> = {}): AssetShape {
  * losing the real vault behind every other call — `sidecarWriteFails` and `noteWriteFails` are
  * armed per case and never retroactively affect a write already made.
  */
-async function seeded() {
+async function seeded(present: readonly string[] = ['Specs/oven.pdf', 'Specs/other.png']) {
 	const stack = createRepositoryStack();
 	const events = createEventBus();
 	const real = new ObsidianAssetGeometrySidecar(stack.assetGeometry);
@@ -105,7 +111,7 @@ async function seeded() {
 		sidecar: real,
 		/** What a peer leaf would have heard — the only thing that makes one re-read. */
 		designChanges,
-		setBackground: new SetAssetBackgroundCommand({ sidecar, assets, events }),
+		setBackground: new SetAssetBackgroundCommand({ sidecar, assets, events }, probe(present)),
 		async seedShape(shape: AssetShape | null): Promise<void> {
 			expectOk(await real.write(assetId, { calibration: null, shape }));
 		},
@@ -412,5 +418,59 @@ describe('SetAssetBackground', () => {
 		const reloaded = expectOk(await stack.assets.getById(assetId));
 
 		expect(reloaded?.entity.background).toBeNull();
+	});
+
+	/**
+	 * The picker snapshots the vault's candidates and the user picks from that snapshot, so a
+	 * file deleted or renamed in between reaches this command as a path naming nothing. Without
+	 * the probe the command validated only the EXTENSION, cleared the calibration, saved a
+	 * reference to a file that is not there, and reported `wrote` — the designer then drew no
+	 * sheet and had lost the scale it had, for a gesture that could not have worked.
+	 *
+	 * Asserted on BOTH resources, because the extension check alone already refuses the wrong
+	 * shape of path: what is new here is a path whose extension is perfectly good.
+	 */
+	it('refuses a reference to a path with no vault file at it, touching neither resource', async () => {
+		const { setBackground, assetId, seedCalibration, sidecar, readFrontmatter, designChanges } = await seeded();
+		await seedCalibration();
+		const before = readFrontmatter();
+
+		const result = await setBackground.execute({ assetId, path: 'Specs/missing.png', kind: 'image', page: null });
+
+		expect(expectErr(result)).toMatchObject({ category: 'Reference', code: 'asset.background-not-found' });
+		expect(readFrontmatter()).toEqual(before);
+		const stored = await sidecar.read(assetId);
+		expect(isOk(stored) && stored.value.document.calibration).toEqual(CALIBRATION);
+		expect(designChanges).toHaveLength(0);
+	});
+
+	/**
+	 * The contrast case the refusal above says nothing about: a path the probe DOES answer for
+	 * still writes. A guard that refused everything passes the case above and fails this one.
+	 */
+	it('accepts a path the probe answers for', async () => {
+		const { setBackground, assetId } = await seeded(['Specs/other.png']);
+
+		expect(expectOk(await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null })))
+			.toBe('wrote');
+	});
+
+	/**
+	 * The ordering consequence, pinned as behaviour rather than left to be rediscovered: the
+	 * probe is asked BEFORE the asset is read, so a re-submit of the reference the asset already
+	 * carries refuses once that file has gone rather than reporting `no-write`. That is the right
+	 * answer — the user is asking to point at a file that is not there, and the note is pointing
+	 * at one already — and it is the half a guard placed below the `sameBackground` return would
+	 * get wrong while passing every case above.
+	 */
+	it('refuses a re-submit of the reference it already carries once that file has gone', async () => {
+		const present = ['Specs/oven.pdf'];
+		const { setBackground, assetId } = await seeded(present);
+		expect(expectOk(await setBackground.execute({ assetId, path: 'Specs/oven.pdf', kind: 'pdf', page: 2 }))).toBe('wrote');
+		present.length = 0; // the file is deleted under the note that names it
+
+		const result = await setBackground.execute({ assetId, path: 'Specs/oven.pdf', kind: 'pdf', page: 2 });
+
+		expect(expectErr(result).code).toBe('asset.background-not-found');
 	});
 });

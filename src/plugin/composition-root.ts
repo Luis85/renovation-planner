@@ -309,7 +309,7 @@ function composeGuarded(
 	return {
 		...editor,
 		...guardSlice10(slice10, recalculate, logger, map),
-		...guardAssetDesign({ sidecar: assetGeometry, assets, events: eventBus }, logger, map),
+		...guardAssetDesign({ sidecar: assetGeometry, assets, events: eventBus }, files, logger, map),
 		createProject: guardCommand(new CreateProjectCommand(projects, eventBus, defaultCurrency), 'command.createProject.failed', logger, map),
 		createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, map),
 		createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, map),

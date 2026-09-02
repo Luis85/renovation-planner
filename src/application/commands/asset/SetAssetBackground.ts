@@ -3,6 +3,7 @@ import type { AssetId } from '../../../domain/asset/AssetId';
 import type { AssetBackgroundRef } from '../../../domain/asset/Asset';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import { assetError, assetNotFound } from '../../../domain/asset/Asset.errors';
+import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import {
 	markCompensated,
@@ -12,6 +13,7 @@ import {
 	type VersionedDispatchResult,
 } from '../DispatchOutcome';
 import type { AssetGeometryDocument } from '../../ports/AssetGeometrySidecar';
+import type { VaultFileProbe } from '../../ports/VaultFileProbe';
 import type { EntityVersion } from '../../ports/versioning';
 import type { AssetShapeDeps } from './updateAssetShape';
 
@@ -93,7 +95,17 @@ export interface SetAssetBackgroundInput {
  * is the rule this command re-derives for a two-write gesture rather than a multi-entity one.
  */
 export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInput, DispatchResult> {
-	constructor(private readonly deps: AssetShapeDeps) {}
+	/**
+	 * `files` is a SECOND constructor parameter rather than a member of `AssetShapeDeps`, which
+	 * is the shape `SetPlanBackgroundCommand` already takes. The other seven design commands
+	 * write geometry or a height and have no raw file to ask about; folding the probe into the
+	 * bundle they share would state a dependency seven of them do not have, and every fixture
+	 * that builds one would then supply a port it never reaches.
+	 */
+	constructor(
+		private readonly deps: AssetShapeDeps,
+		private readonly files: VaultFileProbe,
+	) {}
 
 	execute(input: SetAssetBackgroundInput): Promise<DispatchResult> {
 		return plainDispatch(this.executeWithVersion(input));
@@ -116,6 +128,31 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 			return err(
 				assetError('unsupported-background', `"${input.path}" is not a supported ${input.kind} background.`),
 			);
+		}
+
+		// The SECOND cheap refusal, and cheap for the reason the first one is: a path naming no
+		// vault file is refused before either resource is opened, exactly as
+		// `SetPlanBackgroundCommand` refuses one. The picker snapshots the vault's candidates and
+		// the user picks out of that snapshot, so a file deleted or renamed in between arrives
+		// here as a perfectly well-formed path naming nothing — and without this the extension
+		// check passed it, the calibration was cleared, the note was saved pointing at a file
+		// that is not there, and the command answered `wrote`. The designer then drew no sheet
+		// and had lost the scale it had, for a gesture that could not have worked.
+		//
+		// **ABOVE the `sameBackground` no-write return, deliberately.** A re-submit of the
+		// reference the asset already carries therefore REFUSES once that file has gone rather
+		// than reporting `no-write`, which is the honest answer: the user is asking to point at a
+		// file that is not there. Pinned as behaviour, because a guard below that return passes
+		// every other case in this command's suite.
+		//
+		// What it does NOT buy, stated where it is made: the file can go at any moment after this
+		// line, so a stored reference is never trustworthy on the strength of this check —
+		// `BackgroundRenderModel`'s own not-found status is what reports that, and the residual
+		// in `BackgroundLayer.vue` bounds when it is noticed. What this closes is the window
+		// between one gesture's own two halves, where the COMMAND is the thing writing a dangling
+		// reference over a calibration it destroyed on the way.
+		if (!this.files.fileExists(input.path)) {
+			return err(referenceError('asset.background-not-found', `No vault file at "${input.path}".`));
 		}
 
 		const loaded = await assets.getById(input.assetId);

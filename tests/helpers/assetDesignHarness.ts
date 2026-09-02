@@ -33,6 +33,7 @@ import {
 import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
 import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
 import { SetAssetBackgroundCommand } from '../../src/application/commands/asset/SetAssetBackground';
+import type { VaultFileProbe } from '../../src/application/ports/VaultFileProbe';
 import type {
 	AssetGeometryDocument,
 	AssetGeometrySidecar,
@@ -241,6 +242,15 @@ export interface AssetDesignHarness {
 	corrupt(): void;
 }
 
+/**
+ * `SetAssetBackground`'s file probe, over the paths the cases in this suite pick as spec
+ * sheets. A LIST rather than the real probe over the fake vault, because the probe answers a
+ * question the vault entries cannot: a spec sheet is a PNG or a PDF, and this fake vault holds
+ * note text. A case that invents a fourth path is refused at the file check, loudly, which is
+ * the failure this list is allowed to have.
+ */
+const SPEC_SHEETS: readonly string[] = ['Specs/oven.pdf', 'Specs/other.png', 'Specs/a.png'];
+const specSheetProbe: VaultFileProbe = { fileExists: (path) => SPEC_SHEETS.includes(path) };
 export async function seeded(
 	options: {
 		readonly sidecar?: (real: AssetGeometrySidecar) => AssetGeometrySidecar;
@@ -282,7 +292,7 @@ export async function seeded(
 		setFacing: setFacingCommand,
 		setHeight: setHeightCommand,
 		calibrate: new CalibrateAssetCommand(commandDeps),
-		setBackground: new SetAssetBackgroundCommand(commandDeps),
+		setBackground: new SetAssetBackgroundCommand(commandDeps, specSheetProbe),
 	};
 
 	// ANNOTATED, and constructed here rather than inline in the returned literal: fallow

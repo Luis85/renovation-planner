@@ -129,7 +129,10 @@ describe('GetAssetDesign', () => {
 	it('keeps a measured outline measured when its background is replaced', async () => {
 		const { query, assetId, seed, sidecar, stack } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: shapeWith('traced', false) });
-		const setBackground = new SetAssetBackgroundCommand({ sidecar, assets: stack.assets, events: createEventBus() });
+		const setBackground = new SetAssetBackgroundCommand(
+			{ sidecar, assets: stack.assets, events: createEventBus() },
+			{ fileExists: (path) => path === 'Specs/other.png' },
+		);
 
 		expect(expectOk(await setBackground.execute({ assetId, path: 'Specs/other.png', kind: 'image', page: null })))
 			.toBe('wrote');

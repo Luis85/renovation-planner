@@ -179,6 +179,23 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 	// misleading — it says an entry no longer exists, which here is true, so the row earns
 	// its place on the OTHER assertion: the entry names the asset rather than "that entry".
 	['asset.not-found', 'Reference', 'error.category.reference', 'domain/asset/Asset.errors.ts'],
+	// The picker-race refusal on BOTH surfaces, and the pair is two rows rather than one because
+	// the sentences send the user back to different nouns — a spec sheet and a plan document. The
+	// asset half arrived with the probe that raises it; the plan half's guard has existed since
+	// slice 5 and its copy had not, so a plan whose background file went missing between the
+	// picker and the dispatch resolved "That entry no longer exists." about a plan that had not.
+	[
+		'asset.background-not-found',
+		'Reference',
+		'error.category.reference',
+		'application/commands/asset/SetAssetBackground.ts',
+	],
+	[
+		'plan.background-not-found',
+		'Reference',
+		'error.category.reference',
+		'application/commands/plan/SetPlanBackground.ts',
+	],
 	// Minted in PRESENTATION, like `reference.no-reassignment-target` above: a rectangle needs
 	// both halves and no command refuses one given without the other, because none is asked.
 	['asset.dimensions-incomplete', 'Validation', 'error.category.validation', 'presentation/views/NewAssetForm.vue'],

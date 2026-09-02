@@ -320,6 +320,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'asset.no-footprint':
 		'Geben Sie diesem Objekt zuerst einen Umriss; Freiraum, Ankerpunkt und Ausrichtung beziehen sich jeweils darauf.',
 	'asset.not-found': 'Dieses Objekt existiert nicht mehr.',
+	'asset.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Datenblatt.',
+	'plan.background-not-found': 'Diese Datei ist nicht mehr im Vault. Wählen Sie ein anderes Plandokument.',
 	'asset.dimensions-incomplete': 'Ein Rechteck braucht Breite und Tiefe.',
 	'money.invalid-amount': 'Geben Sie einen Betrag als einfache Dezimalzahl ein, zum Beispiel 45.00.',
 	'money.invalid-currency': 'Geben Sie einen dreibuchstabigen Währungscode in Großbuchstaben ein.',

@@ -71,6 +71,15 @@ try the same three in the same order.
   hops between them, because those hops name `PlanEditorDeps` instead. Grep an existing
   **sibling member** (`grep -rn "onCatalogueChanged" src/ tests/`) — what travels the chain is a
   member, so a member is what prints the chain. Task 8a's bullet carries the worked list.
+  **And "a compile error at every construction site" is this rule's own overclaim, falsified by
+  the ninth instance**: a Vue `provide` record spelled `[SOME_KEY as symbol]: { … }` erases the
+  `InjectionKey`'s type, so a missing member COMPILES and faults at runtime when the new
+  subscription is invoked. `npm run check` catches it only because the test then fails — and
+  only in a fixture that actually reaches the code that reads the member, so a list-state
+  fixture stays green while a detail-state one dies. Both shapes have to be swept: `grep -rn
+  "<TYPE> = {" ` for the build errors and `grep -rn "<INJECTION_KEY> as symbol"` for the silent
+  ones. Task 9's bullet carries that worked list, including which fixtures deliberately get
+  nothing.
 - **Commit after every task, with ONE deliberate exception.** Each task below ends green on its
   own — strictly stronger than the spec's four-commit sequencing, which is the coarse grouping
   these tasks fall into. **Tasks 5 and 6 share a commit**, because the spec requires resolution
@@ -4010,8 +4019,47 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Modify: `src/presentation/views/RenovationProjectContext.ts` — the two change sources reach the
   view through its context, the same seam `onPlanChanged` already uses; `presentation/` may not
   reach the event bus itself.
-- Modify: `src/plugin/composition-root.ts` — bind both sources, as it already binds
-  `onCatalogueChanged` for the editor.
+- Modify: `src/plugin/composition-root.ts` — bind both sources in `renovationProjectDeps`
+  (`:557`), as it already binds `onCatalogueChanged` for the editor and `onProjectsChanged`
+  (`:589`) for this one.
+- **Modify: every CONSTRUCTION of `RenovationProjectDeps`, and the failure has TWO shapes.**
+  Measured with the sibling-member instrument the standing rule now names — `grep -rn
+  "onProjectsChanged" src/ tests/`, the existing change source of exactly this kind — rather
+  than with the type's own name. **The chain is shorter than Task 8a's**: there is no separate
+  deps type here, because `RENOVATION_PROJECT_CONTEXT` is an `InjectionKey<RenovationProjectDeps>`
+  and the bundle IS the context. Interface, root binder, constructions; no forwarding hop.
+
+  **A build error, in exactly one file.** `tests/helpers/makeRenovationProjectView.ts:193` is
+  `const defaults: RenovationProjectDeps = {` — the one hand-built typed literal in the suite.
+  Every other typed construction SPREADS it (`viewRoot.test.ts:44`,
+  `viewRootProjectDetail.test.ts:110`, `viewRootFailure.test.ts:59`,
+  `renovationProjectEmptyState.test.ts:90`, `harness/accessibility.test.ts:154` and `:312`,
+  `harness/mount.ts:183`) or delegates to `renovationProjectDeps` itself
+  (`plugin/renovationProjectWiring.test.ts:76`), so all of them inherit the new members. That is
+  the factory's own design and its docblock says so — *"a member `RenovationProjectDeps` grows
+  next is decided once there rather than guessed here"*. `src/plugin/RenovationPlannerPlugin.ts:510`
+  needs nothing either: `projectViewDeps(leaf)` delegates to `renovationProjectDeps` and supplies
+  only the three LEAF-specific members.
+
+  **A RUNTIME fault that compiles cleanly, in exactly one more.** Three test files provide the
+  context as `[RENOVATION_PROJECT_CONTEXT as symbol]: { … }`, and the `as symbol` cast erases
+  the `InjectionKey`'s type — so an absent member is not a build error, it is an `undefined`
+  that faults when the new subscription is invoked. Only ONE of the three reaches it:
+  `tests/presentation/views/viewRootOpenProject.test.ts:53` carries `projectId: KITCHEN.id`, so
+  it mounts `ProjectDetailState`, which is where the price section and therefore the
+  subscriptions live. `viewRootCreateProject.test.ts` and `viewRootIndexRebuild.test.ts` both
+  pass `projectId: null` — the LIST state, which never mounts the detail tree. **Add both members
+  to `viewRootOpenProject.test.ts` and to neither of the other two**, which is the narrow answer
+  rather than the safe-looking wide one: a member spelled into a list-state fixture is a key
+  nothing reads, and this file's own convention is that *"every override declared here is
+  CONSUMED"*.
+
+  **The repository had already written this class down, twice, and the plan did not apply it.**
+  `viewRootOpenProject.test.ts:60` says it where the fixture is: *"a `provide` value is
+  `unknown`, so nothing type-checks this literal and an absent key reaches `ViewRoot` as an
+  `undefined` no gate would report"* — citing `viewRootIndexRebuild.test.ts`, which gives it at
+  length. A rule stated in a docblock is a rule some door is not following, and the docblock is
+  where to look first.
 - Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
 - Modify: `src/presentation/i18n/toUserMessage.ts` — **two** rows in `CODE_SUFFIX_KEYS`, for
   `schema-version-malformed` and `project-folder-unresolved`, beside the `-unsupported` one it

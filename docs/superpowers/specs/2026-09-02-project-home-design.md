@@ -623,6 +623,41 @@ region exists to show, and here that thing is the way back.
 `toProjectSummaryDto` lives in the read-model bundle beside every other `to*Dto`, because
 `application/` may not name `presentation/`.
 
+## Decision 8 — two promises the artifacts did not keep
+
+Both found by review, and both are the same class: the document asserting something no artifact
+delivers. Neither is a design disagreement, which is what makes them worth a decision of their
+own rather than a quiet edit — a spec that over-promises is the defect this repository names
+first among its Claims rules.
+
+**The dates were promised and drawn nowhere.** *Scope* says Overview shows "status, dates,
+currency…". The first mock drew a timeline line; the rebuild against the editor concept dropped
+it, and `ProjectSummaryDto` never carried the fields at all. `Project` has had
+`start` and `targetCompletion` since design slice 16 persisted them, so the data exists and only
+the read model and the markup were missing.
+
+The DTO gains both, and `ProjectHeader`'s region renders them beneath the section switch. **A
+project with neither renders no line**, rather than "No dates set": both are optional on
+`Project`, a renovation planned without a deadline is an ordinary project, and a line whose
+whole content is an absence is noise on the surface that exists to answer what a project costs.
+
+**The diagnostics action had no door.** The mock's warning strip offers *Open diagnostics*; the
+production route is `RenovationPlannerPlugin.openDiagnosticsReport()`, and
+`RenovationProjectDeps` exposes no diagnostics member — so promoted as specified it would have
+been a live control that does nothing, which is precisely the failure slice 14's amendment
+refuses and which this document cites approvingly two sections above. Writing that rule down did
+not stop me drawing the button.
+
+`RenovationProjectDeps` gains `openDiagnostics`, the same shape as its existing `openPlan` and
+`openAsset` — a callback the composition root binds, so `presentation/` still learns nothing
+about the plugin. That is one member and one binding, which is what makes keeping the action
+cheaper than dropping it; a user whose plan note could not be read is exactly the user the
+diagnostics report exists for.
+
+**The general shape, and it is this branch's most repeated one:** a rule stated in this document
+is a rule some artifact of this document is not following, and the artifact is where to look
+first.
+
 ## Error handling
 
 Three failure shapes, three surfaces, and they must not collapse into one:
@@ -673,6 +708,8 @@ mistake, per this repository's rule.
 | Invalidation | `RequirementDeleted` refreshes the summary | it was specified as published and not subscribed to for a round — published-and-unheard passes every publishing test |
 | Summary | `summed` is the query's own count rather than the component's arithmetic | deriving it double-subtracts a row caught by two exclusion categories, and the counts are independent by design |
 | Keyboard | after a section change through view state, focus is on the newly selected tab | the mock's local `ref` hides this; only the real round trip unmounts the element |
+| Overview | a project with a start or target date renders it; a project with neither renders no line at all | the DTO carried neither field, so the promise was undeliverable rather than merely unbuilt |
+| Wiring | the warning strip's action reaches `openDiagnosticsReport` | without the deps member it is a live control that does nothing — the shape slice 14 refuses |
 | Keyboard | a restored leaf and a `rebind` do NOT move focus | an unconditional focus-on-mount steals it during layout restoration |
 | Invalidation | a manual index rebuild refreshes an already-mounted Overview | `ProjectIndexRebuilt` carries no payload, so nothing per-entry fires |
 | Coalescing | a cascade over 8 requirements causes ONE summary read | forwarding each event directly issues up to 3R+1 walks; asserted on reads, since a notification count passes either way |
@@ -709,7 +746,9 @@ the extraction of `GetRequirementsForZone`'s per-row builder so both callers agr
 `.rp-badge` and its variants, the section switch, the counts and the warning strip, per
 Decision 6; the manual test case.
 
-**Changed:** the five reversible adapters that write and publish nothing —
+**Changed:** `ProjectSummaryDto` gains `start` and `targetCompletion` (Decision 8);
+`RenovationProjectDeps` gains `openDiagnostics` and the composition root binds it (Decision 8);
+the five reversible adapters that write and publish nothing —
 `reversible-create-zone-command.ts`, `reversible-delete-zone-command.ts`,
 `reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — plus `DeleteAsset.ts`
 (Decision 7); `GetRequirementsForZone.ts` (the optional memo,

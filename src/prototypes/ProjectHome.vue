@@ -61,6 +61,7 @@
 -->
 <script setup lang="ts">
 import { ref, useId } from 'vue';
+import ProjectCounts from './ProjectCounts.vue';
 import ProjectEstimate from './ProjectEstimate.vue';
 
 const sections = ['Overview', 'Design'] as const;
@@ -117,18 +118,7 @@ function onKey(event: KeyboardEvent, index: number): void {
 	focusTab(event.currentTarget, next);
 }
 
-/**
- * The counts. `canvas.css`'s `.rc-counts` makes each cell a control, on the grounds that a
- * count is "navigation to a filtered list" — and here it is NOT, which a capture is what
- * settled. Only Plans has a destination built, and mixing a `<button>` cell with two `<div>`
- * ones drew two different backgrounds in one grid, because Obsidian styles every button. The
- * uniform answer is the right one for a second reason: the destination a Plans cell would
- * navigate to is the Design tab, three centimetres above it. A count that duplicates an
- * adjacent route is not navigation, it is a second door to one room.
- *
- * They become controls again when Rooms and Requirements have somewhere to go, and the
- * concept's rule is waiting for them.
- */
+/** Handed to `ProjectCounts`, which owns how they are drawn. */
 const counts = [
 	{ label: 'Plans', value: 2 },
 	{ label: 'Rooms', value: 11 },
@@ -139,6 +129,21 @@ const plans = [
 	{ name: 'Ground floor', detail: '7 rooms · scale set' },
 	{ name: 'Upper floor', detail: '4 rooms · no scale yet' },
 ];
+
+/**
+ * The project's own timeline, and it went MISSING for two rounds.
+ *
+ * The first mock drew it; the rebuild against the editor concept dropped the line while the
+ * spec went on promising "status, dates, currency, …" in its Scope section — a surface and its
+ * specification disagreeing, found by review rather than by any gate, because nothing here reads
+ * a spec against a mock.
+ *
+ * `null` when a project has neither date, which renders nothing rather than "No dates set":
+ * both are optional on `Project`, a renovation planned without a deadline is an ordinary
+ * project, and a line whose whole content is an absence is noise on the surface that exists to
+ * answer what this project costs.
+ */
+const dates: string | null = 'Started 4 March 2026 · target 30 November 2026';
 
 const staleCount = 3;
 const unsummableCount = 1;
@@ -204,6 +209,13 @@ const summedCount = 23;
 			:aria-labelledby="tabId(active)"
 			tabindex="0"
 		>
+			<p
+				v-if="dates !== null"
+				class="rp-project-dates"
+			>
+				{{ dates }}
+			</p>
+
 			<ProjectEstimate
 				amount="€42,300.00"
 				:requirements="counts[2]?.value ?? 0"
@@ -213,17 +225,7 @@ const summedCount = 23;
 				:unsummable="unsummableCount"
 			/>
 
-			<div class="rp-counts">
-				<div
-					v-for="count in counts"
-					:key="count.label"
-					class="rp-counts__cell"
-					:data-empty="count.value === 0"
-				>
-					<span class="rp-counts__value">{{ count.value }}</span>
-					<span class="rp-counts__label">{{ count.label }}</span>
-				</div>
-			</div>
+			<ProjectCounts :counts="counts" />
 
 			<aside class="rp-warning">
 				<p class="rp-warning__heading">
@@ -344,6 +346,12 @@ const summedCount = 23;
 	outline-offset: -2px;
 }
 
+.rp-project-dates {
+	margin: 0 0 var(--size-4-4);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
 .rp-project-section {
 	flex: 1;
 	min-height: 0;
@@ -355,65 +363,6 @@ const summedCount = 23;
 .rp-project-section:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: -2px;
-}
-
-/*
- * The counts, following `canvas.css`'s `.rc-counts`: the container's own background shows
- * through 1px gaps as hairlines, so three cells share two rules rather than each carrying a
- * border that doubles at every seam.
- */
-.rp-counts {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-	gap: 1px;
-	margin-bottom: var(--size-4-4);
-	border: 1px solid var(--background-modifier-border);
-	border-radius: var(--radius-s);
-	background: var(--background-modifier-border);
-	overflow: hidden;
-}
-
-/*
- * `align-items: flex-start` is kept even though these are `div`s now. app.css sets
- * `align-items: center` on every `button`, and on a `flex-direction: column` button that is the
- * HORIZONTAL axis, so the value and the label centre themselves as flex items and their own
- * `text-align` has nothing left to align — `canvas.css` records it as the third instance of
- * that trap. Kept because a cell becomes a button again the day Rooms has a destination, and a
- * rule that has to be remembered at that moment is a rule that will not be.
- */
-.rp-counts__cell {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 1px;
-	padding: var(--size-4-2);
-	border: 0;
-	border-radius: 0;
-	background: var(--background-secondary);
-	box-shadow: none;
-	color: var(--text-normal);
-	text-align: left;
-}
-
-.rp-counts__value {
-	font-size: var(--font-ui-medium);
-	font-weight: 600;
-	font-variant-numeric: tabular-nums;
-	line-height: 1.2;
-}
-
-.rp-counts__label {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-}
-
-/*
- * A count of zero dims and stops inviting a click it has nothing to show — `canvas.css`'s rule,
- * and the difference survives without colour.
- */
-.rp-counts__cell[data-empty='true'] .rp-counts__value {
-	color: var(--text-muted);
-	font-weight: 400;
 }
 
 /*

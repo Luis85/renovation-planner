@@ -397,7 +397,14 @@ describe('the browser harness', () => {
 	 * defect named above for the bare-substring case.
 	 */
 	it('loads no stylesheet through anything the harness can reach', () => {
-		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`][^'"]*\.css['"`]/;
+		// `[^'"\n]` and not `[^'"]`: a real import specifier never contains a NEWLINE, and without
+		// that exclusion the class spans them. Measured twice, both times on prose: a comment
+		// reading "Split from `onKey`" paired with a backticked `canvas.css` twenty-one lines
+		// below it and matched across the gap, and the second instance was written by an author
+		// who had just recorded the first. The failure message says "loads no stylesheet", which
+		// points nowhere near a comment — so the cost of the false positive is a debugging cycle,
+		// not a glance. Narrowing keeps every true positive: an import specifier is one line.
+		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`][^'"\n]*\.css['"`]/;
 		const sheetLink = /<link[^>]*\bstylesheet\b/i;
 		// Every extension Vite will load as a module, not the two this repository happens to
 		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as

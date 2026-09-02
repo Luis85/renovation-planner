@@ -496,46 +496,22 @@ export function winningDuplicate(
 	);
 }
 
-/**
- * The same rule applied to a GROUPED list, which is what every caller but `getForPair` actually
- * needs — the cascade keys by project, the price list by asset.
- *
- * It exists because `new Map(list.map(...))` is the shape that keeps arriving: it reads as a
- * grouping and is really "whichever entry came last in enumeration order", which is a third
- * answer to the question `winningDuplicate` states. That spelling had already been written into
- * three call sites of this plan and corrected; the FOURTH — `onAssetUpdated`'s own map — survived
- * that correction and was found a round later. A rule with a function has one place to be wrong.
- */
-export function winnersBy<K>(
-	overrides: readonly Loaded<AssetPriceOverride>[],
-	keyOf: (o: Loaded<AssetPriceOverride>) => K,
-	/**
-	 * **Called once per key that had more than one note, and it is REQUIRED reading rather
-	 * than an option.** `getForPair` logs `asset-price.duplicate-pair` when it resolves one,
-	 * and every other resolution goes through this function — so without a door here, a
-	 * project whose only surface is the price section (no requirements, so no `getForPair`
-	 * on that pair) resolves duplicates silently for the life of the vault, and the design's
-	 * promised diagnostic is one no user can ever provoke. Optional-with-a-no-op default is
-	 * the shape this repository has already paid for twice (`CascadeDeps.notify`,
-	 * `ResolutionOps.notify`): the caller that forgets it compiles, passes and says nothing.
-	 */
-	onDuplicate: (key: K, notes: readonly Loaded<AssetPriceOverride>[]) => void,
-): Map<K, Loaded<AssetPriceOverride>> {
-	const grouped = new Map<K, Loaded<AssetPriceOverride>[]>();
-	for (const override of overrides) {
-		const key = keyOf(override);
-		const bucket = grouped.get(key);
-		if (bucket) bucket.push(override);
-		else grouped.set(key, [override]);
-	}
-	const winners = new Map<K, Loaded<AssetPriceOverride>>();
-	for (const [key, bucket] of grouped) {
-		if (bucket.length > 1) onDuplicate(key, bucket);
-		const best = winningDuplicate(bucket);
-		if (best !== null) winners.set(key, best);
-	}
-	return winners;
-}
+**`winnersBy` is NOT written here — it belongs to Task 6, where its first caller is.** The
+grouped-resolution helper the cascade and the price list both need has no `src/` caller at this
+task's boundary: the in-memory repository resolves through `winningDuplicate` alone, and the
+first imports are Task 6's `onAssetUpdated` map and Task 8's `ListProjectAssetPrices`. `fallow`
+reports an export nothing imports, so defining it here makes Task 2's `npm run check` red and
+breaks the plan's "each task ends green on its own".
+
+**The exemption that does not apply, checked rather than assumed.** CLAUDE.md records
+`projectFolderOf` staying invisible to that gate while only a TEST called it — a real hole, and a
+different case: here nothing calls `winnersBy` at all, not even a test. Writing a test purely to
+satisfy the gate would be exploiting a hole the repository's own guide names as a hole.
+
+**The precedent for deferring is `foldersOverlap`**, which slice 18 discussed, declared in prose
+and shipped no module for — *"it had no job in this slice"* — with slice 19 writing it beside its
+first callers. Same shape, same answer.
+
 ```
 
 - [ ] **Step 2: Write the shared contract test**
@@ -2695,6 +2671,10 @@ Task 6's staging line covers both, which is why it stages `src/application` rath
 ### Task 6: the effective-cost correction
 
 **Files:**
+- **Modify: `src/application/ports/AssetPriceOverrideRepository.ts`** — `winnersBy` is written
+  here, beside Task 2's `winningDuplicate` whose grouped form it is. It could not be written in
+  Task 2: with no importer until this task, `fallow` reports it as an unused export and that
+  task's `npm run check` goes red. Step 3 carries the code and the reasoning.
 - Modify: `src/application/event-handlers/requirement/onAssetUpdated.ts`
 - Modify: `src/application/queries/GetRequirementsForZone.ts`
 - Modify: `src/plugin/slice10Composition.ts` — **both** production construction sites break the
@@ -2837,7 +2817,58 @@ Expected: FAIL on the first and fourth cases.
 
 - [ ] **Step 3: Correct `onAssetUpdated`**
 
+**Write `winnersBy` HERE, beside its first caller.** It is the grouped form of Task 2's
+`winningDuplicate` and belongs in that module — but written in Task 2 it would be an export
+nothing imports, which `fallow` reports and which would leave that task's `npm run check` red.
+Task 2 carries a pointer saying so. Task 8's `ListProjectAssetPrices` is its second caller and
+inherits it.
+
+```ts
+/**
+ * The same rule applied to a GROUPED list, which is what every caller but `getForPair` actually
+ * needs — the cascade keys by project, the price list by asset.
+ *
+ * It exists because `new Map(list.map(...))` is the shape that keeps arriving: it reads as a
+ * grouping and is really "whichever entry came last in enumeration order", which is a third
+ * answer to the question `winningDuplicate` states. That spelling had already been written into
+ * three call sites of this plan and corrected; the FOURTH — `onAssetUpdated`'s own map — survived
+ * that correction and was found a round later. A rule with a function has one place to be wrong.
+ */
+export function winnersBy<K>(
+	overrides: readonly Loaded<AssetPriceOverride>[],
+	keyOf: (o: Loaded<AssetPriceOverride>) => K,
+	/**
+	 * **Called once per key that had more than one note, and it is REQUIRED reading rather
+	 * than an option.** `getForPair` logs `asset-price.duplicate-pair` when it resolves one,
+	 * and every other resolution goes through this function — so without a door here, a
+	 * project whose only surface is the price section (no requirements, so no `getForPair`
+	 * on that pair) resolves duplicates silently for the life of the vault, and the design's
+	 * promised diagnostic is one no user can ever provoke. Optional-with-a-no-op default is
+	 * the shape this repository has already paid for twice (`CascadeDeps.notify`,
+	 * `ResolutionOps.notify`): the caller that forgets it compiles, passes and says nothing.
+	 */
+	onDuplicate: (key: K, notes: readonly Loaded<AssetPriceOverride>[]) => void,
+): Map<K, Loaded<AssetPriceOverride>> {
+	const grouped = new Map<K, Loaded<AssetPriceOverride>[]>();
+	for (const override of overrides) {
+		const key = keyOf(override);
+		const bucket = grouped.get(key);
+		if (bucket) bucket.push(override);
+		else grouped.set(key, [override]);
+	}
+	const winners = new Map<K, Loaded<AssetPriceOverride>>();
+	for (const [key, bucket] of grouped) {
+		if (bucket.length > 1) onDuplicate(key, bucket);
+		const best = winningDuplicate(bucket);
+		if (best !== null) winners.set(key, best);
+	}
+	return winners;
+}
+```
+
 Add `overrides` to `AssetCascadeDeps`, then between loading the asset and filtering:
+
+
 
 ```ts
 		// ONE read for the whole fan-out. `listByAsset` exists for this: a shared asset can be

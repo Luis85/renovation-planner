@@ -12,7 +12,9 @@ import type { AssetId } from '../../domain/asset/AssetId';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { ProjectRepository } from '../ports/ProjectRepository';
 import type { RequirementRepository } from '../ports/RequirementRepository';
-import type { AssetPriceOverrideRepository } from '../ports/AssetPriceOverrideRepository';
+import { winnersBy, type AssetPriceOverrideRepository } from '../ports/AssetPriceOverrideRepository';
+import type { AssetPriceOverride } from '../../domain/asset-price/AssetPriceOverride';
+import type { Logger } from '../ports/Logger';
 import type { Loaded } from '../ports/versioning';
 import type { Zone } from '../../domain/zone/Zone';
 import type { ZoneRepository } from '../ports/ZoneRepository';
@@ -150,20 +152,42 @@ function buildUnitCostGroup(
 	};
 }
 
+/**
+ * One bundle instead of six positional collaborators (the max-params budget) — the shape
+ * `AssignAssetDeps` and its siblings already take, reached here the day the `Logger` below
+ * made this the sixth.
+ */
+export interface GetRequirementsForZoneDeps {
+	readonly requirements: RequirementRepository;
+	readonly zones: ZoneRepository;
+	readonly assets: AssetRepository;
+	readonly projects: ProjectRepository;
+	readonly overrides: AssetPriceOverrideRepository;
+	/**
+	 * For the duplicate diagnostic `winnersBy` demands — the same one
+	 * `ListProjectAssetPrices` takes a `Logger` for, and for the same reason.
+	 *
+	 * Until this member existed the diagnostic on the Inspector path was
+	 * `ObsidianAssetPriceOverrideRepository.getForPair`'s own
+	 * `logger.warn('asset-price.duplicate-pair', …)`. This query stopped calling
+	 * `getForPair`, so without a door here a duplicated pair would resolve silently on the
+	 * one surface a user meets it most often.
+	 */
+	readonly logger: Logger;
+}
+
 export class GetRequirementsForZone
 	implements
 			Query<ZoneId, Result<RequirementInspectorDTO[], RepositoryError>>
 {
-	constructor(
-		private readonly requirements: RequirementRepository,
-		private readonly zones: ZoneRepository,
-		private readonly assets: AssetRepository,
-		private readonly projects: ProjectRepository,
-		private readonly overrides: AssetPriceOverrideRepository,
-	) {}
+	private readonly deps: GetRequirementsForZoneDeps;
+
+	constructor(deps: GetRequirementsForZoneDeps) {
+		this.deps = deps;
+	}
 
 	async execute(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], RepositoryError>> {
-		const listed = await this.requirements.listByZone(zoneId);
+		const listed = await this.deps.requirements.listByZone(zoneId);
 		if (isErr(listed)) return listed;
 
 		// Resolved from each Requirement's OWN `projectId`, never from the queried Zone's.
@@ -182,10 +206,16 @@ export class GetRequirementsForZone
 		// Memoized rather than read per row, because they DO agree in the ordinary case:
 		// one Zone, one project, one read, which is what the previous shape got right.
 		const currencies = new Map<ProjectId, Currency | null>();
-		// Keyed on the PAIR, unlike the currency memo above: one zone's rows share a project
-		// but not an asset, so a project-keyed memo would answer the first row's asset for
-		// every row.
-		const overrideMemo = new Map<string, Money | null>();
+		// Keyed on the PROJECT, like the currency memo above, and holding a RESOLUTION rather
+		// than one pair's answer: `Map<AssetId, …>` is what keeps a project-keyed memo from
+		// answering the first row's asset for every row.
+		//
+		// **Why not keyed on the pair.** `ObsidianAssetPriceOverrideRepository.getForPair`
+		// calls `listByProject` and filters, so one pair lookup hydrates every price note in
+		// the project. A pair-keyed memo therefore costs N x M note reads for a zone with N
+		// distinct assets in a project holding M overrides, where this shape costs 1 x M —
+		// strictly worse at every N > 1 and equal at N = 1.
+		const overrideMemo = new Map<ProjectId, ReadonlyMap<AssetId, Loaded<AssetPriceOverride>>>();
 
 		const rows: RequirementInspectorDTO[] = [];
 		for (const loaded of listed.value) {
@@ -207,28 +237,47 @@ export class GetRequirementsForZone
 		const cached = memo.get(projectId);
 		if (cached !== undefined) return ok(cached);
 
-		const project = await this.projects.getById(projectId);
+		const project = await this.deps.projects.getById(projectId);
 		if (isErr(project)) return err(project.error);
 		const currency = project.value?.entity.currency ?? null;
 		memo.set(projectId, currency);
 		return ok(currency);
 	}
 
-	private async projectOverride(
+	/**
+	 * This project's whole price resolution, read once. An EMPTY MAP is a CACHED answer (the
+	 * project prices nothing of its own), never a miss — nothing stores `undefined`, which is
+	 * what `Map.get` alone answers for a project never looked up. The same
+	 * `undefined`-means-a-miss rule `projectCurrency`'s memo carries, applied to a value that
+	 * has its own empty state.
+	 */
+	private async projectOverrides(
 		projectId: ProjectId,
-		assetId: AssetId,
-		memo: Map<string, Money | null>,
-	): Promise<Result<Money | null, RepositoryError>> {
-		const key = `${projectId}:${assetId}`;
-		// `null` is a CACHED answer (no override for this pair), never a miss — the same
-		// `undefined`-means-a-miss rule `projectCurrency`'s memo already carries.
-		const cached = memo.get(key);
+		memo: Map<ProjectId, ReadonlyMap<AssetId, Loaded<AssetPriceOverride>>>,
+	): Promise<Result<ReadonlyMap<AssetId, Loaded<AssetPriceOverride>>, RepositoryError>> {
+		const cached = memo.get(projectId);
 		if (cached !== undefined) return ok(cached);
-		const found = await this.overrides.getForPair(projectId, assetId);
-		if (isErr(found)) return err(found.error);
-		const unitCost = found.value?.entity.unitCost ?? null;
-		memo.set(key, unitCost);
-		return ok(unitCost);
+
+		const listed = await this.deps.overrides.listByProject(projectId);
+		if (isErr(listed)) return err(listed.error);
+		// `winnersBy`, never `new Map(list.map(...))`: that keeps whichever note came last in
+		// `listByProject` order, which is a third answer beside the one `winningDuplicate`
+		// states and the one `getForPair` used to give this query.
+		//
+		// The reporter carries the diagnostic this query used to get for free from inside
+		// `getForPair`. It reports slightly MORE than that did: once per duplicated pair in
+		// the project rather than once per duplicated pair a row in this zone happens to
+		// reference — the same widening `ListProjectAssetPrices` already has, and the same
+		// event and context.
+		const winners = winnersBy(listed.value, (o) => o.entity.assetId, (assetId, notes) => {
+			this.deps.logger.warn('asset-price.duplicate-pair', {
+				projectId,
+				assetId,
+				count: notes.length,
+			});
+		});
+		memo.set(projectId, winners);
+		return ok(winners);
 	}
 
 	/**
@@ -242,26 +291,27 @@ export class GetRequirementsForZone
 	private async effectiveAsset(
 		r: Requirement,
 		assetEntity: { readonly unit: MeasurementUnit; readonly unitCost: Money } | null,
-		overrideMemo: Map<string, Money | null>,
+		overrideMemo: Map<ProjectId, ReadonlyMap<AssetId, Loaded<AssetPriceOverride>>>,
 	): Promise<
 		Result<{ unit: MeasurementUnit; unitCost: Money; override: Money | null } | null, RepositoryError>
 	> {
 		if (assetEntity === null) return ok(null);
-		const override = await this.projectOverride(r.projectId, r.assetId, overrideMemo);
-		if (isErr(override)) return err(override.error);
+		const resolved = await this.projectOverrides(r.projectId, overrideMemo);
+		if (isErr(resolved)) return err(resolved.error);
+		const override = resolved.value.get(r.assetId)?.entity.unitCost ?? null;
 		return ok({
 			unit: assetEntity.unit,
-			unitCost: override.value ?? assetEntity.unitCost,
-			override: override.value,
+			unitCost: override ?? assetEntity.unitCost,
+			override,
 		});
 	}
 
 	private async buildRow(
 		r: Requirement,
 		projectCurrency: Currency | null,
-		overrideMemo: Map<string, Money | null>,
+		overrideMemo: Map<ProjectId, ReadonlyMap<AssetId, Loaded<AssetPriceOverride>>>,
 	): Promise<Result<RequirementInspectorDTO, RepositoryError>> {
-		const asset = await this.assets.getById(r.assetId);
+		const asset = await this.deps.assets.getById(r.assetId);
 		if (isErr(asset)) return err(asset.error);
 		const assetEntity = asset.value?.entity ?? null;
 
@@ -304,7 +354,7 @@ export class GetRequirementsForZone
 		r: Requirement,
 	): Promise<Result<Loaded<Zone> | null, RepositoryError>> {
 		if (r.origin.kind !== 'zone') return ok(null);
-		const found = await this.zones.getById(r.origin.zoneId);
+		const found = await this.deps.zones.getById(r.origin.zoneId);
 		if (isErr(found)) return err(found.error);
 		return ok(found.value);
 	}

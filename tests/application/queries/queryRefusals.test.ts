@@ -12,6 +12,7 @@ import { expectErr, expectFound, expectOk } from '../../helpers/domain';
 import { makeAsset, makeProject, makeZone } from '../../helpers/entities';
 import { currencyOf } from '../../../src/core/money/Money';
 import { requirementFixture, TEN_SQUARE_METERS } from '../../helpers/slice10';
+import { recorder } from '../../helpers/logger';
 
 /**
  * The read side's refusal and staleness arms. The staleness reading is the interesting
@@ -61,12 +62,26 @@ async function wiredWithLink() {
 	);
 	const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 	if (!assigned.ok) throw new Error('unexpected assign failure');
+	/**
+	 * The whole real bundle, so each refusal case below can spread it and replace exactly the
+	 * one port it is about — `{ ...w.deps, assets }` rather than six fields respelled per
+	 * case, which is how a case ends up injecting its refusal at a port it did not mean to.
+	 */
+	const deps = {
+		requirements: w.requirements,
+		zones: w.zones,
+		assets: w.assets,
+		projects: w.projects,
+		overrides: w.overrides,
+		logger: recorder,
+	};
 	return {
 		...w,
+		deps,
 		zoneId: zoneEntity.entity.id,
 		assetId: assetEntity.entity.id,
 		requirementId: assigned.value.requirement.id,
-		query: new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects, w.overrides),
+		query: new GetRequirementsForZone(deps),
 	};
 }
 
@@ -77,7 +92,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			listByZone: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(requirements, w.zones, w.assets, w.projects, w.overrides).execute(w.zoneId),
+			await new GetRequirementsForZone({ ...w.deps, requirements }).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -88,7 +103,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, w.zones, assets, w.projects, w.overrides).execute(w.zoneId),
+			await new GetRequirementsForZone({ ...w.deps, assets }).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -96,14 +111,20 @@ describe('GetRequirementsForZone error propagation', () => {
 	/**
 	 * The override read `effectiveAsset` adds ahead of the staleness comparison — the same
 	 * propagation shape as the asset and zone reads above, one hop further in.
+	 *
+	 * **It patches `listByProject`, and it used to patch `getForPair`.** Ruling 10 moved this
+	 * query's override read onto the per-project list, so a refusing `getForPair` is a method
+	 * this query never calls: the patched port answers every row happily and the case fails at
+	 * `expectErr` having proven nothing. The ARM is unchanged — a refusing override read
+	 * propagates rather than reading stale — only the door it is injected at moved.
 	 */
 	it('propagates a failed override read while resolving a row’s effective cost', async () => {
 		const w = await wiredWithLink();
 		const overrides = overridePort(w.overrides, {
-			getForPair: () => Promise.resolve(err(injectedPersistenceError())),
+			listByProject: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects, overrides).execute(w.zoneId),
+			await new GetRequirementsForZone({ ...w.deps, overrides }).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -120,7 +141,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects, w.overrides).execute(w.zoneId),
+			await new GetRequirementsForZone({ ...w.deps, projects }).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -139,7 +160,7 @@ describe('GetRequirementsForZone error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new GetRequirementsForZone(w.requirements, zones, w.assets, w.projects, w.overrides).execute(w.zoneId),
+			await new GetRequirementsForZone({ ...w.deps, zones }).execute(w.zoneId),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -207,7 +228,7 @@ describe('GetRequirementsForZone staleness readings', () => {
 			},
 		});
 		const rows = expectOk(
-			await new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects, w.overrides).execute(w.zoneId),
+			await new GetRequirementsForZone({ ...w.deps, projects }).execute(w.zoneId),
 		);
 
 		expect(rows).toHaveLength(2);
@@ -261,7 +282,7 @@ describe('GetRequirementsForZone staleness readings', () => {
 			},
 		});
 		const rows = expectOk(
-			await new GetRequirementsForZone(requirements, w.zones, w.assets, w.projects, w.overrides).execute(w.zoneId),
+			await new GetRequirementsForZone({ ...w.deps, requirements }).execute(w.zoneId),
 		);
 		expect(rows).toHaveLength(1);
 		expect(rows[0]?.recalculationStatus).toBe('stale');

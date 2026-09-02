@@ -173,7 +173,7 @@ export function composeSlice10(
 		setRequirementCostOverride: new SetRequirementCostOverrideCommand(requirements, events, locks),
 		deleteRequirement: new DeleteRequirementCommand(requirements),
 		queries: {
-			getRequirementsForZone: new GetRequirementsForZone(requirements, zones, assets, projects, overrides),
+			getRequirementsForZone: new GetRequirementsForZone({ requirements, zones, assets, projects, overrides, logger }),
 			listAssets: new ListAssets(assets),
 			listRequirementsReferencing: new ListRequirementsReferencing(
 				requirements,

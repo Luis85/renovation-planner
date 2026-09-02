@@ -155,7 +155,7 @@ export async function rig(seed?: (repos: {
 	const queries = createPlanEditorQueries({
 		getPlan: new GetPlan(plans),
 		findZonesByPlan: new FindZonesByPlan(zonesRepo),
-		getRequirementsForZone: new GetRequirementsForZone(requirementsRepo, zonesRepo, assetsRepo, projects, overridesRepo),
+		getRequirementsForZone: new GetRequirementsForZone({ requirements: requirementsRepo, zones: zonesRepo, assets: assetsRepo, projects, overrides: overridesRepo, logger: recorder }),
 		listAssets: new ListAssets(assetsRepo),
 		listRequirementsReferencing: new ListRequirementsReferencing(
 			requirementsRepo,

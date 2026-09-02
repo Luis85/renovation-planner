@@ -12,6 +12,7 @@ import type { Result } from '../../src/core/result/Result';
 import type { ValidationError } from '../../src/core/errors/AppError';
 import { makeAsset, makeZone } from '../helpers/entities';
 import { requirementFixture, TEN_SQUARE_METERS } from '../helpers/slice10';
+import { recorder } from '../helpers/logger';
 
 /**
  * The domain's own refusals and the recalculation command's edge branches — the arms a
@@ -186,7 +187,7 @@ describe('GetRequirementsForZone readings', () => {
 		const assigned = await w.assign.execute({ zoneId: zoneEntity.entity.id, assetId: assetEntity.entity.id });
 		if (!assigned.ok) throw new Error('unexpected success');
 
-		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects, w.overrides);
+		const readModel = new GetRequirementsForZone({ requirements: w.requirements, zones: w.zones, assets: w.assets, projects: w.projects, overrides: w.overrides, logger: recorder });
 		const rows = expectOk(await readModel.execute(zoneEntity.entity.id));
 		expect(rows[0]?.recalculationStatus).toBe('current');
 	});
@@ -220,7 +221,7 @@ describe('GetRequirementsForZone readings', () => {
 		};
 		expectOk(await w.requirements.save(tampered.entity, loaded.version));
 
-		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects, w.overrides);
+		const readModel = new GetRequirementsForZone({ requirements: w.requirements, zones: w.zones, assets: w.assets, projects: w.projects, overrides: w.overrides, logger: recorder });
 		const rows = expectOk(await readModel.execute(zoneEntity.entity.id));
 		expect(rows[0]?.recalculationStatus).toBe('stale');
 		void FailingListRepository;

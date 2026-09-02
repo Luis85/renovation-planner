@@ -24,6 +24,21 @@ function overridePort<T extends object>(inner: T, patch: Record<string, unknown>
 	return Object.assign(Object.create(Object.getPrototypeOf(inner)), inner, patch) as T;
 }
 
+/**
+ * The shape `listProjectAssetPrices.test.ts` already uses for the same port: assertable
+ * rather than silent, because `GetRequirementsForZone` carries the duplicate diagnostic
+ * itself since Ruling 10 and one case below asserts on it.
+ */
+type LogLine = (event: string, context?: Record<string, unknown>) => void;
+function spyLogger(): { debug: LogLine; info: LogLine; warn: LogLine; error: LogLine } {
+	return {
+		debug: vi.fn<LogLine>(),
+		info: vi.fn<LogLine>(),
+		warn: vi.fn<LogLine>(),
+		error: vi.fn<LogLine>(),
+	};
+}
+
 const TEN_SQUARE_METERS = [
 	{ x: 0, y: 0 },
 	{ x: 4000, y: 0 },
@@ -40,6 +55,7 @@ async function seeded() {
 	const requirements = new InMemoryRequirementRepository();
 	const overrides = new InMemoryAssetPriceOverrideRepository();
 	const events = new RecordingEventBus();
+	const logger = spyLogger();
 
 	const project = expectOk(
 		await projects.save(makeProject({ currency: currencyOf('EUR') }), 'absent'),
@@ -81,10 +97,11 @@ async function seeded() {
 		requirements,
 		assets,
 		overrides,
+		logger,
 		projectId: project.entity.id,
 		zoneId: zone.entity.id,
 		assetId: asset.entity.id,
-		query: new GetRequirementsForZone(requirements, zones, assets, projects, overrides),
+		query: new GetRequirementsForZone({ requirements, zones, assets, projects, overrides, logger }),
 	};
 }
 
@@ -175,7 +192,14 @@ describe("a project's currency is part of what a figure was calculated from", ()
 		const projects = overridePort(w.projects, {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
-		const query = new GetRequirementsForZone(w.requirements, w.zones, w.assets, projects, w.overrides);
+		const query = new GetRequirementsForZone({
+			requirements: w.requirements,
+			zones: w.zones,
+			assets: w.assets,
+			projects,
+			overrides: w.overrides,
+			logger: w.logger,
+		});
 
 		const error = expectErr(await query.execute(w.zoneId));
 		expect(error.code).toBe('test.injected-failure');
@@ -197,6 +221,7 @@ async function seededWithOverride() {
 	const overrides = new InMemoryAssetPriceOverrideRepository();
 	const events = new RecordingEventBus();
 	const locks = new ReferenceLocks();
+	const logger = spyLogger();
 
 	const project = expectOk(
 		await projects.save(makeProject({ currency: currencyOf('GBP') }), 'absent'),
@@ -246,9 +271,10 @@ async function seededWithOverride() {
 		zone,
 		asset,
 		overrideResult,
+		logger,
 		requirementId: assigned.requirement.id,
 		setOverride,
-		query: new GetRequirementsForZone(requirements, zones, assets, projects, overrides),
+		query: new GetRequirementsForZone({ requirements, zones, assets, projects, overrides, logger }),
 	};
 }
 
@@ -334,20 +360,32 @@ describe("a project's own price override is part of what a figure was calculated
 		expect(respelled.unitCost.amount).toBe('19.5');
 		await overrides.save(respelled, saved.version);
 
-		const query = new GetRequirementsForZone(requirements, zones, assets, projects, overrides);
+		const query = new GetRequirementsForZone({ requirements, zones, assets, projects, overrides, logger: spyLogger() });
 		const rows = expectOk(await query.execute(zone.entity.id));
 		expect(rows[0]?.recalculationStatus).toBe('current');
 	});
 
 	/**
-	 * The memo's own case. Resolving the override per (project, asset) PAIR rather than once
-	 * per CALL is what fixes the read/write disagreement above, and it would otherwise cost
-	 * one override read per requirement. A single zone cannot hold two requirements on the
-	 * same asset through `AssignAssetCommand` (it is idempotent on that pair), so the second
-	 * requirement is hand-seeded — the memo's own question is only whether the SAME pair
-	 * recurs, which either route produces identically.
+	 * **The memo's own case, and the only instrument that can see Ruling 10 at all** — a row
+	 * renders identically whether the override resolution is keyed on the pair or on the
+	 * project, so the COUNT is the whole of the evidence.
+	 *
+	 * It used to spy on `getForPair` and expect TWO calls: one per distinct pair, memoised
+	 * across the repeat. `ObsidianAssetPriceOverrideRepository.getForPair` calls
+	 * `listByProject` and filters, so those two calls were two full hydrations of every price
+	 * note in the project. The memo is keyed on the PROJECT now and holds the whole
+	 * resolution, so the same zone costs ONE `listByProject` and no `getForPair` at all.
+	 *
+	 * The three rows below are the shape the pair-keyed memo needed and this one still needs:
+	 * a REPEATED pair (which a project-keyed memo must not re-read) and a genuinely DIFFERENT
+	 * pair in the same project (which it must still resolve to its OWN override rather than to
+	 * the first row's). A single zone cannot hold two requirements on the same asset through
+	 * `AssignAssetCommand` — it is idempotent on that pair — so the repeat is hand-seeded.
+	 *
+	 * The per-row VALUES are asserted beside the count, because a count alone is equally true
+	 * of a build that answers every row the first asset's override.
 	 */
-	it('reads each (project, asset) pair once for a zone with repeated assets', async () => {
+	it('reads one project list for a zone with repeated and distinct assets', async () => {
 		const w = await seededWithOverride();
 		// A second requirement in the SAME zone, referencing the SAME (project, asset) pair —
 		// the "repeated" half, which the memo must serve from cache rather than re-reading.
@@ -363,10 +401,9 @@ describe("a project's own price override is part of what a figure was calculated
 		);
 
 		// A DIFFERENT asset, in the SAME project, with its OWN override — a genuinely
-		// different PAIR. This is what a memo keyed on the project ALONE cannot tell apart
-		// from the pair above: it would answer this row with the first asset's cached
-		// override rather than reading its own, and it would do so in only ONE call rather
-		// than two — which is why the assertion below is on the COUNT, not only the value.
+		// different PAIR. A memo keyed on the project alone, holding one pair's ANSWER,
+		// could not tell it from the pair above; keyed on the project and holding a
+		// `Map<AssetId, …>`, it resolves each asset to its own override out of one read.
 		const otherAsset = expectOk(
 			await w.assets.save(
 				makeAsset({ unitCost: moneyOf('24.00', 'EUR'), wasteFactorDefault: new Decimal('0.10') }),
@@ -392,14 +429,81 @@ describe("a project's own price override is part of what a figure was calculated
 		});
 		expectOk(await assign.execute({ zoneId: w.zone.entity.id, assetId: otherAsset.entity.id }));
 
-		const spy = vi.spyOn(w.overrides, 'getForPair');
+		const listSpy = vi.spyOn(w.overrides, 'listByProject');
+		const pairSpy = vi.spyOn(w.overrides, 'getForPair');
 		const rows = expectOk(await w.query.execute(w.zone.entity.id));
 
 		expect(rows).toHaveLength(3);
-		// One call for the repeated (project, asset X) pair — served from cache the second
-		// time — plus one for the genuinely different (project, asset Y) pair. TWO, not one
-		// and not three.
-		expect(spy).toHaveBeenCalledTimes(2);
+		// ONE list for the one project all three rows belong to — not one per row, and not
+		// one per distinct pair. Defeating the memo (dropping the `memo.get` short-circuit
+		// in `projectOverrides`) reads 3 here.
+		expect(listSpy).toHaveBeenCalledTimes(1);
+		// And the pair lookup is gone from this path entirely, which is the read that cost
+		// a whole project hydration each time it was made.
+		expect(pairSpy).not.toHaveBeenCalled();
+
+		// The values, beside the count: each row resolves to its OWN asset's override out of
+		// that one read. A project-keyed memo holding one pair's ANSWER would give all three
+		// rows 19.5, and would still read ONE list.
+		const forX = rows.filter((r) => r.assetId === w.asset.entity.id);
+		const forY = rows.filter((r) => r.assetId === otherAsset.entity.id);
+		expect(forX).toHaveLength(2);
+		expect(forY).toHaveLength(1);
+		expect(forX.map((r) => r.unitCost?.projectOverride?.amount)).toEqual(['19.5', '19.5']);
+		expect(forY[0]?.unitCost?.projectOverride?.amount).toBe('30');
+	});
+
+	/**
+	 * **The duplicate diagnostic, carried rather than dropped.** Before Ruling 10 this path's
+	 * warning came from inside `ObsidianAssetPriceOverrideRepository.getForPair`; this query
+	 * no longer calls it, so `winnersBy`'s REQUIRED `onDuplicate` is where the same
+	 * `asset-price.duplicate-pair` line is raised now — the same event and the same context.
+	 *
+	 * More than one note for one pair is a state nothing structurally prevents (ids are ULIDs
+	 * and these are user-editable markdown files), so the extra notes are seeded directly
+	 * rather than through the command, which would refuse. THREE in total here — the
+	 * fixture's own override plus two — because `count` is the whole bucket and a fixture of
+	 * two would not tell a count of the duplicates from a count of the extras.
+	 * `winningDuplicate` takes the HIGHEST id, so the row also proves WHICH note won: a
+	 * warning with the wrong winner is a warning about the wrong price.
+	 */
+	it('warns once and resolves the highest id when a project has several notes for one pair', async () => {
+		const w = await seededWithOverride();
+		const duplicate = (amount: string) =>
+			expectOk(
+				AssetPriceOverride.create({
+					id: createAssetPriceOverrideId(),
+					projectId: w.project.entity.id,
+					assetId: w.asset.entity.id,
+					unitCost: moneyOf(amount, 'GBP'),
+				}),
+			);
+		// `createAssetPriceOverrideId` is monotonic, so `lowerId` really does sort below
+		// `higherId` — and they are SAVED in the opposite order, so `VersionedStore.values()`
+		// (insertion order, which is what `listByProject` answers) ends with the LOWER id.
+		// That is what makes the value assertion below able to tell `winnersBy` from
+		// `new Map(list.map(...))`: the two pick different notes here, where a save order
+		// matching the id order would let both spellings pass.
+		const lowerId = duplicate('31.00');
+		const higherId = duplicate('32.00');
+		expectOk(await w.overrides.save(higherId, 'absent'));
+		expectOk(await w.overrides.save(lowerId, 'absent'));
+		// Derived from the IDS rather than assumed to be a save position: the rule is
+		// `winningDuplicate`'s highest id, so the assertion has to state that rule.
+		const winner = [w.overrideResult.override, lowerId, higherId].reduce((best, o) =>
+			o.id > best.id ? o : best,
+		);
+		expect(winner.unitCost.amount).toBe('32');
+
+		const rows = expectOk(await w.query.execute(w.zone.entity.id));
+
+		expect(rows[0]?.unitCost?.projectOverride?.amount).toBe(winner.unitCost.amount);
+		expect(w.logger.warn).toHaveBeenCalledTimes(1);
+		expect(w.logger.warn).toHaveBeenCalledWith('asset-price.duplicate-pair', {
+			projectId: w.project.entity.id,
+			assetId: w.asset.entity.id,
+			count: 3,
+		});
 	});
 
 	/**
@@ -450,7 +554,7 @@ describe("a project's own price override is part of what a figure was calculated
 
 		const setOverride = new SetAssetPriceOverrideCommand({ overrides, projects, assets, events, locks });
 		const recalculate = new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides });
-		const query = new GetRequirementsForZone(requirements, zones, assets, projects, overrides);
+		const query = new GetRequirementsForZone({ requirements, zones, assets, projects, overrides, logger: spyLogger() });
 		const rowFor = async () => {
 			const rows = expectOk(await query.execute(zone.entity.id));
 			const row = rows[0];

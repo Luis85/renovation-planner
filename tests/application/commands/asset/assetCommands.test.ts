@@ -16,6 +16,7 @@ import {
 	requirementFixture,
 	TEN_SQUARE_METERS,
 } from '../../../helpers/slice10';
+import { recorder } from '../../../helpers/logger';
 
 /**
  * The slice-10 write/read sides with no dedicated suite yet: catalog CRUD, the picker
@@ -243,7 +244,7 @@ describe('DeleteAssetCommand', () => {
 		const { GetRequirementsForZone } = await import(
 			'../../../../src/application/queries/GetRequirementsForZone'
 		);
-		const readModel = new GetRequirementsForZone(w.requirements, w.zones, w.assets, w.projects, w.overrides);
+		const readModel = new GetRequirementsForZone({ requirements: w.requirements, zones: w.zones, assets: w.assets, projects: w.projects, overrides: w.overrides, logger: recorder });
 
 		expectOk(
 			await w.deleteAsset.execute({

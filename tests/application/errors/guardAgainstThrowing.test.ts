@@ -340,7 +340,7 @@ function slice10Services(): Fixture[] {
 		),
 		queryCase(
 			'GetRequirementsForZone',
-			new GetRequirementsForZone(requirements, zones, assets, projects, overrides) as never,
+			new GetRequirementsForZone({ requirements, zones, assets, projects, overrides, logger }) as never,
 			'query.getRequirementsForZone.failed',
 			zone.id,
 		),

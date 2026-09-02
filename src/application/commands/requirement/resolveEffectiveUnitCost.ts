@@ -39,9 +39,11 @@ export async function resolveEffectiveUnitCost(
 
 /**
  * The same rule against an already-fetched batch, for callers that resolve MANY pairs at once
- * and must not pay a read per row. `onAssetUpdated` builds its map from one `listByAsset`;
- * `GetRequirementsForZone` builds its from memoised `getForPair` calls. Pure, so it is the
- * half a test can drive without a repository.
+ * and must not pay a read per row. `onAssetUpdated` builds its map from one `listByAsset`, and
+ * is the only caller of THIS function; `GetRequirementsForZone` resolves the same precedence
+ * against its own per-project map (one `listByProject`, folded through `winnersBy`) and keys
+ * that map by asset rather than by project, so it cannot share this signature. Pure, so it is
+ * the half a test can drive without a repository.
  */
 export function effectiveUnitCostFrom(
 	overridesByProject: ReadonlyMap<ProjectId, Money>,

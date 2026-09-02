@@ -40,13 +40,18 @@ async function wired() {
 /**
  * Saves two notes for a fresh pair and hands back the expectation for the WINNER — the note
  * the row rendered. `overrides.save` is a Promise-returning port, so there is no synchronous
- * version of this to write: both call sites `await` it.
+ * version of this to write: all three call sites `await` it.
+ *
+ * `Exclude<…, 'absent'>` rather than the bare union, DERIVED rather than restated: the winner
+ * always exists here, and the ordering case below reads `winner.id` to fail that one note's
+ * delete. Typed as the union, that read is a `TS2339` on `'absent'`, and widening it back would
+ * cost the case its subject.
  */
 async function seedPair(
 	overrides: InMemoryAssetPriceOverrideRepository,
 	projectId: ProjectId,
 	assetId: AssetId,
-): Promise<PriceRowExpectation> {
+): Promise<Exclude<PriceRowExpectation, 'absent'>> {
 	await overrides.save(makeOverride(projectId, assetId, '19.50'), 'absent');
 	// The WINNER, and it is the second deliberately: ids are monotonic ULIDs, so the later
 	// save mints the higher one and `winningDuplicate` returns it. That is the note the row
@@ -145,20 +150,61 @@ describe('ClearAssetPriceOverrideCommand', () => {
 	});
 
 	/**
-	 * And the other side, so the rule is not "always announce": a FIRST delete that fails has
-	 * written nothing, so there is nothing to announce. The first delete is the WINNER's, so
-	 * its failure means the effective price never moved — which is why this case and the one
-	 * above disagree about announcing. Watch it fail against a loop that deletes in
-	 * `listByAsset` order: a losing duplicate goes first, succeeds, and the command announces
-	 * a change nobody made.
+	 * And the other side, so the rule is not "always announce": a delete that fails having
+	 * written NOTHING has nothing to announce. Every delete refuses here, so no ordering can
+	 * make one land.
+	 *
+	 * **It does NOT discriminate the ordering, and its own docblock claimed it did** — "watch
+	 * it fail against a loop that deletes in `listByAsset` order: a losing duplicate goes
+	 * first, succeeds, and the command announces a change nobody made". That losing duplicate
+	 * cannot succeed here: `mockResolvedValue` refuses every call, so `removed` stays false in
+	 * both worlds and this case reads green against `ordered = forPair`. Measured, and it is
+	 * this repository's own first rule — an invariant asserted in a comment gets a test that
+	 * fails without it — unapplied in a comment claiming otherwise. The sibling below is the
+	 * case that actually holds it, and the two are adjacent so neither reads as a duplicate of
+	 * the other: this one is about `removed`, the next one about the ORDER `removed` is
+	 * computed in.
 	 */
-	it('announces nothing when the first delete fails', async () => {
+	it('announces nothing when every delete fails', async () => {
 		const { command, overrides, bus, projectId, assetId } = await wired();
 		const winner = await seedPair(overrides, projectId, assetId);
 		vi.spyOn(overrides, 'delete').mockResolvedValue(err(persistenceError('asset-price.write-failed', 'no')));
 		const result = await command.execute({ projectId, assetId, expected: winner });
 		expect(result.ok).toBe(false);
 		expect(bus.published).toHaveLength(0);
+	});
+
+	/**
+	 * **The winner-first ordering, which nothing held until this case.** `forPair` arrives in
+	 * `listByProject` order, which for a duplicated pair puts the LOSER first — `VersionedStore`
+	 * preserves insertion order and `seedPair` saves the winner second, so the two orders
+	 * genuinely differ, which is what lets one case tell them apart at all.
+	 *
+	 * Only the WINNER's delete refuses. Winner first, the loop refuses on its first iteration
+	 * with `removed` still false: nothing was written, the surviving loser is still what
+	 * `getForPair` would answer, so the effective price has not moved and there is nothing to
+	 * announce. In `forPair` order the loser is deleted first and succeeds, `removed` goes true,
+	 * and the winner's refusal then announces a project-wide recalculation for a price that is
+	 * exactly where it was.
+	 *
+	 * Both assertions are load-bearing and neither is the other's restatement: the published
+	 * count is what the ordering decides, and the untouched listing is what says the refusal
+	 * really did leave the pair whole — a build that deleted the loser and then announced
+	 * nothing would satisfy the first alone.
+	 */
+	it('deletes the winner first, so a refusal there announces nothing', async () => {
+		const { command, overrides, bus, projectId, assetId } = await wired();
+		const winner = await seedPair(overrides, projectId, assetId);
+		const real = overrides.delete.bind(overrides);
+		vi.spyOn(overrides, 'delete').mockImplementation((id, expected) => (
+			id === winner.id
+				? Promise.resolve(err(persistenceError('asset-price.write-failed', 'no')))
+				: real(id, expected)
+		));
+		const result = await command.execute({ projectId, assetId, expected: winner });
+		expect(result.ok).toBe(false);
+		expect(bus.published).toHaveLength(0);
+		expect(expectOk(await overrides.listByProject(projectId))).toHaveLength(2);
 	});
 
 	it('surfaces a failed read of the pair', async () => {

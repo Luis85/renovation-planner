@@ -26,6 +26,30 @@ import type { AssetPriceOverrideRepository } from '../../ports/AssetPriceOverrid
  * `deriveRequirementFigures` is deliberately NOT given the repository: it stays a pure
  * function of the figures it is handed. A derivation that reached for a repository would be a
  * second answer to "what does this requirement cost".
+ *
+ * **RECORDED COST, not a defect, and the shape is one this increment has already fixed twice
+ * one layer over.** `getForPair` is not a keyed read: `ObsidianAssetPriceOverrideRepository`
+ * answers it by calling `listByProject(projectId)` and FILTERING, so every call here hydrates
+ * every price note the project holds. That is fine for `AssignAsset`, which is one gesture and
+ * one pair. It is not free under the CASCADE: `runRecalculationCascade` drives
+ * `recalculateOne` → `RecalculateRequirementCommand` → this function once per target, four at a
+ * time (`CASCADE_CONCURRENCY`, not serially — the concurrency bounds the CONTENTION, never the
+ * work), so one `AssetPriceOverrideChanged` over N requirements in a project holding M price
+ * notes costs **N × M** hydrations. Every one of them re-reads the same M notes.
+ *
+ * The same N × M that Decision 5 batched at `onAssetUpdated` (one `listByAsset`, folded through
+ * `winnersBy`) and that Ruling 10 fixed in `GetRequirementsForZone` (one `listByProject` per
+ * project, memoised). This command is the THIRD reader of the same precedence and the only one
+ * still paying per row — written down rather than fixed, because closing it is a change to a
+ * command's READ PATH: either the cascade resolves the map once and passes it in, which widens
+ * `RecalculateRequirementDeps` and every construction site of it, or the repository grows a
+ * per-call memo, which is caching inside a port implementation and needs its own invalidation
+ * argument. Neither belongs in the increment that found it.
+ *
+ * **No correctness consequence** — every read is of the same vault at the same moment, and the
+ * cascade's failure isolation is per requirement either way. The cost is churn, the class Ruling
+ * 9 records and accepts, and the reason to write it here rather than in a document is that this
+ * is the function a later author edits when they come to fix it.
  */
 export async function resolveEffectiveUnitCost(
 	overrides: AssetPriceOverrideRepository,

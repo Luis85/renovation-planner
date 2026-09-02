@@ -956,6 +956,15 @@ this increment's defect.
   approximate caveat, so the layout of a three-figure block in a row that already carried two is
   verified by `npm run test-build` in a vault and by nothing here.
 
+  **[[Price a shared asset for one project]] is what that vault run now IS**, written by the
+  final fix round and not yet walked — the spec's *Staying green* item 4 asked for "the manual
+  case that walks it in a vault" and the increment closed without one, so the sole instrument for
+  this residual had no procedure. Its steps 14, 15 and 16 are the three-figure block, and its
+  step 15 is the only state a user can hold three figures in at all: a hand edit to a price note
+  publishes no `AssetPriceOverrideChanged`, so no cascade runs and the recorded provenance stays
+  behind the price in force. Its Runs table says it has not been run — an unrun manual case is a
+  plan to find out, not a finding.
+
 ## Genuinely undecided, and left so
 
 - **~~Where a user creates a price override.~~ DECIDED by the override increment, see Amendment 4

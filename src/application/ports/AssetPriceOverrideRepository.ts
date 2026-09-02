@@ -113,6 +113,20 @@ export function winnersBy<K>(
 	for (const [key, bucket] of grouped) {
 		if (bucket.length > 1) onDuplicate(key, bucket);
 		const best = winningDuplicate(bucket);
+		// **UNREACHABLE, and it earns its place by NARROWING A TYPE rather than by
+		// discriminating** — which is a different reason from a guard that prevents a crash, and
+		// is stated here so a later reader meets a decision instead of the dead branch this
+		// repository records DELETING. Every bucket is non-empty by construction: the loop above
+		// creates one only by putting an override in it, and `winningDuplicate` moves off `null`
+		// on its first candidate. `coverage-final.json` agrees: this `if` counts `[21, 0]`, the
+		// false arm never taken. Named by its counts rather than by the `if@<line>` address the
+		// report prints, because this comment moved the line the moment it was written.
+		//
+		// Without it, `best` is `Loaded<AssetPriceOverride> | null` at a `Map.set` whose value
+		// type admits no `null`, and the build fails. The alternative is a non-null assertion,
+		// which asserts the same fact with nothing to read it off. The currency increment's
+		// `isStaleReading` has the identical shape and the same note, under this repository's own
+		// rule that uniformity is a reason and it is not the same reason as necessity.
 		if (best !== null) winners.set(key, best);
 	}
 	return winners;

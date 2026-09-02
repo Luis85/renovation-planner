@@ -83,15 +83,25 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 75 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 30 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 77 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 84 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 33 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 101 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 12 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 9 |
 
-203 steps across ELEVEN cases. The counts are `grep`ed out of these files rather than carried
+239 steps across THIRTEEN cases. The counts are `grep`ed out of these files rather than carried
 over from the notes the classification was drafted in, so a re-tagged step moves the number —
 and the number moves whether or not anyone re-runs the grep.
+
+**And two cases had already moved it before the re-run that produced those figures, which is
+this paragraph proving itself a fourth time.** The line above read *203 steps across ELEVEN
+cases* while `docs/tests/cases/` held TWELVE files: [[A note that cannot be read]] landed on
+`main` with sixteen steps and this section was not re-measured, so the total and the `obsidian`
+row were the only two figures wrong — every other tier was untouched by that case, which is
+exactly why nothing looked odd. The re-run above adds it and [[Price a shared asset for one
+project]] together, so the current figures are one measurement of the whole tree rather than
+two arithmetic corrections stacked. A count is only as current as its last grep, and the
+increment that adds a case is the one that has a reason to take it.
 
 **This paragraph is its own worked example, twice over.** Design slices 19 and 21 each re-ran
 the two greps and each wrote down what it measured; both were correct on the day, and the merge
@@ -218,7 +228,13 @@ fifteen `obsidian` steps of its own, for the same kind of reason. The
 `browser` tier is the one this triage was made to price, and three review rounds moved it in
 both directions: six of [[Canvas Navigation]]'s nine `browser` steps turned out to be `suite`,
 `obsidian` or `desktop` on a closer read, and five `suite` steps then turned out to be
-`browser` under the rule above. It has been 35, 27, 33, 32, 31, 30 and 29. Read that as the shape of the
+`browser` under the rule above. It has been 35, 27, 33, 32, 31, 30, 29, 30 and now **33** —
+the last of those measured by the re-run above rather than reasoned from the one before it.
+It moved by three rather than by the six [[Price a shared asset for one project]] first
+carried, because that case was re-read against this section's own rule before it landed and
+four of its verdicts moved: its Inspector steps need a VAULT, not a browser, since the harness
+draws the Requirements panel empty and its command bundle refuses every write, so a `browser`
+verdict there would have promised an instrument that does not exist. Read the sequence as the shape of the
 remaining audit rather than as a settled figure — a `browser` verdict is exactly as
 unconfirmed as a `suite` one, and for the same reason.
 
@@ -328,6 +344,18 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   `onChooseItem`/`onClose` ordering, which `obsidian.d.ts` does not state, and its step 12
   is the first time §83's row marker is rendered through its own data path rather than by
   injecting the span.
+- [[Price a shared asset for one project]] — the per-project price override, on the two
+  surfaces it added: the price section on the project detail state, and the Inspector's
+  three-figure block. Its layout claims are the ones worth walking, for a reason that is a fact
+  about the container rather than about the design — the Inspector's block has been drawn by
+  NOTHING, that container held no pinned Chromium, and the price section's own captures were
+  taken with a substitute build that prints its own *approximate* caveat. So it stands where
+  [[Navigate into a project and back]] does not on the same surface: its steps 15 and 16 are a
+  first look rather than a confirmation. Its step 15 is the only place the three-figure worst
+  case can be held at all — a hand edit to a price note publishes no change event, so no cascade
+  runs and the recorded provenance stays behind the price in force — and it is `obsidian` rather
+  than `browser` for the reason the `browser` paragraph above gives: the harness draws the
+  Requirements panel empty, so a browser cannot reach a populated row at any width.
 - [[A note that cannot be read]] — the increment where one bad note costs one note: the two
   listings skip and count, two surfaces draw the count, the reassignment picker refuses
   instead, and the diagnostics snapshot gets its first door. Every step needs a vault for

@@ -303,7 +303,19 @@ export const de: Partial<Record<StringKey, string>> = {
 	// Zeigt die FORM, statt sie zu beschreiben — genau wie die englische Fassung, und aus
 	// demselben Grund: „ein gültiger Geldbetrag“ sagt niemandem, dass `.5` und `1e3` zu den
 	// zurückgewiesenen Schreibweisen gehören.
-	'view.project.price-invalid': 'Geben Sie einen Preis wie 19,50 ein',
+	//
+	// **Der Dezimalpunkt wird NICHT lokalisiert, und das ist der ganze Zweck dieses
+	// Schlüssels statt eine Nachlässigkeit.** `AMOUNT_PATTERN` in `core/money/Money.ts`
+	// akzeptiert allein den Punkt — gemessen, nicht vermutet: `"19.50"` wird angenommen,
+	// `"19,50"` mit `money.invalid-amount` zurückgewiesen. Ein lokalisiertes `19,50` würde
+	// also genau die Schreibweise vorschlagen, die `validatePrice` ablehnt, und die
+	// Benutzerin in eine Schleife schicken: eintippen, abgelehnt, dasselbe Beispiel wieder
+	// lesen. Diese Zeile hat einmal `19,50` gesagt und wurde erst bei der abschließenden
+	// Durchsicht des Increments gefunden — kein Gate rendert `de.ts`, und die beiden Prüfungen
+	// in `strings.test.ts` fragten damals nach Begriffen und Platzhaltern, nicht nach
+	// Beispielen. Sie ändert sich, wenn das Eingabefeld eines Tages ein Komma annimmt — und
+	// `tests/presentation/i18n/strings.test.ts` fragt jetzt genau danach.
+	'view.project.price-invalid': 'Geben Sie einen Preis wie 19.50 ein',
 	'view.project.price-negative': 'Ein Preis kann nicht negativ sein.',
 	'view.project.price-scope':
 		'Ein hier festgelegter Preis gilt für jede Anforderung in diesem Projekt, die das Objekt verwendet',

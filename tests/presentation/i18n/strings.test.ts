@@ -3,6 +3,21 @@ import { t, tr } from '../../../src/presentation/i18n/strings';
 import { de } from '../../../src/presentation/i18n/locales/de';
 import { en } from '../../../src/presentation/i18n/locales/en';
 import type { StringKey } from '../../../src/presentation/i18n/locales/en';
+import { createMoney } from '../../../src/core/money/Money';
+import { isErr } from '../../../src/core/result/Result';
+
+/**
+ * Every digit-bearing token in a string — a maximal run anchored at a digit at both ends, so a
+ * trailing sentence period is not read as part of the number and `19,50` survives as one token
+ * rather than splitting into two acceptable halves. Used by the shown-example case below.
+ */
+const amountsIn = (value: string): string[] => value.match(/\d[\d.,]*\d|\d/g) ?? [];
+
+/**
+ * The currency is irrelevant to the question and any valid code answers it: `AMOUNT_PATTERN` is
+ * the half under test and it never sees the currency.
+ */
+const parsesAsAmount = (raw: string): boolean => !isErr(createMoney(raw, 'EUR'));
 
 /**
  * Pure lookups, asked of the function — no view, no mock, no language global. The
@@ -103,6 +118,49 @@ describe('the German locale', () => {
 			.map(([key]) => key);
 
 		expect(offenders, 'Vault is Obsidian’s own name and is not translated').toEqual([]);
+	});
+
+	/**
+	 * **A string whose job is to SHOW an accepted form must show one the code accepts**, and
+	 * the defect that bought this case is what that reads like when it goes wrong:
+	 * `view.project.price-invalid` said `Geben Sie einen Preis wie 19,50 ein` while
+	 * `AssetPriceRow.validatePrice` mints through `createMoney`, whose `AMOUNT_PATTERN` admits
+	 * only a `.`. A German user who typed the example was refused and shown the example again.
+	 * Worse than an ordinary mistranslation, because the English entry's own comment fixes the
+	 * copy's purpose as showing the SHAPE — so localizing the separator inverts exactly what the
+	 * string is for.
+	 *
+	 * Asked from the ENGLISH side, like the Vault case above and for the same reason: a
+	 * forbidden-spelling row can only refuse a separator somebody thought of. A key QUALIFIES
+	 * when its English value carries at least one digit-bearing token and `createMoney` accepts
+	 * every one of them — which is what "this string shows a monetary example" is expressible as
+	 * without a per-key list — and every such token in the translation must be accepted too.
+	 *
+	 * **Read what it reaches, because the CLASS it comes from is wider than the check.** A
+	 * locale string that instructs a user to type a format the code refuses is not cheaply
+	 * checkable in general: nothing ties a key to the validator its copy is about, and an
+	 * instruction can be prose with no example in it at all (`use a decimal point` carries no
+	 * digit and is invisible here). What this pins is the one expressible half — a shown
+	 * EXAMPLE, checked against the one parser this plugin's copy has ever quoted. Its blind
+	 * spots, named rather than left to be discovered: a key whose ENGLISH example is itself
+	 * refused drops out of the qualifying set entirely rather than being reported (the check
+	 * has no other way to know which side is the mistake); a translation that drops the example
+	 * and describes the rule instead passes; and it says nothing about any other locale, of
+	 * which there is one. Exactly ONE key qualifies today, measured rather than assumed by
+	 * printing the qualifying set — which is what makes this one assertion rather than a
+	 * backlog, and what makes the next qualifying key the interesting one.
+	 */
+	it('never shows a monetary example the amount parser refuses', () => {
+		const offenders: string[] = [];
+		for (const [key, english] of Object.entries(en) as [StringKey, string][]) {
+			const shown = amountsIn(english);
+			if (shown.length === 0 || !shown.every((raw) => parsesAsAmount(raw))) continue;
+			for (const example of amountsIn(de[key] ?? '')) {
+				if (!parsesAsAmount(example)) offenders.push(`${key}: "${example}"`);
+			}
+		}
+
+		expect(offenders, 'a shown price must be one `createMoney` accepts').toEqual([]);
 	});
 });
 

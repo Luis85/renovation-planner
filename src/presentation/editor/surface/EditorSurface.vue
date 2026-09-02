@@ -33,6 +33,7 @@ import { wheelPixels } from '../wheelDelta';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { EditorPointerEvent, ToolId } from '../tools/editor-tool';
 import type { ToolManager } from '../tools/tool-manager';
+import { routeEscape } from '../escapeRouting';
 
 /**
  * What this surface needs of the leaf it is mounted in, and nothing about a Plan.
@@ -63,6 +64,16 @@ const props = defineProps<{
 	 * required prop makes the second mounter answer the question at compile time.
 	 */
 	canvasLabel: StringKey;
+	/**
+	 * Switches the active tool — `routeEscape`'s `returned-to-select` arm. This file holds no
+	 * selection store and no `runtime.ts`, so the answer arrives as a prop the way `framedBounds`
+	 * does, rather than this surface reaching for either.
+	 */
+	setTool: (id: ToolId | null) => void;
+	/** Whether anything is selected right now — `routeEscape`'s own question, asked at Escape time. */
+	hasSelection: () => boolean;
+	/** Clears the selection — `routeEscape`'s `cleared-selection` arm. */
+	clearSelection: () => void;
 }>();
 
 const editor = props.editor;
@@ -1006,7 +1017,26 @@ function onKeyDown(event: KeyboardEvent): void {
 		// idempotent, so the two differ only for repeats of a press that already cancelled —
 		// where the second call clears an empty buffer. Escape means cancel once. The space
 		// branch above filters repeats for its own reasons and this is the same sentence.
-		if (!event.repeat && panOverride.phase !== 'panning') toolManager.cancelGesture();
+		//
+		// **What Escape does BELOW "swallowed by a pan" is `routeEscape`'s question now, not a
+		// single unconditional `cancelGesture()`.** A tool holding a draft — `hasDraft()` — is
+		// cancelled and stays active exactly as before; a creation tool with NOTHING drawn
+		// returns to Select instead of leaving Escape a no-op over an empty buffer; and Select
+		// itself, or camera mode with no tool at all, clears a selection when there is nothing
+		// left to cancel. `panOverride.phase !== 'panning'` above is the same swallow this
+		// branch always made — `routeEscape`'s own `panning` arm restates it rather than
+		// replacing it, so a pan still owns Escape for the reasons the paragraphs above give.
+		if (!event.repeat) {
+			routeEscape({
+				panning: panPhase.value === 'panning',
+				activeToolId: activeToolId.value,
+				hasDraft: () => toolManager.activeToolHasDraft(),
+				cancelGesture: () => toolManager.cancelGesture(),
+				setTool: (id) => props.setTool(id),
+				hasSelection: props.hasSelection(),
+				clearSelection: () => props.clearSelection(),
+			});
+		}
 		return;
 	}
 	if (event.key === ' ') {

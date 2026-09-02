@@ -615,3 +615,31 @@ describe('DrawPolygonTool: Shift constrains the next vertex', () => {
 		expect(h.context.renderState.polygonSketch?.vertices.at(3)?.x).toBeCloseTo(0, 6);
 	});
 });
+
+describe('DrawPolygonTool.hasDraft', () => {
+	// Task 9 — any placed vertex is work Escape must ask about before `cancel()` empties it.
+	it('is false with an empty buffer and true once a vertex is placed', () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		expect(tool.hasDraft()).toBe(false);
+
+		tool.pointerDown(at(0, 0));
+		expect(tool.hasDraft()).toBe(true);
+	});
+
+	it('is false again once cancel() empties the buffer, and once a close dispatches', async () => {
+		const h = harness();
+		const tool = build(h);
+		tool.activate(h.context);
+
+		tool.pointerDown(at(0, 0));
+		tool.cancel();
+		expect(tool.hasDraft()).toBe(false);
+
+		drawTriangle(tool);
+		await flush();
+		expect(tool.hasDraft()).toBe(false);
+	});
+});

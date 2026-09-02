@@ -24,6 +24,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
+import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { settle } from '../../helpers/editor';
 import { click, drawnLines, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
@@ -192,6 +193,43 @@ describe('escape while the camera owns the canvas', () => {
 
 		const drawn = expectOk(await zonesRepo.listByPlan(PLAN)).loaded.find((l) => l.entity.id !== 'zone-a');
 		expect(drawn?.entity.geometry.points).toHaveLength(3);
+		harness.unmount();
+	});
+});
+
+/**
+ * Task 9 — `EditorSurface`'s Escape branch dispatches through `routeEscape` now rather than an
+ * unconditional `toolManager.cancelGesture()`: a creation tool with nothing drawn returns to
+ * Select, and Select (or camera mode) with a selection and no draft clears it. The pan-swallow
+ * behaviour above is unchanged — these two are the arms `cancelGesture()` alone never reached.
+ */
+describe('Escape beyond the camera: the tool and the selection', () => {
+	it('Escape with Select active and a zone selected clears the selection', async () => {
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+		useSelectionStore(harness.pinia).select(['zone-a' as never]);
+
+		key(canvas, 'keydown', { key: 'Escape' });
+		await settle();
+
+		expect(useSelectionStore(harness.pinia).selectedIds).toEqual([]);
+		harness.unmount();
+	});
+
+	it('Escape on an empty drawing tool returns to Select rather than clearing anything', async () => {
+		const { harness, canvas, camera } = await editor();
+		useSelectionStore(harness.pinia).select(['zone-a' as never]);
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+
+		key(canvas, 'keydown', { key: 'Escape' });
+		await settle();
+
+		expect(camera.activeToolId).toBe('select');
+		// The selection made before switching tools is untouched: a tool switch never reaches
+		// the selection store, and `routeEscape`'s `returned-to-select` arm dispatches no clear.
+		expect(useSelectionStore(harness.pinia).selectedIds).toHaveLength(1);
 		harness.unmount();
 	});
 });

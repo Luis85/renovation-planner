@@ -84,6 +84,9 @@ function framedBounds(all: boolean) {
 		:editor="editor"
 		:framed-bounds="framedBounds"
 		:canvas-label="CANVAS_LABEL"
+		:set-tool="runtime.setTool"
+		:has-selection="() => selection.selectedIds.length > 0"
+		:clear-selection="() => selection.clear()"
 	>
 		<template #default="{ size }">
 			<VStage :config="size">

@@ -237,6 +237,11 @@ export class DrawPolygonTool implements EditorTool {
 		// Nothing is transient here: see above.
 	}
 
+	/** Any placed vertex is work Escape must ask about before `cancel()` discards it. */
+	hasDraft(): boolean {
+		return this.buffer.length > 0;
+	}
+
 	/**
 	 * Whether a click at `worldPoint` closes the polygon, asked of `closesPolygon` — the same
 	 * predicate `InteractionLayer` asks to decide whether to promise a close, so what the

@@ -255,6 +255,11 @@ export class SelectTool implements EditorTool {
 		this.cancel();
 	}
 
+	/** A drag in flight is the whole of what this tool would lose to `cancel()`. */
+	hasDraft(): boolean {
+		return this.gesture !== null;
+	}
+
 	private async commit(
 		context: EditorContext,
 		zoneId: ZoneId,

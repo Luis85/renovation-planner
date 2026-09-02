@@ -330,6 +330,15 @@ export class CalibrateTool implements EditorTool {
 		}
 	}
 
+	/**
+	 * A placed anchor or a buffered second point — either one is work `cancel()` would throw
+	 * away, and a `prompting` gesture always has one of the two: `complete()` clears both only
+	 * once the vault write has been dispatched or refused.
+	 */
+	hasDraft(): boolean {
+		return this.pointA !== null || this.pendingCompletion !== null;
+	}
+
 	private clearMeasurement(context: EditorContext): void {
 		context.renderState.measurement = null;
 	}

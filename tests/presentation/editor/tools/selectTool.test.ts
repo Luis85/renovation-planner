@@ -427,3 +427,37 @@ describe('SelectTool', () => {
 		]);
 	});
 });
+
+describe('SelectTool.hasDraft', () => {
+	// Task 9 — Escape asks a tool whether it holds work `cancel()` would discard before
+	// deciding whether to switch away or clear a selection instead.
+	it('is false before any press, true for a drag in flight, and false again after it commits', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		expect(tool.hasDraft()).toBe(false);
+
+		tool.pointerDown(eventAt(10, 10));
+		expect(tool.hasDraft()).toBe(true);
+
+		tool.pointerUp(eventAt(60, 10)); // a real drag, dispatched
+		expect(tool.hasDraft()).toBe(false);
+	});
+
+	it('is false again once cancel() or abandonGesture() discards the drag', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerDown(eventAt(10, 10));
+		tool.cancel();
+		expect(tool.hasDraft()).toBe(false);
+
+		tool.pointerDown(eventAt(10, 10));
+		tool.abandonGesture();
+		expect(tool.hasDraft()).toBe(false);
+	});
+});

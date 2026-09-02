@@ -74,17 +74,30 @@ const active = ref<Section>('Overview');
  * Without it a tablist is a row of buttons wearing tablist roles — the shape a screen reader
  * announces as a tab set and the keyboard then contradicts.
  */
+/**
+ * The newly selected tab is the only tabbable one, so focus has to follow the selection or the
+ * user's next Tab leaves the switch entirely.
+ *
+ * Extracted out of `onKey` because `npm run analyze` breached its CRAP threshold at 42 — cyclomatic 6
+ * against zero coverage, which is what an uncovered branchy function scores. A table lookup
+ * replacing the ternary chain and the DOM walk moved out are what brought it down; neither is
+ * decoration, and the handler reads as the two things it does rather than as five guards.
+ */
+function focusTab(from: EventTarget | null, index: number): void {
+	if (!(from instanceof HTMLElement)) return;
+	const target = from.parentElement?.children[index];
+	if (target instanceof HTMLElement) target.focus();
+}
+
+const STEPS: Readonly<Record<string, number>> = { ArrowRight: 1, ArrowLeft: -1 };
+
 function onKey(event: KeyboardEvent, index: number): void {
-	const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
-	if (step === 0) return;
+	const step = STEPS[event.key];
+	if (step === undefined) return;
 	event.preventDefault();
 	const next = (index + step + sections.length) % sections.length;
 	active.value = sections[next] as Section;
-	// The newly selected tab is the only tabbable one, so focus has to follow the selection or
-	// the user's next Tab leaves the switch entirely.
-	const tabs = event.currentTarget instanceof HTMLElement ? event.currentTarget.parentElement : null;
-	const target = tabs?.children[next];
-	if (target instanceof HTMLElement) target.focus();
+	focusTab(event.currentTarget, next);
 }
 
 /**

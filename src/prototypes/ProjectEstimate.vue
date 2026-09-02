@@ -29,16 +29,34 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-const props = defineProps<{
-	/** Already formatted in the PROJECT's currency, never the reader's — `PRODUCT.md`'s rule. */
-	amount: string;
-	requirements: number;
-	rooms: number;
-	/** Figures whose inputs have moved. They ARE in the amount, and the badge says so. */
-	stale: number;
-	/** Figures the total cannot take, because their currency is not the project's. */
-	unsummable: number;
-}>();
+/**
+ * Every prop carries a DEFAULT, and that is a harness constraint rather than a convenience.
+ * `IndexPage.vue` renders a discovered entry as a bare `<component :is>` with no props at all,
+ * so a component that requires any would photograph the index's own failure card instead of
+ * itself — the reason `CLAUDE.md` records for `ProjectDetail.vue` and `PlanList.vue`, which are
+ * reachable in the harness only through `?project=<id>`.
+ *
+ * A specimen that cannot be opened on its own is one nobody looks at, and the badges are
+ * exactly the part an eye has to settle: whether four silhouettes and two border treatments
+ * read apart is not a question any gate here can answer. So the defaults are a real state of
+ * this component — a total with both qualifiers live — and `ProjectHome.vue` overrides all five.
+ *
+ * The content is invented and `PRODUCT.md` requires it to be labelled as such: there is no real
+ * renovation project, floor plan or cost data anywhere in this repository.
+ */
+const props = withDefaults(
+	defineProps<{
+		/** Already formatted in the PROJECT's currency, never the reader's — `PRODUCT.md`'s rule. */
+		amount?: string;
+		requirements?: number;
+		rooms?: number;
+		/** Figures whose inputs have moved. They ARE in the amount, and the badge says so. */
+		stale?: number;
+		/** Figures the total cannot take, because their currency is not the project's. */
+		unsummable?: number;
+	}>(),
+	{ amount: '€42,300.00', requirements: 24, rooms: 11, stale: 3, unsummable: 1 },
+);
 
 /**
  * Built from the same numbers the figure was built from, rather than written as copy, so a
@@ -47,6 +65,34 @@ const props = defineProps<{
 const provenance = computed(
 	() => `Summed from ${props.requirements} requirements across ${props.rooms} rooms.`,
 );
+
+/**
+ * The qualifiers as DATA rather than as two hand-copied `<span>` blocks — `npm run analyze`
+ * reported the pair as a 19-line clone group, correctly.
+ *
+ * They collapse this cleanly because both marks are the same drawing: a ring, plus one stroke
+ * inside it. That family resemblance is deliberate — a clock hand for a figure whose inputs
+ * have moved, a slash for one the total cannot take — so the only thing that varies is `d`, and
+ * a shared `<circle>` is a fact about the icon set rather than an accident of the collapse.
+ */
+const flags = computed(() => {
+	const rows: { health: string; d: string; text: string }[] = [];
+	if (props.stale > 0) {
+		rows.push({
+			health: 'stale',
+			d: 'M12 7v5l3 2',
+			text: `${props.stale} need recalculating`,
+		});
+	}
+	if (props.unsummable > 0) {
+		rows.push({
+			health: 'excluded',
+			d: 'M5.6 5.6l12.8 12.8',
+			text: `${props.unsummable} in another currency, not counted`,
+		});
+	}
+	return rows;
+});
 </script>
 
 <template>
@@ -61,13 +107,14 @@ const provenance = computed(
 			{{ provenance }}
 		</p>
 		<p
-			v-if="stale > 0 || unsummable > 0"
+			v-if="flags.length > 0"
 			class="rp-estimate__flags"
 		>
 			<span
-				v-if="stale > 0"
+				v-for="flag in flags"
+				:key="flag.health"
 				class="rp-badge"
-				data-health="stale"
+				:data-health="flag.health"
 			>
 				<svg
 					width="13"
@@ -78,6 +125,7 @@ const provenance = computed(
 					stroke-width="2"
 					stroke-linecap="round"
 					stroke-linejoin="round"
+					class="rp-badge__mark"
 					aria-hidden="true"
 				>
 					<circle
@@ -85,34 +133,9 @@ const provenance = computed(
 						cy="12"
 						r="9"
 					/>
-					<path d="M12 7v5l3 2" />
+					<path :d="flag.d" />
 				</svg>
-				{{ stale }} need recalculating
-			</span>
-			<span
-				v-if="unsummable > 0"
-				class="rp-badge"
-				data-health="excluded"
-			>
-				<svg
-					width="13"
-					height="13"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<circle
-						cx="12"
-						cy="12"
-						r="9"
-					/>
-					<path d="M5.6 5.6l12.8 12.8" />
-				</svg>
-				{{ unsummable }} in another currency, not counted
+				{{ flag.text }}
 			</span>
 		</p>
 	</section>
@@ -185,7 +208,14 @@ const provenance = computed(
 	line-height: 1.5;
 }
 
-.rp-badge > svg {
+/*
+ * The mark carries a class rather than being selected as `svg`. `prototype-styles.test.ts`
+ * refuses an element SUBJECT, and its reason is specific: Vue applies a parent's scope
+ * attribute to a composed child's ROOT element, so a bare element subject is the shape that
+ * restyles a real component by accident. A class of the mock's own is a thing no real component
+ * has.
+ */
+.rp-badge__mark {
 	flex: 0 0 auto;
 }
 
@@ -193,7 +223,7 @@ const provenance = computed(
 	border-color: var(--text-warning);
 }
 
-.rp-badge[data-health='stale'] > svg {
+.rp-badge[data-health='stale'] .rp-badge__mark {
 	color: var(--text-warning);
 }
 

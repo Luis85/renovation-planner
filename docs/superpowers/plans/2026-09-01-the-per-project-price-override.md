@@ -3696,21 +3696,32 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
     	 * `'unreadable'` — the id is in the Project Index (the note declares `type` and a
     	 * non-empty `id`, and both survive a malformed BODY) but `listAll()` could not read it —
     	 * a hand-edited note with, say, a bad `unit-cost`. The asset is not gone, only its note
-    	 * would not parse today: the price input stays ENABLED, because a project's price for an
-    	 * asset does not depend on whether that asset's own note happens to read cleanly.
+    	 * would not parse today — but `SetAssetPriceOverrideCommand` loads the asset BEFORE it
+    	 * reaches the write (`this.deps.assets.getById(input.assetId)`, Task 4's `upsert`) and
+    	 * propagates a failed read unchanged, so a set dispatched against this row refuses EVERY
+    	 * time: **price input disabled, Clear live** — the same controls as the orphan row below,
+    	 * for a different reason. An earlier draft of this bullet said *"the price input stays
+    	 * ENABLED, because a project's price for an asset does not depend on whether that asset's
+    	 * own note happens to read cleanly"* — true of the DOMAIN and false of the COMMAND: the
+    	 * price not depending on the note's readability does not make the note readable, and the
+    	 * command has to read it to save one. A review bot found the mismatch against Task 4's own
+    	 * code; see Task 9's rendering rule for the correction and the rejected alternative.
     	 * `'orphan'` — the id is absent from the Project Index too: the note itself is gone,
     	 * out of band. Decision 6's ORPHAN row: price input disabled, Clear live.
     	 *
     	 * `assetName` and `catalogue` are `null` for BOTH unhappy states — this query has no name
-    	 * or price to show in either case — which is exactly why they cannot be the discriminator
-    	 * on their own; `assetStatus` is what a caller must branch on to tell them apart.
+    	 * or price to show in either case — and now so is whether the price input is enabled, so
+    	 * `assetStatus` earns its place on the COPY alone: which reason, and which remedy, a row
+    	 * names for a state neither field can distinguish on its own.
     	 */
     	assetStatus: 'known' | 'unreadable' | 'orphan';
     }
     ```
 
-    **Two remedies considered here and rejected, so a later round does not re-propose them.**
-    Disabling Clear on the `'unreadable'` row was the first: it blocks a legitimate gesture over a
+    **Two remedies considered here and rejected, so a later round does not re-propose them —**
+    and a third, over the ENABLED-input design this bullet no longer names, is recorded where
+    that design decision now lives: Task 9's rendering rule, below. Disabling Clear on the
+    `'unreadable'` row was the first: it blocks a legitimate gesture over a
     diagnosis the row is already wrong about, trading a false deletion for a false lockout rather
     than fixing the diagnosis. Asking the diagnostics ledger which assets refused was the second,
     and it is the wrong INSTRUMENT: `DiagnosticsLedger` is session-scoped and deliberately
@@ -4018,8 +4029,17 @@ as dropping the row wearing better clothes.
 reason — read too, not looked up.** There the price is not fictional, it is merely unresolved:
 the asset note exists and this read could not confirm what it says today. That is exactly why
 the null test alone cannot be the state discriminator (above) even though it stays correct as
-the sort's grouping test: nullness answers "do I have a name to show", not "should the price
-input be enabled", and those two questions agree for `'orphan'` and disagree for `'unreadable'`.
+the sort's grouping test: nullness answers "do I have a name to show", not "which reason and
+which remedy a row names for the user" — the second question `assetStatus` exists to answer.
+
+**An earlier draft of this paragraph closed on "those two questions agree for `'orphan'` and
+disagree for `'unreadable'`", reading nullness against whether the price input was enabled.**
+That was true only while this row's input WAS enabled, which Task 9's correction stops being the
+case: `SetAssetPriceOverrideCommand` refuses a set against an unreadable asset every time, so the
+input is disabled on both unhappy rows now and nullness agrees with enabled-ness everywhere. What
+still disagrees between them, and what `assetStatus` still has to carry, is the SENTENCE — one
+row says the asset is gone, the other says only that this read of it failed, and the two commit
+to opposite remedies (get rid of this row; fix the note and it prices again).
 
 **The remedy is a READ, deliberately, and not the other one the report offered.** "Handle
 out-of-band asset removal" would mean the vault-change pipeline dispatching `DeleteAssetCommand`
@@ -4897,7 +4917,7 @@ In `locales/en.ts`:
 	'view.project.price-invalid': 'Enter a price like 19.50',
 	'view.project.price-scope': 'A price set here applies to every requirement in this project that uses the asset',
 	'view.project.price-orphan': 'This asset is no longer in the library',
-	'view.project.price-unreadable': "This asset's note could not be read, but its price is still set",
+	'view.project.price-unreadable': "This asset's note could not be read, so its price can't be changed here. Fix the note to set a price again.",
 ```
 
 **`view.project.price-scope` is the project-wide warning Step 3 promises, and it had no key.**
@@ -4935,8 +4955,12 @@ In `locales/de.ts`, the same keys. **An Asset is `Objekt`, never `Material`** �
 lines below the comment recording its removal. Keep every interpolation hole that `en.ts` has:
 the per-key hole check is what catches a mis-holed translation. `view.project.price-unreadable`
 is the key that word most needs to be right in, since its whole sentence is about the Asset
-itself: `'Die Notiz zu diesem Objekt konnte nicht gelesen werden, sein Preis ist aber weiterhin
-gesetzt.'`
+itself: `'Die Notiz zu diesem Objekt konnte nicht gelesen werden. Der Preis kann hier erst
+wieder festgelegt werden, wenn die Notiz repariert ist.'` **An earlier draft of this quote read
+"…konnte nicht gelesen werden, sein Preis ist aber weiterhin gesetzt" — the ENABLED-input
+sentence, corrected below alongside the rendering rule it was written for.** The two sentences
+name the same two facts the English does: which note is the obstacle, and that fixing it is what
+restores the control.
 
 **And the `AppError` copy, which goes in the SAME table and was scheduled nowhere until this
 step.** `toUserMessage` asks `hasLocaleKey(error.code)` first, so a code IS a locale key — there
@@ -5160,20 +5184,26 @@ describe('AssetPriceList', () => {
 	 * an override whose asset note still exists but would not parse today. `assetName` and
 	 * `catalogue` are null here too, exactly as on the orphan row, which is precisely why this
 	 * case has to exist separately: a component keying its markup off `assetName === null` alone
-	 * cannot tell the two apart, and would disable a price that is still real.
+	 * cannot tell the two apart, and would show the wrong sentence beside whichever row it
+	 * guesses.
 	 *
-	 * Assert the input is ENABLED, the disclosure names `price-unreadable` and not `price-orphan`,
-	 * and Clear stays live — the same three mistakes as the orphan case, with the first one
-	 * inverted. Watch it fail against a component that switches on `row.assetName === null`: this
-	 * row and the orphan fixture render byte-identical markup, both wrong for this one.
+	 * **Assert the input is DISABLED, not live — a second review bot finding corrected the
+	 * first one.** `SetAssetPriceOverrideCommand` reads the asset before it reaches the write
+	 * and refuses on a failed read every time (Task 4's `upsert`), so an enabled input here is a
+	 * control that cannot save. An earlier draft of this case asserted the opposite and is the
+	 * mutation this one exists to catch: a component that leaves the input enabled for
+	 * `'unreadable'` — the defect that actually shipped, not the `assetName === null` defect
+	 * that preceded it. Assert the disclosure names `price-unreadable` and not `price-orphan`,
+	 * and Clear stays live, unaffected by either finding since this asset's continued existence
+	 * was never in doubt.
 	 */
-	it('renders an unreadable override with its id, no library price, and a LIVE price input', async () => {
+	it('renders an unreadable override with its id, no library price, and a disabled price input', async () => {
 		// rows: [{ assetId: 'a1', assetName: null, catalogue: null, override: 19.50,
 		//          assetStatus: 'unreadable', … }]
 		expect(wrapper.text()).toContain('a1');
 		expect(wrapper.find('.rp-asset-price-unreadable').exists()).toBe(true);
 		expect(wrapper.find('.rp-asset-price-orphan').exists()).toBe(false);
-		expect(wrapper.find('input').attributes('disabled')).toBeUndefined();
+		expect(wrapper.find('input').attributes('disabled')).toBeDefined();
 		expect(wrapper.find('.rp-asset-price-clear').attributes('disabled')).toBeUndefined();
 	});
 
@@ -5255,31 +5285,58 @@ its absence from the copy inventory is what a review round caught.
 `assetName === null`.** An earlier draft of this section made that the discriminator, on the
 argument that only one unhappy state existed; a review bot found a second one `listAll` produces
 by the identical symptom (a note that exists but will not parse), and a component branching on
-nullness alone cannot tell them apart. Both rows share the id-in-place-of-name treatment and the
-absent library price (`catalogue` is null on both; there is nothing to compare against on either),
-and diverge on exactly one thing — whether the price input is enabled — because that is the one
-question the two states answer differently.
+nullness alone cannot tell them apart. Both rows share the id-in-place-of-name treatment, the
+absent library price (`catalogue` is null on both; there is nothing to compare against on
+either) and — since a SECOND review bot finding, below — the disabled price input: both unhappy
+rows now draw the same controls. What they diverge on is the SENTENCE beside the id: one names a
+deletion, the other names a read that failed, and the two commit to opposite remedies. Losing
+that distinction would tell a user their asset is gone when it is merely unreadable today — the
+exact false diagnosis `assetStatus` exists to prevent — so the two rows and the two classes below
+stay, even though `disabled` no longer needs `assetStatus` to decide it
+(`row.assetStatus !== 'known'` is the whole binding).
 
-**The ORPHAN row (`assetStatus === 'orphan'`) is the one row whose only useful control is
-Clear.** It means the asset this price names was deleted out of band — by hand in the file
-explorer, or by sync — so no command ran to clean it up. Render the asset ID with
-`view.project.price-orphan` beside it, and **disable the price input while leaving Clear live**:
-setting a new price on an asset that does not exist mints data nothing can ever price, and
-`SetAssetPriceOverrideCommand` reads the asset and would refuse anyway — a live control that
-dispatches a guaranteed refusal is the same defect slice 14's amendment refuses. The row exists
-so the user can get RID of it.
+**The ORPHAN row (`assetStatus === 'orphan'`) is a row whose only useful control is Clear** — a
+role the unreadable row below now shares, for a different reason. It means the asset this price
+names was deleted out of band — by hand in the file explorer, or by sync — so no command ran to
+clean it up. Render the asset ID with `view.project.price-orphan` beside it, and **disable the
+price input while leaving Clear live**: setting a new price on an asset that does not exist mints
+data nothing can ever price, and `SetAssetPriceOverrideCommand` reads the asset and would refuse
+anyway — a live control that dispatches a guaranteed refusal is the same defect slice 14's
+amendment refuses. The row exists so the user can get RID of it.
 
-**The UNREADABLE row (`assetStatus === 'unreadable'`) keeps its price input LIVE.** The asset is
-not gone — its note is still in the Project Index, only its body would not parse today — so a
-project's price for it is independent of whether that note happens to read cleanly, and disabling
-the field would be the false diagnosis the review bot found, just moved from Clear to the input.
-Render the asset ID with `view.project.price-unreadable` beside it instead, draw no library price
-for the same reason the orphan row draws none (this read has nothing to compare against, not
-"there is nothing"), and leave both the input and Clear live. Two remedies considered and
-rejected here: disabling Clear on this row blocks a legitimate gesture over a diagnosis that was
-already wrong, and asking the diagnostics ledger which assets refused reaches for the wrong
-instrument — `DiagnosticsLedger` is session-scoped and deliberately content-free (CLAUDE.md's
-slice 11 section), not a durable "which ids are unreadable" set a query can consult.
+**The UNREADABLE row (`assetStatus === 'unreadable'`) disables its price input, like the orphan
+row — but names a different cause and offers a different remedy.** An earlier draft of this rule
+said *"the UNREADABLE row keeps its price input LIVE… a project's price for it is independent of
+whether that note happens to read cleanly, and disabling the field would be the false diagnosis
+the review bot found, just moved from Clear to the input."* That is true of the DOMAIN and false
+of the COMMAND: a project's price for an asset really is independent of whether its note reads
+cleanly, but `SetAssetPriceOverrideCommand` is not — Task 4's `upsert` reads the asset BEFORE it
+reaches the override write (`const asset = await this.deps.assets.getById(input.assetId); if
+(isErr(asset)) return asset;`) and propagates the read failure unchanged, so a set dispatched
+against this row refuses EVERY time. An enabled input over a refusal that can never succeed is
+the live-control-that-does-nothing slice 14's amendment already refuses, one entity along from
+the asset it was written about — found by a review bot, and verified against Task 4's own code
+rather than argued from the reasoning above it.
+
+Render the asset ID with `view.project.price-unreadable` beside it, draw no library price for the
+same reason the orphan row draws none (this read has nothing to compare against, not "there is
+nothing"), and **disable the price input while leaving Clear live** — the same controls as the
+orphan row, for a different reason: this override is not being deleted, it is waiting on a note
+the user can still fix. The copy carries that difference, since the controls no longer do:
+`view.project.price-unreadable` names the note as the obstacle and fixing it as the remedy, which
+is what tells a user this row is not the orphan row's "get rid of it."
+
+**Three remedies considered and rejected here, not two.** Disabling Clear on this row blocks a
+legitimate gesture over a diagnosis that was already wrong. Asking the diagnostics ledger which
+assets refused reaches for the wrong instrument — `DiagnosticsLedger` is session-scoped and
+deliberately content-free (CLAUDE.md's slice 11 section), not a durable "which ids are
+unreadable" set a query can consult. And **widening `SetAssetPriceOverrideCommand` to accept an
+indexed-but-unreadable asset — the remedy the same review bot offered alongside the finding — is
+rejected too**: it buys the ability to price an asset whose requirement figures cannot be
+computed either way (a Requirement resolving this asset's cost hits the identical unreadable
+note), at the cost of loosening a command's existence check for every other caller of
+`assets.getById` inside it. The row stays reachable and clearable; making it priceable needs the
+note to parse, not the command to stop checking.
 
 This is `RequirementRow`'s own shape for the same situation, which is where the id-plus-reason
 pattern comes from rather than being invented here: a Requirement whose Asset was deleted renders
@@ -5434,9 +5491,14 @@ defect where a third item in such a row pushed the other two out of their column
 
 **`.rp-asset-price-orphan` and `.rp-asset-price-unreadable` are two classes, not one styled two
 ways.** They read as the same shape — an id in place of a name, plus a reason — and it would be
-easy to give them one selector and vary only the text; a selector shared with the input's
-`disabled` binding would then have nothing left to key the enabled/disabled split on, which is
-the whole distinction Task 8's correction exists to draw.
+easy to give them one selector and vary only the text. **An earlier draft of this rule tied that
+to the input's `disabled` binding — "a selector shared with the input's `disabled` binding would
+then have nothing left to key the enabled/disabled split on" — which stopped being true the
+moment Task 9's correction disabled the price input on BOTH rows.** The `disabled` binding is
+`row.assetStatus !== 'known'` now, keyed on neither class alone. What the two classes still carry
+separately is the SENTENCE — `view.project.price-orphan` says the asset is gone,
+`view.project.price-unreadable` says only that this read of it failed — and a shared selector
+would leave nothing to key THAT split on, which is the distinction the correction actually draws.
 
 - [ ] **Step 6: Grade it**
 

@@ -1,5 +1,6 @@
 import type { ObservationToken } from '../../../application/ports/versioning';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../persistence/dto/assetFrontmatter';
+import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../persistence/dto/assetPriceFrontmatter';
 import { PLAN_TYPE, PlanFrontmatterSchemaV1 } from '../../persistence/dto/planFrontmatter';
 import { PROJECT_TYPE, ProjectFrontmatterSchemaV1 } from '../../persistence/dto/projectFrontmatter';
 import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1 } from '../../persistence/dto/requirementFrontmatter';
@@ -19,7 +20,7 @@ import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFr
  * Two scopes, because the two file kinds are exposed differently:
  *
  * - A NOTE's token digests ONLY the frontmatter keys this plugin owns in a note of THAT
- *   KIND — the ones that note's own schema declares, never the union of all five (see
+ *   KIND — the ones that note's own schema declares, never the union of all six (see
  *   `OWNED_KEYS_BY_TYPE`). The note body and any key that schema does not declare belong
  *   to the user, so prose edits and extra keys neither refuse a later save nor get
  *   clobbered by one.
@@ -30,7 +31,7 @@ import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../persistence/dto/zoneFr
  */
 
 /**
- * What each note KIND owns, derived from the five frontmatter schemas rather than
+ * What each note KIND owns, derived from the six frontmatter schemas rather than
  * transcribed beside them.
  *
  * It used to be one hand-written array covering every kind at once, and that union is a
@@ -52,6 +53,7 @@ const SCHEMAS: readonly (readonly [string, { readonly shape: Readonly<Record<str
 	[ZONE_TYPE, ZoneFrontmatterSchemaV1],
 	[ASSET_TYPE, AssetFrontmatterSchemaV1],
 	[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1],
+	[ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1],
 ];
 
 const OWNED_KEYS_BY_TYPE: Readonly<Record<string, readonly string[]>> = Object.fromEntries(
@@ -59,7 +61,7 @@ const OWNED_KEYS_BY_TYPE: Readonly<Record<string, readonly string[]>> = Object.f
 );
 
 /**
- * The fallback for a note whose `type` is none of the five: every key any schema declares.
+ * The fallback for a note whose `type` is none of the six: every key any schema declares.
  *
  * Deliberately the WIDER answer rather than the empty one. A token over no keys at all
  * would move for nothing, so a note this plugin somehow wrote without a recognisable type

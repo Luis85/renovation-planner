@@ -1923,6 +1923,25 @@ import type { EntityVersion } from '../../ports/versioning';
 // `SetAssetPriceOverrideInput.expected`, the function in `upsert` — and an earlier draft of
 // this block declared neither, which is a build failure at the very task that writes them.
 import { expectationMismatch, type PriceRowExpectation } from './priceRowExpectation';
+import { compare as compareMoney } from '../../../core/money/Money';
+import { isOk } from '../../../core/result/Result';
+
+/**
+ * **Same price, whatever it is spelled like.** Currency first, then VALUE — `Money.compare`
+ * refuses a currency mismatch, so it is safe only behind that test, and it is the only thing
+ * that answers the question: `createMoney` stores the amount string verbatim, so `19.5` and
+ * `19.50` are two spellings of one price.
+ *
+ * A named function rather than an expression at the call site, because an earlier draft of
+ * this block wrote it inline as `sameCurrency && compareMoney(...)` and did not type-check at
+ * all: that is `false | Result<…>`, which `isOk` does not accept. The guard has to narrow
+ * before the `Result` is examined, and a function is where a guard narrows cleanly.
+ */
+function samePrice(a: Money, b: Money): boolean {
+	if (a.currency !== b.currency) return false;
+	const ordering = compareMoney(a, b);
+	return isOk(ordering) && ordering.value === 0;
+}
 
 export interface SetAssetPriceOverrideInput {
 	readonly projectId: ProjectId;
@@ -2077,11 +2096,7 @@ export class SetAssetPriceOverrideCommand
 		// and wrong as a blanket ban. The coherence rule above has already refused a foreign
 		// currency, so the field test is belt-and-braces; it is kept, because this predicate
 		// must stay correct if that rule ever moves.
-		const sameCurrency = existing.value !== null
-			&& existing.value.entity.unitCost.currency === input.unitCost.currency;
-		const sameAmount = sameCurrency
-			&& compareMoney(existing.value!.entity.unitCost, input.unitCost);
-		const unchanged = isOk(sameAmount) && sameAmount.value === 0;
+		const unchanged = existing.value !== null && samePrice(existing.value.entity.unitCost, input.unitCost);
 		if (unchanged) {
 			return ok({
 				override: existing.value.entity,
@@ -2924,6 +2939,18 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts` — the notice string,
   through `tr(...)` exactly as `sequence.marker-clear-failed` is. `NOTICE_TEXT_BAN` refuses a
   literal at `notifyWarning`, so this is a gate rather than a convention.
+- **Modify: every TEST construction of `DeleteAssetCommand`, because `tests/**` is type-checked.**
+  Measured with `grep -rn "new DeleteAssetCommand(" src/ tests/`: twelve sites, ONE in `src/`
+  (the binding above) and **eleven in tests** — `deleteAssetRefusals.test.ts` (eight),
+  `assetCommands.test.ts`, `guardAgainstThrowing.test.ts` and `compensationRestore.test.ts` (one
+  each). A required `overrides` is a compile error at every one, so without them this task's
+  promised green commit does not happen. An empty `InMemoryAssetPriceOverrideRepository`
+  satisfies ten of them; only this task's own cases need an override in one.
+
+  This is the THIRD required-dependency widening on this branch whose file list was written
+  from `src/` and saw a fraction of the callers — Task 5's `AssignAssetCommand`, Task 6's two,
+  and now this. The grep is the instrument, and it belongs in the list beside the names rather
+  than in a reviewer's report after the fact.
 - Test: `tests/application/commands/asset/deleteAssetWithOverrides.test.ts`
 - Test: `tests/plugin/assetPriceNoticeWiring.test.ts`
 

@@ -531,6 +531,21 @@ describe('WorkspaceStore, the editor chrome', () => {
 		expect(workspace.layoutMode).toBe('full');
 		expect(workspace.overlay).toBe('none');
 	});
+
+	it('keeps the overlay open when staying in constrained mode, and closes it with closeOverlay()', () => {
+		const workspace = useWorkspaceStore();
+		workspace.setLayoutMode('constrained');
+		workspace.openOverlay('layers');
+		expect(workspace.overlay).toBe('layers');
+
+		// Staying in constrained mode keeps the overlay open
+		workspace.setLayoutMode('constrained');
+		expect(workspace.overlay).toBe('layers');
+
+		// closeOverlay() closes it
+		workspace.closeOverlay();
+		expect(workspace.overlay).toBe('none');
+	});
 });
 
 describe('EditorStore camera actions added for canvas navigation', () => {

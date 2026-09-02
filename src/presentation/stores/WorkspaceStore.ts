@@ -4,13 +4,13 @@ import { defaultLayerVisibility, type KonvaLayerId } from '../editor/scene/Konva
 import type { LayoutMode } from '../editor/shell/layoutMode';
 
 /**
- * Editor CHROME state (SDD §14): which shell regions are open, and the per-Konva-layer
- * visibility toggles the Layers panel drives (§60).
+ * Editor CHROME state (SDD §14): which shell regions are open, the per-Konva-layer
+ * visibility toggles the Layers panel drives (§60), and the layout mode and overlay state (M16).
  *
  * Layer visibility is a pure RENDERING concern and not an edit — hiding the annotation
  * layer changes nothing persisted, which is why it belongs in an ephemeral store rather
- * than going through a command. Nothing here reaches a repository, and reopening a Plan
- * Editor starts from the defaults.
+ * than going through a command. Layout mode and overlay state are the same. Nothing here
+ * reaches a repository, and reopening a Plan Editor starts from the defaults.
  */
 export const useWorkspaceStore = defineStore('workspace', () => {
 	const layersPanelOpen = ref(true);
@@ -92,7 +92,6 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		overlay,
 		setLayoutMode,
 		openOverlay,
-		// fallow-ignore-next-line unused-store-member — Task 20 wires this when rendering overlay controls
 		closeOverlay,
 		reset,
 	};

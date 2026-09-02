@@ -92,3 +92,32 @@ export function externalModification(entity: string, id: string): ValidationErro
 		message: `${entity} ${id} changed outside this plugin since it was read.`,
 	};
 }
+
+/**
+ * The ONE comparison behind every conditional write (SDD §42 step 2b): revision first
+ * (another plugin writer), then the observed token (a change no plugin made). Distinct
+ * codes, because the caller's recovery differs — re-read and retry vs. surface a
+ * conflict. Shared by all three Obsidian repositories, the geometry store, the in-memory
+ * `VersionedStore`, and `expectationMismatch` (slice 20's second half, the per-project
+ * price override, which layers an identity check in front of it).
+ *
+ * It is pure — its only names are this module's own vocabulary — and lives here rather
+ * than beside the Obsidian repositories that were its first callers, because
+ * `application/` may not import `infrastructure/` and a caller of this comparison need
+ * not be one.
+ */
+export function checkExpectedVersion(
+	label: string,
+	id: string,
+	current: EntityVersion | undefined,
+	expected: Expected,
+): ValidationError | null {
+	if (expected === 'absent') {
+		return current === undefined ? null : revisionConflict(label, id);
+	}
+	if (current === undefined || current.revision !== expected.revision) {
+		return revisionConflict(label, id);
+	}
+	if (current.observed !== expected.observed) return externalModification(label, id);
+	return null;
+}

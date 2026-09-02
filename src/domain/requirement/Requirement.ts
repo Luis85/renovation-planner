@@ -197,11 +197,40 @@ export class Requirement {
 	 * The recalculation result, persisted TOGETHER with the inputs it was produced from —
 	 * always written when writes are working, never when they are not. Clears the stale
 	 * marker: only a successful recalculation may do that.
+	 *
+	 * **Preserves the cost override; the quantity override is deliberately NOT preserved,
+	 * and the two are not the same question.** `withCalculatedCost` already keeps a cost
+	 * override beside a recalculated `calculated` figure, and this method matches that for
+	 * the full-recalculation trigger — found by the per-project price override increment's
+	 * own precedence case, where a price change recalculating `calculated` was silently
+	 * discarding a requirement's own negotiated `estimatedCost.override` on every cascade
+	 * run. A COST override sits beside a derived cost with nothing else in the entity
+	 * depending on it, so preserving it costs nothing.
+	 *
+	 * A QUANTITY override is different: `estimatedCost` is DERIVED FROM quantity.
+	 * `deriveRequirementFigures` prices from the CALCULATED quantity, never the effective
+	 * one, so preserving `quantity.override` here while `estimatedCost.calculated` moves
+	 * with the recalculated quantity would leave the two figures speaking of different
+	 * areas — an override of 9 m² beside a cost priced at 12 m², with nothing on screen
+	 * saying so. Before this method existed the override was simply dropped on every
+	 * recalculation, which is lossy but internally consistent: both figures agree on 12.
+	 * That is what this method restores rather than an improvement on it.
+	 *
+	 * The real fix is not "preserve it anyway" — it is `SetRequirementQuantityOverride`'s
+	 * own shape, applied to a full recalculation: that command's docblock states the rule
+	 * as *"then re-runs the Cost Pipeline against the new EFFECTIVE quantity"*, re-pricing
+	 * from `effectiveValue(quantity)` rather than from `calculated` alone. Doing that here
+	 * would change what a recalculation MEANS — cost would no longer track the calculated
+	 * quantity unconditionally — and needs its own cases; it does not belong inside a price-
+	 * override increment and is deliberately left for whoever next touches this method.
 	 */
 	withRecalculation(quantity: Quantity, estimatedCost: Money, calculatedFrom: CalculatedFrom): Result<Requirement, ValidationError> {
 		return this.with({
 			quantity: { calculated: quantity },
-			estimatedCost: { calculated: estimatedCost },
+			estimatedCost: {
+				calculated: estimatedCost,
+				...(this.estimatedCost.override ? { override: this.estimatedCost.override } : {}),
+			},
 			calculatedFrom,
 			recalculationStatus: 'current',
 		});

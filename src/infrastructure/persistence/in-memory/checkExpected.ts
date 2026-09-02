@@ -1,6 +1,6 @@
 import type { ValidationError } from '../../../core/errors/AppError';
 import type { Expected, Loaded } from '../../../application/ports/versioning';
-import { checkExpectedVersion } from '../../obsidian/repositories/versionCheck';
+import { checkExpectedVersion } from '../../../application/ports/versioning';
 
 /**
  * The ONE comparison behind every in-memory mutating method — "every write is
@@ -11,9 +11,9 @@ import { checkExpectedVersion } from '../../obsidian/repositories/versionCheck';
  *
  * All that is left here is the difference in what each side has to hand — a `Loaded` on
  * this side, a bare `EntityVersion` on the repositories' — so this unwraps and asks.
- * `versionCheck` lives beside the Obsidian repositories because they were its first
- * callers, and it names nothing from `obsidian`; the same direction `persistence/index/`
- * already takes for `digest` and `paths`.
+ * `checkExpectedVersion` lives in `application/ports/versioning.ts`, beside the two error
+ * factories it returns, rather than beside the Obsidian repositories that were its first
+ * callers: it is pure and `application/` may not import `infrastructure/`.
  */
 export function checkExpected(
 	entity: string,

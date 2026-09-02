@@ -14,11 +14,13 @@ import type { DiagnosticEntityKind } from '../../../../src/application/ports/dia
 import type { AppError } from '../../../../src/core/errors/AppError';
 import type { Result } from '../../../../src/core/result/Result';
 import type { EntityId } from '../../../../src/core/identity/EntityId';
-import { createAssetId } from '../../../../src/domain/asset/AssetId';
+import { createAssetId, type AssetId } from '../../../../src/domain/asset/AssetId';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
 import { projectFolderOf, sidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
+import { ObsidianAssetPriceOverrideRepository } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository';
+import { makeOverride } from '../../../contracts/asset-price-override-repository.contract';
 
 /**
  * The failure branches of every repository method — each one a diagnostic a user's
@@ -117,6 +119,40 @@ describe('project repository failure branches', () => {
 });
 
 /**
+ * The one case whose `read` cannot be an id-keyed `getById` — the port deliberately has
+ * none (see `AssetPriceOverrideRepository`'s own header). `seed` may run TWICE for one case
+ * (the scoped-gate suite below seeds a poisoned entity and a healthy sibling before reading
+ * either back), so a single closed-over pair is not enough — it is keyed by the id `seed`
+ * returns, the same id `read` is later asked about. A fresh
+ * `ObsidianAssetPriceOverrideRepository` per call rather than one held across `seed` and
+ * `read`: both are handed the SAME `stack` by the caller below, so a fresh instance over
+ * `stack.deps` reads what the other just wrote.
+ */
+function assetPriceCase(): {
+	kind: DiagnosticEntityKind;
+	seed: (stack: RepositoryStack) => Promise<EntityId<string>>;
+	read: (stack: RepositoryStack, id: EntityId<string>) => Promise<Result<unknown, AppError>>;
+} {
+	const pairs = new Map<EntityId<string>, { projectId: ProjectId; assetId: AssetId }>();
+	return {
+		kind: 'asset-price',
+		seed: async (stack) => {
+			const projectId = await seedProject(stack);
+			const assetId = createAssetId();
+			const overrides = new ObsidianAssetPriceOverrideRepository(stack.deps);
+			const saved = expectOk(await overrides.save(makeOverride(projectId, assetId), 'absent'));
+			pairs.set(saved.entity.id, { projectId, assetId });
+			return saved.entity.id;
+		},
+		read: (stack, id) => {
+			const pair = pairs.get(id);
+			if (pair === undefined) throw new Error(`asset-price seed must run before read for ${id}`);
+			return new ObsidianAssetPriceOverrideRepository(stack.deps).getForPair(pair.projectId, pair.assetId);
+		},
+	};
+}
+
+/**
  * One case per note-backed kind — seed a real entity through its real repository, and
  * read it back through the same one. TWO suites below drive this list, because slice
  * 11 makes two claims about the same broken note and neither implies the other: that
@@ -174,6 +210,7 @@ const NOTE_BACKED_CASES: ReadonlyArray<{
 		},
 		read: (stack, id) => stack.requirements.getById(id as never),
 	},
+	assetPriceCase(),
 ];
 
 /**

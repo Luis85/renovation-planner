@@ -27,6 +27,15 @@ import type { AppError, ErrorCategory } from '../../core/errors/AppError';
 
 /** Codes whose prefix varies per entity kind; keyed by the stable suffix. */const CODE_SUFFIX_KEYS: ReadonlyArray<readonly [suffix: string, key: StringKey]> = [
 	['schema-version-unsupported', 'error.suffix.schema-version-unsupported'],
+	// `noteIo.ts` raises `${kind}.schema-version-malformed` BEFORE any mapper runs, and
+	// `noteEntityWrite.ts` raises `${spec.kind}.project-folder-unresolved` when an insert cannot
+	// resolve the owning project's folder. Both are one shared site parameterised by kind, so a
+	// per-kind entry would answer it for one kind and leave the others on the generic category
+	// sentence — which is where every kind was until these two rows. The instrument that closes
+	// the class is `grep -rno '\${spec\.kind}\.[a-z-]*\|\${kind}\.[a-z-]*' src/infrastructure/`,
+	// which reports exactly four shared raise sites; all four now have a row here.
+	['schema-version-malformed', 'error.suffix.schema-version-malformed'],
+	['project-folder-unresolved', 'error.suffix.project-folder-unresolved'],
 	['revision-conflict', 'error.suffix.revision-conflict'],
 	['external-modification', 'error.suffix.external-modification'],
 	['migration-failed', 'error.suffix.migration-failed'],

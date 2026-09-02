@@ -15,7 +15,7 @@
  * write path for this section. A row reaching for a command of its own would bypass the re-read
  * that follows a successful write, with nothing erroring anywhere.
  */
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { createMoney, type Money } from '../../core/money/Money';
 import { isErr, ok, type Result } from '../../core/result/Result';
 import type { ValidationError } from '../../core/errors/AppError';
@@ -28,6 +28,7 @@ import type { FieldErrorMap } from '../errors/route-error';
 import { trError } from '../i18n/toUserMessage';
 import { tr } from '../i18n/strings';
 import FieldError from '../components/FieldError.vue';
+import { notifyOperationFailure } from '../notices/notify';
 import type { AssetPriceCommitResult, AssetPriceEdit } from './assetPriceEdit';
 
 const props = defineProps<{
@@ -95,20 +96,40 @@ function expectationOf(row: AssetPriceRowDto): PriceRowExpectation {
  * - while the field is CLEAN the snapshot is `null` and `expected` TRACKS the row, because a
  *   clean field has nothing to protect and must follow the vault. `onInput` is the only thing
  *   that mints a draft here, so it is the one place the field goes dirty;
- * - a SUCCESSFUL command overwrites it with `AssetPriceCommitResult.settled` — the pair as the
- *   command actually left it, which is the newest thing this component knows to be true about
- *   it, and what makes the pending-clear gesture work: the queued clear is built after the set
- *   settles and expects exactly what the set wrote. A REFUSAL settles nothing, so `settled` is
- *   `null` there and the snapshot stays exactly where it was.
+ * - an ACCEPTED command whose draft is STILL on screen overwrites it with
+ *   `AssetPriceCommitResult.settled` — the pair as the command actually left it, which is the
+ *   newest thing this component knows to be true about it, and what makes the pending-clear
+ *   gesture work: the queued clear is built after the set settles and expects exactly what the
+ *   set wrote. A REFUSAL settles nothing, so `settled` is `null` there and the snapshot stays
+ *   exactly where it was;
+ * - an ACCEPTED command whose draft the composable has DROPPED releases it, because that is the
+ *   field going clean. Which of those two an acceptance is, is `draftToken`'s whole job.
  *
- * **Unfreezing is keyed on `pending` falling AFTER a success, and neither half of that is
- * incidental.** The success half is slice 16's rule: a refused commit KEEPS the draft, so the
- * field is still the user's and re-arming from the row would silently replace the version their
- * next submit is about. The `pending` half is the pending-clear gesture: the set settles while
- * the queued clear is still to run, so unfreezing at the moment `settled` arrives would let that
- * clear read the props instead — measured, it then submits `'absent'` against the pair the set
- * had just created and refuses, which is the user's cancellation failing for the second time in
- * one gesture and the exact defect `settled` exists to prevent.
+ * **Unfreezing asks whether the FIELD IS CLEAN, and that is a question about this row's own
+ * drafts rather than about `pending`.** `useFieldCommit` drops a submitted draft only when it is
+ * still the one on screen — wrapper identity, over there — so the field is clean after a
+ * dispatch exactly when no keystroke happened while it was in flight. `draftToken` below is that
+ * same question asked here, and both halves of it are load-bearing: a REFUSED commit keeps the
+ * draft (slice 16's rule), and an ACCEPTED one whose draft the user has since typed over keeps
+ * it too.
+ *
+ * **It used to be keyed on `pending` falling after an accepted dispatch, and that was a lost
+ * update** — reported by a review bot, reproduced before it was believed. A first blur
+ * dispatches and holds, a second blur queues an INVALID draft, and when the first settles its
+ * continuation runs the queued round, which is refused at `validate`. `pending` has been true
+ * across ticks by then, so its fall is a real transition the watcher saw — carrying the FIRST
+ * round's acceptance — and it released the snapshot under an invalid draft. An external write
+ * then moved the row, the user corrected their value, and the submit re-froze from the REFRESHED
+ * props: measured, it carried revision 2 where revision 1 is the pair the draft began on, so it
+ * overwrote a price the user never saw instead of refusing with `asset-price.revision-conflict`.
+ *
+ * The reviewer's simpler chain — a plain rejected round, with no dispatch in flight — is INERT
+ * and the measurement is worth keeping: `commitOnce` has no `await` before the `validate`
+ * branch's early return, so `pending` goes true and false inside one synchronous stretch and a
+ * default `flush: 'pre'` watcher, comparing against the last value it observed, never fires at
+ * all. Measured by giving that watcher `flush: 'sync'`, which turned the case red. Safe, and
+ * safe by an accident of how few awaits one arm of the composable happens to have — which is
+ * why the release moved off `pending` entirely rather than gaining a third condition.
  *
  * A resubmit against a pair that really did move therefore refuses with
  * `asset-price.revision-conflict`, which is the right answer and needs a recovery the user can
@@ -131,8 +152,15 @@ const snapshot = ref<PriceRowExpectation | null>(null);
  */
 const expected = computed<PriceRowExpectation>(() => snapshot.value ?? expectationOf(props.row));
 
-/** Whether the LAST dispatch this row made was accepted — the success half of the rule above. */
-let lastAccepted = false;
+/**
+ * Bumped by every draft the user mints, so a dispatch can ask whether the draft it sent is still
+ * the one on screen.
+ *
+ * A counter rather than the wrapper identity `useFieldCommit` uses for the same question, because
+ * that wrapper is the composable's own private state and nothing exposes it. Monotonic, so it
+ * cannot collide the way a boolean "dirty since dispatch" flag could across coalesced rounds.
+ */
+let draftToken = 0;
 
 /**
  * **PARSED ONCE.** `validate` holds the minted `Money` and `buildCommand` reuses it rather than
@@ -177,13 +205,18 @@ function validatePrice(raw: string): string | null {
  * a composable eight other fields already use, and the one thing this surface needs that the
  * others do not is a fact about a pair.
  */
-async function dispatch(edit: AssetPriceEdit): Promise<DispatchResult> {
+async function dispatch(edit: AssetPriceEdit, token: number): Promise<DispatchResult> {
 	const result = await props.commit(edit);
-	lastAccepted = result.settled !== null;
-	// The snapshot adopts what the command established and stays FROZEN — a follow-up queued
-	// during this dispatch is built from it, and the props have no answer better than the one the
-	// command just gave. `watch(price.pending)` below is what releases it.
-	if (result.settled !== null) snapshot.value = result.settled;
+	// A refusal establishes nothing, so the snapshot stays exactly where it was — slice 16's
+	// keep-the-draft rule, read from the expectation's side.
+	if (result.settled === null) return result.dispatch;
+	// Accepted. `token === draftToken` means no keystroke landed while this was in flight, so
+	// `useFieldCommit` has dropped the draft and the field is clean: release, and the row follows
+	// the vault again. Otherwise a draft is still on screen — a queued clear, or an invalid value
+	// the user has yet to correct — and the snapshot adopts what the command established, which
+	// is the newest thing this row knows to be true about the pair and what the follow-up must be
+	// conditioned on.
+	snapshot.value = token === draftToken ? null : result.settled;
 	return result.dispatch;
 }
 
@@ -201,6 +234,10 @@ const price = useFieldCommit<string, { unitCost: Money | null }>({
 	buildCommand: (raw) => ({
 		// Reached only once `validate` above has passed, so `parsed` is the Money that this draft
 		// minted rather than a second parse of the same text.
+		// `draftToken` is read at EXECUTE time rather than closed over when the command is built:
+		// `commitOnce` builds and runs in one synchronous stretch, so the two are the same value
+		// today, and reading it here keeps that true for a composable that ever puts an await
+		// between them.
 		execute: () => dispatch(
 			raw.trim() === ''
 				? { kind: 'clear', assetId: props.row.assetId, expected: expected.value }
@@ -210,6 +247,7 @@ const price = useFieldCommit<string, { unitCost: Money | null }>({
 					expected: expected.value,
 					unitCost: parsed as Money,
 				},
+			draftToken,
 		),
 		undo: () => Promise.resolve(ok('no-write')),
 	}),
@@ -217,36 +255,34 @@ const price = useFieldCommit<string, { unitCost: Money | null }>({
 	errorMap: PRICE_ERRORS,
 	field: 'unitCost',
 	toUserMessage: trError,
-	// Where a refusal this field cannot show goes instead. The section has no banner region, so
-	// without a second door a resolved vault failure would reach the user through neither.
-	notify: (error) => {
-		props.logger.warn('view.project.price-commit.refused', { code: error.code });
-	},
+	/**
+	 * Where a refusal this field cannot SHOW goes instead — and it has to reach the USER, which
+	 * is the whole reason `useFieldCommit` makes this parameter required.
+	 *
+	 * FOUR codes go under the field; everything else — `asset-price.write-failed`,
+	 * `delete-failed`, `project-not-found`, `asset-not-found`, `entity-invalid`,
+	 * `frontmatter-invalid`, and every `vault.unexpected-failure` a guard mapped — routes to the
+	 * banner arm, which this composable converts to `error = null` because the section has no
+	 * banner region. This binding shipped as a `logger.warn` for one round: no inline error, no
+	 * toast, no badge, which is verbatim the silence that parameter's own docblock exists to
+	 * prevent. Reported by a reviewer, who also measured the bound I had given for it false.
+	 *
+	 * `notifyOperationFailure`, not an arrow of this row's own: its docblock names
+	 * `useFieldCommit`'s `notify` as what it is for and fixes the origin at `explicit-operation`
+	 * precisely so a call site cannot pick a different one for the identical situation. NOT
+	 * `reportDispatchFailure`, which is the Plan Editor's version and asks `affectsSaveState`
+	 * first — there is no save indicator on this surface for it to have deferred to, so that door
+	 * would suppress a toast in favour of a badge nothing draws.
+	 */
+	notify: notifyOperationFailure,
 	logger: props.logger,
 	validate: validatePrice,
 });
 
-/**
- * The field has finished every round it had — no dispatch in flight and none queued. If the last
- * one was ACCEPTED the draft is gone and the field is clean, so the snapshot goes back to
- * tracking the row; if it was refused the draft is still on screen and the frozen expectation is
- * what the user's next submit is about.
- *
- * A watcher on `pending` rather than a flag cleared inside `dispatch`, because `dispatch` returns
- * while a coalesced follow-up may still be queued — see the snapshot's own docblock for what
- * releasing it there costs.
- */
-watch(
-	() => price.pending.value,
-	(busy) => {
-		if (busy || !lastAccepted) return;
-		snapshot.value = null;
-	},
-);
-
 function onPriceInput(raw: string): void {
 	// A keystroke never dispatches (slice 6). The snapshot freezes HERE, at the one place a draft
 	// is minted, so a refresh landing under an uncommitted entry cannot move it.
+	draftToken += 1;
 	snapshot.value ??= expectationOf(props.row);
 	price.onInput(raw);
 }

@@ -166,4 +166,37 @@ describe('ProjectDetail', () => {
 		// a plain substring test would credit `.rp-x` to a sheet declaring only `.rp-x__row`.
 		for (const name of emitted) expect(css).toMatch(new RegExp(`\\.${name}(?![\\w-])`));
 	});
+
+	/**
+	 * **The BODY owns the scroll, and it is the ONLY region that does.**
+	 *
+	 * Held by a TEXT assertion over the partial rather than by the class merely existing, which
+	 * is all the harvest case above can say: jsdom resolves no CSS, so a rule one word off draws
+	 * wrong with every other case green — this repository has already shipped that defect once
+	 * (`rp-save-state-error` against an emitted `rp-save-state-save-error`).
+	 *
+	 * What it pins was found by CAPTURING the page and looking at it, which is the only
+	 * instrument here that can see a position. `.rp-plan-list` used to carry this block because
+	 * it was the shell's last child; with the price section after it the shell overflowed and the
+	 * last price row was drawn below the pane, clipped, with no scrollbar and no gesture that
+	 * reached it. Both halves are asserted, because a build that gave the body the scroll and
+	 * left it on the plan list too would have two regions each claiming half the pane's slack —
+	 * three plans in a tall empty box above a forty-row list in a short one.
+	 *
+	 * `min-height: 0` is asserted beside `overflow-y` deliberately: a flex item's default minimum
+	 * is its content, so `overflow-y` on its own would be inert and the block would read as
+	 * present while doing nothing.
+	 */
+	it('gives the scroll to the body and to nothing else', () => {
+		const css = readFileSync('styles/project-detail.css', 'utf8');
+		const body = css.slice(css.indexOf('.rp-project-detail__body {'));
+		const planList = css.slice(css.indexOf('.rp-plan-list {'));
+
+		expect(body).toMatch(/flex: 1;/);
+		expect(body).toMatch(/min-height: 0;/);
+		expect(body).toMatch(/overflow-y: auto;/);
+		// The plan list's own rule ends at its closing brace; slicing to it is what stops this
+		// reading a later block's declarations as if they were this one's.
+		expect(planList.slice(0, planList.indexOf('}'))).not.toMatch(/overflow-y|flex: 1/);
+	});
 });

@@ -23,6 +23,10 @@ import type {
 	AssetPriceEdit,
 } from '../../../src/presentation/views/assetPriceEdit';
 import { t } from '../../../src/presentation/i18n/strings';
+import { trError } from '../../../src/presentation/i18n/toUserMessage';
+import { activateNotices, disposeNotices } from '../../../src/presentation/notices/notify';
+import { installObsidianDom } from '../../helpers/dom';
+import { Notice } from '../../helpers/obsidian-mock';
 
 const logger: Logger = {
 	debug: () => undefined,
@@ -363,43 +367,48 @@ describe('AssetPriceList', () => {
 	});
 
 	/**
-	 * **A refusal this field cannot SHOW is still one it has to REPORT.** `useFieldCommit`
-	 * converts every banner-routed failure to `error = null`, because this section has no banner
-	 * region — so without the second door a refusal outside `PRICE_ERRORS` reaches the user
-	 * through NEITHER channel. `asset-price.write-failed` is such a code deliberately: a vault
-	 * write that failed is not about the number in this input.
+	 * **A refusal this field cannot SHOW has to reach the USER, not a log file.**
 	 *
-	 * Asserted on the LOGGER, which is the door this row states. A case that only checked the
-	 * absent inline error would pass against a build that reported nowhere at all.
+	 * FOUR codes go under the field. Everything else — `asset-price.write-failed`,
+	 * `delete-failed`, `project-not-found`, `asset-not-found`, `entity-invalid`,
+	 * `frontmatter-invalid`, and every `vault.unexpected-failure` a guard mapped — routes to the
+	 * banner arm, which `useFieldCommit` converts to `error = null` because this section has no
+	 * banner region. That is exactly the silence its required `notify` parameter exists to
+	 * prevent, and this binding shipped as a bare `logger.warn` for one round: no inline error,
+	 * no toast, no badge. Reported by a reviewer.
+	 *
+	 * Asserted on `Notice.shown`, never on a logger call: a log assertion passes in BOTH worlds,
+	 * which is what let the defect ship. The absence of the inline error is asserted beside it,
+	 * because that is what makes the notice the ONLY channel this refusal has.
+	 *
+	 * `activateNotices()` per test rather than once for the file, for the reason
+	 * `inspectorFaults.test.ts` states about its own: the queue DEDUPS on the
+	 * `(severity, message)` pair, so a second case raising the same mapped sentence would fold
+	 * into a `(×2)` and construct no `Notice` at all.
 	 */
-	it('reports a refusal it cannot place under the field through its logger door', async () => {
-		const warn = vi.fn<(event: string, detail?: unknown) => void>();
-		const wrapper = mount(AssetPriceList, {
-			props: {
-				rows: [row()],
-				currency: 'GBP',
-				commit: () =>
-					Promise.resolve({
-						dispatch: err({
-							category: 'Persistence',
-							code: 'asset-price.write-failed',
-							message: 'developer English',
-						} as const),
-						settled: null,
-					}),
-				logger: { ...logger, warn },
-			},
+	it('reaches the user with a notice for a refusal it cannot place under the field', async () => {
+		installObsidianDom();
+		activateNotices();
+		const before = Notice.shown.length;
+		const refusal = {
+			category: 'Persistence',
+			code: 'asset-price.write-failed',
+			message: 'developer English',
+		} as const;
+		const { wrapper } = mountSection({
+			commit: () => Promise.resolve({ dispatch: err(refusal), settled: null }),
 		});
 
 		await wrapper.get('input').setValue('19.50');
 		await wrapper.get('input').trigger('blur');
 		await flushPromises();
 
-		expect(warn).toHaveBeenCalledWith(
-			'view.project.price-commit.refused',
-			expect.objectContaining({ code: 'asset-price.write-failed' }),
-		);
+		expect(Notice.shown.length - before).toBe(1);
+		// MAPPED, never the developer English in `message`: `toUserMessage` is the one place an
+		// `AppError` becomes copy, and this code has an entry of its own in both locales.
+		expect(Notice.shown.at(-1)).toBe(trError(refusal));
 		expect(wrapper.find('.rp-field-error__message').exists()).toBe(false);
+		disposeNotices();
 	});
 
 	/**
@@ -591,6 +600,208 @@ describe('AssetPriceList', () => {
 		// so a plain substring test would credit `.rp-asset-price-row` to a sheet declaring only
 		// `.rp-asset-price-row-something`.
 		for (const name of emitted) expect(css).toMatch(new RegExp(`\\.${name}(?![\\w-])`));
+	});
+
+	/**
+	 * **Ruling 16: a REJECTED round must not release the frozen expectation, and a lost update is
+	 * what happens when it does.**
+	 *
+	 * The chain, and step 3 is the one it hinges on: a round saves, so the snapshot is released
+	 * (correct — the field is clean and must follow the vault). The user then types an INVALID
+	 * value, which mints a fresh snapshot. Blur: `useFieldCommit` rejects at `validate` and never
+	 * dispatches — but `pending` still goes true then false, because `commitOnce` sets it before
+	 * its `try` and the `finally` clears it on every non-continuing exit, the `validate` branch's
+	 * early `return` included. So the release watcher fires with the ACCEPTANCE of the earlier,
+	 * unrelated round still recorded, and clears the snapshot while the invalid draft is on
+	 * screen. An external write then moves the row, the user corrects their value, `??=` re-freezes
+	 * from the REFRESHED props, and the submit overwrites a price the user never saw instead of
+	 * refusing with `asset-price.revision-conflict`.
+	 *
+	 * Asserted on the SUBMITTED EXPECTATION and on nothing else. The field's text, its error and
+	 * the call count all read identically in both worlds; only the version the command is
+	 * conditioned on tells a correct build from the lost update.
+	 *
+	 * Reported by a review bot on the pull request. Watched failing against the build that
+	 * shipped: the third call carries version 2 — the refreshed pair — where version 1 is the one
+	 * the draft began on.
+	 */
+	/**
+	 * **The other arm, and it needed its own case: the snapshot is RELEASED when the field really
+	 * does go clean.** Without it a row would hold the pair its last save established for the life
+	 * of the leaf, so an external write between two edits would refuse the second one with
+	 * `asset-price.revision-conflict` about a change the user could see on screen — and the only
+	 * recovery would be Escape.
+	 *
+	 * Measured rather than assumed: with the release defeated (`snapshot.value = result.settled`
+	 * unconditionally) every other case in this file still passes, so this is the one that pins
+	 * it. That is this repository's own rule about a fix that guards one of several gestures —
+	 * drop the other arms and run them.
+	 */
+	it('re-arms the expectation from the refreshed row after a save leaves the field clean', async () => {
+		const { wrapper, commit } = mountSection({
+			rows: [row({ override: money('19.50'), overrideRevision: 1 })],
+			commit: () =>
+				Promise.resolve({
+					dispatch: ok('wrote' as const),
+					settled: { id: 'op-1' as AssetPriceOverrideId, version: version(1) },
+				}),
+		});
+		const input = wrapper.get('input');
+
+		await input.setValue('20.00');
+		await input.trigger('blur');
+		await flushPromises();
+
+		// Somebody else moves the pair while this field is clean, so the row must follow it.
+		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
+
+		await input.setValue('21.00');
+		await input.trigger('blur');
+		await flushPromises();
+
+		expect(commit).toHaveBeenCalledTimes(2);
+		expect(commit.mock.calls[1]?.[0]).toEqual(
+			expect.objectContaining({ expected: { id: 'op-1', version: version(2) } }),
+		);
+	});
+
+	/**
+	 * The same rule, on the path where the release is actually REACHABLE — the COALESCED one.
+	 *
+	 * The simple chain in the case below is inert, and the measurement is worth more than the
+	 * case: on a round rejected at `validate`, `commitOnce` has no `await` before its early
+	 * return, so `pending` goes true and false inside ONE synchronous stretch and a default
+	 * `flush: 'pre'` watcher — comparing against the last value it observed, which is `false` —
+	 * never fires at all. Measured by giving that watcher `flush: 'sync'`, which turns the case
+	 * below red at its expectation assertion.
+	 *
+	 * A rejection that arrives as a coalesced CONTINUATION is different, and this is where the
+	 * lost update lives: a first blur dispatches and holds, a second blur queues an invalid
+	 * draft, and when the first settles `commitOnce` fires the queued round, which rejects. By
+	 * then `pending` has been true across several ticks, so its fall is a real transition the
+	 * watcher does see — with the FIRST round's acceptance still recorded. The snapshot is
+	 * released under an invalid draft, an external write moves the row, and the corrected submit
+	 * re-freezes from the refreshed props and overwrites a price the user never saw.
+	 *
+	 * Asserted on the SUBMITTED EXPECTATION alone: the field's text, its error and the call count
+	 * read identically in both worlds.
+	 */
+	it('keeps the expectation frozen when a coalesced round is refused', async () => {
+		let release: (() => void) | undefined;
+		const held = new Promise<void>((resolve) => {
+			release = resolve;
+		});
+		const { wrapper, commit } = mountSection({
+			rows: [row({ override: money('19.50'), overrideRevision: 1 })],
+			commit: async () => {
+				await held;
+				return {
+					dispatch: ok('wrote' as const),
+					settled: { id: 'op-1' as AssetPriceOverrideId, version: version(1) },
+				};
+			},
+		});
+		const input = wrapper.get('input');
+
+		// A dispatch that will succeed, held open.
+		await input.setValue('20.00');
+		await input.trigger('blur');
+		// An INVALID draft blurred while that write is in flight: queued, not dispatched.
+		await input.setValue('abc');
+		await input.trigger('blur');
+
+		// The held write settles, and its continuation runs the queued invalid round, which is
+		// refused at `validate` — and `pending` falls for the first time since the first blur.
+		release?.();
+		await flushPromises();
+		expect(commit).toHaveBeenCalledTimes(1);
+
+		// Somebody else moves the pair while the invalid draft is still on screen.
+		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
+
+		await input.setValue('21.00');
+		await input.trigger('blur');
+		await flushPromises();
+
+		expect(commit).toHaveBeenCalledTimes(2);
+		expect(commit.mock.calls[1]?.[0]).toEqual(
+			expect.objectContaining({ expected: { id: 'op-1', version: version(1) } }),
+		);
+	});
+
+	it('keeps the expectation frozen across a round the field refused', async () => {
+		const { wrapper, commit } = mountSection({
+			rows: [row({ override: money('19.50'), overrideRevision: 1 })],
+			// The accepted round settles on the pair the row already shows, so nothing about this
+			// case rests on the settled value moving — only on the ACCEPTANCE being recorded.
+			commit: () =>
+				Promise.resolve({
+					dispatch: ok('wrote' as const),
+					settled: { id: 'op-1' as AssetPriceOverrideId, version: version(1) },
+				}),
+		});
+		const input = wrapper.get('input');
+
+		// 1. A round that succeeds, which records the acceptance and releases the snapshot.
+		await input.setValue('20.00');
+		await input.trigger('blur');
+		await flushPromises();
+
+		// 2. An INVALID draft, which mints a fresh snapshot at the version on screen.
+		await input.setValue('abc');
+		// 3. Blur: refused at `validate`, nothing dispatched — and `pending` still falls.
+		await input.trigger('blur');
+		await flushPromises();
+		expect(commit).toHaveBeenCalledTimes(1);
+
+		// 4. Somebody else moves the pair while the invalid draft is still on screen.
+		await wrapper.setProps({ rows: [row({ override: money('30.00'), overrideRevision: 2 })] });
+
+		// 5. The user corrects their value and submits it.
+		await input.setValue('21.00');
+		await input.trigger('blur');
+		await flushPromises();
+
+		expect(commit).toHaveBeenCalledTimes(2);
+		expect(commit.mock.calls[1]?.[0]).toEqual(
+			expect.objectContaining({ expected: { id: 'op-1', version: version(1) } }),
+		);
+	});
+
+	/**
+	 * **The two capture fixes that live entirely in the stylesheet**, held as TEXT rather than by
+	 * their classes merely existing — which is all the harvest case above can say. jsdom resolves
+	 * no CSS, so a rule one word off draws wrong with every other case in this file green, and
+	 * this repository has already shipped that defect once (`rp-save-state-error` against an
+	 * emitted `rp-save-state-save-error`).
+	 *
+	 * Both were found by CAPTURING the page and looking at it, which is the only instrument here
+	 * that can see a size or a position, and neither is measurable by any gate:
+	 *
+	 * - the LABEL took Obsidian's body type and sat above the input at full size, so every row
+	 *   read as a titled block and the asset's own name read as a caption;
+	 * - the field block's FIXED BASIS is what makes the inputs and buttons form a column. The
+	 *   label used to carry the asset name visibly, so it sized its own column and three rows
+	 *   started at x=923, x=887 and x=923 — slice 19's `.rp-project-list__overlap` defect (a
+	 *   third item in a row moving the other two) on a third surface. The name moved into a
+	 *   visually hidden span, which is why the hidden-text rule is asserted in the same case: it
+	 *   is the half that keeps the accessible name distinguishing, and without it the fixed basis
+	 *   would just be truncating a label.
+	 */
+	it('declares the type size and the fixed basis the capture asked for', () => {
+		const css = readFileSync('styles/asset-prices.css', 'utf8');
+		const field = css.slice(css.indexOf('.rp-asset-price-row .rp-field-error {'));
+		const label = css.slice(css.indexOf('.rp-asset-price-row .rp-field-error label {'));
+		const hidden = css.slice(css.indexOf('.rp-visually-hidden {'));
+
+		// A basis rather than `flex-grow`: the name takes the slack, and every item after it has
+		// to keep its own size or the columns move per row.
+		expect(field.slice(0, field.indexOf('}'))).toMatch(/flex: 0 0 /);
+		expect(label.slice(0, label.indexOf('}'))).toMatch(/font-size: var\(--font-ui-smaller\);/);
+		// Clipped, never `display: none` or `visibility: hidden` — both take the text out of the
+		// accessibility tree with the picture and would leave every row labelled `Set a price`.
+		expect(hidden.slice(0, hidden.indexOf('}'))).toMatch(/clip-path: inset\(50%\);/);
+		expect(hidden.slice(0, hidden.indexOf('}'))).not.toMatch(/display: none|visibility: hidden/);
 	});
 
 	/**

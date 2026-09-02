@@ -1765,6 +1765,10 @@ import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import { referenceError } from '../../errors';
 import type { Command } from '../Command';
 import type { EntityVersion } from '../../ports/versioning';
+// The module this task creates one step earlier. Both symbols are used below — the type in
+// `SetAssetPriceOverrideInput.expected`, the function in `upsert` — and an earlier draft of
+// this block declared neither, which is a build failure at the very task that writes them.
+import { expectationMismatch, type PriceRowExpectation } from './priceRowExpectation';
 
 export interface SetAssetPriceOverrideInput {
 	readonly projectId: ProjectId;
@@ -1780,7 +1784,8 @@ export interface SetAssetPriceOverrideInput {
 	 * read-to-write window and nothing longer: the section hydrates at 19.50, another leaf (or
 	 * sync, or a hand edit) moves it to 30.00, the user edits the row they can still see and
 	 * submits 21.00 — and `getForPair` returns the 30.00 entity, so the save conditions on THAT
-	 * revision and succeeds, erasing a price the user never saw. `Expected` is
+	 * revision and succeeds, erasing a price the user never saw.
+	 *
 	 * `PriceRowExpectation` is `'absent' | { id, version }` — the id because duplicates are
 	 * tolerated here, so a different note can win the pair at the same revision; the two travel
 	 * as ONE field so they cannot disagree.
@@ -3914,9 +3919,18 @@ re-adds as an oversight.
   Task 9's.
 - [ ] **`docs/requirements/Asset library.md`** — its open definition-of-done item, *"A project
   can record its own price against a shared definition"*, is met.
-- [ ] **`CLAUDE.md`** — the increment's own paragraph, and the three residuals the spec records:
-  setting a price is not undoable, a project's currency can move under existing overrides, and a
-  hand-edited note can disagree with it.
+- [ ] **`CLAUDE.md`** — the increment's own paragraph, and **all four** residuals the spec
+  records: setting a price is not undoable; a project's currency can move under existing
+  overrides; a hand-edited note can disagree with it; and an out-of-band price change (a hand
+  edit, a sync, a delete in the file explorer) refreshes the views and recalculates nothing —
+  the fourth, added late, and the one most worth carrying into that file because it is
+  PRE-EXISTING and symmetrical with `onAssetUpdated`, so a reader who meets it later will
+  otherwise read it as this increment's defect.
+
+  **Count them from the spec rather than from this line.** It said "the three residuals" for
+  several rounds after the fourth was added — a count in prose, which is the stale claim this
+  repository records more often than any other, in a checklist whose whole job is to stop a
+  known fact being dropped.
 
 ---
 

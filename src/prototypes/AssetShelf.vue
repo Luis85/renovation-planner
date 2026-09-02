@@ -97,14 +97,14 @@ const price = (asset: CatalogueAsset): string => {
 	<section class="rp-al-shelf">
 		<h3
 			v-if="assets.length === 0"
-			class="rp-al-shelf__head rp-al-shelf__head--empty"
+			class="rp-al-shelf__static rp-al-shelf__static--empty"
 		>
 			<span class="rp-al-shelf__name">{{ label }}</span>
 			<span class="rp-al-shelf__count">0</span>
 		</h3>
 		<h3
 			v-else-if="!collapsible"
-			class="rp-al-shelf__head rp-al-shelf__head--static"
+			class="rp-al-shelf__static"
 		>
 			<span class="rp-al-shelf__name">{{ label }}</span>
 			<span class="rp-al-shelf__count">{{ assets.length }}</span>
@@ -174,8 +174,7 @@ const price = (asset: CatalogueAsset): string => {
 
 <style scoped>
 .rp-al-shelf__heading,
-.rp-al-shelf__head--static,
-.rp-al-shelf__head--empty {
+.rp-al-shelf__static {
 	margin: 0;
 	font-size: var(--font-ui-small);
 	font-weight: var(--font-medium);
@@ -217,11 +216,21 @@ const price = (asset: CatalogueAsset): string => {
 	outline-offset: -2px;
 }
 
-/* The static and the empty heading share every rule but their colour: both are a heading with
-   no control, aligned to the same left edge as a shelf that has one. The empty one is faint
-   because it holds nothing; a result list is the thing the user is looking at. */
-.rp-al-shelf__head--static,
-.rp-al-shelf__head--empty {
+/*
+ * The two headings with NO control, and they carry a class of their own rather than the button's.
+ *
+ * They used to share `rp-al-shelf__head`, which sets `cursor: pointer` and takes a hover
+ * background — so an empty shelf and the fixed Results heading presented exactly the disclosure
+ * affordance of a real one while clicking them did nothing. The whole point of rendering them as
+ * plain headings was to remove that affordance, and the shared class put it straight back.
+ * Reported by a review bot; no capture could have shown it, because a cursor and a hover state
+ * are not in a resting screenshot.
+ *
+ * Every other rule is deliberately identical to the button's, so all three headings sit on one
+ * left edge and one baseline. The empty one is faint because it holds nothing; a result list is
+ * the thing the user is looking at.
+ */
+.rp-al-shelf__static {
 	display: flex;
 	align-items: center;
 	gap: var(--size-4-2);
@@ -231,7 +240,7 @@ const price = (asset: CatalogueAsset): string => {
 	padding: var(--size-2-2) var(--size-4-3) var(--size-2-2) calc(var(--size-4-3) + 12px + var(--size-4-2));
 }
 
-.rp-al-shelf__head--empty {
+.rp-al-shelf__static--empty {
 	color: var(--text-faint);
 }
 

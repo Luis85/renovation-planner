@@ -93,6 +93,12 @@ export interface CatalogueAsset {
 	readonly notes: string | null;
 	readonly shape: ShapeState;
 	readonly outline: readonly Point[] | null;
+	/** The clearance boundary's own extent in millimetres, or `null` where none is drawn. */
+	readonly clearance?: readonly [width: number, depth: number];
+	/** Whether an anchor has been placed. A WORD rather than a coordinate pair — see §3.5. */
+	readonly anchor?: boolean;
+	/** Degrees, or absent where no facing has been set. */
+	readonly facing?: number;
 	readonly usedIn: readonly UsedIn[];
 }
 
@@ -163,7 +169,7 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		id: 'base-cabinet-600', name: 'Base cabinet, 600', category: 'Furniture',
 		unitCost: '245.00', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Küchenhaus Adler', sku: 'BC-600',
 		heightMm: 720, notes: 'Traced from the supplier sheet before the sheet was calibrated.',
-		shape: 'unscaled', outline: box(600, 580),
+		shape: 'unscaled', outline: box(600, 580), clearance: [600, 1180], anchor: true, facing: 0,
 		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 4 }],
 	},
 	{
@@ -181,6 +187,7 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		id: 'radiator-600-1200', name: 'Radiator, panel 600 × 1200', category: 'Fixture',
 		unitCost: '189.00', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Sanitär Reuter', sku: 'RP-600-1200',
 		heightMm: 600, notes: null, shape: 'measured', outline: box(1200, 100),
+		clearance: [1200, 700], anchor: true, facing: 180,
 		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 5 }],
 	},
 	{

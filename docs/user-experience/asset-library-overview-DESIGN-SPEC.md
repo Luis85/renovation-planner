@@ -332,8 +332,28 @@ Four sections, in this order:
    `routeError` maps `UpdateAsset`'s codes to fields; `asset.unit-kind-referenced` (a unit
    edit crossing `UNIT_KIND` while a Requirement still references the asset) routes to the **unit**
    field, because that is the field that is wrong.
-2. **Shape** — `1200 × 800 mm` when a footprint exists, the unscaled warning when it is owed, the
-   spec sheet's name when one is picked, and **Open designer**.
+2. **Shape** — everything §3.4 sends here because it is mush at 20px, which the first version of
+   this list promised and then did not enumerate:
+
+   | Row | Shows | Absent |
+   | --- | --- | --- |
+   | Footprint | `1200 × 190 mm`, the extent derived from the outline | omitted |
+   | Clearance | its own extent, `1400 × 400 mm` | `None` |
+   | Anchor | `Set` | `Not set` |
+   | Facing | `90°` | `Not set` |
+   | Height | `720 mm` | omitted |
+   | Spec sheet | the file's name | omitted |
+
+   plus the unscaled warning when it is owed, and **Open designer**.
+
+   **The anchor is a word, not a coordinate pair**, and that is the one row worth arguing. A
+   point in millimetres is meaningless without the drawing to read it against — `(340, 0)` tells
+   a renovator nothing that `Set` does not — and the surface that CAN show it meaningfully is one
+   click away. The same reasoning does not reach the facing, which is an angle and reads as one.
+
+   Reported by a review bot: §3.4 and §5.3 both send these three to the inspector, this section
+   listed four rows that did not include them, and §8 defined no labels — so the promise existed
+   in two places and its representation in none.
 3. **Used in** — the per-project groups, loaded **on selection** (§5.2). One row per project:
    project name, requirement count, **and the project's path wherever the query supplies one**.
    `ListRequirementsReferencing.withPathsWhereAmbiguous` sets `projectPath` on exactly the groups
@@ -362,35 +382,47 @@ Four sections, in this order:
    Reported by a review bot: the first version offered groups or "not used" and nothing else, so
    an unreadable usage graph rendered as an unused asset.
 
-   **It re-reads while the asset stays selected, UNFILTERED, and one half of that is
-   unreachable.** A Plan Editor in another leaf assigning this asset publishes
-   `RequirementCreated`, and the panel re-runs its query on any of them — **not filtered to the
-   selected asset, because it cannot be**: `RequirementEventPayload` is `{ requirementId,
-   projectId }` and `AssignAsset` publishes exactly those two fields, so nothing in the event
-   says which asset was assigned.
+   **It is a SNAPSHOT taken at selection, and it does not subscribe.** That is a decision rather
+   than an omission, and it took being wrong twice to reach:
 
-   Unfiltered is cheap here, which is why this needs no domain change. `ListRequirementsReferencing`
-   reads `requirements.listByAsset(selectedAssetId)` — it is bounded by the ONE selected asset's
-   own referents, not by the vault — so the worst case is one small re-read per assignment made
-   anywhere while this panel happens to be open. An earlier draft of this paragraph claimed
-   re-reading on every event "turns one peer's undo into a scan of every requirement in the
-   vault", which is the cost of a different query than the one this panel runs. Corrected rather
-   than left standing: an overstated cost is how a cheap correct design gets refused in favour of
-   a domain change nobody needed.
+   - A Plan Editor in another leaf assigning this asset publishes `RequirementCreated`, and the
+     event **cannot be filtered to the selected asset**: `RequirementEventPayload` is
+     `{ requirementId, projectId }` and `AssignAsset` publishes exactly those two fields.
+   - **Undoing that assignment publishes nothing at all.**
+     `ReversibleAssignAssetCommand.undo` calls `requirements.delete` directly, and
+     `Requirement.events.ts` declares `RequirementCreated`, `RequirementInvalidated`,
+     `RequirementRecalculated` and `CostEstimateChanged` — there is no `RequirementDeleted`.
+   - And an unfiltered re-run is **not cheap**. `ObsidianRequirementRepository.listByAsset` calls
+     `index.getIdsByType('renovation-requirement')` — every requirement id in the vault — and
+     `filterLoaded` reads each note through `getById` before applying the asset predicate. It is
+     O(all requirements in the vault), with a note read each.
 
-   **Undoing that assignment publishes nothing at all**, and that half no re-read can fix:
-   `ReversibleAssignAssetCommand.undo` calls `requirements.delete` directly, and
-   `Requirement.events.ts` declares `RequirementCreated`, `RequirementInvalidated`,
-   `RequirementRecalculated` and `CostEstimateChanged` — there is no `RequirementDeleted` to
-   subscribe to at all. So this panel can grow a row it will not lose until the asset is
-   reselected. A limitation of the event vocabulary rather than of this design, recorded rather
-   than worked around, and §11 carries the fix as what it is: a domain-layer addition, not a
-   view's to make.
+   So subscribing would buy a vault-wide scan per assignment made anywhere, to catch one of the
+   two directions this panel can go stale in. The panel reads once per selection instead, and
+   **says so**: reselecting is the refresh, and the surface does not pretend to be live about
+   something it cannot see half of.
 
-   **This is the second time this repository has met that exact shape**:
-   `projectListChangeSource`'s own docblock once said "there is no `ProjectDeleted` to add here
-   until something raises one", which CLAUDE.md records as reading like a survey of the ground
-   while actually describing a missing publisher one layer down. One entity over, same sentence.
+   **The middle bullet is a correction of a correction, and it is the sharpest mistake on this
+   branch.** An earlier draft said exactly the right thing — that re-reading on every event scans
+   every requirement in the vault. The round after, I "corrected" it to *bounded by the one
+   selected asset's own referents*, having read `listByAsset` as an indexed lookup because of its
+   NAME rather than its body. A true statement was replaced with a false one **inside a paragraph
+   arguing that an overstated cost is how a good design gets refused** — which is the same error
+   in the opposite direction, and worse, because it would have shipped an expensive subscription
+   under a sentence promising it was cheap. Reported by a review bot citing the file and lines.
+   *A performance claim read off a method name is not a measurement.*
+
+   The cost is not this surface's alone: `ListRequirementsReferencing` is what slice 15's delete
+   flow already runs, so every asset and zone deletion pays it today. That is pre-existing and
+   out of scope here, and it is what makes the §11 decision worth taking rather than routing
+   around.
+
+   **§11 carries one decision covering both gaps**: `assetId` on the requirement event payload
+   and a `RequirementDeleted` sibling. **This is the second time this repository has met that
+   shape** — `projectListChangeSource`'s own docblock once said "there is no `ProjectDeleted` to
+   add here until something raises one", which CLAUDE.md records as reading like a survey of the
+   ground while actually describing a missing publisher one layer down. One entity over, same
+   sentence.
 
    **It shows no per-project price.** The epic's last open item is §89's override — a project
    recording its own price against a shared definition — and when it lands, the number in section 1
@@ -717,6 +749,10 @@ view.asset-library.used-in.project  (interpolated: {name}, {count})
 view.asset-library.open-designer    view.asset-library.open-note
 view.asset-library.back             view.asset-library.delete
 view.asset-library.shape            view.asset-library.footprint
+view.asset-library.clearance        view.asset-library.anchor
+view.asset-library.facing           view.asset-library.spec-sheet
+view.asset-library.set              view.asset-library.not-set
+view.asset-library.none
 view.asset-library.new-asset        view.asset-library.results
 view.asset-library.category         view.asset-library.unit
 view.asset-library.unit-cost        view.asset-library.waste
@@ -828,10 +864,11 @@ Each of these is a thing a reader will reasonably expect, refused for a stated r
    fourth one** (§5.4). The picker shares `createAssetCatalogueChangeSource` and would pay for
    any widening of it — re-reading every asset note on a design event it has no use for — so the
    cheap edit is the one with a cost on a surface this document does not own.
-8. **Whether a `RequirementDeleted` event is raised** (§3.5). Without one, *Used in* can grow a
-   row it will not lose until the asset is reselected. It is a domain-layer addition with
-   consequences past this surface — `projectListChangeSource` has wanted its sibling for
-   slices — and it is not a view's to introduce.
+8. **Whether the requirement event vocabulary grows** (§3.5) — `assetId` on the payload, and a
+   `RequirementDeleted` sibling. Together they are what would let *Used in* be live instead of a
+   snapshot; without them it can grow a row it will not lose, and the only alternative refresh is
+   a vault-wide scan per assignment. A domain-layer addition with consequences past this surface,
+   and not a view's to introduce.
 9. **Whether this surface ships a Bases view beside it** (§2a). The epic's Definition of Done is
    not discharged by a plugin view, and *"reachable through Bases"* has at least three readings —
    a `.base` file this plugin writes, a documented recipe, or nothing at all on the grounds that a
@@ -1038,6 +1075,33 @@ it behind**, which is a cost of prototyping early and is worth naming rather tha
   and keyed its rows on the project name — so two projects sharing one name rendered as two
   identical rows AND collided as one Vue key. Both fixed, and the fixture now holds a real
   collision so the branch is drawn rather than asserted.
+
+An eighth round found three, and one of them is the sharpest mistake on this branch — **a
+correction that turned a true statement false.**
+
+Round six said re-reading the usage query on every event scans every requirement in the vault.
+Round seven "corrected" that to *bounded by the one selected asset's own referents*, having read
+`listByAsset` as an indexed lookup **because of its name**. It is not:
+`ObsidianRequirementRepository.listByAsset` takes every requirement id in the vault and reads
+each note before applying the asset predicate. So the original was right, the correction was
+wrong, and the correction was written **inside a paragraph arguing that an overstated cost is how
+a good design gets refused** — the same error in the opposite direction, and worse, because it
+would have shipped an expensive subscription under a sentence promising it was cheap. *A
+performance claim read off a method name is not a measurement.* §3.5 now makes *Used in* an
+explicit snapshot and §11 carries the one domain change that would make it live.
+
+The other two are the same shape as round six's: **a promise made in one section and represented
+in none.** §3.4 and §5.3 both send the clearance, the anchor and the facing to the inspector;
+§3.5 listed four rows that did not include them and §8 defined no labels, so an implementer had
+nowhere to put values two sections had promised. §3.5 enumerates the Shape section now, including
+the one row worth arguing — the anchor is a word rather than a coordinate pair, because a point
+in millimetres means nothing without the drawing to read it against.
+
+The third is invisible to every instrument here: the two non-interactive headings shared the
+disclosure button's class, so an empty shelf and the fixed Results heading carried its pointer
+cursor and hover background while clicking them did nothing — the affordance those headings exist
+to remove, put back by a shared class. **No capture could have shown it**, because a cursor and a
+hover state are not in a resting screenshot.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

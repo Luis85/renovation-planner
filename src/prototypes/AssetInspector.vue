@@ -69,6 +69,26 @@ const dimensions = computed((): string | null => {
 	return `${width} × ${depth} mm`;
 });
 
+/**
+ * The clearance's own extent, and the facing in degrees.
+ *
+ * §3.4 sends the clearance, the anchor and the facing here precisely because they are mush at
+ * 20px — and the first version of this panel drew none of them, so a promise made in two
+ * sections of the specification had a representation in neither. Reported by a review bot.
+ *
+ * **The anchor is a word rather than a coordinate pair**, which is the one row worth arguing:
+ * `(340, 0)` in millimetres tells a renovator nothing without the drawing to read it against,
+ * and the surface that can show it meaningfully is one click away. The facing is an angle and
+ * reads as one, so it prints.
+ */
+const clearance = computed((): string => {
+	const extent = props.asset?.clearance;
+	return extent === undefined ? 'None' : `${extent[0]} × ${extent[1]} mm`;
+});
+
+const facing = computed((): string =>
+	props.asset?.facing === undefined ? 'Not set' : `${props.asset.facing}°`);
+
 const shapeNote = computed((): string | null => {
 	switch (props.asset?.shape) {
 		case 'unscaled': return 'Traced before a scale existed, so these are not measurements yet.';
@@ -158,15 +178,32 @@ const shapeNote = computed((): string | null => {
 			<h4 class="rp-al-inspector__title">
 				Shape
 			</h4>
-			<dl
-				v-if="dimensions !== null"
-				class="rp-al-fields"
-			>
+			<dl class="rp-al-fields">
+				<template v-if="dimensions !== null">
+					<dt class="rp-al-fields__key">
+						Footprint
+					</dt>
+					<dd class="rp-al-fields__value rp-al-fields__num">
+						{{ dimensions }}
+					</dd>
+				</template>
 				<dt class="rp-al-fields__key">
-					Footprint
+					Clearance
 				</dt>
 				<dd class="rp-al-fields__value rp-al-fields__num">
-					{{ dimensions }}
+					{{ clearance }}
+				</dd>
+				<dt class="rp-al-fields__key">
+					Anchor
+				</dt>
+				<dd class="rp-al-fields__value">
+					{{ asset.anchor === true ? 'Set' : 'Not set' }}
+				</dd>
+				<dt class="rp-al-fields__key">
+					Facing
+				</dt>
+				<dd class="rp-al-fields__value rp-al-fields__num">
+					{{ facing }}
 				</dd>
 			</dl>
 			<p

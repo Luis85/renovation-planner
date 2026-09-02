@@ -4225,14 +4225,38 @@ describe('AssetPriceList', () => {
 	});
 
 	/**
-	 * The other half, which an `override === null` test alone certifies WRONG: type a price
-	 * into an empty row, blur, and press clear before the vault answers. Treating that as a
-	 * no-op discards the user's cancellation and lets the set persist — the gesture the user
-	 * made is the one thing that does not happen. Routed through `onCommit` instead, it becomes
-	 * the queued follow-up the composable's coalescing already knows how to answer.
+	 * The other half, which an `override === null` test alone certifies WRONG: type a price into
+	 * an empty row, **Tab to the clear button** — so the blur really is a separate commit
+	 * gesture — and press it before the vault answers. Treating that as a no-op discards the
+	 * user's cancellation and lets the set persist: the gesture the user made is the one thing
+	 * that does not happen. Routed through `onCommit` instead, it becomes the queued follow-up
+	 * the composable's coalescing already knows how to answer.
+	 *
+	 * **The keyboard is load-bearing in this case's setup and was not, before the pointer case
+	 * below existed.** With `@mousedown.prevent` on the button a CLICK no longer blurs, so a
+	 * version of this case driven by a click asserts the opposite of its sibling and one of the
+	 * two has to be wrong. Tab commits and click does not; that asymmetry is the contract, not
+	 * an accident of how the test was written.
 	 */
-	it('cancels a set that is still in flight when clear is pressed', async () => {
+	it('cancels a set that is still in flight when clear is reached by keyboard', async () => {
 		// The clear dispatches, and its `expected` names what the SET wrote — see Step 3.
+	});
+
+	/**
+	 * The POINTER path, and the guard that makes it differ: a browser blurs the input on the
+	 * button's `mousedown`, before the `click` that runs the handler, so one gesture on a dirty
+	 * field becomes a set THEN a clear — two writes, two events and two project-wide cascades
+	 * for one click, with the discarded price left standing if the clear refuses.
+	 *
+	 * Drive the real sequence (`mousedown`, `blur`, `click`) rather than `click()` alone, which
+	 * jsdom does not expand into it: a case that only clicks passes against a button with no
+	 * guard at all, which is this repository's own "a test that drives an impossible input is
+	 * evidence about a different program". Watch it fail with `@mousedown.prevent` removed —
+	 * `commit` is then called twice, and the FIRST call is the set.
+	 */
+	it('dispatches only the clear when the button is clicked on a dirty field', async () => {
+		expect(commit).toHaveBeenCalledTimes(1);
+		// … and that one call is the clear, asserted on the command input rather than on a badge.
 	});
 
 	/**
@@ -4281,6 +4305,26 @@ Mirror `PlanList.vue`'s structure: an `<h3>` header (the project's name above is
 heading order is one of the five things the axe case grades), then a `<ul>` of rows. Each row
 shows the asset name, the library price, and an input bound through `useFieldCommit` with a
 clear button. No literal copy — every string through `tr(...)`.
+
+**`@mousedown.prevent` on the clear button, and it is not a nicety.** A browser blurs the focused
+input on the button's `mousedown`, BEFORE the `click` that runs the handler — so without it, one
+gesture on a dirty field is TWO commands: a set persisting the price the user is discarding, then
+the clear. Two writes, two `AssetPriceOverrideChanged` events and two project-wide cascades for
+one click, and if the clear then refuses, the typed price stands over the library price the user
+asked for. `RequirementRow.vue:272` carries the identical guard with the identical reasoning,
+learned there the hard way (*"one Reset gesture on a dirty field wrote twice … and Undo then
+restored that transient value rather than the override that preceded it"*), and
+`DialogHost.onMousedown` uses the same mechanism. `preventDefault` on `mousedown` preserves focus
+and cancels nothing else, so the click still fires.
+
+**It covers the POINTER path only, which is what makes it compatible with the in-flight case
+above rather than a contradiction of it.** Reaching the clear button by Tab still blurs and still
+commits, and that is CORRECT — tabbing away is itself the commit gesture `useFieldCommit`'s
+contract names, so the set is a real user intent and the clear becomes the queued follow-up the
+coalescing already answers. The two cases are one keyboard gesture and one pointer gesture with
+different right answers, and the plan says which is which rather than leaving the next reader to
+find a file asserting two outcomes for what reads as the same act. That sentence is lifted from
+`RequirementRow.vue`'s own docblock, which states the carve-out where the guard is.
 
 **The project-wide warning belongs here.** A price set on this row moves every requirement in
 the project on that asset; the section's own heading and its placement on a project surface are

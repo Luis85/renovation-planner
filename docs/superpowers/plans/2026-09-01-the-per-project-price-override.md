@@ -4394,7 +4394,23 @@ In `locales/en.ts`:
 	'view.project.price-clear': 'Use the library price',
 	'view.project.no-assets': 'The library has no assets yet',
 	'view.project.price-invalid': 'Enter a price like 19.50',
+	'view.project.price-scope': 'A price set here applies to every requirement in this project that uses the asset',
+	'view.project.price-orphan': 'This asset is no longer in the library',
 ```
+
+**`view.project.price-scope` is the project-wide warning Step 3 promises, and it had no key.**
+That paragraph says the warning "belongs here" and gives the reason the affordance is on this
+surface rather than the Inspector's row — an override is per-(project, asset), so one edit moves
+every requirement in the project on that asset. Step 3 asserted it and this inventory did not
+carry it, so an implementer working from the list would have shipped the control without the
+disclosure that is its whole justification for living here. **A warning promised in a design
+paragraph and absent from the copy inventory is a warning that does not exist**, and no gate can
+see the gap: `I18N_LITERAL_BAN` fires at a literal, never at an absent one.
+
+**`view.project.price-orphan` is the same defect one round earlier, in my own edit.** The orphan
+row's rendering rule says the asset id draws "with a translated reason beside it" and no key was
+added for that reason either. Both are in the inventory now, and both are asserted in step 2 —
+because copy that exists in `en.ts` and is rendered nowhere is the other half of the same class.
 
 **`view.project.price-invalid` is the VALIDATOR's message, and it needed a key of its own.** The
 validator returns a resolved string — that is what `useFieldCommit.validate` is — so without one
@@ -4567,6 +4583,22 @@ describe('AssetPriceList', () => {
 	 * from the row's effective currency — the command refuses, and the dead end is back.
 	 */
 	/**
+	/**
+	 * The project-wide warning, which is the disclosure that justifies this affordance living on
+	 * the project surface rather than on the Inspector's requirement row. Asserted on the
+	 * rendered TEXT and asserted ONCE — a per-row repetition would read as a per-row consequence,
+	 * which is the opposite of what it says.
+	 *
+	 * It is a rendering case rather than a locale case on purpose: a key present in `en.ts` and
+	 * rendered nowhere passes every i18n gate this repository has, which is exactly how it came
+	 * to be missing in the first place.
+	 */
+	it('discloses that a price here reprices every requirement in the project, once', async () => {
+		expect(wrapper.findAll('.rp-asset-price-scope')).toHaveLength(1);
+		// … and its text resolves `view.project.price-scope`.
+	});
+
+	/**
 	 * The ORPHAN row: an override whose asset was deleted out of band, so `assetName` and
 	 * `catalogue` are both null. It must be VISIBLE and CLEARABLE and must not accept a new
 	 * price — a set on a missing asset mints data nothing can price, and the command reads the
@@ -4579,6 +4611,9 @@ describe('AssetPriceList', () => {
 	it('renders an orphaned override with its id, no library price, and only Clear live', async () => {
 		// rows: [{ assetId: 'a1', assetName: null, catalogue: null, override: 19.50, … }]
 		expect(wrapper.text()).toContain('a1');
+		// … and the reason beside it, resolving `view.project.price-orphan` — an id with no
+		// sentence is a row the user cannot interpret, which is half of being unreachable.
+		expect(wrapper.find('.rp-asset-price-orphan').exists()).toBe(true);
 		expect(wrapper.find('input').attributes('disabled')).toBeDefined();
 		expect(wrapper.find('.rp-asset-price-clear').attributes('disabled')).toBeUndefined();
 	});
@@ -4644,6 +4679,13 @@ coalescing already answers. The two cases are one keyboard gesture and one point
 different right answers, and the plan says which is which rather than leaving the next reader to
 find a file asserting two outcomes for what reads as the same act. That sentence is lifted from
 `RequirementRow.vue`'s own docblock, which states the carve-out where the guard is.
+
+**The project-wide warning renders ONCE, with the section, not per row.** It is a fact about
+what the control does — every requirement in this project on that asset is repriced — rather
+than about any one asset, so a per-row repetition would be the same sentence N times and would
+read as a per-row consequence. It sits under the `<h3>`, before the list, so it is read before
+the first control rather than discovered after one; `view.project.price-scope` is its key, and
+its absence from the copy inventory is what a review round caught.
 
 **An ORPHAN row draws differently, and it is the one row whose only useful control is Clear.**
 `assetName === null` is the discriminator (Task 8's DTO), and it means the asset this price names

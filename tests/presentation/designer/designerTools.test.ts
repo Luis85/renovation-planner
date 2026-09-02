@@ -157,6 +157,25 @@ describe('tracing an outline', () => {
 		expect((await rig.document()).shape).toBeNull();
 		rig.unmount();
 	});
+
+	/**
+	 * Task 10 gave `DrawPolygonTool` a required `onCompleted`, which the Plan Editor binds to
+	 * `returnToSelect`. The designer registers no `select` tool at all (see the FIVE-tools note
+	 * on `DESIGNER_TOOL_LABELS`), so both traces bind it to camera mode instead — the same
+	 * substitution `DesignerCanvas.vue`'s `routeEscape` wiring already makes for its
+	 * `returned-to-select` arm.
+	 */
+	it('a closed footprint leaves no active tool, since this surface has no Select to return to', async () => {
+		const rig = await designerRig({ shape: null });
+
+		await activate(rig, 'designer.toolbar.trace-footprint');
+		expect(rig.activeToolId()).toBe('trace-footprint');
+		tracePolygon(rig, TRIANGLE);
+		await settle();
+
+		expect(rig.activeToolId()).toBeNull();
+		rig.unmount();
+	});
 });
 
 /**

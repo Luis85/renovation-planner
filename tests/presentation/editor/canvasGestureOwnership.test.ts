@@ -335,7 +335,11 @@ describe('a pointer taken away mid-pan', () => {
 		// is refused, `endPan` never runs, and the drag follows the bare cursor for the rest of
 		// the session. The whole suite passes against that version, which is why this exists.
 		const { harness, canvas, camera } = await editor();
-		// No tool: camera mode, and no space either — the store's own drag.
+		// Camera mode, and no space either — the store's own drag. Task 10 made Select the
+		// tool a ready plan opens onto, so this reaches camera mode through the Pan button
+		// rather than through the pre-Task-10 default.
+		toolbarButton(harness, 'Pan').click();
+		await settle();
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 340, 300);
 		canvas.dispatchEvent(new PointerEvent('pointercancel', { pointerId: 1, bubbles: true }));
@@ -671,6 +675,10 @@ describe('the camera during a CAMERA-MODE drag', () => {
 	 */
 	async function panningTheCamera() {
 		const built = await editor();
+		// Task 10 made Select the tool a ready plan opens onto; back to camera mode so this
+		// bare primary drag pans rather than dragging zone-a, which sits under (300, 300).
+		toolbarButton(built.harness, 'Pan').click();
+		await settle();
 		pointer(built.canvas, 'pointerdown', 300, 300);
 		pointer(built.canvas, 'pointermove', 350, 300);
 		await settle();

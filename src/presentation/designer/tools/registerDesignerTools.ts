@@ -122,10 +122,16 @@ export interface DesignerToolDeps {
 	readonly hasGeometryToRescale: () => boolean;
 	/** Asks the user to accept that rescale; `true` proceeds. Never called when the above is false. */
 	readonly confirmRecalibration: () => Promise<boolean>;
+	/**
+	 * Where a completed trace hands control back to (Task 10). This surface registers no
+	 * `select` tool — see this file's own FIVE-tools note above `DESIGNER_TOOL_LABELS` — so
+	 * `runtime.ts` binds this to camera mode (`setTool(null)`) rather than to Select.
+	 */
+	readonly returnToCamera: () => void;
 }
 
 export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDeps): void {
-	const { assetId, edits } = deps;
+	const { assetId, edits, returnToCamera } = deps;
 	/**
 	 * TOTAL over `DesignerToolId`, which is what makes the toolbar's table and this function
 	 * one fact rather than two. Registered by iterating the record's own values, so there is no
@@ -146,6 +152,9 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 			},
 			reportRejected: deps.reportRejected,
 			reportInvalidInput: deps.reportInvalidInput,
+			// The designer registers no `select` tool (see the FIVE-tools note above), so a
+			// completed trace returns to camera mode rather than to a tool that does not exist.
+			onCompleted: returnToCamera,
 		}),
 		'trace-clearance': new DrawPolygonTool({
 			id: 'trace-clearance',
@@ -157,6 +166,9 @@ export function registerDesignerTools(manager: ToolManager, deps: DesignerToolDe
 			},
 			reportRejected: deps.reportRejected,
 			reportInvalidInput: deps.reportInvalidInput,
+			// Same reason as `trace-footprint` above: no Select tool here, so completing a
+			// clearance trace hands control back to camera mode.
+			onCompleted: returnToCamera,
 		}),
 		'set-anchor': new SetAnchorTool({
 			createCommand: (anchor) => edits.setAnchor({ assetId, anchor }),

@@ -28,6 +28,7 @@ import {
 	type EditorHarnessOptions,
 } from '../../helpers/editor';
 import { FIXTURE_PLAN } from '../../helpers/planFixtures';
+import { toolbarButton } from '../../helpers/planEditorRig';
 
 /**
  * What `afterEach` has to unmount, which is the only thing the whole file shares.
@@ -267,6 +268,11 @@ describe('the camera', () => {
 
 	it('pans on a primary-button drag', async () => {
 		const harness = await mountCanvas();
+		// Task 10 made Select — not camera mode — the tool a ready plan opens onto, and
+		// (0,0)-(4000,3000) zone-kitchen sits under this drag's start; back to camera mode so
+		// the drag pans rather than moving the zone.
+		toolbarButton(harness, 'Pan').click();
+		await settle();
 		const positionOf = () => ({ x: harness.stage.findOne('.zone')?.x(), y: harness.stage.findOne('.zone')?.y() });
 		const before = positionOf();
 
@@ -312,6 +318,10 @@ describe('the camera', () => {
 
 	it('stops panning when the button is released', async () => {
 		const harness = await mountCanvas();
+		// Same reason as the case above: an explicit return to camera mode, since Select would
+		// otherwise turn this into a completed (and irrelevant) zone move.
+		toolbarButton(harness, 'Pan').click();
+		await settle();
 		const positionOf = () => harness.stage.findOne('.zone')?.x();
 
 		harness.canvasEl.dispatchEvent(
@@ -334,6 +344,9 @@ describe('the camera', () => {
 
 	it('ends a pan that leaves the pane, so the view does not stay stuck to the cursor', async () => {
 		const harness = await mountCanvas();
+		// Same reason again: without it, this is a Select press over zone-kitchen instead.
+		toolbarButton(harness, 'Pan').click();
+		await settle();
 		const positionOf = () => harness.stage.findOne('.zone')?.x();
 
 		harness.canvasEl.dispatchEvent(

@@ -211,15 +211,21 @@ describe('a middle press refused because another gesture is running', () => {
 
 describe('the middle button pressed during a camera-mode drag', () => {
 	/**
-	 * Camera mode is the DEFAULT — no tool — so it is the MORE reachable half of every rule
-	 * the pan override carries, and a fix applied only to the override leaves it broken. Both
-	 * directions of the chord live here for that reason.
+	 * Camera mode was the OPEN-time default before Task 10 gave that role to Select — see
+	 * `EditorToolbar`'s `Pan` button, which is what reaches it explicitly now — so it remains
+	 * the MORE reachable half of every rule the pan override carries, and a fix applied only
+	 * to the override leaves it broken. Both directions of the chord live here for that
+	 * reason.
 	 */
 	it('does not kill a primary drag whose button is still held', async () => {
 		// A bare left-drag pan with a middle click on top of it. The middle click is two
 		// chords, not a press and a release: the primary button is already down, so no
 		// `pointerdown` or `pointerup` fires for it at all.
 		const { harness, canvas, camera } = await editor();
+		// Select is the tool a ready plan opens onto (Task 10); back to camera mode so this
+		// bare primary drag pans rather than dragging zone-a, which sits under (300, 300).
+		toolbarButton(harness, 'Pan').click();
+		await settle();
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 340, 300);
 		await settle();
@@ -242,6 +248,9 @@ describe('the middle button pressed during a camera-mode drag', () => {
 		// button — which `isPrimary` correctly refuses, so nothing ended the drag and the
 		// camera went on following a cursor with no button held.
 		const { harness, canvas, camera } = await editor();
+		// Same reason as the case above: back to camera mode so the bare primary press pans.
+		toolbarButton(harness, 'Pan').click();
+		await settle();
 		pointer(canvas, 'pointerdown', 300, 300);
 		pointer(canvas, 'pointermove', 340, 300);
 		chord(canvas, 340, 300, 1, 5); // middle pressed on top of the drag

@@ -181,3 +181,28 @@ describe('a refused redo', () => {
 	});
 
 });
+
+describe('Select is the default tool (Task 10)', () => {
+	it('activates Select the first time the plan becomes ready, and never on a later refresh', async () => {
+		// `rig()` awaits hydration to `'ready'` before handing the harness back, so the
+		// FIRST-ready transition has already happened by this line — Select is what a fresh
+		// Plan Editor leaf opens onto rather than camera mode.
+		const { harness } = await rig();
+
+		expect(toolbarButton(harness, 'Select').getAttribute('aria-pressed')).toBe('true');
+
+		toolbarButton(harness, 'Draw zone').click();
+		await settle();
+		expect(toolbarButton(harness, 'Draw zone').getAttribute('aria-pressed')).toBe('true');
+
+		// `PlanEditorRoot` subscribes a plain re-hydration to `onPlanChanged`, and
+		// `ProjectStore.hydrate` only drops `status` to `'loading'` when it was not already
+		// `'ready'` — so this refresh keeps `status === 'ready'` throughout, the watch never
+		// sees a `previous !== 'ready'` transition, and the tool the user chose must survive it.
+		harness.changePlan();
+		await settle();
+		expect(toolbarButton(harness, 'Draw zone').getAttribute('aria-pressed')).toBe('true');
+
+		harness.unmount();
+	});
+});

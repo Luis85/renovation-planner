@@ -1,4 +1,4 @@
-import { inject, onBeforeUnmount, provide, reactive, ref, type InjectionKey, type Ref } from 'vue';
+import { inject, onBeforeUnmount, provide, reactive, ref, watch, type InjectionKey, type Ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { SessionWriteLedger } from '../../application/editor/WriteLedger';
 import { ReversibleCreateZoneCommand } from '../../application/commands/zone/reversible-create-zone-command';
@@ -60,6 +60,11 @@ export interface EditorRuntime {
 	readonly dispatcher: ReturnType<typeof withEditorStateRefresh>;
 	readonly toolManager: ToolManager;
 	/**
+	 * Same as `setTool('select')`, named for the two callers that mean it — the first-ready
+	 * watch below and a finished polygon's completion.
+	 */
+	readonly returnToSelect: () => void;
+	/**
 	 * The reactive proxy over this leaf's `RenderState` (SDD §19's transient visuals).
 	 * Tools write plain fields; the InteractionLayer reads them reactively.
 	 */
@@ -106,11 +111,17 @@ interface EditorToolDeps {
 	readonly projectStore: ReturnType<typeof useProjectStore>;
 	readonly ledger: SessionWriteLedger;
 	readonly dialogs: ReturnType<typeof useDialogStore>;
+	/**
+	 * The draw-polygon tool's `onCompleted`: creation is temporary (design spec §7.3), so a
+	 * closed polygon hands control straight back to Select rather than staying armed for a
+	 * vertex the user did not mean.
+	 */
+	readonly returnToSelect: () => void;
 }
 
 /** The concrete tools of this slice, registered against one shared context factory. */
 function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): void {
-	const { context, planId, projectStore, ledger, dialogs } = deps;
+	const { context, planId, projectStore, ledger, dialogs, returnToSelect } = deps;
 	toolManager.register(
 		new SelectTool({
 			spatialObjects: () =>
@@ -160,6 +171,7 @@ function registerEditorTools(toolManager: ToolManager, deps: EditorToolDeps): vo
 			},
 			reportRejected: reportDispatchFailure,
 			reportInvalidInput: notifyOperationFailure,
+			onCompleted: returnToSelect,
 		}),
 	);
 	toolManager.register(
@@ -431,17 +443,34 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 			subject: subject(),
 		}),
 	);
-	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs });
-
 	// The reactive mirror of `ToolManager`'s non-reactive pointer, held in the store rather
 	// than in a second `ref` beside it. There were three copies of the active tool id — the
 	// manager's own, a local ref the toolbar read, and this store slot nothing read — and
 	// `setTool` hand-synced all three, which is two chances to drift where the drift is
 	// invisible. The manager stays framework-pure (no Vue), so ONE mirror at this seam is
 	// what a Vue consumer reads.
+	//
+	// Hoisted above `registerEditorTools` (rather than left where the toolbar's own dispatch
+	// used it) so `returnToSelect` exists in time to be threaded into the draw-polygon tool's
+	// `onCompleted` below — `toolManager` is already built at this point, which is all
+	// `createToolSwitch` needs.
 	const { activeToolId } = storeToRefs(editor);
-
 	const setTool = createToolSwitch(toolManager, activeToolId);
+	const returnToSelect = (): void => setTool('select');
+
+	registerEditorTools(toolManager, { context, planId, projectStore, ledger, dialogs, returnToSelect });
+
+	// Select is the safe default (design spec M01): armed the FIRST time the plan is ready and
+	// left alone on every later refresh, which keeps `status === 'ready'` throughout (a
+	// re-hydration never drops it back to `'loading'`) and must not yank a tool the user
+	// chose. Watched on the status rather than on `hydrate`'s own promise, because the root
+	// owns the call to `hydrate` and a second caller (`onPlanChanged`) already exists.
+	watch(
+		() => projectStore.status,
+		(status, previous) => {
+			if (status === 'ready' && previous !== 'ready') setTool('select');
+		},
+	);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
 	// refusal — bound straight to toolbar clicks. `ReversibleCalibratePlanCommand.undo()`
@@ -504,6 +533,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 		renderState,
 		activeToolId,
 		setTool,
+		returnToSelect,
 		undo,
 		redo,
 		canUndo,

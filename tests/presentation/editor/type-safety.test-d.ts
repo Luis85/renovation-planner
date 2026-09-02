@@ -113,6 +113,8 @@ const deps: DrawPolygonToolDeps = {
 	nextZoneName: () => 'Zone 1',
 	reportRejected: report,
 	reportInvalidInput: report,
+	// Task 10's addition, kept here so this literal states every member it claims to.
+	onCompleted: () => undefined,
 };
 void deps;
 

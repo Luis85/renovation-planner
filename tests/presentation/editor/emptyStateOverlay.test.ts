@@ -159,6 +159,14 @@ describe('the plan editor empty states', () => {
 		const camera = useEditorStore(harness.pinia);
 		const canvas = harness.wrapper.find('.rp-plan-canvas').element as HTMLElement;
 
+		// Task 10 made Select — not camera mode — the tool armed once the plan is ready, so a
+		// bare primary drag needs an explicit return to camera mode to mean what this case is
+		// actually about: the STAGE's own drag, rather than a Select drag over empty canvas.
+		const panButton = harness.wrapper.findAll('button').find((button) => button.text() === 'Pan');
+		if (panButton === undefined) throw new Error('expected a Pan toolbar button');
+		await panButton.trigger('click');
+		await settle();
+
 		press(canvas, 'pointerdown', 100, 100);
 		press(canvas, 'pointermove', 140, 140);
 		press(canvas, 'pointerup', 140, 140);

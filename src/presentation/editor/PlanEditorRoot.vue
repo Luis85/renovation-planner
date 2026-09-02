@@ -47,10 +47,20 @@ const { emptyStateKey } = storeToRefs(projectStore);
  * is checked HERE rather than in the selector because it is a rendering rule: a panel still
  * floating over the canvas after its own button activated the draw tool would leave the user
  * in a mode they cannot reach the stage in.
+ *
+ * **`null` is not the only tool this yields to any more.** Design spec §7.3/task 10 made
+ * Select the tool armed the moment a plan becomes ready — the safe default camera mode used
+ * to be — so treating EVERY non-null tool as "mid-task" would hide this overlay the instant
+ * any plan finished hydrating, whether it has anything to show or not: measured, every case in
+ * `emptyStateOverlay.test.ts` but the two that assert nothing about the overlay went red the
+ * day Select stopped being `null`. A CREATION tool is what places the user mid-gesture; Select
+ * is the resting state Task 10 gave this editor in place of camera mode, so it yields the
+ * overlay no more than camera mode itself ever did.
  */
 const overlay = computed(() => {
 	const key = emptyStateKey.value;
-	if (key === null || runtime.activeToolId.value !== null) return null;
+	const tool = runtime.activeToolId.value;
+	if (key === null || (tool !== null && tool !== 'select')) return null;
 	return resolveEmptyState(EMPTY_STATE_CONTENT.planEditor[key]);
 });
 

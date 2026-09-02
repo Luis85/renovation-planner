@@ -87,6 +87,12 @@ export interface DrawPolygonToolDeps {
 	 * every pre-dispatch refusal silent.
 	 */
 	readonly reportInvalidInput: (error: AppError) => void;
+	/**
+	 * Called once after a successful close, AFTER the new zone is selected. The runtime binds
+	 * it to `returnToSelect`: creation is temporary (design spec §7.3), and a tool that stayed
+	 * active would leave the next click placing a vertex the user did not mean.
+	 */
+	readonly onCompleted: () => void;
 }
 
 /**
@@ -347,6 +353,7 @@ export class DrawPolygonTool implements EditorTool {
 			// the selection is then left exactly as the user had it.
 			const createdId = command.createdId;
 			if (createdId !== null) context.selection.select([createdId]);
+			this.deps.onCompleted();
 		} finally {
 			// The window is over whichever way it resolved; the next click is a fresh gesture.
 			// Only for the gesture that opened it — a `cancel()` mid-flight has already

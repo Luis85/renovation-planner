@@ -1018,14 +1018,14 @@ function onKeyDown(event: KeyboardEvent): void {
 		// where the second call clears an empty buffer. Escape means cancel once. The space
 		// branch above filters repeats for its own reasons and this is the same sentence.
 		//
-		// **What Escape does BELOW "swallowed by a pan" is `routeEscape`'s question now, not a
-		// single unconditional `cancelGesture()`.** A tool holding a draft — `hasDraft()` — is
-		// cancelled and stays active exactly as before; a creation tool with NOTHING drawn
-		// returns to Select instead of leaving Escape a no-op over an empty buffer; and Select
-		// itself, or camera mode with no tool at all, clears a selection when there is nothing
-		// left to cancel. `panOverride.phase !== 'panning'` above is the same swallow this
-		// branch always made — `routeEscape`'s own `panning` arm restates it rather than
-		// replacing it, so a pan still owns Escape for the reasons the paragraphs above give.
+		// **What Escape does once it is not a repeat is `routeEscape`'s question now, not a
+		// single unconditional `cancelGesture()`.** A pan still swallows it first, exactly for
+		// the reasons the paragraphs above give — `panning: panPhase.value === 'panning'` is
+		// that same guard, carried into the call as data rather than kept as a condition on it.
+		// Past that: a tool holding a draft — `hasDraft()` — is cancelled and stays active
+		// exactly as before; a creation tool with NOTHING drawn returns to Select instead of
+		// leaving Escape a no-op over an empty buffer; and Select itself, or camera mode with no
+		// tool at all, clears a selection when there is nothing left to cancel.
 		if (!event.repeat) {
 			routeEscape({
 				panning: panPhase.value === 'panning',

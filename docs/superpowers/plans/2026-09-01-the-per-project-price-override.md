@@ -2392,8 +2392,48 @@ which contradicts the plan's own "each task ends green on its own".
   - `resolveEffectiveUnitCost(overrides, projectId, asset): Promise<Result<Money, RepositoryError>>`
   - `effectiveUnitCostFrom(overridesByProject: ReadonlyMap<ProjectId, Money>, projectId, asset): Money`
     — the pure, batched sibling Task 6 uses.
-- `AssignAssetDeps` and `RecalculateRequirementDeps` each gain
-  `readonly overrides: AssetPriceOverrideRepository`.
+- **`AssignAssetDeps` gains `readonly overrides: AssetPriceOverrideRepository`. It exists.**
+  `AssignAssetCommand` already takes a bundle (`AssignAsset.ts:65`, `constructor(deps:
+  AssignAssetDeps)`), so this is one member and its construction sites.
+- **`RecalculateRequirementDeps` does NOT exist, and this task has to CREATE it.** An earlier
+  draft named the two types in one breath as if both were bundles — a symmetric sentence over an
+  asymmetric reality. `RecalculateRequirementCommand` takes **five positional parameters**
+  (`RecalculateRequirement.ts:50-56`: `requirements, zones, assets, events, projects`), and
+  `max-params` is `['error', 5]` in `eslint.config.mjs` **twice** and again in `.oxlintrc.json`.
+  Adding `overrides` positionally is a SIXTH parameter: lint error, `--max-warnings 0`, and the
+  `npm run check` this task promises cannot pass. There is no version of this step that adds a
+  dependency without the refactor first.
+
+  **So: introduce the bundle, then add the member** — two moves in one step, modelled on
+  `AssignAssetDeps` rather than invented:
+
+  ```ts
+  export interface RecalculateRequirementDeps {
+  	readonly requirements: RequirementRepository;
+  	readonly zones: ZoneRepository;
+  	readonly assets: AssetRepository;
+  	readonly events: EventBus;
+  	readonly projects: ProjectRepository;
+  	readonly overrides: AssetPriceOverrideRepository;
+  }
+  ```
+
+  **Every construction site changes, and `tests/**` is type-checked.** Measured with
+  `grep -rn "new RecalculateRequirementCommand(" src/ tests/`: **twelve** call sites, **eleven of
+  them in tests** — `src/plugin/composition-root.ts:383`; `tests/helpers/slice10.ts` (`:36` and
+  `:151`), `tests/helpers/planEditorRig.ts:130`, `tests/application/domainValidation.test.ts:56`,
+  `tests/application/event-handlers/cascade.test.ts:84`,
+  `tests/application/errors/guardAgainstThrowing.test.ts:305`,
+  `tests/application/slice10Branches.test.ts:351`,
+  `tests/application/commands/requirement/currencyMismatch.test.ts:67`, and
+  `tests/application/commands/requirement/recalculateAndDerivation.test.ts` (`:36`, `:62`,
+  `:118`).
+
+  **An arity change breaks every site whether or not the new member is required**, which makes
+  this the one instance of the required-member class where the compiler catches all of them —
+  positional-to-bundle cannot be silently satisfied. Worth doing in this step rather than
+  deferring: the alternative is a task that cannot reach green, which is the property every task
+  here is written to have.
 
 **Read [`docs/issues/The cost pipeline is told the currency it must produce.md`](../../issues/The%20cost%20pipeline%20is%20told%20the%20currency%20it%20must%20produce.md)
 before this task.** Its *Revisit when* is the witness below, and its "What was tried, and why
@@ -4013,6 +4053,34 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
      hydrate whose rows query failed: there is nothing to preserve, so `[]` is legitimately
      incomplete rather than legitimately empty, and no flag distinguishes them. A filter exists
      to skip work, so the safe direction under uncertainty is to do the work: empty → re-read.
+  3. **Clear the rows when a single-zone hydrate STARTS**, which is what makes (2) cover the
+     zone-to-zone transition rather than only the first mount. `hydrateFrom` sets
+     `lastSelection` and then AWAITS both queries, assigning `requirements` only after — so from
+     the moment the user selects zone B until those reads settle, the snapshot still holds zone
+     A's rows. A figure event for one of B's requirements fails the membership test and is
+     dropped; if the in-flight read had already gone out, it settles stale with nothing scheduled
+     behind it. Clearing at the top of that branch turns the whole window into an empty snapshot,
+     which rule (2) already answers.
+
+     **No new state, and the method already does this on its other two branches** — `length === 0`
+     and `length > 1` both assign `requirements.value = []` before returning. The single-id branch
+     is the one that does not, which is why the hole is there rather than by design.
+
+     **It is also the more honest picture on its own merits:** showing zone A's requirements under
+     a selected zone B is the "silently wrong panel" the store's own cached-read argument exists
+     to prevent, and a blank moment is a truer answer than a confident wrong one.
+
+     **`refresh()` must NOT take this clearing, and the distinction is the rule:** `hydrateFrom`
+     means the SELECTION changed, so the held rows are about a different zone and are simply
+     wrong; `refresh()` means the same selection is being re-read, so the held rows are the best
+     available answer and (1) keeps them. Same field, opposite handling, because the question is
+     different.
+
+     **The `dto` field has the identical gap and is deliberately NOT fixed here.** It is assigned
+     after the same await, so it too shows zone A across the window — but no filter in this
+     increment reads it, so touching it would be widening an unrelated surface inside this task.
+     Recorded rather than swept, so the next reader meets it as a known gap rather than as
+     something this change overlooked.
 
   **The cost is named rather than waved past**: a selected zone that genuinely has no
   requirements now re-reads once per recalculation event anywhere in the vault. That is one
@@ -4020,10 +4088,16 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   second flag — which this plan's own rule prefers, since a flag is a thing that can go stale
   and an empty list cannot.
 
-  Both halves need a case. Preserving rows alone passes a test that only drives a *later* failed
-  refresh; failing open alone passes one that only drives a first hydrate. Drive both: a settled
-  panel whose refresh query then fails must still admit its own requirement's event, and a panel
-  whose FIRST rows read failed must admit one too.
+  All three need a case, and each alone passes a suite that drives only the others' paths:
+
+  - a settled panel whose refresh query then FAILS must still admit its own requirement's event
+    (rule 1);
+  - a panel whose FIRST rows read failed must admit one too (rule 2);
+  - and a **populated zone A → zone B** transition must admit an event for one of B's
+    requirements while B's read is still in flight (rules 2 and 3 together). This is the case the
+    first-hydration test cannot reach, because there the snapshot is empty for a different
+    reason; here it is non-empty and about the wrong zone, which is the state rule 3 exists to
+    end.
 
   Its absence was invisible to every gate, which is the shape rather than the fact: nothing
   fails when a callback source has no subscriber. The three-part edit — declare, bind,

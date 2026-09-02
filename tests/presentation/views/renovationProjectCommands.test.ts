@@ -1,16 +1,27 @@
 /**
  * The Renovation Project view's write side when the composition root could not compose.
  *
- * `unavailableRenovationProjectCommands()` is the ONE entry in this bundle's widening that
- * nothing makes a compile error: the interface being required turns the declaration and the
- * root's binding into build failures, so a member forgotten there cannot ship — while a member
- * forgotten HERE compiles, runs, and refuses under whatever the next reader happens to write.
- * That is why every door is asserted rather than the two this increment added.
+ * **A member forgotten HERE is a build failure, and an earlier draft of this header said the
+ * opposite.** `unavailableRenovationProjectCommands` annotates its return type, so the object
+ * literal is checked against `RenovationProjectCommandServices` like any other — measured, not
+ * reasoned: deleting the `createAsset` member reports `TS2741: Property 'createAsset' is
+ * missing in type … but required in type 'RenovationProjectCommandServices'`. The bundle's own
+ * docblock names the real hazard and this file had widened it: a door that is PRESENT and
+ * refuses WRONGLY — under a second spelling of `settings.unrecovered`, or with a code that
+ * sends the user somewhere else. "Can refuse wrongly" is not "can be missing", and only the
+ * first of those needs a test.
  *
- * `settings.unrecovered` on all SIX, from ONE refusal function, so the shared code cannot drift
- * into two spellings of one state. Six rather than four since the asset designer merged and
- * brought `createAsset` and `setAssetFootprintFromDimensions` with it — this list is what
- * caught that at the merge, which is the whole reason it is asserted by exact key set.
+ * So what this file protects is the REFUSAL, which no type can hold: `settings.unrecovered` on
+ * every door, from ONE `persistenceFailure()`, so the shared code cannot drift into two
+ * spellings of one state.
+ *
+ * **The exact key set is asserted for a different reason than the one previously claimed here.**
+ * It is not what caught the asset designer's two new doors at the merge — nothing needed
+ * catching, because the merge kept both sides' additions and the compiler was standing behind
+ * it either way. It is asserted so that a door added to the interface is DRIVEN through the
+ * refusal cases below on the day it is written, rather than compiling as a present member whose
+ * refusal nobody has checked. `commandKeys` derives the list from the bundle by SHAPE, so that
+ * happens without anyone maintaining a second list.
  */
 import { describe, expect, it } from 'vitest';
 import {

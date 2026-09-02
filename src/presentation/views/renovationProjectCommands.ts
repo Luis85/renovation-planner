@@ -152,10 +152,11 @@ export function unavailableRenovationProjectCommands(): RenovationProjectCommand
 			},
 		},
 		// Both price doors through the SAME `persistenceFailure()` the pair above share, so
-		// `settings.unrecovered` cannot drift into two spellings of one state. Nothing makes
-		// these two a compile error — the interface being required makes the declaration and
-		// the root binding build failures, and this function is the entry a composition can
-		// quietly leave refusing wrongly.
+		// `settings.unrecovered` cannot drift into two spellings of one state. An OMITTED member
+		// here is a build failure like any other — this function annotates its return type, so
+		// the literal is checked against the interface (measured: deleting one reports TS2741) —
+		// and what no type can hold is the refusal ITSELF. That is what this function can quietly
+		// get wrong, and what `renovationProjectCommands.test.ts` exists to pin.
 		setAssetPriceOverride: {
 			execute(): Promise<SetAssetPriceResult> {
 				return Promise.resolve(err(persistenceFailure()) as SetAssetPriceResult);

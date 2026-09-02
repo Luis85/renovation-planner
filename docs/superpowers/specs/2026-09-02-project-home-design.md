@@ -132,6 +132,29 @@ smaller price.
 Its test drives the real view-state round trip rather than the local `ref`, because the local
 `ref` is exactly what made the defect invisible.
 
+### The section has to travel the whole way, and the compiler will not say so
+
+**Reported, verified, and the reason it is worth a section is that the type system does not
+catch it.** Changing `RenovationProjectContext.navigate` is not enough: the plugin binds
+`navigate: (next) => …`, a ONE-argument arrow, and forwards to `navigateToProject`, whose write
+is hard-coded — `state: { projectId: projectId ?? '' }` at line 242.
+
+TypeScript accepts a function of fewer parameters where more are expected, so widening the
+interface to `(projectId, section)` leaves that binding compiling unchanged while silently
+discarding the section. `viewStateFrom` then falls back to `'overview'`, and **Design is
+unreachable — on a green build, with every gate passing.**
+
+That is the opposite of the property this document leans on elsewhere. A REQUIRED parameter
+normally makes every call site a compile error, which is how the `DispatchOutcome` widening
+found seventeen adapters and how `AssetDesignerDeps.onThemeChange` found eleven fixtures.
+Arity-compatibility is the one shape where that guarantee does not hold, and a callback is
+exactly where it bites.
+
+So the Files list names the plugin binding and `navigateToProject.ts` alongside the context, and
+the state written is `{ projectId, section }`. **Its test drives the real round trip and asserts
+the section arrives** — a test on `navigate` alone passes against the discarding binding, since
+the context is the half that is correct.
+
 ### Which sections exist
 
 `SECTIONS = ['overview', 'design']` — the built ones, and the only thing the nav renders. The
@@ -757,6 +780,7 @@ mistake, per this repository's rule.
 | View state | `{ projectId: '', section: 'design' }` normalises to the list | dropping the normalisation puts the pane in a section of no project |
 | View state | an unknown section resolves to Overview | refusing it leaves a restored `'budget'` leaf drawing nothing |
 | History | Overview to Design sets `result.history`; a no-change restore does not | an unconditional guard claims a navigation on every restore |
+| Navigation | selecting Design writes `{ projectId, section }` through the plugin binding and arrives as `'design'` | a one-argument binding compiles unchanged and discards the section, and a test on `navigate` alone passes against it |
 | Remount | the mount sequence is `[null, 'p1:overview', 'p1:design']` | comparing only `projectId` leaves Design drawing Overview |
 | Summary | the total sums `cost.effective` across two plans and four zones | — |
 | Summary | one stale row is counted AND still in the total | summing only current rows understates it; dropping the count hides it |
@@ -828,7 +852,10 @@ the five reversible adapters that write and publish nothing —
 `reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — plus `DeleteAsset.ts`
 (Decision 7); `GetRequirementsForZone.ts` (the optional memo,
 and `projectId` on the DTO); `RenovationProjectView.ts` (parse, `sync`, `setState`);
-`RenovationProjectContext.ts` (`navigate` gains a section); `ProjectDetailState.vue` (becomes
+`RenovationProjectContext.ts` (`navigate` gains a section), and with it
+`RenovationPlannerPlugin`'s `navigate` binding and `navigateToProject.ts`, whose written state
+is hard-coded to `{ projectId }` — all three, because the binding's arity keeps it compiling
+while dropping the section; `ProjectDetailState.vue` (becomes
 the shell); `ProjectDetail.vue` (splits); the read-model bundle; `composition-root.ts` / `guardedServices.ts`; `errorSurfacePolicy.ts` (one
 origin); `en.ts` / `de.ts`; `scripts/harness-shot.mjs`; `tests/harness/page.ts`; `CLAUDE.md`.
 

@@ -20,10 +20,6 @@ import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import { shapeFromDimensions } from '../../../../src/domain/asset/AssetShape';
 import { makeAsset } from '../../../helpers/entities';
 import { libraryGeometryIn } from '../../../../src/plugin/settings/libraryMigration';
-import { TFile } from 'obsidian';
-import type { MockTFolder } from '../../../helpers/vault';
-import { VaultChangeAdapter } from '../../../../src/infrastructure/persistence/index/VaultChangeAdapter';
-import { createEventBus } from '../../../../src/core/events/EventBus';
 
 const rectangle = (): AssetShape => expectOk(shapeFromDimensions(1200, 800));
 
@@ -786,62 +782,3 @@ describe('deleting an asset takes its geometry sidecar with it', () => {
 	});
 });
 
-/**
- * The compensation against the pipeline that is running BESIDE it.
- *
- * `trashNoteBackedEntity`'s own docblock says "the index entry survives such a refusal
- * untouched", and that is a claim about what this FUNCTION does — it removes the entry only
- * on success. It is not a claim about the vault, and Obsidian is the other writer: trashing
- * the note raises a delete event, `VaultChangeAdapter.processPath` finds no `TFile` at the
- * path and takes the entry out along with the echo record, and only then does `alsoRemove`
- * refuse. `restoreNoteText` puts the BYTES back and nothing puts the entry back, so every
- * read — all of which resolve through the index — misses an asset whose deletion reported
- * failure. A refusal that leaves the entity unreachable is the "partly done" the compensation
- * exists to rule out, arriving through the one door the compensation does not own.
- *
- * Driven through the REAL `VaultChangeAdapter` rather than through a hand-written
- * `index.remove(...)`, so the case cannot encode this reader's idea of what the delete arm
- * does. `debounceMs: 0` is what makes the event land inside the window, which is the whole
- * scenario: Obsidian's own debounce is 500ms and the race is real either way — a delete
- * event flushed by any later path, or a sidecar removal slower than the debounce.
- */
-describe('a compensated asset delete survives the pipeline seeing the trash', () => {
-	const racingStack = async () => {
-		const seed = await savedAsset();
-		const adapter = new VaultChangeAdapter({
-			vault: seed.stack.vault,
-			metadataCache: seed.stack.metadataCache,
-			index: seed.stack.index,
-			echo: seed.stack.echo,
-			events: createEventBus(),
-			logger: seed.stack.logger,
-			debounceMs: 0,
-		});
-		// Obsidian raises the event; the fake vault does not, so the test does what Obsidian
-		// would at exactly the moment it would — after the file is gone, before the caller's
-		// next statement.
-		const removeFile = seed.stack.vault.delete.bind(seed.stack.vault);
-		seed.stack.vault.delete = async (file: TFile | MockTFolder): Promise<void> => {
-			await removeFile(file);
-			if (file instanceof TFile) adapter.onDelete(file);
-		};
-		const createFile = seed.stack.vault.create.bind(seed.stack.vault);
-		seed.stack.vault.create = async (path: string, data: string): Promise<TFile> => {
-			const created = await createFile(path, data);
-			adapter.onCreate(created);
-			return created;
-		};
-		return seed;
-	};
-
-	it('leaves the asset readable when the sidecar refuses after the delete event lands', async () => {
-		const { stack, asset, version, notePath, path, sidecar } = await racingStack();
-		expectOk(await sidecar.write(asset.id, { calibration: null, shape: rectangle() }));
-		stack.vault.failures.add(`delete:${path}`);
-
-		expect(expectErr(await stack.assets.delete(asset.id, version)).code).toBe('asset.delete-failed');
-
-		expect(stack.index.getPath(asset.id)).toBe(notePath);
-		expect(expectOk(await stack.assets.getById(asset.id))).not.toBeNull();
-	});
-});

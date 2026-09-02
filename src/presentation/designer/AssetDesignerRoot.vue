@@ -167,8 +167,8 @@ const overlay = computed<EmptyStateProps | null>(() => {
 
 /**
  * Task B8's dimensions gesture, and the ONE place it is written rather than one copy per
- * caller: the empty state's action below and `DesignerInspector`'s own "Edit dimensions"
- * control both call it, so the two cannot drift into disagreeing about which dialog opens or
+ * caller: the empty state's action below and `DesignerInspector`'s own dimensions control
+ * (labelled *Set* or *Edit* by whether there is a shape) both call it, so the two cannot drift into disagreeing about which dialog opens or
  * which command answers it. `dialogs.current !== null` mirrors `ViewRoot.onCreateProject`'s own
  * guard — `EmptyState`'s button and the inspector's have no disabled state of their own, so two
  * clicks landing in the same tick must not both reach `openDialog`, which throws

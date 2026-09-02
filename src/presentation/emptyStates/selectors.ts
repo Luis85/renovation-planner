@@ -121,6 +121,13 @@ export function selectProjectDetailEmptyState(
  * the asset designer's side: `noShape`'s hand-off (Task B8's dimensions form) works with no
  * background at all, but a user who has picked nothing yet is offered the more foundational
  * action first. `selectors.test.ts` pins both halves of the ordering as behaviour.
+ *
+ * **That ordering is a matter of which action is OFFERED FIRST and no longer one of what is
+ * reachable at all**, which it was until a review bot pointed out that it was: with the
+ * dimensions gesture living only on `noShape`, a shapeless asset with no sheet could not type
+ * a width and a depth without first choosing an unrelated file. `DesignerInspector` is mounted
+ * in every state and offers that gesture unconditionally now, so this selector decides
+ * prominence rather than access — which is the only thing an empty state should be deciding.
  */
 export function selectAssetDesignerEmptyState(design: AssetDesignDto): 'noBackground' | 'noShape' | null {
 	if (design.shape !== null) return null;

@@ -232,6 +232,14 @@ export async function trashNoteBackedEntity(
 			// own create event is read inside Obsidian's parse lag, where the cache has no entry
 			// and `frontmatterOf` has no echo to fall back on, so the note reads as none of ours
 			// and the entry just put back is taken out again — with no later event to repair it.
+			//
+			// **This `if` NARROWS a type and cannot discriminate**, which is a different reason
+			// from the ones around it and is why its false arm is uncovered rather than untested:
+			// `openNoteById` resolved through this very index and returned `missing` if it held
+			// nothing, and the capture is the next synchronous statement, so `indexed` is
+			// provably present here. What the guard buys is `ProjectIndexEntry` where `find`
+			// answers `ProjectIndexEntry | undefined`. Deleting it is a build error, not a
+			// behaviour change.
 			if (indexed) deps.index.upsert(indexed);
 			deps.echo.markFrontmatter(notePath, opened.raw, { reading: undefined, stat: fileStatAt(deps.vault, notePath) });
 		} else {

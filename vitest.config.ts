@@ -923,6 +923,23 @@ export default defineConfig({
 			// that carries an uncovered position carries only INHERITED ones, measured per changed
 			// file from `coverage-final.json` with `git diff --name-only origin/main...HEAD -- src/`
 			// as the file list, not a hand-written filter.
+			//
+			// **PR 43's four review findings (2026-09-02), measured after all four:**
+			// 99.39 / 98.30 / 99.07 / 99.54. NOTHING RATCHETS — every figure rounds down to the
+			// floor already in force. Functions headroom is 1 unit and branches 11, one fewer
+			// than the wave before it, which is this wave's ONE new uncovered position:
+			// `noteEntityWrite.ts`'s `if (indexed)` on the delete-compensation path. That arm is
+			// uncovered rather than untested and the code says so — it NARROWS
+			// `ProjectIndexEntry | undefined` and cannot discriminate, because `openNoteById`
+			// resolved through the same index one synchronous statement earlier; deleting it is
+			// a build error (measured: TS2345), not a behaviour change.
+			//
+			// Every other uncovered position in the six files this wave touched is INHERITED,
+			// attributed one at a time with `git log -L <line>,<line>:<file>` rather than by
+			// reading a filename filter: three in `ReversibleAssetDesignCommands.ts` (two from
+			// the background task, one from the undo pre-flight) and two in
+			// `DesignerInspector.vue` (from the inspector task). The file list came from
+			// `git diff --name-only origin/main...HEAD -- src/`, per the entry above.
 			thresholds: {
 				statements: 99,
 				functions: 99,

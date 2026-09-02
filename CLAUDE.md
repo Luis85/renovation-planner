@@ -3062,6 +3062,54 @@ building it:
   entries). The preflight composes the identical shape the command composes now, so the two
   cannot disagree in either direction.
 
+**Four review findings closed after the fix wave, and three of them are this file's own
+recurring shapes arriving again:**
+
+- **A compensation that restores the BYTES has not restored the RECORD.**
+  `trashNoteBackedEntity` puts a trashed note back when `alsoRemove` refuses, under a docblock
+  saying the index entry "survives such a refusal untouched" — true of what that function does
+  and not a claim about the vault. Obsidian is the other writer: the trash raises a delete
+  event, `VaultChangeAdapter.processPath` finds no `TFile` and takes the entry AND the echo
+  record out, and only then does the second removal refuse. The bytes came back alone, so an
+  asset whose deletion REPORTED FAILURE was unreachable from then on — every read here resolves
+  through the index. Both halves are restored now and each was measured alone: without the entry
+  the note is unfindable, and without the echo mark the restore's own create event is read
+  inside the parse lag, where the cache has no entry and `frontmatterOf` has no echo to fall
+  back on, so the note reads as none of ours and the entry just put back is removed again with
+  no later event to repair it. **The docblock naming the invariant was again the best available
+  description of the bug**, which is this file's oldest recurring lesson.
+- **A stamp is not a surface.** Two arms marked `markUncompensated` — the forward command's
+  failed calibration restore and the background undo's failed sidecar restore — moved the vault
+  and told nobody. `withStateRefresh` re-hydrates on `ok` alone and `EchoWindow` suppresses the
+  vault event our own write raised, so nothing else was coming: every leaf went on drawing a
+  calibration or a background the vault no longer held, behind a badge saying only that
+  something failed. Both publish now. **A SUCCESSFUL compensation deliberately still announces
+  nothing** — the vault is at its pre-state and an announcement would be false — and that is a
+  case of its own, green before the change, which is what makes it a guard rather than coverage.
+- **A rehydrate is not a new document.** `BackgroundLayer` watched its reference by IDENTITY,
+  and both mappers MINT that object on every read — so an unchanged sheet re-loaded on every
+  footprint, anchor, facing, height and calibration save: a redundant decode for an image, and
+  `readBinary` plus a full page rasterization for a PDF. It watches a key over the three fields
+  a document IS. The count is taken at the VAULT and not at the drawn node, which is exactly why
+  this survived: the redundant load draws a byte-identical picture, so every existing assertion
+  read the same in both worlds.
+- **The control that CREATES a thing may not be hidden until there is one — and the defect was
+  encoded as a test, for the second recorded time.** `DesignerInspector` hid its dimensions
+  button behind `dimensions !== null`, and a shapeless asset with no sheet selects
+  `noBackground`, whose only action is the picker. So typed dimensions — which need no sheet, no
+  calibration and no tracing — were reachable only after choosing an unrelated file, and a case
+  asserted that absence. The empty-state ORDERING is left alone, being a considered decision
+  with its own cases; the inspector is mounted in every state and now offers the gesture
+  unconditionally, with only its LABEL moving. `selectors.ts` records the consequence where the
+  ordering is argued: that selector decides prominence rather than access now.
+- **Two things about the RUN rather than the code.** `vue-tsc` caught four type errors in test
+  files that every targeted `npx vitest run` had passed, which is what `tests/**` being in
+  `build` is for — a green targeted run is not evidence about the gate. And twelve
+  `tests/build/` files timed out in `warmUpEslint` on a tree whose only change since a green
+  run was two comments; the three, then twelve, then all-serial re-runs are the diagnostic this
+  file already prescribes, and the machine's other tenant was `cursor-agent`, not an orphaned
+  vitest. **Believe a `beforeAll` timeout in that directory only after a serial run.**
+
 **What this increment deliberately does NOT build, because the epic's own Definition of Done
 draws the line here and no item beneath it may claim otherwise:**
 

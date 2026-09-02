@@ -272,7 +272,11 @@ describe('two background loads racing', () => {
 		plan = planWith({ path: 'Plans/other.png', kind: 'image' });
 		harness.changePlan();
 
+		// The wait is the discriminator and the `expect` is what makes that visible — a
+		// `settleUntil` alone throws on timeout, which is a real failure and reads to both a
+		// human and `expect-expect` as a case that asserts nothing.
 		await settleUntil(() => backgroundImage(harness)?.width() === 120, 'the second sheet');
+		expect(backgroundImage(harness)?.width()).toBe(120);
 	});
 
 	/** Nothing in flight may land after the view is gone and write to a detached ref. */

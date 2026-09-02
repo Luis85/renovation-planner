@@ -95,7 +95,9 @@ async function seeded() {
 	};
 
 	const designChanges: string[] = [];
-	events.subscribe('AssetDesignChanged', () => designChanges.push('AssetDesignChanged'));
+	events.subscribe('AssetDesignChanged', () => {
+		designChanges.push('AssetDesignChanged');
+	});
 
 	return {
 		stack,

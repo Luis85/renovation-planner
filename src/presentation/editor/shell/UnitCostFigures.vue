@@ -67,26 +67,30 @@ const block = computed(() => {
 	<template v-if="block !== null">
 		<!-- `data-price` is what each figure IS, so a caller or a test can name one without
 		     depending on the order they happen to be written in. -->
-		<dt>{{ tr('view.inspector.price-library') }}</dt>
+		<dt>{{ tr('editor.inspector.price-library') }}</dt>
 		<dd data-price="library">
 			{{ block.catalogue.amount }} {{ block.catalogue.currency }}
 			<span
 				v-if="block.inForce === 'library'"
 				class="rp-editor-requirement-badge rp-editor-requirement-in-force"
 			>
-				{{ tr('view.inspector.price-in-force') }}
+				{{ tr('editor.inspector.price-in-force') }}
 			</span>
 		</dd>
 
 		<template v-if="block.projectOverride !== null">
-			<dt>{{ tr('view.inspector.price-project') }}</dt>
+			<dt>{{ tr('editor.inspector.price-project') }}</dt>
+			<!-- UNCONDITIONAL, and that is a consequence of the precedence rule rather than a
+			     shortcut: this row exists only when `projectOverride !== null`, and `inForce` is
+			     `'project'` for every such block by construction — `comparing` is true whenever
+			     the override is set. A `v-if="block.inForce === 'project'"` here was an
+			     unreachable arm, `counts [11, 0]`, of the `boundsOfZones` shape this repository
+			     records DELETING rather than the shape that narrows a type. The LIBRARY row's own
+			     `v-if` is NOT this: there the mark genuinely comes and goes. -->
 			<dd data-price="project">
 				{{ block.projectOverride.amount }} {{ block.projectOverride.currency }}
-				<span
-					v-if="block.inForce === 'project'"
-					class="rp-editor-requirement-badge rp-editor-requirement-in-force"
-				>
-					{{ tr('view.inspector.price-in-force') }}
+				<span class="rp-editor-requirement-badge rp-editor-requirement-in-force">
+					{{ tr('editor.inspector.price-in-force') }}
 				</span>
 			</dd>
 		</template>
@@ -94,7 +98,7 @@ const block = computed(() => {
 		<!-- Its OWN label, never a second in-force mark: this figure is what the row's cost was
 		     derived from, which on a stale row is precisely NOT the one in force. -->
 		<template v-if="block.provenance !== null">
-			<dt>{{ tr('view.inspector.price-derived-from') }}</dt>
+			<dt>{{ tr('editor.inspector.price-derived-from') }}</dt>
 			<dd data-price="derived">
 				{{ block.provenance.amount }} {{ block.provenance.currency }}
 			</dd>

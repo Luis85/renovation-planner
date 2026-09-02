@@ -329,6 +329,45 @@ describe('the Inspector unit-cost figures, once something moves them', () => {
 	});
 
 	/**
+	 * **The SKIP direction, and it is the ONLY justification for carrying a `requirementId`
+	 * through five hops of the context chain.** Every other case here asserts that an event is
+	 * ADMITTED; replace the filter with an unconditional `reloadInspector()` and all of them
+	 * still pass, because a superfluous read answers identically — measured, 67 green across
+	 * four files. What the narrowing buys is invisible to any assertion about what is on screen,
+	 * so it has to be asserted on the READ COUNT: a recalculation somewhere else in the vault
+	 * moves nothing this leaf draws, and must therefore cost nothing.
+	 *
+	 * This is CLAUDE.md's own rule paying out — *"when a fix is a REFUSAL, write the WIDENED
+	 * mutation and run it, because a refusal that is too broad is silent in a way a missing
+	 * refusal is not"* — against a refusal that shipped with the widened mutation unwritten.
+	 *
+	 * The snapshot has to be NON-EMPTY for this to mean anything, which is why the case settles
+	 * the panel first: an empty one fails open by design, and the assertion would then be
+	 * pinning the fail-open arm a second time rather than the filter.
+	 */
+	it('performs no read at all for a requirement this leaf does not draw', async () => {
+		const reads = requirementReads();
+		reads.set(ok([LIBRARY_ONLY]));
+		const harness = await mountWith(reads);
+
+		select(harness, KITCHEN);
+		await until(() => figures(harness)['library'] !== undefined, 'the unit-cost block is drawn');
+
+		const before = reads.zones.length;
+		// `r-elsewhere` is a requirement of some other zone in some other project — exactly what
+		// a project-wide cascade publishes one of per requirement.
+		harness.changeRequirementFigures('r-elsewhere');
+		await settle();
+
+		expect(reads.zones.length).toBe(before);
+		// And the panel is untouched, which is the other half: a filter that skipped by blanking
+		// the rows would satisfy the count and be worse than no filter.
+		expect(figures(harness)).toEqual({ library: expect.stringContaining('24 EUR') });
+
+		harness.unmount();
+	});
+
+	/**
 	 * **Rule 1 — a refresh that cannot confirm a change is not evidence of one.**
 	 * `InspectorStore.refresh` keeps the previous `dto` when the zone read fails and blanked the
 	 * rows beside it for the same class of failure. One rule, two fields.

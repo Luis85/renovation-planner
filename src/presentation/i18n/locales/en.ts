@@ -65,13 +65,13 @@ export const en = {
 	// is the §85 non-colour channel — a WORD beside the figure, so a screen reader reads it and a
 	// user who cannot tell the two colours apart still knows which figure is being used.
 	//
-	// The prefix is `view.inspector.` because the task brief spells these four keys that way. It
-	// is the odd one out on this surface, whose other twenty keys are `editor.inspector.*` while
-	// `view.*` elsewhere in this file means the Renovation Project view.
-	'view.inspector.price-library': 'Library price',
-	'view.inspector.price-project': 'Project price',
-	'view.inspector.price-in-force': 'In force',
-	'view.inspector.price-derived-from': 'Derived from',
+	// `editor.inspector.*`, with this surface's other twenty keys. The task brief spelled these
+	// four `view.inspector.*`; `view.*` everywhere else in this file means the Renovation Project
+	// view, so that prefix would have named the wrong surface. Ruled on rather than assumed.
+	'editor.inspector.price-library': 'Library price',
+	'editor.inspector.price-project': 'Project price',
+	'editor.inspector.price-in-force': 'In force',
+	'editor.inspector.price-derived-from': 'Derived from',
 	'editor.inspector.assign.label': 'Assign asset',
 	'editor.inspector.assign.button': 'Assign',
 	'editor.inspector.quantity-override.label': 'Override quantity for',

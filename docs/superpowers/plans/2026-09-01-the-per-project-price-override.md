@@ -3973,8 +3973,22 @@ consume it in the other, exactly as this source itself is shared. The project pa
 it: this section renders the catalogue price and the project's own, both of which the two
 subscriptions above cover, and no provenance figure that only a recalculation moves.
 
-Both hand rehydration to the SAME request ticket from Step 4 — two sources firing together is
-exactly the concurrent-hydrate race that ticket exists for.
+Both hand rehydration to ONE trailing single-flight loader — `createAssetOptionsLoader`'s shape,
+the same one Task 8a uses for the Inspector, built once here and shared by the two
+subscriptions — and that loader hydrates through the SAME request ticket from Step 4 underneath.
+Two mechanisms, two jobs, and neither does the other's: the ticket orders reads it did not issue
+(a fresh mount, a navigation racing a refresh), and only the loader can stop a read STARTING.
+
+**The loader is not belt and braces here, and an earlier draft of this step left it out on a
+measurement of the wrong case.** That draft reasoned about deleting an asset — one override
+removed per project, so one event per section — and concluded a burst had no producer. The
+producer is a SYNC, or a library move: `ProjectIndexEntryChanged` fires once per note, both of
+these sources are subscribed to it, and each callback runs a full `listAll` plus
+`listByProject`. A vault syncing a large catalogue would launch one whole price-list scan per
+arriving note, all concurrent, every one but the last discarded by the ticket after its reads
+had already happened. Measuring the case in front of you and calling the class surveyed is this
+plan's most-repeated mistake, and this is the second time it has been made about this exact
+mechanism.
 
 Test it as behaviour rather than as wiring:
 
@@ -3985,6 +3999,14 @@ Test it as behaviour rather than as wiring:
 	});
 
 	it('rehydrates when the catalogue changes', async () => { … });
+
+	/**
+	 * The burst. Publish twenty `ProjectIndexEntryChanged` for price and asset entries inside one
+	 * in-flight read — a sync arriving — and count the query calls: TWO, the one already running
+	 * and one trailing. Watch it fail against a build that hands each callback straight to the
+	 * ticket: twenty concurrent full scans, nineteen of them discarded after they had read.
+	 */
+	it('answers a burst of index changes with one trailing read', async () => { … });
 ```
 
 - [ ] **Step 5: Style it**

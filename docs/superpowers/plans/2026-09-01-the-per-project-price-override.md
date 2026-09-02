@@ -210,7 +210,12 @@ function props() {
 describe('AssetPriceOverride', () => {
 	it('is created from a project, an asset and a price', () => {
 		const created = expectOk(AssetPriceOverride.create(props()));
-		expect(created.unitCost.amount).toBe('19.50');
+		// `of()` mints through `Decimal.dp()` (no `places` argument), which drops a
+		// trailing zero — unlike `createMoney`, which preserves the input string
+		// verbatim. '19.50' therefore normalizes to '19.5'; see
+		// `tests/core/money/moneyArithmetic.test.ts`'s `sameAmount` helper, which exists
+		// for exactly this reason.
+		expect(created.unitCost.amount).toBe('19.5');
 		expect(created.unitCost.currency).toBe('GBP');
 	});
 
@@ -234,7 +239,8 @@ describe('AssetPriceOverride', () => {
 	/** Zero is a real price — a supplier throwing in offcuts free of charge is not an error. */
 	it('accepts a zero unit cost', () => {
 		const created = expectOk(AssetPriceOverride.create({ ...props(), unitCost: moneyOf('0.00', 'GBP') }));
-		expect(created.unitCost.amount).toBe('0.00');
+		// See the normalization note above: `of('0.00', ...)` mints '0', not '0.00'.
+		expect(created.unitCost.amount).toBe('0');
 	});
 
 	/** `withUnitCost` rebuilds through `create`, so every edit re-runs the refusal. */
@@ -244,7 +250,8 @@ describe('AssetPriceOverride', () => {
 		expect(edited.id).toBe(created.id);
 		expect(edited.projectId).toBe(created.projectId);
 		expect(edited.assetId).toBe(created.assetId);
-		expect(edited.unitCost.amount).toBe('21.00');
+		// See the normalization note above: `of('21.00', ...)` mints '21', not '21.00'.
+		expect(edited.unitCost.amount).toBe('21');
 
 		const refused = created.withUnitCost(moneyOf('-1.00', 'GBP'));
 		expect(refused.ok).toBe(false);
@@ -600,7 +607,9 @@ export function assetPriceOverrideRepositoryContract(make: () => AssetPriceOverr
 
 			const found = expectOk(await f.repository.getForPair(projectId, assetId));
 			expect(found).not.toBeNull();
-			expect(found?.entity.unitCost.amount).toBe('19.50');
+			// `makeOverride`'s default amount is minted through `moneyOf` (Task 1's
+			// normalization note): '19.50' normalizes to '19.5'.
+			expect(found?.entity.unitCost.amount).toBe('19.5');
 			expect(found?.entity.unitCost.currency).toBe('GBP');
 		});
 
@@ -980,7 +989,12 @@ describe('assetPriceMapper', () => {
 			revision: 3,
 			project: entity.projectId,
 			asset: entity.assetId,
-			'unit-cost': '19.50',
+			// `assetPriceToPersistence` writes `entity.unitCost.amount` verbatim — the mapper
+			// preserves spelling. The ENTITY's own amount is already normalized, though: `override()`
+			// mints through `moneyOf` (Task 1's normalization note), so '19.50' is '19.5' by the
+			// time it reaches this DTO. "Reads back unchanged" below is still the mapper's own
+			// round trip — it does not restore the trailing zero `moneyOf` already dropped.
+			'unit-cost': '19.5',
 			currency: 'GBP',
 		});
 
@@ -988,7 +1002,7 @@ describe('assetPriceMapper', () => {
 		expect(read.id).toBe(entity.id);
 		expect(read.projectId).toBe(entity.projectId);
 		expect(read.assetId).toBe(entity.assetId);
-		expect(read.unitCost.amount).toBe('19.50');
+		expect(read.unitCost.amount).toBe('19.5');
 	});
 
 	/** A YAML float is exactly what ADR-010 refuses; three decimals is what catches one. */
@@ -1660,7 +1674,11 @@ describe('SetAssetPriceOverrideCommand', () => {
 		// seed: a GBP project, an EUR-priced asset
 		const result = expectOk(await command.execute({ projectId, assetId, unitCost: moneyOf('19.50', 'GBP'), expected: 'absent' }));
 		expect(result.created).toBe(true);
-		expect(result.override.unitCost.amount).toBe('19.50');
+		// `result.override` is the entity the in-memory repository stored, holding the SAME
+		// `Money` object `execute` was called with — no re-mapping. `moneyOf('19.50', ...)`
+		// already normalized to '19.5' before the call, so that is what comes back (Task 1's
+		// normalization note).
+		expect(result.override.unitCost.amount).toBe('19.5');
 	});
 
 	it('replaces the existing override for a pair that has one, and reports created false', async () => {
@@ -1672,7 +1690,7 @@ describe('SetAssetPriceOverrideCommand', () => {
 			expected: { id: first.override.id, version: first.version },
 		}));
 		expect(second.created).toBe(false);
-		expect(second.override.unitCost.amount).toBe('21.00');
+		expect(second.override.unitCost.amount).toBe('21');
 		const listed = expectOk(await overrides.listByProject(projectId));
 		expect(listed).toHaveLength(1);
 	});
@@ -1805,7 +1823,8 @@ describe('SetAssetPriceOverrideCommand', () => {
 
 		// And the intervening price is untouched, which is the half that matters.
 		const found = expectOk(await overrides.getForPair(projectId, assetId));
-		expect(found?.entity.unitCost.amount).toBe('30.00');
+		// `moneyOf('30.00', ...)` normalizes to '30' (Task 1's normalization note).
+		expect(found?.entity.unitCost.amount).toBe('30');
 	});
 
 	/**
@@ -2494,8 +2513,12 @@ describe('a price override satisfies the pipeline refusal', () => {
 		const second = expectOk(await assignAsset.execute({ zoneId, assetId }));
 		expect(second.created).toBe(true);
 		expect(second.requirement.estimatedCost.calculated.currency).toBe('GBP');
-		// Derived from the OVERRIDE, not the catalogue default.
-		expect(second.requirement.calculatedFrom.unitCost.amount).toBe('19.50');
+		// Derived from the OVERRIDE, not the catalogue default. `calculatedFrom.unitCost` is
+		// `deriveRequirementFigures`'s own input, verbatim (`deriveRequirementFigures.ts:92`) —
+		// never rounded, unlike `estimatedCost.calculated`/`.effective` — and that input is the
+		// override's `unitCost`, which was minted through `moneyOf` (Task 1's normalization
+		// note): '19.50' normalizes to '19.5'.
+		expect(second.requirement.calculatedFrom.unitCost.amount).toBe('19.5');
 		expect(second.requirement.calculatedFrom.unitCost.currency).toBe('GBP');
 	});
 
@@ -3006,7 +3029,9 @@ Add to the existing `GetRequirementsForZone` tests:
 		// about every task, and a test reaching forward breaks it. The persisted provenance is
 		// the honest source anyway: it records what the figures were actually derived from.
 		const persisted = expectOk(await requirements.getById(requirementId));
-		expect(persisted?.entity.calculatedFrom.unitCost.amount).toBe('19.50');
+		// `calculatedFrom.unitCost` is the derivation's input verbatim (see the witness above),
+		// and the override's own unit cost was minted through `moneyOf`: '19.50' is '19.5'.
+		expect(persisted?.entity.calculatedFrom.unitCost.amount).toBe('19.5');
 	});
 ```
 
@@ -4088,7 +4113,8 @@ it('drives the price-override cascade through the composed root', async () => {
 	// that it fails: it is that somebody weakens the cascade to make it pass.
 	const a = expectOk(await requirements.getById(projectARequirementId));
 	expect(a?.entity.recalculationStatus).toBe('current');
-	expect(a?.entity.calculatedFrom.unitCost.amount).toBe('19.50');
+	// '19.50' normalizes to '19.5' through `moneyOf` (Task 1's normalization note).
+	expect(a?.entity.calculatedFrom.unitCost.amount).toBe('19.5');
 
 	// Project B never referenced this project's price, so nothing about it moved — same
 	// revision, same figure. This is the narrowing, asserted at the composed root.

@@ -1,6 +1,7 @@
 import type { DiagnosticEntityKind } from '../../../application/ports/diagnostics';
 import type { Migration } from './MigrationRunner';
 import { ASSET_MIGRATIONS } from './entities/asset/asset.migrations';
+import { ASSET_PRICE_MIGRATIONS } from './entities/asset-price/asset-price.migrations';
 import { PLAN_MIGRATIONS } from './entities/plan/plan.migrations';
 import { REQUIREMENT_MIGRATIONS } from './entities/requirement/requirement.migrations';
 import { ZONE_MIGRATIONS } from './entities/zone/zone.migrations';
@@ -32,5 +33,6 @@ export const MIGRATION_SET: Readonly<Record<DiagnosticEntityKind, readonly Migra
 	zone: ZONE_MIGRATIONS,
 	asset: ASSET_MIGRATIONS,
 	requirement: REQUIREMENT_MIGRATIONS,
+	'asset-price': ASSET_PRICE_MIGRATIONS,
 	'plan-geometry': PLAN_GEOMETRY_MIGRATIONS,
 };

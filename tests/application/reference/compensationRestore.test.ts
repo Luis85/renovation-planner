@@ -121,6 +121,7 @@ describe('a completed forward write is restored when a later step fails', () => 
 				events: w.events,
 				locks: w.locks,
 				logger,
+				overrides: w.overrides,
 			}).execute({
 				assetId: asset.entity.id,
 				resolution: 'remove-references',

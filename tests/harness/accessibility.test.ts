@@ -120,6 +120,8 @@ import NewProjectForm from '../../src/presentation/views/NewProjectForm.vue';
 import type { ViewStateResult } from 'obsidian';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 import type { PlanSummaryDto } from '../../src/presentation/read-models/PlanDto';
+import type { AssetPriceRowDto } from '../../src/application/queries/ListProjectAssetPrices';
+import { createMoney, type Money } from '../../src/core/money/Money';
 
 /**
  * A read side where every door refuses with the same code — which is what production does for
@@ -133,7 +135,7 @@ import type { PlanSummaryDto } from '../../src/presentation/read-models/PlanDto'
 const refusingWith = (code: string): RenovationProjectQueryServices => {
 	const refuse = (): Promise<Result<never, RepositoryError>> =>
 		Promise.resolve(err({ category: 'Persistence', code, message: 'refused' }));
-	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse };
+	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse, listAssetPrices: refuse };
 };
 
 /**
@@ -154,7 +156,16 @@ const refusingWith = (code: string): RenovationProjectQueryServices => {
  * what both cases below drive, and a member that looked load-bearing here would send the next
  * reader to the wrong line when one of them fails.
  */
-function detailDeps(over: { projectId: string; plans: readonly PlanSummaryDto[] }): RenovationProjectDeps {
+function detailDeps(over: {
+	projectId: string;
+	plans: readonly PlanSummaryDto[];
+	/**
+	 * The price section's rows. `undefined` leaves the factory's own answer — an empty catalogue,
+	 * which draws the section's empty state — and the last case in this block supplies real rows,
+	 * because a scan of an empty state grades none of the controls the section exists for.
+	 */
+	prices?: readonly AssetPriceRowDto[];
+}): RenovationProjectDeps {
 	const base = defaultRenovationProjectDeps();
 	return {
 		...base,
@@ -165,6 +176,8 @@ function detailDeps(over: { projectId: string; plans: readonly PlanSummaryDto[] 
 					ok({ id: over.projectId, name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false }),
 				),
 			listPlansByProject: () => Promise.resolve(ok({ plans: over.plans, unreadable: 0 })),
+			listAssetPrices:
+				over.prices === undefined ? base.queries.listAssetPrices : () => Promise.resolve(ok([...over.prices ?? []])),
 		},
 	};
 }
@@ -180,6 +193,13 @@ function detailDeps(over: { projectId: string; plans: readonly PlanSummaryDto[] 
  * forgotten is exactly the kind of drift `CLAUDE.md`'s "write the guarantee to the check"
  * warns about.
  */
+/** A fixture amount, through the constructor the price row itself mints with. */
+function price(amount: string): Money {
+	const minted = createMoney(amount, 'EUR');
+	if (!minted.ok) throw new Error('unmintable fixture');
+	return minted.value;
+}
+
 const LAYOUT_DEPENDENT_RULES = ['color-contrast', 'color-contrast-enhanced', 'target-size'];
 
 const runOptions: Parameters<typeof axe.run>[1] = {
@@ -485,6 +505,57 @@ describe('axe against the mounted view', () => {
 		// one and would go on passing over a `PlanList` that rendered no rows at all.
 		expect(view.contentEl.querySelector('.rp-project-detail')).not.toBeNull();
 		expect(view.contentEl.querySelector('.rp-plan-list__row')).not.toBeNull();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
+		expect(results.violations).toEqual([]);
+		await view.onClose();
+	});
+
+	/**
+	 * The project's own PRICE SECTION, with real rows — the surface the per-project price
+	 * override increment adds, and the one in this file with the most new interactive markup: a
+	 * labelled text input per row and a button beside it.
+	 *
+	 * Its own case rather than a fixture on either detail case above, because those two answer
+	 * the factory's empty catalogue and therefore grade the section's EMPTY STATE — a paragraph
+	 * with no controls in it at all. A scan that graded that would say nothing about the input's
+	 * label, the button's accessible name, or the `<h3>` this section adds under the project's
+	 * `<h2>`.
+	 *
+	 * The presence assertions are load-bearing for this file's standing reason: `violations` is
+	 * `[]` on a scan of a subtree containing nothing, so asserting the input and the button are
+	 * really in the DOM axe was handed is what makes green mean something. `.rp-asset-price-title`
+	 * is asserted beside them because it is the heading `heading-order` judges against the
+	 * project's own, which is the one rule here that needs two headings to have an opinion at all.
+	 */
+	it('reports no semantic violations on the project’s price section', async () => {
+		installObsidianDom();
+		const view = makeView(
+			detailDeps({
+				projectId: 'project-1',
+				plans: [],
+				prices: [
+					{
+						assetId: 'a1',
+						assetName: 'Oak flooring',
+						catalogue: price('24.00'),
+						override: price('19.50'),
+						overrideId: 'op-1' as AssetPriceRowDto['overrideId'],
+						overrideVersion: { revision: 1, observed: 'observed-1' as never },
+						assetStatus: 'known',
+					},
+				],
+			}),
+		);
+		document.body.appendChild(view.containerEl);
+		await view.onOpen();
+		await view.setState({ projectId: 'project-1' }, {} as ViewStateResult);
+		await flushPromises();
+
+		expect(view.contentEl.querySelector('.rp-asset-price-title')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-asset-price-input')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-asset-price-clear')).not.toBeNull();
 
 		const results = await axe.run(view.contentEl, runOptions);
 

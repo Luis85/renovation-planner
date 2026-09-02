@@ -5,10 +5,8 @@ import { makeAsset as makeAssetEntity, makePlan as makePlanEntity, makeProject a
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
-import {
-	versionOfFrontmatter,
-	checkExpectedVersion,
-} from '../../../../src/infrastructure/obsidian/repositories/versionCheck';
+import { versionOfFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/versionCheck';
+import { checkExpectedVersion } from '../../../../src/application/ports/versioning';
 import { fileNameFor, projectFolderOf, sidecarPathFor, zonesFolderFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { observeFrontmatter } from '../../../../src/infrastructure/obsidian/repositories/digest';import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { FindZonesByPlan } from '../../../../src/application/queries/FindZonesByPlan';

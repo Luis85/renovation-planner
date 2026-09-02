@@ -205,6 +205,16 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 				requirements.value = [];
 				return;
 			}
+			// **Cleared BEFORE the awaits, not after them.** The two branches above already
+			// assign `[]` before returning; this one did not, so from the moment the user
+			// selected zone B until B's reads settled the rows still held zone A's — the
+			// "silently wrong panel" this store's own cached-read argument exists to prevent,
+			// and the state a caller filtering on these ids reads as "B's requirement is not
+			// mine". A blank moment is a truer answer than a confident wrong one.
+			//
+			// `refresh()` deliberately does NOT take this: there the selection is unchanged, so
+			// the held rows are the best available answer rather than the wrong zone's.
+			requirements.value = [];
 			const result = await queryZone(selectedIds[0] as ZoneId);
 			// The rows ride the same ticket: one query each, both answered together.
 			const rows = await deps.requirementsQuery.execute({ zoneId: selectedIds[0] as ZoneId });
@@ -260,7 +270,13 @@ export function createInspectorStoreDefinition(deps: InspectorDeps) {
 			if (request !== latestRequest) return; // a newer selection has superseded this read
 			if (isErr(result)) return;
 			dto.value = result.value ?? { kind: 'empty' };
-			requirements.value = isErr(rows) ? [] : rows.value;
+			// **The same rule as the `dto` line above it, applied to the field beside it.** A
+			// failed rows read says nothing about whether this zone still has requirements, so
+			// blanking them here would have been a refresh that cannot confirm a change
+			// reporting one. One rule, two fields; the asymmetry was pre-existing and it bites
+			// now that a caller filters on the ids these rows carry — a transient failure that
+			// empties them would otherwise be indistinguishable from a zone with none.
+			if (!isErr(rows)) requirements.value = rows.value;
 		}
 
 		return { dto, requirements, hydrateFrom, commit, refresh };

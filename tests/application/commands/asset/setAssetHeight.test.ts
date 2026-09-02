@@ -245,6 +245,11 @@ describe('a height is read by nothing that calculates', () => {
 		registerOnAssetUpdated(events, {
 			requirements: fixture.requirements,
 			assets: fixture.assets,
+			// The fixture's OWN override repository, not a fresh one: the price-override
+			// increment made this a required member, and the cascade resolves
+			// `override ?? asset.unitCost` through it — a second instance here would be a
+			// handler pricing against a world the fixture's own commands never wrote to.
+			overrides: fixture.overrides,
 			events,
 			logger: { debug() {}, info() {}, warn() {}, error() {} },
 			recalculate: (input) => fixture.recalculate.execute({ requirementId: input.requirementId as never }),

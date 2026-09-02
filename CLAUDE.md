@@ -53,13 +53,15 @@ save state through. **That group is now complete: 14 and 15 landed first, then 1
 17 — the integration slice the map calls "17 integrates them" — has closed it.** **Design slice
 19 has closed since**, which is what took slice 10's own document from seven open criteria to
 none: the Asset catalogue left the project, so a catalogue entry carries no project id at all.
-**Design slice 21 has closed too**, and slice **20 has closed its FIRST HALF** — the currency
-invariant, split from the per-project price override, which is the one increment written and
-unbuilt now. This sentence said "slices **20 and 21**, which are written and unbuilt" for a slice
-after 21 landed and through the increment that halved 20, in a file whose own section on slice 21
-sits 2325 lines below it — the same shape as the settings-pane count above and the
-canvas-editability paragraph below, which is three passages in this file that went on describing
-a state the file itself elsewhere records as over. Also not done are the items slices 16, 17, 19,
+**Design slice 21 has closed too, and slice 20 has now closed BOTH of its halves** — the currency
+invariant first, then the per-project price override it was split from. This sentence has been
+wrong here three times running, each time in the same direction and each time about a slice whose
+own section further down this file already said otherwise: it read "slices **20 and 21**, which
+are written and unbuilt" for a slice after 21 landed; then "20 has closed its FIRST HALF … the one
+increment written and unbuilt now" through the increment that built the second. The remedy is not
+a more careful sentence — it is that **this paragraph names no slice as outstanding at all**, so
+there is nothing here to go stale, and a reader asking what is unbuilt is sent to
+`docs/tasks/` where the checkboxes are. Also not done are the items slices 16, 17, 19,
 **20** and 21 WITHDREW or narrowed rather than ticked; each is recorded in its own task
 document's amendments rather than here, because a list of exceptions kept in two places is one
 that disagrees with itself.
@@ -168,8 +170,15 @@ past the Application layer — two carve-outs excepted, both named below — and
 as a CATEGORY.** `guardCommand`/`guardQuery`
 wrap each of them — most in `src/plugin/guardedServices.ts`, which is where the seam moved to
 keep the root under its line budget, and five still applied inside `composition-root.ts`
-itself (four `guardCommand` calls, plus `guardCalibratePlan` per call on the factory) —
-so a fault below that seam is caught, mapped by the vault's `ExceptionMapper` to a coded
+itself (four `guardCommand` calls, plus `guardCalibratePlan` per call on the factory; the five
+was re-derived at the price-override/asset-designer merge by grepping both call names and it
+had not moved) — **and `guardAssetPriceServices` is in `src/plugin/guardedAssetPrice.ts` rather
+than beside its siblings**, because that merge put `guardedServices.ts` at 427 counted lines
+against a 400 cap and one whole guarded GROUP is the seam that file already draws. The same
+merge moved `assetDesignerDeps` to `src/plugin/assetDesignerDeps.ts` for the identical reason,
+which makes THREE extractions out of `composition-root.ts` beside `renovationProjectOpenSeams.ts`
+and `renovationProjectCommandBundle.ts` — the pattern to expect at the next merge of two
+increments that both compose, rather than a one-off. So a fault below that seam is caught, mapped by the vault's `ExceptionMapper` to a coded
 `PersistenceError`, logged with its original cause at that one step, and returned as a
 resolved failed `Result` — and a RESOLVED failed `Result` is logged there too, so a refusal
 and a fault each produce one log line at the boundary rather than one of them producing
@@ -269,9 +278,10 @@ own first draft included:
   file a check — see the slice 14 section below for what the check does and does not reach.
 - **A docblock naming "the one list this derives from" is worth checking against the second
   one.** `MIGRATION_SET` claimed to be the single source of `schemaVersions` while
-  `MigrationRunner` spread a module-level `LATEST_VERSIONS` constant beside it, so a seventh
+  `MigrationRunner` spread a module-level `LATEST_VERSIONS` constant beside it, so a NEW
   entity registered in the table alone would have appeared nowhere in diagnostics with every
-  test still green. `latestVersions` derives from the registered steps now, and
+  test still green — a rule rather than an ordinal, because the ordinal has moved twice since.
+  `latestVersions` derives from the registered steps now, and
   `MIGRATION_SET` moved out of the composition root so the test stack imports the SAME table
   — `tests/helpers/vault.ts` had built its runner from its own four-kind copy while the
   plugin registered six, which is a fake migrating a whole suite against a different schema
@@ -280,7 +290,11 @@ own first draft included:
   notice them drifting. The test-side importer is `tests/helpers/repositoryStack.ts` now,
   since both stacks build their runner there rather than each building its own.
 
-  **All six tables are still EMPTY, and since the currency increment they stay empty BY A
+  **EVERY table is still EMPTY, and the sentence says "every" rather than a number because the
+  number has moved twice.** Measured in the edit that wrote this —
+  `grep -rn "_MIGRATIONS: \(readonly \)\?Migration\[\] = " src/infrastructure/persistence/migration/`
+  prints one line per table and every one of them ends `= [];`, so the check is a rule about the
+  output rather than a count to keep current. Since the currency increment they stay empty BY A
   DECISION rather than for want of a schema change.** That increment's design specified a real
   Project v1→v2 step — *"this one is a real migration rather than a redefinition"* — and took
   the redefinition instead: `ProjectFrontmatterSchemaV1` gains an optional `currency` and the
@@ -2801,6 +2815,189 @@ that came out of it:
   `[killed]`, contending with everything after it. A timeout on a tree with no source change is a
   question about the machine before it is a question about the diff.
 
+**The per-project price override has landed, and design slice 20 is closed at both ends.** A
+project sets its own price for a shared catalogue asset, on its own detail state; the cost
+pipeline resolves `override ?? asset.unitCost` in the two commands that price a Requirement and
+**not inside `deriveRequirementFigures`** — which is checked by that function still taking exactly
+one `unitCost` and holding no repository, rather than by its diff, which is not empty: the
+override made it a SECOND writer of the field `assetMatchesCalculatedFrom` compares, and two
+writers is when comparing `Money` by its rendered amount stops being theoretical, so `19.5` and
+`19.50` are one price through `sameMoney` now. `AssetPriceOverrideChanged` recalculates within
+the owning project only; and the Inspector prints the library price, the project's price and the
+requirement's
+own recorded figure side by side with the one in force marked. `AssetPriceOverride` adds an
+`ENTITY_TYPES` member, its notes named by their own id under `Asset Prices/` because an override is
+a relationship rather than a thing with a name. **`docs/tasks/20`'s Amendment 4 is where the
+withdrawals, the narrowings and every residual live**, with the inherited ones labelled
+PRE-EXISTING where they stand — a residual met later without that label reads as this increment's
+defect. What
+closed with it: [[The cost pipeline is told the currency it must produce]], on the two things that
+note itself named (a witness asserting refuse → price → the SAME assign succeeding, and a user able
+to reach the affordance), and [[Asset library]]'s open definition-of-done item. The rules that came
+out of it:
+
+- **A tool's SUMMARY line is not a verdict, and a pipe into `grep` throws away the field that
+  is.** `npm run analyze` prints `Failed: dupes (2 clone groups), health (1 above threshold)` —
+  fallow names the sections that have FINDINGS, and only some of those sections GATE. It was
+  measured as `npm run analyze 2>&1 | grep …`, the exit code never read, and reported as "the gate
+  is red at HEAD and someone must resolve it", with the proposed remedy an `ignoredClones` entry
+  that would have SILENCED a report which was never failing. **Re-measurable at will**: the green
+  run at this increment's documents commit prints `● Duplicates (2 clone groups)` and
+  `✗ 27 lines (0.0%) duplicated across 4 files`, and exits 0 — while the health section's own PASS
+  line is `✗ 0 above threshold`, so even the leading glyph is not the signal. The contradiction
+  was visible before anything was re-run — `npm run check` is `npm run build && npm run lint &&
+  npm run test:coverage && npm run analyze`, so a green gate on the same commit already
+  disproved it. **Read the exit
+  code; a pipeline's status is its LAST command's, and `grep` is a different question.** This is
+  the "a static-analysis category is a LENS, not a census" rule from the other side: there the
+  danger is reading a tool's silence as a census, here it is reading its summary as a verdict.
+- **"I checked the source" is not "I checked the path", and Vue's flush timing is the gap.** A
+  reported lost-update chain hinged on `pending` going true→false on a validation-only rejection.
+  That was verified at the ref — `use-field-commit.ts` sets it before the `try` and clears it in a
+  `finally` the `validate` early-return reaches — and the verification stopped exactly there. The
+  `validate` arm has **no `await` before its return**, so both writes land in one synchronous
+  stretch and a `flush: 'pre'` watcher, which compares against the last value it OBSERVED, never
+  sees a change: the reported chain is INERT. Proven rather than declared, by putting
+  `flush: 'sync'` on that watcher and watching the reproduction go red. **The defect was real and
+  the reported path was not** — the reachable form is a COALESCED rejection, which reproduces on
+  plain pre-fix code with no instrumentation — so a fix aimed at the reported path would have been
+  a fix aimed at nothing. A value's transition and a watcher's observation of it are two different
+  facts, and the mechanism that reads a value is part of the path.
+- **A residue is only as honest as the BOUND it names — twice in one increment, in opposite
+  directions.** A row's `notify` door logged and raised nothing, and the residue was written as
+  "widening it is slice 17's `surfaceFor` territory". `notify.ts` already exported
+  `notifyOperationFailure(error)`, whose own docblock names `useFieldCommit`'s `notify` as its
+  caller and fixes the origin so a call site does not write its own arrow; the reviewer WIRED it
+  to prove the bound wrong — one import, one line, `vue-tsc` clean. The bound had been checked
+  against the fix its author had in mind rather than against the doors that exist. And a ruling
+  told a caller to "narrow at its own end, where the id already is" over a listener typed
+  `() => void`, which is given no id to narrow ON — a sentence quoted approvingly from the
+  module's own docblock without reading the signature three lines beneath it. **When you write
+  down a residue, name the instrument you measured its bound with**; this file's existing rule
+  says a documented residue reads as surveyed ground, and both of these were surveys of ground
+  nobody had walked.
+- **A capture found four rendering defects and one of them was the increment's own subject.** A
+  price field held `41.50` beside `Library price: 48.00 EUR` with nothing saying which currency
+  the user had just typed — in the increment whose entire subject is that a price belongs to a
+  currency — because the one place that IS said, the header's `Priced in GBP`, had scrolled out of
+  the pane. Beside it: a section appended after `.rp-plan-list` pushed its last row below the pane,
+  clipped and unscrollable, which is the identical defect that block was written to fix arriving
+  from the other side the moment it stopped being the last child; and a field label rendering as a
+  heading. **Both new shots needed a `scrollTo` option**, because the section sits below the plan
+  list inside one scroller and no RESTING shot reaches it — the same lesson as the focus-ring and
+  failure-card shots, measured again: a state not on screen at rest is a state the resting pair
+  cannot watch.
+- **Controls failing to form a column is now the THIRD surface with that defect, which makes it a
+  class rather than an incident.** Slice 19's `.rp-project-list__overlap` pushed each row's status
+  label to wherever the row's name length left it; slice 21's plan names centred under a
+  left-aligned heading; here three price controls started at x=923, x=887 and x=923 because each
+  row's visible label sized its own column. **The general shape: in a row-per-item list, any child
+  whose width follows CONTENT decides where its siblings start, and nothing in any gate here lays
+  anything out** — jsdom resolves no CSS, so the instrument is a capture read by eye, and the test
+  that keeps the fix is a TEXT assertion over the stylesheet that measures no position. Expect it
+  at the next list that grows a third child.
+- **A filter tested only in the ADMIT direction is untested, and the fix's own new filter had to be
+  held both ways.** A skip test whose false arm is never taken reads `counts [17, 0]` in
+  `coverage-final.json` while every case is green, and replacing the whole condition with an
+  unconditional refresh left 67 tests passing across four files — the narrowing being the ONLY
+  justification for threading an id through five hops. This is this file's own "when a fix is a
+  REFUSAL, write the WIDENED mutation and run it", unapplied in the commit that needed it; and
+  when the replacement filter shipped, BOTH of its arms were mutated (defeating the match reddens
+  the cross-project case; dropping the `null`-means-cannot-say arm reddens the out-of-band case),
+  because a filter has two ways to be wrong and the suite only ever covers the one somebody thought
+  about.
+- **A hand-written list cannot notice a hand-written list's gap, and two of them agreeing is what
+  green looks like.** A sixth entity kind was missing from `digest.ts`'s `SCHEMAS`, so its owned-key
+  set fell through to the UNION of every schema's keys and a user adding an unrelated frontmatter
+  key would have had the next save refused as an external modification — the defect that file's own
+  docblock says was fixed for zones in slice 16. Nothing went red because the TEST had its own
+  hand-written list of five, deriving from neither `ENTITY_TYPES` nor `SCHEMAS`. Registering the
+  sixth entry alone would have left the next kind exposed identically: the test's map is
+  `Record<EntityType, …>` keyed off `ENTITY_TYPES` now, so a missing key is a compile error and a
+  wrong one falls through to the union and reddens the foreign-key case. **Fix the instrument in
+  the same commit as the defect it could not see**, or the fix is one kind wide.
+- **The compiler is the instrument; greps NARROW the search.** A required DTO member was missed at
+  a construction site that names the type NOWHERE — an annotated variable, structurally typed — so
+  neither the type name nor a sibling-member grep could find it, and only `vue-tsc` did. That is a
+  third spelling beside the two this repository already records (a member that TRAVELS a chain, and
+  a `provide` cast that erases the type). The same round used the compiler POSITIVELY, which is
+  worth copying: adding a `probeMember` to a context type reports the exact set of files that
+  inject it, so a chain's completeness becomes a fact the compiler stated rather than a list
+  somebody assembled. Its one blind spot is named where it lives —
+  `tests/presentation/editor/units.test.ts` builds an unannotated context literal under
+  `as symbol`, and that site skips a future required member silently.
+- **`assetStatus` is an explicit discriminator because three states inferred from two nullable
+  fields is two states with a bug in it.** An asset absent from `listAll()` is either DELETED or
+  UNREADABLE — `ObsidianAssetRepository.list` records the refusal and `continue`s, so one unreadable
+  note looks exactly like a gone one — and the index still holds an unreadable note's id, because
+  `entityRefOf` keys on `type` plus a non-empty `id` and both survive a malformed body. So the two
+  are distinguishable, and telling a user their asset is deleted when its note merely will not parse
+  is a destructive gesture taken on a false diagnosis. **The first version of that ruling then
+  shipped a live control that does nothing** — it left the unreadable row's price input ENABLED,
+  reasoning that a project's price is independent of whether the asset's note parses, which is
+  sound in the abstract and false at `SetAssetPriceOverrideCommand`, whose existence check refuses
+  every such write. Slice 14's own amendment names that failure mode and refuses it. Both rows
+  disable the input and keep Clear live, and they say DIFFERENT things, which is the half of the
+  ruling that was right.
+- **A sibling that already gets it right is where to look for the asymmetry, and
+  `Requirement.withRecalculation` had dropped BOTH overrides on every full recalculation since
+  slice 10** while `withCalculatedCost` beside it preserved them. Its one production caller is the
+  recalculation command, so every automatic cascade in the shipped app — price change, geometry
+  change, the unreadable and gone fallbacks — silently discarded a user's negotiated override, and
+  no precedence case could pass against real production code. **The fix was then HALVED on review,
+  and the halving is the lesson**: preserving a quantity override while the estimate is still
+  computed from the CALCULATED quantity leaves a row showing 9 m² beside a cost derived from 12 m²,
+  where dropping it was lossy but CONSISTENT. So the cost half stands, the quantity half reverted
+  to the pre-existing loss, and that loss is pinned by an INVERTED test — named so a future fix
+  reddens it and its author reads the note, rather than by a paragraph that goes quietly stale.
+- **A memo's key is a fact about what the method underneath it READS, not about the rows above
+  it.** The override lookup was memoised per PAIR under a comment reasoning the key from the rows
+  ("one zone's rows share a project but not an asset"), and `getForPair` calls `listByProject` and
+  filters — so N assets cost N×M hydrations where a project-keyed memo costs 1×M, strictly worse at
+  every N>1 and equal at N=1. Two consequences worth carrying past the fix. A project-keyed memo
+  holding one pair's ANSWER also reads one list, so **the call count stopped discriminating** and
+  its case had to assert per-row values beside it. And a refusal injected at `getForPair` did not
+  weaken, it FAILED, because nothing calls that method any more — **a test patching a door that
+  moves does not go quietly green.**
+- **Two `npm run check` runs share `coverage/` and destroy each other's temp files**, and the
+  failure prints as `Something removed the coverage directory` plus an `ENOENT` on
+  `coverage/.tmp/coverage-N.json`. That is CONTENTION and the remedy is serialization, not a
+  re-run — but the rule needed three widenings before it was right, each written from the instance
+  that had just bitten: not "wait for the implementer", not "do not start a second gate", but **the
+  full-suite run requires a QUIET, CLEAN tree — no other gate-capable process, and nothing holding
+  a source MUTATION.** A reviewer mid-mutation makes the tree lie, and the red it produces is
+  indistinguishable from a real one until you read that agent's log. The tell for the third case is
+  BIMODALITY: a case running in ~30ms that times out at 5006ms is a blocked lock, not a slow
+  machine, because a genuinely load-fragile test degrades toward its limit.
+
+The residuals this increment leaves standing are enumerated in `docs/tasks/20`'s Amendment 4 rather
+than here, because that is the document a reader of slice 20 opens. Four of them are worth naming
+in this file because they are the ones a later reader is most likely to meet as a surprise:
+
+- **Nothing here has DRAWN the Inspector's three-figure block.** The container held no pinned
+  Chromium, and the project surface's own captures were taken with a substitute build
+  (`RP_CHROMIUM_EXECUTABLE`), which prints its own approximate caveat — so a three-figure block in
+  a row that already carried two is verified by `npm run test-build` in a vault and by nothing
+  else.
+- **`projectPricesChangeSource` REPORTS the project a change is about and narrows nothing itself**,
+  so each caller decides: the price section filters, the Plan Editor holds a plan id and ignores
+  the argument. Its index-event arm reports `null`, meaning *cannot say, refresh anyway*, because
+  `ProjectIndexEntryChangedPayload` carries `entityId` and `entityType` and no project id — so a
+  price-related index event still wakes unrelated projects' panes. **And that index path is
+  asserted AT THE SOURCE, not end to end**: that a synced price note reaches the bus is
+  `VaultChangeAdapter`'s own tested behaviour and that the source forwards it is this increment's;
+  nothing joins the two halves.
+- **`AssetPriceRow`'s `draftToken` rests on a rule `useFieldCommit` states in comments and in no
+  type** — that it drops a submitted draft exactly when no keystroke landed while it was in
+  flight. If that changes, the row's release goes wrong silently and only three cases catch it.
+- **One more empty migration table, and the runner is still unproven on a real chain.**
+  `ASSET_PRICE_MIGRATIONS` ships empty like every other one — the `MIGRATION_SET` bullet in the
+  slice 11 rules carries the grep that re-measures that — because this increment's schema work was
+  another REDEFINITION rather than a version bump. That is the third such judgement after slice
+  19's Asset schema and the currency increment's Project schema, which is what makes it a habit
+  rather than two decisions — the risk still lands on the first schema change that cannot be a
+  redefinition, and that change should be SCHEDULED with the proof in mind.
+
 **The asset designer's first increment has landed: an `Asset` definition gets a shape.**
 [[Asset designer]]'s epic — a footprint, a clearance boundary, an anchor, a facing and a
 height, drawn on a designer surface of the asset's own rather than typed beside the
@@ -3163,19 +3360,29 @@ One residual worth naming rather than leaving to be re-found. **The asset geomet
 has no migration table at all, where its plan-geometry sibling does.** `AssetGeometryDTO`
 carries its own `schemaVersion: z.literal(1)`, but `DiagnosticEntityKind` — the one union
 `MIGRATION_SET` and `GetDiagnosticsSnapshot` both key on — has no `asset-geometry` member,
-only `plan-geometry` beside `project`, `plan`, `zone`, `asset` and `requirement`. So a future
+only `plan-geometry` beside `project`, `plan`, `zone`, `asset`, `requirement` and — since the
+price-override increment merged — `asset-price`. So a future
 version of this document has no registered upgrade path and no line in a diagnostics
 snapshot, where an incompatible PLAN sidecar would have both. `PLAN_GEOMETRY_MIGRATIONS` is
 itself empty, so nothing here has actually exercised either table — this is a gap in the
 STRUCTURE rather than a proven consequence, and it is written down rather than closed because
-closing it means deciding whether an asset's shape is a seventh diagnostic entity kind, which
-is a design decision this increment's own scope does not include.
+closing it means deciding whether an asset's shape is an EIGHTH diagnostic entity kind, which
+is a design decision this increment's own scope does not include. **EIGHTH rather than the
+seventh this sentence said on its own branch**, because `asset-price` took the seventh slot on
+the other one — re-derived at the merge by reading `DiagnosticEntityKind`'s own union, whose
+docblock already says `asset-price` was the seventh and that an eighth must be added there
+before a repository can record against it.
 
-The `asset` note schema's own migration table (`ASSET_MIGRATIONS`) is empty too, and the six
-migration tables the currency increment's own section above records as still empty remain
-empty here: this increment's note-level schema change (Task B7's background fields) was
-additive, exactly like the currency increment's own project-schema change, so nothing here
-paid down `MigrationRunner`'s proof-on-a-real-chain obligation either.
+The `asset` note schema's own migration table (`ASSET_MIGRATIONS`) is empty too, and every
+migration table this repository has remains empty: this increment's note-level schema change
+(Task B7's background fields) was additive, exactly like the currency increment's own
+project-schema change, so nothing here paid down `MigrationRunner`'s proof-on-a-real-chain
+obligation either. **This sentence said SIX tables on its own branch and there are SEVEN in the
+merged tree**, the price-override increment's `ASSET_PRICE_MIGRATIONS` being the one it could
+not see — which is why it now states the RULE rather than a number, per the `MIGRATION_SET`
+bullet's own grep:
+`grep -rn "_MIGRATIONS: \(readonly \)\?Migration\[\] = " src/infrastructure/persistence/migration/`
+printed seven lines at this merge and every one of them ends `= [];`.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in

@@ -3,6 +3,7 @@ import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
 import { InMemoryZoneRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { InMemoryRequirementRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
+import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { err } from '../../src/core/result/Result';
 import { RecalculateRequirementCommand } from '../../src/application/commands/requirement/RecalculateRequirement';
 import { AssignAssetCommand } from '../../src/application/commands/requirement/AssignAsset';
@@ -33,7 +34,8 @@ export function makeDeleteZoneCommand(
 	projects: InMemoryProjectRepository = new InMemoryProjectRepository(),
 ): DeleteZoneCommand {
 	const assets = new InMemoryAssetRepository();
-	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events, projects);
+	const overrides = new InMemoryAssetPriceOverrideRepository();
+	const recalculate = new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides });
 	return new DeleteZoneCommand({ zones, requirements, recalculate, events, locks, logger: recorder });
 }
 
@@ -122,6 +124,7 @@ export interface RequirementFixture {
 	readonly zones: InMemoryZoneRepository;
 	readonly assets: InMemoryAssetRepository;
 	readonly requirements: InMemoryRequirementRepository;
+	readonly overrides: InMemoryAssetPriceOverrideRepository;
 	readonly events: ReturnType<typeof dispatchingEventBus>;
 	readonly locks: ReferenceLocks;
 	readonly project: Loaded<Project>;
@@ -142,24 +145,26 @@ export async function requirementFixture(
 	const projects = new InMemoryProjectRepository();
 	const plans = new InMemoryPlanRepository();
 	const assets = new InMemoryAssetRepository();
+	const overrides = new InMemoryAssetPriceOverrideRepository();
 	const events = dispatchingEventBus();
 	const locks = new ReferenceLocks();
 	const project = expectOk(await projects.save(makeProject(), 'absent'));
 	const plan = expectOk(
 		await plans.save(makePlan({ projectId: project.entity.id }), 'absent'),
 	);
-	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, events, projects);
+	const recalculate = new RecalculateRequirementCommand({ requirements, zones, assets, events, projects, overrides });
 	return {
 		projects,
 		plans,
 		zones,
 		assets,
 		requirements,
+		overrides,
 		events,
 		locks,
 		project,
 		plan,
-		assign: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects }),
+		assign: new AssignAssetCommand({ zones, assets, requirements, events, locks, projects, overrides }),
 		recalculate,
 	};
 }

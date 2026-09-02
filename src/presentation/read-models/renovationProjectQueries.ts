@@ -8,6 +8,7 @@ import type {
 	PlanListResult,
 } from '../../application/queries/ListPlansByProject';
 import type { ProjectListResult } from '../../application/queries/ListProjects';
+import type { AssetPriceRowDto } from '../../application/queries/ListProjectAssetPrices';
 import type { Loaded } from '../../application/ports/versioning';
 import type { Project } from '../../domain/project/Project';
 import type { ProjectId } from '../../domain/project/ProjectId';
@@ -50,6 +51,13 @@ export interface RenovationProjectQueryServices {
 	getProject(projectId: string): Promise<Result<ProjectSummaryDto | null, RepositoryError>>;
 	/** That project's plans, as list rows read them, and how many notes refused to be read. */
 	listPlansByProject(projectId: string): Promise<Result<PlanListView, RepositoryError>>;
+	/**
+	 * The price section's own read: the whole shared catalogue with this project's own price
+	 * beside each default. Answers `AssetPriceRowDto[]` directly rather than a mapped DTO —
+	 * `ListProjectAssetPrices` already builds the row this view renders, and a second mapping
+	 * here would be a second derivation of the same shape.
+	 */
+	listAssetPrices(projectId: string): Promise<Result<AssetPriceRowDto[], RepositoryError>>;
 }
 
 /**
@@ -90,6 +98,7 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
 		listProjects: refuseUnrecovered,
 		getProject: refuseUnrecovered,
 		listPlansByProject: refuseUnrecovered,
+		listAssetPrices: refuseUnrecovered,
 	};
 }
 
@@ -109,6 +118,7 @@ export function createRenovationProjectQueries(
 	getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>,
 	listPlansByProject: Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>,
 	overlaps: LibraryOverlaps,
+	listAssetPrices: Query<ProjectId, Result<AssetPriceRowDto[], RepositoryError>>,
 ): RenovationProjectQueryServices {
 	return {
 		async listProjects() {
@@ -159,6 +169,11 @@ export function createRenovationProjectQueries(
 				plans: listed.value.plans.map(toPlanSummaryDto),
 				unreadable: listed.value.unreadable,
 			});
+		},
+
+		/** Straight through — `ListProjectAssetPrices` already builds the row this view renders. */
+		listAssetPrices(projectId) {
+			return listAssetPrices.execute(projectId as ProjectId);
 		},
 	};
 }

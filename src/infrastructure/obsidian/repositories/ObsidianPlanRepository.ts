@@ -5,7 +5,7 @@ import type { PlanId } from '../../../domain/plan/PlanId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityVersion, Expected, Loaded, ObservationToken } from '../../../application/ports/versioning';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
-import { revisionConflict } from '../../../application/ports/versioning';
+import { checkExpectedVersion, revisionConflict } from '../../../application/ports/versioning';
 import { calibrationFromPersistence, planFromPersistence, planToPersistence } from '../../persistence/mappers/planMapper';
 import {
 	cacheReading,
@@ -19,7 +19,7 @@ import {
 	writeOwnedFrontmatter,
 } from './noteIo';
 import { observeFrontmatter } from './digest';
-import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
+import { versionOfFrontmatter } from './versionCheck';
 import {
 	freshNotePath,
 	plansFolderFor,

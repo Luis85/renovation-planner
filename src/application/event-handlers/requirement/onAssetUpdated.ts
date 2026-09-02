@@ -2,14 +2,24 @@ import { isErr } from '../../../core/result/Result';
 import type { EventBus } from '../../../core/events/EventBus';
 import type { Disposable } from '../../../core/events/Disposable';
 import type { AssetRepository } from '../../ports/AssetRepository';
+import type { AssetPriceOverrideRepository } from '../../ports/AssetPriceOverrideRepository';
+import { winnersBy } from '../../ports/AssetPriceOverrideRepository';
 import type { AssetUpdated } from '../../../domain/asset/Asset.events';
+import type { Money } from '../../../core/money/Money';
+import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { CascadeDeps } from './cascade';
 import { runRecalculationCascade } from './cascade';
 import { assetMatchesCalculatedFrom } from '../../commands/requirement/deriveRequirementFigures';
+import { effectiveUnitCostFrom } from '../../commands/requirement/resolveEffectiveUnitCost';
 
-/** The asset lookup the skip-check needs, on top of the shared cascade collaborators. */
+/**
+ * The asset lookup the skip-check needs, on top of the shared cascade collaborators, plus the
+ * precedence's input half: a project may price a shared asset in its own currency, which is
+ * what `calculatedFrom.unitCost` records under an override rather than the catalogue default.
+ */
 export interface AssetCascadeDeps extends CascadeDeps {
 	readonly assets: AssetRepository;
+	readonly overrides: AssetPriceOverrideRepository;
 }
 
 /**
@@ -63,8 +73,39 @@ export function registerOnAssetUpdated(events: EventBus, deps: AssetCascadeDeps)
 		}
 		const current = asset.value.entity;
 
+		// ONE read for the whole fan-out. `listByAsset` exists for this: a shared asset can be
+		// referenced from every project in the vault, and resolving each requirement's override
+		// separately would be a read per requirement — the cost Amendment 1 refused when it
+		// declined to put a project read on this path.
+		const overrides = await deps.overrides.listByAsset(assetId);
+		if (isErr(overrides)) {
+			deps.logger.error('requirement.cascade-overrides-unreadable', { assetId, cause: overrides.error });
+			// Same recovery as an unreadable asset: treat every link as changed. Recalculation
+			// refuses against an endpoint it cannot establish and leaves each requirement
+			// visibly stale, which is the honest outcome for a read we could not perform.
+			await runRecalculationCascade(deps, listed.value);
+			return;
+		}
+		// `winnersBy`, NOT `new Map(list.map(...))`. That spelling keeps whichever note came last
+		// in `listByAsset` order, while `getForPair` and the price list both answer the highest
+		// id — so this skip test would compare against a different price than recalculation
+		// resolves, and every overridden requirement in a duplicated-pair vault would
+		// false-invalidate on enumeration order alone.
+		const winners = winnersBy(overrides.value, (o) => o.entity.projectId, (projectId, notes) => {
+			deps.logger.warn('asset-price.duplicate-pair', { projectId, assetId, count: notes.length });
+		});
+		const byProject = new Map<ProjectId, Money>(
+			[...winners].map(([projectId, override]) => [projectId, override.entity.unitCost]),
+		);
+
 		const changed = listed.value.filter(
-			(r) => !assetMatchesCalculatedFrom(r.entity.calculatedFrom, current),
+			(r) =>
+				!assetMatchesCalculatedFrom(r.entity.calculatedFrom, {
+					// The EFFECTIVE cost this requirement's figures were derived from — the
+					// catalogue default only when its project has no price of its own.
+					unitCost: effectiveUnitCostFrom(byProject, r.entity.projectId, current),
+					unit: current.unit,
+				}),
 		);
 		await runRecalculationCascade(deps, changed);
 	});

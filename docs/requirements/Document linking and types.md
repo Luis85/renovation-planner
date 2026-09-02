@@ -2,10 +2,10 @@
 type: Feature
 parent: "[[Documents, photos and evidence]]"
 order: 10
-status: ""
+status: New
 started: ""
 finished: ""
-horizon:
+horizon: "V1"
 start: ""
 due: ""
 risk: ""
@@ -25,7 +25,7 @@ effort: ""
 complexity: ""
 business-value: ""
 business-value-model: ""
-release: "[[Mighty Dragon]]"
+release: ""
 ---
 
 # Document linking and types
@@ -36,6 +36,11 @@ warranty, contract, photo, sketch, other) is a starting vocabulary that §84 mak
 
 The question this exists to answer is never chronological. It is "what is the warranty on the thing
 in that room", which only a link can answer.
+
+V1 takes only the common relationship and contextual read path: an existing vault file or note
+can link to stable spatial targets and be found from them. Capture workflows, execution evidence,
+deliveries, procurement documents, evidence timelines and as-built records remain in their later
+Features.
 
 ## Outcome
 

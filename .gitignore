@@ -83,3 +83,5 @@ __pycache__/
 # ought to. If a future tool starts reporting duplicate findings, this directory is the
 # first place to look.
 /.worktrees/
+
+/.specorator

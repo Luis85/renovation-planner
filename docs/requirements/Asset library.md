@@ -1,10 +1,10 @@
 ---
 type: Epic
-order: 80
+order: 27.5
 status: ""
 started: ""
 finished: ""
-horizon: Later
+horizon: MVP
 start: ""
 due: ""
 risk: ""

@@ -109,7 +109,7 @@ pitfall that was already shipped once, not a hypothetical.
   case and that template keeps dividing by a million. **This was deliberately NOT fixed in
   the review pass**: the fix is to make `GetZoneInspector` hand back a `Quantity` (value +
   unit) so the panel formats and does not convert, which is this slice's boundary to move
-  rather than a polish edit. `docs/requirements/Switch the measurement unit in the plan
+  rather than a polish edit. `docs/tasks/Switch the measurement unit in the plan
   editor.md` makes it load-bearing rather than tidy.
 - **`PlanDto` carries `calibration` now.** The presentation layer can read a plan's real
   scale, which is what turns a raw millimetre measurement into a trustworthy one.

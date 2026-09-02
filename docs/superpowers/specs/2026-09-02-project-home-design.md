@@ -124,6 +124,26 @@ with focus on a tab, so that one gets it back.
 so it is held per leaf rather than in a module-level flag — two split leaves navigating in the
 same tick would otherwise hand one leaf's focus to the other.
 
+**"Per leaf" named a property and no CARRIER, which is a promise nothing could have kept.** The
+remount destroys the Vue app, so a `ref` in the tree — the obvious place — is gone before the
+next `ProjectNav` mounts, and `sync()` spreads a fresh context object each time. The only object
+that outlives the remount is the **view** itself. So `RenovationProjectView` holds a private
+boolean and `RenovationProjectContext` carries two partially-applied members over it:
+`rememberSwitchFocus(held: boolean)` and `takeSwitchFocus(): boolean`. That is the shape
+`PlanEditorContext.closeLeaf()` already has and the reason it has it — the composition root
+composes services and does not know which leaf this is, so a leaf-scoped fact reaches the tree
+through the view rather than through the deps bundle.
+
+`takeSwitchFocus` **reads and clears**, which is what makes it a hand-off rather than a mode: a
+flag left standing would be consumed by whatever mounted next. Every shell unmount writes the
+reading — `true` or `false` — so a rebind or a back-arrow navigation actively records "focus was
+elsewhere" rather than leaving a stale `true` behind.
+
+**The residue, named rather than implied**: an unmount with focus in the switch followed by a
+mount with no `ProjectNav` would leave the flag set for the mount after it. Thin, because the
+nav lives in the shell and the shell always mounts — and the clear-on-read is what bounds it to
+one mount rather than to the leaf's life.
+
 **The alternative is to stop remounting the shell**, keeping header and nav mounted and swapping
 only the section pane. That is Decision 1's rejected middle option arriving through a different
 door, and it costs the same reactive `section` in the view context. Paying focus back is the
@@ -270,22 +290,28 @@ interface ProjectSummary {
 	 */
 	total: Money | null;
 	/**
-	 * Rows reading `stale`, whatever put them there. They are in the total **unless an
-	 * exclusion removes them** — and the exclusions are the counts below, not this one.
+	 * ────────────────────────────────────────────────────────────────────────────────────
+	 * **NO COUNT BELOW MAKES A CLAIM ABOUT `total`. Each names a STATE; `summed` is the only
+	 * count of contributors, and the EXCLUSIONS alone decide membership.**
 	 *
-	 * The second sentence used to read "They ARE in the total", flat, which the interface
-	 * above contradicts three lines later by allowing a row to be both `stale` and
-	 * `unsummable`: a currency the total cannot take is excluded no matter how it reads. An
-	 * implementer following the flat sentence attempts the mismatched addition; one following
-	 * `unsummable` makes the flat sentence false. Decision 3's claim is about what staleness
-	 * does NOT exclude, and it is now written that way so the next exclusion category joins
-	 * the qualifier instead of reopening this.
+	 * Stated once, here, because stating it per count is what reopened it twice. `stale`
+	 * carried a flat "They ARE in the total", which `unsummable` contradicts for any row that
+	 * is both. That was corrected — and the correcting edit wrote a NEW flat claim, "They are
+	 * in the total and in `stale`", onto `unreadableReferents` in the same commit, which a
+	 * foreign-currency override on an unreadable-referent row contradicts identically. The
+	 * shape is not the sentence: **a rule repeated per member is a rule each new member
+	 * re-derives, and re-derives wrong.** The next count added here says what state it names
+	 * and stops.
+	 * ────────────────────────────────────────────────────────────────────────────────────
 	 */
+	/** Rows reading `stale`, whatever put them there. */
 	stale: number;
 	/**
-	 * Rows built from a referent note that could not be READ. They are in the total and in
-	 * `stale`; they are counted separately because recalculating them cannot succeed, so the
-	 * strip must not offer that as the remedy for them.
+	 * Rows built from a referent note that could not be READ — a subset of `stale`, since a
+	 * figure whose inputs cannot be re-read is never reported `current`.
+	 *
+	 * Counted apart from `stale` because recalculating them cannot succeed: the strip's
+	 * "needs recalculating" clause must subtract them and point them at diagnostics instead.
 	 */
 	unreadableReferents: number;
 	/** `ListPlansByProject`'s own count, passed through. */
@@ -296,7 +322,10 @@ interface ProjectSummary {
 	 * counted a different thing on a different axis for as long as the walk started at plans.
 	 */
 	unreadableZones: number;
-	/** Rows whose currency the total cannot take. */
+	/**
+	 * Rows whose currency the total cannot take — an EXCLUSION, so these are the rows that
+	 * really are out of `total`, whatever else they are also counted in.
+	 */
 	unsummable: number;
 	/** Requirement notes that could not be read at all. One bad note costs one note. */
 	unreadableRequirements: number;
@@ -1013,6 +1042,7 @@ mistake, per this repository's rule.
 | Summary | a row whose ASSET note cannot be read is IN the total, reads `stale`, and carries `missingTarget: null` | excluding it understates the project invisibly; `missingTarget: 'asset'` reports a deletion that did not happen |
 | Summary | the same row is counted in `unreadableReferents` and the strip does not offer it as recalculable | "needs recalculating" is an instruction that cannot be followed for this row |
 | Summary | a row that is both stale and currency-mismatched is counted in BOTH and summed into NEITHER | the flat reading of `stale` attempts the mismatched addition |
+| Summary | a row that is both unreadable-referent and currency-mismatched is counted in BOTH and summed into NEITHER | the same flat reading, re-derived one count over — the exclusions decide membership, never the state counts |
 | Summary | a malformed requirement in ANOTHER project is invisible here | an unscoped walk both faults on it and miscounts it |
 | Commands | `DeleteZoneCommand` still refuses when a referent cannot be read | widening the shared `listByZone` lets it delete a zone whose referent it never saw |
 | Summary | one summary read issues one project-scoped requirement listing | per-zone delegation is `zones × all-requirements`, which coalescing shrinks in count and not in size |
@@ -1079,7 +1109,8 @@ the five reversible adapters that write and publish nothing —
 `reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — plus `DeleteAsset.ts`
 (Decision 7); `GetRequirementsForZone.ts` (`projectId` and `referentsUnreadable` on the DTO, and
 its per-row builder extracted for sharing); `RenovationProjectView.ts` (parse, `sync`, `setState`);
-`RenovationProjectContext.ts` (`navigate` gains a section), and with it
+`RenovationProjectContext.ts` (`navigate` gains a section, plus the two focus-handoff members
+over a private field on `RenovationProjectView`), and with it
 `RenovationPlannerPlugin`'s `navigate` binding and `navigateToProject.ts`, whose written state
 is hard-coded to `{ projectId }` — all three, because the binding's arity keeps it compiling
 while dropping the section; `ProjectDetailState.vue` (becomes

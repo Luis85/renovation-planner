@@ -261,6 +261,10 @@ describe('DeleteAssetCommand', () => {
 		expect(rows[0]?.missingTarget).toBe('asset');
 		expect(rows[0]?.assetName).toBeNull();
 		expect(rows[0]?.recalculationStatus).toBe('stale');
+		// `buildUnitCostGroup`'s missing-asset guard: there is no library price to show for
+		// an asset that is gone, so the whole group is `null` rather than a group built from
+		// figures that no longer exist.
+		expect(rows[0]?.unitCost).toBeNull();
 	});
 
 	it('reassign repoints at another area-kind asset and recalculates inline', async () => {

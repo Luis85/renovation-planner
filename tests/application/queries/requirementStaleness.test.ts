@@ -89,10 +89,23 @@ async function seeded() {
 }
 
 describe("a project's currency is part of what a figure was calculated from", () => {
+	/**
+	 * The `unitCost` group's `projectOverride: null` state — a fresh, un-overridden row, so
+	 * `catalogue` and `effective` both read the asset's own price and there is no project
+	 * price to show. Value-level rather than presence-only: the reviewer's mutation (swap
+	 * `effective` for the CURRENT resolution) is invisible here on purpose, because the two
+	 * agree while nothing has moved — the divergent case lives in the override describe
+	 * block below, where an override is set but a recalculation has not yet run.
+	 */
 	it('reads current while the currencies agree', async () => {
 		const w = await seeded();
 		const rows = expectOk(await w.query.execute(w.zoneId));
 		expect(rows[0]?.recalculationStatus).toBe('current');
+		expect(rows[0]?.unitCost?.catalogue.amount).toBe('45');
+		expect(rows[0]?.unitCost?.catalogue.currency).toBe('EUR');
+		expect(rows[0]?.unitCost?.projectOverride).toBeNull();
+		expect(rows[0]?.unitCost?.effective.amount).toBe('45');
+		expect(rows[0]?.unitCost?.effective.currency).toBe('EUR');
 	});
 
 	it('reads stale once the project currency moves, from the PERSISTED figures', async () => {
@@ -447,6 +460,11 @@ describe("a project's own price override is part of what a figure was calculated
 
 		const before = await rowFor();
 		expect(before.cost.effective.amount).toBe('500');
+		// Fresh, un-overridden: `projectOverride` null, `catalogue` and `effective` agree at
+		// the asset's own price.
+		expect(before.unitCost?.catalogue.amount).toBe('24');
+		expect(before.unitCost?.projectOverride).toBeNull();
+		expect(before.unitCost?.effective.amount).toBe('24');
 
 		expectOk(
 			await setOverride.execute({
@@ -456,16 +474,40 @@ describe("a project's own price override is part of what a figure was calculated
 				expected: 'absent',
 			}),
 		);
+
+		/**
+		 * **The discriminating row.** The override is set but `recalculate` has not run yet,
+		 * so `unitCost` reads two different truths at once: `projectOverride` is the price
+		 * that was JUST set (a live read of the override repository, independent of the
+		 * requirement's own persisted state), while `effective` is `calculatedFrom.unitCost`
+		 * — still the OLD catalogue price, because nothing has re-derived the requirement's
+		 * figures since the assign. `effective` (24) and the CURRENT resolution
+		 * `projectOverride ?? catalogue` (19.5) genuinely diverge here — this is the case the
+		 * reviewer's mutation (`effective: effective.override ?? assetEntity.unitCost`, the
+		 * wrong, current-resolution value) cannot pass: that mutation would read 19.5 here
+		 * where the persisted provenance is 24.
+		 */
+		const midway = await rowFor();
+		expect(midway.unitCost?.catalogue.amount).toBe('24');
+		expect(midway.unitCost?.projectOverride?.amount).toBe('19.5');
+		expect(midway.unitCost?.projectOverride?.currency).toBe('GBP');
+		expect(midway.unitCost?.effective.amount).toBe('24');
+
 		expectOk(await recalculate.execute({ requirementId }));
 
 		const after = await rowFor();
 		expect(after.cost.calculated.amount).not.toBe(before.cost.calculated.amount);
 		expect(after.cost.effective.amount).toBe('500');
+		// Recalculate re-derives the figures, so `effective` (the newly-persisted provenance)
+		// converges with the current resolution — `catalogue` and `projectOverride` are
+		// unmoved from the midway read.
+		expect(after.unitCost?.catalogue.amount).toBe('24');
+		expect(after.unitCost?.projectOverride?.amount).toBe('19.5');
+		expect(after.unitCost?.effective.amount).toBe('19.5');
 
-		// Read the input through `calculatedFrom`, the persisted provenance, rather than
-		// through the DTO's own `unitCost` group — that group is Task 8's and does not exist
-		// at this task boundary. The override's own unit cost was minted through `moneyOf`:
-		// '19.50' is '19.5'.
+		// Read the input through `calculatedFrom`, the persisted provenance, too — the same
+		// figure the DTO's `unitCost.effective` above now reads. The override's own unit cost
+		// was minted through `moneyOf`: '19.50' is '19.5'.
 		const persisted = expectOk(await requirements.getById(requirementId));
 		expect(persisted?.entity.calculatedFrom.unitCost.amount).toBe('19.5');
 	});

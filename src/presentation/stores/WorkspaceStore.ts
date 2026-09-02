@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { defaultLayerVisibility, type KonvaLayerId } from '../editor/scene/KonvaLayers';
+import type { LayoutMode } from '../editor/shell/layoutMode';
 
 /**
  * Editor CHROME state (SDD §14): which shell regions are open, and the per-Konva-layer
@@ -15,6 +16,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 	const layersPanelOpen = ref(true);
 	const inspectorPanelOpen = ref(true);
 	const layerVisibility = ref<Record<KonvaLayerId, boolean>>(defaultLayerVisibility());
+	const layoutMode = ref<LayoutMode>('full');
+	const overlay = ref<'none' | 'layers' | 'inspector'>('none');
 
 	function toggleLayersPanel(): void {
 		layersPanelOpen.value = !layersPanelOpen.value;
@@ -41,6 +44,21 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		setLayerVisible(layer, !layerVisibility.value[layer]);
 	}
 
+	/** Leaving `constrained` closes the overlay: the panels it stood in for are back. */
+	function setLayoutMode(mode: LayoutMode): void {
+		layoutMode.value = mode;
+		if (mode !== 'constrained') overlay.value = 'none';
+	}
+
+	/** One overlay at a time (M16): opening one closes the other. */
+	function openOverlay(kind: 'layers' | 'inspector'): void {
+		overlay.value = kind;
+	}
+
+	function closeOverlay(): void {
+		overlay.value = 'none';
+	}
+
 	/**
 	 * Both panels open and every layer visible again — the state a Plan Editor opens in.
 	 *
@@ -59,6 +77,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		layersPanelOpen.value = true;
 		inspectorPanelOpen.value = true;
 		layerVisibility.value = defaultLayerVisibility();
+		layoutMode.value = 'full';
+		overlay.value = 'none';
 	}
 
 	return {
@@ -68,6 +88,12 @@ export const useWorkspaceStore = defineStore('workspace', () => {
 		toggleLayersPanel,
 		toggleInspectorPanel,
 		toggleLayer,
+		layoutMode,
+		overlay,
+		setLayoutMode,
+		openOverlay,
+		// fallow-ignore-next-line unused-store-member — Task 20 wires this when rendering overlay controls
+		closeOverlay,
 		reset,
 	};
 });

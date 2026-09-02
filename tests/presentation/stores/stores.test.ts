@@ -511,6 +511,26 @@ describe('WorkspaceStore, the editor chrome', () => {
 
 		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([false, false]);
 	});
+
+	it('opens one overlay at a time and closes it when the layout leaves constrained', () => {
+		const workspace = useWorkspaceStore();
+		workspace.setLayoutMode('constrained');
+		workspace.openOverlay('layers');
+		expect(workspace.overlay).toBe('layers');
+		workspace.openOverlay('inspector');
+		expect(workspace.overlay).toBe('inspector');
+		workspace.setLayoutMode('full');
+		expect(workspace.overlay).toBe('none');
+	});
+
+	it('resets layout mode and overlay with everything else', () => {
+		const workspace = useWorkspaceStore();
+		workspace.setLayoutMode('constrained');
+		workspace.openOverlay('layers');
+		workspace.reset();
+		expect(workspace.layoutMode).toBe('full');
+		expect(workspace.overlay).toBe('none');
+	});
 });
 
 describe('EditorStore camera actions added for canvas navigation', () => {

@@ -139,14 +139,15 @@ export class AssetGeometryStore {
 	 * ordinary state of an asset nobody has designed, which is the same sentence `read`
 	 * answers with an empty document rather than a refusal.
 	 *
-	 * **No `pathHint`, and that is where the mirror of `PlanGeometryStore.delete` stops.**
-	 * Both of its call sites pass one and their reasons are different, and BOTH are reasons
-	 * about the INDEX: the plan-insert rollback has no mapping yet (it is upserted only on
-	 * success), and the plan delete captures the path before trashing the note because the
-	 * note's own delete event can clear the mapping mid-operation. `pathFor` DERIVES
-	 * (see its docblock), so neither failure exists here — there is nothing to go stale
-	 * between the caller's decision and this lookup. An optional parameter would be a
-	 * second, unreachable answer to a question with one.
+	 * **`pathHint`, and the mirror of `PlanGeometryStore.delete` reaches this far after all.**
+	 * This docblock used to refuse one, on the argument that `pathFor` DERIVES so nothing can go
+	 * stale between the caller's decision and this lookup. Making `pathFor` ask the index first
+	 * falsified that argument in another file — the exact hazard the plan side names: the note's
+	 * own delete event can clear the mapping mid-operation, and `trashNoteBackedEntity` runs
+	 * `alsoRemove` only AFTER awaiting the trash. A lookup performed here then missed a MOVED
+	 * sidecar, fell back to the derived path, found nothing and reported success, so the asset
+	 * went and its geometry stayed. The caller captures the mapping before it trashes anything
+	 * and passes it in; omitting it still derives, which is every caller that is not mid-delete.
 	 *
 	 * Inside the asset's own queue, so a delete cannot interleave with the read-modify-write
 	 * of a design gesture on the same asset.
@@ -159,9 +160,9 @@ export class AssetGeometryStore {
 	 * the removal, the way `ReversibleDeleteZone` owes the geometry entry it takes out.
 	 * Until then a deleted design is gone with the asset, which is what a delete means.
 	 */
-	delete(assetId: AssetId): Promise<Result<void, RepositoryError>> {
+	delete(assetId: AssetId, pathHint?: string): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`asset:${assetId}`, async () => {
-			const resolved = this.pathFor(assetId);
+			const resolved = pathHint === undefined ? this.pathFor(assetId) : ok(pathHint);
 			// **An id this store cannot name a file for is an ABSENCE here, not a refusal**, and
 			// delete is the only door where that is true. `read` and `write` keep refusing: a
 			// caller asking to read or design such an asset is asking for something impossible,

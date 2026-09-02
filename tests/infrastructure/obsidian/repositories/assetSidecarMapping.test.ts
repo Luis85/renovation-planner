@@ -52,7 +52,14 @@ async function designedAsset() {
 		debounceMs: 0,
 	});
 
-	return { stack, asset, sidecar, adapter, derived: assetSidecarPathFor(stack.libraryFolder, asset.id) };
+	return {
+		stack,
+		asset,
+		sidecar,
+		adapter,
+		notePath: stack.index.getPath(asset.id) ?? '',
+		derived: assetSidecarPathFor(stack.libraryFolder, asset.id),
+	};
 }
 
 /** What Obsidian does to the vault when a user drags a file, plus the event it then raises. */
@@ -107,5 +114,84 @@ describe('an asset sidecar the user has moved', () => {
 		const read = expectOk(await stack.assetGeometry.read(asset.id));
 
 		expect(read.path).toBe(derived);
+	});
+});
+
+/**
+ * The mapping has to SURVIVE the ordinary things that happen to an asset, which is the half a
+ * lookup cannot check for itself: `pathFor` asking the index is worth nothing if the index
+ * forgets between the move and the next read.
+ */
+describe('an asset sidecar mapping and the writes that go past it', () => {
+	/**
+	 * Every asset note save replaces the index entry, and the shared writer built that entry
+	 * from `{id, type, path, projectId}` — no `geometrySidecarPath` — while the pipeline's own
+	 * note door preserved the field for `renovation-plan` alone. So the mapping survived until
+	 * the next height, background or catalogue edit, and then the asset went shapeless again
+	 * and the following geometry write minted a second sidecar. A lookup that is correct until
+	 * somebody saves is not a lookup.
+	 */
+	it('survives a save of the asset note', async () => {
+		const { stack, asset, sidecar, adapter, derived } = await designedAsset();
+		await moveFile(stack, adapter, derived, `${MOVED_FOLDER}/${asset.id}.rpgeo`);
+		const loaded = expectOk(await stack.assets.getById(asset.id));
+		if (loaded === null) throw new Error('the asset should still be readable');
+
+		expectOk(await stack.assets.save(loaded.entity, loaded.version));
+
+		expect(stack.index.getGeometrySidecarPath(asset.id)).toBe(`${MOVED_FOLDER}/${asset.id}.rpgeo`);
+		expect(expectOk(await sidecar.read(asset.id)).document.shape).not.toBeNull();
+	});
+
+	/**
+	 * And a note edit arriving from OUTSIDE — sync, another device, a hand edit — takes the same
+	 * door with the same rule: the sidecar path lives only in this index, so a note change
+	 * cannot have moved it and must not clear it.
+	 */
+	it('survives an out-of-band edit of the asset note', async () => {
+		const { stack, asset, adapter, derived, notePath } = await designedAsset();
+		await moveFile(stack, adapter, derived, `${MOVED_FOLDER}/${asset.id}.rpgeo`);
+
+		const note = stack.vault.getAbstractFileByPath(notePath);
+		if (!(note instanceof TFile)) throw new Error('the asset note should exist');
+		// The FRONTMATTER, not the body: echo suppression digests the frontmatter alone, so a
+		// body-only edit is dropped as our own echo and this case would pass without reaching
+		// the door it is about. Measured — the first version of it did exactly that.
+		const text = stack.vault.entries.get(notePath) ?? '';
+		stack.vault.entries.set(notePath, text.replace(/^name: .*$/m, 'name: Renamed by hand'));
+		adapter.onModify(note);
+
+		expect(stack.index.getGeometrySidecarPath(asset.id)).toBe(`${MOVED_FOLDER}/${asset.id}.rpgeo`);
+	});
+
+	/**
+	 * The DELETE has to read the mapping before it destroys the thing that holds it.
+	 * `trashNoteBackedEntity` trashes the note and only then runs `alsoRemove`, and Obsidian's
+	 * delete event can take the index entry out in between — so a lookup performed inside
+	 * `alsoRemove` finds nothing, falls back to the derived path, finds no file there and
+	 * reports success. The asset goes and its geometry stays, which is precisely the orphan
+	 * `AssetGeometryStore.delete` exists to prevent.
+	 *
+	 * That method's own docblock argued it needed no path hint BECAUSE `pathFor` derives. Making
+	 * `pathFor` ask the index falsified the argument in another file, which is why this case
+	 * arrived with the mapping rather than before it.
+	 */
+	it('is deleted with the asset even when the pipeline clears the entry mid-delete', async () => {
+		const { stack, asset, adapter, derived } = await designedAsset();
+		const moved = `${MOVED_FOLDER}/${asset.id}.rpgeo`;
+		await moveFile(stack, adapter, derived, moved);
+		const loaded = expectOk(await stack.assets.getById(asset.id));
+		if (loaded === null) throw new Error('the asset should still be readable');
+
+		// Obsidian raises the note's delete event while `trashNoteBackedEntity` awaits the trash.
+		const removeFile = stack.vault.delete.bind(stack.vault);
+		stack.vault.delete = async (file: Parameters<typeof stack.vault.delete>[0]): Promise<void> => {
+			await removeFile(file);
+			if (file instanceof TFile) adapter.onDelete(file);
+		};
+
+		expectOk(await stack.assets.delete(asset.id, loaded.version));
+
+		expect(stack.vault.entries.has(moved)).toBe(false);
 	});
 });

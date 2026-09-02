@@ -179,12 +179,12 @@ export class VaultChangeAdapter {
 			path,
 			projectId: stringField(frontmatter['project']) as ProjectIndexEntry['projectId'],
 			planId: stringField(frontmatter['plan']) as ProjectIndexEntry['planId'],
-			// Preserve a sidecar mapping an out-of-band note edit cannot have moved —
-			// the sidecar path lives only here and in the Plan repository's writers.
-			geometrySidecarPath:
-				ref.type === 'renovation-plan'
-					? (existing?.geometrySidecarPath ?? this.deps.index.getGeometrySidecarPath(ref.id as never))
-					: undefined,
+			// Preserve a sidecar mapping an out-of-band note edit cannot have moved — the sidecar
+			// path lives only in this index and in the writers that record it. ASSETS as well as
+			// plans since asset paths became index-backed: this door used to answer `undefined`
+			// for everything but a plan, so one synced or hand-edited asset note dropped the
+			// mapping and the asset went shapeless.
+			geometrySidecarPath: existing?.geometrySidecarPath ?? this.deps.index.getGeometrySidecarPath(ref.id as ProjectIndexEntry['id']),
 		});
 	}
 

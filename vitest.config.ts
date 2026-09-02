@@ -955,6 +955,12 @@ export default defineConfig({
 			// given a CHANGED file, so the key carries the file's `mtime:size` too — reported by
 			// a review bot on the push that shipped the key, which is the shortest round trip
 			// between a fix and its own consequence this branch has had.
+			//
+			// **The mapping's own three follow-ups (2026-09-02):** 99.39 / 98.31 / 99.07 / 99.54.
+			// NOTHING RATCHETS; branches headroom 12, functions 1. Making an asset's sidecar path
+			// index-backed created three ways to lose the mapping — both note-upsert doors and the
+			// delete's own lookup — each reported by a review bot on the push that shipped it. No
+			// new uncovered position; every one in the files touched is inherited.
 			thresholds: {
 				statements: 99,
 				functions: 99,

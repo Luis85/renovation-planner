@@ -1,6 +1,5 @@
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
-import type { AssetId } from '../../domain/asset/AssetId';
 import type { ProjectId } from '../../domain/project/ProjectId';
 
 /**
@@ -41,7 +40,7 @@ export interface ProjectIndex {
 	 * repair path for an index that has not seen the file yet; `AssetGeometryStore.pathFor` is
 	 * `this ?? derived`, which is ADR-011's own shape.
 	 */
-	getGeometrySidecarPath(entityId: PlanId | AssetId): string | undefined;
+	getGeometrySidecarPath(entityId: EntityId<string>): string | undefined;
 	getIdsByType(type: EntityType): EntityId<string>[];
 	getIdsByProject(projectId: ProjectId): EntityId<string>[];
 	/** Zones today; later spatial-object types extend the same mapping. */

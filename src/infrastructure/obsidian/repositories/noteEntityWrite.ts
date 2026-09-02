@@ -133,6 +133,13 @@ export async function saveNoteBackedEntity<TEntity extends { readonly id: Entity
 		type: spec.indexType,
 		path: notePath,
 		projectId: spec.projectId(entity),
+		// `upsert` REPLACES, and a note save cannot have moved the entity's sidecar — so
+		// omitting this field discarded the mapping on every save. For an ASSET that made the
+		// index-backed `pathFor` correct only until the next height, background or catalogue
+		// edit, after which the asset read as shapeless and the next geometry write minted a
+		// second sidecar. A requirement has no sidecar and answers `undefined` here, which is
+		// the same value the field had before.
+		geometrySidecarPath: deps.index.getGeometrySidecarPath(entity.id),
 	});
 	// The reading the cache gave BEFORE this write, so a read landing inside Obsidian parse
 	// lag can tell a cache that has not caught up from one that has. Undefined on the insert

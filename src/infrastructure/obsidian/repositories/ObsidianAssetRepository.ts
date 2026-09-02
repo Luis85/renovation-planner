@@ -98,10 +98,17 @@ export class ObsidianAssetRepository implements AssetRepository {
 	 * carries why the order is this way round.
 	 */
 	delete(id: AssetId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
+		// BEFORE anything is trashed, because the note's own delete event can take the index
+		// entry out while `trashNoteBackedEntity` awaits the trash — and `alsoRemove` runs after
+		// that await. Resolved here, a moved sidecar is deleted with its asset; resolved inside
+		// the callback, the lookup misses, the derivation answers a path with no file at it, and
+		// the asset goes leaving its geometry behind. The same capture, for the same reason, that
+		// `PlanGeometryStore.delete`'s own call site makes.
+		const sidecarPath = this.deps.index.getGeometrySidecarPath(id);
 		return this.queues.run(`asset:${id}`, () =>
 			trashNoteBackedEntity(this.deps, 'asset', id, expected, {
 				deleteFailedCode: 'asset.delete-failed',
-				alsoRemove: () => this.geometry.delete(id),
+				alsoRemove: () => this.geometry.delete(id, sidecarPath),
 			}),
 		);
 	}

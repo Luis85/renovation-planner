@@ -264,8 +264,25 @@ interface ProjectSummary {
 	 * is the only state in which no figure can honestly be printed.
 	 */
 	total: Money | null;
-	/** Rows reading `stale`. They ARE in the total. */
+	/**
+	 * Rows reading `stale`, whatever put them there. They are in the total **unless an
+	 * exclusion removes them** — and the exclusions are the counts below, not this one.
+	 *
+	 * The second sentence used to read "They ARE in the total", flat, which the interface
+	 * above contradicts three lines later by allowing a row to be both `stale` and
+	 * `unsummable`: a currency the total cannot take is excluded no matter how it reads. An
+	 * implementer following the flat sentence attempts the mismatched addition; one following
+	 * `unsummable` makes the flat sentence false. Decision 3's claim is about what staleness
+	 * does NOT exclude, and it is now written that way so the next exclusion category joins
+	 * the qualifier instead of reopening this.
+	 */
 	stale: number;
+	/**
+	 * Rows built from a referent note that could not be READ. They are in the total and in
+	 * `stale`; they are counted separately because recalculating them cannot succeed, so the
+	 * strip must not offer that as the remedy for them.
+	 */
+	unreadableReferents: number;
 	/** `ListPlansByProject`'s own count, passed through. */
 	unreadablePlans: number;
 	/**
@@ -296,6 +313,11 @@ A stale row is **in** the total and **counted** beside it. The alternatives were
 So the figure stays useful and never silently claims more than it knows. The qualifier is a
 **sentence and not a badge alone** — "3 figures need recalculating" — per SDD §85's rule that
 status never rests on colour.
+
+**A row counted in `unreadableReferents` is not offered that sentence**, because recalculating
+it fails for the same reason its referent read did. It gets its own clause pointing at the
+diagnostics door instead — an instruction that cannot be followed is worse than no instruction,
+which is the same rule the empty state is held to two decisions down.
 
 ### Why `unsummable` exists rather than being assumed away
 
@@ -393,16 +415,44 @@ nobody named: a malformed asset note in the shared catalogue would take every pr
 down with it. Fixing only the zone would have been the partial fix that reads like a complete
 one.
 
-The project-level builder tolerates a failed referent read, counts it, and produces a row rather
-than propagating. `unreadableRequirements` covers the row and its referents, because the user's
-question is "how many figures could not be read" and the answer does not improve by naming which
-note underneath it was at fault — the diagnostics report is where that belongs.
+The project-level builder tolerates a failed referent read and produces a row rather than
+propagating.
 
-**A read that FAILED and a referent that is ABSENT stay different, and the DTO already draws
-that line.** `getById` answering `ok(null)` is a deleted asset: the row renders with
-`missingTarget: 'asset'` and its stale reason, which is information the user can act on.
-`isErr` is a note that could not be read: excluded and counted. Collapsing them would either
-hide a deletion or invent one.
+**This paragraph said "counts it" and "excluded and counted" in consecutive sentences, and those
+are opposite instructions.** An implementer had three ways to read it and all three are wrong:
+propagate and fault Overview, map the failure onto `missingTarget` and report a deletion that did
+not happen, or drop a requirement whose own note read perfectly well. The contradiction was
+mine and is resolved here rather than narrowed.
+
+**The row is IN, and the existing DTO already says what it is.** A failed referent read is not a
+failed requirement read: the requirement's own note loaded, so its persisted `estimatedCost` is
+readable and honest, and excluding it would understate the project for a reason no surface
+shows. What cannot be determined is whether that figure is still *right*, because staleness is a
+comparison against the asset's current price and the zone's current area.
+
+`recalculationStatus` is already the field that carries exactly that, and its own docblock states
+the rule: *"never 'current' for a figure this query cannot re-derive"*. `isStaleReading` already
+reads `stale` for a `null` endpoint on that ground. An unreadable endpoint is the same
+inability with a different cause, so it takes the same reading. **No new staleness state**, which
+is the finding's suggestion inverted: the shape it asked for exists, one field over from the one
+it was looking at.
+
+**`missingTarget` stays `null`, and that is the half the finding got exactly right.** `ok(null)`
+is a deletion — a fact the user can act on. `isErr` is a note that could not be read, which is
+not a claim that anything was deleted. Collapsing them would invent a deletion.
+
+**What the row DOES need is one bit, because "stale" is about to give a false instruction.** The
+strip says *"3 figures need recalculating"*, and recalculating a row whose asset note is
+malformed will fail for the same reason the read did — an actionable sentence that cannot be
+acted on, which is the live-control-that-does-nothing rule arriving as copy. So
+`RequirementInspectorDTO` gains `referentsUnreadable: boolean` and `ProjectSummary` gains
+`unreadableReferents`, counted beside `stale` rather than carved out of it. WHICH note failed is
+not on the DTO: the diagnostics ledger already records it and the Decision 8 door already leads
+there, so a second copy here would be a second answer to one question.
+
+`unreadableRequirements` therefore counts requirement notes alone — the rows that do not exist.
+It said "the row and its referents", which is what made one count answer two questions and let
+the contradiction above hide inside it.
 
 ### The foreign-row category dissolved, and that is worth recording rather than deleting
 
@@ -902,6 +952,9 @@ mistake, per this repository's rule.
 | Summary | a DELETED asset still renders its row with `missingTarget: 'asset'` | collapsing absent into unreadable hides a deletion the user can act on |
 | Invalidation | an asset price change whose cascade cannot enumerate referents still refreshes the summary | the cascade returns before publishing, so `AssetUpdated` is the only notice there is |
 | Summary | one malformed requirement note leaves every other figure drawn, counted once in `unreadableRequirements` | an unscoped walk counts it once per zone, and a per-zone widening counts another project's note too |
+| Summary | a row whose ASSET note cannot be read is IN the total, reads `stale`, and carries `missingTarget: null` | excluding it understates the project invisibly; `missingTarget: 'asset'` reports a deletion that did not happen |
+| Summary | the same row is counted in `unreadableReferents` and the strip does not offer it as recalculable | "needs recalculating" is an instruction that cannot be followed for this row |
+| Summary | a row that is both stale and currency-mismatched is counted in BOTH and summed into NEITHER | the flat reading of `stale` attempts the mismatched addition |
 | Summary | a malformed requirement in ANOTHER project is invisible here | an unscoped walk both faults on it and miscounts it |
 | Commands | `DeleteZoneCommand` still refuses when a referent cannot be read | widening the shared `listByZone` lets it delete a zone whose referent it never saw |
 | Summary | one summary read issues one project-scoped requirement listing | per-zone delegation is `zones × all-requirements`, which coalescing shrinks in count and not in size |
@@ -966,7 +1019,7 @@ list above.
 the five reversible adapters that write and publish nothing —
 `reversible-create-zone-command.ts`, `reversible-delete-zone-command.ts`,
 `reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — plus `DeleteAsset.ts`
-(Decision 7); `GetRequirementsForZone.ts` (`projectId` on the DTO, and
+(Decision 7); `GetRequirementsForZone.ts` (`projectId` and `referentsUnreadable` on the DTO, and
 its per-row builder extracted for sharing); `RenovationProjectView.ts` (parse, `sync`, `setState`);
 `RenovationProjectContext.ts` (`navigate` gains a section), and with it
 `RenovationPlannerPlugin`'s `navigate` binding and `navigateToProject.ts`, whose written state

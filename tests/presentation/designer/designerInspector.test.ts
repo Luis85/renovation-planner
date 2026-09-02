@@ -19,6 +19,7 @@ import type { AssetDesignDto } from '../../../src/application/queries/GetAssetDe
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import { recorder } from '../../helpers/logger';
 import { assetDesign } from '../../helpers/assetDesign';
+import { t } from '../../../src/presentation/i18n/strings';
 
 let setHeight: ReturnType<typeof vi.fn<(height: number | null) => Promise<DispatchResult>>>;
 let editDimensions: ReturnType<typeof vi.fn<() => Promise<void>>>;
@@ -89,12 +90,36 @@ describe('the designer’s inspector', () => {
 		const wrapper = mountInspector({ dimensions: null });
 
 		expect(wrapper.find('.rp-designer-inspector-fields').exists()).toBe(false);
-		expect(wrapper.find('.rp-designer-edit-dimensions').exists()).toBe(false);
+	});
+
+	/**
+	 * **The control that CREATES a shape may not be hidden until there is one**, and the
+	 * assertion above used to require exactly that — the defect encoded as a test, which this
+	 * repository has now recorded twice.
+	 *
+	 * It was reachable in ONE state and unreachable in the state that needs it. A shapeless
+	 * asset with no sheet selects `noBackground`, whose only action is the picker, and
+	 * `selectAssetDesignerEmptyState` ranks it above `noShape` deliberately — so the whole of
+	 * "type a width and a depth", which needs no sheet and no calibration at all, sat behind
+	 * choosing an unrelated file first. The ordering is left alone, because it is a considered
+	 * decision with its own cases; what changes is that the inspector, which is mounted in
+	 * every state, always offers the gesture.
+	 *
+	 * The LABEL differs because the gesture does: with no shape there is nothing to edit.
+	 */
+	it('offers the dimensions editor for a shapeless asset, which is how one gets a shape', async () => {
+		const wrapper = mountInspector({ dimensions: null });
+
+		expect(wrapper.find('.rp-designer-edit-dimensions').text()).toBe(t('en', 'designer.inspector.set-dimensions'));
+		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
+
+		expect(editDimensions).toHaveBeenCalledTimes(1);
 	});
 
 	it('offers the same editor from the inspector once a shape exists', async () => {
 		const wrapper = mountInspector({ dimensions: { width: 1200, depth: 800 } });
 
+		expect(wrapper.find('.rp-designer-edit-dimensions').text()).toBe(t('en', 'designer.inspector.edit-dimensions'));
 		await wrapper.find('.rp-designer-edit-dimensions').trigger('click');
 
 		expect(editDimensions).toHaveBeenCalledTimes(1);

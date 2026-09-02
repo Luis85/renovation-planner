@@ -82,11 +82,25 @@ function onHeightInput(raw: string): void {
 
 /**
  * `null` exactly when the asset has no footprint — the same field `GetAssetDesign`'s own
- * docblock says is "never `{ width: 0, depth: 0 }`" — so this block, its warning and the Edit
- * control all disappear together rather than showing a rectangle of zeroes with a button that
- * edits nothing. The empty state's own action is the only hand-off while this is `null`.
+ * docblock says is "never `{ width: 0, depth: 0 }`" — so the block and its warning disappear
+ * together rather than showing a rectangle of zeroes.
  */
 const dimensions = computed(() => props.design.dimensions);
+
+/**
+ * **The button stays, and only its NAME moves with the state.** It used to disappear with the
+ * block above, on the reasoning that the empty state's own action was the hand-off while this
+ * is `null` — which was true of `noShape` and not of the state a fresh asset actually lands
+ * in. A shapeless asset with no sheet selects `noBackground`, whose only action is the picker,
+ * and that ordering is deliberate; so the whole of "type a width and a depth" — which needs no
+ * sheet, no calibration and no tracing — was reachable only after choosing an unrelated file.
+ * This panel is mounted in every state, which is what makes it the right place to fix that.
+ *
+ * With no shape there is nothing to EDIT, so the label says what the gesture does instead.
+ */
+const dimensionsLabel = computed(() =>
+	dimensions.value === null ? tr('designer.inspector.set-dimensions') : tr('designer.inspector.edit-dimensions'),
+);
 </script>
 
 <template>
@@ -111,12 +125,11 @@ const dimensions = computed(() => props.design.dimensions);
 			{{ tr('designer.inspector.dimensions.unscaled') }}
 		</p>
 		<button
-			v-if="dimensions !== null"
 			type="button"
 			class="rp-designer-edit-dimensions"
 			@click="() => void editDimensions()"
 		>
-			{{ tr('designer.inspector.edit-dimensions') }}
+			{{ dimensionsLabel }}
 		</button>
 
 		<FieldError

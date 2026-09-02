@@ -545,6 +545,9 @@ export const en = {
 	'designer.inspector.dimensions.unscaled':
 		'This footprint was traced before a scale existed, so these numbers are not real measurements yet.',
 	'designer.inspector.edit-dimensions': 'Edit dimensions',
+	// The same gesture named for what it DOES in the state it is offered from: with no shape
+	// there is nothing to edit, and this is the one control that creates one.
+	'designer.inspector.set-dimensions': 'Set dimensions',
 	'designer.inspector.height': 'Height in millimetres',
 	'designer.inspector.height.unparseable': 'Enter a height as a number, or clear it.',
 	// Task B8's dialog kind (`asset-dimensions`), reached from BOTH the no-shape empty state

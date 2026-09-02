@@ -44,6 +44,7 @@
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { CreatePlanCommand } from '../../src/application/commands/plan/CreatePlan';
 import { CreateAssetCommand } from '../../src/application/commands/asset/CreateAsset';
+import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import { SetAssetFootprintFromDimensionsCommand } from '../../src/application/commands/asset/SetAssetFootprint';
 import { InMemoryAssetRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryAssetGeometrySidecar } from './asset-geometry-sidecar';
@@ -222,6 +223,9 @@ export const defaultRenovationProjectDeps = (
 			setAssetFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand({
 				sidecar: assetGeometry,
 				assets,
+				// Its own set: this fixture composes one root's worth of services, and the delete
+				// resolution it never dispatches is the only other taker.
+				locks: new ReferenceLocks(),
 				events,
 			}),
 			logger: recorder,

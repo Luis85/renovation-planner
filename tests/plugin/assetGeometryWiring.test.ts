@@ -15,11 +15,19 @@
  *
  * Two things it deliberately does NOT reach, said rather than left to be assumed:
  *
- * - **A second `AssetGeometryStore` over the same folder is invisible to every case here.**
- *   What is asserted is the FOLDER (a store built on the wrong one writes somewhere else, and
- *   the sidecar case reddens) and that the query reads what the commands wrote. The store's
- *   `KeyedQueues` is per instance, so two stores would split the per-asset lock an asset
- *   DELETE and a design write share — a race no assertion here can produce on demand.
+ * - **A second `AssetGeometryStore` over the same folder is still invisible to every case
+ *   here.** What is asserted is the FOLDER (a store built on the wrong one writes somewhere
+ *   else, and the sidecar case reddens) and that the query reads what the commands wrote. The
+ *   store's `KeyedQueues` is per instance, so two stores would split the region that makes one
+ *   sidecar write atomic against another — and that race is still not producible on demand,
+ *   because nothing above the store can hold that queue.
+ *
+ *   **The sentence this bullet used to end on was wider and has stopped being true.** It said
+ *   the split region was "the per-asset lock an asset DELETE and a design write share". Since
+ *   PR 43's fourth finding those two share `ReferenceLocks`'s level-1 lock instead — an
+ *   APPLICATION-layer region a caller can hold — so that race is producible on demand, and the
+ *   last case here is what produces it. Two regions, two claims: the store's queue serialises
+ *   writes, the reference lock serialises a write against a deletion.
  * - **The boundary's own EVENT NAMES are the half `tests/plugin/guardCategory.test.ts`
  *   cannot say.** That file drives every door the walk finds and requires the mapped refusal;
  *   it says nothing about which event a log line carries, which is what makes a fault
@@ -33,6 +41,7 @@ import { createRepositoryStack, type RepositoryStack } from '../helpers/vault';
 import { installObsidianDom } from '../helpers/dom';
 import { lines, recorder, resetRecorder } from '../helpers/logger';
 import { expectOk } from '../helpers/domain';
+import { settle } from '../helpers/async';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { AssetDesignChanged } from '../../src/domain/asset/Asset.events';
 import type { PersistenceServices } from '../../src/plugin/composition-root';
@@ -225,5 +234,40 @@ describe('the asset designer the composition root hands out', () => {
 			'command.setAssetFacing.with-version.failed',
 			'command.setAssetHeight.with-version.failed',
 		]);
+	});
+
+	/**
+	 * The design commands and the DELETE resolution share ONE `ReferenceLocks` (PR 43's fourth
+	 * finding), and this is the half the compiler cannot cover.
+	 *
+	 * `AssetShapeDeps.locks` is REQUIRED, so a root that passes nothing fails to build — and a
+	 * root that passes a FRESH `new ReferenceLocks()` type-checks perfectly, passes all 910 cases
+	 * under `tests/plugin` and `tests/application`, and hands the design commands a
+	 * mutual-exclusion set that excludes nothing from the deletion it exists to be excluded from.
+	 * Measured as exactly that mutation before this case was written, which is why it exists:
+	 * this file's own header already says a required member is only half a check.
+	 *
+	 * Driven by HOLDING the lock on `persistence.locks` — the instance `runDeleteResolution`
+	 * takes — and observing that a design dispatch does not settle. A shared instance makes it
+	 * wait; two instances make it sail past.
+	 */
+	it('gives the design commands the same lock the delete resolution takes', async () => {
+		const { persistence, assetId } = await rootWithAnAsset();
+		const session = persistence.locks.beginSession();
+		await session.acquire([assetId], []);
+
+		let settled = false;
+		const dispatch = persistence.assetDesign.setFootprintFromDimensions
+			.execute({ assetId, width: 1200, depth: 800 })
+			.then((result) => {
+				settled = true;
+				return result;
+			});
+		await settle();
+
+		expect(settled).toBe(false);
+
+		session.release();
+		expect(expectOk(await dispatch)).toBe('wrote');
 	});
 });

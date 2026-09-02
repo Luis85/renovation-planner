@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { GetAssetDesignQuery } from '../../../src/application/queries/GetAssetDesign';
 import { SetAssetBackgroundCommand } from '../../../src/application/commands/asset/SetAssetBackground';
+import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
 import { createEventBus } from '../../../src/core/events/EventBus';
 import { ObsidianAssetGeometrySidecar } from '../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { assetSidecarPathFor } from '../../../src/infrastructure/obsidian/repositories/paths';
@@ -130,7 +131,7 @@ describe('GetAssetDesign', () => {
 		const { query, assetId, seed, sidecar, stack } = await seeded();
 		await seed({ calibration: CALIBRATION, shape: shapeWith('traced', false) });
 		const setBackground = new SetAssetBackgroundCommand(
-			{ sidecar, assets: stack.assets, events: createEventBus() },
+			{ sidecar, assets: stack.assets, events: createEventBus(), locks: new ReferenceLocks() },
 			{ fileExists: (path) => path === 'Specs/other.png' },
 		);
 

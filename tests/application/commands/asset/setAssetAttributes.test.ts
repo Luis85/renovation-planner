@@ -27,6 +27,7 @@ import type { Calibration } from '../../../../src/domain/plan/Calibration';
 import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { assetSidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { createRepositoryStack } from '../../../helpers/vault';
+import { ReferenceLocks } from '../../../../src/application/reference/ReferenceLocks';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
 
@@ -146,9 +147,9 @@ async function seeded(options: { readonly background?: boolean } = {}) {
 		sidecar,
 		events,
 		path: assetSidecarPathFor(stack.libraryFolder, assetId),
-		clearance: new SetAssetClearanceCommand({ sidecar, assets: stack.assets, events }),
-		anchor: new SetAssetAnchorCommand({ sidecar, assets: stack.assets, events }),
-		facing: new SetAssetFacingCommand({ sidecar, assets: stack.assets, events }),
+		clearance: new SetAssetClearanceCommand({ sidecar, assets: stack.assets, events, locks: new ReferenceLocks() }),
+		anchor: new SetAssetAnchorCommand({ sidecar, assets: stack.assets, events, locks: new ReferenceLocks() }),
+		facing: new SetAssetFacingCommand({ sidecar, assets: stack.assets, events, locks: new ReferenceLocks() }),
 		async seed(document: AssetGeometryDocument): Promise<void> {
 			expectOk(await sidecar.write(assetId, document));
 		},

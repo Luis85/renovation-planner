@@ -172,15 +172,25 @@ describe('subscribing to vault file changes', () => {
 		]);
 	});
 
-	it('reports the path of a file that changed', () => {
+	/**
+	 * All THREE single-path events, not two. `create` earns its place in this case rather than
+	 * being taken on trust from the registration one above: that case proves the listener was
+	 * registered and says nothing about what its callback does, and a `create` handler that
+	 * reported nothing would leave a reference that becomes live again unnoticed — the arm the
+	 * whole subscription exists for. Measured: without this line the callback is an uncovered
+	 * function, which is what a per-file read of `coverage-final.json` reports and the summary
+	 * cannot see.
+	 */
+	it('reports the path of a file that appeared, changed or went', () => {
 		const { vault, fire } = eventVault();
 		const paths: string[] = [];
 		createVaultFileChangeSource(vault as never)((path) => paths.push(path));
 
+		fire('create', fileAt('Specs/back.png'));
 		fire('modify', fileAt('Specs/oven.png'));
 		fire('delete', fileAt('Specs/gone.png'));
 
-		expect(paths).toEqual(['Specs/oven.png', 'Specs/gone.png']);
+		expect(paths).toEqual(['Specs/back.png', 'Specs/oven.png', 'Specs/gone.png']);
 	});
 
 	/**
@@ -211,7 +221,9 @@ describe('subscribing to vault file changes', () => {
 		const folder = new TFolder();
 		folder.path = 'Specs';
 
+		fire('create', folder);
 		fire('modify', folder);
+		fire('delete', folder);
 		fire('rename', folder, 'Sheets');
 
 		expect(paths).toEqual([]);

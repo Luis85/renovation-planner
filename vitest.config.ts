@@ -961,6 +961,42 @@ export default defineConfig({
 			// index-backed created three ways to lose the mapping — both note-upsert doors and the
 			// delete's own lookup — each reported by a review bot on the push that shipped it. No
 			// new uncovered position; every one in the files touched is inherited.
+			// **PR 43's four review findings, second wave (2026-09-02):** 99.39 / 98.31 / 99.07 /
+			// 99.54. NOTHING RATCHETS — every figure rounds down to the floor already in force.
+			// Branches headroom 12 covered arms, functions 1, which is where both have sat since the
+			// wave before this one.
+			//
+			// The file list came from `git diff --name-only d9478028 HEAD -- src/` plus
+			// `git status --short -- src/`, never a filename filter, per the entry three paragraphs
+			// above that records what a hand-written one over- and under-matches. Nineteen files, and
+			// FOURTEEN of them measure 100% of all four.
+			//
+			// **This wave added ONE uncovered position and it was covered rather than attributed.**
+			// `vaultFileChanges.ts`'s `create` callback: the unit case fired `modify`, `delete` and
+			// `rename` and took `create` on trust from the registration case beside it — which proves
+			// a listener was registered and says nothing about what its callback does. Found by
+			// reading `coverage-final.json` per changed file, which is the instrument that can see one
+			// arm; the summary moved by 0.03pp and could not. That whole directory is 100% now.
+			//
+			// The five uncovered positions left in the files this wave touched are INHERITED, each
+			// attributed with `git log -L <line>,<line>:<file>` rather than assumed:
+			// `CalibrateAsset.ts`'s `shape === null` arm in `documentFinite` (7eb83f9e, Task B6),
+			// `AssetGeometryStore.ts`'s malformed-sidecar `catch` (0ff672f7, the derived-filename
+			// task, already named in an entry above), `AssetDesignerRoot.vue`'s `dialogs.current`
+			// re-entry guard (d672c3c8, the inspector task), `DesignerCanvas.vue`'s empty-bounds arm
+			// (e6c4ded0, the layers task) and `PlanEditorView.ts`'s `mountedPlanId === null` rebind
+			// arm (335a6dc9, design slice 16's root-swap work).
+			//
+			// **A note about the RUN rather than the numbers, because it cost three attempts.** Two
+			// serial coverage runs failed on a `warmUpEslint` hook timing out — a DIFFERENT
+			// `tests/build/` file each time (`notice-text-boundary`, then
+			// `language-resolution-boundary`), each passing in isolation. Serial is not the remedy for
+			// that contention and is arguably its cause: this file's own paragraph on the twelve
+			// ESLint-booting files records ~30s per boot under default parallelism against ~60s
+			// serial, against a 60s budget. Measured here on the whole suite: **103s parallel against
+			// 825s serial**, and the parallel run passed all 342 files. A failing `beforeAll` in that
+			// directory is a question about the machine before it is a question about the diff, and
+			// running SERIALLY to answer it can be what produces it.
 			thresholds: {
 				statements: 99,
 				functions: 99,

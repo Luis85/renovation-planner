@@ -125,6 +125,38 @@ export class ReferenceLocks {
 	}
 
 	/**
+	 * Hold ONE entity's level-1 lock for the length of `work`, released whatever `work` does.
+	 *
+	 * `withLevel2`'s sibling, and it exists for the same reason that one does: the shape was
+	 * about to be spelled out longhand at three call sites. What it is FOR is different, and the
+	 * difference is worth stating where the code is — level 2 serialises two writers of one
+	 * requirement, while this serialises a writer of an entity's geometry against the DELETE of
+	 * that entity.
+	 *
+	 * The hazard it closes (PR 43): an asset's sidecar is a separate file from its note, and an
+	 * ABSENT sidecar is a valid empty document at `ABSENT_VERSION` — a real constant, `{ revision:
+	 * 0, observed: observeSidecar('') }`. So a design command that read the note, found the asset,
+	 * and then had the asset deleted under it presents `expected: ABSENT_VERSION` to a store that
+	 * now reads exactly that, the compare-and-swap AGREES, and the write lands: a `.rpgeo` for an
+	 * asset that is not there. The version condition protects an asset that HAD geometry — an
+	 * expected revision 3 against an absent revision 0 refuses — and cannot protect one that did
+	 * not, which is every first footprint, first calibration and first spec sheet.
+	 *
+	 * `runDeleteResolution` already holds level 1 on its entity across `deleteEntity`, so taking
+	 * the same lock is all the design commands needed; the exclusive region existed and they were
+	 * simply not in it. No hierarchy risk, because a design command holds level 1 and never
+	 * reaches for level 2 — `LockSessionImpl`'s two raises are about the other direction.
+	 */
+	async withLevel1<T>(id: string, work: () => Promise<T>): Promise<T> {
+		const release = await this.acquire([id], []);
+		try {
+			return await work();
+		} finally {
+			release();
+		}
+	}
+
+	/**
 	 * One command's locking lifetime. The delete resolution uses one session across TWO
 	 * acquire calls (level 1 at step 0, level 2 at step 1) — which is exactly what the
 	 * hierarchy permits and everything else refuses.

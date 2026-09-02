@@ -117,8 +117,11 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 	 * on, for the reason `SetAssetHeightCommand`'s sibling door already states.
 	 */
 	async executeWithVersion(input: SetAssetBackgroundInput): Promise<VersionedDispatchResult> {
-		const { assets, sidecar, events } = this.deps;
-
+		const { locks } = this.deps;
+		// The two cheap refusals are OUTSIDE the region on purpose: neither reads the vault, so
+		// taking a lock to answer them would make a mislabelled path or a missing file queue
+		// behind whatever else is touching this asset. The region starts where the reads do.
+		//
 		// The cheap refusal, before any read: a kind that does not match the path's own
 		// extension is refused here rather than left to the domain, mirroring
 		// `SetPlanBackgroundCommand` — a mislabeled or unsupported file would otherwise reach
@@ -155,6 +158,32 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 		if (!this.files.fileExists(input.path)) {
 			return err(referenceError('asset.background-not-found', `No vault file at "${input.path}".`));
 		}
+
+		// Both resources under ONE exclusive region, for `updateAssetShape`'s reason and more
+		// sharply here than anywhere else: this gesture CLEARS the calibration first, and for an
+		// asset with no sidecar that clear CREATES one. So an asset deleted between the note read
+		// and that clear was left with a `.rpgeo` written by a gesture that then failed at the
+		// note it was for. `ReferenceLocks.withLevel1` carries the account.
+		return await locks.withLevel1(input.assetId, () => this.write(input, kind));
+	}
+
+	/**
+	 * The read-and-write half, inside the caller's exclusive region.
+	 *
+	 * Split from `executeWithVersion` rather than nested in a closure there, because the two
+	 * halves answer different questions and the file's `max-lines-per-function` budget is the
+	 * gate that says so: above, what can be refused without touching the vault; here, the pair
+	 * of writes and the compensation between them.
+	 *
+	 * `kind` is passed in already validated rather than re-derived, so the value the note is
+	 * saved with is the one the refusal above compared — a second `backgroundKindOf` call would
+	 * be a second derivation of one fact.
+	 */
+	private async write(
+		input: SetAssetBackgroundInput,
+		kind: 'image' | 'pdf',
+	): Promise<VersionedDispatchResult> {
+		const { assets, sidecar, events } = this.deps;
 
 		const loaded = await assets.getById(input.assetId);
 		if (isErr(loaded)) return loaded;

@@ -31,6 +31,7 @@ import type { Calibration } from '../../../../src/domain/plan/Calibration';
 import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { assetSidecarPathFor } from '../../../../src/infrastructure/obsidian/repositories/paths';
 import { createRepositoryStack } from '../../../helpers/vault';
+import { ReferenceLocks } from '../../../../src/application/reference/ReferenceLocks';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
 
@@ -112,8 +113,8 @@ async function seeded() {
 		sidecar,
 		events,
 		path: assetSidecarPathFor(stack.libraryFolder, assetId),
-		typed: new SetAssetFootprintFromDimensionsCommand({ sidecar, assets: stack.assets, events }),
-		traced: new SetAssetFootprintCommand({ sidecar, assets: stack.assets, events }),
+		typed: new SetAssetFootprintFromDimensionsCommand({ sidecar, assets: stack.assets, events, locks: new ReferenceLocks() }),
+		traced: new SetAssetFootprintCommand({ sidecar, assets: stack.assets, events, locks: new ReferenceLocks() }),
 		async seed(document: AssetGeometryDocument): Promise<void> {
 			expectOk(await sidecar.write(assetId, document));
 		},
@@ -150,7 +151,7 @@ describe('a design command against an asset that does not exist', () => {
 			heard.push(e);
 		});
 
-		const result = await new SetAssetFootprintFromDimensionsCommand({ sidecar, assets: stack.assets, events }).execute({ assetId: missing, width: 1200, depth: 800 });
+		const result = await new SetAssetFootprintFromDimensionsCommand({ sidecar, assets: stack.assets, events, locks: new ReferenceLocks() }).execute({ assetId: missing, width: 1200, depth: 800 });
 
 		expect(expectErr(result).code).toBe('asset.not-found');
 		expect(stack.vault.entries.has(assetSidecarPathFor(stack.libraryFolder, missing))).toBe(false);
@@ -169,7 +170,7 @@ describe('a design command against an asset that does not exist', () => {
 				),
 		} as unknown as typeof stack.assets;
 
-		const result = await new SetAssetFootprintFromDimensionsCommand({ sidecar, assets: failing, events: createEventBus() }).execute({ assetId, width: 1200, depth: 800 });
+		const result = await new SetAssetFootprintFromDimensionsCommand({ sidecar, assets: failing, events: createEventBus(), locks: new ReferenceLocks() }).execute({ assetId, width: 1200, depth: 800 });
 
 		// NOT `asset.not-found`: collapsing the two reports a vault fault as "the asset is gone",
 		// which this repository has shipped three times.
@@ -372,7 +373,7 @@ describe('SetAssetFootprint', () => {
 			},
 		};
 
-		const late = await new SetAssetFootprintCommand({ sidecar: racing, assets: stack.assets, events }).execute({ assetId, points: TRIANGLE });
+		const late = await new SetAssetFootprintCommand({ sidecar: racing, assets: stack.assets, events, locks: new ReferenceLocks() }).execute({ assetId, points: TRIANGLE });
 
 		expect(expectErr(late).code).toBe('asset-geometry.revision-conflict');
 		expect(await storedShape()).toBeNull();

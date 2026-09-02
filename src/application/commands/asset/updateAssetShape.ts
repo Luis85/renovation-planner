@@ -18,6 +18,7 @@ import type { EntityVersion } from '../../ports/versioning';
 import type { RepositoryError } from '../../ports/repositoryErrors';
 import { assetError, assetNotFound } from '../../../domain/asset/Asset.errors';
 import type { AssetRepository } from '../../ports/AssetRepository';
+import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 
 /** What every design command is given: an asset, and what it may condition its write on. */
 export interface AssetShapeInput {
@@ -71,17 +72,26 @@ export type ShapeUnchanged = (current: AssetShape, next: AssetShape) => boolean;
  * returned is the weakest honest condition — it refuses exactly the writes that landed since
  * it looked.
  *
- * **What the existence check does NOT buy, stated where it is made.** It is asked here, in
- * the application layer; the sidecar's own exclusive region is `KeyedQueues`, inside
- * `AssetGeometryStore` and keyed per asset, entered only at `read` and `write`. So this write
- * is atomic with respect to other SIDECAR writes and not with respect to the asset's
- * EXISTENCE: an asset deleted between this `getById` and the write below leaves a sidecar
- * behind, because the delete's own `alsoRemove` found no file to remove and the first write's
- * condition — an absent file at revision zero — is satisfied by an absent file for a reason
- * that has nothing to do with the note. Closing it means the port growing an exclusive region
- * a caller can hold across a read and a write, with `ObsidianAssetRepository.delete` holding
- * the SAME one across both of its file operations, the note trash included. Recorded in
- * `docs/superpowers/plans/2026-08-30-asset-designer-first-increment.md` rather than only here.
+ * **The existence check and the write are now in ONE exclusive region, and this paragraph used
+ * to record why they were not.** It said closing the gap meant "the port growing an exclusive
+ * region a caller can hold across a read and a write, with `ObsidianAssetRepository.delete`
+ * holding the SAME one across both of its file operations" — a change to two infrastructure
+ * classes. That was the wrong layer to look in. `runDeleteResolution` has held
+ * `ReferenceLocks`'s level-1 lock on its entity across `deleteEntity` since design slice 10, so
+ * the region existed and the seven sidecar writers were simply not in it; `locks.withLevel1`
+ * puts them in it. Reported on PR 43.
+ *
+ * **What the version condition could not have done instead, because it is the obvious
+ * alternative.** `AssetGeometryStore` answers an absent sidecar as a valid empty document at
+ * `ABSENT_VERSION` — a CONSTANT — so a command that read `revision: 0`, had the asset deleted
+ * under it, and then wrote with `expected: ABSENT_VERSION` met a store reading exactly that,
+ * agreed, and created the file. An asset that HAD geometry is protected: expected revision 3
+ * against an absent revision 0 refuses. An asset that did not is not, and that is every first
+ * footprint, first calibration and first spec sheet.
+ *
+ * The sidecar's own `KeyedQueues` region is unchanged and still narrower than this one: it is
+ * inside `AssetGeometryStore`, keyed per asset, entered only at `read` and `write`, so it makes
+ * one write atomic against another write and knows nothing about a NOTE.
  *
  * **What it ANSWERS is `VersionedDispatch`, not a bare outcome.** The version a write
  * produced is known here and nowhere cheaper: a caller rediscovering it with a second read
@@ -139,6 +149,18 @@ export interface AssetShapeDeps {
 	readonly sidecar: AssetGeometrySidecar;
 	readonly assets: AssetRepository;
 	readonly events: EventBus;
+	/**
+	 * The mutual-exclusion set the DELETE of this asset already holds (PR 43's fourth finding).
+	 *
+	 * REQUIRED, and that is the point rather than a cost: a `locks?:` would be an exclusive
+	 * region whichever caller forgot it silently opted out of, and the failure is a `.rpgeo`
+	 * written for an asset that is gone — invisible to every gate, since nothing is wrong with the
+	 * code. Making it required named all twelve construction sites at the compiler.
+	 *
+	 * `ReferenceLocks.withLevel1` is where the reasoning lives, including why the version
+	 * condition cannot stand in for it and which asset it fails to protect.
+	 */
+	readonly locks: ReferenceLocks;
 }
 
 /**
@@ -253,22 +275,31 @@ export async function updateAssetShape(
 	unchanged: ShapeUnchanged,
 ): Promise<VersionedDispatchResult> {
 	const { sidecar, events } = deps;
-	const read = await loadAssetDocument(deps, input.assetId);
-	if (isErr(read)) return read;
-	const { document, version } = read.value.snapshot;
+	// The existence check and the write in ONE exclusive region, which is what the paragraph
+	// above used to record as an open exposure and no longer does.
+	const written = await deps.locks.withLevel1(input.assetId, async () => {
+		const read = await loadAssetDocument(deps, input.assetId);
+		if (isErr(read)) return read;
+		const { document, version } = read.value.snapshot;
 
-	const candidate = change(document.shape, captureAwaitsScale(document, read.value.background));
-	if (isErr(candidate)) return candidate;
-	const shape = validateAssetShape(candidate.value);
-	if (isErr(shape)) return shape;
+		const candidate = change(document.shape, captureAwaitsScale(document, read.value.background));
+		if (isErr(candidate)) return candidate;
+		const shape = validateAssetShape(candidate.value);
+		if (isErr(shape)) return shape;
 
-	if (document.shape !== null && unchanged(document.shape, shape.value)) {
-		return ok({ outcome: 'no-write' });
-	}
+		if (document.shape !== null && unchanged(document.shape, shape.value)) {
+			return ok(null);
+		}
 
-	const next: AssetGeometryDocument = { ...document, shape: shape.value };
-	const written = await sidecar.write(input.assetId, next, input.expected ?? version);
+		const next: AssetGeometryDocument = { ...document, shape: shape.value };
+		return await sidecar.write(input.assetId, next, input.expected ?? version);
+	});
 	if (isErr(written)) return written;
+	// `null` is the no-write arm, carried out of the region rather than returned from inside it:
+	// the announcement below must happen OUTSIDE the lock, because `events.publish` awaits its
+	// subscribers and a peer leaf's re-read reaches this same asset. Publishing while holding
+	// level 1 would make every subscriber's own read wait on a lock this command has not let go.
+	if (written.value === null) return ok({ outcome: 'no-write' });
 	await events.publish(assetDesignChanged({ assetId: input.assetId }));
 	// The version the WRITE produced, carried out to the caller rather than left to be
 	// rediscovered by a second read. A reversible adapter's undo is conditional on it, and a

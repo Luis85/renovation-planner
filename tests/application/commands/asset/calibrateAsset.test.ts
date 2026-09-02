@@ -34,6 +34,7 @@ import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { ObsidianPlanGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianPlanGeometrySidecar';
 import { createRepositoryStack } from '../../../helpers/vault';
+import { ReferenceLocks } from '../../../../src/application/reference/ReferenceLocks';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makeAsset, makePlan, makeProject } from '../../../helpers/entities';
 
@@ -117,7 +118,7 @@ async function seeded(options: { assets?: (real: AssetRepository) => AssetReposi
 			expectOk(await stack.plans.save(plan, 'absent'));
 			return plan.id;
 		},
-		calibrate: new CalibrateAssetCommand({ sidecar, assets, events }),
+		calibrate: new CalibrateAssetCommand({ sidecar, assets, events, locks: new ReferenceLocks() }),
 		async seedShape(shape: AssetShape | null): Promise<void> {
 			expectOk(await sidecar.write(assetId, { calibration: null, shape }));
 		},
@@ -421,6 +422,7 @@ describe('what a calibration refuses', () => {
 		const failing = new CalibrateAssetCommand({
 			sidecar: { read: () => Promise.resolve(err(VAULT_FAULT)), write: (...args) => h.sidecar.write(...args) },
 			assets: h.stack.assets,
+			locks: new ReferenceLocks(),
 			events: h.events,
 		});
 

@@ -1,4 +1,5 @@
-import { err, isErr, ok } from '../../../core/result/Result';
+import { err, isErr, ok, type Result } from '../../../core/result/Result';
+import type { AppError } from '../../../core/errors/AppError';
 import type { Point } from '../../../core/geometry/Point';
 import { scale as scaleShape } from '../../../core/geometry/operations';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
@@ -9,6 +10,7 @@ import { deriveCalibration, nonFiniteRescaleError } from '../../../domain/plan/C
 import type { Command } from '../Command';
 import { plainDispatch, type DispatchResult, type VersionedDispatchResult } from '../DispatchOutcome';
 import type { AssetGeometryDocument } from '../../ports/AssetGeometrySidecar';
+import type { EntityVersion } from '../../ports/versioning';
 import { loadAssetDocument, type AssetShapeDeps, type AssetShapeInput } from './updateAssetShape';
 
 /**
@@ -136,41 +138,60 @@ export class CalibrateAssetCommand implements Command<CalibrateAssetInput, Dispa
 	 * in `VersionedDispatch`.
 	 */
 	async executeWithVersion(input: CalibrateAssetInput): Promise<VersionedDispatchResult> {
-		const { sidecar, events } = this.deps;
-		// THE ASSET FIRST and the sidecar second, through the one function that asks it — a
-		// calibration writing a real `.rpgeo` for an invented id leaves exactly the orphan that
-		// check exists to prevent, and `loadAssetDocument` carries the whole argument.
-		const read = await loadAssetDocument(this.deps, input.assetId);
-		if (isErr(read)) return read;
-		// The background this read also carries is nothing to a calibration: `rescaled` below
-		// keys on the per-group flags a CAPTURE recorded, never on the surface as it stands now.
-		const { document, version } = read.value.snapshot;
+		const { sidecar, events, locks } = this.deps;
+		// The whole read-derive-write in ONE exclusive region, for `updateAssetShape`'s reason:
+		// the existence check below is asked in the application layer, and without the lock an
+		// asset deleted between it and the write leaves a `.rpgeo` for an asset that is gone.
+		// `ReferenceLocks.withLevel1` carries the account, including why the version condition
+		// cannot stand in for it on an asset that has no geometry yet — which is every FIRST
+		// calibration, and therefore every calibration this command has ever taken on a
+		// freshly created asset.
+		//
+		// The closure's return type is ANNOTATED, not inferred, and that is the same lesson
+		// `SetPlanBackgroundCommand`'s own `execute` records: inference produces a UNION of
+		// `Result`s — one arm per error type the body can return — which is not the same type as
+		// one `Result` over a union of errors, and `isErr` cannot narrow it. Measured rather
+		// than anticipated: without the annotation the compiler refuses both the narrowing and
+		// the `.value` read below.
+		const written = await locks.withLevel1<Result<EntityVersion, AppError>>(input.assetId, async () => {
+			// THE ASSET FIRST and the sidecar second, through the one function that asks it — a
+			// calibration writing a real `.rpgeo` for an invented id leaves exactly the orphan that
+			// check exists to prevent, and `loadAssetDocument` carries the whole argument.
+			const read = await loadAssetDocument(this.deps, input.assetId);
+			if (isErr(read)) return read;
+			// The background this read also carries is nothing to a calibration: `rescaled` below
+			// keys on the per-group flags a CAPTURE recorded, never on the surface as it stands now.
+			const { document, version } = read.value.snapshot;
 
-		const derived = deriveCalibration(
-			input.pointA,
-			input.pointB,
-			input.knownDistance,
-			document.calibration,
-		);
-		if (isErr(derived)) return derived;
-		const { calibration, scaleCorrection } = derived.value;
+			const derived = deriveCalibration(
+				input.pointA,
+				input.pointB,
+				input.knownDistance,
+				document.calibration,
+			);
+			if (isErr(derived)) return derived;
+			const { calibration, scaleCorrection } = derived.value;
 
-		const calibrated: Calibration = {
-			...calibration,
-			pointA: scaleShape(calibration.pointA, scaleCorrection, ORIGIN),
-			pointB: scaleShape(calibration.pointB, scaleCorrection, ORIGIN),
-		};
-		const shape = document.shape === null ? null : rescaled(document.shape, scaleCorrection);
-		if (!documentFinite(calibrated, shape)) return err(nonFiniteRescaleError());
-		const checked = shape === null ? null : validateAssetShape(shape);
-		if (checked !== null && isErr(checked)) return checked;
+			const calibrated: Calibration = {
+				...calibration,
+				pointA: scaleShape(calibration.pointA, scaleCorrection, ORIGIN),
+				pointB: scaleShape(calibration.pointB, scaleCorrection, ORIGIN),
+			};
+			const shape = document.shape === null ? null : rescaled(document.shape, scaleCorrection);
+			if (!documentFinite(calibrated, shape)) return err(nonFiniteRescaleError());
+			const checked = shape === null ? null : validateAssetShape(shape);
+			if (checked !== null && isErr(checked)) return checked;
 
-		const next: AssetGeometryDocument = {
-			calibration: calibrated,
-			shape: checked === null ? null : checked.value,
-		};
-		const written = await sidecar.write(input.assetId, next, input.expected ?? version);
+			const next: AssetGeometryDocument = {
+				calibration: calibrated,
+				shape: checked === null ? null : checked.value,
+			};
+			return await sidecar.write(input.assetId, next, input.expected ?? version);
+		});
 		if (isErr(written)) return written;
+		// OUTSIDE the region: `events.publish` awaits its subscribers and a peer designer leaf
+		// re-reads this same asset on it, so announcing while still holding level 1 would make
+		// every subscriber's own read wait on a lock this command has not let go.
 		await events.publish(assetDesignChanged({ assetId: input.assetId }));
 		return ok({ outcome: 'wrote', version: written.value });
 	}

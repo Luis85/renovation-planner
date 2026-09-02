@@ -1834,22 +1834,47 @@ different mechanisms, and the boundary between them is not a transaction.** Each
 through the code before being deferred, and each is written here rather than only in a review
 thread, because a deferral kept in a comment is a deferral nothing schedules.
 
-**1. The existence check is not atomic with the geometry write.** `updateAssetShape` asks
-`assets.getById` in the APPLICATION layer; the exclusive region is `KeyedQueues` inside
+**1. The existence check is not atomic with the geometry write. CLOSED on PR 43 — and the remedy
+below was looking in the wrong layer, which is the part worth keeping.** `updateAssetShape` asks
+`assets.getById` in the APPLICATION layer; the store's exclusive region is `KeyedQueues` inside
 `AssetGeometryStore`, keyed `asset:${assetId}`, entered only at `read` and `write`. And
 `ObsidianAssetRepository.delete` takes that queue for `alsoRemove` alone — the `trashFile` before
 it does not. So an asset deleted between the check and the write leaves a sidecar behind: the
 delete found no file to remove, and the first write's condition (an absent file at revision zero)
-is satisfied by an absent file for reasons that have nothing to do with the note. Not producible
-by either serial ordering.
+is satisfied by an absent file for reasons that have nothing to do with the note.
 
-*The remedy*: `AssetGeometrySidecar` grows an exclusive region a caller can hold —
-`runExclusive(assetId, fn)` — with `updateAssetShape` holding it across its `getById`, `read` and
-`write`, and `ObsidianAssetRepository.delete` holding the SAME one across BOTH of its file
-operations. One method, two call sites, and a widening of a port this increment declared plus a
-contract change to a delete sequence three entity kinds take. The narrowed claim ships in
-`updateAssetShape`'s own docblock meanwhile: **atomic with respect to other sidecar writes, not
-with respect to the asset's existence.**
+*The remedy this paragraph proposed*: `AssetGeometrySidecar` grows `runExclusive(assetId, fn)`,
+held by `updateAssetShape` across its reads and its write and by `ObsidianAssetRepository.delete`
+across both of its file operations — a port widening plus a contract change to a delete sequence
+three entity kinds take.
+
+*What was actually taken*, and it costs neither of those. `runDeleteResolution` has held
+`ReferenceLocks`'s LEVEL-1 lock on its entity across `deleteEntity` since design slice 10, so an
+application-layer region keyed on the asset already existed and the seven sidecar writers were
+simply not in it. `ReferenceLocks.withLevel1` puts them in it: `AssetShapeDeps` grows a required
+`locks`, and `updateAssetShape`, `CalibrateAsset` and `SetAssetBackground` each hold it across
+their reads and their write. **A remedy stated in a plan is one route, and re-reading which
+regions already exist was cheaper than building the one that was written down** — the same lesson
+design slice 13 recorded when a predicted reordering turned out to be the wrong fix for its live
+region.
+
+*What the version condition could not have done instead*, since it is the obvious cheaper answer.
+`AssetGeometryStore` answers an absent sidecar at `ABSENT_VERSION`, a CONSTANT, so a command that
+read revision 0, had the asset deleted under it and then wrote with `expected: ABSENT_VERSION` met
+a store reading exactly that, agreed, and created the file. An asset that HAD geometry is already
+protected — expected revision 3 against an absent revision 0 refuses — and one that did not is
+not, which is every first footprint, first calibration and first spec sheet.
+
+*The residual, measured and pinned rather than described.* A lock excludes only participants that
+TAKE it, and `runDeleteResolution` is the only deletion path that does. `DeleteAssetCommand` has
+no caller in `src/` outside its own composition (`grep -rn deleteAsset src/`), so that participant
+is not yet reachable from any gesture; and the delete a user CAN perform — removing the asset note
+in Obsidian's file explorer — never reaches `AssetGeometryStore.delete` at all, since
+`VaultChangeAdapter.processPath` drops the index entry and leaves the `.rpgeo`. That path orphans
+unconditionally, with or without this lock, and closing it means the plugin DELETING a file in
+response to somebody else's vault event — its own increment with its own argument, since a rename
+Obsidian reports as delete-then-create would take a design with it and there is no undo for one.
+`assetDesignLocking.test.ts`'s last case pins that bound as behaviour.
 
 **2. The two-file delete is not one recoverable sequence.** `trashNoteBackedEntity` compensates a
 REFUSAL of `alsoRemove` — it snapshots the note's bytes and restores them — and cannot compensate
@@ -1976,6 +2001,14 @@ region reachable through the port — per-asset for residual 1, and across every
 
 *So the increment that takes residual 4 should take 1, 5 and 6 with it.* Four findings, one
 mechanism, and taking them one at a time is how each would get its own bespoke guard.
+
+**Amended 2026-09-02, and the amendment is a correction rather than a note.** Residual 1 was
+closed on PR 43 WITHOUT that mechanism — see its own paragraph above — because the region it
+needed already existed one layer up, in `ReferenceLocks`. So "four findings, one mechanism" was
+three findings and a fourth that wanted something different, and the grouping argument should be
+re-derived rather than inherited: 4, 5 and 6 are about a sweep and a cross-asset region, which
+`ReferenceLocks` does not offer and the port still might. What survives intact is the warning
+against bespoke per-finding guards; what does not is the claim that all four wanted the same one.
 
 ---
 

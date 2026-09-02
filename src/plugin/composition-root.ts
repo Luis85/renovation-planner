@@ -310,7 +310,10 @@ function composeGuarded(
 	return {
 		...editor,
 		...guardSlice10(slice10, recalculate, logger, map),
-		...guardAssetDesign({ sidecar: assetGeometry, assets, events: eventBus }, files, logger, map),
+		// The SAME `locks` the delete resolution takes — `wiring.locks`, one instance per root. A
+		// second `new ReferenceLocks()` here would be two mutual-exclusion sets that exclude
+		// nothing from each other, which is the shape this file already refuses for the event bus.
+		...guardAssetDesign({ sidecar: assetGeometry, assets, events: eventBus, locks }, files, logger, map),
 		createProject: guardCommand(new CreateProjectCommand(projects, eventBus, defaultCurrency), 'command.createProject.failed', logger, map),
 		createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, map),
 		createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, map),

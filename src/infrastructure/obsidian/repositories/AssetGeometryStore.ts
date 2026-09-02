@@ -149,8 +149,23 @@ export class AssetGeometryStore {
 	 * went and its geometry stayed. The caller captures the mapping before it trashes anything
 	 * and passes it in; omitting it still derives, which is every caller that is not mid-delete.
 	 *
-	 * Inside the asset's own queue, so a delete cannot interleave with the read-modify-write
-	 * of a design gesture on the same asset.
+	 * Inside the asset's own queue, so this removal cannot interleave with a single sidecar
+	 * `read` or `write` on the same asset.
+	 *
+	 * **That sentence used to claim more, and the wider claim was false the day it was written.**
+	 * It said a delete "cannot interleave with the read-modify-write of a design gesture", which
+	 * `KeyedQueues` cannot deliver: the queue is entered at `read` and at `write` INDIVIDUALLY,
+	 * so a caller that reads, decides and then writes has let go of it in between and this
+	 * removal fits neatly into the gap. That is PR 43's fourth finding, and it is the shape this
+	 * repository keeps re-finding — a rule stated in a docblock is a rule some door is not
+	 * following, and the docblock is where to look first.
+	 *
+	 * What actually holds the wider claim is one layer up: `ReferenceLocks`'s level-1 lock on the
+	 * asset, held by `runDeleteResolution` across `deleteEntity` and now by every sidecar writer
+	 * across its own read and write. So the guarantee exists and this queue is not what provides
+	 * it — and it holds only for a delete that TAKES that lock, which a raw call to
+	 * `AssetRepository.delete` and a note removed in Obsidian's file explorer both do not.
+	 * `ReferenceLocks.withLevel1` and `assetDesignLocking.test.ts` carry the whole account.
 	 *
 	 * **What this makes UNRECOVERABLE, and it costs nothing today because the path does not
 	 * exist.** `undoDeleteResolution` has exactly one caller

@@ -33,6 +33,7 @@ import {
 import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
 import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
 import { SetAssetBackgroundCommand } from '../../src/application/commands/asset/SetAssetBackground';
+import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import type { VaultFileProbe } from '../../src/application/ports/VaultFileProbe';
 import type {
 	AssetGeometryDocument,
@@ -271,7 +272,7 @@ export async function seeded(
 	const path = stack.index.getPath(assetId) ?? '';
 	const assets = options.assets?.(stack.assets) ?? stack.assets;
 
-	const commandDeps = { sidecar, assets, events };
+	const commandDeps = { sidecar, assets, events, locks: new ReferenceLocks() };
 	const noteLedger = new SessionWriteLedger();
 	const geometryLedger = new SessionWriteLedger();
 	// Typed as the BUNDLE rather than as the concrete classes, so a case that replaces one door

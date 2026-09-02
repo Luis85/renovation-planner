@@ -20,6 +20,7 @@ import type { AssetShape } from '../../../../src/domain/asset/AssetShape';
 import type { Calibration } from '../../../../src/domain/plan/Calibration';
 import { ObsidianAssetGeometrySidecar } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
 import { createRepositoryStack, parseFrontmatter, serializeFrontmatter } from '../../../helpers/vault';
+import { ReferenceLocks } from '../../../../src/application/reference/ReferenceLocks';
 import { expectErr, expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
 
@@ -111,7 +112,7 @@ async function seeded(present: readonly string[] = ['Specs/oven.pdf', 'Specs/oth
 		sidecar: real,
 		/** What a peer leaf would have heard — the only thing that makes one re-read. */
 		designChanges,
-		setBackground: new SetAssetBackgroundCommand({ sidecar, assets, events }, probe(present)),
+		setBackground: new SetAssetBackgroundCommand({ sidecar, assets, events, locks: new ReferenceLocks() }, probe(present)),
 		async seedShape(shape: AssetShape | null): Promise<void> {
 			expectOk(await real.write(assetId, { calibration: null, shape }));
 		},

@@ -68,6 +68,7 @@ import {
 import { SetAssetHeightCommand } from '../../src/application/commands/asset/SetAssetHeight';
 import { CalibrateAssetCommand } from '../../src/application/commands/asset/CalibrateAsset';
 import { SetAssetBackgroundCommand } from '../../src/application/commands/asset/SetAssetBackground';
+import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import type { VaultFileProbe } from '../../src/application/ports/VaultFileProbe';
 import type { AssetDesignCommandBundle } from '../../src/application/editor/asset/ReversibleAssetDesignCommands';
 import { ObsidianAssetGeometrySidecar } from '../../src/infrastructure/obsidian/repositories/ObsidianAssetGeometrySidecar';
@@ -255,7 +256,7 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 	const assetId = written.entity.id;
 	expectOk(await sidecar.write(assetId, { calibration: null, shape: options.shape ?? null }));
 
-	const commandDeps = { sidecar, assets: stack.assets, events };
+	const commandDeps = { sidecar, assets: stack.assets, events, locks: new ReferenceLocks() };
 	// Held as a CONCRETE instance beside the annotated bundle below, for `assetDesignHarness`'s
 	// reason: the bundle's members are `VersionedDesignCommand`s, which is the door the
 	// reversible adapters take, while a PEER's gesture dispatches the plain `execute` a user's

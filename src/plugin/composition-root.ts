@@ -6,6 +6,8 @@ import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
+import { createProjectPricesChangeSource } from '../application/events/projectPricesChangeSource';
+import { createRequirementFiguresChangeSource } from '../application/events/requirementFiguresChangeSource';
 import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
 import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
@@ -566,6 +568,8 @@ export function planEditorDeps(
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
 		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
+		onProjectPricesChanged: createProjectPricesChangeSource(root.eventBus),
+		onRequirementFiguresChanged: createRequirementFiguresChangeSource(root.eventBus),
 	};
 }
 

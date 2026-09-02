@@ -64,6 +64,31 @@ export interface PlanEditorContext {
 	 */
 	onCatalogueChanged(listener: () => void): () => void;
 	/**
+	 * "This project's price for some asset changed — re-read the figures." Unfiltered, for
+	 * the reason `projectPricesChangeSource` states: this leaf holds a PLAN id, and resolving
+	 * it to a project is an async read a subscription cannot wait on before deciding to skip
+	 * work.
+	 *
+	 * A FOURTH door rather than more traffic through the third: the catalogue door answers
+	 * "the shared library moved" and this one answers "this project's own price moved", and
+	 * the Inspector's unit-cost block shows both figures side by side. Wiring only one of them
+	 * would leave that block showing a stale library price next to a fresh project one, which
+	 * is a worse picture than two stale numbers.
+	 */
+	onProjectPricesChanged(listener: () => void): () => void;
+	/**
+	 * "This requirement's STORED figures moved — re-read it." The id is delivered because the
+	 * Inspector renders one zone's requirements and can therefore skip an event about a
+	 * requirement it is not drawing.
+	 *
+	 * A FIFTH door, and the two above cannot stand in for it: the unit-cost block has three
+	 * inputs, and the catalogue and price events fire BEFORE the figure they move.
+	 * `EventBus.publish` delivers to every handler without ordering them, so re-reading on
+	 * either of those races the recalculation cascade rather than following it — the block
+	 * would show the new price beside the OLD provenance, with nothing to correct it.
+	 */
+	onRequirementFiguresChanged(listener: (requirementId: string) => void): () => void;
+	/**
 	 * Close THIS leaf — the tab the user is looking at.
 	 *
 	 * The one thing a Plan Editor can offer a user whose plan is gone. `GetPlan` answering

@@ -98,6 +98,14 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.inspector.requirement.overridden': 'Übersteuert',
 	'editor.inspector.requirement.stale': 'Werte sind veraltet; Anforderung neu berechnen.',
 	'editor.inspector.requirement.missing-asset': 'Objekt fehlt im Katalog.',
+	// „Bibliothekspreis" für den geteilten Katalogpreis, „Projektpreis" für den eigenen Preis
+	// dieses Projekts. Kein „Material" und kein „Asset": ein Asset heißt in dieser Oberfläche
+	// `Objekt` (siehe `editor.inspector.requirement.asset`), und diese drei Zeilen stehen
+	// unmittelbar daneben.
+	'view.inspector.price-library': 'Bibliothekspreis',
+	'view.inspector.price-project': 'Projektpreis',
+	'view.inspector.price-in-force': 'Aktiv',
+	'view.inspector.price-derived-from': 'Berechnet aus',
 	'editor.inspector.assign.label': 'Objekt zuweisen',
 	'editor.inspector.assign.button': 'Zuweisen',
 	'editor.inspector.quantity-override.label': 'Mengen-Übersteuerung für',

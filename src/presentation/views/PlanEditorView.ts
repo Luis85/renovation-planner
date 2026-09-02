@@ -56,6 +56,19 @@ export interface PlanEditorDeps {
 	 * on and every leaf wants the same unfiltered category.
 	 */
 	readonly onCatalogueChanged: (listener: () => void) => () => void;
+	/**
+	 * Subscribe to the domain events that mean "a project's own price for an asset moved".
+	 *
+	 * Takes no id for the same reason the door above does not: this view's subject is a PLAN,
+	 * and the price event names a project. Filtering here would mean resolving the plan to a
+	 * project first, which is an async read a subscription cannot wait on.
+	 */
+	readonly onProjectPricesChanged: (listener: () => void) => () => void;
+	/**
+	 * Subscribe to the domain events that mean "this requirement's stored figures moved",
+	 * delivering the requirement's id so the Inspector can skip a row it is not drawing.
+	 */
+	readonly onRequirementFiguresChanged: (listener: (requirementId: string) => void) => () => void;
 }
 
 /**
@@ -204,6 +217,11 @@ export class PlanEditorView extends ItemView {
 			onPlanChanged: (listener) => this.deps.onPlanChanged(planId, listener),
 			// Passed straight through rather than partially applied: there is no id to bind.
 			onCatalogueChanged: this.deps.onCatalogueChanged,
+			// Passed straight through for the same reason, and for the two below the reason is
+			// the same one more time: neither the price nor the figure door takes an id this
+			// view holds.
+			onProjectPricesChanged: this.deps.onProjectPricesChanged,
+			onRequirementFiguresChanged: this.deps.onRequirementFiguresChanged,
 			// NOT a `PlanEditorDeps` member: the composition root composes services and knows
 			// nothing about which leaf this is. The leaf is the VIEW's, so the view is what can
 			// close it.

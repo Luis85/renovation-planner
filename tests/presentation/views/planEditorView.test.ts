@@ -26,6 +26,8 @@ installEditorEnvironment();
 let themeListeners = 0;
 let planListeners = 0;
 let catalogueListeners = 0;
+let priceListeners = 0;
+let figureListeners = 0;
 
 function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 	return {
@@ -66,6 +68,18 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 				catalogueListeners -= 1;
 			};
 		},
+		onProjectPricesChanged: () => {
+			priceListeners += 1;
+			return () => {
+				priceListeners -= 1;
+			};
+		},
+		onRequirementFiguresChanged: () => {
+			figureListeners += 1;
+			return () => {
+				figureListeners -= 1;
+			};
+		},
 	};
 }
 
@@ -101,6 +115,8 @@ beforeEach(() => {
 	themeListeners = 0;
 	planListeners = 0;
 	catalogueListeners = 0;
+	priceListeners = 0;
+	figureListeners = 0;
 });
 
 afterEach(async () => {
@@ -225,6 +241,10 @@ describe('mount and unmount', () => {
 		// one that subscribed both to `onPlanChanged` would read 2 and 0 again.
 		expect(planListeners).toBe(1);
 		expect(catalogueListeners).toBe(1);
+		// The two doors the unit-cost block added. Counted for the same reason and asserted the
+		// same way: each is a subscription the runtime takes once and must give back once.
+		expect(priceListeners).toBe(1);
+		expect(figureListeners).toBe(1);
 
 		await view.onClose();
 		await settle();
@@ -233,6 +253,8 @@ describe('mount and unmount', () => {
 		expect(themeListeners).toBe(0);
 		expect(planListeners).toBe(0);
 		expect(catalogueListeners).toBe(0);
+		expect(priceListeners).toBe(0);
+		expect(figureListeners).toBe(0);
 		expect(view.contentEl.childElementCount).toBe(0);
 	});
 

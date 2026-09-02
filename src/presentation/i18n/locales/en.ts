@@ -60,6 +60,18 @@ export const en = {
 	'editor.inspector.requirement.overridden': 'Overridden',
 	'editor.inspector.requirement.stale': 'Figures are out of date; recalculate this requirement.',
 	'editor.inspector.requirement.missing-asset': 'Asset missing from the catalog.',
+	// §89's "beside what it replaced" at the INPUT level: the shared library's unit price, this
+	// project's own, and the price the row's figures were actually derived from. `price-in-force`
+	// is the §85 non-colour channel — a WORD beside the figure, so a screen reader reads it and a
+	// user who cannot tell the two colours apart still knows which figure is being used.
+	//
+	// The prefix is `view.inspector.` because the task brief spells these four keys that way. It
+	// is the odd one out on this surface, whose other twenty keys are `editor.inspector.*` while
+	// `view.*` elsewhere in this file means the Renovation Project view.
+	'view.inspector.price-library': 'Library price',
+	'view.inspector.price-project': 'Project price',
+	'view.inspector.price-in-force': 'In force',
+	'view.inspector.price-derived-from': 'Derived from',
 	'editor.inspector.assign.label': 'Assign asset',
 	'editor.inspector.assign.button': 'Assign',
 	'editor.inspector.quantity-override.label': 'Override quantity for',

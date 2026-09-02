@@ -16,7 +16,7 @@ import type { AppError } from '../../../src/core/errors/AppError';
 import type { DispatchResult } from '../../../src/application/commands/DispatchOutcome';
 import type { RequirementInspectorDTO } from '../../../src/application/queries/GetRequirementsForZone';
 import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
-import { of as moneyOf } from '../../../src/core/money/Money';
+import { of as moneyOf, type Money } from '../../../src/core/money/Money';
 import type { InspectorEdit } from '../../../src/presentation/editor/inspector/inspector-store';
 import type { Logger } from '../../../src/application/ports/Logger';
 
@@ -421,5 +421,156 @@ describe('RequirementRow', () => {
 
 		expect(commit).not.toHaveBeenCalled();
 		expect((input.element as HTMLInputElement).value).toBe('');
+	});
+});
+
+/**
+ * §89's "beside what it replaced", at the INPUT level: the shared library's unit price, this
+ * project's own, and the one the row's figures were actually DERIVED from.
+ *
+ * Task 8 added `RequirementInspectorDTO.unitCost` and populated it, and nothing rendered it —
+ * an unread DTO field fails no gate, which is why the group existed for a whole task as a
+ * promise in a document. These cases are what turn it into a check.
+ *
+ * The three figures are read off `[data-price]` rather than off the rendered text of the whole
+ * `<dl>`: `100.00` appears in the cost block too, so a text assertion over the row would be
+ * green against a build that rendered nothing new at all.
+ */
+function unitCostRow(unitCost: RequirementInspectorDTO['unitCost']): RequirementInspectorDTO {
+	return { ...ROW, unitCost };
+}
+
+/** Every unit-cost figure the row drew, keyed by which of the three it is. */
+function prices(wrapper: ReturnType<typeof mountRow>['wrapper']): Record<string, string> {
+	return Object.fromEntries(
+		wrapper.findAll('[data-price]').map((cell) => [cell.attributes('data-price') ?? '', cell.text()]),
+	);
+}
+
+/**
+ * The figure `slot` drew, compared against what `Money` itself prints for it — amount AND
+ * currency, since one of these cases deliberately mixes two.
+ *
+ * Built from the same `Money` the fixture holds rather than from the literal that made it:
+ * `of('26.00', 'EUR').amount` is `'26'`, so a hand-written `'26.00'` would be asserting a
+ * formatting decision this row does not make. `toContain` rather than `toBe` because the in-force
+ * mark, when there is one, is inside the same cell — which `markedInForce` asserts separately.
+ */
+function expectFigure(
+	wrapper: ReturnType<typeof mountRow>['wrapper'],
+	slot: string,
+	money: Money,
+): void {
+	// The key first, so a build that drew no such figure names the slot it is missing rather
+	// than reporting an `undefined` receiver.
+	expect(Object.keys(prices(wrapper))).toContain(slot);
+	expect(prices(wrapper)[slot]).toContain(`${money.amount} ${money.currency}`);
+}
+
+/** Which figures carry the in-force mark. Exactly one, or none — never two. */
+function markedInForce(wrapper: ReturnType<typeof mountRow>['wrapper']): string[] {
+	return wrapper
+		.findAll('[data-price]')
+		.filter((cell) => cell.find('.rp-editor-requirement-in-force').exists())
+		.map((cell) => cell.attributes('data-price') ?? '');
+}
+
+describe('RequirementRow unit cost', () => {
+	it('shows the library price beside this project price, marking the one in force', () => {
+		const catalogue = moneyOf('24.00', 'EUR');
+		const projectOverride = moneyOf('19.50', 'GBP');
+		const { wrapper } = mountRow(wrote, unitCostRow({ catalogue, projectOverride, effective: projectOverride }));
+
+		expectFigure(wrapper, 'library', catalogue);
+		expectFigure(wrapper, 'project', projectOverride);
+		// The override is the current resolution, so it — and only it — is in force.
+		expect(markedInForce(wrapper)).toEqual(['project']);
+	});
+
+	it('shows the library price alone when the project has no override AND nothing is stale', () => {
+		// BOTH conditions. `ROW` has all three figures agreeing, so there is one number to show,
+		// nothing to compare it against, and therefore no label saying which of one figure is in
+		// force — a mark on a lone figure is a dangling label.
+		const { wrapper } = mountRow();
+
+		expect(Object.keys(prices(wrapper))).toEqual(['library']);
+		expect(markedInForce(wrapper)).toEqual([]);
+	});
+
+	/**
+	 * The no-override STALE row. `projectOverride` is null, the library price has moved, and the
+	 * recalculation that would have caught up failed — so `effective` is still the old
+	 * `calculatedFrom.unitCost`. Rendering the current library price ALONE would hide the price
+	 * the displayed calculated cost was actually derived from, on a row simultaneously marked
+	 * stale: the surface contradicting its own status field, which is exactly what Task 8's
+	 * `effective` docblock says this group exists to prevent.
+	 */
+	it('shows the provenance beside the library price when they differ and there is no override', () => {
+		const catalogue = moneyOf('26.00', 'EUR');
+		const effective = moneyOf('24.00', 'EUR');
+		const { wrapper } = mountRow(wrote, unitCostRow({ catalogue, projectOverride: null, effective }));
+
+		expectFigure(wrapper, 'library', catalogue);
+		expectFigure(wrapper, 'derived', effective);
+		expect(prices(wrapper)['project']).toBeUndefined();
+		// No override, so the library price IS the current resolution and carries the mark; the
+		// provenance row is labelled as what the figures were computed from. Two labels, never
+		// one mark twice.
+		expect(markedInForce(wrapper)).toEqual(['library']);
+	});
+
+	/** §85: never colour alone. The in-force marker is a word, so a screen reader reads it. */
+	it('marks the figure in force with something a screen reader reads', () => {
+		const { wrapper } = mountRow(wrote, unitCostRow({
+			catalogue: moneyOf('24.00', 'EUR'),
+			projectOverride: moneyOf('19.50', 'GBP'),
+			effective: moneyOf('19.50', 'GBP'),
+		}));
+
+		expect(wrapper.get('.rp-editor-requirement-in-force').text().trim()).not.toBe('');
+	});
+
+	/**
+	 * The case every other one here is blind to, because they all use different numbers: a
+	 * project whose own price happens to equal the library's. An equality-based mark marks BOTH
+	 * rows and the surface claims two figures are the one in force; precedence marks the project
+	 * row and only that one.
+	 */
+	it('marks the project row alone when the override equals the library price', () => {
+		const { wrapper } = mountRow(wrote, unitCostRow({
+			catalogue: moneyOf('24.00', 'GBP'),
+			projectOverride: moneyOf('24.00', 'GBP'),
+			effective: moneyOf('24.00', 'GBP'),
+		}));
+
+		expect(Object.keys(prices(wrapper))).toEqual(['library', 'project']);
+		expect(markedInForce(wrapper)).toEqual(['project']);
+	});
+
+	/**
+	 * Decision 6's "three numbers in the worst case", and the only shape that needs all three: a
+	 * project price that moved out of band under a failed recalculation.
+	 */
+	it('shows all three when the override moved and the recalculation did not catch up', () => {
+		const catalogue = moneyOf('26.00', 'EUR');
+		const projectOverride = moneyOf('21.00', 'GBP');
+		const effective = moneyOf('19.50', 'GBP');
+		const { wrapper } = mountRow(wrote, unitCostRow({ catalogue, projectOverride, effective }));
+
+		expectFigure(wrapper, 'library', catalogue);
+		expectFigure(wrapper, 'project', projectOverride);
+		expectFigure(wrapper, 'derived', effective);
+		expect(markedInForce(wrapper)).toEqual(['project']);
+	});
+
+	/**
+	 * The asset is gone, so there is no catalogue price to compare against — Task 8 sets the
+	 * whole group to `null` rather than inventing a zero, and the row must not render an empty
+	 * comparison for it.
+	 */
+	it('renders no unit-cost block when the asset is missing', () => {
+		const { wrapper } = mountRow(wrote, { ...ROW, missingTarget: 'asset', assetName: null, unitCost: null });
+
+		expect(wrapper.findAll('[data-price]')).toHaveLength(0);
 	});
 });

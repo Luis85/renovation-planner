@@ -112,3 +112,31 @@
 	font-size: var(--font-ui-smaller);
 	cursor: pointer;
 }
+
+/*
+ * The unit-cost block (§89's "beside what it replaced", at the input level): up to three
+ * figures in one row that already carries two, which is exactly where alignment breaks.
+ * Tabular figures put the decimal points under each other so a library price, a project price
+ * and a provenance read as a column rather than as three unrelated numbers.
+ *
+ * jsdom lays nothing out, so NOTHING in this repository measures either rule below: not the
+ * suite, and not a capture either, because the harness page seeds no requirements and therefore
+ * draws no row. `npm run test-build` in a live vault is the only instrument for both.
+ */
+.rp-editor-inspector-fields dd[data-price] {
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The in-force mark. §85 asks for more than colour and the WORD is what discharges that; this
+ * rule is what stops the word being read as the badge beside it.
+ *
+ * `Overridden` reports the user's OWN edit and takes the accent; this one reports which of
+ * several figures the calculation is using, which is quieter information. Spelled with both
+ * classes — (0,2,0) against the base badge's (0,1,0) — rather than left to source order, so the
+ * precedence is a fact about the selectors and not about where the rule happens to sit.
+ */
+.rp-editor-requirement-badge.rp-editor-requirement-in-force {
+	color: var(--text-normal);
+	background-color: var(--background-modifier-hover);
+}

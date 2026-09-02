@@ -1,0 +1,404 @@
+<!--
+	One category shelf of the asset library — its header, its count, and its rows.
+
+	A separate file from `AssetLibrary.vue` for two reasons, and the second is the one that
+	decided it. The shelf is the surface's repeated unit, so it is what a promoted component
+	takes props for; and `max-lines` is 400 here as everywhere in `src/`, which this repository
+	learned by shipping `WorkPackages.vue` at 506. Deciding the decomposition before writing the
+	screen is what `src/prototypes/README.md` asks for in as many words.
+
+	**The mark is the point of this file.** Each row's leading 20px box draws the asset's own
+	footprint, fitted to the box at its true aspect ratio, from the coordinates the Asset
+	designer captured. It is not an icon and no asset gets a picture of its category: a radiator
+	reads as the long thin thing it is because it IS 1200 × 100, and that is the product's own
+	claim — geometry produces project information — visible at row scale. `aria-hidden`, always,
+	with the same fact written in words in the inspector: a drawn outline that is the only
+	statement of something is the colour-alone failure in a different medium.
+
+	**An empty shelf still draws.** Seven categories, always all seven, and a shelf holding
+	nothing renders its header greyed with the count `0` and no disclosure control at all — a
+	plain heading rather than a disabled button, because there is nothing to expand and a
+	disabled control invites a press that will never work. Six empty headings over one full one
+	reads as a system with room in it; six headings silently omitted reads as a system that has
+	decided what you are allowed to own, and the seven categories are the thing this structure
+	asks a renovator to learn.
+-->
+<script setup lang="ts">
+import { computed } from 'vue';
+import { ASSETS, markPath, type CatalogueAsset } from './assetLibraryFixture';
+
+/**
+ * Every prop is optional and defaulted, so this region draws as a SPECIMEN on the harness index
+ * as well as inside `AssetLibrary.vue`. The index renders a picked entry bare — no props, no
+ * parent — and CLAUDE.md already records what a region that cannot survive that costs: a shell
+ * region that only exists inside the whole editor is one nobody ever looks at, and the harness
+ * exists for looking. The defaults are the real fixture rather than placeholders, so the
+ * specimen shows the four mark states it is here to be judged on.
+ */
+const props = withDefaults(defineProps<{
+	label?: string;
+	assets?: readonly CatalogueAsset[];
+	expanded?: boolean;
+	selectedId?: string | null;
+	/** A search result list is one flat run of rows, so its rows carry the category instead. */
+	showCategory?: boolean;
+}>(), {
+	label: 'Furniture',
+	assets: () => ASSETS.filter((a) => a.category === 'Furniture'),
+	expanded: true,
+	selectedId: null,
+});
+
+defineEmits<{ toggle: []; select: [id: string] }>();
+
+const listId = computed(() => `rp-al-shelf-${props.label.toLowerCase().replace(/\s+/g, '-')}`);
+const path = (asset: CatalogueAsset): string =>
+	asset.outline === null ? '' : markPath(asset.outline, 20, 2);
+</script>
+
+<template>
+	<section class="rp-al-shelf">
+		<h3
+			v-if="assets.length === 0"
+			class="rp-al-shelf__head rp-al-shelf__head--empty"
+		>
+			<span class="rp-al-shelf__name">{{ label }}</span>
+			<span class="rp-al-shelf__count">0</span>
+		</h3>
+		<h3
+			v-else
+			class="rp-al-shelf__heading"
+		>
+			<button
+				type="button"
+				class="rp-al-shelf__head"
+				:aria-expanded="expanded"
+				:aria-controls="listId"
+				@click="$emit('toggle')"
+			>
+				<svg
+					class="rp-al-shelf__chevron"
+					:class="{ 'rp-al-shelf__chevron--open': expanded }"
+					viewBox="0 0 12 12"
+					aria-hidden="true"
+				>
+					<path d="M4.5 2.5 L8.5 6 L4.5 9.5" />
+				</svg>
+				<span class="rp-al-shelf__name">{{ label }}</span>
+				<span class="rp-al-shelf__count">{{ assets.length }}</span>
+			</button>
+		</h3>
+		<ul
+			v-show="expanded && assets.length > 0"
+			:id="listId"
+			class="rp-al-rows"
+		>
+			<li
+				v-for="asset in assets"
+				:key="asset.id"
+			>
+				<button
+					type="button"
+					class="rp-al-row"
+					:class="{ 'rp-al-row--on': asset.id === selectedId }"
+					:aria-current="asset.id === selectedId ? 'true' : undefined"
+					@click="$emit('select', asset.id)"
+				>
+					<svg
+						class="rp-al-mark"
+						:class="`rp-al-mark--${asset.shape}`"
+						viewBox="0 0 20 20"
+						aria-hidden="true"
+					>
+						<path
+							v-if="asset.outline !== null"
+							:d="path(asset)"
+						/>
+						<circle
+							v-for="x in (asset.shape === 'pending' ? [5, 10, 15] : [])"
+							:key="x"
+							class="rp-al-mark__dot"
+							:cx="x"
+							cy="10"
+							r="1.1"
+						/>
+					</svg>
+					<span class="rp-al-row__name">{{ asset.name }}</span>
+					<span
+						v-if="showCategory"
+						class="rp-al-row__category"
+					>{{ asset.category }}</span>
+					<span class="rp-al-row__cost">
+						<span class="rp-al-row__amount">€{{ asset.unitCost }}</span>
+						<span class="rp-al-row__unit"> / {{ asset.unit }}</span>
+					</span>
+					<span class="rp-al-row__waste">{{ asset.waste ?? '' }}</span>
+					<span class="rp-al-row__supplier">{{ asset.supplier ?? '' }}</span>
+				</button>
+			</li>
+		</ul>
+	</section>
+</template>
+
+<style scoped>
+.rp-al-shelf__heading,
+.rp-al-shelf__head--empty {
+	margin: 0;
+	font-size: var(--font-ui-small);
+	font-weight: var(--font-medium);
+}
+
+/*
+ * The whole header row is the target, at `--size-4-6` — WCAG 2.5.8 asks 24px, and the harness
+ * index shipped 19.5px rows once, found by photographing the page rather than by any gate.
+ * Obsidian's own `button:not(.clickable-icon)` is (0,1,1) and sets a background and a colour,
+ * so this is selected under `.rp-al-shelf` to outrank it — the loss `buttonSpecificity.test.ts`
+ * refuses as a category for every shipping row in this plugin.
+ */
+.rp-al-shelf .rp-al-shelf__head {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	width: 100%;
+	min-height: var(--size-4-6);
+	padding: var(--size-2-2) var(--size-4-3);
+	border: none;
+	border-radius: 0;
+	background-color: transparent;
+	color: var(--text-normal);
+	font-size: inherit;
+	font-weight: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.rp-al-shelf .rp-al-shelf__head:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* Obsidian's global `:focus { outline: none }` reaches buttons and the vendored reduction puts
+   nothing back that clears WCAG 1.4.11's 3:1 floor, so every interactive class here states its
+   own ring. Negative offset: these rows run edge to edge and an outside ring would be clipped. */
+.rp-al-shelf .rp-al-shelf__head:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+.rp-al-shelf__head--empty {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	min-height: var(--size-4-6);
+	/* The chevron's own width plus its gap, so an empty shelf's label sits on the same left
+	   edge as a full one's rather than shifting into the space the control vacated. */
+	padding: var(--size-2-2) var(--size-4-3) var(--size-2-2) calc(var(--size-4-3) + 12px + var(--size-4-2));
+	color: var(--text-faint);
+}
+
+.rp-al-shelf__chevron {
+	flex: 0 0 auto;
+	width: 12px;
+	height: 12px;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.5;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	color: var(--text-muted);
+	transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.rp-al-shelf__chevron--open {
+	transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.rp-al-shelf__chevron {
+		transition: none;
+	}
+}
+
+.rp-al-shelf__name {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.rp-al-shelf__count {
+	flex: 0 0 auto;
+	color: var(--text-faint);
+	font-variant-numeric: tabular-nums;
+	font-weight: var(--font-normal);
+}
+
+.rp-al-rows {
+	margin: 0 0 var(--size-4-2);
+	padding: 0;
+	list-style: none;
+}
+
+/*
+ * The row. A GRID rather than a flex row, for the reason `project-detail.css` records paying
+ * for twice: with a flexible name beside two or three `auto` items, the slack lands wherever
+ * each name's length leaves it and the right-hand facts stop forming columns. Fixed tracks
+ * after the flexible one keep the cost, the waste and the supplier each in their own column
+ * down the whole shelf, which is the entire argument for a dense row over a flat one.
+ */
+.rp-al-shelf .rp-al-row {
+	display: grid;
+	grid-template-columns: 20px minmax(0, 1fr) auto auto minmax(0, 16ch);
+	align-items: center;
+	gap: var(--size-4-2);
+	width: 100%;
+	min-height: var(--size-4-6);
+	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
+	border: none;
+	border-radius: 0;
+	background-color: transparent;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	text-align: left;
+	cursor: pointer;
+}
+
+.rp-al-shelf .rp-al-row:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-al-shelf .rp-al-row:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/*
+ * Selection is a PRINTED MARK before it is a colour: a filled rule at the row's leading edge,
+ * plus `aria-current` in the markup, with the tint riding along as a third channel and never as
+ * the only one. PRODUCT.md forbids state carried by colour alone, and a list row is where that
+ * is easiest to lose. The rule is drawn with `box-shadow` rather than a border so it costs no
+ * layout and cannot shift the grid by 2px against every unselected row beside it.
+ */
+.rp-al-shelf .rp-al-row--on {
+	background-color: var(--background-modifier-active-hover);
+	box-shadow: inset 2px 0 0 0 var(--interactive-accent);
+	font-weight: var(--font-medium);
+}
+
+.rp-al-mark {
+	width: 20px;
+	height: 20px;
+	overflow: visible;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1;
+	stroke-linejoin: round;
+	color: var(--text-muted);
+}
+
+.rp-al-row--on .rp-al-mark {
+	color: var(--text-normal);
+}
+
+/*
+ * FOUR STATES THAT DIFFER IN KIND, and getting there took a capture.
+ *
+ * The first version drew an empty box for both absence states, told apart by a diagonal, and
+ * put a slash across an unscaled outline. Photographed with all four on screen at once, three
+ * of them were a square with a line through it: a measured 600 × 600 tile, an unscaled cabinet
+ * and a not-yet-read cabinet were separated by stroke pattern in one case and by COLOUR alone
+ * in the other — the exact failure this mark exists to avoid, shipped by the mark. Nothing in
+ * jsdom could have said so, and reasoning about it did not either; the two collisions are
+ * obvious the moment the shelf holding them is the one that happens to be open.
+ *
+ * So each state now differs from every other in KIND, never in weight:
+ *
+ * - `measured` — the outline, solid.
+ * - `unscaled` — the SAME outline, dashed. The proportions are real and the scale is not, which
+ *   is exactly what a provisional stroke over true geometry says.
+ * - `pending` — three dots. Not a shape at all, so no footprint can collide with it, and it is
+ *   already the printed mark for "still coming".
+ * - `none` — nothing. An empty slot is the one thing no other state can be mistaken for, and a
+ *   drawn box for "there is no shape" was only ever scaffolding pretending to be data.
+ *
+ * The 20px column is held by the `<svg>` itself, which always renders. Removing the element for
+ * `none` would let the grid pull every later slot one column left.
+ */
+.rp-al-mark--unscaled {
+	stroke-dasharray: 2 2;
+}
+
+.rp-al-mark--pending {
+	color: var(--text-faint);
+}
+
+.rp-al-mark__dot {
+	fill: currentColor;
+	stroke: none;
+}
+
+.rp-al-row__name {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.rp-al-row__category,
+.rp-al-row__supplier {
+	overflow: hidden;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/* Tabular numerals so the decimal points line up down the shelf. A price column that does not
+   align is a price column a reader has to parse one row at a time. */
+.rp-al-row__cost {
+	white-space: nowrap;
+}
+
+/* Tabular numerals on the amount alone: it is the column a reader runs an eye down, and the
+   unit beside it is a word. A price column whose decimal points do not line up is one that has
+   to be parsed a row at a time. */
+.rp-al-row__amount {
+	font-variant-numeric: tabular-nums;
+}
+
+.rp-al-row__unit {
+	color: var(--text-muted);
+}
+
+.rp-al-row__waste {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * The two droppable slots. A CONTAINER query and never a media query: this surface's width is
+ * its PANE's — the window minus both Obsidian sidebars minus whatever is split beside it — and
+ * `docs/user-experience/concepts/README.md` records what measuring the wrong box costs, a canvas
+ * given 67% of a 1440px pane and 29% of a 680px one. The container is declared on the shelves
+ * region in `AssetLibrary.vue`.
+ */
+@container rp-al-shelves (width < 40rem) {
+	.rp-al-shelf .rp-al-row {
+		grid-template-columns: 20px minmax(0, 1fr) auto auto;
+	}
+
+	.rp-al-row__supplier {
+		display: none;
+	}
+}
+
+@container rp-al-shelves (width < 32.5rem) {
+	.rp-al-shelf .rp-al-row {
+		grid-template-columns: 20px minmax(0, 1fr) auto;
+	}
+
+	.rp-al-row__waste {
+		display: none;
+	}
+}
+</style>

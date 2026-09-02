@@ -153,8 +153,11 @@ category check for that, and it reads every shipping sheet, so this one is insid
 it exists.
 
 **Selection is a printed mark, not a tint.** A selected row carries a 2px filled rule at its leading
-edge plus `aria-selected="true"`; the background tint rides along as the third channel, never as the
-only one. This is the raise from the reference-setting challenger, and it is also PRODUCT.md's
+edge plus `aria-current="true"`; the background tint rides along as the third channel, never as the
+only one. `aria-current` rather than `aria-selected`, which is only valid on a handful of roles
+(`option`, `row`, `tab`, `gridcell`, `treeitem`) and would be an ARIA violation on a `<button>` —
+the rule is drawn with an inset `box-shadow` rather than a border so it costs no layout and cannot
+shift the grid by 2px against every unselected row beside it. This is the raise from the reference-setting challenger, and it is also PRODUCT.md's
 "no status, state or category encoded by colour alone" arriving where it is easiest to lose.
 
 ### 3.4 The geometry mark
@@ -166,19 +169,24 @@ radiator; a tile reads as a square; a shrub reads as whatever the user drew. It 
 claim — *geometry produces project information* — visible at row scale, and it is not an icon: no
 asset gets a picture of its category, because a picture of a category is decoration and this is data.
 
-Four states, each a **printed mark** and none of them a colour:
+Four states, each a **printed mark** and none of them a colour. Every one differs from every
+other in KIND rather than in weight, and that is a correction the prototype forced rather than
+a rule this section always held — see §12:
 
 | State | Drawn as |
 | --- | --- |
-| Footprint, measured | the outline, hairline stroke, fitted with a 2px inset |
-| Footprint, **unscaled** | the same outline, plus a hairline slash across the box — the proportions are real, the scale is not, so the outline is honest and the slash says what is missing |
-| No shape yet | an empty box with a hairline diagonal corner-to-corner: the printed mark for *nothing here* |
-| Not yet read | the empty box alone, no diagonal |
+| Footprint, measured | the outline, solid hairline stroke, fitted with a 2px inset |
+| Footprint, **unscaled** | the **same outline, dashed**. The proportions are real and the scale is not, which is exactly what a provisional stroke over true geometry says |
+| Not yet read | **three dots**, centred. Not a shape at all, so no footprint can collide with it, and it is already the printed mark for *still coming* |
+| No shape yet | **nothing**. An empty slot is the one thing no other state can be mistaken for, and a drawn box for *there is no shape* is scaffolding pretending to be data |
 
-The fourth state is not a skeleton animation; it is the box the row draws before its shape arrives,
-and it must be visually distinct from *no shape yet* or the surface will assert an absence it has not
-checked. The clearance boundary, the anchor and the facing are **not** drawn at 20px — they are mush
-at that size, and they belong to the inspector.
+The third state is not a skeleton animation; it is what the row draws before its shape arrives,
+and it has to be distinct from *no shape yet* or the surface asserts an absence it has not
+checked. The 20px column is held by the `<svg>` element, which renders in every state including
+the empty one — removing it would let the grid pull every later slot one column left.
+
+The clearance boundary, the anchor and the facing are **not** drawn at 20px — they are mush at
+that size, and they belong to the inspector.
 
 The mark is `aria-hidden`; the shape's state is written in words in the inspector, so nothing is
 carried by the drawing alone.
@@ -303,6 +311,11 @@ row carrying its category as a muted slot (the shelf that would have said it is 
 field restores the shelves **and their prior expansion state** — a search must not cost a user the
 arrangement they had.
 
+**Searching returns the narrow composition to the shelves**, and that is not a detail: below 35rem
+the inspector owns the whole pane (§7), so with the pane given to a selected asset a user typing
+into the search field filtered a list they could not see and the surface appeared to ignore them.
+Found in the 460px capture, which is the width that composition exists for at all.
+
 The result count is announced: `12 matching assets` in a `role="status"` live region, so a keyboard
 or screen-reader user hears the effect of typing rather than inferring it from a list they cannot see.
 
@@ -406,7 +419,7 @@ Binding target: **WCAG 2.2 AA**.
 - **Headings**: the view's own `<h2>` is the surface title; each shelf is an `<h3>`. No level is
   skipped, and axe grades heading order.
 - **Disclosure**: `aria-expanded` on the shelf button, controlling the `<ul>` by `aria-controls`.
-- **Selection**: `aria-selected` on the row, plus the leading rule — never the tint alone.
+- **Selection**: `aria-current` on the row, plus the leading rule — never the tint alone.
 - **Live region**: `role="status"` for the search result count.
 - **Targets**: rows and shelf headers at `--size-4-6` minimum, WCAG 2.5.8's 24px. The harness index
   shipped 19.5px rows once, found by photographing the page rather than by any gate.
@@ -462,19 +475,51 @@ Each of these is a thing a reader will reasonably expect, refused for a stated r
 
 ---
 
-## 12. Before this is built
+## 12. What the prototype found
 
-Per [[Prototype a screen in the harness before it is built]], this surface is drawn in
-`src/prototypes/` against the real assembled stylesheet and photographed at both schemes and at
-**460px**, before any of it is wired. Ten defects have been found that way that all four gates
-passed, and every one of them was a measurement no layout engine in this repository performs:
-spacing, wrapping, overflow, contrast, hit size.
+Per [[Prototype a screen in the harness before it is built]], this surface was drawn in
+`src/prototypes/` against the real assembled stylesheet and photographed at 1280 and at **460px**
+before any of it was wired — `AssetLibrary.vue`, `AssetShelf.vue`, `AssetInspector.vue` and
+`assetLibraryFixture.ts`, interactive, with seventeen invented assets. `npm run harness-shot
+prototype:AssetLibrary` and the same with `-- --width=460`.
 
-The specific things to look at in that capture, because they are where this composition is most
-likely to be wrong:
+**Read those captures as approximate.** The pinned Chromium is not on this machine, so they were
+taken with the provisioned build named through `RP_CHROMIUM_EXECUTABLE`, and the script printed
+that caveat above every one of them.
 
-- seven shelf headers with six of them empty — does it read as *room* or as *clutter*;
-- the 20px mark beside a 13px name — is the outline legible or is it lint;
-- a row at 460px with two slots dropped — does the cost still land where the eye expects it;
-- a shelf header's count against a long German label;
-- the selected row's leading rule against the hover tint, in both schemes.
+Five things the pictures said that no gate could:
+
+- **Three of the four mark states were the same picture.** §3.4's first version drew an empty box
+  for both absence states, told apart by a diagonal, and a slash across an unscaled outline — so a
+  measured 600 × 600 tile, an unscaled cabinet and a not-yet-read cabinet were all a square with a
+  line, separated in one case by stroke pattern and in the other **by colour alone**: the exact
+  failure the mark exists to avoid, specified by the spec. The vocabulary in §3.4 above is the
+  rewrite, and each state now differs in kind. It only became visible once one capture held all
+  four at once, which is why the mock opens the two shelves it does.
+- **The supplier column truncated every supplier at 1280** with several hundred pixels of room
+  beside it. A `9ch` cap, guessed. `16ch`.
+- **Searching at 460px was a dead end.** Below 35rem the inspector owns the pane, so a user with
+  an asset open typed into the search field and filtered a list they could not see. §6.1 carries
+  the rule that came out of it.
+- **An unbounded search field is a 1160px input for a word.** Capped at 22rem; in a sidebar leaf
+  the cap never binds.
+- **The `Used in` list's last separator dangled** under the list as a stray rule.
+
+Two findings about the gates rather than about the design, both fixed in the same change:
+
+- **`.fallowrc.json` half-covered `src/prototypes/`.** `vitest.config.ts` excludes that tree from
+  coverage, and fallow's CRAP score is complexity weighted by coverage — so every prototype
+  function is scored against 0% and breaches by construction. Measured: an eight-line four-case
+  switch scored 30.0 against a threshold of 30. It had never fired because no prototype had ever
+  carried logic. `health.ignore` names the tree now, with the trade written where the key is.
+- **That file also claimed a prototype "cannot" import anything.** True when written, false since
+  `<script setup>` became legal in the tree, and this mock's own imports are what falsified it.
+  `src/prototypes/README.md` already records the same claim going stale in three other places;
+  this was the fourth.
+
+**What the prototype does not answer.** It draws no loading, failure, unreadable or
+`settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's
+shapes rather than a fixture's — and nothing in it commits an edit, because the inspector's
+fields belong to `useFieldCommit` over the real `UpdateAsset`. Contrast, focus-indicator
+visibility and hit-target size are still settled by a live vault rather than by jsdom or by a
+capture, per §9.

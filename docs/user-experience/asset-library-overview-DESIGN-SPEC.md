@@ -689,8 +689,16 @@ The contract, so a builder does not invent one:
 - Invalidation is **per asset**, never per shelf and never whole-view: a shelf-wide refetch turns
   one peer's edit into a read of every sidecar in that category, which is the cost §5.3's whole
   bound exists to avoid.
-- An invalidated mark for a row still on screen refetches; one whose shelf has since collapsed
-  simply drops, and the next expansion reads it.
+- **Invalidation drops the cached value; the viewport decides when it is re-read.** A row on
+  screen re-requests immediately; a row that is not — scrolled out of an expanded shelf, or in a
+  shelf since collapsed — re-requests when it next enters the viewport, and never before.
+
+  That is one rule where there were two, and the two had a hole between them. The earlier pair
+  was "on screen refetches, collapsed shelf drops" — written against §5.3's old per-shelf bound —
+  and a row scrolled out of a still-expanded shelf matched neither, leaving an implementer to
+  choose between a stale outline held for ever and an eager offscreen read. Reported by a review
+  bot; **it is §5.3's bound change not carrying into §5.4**, which is the third time this document
+  has changed one section and left a neighbour describing the old one.
 - The **inspector** refetches its own asset on the same events, since `dimensions` and the shape
   note come from the same read.
 
@@ -732,6 +740,17 @@ Every gesture reachable without a pointer, per PRODUCT.md's binding WCAG 2.2 AA 
 | `↑` / `↓` within a shelf | Moves between rows, wrapping into the next shelf's header at the ends |
 | `Escape` in the search field | Clears it |
 | `Escape` in an inspector field | Resyncs that one field (`useFieldCommit.onCancel`) — one field, not the panel, exactly as the Plan editor's Inspector already behaves |
+
+**Below 35rem, selecting a row MOVES focus, and `Back to library` returns it.** The narrow
+composition hides the shelves outright (§7), so the button the user just activated is inside a
+`display: none` subtree — focus lands on a hidden element or resets to the document, the pane
+change is announced to nobody, and the next Tab starts from the top. So the swap moves focus to
+the inspector's back control, and that control returns it to the row it came from.
+
+**Whether the swap happened is asked of the DOM, not of a breakpoint.** `matchMedia` is the wrong
+instrument here: §7's ladder is a CONTAINER query, so it answers about the pane's width and the
+viewport's may differ — a split leaf is exactly that case. The honest test is whether the shelves
+region is actually laid out after the change, which is what the browser already knows.
 
 **The arrow-key rule is one focus manager over the shelves region, not a handler per shelf**, and
 that is what makes the wrap fall out rather than be written: headers and rows already alternate in
@@ -1251,6 +1270,25 @@ good bound anyway, since 34 Materials read 34 sidecars to draw the six rows a pa
 binds on the viewport now, which needs no special case for search and is tighter than the rule it
 replaces. **The prototype cannot demonstrate it**: every mark there comes from a fixture with no
 I/O, so that rule is specified and unphotographed.
+
+A twelfth round found two. One is **§5.3's bound change not carrying into §5.4** — the third time
+this document has changed a section and left a neighbour describing the old one. The invalidation
+rule was a pair written against the per-shelf bound ("on screen refetches, collapsed shelf drops"),
+and a row scrolled out of a still-expanded shelf matched neither, leaving an implementer to choose
+between a stale outline held for ever and an eager offscreen read. It is one rule now, keyed on
+the same viewport §5.3 keys on.
+
+The other is a real keyboard defect no instrument here could see. Below 35rem the narrow swap
+hides the shelves outright, so the row a keyboard user just activated is inside a `display: none`
+subtree — focus lands on a hidden element or resets to the document, the pane change is announced
+to nobody, and the next Tab starts from the top. The swap moves focus to the back control now and
+the back control returns it to the row. **jsdom lays nothing out and a capture has no focus in
+it**, so this one is held by reading alone.
+
+Worth keeping from the fix: **whether the swap happened is asked of the DOM, not of a breakpoint.**
+`matchMedia` is the wrong instrument, because §7's ladder is a CONTAINER query — it answers about
+the pane's width, and a split leaf's viewport can be far wider. `offsetParent === null` is the
+browser's own answer to *is this laid out*, which is the question actually being asked.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

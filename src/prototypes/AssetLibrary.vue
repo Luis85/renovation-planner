@@ -31,7 +31,7 @@
 	real cost data anywhere in this repository.
 -->
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import AssetInspector from './AssetInspector.vue';
 import AssetShelf from './AssetShelf.vue';
 import { ASSETS, CATEGORIES, type CatalogueAsset } from './assetLibraryFixture';
@@ -128,9 +128,41 @@ const inspecting = computed(() => selectedId.value !== null && showSelection.val
  */
 watch(query, (now) => { showSelection.value = now.trim() === ''; });
 
+const shelvesEl = ref<HTMLElement | null>(null);
+const bodyEl = ref<HTMLElement | null>(null);
+
+/**
+ * MOVE FOCUS WHEN THE PANE SWAPS, and only then.
+ *
+ * Below 35rem the shelves are hidden outright, so the row the user just activated sits inside a
+ * `display: none` subtree: focus lands on a hidden element or resets to the document, the change
+ * is announced to nobody, and the next Tab starts from the top of the pane. Reported by a review
+ * bot, and invisible to every instrument here — jsdom lays nothing out and a capture has no
+ * focus in it.
+ *
+ * **Whether the swap happened is asked of the DOM rather than of a breakpoint.** `matchMedia` is
+ * the wrong instrument: §7's ladder is a CONTAINER query, so it answers about the PANE's width
+ * and a split leaf's viewport can be much wider. `offsetParent === null` is the browser's own
+ * answer to "is this laid out", which is exactly the question.
+ */
+async function focusAfterSwap(selector: string): Promise<void> {
+	await nextTick();
+	if (shelvesEl.value !== null && shelvesEl.value.offsetParent !== null) return;
+	bodyEl.value?.querySelector<HTMLElement>(selector)?.focus();
+}
+
 function select(id: string): void {
+	const swappingIn = !inspecting.value;
 	selectedId.value = id;
 	showSelection.value = true;
+	if (swappingIn) void focusAfterSwap('.rp-al-inspector__back');
+}
+
+/** The mirror: leaving the inspector returns focus to the row it was opened from. */
+function back(): void {
+	const leaving = selectedId.value;
+	selectedId.value = null;
+	if (leaving !== null) void focusAfterSwap(`[data-asset-id="${leaving}"]`);
 }
 
 /**
@@ -228,8 +260,12 @@ function toggle(category: string): void {
 			</button>
 		</div>
 
-		<div class="rp-al-body">
+		<div
+			ref="bodyEl"
+			class="rp-al-body"
+		>
 			<div
+				ref="shelvesEl"
 				class="rp-al-shelves"
 				@keydown.down="moveFocus($event, 1)"
 				@keydown.up="moveFocus($event, -1)"
@@ -284,7 +320,7 @@ function toggle(category: string): void {
 			<AssetInspector
 				:asset="selected"
 				:withdraw="!inspecting"
-				@back="selectedId = null"
+				@back="back()"
 			/>
 		</div>
 

@@ -143,6 +143,7 @@ const price = (asset: CatalogueAsset): string => {
 			>
 				<button
 					type="button"
+					:data-asset-id="asset.id"
 					class="rp-al-row"
 					:class="{
 						'rp-al-row--on': asset.id === selectedId,

@@ -1863,9 +1863,15 @@ fails:
 ```
 
 And the one that only a partial failure reaches. `seedPair` is a local helper in this file:
-it saves two notes for the pair through the repository and hands back
-`{ id, version }` for the winner, which is what every clear in the file needs and what the
-command itself cannot produce.
+it saves two notes for the pair through the repository and hands back `{ id, version }` for the
+winner, which is what every clear in the file needs and what the command itself cannot produce.
+
+**It is `async`, and both call sites `await` it** — the saves go through a Promise-returning
+port, so there is no synchronous version of it to write. An earlier draft called it unawaited
+and passed the `Promise` as `expected`, which does not type-check; that is the opposite of the
+contract fixture two tasks earlier, where the fixture member is synchronous BECAUSE it plants
+rather than saves. Same helper name, two different constraints, and which one applies is
+decided by whether the seeding goes through the repository.
 
 ```ts
 	/**
@@ -1874,8 +1880,9 @@ command itself cannot produce.
 	 * only the refusal passes against a build that stays silent.
 	 */
 	it('announces what it deleted even when a later delete fails', async () => {
-		// Seed two notes for the pair, then fail the SECOND delete.
-		const winner = seedPair(projectId, assetId);
+		// Seed two notes for the pair, then fail the SECOND delete — which, with the winner
+		// deleted first, is a losing duplicate, so the effective price really has moved.
+		const winner = await seedPair(projectId, assetId);
 		const result = await command.execute({ projectId, assetId, expected: winner });
 		expect(result.ok).toBe(false);
 		expect(bus.published).toContainEqual(
@@ -1885,8 +1892,14 @@ command itself cannot produce.
 
 	/** And the other side, so the rule is not "always announce": a FIRST delete that fails
 	 *  has written nothing, so there is nothing to announce. */
+	/**
+	 * The first delete is the WINNER's, so its failure means the effective price never moved —
+	 * which is why this case and the one above disagree about announcing. Watch it fail against
+	 * a loop that deletes in `listByAsset` order: a losing duplicate goes first, succeeds, and
+	 * the command announces a change nobody made.
+	 */
 	it('announces nothing when the first delete fails', async () => {
-		const winner = seedPair(projectId, assetId);
+		const winner = await seedPair(projectId, assetId);
 		const result = await command.execute({ projectId, assetId, expected: winner });
 		expect(result.ok).toBe(false);
 		expect(bus.published).toHaveLength(0);
@@ -2178,14 +2191,24 @@ export class ClearAssetPriceOverrideCommand … {
 
 			if (forPair.length === 0) return ok({ cleared: false });
 
+			// **The WINNER is deleted first, and the order is what makes the rule below true.**
+			// `forPair` arrives in index order, so an earlier draft could delete a losing
+			// duplicate, fail on the winner, and announce — a project-wide recalculation for an
+			// effective price that had not moved at all, under a comment asserting the opposite.
+			// Winner first makes `removed` mean what the next paragraph says it means.
+			const winner = winningDuplicate(forPair);
+			const ordered = winner === null
+				? forPair
+				: [winner, ...forPair.filter((o) => o.entity.id !== winner.entity.id)];
+
 			// **Any write that landed is announced, even when a later one fails.** The rule this
 			// file states elsewhere — a failed write must not announce — is about a command that
-			// wrote NOTHING. A partial clear has written: deleting the highest-id note moves the
-			// effective price to the survivor, so the cascade and every open pane are looking at
-			// a figure derived from a note that is gone. Returning the failure without the event
-			// leaves them there indefinitely, which is worse than the refusal itself.
+			// wrote NOTHING. A partial clear has written: the winner is gone, so the effective
+			// price has moved to the survivor, and the cascade and every open pane are looking at
+			// a figure derived from a note that no longer exists. Returning the failure without
+			// the event leaves them there indefinitely, which is worse than the refusal itself.
 			let removed = false;
-			for (const override of forPair) {
+			for (const override of ordered) {
 				const deleted = await this.deps.overrides.delete(override.entity.id, override.version);
 				if (isErr(deleted)) {
 					if (removed) await this.announce(input);

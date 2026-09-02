@@ -23,6 +23,14 @@ import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
 
 /**
+ * JavaScript's own line-continuation removal, applied before any source pattern is matched.
+ * Module scope because it captures nothing (oxlint `consistent-function-scoping`), and named
+ * rather than inlined because the stylesheet walk below is not the only question that would
+ * be wrong to ask of un-normalised source.
+ */
+const withoutContinuations = (text: string): string => text.replace(/\\\r?\n/g, '');
+
+/**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
  * itself and not with a copy of it — a retyped selector only proves the test agrees with
  * itself. Comments are stripped first: the file's own header comment has no `{`, but
@@ -406,14 +414,23 @@ describe('the browser harness', () => {
 		// no stylesheet", which points nowhere near a comment, so each false positive costs a
 		// debugging cycle rather than a glance.
 		//
-		// The `\\\n` alternative is the correction to that fix. Its first version asserted "a
-		// real import specifier never contains a newline", which is false: JavaScript's
-		// backslash-newline continuation is removed at parse time, so
-		// ``import(`./styles\<newline>/index.css`)`` really does load a stylesheet while the
-		// SOURCE holds a newline mid-specifier. Verified in node rather than reasoned about —
-		// the continuation yields `./styles/index.css`. Contrived, and the point of this walk is
-		// that a stylesheet must be unreachable rather than merely unlikely.
-		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`](?:[^'"\n]|\\\n)*\.css['"`]/;
+		// Line continuations are REMOVED BEFORE MATCHING rather than spelled into the pattern,
+		// which is the transformation JavaScript's own parser performs: a specifier holding
+		// ``./styles\<newline>/index.css`` really does load a stylesheet, so the source newline
+		// must not defend against the match. Verified in node rather than reasoned about.
+		//
+		// **This replaced a `(?:[^'"\n]|\\\n)*` alternative that handled continuations in the
+		// PRECEDING repetition only, so `'./styles.cs\<newline>s'` — a continuation inside the
+		// EXTENSION — evaluated to `./styles.css` and matched nothing.** The assertion below is
+		// `toEqual({ importers: [] })`, so an under-matching pattern is a SILENT PASS: the
+		// stylesheet stays reachable and the walk reports a clean tree. That is this
+		// repository's own assert-an-absence defect, in the instrument rather than in a case.
+		//
+		// Normalising also closed a gap nobody reported: `\\\n` does not match `\\\r\n`, so a
+		// CRLF continuation defeated the old pattern too. Three rounds narrowed this regex one
+		// reported case at a time; doing what the parser does closes the class, and the third
+		// round is what says a pattern was the wrong instrument rather than a wrong pattern.
+		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`][^'"\r\n]*\.css['"`]/;
 		const sheetLink = /<link[^>]*\bstylesheet\b/i;
 		// Every extension Vite will load as a module, not the two this repository happens to
 		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as
@@ -449,7 +466,9 @@ describe('the browser harness', () => {
 			...sources('tests/helpers'),
 		];
 
-		const importers = reachable.filter((file) => sheetImport.test(readText(file)));
+		const importers = reachable.filter((file) =>
+			sheetImport.test(withoutContinuations(readText(file))),
+		);
 		const linkers = reachable.filter((file) => sheetLink.test(readText(file)));
 		const styleBlocks = sources('tests/harness').filter((file) =>
 			/<style[\s>]/.test(readText(file)),

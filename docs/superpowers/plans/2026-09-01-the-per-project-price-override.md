@@ -65,6 +65,12 @@ try the same three in the same order.
   instrument is the type's own name (`grep -rn "RequirementInspectorDTO" src/ tests/`), not a
   guess at how it is constructed. Read the hits, too: a `as unknown as` cast is immune and a
   spread of an already-widened literal inherits the member, so three hits can be one edit.
+  **For a member that TRAVELS — a context fed from the composition root through a deps
+  bundle — the type's own name is the wrong instrument, and that is the eighth instance.**
+  Greping `PlanEditorContext` finds the interface and the typed literals and misses the three
+  hops between them, because those hops name `PlanEditorDeps` instead. Grep an existing
+  **sibling member** (`grep -rn "onCatalogueChanged" src/ tests/`) — what travels the chain is a
+  member, so a member is what prints the chain. Task 8a's bullet carries the worked list.
 - **Commit after every task, with ONE deliberate exception.** Each task below ends green on its
   own — strictly stronger than the spec's four-commit sequencing, which is the coarse grouping
   these tasks fall into. **Tasks 5 and 6 share a commit**, because the spec requires resolution
@@ -3635,9 +3641,20 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   door to hear `RequirementRecalculated` or `RequirementInvalidated` through, which leaves the
   block showing a new price
   beside old persisted provenance — the exact defect step 3a's third source exists to close.
-- Modify: `src/presentation/editor/tools/editor-context.ts` (or wherever `PlanEditorContext` is
-  declared) and `src/plugin/composition-root.ts` — **three** subscriptions, step 3a: the price
-  one, the existing `onCatalogueChanged`, and this new one.
+- Modify: **`src/presentation/editor/PlanEditorContext.ts`** — where the context is declared,
+  measured rather than guessed. An earlier draft said *"`src/presentation/editor/tools/
+  editor-context.ts` (or wherever `PlanEditorContext` is declared)"*, which is a hedge AND the
+  wrong file: `tools/editor-context.ts` is the TOOL facade's `EditorContext`, the other half of
+  the pair slice 8 renamed precisely because two types shared one name. A parenthetical "or
+  wherever" reads as a measurement and is a guess — the same defect as the `helpers/result`
+  import path, one task along.
+- Modify: **`src/presentation/views/PlanEditorView.ts`** — BOTH the `PlanEditorDeps` interface
+  and the context literal `mount()` builds from it. This is hops 2 and 3 of the chain the bullet
+  below tabulates, and it was missing from this list entirely: without it the root has nothing
+  to bind through and the view has nothing to forward.
+- Modify: `src/plugin/composition-root.ts` — bind the sources in `planEditorDeps`. **Three**
+  subscriptions in total, step 3a: the price one, the existing `onCatalogueChanged`, and this
+  new one.
 - **Modify: `src/presentation/editor/runtime.ts` — the CONSUMER, and without it the other two
   edits produce callback sources nobody subscribes to.** This is where a context member becomes
   a live subscription (`onBeforeUnmount(context.onCatalogueChanged(reloadAssetOptions))`) and
@@ -3658,15 +3675,55 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Test: `tests/presentation/editor/requirementRowFieldErrors.test.ts` (extend)
 - Test: `tests/presentation/editor/inspectorPriceRefresh.test.ts`
 - Test: `tests/application/events/requirementFiguresChangeSource.test.ts`
-- **Modify: every TEST construction of `PlanEditorContext`, which gains two members here.**
-  `grep -rn ": PlanEditorContext" src/ tests/` finds the literal builders —
-  `tests/helpers/editor.ts` and `tests/harness/fixture.ts`'s `harnessEditorContext()` — and both
-  are explicitly typed, so two required callbacks are a compile error at each. A no-op
-  unsubscribe satisfies the helper; the HARNESS one should wire the real sources, because a
-  context whose refresh callbacks do nothing is a harness that cannot show the behaviour this
-  task exists to add. This bullet is here because the standing rule at the top of the plan says
-  to grep before writing the list — it is the sixth required-member widening in this increment,
-  and the first found before a review round reported it.
+- **Modify: the whole `PlanEditorContext` CHAIN, which is five hops and not two.**
+
+  A context member sourced from the composition root does not travel from the interface to the
+  literals: it travels **interface → `PlanEditorDeps` → `PlanEditorView.mount` → the root's
+  `planEditorDeps` → every typed construction of EITHER type**. An earlier draft of this bullet
+  greped `": PlanEditorContext"`, found the two test literals and the interface, and scheduled
+  those alone — so the production view would have had nothing to forward and `PlanEditorDeps`
+  nothing to carry, which is a build failure at `PlanEditorView.ts` in the middle of the chain
+  rather than a missed fixture at the end of it.
+
+  **The instrument is an existing SIBLING member, not the type's name**, because what travels
+  the chain is a member. `grep -rn "onCatalogueChanged" src/ tests/` — the most recently added
+  member of exactly this shape — prints the complete list, and every one of these needs both
+  new sources:
+
+  | Hop | Site | What it does |
+  | --- | --- | --- |
+  | 1 | `src/presentation/editor/PlanEditorContext.ts:65` | declares the member on the context |
+  | 2 | `src/presentation/views/PlanEditorView.ts:58` | declares it on `PlanEditorDeps` |
+  | 3 | `src/presentation/views/PlanEditorView.ts:206` | forwards deps → context inside `mount` |
+  | 4 | `src/plugin/composition-root.ts:507` | binds the real source in `planEditorDeps` |
+  | 5 | `src/presentation/editor/runtime.ts:589` | SUBSCRIBES — the bullet above owns this one |
+  | — | `tests/harness/planEditor.ts:209` | `harnessDeps(): PlanEditorDeps` |
+  | — | `tests/harness/fixture.ts:214` | `harnessEditorContext()`, forwarding from `harnessDeps()` |
+  | — | `tests/helpers/editor.ts:207` | the jsdom context literal |
+  | — | `tests/presentation/views/planEditorView.test.ts:63` | `deps(): PlanEditorDeps` |
+
+  `src/plugin/RenovationPlannerPlugin.ts:545` needs NOTHING — `planEditorViewDeps()` delegates
+  to `planEditorDeps(...)`, which is why the precedent grep does not print it. And
+  `tests/harness/entries.test.ts:230` is immune: it TAKES a `PlanEditorContext` as a parameter
+  rather than building one.
+
+  **`closeLeaf` is the counter-example, and it is why the short list looked complete.** It is a
+  `PlanEditorContext` member with no `PlanEditorDeps` entry at all, and `PlanEditorView.ts:207`
+  says why in a comment: *"the composition root composes services and knows nothing about which
+  leaf this is."* So "a context member needs a deps member" is not a rule about the type — it is
+  a rule about **where the value comes from**. Both of this task's new sources are event-bus
+  change sources built at the root, so both take the full chain; a member the LEAF can produce
+  takes hops 1 and 3 only.
+
+  A no-op unsubscribe satisfies `tests/helpers/editor.ts` and `planEditorView.test.ts`; the two
+  HARNESS entries should wire the real sources, because a context whose refresh callbacks do
+  nothing is a harness that cannot show the behaviour this task exists to add.
+
+  This is the **eighth** required-member widening in this increment. It was found before a
+  review round in one sense — the bullet existed — and reported by one anyway, which is the
+  distinction worth keeping: **a widening can be scheduled and still be measured with the wrong
+  instrument**, and a list built from the type's name reads exactly like a list built from a
+  member's.
 
 **Interfaces:**
 - Consumes: Task 8's `RequirementInspectorDTO.unitCost: { catalogue, projectOverride, effective } | null`.

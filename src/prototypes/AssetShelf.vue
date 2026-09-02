@@ -24,7 +24,7 @@
 	asks a renovator to learn.
 -->
 <script setup lang="ts">
-import { computed } from 'vue';
+import { useId } from 'vue';
 import AssetMark from './AssetMark.vue';
 import { ASSETS, type CatalogueAsset } from './assetLibraryFixture';
 
@@ -36,7 +36,7 @@ import { ASSETS, type CatalogueAsset } from './assetLibraryFixture';
  * exists for looking. The defaults are the real fixture rather than placeholders, so the
  * specimen shows the four mark states it is here to be judged on.
  */
-const props = withDefaults(defineProps<{
+withDefaults(defineProps<{
 	label?: string;
 	assets?: readonly CatalogueAsset[];
 	expanded?: boolean;
@@ -61,7 +61,22 @@ const props = withDefaults(defineProps<{
 
 defineEmits<{ toggle: []; select: [id: string] }>();
 
-const listId = computed(() => `rp-al-shelf-${props.label.toLowerCase().replace(/\s+/g, '-')}`);
+/**
+ * MINTED, never derived from the label.
+ *
+ * It was `rp-al-shelf-${label.toLowerCase().replace(/\s+/g, '-')}`, which is collision-free only
+ * while the labels are a closed set of seven — and §84 is precisely the change that opens them.
+ * A vault holding declared `Material` beside a preserved `material`, or `foo bar` beside
+ * `foo-bar`, normalises both shelves onto one id, and then each header's `aria-controls` names
+ * two elements. So the derivation broke exactly for the open category values the specification
+ * exists to support, which is the sharp part: the id scheme was fine until the feature it sits
+ * under arrived, and the feature was already written down two sections away. Reported by a
+ * review bot.
+ *
+ * `useId()` is what the rest of this plugin mints with (`FieldError.vue`), and both real Vue
+ * apps set `app.config.idPrefix` so two of them cannot collide either.
+ */
+const listId = useId();
 /**
  * The symbol where one is unambiguous, the ISO code where it is not.
  *

@@ -345,6 +345,23 @@ Four sections, in this order:
    sentence that makes a deletion safe to reason about, and the sentence a price edit is read
    against.
 
+   **It is a SECOND read, so it needs its own states.** §4's failure row covers the catalogue
+   read; this one can be in flight or refuse while the catalogue around it is perfectly readable,
+   and the section is presented as the blast radius of an edit or a deletion — so the difference
+   between *nobody uses this* and *I could not find out who uses this* is exactly the difference
+   between a safe deletion and a destructive one. Three states, not one:
+
+   - **In flight** — a loading line in this section. The definition fields above it are already
+     drawn and stay usable; only this section waits.
+   - **Refused** — the mapped sentence for the error's own code, in this section, plus the one
+     consequence that matters: **`Delete` is unavailable while the usage read has not
+     succeeded**, with the reason on the control. An edit stays available, because a price
+     correction is recoverable and a deletion is the gesture this panel exists to inform.
+   - **Answered** — the groups, or `Not used in any project`, which now means what it says.
+
+   Reported by a review bot: the first version offered groups or "not used" and nothing else, so
+   an unreadable usage graph rendered as an unused asset.
+
    **It shows no per-project price.** The epic's last open item is §89's override — a project
    recording its own price against a shared definition — and when it lands, the number in section 1
    is still the **shared default**, because that is the only price a vault-wide surface has any
@@ -492,6 +509,39 @@ is the false absence §3.4 exists to refuse.
 This is the strongest practical argument for the structure the user locked, and it was not why it was
 offered: shelves make the expensive read *bounded by a gesture the user already makes*. The filtered
 ledger it beat would have had to read every sidecar on open, or drop the mark.
+
+### 5.4 Keeping a loaded mark honest
+
+A mark is fetched once per shelf expansion and then **held**, which is a cache, and a cache with
+no invalidation is a surface that quietly goes stale. Another designer leaf editing a footprint,
+a calibration, a background or a height is the ordinary case — two leaves on one vault is what
+this plugin's own `WriteLedger` generation counter exists for — and an out-of-band sidecar edit
+arriving through sync is the other.
+
+**Neither reaches this surface today.** `createAssetCatalogueChangeSource` carries
+`ProjectIndexRebuilt`, `AssetCreated`, `AssetUpdated`, `AssetDeleted` and a filtered
+`ProjectIndexEntryChanged` — it is the *picker's* source, and a picker does not draw geometry, so
+it has no reason to hear `AssetDesignChanged` or `GeometrySidecarChanged`.
+`createAssetDesignChangeSource` carries both and takes an `assetId`, because the designer watches
+one asset. **This surface watches many and draws their shapes**, which is a third shape neither
+source has, and that is a real gap rather than a wiring detail: without it a footprint corrected
+in a designer leaf goes on drawing its old outline here until the shelf is collapsed and reopened.
+
+The contract, so a builder does not invent one:
+
+- The library subscribes to `AssetDesignChanged` and `GeometrySidecarChanged` **unfiltered**, and
+  invalidates the mark for the asset each event names.
+- Invalidation is **per asset**, never per shelf and never whole-view: a shelf-wide refetch turns
+  one peer's edit into a read of every sidecar in that category, which is the cost §5.3's whole
+  bound exists to avoid.
+- An invalidated mark for a row still on screen refetches; one whose shelf has since collapsed
+  simply drops, and the next expansion reads it.
+- The **inspector** refetches its own asset on the same events, since `dimensions` and the shape
+  note come from the same read.
+
+Whether that is a widening of `createAssetCatalogueChangeSource` or a fourth source beside it is a
+decision for the increment that builds this — §11 — because the picker pays for any widening of
+the source it shares.
 
 Search matches on **name, supplier and SKU** — never on notes, which is a free-text field whose
 matches would be unexplainable in a row that does not show it.
@@ -714,7 +764,11 @@ Each of these is a thing a reader will reasonably expect, refused for a stated r
    said, which is an argument for it; it is also a project-scoped fact on a vault-wide surface,
    which is the argument against. Not this document's to settle, and not a builder's to settle
    silently.
-7. **Whether this surface ships a Bases view beside it** (§2a). The epic's Definition of Done is
+7. **Whether the geometry-event subscription widens the shared catalogue source or adds a
+   fourth one** (§5.4). The picker shares `createAssetCatalogueChangeSource` and would pay for
+   any widening of it — re-reading every asset note on a design event it has no use for — so the
+   cheap edit is the one with a cost on a surface this document does not own.
+8. **Whether this surface ships a Bases view beside it** (§2a). The epic's Definition of Done is
    not discharged by a plugin view, and *"reachable through Bases"* has at least three readings —
    a `.base` file this plugin writes, a documented recipe, or nothing at all on the grounds that a
    user's own Bases view over `type: renovation-asset` already works. Picking one is a product
@@ -850,6 +904,26 @@ finding on this branch:
 - **A fifth mark state**, above, for a sidecar that is there and will not parse.
 - **The arrow-key navigation §6.2 specifies did not exist in the mock**, so the contract was a
   promise nobody had tried. It exists now, as the focus manager §6.2 describes.
+
+A fifth round found four more, and the shape of one of them is worth more than the fix:
+
+- **The narrow-pane state machine was wrong for the third round running**, this time clearing the
+  search leaving a selected asset stranded behind the list — under a comment in that very block
+  promising that clearing restores the panel. Rounds three, four and five each patched the
+  previous patch's boolean. **The root cause was never any of the three conditions**: it was that
+  the flag's name described how it got SET rather than what it MEANS. `showSelection` is the
+  question the composition actually asks, and every transition then reads off it in one line.
+  Three rounds is what naming a state after its trigger costs.
+- **The shelf's disclosure id was derived from its label**, which is collision-free only while the
+  labels are a closed set of seven — and §84 is exactly the change that opens them. A vault
+  holding declared `Material` beside preserved `material` gives two shelves one id and makes both
+  headers' `aria-controls` ambiguous, for precisely the open values §3.2 exists to support. It is
+  `useId()` now, the way the rest of this plugin mints ids.
+- **The usage read had no states of its own** (§3.5), so an unreadable usage graph rendered as an
+  unused asset on the one panel presented as the blast radius before a deletion.
+- **A loaded mark had no invalidation contract** (§5.4). The picker's change source carries no
+  geometry events and the designer's needs an asset id; this surface watches many assets and
+  draws their shapes, which is a third shape neither has.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

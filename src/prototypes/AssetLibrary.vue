@@ -89,20 +89,35 @@ const searching = computed(() => query.value.trim() !== '');
  * refusal is not.* Both rounds were reported by a review bot rather than caught by a capture,
  * because a capture shows one resting state and this is a question about a sequence.
  *
- * `pickedSinceQuery` is what separates the two: a selection made BEFORE the current search is
- * the one the search should push aside, and a selection made DURING it is the thing the user
- * just asked for. So the query field resets it and a row sets it, and everything narrow-width
- * follows from the one flag — the shelves hide when it is showing the inspector, the inspector
- * withdraws when it is not, and `Back to library` returns to the results rather than clearing
- * the field.
+ * **The third round was the one that says what the real defect was.** Round four keyed the
+ * withdrawal on "has the user picked something since the query last changed", which reads
+ * correctly and is a fact about an EVENT rather than about a state — so clearing the field was a
+ * query change like any other and left a selected asset stranded behind the list, under a
+ * comment in this very block promising that clearing restores the panel the user was reading.
+ * Three rounds on one mechanism, each patching the previous patch's boolean.
+ *
+ * The root cause was never any of the three conditions. It was that the flag's name described
+ * how it got set instead of what it means. `showSelection` is the question the narrow
+ * composition actually asks — *is this pane showing the selection, or the list* — and every
+ * transition then reads off it in one line each: typing shows the list, emptying the field shows
+ * the selection, picking a row shows it. The shelves hide when it is showing the selection, the
+ * inspector withdraws when it is not, and `Back to library` returns to the results rather than
+ * clearing the field.
  */
-const pickedSinceQuery = ref(true);
-const inspecting = computed(() => selectedId.value !== null && pickedSinceQuery.value);
-watch(query, () => { pickedSinceQuery.value = false; });
+const showSelection = ref(true);
+const inspecting = computed(() => selectedId.value !== null && showSelection.value);
+
+/*
+ * ONE line, and it is the whole state machine. Typing anything shows the list, because you are
+ * looking for something; emptying the field shows the selection again, because you have stopped.
+ * Selecting a row (below) shows it too. `inspecting` then gates on there BEING a selection, so
+ * clearing an empty-handed search stays on the list without a special case.
+ */
+watch(query, (now) => { showSelection.value = now.trim() === ''; });
 
 function select(id: string): void {
 	selectedId.value = id;
-	pickedSinceQuery.value = true;
+	showSelection.value = true;
 }
 
 /**

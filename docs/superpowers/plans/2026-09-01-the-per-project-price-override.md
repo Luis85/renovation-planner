@@ -3749,7 +3749,17 @@ In `locales/en.ts`:
 	'view.project.price-set': 'Set a price',
 	'view.project.price-clear': 'Use the library price',
 	'view.project.no-assets': 'The library has no assets yet',
+	'view.project.price-invalid': 'Enter a price like 19.50',
 ```
+
+**`view.project.price-invalid` is the VALIDATOR's message, and it needed a key of its own.** The
+validator returns a resolved string — that is what `useFieldCommit.validate` is — so without one
+the only choices are a literal, which the rendering step forbids, or the requirement row's
+existing parse key, which tells the user to reset to a calculated figure this control does not
+have. `money.invalid-amount` is not the answer either: it has no locale entry, so it falls back
+to the generic Validation sentence, which is the defect the error table below exists to close.
+The copy SHOWS the shape rather than describing it, because "a valid monetary amount" does not
+tell a user that `.5` and `1e3` are the forms being refused.
 
 In `locales/de.ts`, the same keys. **An Asset is `Objekt`, never `Material`** —
 `tests/presentation/i18n/strings.test.ts` refuses that value, and slice 14 reintroduced it forty
@@ -3772,7 +3782,7 @@ codes are already served and listing them as gaps is wrong. What each code needs
 | --- | --- | --- |
 | `asset-price.currency-mismatch` | **new** | The price has to be in the project's own currency. |
 | `asset-price.revision-conflict` | **new, and it deliberately OVERRIDES the suffix** | The suffix entry says "Reload and try again", which is wrong on this surface: there is nothing to reload, and Step 3's frozen snapshot means the DISCARD is the gesture that unsticks the field. A direct code key beats the suffix because `hasLocaleKey` is asked first — say so where the entry is, or the next reader deletes it as a duplicate of the suffix. |
-| `asset-price.external-modification` | **none** | Already served by the suffix, and its wording ("edited outside the plugin. Reload and try again.") is right here — nothing else is writing, so re-reading really is the recovery. |
+| `asset-price.external-modification` | **new, overriding the suffix — and an earlier draft of this table said "none"** | The suffix says "edited outside the plugin. Reload and try again." That was written when this row was reasoned about without Step 3's snapshot: there is no reload control on this surface, and a refresh CANNOT help, because the snapshot is frozen for exactly as long as the draft is. Same recovery as the row above — discard the entry, which returns the field to clean and re-arms the snapshot from the refreshed row. A shared suffix is right until a surface's recovery differs from the one it names. |
 | `asset-price.project-not-found` / `asset-price.asset-not-found` | **new** | The project, or the asset, is no longer there. |
 | `asset-price.write-failed` / `asset-price.delete-failed` | **new** | The price could not be saved, or removed. |
 | `asset-price.entity-invalid` / `asset-price.frontmatter-invalid` | **new** | The note could not be read. |
@@ -3795,10 +3805,20 @@ than either is the kind of unreachability involved:
 
 - **the refusal**, as `useFieldCommit`'s own `validate?: (draft) => string | null` — which exists
   precisely so the guard is not re-remembered at each call site — rejecting a draft that is not a
-  monetary literal or is negative, with resolved copy and no dispatch at all. `RequirementRow`'s
-  `isMonetaryLiteral` is the pattern; a negative test is the added conjunct. Step 2 gains a case
+  monetary literal or is negative, with resolved copy and no dispatch at all. Step 2 gains a case
   for it, watched failing against a component with no validator, where the dispatch happens and
-  the command refuses;
+  the command refuses.
+
+  **Validate with `createMoney`, NOT with `moneyOf`, and an earlier draft of this bullet said to
+  copy `RequirementRow`'s `canBeMoney`, which would have been wrong here.** That helper wraps
+  `moneyOf`, whose `LITERAL_PATTERN` accepts `+1`, `.5` and `1e3`; this component mints with
+  `createMoney`, whose `AMOUNT_PATTERN` refuses all three. Two constructors, two answers, and the
+  validator would have passed drafts the commit could not build — a `Result` nobody has an arm
+  for, at the one door that exists to stop exactly that. `RequirementRow` is consistent for
+  ITSELF, because it also dispatches through `moneyOf`; copying half of that pairing is what
+  breaks. **Parse once**: the validator holds the `Result` and the commit reuses its value rather
+  than parsing a second time, so the two cannot disagree at all rather than merely agreeing
+  today.
 - **and the copy**, because this code is unreachable only while that guard exists. That is a
   different thing from `project.negative-amount`, which is unreachable because no caller sets the
   field at all — a structural absence no edit can quietly undo. A code held out of reach by a
@@ -3894,6 +3914,17 @@ describe('AssetPriceList', () => {
 		// type '-1.00', blur
 		expect(commit).not.toHaveBeenCalled();
 		// … and a .rp-field-error saying a price cannot be negative.
+	});
+
+	/**
+	 * The forms `moneyOf` accepts and `createMoney` refuses — the reason the validator uses the
+	 * constructor that MINTS. Watch it fail against a validator built on `RequirementRow`'s
+	 * `canBeMoney`: every one of these passes validation, and the commit then holds a `Result`
+	 * it has no arm for.
+	 */
+	it.each(['abc', '.5', '+1', '1e3'])('refuses %s at the field, dispatching nothing', async (draft) => {
+		expect(commit).not.toHaveBeenCalled();
+		// … and `view.project.price-invalid` rendered in the row's .rp-field-error.
 	});
 
 	it('renders the empty state when the library is empty', () => { … });

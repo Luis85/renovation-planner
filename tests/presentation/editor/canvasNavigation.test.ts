@@ -385,6 +385,28 @@ describe('what the cursor says the pointer will do', () => {
 		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-armed']);
 		harness.unmount();
 	});
+
+	it('promises what a Select click would take, and a running pan still outranks it', async () => {
+		// `resolveSelectionTarget` predicts through `SelectTool.pointerMove` — task 11 — so
+		// hovering zone-a's body promises the same thing a click there would take.
+		const { harness, canvas } = await editor();
+		toolbarButton(harness, 'Select').click();
+		await settle();
+
+		// Screen footprint (198,198)-(488,388) is zone-a's, at the default camera.
+		pointer(canvas, 'pointermove', 300, 300);
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-target']);
+
+		// The camera outranks the tool, exactly as it does for the drawing tool above: a
+		// middle-button pan claims the canvas out from under the same hover.
+		pointer(canvas, 'pointerdown', 300, 300, 1);
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-panning']);
+		harness.unmount();
+	});
 });
 
 describe('keys the canvas deliberately does not act on', () => {

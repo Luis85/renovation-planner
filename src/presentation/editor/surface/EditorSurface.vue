@@ -33,6 +33,7 @@ import { wheelPixels } from '../wheelDelta';
 import type { BoundingBox } from '../../../core/geometry/BoundingBox';
 import type { EditorPointerEvent, ToolId } from '../tools/editor-tool';
 import type { ToolManager } from '../tools/tool-manager';
+import type { RenderState } from '../tools/render-state';
 import { routeEscape } from '../escapeRouting';
 
 /**
@@ -51,6 +52,13 @@ import { routeEscape } from '../escapeRouting';
 const props = defineProps<{
 	toolManager: ToolManager;
 	activeToolId: Ref<ToolId | null>;
+	/**
+	 * Where `SelectTool.pointerMove` predicts a click's target — read here for exactly one
+	 * question, `cursorClass`'s. Not a `Ref`: `RenderState` is already the reactive object
+	 * every tool writes through (`reactive(new RenderState())` in `runtime.ts`), so a plain
+	 * prop read inside a `computed` tracks it the same way `activeToolId.value` does.
+	 */
+	renderState: RenderState;
 	editor: ReturnType<typeof useEditorStore>;
 	framedBounds: (all: boolean) => BoundingBox | null;
 	/**
@@ -79,6 +87,7 @@ const props = defineProps<{
 const editor = props.editor;
 const toolManager = props.toolManager;
 const activeToolId = props.activeToolId;
+const renderState = props.renderState;
 const { viewport } = storeToRefs(editor);
 
 const container = ref<HTMLElement | null>(null);
@@ -171,6 +180,14 @@ const PRECISE_TOOLS: readonly ToolId[] = ['draw-polygon', 'calibrate'];
  */
 const cursorClass = computed(() => {
 	if (panPhase.value !== 'idle') return `rp-plan-canvas-${panPhase.value}`;
+	// Select predicting a body or a vertex handle under the pointer: what a click here would
+	// take, so the cursor says the same thing `resolveSelectionTarget` would answer a click.
+	// `renderState` is the reactive object every tool writes through (`reactive(new
+	// RenderState())` in `runtime.ts`), so reading a property off it here tracks it the same
+	// way `activeToolId.value` does.
+	if (activeToolId.value === 'select' && renderState.hoveredObjectId !== null) {
+		return 'rp-plan-canvas-target';
+	}
 	const tool = activeToolId.value;
 	return tool !== null && PRECISE_TOOLS.includes(tool) ? 'rp-plan-canvas-precise' : null;
 });

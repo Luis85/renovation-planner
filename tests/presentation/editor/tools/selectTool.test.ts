@@ -205,6 +205,47 @@ describe('SelectTool', () => {
 		expect(h.context.renderState.previewPolygon).toBeNull();
 	});
 
+	it('deactivate clears a predicted hover too, not just the drag preview', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerMove(eventAt(50, 50)); // hovering the body, nothing pressed
+		expect(h.context.renderState.hoveredObjectId).toBe('zone-a');
+
+		tool.deactivate();
+		expect(h.context.renderState.hoveredObjectId).toBeNull();
+	});
+
+	it('a hover with no gesture predicts the same target a click there would take', () => {
+		// This is `resolveSelectionTarget` asked by `pointerMove` rather than by `pointerDown` —
+		// the same question, so the cursor's promise and the click's outcome cannot disagree.
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerMove(eventAt(50, 50)); // inside the body, nothing pressed
+		expect(h.context.renderState.hoveredObjectId).toBe('zone-a');
+
+		tool.pointerMove(eventAt(9999, 9999)); // off every body
+		expect(h.context.renderState.hoveredObjectId).toBeNull();
+	});
+
+	it('starting a gesture clears the predicted hover, since the pointer is no longer merely looking', () => {
+		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const h = harness();
+		const tool = build(h, candidates);
+		tool.activate(h.context);
+
+		tool.pointerMove(eventAt(50, 50));
+		expect(h.context.renderState.hoveredObjectId).toBe('zone-a');
+
+		tool.pointerDown(eventAt(50, 50));
+		expect(h.context.renderState.hoveredObjectId).toBeNull();
+	});
+
 	it('a selection naming an object the candidate list no longer has just does nothing', () => {
 		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
 		const h = harness();

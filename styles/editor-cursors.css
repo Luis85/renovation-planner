@@ -42,3 +42,8 @@
 .rp-plan-canvas-precise {
 	cursor: crosshair;
 }
+
+/* Select predicting a body or a vertex handle under the pointer — what a click here would take. */
+.rp-plan-canvas-target {
+	cursor: pointer;
+}

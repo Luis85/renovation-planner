@@ -81,6 +81,7 @@ function framedBounds(all: boolean) {
 	<EditorSurface
 		:tool-manager="runtime.toolManager"
 		:active-tool-id="runtime.activeToolId"
+		:render-state="runtime.renderState"
 		:editor="editor"
 		:framed-bounds="framedBounds"
 		:canvas-label="CANVAS_LABEL"

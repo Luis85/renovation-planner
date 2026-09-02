@@ -168,6 +168,7 @@ function framedBounds(all: boolean): BoundingBox | null {
 	<EditorSurface
 		:tool-manager="toolManager"
 		:active-tool-id="editorRefs.activeToolId"
+		:render-state="renderState"
 		:editor="editor"
 		:framed-bounds="framedBounds"
 		:canvas-label="CANVAS_LABEL"

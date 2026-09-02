@@ -241,37 +241,71 @@ counted out and named.
 **This is not a licence to leave that residue open.** It is the read side declining to hide
 it.
 
-### One unreadable requirement anywhere in the vault faults the whole summary
+### The walk is project-scoped, and that one decision replaces three worse ones
 
-**The sharpest finding on this branch, and it defeats this document's own error design.**
-`ObsidianRequirementRepository.filterLoaded` is the body of `listByZone`:
+**This section replaced an earlier version of itself. The earlier version was wrong, and the
+replacement went missing for a round — both are recorded, because the second is a process
+failure rather than a design one.**
+
+Review found that one unreadable requirement note anywhere in the vault would fault the whole
+summary. `ObsidianRequirementRepository.filterLoaded` is the body of `listByZone`, its ids are
+`index.getIdsByType('renovation-requirement')` — every requirement in the vault — and it returns
+on the first read error, *before* the zone predicate:
 
 ```ts
 for (const id of ids) {
 	const found = await this.getById(id);
-	if (isErr(found)) return found;          // <- first error, whole list
+	if (isErr(found)) return found;          // first error, whole list
 	if (found.value !== null && predicate(found.value.entity)) loaded.push(found.value);
 }
 ```
 
-`ids` is `index.getIdsByType('renovation-requirement')` — **every requirement in the vault** —
-and the zone predicate is applied AFTER the read. So a single malformed or future-version
-requirement note, in any project, makes `listByZone` fail for every zone; `GetRequirementsForZone`
-propagates it; and this walk turns that into a faulted summary. The Overview would replace every
-valid figure with `ViewFailure` because of one note it does not even count.
+The first fix was to widen that shared method to `{ loaded, refused }`. **Three further findings
+showed that to be the wrong shape**, and all three dissolve into one better decision.
 
-That is the exact opposite of what the *Error handling* section below promises — a partial read
-draws the section with an additive strip — and it is the failure mode this repository has
-already fixed once, for plans, under the name **one bad note costs one note**
-(`docs/superpowers/specs/2026-08-31-one-bad-note-costs-one-note-design.md`).
-`PlanRepository.listByProject` answers `{ loaded, refused }` for that reason and
-`ListPlansByProject` renames it `unreadable` across the boundary.
+**`RequirementRepository` gains `listByProject`, and `listByZone` is not touched at all.**
 
-So: `RequirementRepository.listByZone` takes the same shape, `GetRequirementsForZone` answers a
-partial result, and `ProjectSummary` gains `unreadableRequirements` beside its siblings. **This
-also closes a pre-existing exposure rather than only serving this surface**: today one bad
-requirement note blanks the Plan Editor's Requirements panel for every zone, which nothing has
-noticed because nothing else reads that many notes at once.
+- **Mutation paths keep failing closed.** Widening the SHARED method would have removed the
+  error `DeleteZoneCommand` relies on before `runDeleteResolution`: an unreadable requirement
+  referencing the zone being deleted would not be seen, and the zone would be deleted leaving it
+  orphaned. `AssignAssetCommand` leans on the same strict result against a duplicate assignment.
+  A read concern was about to weaken a write guarantee.
+- **One bad note is counted once, and only if it is ours.** Unscoped ids meant every per-zone
+  call hit the same malformed note, so aggregating counted it once per zone — and counted
+  another project's note against this project.
+- **The walk is bounded.** Per-zone delegation cost `zones × all-requirements` reads: 5,500 for
+  11 rooms in a vault of 500, on mount and every refresh, which coalescing reduces the number of
+  but not the size. It is a requirement of this increment rather than an alternative in a
+  paragraph.
+
+**The project axis is MIXED, so the listing intersects it with the type.**
+`InMemoryProjectIndex.index()` adds every entry carrying a `projectId` to `idsByProject` —
+plans, zones and requirements alike — so `getIdsByProject` alone would try to parse a plan as a
+requirement. `ObsidianPlanRepository` already shows the house pattern at its own project walk
+(`if (!plans.has(String(id))) continue;`), and this listing takes it: intersect with
+`getIdsByType('renovation-requirement')` before loading anything. Reported after the first draft
+of this section specified the axis alone, which would have faulted the summary or inflated
+`unreadableRequirements` on every ordinary project.
+
+**Decision 2's delegation survives, and that is the constraint this had to respect.**
+`GetRequirementsForZone`'s per-row builder is extracted and shared, so both callers compute a row
+identically; what differs is only which ids they read. Delegating the whole QUERY was never the
+point — agreeing on the ROW was.
+
+`ProjectSummary` gains `unreadableRequirements`, counted from this project's own refusals.
+
+**A pre-existing exposure is left standing, deliberately.** One bad requirement note still blanks
+the Plan Editor's Requirements panel for every zone, because `listByZone` keeps its strict
+contract. That is a real defect and it is not this increment's: fixing it means deciding what a
+partial Inspector panel shows, which is the Plan Editor's surface to design.
+
+**How the replacement went missing.** The edit that wrote this section ran in a script whose
+later step raised, and the file write was the script's last statement — so nothing was written,
+while a follow-up script's edits to the Files list and the test table succeeded. The document
+then said `listByProject` in its Files section and `listByZone` here, and I did not notice
+because an unrelated `exit=0` printed in the same output read as confirmation. **A write is not
+verified by a neighbouring command's exit code**, and a spec that contradicts itself between two
+sections is the exact defect this document keeps recording about other things.
 
 ### A row's own referent reads must not fault the summary either
 
@@ -612,6 +646,15 @@ collapsing them is legitimate only because the ANSWER is the same — one re-rea
 whatever moved. That is true of this source and would not be true of a source whose listener
 took the event.
 
+**What coalescing does NOT bound, stated rather than implied.** A trailing refresh is scheduled
+from the event that starts a cascade, and the cascade's own handler writes before publishing the
+rest. If those writes outlast the debounce, the first refresh runs mid-cascade and the later
+events schedule another — fewer walks than one per event, and not the single walk this section's
+opening sentence could be read to promise. Bounding it properly needs a cascade-completion
+signal whose lifetime covers the asynchronous handler, which is a mechanism this document does
+not design and an increment does not get to invent in a review round. The claim is narrowed to
+what the trailing refresh actually delivers, and the boundary is named as open.
+
 It pairs with a request ticket on the store, which is this repository's existing answer to two
 things hydrating one store: without it the slower earlier read wins and a just-recalculated
 figure reverts. `ProjectStore` and `InspectorStore` both carry one already.
@@ -803,7 +846,10 @@ Named so none of it later reads as an oversight.
 - **Breadcrumbs** beyond slice 21's back control. The interactive
   `Project / Space / Activity` trail needs the spatial hierarchy — the one thing that collides
   with the editor branch.
-- **Orphaned requirements** in the total, per Decision 3.
+- ~~**Orphaned requirements** in the total.~~ **Struck rather than deleted**: the
+  project-scoped walk reaches them, so this exclusion stopped being true and an implementer
+  following a scope checklist would otherwise have omitted the behaviour the summary relies on.
+  See *The orphan limitation closed, by the same change*.
 
 ## Coverage
 

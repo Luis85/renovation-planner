@@ -201,6 +201,13 @@ const summedCount = 23;
 			</button>
 		</div>
 
+		<!--
+			The warning names ROOMS and not costs, which is a correction a review caught after the
+			walk changed. An unreadable PLAN note used to remove costs from the total, because the
+			walk reached requirements THROUGH that plan's zones; the project-scoped walk reaches
+			them directly, so the requirements are still summed and only the zone count is short.
+			Copy that describes a data path is copy that goes stale when the path moves.
+		-->
 		<div
 			v-if="active === 'Overview'"
 			:id="panelId(active)"
@@ -232,8 +239,8 @@ const summedCount = 23;
 					One plan note could not be read
 				</p>
 				<p class="rp-warning__body">
-					Its rooms and costs are missing from the figures above. The note may be from a
-					newer version of this plugin.
+					Its rooms are missing from the counts above. The note may be from a newer
+					version of this plugin.
 				</p>
 				<button
 					type="button"

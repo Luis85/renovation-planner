@@ -344,7 +344,12 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 **Files:**
 - Create: `src/application/ports/AssetPriceOverrideRepository.ts`
 - Create: `src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository.ts`
-- Test: `tests/infrastructure/persistence/assetPriceOverrideRepository.contract.ts` (shared)
+- Test: `tests/contracts/asset-price-override-repository.contract.ts` (shared) — **`tests/contracts/`,
+  where the other five live** (`zone-repository.contract.ts`, `requirement-repository.contract.ts`
+  and three siblings), each exporting `<x>RepositoryContract(make: () => XFixture)`. An earlier
+  draft put it under `tests/infrastructure/persistence/` with a `makeRepo` parameter — a sixth
+  convention for something that already has one. The `Fixture` shape is not decoration: it is
+  what lets the note-backed side PROVISION a project before the contract asks for one.
 - Test: `tests/infrastructure/persistence/inMemoryAssetPriceOverride.test.ts`
 
 **Interfaces:**
@@ -352,7 +357,8 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   `Loaded` from `application/ports/versioning`; `RepositoryError` from `ports/repositoryErrors`.
 - Produces: `interface AssetPriceOverrideRepository` with `getForPair`, `listByProject`,
   `listByAsset`, `save`, `delete` — **five**, which is the spec's Decision 3 exactly (the task
-  document's four plus `listByAsset`); and `assetPriceOverrideContract(makeRepo)`, the shared
+  document's four plus `listByAsset`); and `assetPriceOverrideRepositoryContract(make)` with
+  `AssetPriceOverrideFixture`, the shared
   contract test Task 3 reuses.
 
 - [ ] **Step 1: Write the port**
@@ -464,7 +470,7 @@ export function winnersBy<K>(
 Read `tests/infrastructure/persistence/` first and follow whatever the existing shared
 contract file is called and how it is parameterised — there is one already for the other
 repositories, and this must be its sibling rather than a second convention. Create
-`tests/infrastructure/persistence/assetPriceOverrideRepository.contract.ts`:
+`tests/contracts/asset-price-override-repository.contract.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -496,25 +502,36 @@ export function makeOverride(projectId: ProjectId, assetId: AssetId, amount = '1
  * must answer identically or the suite is testing a fake that production does not match —
  * the "a fake must not be kinder than the real thing" rule, expressed as a shared spec.
  */
-export function assetPriceOverrideContract(
-	name: string,
-	makeRepo: () => Promise<AssetPriceOverrideRepository> | AssetPriceOverrideRepository,
-): void {
-	describe(`${name} — AssetPriceOverrideRepository contract`, () => {
+export interface AssetPriceOverrideFixture {
+	readonly repository: AssetPriceOverrideRepository;
+	/** Change the note under the repository's feet, for the `observed` arm of a stale save. */
+	touch(id: AssetPriceOverrideId): void;
+	/**
+	 * A project this fixture has PROVISIONED, not a bare `createProjectId()`. The note-backed
+	 * repository resolves an insert's folder through `projectFolderOf(index, projectId)` and
+	 * refuses an unknown project outright, so a contract minting its own ids fails at the very
+	 * first save. `RequirementFixture.otherProject()` is the same member for the same reason.
+	 */
+	newProject(): ProjectId;
+	newAsset(): AssetId;
+}
+
+export function assetPriceOverrideRepositoryContract(make: () => AssetPriceOverrideFixture): void {
+	describe('AssetPriceOverrideRepository contract', () => {
 		it('answers null for a pair with no override', async () => {
-			const repo = await makeRepo();
-			const found = expectOk(await repo.getForPair(createProjectId(), createAssetId()));
+			const f = make();
+			const found = expectOk(await f.repository.getForPair(f.newProject(), f.newAsset()));
 			expect(found).toBeNull();
 		});
 
 		it('round-trips an override and finds it by its pair', async () => {
-			const repo = await makeRepo();
-			const projectId = createProjectId();
-			const assetId = createAssetId();
-			const saved = expectOk(await repo.save(makeOverride(projectId, assetId), 'absent'));
+			const f = make();
+			const projectId = f.newProject();
+			const assetId = f.newAsset();
+			const saved = expectOk(await f.repository.save(makeOverride(projectId, assetId), 'absent'));
 			expect(saved.version.revision).toBe(1);
 
-			const found = expectOk(await repo.getForPair(projectId, assetId));
+			const found = expectOk(await f.repository.getForPair(projectId, assetId));
 			expect(found).not.toBeNull();
 			expect(found?.entity.unitCost.amount).toBe('19.50');
 			expect(found?.entity.unitCost.currency).toBe('GBP');
@@ -523,47 +540,47 @@ export function assetPriceOverrideContract(
 		/** Three decimals, because `594.005` is not representable in binary floating point
 		 *  while `99.99` survives a coercion — the shared rule for catching a YAML float. */
 		it('preserves a three-decimal amount exactly', async () => {
-			const repo = await makeRepo();
-			const projectId = createProjectId();
-			const assetId = createAssetId();
-			expectOk(await repo.save(makeOverride(projectId, assetId, '594.005'), 'absent'));
-			const found = expectOk(await repo.getForPair(projectId, assetId));
+			const f = make();
+			const projectId = f.newProject();
+			const assetId = f.newAsset();
+			expectOk(await f.repository.save(makeOverride(projectId, assetId, '594.005'), 'absent'));
+			const found = expectOk(await f.repository.getForPair(projectId, assetId));
 			expect(found?.entity.unitCost.amount).toBe('594.005');
 		});
 
 		it('refuses an insert for an id that is already taken', async () => {
-			const repo = await makeRepo();
-			const override = makeOverride(createProjectId(), createAssetId());
-			expectOk(await repo.save(override, 'absent'));
-			const again = await repo.save(override, 'absent');
+			const f = make();
+			const override = makeOverride(f.newProject(), f.newAsset());
+			expectOk(await f.repository.save(override, 'absent'));
+			const again = await f.repository.save(override, 'absent');
 			expect(again.ok).toBe(false);
 		});
 
 		it('refuses a save whose expected revision is stale', async () => {
-			const repo = await makeRepo();
-			const override = makeOverride(createProjectId(), createAssetId());
-			const saved = expectOk(await repo.save(override, 'absent'));
+			const f = make();
+			const override = makeOverride(f.newProject(), f.newAsset());
+			const saved = expectOk(await f.repository.save(override, 'absent'));
 			const edited = expectOk(saved.entity.withUnitCost(moneyOf('21.00', 'GBP')));
-			expectOk(await repo.save(edited, saved.version));
-			const stale = await repo.save(edited, saved.version);
+			expectOk(await f.repository.save(edited, saved.version));
+			const stale = await f.repository.save(edited, saved.version);
 			expect(stale.ok).toBe(false);
 		});
 
 		it('lists by project and by asset, and each excludes the other axis', async () => {
-			const repo = await makeRepo();
-			const projectA = createProjectId();
-			const projectB = createProjectId();
-			const assetX = createAssetId();
-			const assetY = createAssetId();
-			expectOk(await repo.save(makeOverride(projectA, assetX), 'absent'));
-			expectOk(await repo.save(makeOverride(projectA, assetY), 'absent'));
-			expectOk(await repo.save(makeOverride(projectB, assetX), 'absent'));
+			const f = make();
+			const projectA = f.newProject();
+			const projectB = f.newProject();
+			const assetX = f.newAsset();
+			const assetY = f.newAsset();
+			expectOk(await f.repository.save(makeOverride(projectA, assetX), 'absent'));
+			expectOk(await f.repository.save(makeOverride(projectA, assetY), 'absent'));
+			expectOk(await f.repository.save(makeOverride(projectB, assetX), 'absent'));
 
-			const byProject = expectOk(await repo.listByProject(projectA));
+			const byProject = expectOk(await f.repository.listByProject(projectA));
             expect(byProject).toHaveLength(2);
 			expect(byProject.every((o) => o.entity.projectId === projectA)).toBe(true);
 
-			const byAsset = expectOk(await repo.listByAsset(assetX));
+			const byAsset = expectOk(await f.repository.listByAsset(assetX));
 			expect(byAsset).toHaveLength(2);
 			expect(byAsset.every((o) => o.entity.assetId === assetX)).toBe(true);
 		});
@@ -577,42 +594,57 @@ export function assetPriceOverrideContract(
 		 * about a different program than the one that ships.
 		 */
 		it('answers the highest-id override when two notes name one pair', async () => {
-			const repo = await makeRepo();
-			const projectId = createProjectId();
-			const assetId = createAssetId();
+			const f = make();
+			const projectId = f.newProject();
+			const assetId = f.newAsset();
 			const first = makeOverride(projectId, assetId, '19.50');
 			const second = makeOverride(projectId, assetId, '21.00');
 			// Save in BOTH orders across the two expectations below, so a repository that
 			// happens to enumerate in save order cannot pass by accident.
-			expectOk(await repo.save(second, 'absent'));
-			expectOk(await repo.save(first, 'absent'));
+			expectOk(await f.repository.save(second, 'absent'));
+			expectOk(await f.repository.save(first, 'absent'));
 
 			const winner = second.id > first.id ? second : first;
-			const found = expectOk(await repo.getForPair(projectId, assetId));
+			const found = expectOk(await f.repository.getForPair(projectId, assetId));
 			expect(found?.entity.id).toBe(winner.id);
 		});
 
 		it('deletes an override, after which its pair answers null again', async () => {
-			const repo = await makeRepo();
-			const projectId = createProjectId();
-			const assetId = createAssetId();
-			const saved = expectOk(await repo.save(makeOverride(projectId, assetId), 'absent'));
-			expectOk(await repo.delete(saved.entity.id, saved.version));
-			expect(expectOk(await repo.getForPair(projectId, assetId))).toBeNull();
+			const f = make();
+			const projectId = f.newProject();
+			const assetId = f.newAsset();
+			const saved = expectOk(await f.repository.save(makeOverride(projectId, assetId), 'absent'));
+			expectOk(await f.repository.delete(saved.entity.id, saved.version));
+			expect(expectOk(await f.repository.getForPair(projectId, assetId))).toBeNull();
+		});
+
+		/**
+		 * The OTHER arm of a stale expectation, and the reason the fixture has `touch` and the
+		 * in-memory double has `poke`: a note edited outside the plugin keeps its revision, so
+		 * only `observed` can tell. Without this case `poke` has no caller at all, which is the
+		 * `unused-class-members` finding this repository has already paid for once.
+		 */
+		it('refuses a save whose expected token is stale even at the same revision', async () => {
+			const f = make();
+			const override = makeOverride(f.newProject(), f.newAsset());
+			const saved = expectOk(await f.repository.save(override, 'absent'));
+			f.touch(override.id);
+			const stale = await f.repository.save(override, saved.version);
+			expect(stale.ok).toBe(false);
 		});
 
 		it('refuses a delete whose expected revision is stale', async () => {
-			const repo = await makeRepo();
-			const projectId = createProjectId();
-			const assetId = createAssetId();
-			const saved = expectOk(await repo.save(makeOverride(projectId, assetId), 'absent'));
+			const f = make();
+			const projectId = f.newProject();
+			const assetId = f.newAsset();
+			const saved = expectOk(await f.repository.save(makeOverride(projectId, assetId), 'absent'));
 			const edited = expectOk(saved.entity.withUnitCost(moneyOf('21.00', 'GBP')));
-			const second = expectOk(await repo.save(edited, saved.version));
-			const stale = await repo.delete(saved.entity.id, saved.version);
+			const second = expectOk(await f.repository.save(edited, saved.version));
+			const stale = await f.repository.delete(saved.entity.id, saved.version);
 			expect(stale.ok).toBe(false);
 			// Read it back through the PAIR rather than by id: the port has no `getById`, and
 			// this is the same claim — the note the second save left is still the pair's note.
-			const survivor = expectOk(await repo.getForPair(projectId, assetId));
+			const survivor = expectOk(await f.repository.getForPair(projectId, assetId));
 			expect(survivor?.entity.id).toBe(second.entity.id);
 		});
 	});
@@ -624,10 +656,23 @@ export function assetPriceOverrideContract(
 Create `tests/infrastructure/persistence/inMemoryAssetPriceOverride.test.ts`:
 
 ```ts
+import { createAssetId } from '../../../src/domain/asset/AssetId';
+import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { InMemoryAssetPriceOverrideRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
-import { assetPriceOverrideContract } from './assetPriceOverrideRepository.contract';
+import { assetPriceOverrideRepositoryContract } from '../../contracts/asset-price-override-repository.contract';
 
-assetPriceOverrideContract('in-memory', () => new InMemoryAssetPriceOverrideRepository());
+// The in-memory side provisions nothing, so its fixture mints ids directly — which is exactly
+// the shape that does NOT work for the note-backed one, and the reason the contract asks the
+// fixture rather than minting them itself.
+assetPriceOverrideRepositoryContract(() => {
+	const repository = new InMemoryAssetPriceOverrideRepository();
+	return {
+		repository,
+		touch: (id) => repository.poke(id),
+		newProject: () => createProjectId(),
+		newAsset: () => createAssetId(),
+	};
+});
 ```
 
 Run: `npx vitest run tests/infrastructure/persistence/inMemoryAssetPriceOverride.test.ts`
@@ -717,7 +762,7 @@ Run: `npm run check`
 ```bash
 git add src/application/ports/AssetPriceOverrideRepository.ts \
         src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository.ts \
-        tests/infrastructure/persistence/assetPriceOverrideRepository.contract.ts \
+        tests/contracts/asset-price-override-repository.contract.ts \
         tests/infrastructure/persistence/inMemoryAssetPriceOverride.test.ts
 git commit -m "feat(ports): the price override port, and one contract for both implementations
 
@@ -754,6 +799,17 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Modify: `src/infrastructure/obsidian/repositories/paths.ts`
 - Test: `tests/infrastructure/persistence/assetPriceMapper.test.ts`
 - Test: `tests/infrastructure/obsidian/obsidianAssetPriceOverride.test.ts`
+- **Test (extend): `tests/infrastructure/obsidian/repositories/errorPaths.test.ts`** — its
+  `NOTE_BACKED_CASES` table is compared against `Object.keys(MIGRATION_SET)` minus
+  `plan-geometry`, so adding the kind turns that case red until `asset-price` has a refusal
+  case of its own.
+- **Test (extend): `tests/infrastructure/obsidian/repositories/preservation.test.ts`** — the
+  same derivation for `PRESERVATION_CASES`, and the same red. Its comment says so in as many
+  words: *"A seventh note-backed kind added to `MIGRATION_SET` turns this red until it has a
+  preservation case."*
+- **Test (extend): `tests/plugin/persistence-wiring.test.ts`** — it asserts
+  `snapshot?.schemaVersions` with `toEqual` against an exact six-key object, so the seventh
+  key fails it. Add `'asset-price': 1`.
 
 **Interfaces:**
 - Consumes: Tasks 1–2; `NoteVaultDeps`, `KeyedQueues`, `projectFolderOf`,
@@ -775,6 +831,21 @@ in `infrastructure/`, and nothing pointed at it. `grep -rn "renovation-requireme
 writing the repository is what finds every place this vocabulary is spelled out by hand — the
 same instrument `libraryMigration.ts` already recommends for a new entity type, in a comment
 about notes being "silently left behind by every library move".
+
+**The compiler is also not the only thing that goes red, and three SUITES do.** Two derive their
+case tables from `Object.keys(MIGRATION_SET)` and one asserts the schema-version object with
+`toEqual`, so this task cannot reach `npm run check` green without extending all three — they are
+in the file list above. That is the mechanism working exactly as written rather than a surprise:
+each of those checks exists to make a new kind impossible to add silently, and their own comments
+predict this task by name. `grep -rn "MIGRATION_SET" tests/` is the instrument, and it is a
+different one from the `src/` grep above — a `src/`-only sweep finds none of them.
+
+Run that grep and it reports five files; the two beyond the three above were checked and
+neither fails. `tests/helpers/repositoryStack.ts` passes the table to `createMigrationRunner`
+and enumerates nothing. `tests/infrastructure/persistence/migration/legacyFixture.test.ts`
+names it only in a comment — *"empty for all six kinds"* — which becomes wrong at seven while
+failing nothing, so correct that number in the same commit. A count in a comment is this
+repository's most-repeated stale claim, and this one is now one edit away from being wrong.
 
 - [ ] **Step 1: Write the failing mapper tests**
 
@@ -1196,12 +1267,20 @@ follow how the other Obsidian repository tests get theirs), running the SAME con
 
 ```ts
 import { describe, expect, it } from 'vitest';
-import { assetPriceOverrideContract, makeOverride } from '../persistence/assetPriceOverrideRepository.contract';
+import { assetPriceOverrideRepositoryContract, makeOverride } from '../../contracts/asset-price-override-repository.contract';
 // … plus the stack helpers this repository's siblings use.
 
-assetPriceOverrideContract('obsidian', async () => {
-	// Construct the stack, seed a project whose currency is GBP, and return the repository.
-	// The project MUST exist and be GBP, because the read resolves its currency.
+assetPriceOverrideRepositoryContract(() => {
+	// Construct the stack ONCE per fixture, then:
+	//   newProject() — create a real GBP project note through the project repository and
+	//     rebuild the index, so `projectFolderOf` resolves its folder. A bare
+	//     `createProjectId()` here fails every save with
+	//     `asset-price.project-folder-unresolved`, which is the whole reason this member
+	//     exists; follow `RequirementFixture.otherProject()`'s own Obsidian fixture.
+	//   newAsset() — a catalogue asset id; the price note references it and no folder derives
+	//     from it, so this one may be minted.
+	//   touch() — edit the note's bytes without moving `revision`, the way the sibling
+	//     Obsidian fixtures do for their own external-modification cases.
 });
 
 describe('ObsidianAssetPriceOverrideRepository', () => {
@@ -1230,8 +1309,10 @@ has a caller by the end of this task. If it reports the folder constant as unuse
 forgotten to use `assetPricesFolderFor` in the write spec.
 
 ```bash
+# `tests/plugin` is here for the schema-version snapshot, which is the third suite the
+# new MIGRATION_SET kind reddens — the other two are under tests/infrastructure.
 git add src/infrastructure src/application/ports/ProjectIndex.ts \
-        src/application/ports/diagnostics.ts tests/infrastructure
+        src/application/ports/diagnostics.ts tests/infrastructure tests/plugin
 git commit -m "feat(persistence): an override is a note in the project's own folder
 
 A sixth entity type, a seventh diagnostic kind and an empty migration

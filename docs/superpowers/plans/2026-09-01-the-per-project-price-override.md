@@ -4942,20 +4942,44 @@ describe('AssetPriceList', () => {
 	 * Drive the real sequence (`mousedown`, `blur`, `click`) rather than `click()` alone, which
 	 * jsdom does not expand into it: a case that only clicks passes against a button with no
 	 * guard at all, which is this repository's own "a test that drives an impossible input is
-	 * evidence about a different program". Watch it fail with `@mousedown.prevent` removed —
-	 * `commit` is then called twice, and the FIRST call is the set.
+	 * evidence about a different program".
+	 *
+	 * **The blur is CONDITIONAL on the mousedown's `defaultPrevented`, and an unconditional one
+	 * inverts this case.** jsdom never links `mousedown` to focus loss at all —
+	 * `requirementRowFieldErrors.test.ts`'s identical guard already says so, which is why that
+	 * case settles for asserting `defaultPrevented` alone rather than driving blur. Hand-firing
+	 * blur unconditionally here would fire it whether or not `@mousedown.prevent` ran, so the
+	 * CORRECT component would also commit a set before the clear and this case would fail on the
+	 * build it exists to pass — red on correct and no redder on the mutation, since the
+	 * hand-fired blur owes nothing to jsdom's (nonexistent) native link either way. That is the
+	 * Task 7a race case's shape once more: a case that cannot reach the failure it exists to
+	 * catch is merely useless, one that fails the correct build is worse, and this is the second
+	 * time that shape has been caught in this plan — this time before it landed.
+	 *
+	 * So: dispatch a cancelable `mousedown` on the button, read `defaultPrevented` off that SAME
+	 * event, and synthesize `blur` on the input only when it reads `false` — which is what the
+	 * browser's own default action does. Watch it fail with `@mousedown.prevent` removed:
+	 * `defaultPrevented` then reads `false`, the blur fires, and `commit` is called twice with
+	 * the set first.
 	 */
 	it('dispatches only the clear when the button is clicked on a dirty field', async () => {
+		const { wrapper, commit } = mountSection({ override: 19.5 });
+		const input = wrapper.get('input');
+		await input.setValue('25.00');
+
+		const button = wrapper.get('.rp-asset-price-clear');
+		const mousedown = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+		button.element.dispatchEvent(mousedown);
+		if (!mousedown.defaultPrevented) {
+			await input.trigger('blur');
+		}
+		await button.trigger('click');
+		await flushPromises();
+
 		expect(commit).toHaveBeenCalledTimes(1);
 		// … and that one call is the clear, asserted on the command input rather than on a badge.
 	});
 
-	/**
-	 * The increment's central case, at the surface: a GBP project, an EUR catalogue asset, no
-	 * override. The submitted `Money` must be GBP. Watch it fail against a component that mints
-	 * from the row's effective currency — the command refuses, and the dead end is back.
-	 */
-	/**
 	/**
 	 * The project-wide warning, which is the disclosure that justifies this affordance living on
 	 * the project surface rather than on the Inspector's requirement row. Asserted on the
@@ -4991,6 +5015,11 @@ describe('AssetPriceList', () => {
 		expect(wrapper.find('.rp-asset-price-clear').attributes('disabled')).toBeUndefined();
 	});
 
+	/**
+	 * The increment's central case, at the surface: a GBP project, an EUR catalogue asset, no
+	 * override. The submitted `Money` must be GBP. Watch it fail against a component that mints
+	 * from the row's effective currency — the command refuses, and the dead end is back.
+	 */
 	it('submits the typed price in the project currency, not the catalogue currency', async () => {
 		// rows: [{ catalogue: 24.00 EUR, override: null, … }], currency: 'GBP'
 		expect(commit).toHaveBeenCalledWith(expect.objectContaining({

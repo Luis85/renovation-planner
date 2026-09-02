@@ -5,6 +5,7 @@
  * kind component has. Mounted bare, with no store and no host: a kind that needed either
  * would be reaching past the seam that keeps `store.resolve` to one call site.
  */
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { mount } from '@vue/test-utils';
@@ -320,6 +321,31 @@ describe('AssetDimensionsDialog', () => {
 		await wrapper.find('input[name="depth"]').setValue('-5');
 		await wrapper.find('form').trigger('submit');
 		expect(wrapper.emitted('resolve')).toBeUndefined();
+	});
+
+	it('renders the caller warning above the fields, in a class the stylesheet declares', () => {
+		const warned = mount(AssetDimensionsDialog, {
+			props: {
+				descriptor: { kind: 'asset-dimensions', title: 'Set dimensions', warning: 'Not measured yet.' },
+				titleId: TITLE_ID,
+			},
+		});
+		const warning = warned.get('.rp-dialog-warning');
+		expect(warning.text()).toBe('Not measured yet.');
+		// Above the fields: the warning is a claim about the PAIR, so it precedes both inputs.
+		expect(warned.element.innerHTML.indexOf('rp-dialog-warning')).toBeLessThan(
+			warned.element.innerHTML.indexOf('name="width"'),
+		);
+		// jsdom resolves no CSS, so the class the template emits is checked against the sheet
+		// by text — the `rp-save-state-error` defect, refused here before it can recur.
+		expect(readFileSync('styles/dialogs.css', 'utf8')).toContain('.rp-dialog-warning {');
+	});
+
+	it('renders no warning element at all when the caller sends none', () => {
+		const silent = mount(AssetDimensionsDialog, {
+			props: { descriptor: { kind: 'asset-dimensions', title: 'Set dimensions' }, titleId: TITLE_ID },
+		});
+		expect(silent.find('.rp-dialog-warning').exists()).toBe(false);
 	});
 });
 

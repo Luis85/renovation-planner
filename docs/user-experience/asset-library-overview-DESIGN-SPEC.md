@@ -326,7 +326,13 @@ Four sections, in this order:
 2. **Shape** — `1200 × 800 mm` when a footprint exists, the unscaled warning when it is owed, the
    spec sheet's name when one is picked, and **Open designer**.
 3. **Used in** — the per-project groups, loaded **on selection** (§5.2). One row per project:
-   project name, requirement count. `Not used in any project` when there are none, which is the
+   project name, requirement count, **and the project's path wherever the query supplies one**.
+   `ListRequirementsReferencing.withPathsWhereAmbiguous` sets `projectPath` on exactly the groups
+   whose name is not unique among the groups returned — a collision a vault legitimately holds,
+   since `Project.create` trims a name and refuses only an empty one — so discarding it renders
+   two identical rows for the two things the user is being asked to tell apart, immediately before
+   an edit or a deletion. Shown only where the query supplies it, which is the rule that keeps a
+   path off every row on the common case. `Not used in any project` when there are none, which is the
    sentence that makes a deletion safe to reason about, and the sentence a price edit is read
    against.
 
@@ -380,10 +386,11 @@ A new query and a new read model. Nothing else in the application layer changes.
 ```ts
 // application/queries/ListCatalogueEntries.ts
 interface CatalogueEntryDto {
-  assetId: AssetId; name: string; category: AssetCategory;
+  assetId: AssetId; name: string; category: string;
   unit: MeasurementUnit; unitCostAmount: string; currency: Currency;
   wasteFactorDefault: string; supplier: string | null; sku: string | null;
-  height: number | null; hasBackground: boolean;
+  height: number | null; notes: string | null;
+  background: AssetBackgroundRef | null;
 }
 interface CatalogueListing { entries: readonly CatalogueEntryDto[]; unreadable: number; }
 ```
@@ -393,6 +400,37 @@ domain entities, it drops the unreadable count, and a picker's read and a browsi
 diverging later is cheaper than one query serving two surfaces badly. `Money` is decomposed into an
 amount **string** plus a currency at this boundary, exactly as it already crosses every other one —
 a float is what ADR-010 refuses.
+
+**`notes` and the whole background reference, not a boolean.** The first version of this DTO
+carried `hasBackground: boolean` and no `notes` at all, while §3.5 specifies an editable notes
+field and the spec sheet's *name* — so an implementation following this contract could not have
+drawn the inspector it was told to draw, and nothing else in §5 supplies either. Reported by a
+review bot against a document, which is the cheapest place that could ever have been caught.
+
+**`category` is a `string`, not `AssetCategory`.** §1a: the vocabulary is extensible and an
+unrecognised category is kept as written, so a DTO typed to today's closed union is a DTO that
+cannot carry the value the epic asks to be preserved. The union stays the right type for a
+*control* that offers a choice; it is the wrong type for a read that reports what is there.
+
+### 5.1a The `unreadable` count needs a change below the query
+
+**This is the one place the specification's "a new query and a new read model, nothing else"
+is false**, and it took a review bot to catch because the sentence reads like diligence.
+`AssetRepository.listAll()` answers `Loaded<Asset>[]`, and `ObsidianAssetRepository.list` skips a
+note it could not read — recording it to the diagnostics ledger and continuing. There is no count
+to return. A catalogue whose every note is unreadable would therefore arrive as
+`{ entries: [], unreadable: 0 }` and draw the **no assets yet** empty state (§4), inviting the
+user to create their first asset in a library that is full of them.
+
+The adapter's own docblock says so in as many words: its shape is
+`ObsidianProjectRepository.listAll`'s *"minus its `refused` count: that exists because the project
+list must tell 'no projects' from 'projects I could not read', and the assign picker has no such
+distinction to draw."* **This surface is the first caller that does have it to draw.** So the port
+gains a listing shape carrying the count, exactly as the project repository's already does, and
+that is a change to `application/ports/AssetRepository.ts` and to its two implementations rather
+than something a query can paper over. It is small, it has a precedent to copy, and the reason it
+belongs in this document is that a spec claiming a layer is untouched is a spec somebody plans
+against.
 
 ### 5.2 What it deliberately does not read
 
@@ -408,9 +446,25 @@ costs before they promise it.
 
 ### 5.3 Geometry, and what it costs
 
-An asset's shape lives in its own `.rpgeo` sidecar (ADR-0014), whose path derives from the library
-folder setting rather than from any index — so **there is no index that can answer "does this asset
-have a shape"**, and every mark costs a file read.
+An asset's shape lives in its own `.rpgeo` sidecar (ADR-0014), and **the mark must resolve its path
+the way every other reader does: the index first, the derivation as the repair path.**
+`AssetGeometryStore.pathFor` is
+`index.getGeometrySidecarPath(assetId) ?? assetSidecarPathFor(libraryFolder, assetId)`, and the
+ordering is not incidental — both doors that populate that mapping record an asset's sidecar as
+well as a plan's (the full scan's `joinSidecars` and `VaultChangeAdapter.processSidecar`), and the
+store's own docblock records what deriving unconditionally cost when it did: a `.rpgeo` moved in
+the file explorer, or arriving elsewhere through sync, **left the asset reading as shapeless** —
+invisible, because an absent sidecar is the ordinary state of an undesigned asset — and the next
+design write minted a second sidecar at the derived path beside the orphan. A batched mark query
+that derives for itself reintroduces exactly that, on a surface whose whole point is showing which
+assets have a shape.
+
+**An earlier draft of this section said the opposite** — "there is no index that can answer 'does
+this asset have a shape'" — which was true of the increment that shipped the designer and false by
+the time this was written. Reported by a review bot reading the code rather than the sentence. The
+correction narrows the cost claim rather than removing it: the index can say *where* the sidecar is
+without touching disk, and it cannot say what is in it, so **the outline still costs a read and a
+parse per row**. The bound below is unchanged; only its justification is now accurate.
 
 Bounded three ways:
 
@@ -471,7 +525,23 @@ three-way parse `projectIdFrom` already spells) and the set of expanded categori
 `RenovationProjectView`. There, a navigation replaces the whole subject, so a remount makes staleness
 unrepresentable and costs only a scroll position. Here a selection changes an adjacent panel, and
 remounting per row click would throw away the shelves' scroll position on every click — the thing the
-user is browsing. So `setViewState` is called with `history: false`, and the tree updates in place.
+user is browsing. The tree updates in place.
+
+**And no selection or expansion change is a navigation** — which is a rule the VIEW enforces, not
+something the caller can ask for. An earlier draft said `setViewState` is called with
+`history: false`; there is no such field on that call. Obsidian passes a `ViewStateResult` into
+`setState` and the view writes `result.history` itself, which is what `RenovationProjectView.setState`
+does — `if (parsed !== null && parsed.projectId !== this.projectId) result.history = true`, under a
+comment noting that only an accepted, changed state is a navigation. So the specification is:
+
+> `AssetLibraryView.setState` leaves `result.history` false for every change to `assetId` and to
+> the expanded set.
+
+Stated as an obligation on the view rather than as a call-site flag, because a build that copied
+its sibling's shape would mark every changed state as a navigation and put a history entry behind
+every row the user clicked. Reported by a review bot reading the API rather than the sentence, and
+the correction is the sharper claim: the first version was wrong about *where* the decision lives,
+and the wrong place happened to be the one that cannot enforce it.
 
 **The difference must be written where the code is.** One plugin now has two answers to "what does a
 view do when its own state changes", and a reader who finds only one of them will assume it is the
@@ -674,6 +744,69 @@ Two findings about the gates rather than about the design, both fixed in the sam
   `<script setup>` became legal in the tree, and this mock's own imports are what falsified it.
   `src/prototypes/README.md` already records the same claim going stale in three other places;
   this was the fourth.
+
+### What a review round found that the captures had not
+
+Codex reviewed each commit and raised thirteen findings, all P2. Two needed nothing: an
+`aria-selected` on a `<button>`, invalid on that role and already corrected to `aria-current` in
+§3.3 before the review landed, and a DTO typed to the closed `AssetCategory` union, which the
+round before had already reopened to `string` for §1a's own reason. **The other eleven were
+real**, and they sort into three kinds worth separating, because only one kind is the sort of
+thing a picture can catch.
+
+**Two were false claims about the codebase, in this document.** Both were verified against the
+source before being believed, and both were confirmed by the code's own comments:
+
+- §5.3 said an asset's sidecar path derives from the library folder "rather than from any index",
+  so nothing could answer whether an asset has a shape without a file read. `AssetGeometryStore.
+  pathFor` is `index.getGeometrySidecarPath(assetId) ?? assetSidecarPathFor(libraryFolder, assetId)`
+  — index first, derivation as the repair path — and its docblock records what deriving
+  unconditionally cost when it did that: a moved `.rpgeo` left the asset reading as shapeless and
+  the next write minted a second sidecar beside the orphan. §5.3 is corrected and the cost claim
+  narrowed rather than dropped.
+- §5.1 said the surface needs "a new query and a new read model. Nothing else in the application
+  layer changes." It needs a port change too, and the adapter's own docblock says exactly why:
+  its shape is the project repository's *"minus its `refused` count: that exists because the
+  project list must tell 'no projects' from 'projects I could not read', and the assign picker has
+  no such distinction to draw."* This surface is the first caller that has it to draw. §5.1a.
+
+A third was a false claim about an API. §6.3 said selection is persisted by calling
+`setViewState` with `history: false`. There is no such field: Obsidian passes a `ViewStateResult`
+into `setState` and the view writes `result.history` itself. The correction is the sharper claim —
+the sentence was wrong about *where* the decision lives, and the wrong place happened to be the
+one that cannot enforce it, so a build copying its sibling's shape would have put a history entry
+behind every row the user clicked.
+
+**Two were contracts this document could not have satisfied.** The DTO omitted `notes` and reduced
+the background to a boolean while §3.5 specifies an editable notes field and the spec sheet's name;
+and the *Used in* row discarded `projectPath`, which `ListRequirementsReferencing` supplies for
+exactly the case where two projects share a name — rendering two identical rows for the two things
+the user is being asked to tell apart, immediately before an edit or a deletion. Both fixed above.
+
+**Six were defects in states no capture had ever drawn**, which is the honest limit of the method
+§12 opens with. Four of the six live in the two states the mock rests outside of:
+
+- the row hard-coded `€`, so any non-EUR asset reported the wrong currency — a lie about a number,
+  not a cosmetic slip. The fixture now carries a currency per asset and one entry priced in CHF,
+  so the resting capture draws it;
+- the search result row adds a sixth child to a five-track grid, so every value after the name
+  landed one column out of place. Fixed, and photographed for the first time;
+- the *Results* heading rendered as a disclosure button with `aria-expanded` that could never
+  collapse anything — the live-control-that-does-nothing this project's own empty-state amendment
+  refuses. It is a plain heading now;
+- searching on a narrow pane cleared `rp-al--inspecting` and brought the shelves back while the
+  inspector went on rendering beside them, because it withdrew only when it had no asset at all.
+  So the fix for §6.1's dead end drew both panes at once instead. Now photographed at 460.
+
+The last two are the mock contradicting this document rather than itself: shelf and result order
+followed the fixture rather than §3.2's locale-aware name sort, and the inspector kept its full
+280px rail through §7's whole middle rung because only the `< 35rem` override had ever been
+written. Both were invisible because no capture had been taken between the two widths that were.
+
+**The pattern across all eleven**: a specification is checkable against source, and a mock is
+checkable against a specification, and neither check is a picture. The captures found the mark
+collision and the truncated column; they could not have found a DTO that omits a field the
+inspector needs, and they did not draw the two states where four of these lived.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

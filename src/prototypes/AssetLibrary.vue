@@ -38,20 +38,37 @@ import { ASSETS, CATEGORIES, type CatalogueAsset } from './assetLibraryFixture';
 
 const query = ref('');
 /*
- * Material and Furniture open on purpose. Between them one capture holds every state the row's
- * mark can be in — measured, none, unscaled and pending — beside a closed shelf and an empty
- * one. The first capture opened Material and Fixture, and the two states that most need an eye
- * on them, `unscaled` and `pending`, were both inside a shelf that happened to be shut.
+ * Three open on purpose, and each earns its place in the one picture this entry rests at.
+ * Material and Furniture between them hold every state the row's mark can be in — measured,
+ * none, unscaled and pending — and Fixture holds the one asset priced in a currency that is not
+ * the vault's usual, which is the row's other easy lie. Two shelves stay shut and one is empty,
+ * so the picture also carries the three shapes a shelf itself can take.
+ *
+ * The first capture opened Material and Fixture, and `unscaled` and `pending` were both inside
+ * the shelf that happened to be shut; the second fixed that and left the non-EUR row unseen. A
+ * resting state is a choice about what gets looked at.
  */
-const expanded = ref(new Set<string>(['Material', 'Furniture']));
+const expanded = ref(new Set<string>(['Material', 'Furniture', 'Fixture']));
 const selectedId = ref<string | null>('oak-plank-floor');
+
+/**
+ * Ordered by name, locale-aware, and that is a rule rather than a tidy-up: §3.2 and §6.1 both
+ * specify it, and without it a shelf renders in whatever order the repository handed the rows
+ * back — persistence order, which is a fact about the vault's history and not about the
+ * renovation. The mock's own fixture demonstrated the gap, its Material entries being neither
+ * alphabetical nor anything else a reader could predict. Reported by a review bot.
+ *
+ * Sorted ONCE here rather than per shelf, because every list this surface draws — a shelf, a
+ * flat result run — is a filter of this one.
+ */
+const byName = ASSETS.toSorted((a, b) => a.name.localeCompare(b.name));
 
 const matches = computed((): readonly CatalogueAsset[] => {
 	const needle = query.value.trim().toLowerCase();
-	if (needle === '') return ASSETS;
+	if (needle === '') return byName;
 	// Name, supplier and SKU — never notes, whose matches would be unexplainable in a row that
 	// does not show them.
-	return ASSETS.filter((a) =>
+	return byName.filter((a) =>
 		`${a.name} ${a.supplier ?? ''} ${a.sku ?? ''}`.toLowerCase().includes(needle));
 });
 
@@ -135,6 +152,7 @@ function toggle(category: string): void {
 					label="Results"
 					:assets="matches"
 					:expanded="true"
+					:collapsible="false"
 					:selected-id="selectedId"
 					:show-category="true"
 					@select="selectedId = $event"
@@ -171,6 +189,7 @@ function toggle(category: string): void {
 
 			<AssetInspector
 				:asset="selected"
+				:withdraw="searching"
 				@back="selectedId = null"
 			/>
 		</div>
@@ -305,9 +324,15 @@ function toggle(category: string): void {
 
 /*
  * Below 35rem there is one pane at a time. The inspector's own file carries the half that makes
- * it fill the pane; this is the half that gets the shelves out of its way, and the two are
- * separate because a scoped rule may not reach into a composed component's markup — which is
- * `prototype-styles.test.ts`'s rule and also just true of how Vue scoping works.
+ * it fill the pane and the half that withdraws it; this is the half that gets the shelves out of
+ * its way, and they are separate because a scoped rule may not reach into a composed component's
+ * markup — `prototype-styles.test.ts`'s rule, and also just how Vue's scoping works.
+ *
+ * `withdraw` is the third state that pairing needs. Searching clears `rp-al--inspecting`, which
+ * brings the shelves back — and the inspector went on rendering beside them, because it only
+ * withdrew when it had no asset at all. So a narrow search drew both panes at once, which is the
+ * opposite of what §6.1 promises. Reported by a review bot; the selection is kept rather than
+ * cleared, so clearing the field restores the panel the user was reading.
  */
 @container rp-al (width < 35rem) {
 	.rp-al--inspecting .rp-al-shelves {

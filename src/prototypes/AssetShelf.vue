@@ -42,11 +42,20 @@ const props = withDefaults(defineProps<{
 	selectedId?: string | null;
 	/** A search result list is one flat run of rows, so its rows carry the category instead. */
 	showCategory?: boolean;
+	/**
+	 * A result list is not a shelf that happens to be open: there is nothing to collapse it
+	 * back into. With this false the header draws as a plain heading — no disclosure control,
+	 * no `aria-expanded` — because a button that renders the affordance and can never change
+	 * anything is the live-control-that-does-nothing this project's own empty-state amendment
+	 * refuses. Reported by a review bot.
+	 */
+	collapsible?: boolean;
 }>(), {
 	label: 'Furniture',
 	assets: () => ASSETS.filter((a) => a.category === 'Furniture'),
 	expanded: true,
 	selectedId: null,
+	collapsible: true,
 });
 
 defineEmits<{ toggle: []; select: [id: string] }>();
@@ -54,6 +63,21 @@ defineEmits<{ toggle: []; select: [id: string] }>();
 const listId = computed(() => `rp-al-shelf-${props.label.toLowerCase().replace(/\s+/g, '-')}`);
 const path = (asset: CatalogueAsset): string =>
 	asset.outline === null ? '' : markPath(asset.outline, 20, 2);
+
+/**
+ * The symbol where one is unambiguous, the ISO code where it is not.
+ *
+ * An asset carries its own currency and a project carries its own (PRD §72), so a vault-wide
+ * catalogue is legitimately mixed — the row hard-coded `€` and reported the wrong currency for
+ * anything else, which is a lie about a number rather than a cosmetic slip. `CHF` has no symbol
+ * in common use and `$` is ambiguous across several currencies, so both print their code; a
+ * promoted component resolves this through the locale rather than through a table this size.
+ */
+const SYMBOLS: Readonly<Record<string, string>> = { EUR: '€', GBP: '£' };
+const price = (asset: CatalogueAsset): string => {
+	const symbol = SYMBOLS[asset.currency];
+	return symbol === undefined ? `${asset.unitCost} ${asset.currency}` : `${symbol}${asset.unitCost}`;
+};
 </script>
 
 <template>
@@ -64,6 +88,13 @@ const path = (asset: CatalogueAsset): string =>
 		>
 			<span class="rp-al-shelf__name">{{ label }}</span>
 			<span class="rp-al-shelf__count">0</span>
+		</h3>
+		<h3
+			v-else-if="!collapsible"
+			class="rp-al-shelf__head rp-al-shelf__head--static"
+		>
+			<span class="rp-al-shelf__name">{{ label }}</span>
+			<span class="rp-al-shelf__count">{{ assets.length }}</span>
 		</h3>
 		<h3
 			v-else
@@ -89,7 +120,7 @@ const path = (asset: CatalogueAsset): string =>
 			</button>
 		</h3>
 		<ul
-			v-show="expanded && assets.length > 0"
+			v-show="(expanded || !collapsible) && assets.length > 0"
 			:id="listId"
 			class="rp-al-rows"
 		>
@@ -100,7 +131,10 @@ const path = (asset: CatalogueAsset): string =>
 				<button
 					type="button"
 					class="rp-al-row"
-					:class="{ 'rp-al-row--on': asset.id === selectedId }"
+					:class="{
+						'rp-al-row--on': asset.id === selectedId,
+						'rp-al-row--categorised': showCategory,
+					}"
 					:aria-current="asset.id === selectedId ? 'true' : undefined"
 					@click="$emit('select', asset.id)"
 				>
@@ -129,7 +163,7 @@ const path = (asset: CatalogueAsset): string =>
 						class="rp-al-row__category"
 					>{{ asset.category }}</span>
 					<span class="rp-al-row__cost">
-						<span class="rp-al-row__amount">€{{ asset.unitCost }}</span>
+						<span class="rp-al-row__amount">{{ price(asset) }}</span>
 						<span class="rp-al-row__unit"> / {{ asset.unit }}</span>
 					</span>
 					<span class="rp-al-row__waste">{{ asset.waste ?? '' }}</span>
@@ -142,6 +176,7 @@ const path = (asset: CatalogueAsset): string =>
 
 <style scoped>
 .rp-al-shelf__heading,
+.rp-al-shelf__head--static,
 .rp-al-shelf__head--empty {
 	margin: 0;
 	font-size: var(--font-ui-small);
@@ -184,6 +219,10 @@ const path = (asset: CatalogueAsset): string =>
 	outline-offset: -2px;
 }
 
+/* The static and the empty heading share every rule but their colour: both are a heading with
+   no control, aligned to the same left edge as a shelf that has one. The empty one is faint
+   because it holds nothing; a result list is the thing the user is looking at. */
+.rp-al-shelf__head--static,
 .rp-al-shelf__head--empty {
 	display: flex;
 	align-items: center;
@@ -192,6 +231,9 @@ const path = (asset: CatalogueAsset): string =>
 	/* The chevron's own width plus its gap, so an empty shelf's label sits on the same left
 	   edge as a full one's rather than shifting into the space the control vacated. */
 	padding: var(--size-2-2) var(--size-4-3) var(--size-2-2) calc(var(--size-4-3) + 12px + var(--size-4-2));
+}
+
+.rp-al-shelf__head--empty {
 	color: var(--text-faint);
 }
 
@@ -261,6 +303,17 @@ const path = (asset: CatalogueAsset): string =>
 	font-size: var(--font-ui-small);
 	text-align: left;
 	cursor: pointer;
+}
+
+/*
+ * A SIXTH slot, and it needs its own template rather than an implicit track. In a search result
+ * list the row carries the category the shelf would otherwise have said, so the child count goes
+ * from five to six; grid then invents an implicit column and every value after the name lands one
+ * track out of place. Reported by a review bot against a state no capture had photographed —
+ * the mock opens unsearched, so nothing had ever drawn this row.
+ */
+.rp-al-shelf .rp-al-row--categorised {
+	grid-template-columns: 20px minmax(0, 1fr) minmax(0, 10ch) auto auto minmax(0, 16ch);
 }
 
 .rp-al-shelf .rp-al-row:hover {
@@ -387,6 +440,10 @@ const path = (asset: CatalogueAsset): string =>
 		grid-template-columns: 20px minmax(0, 1fr) auto auto;
 	}
 
+	.rp-al-shelf .rp-al-row--categorised {
+		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) auto auto;
+	}
+
 	.rp-al-row__supplier {
 		display: none;
 	}
@@ -395,6 +452,10 @@ const path = (asset: CatalogueAsset): string =>
 @container rp-al-shelves (width < 32.5rem) {
 	.rp-al-shelf .rp-al-row {
 		grid-template-columns: 20px minmax(0, 1fr) auto;
+	}
+
+	.rp-al-shelf .rp-al-row--categorised {
+		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) auto;
 	}
 
 	.rp-al-row__waste {

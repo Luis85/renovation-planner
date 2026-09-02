@@ -34,8 +34,27 @@ import { ASSETS, type CatalogueAsset } from './assetLibraryFixture';
  * specimen should open on what it is for. `null` still reaches it from the shell — a default
  * applies to an absent prop, never to an explicit `null`.
  */
-const props = withDefaults(defineProps<{ asset?: CatalogueAsset | null }>(), {
+const props = withDefaults(defineProps<{
+	asset?: CatalogueAsset | null;
+	/**
+	 * "Give the pane back", asked by the shell rather than decided here. Below 35rem this panel
+	 * IS the pane, so while a search is running it has to withdraw or the shelves it is meant to
+	 * yield to draw underneath it. The selection is deliberately not cleared to achieve that: a
+	 * user clearing the search field should find the panel they were reading, not an empty rail.
+	 */
+	withdraw?: boolean;
+}>(), {
 	asset: () => ASSETS[0] as CatalogueAsset,
+	withdraw: false,
+});
+
+const SYMBOLS: Readonly<Record<string, string>> = { EUR: '€', GBP: '£' };
+/** The row's rule, stated once more here rather than shared: see `AssetShelf.vue`'s own note. */
+const price = computed((): string => {
+	const asset = props.asset;
+	if (asset === null) return '';
+	const symbol = SYMBOLS[asset.currency];
+	return symbol === undefined ? `${asset.unitCost} ${asset.currency}` : `${symbol}${asset.unitCost}`;
 });
 defineEmits<{ back: [] }>();
 
@@ -63,7 +82,7 @@ const shapeNote = computed((): string | null => {
 <template>
 	<aside
 		class="rp-al-inspector"
-		:class="{ 'rp-al-inspector--rest': asset === null }"
+		:class="{ 'rp-al-inspector--rest': asset === null || withdraw }"
 	>
 		<button
 			type="button"
@@ -99,7 +118,7 @@ const shapeNote = computed((): string | null => {
 					Unit cost
 				</dt>
 				<dd class="rp-al-fields__value rp-al-fields__num">
-					€{{ asset.unitCost }}
+					{{ price }}
 				</dd>
 				<dt class="rp-al-fields__key">
 					Waste
@@ -330,6 +349,19 @@ const shapeNote = computed((): string | null => {
  * one-pane-at-a-time move `ProjectDetailState` already makes, so a user meets one idea and not
  * two.
  */
+/*
+ * The ladder's middle rung, which shipped missing. §7 specifies 280px at 45rem and above, 240px
+ * between 35 and 45, and one pane below 35 — and only the last of the three had a rule, so a
+ * 700px pane kept the full rail and took 40px from the shelves at exactly the width where the
+ * dense row is already dropping slots. Reported by a review bot; no capture had been taken
+ * between the two widths that were.
+ */
+@container rp-al (width < 45rem) {
+	.rp-al-inspector {
+		flex-basis: 240px;
+	}
+}
+
 @container rp-al (width < 35rem) {
 	.rp-al-inspector {
 		flex: 1 1 auto;

@@ -3375,6 +3375,21 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Modify: `src/presentation/editor/tools/editor-context.ts` (or wherever `PlanEditorContext` is
   declared) and `src/plugin/composition-root.ts` — **three** subscriptions, step 3a: the price
   one, the existing `onCatalogueChanged`, and this new one.
+- **Modify: `src/presentation/editor/runtime.ts` — the CONSUMER, and without it the other two
+  edits produce callback sources nobody subscribes to.** This is where a context member becomes
+  a live subscription (`onBeforeUnmount(context.onCatalogueChanged(reloadAssetOptions))`) and
+  where the Inspector is re-read (`hydrateInspector: (ids) => inspector.hydrateFrom(ids)`), so
+  declaring `onProjectPricesChanged` and `onRequirementFiguresChanged` on the context and binding
+  them at the root leaves a mounted Inspector rendering exactly the rows it mounted with. All
+  three sources subscribe HERE, through the one single-flight loader step 3a describes, each
+  disposed on unmount the way the catalogue one already is — and the recalculation source's
+  callback filters on whether the delivered `requirementId` is among the rows the Inspector
+  currently holds before it asks the loader for anything.
+
+  Its absence was invisible to every gate, which is the shape rather than the fact: nothing
+  fails when a callback source has no subscriber. The three-part edit — declare, bind,
+  SUBSCRIBE — is the same one slice 16 records for `ProjectIndexEntryChanged`, and the third
+  part is the one a file list forgets.
 - Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
 - Modify: `styles/` (the row's own partial)
 - Test: `tests/presentation/editor/requirementRow.test.ts` (extend)

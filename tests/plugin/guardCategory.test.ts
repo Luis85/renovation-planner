@@ -11,8 +11,8 @@
  * A service composed next month without a guard passed all four gates, because nothing is
  * wrong with the code.
  *
- * So this file NAMES no service. It composes a real root, DETONATES seven named
- * collaborators underneath it — the five repositories, the geometry port and the file probe,
+ * So this file NAMES no service. It composes a real root, DETONATES eight named
+ * collaborators underneath it — the six repositories, the geometry port and the file probe,
  * each port method replaced by a thrower — walks everything the root hands out, and drives a
  * hostile input through EVERY DOOR of everything it finds.
  *
@@ -487,6 +487,7 @@ describe('every service leaving the composition root is guarded', () => {
 			persistence.zones,
 			persistence.assets,
 			persistence.requirements,
+			persistence.overrides,
 			persistence.geometry,
 			persistence.files,
 		]) {

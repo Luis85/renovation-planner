@@ -47,6 +47,33 @@ export interface RequirementInspectorDTO {
 		effective: Money;
 	};
 	/**
+	 * §89's "beside what it replaced", at the INPUT level — the level `cost` above records the
+	 * OUTPUT of. `catalogue` is the shared library's price, `projectOverride` this project's
+	 * own or `null`, `effective` the one the figures were actually derived from. `null` for a
+	 * row whose `missingTarget` is `'asset'`, since there is no library price to show.
+	 */
+	unitCost: {
+		/** The library's price NOW. */
+		catalogue: Money;
+		/** This project's own price NOW, or `null`. */
+		projectOverride: Money | null;
+		/**
+		 * **The unit cost these figures were actually DERIVED FROM** — `r.calculatedFrom.unitCost`,
+		 * NOT the current resolution.
+		 *
+		 * The two differ exactly when the row is stale: an override moved out of band, or a
+		 * recalculation failed. Taking the freshly-resolved value here would label a price that
+		 * was never used as the one in force, on a row simultaneously marked `stale` — the
+		 * surface contradicting its own status field.
+		 *
+		 * It also keeps this group consistent with the one beside it: `cost.calculated` is
+		 * historical, so the unit cost it was computed from must be too. `catalogue` and
+		 * `projectOverride` are CURRENT, and the gap between them and this figure is precisely
+		 * what a stale row exists to show.
+		 */
+		effective: Money;
+	} | null;
+	/**
 	 * Reported "stale" when the persisted marker says so, when `calculatedFrom` does not
 	 * match the loaded zone and asset, or when the target is missing — never "current"
 	 * for a figure this query cannot re-derive. One-way: a persisted "stale" stays stale
@@ -103,6 +130,24 @@ function isStaleReading(
 	if (r.recalculationStatus === 'stale') return true;
 	if (asset === null || zone === null || projectCurrency === null) return true;
 	return !inputsStillMatch(r.calculatedFrom, zone.area(), asset, projectCurrency);
+}
+
+/**
+ * §89's INPUT-level group, pulled out of `buildRow` when adding it pushed that method's
+ * complexity over budget. `null` for a row whose asset is gone — there is no library price
+ * to show, and inventing one would render a comparison against a figure that does not exist.
+ */
+function buildUnitCostGroup(
+	r: Requirement,
+	assetEntity: { readonly unitCost: Money } | null,
+	effective: { readonly override: Money | null } | null,
+): RequirementInspectorDTO['unitCost'] {
+	if (assetEntity === null || effective === null) return null;
+	return {
+		catalogue: assetEntity.unitCost,
+		projectOverride: effective.override,
+		effective: r.calculatedFrom.unitCost,
+	};
 }
 
 export class GetRequirementsForZone
@@ -198,11 +243,17 @@ export class GetRequirementsForZone
 		r: Requirement,
 		assetEntity: { readonly unit: MeasurementUnit; readonly unitCost: Money } | null,
 		overrideMemo: Map<string, Money | null>,
-	): Promise<Result<{ unit: MeasurementUnit; unitCost: Money } | null, RepositoryError>> {
+	): Promise<
+		Result<{ unit: MeasurementUnit; unitCost: Money; override: Money | null } | null, RepositoryError>
+	> {
 		if (assetEntity === null) return ok(null);
 		const override = await this.projectOverride(r.projectId, r.assetId, overrideMemo);
 		if (isErr(override)) return err(override.error);
-		return ok({ unit: assetEntity.unit, unitCost: override.value ?? assetEntity.unitCost });
+		return ok({
+			unit: assetEntity.unit,
+			unitCost: override.value ?? assetEntity.unitCost,
+			override: override.value,
+		});
 	}
 
 	private async buildRow(
@@ -244,6 +295,7 @@ export class GetRequirementsForZone
 				override: r.estimatedCost.override ?? null,
 				effective: effectiveValue(r.estimatedCost),
 			},
+			unitCost: buildUnitCostGroup(r, assetEntity, effective.value),
 			recalculationStatus: stale ? 'stale' : 'current',
 		});
 	}

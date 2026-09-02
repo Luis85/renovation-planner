@@ -130,7 +130,7 @@ import type { PlanSummaryDto } from '../../src/presentation/read-models/PlanDto'
 const refusingWith = (code: string): RenovationProjectQueryServices => {
 	const refuse = (): Promise<Result<never, RepositoryError>> =>
 		Promise.resolve(err({ category: 'Persistence', code, message: 'refused' }));
-	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse };
+	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse, listAssetPrices: refuse };
 };
 
 /**

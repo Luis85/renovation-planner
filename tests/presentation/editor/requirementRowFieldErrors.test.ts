@@ -72,6 +72,14 @@ const ROW: RequirementInspectorDTO = {
 		calculated: moneyOf('100.00', 'EUR'),
 		override: null,
 	},
+	// All three figures AGREE, so every existing case in this file goes on describing the
+	// unoverridden, fresh row it was written for — a fixture that quietly acquires an
+	// override changes what twelve unrelated assertions are about.
+	unitCost: {
+		catalogue: moneyOf('100.00', 'EUR'),
+		projectOverride: null,
+		effective: moneyOf('100.00', 'EUR'),
+	},
 };
 
 /**

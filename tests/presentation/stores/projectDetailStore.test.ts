@@ -24,6 +24,7 @@ function queriesAnswering(overrides: Partial<RenovationProjectQueryServices>): R
 		listProjects: () => Promise.reject(new Error('not exercised')),
 		getProject: () => Promise.resolve(ok(PROJECT)),
 		listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
+		listAssetPrices: () => Promise.reject(new Error('not exercised')),
 		...overrides,
 	};
 }

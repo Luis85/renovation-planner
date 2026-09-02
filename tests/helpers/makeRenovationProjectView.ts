@@ -47,7 +47,10 @@ import { CreateProjectCommand } from '../../src/application/commands/project/Cre
 import { GetProject } from '../../src/application/queries/GetProject';
 import { ListPlansByProject } from '../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../src/application/queries/ListProjects';
+import { ListProjectAssetPrices } from '../../src/application/queries/ListProjectAssetPrices';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { InMemoryAssetRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
+import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { IndexLibraryOverlaps } from '../../src/infrastructure/obsidian/repositories/IndexLibraryOverlaps';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { InMemoryProjectRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryProjectRepository';
@@ -177,7 +180,15 @@ export const defaultRenovationProjectDeps = (
 	// an object incapable of saying anything else. This file is a fake held to a contract; the
 	// standing rule is that it must not be thinner, kinder, harsher or faster than the real
 	// thing, and "always empty by construction" is thinner.
-	const overlaps = new IndexLibraryOverlaps(new InMemoryProjectIndex(), DEFAULT_SETTINGS.libraryFolder);
+	const index = new InMemoryProjectIndex();
+	const overlaps = new IndexLibraryOverlaps(index, DEFAULT_SETTINGS.libraryFolder);
+	// Real, empty in-memory repositories — an ANSWERING query rather than a refusing
+	// double, so the browser harness's price section has something to render through this
+	// factory. `assets`/`overrides` are not part of `SeedRepositories` yet: nothing in this
+	// increment needs to seed either through here, and adding an unused seam ahead of its
+	// first caller is the shape this repository's own rule refuses.
+	const assets = new InMemoryAssetRepository();
+	const overrides = new InMemoryAssetPriceOverrideRepository();
 
 	// Before the queries and the commands are built over them, so a seeded caller gets ONE
 	// world rather than a read model over content and a write side over an empty pair. The
@@ -196,6 +207,7 @@ export const defaultRenovationProjectDeps = (
 			new GetProject(projects),
 			new ListPlansByProject(plans),
 			overlaps,
+			new ListProjectAssetPrices(assets, overrides, index, recorder),
 		),
 		commands: {
 			createProject: new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency),

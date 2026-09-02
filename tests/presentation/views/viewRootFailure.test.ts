@@ -36,7 +36,7 @@ const commands = unavailableRenovationProjectCommands();
 const refusingWith = (code: string, message: string): RenovationProjectQueryServices => {
 	const refuse = (): Promise<Result<never, RepositoryError>> =>
 		Promise.resolve(err({ category: 'Persistence', code, message }));
-	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse };
+	return { listProjects: refuse, getProject: refuse, listPlansByProject: refuse, listAssetPrices: refuse };
 };
 
 /** A session that never composed a query service: slice 1's unrecovered-settings bundle. */

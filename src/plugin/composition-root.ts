@@ -50,6 +50,7 @@ import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerSto
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
 import type { AssetRepository as AssetRepositoryPort } from '../application/ports/AssetRepository';
 import type { RequirementRepository as RequirementRepositoryPort } from '../application/ports/RequirementRepository';
+import type { AssetPriceOverrideRepository as AssetPriceOverrideRepositoryPort } from '../application/ports/AssetPriceOverrideRepository';
 import type { PlanRepository } from '../application/ports/PlanRepository';
 import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
@@ -75,14 +76,19 @@ import { InMemoryDiagnosticsLedger } from '../infrastructure/logging/diagnostics
 import type { DiagnosticsLedger, RuntimeVersions } from '../application/ports/diagnostics';
 import {
 	VAULT_EXCEPTION_MAPPER,
+	guardAssetPriceServices,
 	guardCalibratePlan,
 	guardSlice10,
 	guardedEditorServices,
+	type GuardedAssetPriceServices,
 	type GuardedEditorServices,
 	type GuardedSlice10Services,
 	type QueryServices,
 	type UnguardedSlice10Services,
 } from './guardedServices';
+import { SetAssetPriceOverrideCommand } from '../application/commands/asset-price/SetAssetPriceOverride';
+import { ClearAssetPriceOverrideCommand } from '../application/commands/asset-price/ClearAssetPriceOverride';
+import { ListProjectAssetPrices } from '../application/queries/ListProjectAssetPrices';
 import { composeSlice10, sequenceNotices, type Slice10Wiring } from './slice10Composition';
 import type { RenovationPlannerSettings } from './settings/settings';
 
@@ -153,7 +159,7 @@ export interface CompositionRoot {
  * produce them live together in `guardedServices.ts`, so a member added there cannot be
  * forgotten here.
  */
-export interface PersistenceServices extends GuardedEditorServices, GuardedSlice10Services {
+export interface PersistenceServices extends GuardedEditorServices, GuardedSlice10Services, GuardedAssetPriceServices {
 	readonly index: ProjectIndex;
 	readonly vaultDeps: NoteVaultDeps;
 	readonly migrations: MigrationRunner;
@@ -169,6 +175,14 @@ export interface PersistenceServices extends GuardedEditorServices, GuardedSlice
 	/** Design slice 10's catalog and link entities. */
 	readonly assets: AssetRepositoryPort;
 	readonly requirements: RequirementRepositoryPort;
+	/**
+	 * A project's own price for a shared catalogue Asset. Exposed here, beside its sibling
+	 * repositories, so `guardCategory.test.ts` can detonate it: `SetAssetPriceOverrideCommand`,
+	 * `ClearAssetPriceOverrideCommand` and `ListProjectAssetPrices` all read and write through
+	 * this port, and it was the one collaborator this increment's two commands and query added
+	 * that the seven-name detonation list had not yet named.
+	 */
+	readonly overrides: AssetPriceOverrideRepositoryPort;
 	/** The one reference-lock set per plugin; every command that links or unlinks shares it. */
 	readonly locks: ReferenceLocks;
 	readonly queries: QueryServices;
@@ -349,8 +363,8 @@ function composeGuarded(
 	files: VaultFileProbe,
 	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
 ) {
-	const { projects, plans, zones, requirements, overlaps, defaultCurrency } = repositories;
-	const { events: eventBus, logger, recalculate, locks, markers } = wiring;
+	const { projects, plans, zones, requirements, overlaps, defaultCurrency, assets, overrides } = repositories;
+	const { events: eventBus, logger, recalculate, locks, markers, index } = wiring;
 	const map = VAULT_EXCEPTION_MAPPER;
 	const deleteZone = new DeleteZoneCommand({
 		zones,
@@ -367,9 +381,23 @@ function composeGuarded(
 		{ eventBus, files, logger, map, overlaps },
 		diagnostics,
 	);
+	// Task 5's repository is what these needed; nothing else is built here beyond the two
+	// commands and the query Tasks 4 and 8 wrote. `index` is `wiring.index` — the same
+	// instance every repository and `IndexLibraryOverlaps` already share — so this is a
+	// wiring change at one call site, not a new construction.
+	const assetPrice = guardAssetPriceServices(
+		{
+			setAssetPriceOverride: new SetAssetPriceOverrideCommand({ overrides, projects, assets, events: eventBus, locks }),
+			clearAssetPriceOverride: new ClearAssetPriceOverrideCommand({ overrides, events: eventBus, locks }),
+			listProjectAssetPrices: new ListProjectAssetPrices(assets, overrides, index, logger),
+		},
+		logger,
+		map,
+	);
 	return {
 		...editor,
 		...guardSlice10(slice10, recalculate, logger, map),
+		...assetPrice,
 		createProject: guardCommand(new CreateProjectCommand(projects, eventBus, defaultCurrency), 'command.createProject.failed', logger, map),
 		createPlan: guardCommand(new CreatePlanCommand(plans, projects, eventBus), 'command.createPlan.failed', logger, map),
 		createZone: guardCommand(new CreateZoneCommand(zones, plans, eventBus), 'command.createZone.failed', logger, map),
@@ -424,7 +452,7 @@ export function createCompositionRoot(
 		settings.libraryFolder,
 		settings.defaultCurrency,
 	);
-	const { geometryStore, projects, plans, zones, assets, requirements } = repositories;
+	const { geometryStore, projects, plans, zones, assets, requirements, overrides } = repositories;
 	const { locks, wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, markers);
 
 	const files = createVaultFileProbe(vault.vault);
@@ -449,6 +477,7 @@ export function createCompositionRoot(
 			zones,
 			assets,
 			requirements,
+			overrides,
 			locks,
 			files,
 			overlaps: repositories.overlaps,
@@ -603,6 +632,7 @@ export function renovationProjectDeps(
 					persistence.queries.getProject,
 					persistence.listPlansByProject,
 					persistence.overlaps,
+					persistence.listProjectAssetPrices,
 				)
 			: unavailableRenovationProjectQueries(),
 		commands: persistence

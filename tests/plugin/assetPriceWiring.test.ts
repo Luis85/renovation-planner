@@ -132,4 +132,63 @@ describe('asset-price wiring', () => {
 
 		await plugin.onunload();
 	});
+
+	/**
+	 * Task 8's own coverage gap: nothing in this increment had driven a REAL
+	 * `SetAssetPriceOverrideCommand`/`ClearAssetPriceOverrideCommand` end to end through the
+	 * composed root before this case — Task 7's two cases above publish the bare event
+	 * directly, which proves the SUBSCRIBER is registered but not that the two commands this
+	 * task composes and guards actually reach it. Set THEN clear, in one gesture, because the
+	 * clear needs a real `overrideId`/`version` to condition on and a set is the only way to
+	 * mint one — asserting each half against the SAME requirement and the SAME untouched
+	 * sibling is what makes this the end-to-end case rather than two half ones.
+	 */
+	it('drives a real set and then a real clear through the composed root to a recalculated figure', async () => {
+		const { stack, projectA, asset, requirementA, requirementB } = await seededStack();
+		const bBefore = expectOk(await stack.requirements.getById(requirementB.entity.id));
+
+		const { plugin, workspace } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		workspace.layoutReady();
+		const persistence = plugin.root.persistence as NonNullable<typeof plugin.root.persistence>;
+
+		const set = expectOk(
+			await persistence.setAssetPriceOverride.execute({
+				projectId: projectA.entity.id,
+				assetId: asset.entity.id,
+				unitCost: moneyOf('30.00', 'EUR'),
+				expected: 'absent',
+			}),
+		);
+		stack.metadataCache.catchUp();
+
+		const afterSet = expectOk(await stack.requirements.getById(requirementA.entity.id));
+		expect(afterSet?.entity.recalculationStatus).toBe('current');
+		// 0.0001 m² × 1.10 waste × 30.00 EUR per m², rounded to the minor unit — 0.0033 rounds
+		// to zero, unlike the 50.00 EUR figure the sibling case above computes.
+		expect(afterSet?.entity.calculatedFrom.unitCost.amount).toBe('30');
+		expect(afterSet?.entity.estimatedCost.calculated.amount).toBe('0');
+
+		const cleared = expectOk(
+			await persistence.clearAssetPriceOverride.execute({
+				projectId: projectA.entity.id,
+				assetId: asset.entity.id,
+				expected: { id: set.override.id, version: set.version },
+			}),
+		);
+		expect(cleared.cleared).toBe(true);
+		stack.metadataCache.catchUp();
+
+		const afterClear = expectOk(await stack.requirements.getById(requirementA.entity.id));
+		expect(afterClear?.entity.recalculationStatus).toBe('current');
+		// Back to the catalogue default — `makeAsset`'s own unitCost, 45.00 EUR — because the
+		// project no longer has its own price for this asset.
+		expect(afterClear?.entity.calculatedFrom.unitCost.amount).toBe('45');
+
+		// Neither write ever touched project B's requirement — the narrowed cascade, proven
+		// again on the door this case is actually about.
+		const bAfter = expectOk(await stack.requirements.getById(requirementB.entity.id));
+		expect(bAfter?.version).toEqual(bBefore?.version);
+
+		await plugin.onunload();
+	});
 });

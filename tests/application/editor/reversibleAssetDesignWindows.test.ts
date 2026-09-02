@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import { ReversibleAssetDesignCommands } from '../../../src/application/editor/asset/ReversibleAssetDesignCommands';
 import type { WriteLedger } from '../../../src/application/editor/WriteLedger';
 import { leftWritesBehind } from '../../../src/application/commands/DispatchOutcome';
+import type { AssetRepository } from '../../../src/application/ports/AssetRepository';
 import { expectErr, expectOk } from '../../helpers/domain';
 import {
 	SQUARE,
@@ -23,6 +24,34 @@ import {
 	sidecarWritingAfterWrite,
 	sidecarWritingBetweenReads,
 } from '../../helpers/assetDesignHarness';
+
+/**
+ * A peer writing the NOTE between the adapter's `getById` and the command's own `save`:
+ * fires once, after the Nth read through this port, and never for the peer's own read.
+ *
+ * `after` rather than a bare "the first read", matching `sidecarWritingBetweenReads`'s own
+ * idiom: `updateAssetShape`'s existence check (`loadAssetDocument`) reads `assets` too, so
+ * the footprint gesture staged before the background one in the case below already spends
+ * one read on this same port before the background adapter's own pre-read ever happens —
+ * measured, not assumed, by watching the peer never fire at `after: 1`.
+ */
+function assetsWritingAfterRead(
+	real: AssetRepository,
+	after: number,
+	peer: () => Promise<unknown>,
+): AssetRepository {
+	let seen = 0;
+	return {
+		getById: async (id) => {
+			const found = await real.getById(id);
+			if (++seen === after) await peer();
+			return found;
+		},
+		listAll: () => real.listAll(),
+		delete: (id, expected) => real.delete(id, expected),
+		save: (asset, expected) => real.save(asset, expected),
+	};
+}
 
 /**
  * **WINDOW 2: a foreign write SANDWICHED between two of this history's own gestures.**
@@ -357,5 +386,38 @@ describe('a background undo after a peer has written the sidecar', () => {
 		// The note is untouched: the failed read is asked BEFORE either resource is written.
 		const noteAfterUndo = present(expectOk(await w.stack.assets.getById(w.assetId)));
 		expect(noteAfterUndo.version).toEqual(noteAfterGesture.version);
+	});
+});
+
+describe('a background gesture whose note save refuses after the sidecar was cleared', () => {
+	it('leaves the history able to undo the geometry gesture before it', async () => {
+		// Wrapped in an object, matching the sibling `hook`/`peer` fixtures above: a bare
+		// `let peer: () => Promise<unknown> = () => Promise.resolve();` trips
+		// `unicorn/consistent-function-scoping` (its initial value captures nothing), where a
+		// function expression held as an object property does not.
+		const peer: { run: () => Promise<unknown> } = { run: () => Promise.resolve() };
+		// `after: 2` — `updateAssetShape`'s existence check spends the first read on this port
+		// inside the footprint gesture below, before the background adapter's own pre-read
+		// (the second) ever happens; see `assetsWritingAfterRead`'s own docblock.
+		const w = await seeded({ assets: (real) => assetsWritingAfterRead(real, 2, () => peer.run()) });
+		await w.seed(drawn());
+		await w.seedCalibration();
+
+		const footprint = w.reversible.setFootprint({ assetId: w.assetId, points: TRIANGLE });
+		expect(expectOk(await footprint.execute())).toBe('wrote');
+
+		// The peer bumps the note's revision inside the background gesture's read window, so the
+		// command's own save refuses and its compensation restores the calibration it cleared.
+		peer.run = async () => {
+			expect(expectOk(await w.plain.setHeight.execute({ assetId: w.assetId, height: 1200 }))).toBe('wrote');
+		};
+		const background = w.reversible.setBackground({ assetId: w.assetId, path: 'Specs/a.png', kind: 'image', page: null });
+		expect(expectErr(await background.execute()).code).toBe('asset.revision-conflict');
+		expect((await w.document()).calibration).not.toBeNull();
+
+		// The compensation was TWO sidecar writes this history dispatched; the footprint's undo
+		// must not be refused for them, and must not read them as somebody else's.
+		expect(expectOk(await footprint.undo())).toBe('wrote');
+		expect((await w.document()).shape?.footprint.points).toEqual(SQUARE);
 	});
 });

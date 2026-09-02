@@ -4,7 +4,13 @@ import type { AssetBackgroundRef } from '../../../domain/asset/Asset';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import { assetError, assetNotFound } from '../../../domain/asset/Asset.errors';
 import type { Command } from '../Command';
-import { markUncompensated, plainDispatch, type DispatchResult, type VersionedDispatchResult } from '../DispatchOutcome';
+import {
+	markCompensated,
+	markUncompensated,
+	plainDispatch,
+	type DispatchResult,
+	type VersionedDispatchResult,
+} from '../DispatchOutcome';
 import type { AssetGeometryDocument } from '../../ports/AssetGeometrySidecar';
 import type { EntityVersion } from '../../ports/versioning';
 import type { AssetShapeDeps } from './updateAssetShape';
@@ -152,7 +158,9 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 			if (isErr(restored)) {
 				return err(markUncompensated(saved.error));
 			}
-			return saved;
+			// The restore SUCCEEDED, and it is a write this gesture's history has to record:
+			// `CompensatedWrite` says why a refusal carries a version at all.
+			return err(markCompensated(saved.error, restored.value));
 		}
 
 		await events.publish(assetDesignChanged({ assetId: input.assetId }));

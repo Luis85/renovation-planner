@@ -3,7 +3,12 @@ import type { EventBus } from '../../../core/events/EventBus';
 import type { Asset } from '../../../domain/asset/Asset';
 import { assetDesignChanged } from '../../../domain/asset/Asset.events';
 import { assetNotFound } from '../../../domain/asset/Asset.errors';
-import { markUncompensated, type DispatchResult, type VersionedDispatchResult } from '../../commands/DispatchOutcome';
+import {
+	compensatedVersionOf,
+	markUncompensated,
+	type DispatchResult,
+	type VersionedDispatchResult,
+} from '../../commands/DispatchOutcome';
 import type { AssetShapeInput } from '../../commands/asset/updateAssetShape';
 import type {
 	SetAssetFootprintFromDimensionsInput,
@@ -445,7 +450,15 @@ class ReversibleAssetBackgroundEdit
 		const ran = await this.runForward(beforeNote.value.version, {
 			expectedGeometry: beforeGeometry.value.version,
 		});
-		if (isErr(ran)) return ran;
+		if (isErr(ran)) {
+			// A refused gesture has no inverse, but its COMPENSATION may have written: the clear
+			// landed and was put back, two sidecar revisions this history dispatched and would
+			// otherwise never learn of. Recording the version the restore produced is what keeps
+			// the gestures below this one undoable — `CompensatedWrite` carries the account.
+			const compensated = compensatedVersionOf(ran.error);
+			if (compensated !== null) geometryLedger.record(assetId, compensated);
+			return ran;
+		}
 		if (ran.value.outcome === 'no-write') return ok('no-write');
 
 		this.inverse = {

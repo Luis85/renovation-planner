@@ -179,3 +179,33 @@ export function markUncompensated<TError extends AppError>(
 export function leftWritesBehind(error: AppError): boolean {
 	return (error as Partial<UncompensatedWrite>).uncompensatedWrite === true;
 }
+
+/**
+ * The other outcome a compensation can have: it SUCCEEDED, and the resource it put back now
+ * carries a version the dispatching history has to learn.
+ *
+ * `UncompensatedWrite` covers the compensation that refused. This covers the one that worked —
+ * which is neutral for the save indicator (the vault is back at its pre-state) and is NOT
+ * neutral for a `WriteLedger`: the compensating write was this history's own, dispatched by
+ * the command it ran, and a ledger that never hears of it refuses the next undo below as a
+ * revision conflict and reads the following gesture's pre-read as a foreign write. Measured:
+ * a refused background pick left every earlier sidecar gesture un-undoable for the leaf's life.
+ * A read-back by the adapter would reopen the peer window `VersionedDispatch` exists to close,
+ * so the command that wrote reports it, on the failure channel, beside the refusal.
+ */
+export interface CompensatedWrite {
+	readonly compensatedVersion: EntityVersion;
+}
+
+/** Stamp a refusal with the version its successful compensation produced. Returns a copy. */
+export function markCompensated<TError extends AppError>(
+	error: TError,
+	version: EntityVersion,
+): TError & CompensatedWrite {
+	return { ...error, compensatedVersion: version };
+}
+
+/** The version a refusal's compensation produced, or `null` when it compensated nothing. */
+export function compensatedVersionOf(error: AppError): EntityVersion | null {
+	return (error as Partial<CompensatedWrite>).compensatedVersion ?? null;
+}

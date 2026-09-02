@@ -83,7 +83,11 @@ try the same three in the same order.
   fixture stays green while a detail-state one dies. Both shapes have to be swept: `grep -rn
   "<TYPE> = {" ` for the build errors and `grep -rn "<INJECTION_KEY> as symbol"` for the silent
   ones. Task 9's bullet carries that worked list, including which fixtures deliberately get
-  nothing.
+  nothing. **The cast erases the type of the whole object GRAPH, not of its top level** — a
+  service bundle nested inside an untyped provide is exposed too, which cost a further round
+  after the shape was already written down here. Within one such literal, a member built by a
+  FACTORY CALL inherits the widening and a member written as a LITERAL does not; that, and not
+  the provide itself, is what decides which nested bundles need scheduling.
 - **A corrected CLAIM is swept in the same edit, and this plan has paid three rounds to learn
   it.** When a design decision changes, the sentence justifying the old one is rarely in one
   place: *"the orphan renders in no row, so it is unreachable, unlistable and undeletable"* lived
@@ -3985,6 +3989,32 @@ without this the section has no read operation to call and hydrates nothing.
    answer from — `makeRenovationProjectView.ts` above all, since the browser harness reads
    through it and a refusing double would make the new section unshowable there — and a
    deliberate refusal elsewhere.
+
+5. **`tests/presentation/views/viewRootOpenProject.test.ts:53-58`, which NEITHER search above
+   finds.** It provides its whole context under `[RENOVATION_PROJECT_CONTEXT as symbol]`, and
+   that cast erases the `InjectionKey`'s type — so its hand-built `queries` literal (three
+   members: `listProjects`, `getProject`, `listPlansByProject`) names neither factory nor type
+   and appears in no grep for either. It mounts the DETAIL state (`projectId: KITCHEN.id`), which
+   is where `ProjectDetailStore` calls `listAssetPrices`, so following the list above leaves that
+   member `undefined` and the case faults during `npm run check` — a runtime failure with a clean
+   build, the second shape the Global Constraints describe.
+
+   **Its `commands` in the same literal is immune, and the difference is the rule worth having:**
+   it is `unavailableRenovationProjectCommands()`, a FACTORY CALL, so it inherits step 3a's
+   widening for free. Inside one untyped provide, a member built by a factory follows the type
+   and a member built as a LITERAL does not. That is what decides which nested bundles need
+   listing here, not the provide itself.
+
+   **The other five casts do not need it**, checked one at a time: `viewRoot.test.ts` (`:67`,
+   `:83`) and `viewRootProjectDetail.test.ts:148` spread `defaultRenovationProjectDeps()` and
+   `...base.queries`, so they inherit; `viewRootIndexRebuild.test.ts` (`:50`, `:111`) and
+   `viewRootCreateProject.test.ts` pass `projectId: null`, the LIST state, which never mounts the
+   detail tree and never reaches this query.
+
+   **This is the same file round 45 named for the two refresh callbacks**, one member deeper. The
+   Global Constraints gained the untyped-provide shape in that round, and I applied it to the
+   context's own members and not to the service bundles nested inside them — the cast erases the
+   type of the whole object graph, not of its top level.
 
 - [ ] **Step 4: Compose and guard**
 

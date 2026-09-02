@@ -46,7 +46,7 @@ import { constrainsAngle } from '../editor/snapping/editorSnapping';
 import type { BackgroundStatus } from '../editor/layers/background/BackgroundRenderModel';
 import { useAssetDesignerContext } from './AssetDesignerContext';
 import { provideDesignerRuntime } from './runtime';
-import { useAssetDesignStore } from './stores/assetDesignStore';
+import { isMissingAsset, useAssetDesignStore } from './stores/assetDesignStore';
 import DesignerCanvas from './DesignerCanvas.vue';
 import DesignerToolbar from './DesignerToolbar.vue';
 import DesignerInspector from './inspector/DesignerInspector.vue';
@@ -229,24 +229,33 @@ async function onEmptyStateAction(): Promise<void> {
 }
 
 /**
- * The read replaced by the reason it has none.
+ * The read replaced by the reason it has none — and the reason decides what the one button
+ * means, which is THREE states in one slot rather than two.
  *
- * `trError` for the body rather than one fixed sentence, so unrecovered settings, a vault fault
- * and an asset that is gone each say their own thing — the defect slice 11 fixed on the project
- * surface and slice 17 carried to the editor.
+ * `trError` for the body of the two failure states, so unrecovered settings and a vault fault
+ * each say their own thing — the defect slice 11 fixed on the project surface and slice 17
+ * carried to the editor.
  *
- * The retry is withheld from a bootstrap failure alone, through the same
+ * The retry is withheld from a bootstrap failure, through the same
  * `viewHydrationOrigin`/`surfaceFor` pair both other views ask: `settings.unrecovered` means the
  * composition root wired no query service at all, so re-running one does nothing while looking
  * like it might.
  *
- * **There is deliberately no close-the-tab action, and it is not an oversight.** Slice 17 gives
- * the Plan Editor one because `GetPlan` answers `ok(null)` for a plan that is gone — a SUCCEEDED
- * read reporting an absence, structurally distinct from a failure. `GetAssetDesign` refuses an
- * absent asset with a coded `ReferenceError` instead, so the designer has no such arm to branch
- * on, and inventing one means deciding whether `asset.not-found` is dangling or merely failed.
- * ADR-0015's Consequences record that as Task B9's, which is where a leaf restored onto a
- * deleted asset first becomes an ordinary thing rather than a hypothetical.
+ * **The DANGLING state, and this paragraph used to argue against having one.** It said there was
+ * deliberately no close-the-tab action, on the grounds that slice 17 could branch on
+ * `status === 'missing'` — `GetPlan` answers `ok(null)` for a plan that is gone — while
+ * `GetAssetDesign` refuses an absent asset with a coded `ReferenceError` and gives this view no
+ * such arm. The premise is right and the conclusion did not follow: the CODE is the arm. What
+ * the old argument called "inventing one" is a question `assetDesignStore` was already asking
+ * twice, to hold the loading line before the index scan and to blank the design after it, and
+ * `isMissingAsset` is that question exported rather than a fourth spelling of the code. Deferring
+ * it to Task B9 left the user on a Retry that re-runs the same lookup for a note that is not
+ * coming back, in a tab with no subject — the live control that does nothing this repository
+ * refuses everywhere else. Reported on PR 43.
+ *
+ * The state carries its own body rather than a mapped one: `trError` would resolve
+ * `asset.not-found`'s own sentence, "That asset no longer exists.", which is true and says
+ * nothing about the TAB the user is looking at or what to do with it.
  */
 const failure = computed(() => {
 	const failed = error.value;
@@ -255,6 +264,18 @@ const failure = computed(() => {
 	// hide a design the user can go on working on in order to report a read that failed. That
 	// case is `staleAfterRefresh` above.
 	if (status.value !== 'failed' || failed === null) return null;
+	// ASKED FIRST, because it is the narrow arm: an authoritative miss is a specific code, and
+	// `viewHydrationOrigin` below would route it to the retryable bucket. The store only ever
+	// reaches `failed` with this code once the index scan has run — before that it holds the
+	// loading line — so a leaf restored onto a vault whose scan has not landed does not flash
+	// this screen and retract it.
+	if (isMissingAsset(failed)) {
+		return {
+			headline: tr('designer.asset-missing.headline'),
+			body: tr('designer.asset-missing.body'),
+			actionLabel: tr('designer.asset-missing.action'),
+		};
+	}
 	const session = surfaceFor(failed, viewHydrationOrigin(failed)).kind === 'session-failure';
 	return {
 		headline: tr(session ? 'view.session-failure.headline' : 'designer.asset-failed.headline'),
@@ -262,6 +283,28 @@ const failure = computed(() => {
 		...(session ? {} : { actionLabel: tr('view.failure.retry') }),
 	};
 });
+
+/**
+ * The failure state's one button, which means two different things — `PlanEditorRoot`'s own
+ * `onFailureAction`, reached from the other side of the same structural difference.
+ *
+ * A read that FAILED is retryable: the query really tried and may succeed on a second attempt.
+ * An asset that is GONE is not, so the useful action is to close the tab. Branching HERE rather
+ * than emitting two events, because `ViewFailure` is deliberately generic — resolved strings in,
+ * one `action` out — and teaching it which of its callers means what would make it this
+ * surface's component rather than any view's.
+ *
+ * Both directions have a case: a handler that always closed, or always re-read, passes a suite
+ * that tests only one of them.
+ */
+function onFailureAction(): void {
+	const failed = error.value;
+	if (failed !== null && isMissingAsset(failed)) {
+		context.closeLeaf();
+		return;
+	}
+	void runtime.hydrate();
+}
 
 onMounted(() => {
 	void runtime.hydrate();
@@ -305,7 +348,7 @@ onMounted(() => {
 				<ViewFailure
 					v-if="failure !== null"
 					v-bind="failure"
-					@action="() => void runtime.hydrate()"
+					@action="onFailureAction"
 				/>
 				<p
 					v-else-if="design === null"

@@ -374,6 +374,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'designer.background.pick': 'Hintergrund für dieses Objekt wählen',
 	'designer.loading': 'Objekt wird geladen …',
 	'designer.asset-failed.headline': 'Dieses Objekt konnte nicht geladen werden',
+	'designer.asset-missing.headline': 'Dieses Objekt gibt es nicht mehr',
+	'designer.asset-missing.body': 'Dieser Tab verweist auf ein Objekt, das nicht mehr im Vault ist.',
+	'designer.asset-missing.action': 'Tab schließen',
 	'designer.refresh-failed':
 		'Dieses Objekt konnte nach der letzten Änderung nicht neu gelesen werden; die Anzeige ist möglicherweise nicht aktuell.',
 	// „Objekt“, nie „Material“ — dasselbe Wort wie in jeder anderen Zeile dieses Abschnitts.

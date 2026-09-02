@@ -9,8 +9,16 @@ import type { AssetDesignerQueryServices } from '../../read-models/assetDesigner
  *
  * There is no `'missing'` here and its absence is a decision rather than an omission:
  * `GetAssetDesign` refuses an absent asset with a coded `ReferenceError` instead of answering
- * `ok(null)`, so an asset that is gone arrives as a failure and nothing downstream could tell
- * the two apart afterwards. `ProjectStore` keeps them separate because its queries do.
+ * `ok(null)`, so an asset that is gone arrives as a FAILURE. `ProjectStore` has a fourth member
+ * because its queries answer an absence.
+ *
+ * **What this used to add — "and nothing downstream could tell the two apart afterwards" — was
+ * the sentence a whole defect rested on.** The STATUS cannot tell them apart; the CODE always
+ * could, which this module itself proves twice below, and `isMissingAsset` is that question with
+ * one spelling. `AssetDesignerRoot` reads it to decide between a retry and closing the tab, so
+ * the distinction lives in the refusal rather than in a status member. Adding a `'missing'`
+ * status was the alternative and is still refused: it would make every arm past the await ask
+ * which of two failure states it is in, for a fact one predicate answers.
  */
 type AssetDesignStoreStatus = 'idle' | 'loading' | 'ready' | 'failed';
 
@@ -25,6 +33,20 @@ type AssetDesignStoreStatus = 'idle' | 'loading' | 'ready' | 'failed';
  * loading line over it would hide a real fault behind a spinner.
  */
 const MISSING_ASSET_CODE = 'asset.not-found';
+
+/**
+ * Is this refusal the vault saying the asset is not there, as opposed to saying it could not
+ * look?
+ *
+ * Exported because there are now THREE askers and one of them is outside this module:
+ * `hydrate`'s pre-scan hold, its authoritative-miss rule, and `AssetDesignerRoot`'s choice
+ * between a retry and closing the tab. A predicate rather than the constant, so the count of
+ * places that spell the code stays exactly one — this repository's own rule about a question
+ * worth asking at more than one door.
+ */
+export function isMissingAsset(cause: AssetDesignError): boolean {
+	return cause.code === MISSING_ASSET_CODE;
+}
 
 /**
  * The asset designer's working copy of one asset's design (SDD §14), and never a write path:
@@ -147,7 +169,7 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 			// disk. The loading line is held instead, and `createAssetDesignChangeSource`'s
 			// `ProjectIndexRebuilt` arm is what re-reads once the scan lands. Both halves, or the
 			// leaf either flashes a failure it retracts or never draws at all.
-			if (found.error.code === MISSING_ASSET_CODE && !options.indexScanCompleted) return;
+			if (isMissingAsset(found.error) && !options.indexScanCompleted) return;
 			// **Keep-previous covers a read that FAILED, never one that answered.** The whole
 			// argument for it — `ProjectStore.hydrate` draws the same line — is that blanking
 			// replaces "possibly stale" with definitely nothing "over data the vault has". An
@@ -160,7 +182,7 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 			// Narrow on purpose, and asked AFTER the pre-scan hold above so the two miss rules
 			// stay one ordered pair rather than two competing ones: a miss before the scan is
 			// not authoritative and holds the line; a miss after it is, and blanks.
-			const authoritativeMiss = found.error.code === MISSING_ASSET_CODE;
+			const authoritativeMiss = isMissingAsset(found.error);
 			if (options.keepPreviousOnFailure === true && status.value === 'ready' && !authoritativeMiss) {
 				error.value = found.error;
 				// Real content is still on screen and the vault has moved past it.

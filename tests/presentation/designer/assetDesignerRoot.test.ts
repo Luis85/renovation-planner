@@ -64,6 +64,9 @@ function toolButton(wrapper: VueWrapper, label: StringKey): HTMLButtonElement {
 }
 
 
+/** How many times the tree asked to close its leaf; reset by `mounted`. */
+let closeRequests = 0;
+
 function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerContext {
 	return {
 		assetId: ASSET_ID,
@@ -83,11 +86,18 @@ function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerCo
 		// their names say — a leaf reading before the scan holds its loading line instead, which
 		// is `designerRefresh.test.ts`'s restored-leaf case.
 		indexScanCompleted: () => true,
+		// RECORDS rather than behaves, which is the whole of what a jsdom fixture can say about
+		// closing a leaf: `FakeLeaf.detach` is asked in `assetDesignerView.test.ts`, at the seam
+		// that supplies this callback. Here the question is only whether the tree ASKS.
+		closeLeaf: () => {
+			closeRequests += 1;
+		},
 		...overrides,
 	};
 }
 
 async function mounted(ctx: AssetDesignerContext = context()) {
+	closeRequests = 0;
 	const pinia = createPinia();
 	const wrapper = mount(AssetDesignerRoot, {
 		global: { plugins: [pinia, VueKonva], provide: { [ASSET_DESIGNER_CONTEXT as symbol]: ctx } },
@@ -310,6 +320,78 @@ describe('what the designer draws inside its canvas region', () => {
 
 		expect(wrapper.find('.rp-view-failure').exists()).toBe(true);
 		expect(wrapper.find('.rp-view-failure__action').exists()).toBe(false);
+	});
+
+	/**
+	 * An asset that is GONE is not a read that failed, and the difference is what the action
+	 * means. `GetAssetDesign` refuses an absent asset with a coded `ReferenceError` rather than
+	 * answering `ok(null)`, so this arrives in the same slot as a vault fault — and the retry
+	 * this view offered every failure could only re-run the same lookup for a note that is not
+	 * coming back, leaving the user pressing a button that can never work in a tab with no
+	 * subject. Slice 17's plan-editor answer, reached from the other side of that structural
+	 * difference: the dangling state closes the tab.
+	 */
+	it('offers to close the tab when the asset is gone, rather than a retry that cannot work', async () => {
+		const { wrapper } = await mounted(
+			context({
+				queries: {
+					getAssetDesign: () =>
+					Promise.resolve(err({ category: 'Reference' as const, code: 'asset.not-found', message: 'gone' })),
+				},
+			}),
+		);
+
+		const failure = wrapper.find('.rp-view-failure');
+		expect(failure.text()).toContain(t('en', 'designer.asset-missing.headline'));
+		expect(failure.find('.rp-view-failure__action').text()).toBe(t('en', 'designer.asset-missing.action'));
+	});
+
+	/**
+	 * And the action really closes the leaf rather than re-reading. Both halves, because a build
+	 * that drew the missing copy over a `hydrate()` handler passes the case above completely.
+	 */
+	it('closes the leaf from that action, and does not re-read', async () => {
+		let attempts = 0;
+		const { wrapper } = await mounted(
+			context({
+				queries: {
+					getAssetDesign: () => {
+						attempts += 1;
+						return Promise.resolve(err({ category: 'Reference' as const, code: 'asset.not-found', message: 'gone' }));
+					},
+				},
+			}),
+		);
+
+		await wrapper.find('.rp-view-failure__action').trigger('click');
+		await flushPromises();
+
+		expect(closeRequests).toBe(1);
+		expect(attempts).toBe(1);
+	});
+
+	/**
+	 * The contrast case that guards the over-correction: a vault fault is still RETRYABLE and
+	 * still re-reads. A build that routed every failure to `closeLeaf` passes both cases above.
+	 */
+	it('still retries a vault fault, and never closes the leaf for one', async () => {
+		let attempts = 0;
+		const { wrapper } = await mounted(
+			context({
+				queries: {
+					getAssetDesign: () => {
+						attempts += 1;
+						return Promise.resolve(err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' }));
+					},
+				},
+			}),
+		);
+
+		await wrapper.find('.rp-view-failure__action').trigger('click');
+		await flushPromises();
+
+		expect(attempts).toBe(2);
+		expect(closeRequests).toBe(0);
 	});
 });
 

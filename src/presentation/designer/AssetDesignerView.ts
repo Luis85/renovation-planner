@@ -184,6 +184,12 @@ export class AssetDesignerView extends ItemView {
 			indexScanCompleted: this.deps.indexScanCompleted,
 			onThemeChange: this.deps.onThemeChange,
 			onDesignChanged: (listener) => this.deps.onDesignChanged(assetId, listener),
+			// NOT an `AssetDesignerDeps` member, for `PlanEditorView`'s reason: the composition root
+			// composes services and knows nothing about which leaf this is. The leaf is the VIEW's,
+			// so the view is what can close it.
+			closeLeaf: () => {
+				this.leaf.detach();
+			},
 		};
 
 		const app = createApp(AssetDesignerRoot);

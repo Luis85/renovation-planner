@@ -114,6 +114,11 @@ function harness(options: {
 		},
 		commands: unavailableAssetDesignerCommands(),
 		logger: recorder,
+		// Not the dangling state's suite: `assetDesignerRoot.test.ts` is where the tree is asked
+		// whether it CALLS this, and `assetDesignerView.test.ts` whether calling it detaches the
+		// leaf. Present rather than omitted because the member is required precisely so no surface
+		// can forget to answer the question.
+		closeLeaf: () => undefined,
 		// This file is about the dispatcher and the store, not the picker — `null` here is
 		// simply "unused by this suite's cases", never a claim about production.
 		picker: null,
@@ -593,6 +598,10 @@ describe('reaching the runtime from a region', () => {
 			onDesignChanged: () => () => undefined,
 			onThemeChange: () => () => undefined,
 			indexScanCompleted: () => true,
+			// Records nothing here: these cases are not about the dangling state. `assetDesignerRoot.test.ts`
+			// is where the tree is asked whether it CALLS this, and `assetDesignerView.test.ts` whether
+			// calling it detaches the leaf.
+			closeLeaf: () => undefined,
 		};
 		let provided!: DesignerRuntime;
 		let injected!: DesignerRuntime;

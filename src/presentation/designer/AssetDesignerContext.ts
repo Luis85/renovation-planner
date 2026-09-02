@@ -114,6 +114,22 @@ export interface AssetDesignerContext extends Omit<AssetDesignerDeps, 'onDesignC
 	 * every consumer had to re-supply from `assetId` sitting beside it.
 	 */
 	readonly onDesignChanged: (listener: () => void) => () => void;
+	/**
+	 * Close THIS leaf — the tab the user is looking at.
+	 *
+	 * The one thing a designer can offer a user whose ASSET is gone. `GetAssetDesign` refuses an
+	 * absent asset with a coded `ReferenceError`, so that arrives in the same slot as a vault
+	 * fault — and a retry there re-runs the same lookup for a note that is not coming back,
+	 * which is the live control that does nothing this repository refuses everywhere else.
+	 * `AssetDesignerRoot` asks `isMissingAsset` to tell the two apart.
+	 *
+	 * A narrow callback rather than the `WorkspaceLeaf` itself, and NOT an `AssetDesignerDeps`
+	 * member: the composition root composes services and knows nothing about which leaf this is,
+	 * while the leaf is the VIEW's. Exactly `PlanEditorContext.closeLeaf`, which slice 17 added
+	 * for the same state on the other surface and for the same reason — reaching for the global
+	 * `app` instead is what the marketplace rules refuse.
+	 */
+	readonly closeLeaf: () => void;
 }
 
 export const ASSET_DESIGNER_CONTEXT: InjectionKey<AssetDesignerContext> = Symbol(

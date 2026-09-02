@@ -105,17 +105,20 @@ means opening one, remembering it, and opening the other.
   an index nothing maintains.
 - `SDD §11`'s two primary views become three surfaces in `src/`. The Sitemap's inventory gains
   a row.
-- **The dangling-asset state is NOT decided here, and that is a real gap with a trigger.**
+- **The dangling-asset state is DECIDED, and this entry records what deferring it cost.**
   `GetAssetDesign` refuses an absent asset with a coded `ReferenceError` (`asset.not-found`)
   rather than answering `ok(null)` the way `GetPlan` does, so the designer has no structural
-  equivalent of slice 17's dangling-plan state and its failure surface offers a retry for every
-  refusal, including that one. Retrying is harmless and honest — the sentence the user reads is
-  `asset.not-found`'s own — but it is not the useful action, which is closing the tab. **Decide
-  it in Task B9**, which is where a leaf restored onto a deleted asset first becomes an
-  ordinary thing rather than a hypothetical: that task opens the designer from a picker and
-  from the create-asset dialog, so it owns what a stale leaf does. Closing it needs a
-  `closeLeaf()` member on the designer context — the same narrow callback
-  `PlanEditorContext.closeLeaf` already is, added for the same reason.
+  equivalent of slice 17's `status === 'missing'`. This entry read that as "no arm to branch
+  on" and deferred the state to Task B9; it also called retrying "harmless and honest", which
+  is the half that was wrong. A Retry over `asset.not-found` re-runs the same lookup for a note
+  that is not coming back — a live control that does nothing, in a tab with no subject —
+  and the sentence beside it says the asset is gone while the button offers to look again.
+  The arm was there all along: the CODE is the branch, `assetDesignStore` was already keying on
+  it twice, and `isMissingAsset` is that question exported. Closed on PR 43 with
+  `AssetDesignerContext.closeLeaf`, the narrow callback this entry already named — the
+  `PlanEditorContext.closeLeaf` shape, added for the same reason. Task B9 still owns what a
+  stale leaf does when a PICKER opens one; what it no longer owns is whether a dangling leaf
+  has a way out.
 
 ## Revisit when
 

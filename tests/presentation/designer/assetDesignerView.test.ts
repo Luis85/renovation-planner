@@ -349,8 +349,41 @@ describe('what the designer mounts', () => {
 		expect(view.contentEl.querySelector('.rp-designer-canvas .rp-plan-canvas canvas')).not.toBeNull();
 	});
 
-	it('offers a retry for a refusal that is not a bootstrap failure', async () => {
+	/**
+	 * **This case was named for a retry and driven with `asset.not-found`, and both halves went
+	 * on passing after that code stopped meaning a retry.** Its assertion is that the action
+	 * button EXISTS, which is true of the retry and of the close-the-tab action alike, so the
+	 * name described a state the code no longer had. Driven with a vault fault now, which is
+	 * what a retryable refusal actually is.
+	 */
+	it('offers an action for a refusal that is not a bootstrap failure', async () => {
 		const view = await opened(
+			deps({
+				queries: {
+					getAssetDesign: () =>
+						Promise.resolve(
+							err({ category: 'Persistence' as const, code: 'vault.unexpected-failure', message: 'x' }),
+						),
+				},
+			}),
+		);
+
+		expect(view.contentEl.querySelector('.rp-view-failure__action')).not.toBeNull();
+	});
+
+	/**
+	 * `AssetDesignerContext.closeLeaf`, at the seam that supplies it — `planEditorView.test.ts`'s
+	 * own case for the same binding on the other surface.
+	 *
+	 * The tree gets a narrow callback and the VIEW is what holds the `WorkspaceLeaf`. This is the
+	 * only place that binding is observable: `assetDesignerRoot.test.ts` can ask whether the tree
+	 * CALLED `closeLeaf`, and only here can it be asked whether calling it closes anything.
+	 * Driven through the RENDERED button rather than by reaching for the provided context, because
+	 * the binding is worth nothing unless the whole chain works.
+	 */
+	it('closes its own leaf when the dangling-asset action is pressed', async () => {
+		const leaf = new FakeLeaf();
+		const view = makeView(
 			deps({
 				queries: {
 					getAssetDesign: () =>
@@ -359,8 +392,19 @@ describe('what the designer mounts', () => {
 						),
 				},
 			}),
+			leaf,
 		);
+		await view.setState({ assetId: ASSET_ID }, {} as never);
+		await view.onOpen();
+		await settle();
 
-		expect(view.contentEl.querySelector('.rp-view-failure__action')).not.toBeNull();
+		const action = view.contentEl.querySelector<HTMLButtonElement>('.rp-view-failure__action');
+		expect(action).not.toBeNull();
+		expect(leaf.detached).toBe(0);
+
+		action?.click();
+		await settle();
+
+		expect(leaf.detached).toBe(1);
 	});
 });

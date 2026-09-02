@@ -192,6 +192,11 @@ function context(design: AssetDesignDto): AssetDesignerContext {
 		onDesignChanged: () => () => undefined,
 		onThemeChange: () => () => undefined,
 		indexScanCompleted: () => true,
+		// Not the dangling state's suite: `assetDesignerRoot.test.ts` is where the tree is asked
+		// whether it CALLS this, and `assetDesignerView.test.ts` whether calling it detaches the
+		// leaf. Present rather than omitted because the member is required precisely so no surface
+		// can forget to answer the question.
+		closeLeaf: () => undefined,
 	};
 }
 

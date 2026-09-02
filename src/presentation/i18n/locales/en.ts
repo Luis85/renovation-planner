@@ -539,6 +539,17 @@ export const en = {
 	'designer.background.pick': 'Choose a background for this asset',
 	'designer.loading': 'Loading asset…',
 	'designer.asset-failed.headline': 'This asset could not be loaded',
+	// The DANGLING state, and the three keys are the designer's own rather than a reuse of
+	// `editor.plan-missing.*`. The first two must be: every surface's copy is written from its
+	// own subject, and the plan editor's say "plan". The ACTION says "Close this tab" on both
+	// surfaces and could have been borrowed — the toolbar borrows `editor.toolbar.undo` on
+	// exactly that argument — and is minted anyway, because the key that would be borrowed is
+	// `editor.plan-missing.action`: its NAME claims the plan editor's state, so a later change
+	// to that state reaches into this one with nothing to notice. A borrowed key whose name
+	// names a sibling's state is not the same trade as a borrowed word.
+	'designer.asset-missing.headline': 'This asset no longer exists',
+	'designer.asset-missing.body': 'This tab points at an asset that is not in the vault any more.',
+	'designer.asset-missing.action': 'Close this tab',
 	'designer.refresh-failed':
 		'This asset could not be re-read after the last change; what you see may be out of date.',
 	// The spec sheet's own two failures, and the counterparts of `editor.background-missing`

@@ -297,6 +297,10 @@ export async function designerRig(options: DesignerRigOptions = {}): Promise<Des
 		onDesignChanged: (listener) => createAssetDesignChangeSource(events)(assetId, listener),
 		onThemeChange: () => () => undefined,
 		indexScanCompleted: () => true,
+		// Records nothing here: these cases are not about the dangling state. `assetDesignerRoot.test.ts`
+		// is where the tree is asked whether it CALLS this, and `assetDesignerView.test.ts` whether
+		// calling it detaches the leaf.
+		closeLeaf: () => undefined,
 	};
 
 	// Attached to the document, because Konva measures its container and `getComputedStyle`

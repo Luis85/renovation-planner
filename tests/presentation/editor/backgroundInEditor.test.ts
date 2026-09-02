@@ -197,6 +197,84 @@ describe('two background loads racing', () => {
 
 		expect(backgroundImage(harness)?.width()).toBe(100);
 	});
+	/**
+	 * A rehydrate is not a new document, and the watch is what has to know the difference.
+	 *
+	 * Every successful command re-reads its subject, and both mappers MINT the background
+	 * object — so a plan or an asset whose sheet has not moved still arrives as a fresh
+	 * reference with identical fields. Watching identity therefore re-loaded on every
+	 * unrelated edit: a footprint, an anchor, a facing, a height, a calibration. For an image
+	 * it is a redundant decode; for a PDF it is `readBinary` plus a full page rasterization,
+	 * per save, of a document that did not change.
+	 *
+	 * Counted at the VAULT rather than at the drawn node, because the redundant load produces
+	 * a byte-identical picture — `backgroundImage(...)` reads the same either way, which is
+	 * exactly why nothing caught this.
+	 */
+	it('does not reload an unchanged sheet when the subject is rehydrated', async () => {
+		registerResource(`app://fake/${PNG}`, pngFixture(64, 64));
+		let lookups = 0;
+		const real = vaultWith([PNG]);
+		const counting = {
+			...real,
+			getAbstractFileByPath(path: string) {
+				lookups += 1;
+				return real.getAbstractFileByPath(path);
+			},
+		} as unknown as BackgroundVault;
+
+		let plan = planWith({ path: PNG, kind: 'image' });
+		harness = await mountPlanEditor({
+			plan,
+			vault: counting,
+			queries: {
+				getPlan: () => Promise.resolve(ok(plan)),
+				getRequirementsForZone: () => Promise.resolve(ok([])),
+				listAssets: () => Promise.resolve(ok([])),
+				listRequirementsReferencing: () => Promise.resolve(ok([])),
+				listReassignmentTargets: () => Promise.resolve(ok([])),
+				findZonesByPlan: () => Promise.resolve(ok({ zones: [], unreadable: 0 })),
+			},
+		});
+		await settleUntil(() => backgroundImage(harness) !== undefined, 'the background to land');
+		const afterMount = lookups;
+
+		// The same sheet, a different object — what a mapper hands back after any edit.
+		plan = planWith({ path: PNG, kind: 'image' });
+		harness.changePlan();
+		for (let round = 0; round < 5; round += 1) await settle();
+
+		expect(lookups).toBe(afterMount);
+		// ...and the picture is still there, so "no reload" is not "no background".
+		expect(backgroundImage(harness)).toBeDefined();
+	});
+
+	/** The other direction, so the key is not simply ignoring changes. */
+	it('does reload when the sheet itself changes', async () => {
+		registerResource(`app://fake/${PNG}`, pngFixture(64, 64));
+		registerResource('app://fake/Plans/other.png', pngFixture(120, 120));
+
+		let plan = planWith({ path: PNG, kind: 'image' });
+		harness = await mountPlanEditor({
+			plan,
+			vault: vaultWith([PNG, 'Plans/other.png']),
+			queries: {
+				getPlan: () => Promise.resolve(ok(plan)),
+				getRequirementsForZone: () => Promise.resolve(ok([])),
+				listAssets: () => Promise.resolve(ok([])),
+				listRequirementsReferencing: () => Promise.resolve(ok([])),
+				listReassignmentTargets: () => Promise.resolve(ok([])),
+				findZonesByPlan: () => Promise.resolve(ok({ zones: [], unreadable: 0 })),
+			},
+		});
+		await settleUntil(() => backgroundImage(harness)?.width() === 64, 'the first sheet');
+
+		plan = planWith({ path: 'Plans/other.png', kind: 'image' });
+		harness.changePlan();
+
+		await settleUntil(() => backgroundImage(harness)?.width() === 120, 'the second sheet');
+	});
+
 	/** Nothing in flight may land after the view is gone and write to a detached ref. */
 	it('drops a load that finishes after the editor was closed', async () => {
 		registerResource(`app://fake/${PNG}`, pngFixture(64, 64));

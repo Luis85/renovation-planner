@@ -77,11 +77,25 @@ const model = ref<BackgroundRenderModel>(NO_BACKGROUND);
  */
 let currentLoad = 0;
 
+/**
+ * The FIELDS, never the object. A rehydrate is not a new document: every successful command
+ * re-reads its subject and both mappers mint a fresh `background`, so watching identity
+ * re-loaded on every unrelated edit — a footprint, an anchor, a facing, a height. For an
+ * image that is a redundant decode and for a PDF it is `readBinary` plus a full page
+ * rasterization, per save, of a document that did not change. `page` is normalised because
+ * absent and `null` are one document and only one of the two spellings reaches here.
+ */
+const documentKey = computed(() =>
+	props.reference === null
+		? null
+		: `${props.reference.kind}:${props.reference.page ?? ''}:${props.reference.path}`,
+);
+
 watch(
-	() => props.reference,
-	async (reference) => {
+	documentKey,
+	async () => {
 		const stamp = ++currentLoad;
-		const loaded = await loadBackground(reference, props.vault);
+		const loaded = await loadBackground(props.reference, props.vault);
 		if (stamp !== currentLoad) return;
 		model.value = loaded;
 		emit('status', backgroundStatus(loaded));

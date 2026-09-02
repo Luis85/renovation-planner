@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Quantity, cost and the end-to-end loop]]"
 order: 30
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-01
+finished: 2026-09-02
 start: ""
 due: ""
 risk: ""
@@ -206,30 +206,52 @@ two surfaces for one failure. It propagates instead. The wording it would have b
 than it looks anyway: `toUserMessage` takes no params, so the user-facing sentence cannot name the
 two currencies whatever raises it, and both codes live in the developer-English `message`.
 
-**Why this note is answered and NOT closed.** The answer above is a decision, and it is recorded
-here rather than only in a slice document — which is what this note was owed. The *implementation*
-the answer describes is half-written: the refusal exists and the override does not, so the sentence
-"an override is how a project passes the check" names a mechanism a user cannot yet reach. In a
-two-currency vault the refusal is therefore a **dead end**, with no way to price a shared asset in
-the project's own currency. Closing this note over that would be closing it over code nobody has
-written, which is the failure its own status guard exists to prevent.
+**Why this note stayed open after the answer, and what closed it.** The answer above is a
+decision, and recording it here rather than only in a slice document is what this note was owed.
+The *implementation* it describes was half-written: the refusal existed and the override did not,
+so the sentence "an override is how a project passes the check" named a mechanism a user could not
+reach, and in a two-currency vault the refusal was a **dead end**. Closing over that would have
+been closing over code nobody had written.
 
-## Revisit when
+## Closed (2026-09-02) — the witness is green and the affordance ships
 
-**The per-project price override lands**, giving a user the way to pass the check that this note's
-answer names. That is the override increment, split out of
-[20 — The Currency the Pipeline Is Told](../tasks/20-the-currency-the-pipeline-is-told.md) and
-enumerated in that document's Amendment 1, item 7: `AssetPriceOverride` and its two repositories,
-`AssetPriceOverrideChanged` and its project-narrowed cascade, the duplicate-pair diagnostic, the
-Inspector's three figures, and the affordance itself, which waits on the catalogue screen.
+Both halves this note held itself open for now exist, and they are two different claims that were
+deliberately not collapsed into one.
 
-**Close this note then, and the specific thing to assert first** is the pair this note's question
-is actually about: an assign that refuses on a currency mismatch, then a price override in the
-project's currency, then the *same* assign succeeding — satisfaction demonstrated rather than
-asserted. Until that pair is green, the answer above is a decision without an end-to-end witness.
+**The witness.** `tests/application/commands/requirement/overrideSatisfiesRefusal.test.ts` is the
+pair this note asked to be asserted first, in the order it asked for: *the same*
+`AssignAssetCommand` instance, with identical arguments, refusing on `cost.currency-mismatch` and
+persisting nothing — then a price override in the project's currency — then that same assign
+succeeding, with `calculatedFrom.unitCost` pinned at the override's amount and currency, which a
+stale catalogue fallback fails outright. So it cannot pass for the wrong reason. Its sibling case
+holds the other direction: an override minted in the *asset's* currency does not satisfy the
+refusal, because `SetAssetPriceOverrideCommand` refuses to write one — which is what makes
+"satisfies" mean satisfying rather than bypassing.
+
+**The affordance.** A green test is not a user, and this note's dead end was about a user. The
+price section on the project detail state is where one is set, so the sentence at the top of this
+section now names something reachable. That is why the note closes on the affordance's commit and
+not on the witness's.
+
+**One thing this note predicted and got wrong, worth keeping** because the prediction is what a
+later reader would otherwise repeat: it said the affordance *"waits on the catalogue screen"*.
+It did not. That deferral was withdrawn — pricing an asset is a **project's** gesture and belongs
+on a project's own surface, and the project detail state (design slice 21) was already there. A
+catalogue screen would have been a second place to make the same decision. The reasoning is in
+[20 — The Currency the Pipeline Is Told](../tasks/20-the-currency-the-pipeline-is-told.md)'s
+Amendment 4, item 1.
+
+**What is NOT closed with it**, so that nothing here reads wider than it is. The refusal's copy
+still cannot name the two currencies (`toUserMessage` takes no params), which is the first half's
+recorded residual and is untouched. A project's currency can still move under existing overrides,
+and a hand-edited override note can still disagree with it — both read `stale` rather than
+claiming to be current, both are recorded as residuals in Amendment 4, and neither is a
+regression this note introduced.
 
 The first half — the refusal, the project's currency, the setting and the staleness backstop —
-landed on 2026-09-01 and is recorded in that document's Amendment 1.
+landed on 2026-09-01 and is recorded in that document's Amendment 1. The second half — the
+override entity, its repositories, the narrowed cascade, the duplicate-pair diagnostic, the
+Inspector's three figures and the affordance — landed on 2026-09-02 and is Amendment 4.
 
 ## References
 

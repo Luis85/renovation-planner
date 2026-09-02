@@ -388,21 +388,32 @@ inline rather than only in the amendment.
       and the requiredness asserted by the compiler in the one type-checked test file, since a
       `// @ts-expect-error` nothing enforces is just a comment.
       (`tests/domain/cost/currencyInvariant.test.ts`, `tests/domain/cost/costPipelineInput.test-d.ts`.)
-- [ ] **DEFERRED to the override increment.** `AssetPriceOverride` follows §78's module pattern and
-      has in-memory and Obsidian repositories passing one shared contract test, like every other
-      entity.
-- [ ] **DEFERRED to the override increment — but its second half is TRUE TODAY and is what keeps it
-      cheap.** The effective unit cost is `override ?? asset.unitCost`, resolved by the two commands
-      and **not** inside `deriveRequirementFigures` — checked by that function still taking exactly
-      one `unitCost` and holding no repository. There is no override to resolve yet; the derivation
-      still takes exactly one `unitCost` and holds no repository, and this increment's project read
-      was added to the two COMMANDS for that reason.
-- [ ] **DEFERRED to the override increment, and it is that increment's item rather than a gap
-      here.** `assetMatchesCalculatedFrom` compares against the **effective** cost: a Requirement
-      under a price override reads `"current"`, not a permanent false `"stale"`. The defect
-      **cannot exist until an override does**, so this increment left that predicate untouched
-      deliberately and pinned the fact with a regression test rather than saying "we did not touch
-      it".
+- [x] **MET by the override increment, see Amendment 4.** `AssetPriceOverride` follows §78's
+      module pattern — entity, id, errors, events, Zod schema, mapper — and its in-memory and
+      Obsidian repositories pass one shared contract test
+      (`tests/contracts/asset-price-override-repository.contract.ts`), like every other entity.
+      It is `renovation-asset-price`, and registering a new kind touches several lists at once.
+      **One of them fails SILENTLY when forgotten and the rest do not**: `digest.ts`'s `SCHEMAS`
+      falls through to the UNION of every schema's keys rather than refusing to compile, so an
+      unregistered kind digests foreign keys into its observation token and a user editing one of
+      them has the note's next save refused as an external modification. That is what happened
+      here, and what the test could not see is in Amendment 4 item 7. Its notes are named by their
+      own id under `Asset Prices/` —
+      **not** by the asset's name, see Amendment 4 item 4.
+- [x] **MET by the override increment, see Amendment 4, and the second half held.** The effective
+      unit cost is `override ?? asset.unitCost`, resolved in `resolveEffectiveUnitCost` by the two
+      commands — `AssignAsset` and `RecalculateRequirement`, the same pair that already read the
+      project for its currency — and **not** inside `deriveRequirementFigures`, which still takes
+      exactly one `unitCost` and holds no repository — which is the check, and it is NOT
+      "its diff is empty": the module changed, because the override is a second writer of the
+      field `assetMatchesCalculatedFrom` compares and that comparison moved from the rendered
+      amount to `sameMoney`.
+- [x] **MET by the override increment, see Amendment 4.** `assetMatchesCalculatedFrom` compares
+      against the **effective** cost, so a Requirement under a price override reads `"current"`
+      rather than a permanent false `"stale"`. The defect could not exist until an override did,
+      which is why this increment pinned the untouched predicate with a regression test rather
+      than saying "we did not touch it" — and that pin is what the override increment had to move
+      deliberately.
 - [x] **MET BY ANOTHER ROUTE; the `projectCurrency` field is WITHDRAWN as unnecessary, see
       Amendment 1 item 6.** A Requirement whose project currency changed reads `"stale"` **after a
       reload**. `calculatedFrom` does **not** carry `projectCurrency` and gains no field: the
@@ -419,31 +430,53 @@ inline rather than only in the amendment.
       params, so the sentence names the wrong relationship and the two codes live in the
       developer-English `message`. The *"same assign succeeds once a price override exists"* half
       is the override increment's, and it is where the Issue's closing question gets its end-to-end
-      assertion — the ANSWER is recorded in the Issue now regardless.
-- [ ] **DEFERRED to the override increment.** Both overrides are live on one Requirement and the
-      stated precedence holds.
-- [ ] **DEFERRED to the override increment.** The Inspector shows the shared default, the project's
-      price and the requirement's figure, each labelled and with the one in force marked (§52, §89).
-- [ ] **DEFERRED to the override increment.** `AssetPriceOverrideChanged` cascades **only within
-      its project**.
-- [ ] **DEFERRED to the override increment.** Two override notes for one (project, asset) produce a
-      diagnostic and still return a price.
+      assertion — the ANSWER is recorded in the Issue now regardless. **That half is MET**, by
+      `tests/application/commands/requirement/overrideSatisfiesRefusal.test.ts`: the same command
+      instance refuses, an override in the project's currency is written, and the same assign then
+      succeeds. [[The cost pipeline is told the currency it must produce]] is **closed** on it.
+- [x] **MET by the override increment, see Amendment 4.** Both overrides are live on one
+      Requirement and the stated precedence holds — and getting there needed a pre-existing domain
+      defect fixed: `Requirement.withRecalculation` dropped both overrides on every full
+      recalculation while its sibling `withCalculatedCost` preserved them, so no precedence case
+      could pass against real production code. The COST half of that fix stands; the QUANTITY half
+      was reverted and is a recorded residual, see Amendment 4.
+- [x] **MET by the override increment, see Amendment 4.** `UnitCostFigures.vue` shows the shared
+      default, the project's price and the requirement's own recorded figure, each labelled and
+      with the one in force marked (§52, §89) — the mark being a translated WORD in a badge, so
+      it carries no colour to be the only channel. **Narrow
+      claim**: no instrument here has DRAWN it. The container had no pinned Chromium, so the
+      three-figure block in a row that already carried two is verified by `npm run test-build` in
+      a vault and by nothing else.
+- [x] **MET by the override increment, see Amendment 4.** `AssetPriceOverrideChanged` cascades
+      **only within its project** — `onAssetPriceOverrideChanged` filters on the payload's
+      `projectId` before it recalculates, mutation-checked by deleting the filter and watching two
+      narrowing cases redden. The cascade is **unconditional within** that project, which is a
+      recorded residual rather than a promise: it has no skip test, so pricing an asset at exactly
+      its catalogue price rewrites every matching Requirement without moving a figure.
+- [x] **MET by the override increment, see Amendment 4.** Two override notes for one
+      (project, asset) produce a diagnostic and still return a price — last writer wins by id,
+      deliberately not a refusal, so a hand-made duplicate never hides a note the user can see on
+      disk. Both readers share one `winnersBy`, and the case that pins it saves its two notes in
+      the OPPOSITE order to their ids, because a fixture whose save order matched its id order
+      passes against a naive `new Map(list.map(...))` too.
 - [ ] **WITHDRAWN as unnecessary, not deferred — see Amendment 1 item 6.** The Requirement v1→v2
       migration writing the project's **current** currency into the provenance was a remedy for a
       value the document believed unrecoverable. It is recoverable, so there is no step, no key and
       no under-report to assert. **Nothing in a later increment should re-add this**: adding the
       field would create a second answer to a question the note already answers.
-- [x] **ANSWERED, and deliberately NOT closed.**
+- [x] **ANSWERED here, and CLOSED by the override increment.**
       [[The cost pipeline is told the currency it must produce]] carries its answer — *an override
       **satisfies** the refusal rather than replacing it* — recorded in the note rather than only
-      here. Its `status` stays `New` with a *Revisit when* naming the override increment, because
-      the second half of what it describes is unwritten. An Issue answered and left open is not the
-      failure this item was guarding against; an Issue whose answer lives only in a slice document
-      is, and that is closed.
-- [ ] **NOT MET, and the epic is NOT ticked.** [[Asset library]]'s definition-of-done item — *"A
-      project can record its own price against a shared definition"* — belongs to the override
-      increment, and that epic now carries one line saying so rather than being left to read as
-      though this increment forgot it.
+      here. Its `status` stayed `New` through this increment with a *Revisit when* naming the
+      override increment, because the second half of what it describes was unwritten. It is `Done`
+      now, on the two things it named: the witness pair green, and a user able to reach the
+      affordance. An Issue answered and left open is not the failure this item was guarding
+      against; an Issue whose answer lives only in a slice document is.
+- [x] **MET by the override increment, and the epic is ticked.** [[Asset library]]'s
+      definition-of-done item — *"A project can record its own price against a shared
+      definition"* — is closed by the price section on the project detail state, and that epic
+      says so in its own words rather than being left to be inferred from this increment having
+      happened.
 - [x] `npm run check` passes, and `vitest.config.ts` records a fresh measurement — 5950/5994
       statements, 2956/3010 branches, 1534/1548 functions, 5285/5313 lines
       (99.26 / 98.20 / 99.09 / 99.47). **NOTHING RATCHETS**: rounded down those are the floors
@@ -731,15 +764,216 @@ origin Zone's project at the domain or persistence layer. Closing that is a vali
 with its own refusal code and locale copy, which is not a review-round line; what this amendment
 buys is that the two SURFACES no longer disagree about the data as it stands.
 
+### Amendment 4 (2026-09-02): the second half — the per-project price override — has landed
+
+**It is Amendment FOUR and the design delta that scheduled it says "Amendment 3".** Amendment 3
+was written between the two, against a review-bot finding on the first half's merge commit, so the
+ordinal in
+[`docs/superpowers/specs/2026-09-01-the-per-project-price-override-design.md`](../superpowers/specs/2026-09-01-the-per-project-price-override-design.md)'s
+*Amendments owed* is stale rather than wrong about anything else. Read that spec for the reasoning
+behind every decision here; this section exists because a reader opens **this** document, and a
+withdrawal recorded only in a spec is a withdrawal the next author re-adds as an oversight.
+
+Every item Amendment 1 item 7 deferred is now ticked or amended **inline in the Definition of Done
+above, by name**, so none has to be inferred from this increment having happened. What follows is
+what changed about the DESIGN, and then what is left standing.
+
+1. **The affordance's deferral is WITHDRAWN, not carried.** Amendment 1 item 7 deferred *"where a
+   user creates an override, which waits on the catalogue screen"*, and *Genuinely undecided*
+   below said the same. It did not wait, and the wait turned out never to have been necessary:
+   pricing an asset **for a project** is a project's gesture, the project detail state has existed
+   since design slice 21, and the catalogue is shared across projects — so a catalogue screen has
+   no project to scope the price to and would have had to grow a project picker to become the
+   surface this needs. The override ships **with** its affordance, in one increment, which is what
+   makes the Issue closable rather than merely answerable.
+
+2. **The port's four methods are five: `listByAsset` joins them.** Not symmetry — it is what
+   `DeleteAssetCommand` needs. An asset's overrides are scoped by the ASSET across every project,
+   which no project-scoped read can enumerate, and deleting a catalogue entry that leaves priced
+   pairings behind leaves rows nothing can ever clear. The cleanup runs **after**
+   `runDeleteResolution` and outside its compensated sequence: `resolvedReferents` stays
+   `RequirementId[]` (an override is not a referent), `SEQUENCE_MARKER_SCHEMA_VERSION` is
+   untouched, and both failure arms fall through, so a failed cleanup cannot fail the delete —
+   it warns instead.
+
+3. **The coherence rule exists, and it lives on `SetAssetPriceOverrideCommand` rather than on
+   `AssetPriceOverride.create`.** An override must be in the project's currency; the command reads
+   the project and refuses a mismatch before it writes. **Do not move it to the entity**, which is
+   the tidier-looking answer and is the reason this item is written down: the entity's constructor
+   is also the HYDRATION path, and the notes are user-editable, so a rule enforced there makes
+   every already-drifted note *unreadable* — a note the user can see on disk that the plugin
+   cannot show them. The asymmetry with Amendment 1 item 5, where the coherence rule for `budget`
+   and `contingency` IS on `Project.create`, is deliberate and has a reason: those two are fields
+   of the project's own note, so the entity is the one place every path passes; a project's
+   currency is a DIFFERENT entity's fact, which a constructor cannot read.
+
+4. **The note is named by its own id.** `Asset Prices/<AssetPriceOverrideId>.md`, so the
+   illustrative `Asset Prices/Porcelain Terrace Tile.md` in the design delta is **not** what
+   ships. An override is a relationship rather than a thing with a name of its own, and a
+   name derived from either endpoint goes stale the moment that endpoint is renamed.
+
+5. **`Requirement.withRecalculation` carried a pre-existing defect this increment could not
+   route around, and half the fix was then REVERTED.** It dropped BOTH overrides on every full
+   recalculation while `withCalculatedCost` beside it preserved them, so every automatic cascade
+   in the shipped app — price change, geometry change, the unreadable and gone fallbacks —
+   silently discarded a user's negotiated override, and the precedence criterion above could not
+   pass against real production code. The COST half is fixed and stands. The QUANTITY half was
+   fixed and then reverted, because `deriveRequirementFigures` computes the estimate from the
+   CALCULATED quantity: preserving a quantity override without re-pricing from the effective one
+   leaves a row showing 9 m² beside a cost derived from 12 m², which is worse than the lossy but
+   consistent behaviour it replaced. The remedy's shape is known and named where the code is —
+   mirror `SetRequirementQuantityOverride`'s effective-quantity re-pricing — and it is **pinned as
+   an INVERTED test** rather than described, so whoever takes it reddens a case and reads the note
+   instead of finding a paragraph that went quietly stale.
+
+6. **What the increment measured that this document's plan predicted differently**, recorded
+   because each was decided by a measurement rather than by taste:
+   - The overrides read was memoised per PAIR and is memoised per **PROJECT**. `getForPair`
+     hydrates the whole project's overrides and filters, so a pair-keyed memo was N×M hydrations
+     per Inspector refresh where a project-keyed one is 1×M — strictly worse at every N>1 and
+     equal at N=1. Fixing it cost a `max-params` conversion to a deps object, which is 20
+     construction sites and the bulk of that diff.
+   - Two of that change's existing cases had to move, and both moves are INSTRUMENT-only: a
+     project-keyed memo holding one pair's answer also reads one list, so a call count alone
+     stopped discriminating and the case asserts per-row values beside it; and a refusal injected
+     at `getForPair` did not weaken, it FAILED, because nothing calls that method any more.
+   - `asset-price.entity-invalid` is a `Persistence` error and not a `Validation` one:
+     `readNoteBackedEntity` re-wraps the mapper's `ValidationError`. Read from the raise site
+     rather than from the category the name suggests.
+
+7. **A new entity kind was missing from `digest.ts`'s `SCHEMAS`, and the TEST had its own
+   hand-written list that could not notice.** `ownedKeysFor` answers
+   `OWNED_KEYS_BY_TYPE[type] ?? EVERY_OWNED_KEY`, so an unregistered kind owns the UNION of every
+   schema's keys: a user adding `name:` or `description:` to an override note has it digested into
+   the observation token, and editing that key then refuses the note's next save as an external
+   modification — for a key the asset-price schema does not declare and `writeOwnedFrontmatter`
+   never writes. That is precisely the defect `digest.ts`'s own docblock describes and says was
+   fixed for zones in slice 16. **Nothing went red because the test's `byType` was a THIRD
+   hand-written list**, transcribed from neither `ENTITY_TYPES` nor `SCHEMAS` and covering the
+   five kinds that existed when it was written — so registering the sixth entry alone would have
+   left the next kind exposed identically. `byType` is DERIVED from `ENTITY_TYPES` against a
+   `Record<EntityType, …>` now: a kind that array names and the map does not is a compile error,
+   and a kind whose `SCHEMAS` entry is missing falls through to the union at runtime and reddens
+   the foreign-key case. **Fix the instrument in the same commit as the defect it could not see**,
+   or the fix is one kind wide.
+
+8. **`npm run check` passes on the override increment, measured on a quiet clean tree at the
+   documents commit: exit 0, 317 test files, 4445 tests, coverage 99.24 / 98.17 / 99.11 / 99.49
+   (statements / branches / functions / lines).** **NOTHING RATCHETS**: rounded down those are the
+   floors already in force, which is what slices 5, 11, 13, 15, 16, 18 and 19 also measured. Read
+   the exit code and not the summary — fallow prints `● Duplicates (2 clone groups)` and
+   `✗ 27 lines (0.0%) duplicated across 4 files` in that same green run, because the duplicates
+   section REPORTS and the health section GATES, and this increment already lost a review round to
+   reading those two as one verdict (item 6's sibling lesson, and the whole of `CLAUDE.md`'s new
+   first bullet).
+
+## What the override increment left standing
+
+Recorded here rather than only in the design delta, and with the reason each was not fixed, so
+that the next author does not re-derive the same three candidate remedies. **Four of these are
+PRE-EXISTING and are named as such**, because a residual met later without that label reads as
+this increment's defect.
+
+- **Setting a price is not undoable.** `ProjectDetail` has no `CommandHistory` — `CreatePlanCommand`
+  dispatches directly on that same surface — so the price commands do too. Consistent with the
+  surface rather than with the Inspector's overrides, which are undoable because the plan editor
+  has a stack. The remedy is a stack on the project surface, which is an increment rather than a
+  line.
+- **A project's currency can move under existing overrides.** There is no `UpdateProject` command,
+  but a project note with no `currency:` key follows the `defaultCurrency` setting (Amendment 1
+  item 3), so changing that setting re-denominates the project and strands its overrides. The
+  requirements read `"stale"` through the backstop; the section shows a price in a currency the
+  project no longer prices in, with nothing saying so. The cheapest honest remedy is named so it
+  is not redesigned: a marker on that row, derived per read from the two currencies, never stored.
+- **A hand-edited price note can disagree with the project's currency**, and is **read and shown**
+  — which is item 3's rule holding, not a hole in it. Refusing at the READ was the alternative and
+  is rejected: it makes a note the user can see on disk invisible to the plugin, which is the same
+  trade the duplicate-pair rule already refuses. The assign it feeds refuses at the pipeline, and
+  that message names the wrong relationship for the first half's own recorded reason.
+- **PRE-EXISTING — an out-of-band price change refreshes the views and recalculates nothing.** A
+  price note hand-edited, synced, or deleted in the file explorer reaches `VaultChangeAdapter`,
+  which upserts the index and publishes `ProjectIndexEntryChanged` and no domain event; the
+  cascade subscribes to `AssetPriceOverrideChanged`, which only the two commands raise. It is
+  **symmetrical with `registerOnAssetUpdated`**, and nothing anywhere subscribes a cascade to the
+  index event, so a library price edited by hand moves no requirement in any project today either
+  — the shared catalogue being the larger half of the same gap. What the user sees is a row
+  reporting itself `stale`, because the backstop reads the effective cost. Recovery is clear-then-
+  set, two gestures that both publish; **re-setting the same value is not one**, because the
+  command writes and announces nothing when the submitted price already holds, and after an
+  out-of-band edit the section shows exactly that value.
+- **PRE-EXISTING in shape — a price note whose `project` key is corrupted is priced from the
+  catalogue, silently.** `buildProjectIndexEntries` indexes it by TYPE under no project, and every
+  project-scoped repository intersects `getIdsByProject` with the type set, so it is never
+  hydrated. Measured against the siblings before it was deferred: `ObsidianZoneRepository` and
+  `ObsidianPlanRepository` narrow identically. **The CONSEQUENCE is what differs and is worth
+  carrying**: a zone or plan lost that way is a VISIBLE ABSENCE, while a price override is a
+  silently wrong figure. What bounds it today: an existing requirement reads `stale`, because the
+  recorded and effective costs part; a new assign in a different currency refuses at the pipeline.
+  The genuinely silent window is a same-currency project, a corrupted key, and a NEW assign — and
+  the section cannot show the row either, so the user cannot clear it from the surface. Three
+  fixes were weighed; the correct one is a diagnostic at `buildProjectIndexEntries` for a note
+  declaring a project-scoped type with no project, which serves plan, zone and asset-price
+  uniformly and is an index-pipeline change every consumer inherits.
+- **PRE-EXISTING since slice 10 — a quantity override is dropped on every full recalculation.**
+  Item 5 above; pinned by an inverted case.
+- **The narrowed cascade is UNCONDITIONAL within its project.** `onAssetPriceOverrideChanged` has
+  no skip test where `onAssetUpdated` has one, so pricing an asset at exactly its catalogue price,
+  or clearing one that equalled it, rewrites every matching Requirement although no figure moves.
+  The consequence is churn — revision bumps and a slower gesture — not a wrong figure. Both
+  candidate fixes are partial and both are written down: a handler-side skip test needs a
+  required-member widening of a deps type THREE handlers share, and a command-side one cannot work
+  for `ClearAssetPriceOverrideCommand`, which deliberately holds no `assets` so the orphan row
+  stays clearable.
+- **`projectPricesChangeSource` narrows nothing itself, and its index arm cannot.** The source
+  REPORTS the project a change is about and each caller decides — the price section narrows, the
+  Plan Editor holds a plan id and ignores the argument. The index-event arm reports `null`, meaning
+  *cannot say, refresh anyway*, because `ProjectIndexEntryChangedPayload` carries `entityId` and
+  `entityType` and no project id. So a price-related index event still wakes unrelated projects'
+  panes. Narrowing it means an index lookup per event or a wider payload — an index-pipeline change
+  again, inside an increment about prices.
+- **The index-entry path is asserted AT THE SOURCE, not end to end.** That a synced price note
+  reaches the bus is `VaultChangeAdapter`'s own tested behaviour, and that the source forwards it
+  is this increment's; nothing joins the two halves into one case.
+- **`AssetPriceRow`'s `draftToken` rests on a rule `useFieldCommit` states in comments and in no
+  type** — that it drops a submitted draft exactly when no keystroke landed while it was in
+  flight. If that changes, the row's release goes wrong silently and only three cases catch it.
+  The fuller answer is the composable reporting its own cleanliness, which is a change to
+  something eight other fields use.
+- **PRE-EXISTING and unchanged — `SetRequirementQuantityOverride` and
+  `SetRequirementCostOverrideCommand` are still unguarded on currency.** Amendment 2 records both
+  and its account is unaltered by this increment: neither door was touched here.
+- **`tests/presentation/editor/units.test.ts` builds an unannotated context literal under
+  `as symbol`** — the one injection site in that chain where a future required member is skipped
+  silently rather than reported by the compiler. Pre-existing, correctly untouched, and named here
+  because the compiler is the instrument the rest of that chain relies on.
+- **The migration runner is still unproven on a real chain.** `ASSET_PRICE_MIGRATIONS` is a
+  SEVENTH empty table, and this increment's schema work was another redefinition rather than a
+  version bump — Amendment 1 item 3's withdrawal, extended by one more entity. The risk still
+  lands on the first schema change that cannot be a redefinition, and that change should be
+  SCHEDULED with the proof in mind.
+- **Nothing has DRAWN the Inspector's three-figure block.** The container held no pinned Chromium,
+  and the project surface's captures were taken with a substitute build that prints its own
+  approximate caveat, so the layout of a three-figure block in a row that already carried two is
+  verified by `npm run test-build` in a vault and by nothing here.
+
 ## Genuinely undecided, and left so
 
-- **Where a user creates a price override.** There is no Asset surface at all — slice 10 records
+- **~~Where a user creates a price override.~~ DECIDED by the override increment, see Amendment 4
+  item 1 — the paragraph below is kept as written because the reasoning it got wrong is worth
+  seeing.** There is no Asset surface at all — slice 10 records
   that nothing anywhere selects an Asset for a user to delete, and the same is true of editing
   one. The entity, the command and the query are built here; the affordance belongs to whichever
   slice first gives the catalogue a screen. Until then the override is reachable through the
   sample seed and through a hand-written note, and **the refusal in `AssignAssetCommand` is
   therefore a dead end for a real user** in a two-currency vault. That is the honest state of it
   and it is the strongest argument for scheduling the catalogue UI next.
+
+  **Why that was wrong.** The wait was on the wrong screen. Pricing a shared asset *for a project*
+  is a project's gesture, and the project detail state already existed; a catalogue screen shows
+  an asset with no project in hand and would have needed a project picker to host this at all.
+  The affordance shipped on the project surface, in the same increment as the entity — which is
+  what let [[The cost pipeline is told the currency it must produce]] close rather than merely be
+  answered again.
 - **Whether a project's currency may be changed once Requirements exist.** This slice makes the
   consequence visible (everything reads `"stale"`) and does not refuse the change. Refusing it is
   a product decision nobody has asked for.

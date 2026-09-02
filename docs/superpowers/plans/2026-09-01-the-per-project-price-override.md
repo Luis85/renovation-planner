@@ -2945,6 +2945,17 @@ Add `overrides` to `AssetCascadeDeps`, then between loading the asset and filter
 The query already memoises the project currency per `execute`. Add a second memo, keyed by
 project, for the override — and resolve it the same way, with `null` a CACHED answer:
 
+> **STALE — corrected after this step shipped, and kept as written so the correction is legible.**
+> The sketch below memoises on the PAIR, and its own comment argues for that key. It is the wrong
+> key: `getForPair` calls `listByProject` and filters, so ONE pair lookup hydrates every override
+> note in the project — N pairs cost N×M hydrations where a project-keyed memo costs 1×M, strictly
+> worse at every N>1 and equal at N=1. What shipped memoises `listByProject` per PROJECT and
+> resolves pairs from a map built with `winnersBy`, the same helper `ListProjectAssetPrices` uses,
+> so the two readers share one duplicate-pair rule. Recorded in
+> [`docs/tasks/20`](../../tasks/20-the-currency-the-pipeline-is-told.md)'s Amendment 4, item 6.
+> **The comment being confidently wrong is the point**: it reasons about the memo's key from the
+> rows, and never from what the method underneath it actually reads.
+
 ```ts
 	private async projectOverride(
 		projectId: ProjectId,

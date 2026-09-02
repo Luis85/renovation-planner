@@ -369,26 +369,11 @@ Four sections, in this order:
    print `1200 × 700 mm` over placeholder-space coordinates. Each row withholds its unit and
    carries its own warning while its group is pending.
 
-   **Neither the anchor nor the facing has an absent state, and the first version of this table
-   invented one for both.** `AssetShape` makes `anchor: Point` and `facing: number` mandatory,
-   and `shapeFromDimensions` initialises them to `{ x: 0, y: 0 }` and `0` — so `GetAssetDesign`
-   cannot tell "never placed" from "placed at the origin", and a `Not set` row would have had to
-   guess. Worse, it would guess WRONG for the two users who deliberately chose those values.
-
-   What replaces it is better copy rather than a workaround, and it comes from the domain's own
-   docblock: `footprintFromDimensions` centres a typed rectangle on the origin precisely so that
-   `{ x: 0, y: 0 }` **means the middle of the object rather than a corner nobody chose**. So the
-   anchor row says `Centre` at the origin and an offset from it otherwise — always true, always
-   representable, and it tells a renovator something `Set` never did. The facing prints degrees
-   **converted from the stored radians** (`AssetShape.facing` is "radians, measured anticlockwise
-   from +x, normalised to [0, 2π)"), so `0°` is a real bearing rather than an absence.
-
-   An earlier draft of this paragraph argued the opposite — that the anchor should be a word
-   because a coordinate pair means nothing without the drawing to read it against. That reasoning
-   was sound and its conclusion was unbuildable, which is the more useful thing to record: **this
-   whole section was enumerated from what §3.4 PROMISED rather than from what `AssetShape`
-   holds**, and every one of the round's three findings followed from that. Reported by a review
-   bot citing the domain file and its lines.
+   **Two earlier versions of these rows are recorded in §12 and are NOT instructions.** They said
+   `Set` / `Not set`, then `Centre` and a degree-converted facing; both are superseded by the
+   removal above, and neither is a contract a builder should reconstruct. What survives from them
+   is one fact worth keeping where the code is: `AssetShape.facing` is radians, so anything that
+   ever prints a bearing converts.
 
    Reported in the round before: §3.4 and §5.3 both send these three to the inspector, this
    section listed four rows that did not include them, and §8 defined no labels — so the promise
@@ -405,14 +390,25 @@ Four sections, in this order:
      stays**, because `AssetDesignError` is `RepositoryError | ReferenceError | GeometryError`
      and only one of those three is a damaged sidecar:
 
+     **Keyed on the CODE, never on the union arm**, and the first version of this table got that
+     exactly backwards:
+
      | Cause | Says | `Open designer` |
      | --- | --- | --- |
-     | `asset.not-found` — deleted since the catalogue was read | the asset is gone, with a way back to the list | **withdrawn** — there is nothing to open |
-     | `RepositoryError` — the note or the sidecar could not be read | the vault read failed, retryable | withdrawn until a read succeeds |
-     | `GeometryError` — the sidecar parsed and its shape is invalid | §3.4's `unreadable` wording | **stays** — the designer is where a damaged shape is repaired |
+     | `asset.not-found` | the asset is gone, with a way back to the list | **withdrawn** — there is nothing to open |
+     | any `asset-geometry.*` — `unreadable`, `corrupt`, `schema-invalid`, `asset-id-mismatch` | §3.4's `unreadable` wording | **stays** — the designer is where a damaged shape is repaired |
+     | anything else | the vault read failed, retryable | withdrawn until a read succeeds |
 
-     A single branch would have told a user whose asset had just been deleted that *a stored
-     shape file could not be read*, and offered to open a designer on nothing.
+     The union arm cannot make this distinction. `AssetGeometryStore.readUnlocked` raises all four
+     sidecar failures as `PersistenceError` or `ValidationError`, and `RepositoryError` is
+     `PersistenceError | MigrationError | ValidationError` — so a table with a `RepositoryError`
+     row selects **exactly the damaged-sidecar cases** and withdraws the one action that repairs
+     them. Meanwhile `GeometryError` reaches `GetAssetDesign` from `dimensionsOf` when an extent
+     overflows, which is not a damaged file at all. Reported by a review bot citing both files.
+
+     A single branch, which is what this started as, would have told a user whose asset had just
+     been deleted that *a stored shape file could not be read*, and offered to open a designer on
+     nothing.
    - **Answered** — the rows above.
 
    §4's failure row covers the catalogue read and cannot cover this one: replacing the whole
@@ -618,11 +614,28 @@ correction narrows the cost claim rather than removing it: the index can say *wh
 without touching disk, and it cannot say what is in it, so **the outline still costs a read and a
 parse per row**. The bound below is unchanged; only its justification is now accurate.
 
-Bounded three ways:
+**Bounded by what is ON SCREEN, not by which shelf is open**, and that is a correction rather than
+the original rule:
 
-1. Marks are fetched **per expanded shelf**, in one batched query, never for the whole catalogue.
-2. A row **never waits** for its mark: it renders in the *not yet read* state and the mark fills in.
-3. Collapsing a shelf cancels nothing already in flight but requests nothing further.
+1. A mark is requested when its row **enters the viewport**, in batches, and the answer is cached
+   per asset for the life of the view. Expanding a shelf, scrolling, and running a search all
+   just change which rows are in view.
+2. A row **never waits** for its mark: it renders in the *not yet read* state and the mark fills
+   in.
+3. Nothing already in flight is cancelled when a row leaves; nothing further is requested for it.
+
+The first version said "per expanded shelf", which had two holes and only the second was reported.
+**Search replaces the shelves with a flat Results list**, so no shelf is ever expanded and every
+result row would have sat in *not yet read* for ever — contradicting rule 2 one line below it —
+while the obvious patch, treating Results as one expanded shelf, reads a sidecar for every match a
+broad query returns, which is the bound it was meant to keep. The hole nobody reported is that a
+shelf was never a good bound anyway: a Material shelf with 34 entries reads 34 sidecars to draw
+the six rows a pane can show.
+
+So the viewport is the honest bound, it needs no special case for search, and it makes rule 1
+tighter than the rule it replaces. **The prototype cannot demonstrate it** — every mark there
+comes from a fixture with no I/O — so this one is specified and unphotographed, which §12 records
+rather than leaves implied.
 
 **The inspector does not read through this batch, and cannot.** The shelf batch is bound to
 expanded shelves and carries an OUTLINE and a state, which is all a 20px mark needs. The
@@ -631,8 +644,8 @@ inspector needs more and needs it in cases the batch never covers:
 - a restored view state can name an `assetId` whose shelf is **collapsed**, so no batch has run
   for it and `CatalogueEntryDto` carries no shape data at all — the panel would draw a valid
   selection with no dimensions and no shape state;
-- §3.4 sends the clearance, the anchor and the facing to the inspector precisely because they are
-  mush at 20px, and an outline-only batch cannot supply any of them.
+- §3.4 sends the clearance's extent to the inspector precisely because it is mush at 20px, and an
+  outline-only batch cannot supply it.
 
 So **selection triggers its own read**, independent of shelf expansion: `GetAssetDesign`, which
 already exists and already joins the note and the sidecar into one DTO — dimensions, the
@@ -893,8 +906,9 @@ Each of these is a thing a reader will reasonably expect, refused for a stated r
   of this one, and the epic is not done without it. That makes the anti-goal stronger rather than
   weaker: putting a placement gesture on a vault-wide catalogue would put a project-scoped,
   plan-scoped action on the one surface that belongs to neither.
-- **No clearance, anchor or facing in the row.** They are unreadable at 20px and they are in the
-  inspector.
+- **No clearance, anchor or facing in the row.** All three are unreadable at 20px. The clearance's
+  extent is in the inspector; the anchor and the facing are the Asset designer's, which draws them
+  — §3.5 carries why that took three rounds to settle.
 - **No sort control.** Name within shelf, and the shelves are the only other axis. A sort menu is
   the filtered-ledger structure arriving by the back door.
 
@@ -1213,6 +1227,30 @@ to the check, and when narrowing makes the sentence ugly, the sentence has becom
 One partial fix inside the same round, recorded because it is this file's oldest shape: the
 pending-unit finding named the clearance, the footprint had it too one row up, and fixing only
 the row in the report would have shipped `600 × 580 mm` over coordinates that are not millimetres.
+
+An eleventh round found three, and two of them are the same shape as rounds six and seven: **a
+section changed and its neighbours did not follow.** Narrowing the Shape section left three later
+passages — §3.5's own superseded paragraph, §5.3 and §10 — still instructing a builder to render
+the anchor row and a converted facing that the table above them had just removed. A contract
+contradicted three sections later is one a builder finds from the wrong side, which is the defect
+this document keeps catching in itself and caught again here.
+
+The third is sharper and is a fresh kind. **The refusal table keyed on the union ARM and got the
+mapping exactly backwards.** `AssetGeometryStore.readUnlocked` raises all four sidecar failures as
+`PersistenceError` or `ValidationError`, and `RepositoryError` is
+`PersistenceError | MigrationError | ValidationError` — so a `RepositoryError` row selects
+precisely the damaged-sidecar cases and withdraws `Open designer`, the one action that repairs
+them. `GeometryError`, which the table had assigned to damaged sidecars, actually arrives from
+`dimensionsOf` on an extent overflow. It keys on the code now. *A type union is a shape, not a
+taxonomy; the distinction a user sees usually lives in the code.*
+
+And one hole the report found by its consequence rather than its cause: the mark bound was "per
+expanded shelf", and search replaces the shelves with a flat list, so every result row would have
+sat in *not yet read* for ever. Chasing it exposed a hole nobody reported — a shelf was never a
+good bound anyway, since 34 Materials read 34 sidecars to draw the six rows a pane shows. §5.3
+binds on the viewport now, which needs no special case for search and is tighter than the rule it
+replaces. **The prototype cannot demonstrate it**: every mark there comes from a fixture with no
+I/O, so that rule is specified and unphotographed.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

@@ -2914,7 +2914,11 @@ Restore after each.
 
 ```bash
 # BOTH tasks: Task 5 deliberately did not commit, for the reason its last step gives.
-git add src/application src/plugin src/presentation/editor/planEditorCommands.ts tests
+# `src/core` is here for `sameMoney`, which this task moves out of Task 4's command file into
+# `core/money/Money.ts`. Staging the CONSUMERS without the export is a commit that does not
+# build — the defect a file list produces when a task moves a symbol rather than adding one.
+git add src/core/money/Money.ts src/application src/plugin \
+        src/presentation/editor/planEditorCommands.ts tests
 git commit -m "feat(cost): a project's own price reaches the pipeline, and the predicate follows it
 
 The witness the Issue asks for: an assign refuses on a currency mismatch, a
@@ -3404,13 +3408,29 @@ Plus the interleaving the lock exists for:
 	 * green, and green with the cleanup's own acquisition deleted, which is the mutation this
 	 * case exists to fail.
 	 *
-	 * The window this lock actually protects opens AFTER `runDeleteResolution` releases its
-	 * session and closes when the cleanup acquires: pause the DELETE there — between the
-	 * sequence returning and `deleteOverridesOf` listing — and start the clear inside it.
+	 * **The SECOND draft moved the pause to the right window and still could not reach the
+	 * race, because it kept the two operations sequential.** It said "dispatch the clear, let
+	 * it SETTLE, then release the delete" — so the clear's own conditional delete has already
+	 * landed before the cleanup lists, the cleanup lists nothing, and it warns about nothing
+	 * with or without its lock. Waiting for one operation to finish is exactly what a race
+	 * test must not do, and this instruction did it twice under two different pauses.
+	 *
+	 * **Both must have LISTED before either DELETES**, because that is what a conditional
+	 * delete races on. Pause the CLEANUP between its `listByProject` and its first `delete`;
+	 * run the clear to completion inside that window; then release the cleanup. Its conditional
+	 * delete now targets a note the clear removed, so it refuses, `orphaned` is set, and
+	 * `notify.priceCleanupFailed` fires — the wrong warning this lock exists to prevent, about
+	 * an orphan that is not one.
+	 *
+	 * That ordering is deterministic rather than a genuine interleave, which is the point: with
+	 * the lock present the cleanup blocks at `session.acquire([assetId], [])` until the clear
+	 * releases, so it lists AFTER and finds nothing, and no warning is raised. Delete the
+	 * acquisition and the same script produces the warning. One script, both outcomes decided
+	 * solely by the line under test.
 	 */
 	it('does not warn about an orphan a concurrent clear already removed', async () => {
-		// Pause the delete after runDeleteResolution resolves and before deleteOverridesOf
-		// lists; dispatch the clear; let it settle; then release the delete.
+		// Pause deleteOverridesOf between its list and its first delete; run the clear to
+		// completion; release the cleanup. Assert the note is gone AND notify was never called.
 	});
 ```
 
@@ -3421,11 +3441,18 @@ cases must redden. If only one does, your fixtures share a project or an asset a
 are not testing what their names say. Then delete the `session.acquire([assetId], [])`: the
 interleaving case must redden, and it is the only one that can — the others are sequential.
 
-**If it does NOT redden, the pause is in the wrong place** — almost certainly before the delete
-is dispatched, where `runDeleteResolution`'s own level-1 acquisition on the asset serialises the
-two and there is no window left to race in. That is not a hypothetical: it is what the first
-draft of the case instructed, and the mutation is the only thing that reports it, because a
-case which cannot reach its race is green in every build.
+**If it does NOT redden, the two operations are SEQUENTIAL somewhere**, and this case has
+already failed to reach its race twice, in two different ways:
+
+1. **The pause before the delete is dispatched** — `runDeleteResolution`'s own level-1
+   acquisition on the asset serialises the two, so there is no window left to race in.
+2. **The pause in the right window, with the clear AWAITED to completion** — the cleanup then
+   lists after the note is already gone, finds nothing, and warns about nothing whether or not
+   its lock exists.
+
+Neither is a hypothetical; both were instructed here, one per review round. The mutation is the
+only thing that reports either, because a case which cannot reach its race is green in every
+build — including the broken one it was written to catch.
 
 - [ ] **Step 5: Full gate, then commit**
 
@@ -3745,11 +3772,26 @@ things, and labelling each as what it is beats marking one of them twice.
 A mark exists to DISAMBIGUATE, so it is drawn only when more than one figure is. One figure —
 the fresh, unoverridden case — needs none.
 
-**Compare the fields, not with `Money.compare`.** That function returns a `Result` and REFUSES a
-currency mismatch — which is exactly the state this increment exists around, a GBP override
+**Compare with `sameMoney`, and NOT with `Money.compare`.** `Money.compare` returns a `Result`
+and REFUSES a currency mismatch — exactly the state this increment exists around, a GBP override
 against an EUR catalogue — so a row would raise a calculation error while deciding what to draw.
-`amount` and `currency` as plain strings is the comparison, and it is the same one
-`assetMatchesCalculatedFrom` already makes.
+`sameMoney` (Task 6, in `core/money/Money.ts`) is that guard: currency by field first, amount by
+VALUE after.
+
+**An earlier draft said "`amount` and `currency` as plain strings is the comparison, and it is
+the same one `assetMatchesCalculatedFrom` already makes."** Both halves went wrong at once. The
+string comparison renders `19.50` and `19.5` as different money, so this row would draw a
+"calculated from" line — announcing that the figures came from a price other than the one in
+force — for a requirement Task 6 simultaneously reports `current`, which is the surface
+contradicting its own status field. And the sibling claim stopped being true the moment Task 6
+fixed that predicate: the sentence pointed at the very function whose comparison bug it was
+copying.
+
+**Third caller, one question.** `sameMoney` now has three: the set command's no-op test,
+`assetMatchesCalculatedFrom`, and this row's draw decision. That is the rule this plan keeps
+paying for — a question worth asking at one door is a function — and it is worth noting that
+minting the helper one round earlier did not by itself find this caller. A new shared predicate
+is a reason to grep for everyone asking the same question by hand, in the edit that mints it.
 
 **Step 3a: the ONE hand-built DTO fixture this widening breaks, fixed in THIS task.**
 

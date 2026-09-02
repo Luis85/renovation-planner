@@ -27,7 +27,7 @@ export interface AssetDesignerDeps {
 	 * The write side (design slice B5), which this bundle's own header reserved in writing from
 	 * the day it was written — *"Task B3b the reversible adapters — the guarded command bundle
 	 * arrives with the first thing that builds a command out of it, which Task B3a is not."*
-	 * The designer's four tools are that first thing.
+	 * The designer's five tools are that first thing.
 	 *
 	 * A FACTORY over the leaf's two write ledgers rather than a set of ready-made adapters; see
 	 * `AssetDesignerCommandServices`, which carries the argument.

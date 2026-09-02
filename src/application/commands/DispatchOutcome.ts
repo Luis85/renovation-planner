@@ -149,11 +149,13 @@ export async function plainDispatch(versioned: Promise<VersionedDispatchResult>)
  * every consumer that reads them reads exactly what it read before, and the one consumer that
  * asks about persistence gets an answer nothing had to infer.
  *
- * **Its only producer today is `compensate` in `application/reference/deleteResolution.ts`**,
- * at the one moment the vault is KNOWN to be half-written — a restore that refused, or a
- * completed forward write compensation could not find a snapshot for. A compensation that
- * succeeds leaves the vault at its pre-state and is deliberately NOT marked: neutral is the
- * true answer there, and marking it would be the false badge this shape exists to avoid.
+ * **Four producers in three files** — `grep -rn "markUncompensated(" src/`, run in the edit that
+ * wrote this: `deleteResolution.ts`'s `compensate` and its `markStalePersisted` re-read,
+ * `SetAssetBackground.ts`'s failed calibration restore, and
+ * `ReversibleAssetDesignCommands.ts`'s failed sidecar restore on a background undo. Each is
+ * at a moment the vault is KNOWN to be half-written. A compensation that succeeds leaves the
+ * vault at its pre-state and is deliberately NOT marked with this: neutral is the true answer
+ * for the indicator, and `CompensatedWrite` below is how the LEDGER still hears of it.
  */
 export interface UncompensatedWrite {
 	readonly uncompensatedWrite: true;

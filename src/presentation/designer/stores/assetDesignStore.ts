@@ -77,7 +77,9 @@ export const useAssetDesignStore = defineStore('assetDesign', () => {
 	}
 
 	/**
-	 * THE hydration routine. One, with three callers, rather than one per site.
+	 * THE hydration routine. ONE call site (`runtime.ts`'s `read`), reached from four triggers —
+	 * mount, retry, the post-command refresh and the cross-leaf subscription — rather than one
+	 * routine per trigger.
 	 *
 	 * It takes its query services as an argument rather than closing over them for
 	 * `ProjectStore.hydrate`'s reason: a store that captured its dependencies at definition time

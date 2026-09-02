@@ -16,7 +16,7 @@ import {
  *
  * `AssetDesignerDeps` reserved this member in writing from the day it was created: *"Task B3b
  * the reversible adapters — the guarded command bundle arrives with the first thing that
- * builds a command out of it, which Task B3a is not."* This slice's four tools are that first
+ * builds a command out of it, which Task B3a is not."* This slice's five tools are that first
  * thing.
  */
 

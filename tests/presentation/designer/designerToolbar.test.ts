@@ -178,7 +178,7 @@ describe('the toolbar itself', () => {
 /**
  * The Shift constraint is advertised in the STATUS region while a constraining tool is active,
  * and nowhere else. A modifier no control shows and no menu lists is one nobody finds; four of
- * this surface's six tools take it, so leaving it unmentioned would leave it unmentioned on
+ * this surface's five tools take it, so leaving it unmentioned would leave it unmentioned on
  * this surface entirely.
  */
 describe('the shift hint', () => {

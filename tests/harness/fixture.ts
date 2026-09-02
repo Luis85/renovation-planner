@@ -185,7 +185,7 @@ export function seedFixture(): Pinia {
  *
  * `src/presentation/views/PlanEditorView.ts` does three things when it mounts: `createPinia()`,
  * `use(VueKonva)` and **`provide(PLAN_EDITOR_CONTEXT, …)`**. Without the third, every component
- * that calls `usePlanEditorContext()` throws — `PlanEditorRoot`, `BackgroundLayer`, anything
+ * that calls `usePlanEditorContext()` throws — `PlanEditorRoot`, `PlanCanvas`, anything
  * using `useThemeTokens` — so the index would render the named failure for exactly the
  * components a designer most wants to look at, and a prototype composing one would too.
  *

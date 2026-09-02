@@ -1199,6 +1199,13 @@ check. Rules that came out of it:
   getter from its absence. The field is `#private` now, which turned all five red as they
   should have been. Anywhere a test asserts that something is REACHABLE, `private` is not the
   mechanism that makes the test mean anything.
+- **`undo.superseded` is the designed answer to a peer's write, and it pins the stack.** A
+  refused undo stays on `CommandHistory`'s stack, `canUndo` reads true, and every further press
+  refuses for the leaf's life. The asset designer made this an ordinary state rather than a
+  rare one — two leaves on one asset is the case its ledgers exist for — and the remedy
+  (dropping the superseded entry and saying so, or disabling undo below it) is a decision about
+  `CommandHistory` every surface inherits, not a fix in any adapter. Open, and named here so
+  the next surface does not rediscover it.
 
 **Design slice 15 has landed: there is ONE dialog framework.** `DialogStore` holds one
 descriptor and the awaiting caller's resolver; `openDialog` returns a Promise typed by the
@@ -2390,9 +2397,11 @@ The rules that came out of it:
 - **A Definition of Done item can ask for the WEAKER design, and the answer is to withdraw it
   rather than build it.** The slice asked for `calibration.invalid-distance` to render inline,
   which would have meant restructuring the calibration gesture — its own spec's largest task and
-  named schedule risk. Reading the guards first showed `KnownDistanceForm` **disables its submit
-  button** unless the value parses positive and finite, so no user can produce that refusal at
-  all. Validating at the input is better than dispatching and rendering a refusal. What the same
+  named schedule risk. Reading the guards first showed `KnownDistanceForm` **marks its submit
+  button `aria-disabled`** unless the value parses positive and finite — and `onSubmit` returns
+  without emitting for an unparseable value, which `calibrateWiring.test.ts` pins, since an
+  `aria-disabled` button is still clickable. So no user can produce that refusal at all.
+  Validating at the input is better than dispatching and rendering a refusal. What the same
   item's other third bought was real, though: coincident clicks used to be refused SILENTLY,
   wiping a point the user had placed with no reason given.
 - **A generic component's one event can mean two opposite things, and the CALLER is what
@@ -2988,8 +2997,8 @@ building it:
   with a typo. The wording names neither a plan nor an object: one tool serves both surfaces
   since Task B6, so one sentence has to. The third code of that union,
   `calibration.invalid-distance`, stays absent for the reason slice 17 recorded when it
-  WITHDREW a Definition of Done item about it — `KnownDistanceForm` disables its submit unless
-  the value parses positive and finite, so no user can raise it.
+  WITHDREW a Definition of Done item about it — `KnownDistanceForm` marks its submit
+  `aria-disabled` unless the value parses positive and finite, so no user can raise it.
 - **A fallow finding traced to a construction site, not a call site.** `AssetSuggestModal`
   reported two unused class members where its three siblings (`PlanSuggestModal`,
   `ProjectSuggestModal`, `PlanBackgroundSuggestModal`) did not, despite an identical shape —
@@ -3064,13 +3073,11 @@ draws the line here and no item beneath it may claim otherwise:**
   shown and round-tripped; neither is read by a calculation, a fit check or an overlap test
   anywhere in the product. *Does the worktop clear the window sill* is a question this
   increment does not answer and the epic's own Definition of Done refuses in advance.
-- **The designer canvas renders no gesture IN PROGRESS.** `RenderState.polygonSketch` and
-  `RenderState.measurement` are published by these tools exactly as their Plan Editor
-  counterparts are, and no designer layer reads either — no task in this plan builds a
-  designer interaction layer. A traced footprint appears the instant it is committed and a
-  facing arrow the instant it is written; the rubber band or direction line in between is
-  invisible. This is increment-level and outlives it: it will need its own task, not a fix
-  folded into a future one that happens to touch the canvas.
+- **The designer canvas renders gestures IN PROGRESS now.** `DesignerGestureLayer` reads
+  `RenderState.polygonSketch` and `RenderState.measurement` above the committed design, using
+  the same `gestureGeometry` projections and close-target rule as the Plan Editor's
+  `InteractionLayer`. The rubber band, close target, direction line and calibration tape are
+  therefore visible before their commands commit.
 - **The epic's recoverability condition is not met, and nothing is lost by that today.**
   [[Asset designer]]'s Definition of Done asks that every attribute a PLACEMENT referenced
   stay identifiable after the fact, because an approved Plan revision must not silently
@@ -3599,8 +3606,9 @@ Two rules that follow from it and are worth stating because breaking them is che
   `presentation/`, and the composition root is what knows which view it is wiring.
 
   **One function is not enough on its own, because a leaf takes TIME to exist.** Both
-  leaf-creating doors — there are exactly two in `src/`, counted by grepping `getLeaf(` and
-  `getLeavesOfType(` — look a leaf up and create one when the lookup finds nothing, and a
+  leaf-creating doors — there are exactly two in `src/`, `openNote.ts` and `reveal.ts`,
+  counted by grepping `getLeaf('tab')` — that grep prints three lines today, one historical
+  comment and the two calls — look a leaf up and create one when the lookup finds nothing, and a
   leaf they create does not answer that lookup until its own `await` resolves. So two
   activations in one tick both find nothing and both create: a double click on the ribbon gave
   two tabs of the SINGLETON view, two opens of one plan gave two Plan Editors, and a double

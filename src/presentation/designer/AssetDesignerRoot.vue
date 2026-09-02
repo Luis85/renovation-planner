@@ -124,7 +124,7 @@ const backgroundStatus = ref<BackgroundStatus>('none');
  * A modifier is invisible: no control shows it and no menu lists it, which is the standing cost
  * of the convention every drawing tool in the field uses. This is the cheapest honest
  * mitigation — present while the gesture it applies to is available, gone the moment it is not
- * — and four of this surface's six tools take it, so its absence would leave the constraint
+ * — and four of this surface's five tools take it, so its absence would leave the constraint
  * mentioned nowhere on this surface at all.
  *
  * It sits in the status region rather than in the toolbar for `StatusBar`'s reason: the toolbar

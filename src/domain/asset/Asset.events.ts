@@ -29,9 +29,9 @@ export interface AssetDeleted extends DomainEvent<'AssetDeleted'> {
  * and in the direction of a stale surface. The payload carries the id so a subscriber can
  * filter, which is what keeps one event for every command affordable.
  *
- * **Nothing subscribes to it yet.** Its subscriber is the designer leaf a later increment
- * builds; publishing it now is what lets each design command land with its announcement
- * rather than as a retrofit across three tasks' worth of commands at once.
+ * **Its subscriber is `createAssetDesignChangeSource`**, which every designer leaf takes through
+ * `AssetDesignerDeps.onDesignChanged`; publishing it from every design command is what lets a
+ * peer leaf showing the same asset re-read, forward path and undo path alike.
  *
  * Deliberately NOT `AssetUpdated`, which slice 10's recalculation cascade subscribes to: that
  * event re-reads every Requirement referencing the asset, and a footprint edit changes no

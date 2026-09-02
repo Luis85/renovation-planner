@@ -915,6 +915,14 @@ export default defineConfig({
 			// filename filter over-matches and under-matches at the same time; the question
 			// the check is actually asking is "which files did this branch change", and
 			// `git diff --name-only` is the instrument that answers it.
+			//
+			// **The asset designer's review fixes (2026-09-02), measured after all eleven tasks:**
+			// 99.39 / 98.33 / 99.07 / 99.53. NOTHING RATCHETS unless a figure
+			// rounds down above its floor; functions headroom is 1 unit and branches 12.
+			// Every file this increment changed
+			// that carries an uncovered position carries only INHERITED ones, measured per changed
+			// file from `coverage-final.json` with `git diff --name-only origin/main...HEAD -- src/`
+			// as the file list, not a hand-written filter.
 			thresholds: {
 				statements: 99,
 				functions: 99,

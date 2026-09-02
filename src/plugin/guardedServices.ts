@@ -210,9 +210,10 @@ export interface GuardedSlice10Services {
  * The asset designer's write and read side, guarded — the same seam two increments later
  * (design slice A9).
  *
- * ONE BUNDLE rather than seven top-level members, because these seven are the whole surface
- * of one thing: a designer view is handed `assetDesign` and reaches every door of the design
- * from it, the way the Plan Editor is handed `requirementQueries`. The alternative spreads
+ * ONE BUNDLE rather than nine top-level members — eight commands and one query — because
+ * these nine are the whole surface of one thing: a designer view is handed `assetDesign` and
+ * reaches every door of the design from it, the way the Plan Editor is handed
+ * `requirementQueries`. The alternative spreads
  * the group's membership across `PersistenceServices` and leaves the next command that
  * belongs to it deciding for itself where to go.
  *
@@ -240,7 +241,7 @@ export interface GuardedAssetDesignServices {
  * `executeWithVersion` is what `ReversibleAssetDesignCommands` dispatches — it must, because
  * rediscovering the version with a second read is a window a peer can land in — and a guard
  * on the door nobody dispatches through is a guard nobody has. Declared as one type rather
- * than spelled at seven members so an eighth design command cannot arrive carrying one door.
+ * than spelled at eight members so a ninth design command cannot arrive carrying one door.
  */
 export interface GuardedDesignCommand<TInput>
 	extends Command<TInput, DispatchResult>,

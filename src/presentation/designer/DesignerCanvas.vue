@@ -13,7 +13,7 @@
  *
  * **The `ToolManager` is the LEAF's, not this component's** (design slice B5). Task B4 built
  * one here with a context factory that threw, because nothing registered a designer tool yet;
- * B5 registers five and moved the manager to `DesignerRuntime`, which is what the toolbar —
+ * B5 registered the tools and moved the manager to `DesignerRuntime`, which is what the toolbar —
  * mounted in the shell's own region and not this component's child — can reach. Camera mode is
  * still what "no active tool" means, and it is still what pans and zooms here.
  *

@@ -47,8 +47,9 @@ export interface FacingConfig {
  * — the point a plan positions it by — where a polygon has many ordinary vertices.
  *
  * Taken from that module rather than declared here, because a mark's drawn size and the region
- * that acts on it are numbers that must stay in a known relationship, and Task B5's set-anchor
- * tool is what will need the grab radius beside it.
+ * that acts on it are numbers that must stay in a known relationship, and the day this mark
+ * becomes draggable, the grab radius beside it is the one to reach for — `SetAnchorTool`
+ * today places on a bare click and hit-tests nothing.
  */
 const ANCHOR_RADIUS_PX = POLYGON_CLOSE_TARGET_RADIUS_PX;
 

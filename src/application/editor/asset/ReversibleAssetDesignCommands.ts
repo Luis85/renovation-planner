@@ -59,10 +59,11 @@ export interface VersionedDesignCommand<TInput> {
  * doors for that reason, and `tests/plugin/guardCategory.test.ts` drives every door the root
  * hands out rather than trusting anyone to remember.
  *
- * EIGHT doors and SIX mechanisms: both footprint commands and Task B6's calibration are
- * inverted by the same geometry adapter, because what an inverse restores is the sidecar's
- * whole document and none of the three writes anything else. Task B7's background is its
- * own mechanism, `ReversibleAssetBackgroundEdit`, being the one door that spans both resources.
+ * EIGHT doors and THREE mechanisms: six doors — both footprint commands, the clearance, the
+ * anchor, the facing and Task B6's calibration — are inverted by the same geometry adapter,
+ * because what an inverse restores is the sidecar's whole document; the height is the note
+ * adapter's; and Task B7's background is its own, `ReversibleAssetBackgroundEdit`, being the
+ * one door that spans both resources.
  */
 export interface AssetDesignCommandBundle {
 	readonly setFootprintFromDimensions: VersionedDesignCommand<SetAssetFootprintFromDimensionsInput>;

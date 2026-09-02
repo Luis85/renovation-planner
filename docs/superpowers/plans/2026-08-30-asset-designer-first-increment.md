@@ -2053,6 +2053,23 @@ git add src/presentation/editor
 git commit -m "Extract the editor's gesture surface, unchanged"
 ```
 
+#### Amendment — two plan-editor behaviour changes rode beside the extraction, 2026-09-02
+
+The extraction commit itself is byte-faithful, verified by diffing the old `PlanCanvas.vue`
+against `EditorSurface.vue` and by mutating four pointer rules and watching each redden at its
+assertion. Two later commits on this branch changed the plan editor's behaviour in ways no task
+here named:
+
+- `DrawPolygonTool.closePolygon` now reports a refusal even when the gesture was cancelled
+  mid-dispatch (the `reportRejected` call moved above the generation check). Kept: a refusal is
+  a fact about the vault whether or not the user has moved on.
+- `ReversibleMoveZoneCommand.undo` gained an `undo.superseded` refusal keyed on the ledger's
+  per-entity generation, so a move's undo refuses after any later write to that zone from
+  outside the history. Kept, with the standing consequence CLAUDE.md records for
+  `undo.superseded`: a refused undo stays on the stack and `canUndo` reads true.
+
+Both are recorded here because a reviewer had to find them by reading the diff.
+
 ---
 
 ### Task B2: one context, two subjects

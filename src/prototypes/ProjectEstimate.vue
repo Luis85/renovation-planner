@@ -61,18 +61,42 @@ const props = withDefaults(
 		 */
 		summed?: number;
 		/**
-		 * There was a second exclusion badge here — rows belonging to another project — and the
-		 * project-scoped walk made that state unreachable, so it went. The SHAPE stays: `flags`
-		 * is a list because a summary can have more than one thing to disclaim, and the next
-		 * exclusion category joins it without touching the template.
+		 * `null` when the project-scoped zone walk REFUSED — an unreadable geometry sidecar,
+		 * which `ObsidianZoneRepository.list` propagates rather than counting per note. The
+		 * provenance sentence drops its rooms clause rather than printing a number it does not
+		 * have; `across null rooms` and `across 0 rooms` are both statements this component is
+		 * not entitled to make.
+		 *
+		 * This docblock used to carry the paragraph now sitting on `flags` below, which
+		 * described the removed foreign-rows badge and had nothing to do with `rooms` — a
+		 * docblock orphaned by the edit that deleted what it described, which is the defect
+		 * `CLAUDE.md` names and nothing in any gate reads.
 		 */
-		rooms?: number;
-		/** Figures whose inputs have moved. They ARE in the amount, and the badge says so. */
+		rooms?: number | null;
+		/**
+		 * Figures whose inputs have moved. They ARE in the amount, and the badge says so.
+		 *
+		 * **Includes `unreadableReferents`**, which is why the badge below subtracts rather than
+		 * printing this number: the two counts overlap by design.
+		 */
 		stale?: number;
+		/**
+		 * Rows built from a referent note that could not be READ — in the amount and in `stale`,
+		 * and separated here because recalculating them cannot succeed.
+		 */
+		unreadableReferents?: number;
 		/** Figures the total cannot take, because their currency is not the project's. */
 		unsummable?: number;
 	}>(),
-	{ amount: '€42,300.00', requirements: 24, summed: 23, rooms: 11, stale: 3, unsummable: 1 },
+	{
+		amount: '€42,300.00',
+		requirements: 24,
+		summed: 23,
+		rooms: 11,
+		stale: 3,
+		unreadableReferents: 1,
+		unsummable: 1,
+	},
 );
 
 /**
@@ -91,7 +115,12 @@ const provenance = computed(() => {
 		props.summed < props.requirements
 			? `${props.summed} of ${props.requirements} requirements`
 			: `${props.requirements} requirements`;
-	return `Summed from ${inputs} across ${props.rooms} rooms.`;
+	// The rooms clause is DROPPED rather than defaulted when the room count is withheld: a
+	// provenance line is the one place in this component that may not round an unknown to a
+	// number, since saying where a figure came from is its whole job.
+	return props.rooms === null
+		? `Summed from ${inputs}.`
+		: `Summed from ${inputs} across ${props.rooms} rooms.`;
 });
 
 /**
@@ -105,12 +134,28 @@ const provenance = computed(() => {
  */
 const flags = computed(() => {
 	const rows: { health: string; key: string; d: string; text: string }[] = [];
-	if (props.stale > 0) {
+	// **Only the rows recalculating can actually fix.** `stale` includes `unreadableReferents`,
+	// and recalculating a row whose asset or zone note cannot be read fails for the same reason
+	// the read did — so printing the whole stale count here offers a remedy that cannot be
+	// applied, which is slice 14's live-control-that-does-nothing rule arriving as copy.
+	const recalculable = props.stale - props.unreadableReferents;
+	if (recalculable > 0) {
 		rows.push({
 			health: 'stale',
 			key: 'stale',
 			d: 'M12 7v5l3 2',
-			text: `${props.stale} need recalculating`,
+			text: `${recalculable} need recalculating`,
+		});
+	}
+	// Its own badge, pointing at the diagnostics door rather than at a remedy. WHICH note failed
+	// is deliberately not named: the diagnostics ledger already records it, and a second copy
+	// here would be a second answer to one question.
+	if (props.unreadableReferents > 0) {
+		rows.push({
+			health: 'excluded',
+			key: 'unreadable',
+			d: 'M12 8v4m0 3.5v.5',
+			text: `${props.unreadableReferents} could not be read — see diagnostics`,
 		});
 	}
 	if (props.unsummable > 0) {

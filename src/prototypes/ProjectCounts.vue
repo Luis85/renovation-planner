@@ -29,7 +29,7 @@
  */
 withDefaults(
 	defineProps<{
-		counts?: readonly { readonly label: string; readonly value: number }[];
+		counts?: readonly { readonly label: string; readonly value: number | null }[];
 	}>(),
 	{
 		counts: () => [
@@ -39,6 +39,23 @@ withDefaults(
 		],
 	},
 );
+
+/**
+ * A WITHHELD count is an em dash, and it is not the same picture as a zero.
+ *
+ * `ProjectSummary.zoneCount` is `number | null`: `null` means the project-scoped zone walk
+ * REFUSED — an unreadable geometry sidecar is one shared failure that
+ * `ObsidianZoneRepository.list` propagates rather than blaming every zone in the plan — so no
+ * room count can honestly be printed. Drawing the dimmed zero a genuinely empty project gets
+ * would state exactly what the query declined to state, and `?? 0` at this interpolation reads
+ * identically to a reader while doing it.
+ *
+ * `data-empty` deliberately stays FALSE for a withheld value. That attribute drives the dim,
+ * which means "there are none of these"; a withheld count is not a claim about how many there
+ * are. Verified by capture at 460px rather than by reading: the dash renders at full weight
+ * beside the dimmed label, which is the distinction this rule exists to draw.
+ */
+const display = (value: number | null): string => (value === null ? '—' : String(value));
 </script>
 
 <template>
@@ -48,8 +65,9 @@ withDefaults(
 			:key="count.label"
 			class="rp-counts__cell"
 			:data-empty="count.value === 0"
+			:data-withheld="count.value === null"
 		>
-			<span class="rp-counts__value">{{ count.value }}</span>
+			<span class="rp-counts__value">{{ display(count.value) }}</span>
 			<span class="rp-counts__label">{{ count.label }}</span>
 		</div>
 	</div>

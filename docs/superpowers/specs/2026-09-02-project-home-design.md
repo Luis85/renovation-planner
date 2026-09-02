@@ -716,8 +716,22 @@ so `RequirementRecalculated` never fires for it — omit this event and an overr
 leaf is invisible to the Overview until a remount.
 
 **Index entries**, for a note that arrives out of band — a hand edit, a copy, a sync.
-`ProjectIndexEntryChanged` filtered to the plan, zone, requirement, project **and asset** entity
-types.
+`ProjectIndexEntryChanged` filtered to the plan, zone, requirement, project, asset **and
+asset-price** entity types.
+
+**`renovation-asset-price` was the half of the price override I left open in the commit that
+closed the other half.** Adding `AssetPriceOverrideChanged` to the event list above covers a
+price set, replaced or cleared THROUGH THE APP; a price note edited, added or deleted by hand or
+arriving through sync publishes no domain event at all, only `ProjectIndexEntryChanged` with
+`entityType === 'renovation-asset-price'` (`assetPriceFrontmatter.ts`'s `ASSET_PRICE_TYPE`, and
+the value `projectPricesChangeSource` already filters on). The row builder resolves these
+overrides when deciding staleness, so without this entry an already-mounted Overview keeps its
+previous stale count and its total's qualification indefinitely.
+
+Read it as the shape rather than the omission: **the in-app path and the out-of-band path are
+two lists, and an entity added to one is not added to the other.** Every type in this list is
+here because the same question was asked of it separately — which is why `asset` and `project`
+below each needed their own paragraph, and why this one did too.
 
 **The asset type is not a courtesy either.** `GetRequirementsForZone` re-reads the referenced
 asset on every row and compares its unit and unit cost through `assetMatchesCalculatedFrom` to

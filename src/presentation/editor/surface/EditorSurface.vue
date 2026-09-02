@@ -906,13 +906,6 @@ function onPointerLeave(event: PointerEvent): void {
 }
 
 /**
- * §85 asks for keyboard-accessible controls, and zoom is the one interaction this slice
- * adds — so it is reachable by key as well as by wheel. Anchored at the middle of the
- * stage, since there is no pointer involved in a keypress. `Escape` abandons the active
- * tool's in-flight gesture (`ToolManager.cancelGesture` is a safe no-op when there is
- * none).
- */
-/**
  * `Shift+1` frames the whole plan and `Shift+2` frames the selection — Obsidian's own Canvas
  * shortcuts, so a user who knows one already knows the other. Answers whether the key was
  * one of them, so the zoom-step branch is not also consulted for it.
@@ -980,6 +973,16 @@ function zoomShortcut(event: KeyboardEvent): void {
 	reissuePointerMove(event);
 }
 
+/**
+ * §85 asks for keyboard-accessible controls, and every shortcut here answers that — zoom, both
+ * fit shortcuts, and `Escape` below.
+ *
+ * `Escape` is no longer a synonym for "abandon whatever gesture is running": see `routeEscape`
+ * (`../escapeRouting.ts`) for the whole precedence it now carries — a running pan swallows it, a
+ * tool holding a draft cancels the draft and stays active, an empty creation tool returns to
+ * Select, and Select (or camera mode) with a selection clears it. The Escape branch just below
+ * spells out why each rule holds, in the order it holds it.
+ */
 function onKeyDown(event: KeyboardEvent): void {
 	if (!isCanvasKey(event)) return;
 	if (event.key === 'Escape') {
@@ -1080,8 +1083,9 @@ function onKeyDown(event: KeyboardEvent): void {
 		reissuePointerMove(event);
 		return;
 	}
-	// Escape is handled ABOVE this, and deliberately: abandoning a gesture is exactly what a
-	// user wants to be able to do while one is running, and it moves no camera.
+	// Escape is handled ABOVE this, and deliberately: `routeEscape`'s question — cancel a
+	// draft, switch tool, or clear a selection — must be answered whether or not a gesture is
+	// in flight, and none of its outcomes touches the camera.
 	if (gestureInFlight()) return;
 	if (fitShortcut(event)) return;
 	zoomShortcut(event);

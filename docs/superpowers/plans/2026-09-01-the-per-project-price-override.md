@@ -3666,10 +3666,57 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 
 **Interfaces:**
 - Produces:
-  - `interface AssetPriceRowDto { assetId: string; assetName: string | null; catalogue: Money | null; override: Money | null; overrideId: AssetPriceOverrideId | null; overrideVersion: EntityVersion | null; }`
-    — `assetName` and `catalogue` are nullable for the ORPHAN row (an override whose asset was
-    deleted out of band), on `RequirementInspectorDTO.assetName`'s precedent. `assetName === null`
-    is the whole discriminator; step 2 carries the reasoning and the alternative that was refused.
+  - `AssetPriceRowDto` carries a THIRD state now, and the correction is recorded here because it
+    falsifies this section's own earlier sentence — *"`assetName === null` is the whole
+    discriminator"* — which is the claim a review bot found false. `listAll()` drops a note for
+    TWO different reasons: the asset is gone, or the note is still there but its BODY would not
+    parse (`ObsidianAssetRepository.list` records the refusal to the diagnostics ledger and
+    `continue`s past it — correct, and unchanged by this correction). Both produce
+    `assetName: null`, so a component branching on that alone cannot tell "this price is real,
+    the note just would not read today" from "there is no note, do not bother" — and Clear, live
+    on the ORPHAN row by Decision 6's own design, deleted a live override on the false diagnosis.
+
+    **The discriminator is INDEX MEMBERSHIP, which `listAll` cannot answer and the Project Index
+    already can.** `entityRefOf` — the one function both the full scan and the incremental
+    pipeline resolve a note through (ADR-0013's slice 18 section) — indexes a note off its `type`
+    plus a non-empty `id` alone, and both survive a malformed body. So an unreadable note's id is
+    still returned by `index.getIdsByType('renovation-asset')` while being absent from `listAll`,
+    and a genuinely deleted note's id is absent from both. Three states, not two:
+
+    ```ts
+    interface AssetPriceRowDto {
+    	assetId: string;
+    	assetName: string | null;
+    	catalogue: Money | null;
+    	override: Money | null;
+    	overrideId: AssetPriceOverrideId | null;
+    	overrideVersion: EntityVersion | null;
+    	/**
+    	 * `'known'` — an ordinary row; the asset is in `listAll()`.
+    	 * `'unreadable'` — the id is in the Project Index (the note declares `type` and a
+    	 * non-empty `id`, and both survive a malformed BODY) but `listAll()` could not read it —
+    	 * a hand-edited note with, say, a bad `unit-cost`. The asset is not gone, only its note
+    	 * would not parse today: the price input stays ENABLED, because a project's price for an
+    	 * asset does not depend on whether that asset's own note happens to read cleanly.
+    	 * `'orphan'` — the id is absent from the Project Index too: the note itself is gone,
+    	 * out of band. Decision 6's ORPHAN row: price input disabled, Clear live.
+    	 *
+    	 * `assetName` and `catalogue` are `null` for BOTH unhappy states — this query has no name
+    	 * or price to show in either case — which is exactly why they cannot be the discriminator
+    	 * on their own; `assetStatus` is what a caller must branch on to tell them apart.
+    	 */
+    	assetStatus: 'known' | 'unreadable' | 'orphan';
+    }
+    ```
+
+    **Two remedies considered here and rejected, so a later round does not re-propose them.**
+    Disabling Clear on the `'unreadable'` row was the first: it blocks a legitimate gesture over a
+    diagnosis the row is already wrong about, trading a false deletion for a false lockout rather
+    than fixing the diagnosis. Asking the diagnostics ledger which assets refused was the second,
+    and it is the wrong INSTRUMENT: `DiagnosticsLedger` is session-scoped and deliberately
+    content-free (CLAUDE.md's slice 11 section: `record` takes a closed kind union, a branded
+    `EntityId` and the whole `AppError`, off which it reads `error.code` alone, so it is not built
+    to answer "which ids are currently unreadable" as a durable set a query can consult).
 
     **`overrideId` is BRANDED, and typing it `string | null` was a contradiction rather than a
     looseness.** The component builds `AssetPriceEdit.expected`, which is a
@@ -3694,8 +3741,13 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
     only the declared type was wrong, which is the quiet kind: the annotation was narrower than
     the code and nothing in the plan could disagree with it until a consumer needed the brand.
   - `class ListProjectAssetPrices` with `execute(projectId): Promise<Result<AssetPriceRowDto[], RepositoryError>>`,
-    constructed with `(assets, overrides, logger)` — the logger for the duplicate diagnostic,
-    which this query is the only surface for on a project that has no requirements
+    constructed with `(assets, overrides, index, logger)` — `index: ProjectIndex` is the new
+    dependency `assetStatus` needs (`application/ports/ProjectIndex.ts`, already a sibling port in
+    `application/`, so this is a same-layer import and not a layering widening), and the logger is
+    for the duplicate diagnostic, which this query is the only surface for on a project that has
+    no requirements. `deps.index` is already constructed at the composition root for every other
+    consumer (`IndexLibraryOverlaps`, the repositories) — Step 4 wires the same instance in, it
+    builds nothing new.
   - `RequirementInspectorDTO.unitCost: { catalogue: Money; projectOverride: Money | null; effective: Money } | null`
     — `effective` is the PERSISTED provenance, not the current resolution; see the block below.
 
@@ -3743,21 +3795,57 @@ describe('ListProjectAssetPrices', () => {
 	 * the plugin offers.
 	 */
 	it('lists an override whose asset was deleted out of band, with no name and no library price', async () => {
-		// Seed an asset, override it, then remove the asset from the index WITHOUT the command.
+		// Seed an asset, override it, then remove the asset from the index WITHOUT the command —
+		// deletes the note, so the id is gone from BOTH `listAll` and `index.getIdsByType`.
 		const orphan = rows.find((r) => r.assetId === deletedAssetId);
 		expect(orphan?.assetName).toBeNull();
 		expect(orphan?.catalogue).toBeNull();
 		expect(orphan?.overrideId).not.toBeNull();
 		expect(orphan?.overrideVersion).not.toBeNull();
+		expect(orphan?.assetStatus).toBe('orphan');
 	});
 
 	/**
-	 * Orphans sort LAST and among themselves by id — they are a repair queue rather than part
-	 * of the catalogue the section compares against, and they have no name to sort by. Also the
+	 * The defect a review bot found: an override whose asset note still EXISTS but fails to
+	 * parse — a malformed `unit-cost`, say — is absent from `listAll` exactly as a deleted note
+	 * is (`ObsidianAssetRepository.list` records the refusal to the diagnostics ledger and
+	 * `continue`s), but its id stays IN the Project Index, because `entityRefOf` indexes off
+	 * `type` plus a non-empty `id` alone and both survive a malformed body.
+	 *
+	 * Seed the malformed note through the same in-memory `ProjectIndex` the fixture already
+	 * builds, rather than through `AssetRepository`, whose fakes cannot produce "readable id,
+	 * unreadable note" at all — that pairing is exactly what only the index can represent, which
+	 * is the ruling this case exists to pin: `index.upsert({ id, type: 'renovation-asset', path })`
+	 * with NO matching entry behind `assets.getById(id)` (or a fake configured to refuse it).
+	 *
+	 * Assert `assetStatus` rather than only the nulls: `assetName`/`catalogue` being null is true
+	 * of the orphan row too, so a case that stopped at those two fields would pass against the
+	 * exact defect it exists to catch — a component reading `assetName === null` cannot tell this
+	 * row from an orphan, and disables the very field that should stay live.
+	 *
+	 * Watch it fail against the query from before this correction, which has no `index` parameter
+	 * at all and therefore no way to answer anything but `'orphan'` for a row `listAll` did not
+	 * return.
+	 */
+	it('lists an override whose asset note is malformed as unreadable, not orphaned', async () => {
+		// Seed an asset override for `assetId`; index it as a `renovation-asset` (the note
+		// exists and declares `type`/`id`); leave it absent from `AssetRepository.listAll()`
+		// (the note does not parse).
+		const unreadable = rows.find((r) => r.assetId === assetId);
+		expect(unreadable?.assetName).toBeNull();
+		expect(unreadable?.catalogue).toBeNull();
+		expect(unreadable?.overrideId).not.toBeNull();
+		expect(unreadable?.overrideVersion).not.toBeNull();
+		expect(unreadable?.assetStatus).toBe('unreadable');
+	});
+
+	/**
+	 * Orphans and unreadable rows sort LAST and among themselves by id — neither has a name to
+	 * sort by, and neither is part of the catalogue the section compares against. Also the
 	 * regression for the comparator itself: `localeCompare` on a null throws, so a sort written
 	 * without the null test takes the whole query down rather than misordering it.
 	 */
-	it('puts orphans after every named row, ordered by asset id', async () => { … });
+	it('puts orphan and unreadable rows after every named row, ordered by asset id', async () => { … });
 
 	/**
 	 * Two catalogue assets with the SAME name, which nothing refuses — there is no
@@ -3798,6 +3886,14 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 	constructor(
 		private readonly assets: AssetRepository,
 		private readonly overrides: AssetPriceOverrideRepository,
+		/**
+		 * The THREE-state discriminator's second question. `listAll()` answers only "was this
+		 * asset readable"; this port answers "does this plugin still know of a note with this
+		 * id at all" — `entityRefOf` indexes off `type` plus a non-empty `id`, both of which
+		 * survive a malformed body, so an unreadable note stays in it while `listAll` drops it.
+		 * A same-layer import (`application/ports/ProjectIndex.ts`), not a widening.
+		 */
+		private readonly index: ProjectIndex,
 		/** For the duplicate diagnostic below — this query is the only surface some duplicates
 		 *  are ever resolved on. */
 		private readonly logger: Logger,
@@ -3831,19 +3927,38 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 				override: override?.entity.unitCost ?? null,
 				overrideId: override?.entity.id ?? null,
 				overrideVersion: override?.version ?? null,
+				assetStatus: 'known',
 			};
 		});
 
-		// **The ORPHANS, and without them this list is a trap.** Task 7a cleans overrides up
-		// when `DeleteAssetCommand` runs — and an asset note deleted by hand in the file
-		// explorer, or removed by sync, runs no command at all: `VaultChangeAdapter.onDelete`
-		// drops the index entry and publishes `ProjectIndexEntryChanged`, and dispatches
-		// nothing. So the override survives, `listAll` no longer names its asset, and a
-		// catalogue-only join drops it from the one surface that can clear it. Unreachable, and
-		// undeletable through any door the plugin offers.
-		const seen = new Set(assets.value.map((loaded) => loaded.entity.id));
+		// **Every override `listAll` did not return an asset for — and TWO different reasons,
+		// which used to collapse into one row shape.** Task 7a cleans overrides up when
+		// `DeleteAssetCommand` runs — and an asset note deleted by hand in the file explorer, or
+		// removed by sync, runs no command at all: `VaultChangeAdapter.onDelete` drops the index
+		// entry and publishes `ProjectIndexEntryChanged`, and dispatches nothing. So the override
+		// survives, `listAll` no longer names its asset, and a catalogue-only join drops it from
+		// the one surface that can clear it. Unreachable, and undeletable through any door the
+		// plugin offers: that row is a genuine ORPHAN.
+		//
+		// **But `listAll` also skips a note it could not READ** — malformed frontmatter beyond
+		// `type`/`id`, which `ObsidianAssetRepository.list` records to the diagnostics ledger and
+		// `continue`s past rather than failing the whole catalogue over it (correct, and untouched
+		// here). That note's id is absent from `listAll` exactly as a deleted note's is. Reported
+		// by a review bot: the two used to render as the SAME row — `assetName: null` either way —
+		// which told the section "this asset is gone" about one that merely would not parse today,
+		// and Clear, live on that row by Decision 6's own design for the genuine orphan, deleted a
+		// perfectly good override on the false diagnosis.
+		//
+		// The Project Index does not conflate them: `entityRefOf` indexes a note off `type` plus a
+		// non-empty `id` alone, both of which survive a malformed BODY, so the unreadable note's id
+		// is still in `index.getIdsByType('renovation-asset')` while the deleted note's is in
+		// neither set. `readable` is "did `listAll` return it"; `indexed` is "does the Project
+		// Index still know a note with this id" — and `assetStatus` is the two questions read
+		// together, which is what a caller must branch on now rather than `assetName === null`.
+		const readable = new Set(assets.value.map((loaded) => loaded.entity.id));
+		const indexed = new Set(this.index.getIdsByType('renovation-asset') as AssetId[]);
 		for (const [assetId, override] of byAsset) {
-			if (seen.has(assetId)) continue;
+			if (readable.has(assetId)) continue;
 			rows.push({
 				assetId,
 				assetName: null,
@@ -3851,15 +3966,18 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 				override: override.entity.unitCost,
 				overrideId: override.entity.id,
 				overrideVersion: override.version,
+				assetStatus: indexed.has(assetId) ? 'unreadable' : 'orphan',
 			});
 		}
 
 		// Sorted so the list does not reshuffle between reads — `listAll` is index order, which
 		// is a fact about the vault's write history rather than anything a reader expects.
-		// Orphans last, together, and by id among themselves: they are a repair queue rather
-		// than part of the catalogue the section exists to compare against, and they have no
-		// name to sort by. `localeCompare` on a null would throw, so the null test is not a
-		// nicety.
+		// Orphan and unreadable rows last, together, and by id among themselves: neither is part
+		// of the catalogue the section exists to compare against, and neither has a name to sort
+		// by — `assetName === null` stays the correct GROUPING test for the sort even though it
+		// stopped being the STATE discriminator above; a `'known'` row always has a name and
+		// neither unhappy state ever does, so the two questions do not conflict. `localeCompare`
+		// on a null would throw, so the null test is not a nicety.
 		//
 		// **The id breaks a NAME tie too, and without it the promise above is false for
 		// same-named assets.** Nothing makes an asset's name unique — there is no such refusal
@@ -3895,6 +4013,13 @@ that the question had already been asked and answered here.
 `catalogue` is null on an orphan because there is no library price: the asset is gone. Inventing
 a zero would render a comparison against a number that does not exist, which is the same defect
 as dropping the row wearing better clothes.
+
+**`catalogue` and `assetName` are ALSO null on the `'unreadable'` row, and for a different
+reason — read too, not looked up.** There the price is not fictional, it is merely unresolved:
+the asset note exists and this read could not confirm what it says today. That is exactly why
+the null test alone cannot be the state discriminator (above) even though it stays correct as
+the sort's grouping test: nullness answers "do I have a name to show", not "should the price
+input be enabled", and those two questions agree for `'orphan'` and disagree for `'unreadable'`.
 
 **The remedy is a READ, deliberately, and not the other one the report offered.** "Handle
 out-of-band asset removal" would mean the vault-change pipeline dispatching `DeleteAssetCommand`
@@ -4079,8 +4204,11 @@ without this the section has no read operation to call and hydrates nothing.
 In `src/plugin/composition-root.ts`, construct the two COMMANDS and the query beside their
 siblings. The repository itself was already constructed in Task 5 — it had to be, because a
 required dep is a build error at three call sites — so this step adds only what Task 4 and this
-task created. In `src/plugin/guardedServices.ts`, wrap both commands and
-the query, exactly as their neighbours are.
+task created. `ListProjectAssetPrices` takes `deps.index` as its third constructor argument
+beside `assets` and `overrides` — `deps.index` is already built for the whole session (the same
+instance `IndexLibraryOverlaps` and every repository already take), so this is a wiring change
+at the one call site, not a new construction. In `src/plugin/guardedServices.ts`, wrap both
+commands and the query, exactly as their neighbours are.
 
 **`tests/plugin/guardCategory.test.ts` will tell you if you missed a door** — it composes a real
 root, detonates the named collaborators and drives a hostile input through every door it finds,
@@ -4769,6 +4897,7 @@ In `locales/en.ts`:
 	'view.project.price-invalid': 'Enter a price like 19.50',
 	'view.project.price-scope': 'A price set here applies to every requirement in this project that uses the asset',
 	'view.project.price-orphan': 'This asset is no longer in the library',
+	'view.project.price-unreadable': "This asset's note could not be read, but its price is still set",
 ```
 
 **`view.project.price-scope` is the project-wide warning Step 3 promises, and it had no key.**
@@ -4785,6 +4914,13 @@ row's rendering rule says the asset id draws "with a translated reason beside it
 added for that reason either. Both are in the inventory now, and both are asserted in step 2 —
 because copy that exists in `en.ts` and is rendered nowhere is the other half of the same class.
 
+**`view.project.price-unreadable` is the THIRD such reason, added by the correction above the
+DTO in Task 8.** A review bot found that `assetStatus: 'unreadable'` and `assetStatus: 'orphan'`
+share nullable `assetName`/`catalogue` but need opposite sentences — one says the asset is gone,
+the other says only that this read of it failed — and a discriminator with no copy of its own
+degrades to reusing `price-orphan`'s sentence for a row it is not true of. Sharing a `.rp-…-orphan`
+class or key across both states would be this exact defect wearing markup.
+
 **`view.project.price-invalid` is the VALIDATOR's message, and it needed a key of its own.** The
 validator returns a resolved string — that is what `useFieldCommit.validate` is — so without one
 the only choices are a literal, which the rendering step forbids, or the requirement row's
@@ -4797,7 +4933,10 @@ tell a user that `.5` and `1e3` are the forms being refused.
 In `locales/de.ts`, the same keys. **An Asset is `Objekt`, never `Material`** —
 `tests/presentation/i18n/strings.test.ts` refuses that value, and slice 14 reintroduced it forty
 lines below the comment recording its removal. Keep every interpolation hole that `en.ts` has:
-the per-key hole check is what catches a mis-holed translation.
+the per-key hole check is what catches a mis-holed translation. `view.project.price-unreadable`
+is the key that word most needs to be right in, since its whole sentence is about the Asset
+itself: `'Die Notiz zu diesem Objekt konnte nicht gelesen werden, sein Preis ist aber weiterhin
+gesetzt.'`
 
 **And the `AppError` copy, which goes in the SAME table and was scheduled nowhere until this
 step.** `toUserMessage` asks `hasLocaleKey(error.code)` first, so a code IS a locale key — there
@@ -4996,22 +5135,45 @@ describe('AssetPriceList', () => {
 	});
 
 	/**
-	 * The ORPHAN row: an override whose asset was deleted out of band, so `assetName` and
-	 * `catalogue` are both null. It must be VISIBLE and CLEARABLE and must not accept a new
-	 * price — a set on a missing asset mints data nothing can price, and the command reads the
-	 * asset and refuses, so a live input here is a control that cannot succeed.
+	 * The ORPHAN row: `assetStatus: 'orphan'`, so `assetName` and `catalogue` are both null. It
+	 * must be VISIBLE and CLEARABLE and must not accept a new price — a set on a missing asset
+	 * mints data nothing can price, and the command reads the asset and refuses, so a live input
+	 * here is a control that cannot succeed.
 	 *
 	 * Assert all three, because each is a different mistake: a component that drops the row
 	 * leaves the price unreachable, one that disables the whole row leaves it undeletable, and
 	 * one that leaves the input live ships a guaranteed refusal.
 	 */
 	it('renders an orphaned override with its id, no library price, and only Clear live', async () => {
-		// rows: [{ assetId: 'a1', assetName: null, catalogue: null, override: 19.50, … }]
+		// rows: [{ assetId: 'a1', assetName: null, catalogue: null, override: 19.50,
+		//          assetStatus: 'orphan', … }]
 		expect(wrapper.text()).toContain('a1');
 		// … and the reason beside it, resolving `view.project.price-orphan` — an id with no
 		// sentence is a row the user cannot interpret, which is half of being unreachable.
 		expect(wrapper.find('.rp-asset-price-orphan').exists()).toBe(true);
 		expect(wrapper.find('input').attributes('disabled')).toBeDefined();
+		expect(wrapper.find('.rp-asset-price-clear').attributes('disabled')).toBeUndefined();
+	});
+
+	/**
+	 * The UNREADABLE row — `assetStatus: 'unreadable'`, the state a review bot's finding added:
+	 * an override whose asset note still exists but would not parse today. `assetName` and
+	 * `catalogue` are null here too, exactly as on the orphan row, which is precisely why this
+	 * case has to exist separately: a component keying its markup off `assetName === null` alone
+	 * cannot tell the two apart, and would disable a price that is still real.
+	 *
+	 * Assert the input is ENABLED, the disclosure names `price-unreadable` and not `price-orphan`,
+	 * and Clear stays live — the same three mistakes as the orphan case, with the first one
+	 * inverted. Watch it fail against a component that switches on `row.assetName === null`: this
+	 * row and the orphan fixture render byte-identical markup, both wrong for this one.
+	 */
+	it('renders an unreadable override with its id, no library price, and a LIVE price input', async () => {
+		// rows: [{ assetId: 'a1', assetName: null, catalogue: null, override: 19.50,
+		//          assetStatus: 'unreadable', … }]
+		expect(wrapper.text()).toContain('a1');
+		expect(wrapper.find('.rp-asset-price-unreadable').exists()).toBe(true);
+		expect(wrapper.find('.rp-asset-price-orphan').exists()).toBe(false);
+		expect(wrapper.find('input').attributes('disabled')).toBeUndefined();
 		expect(wrapper.find('.rp-asset-price-clear').attributes('disabled')).toBeUndefined();
 	});
 
@@ -5089,20 +5251,42 @@ read as a per-row consequence. It sits under the `<h3>`, before the list, so it 
 the first control rather than discovered after one; `view.project.price-scope` is its key, and
 its absence from the copy inventory is what a review round caught.
 
-**An ORPHAN row draws differently, and it is the one row whose only useful control is Clear.**
-`assetName === null` is the discriminator (Task 8's DTO), and it means the asset this price names
-was deleted out of band — by hand in the file explorer, or by sync — so no command ran to clean
-it up. Render the asset ID in place of the name with a translated reason beside it, draw no
-library price (`catalogue` is null; there is nothing to compare against), and **disable the
-price input while leaving Clear live**: setting a new price on an asset that does not exist mints
-data nothing can ever price, and `SetAssetPriceOverrideCommand` reads the asset and would refuse
-anyway — a live control that dispatches a guaranteed refusal is the same defect slice 14's
-amendment refuses. The row exists so the user can get RID of it.
+**Two rows draw differently, not one, and `row.assetStatus` is the discriminator — NOT
+`assetName === null`.** An earlier draft of this section made that the discriminator, on the
+argument that only one unhappy state existed; a review bot found a second one `listAll` produces
+by the identical symptom (a note that exists but will not parse), and a component branching on
+nullness alone cannot tell them apart. Both rows share the id-in-place-of-name treatment and the
+absent library price (`catalogue` is null on both; there is nothing to compare against on either),
+and diverge on exactly one thing — whether the price input is enabled — because that is the one
+question the two states answer differently.
 
-This is `RequirementRow`'s own shape for the same situation, which is where the pattern comes
-from rather than being invented here: a Requirement whose Asset was deleted renders from its id
-plus the reason, because the alternative is a row the user cannot see and therefore cannot act
-on.
+**The ORPHAN row (`assetStatus === 'orphan'`) is the one row whose only useful control is
+Clear.** It means the asset this price names was deleted out of band — by hand in the file
+explorer, or by sync — so no command ran to clean it up. Render the asset ID with
+`view.project.price-orphan` beside it, and **disable the price input while leaving Clear live**:
+setting a new price on an asset that does not exist mints data nothing can ever price, and
+`SetAssetPriceOverrideCommand` reads the asset and would refuse anyway — a live control that
+dispatches a guaranteed refusal is the same defect slice 14's amendment refuses. The row exists
+so the user can get RID of it.
+
+**The UNREADABLE row (`assetStatus === 'unreadable'`) keeps its price input LIVE.** The asset is
+not gone — its note is still in the Project Index, only its body would not parse today — so a
+project's price for it is independent of whether that note happens to read cleanly, and disabling
+the field would be the false diagnosis the review bot found, just moved from Clear to the input.
+Render the asset ID with `view.project.price-unreadable` beside it instead, draw no library price
+for the same reason the orphan row draws none (this read has nothing to compare against, not
+"there is nothing"), and leave both the input and Clear live. Two remedies considered and
+rejected here: disabling Clear on this row blocks a legitimate gesture over a diagnosis that was
+already wrong, and asking the diagnostics ledger which assets refused reaches for the wrong
+instrument — `DiagnosticsLedger` is session-scoped and deliberately content-free (CLAUDE.md's
+slice 11 section), not a durable "which ids are unreadable" set a query can consult.
+
+This is `RequirementRow`'s own shape for the same situation, which is where the id-plus-reason
+pattern comes from rather than being invented here: a Requirement whose Asset was deleted renders
+from its id plus the reason, because the alternative is a row the user cannot see and therefore
+cannot act on. `RequirementInspectorDTO` has no third state to draw from yet — its own
+`assetName`/`missingTarget` pair is a pre-existing, separate DTO this increment does not touch —
+so the parallel is in the RENDERING pattern, not a claim that its discriminator has the same fix.
 
 **The project-wide warning belongs here.** A price set on this row moves every requirement in
 the project on that asset; the section's own heading and its placement on a project surface are
@@ -5247,6 +5431,12 @@ A new partial under `styles/`, registered in `styles/index.css`. **No hard-coded
 build fails on one, checked over lightningcss's parsed tree. Use Obsidian's semantic variables.
 Give the asset name `flex-grow: 1` if the row is a `space-between` flex row: slice 19 shipped a
 defect where a third item in such a row pushed the other two out of their column.
+
+**`.rp-asset-price-orphan` and `.rp-asset-price-unreadable` are two classes, not one styled two
+ways.** They read as the same shape — an id in place of a name, plus a reason — and it would be
+easy to give them one selector and vary only the text; a selector shared with the input's
+`disabled` binding would then have nothing left to key the enabled/disabled split on, which is
+the whole distinction Task 8's correction exists to draw.
 
 - [ ] **Step 6: Grade it**
 

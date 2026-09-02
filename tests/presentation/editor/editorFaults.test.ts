@@ -21,15 +21,21 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from '../../helpers/obsidian-mock';
 import { mountPlanEditor, settle, settleUntil } from '../../helpers/editor';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
-import { click, PLAN_DTO, pointer, PROJECT_ID, toolbarButton, ZONE_A_DTO } from '../../helpers/planEditorRig';
+import {
+	click,
+	PLAN_DTO,
+	planEditorQueriesFor,
+	pointer,
+	PROJECT_ID,
+	projectRepoWithFixture,
+	toolbarButton,
+	ZONE_A_DTO,
+} from '../../helpers/planEditorRig';
 import { expectErr, expectOk, RecordingEventBus } from '../../helpers/domain';
 import { CreateZoneCommand } from '../../../src/application/commands/zone/CreateZone';
 import { makeDeleteZoneCommand } from '../../helpers/slice10';
 import { MoveSpatialObjectCommand } from '../../../src/application/commands/zone/MoveSpatialObject';
 import { GetZoneInspector } from '../../../src/application/queries/GetZoneInspector';
-import { FindZonesByPlan } from '../../../src/application/queries/FindZonesByPlan';
-import { GetPlan } from '../../../src/application/queries/GetPlan';
-import { createPlanEditorQueries } from '../../../src/presentation/read-models/planEditorQueries';
 import { InMemoryPlanRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
 import { InMemoryZoneRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { makePlan, makeZone } from '../../helpers/entities';
@@ -62,6 +68,7 @@ class ThrowingRead extends InMemoryZoneRepository {
 
 async function faultRig() {
 	const plans = new InMemoryPlanRepository();
+	const projects = await projectRepoWithFixture();
 	const plan = makePlan({ projectId: PROJECT_ID, id: PLAN_DTO.id as PlanId });
 	await plans.save(plan, 'absent');
 	const zonesRepo = new ThrowingRead();
@@ -81,10 +88,7 @@ async function faultRig() {
 	const harness = await mountPlanEditor({
 		plan: PLAN_DTO,
 		zones: [ZONE_A_DTO],
-		queries: createPlanEditorQueries({
-			getPlan: new GetPlan(plans),
-			findZonesByPlan: new FindZonesByPlan(zonesRepo),
-		}),
+		queries: planEditorQueriesFor(plans, projects, zonesRepo),
 		commands: {
 			// Spread over the refusal bundle so slice 10's members exist: this rig deletes a
 			// zone nothing references, so a refusing requirement port is exactly right — what

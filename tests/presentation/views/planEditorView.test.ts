@@ -18,7 +18,7 @@ import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
 import { installEditorEnvironment, settle } from '../../helpers/editor';
-import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
+import { FIXTURE_PLAN, FIXTURE_PROJECT, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { FakeLeaf } from '../../helpers/workspace';
 
 installEditorEnvironment();
@@ -32,6 +32,7 @@ function deps(plan: typeof FIXTURE_PLAN | null = FIXTURE_PLAN): PlanEditorDeps {
 	return {
 		queries: {
 			getPlan: () => Promise.resolve(ok(plan)),
+			getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 			getRequirementsForZone: () => Promise.resolve(ok([])),
 			listAssets: () => Promise.resolve(ok([])),
 			// The two the contract requires and this fixture omitted until `tests/**` was

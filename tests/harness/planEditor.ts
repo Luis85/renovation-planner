@@ -4,7 +4,7 @@ import type { ZoneId } from '../../src/domain/zone/ZoneId';
 import { PlanEditorView, type PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../../src/presentation/editor/planEditorCommands';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
-import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
+import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { installObsidianDom } from '../helpers/dom';
 import { emptyRequirementReads } from '../helpers/planFixtures';
 import { FakeLeaf } from '../helpers/workspace';
@@ -49,6 +49,20 @@ export const HARNESS_PLAN: PlanDto = {
 	// annotation said `PlanDto` and nothing ever asked whether it was one.
 	calibration: null,
 	layers: [],
+};
+
+/**
+ * The project `HARNESS_PLAN` belongs to — same id as `HARNESS_PLAN.projectId`. Not
+ * exported, unlike its two siblings above: `fixture.ts` mounts single components against
+ * `HARNESS_PLAN`/`HARNESS_ZONES` directly, and nothing outside `harnessDeps()` needs this
+ * one yet.
+ */
+const HARNESS_PROJECT: ProjectSummaryDto = {
+	id: HARNESS_PLAN.projectId,
+	name: 'Willow House',
+	status: 'DESIGN',
+	currency: 'EUR',
+	libraryOverlap: false,
 };
 
 /**
@@ -136,6 +150,7 @@ export function harnessDeps(): PlanEditorDeps {
 			// re-opened one seam over. Both clones are needed: this one covers hydration, that
 			// one covers the synchronous seed, and neither path goes through the other.
 			getPlan: () => Promise.resolve(ok(structuredClone(HARNESS_PLAN))),
+			getProject: () => Promise.resolve(ok(structuredClone(HARNESS_PROJECT))),
 			findZonesByPlan: () =>
 				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0 })),
 			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`

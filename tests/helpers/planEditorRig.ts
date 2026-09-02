@@ -32,6 +32,7 @@ import { ListReassignmentTargets } from '../../src/application/queries/ListReass
 import { GetZoneInspector } from '../../src/application/queries/GetZoneInspector';
 import { FindZonesByPlan } from '../../src/application/queries/FindZonesByPlan';
 import { GetPlan } from '../../src/application/queries/GetPlan';
+import { GetProject } from '../../src/application/queries/GetProject';
 import { createPlanEditorQueries } from '../../src/presentation/read-models/planEditorQueries';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
@@ -79,6 +80,34 @@ export interface Rig {
 	zonesRepo: InMemoryZoneRepository;
 	assetsRepo: InMemoryAssetRepository;
 	requirementsRepo: InMemoryRequirementRepository;
+}
+
+/**
+ * An `InMemoryProjectRepository` holding just the fixture project at `PROJECT_ID` — for a
+ * spot that needs a real `GetProject` behind `createPlanEditorQueries` but not the whole
+ * `rig()`, so it does not duplicate this same three-line seed at each call site.
+ */
+export async function projectRepoWithFixture(): Promise<InMemoryProjectRepository> {
+	const projects = new InMemoryProjectRepository();
+	await projects.save(makeProject({ id: PROJECT_ID }), 'absent');
+	return projects;
+}
+
+/**
+ * The three-repository `createPlanEditorQueries` call two rigs outside this file build by
+ * hand — extracted so a caller wiring its own `plans`/`projects`/`zonesRepo` (rather than
+ * going through `rig()`) states that in one line instead of five.
+ */
+export function planEditorQueriesFor(
+	plans: InMemoryPlanRepository,
+	projects: InMemoryProjectRepository,
+	zonesRepo: InMemoryZoneRepository,
+) {
+	return createPlanEditorQueries({
+		getPlan: new GetPlan(plans),
+		getProject: new GetProject(projects),
+		findZonesByPlan: new FindZonesByPlan(zonesRepo),
+	});
 }
 
 export async function rig(seed?: (repos: {
@@ -144,6 +173,7 @@ export async function rig(seed?: (repos: {
 
 	const queries = createPlanEditorQueries({
 		getPlan: new GetPlan(plans),
+		getProject: new GetProject(projects),
 		findZonesByPlan: new FindZonesByPlan(zonesRepo),
 		getRequirementsForZone: new GetRequirementsForZone(requirementsRepo, zonesRepo, assetsRepo, projects),
 		listAssets: new ListAssets(assetsRepo),

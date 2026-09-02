@@ -15,7 +15,7 @@ import type { PlanDto } from '../../../src/presentation/read-models/PlanDto';
 import { clearResources, registerResource, releaseResource } from '../../helpers/canvas';
 import { pngFixture } from '../../helpers/backgroundFixtures';
 import { mountPlanEditor, settle, settleUntil, type EditorHarness } from '../../helpers/editor';
-import { FIXTURE_PLAN } from '../../helpers/planFixtures';
+import { FIXTURE_PLAN, FIXTURE_PROJECT } from '../../helpers/planFixtures';
 
 let harness: EditorHarness | null = null;
 
@@ -186,6 +186,7 @@ describe('two background loads racing', () => {
 			vault: vaultWith(['Plans/slow.png', 'Plans/fast.png']),
 			queries: {
 				getPlan: () => Promise.resolve(ok(plan)),
+				getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 			getRequirementsForZone: () => Promise.resolve(ok([])),
 			listAssets: () => Promise.resolve(ok([])),
 			// The two the contract requires and this fixture omitted until `tests/**` was
@@ -255,6 +256,7 @@ describe('two background loads racing', () => {
 			vault: counting,
 			queries: {
 				getPlan: () => Promise.resolve(ok(plan)),
+				getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 				getRequirementsForZone: () => Promise.resolve(ok([])),
 				listAssets: () => Promise.resolve(ok([])),
 				listRequirementsReferencing: () => Promise.resolve(ok([])),
@@ -286,6 +288,7 @@ describe('two background loads racing', () => {
 			vault: vaultWith([PNG, 'Plans/other.png']),
 			queries: {
 				getPlan: () => Promise.resolve(ok(plan)),
+				getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 				getRequirementsForZone: () => Promise.resolve(ok([])),
 				listAssets: () => Promise.resolve(ok([])),
 				listRequirementsReferencing: () => Promise.resolve(ok([])),
@@ -348,6 +351,7 @@ describe('two background loads racing', () => {
 			vault,
 			queries: {
 				getPlan: () => Promise.resolve(ok(plan)),
+				getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 				getRequirementsForZone: () => Promise.resolve(ok([])),
 				listAssets: () => Promise.resolve(ok([])),
 				listRequirementsReferencing: () => Promise.resolve(ok([])),

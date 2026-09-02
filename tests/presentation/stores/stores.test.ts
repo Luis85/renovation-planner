@@ -20,7 +20,7 @@ import {
 	worldToScreen,
 } from '../../../src/presentation/editor/viewport/Viewport';
 import type { PlanEditorQueryServices } from '../../../src/presentation/read-models/planEditorQueries';
-import { FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_PROJECT, FIXTURE_ZONES } from '../../helpers/planFixtures';
 
 const READ_FAILED = { category: 'Persistence', code: 'plan.read-failed', message: 'boom' } as const;
 
@@ -38,6 +38,7 @@ const POINTER = 1;
 function queries(overrides: Partial<PlanEditorQueryServices> = {}): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(FIXTURE_PLAN)),
+		getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 		findZonesByPlan: () => Promise.resolve(ok({ zones: FIXTURE_ZONES, unreadable: 0 })),
 		getRequirementsForZone: () => Promise.resolve(ok([])),
 		listAssets: () => Promise.resolve(ok([])),
@@ -224,6 +225,57 @@ describe('ProjectStore hydration', () => {
 			zones: 0,
 			error: null,
 		});
+	});
+
+	it('hydrates the project beside the plan, so the context bar can name it', async () => {
+		const store = useProjectStore();
+		await store.hydrate(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+		expect(store.project?.id).toBe(FIXTURE_PLAN.projectId);
+		expect(store.project?.name).toBe('Willow House');
+	});
+
+	it('fails the hydration when the project read fails, like a failed plan read', async () => {
+		const store = useProjectStore();
+		const failingProject = {
+			...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+			getProject: () => Promise.resolve(err({ category: 'Persistence', code: 'project.read-failed', message: 'boom' } as const)),
+		};
+		await store.hydrate(failingProject, FIXTURE_PLAN.id);
+		expect(store.status).toBe('failed');
+		expect(store.error?.code).toBe('project.read-failed');
+	});
+
+	it('treats a project that no longer resolves as a missing plan', async () => {
+		const store = useProjectStore();
+		const danglingProject = {
+			...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+			getProject: () => Promise.resolve(ok(null)),
+		};
+		await store.hydrate(danglingProject, FIXTURE_PLAN.id);
+		expect(store.status).toBe('missing');
+	});
+
+	/**
+	 * The `keepOnFailure` arm of the project read — a failed re-read after a committed
+	 * write must not blank a canvas that a moment ago showed real content, mirroring the
+	 * same arm the plan and zone reads already have above.
+	 */
+	it('a failed project re-read keeps the previous contents too, with keepPreviousOnFailure', async () => {
+		const store = useProjectStore();
+		await store.hydrate(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), FIXTURE_PLAN.id);
+		expect(store.status).toBe('ready');
+
+		const failingProject = {
+			...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES),
+			getProject: () => Promise.resolve(err(READ_FAILED)),
+		};
+		await store.hydrate(failingProject, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
+
+		expect(store.status).toBe('ready');
+		expect(store.plan).toEqual(FIXTURE_PLAN);
+		expect(store.error).toEqual(READ_FAILED);
+		expect(store.stale).toBe(true);
 	});
 });
 

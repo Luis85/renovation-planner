@@ -10,7 +10,7 @@
  * next module-scope host reference will not announce itself.
  */
 import { ok } from '../../src/core/result/Result';
-import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
+import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import type { PlanEditorQueryServices } from '../../src/presentation/read-models/planEditorQueries';
 
 export const FIXTURE_PLAN: PlanDto = {
@@ -25,6 +25,18 @@ export const FIXTURE_PLAN: PlanDto = {
 	// calibration it never took would make those figures read as measured.
 	calibration: null,
 	layers: [],
+};
+
+/**
+ * The project `FIXTURE_PLAN` belongs to — same id as `FIXTURE_PLAN.projectId`, so a
+ * hydration through `fakeQueries` resolves both from one consistent fixture world.
+ */
+export const FIXTURE_PROJECT: ProjectSummaryDto = {
+	id: 'project-1',
+	name: 'Willow House',
+	status: 'DESIGN',
+	currency: 'EUR',
+	libraryOverlap: false,
 };
 
 export const FIXTURE_ZONES: readonly ZoneDto[] = [
@@ -106,6 +118,7 @@ export function fakeQueries(
 ): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(plan)),
+		getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
 		findZonesByPlan: () => Promise.resolve(ok({ zones, unreadable })),
 		...emptyRequirementReads(),
 	};

@@ -449,7 +449,12 @@ against a shared definition"* — is met by this increment and the epic should s
   requirement in any project today either — the shared catalogue being the larger half of the same
   gap. What the user sees is a row that reports itself `stale` rather than a wrong figure claiming
   to be current, because the staleness backstop reads the effective (override-aware) cost; and
-  re-setting the price through the section is a recovery that runs the cascade. **Not fixed here**:
+  clearing the price and setting it again is a recovery that runs the cascade — two gestures,
+  both of which publish. **Not re-setting it to the same value**: Decision 2a's command writes
+  and announces nothing when the submitted price already holds, and after an out-of-band edit
+  the section shows that new value, so retyping what is on screen is precisely the submission
+  that does nothing. A command cannot tell that from an accidental re-blur, which is what the
+  no-op rule exists for. **Not fixed here**:
   the remedy is one change to the vault-change pipeline serving assets, overrides and whatever
   comes next, which every index consumer inherits — the same reason slice 19's folder-move marker
   was narrowed in the documents rather than fixed in the code.

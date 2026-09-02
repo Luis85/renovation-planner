@@ -2079,6 +2079,13 @@ export class SetAssetPriceOverrideCommand
 			);
 		}
 
+		// **It does NOT double as a repair for an out-of-band edit**, which Task 7's residual
+		// used to claim it did: after a sync moves the note, the section shows the new value, so
+		// retyping what is on screen lands here and the requirements stay derived from the old
+		// figure. That recovery is CLEAR then SET, and the residual says so now. A command
+		// cannot tell the two submissions apart — both equal what is stored — so this rule
+		// keeps the case it can decide and the residual names the gesture that works.
+		//
 		// **A set that changes nothing writes nothing and announces nothing**, which is the same
 		// rule the clear command already keeps one file over: it reports `cleared: false` and
 		// publishes NOTHING for a pair that has no override, "there is nothing to invalidate, so
@@ -2842,7 +2849,19 @@ Three things make this the right call rather than a gap to fill inside this incr
   Task 6 step 4 feeds the OVERRIDE-aware effective cost into `isStaleReading`, so an out-of-band
   price change makes `inputsStillMatch` fail and the row reports itself stale. The figure is not
   recomputed; the surface does not claim it is. And the recovery is a gesture the user has:
-  setting the price again through the section raises the domain event and runs this cascade.
+  the recovery is CLEAR then SET, two gestures, both of which publish and cascade.
+
+  **Not "re-set the price", which an earlier draft said and the no-op rule has since made
+  false.** After an out-of-band edit the section shows the note's NEW value, so the natural
+  repair — retyping what is on screen — is exactly the submission `SetAssetPriceOverrideCommand`
+  now recognises as changing nothing: no write, no event, and the requirements stay derived from
+  the old figure. Clearing first is what makes the second gesture a real change. Any subsequent
+  ordinary price edit also recovers it, for the same reason.
+
+  The two rules are both right and they meet here: the no-op exists so an accidental re-blur
+  does not recalculate a whole project, and it deliberately does not double as an out-of-band
+  repair — a command cannot tell "the user retyped the same number" from "a sync moved this and
+  nothing cascaded", because both arrive as one submission equal to what is stored.
 - **The fix belongs to the vault-change pipeline**, which every index consumer inherits — the
   same reason slice 19's folder-move marker was narrowed in the documents rather than fixed in
   the code. It is one change (a domain event, or a cascade subscriber, for out-of-band entity

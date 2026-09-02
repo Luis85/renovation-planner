@@ -401,7 +401,7 @@ import type { Expected, EntityVersion, Loaded } from './versioning';
  * reason and it is not the same reason as necessity: the alternative was to keep it and amend
  * the spec's Decision 3 from five methods to six, and the argument for dropping it is that a
  * port method with no caller is a claim nothing rests on, while adding one back is one line the
- * day a caller exists. The note-backed repository still needs a by-id read for `filterLoaded`
+ * day a caller exists. The note-backed repository still needs a by-id read for its own hydration
  * and keeps one as a PRIVATE method.
  */
 export interface AssetPriceOverrideRepository {
@@ -626,20 +626,29 @@ export function assetPriceOverrideRepositoryContract(make: () => AssetPriceOverr
 		 * and the note-backed one the newest — and every duplicate test would have been evidence
 		 * about a different program than the one that ships.
 		 */
-		it('answers the highest-id override when two notes name one pair', async () => {
+		/**
+		 * BOTH save orders, in two fixtures, and an earlier draft of this case drove ONE while
+		 * its comment claimed two. `makeOverride` mints monotonic ULIDs, so the second entity
+		 * created always has the higher id — and that draft saved it FIRST, which means a
+		 * repository answering the OLDEST INSERTED match returns the same entity the rule
+		 * demands and passes. The case named the fake-versus-production drift it exists to
+		 * catch and could not have caught it in that direction.
+		 */
+		it.each([
+			['newest saved last', false],
+			['newest saved first', true],
+		])('answers the highest-id override when two notes name one pair (%s)', async (_name, newestFirst) => {
 			const f = make();
 			const projectId = f.newProject();
 			const assetId = f.newAsset();
-			const first = makeOverride(projectId, assetId, '19.50');
-			const second = makeOverride(projectId, assetId, '21.00');
-			// Save in BOTH orders across the two expectations below, so a repository that
-			// happens to enumerate in save order cannot pass by accident.
-			expectOk(await f.repository.save(second, 'absent'));
-			expectOk(await f.repository.save(first, 'absent'));
+			const older = makeOverride(projectId, assetId, '19.50');
+			const newer = makeOverride(projectId, assetId, '21.00');
+			// `newer.id > older.id` by construction; the ORDER of these two saves is the axis.
+			const order = newestFirst ? [newer, older] : [older, newer];
+			for (const override of order) expectOk(await f.repository.save(override, 'absent'));
 
-			const winner = second.id > first.id ? second : first;
 			const found = expectOk(await f.repository.getForPair(projectId, assetId));
-			expect(found?.entity.id).toBe(winner.id);
+			expect(found?.entity.id).toBe(newer.id);
 		});
 
 		it('deletes an override, after which its pair answers null again', async () => {
@@ -1206,7 +1215,7 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 	) {}
 
 	/**
-	 * PRIVATE, and not on the port: `filterLoaded` walks the index by id and this is how it
+	 * PRIVATE, and not on the port: `hydrate` walks the index by id and this is how it
 	 * reads one. No caller above `infrastructure/` asks a price override for its id — see the
 	 * port's own header for why that is a decision rather than an omission.
 	 */
@@ -1241,11 +1250,11 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 	}
 
 	listByProject(projectId: ProjectId): Promise<Result<Loaded<AssetPriceOverride>[], RepositoryError>> {
-		return this.filterLoaded((o) => o.projectId === projectId);
+		return this.loadedInProject(projectId, (o) => o.projectId === projectId);
 	}
 
 	listByAsset(assetId: AssetId): Promise<Result<Loaded<AssetPriceOverride>[], RepositoryError>> {
-		return this.filterLoaded((o) => o.assetId === assetId);
+		return this.loadedEverywhere((o) => o.assetId === assetId);
 	}
 
 	save(
@@ -1282,10 +1291,52 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 		);
 	}
 
-	private async filterLoaded(
+	/**
+	 * **Narrow by the INDEX before hydrating, because a read error is contagious.** Every
+	 * caller here refuses on the first unreadable note, so hydrating the whole vault's price
+	 * notes to answer a question about one project means a single malformed note — in a
+	 * project the caller has never heard of — fails `getForPair` for every pair, and with it
+	 * every assign and every recalculation. These notes are USER-EDITABLE by design; one of
+	 * them being broken must not disable pricing everywhere.
+	 *
+	 * `ProjectIndex` already answers both halves without reading a note:
+	 * `getIdsByType('renovation-asset-price')` and `getIdsByProject(projectId)`, intersected.
+	 * No new port method.
+	 *
+	 * **Skipping an unreadable note in scope is REFUSED**, and the asymmetry is the point: a
+	 * skipped override prices its requirement at the catalogue default and says nothing, which
+	 * is a wrong figure presented as a right one — the failure this whole increment exists to
+	 * end. Out of scope it cannot affect the answer, so it is not read; in scope it might BE
+	 * the answer, so the refusal stands.
+	 *
+	 * **`listByAsset` cannot be narrowed** — the index has no asset axis — so it still hydrates
+	 * every price note and still refuses on the first bad one. Its two callers (the cascade's
+	 * skip test and the delete cleanup) both REPORT a failed list rather than proceeding, so
+	 * the coupling is loud there rather than silent. Written down instead of hidden, because a
+	 * per-asset index axis is a change to `ProjectIndexEntry` that every consumer inherits.
+	 */
+	private async loadedInProject(
+		projectId: ProjectId,
 		predicate: (o: AssetPriceOverride) => boolean,
 	): Promise<Result<Loaded<AssetPriceOverride>[], RepositoryError>> {
-		const ids = this.deps.index.getIdsByType('renovation-asset-price') as AssetPriceOverrideId[];
+		const byType = new Set(this.deps.index.getIdsByType('renovation-asset-price'));
+		const ids = this.deps.index
+			.getIdsByProject(projectId)
+			.filter((id) => byType.has(id)) as AssetPriceOverrideId[];
+		return this.hydrate(ids, predicate);
+	}
+
+	/** The unnarrowable one; see `loadedInProject` for why it is separate rather than a flag. */
+	private async loadedEverywhere(
+		predicate: (o: AssetPriceOverride) => boolean,
+	): Promise<Result<Loaded<AssetPriceOverride>[], RepositoryError>> {
+		return this.hydrate(this.deps.index.getIdsByType('renovation-asset-price') as AssetPriceOverrideId[], predicate);
+	}
+
+	private async hydrate(
+		ids: readonly AssetPriceOverrideId[],
+		predicate: (o: AssetPriceOverride) => boolean,
+	): Promise<Result<Loaded<AssetPriceOverride>[], RepositoryError>> {
 		const loaded: Loaded<AssetPriceOverride>[] = [];
 		for (const id of ids) {
 			const found = await this.readById(id);
@@ -1296,6 +1347,10 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 	}
 }
 ```
+
+`getForPair` and `listByProject` call `loadedInProject`; `listByAsset` calls `loadedEverywhere`.
+Two named methods rather than one with a nullable `projectId`, because the difference is not a
+parameter — it is which of them is vault-coupled, and a caller reading the name is told.
 
 **If `readNoteBackedEntity`'s signature does not accept a closure for the mapper**, read it and
 adapt — the shape above assumes `(raw: unknown) => Result<TEntity, ValidationError>`, which is
@@ -1334,6 +1389,19 @@ describe('ObsidianAssetPriceOverrideRepository', () => {
 	 * one pair. Asserting the warning ALONE would pass against a build that then refuses, so
 	 * this asserts BOTH — a price still comes back.
 	 */
+	/**
+	 * The vault-wide coupling, closed. Plant a MALFORMED price note in project A, then ask
+	 * `getForPair` about project B — it must answer, because A's note is never read. Watch it
+	 * fail against a build that hydrates every `renovation-asset-price` id: one broken note
+	 * anywhere refuses every pair everywhere, and with it every assign and recalculation.
+	 *
+	 * And the other half, so the narrowing is not mistaken for tolerance: a malformed note in
+	 * project B's OWN scope still refuses, because it might be the note being asked about, and
+	 * skipping it would price the requirement at the catalogue default while saying nothing.
+	 */
+	it('answers for one project while another project holds an unreadable price note', async () => { … });
+	it('refuses when the unreadable note is in the project being asked about', async () => { … });
+
 	it('warns and returns one price when two notes name the same pair', async () => {
 		// Save two overrides for the same (project, asset) pair, then getForPair.
 		// expect(logger.warn).toHaveBeenCalledWith('asset-price.duplicate-pair', expect.anything());

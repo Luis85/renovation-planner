@@ -1,4 +1,6 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
+import type { ProjectId } from '../../domain/project/ProjectId';
+import type { AssetPriceOverrideEventPayload } from '../../domain/asset-price/AssetPriceOverride.events';
 import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
 
 /**
@@ -9,14 +11,26 @@ import type { ProjectIndexEntryChangedPayload } from './projectIndex.events';
  * `EventBus` port and the event names, so `presentation/` gets a callback and learns
  * neither.
  *
- * **UNFILTERED, which is a decision about the CALLER rather than about the event.**
- * `AssetPriceOverrideChanged` carries both a `projectId` and an `assetId`, so a filtered
- * variant is expressible — and the Plan Editor, which is this module's first caller, holds
- * neither id: its context is a PLAN, and resolving that plan to a project is an async read
- * this subscription would have to wait on before it could decide to skip work. The
- * unfiltered category is what that caller wants, exactly as `assetCatalogueChangeSource`
- * argues for itself; a caller that does hold a project id narrows at its own end, where the
- * id already is.
+ * **It REPORTS what changed and narrows nothing itself, which is a decision about having TWO
+ * callers rather than one.** Filtering here would mean binding an active project id into the
+ * source — and the Plan Editor, this module's first caller, holds a PLAN id: resolving it to a
+ * project is an async read a subscription cannot wait on before deciding to skip work, so a
+ * filtered source would charge the caller that cannot pay. Delivering the category unfiltered
+ * is what that caller wants, exactly as `assetCatalogueChangeSource` argues for itself — and
+ * it is NOT what the project pane wants, which draws exactly one project's prices and was
+ * re-reading them for every other project's price in the vault.
+ *
+ * So the listener takes the project the change is ABOUT, and each caller decides. The Plan
+ * Editor's takes no parameter at all and is unaffected; the project pane's compares against
+ * the project it is drawing.
+ *
+ * **`null` means "cannot say — refresh anyway", never "no project".** The index arm below has
+ * no project id to give: `ProjectIndexEntryChangedPayload` carries `entityId` and `entityType`
+ * and nothing else, and the entry it names is a price NOTE whose owning project this source
+ * would have to read the vault to learn. A narrowing caller must therefore treat `null` as a
+ * MATCH — the safe direction under uncertainty, the same reading `drawsRequirement` in
+ * `runtime.ts` gives its own empty-snapshot arm: a filter exists to skip work, so an unanswered
+ * question does the work.
  *
  * **ONE domain event, because there is one.** Set, replace and clear all publish
  * `AssetPriceOverrideChanged` — `AssetPriceOverride.events.ts` states that as its own
@@ -59,17 +73,34 @@ function changedEntityTypeOf(event: DomainEvent): string | null {
 	return typeof payload?.entityType === 'string' ? payload.entityType : null;
 }
 
-export function createProjectPricesChangeSource(events: EventBus): (listener: () => void) => () => void {
-	return (listener: () => void) => {
+/**
+ * The project a domain event names, narrowed with the same kind of guard and for the same
+ * reason `changedEntityTypeOf` above is: an event added to `PRICE_CHANGE_EVENTS` WITHOUT this
+ * payload reports `null` — "cannot say", which every narrowing caller treats as a match — rather
+ * than an `undefined` compared against a project id and matching nothing.
+ */
+function changedProjectOf(event: DomainEvent): ProjectId | null {
+	const payload = (event as { payload?: Partial<AssetPriceOverrideEventPayload> }).payload;
+	return typeof payload?.projectId === 'string' ? payload.projectId : null;
+}
+
+export function createProjectPricesChangeSource(
+	events: EventBus,
+): (listener: (projectId: ProjectId | null) => void) => () => void {
+	return (listener: (projectId: ProjectId | null) => void) => {
 		const subscriptions = [
 			...PRICE_CHANGE_EVENTS.map((type) =>
-				events.subscribe(type, () => {
-					listener();
+				events.subscribe(type, (event) => {
+					listener(changedProjectOf(event));
 				}),
 			),
+			// `null` rather than a project id, because there is none to give: this payload is
+			// `{ entityId, entityType }` and the entry is a price NOTE whose owning project only
+			// a vault read could name. See the header for why that is a MATCH at every narrowing
+			// caller rather than a miss.
 			...PRICE_ENTRY_EVENTS.map((type) =>
 				events.subscribe(type, (event) => {
-					if (changedEntityTypeOf(event) === 'renovation-asset-price') listener();
+					if (changedEntityTypeOf(event) === 'renovation-asset-price') listener(null);
 				}),
 			),
 		];

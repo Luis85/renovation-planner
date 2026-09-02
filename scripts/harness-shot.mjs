@@ -89,6 +89,35 @@ const FOCUS_TAB_LIMIT = 12;
  * a browser where no test reaches it, and one more branch took its CRAP score to exactly the
  * threshold `npm run analyze` fails at.
  */
+/**
+ * Bring the region a shot is ABOUT into the picture, when it lives below a scrolling body.
+ *
+ * The project detail state's price section is such a region: it sits under 26 plan rows inside
+ * `.rp-project-detail__body`, which is the pane's one scroller, so a resting capture of that
+ * surface photographs plans and nothing else. That was measured rather than predicted — the
+ * first capture taken after the section landed showed 26 plan rows and no prices at all.
+ *
+ * `scrollIntoView` rather than a Tab walk, which is what `focusForShot` above does and is the
+ * wrong instrument here: reaching the first price input by keyboard costs one press per plan
+ * row, so a fixture that grew by a plan would silently start photographing the wrong thing at
+ * `FOCUS_TAB_LIMIT`. It is also a different QUESTION — that function is for a `:focus-visible`
+ * ring, and this shot is about layout at rest.
+ *
+ * A no-op for a shot with no `scrollTo`, which is every shot but one, and out here rather than
+ * as a branch inside `captureOne` for the reason `viewportFor` gives: that function runs behind
+ * a browser and no test covers it.
+ */
+async function scrollForShot(page, scrollTo) {
+	if (scrollTo === undefined) return;
+	const found = await page.evaluate((sel) => {
+		const el = document.querySelector(sel);
+		if (el === null) return false;
+		el.scrollIntoView({ block: 'start' });
+		return true;
+	}, scrollTo);
+	if (!found) throw new Error(`nothing matching ${scrollTo} was on the page to scroll to`);
+}
+
 async function focusForShot(page, focus) {
 	if (focus === undefined) return;
 
@@ -115,6 +144,21 @@ const SHOTS = [
 	// ENTRY id, and refuses `--width` with no entry beside it because "the fixed shots carry
 	// their own". Every other shot with a query string lives here for the same reason.
 	{ name: 'project-detail', query: '?project=project-1', selector: PROJECT_VIEW },
+	// The project's own PRICE SECTION, which no resting shot of this surface can reach: it sits
+	// below 26 plan rows inside `.rp-project-detail__body`, the pane's one scroller, so
+	// `project-detail` above photographs plans and nothing else. Measured, not predicted — that
+	// is exactly what the first capture after the section landed showed.
+	//
+	// A THIRD shot rather than a smaller plan fixture, because both regions are worth looking at
+	// and shrinking one to fit the other in one frame would stop the plan list demonstrating the
+	// body's scroll at all. `scrollTo` is what makes it a picture of the section rather than of
+	// the page's top.
+	{
+		name: 'project-detail-prices',
+		query: '?project=project-1',
+		selector: PROJECT_VIEW,
+		scrollTo: '.rp-asset-price-header',
+	},
 	// 460 is the width an Obsidian sidebar leaf actually has, and the one that has already
 	// hidden a layout defect the default 1280 could not show — the header's three items on one
 	// row, with the name ellipsing rather than pushing its neighbours off, are decided there and
@@ -132,6 +176,20 @@ const SHOTS = [
 		query: '?project=project-1&theme=light',
 		selector: PROJECT_VIEW,
 		width: 460,
+	},
+	// The price section AT 460, which neither of the two shots above reaches: the narrow one is
+	// about the header and rests at the top of the pane, and the price shot is 1280 wide. This is
+	// where the row's wrapping is decided — it is a wrapping flex row whose field block takes a
+	// fixed 14rem basis, so 460 is the width at which the input and its button either drop to
+	// their own line or crush the asset's name, and no gate in this repository can measure
+	// either. LIGHT, for the same reason `project-detail-narrow` is: the muted text these rows
+	// are mostly made of measures tighter against 1.4.3's floor there.
+	{
+		name: 'project-detail-prices-narrow',
+		query: '?project=project-1&theme=light',
+		selector: PROJECT_VIEW,
+		width: 460,
+		scrollTo: '.rp-asset-price-header',
 	},
 	// The Plan Editor in both schemes: it is the first surface with real content, and the
 	// only place the layered Konva scene can be looked at outside a vault. No phone shot —
@@ -203,7 +261,7 @@ const SHOTS = [
  * the reason is prose an entry's own error can imitate — see `readFailureKind`. The reason is
  * still pushed here rather than returned: the errors list is what the exit code is built from,
  * and a caller that forgot to push would turn a failure into a green run. */
-async function captureOne(browser, baseUrl, { name, query, selector, entry, width, focus }, errors) {
+async function captureOne(browser, baseUrl, { name, query, selector, entry, width, focus, scrollTo }, errors) {
 	const page = await browser.newPage({ viewport: viewportFor(width) });
 
 	page.on('pageerror', (error) => errors.push(`[${name}] page error: ${error.message}`));
@@ -231,6 +289,10 @@ async function captureOne(browser, baseUrl, { name, query, selector, entry, widt
 		await waitUntilReady(page, selector, entry, entryHasDrawn);
 		// After the wait, never before it: tabbing into a page that has not drawn its list yet
 		// walks whatever tab order exists at that moment, which is not the one being pictured.
+		// BEFORE the focus walk: tabbing changes the scroll position itself, so scrolling after it
+		// would undo the one thing that shot asked for. No shot uses both today; the ordering is
+		// stated rather than left to whichever one does first.
+		await scrollForShot(page, scrollTo);
 		await focusForShot(page, focus);
 
 		const file = path.join(OUT_DIR, `${name}.png`);

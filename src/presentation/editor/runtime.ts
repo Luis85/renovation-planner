@@ -24,6 +24,7 @@ import { DrawPolygonTool } from './tools/draw-polygon-tool';
 import { SelectTool } from './tools/select-tool';
 import { withEditorStateRefresh } from './tools/with-editor-state-refresh';
 import { useSaveStateStore } from './save-state/save-state-store';
+import { singleFlight } from '../composables/single-flight';
 import { withSaveStateTracking } from './save-state/with-save-state-tracking';
 import { useDialogStore } from '../dialogs/dialog-store';
 import KnownDistanceForm from './shell/KnownDistanceForm.vue';
@@ -304,45 +305,19 @@ function wrapDispatcher(
  * for a note added by hand or arriving through sync. The picker now hears what it is
  * about and nothing else.
  *
- * **COALESCED, because hearing the right events is not the same as hearing few of them.**
- * A library migration renames every catalogue note one at a time and `VaultChangeAdapter`
- * announces each rename, so moving N assets delivers N events — and an unconditional read
- * per event is N vault-wide scans in every open editor, for a change of paths. Never more
- * than one read is in flight; a burst arriving during one collapses into exactly one more
- * after it. That the reads cannot OVERLAP is the second property, and it is what removes
- * the stale-overwrite race this repository has already recorded twice (`ProjectStore.hydrate`
- * and `InspectorStore` both carry a request ticket for it): an older scan cannot finish
- * after a newer one and put a deleted asset back, because there is never an older scan
- * still running. Both halves were reported in review against the commit that introduced
- * the first — `onPlanChanged` did not carry the entry event, so the old wiring could not
- * see a migration at all.
+ * **COALESCED, because hearing the right events is not the same as hearing few of them.** A
+ * library migration renames every catalogue note one at a time and `VaultChangeAdapter`
+ * announces each rename, so moving N assets delivers N events — and an unconditional read per
+ * event is N vault-wide scans in every open editor, for a change of paths. `singleFlight`
+ * (`presentation/composables/single-flight.ts`) is what makes that affordable, and its own
+ * header carries the mechanism and the reason it sits beside a request ticket rather than
+ * instead of one. Both halves were reported in review against the commit that introduced the
+ * first — `onPlanChanged` did not carry the entry event, so the old wiring could not see a
+ * migration at all.
  *
- * The trailing read is a REQUEST rather than a queue: ten events during one scan buy one
- * more scan, not ten. What that gives up is knowing which event the final read answers,
- * which nothing here needs — the read is a full catalogue snapshot either way.
+ * It MOVED out of this file when the project pane's price section became its second caller: one
+ * function with two callers cannot drift the way two hand-spelled copies can.
  */
-function singleFlight(read: () => Promise<void>): () => void {
-	let running = false;
-	let requestedAgain = false;
-	const run = async (): Promise<void> => {
-		running = true;
-		try {
-			do {
-				requestedAgain = false;
-				await read();
-			} while (requestedAgain);
-		} finally {
-			running = false;
-		}
-	};
-	return (): void => {
-		if (running) {
-			requestedAgain = true;
-			return;
-		}
-		void run();
-	};
-}
 
 /**
  * Is the requirement this event names one the Inspector is currently DRAWING?

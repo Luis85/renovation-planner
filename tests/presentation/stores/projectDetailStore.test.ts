@@ -12,12 +12,31 @@ import { err, ok } from '../../../src/core/result/Result';
 import { useProjectDetailStore } from '../../../src/presentation/stores/ProjectDetailStore';
 import type { RenovationProjectQueryServices } from '../../../src/presentation/read-models/renovationProjectQueries';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
+import type { AssetPriceRowDto } from '../../../src/application/queries/ListProjectAssetPrices';
 
 // `libraryOverlap` is slice 19's §83 marker, required on the DTO and `false` here because
 // these cases are about the DETAIL state, which draws no marker — stated rather than omitted,
 // so a fixture never carries a value nothing chose.
 const PROJECT: ProjectSummaryDto = { id: 'project-01JAAA', name: 'Hallway', status: 'IDEA', currency: 'EUR', libraryOverlap: false };
 const READ_FAILED = { category: 'Persistence', code: 'project.read-failed', message: 'boom' } as const;
+
+/**
+ * One price row, ANNOTATED as the DTO the query answers so a member it grows is a compile error
+ * here rather than an `undefined` nothing reports. The section itself is driven in
+ * `assetPriceList.test.ts`; these cases are about the store's own ticket and its own failure
+ * arm, so one row is enough and its content is not asserted beyond identity.
+ */
+const ROWS: AssetPriceRowDto[] = [
+	{
+		assetId: 'a1',
+		assetName: 'Oak flooring',
+		catalogue: null,
+		override: null,
+		overrideId: null,
+		overrideVersion: null,
+		assetStatus: 'known',
+	},
+];
 
 function queriesAnswering(overrides: Partial<RenovationProjectQueryServices>): RenovationProjectQueryServices {
 	return {
@@ -317,5 +336,131 @@ describe('ProjectDetailStore', () => {
 		expect(store.project).toBeNull();
 		expect(store.plans).toEqual([]);
 		expect(store.error).toBeNull();
+	});
+
+	/**
+	 * The price region's own read and its own TICKET, which is deliberately not the store's.
+	 *
+	 * Its callers are the mount, a catalogue change and a project-price change, all of which can
+	 * be in flight while a `hydrate` is — so sharing `latestHydration` would let a price read
+	 * cancel a project read, and each other's, on a question neither is asking.
+	 */
+	describe('the price region', () => {
+		it('holds the rows it read', async () => {
+			const store = useProjectDetailStore();
+
+			await store.hydratePrices(
+				queriesAnswering({ listAssetPrices: () => Promise.resolve(ok(ROWS)) }),
+				PROJECT.id,
+			);
+
+			expect(store.assetPrices).toEqual(ROWS);
+			expect(store.assetPricesError).toBeNull();
+		});
+
+		/**
+		 * A failed price read leaves NO stale rows behind — `fail`'s rule, applied to the region
+		 * that owns it: a section showing prices beside a message saying they could not be read is
+		 * a section disagreeing with itself.
+		 *
+		 * And it touches NEITHER `status` NOR `error`, which is the half that says why this is a
+		 * second read rather than a third arm of `hydrate`: a project whose prices could not be
+		 * read is still a project the user can look at and work in.
+		 */
+		it('clears the rows and records the failure without disturbing the project', async () => {
+			const store = useProjectDetailStore();
+			await store.hydrate(queriesAnswering({}), PROJECT.id, true);
+			await store.hydratePrices(
+				queriesAnswering({ listAssetPrices: () => Promise.resolve(ok(ROWS)) }),
+				PROJECT.id,
+			);
+
+			await store.hydratePrices(
+				queriesAnswering({ listAssetPrices: () => Promise.resolve(err(READ_FAILED)) }),
+				PROJECT.id,
+			);
+
+			expect(store.assetPrices).toEqual([]);
+			expect(store.assetPricesError).toEqual(READ_FAILED);
+			expect(store.status).toBe('ready');
+			expect(store.error).toBeNull();
+		});
+
+		/**
+		 * The TICKET. A slower EARLIER read must not land on top of a faster later one — a
+		 * just-set price vanishing with no error is the failure, and it is the same mechanism
+		 * `hydrate` above carries for its own pair.
+		 *
+		 * Watched failing with the ticket check removed: the first read's rows then arrive last
+		 * and the assertion reads the stale pair.
+		 */
+		it('lets the latest price read win, whichever resolves last', async () => {
+			const store = useProjectDetailStore();
+			let releaseFirst: (() => void) | undefined;
+			const held = new Promise<void>((resolve) => {
+				releaseFirst = resolve;
+			});
+
+			const slow = store.hydratePrices(
+				queriesAnswering({
+					listAssetPrices: async () => {
+						await held;
+						return ok([]);
+					},
+				}),
+				PROJECT.id,
+			);
+			const fast = store.hydratePrices(
+				queriesAnswering({ listAssetPrices: () => Promise.resolve(ok(ROWS)) }),
+				PROJECT.id,
+			);
+			await fast;
+			releaseFirst?.();
+			await slow;
+
+			expect(store.assetPrices).toEqual(ROWS);
+		});
+
+		/**
+		 * `markGone` takes the price region's ticket too, so a read still in flight for a project
+		 * the command has just declared gone cannot land its rows under the screen that says so.
+		 */
+		it('drops a price read in flight when the project is marked gone', async () => {
+			const store = useProjectDetailStore();
+			let release: (() => void) | undefined;
+			const held = new Promise<void>((resolve) => {
+				release = resolve;
+			});
+
+			const reading = store.hydratePrices(
+				queriesAnswering({
+					listAssetPrices: async () => {
+						await held;
+						return ok(ROWS);
+					},
+				}),
+				PROJECT.id,
+			);
+			store.markGone();
+			release?.();
+			await reading;
+
+			expect(store.assetPrices).toEqual([]);
+			expect(store.status).toBe('gone');
+		});
+
+		/** `reset` empties the region with everything else — ADR-005's rebuildable state. */
+		it('is emptied by reset', async () => {
+			const store = useProjectDetailStore();
+			await store.hydratePrices(
+				queriesAnswering({ listAssetPrices: () => Promise.resolve(ok(ROWS)) }),
+				PROJECT.id,
+			);
+
+			store.reset();
+
+			expect(store.assetPrices).toEqual([]);
+			expect(store.assetPricesError).toBeNull();
+		});
 	});
 });

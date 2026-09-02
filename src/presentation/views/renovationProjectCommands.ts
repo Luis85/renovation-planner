@@ -3,6 +3,16 @@ import type { PersistenceError } from '../../core/errors/AppError';
 import type { Command } from '../../application/commands/Command';
 import type { CreatePlanError, CreatePlanInput } from '../../application/commands/plan/CreatePlan';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
+import type {
+	SetAssetPriceOverrideErrors,
+	SetAssetPriceOverrideInput,
+	SetAssetPriceOverrideResult,
+} from '../../application/commands/asset-price/SetAssetPriceOverride';
+import type {
+	ClearAssetPriceOverrideErrors,
+	ClearAssetPriceOverrideInput,
+	ClearAssetPriceOverrideResult,
+} from '../../application/commands/asset-price/ClearAssetPriceOverride';
 import type { Logger } from '../../application/ports/Logger';
 import type { RepositoryError } from '../../application/ports/repositoryErrors';
 import type { Loaded } from '../../application/ports/versioning';
@@ -28,6 +38,13 @@ export type CreateProjectResult = Result<{ project: Loaded<Project> }, Repositor
 export type CreatePlanResult = Result<{ plan: Loaded<Plan> }, CreatePlanError>;
 
 /**
+ * The price section's two dispatch results, aliased here for the same reason the two above are:
+ * both are named by an exported signature, and `private-type-leaks` is an `error`.
+ */
+export type SetAssetPriceResult = Result<SetAssetPriceOverrideResult, SetAssetPriceOverrideErrors>;
+export type ClearAssetPriceResult = Result<ClearAssetPriceOverrideResult, ClearAssetPriceOverrideErrors>;
+
+/**
  * The write side of the Renovation Project view — the mirror of
  * `RenovationProjectQueryServices`, and the same bargain `PlanEditorCommandServices` makes:
  * application-layer interfaces handed to presentation, composed and GUARDED at the root,
@@ -45,6 +62,17 @@ export interface RenovationProjectCommandServices {
 	 * still compile, which is the self-declared shape this repository refuses everywhere else.
 	 */
 	readonly createPlan: Command<CreatePlanInput, CreatePlanResult>;
+	/**
+	 * The project's own price section — the affordance that turns `cost.currency-mismatch` from
+	 * a dead end into something a user can act on.
+	 *
+	 * REQUIRED, like both siblings above and for the same stated reason: an optional member
+	 * would let a composition forget it and still compile, and this bundle is the ONLY write
+	 * boundary `ProjectDetailState` has. Without these two the section renders and dispatches
+	 * nothing — the live control that does nothing, which slice 14's own amendment refuses.
+	 */
+	readonly setAssetPriceOverride: Command<SetAssetPriceOverrideInput, SetAssetPriceResult>;
+	readonly clearAssetPriceOverride: Command<ClearAssetPriceOverrideInput, ClearAssetPriceResult>;
 	/**
 	 * The composition root's logger, reaching this view — the same member
 	 * `PlanEditorCommandServices` carries, for the same reason and with the same limit.
@@ -88,6 +116,21 @@ export function unavailableRenovationProjectCommands(): RenovationProjectCommand
 		createPlan: {
 			execute(): Promise<CreatePlanResult> {
 				return Promise.resolve(err(persistenceFailure()) as CreatePlanResult);
+			},
+		},
+		// Both price doors through the SAME `persistenceFailure()` the pair above share, so
+		// `settings.unrecovered` cannot drift into two spellings of one state. Nothing makes
+		// these two a compile error — the interface being required makes the declaration and
+		// the root binding build failures, and this function is the entry a composition can
+		// quietly leave refusing wrongly.
+		setAssetPriceOverride: {
+			execute(): Promise<SetAssetPriceResult> {
+				return Promise.resolve(err(persistenceFailure()) as SetAssetPriceResult);
+			},
+		},
+		clearAssetPriceOverride: {
+			execute(): Promise<ClearAssetPriceResult> {
+				return Promise.resolve(err(persistenceFailure()) as ClearAssetPriceResult);
 			},
 		},
 		// A logger member that records nothing, exactly as `unavailablePlanEditorCommands`'s

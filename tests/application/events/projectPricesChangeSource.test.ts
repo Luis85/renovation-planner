@@ -5,9 +5,11 @@
  * the project pane both need this door, and one source with two callers cannot drift the way two
  * hand-spelled subscriptions can.
  *
- * UNFILTERED, which is a decision about the CALLER rather than about the event — the payload
- * carries both ids, and the Plan Editor holds neither: its subject is a PLAN, and resolving that
- * to a project is an async read a subscription cannot wait on before deciding to skip work.
+ * It REPORTS which project changed and narrows NOTHING itself, which is a decision about having
+ * two callers rather than one. Filtering here would mean binding an active project id into the
+ * source, and the Plan Editor holds a PLAN: resolving that to a project is an async read a
+ * subscription cannot wait on before deciding to skip work, so a filtered source would charge
+ * the caller that cannot pay. Each caller narrows at its own end, where the id already is.
  */
 import { describe, expect, it } from 'vitest';
 import { createEventBus } from '../../../src/core/events/EventBus';
@@ -20,14 +22,21 @@ import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import { createRequirementId } from '../../../src/domain/requirement/RequirementId';
 import type { EntityId } from '../../../src/core/identity/EntityId';
+import type { ProjectId } from '../../../src/domain/project/ProjectId';
 
+/**
+ * `heard` records the ARGUMENT of every delivery, not just how many there were. The count is
+ * still what most cases assert; the two below that are about the argument read the list, because
+ * a source that delivered the right number of callbacks carrying the wrong project would pass
+ * every count assertion in this file.
+ */
 function wired() {
 	const bus = createEventBus(() => undefined);
-	let heard = 0;
-	const dispose = createProjectPricesChangeSource(bus)(() => {
-		heard += 1;
+	const heard: (ProjectId | null)[] = [];
+	const dispose = createProjectPricesChangeSource(bus)((projectId) => {
+		heard.push(projectId);
 	});
-	return { bus, dispose, count: (): number => heard };
+	return { bus, dispose, count: (): number => heard.length, delivered: heard };
 }
 
 const aProject = createProjectId();
@@ -109,6 +118,55 @@ describe('createProjectPricesChangeSource', () => {
 		await bus.publish(make());
 
 		expect(count()).toBe(0);
+	});
+
+	/**
+	 * **The argument, which is the whole of Ruling 15.** The source used to hand its listener
+	 * nothing, so a price set in project A re-read the price rows in every open pane for project
+	 * B — correct and unusable. It reports the project instead, and each caller decides.
+	 *
+	 * Asserted on the DELIVERED VALUE rather than on a count: a build that fired the right number
+	 * of callbacks carrying the wrong project passes every other case in this file.
+	 */
+	it('delivers the project the domain event names', async () => {
+		const { bus, delivered } = wired();
+		const other = createProjectId();
+
+		await bus.publish(assetPriceOverrideChanged({ projectId: aProject, assetId: anAsset }));
+		await bus.publish(assetPriceOverrideChanged({ projectId: other, assetId: createAssetId() }));
+
+		expect(delivered).toEqual([aProject, other]);
+	});
+
+	/**
+	 * **`null` for the index arm, and it means "cannot say" rather than "no project".**
+	 * `ProjectIndexEntryChangedPayload` carries `entityId` and `entityType` and no project id at
+	 * all — the entry is a price NOTE whose owning project only a vault read could name — so
+	 * this is the honest answer, and every narrowing caller treats it as a MATCH. A source that
+	 * invented one here would be guessing.
+	 */
+	it('delivers null for an index-entry change, which no payload can name a project for', async () => {
+		const { bus, delivered } = wired();
+
+		await bus.publish(
+			projectIndexEntryChanged({ entityId: 'price-1' as EntityId<string>, entityType: 'renovation-asset-price' }),
+		);
+
+		expect(delivered).toEqual([null]);
+	});
+
+	/**
+	 * The narrowing guard on the PROJECT, the twin of the entity-type one above and there for the
+	 * same reason: an event added to `PRICE_CHANGE_EVENTS` without this payload reports `null` —
+	 * which every caller refreshes for — rather than an `undefined` compared against a project id
+	 * and matching nothing.
+	 */
+	it('reports null for a price event carrying no project id', async () => {
+		const { bus, delivered } = wired();
+
+		await bus.publish({ type: 'AssetPriceOverrideChanged', payload: { assetId: anAsset } } as never);
+
+		expect(delivered).toEqual([null]);
 	});
 
 	/** Disposal, asserted for BOTH lists — a source that unsubscribed one would leave a retired

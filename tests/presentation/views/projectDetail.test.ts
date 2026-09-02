@@ -11,6 +11,8 @@ import { mount } from '@vue/test-utils';
 import ProjectDetail from '../../../src/presentation/views/ProjectDetail.vue';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 import { t } from '../../../src/presentation/i18n/strings';
+import { ok } from '../../../src/core/result/Result';
+import { recorder } from '../../helpers/logger';
 
 // See `projectDetailStore.test.ts` for why this is stated and why it is `false`.
 const PROJECT: ProjectSummaryDto = {
@@ -21,16 +23,31 @@ const PROJECT: ProjectSummaryDto = {
 	libraryOverlap: false,
 };
 
+/**
+ * The four price-section props every mount here needs and no case in this file is ABOUT.
+ *
+ * Stated once rather than per case, and the rows are EMPTY on purpose: this file is about the
+ * header, the plans region and the heading levels, so the section draws its own empty state and
+ * contributes nothing for these assertions to trip over. `assetPriceList.test.ts` is where the
+ * section itself is driven.
+ */
+const PRICE_PROPS = {
+	assetPrices: [],
+	assetPricesFailure: null,
+	commitAssetPrice: () => Promise.resolve({ dispatch: ok('no-write' as const), settled: null }),
+	logger: recorder,
+};
+
 describe('ProjectDetail', () => {
 	it('names the project and renders its status through the shared label', () => {
-		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: null } });
+		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS } });
 
 		expect(wrapper.get('.rp-project-detail__name').text()).toBe('Hallway');
 		expect(wrapper.get('.rp-project-detail__status').text()).toBe(t('en', 'form.new-project.status.idea'));
 	});
 
 	it('emits back, openNote and createPlan from the header', async () => {
-		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: null } });
+		const wrapper = mount(ProjectDetail, { props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS } });
 
 		await wrapper.get('.rp-project-detail__back').trigger('click');
 		await wrapper.get('.rp-project-detail__open-note').trigger('click');
@@ -60,7 +77,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('gives the no-plans empty state the plans subsection heading level', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' }, ...PRICE_PROPS },
 		});
 
 		expect(wrapper.get('.rp-empty-state__headline').element.tagName).toBe('H3');
@@ -75,7 +92,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('keeps back and open note when the project has no plans', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' }, ...PRICE_PROPS },
 		});
 
 		expect(wrapper.find('.rp-project-detail__back').exists()).toBe(true);
@@ -92,7 +109,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('emits createPlan from the empty state’s own action', async () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' } },
+			props: { project: PROJECT, plans: [], unreadablePlans: 0, emptyState: { headline: 'h', body: 'b', actionLabel: 'a' }, ...PRICE_PROPS },
 		});
 
 		await wrapper.get('.rp-empty-state__action').trigger('click');
@@ -107,7 +124,7 @@ describe('ProjectDetail', () => {
 	 */
 	it('carries a plan row’s id up from PlanList', async () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
 		await wrapper.get('.rp-plan-list__row').trigger('click');
@@ -117,7 +134,7 @@ describe('ProjectDetail', () => {
 
 	it('says which currency the project is priced in, beside its status', () => {
 		const wrapper = mount(ProjectDetail, {
-			props: { project: { ...PROJECT, currency: 'GBP' }, plans: [], unreadablePlans: 0, emptyState: null },
+			props: { project: { ...PROJECT, currency: 'GBP' }, plans: [], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
 		expect(wrapper.get('.rp-project-detail__currency').text()).toBe(
@@ -134,7 +151,7 @@ describe('ProjectDetail', () => {
 	it('declares a rule for every class it actually emits', () => {
 		const css = readFileSync('styles/project-detail.css', 'utf8');
 		const wrapper = mount(ProjectDetail, {
-			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null },
+			props: { project: PROJECT, plans: [{ id: 'plan-1', name: 'Ground floor' }], unreadablePlans: 0, emptyState: null, ...PRICE_PROPS },
 		});
 
 		const emitted = new Set(

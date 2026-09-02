@@ -44,6 +44,9 @@
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { CreatePlanCommand } from '../../src/application/commands/plan/CreatePlan';
 import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
+import { SetAssetPriceOverrideCommand } from '../../src/application/commands/asset-price/SetAssetPriceOverride';
+import { ClearAssetPriceOverrideCommand } from '../../src/application/commands/asset-price/ClearAssetPriceOverride';
+import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import { GetProject } from '../../src/application/queries/GetProject';
 import { ListPlansByProject } from '../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../src/application/queries/ListProjects';
@@ -71,6 +74,18 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
 export interface SeedRepositories {
 	readonly projects: InMemoryProjectRepository;
 	readonly plans: InMemoryPlanRepository;
+	/**
+	 * The shared catalogue and this project's own prices, so a seeded caller can draw the price
+	 * section with real rows rather than its empty state.
+	 *
+	 * These two arrived with their first caller rather than ahead of it: this file's own comment
+	 * declined to declare them while `?project=` seeded projects and plans alone, and the harness
+	 * capture of the price section is what needed them — that capture is the ONLY instrument in
+	 * this repository for spacing, wrapping and overflow, and it can say nothing about a section
+	 * showing an empty state.
+	 */
+	readonly assets: InMemoryAssetRepository;
+	readonly overrides: InMemoryAssetPriceOverrideRepository;
 }
 
 /**
@@ -182,11 +197,10 @@ export const defaultRenovationProjectDeps = (
 	// thing, and "always empty by construction" is thinner.
 	const index = new InMemoryProjectIndex();
 	const overlaps = new IndexLibraryOverlaps(index, DEFAULT_SETTINGS.libraryFolder);
-	// Real, empty in-memory repositories — an ANSWERING query rather than a refusing
-	// double, so the browser harness's price section has something to render through this
-	// factory. `assets`/`overrides` are not part of `SeedRepositories` yet: nothing in this
-	// increment needs to seed either through here, and adding an unused seam ahead of its
-	// first caller is the shape this repository's own rule refuses.
+	// Real in-memory repositories — an ANSWERING query rather than a refusing double, so the
+	// browser harness's price section has something to render through this factory. Both are in
+	// `SeedRepositories` since the capture of that section needed rows to photograph; see that
+	// interface's own comment for why they arrived with their caller rather than ahead of it.
 	const assets = new InMemoryAssetRepository();
 	const overrides = new InMemoryAssetPriceOverrideRepository();
 
@@ -195,7 +209,7 @@ export const defaultRenovationProjectDeps = (
 	// browser harness's `?project=` knob is the only caller today (`tests/harness/mount.ts`):
 	// a detail state has to be OPENED on a project that exists, and every id here is
 	// generated, so a seed is the only way a URL can name one.
-	seed?.({ projects, plans });
+	seed?.({ projects, plans, assets, overrides });
 
 	// ANNOTATED rather than inferred, so a member the interface grows is a compile error here
 	// rather than an `undefined` handed to whoever reads it — which is what this file shipped:
@@ -212,6 +226,24 @@ export const defaultRenovationProjectDeps = (
 		commands: {
 			createProject: new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency),
 			createPlan: new CreatePlanCommand(plans, projects, events),
+			// REAL commands over the SAME `assets`/`overrides` this file's `listAssetPrices`
+			// reads through, not refusals: a stand-in that refuses what production answers turns
+			// a tool built for looking into one that shows a false picture, and the price section
+			// is unusable in the browser harness otherwise. It is also the read-and-write pairing
+			// this file already insists on for `createPlan` — one world, not a read model over
+			// content beside a write side over an empty pair.
+			setAssetPriceOverride: new SetAssetPriceOverrideCommand({
+				overrides,
+				projects,
+				assets,
+				events,
+				locks: new ReferenceLocks(),
+			}),
+			clearAssetPriceOverride: new ClearAssetPriceOverrideCommand({
+				overrides,
+				events,
+				locks: new ReferenceLocks(),
+			}),
 			logger: recorder,
 		},
 		openProject: () => Promise.resolve('opened'),
@@ -228,6 +260,11 @@ export const defaultRenovationProjectDeps = (
 		navigate: () => undefined,
 		openPlan: () => Promise.resolve(),
 		onPlansChanged: () => () => undefined,
+		// INERT, like `onProjectsChanged` and `onPlansChanged` above and for the same reason:
+		// nothing here publishes, so a real source would deliver nothing anyway, and a case that
+		// asserts on either of these passes its own `deps`.
+		onCatalogueChanged: () => () => undefined,
+		onProjectPricesChanged: () => () => undefined,
 		// TRUE, deliberately: the default vault here is a real in-memory repository that has
 		// already been read, so `ok(null)` from it is authoritative. Defaulting to `false`
 		// would put every case that mounts a detail state through this factory into the

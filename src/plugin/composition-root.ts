@@ -47,6 +47,7 @@ import {
 import { unavailableRenovationProjectCommands } from '../presentation/views/renovationProjectCommands';
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import { renovationProjectOpenPlan, renovationProjectOpenProject } from './renovationProjectOpenSeams';
+import { renovationProjectCommandBundle } from './renovationProjectCommandBundle';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
@@ -630,6 +631,12 @@ export function renovationProjectDeps(
 		// `onProjectsChanged` states three lines down: the bus is the root's own and exists
 		// either way, and a refusal bundle re-reading simply refuses again.
 		onPlansChanged: createProjectPlansChangeSource(root.eventBus),
+		// The price section's two doors, wired from the bus for the same reason. The catalogue
+		// source is the SAME one the Plan Editor's assign picker takes, reused rather than
+		// duplicated; the price source reports which project changed and this view narrows at its
+		// own end, where the id already is.
+		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
+		onProjectPricesChanged: createProjectPricesChangeSource(root.eventBus),
 		queries: persistence
 			? createRenovationProjectQueries(
 					persistence.listProjects,
@@ -639,8 +646,11 @@ export function renovationProjectDeps(
 					persistence.listProjectAssetPrices,
 				)
 			: unavailableRenovationProjectQueries(),
+		// `renovationProjectCommandBundle` is the same line-budget extraction
+		// `renovationProjectOpenSeams.ts` already carries for this function's two open doors —
+		// every member is still the GUARDED service composed above.
 		commands: persistence
-			? { createProject: persistence.createProject, createPlan: persistence.createPlan, logger: root.logger }
+			? renovationProjectCommandBundle(persistence, root.logger)
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
 			? renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)

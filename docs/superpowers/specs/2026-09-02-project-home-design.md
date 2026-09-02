@@ -171,12 +171,26 @@ One new query, `GetProjectSummary`, guarded at the composition root like every o
 walks:
 
 ```text
-ListPlansByProject(projectId)      -> plans, unreadable
-  FindZonesByPlan(planId)          -> zones                     (per plan)
-    GetRequirementsForZone(zoneId) -> RequirementInspectorDTO[]  (per zone)
+ListPlansByProject(projectId)                      -> plans, unreadable
+  FindZonesByPlan(planId)                          -> zones          (per plan)
+
+listByProject(projectId) ∩ getIdsByType(requirement) -> requirements, refused
+  buildRow(requirement)                            -> RequirementInspectorDTO
 ```
 
-**It calls `GetRequirementsForZone` rather than re-deriving a row.** That query owns the
+**TWO walks, and this diagram showed only the old one for four rounds.** It was the document's
+first and most canonical definition of `GetProjectSummary` while Decision 3 below it specified
+something else — a per-zone walk that loses requirements whose zones were deleted, reintroduces
+`zones × all-requirements` I/O, and lets an unrelated malformed requirement fault the summary
+through a strict `listByZone`. Everything the sections below argue against, in the code block an
+implementer reads first. The third artifact on this branch to contradict the prose beside it.
+
+The plan walk answers the ROOM count; the project-scoped requirement listing answers everything
+else. They are separate because a requirement that outlived its zone is exactly where they
+disagree.
+
+**It shares `GetRequirementsForZone`'s row builder rather than re-deriving a row.** That query
+owns the
 staleness reading — the persisted marker, a `calculatedFrom` mismatch, a missing target — and
 the currency increment recorded exactly what a second derivation costs: `inputsStillMatch`
 hand-spelled the three comparisons `assetMatchesCalculatedFrom` already made, so a field added
@@ -531,7 +545,7 @@ It carries the same `RequirementEventPayload` its siblings do, so it filters by 
 `ZoneGeometryChanged` is in that list for the reason the whole product exists: an area is an
 input to a cost, so a moved vertex changes the total and marks figures stale.
 
-**Not filterable, and this is the finding under the finding.** Four carry no owning project at
+**Not filterable, and this is the finding under the finding.** Five carry no owning project at
 all. **This list is the authority; two of its members reached it late and by correction, and the
 reason is recorded below it.**
 
@@ -544,6 +558,10 @@ reason is recorded below it.**
 - `AssetUpdated` is the FAILURE-PATH notification: when a cascade cannot enumerate an asset's
   referents it returns before publishing anything, and this is the only notice that the summary
   moved. See *A row's own referent reads must not fault the summary either*.
+- `GeometrySidecarChanged` for a PLAN sidecar. A zone's geometry lives in the `.rpgeo`, and an
+  out-of-band edit publishes this and deliberately not `ProjectIndexEntryChanged`, because the
+  index mapping did not move. Its payload names the sidecar rather than an owning project. See
+  *Two events the first draft's lists simply missed*.
 
 **How the last two came to be missing is worth more than the fact.** Both were argued in their
 own sections, given test rows, and reported as absent from THIS list one round later — because
@@ -743,6 +761,18 @@ the region exists to show.
 "plans and requirements" so the next entity the summary learns to count joins the condition
 instead of reopening this.
 
+**And nothing REFUSED, which is the other half and the one with a precedent in shipped code.**
+A project whose only plan note is unreadable has zero visible counts, so a condition reading
+only those counts selects the onboarding state — hiding the partial-read notice and inviting the
+user to create a plan when one already exists and simply could not be read. That is the worst
+answer available: it is wrong, it is actionable, and following it produces a second plan.
+
+`selectRenovationProjectEmptyState` already draws this line for the project LIST, and
+`CLAUDE.md` records the shape: it answers `null` on `unreadable > 0` **before** it ever looks at
+the length, so a vault whose only projects are unreadable draws the list and the refusal notice
+rather than "no projects yet". This surface owed the same rule one level down and did not have
+it. So: empty is nothing shown, nothing refused, and nothing counted.
+
 `toProjectSummaryDto` lives in the read-model bundle beside every other `to*Dto`, because
 `application/` may not name `presentation/`.
 
@@ -835,7 +865,9 @@ mistake, per this repository's rule.
 | Invalidation | an asset price edited out of band refreshes the stale count | no `AssetUpdated` cascade runs for a hand edit; the index entry is the only notice |
 | Invalidation | `RequirementDeleted` refreshes the summary | it was specified as published and not subscribed to for a round — published-and-unheard passes every publishing test |
 | Summary | `summed` is the query's own count rather than the component's arithmetic | deriving it double-subtracts a row caught by two exclusion categories, and the counts are independent by design |
+| Accessibility | only the SELECTED tab carries `aria-controls`, and the id it names exists | one panel exists at a time, so an inactive tab's `aria-controls` is a dangling IDREF |
 | Keyboard | after a section change through view state, focus is on the newly selected tab | the mock's local `ref` hides this; only the real round trip unmounts the element |
+| Overview | a project whose only plan note is unreadable draws the notice, never the empty state | zero visible counts otherwise select onboarding, and following it creates a second plan |
 | Overview | a project with no plans but surviving requirements shows the summary, not the empty state | gating on plans alone hides figures the project-scoped walk recovered |
 | Overview | a project with a start or target date renders it; a project with neither renders no line at all | the DTO carried neither field, so the promise was undeliverable rather than merely unbuilt |
 | Wiring | the warning strip's action reaches `openDiagnosticsReport` | without the deps member it is a live control that does nothing — the shape slice 14 refuses |

@@ -83,6 +83,22 @@ const active = ref<Section>('Overview');
  */
 const idRoot = useId();
 
+/**
+ * `aria-controls` is set on the SELECTED tab only, and that is the honest answer to a real
+ * tension rather than a shortcut.
+ *
+ * Only one panel exists at a time — Decision 1 remounts per section, and in production the
+ * section component is chosen by the view state, so two panels could never be in the DOM
+ * together. An `aria-controls` on the inactive tab therefore named an id nothing carried: a
+ * DANGLING IDREF, which the ARIA spec requires to reference an element that exists, and which a
+ * screen reader cannot resolve any better than an absent attribute.
+ *
+ * The review suggested rendering both panels and hiding the inactive one. That would fix the
+ * IDREF and contradict the architecture, so it is refused here: `aria-controls` is RECOMMENDED
+ * on `role="tab"` rather than required, and an omitted relationship is well-defined where a
+ * broken one is not. Reported as a P2; the remedy differs from the one proposed because the
+ * constraint it collides with is load-bearing.
+ */
 const tabId = (section: Section): string => `${idRoot}-tab-${section}`;
 const panelId = (section: Section): string => `${idRoot}-panel-${section}`;
 
@@ -192,7 +208,7 @@ const summedCount = 23;
 				class="rp-project-nav__tab"
 				:class="{ 'rp-project-nav__tab--on': section === active }"
 				:aria-selected="section === active"
-				:aria-controls="panelId(section)"
+				:aria-controls="section === active ? panelId(section) : undefined"
 				:tabindex="section === active ? 0 : -1"
 				@click="active = section"
 				@keydown="onKey($event, index)"

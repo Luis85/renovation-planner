@@ -4,7 +4,7 @@ One zone note at `schema-version: 1`, carrying a `legacy-label` field that this 
 consumer migrates to `name` through a TEST-ONLY migration step.
 
 Test-only, and the reason is mechanical rather than stylistic: every array in
-`MIGRATION_SET` is empty, so `latest` derives to 1 for all six kinds and
+`MIGRATION_SET` is empty, so `latest` derives to 1 for all seven kinds and
 `MigrationRunner`'s `while (version < latest)` loop iterates ZERO times for a version-1
 note — nothing migrates and nothing is proven. A version-0 note finds no step from 0 and
 throws `migration.chain-gap` before any assertion runs.

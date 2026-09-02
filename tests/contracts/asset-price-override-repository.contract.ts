@@ -11,7 +11,7 @@ import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 import type { Loaded } from '../../src/application/ports/versioning';
 
-function makeOverride(projectId: ProjectId, assetId: AssetId, amount = '19.50'): AssetPriceOverride {
+export function makeOverride(projectId: ProjectId, assetId: AssetId, amount = '19.50'): AssetPriceOverride {
 	return expectOk(
 		AssetPriceOverride.create({
 			id: createAssetPriceOverrideId(),

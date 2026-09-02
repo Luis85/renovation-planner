@@ -89,6 +89,7 @@ describe('persistence composition', () => {
 			zone: 1,
 			asset: 1,
 			requirement: 1,
+			'asset-price': 1,
 			'plan-geometry': 1,
 		});
 		expect(snapshot?.migrationState.pending).toEqual([]);

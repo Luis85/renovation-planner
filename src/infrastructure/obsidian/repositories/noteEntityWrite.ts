@@ -3,6 +3,7 @@ import type { RepositoryError } from '../../../application/ports/repositoryError
 import { ok, err, type Result } from '../../../core/result/Result';import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { DiagnosticEntityKind } from '../../../application/ports/diagnostics';
+import type { EntityType } from '../../../application/ports/ProjectIndex';
 import type {
 	EntityVersion,
 	Expected,
@@ -34,7 +35,7 @@ import type { NoteVaultDeps } from './NoteVaultDeps';
  */
 export interface NoteWriteSpec<TEntity> {
 	readonly kind: string;
-	readonly indexType: 'renovation-asset' | 'renovation-requirement';
+	readonly indexType: EntityType;
 	/**
 	 * Where an INSERT creates the note, and `undefined` when the folder did not resolve —
 	 * which is the owning project's folder (ADR-0013) for a Requirement, and never happens

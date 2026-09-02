@@ -37,7 +37,14 @@ export interface RuntimeVersions {
  * migration kind (`zone`) the read path already carries, and it has a member
  * (`plan-geometry`) that is a sidecar rather than a note.
  */
-export type DiagnosticEntityKind = 'project' | 'plan' | 'zone' | 'asset' | 'requirement' | 'plan-geometry';
+export type DiagnosticEntityKind =
+	| 'project'
+	| 'plan'
+	| 'zone'
+	| 'asset'
+	| 'requirement'
+	| 'asset-price'
+	| 'plan-geometry';
 
 /**
  * One content-free validation finding: WHICH entity refused (opaque id), and WHY

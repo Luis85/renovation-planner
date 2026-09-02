@@ -22,6 +22,9 @@ import { createAssetId } from '../../../../src/domain/asset/AssetId';
 import { createPlanId, type PlanId } from '../../../../src/domain/plan/PlanId';
 import { createProjectId, type ProjectId } from '../../../../src/domain/project/ProjectId';
 import { createZoneId } from '../../../../src/domain/zone/ZoneId';
+import { of as moneyOf } from '../../../../src/core/money/Money';
+import { ObsidianAssetPriceOverrideRepository } from '../../../../src/infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository';
+import { makeOverride } from '../../../contracts/asset-price-override-repository.contract';
 
 /**
  * Slice 11 DoD item 8 — "a note with unknown extra frontmatter keys and a hand-authored
@@ -172,6 +175,33 @@ const PRESERVATION_CASES: ReadonlyArray<{
 				expectOwned: { 'waste-factor': '0.25' },
 			});
 			return expectOk(await stack.requirements.getById(requirement.id))?.entity.wasteFactor.toString();
+		},
+	},
+	{
+		// The one kind whose repository holds no `getById` — see the port's own header —
+		// so the read-back at the end goes through `getForPair`, the same door every other
+		// caller of this repository uses.
+		kind: 'asset-price',
+		reads: '21',
+		drive: async (stack) => {
+			const overrides = new ObsidianAssetPriceOverrideRepository(stack.deps);
+			const projectId = await seedProject(stack);
+			const assetId = createAssetId();
+			const written = expectOk(await overrides.save(makeOverride(projectId, assetId, '19.50'), 'absent'));
+			await expectTargetedUpdatePreservesUserContent({
+				stack,
+				id: written.entity.id,
+				write: () =>
+					overrides.save(
+						expectOk(written.entity.withUnitCost(moneyOf('21.00', 'GBP'))),
+						written.version,
+					),
+				// An override has no name to rename, so the proof is the field this entity
+				// actually owns — persisted as a decimal STRING (ADR-010), and normalized by
+				// `moneyOf` the way every entity-minted amount is (Task 1's normalization note).
+				expectOwned: { 'unit-cost': '21' },
+			});
+			return expectOk(await overrides.getForPair(projectId, assetId))?.entity.unitCost.amount;
 		},
 	},
 ];

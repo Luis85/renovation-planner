@@ -19,6 +19,7 @@ export const ENTITY_TYPES = [
 	'renovation-zone',
 	'renovation-asset',
 	'renovation-requirement',
+	'renovation-asset-price',
 ] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 

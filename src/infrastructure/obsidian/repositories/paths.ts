@@ -29,6 +29,7 @@ const PLANS_FOLDER = 'Plans';
 const ZONES_FOLDER = 'Zones';
 const ASSETS_FOLDER = 'Assets';
 const REQUIREMENTS_FOLDER = 'Requirements';
+const ASSET_PRICES_FOLDER = 'Asset Prices';
 
 /** The user-editable setting passes through `normalizePath` before any Vault call. */
 export function normalizeFolder(raw: string): string {
@@ -75,6 +76,15 @@ export function assetsFolderFor(projectFolder: string): string {
 
 export function requirementsFolderFor(projectFolder: string): string {
 	return joinFolder(projectFolder, REQUIREMENTS_FOLDER);
+}
+
+/**
+ * The PROJECT's folder, not the library's. An Asset is the vault's; the price this project
+ * pays for it is this project's — [[Work belongs to one project, catalogues belong to the vault]]
+ * applied to the consequence of using a shared definition.
+ */
+export function assetPricesFolderFor(projectFolder: string): string {
+	return joinFolder(projectFolder, ASSET_PRICES_FOLDER);
 }
 
 export function sidecarPathFor(projectFolder: string, planId: PlanId | string): string {

@@ -397,14 +397,23 @@ describe('the browser harness', () => {
 	 * defect named above for the bare-substring case.
 	 */
 	it('loads no stylesheet through anything the harness can reach', () => {
-		// `[^'"\n]` and not `[^'"]`: a real import specifier never contains a NEWLINE, and without
-		// that exclusion the class spans them. Measured twice, both times on prose: a comment
-		// reading "Split from `onKey`" paired with a backticked `canvas.css` twenty-one lines
-		// below it and matched across the gap, and the second instance was written by an author
-		// who had just recorded the first. The failure message says "loads no stylesheet", which
-		// points nowhere near a comment — so the cost of the false positive is a debugging cycle,
-		// not a glance. Narrowing keeps every true positive: an import specifier is one line.
-		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`][^'"\n]*\.css['"`]/;
+		// A specifier may not contain a BARE newline, and may contain an escaped one.
+		//
+		// The bare-newline exclusion is what stops the class spanning prose. Measured twice, both
+		// times on comments: "Split from `onKey`" paired with a backticked `canvas.css`
+		// twenty-one lines below it and matched across the gap, and the second instance was
+		// written by an author who had just recorded the first. The failure message says "loads
+		// no stylesheet", which points nowhere near a comment, so each false positive costs a
+		// debugging cycle rather than a glance.
+		//
+		// The `\\\n` alternative is the correction to that fix. Its first version asserted "a
+		// real import specifier never contains a newline", which is false: JavaScript's
+		// backslash-newline continuation is removed at parse time, so
+		// ``import(`./styles\<newline>/index.css`)`` really does load a stylesheet while the
+		// SOURCE holds a newline mid-specifier. Verified in node rather than reasoned about —
+		// the continuation yields `./styles/index.css`. Contrived, and the point of this walk is
+		// that a stylesheet must be unreachable rather than merely unlikely.
+		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`](?:[^'"\n]|\\\n)*\.css['"`]/;
 		const sheetLink = /<link[^>]*\bstylesheet\b/i;
 		// Every extension Vite will load as a module, not the two this repository happens to
 		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as

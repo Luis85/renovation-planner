@@ -57,6 +57,14 @@ try the same three in the same order.
   `DeleteAssetDeps` (11 in tests), `RenovationProjectQueryServices` (11 factory calls plus six
   files with typed literals) and `RenovationProjectCommandServices` (eight files). The grep
   belongs in the file list beside the names: names go stale, the command does not.
+  **A DTO is one of these, which is how the seventh instance arrived AFTER this rule was
+  written**: `RequirementInspectorDTO` gains a required `unitCost` in Task 8, and the rule was
+  applied to the deps bundles and service literals and not to the DTO, because a DTO reads as
+  data rather than as a contract somebody implements. The grep does not care about that
+  distinction. **Every exported type a test may annotate a literal with is in scope**, and the
+  instrument is the type's own name (`grep -rn "RequirementInspectorDTO" src/ tests/`), not a
+  guess at how it is constructed. Read the hits, too: a `as unknown as` cast is immune and a
+  spread of an already-widened literal inherits the member, so three hits can be one edit.
 - **Commit after every task, with ONE deliberate exception.** Each task below ends green on its
   own — strictly stronger than the spec's four-commit sequencing, which is the coarse grouping
   these tasks fall into. **Tasks 5 and 6 share a commit**, because the spec requires resolution
@@ -153,7 +161,7 @@ import { createAssetPriceOverrideId } from '../../../src/domain/asset-price/Asse
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import { of as moneyOf } from '../../../src/core/money/Money';
-import { expectOk } from '../../helpers/result';
+import { expectOk } from '../../helpers/domain';
 
 function props() {
 	return {
@@ -214,8 +222,13 @@ describe('AssetPriceOverride', () => {
 Run: `npx vitest run tests/domain/asset-price/assetPriceOverride.test.ts`
 Expected: FAIL — cannot resolve `src/domain/asset-price/AssetPriceOverride`.
 
-If `tests/helpers/result.ts` has no `expectOk`, check what it exports and use the house
-spelling; do not add a second helper.
+**`expectOk` comes from `tests/helpers/domain.ts`, and every import of it in this plan says
+so.** Five blocks below named `tests/helpers/result.ts`, which does not exist, under a hedge
+here telling the implementer to check and use the house spelling if it did not — a sentence
+that reads as a survey of the ground and is a guess. `grep -rn "export function expectOk"
+tests/` prints exactly one line, `tests/helpers/domain.ts:71`, and 20 test files already import
+it from there. The relative depths were right; only the module name was wrong. **A hedge is not
+a measurement**, and it survives review precisely because it looks like one.
 
 - [ ] **Step 3: Write the id and the error factory**
 
@@ -515,7 +528,7 @@ import {
 	type AssetPriceOverrideId,
 } from '../../src/domain/asset-price/AssetPriceOverrideId';
 import { of as moneyOf } from '../../src/core/money/Money';
-import { expectOk } from '../helpers/result';
+import { expectOk } from '../helpers/domain';
 import type { ProjectId } from '../../src/domain/project/ProjectId';
 import type { AssetId } from '../../src/domain/asset/AssetId';
 
@@ -914,7 +927,7 @@ import { createAssetPriceOverrideId } from '../../../src/domain/asset-price/Asse
 import { createProjectId } from '../../../src/domain/project/ProjectId';
 import { createAssetId } from '../../../src/domain/asset/AssetId';
 import { of as moneyOf } from '../../../src/core/money/Money';
-import { expectOk } from '../../helpers/result';
+import { expectOk } from '../../helpers/domain';
 
 function override(amount = '19.50') {
 	return expectOk(
@@ -1605,7 +1618,7 @@ Create `tests/application/commands/asset-price/setAssetPriceOverride.test.ts`:
 import { describe, expect, it, vi } from 'vitest';
 import { SetAssetPriceOverrideCommand } from '../../../../src/application/commands/asset-price/SetAssetPriceOverride';
 import { of as moneyOf } from '../../../../src/core/money/Money';
-import { expectOk } from '../../../helpers/result';
+import { expectOk } from '../../../helpers/domain';
 // Build deps from the in-memory repositories and a recording bus, following the
 // sibling command tests under tests/application/commands/requirement/.
 
@@ -2318,7 +2331,7 @@ This is the increment's close condition and it comes first. Create
 ```ts
 import { describe, expect, it } from 'vitest';
 import { of as moneyOf } from '../../../../src/core/money/Money';
-import { expectOk } from '../../../helpers/result';
+import { expectOk } from '../../../helpers/domain';
 
 /**
  * The Issue's own close condition, asserted end to end rather than argued:
@@ -3299,6 +3312,10 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Modify: `src/plugin/composition-root.ts`, `src/plugin/guardedServices.ts`
 - Test: `tests/application/queries/listProjectAssetPrices.test.ts`
 - Test: `tests/plugin/assetPriceWiring.test.ts`
+- **Modify: `tests/presentation/editor/requirementRowFieldErrors.test.ts`** — the one hand-built
+  `RequirementInspectorDTO` literal in the suite, a compile error the moment `unitCost` becomes
+  required. Step 3a below carries the measurement and says why it belongs to this task rather
+  than to Task 8a.
 
 **Interfaces:**
 - Produces:
@@ -3469,6 +3486,40 @@ against an EUR catalogue — so a row would raise a calculation error while deci
 `amount` and `currency` as plain strings is the comparison, and it is the same one
 `assetMatchesCalculatedFrom` already makes.
 
+**Step 3a: the ONE hand-built DTO fixture this widening breaks, fixed in THIS task.**
+
+`unitCost` is a REQUIRED member, so every explicitly typed `RequirementInspectorDTO` literal in
+`tests/` is a compile error the moment step 3 lands — and `npm run build` type-checks `tests/**`,
+so leaving it to Task 8a leaves the tree red across a task boundary. Task 8a's own step 2 already
+says "add the field to the fixture FIRST, or the red proves only that the test data is stale";
+that instruction is right and was in the wrong task.
+
+Measured with `grep -rn "RequirementInspectorDTO" src/ tests/`, which finds three test files and
+exactly one that must change:
+
+- `tests/presentation/editor/requirementRowFieldErrors.test.ts` — **`const ROW:
+  RequirementInspectorDTO`**, the one literal to widen. `OVERRIDDEN_ROW` spreads `ROW` and
+  inherits the new member; the `row: RequirementInspectorDTO = ROW` parameter defaults to it.
+  One edit, not three.
+- `tests/presentation/editor/inspector/inspectorStore.test.ts` — immune: its rows go through
+  `as unknown as readonly RequirementInspectorDTO[]`, which is a cast rather than a check.
+- `tests/presentation/editor/shell/requirementsPanel.test.ts` — immune: it names the type only
+  in prose and builds its rows through the real query.
+
+Give `ROW` a `unitCost` whose three figures agree (`catalogue`, `effective` both
+`moneyOf('100.00', 'EUR')`, `projectOverride: null`) so that every existing case in that file
+goes on describing the unoverridden, fresh row it was written for — a fixture that quietly
+acquires an override changes what twelve unrelated assertions are about.
+
+**This is the seventh required-member widening on this branch and the first to arrive after the
+standing rule at the top of this plan was written.** The rule was applied to the interfaces with
+obvious constructors — deps bundles, service literals — and not to a DTO, because a DTO reads as
+data rather than as a contract somebody implements. It is the same grep either way. The fixture's
+own docblock records this exact shape happening twice before it, for `calculated` and for
+`recalculationStatus`: *"A fixture thinner than the real thing, invisible for exactly as long as
+nothing drove the arm that needs it."* Three instances in one file is a property of the file, not
+a coincidence.
+
 - [ ] **Step 3b: Widen the project surface's READ boundary**
 
 The exact sibling of Task 9's step 3a, and it was missed in the round that added that one —
@@ -3604,7 +3655,7 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   part is the one a file list forgets.
 - Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
 - Modify: `styles/` (the row's own partial)
-- Test: `tests/presentation/editor/requirementRow.test.ts` (extend)
+- Test: `tests/presentation/editor/requirementRowFieldErrors.test.ts` (extend)
 - Test: `tests/presentation/editor/inspectorPriceRefresh.test.ts`
 - Test: `tests/application/events/requirementFiguresChangeSource.test.ts`
 - **Modify: every TEST construction of `PlanEditorContext`, which gains two members here.**
@@ -3690,9 +3741,11 @@ describe('RequirementRow unit cost', () => {
 
 - [ ] **Step 2: Run and watch it fail at the assertion**
 
-Run: `npx vitest run tests/presentation/editor/requirementRow.test.ts`
+Run: `npx vitest run tests/presentation/editor/requirementRowFieldErrors.test.ts`
 Expected: FAIL because nothing renders the figures — not because the fixture lacks the field.
-Add the field to the fixture FIRST, or the red proves only that the test data is stale.
+Task 8's step 3a already gave `ROW` its `unitCost`, so this red is about the RENDERING and
+nothing else. If it fails at the fixture instead, step 3a was skipped and the red proves only
+that the test data is stale.
 
 - [ ] **Step 3: Add the copy to both locales**
 

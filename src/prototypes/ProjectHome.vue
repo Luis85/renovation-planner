@@ -21,11 +21,18 @@
 	common case, since any geometry edit makes figures stale. So everything is summed and the
 	sentence says what it knows — a sentence rather than a badge alone, per SDD §85.
 
-	**Vocabulary, unresolved and deliberately visible.** This says "Zones" because that is what
-	the shipped UI says today (`editor.layer.zone`). The Plan Editor redesign's principle 8
-	renames it to "Room" for the user. Whichever branch lands second inherits the rename, and
-	drawing it in today's word rather than guessing keeps the disagreement legible instead of
-	settling it in a mock.
+	**Vocabulary: this surface says "Rooms" and the rest of the plugin still says "Zones".**
+	The Plan Editor redesign's principle 8 is explicit — the user-facing words are Room, Wall,
+	Area and Work, never Zone, Polygon or Vertex — and this surface is new, so it can be born
+	in the destination vocabulary rather than renamed later. `Zone` stays the DOMAIN word
+	everywhere behind it: the entity, the events, the frontmatter and the repository are
+	untouched, and only the copy this screen renders moves.
+
+	The cost is named rather than glossed: until the editor branch lands its own rename, a
+	renovator sees `Rooms` here and `Zones` in the Plan Editor's layer panel and toolbar. That
+	is a real inconsistency for the length of one branch, accepted deliberately because the
+	alternative is shipping a word this product has already decided against and renaming it in
+	a surface nobody has reason to reopen.
 
 	The five unbuilt sections are absent from the nav rather than disabled, per slice 14's rule
 	that a surface renders no control rather than a live one that does nothing.
@@ -48,13 +55,13 @@ const active = ref<string>(sections[0]);
  */
 const counts = [
 	{ label: 'Plans', value: '2' },
-	{ label: 'Zones', value: '11' },
+	{ label: 'Rooms', value: '11' },
 	{ label: 'Requirements', value: '24' },
 ] as const;
 
 const plans = [
-	{ name: 'Ground floor', detail: '7 zones · calibrated' },
-	{ name: 'Upper floor', detail: '4 zones · not calibrated' },
+	{ name: 'Ground floor', detail: '7 rooms · calibrated' },
+	{ name: 'Upper floor', detail: '4 rooms · not calibrated' },
 ] as const;
 </script>
 

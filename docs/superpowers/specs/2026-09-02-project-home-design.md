@@ -212,6 +212,46 @@ port, which is its own increment.
 
 Written into the query's header, this spec, and the slice document. Not a TODO.
 
+## Decision 4 — this surface says "Rooms"
+
+The Plan Editor redesign's principle 8 is explicit: the user-facing words are Room, Wall, Area
+and Work — never Zone, Polygon, Vertex or Scene. The shipped UI still says Zone
+(`editor.layer.zone`, `editor.toolbar.draw-zone`, `editor.inspector.delete-zone`).
+
+This surface is NEW, so it is born in the destination vocabulary rather than shipped in a word
+the product has already decided against and renamed later in a screen nobody has reason to
+reopen. `Zone` stays the DOMAIN word behind it — the entity, the events, the frontmatter, the
+repository and every existing locale key are untouched. Only the copy this screen renders moves.
+
+**The cost is a real inconsistency for the length of one branch** and is accepted rather than
+glossed: until the editor branch lands its own rename, a renovator reads `Rooms` on Project
+Home and `Zones` in the Plan Editor's layer panel and toolbar. The alternative considered and
+rejected was renaming every locale key here, which settles it once and puts a locale-wide diff
+on the branch most likely to conflict with the editor's own copy edits.
+
+**Whichever branch lands second owns the reconciliation.** If it is the editor's, this surface
+already agrees with it and nothing moves. If it is this one, the editor's rename sweeps the
+remaining keys and this surface is already correct. Named here because a temporary
+inconsistency that nobody has written down is indistinguishable from an oversight.
+
+## Decision 5 — Overview ships thin
+
+Drawing the mock (`src/prototypes/ProjectHome.vue`) answered the question it was drawn for.
+With the wireframe's four unbacked elements refused — planning completeness, next-best-action,
+work items, a schedule — Overview is a headline figure, three counts and a strip: roughly a
+third of the pane at 460px and less at 1280.
+
+That is accepted. The figure is the first answer this plugin can give to *what does my project
+cost*, and a screen that answers one question honestly is worth navigating to; the two
+alternatives both cost more than the space is worth. Folding the plan list into Overview fills
+it by making Overview and Design stop being distinct, which is a question the prototype spec's
+§3 asks out loud. Pulling next-best-action forward fills it properly and roughly doubles the
+increment.
+
+**Next-best-action is therefore the next increment on this shell**, and it is buildable from
+entities that already exist — uncalibrated plans, plans with no rooms, stale figures. The empty
+space is where it goes.
+
 ## Components
 
 ```text
@@ -301,8 +341,8 @@ Named so none of it later reads as an oversight.
 - **Planning completeness %** (wireframe §A.10). It needs a definition of "complete" that no
   entity supports. A percentage invented for a progress bar is a hard-coded count in
   production UI, which the editor implementation plan forbids by name.
-- **Next-best-action** (UXD §11). It is the natural next increment on this shell, and it wants
-  a Home to sit on first.
+- **Next-best-action** (UXD §11), per Decision 5 — the next increment on this shell, and what
+  the space Overview leaves empty is for.
 - **Recent activity** (§A.10). There is no activity log and nothing raises one.
 - **The five hidden sections** and every entity beneath them.
 - **Breadcrumbs** beyond slice 21's back control. The interactive
@@ -313,10 +353,30 @@ Named so none of it later reads as an oversight.
 ## Coverage
 
 Floors in force: statements 99, functions 99, lines 99, branches 98 (`vitest.config.ts`).
-Branches and functions were at one covered unit of headroom at slice 19's close.
 
-**Re-measure with `npm run test:coverage` before relying on any figure**, and read the floor
-as a floor rather than as a budget. At this margin an untested arm in a tight metric fails the
-gate outright and one in a slack metric hides completely, so the test is planned with the
-code. `viewStateFrom`'s fallback arm and every `unsummable` / `unreadableZones` arm are new
-branches and each needs a case in the commit that writes it.
+**Measured on the baseline `5702f28`** with `npx vitest run --coverage` — 342 files, 4941
+passed, 65 skipped:
+
+| metric | measured | floor | additional uncovered units the floor still permits |
+|---|---|---|---|
+| statements | 99.39% (7392/7437) | 99 | ~29 |
+| **functions** | **99.07% (1937/1955)** | **99** | **~1** |
+| lines | 99.54% (6533/6563) | 99 | ~35 |
+| branches | 98.31% (3802/3867) | 98 | ~12 |
+
+The arithmetic, so none of it has to be taken on trust: a floor of `f` permits `U` further
+uncovered units where `covered / (total + U) >= f`, i.e. `U <= covered / f - total`.
+
+**Functions is the binding metric here, not branches**, which corrects this document's own
+first draft — it carried slice 19's reading forward and said both were at one unit. Branches
+has since gained about twelve units of room and functions has not. That matters for how the
+two fail: an untested new FUNCTION fails the gate outright, while an untested new BRANCH
+disappears into twelve units of slack and says nothing, which is the shape that already cost
+slice 16 an uncovered arm found only by reading `coverage-final.json` for the changed files.
+
+So: plan the test with the code, read the floor as a floor, and re-measure rather than trusting
+this table once the editor branch has merged — it will land on a third tree nobody has measured.
+
+`viewStateFrom`'s fallback arm and every `unsummable` / `unreadableZones` arm are new branches,
+and `GetProjectSummary` is several new functions. Each needs a case in the commit that writes
+it, the functions especially.

@@ -206,8 +206,13 @@ print. One walk failing may cost its own count and never the surface.
 
 **It shares `GetRequirementsForZone`'s row builder rather than re-deriving a row.** That query
 owns the
-staleness reading — the persisted marker, a `calculatedFrom` mismatch, a missing target — and
-the currency increment recorded exactly what a second derivation costs: `inputsStillMatch`
+staleness reading — the persisted marker, a `calculatedFrom` mismatch, a missing target — and,
+since the `main` merge, the project's own price for a shared asset, which
+`resolveEffectiveUnitCost` resolves as an input and `RequirementInspectorDTO`'s new `unitCost`
+group reports. **That growth is the argument for delegating rather than a complication of it**:
+a summary re-deriving its own row would have been silently one input behind from the day that
+increment merged, and nothing here would have failed. The currency increment recorded exactly
+what a second derivation costs: `inputsStillMatch`
 hand-spelled the three comparisons `assetMatchesCalculatedFrom` already made, so a field added
 to one would have left the other comparing the old three. Delegating makes the project total
 and the Inspector row unable to disagree about whether a figure is stale, **by construction
@@ -328,6 +333,20 @@ open residue, reproducible through `RequirementRow.vue`'s cost override. A forei
 override is therefore reachable today. A summing query that assumed one currency would either
 throw on a real input or silently produce a total in the wrong denomination. Those rows are
 counted out and named.
+
+**The `main` merge added a SECOND reachable door, and it is the broader of the two.**
+`AssetPriceOverride`'s constructor says so itself: *"The project's currency is deliberately NOT
+checked here"* — the entity would have to be told the project's currency and the constructor is
+not given it. So a project's own price for a shared asset can be denominated in anything, and
+`resolveEffectiveUnitCost` feeds it into the derivation as an **input**, where the override this
+paragraph already cites replaces the **output**. An input-level mismatch reaches
+`estimatedCost.calculated` for every requirement in that project on that asset rather than one
+row at a time.
+
+`unsummable` is therefore more necessary than this section argued, not less — which is worth
+recording as the direction of the surprise. A dependency landing under a spec usually invalidates
+a justification; this one strengthened it, and the strengthening would have gone unnoticed just
+as easily as a contradiction would.
 
 **This is not a licence to leave that residue open.** It is the read side declining to hide
 it.
@@ -613,9 +632,17 @@ than an oversight: it subscribes to `PlanCreated` plus `ProjectIndexEntryChanged
 exactly as it is — Design asks "did this project's plans change" and that is the right
 question for a plan list.
 
-So Overview takes a **fourth** change source, `createProjectSummaryChangeSource`, and the
+So Overview takes a change source of its own, `createProjectSummaryChangeSource`, and the
 remount decision is what makes that affordable: only the mounted section subscribes, so the
 wider question is asked only while the surface that needs it is on screen.
+
+**This said "a fourth" until the branch was rebuilt on a `main` 90 commits ahead of the tree it
+was written against.** That merge landed slice 20's second half — the per-project price
+override — and with it `projectPricesChangeSource` and `requirementFiguresChangeSource`, so the
+count was wrong by two and would have gone wrong again at the next source. It is not numbered
+now. The two new siblings are *neighbours* rather than substitutes: one asks "did this project's
+prices move", the other "did one requirement's figures move", and neither answers "did anything
+this project's total is built from move".
 
 ### The three lists, and why it is three rather than one
 
@@ -623,7 +650,18 @@ wider question is asked only while the surface that needs it is on screen.
 `Zone.events.ts` and `Requirement.events.ts`:
 
 `PlanCreated`, `ZoneCreated`, `ZoneDeleted`, `ZoneGeometryChanged`, `RequirementCreated`,
-`RequirementRecalculated`, **`RequirementDeleted`**.
+`RequirementRecalculated`, **`RequirementDeleted`**, **`AssetPriceOverrideChanged`**.
+
+**`AssetPriceOverrideChanged` arrived with the `main` merge, and its absence was a real gap
+rather than a stale sentence.** Slice 20's second half makes a project's own price for a shared
+asset an INPUT to the derivation — `resolveEffectiveUnitCost` is
+`priceOverride(project, asset)?.unitCost ?? asset.unitCost` — so setting, replacing or clearing
+one changes what `estimatedCost.calculated` means for every requirement in that project on that
+asset, and therefore changes this total. `AssetPriceOverrideEventPayload` is
+`{ projectId, assetId }`, so it filters by project exactly as its siblings do, and its own
+docblock says the pair is deliberate: an asset-only payload would make the narrowing
+inexpressible. Nothing in the list needed rewriting to admit it, which is the argument for the
+list having been made canonical two rounds earlier.
 
 `RequirementDeleted` is the event this increment mints below, and it was missing from this list
 for one round — **specified as published and never subscribed to**, which is the shape of
@@ -637,8 +675,14 @@ input to a cost, so a moved vertex changes the total and marks figures stale.
 all. **This list is the authority; two of its members reached it late and by correction, and the
 reason is recorded below it.**
 
-- `RequirementInvalidated`'s factory takes a bare `requirementId` — there is no payload object
-  to filter on.
+- `RequirementInvalidated` carries `{ requirementId }` and no project. **This bullet said
+  "its factory takes a bare `requirementId` — there is no payload object to filter on", which
+  is two claims of which only the first is true.** The FACTORY takes a bare id; the EVENT has a
+  payload object, and `main`'s own `requirementFiguresChangeSource` filters on precisely that
+  field. What is actually absent is a *project*, which is what this list is about — so the
+  membership was right and the reason given for it was false. Read the correction as the
+  general one: a claim about an event's shape is a claim about the type, never about the
+  arity of the helper that builds it.
 - `CostEstimateChanged`'s `CostChangePayload` is `{ costType, scope: { kind, id }, currency }`.
   It names the requirement and the currency and never the project.
 - `ProjectIndexRebuilt` carries no payload by design, so it cannot say which entities changed.

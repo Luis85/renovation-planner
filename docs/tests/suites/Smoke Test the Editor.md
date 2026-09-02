@@ -75,7 +75,7 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the nine cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the twelve cases whose
 steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
 procedure is a list. The verdict names the **cheapest instrument that could discharge that
 step as written**. It is a claim about the step's own pass condition, not a report on what is
@@ -83,15 +83,22 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 84 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 33 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 101 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 96 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 39 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 108 |
 | `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 12 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 9 |
 
-239 steps across THIRTEEN cases. The counts are `grep`ed out of these files rather than carried
-over from the notes the classification was drafted in, so a re-tagged step moves the number —
-and the number moves whether or not anyone re-runs the grep.
+**264 steps across FOURTEEN cases, and this paragraph has now proved itself a FIFTH time — at
+the merge it predicted, in the shape it predicted.** The per-project price override branch
+measured 239 across thirteen and the asset designer branch measured 243 across thirteen; both
+were correct on the day and neither is correct now, because each had counted a tree without the
+other's case in it ([[Price a shared asset for one project]] and [[Design an Asset]]
+respectively). **Neither side of the conflict could be taken.** The five figures above are a
+fresh run of BOTH greps below against the merged tree, taken in the edit that resolved it, and
+they sum to 264 rather than being asserted to. The asset designer branch's own note that
+[[Create a Project]] had been missing from the `## Cases` list for the whole of its life stands
+and is unaffected by this re-run: the greps read files, not the prose beside them.
 
 **And two cases had already moved it before the re-run that produced those figures, which is
 this paragraph proving itself a fourth time.** The line above read *203 steps across ELEVEN
@@ -292,6 +299,14 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   confirmation, the focus trap, `Escape`, the `inert` background, and the calibration
   itself, which slice 7 built and slice 8 shipped unreachable. Two of its steps ask what
   Obsidian's own keymap does behind a dialog and record the answer rather than assert one.
+- [[Create a Project]] — design slice 16's field-error vocabulary (`routeError`,
+  `<FieldError>`, `<FormBanner>`, `useFormCommit`) through its first real caller,
+  `NewProjectForm`. Steps 7 and 7b are the one place a `:disabled` control's focus
+  consequence is looked at rather than asserted: Chromium blurs a disabled focused element to
+  `<body>`, which the dialog does not contain, so a busy write silently killed `Escape` and
+  the Tab trap for its whole duration — jsdom implements no focus-loss-on-disable at all. This
+  bullet was missing from this list for the whole of the case's life, found while adding
+  [[Design an Asset]] below; its steps were never invisible to `grep`, only to this paragraph.
 - [[Assign an Asset and Delete a Referenced Zone]] — design slice 10's end-to-end loop
   (`Zone Geometry → Area → Requirement → Cost`) and the delete-with-references decision.
   Three of its twenty steps are the only place anything can see them: a populated
@@ -366,3 +381,12 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   anywhere, and the clipboard is a real permission the suite stubs. Its step 7 is the one
   surface in the increment that deliberately REFUSES rather than counting, and step 11 is a
   recorded limitation looked at rather than described.
+- [[Design an Asset]] — the asset designer's first increment: a third workspace surface
+  (ADR-0015) keyed by an asset id, its own background and its own calibration (ADR-0014's
+  geometry sidecar), a footprint, a clearance, an anchor, a facing and a height. Its step 8 is
+  the one place a real file explorer confirms the sidecar's `.rpgeo` file actually exists
+  where ADR-0014 says it does, its step 19 is the only look anyone has taken at an asset's
+  calibration beside a real, open Plan to confirm it touches neither, and its step 21 is this
+  suite's second PDF-rendering step and the only caller either has for
+  `editor-background-pdf-test.pdf` on the asset surface — reused rather than duplicated,
+  because there is no asset-specific fixture and none of this case needs one.

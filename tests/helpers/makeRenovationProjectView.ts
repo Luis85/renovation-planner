@@ -43,16 +43,19 @@
  */
 import { RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { CreatePlanCommand } from '../../src/application/commands/plan/CreatePlan';
+import { CreateAssetCommand } from '../../src/application/commands/asset/CreateAsset';
+import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
+import { SetAssetFootprintFromDimensionsCommand } from '../../src/application/commands/asset/SetAssetFootprint';
+import { InMemoryAssetRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
+import { InMemoryAssetGeometrySidecar } from './asset-geometry-sidecar';
 import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
 import { SetAssetPriceOverrideCommand } from '../../src/application/commands/asset-price/SetAssetPriceOverride';
 import { ClearAssetPriceOverrideCommand } from '../../src/application/commands/asset-price/ClearAssetPriceOverride';
-import { ReferenceLocks } from '../../src/application/reference/ReferenceLocks';
 import { GetProject } from '../../src/application/queries/GetProject';
 import { ListPlansByProject } from '../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../src/application/queries/ListProjects';
 import { ListProjectAssetPrices } from '../../src/application/queries/ListProjectAssetPrices';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
-import { InMemoryAssetRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { IndexLibraryOverlaps } from '../../src/infrastructure/obsidian/repositories/IndexLibraryOverlaps';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
@@ -203,6 +206,10 @@ export const defaultRenovationProjectDeps = (
 	// interface's own comment for why they arrived with their caller rather than ahead of it.
 	const assets = new InMemoryAssetRepository();
 	const overrides = new InMemoryAssetPriceOverrideRepository();
+	// Design slice A10's catalogue side. Built here beside the other repositories so the two
+	// asset commands below share ONE world: a form that creates an asset and then writes its
+	// footprint must find, in the sidecar, the very asset the create put in the repository.
+	const assetGeometry = new InMemoryAssetGeometrySidecar();
 
 	// Before the queries and the commands are built over them, so a seeded caller gets ONE
 	// world rather than a read model over content and a write side over an empty pair. The
@@ -244,21 +251,42 @@ export const defaultRenovationProjectDeps = (
 				events,
 				locks: new ReferenceLocks(),
 			}),
+			// Design slice A10's pair, and REAL commands over real in-memory collaborators
+			// rather than stubs — the same argument `overlaps` above makes. A stub answering
+			// `ok` could not refuse an empty name, could not conflict, and would let a case
+			// asserting "the asset was created" pass against a form that never dispatched.
+			//
+			// `InMemoryAssetGeometrySidecar` is the asset-side sidecar fake, and its own header
+			// carries the one behaviour that had to differ from the plan sidecar's: an absent
+			// document READS as empty rather than refusing, which is what the real store does
+			// and what makes create-then-write-first-footprint reachable at all in memory.
+			createAsset: new CreateAssetCommand(assets, events),
+			setAssetFootprintFromDimensions: new SetAssetFootprintFromDimensionsCommand({
+				sidecar: assetGeometry,
+				assets,
+				// Its own set: this fixture composes one root's worth of services, and the delete
+				// resolution it never dispatches is the only other taker.
+				locks: new ReferenceLocks(),
+				events,
+			}),
 			logger: recorder,
+			defaultCurrency: DEFAULT_SETTINGS.defaultCurrency,
 		},
 		openProject: () => Promise.resolve('opened'),
 		onProjectsChanged: () => () => undefined,
 		// The LIST state, which is what a harness mount with no query string draws and what
 		// every existing case of this factory has always been asserting against.
 		projectId: null,
-		// `navigate` and `openPlan` are the one place this default is deliberately INERT, and
-		// the reason is the same one `openProject`'s own paragraph gives: both are Obsidian
-		// workspace operations this harness has none of. A default that silently did nothing
-		// would let a view that never calls `navigate` pass a test written to prove that it
-		// does — every case that asserts on either passes its own `deps` instead of taking
-		// this one.
+		// `navigate`, `openPlan` and `openAsset` are the one place this default is deliberately
+		// INERT, and the reason is the same one `openProject`'s own paragraph gives: all three
+		// are Obsidian workspace operations this harness has none of. A default that silently
+		// did nothing would let a view that never calls `navigate` pass a test written to prove
+		// that it does — every case that asserts on any of the three passes its own `deps`
+		// instead of taking this one. `openAsset` joined the other two in Task B9, the same
+		// shape and for the same reason `openPlan` already states.
 		navigate: () => undefined,
 		openPlan: () => Promise.resolve(),
+		openAsset: () => Promise.resolve(),
 		onPlansChanged: () => () => undefined,
 		// INERT, like `onProjectsChanged` and `onPlansChanged` above and for the same reason:
 		// nothing here publishes, so a real source would deliver nothing anyway, and a case that

@@ -54,11 +54,23 @@ import type { PlanGeometryStore } from './PlanGeometryStore';
  *     its loop — so swallowing it there would blame N notes for one file. Same code shape, two
  *     answers, decided by which document the failure is about.
  *
+ *  5. `plan.note-id-mismatch` — this note DECLARES a different id than the index sent us here
+ *     under, which is as note-local as the four above: it is one note's frontmatter
+ *     disagreeing with one stale index entry, never a document anything else shares.
+ *
  * `plan.migration-failed` is deliberately absent: it is `mappedMigrationFailure`'s fallback for
  * an UNTAGGED throw under the runner, so what actually failed is unknown. Fail closed.
+ *
+ * **Arm 5 arrived from the other side of a merge, and that is the thing worth remembering.**
+ * The guard raising it was written on a branch where these sets did not exist, and the two
+ * changes merged with no textual conflict — so a clean merge reinstated exactly the defect the
+ * increment that built these sets was written to close, for one new code. Nothing could have
+ * caught it: both branches were green, and the merged suite stayed green, because no case drove
+ * a displaced note THROUGH a listing. The case that holds it now is in `planListingSkips.test.ts`.
  */
 const SKIPPABLE_PLAN_CODES = new Set([
 	'plan.frontmatter-invalid',
+	'plan.note-id-mismatch',
 	'plan.schema-version-malformed',
 	'plan.sidecar-unreadable',
 ]);

@@ -22,6 +22,8 @@ import {
 import type { EditorPointerEvent, EditorTool } from '../../../../src/presentation/editor/tools/editor-tool';
 import type { UndoableCommand } from '../../../../src/presentation/editor/tools/undoable-command';
 import type { SelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
+import { mapDispatchFaults } from '../../../../src/presentation/editor/report-failure';
+import { recorder } from '../../../helpers/logger';
 
 /**
  * The transaction-boundary rule (`docs/tasks/06-editor-tool-framework-undo-redo-and-
@@ -135,12 +137,18 @@ function buildContext(history: CommandHistory): {
 		bindViewport: stubViewport,
 		selection: stubSelection(),
 		snapService: new SnapService({ gridSpacingMm: 100, toleranceMm: 10, angleStepRadians: Math.PI / 2 }),
-		commandDispatcher: {
-			run: (command: UndoableCommand): Promise<DispatchResult> => history.run(command),
-		},
+		// Through `mapDispatchFaults`, which `EditorContextDeps` requires: the brand is what
+		// makes "a tool's dispatch door cannot reject" a compile-time fact rather than a rule
+		// each surface remembers. It forwards straight to `history.run` on every path this file
+		// drives, so what these cases observe is unchanged.
+		commandDispatcher: mapDispatchFaults(
+			{ run: (command: UndoableCommand): Promise<DispatchResult> => history.run(command) },
+			recorder,
+			'test.dispatch.faulted',
+		),
 		writeLedger,
 		renderState,
-		activePlan: { id: createPlanId(), calibration: null },
+		subject: { id: createPlanId(), calibration: null },
 	};
 	return { context: createEditorContext(deps), renderState, writeLedger };
 }

@@ -65,7 +65,7 @@ function onSubmit(): void {
 			<button
 				type="submit"
 				class="rp-dialog-button"
-				:disabled="parsed === null"
+				:aria-disabled="parsed === null"
 			>
 				{{ tr('dialog.form.submit') }}
 			</button>

@@ -1,6 +1,6 @@
 import type { Point, ScreenPoint } from '../viewport/Viewport';
 import type { Vector } from '../../../core/geometry/Vector';
-import type { PlanId } from '../../../domain/plan/PlanId';
+import type { EntityId } from '../../../core/identity/EntityId';
 import type { Calibration } from '../../../domain/plan/Calibration';
 import type { SelectionStore } from '../selection/selection-store';
 import type { SnapService } from '../snapping/snap-service';
@@ -8,6 +8,7 @@ import type { WriteLedger } from '../../../application/editor/WriteLedger';
 import type { UndoableCommand } from './undoable-command';
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import type { RenderState } from './render-state';
+import type { ToolDispatcher } from '../report-failure';
 
 /**
  * The entire API an `EditorTool` gets (SDD §58, design slice 6). Deliberately excludes
@@ -58,11 +59,34 @@ export interface EditorContext {
 	readonly writeLedger: WriteLedger;
 	readonly renderState: RenderState;
 	/**
+	 * What this editor is editing — a Plan in the Plan Editor, an Asset in the designer.
+	 *
+	 * **It was `activePlan` through design slice 21**, typed with a `PlanId`, which is the
+	 * one field of this facade that named a Plan at all: everything else here is already
+	 * subject-agnostic. Renaming it is what lets ONE tool framework serve both surfaces, and
+	 * it is a deviation from `docs/tasks/06-editor-tool-framework-undo-redo-and-inspector.md`,
+	 * which names the field `activePlan` — recorded here because that document is otherwise
+	 * the binding authority for this interface's shape.
+	 *
+	 * The id is `EntityId<string>` rather than a branded `PlanId`, which is the whole point
+	 * and also the whole cost: a tool that needs the id NARROWED to its own subject's brand
+	 * cannot get it from here. No tool asks it to — a tool that needs a branded id takes a
+	 * FACTORY through its own deps and never the id, so each runtime closes over the brand its
+	 * own single cast already produced. `CalibrateToolDeps.createCommand(measurement)` is the
+	 * worked example, and `SetAnchorTool` and `SetFacingTool` take the same shape.
+	 *
+	 * **This paragraph named `CalibrateToolDeps.planId` until a whole-branch review greped
+	 * for it.** That member existed while a Plan was the only subject; Task B6's generalisation
+	 * replaced it with `createCommand`, and the sentence describing the old mechanism went on
+	 * reading as a live account of the current one — the shape this repository's own rule about
+	 * "the only place X" exists for, arriving at a docblock that named a MEMBER rather than a
+	 * count.
+	 *
 	 * `calibration` is nullable: a Plan renders and is editable before it is calibrated
 	 * (slice 5's placeholder scale), so a tool that assumed a value here would break on
-	 * every freshly imported plan.
+	 * every freshly imported plan. An Asset's design carries one on the same terms.
 	 */
-	readonly activePlan: { id: PlanId; calibration: Calibration | null };
+	readonly subject: { readonly id: EntityId<string>; readonly calibration: Calibration | null };
 }
 
 /**
@@ -94,10 +118,25 @@ export interface EditorContextDeps {
 	bindViewport(): EditorContext['viewport'];
 	selection: SelectionStore;
 	snapService: SnapService;
-	commandDispatcher: EditorContext['commandDispatcher'];
+	/**
+	 * The one field here that is NOT simply the context's own type, and the difference is a
+	 * guarantee rather than a decoration.
+	 *
+	 * `ToolDispatcher` is `EditorContext['commandDispatcher']` plus a phantom brand only
+	 * `mapDispatchFaults` can apply, so a surface cannot assemble a context around a dispatcher
+	 * whose `run` may still REJECT. Every tool launches its dispatch detached — `void
+	 * this.commit(...)`, `void this.dispatch(...)` — and both refresh decorators re-throw on
+	 * rejection by design, so an unmapped one was an unhandled rejection reaching nobody while
+	 * the gesture silently did nothing. Both surfaces composed their context by hand and neither
+	 * remembered; a brand is what stops the third from having to.
+	 *
+	 * The context member below stays unbranded on purpose: a TOOL has no business knowing, and
+	 * `createEditorContext` passes the same object straight through either way.
+	 */
+	commandDispatcher: ToolDispatcher;
 	writeLedger: WriteLedger;
 	renderState: RenderState;
-	activePlan: { id: PlanId; calibration: Calibration | null };
+	subject: EditorContext['subject'];
 }
 
 /**
@@ -114,6 +153,6 @@ export function createEditorContext(deps: EditorContextDeps): EditorContext {
 		commandDispatcher: deps.commandDispatcher,
 		writeLedger: deps.writeLedger,
 		renderState: deps.renderState,
-		activePlan: deps.activePlan,
+		subject: deps.subject,
 	};
 }

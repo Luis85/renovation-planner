@@ -2,25 +2,73 @@ import { coincident } from '../../../core/geometry/operations';
 import { createPolygon, type Polygon } from '../../../core/geometry/Polygon';
 import type { Point } from '../../../core/geometry/Point';
 import type { AppError } from '../../../core/errors/AppError';
-import type { CreateZoneInput } from '../../../application/commands/zone/CreateZone';
-import type { ReversibleCreateZoneCommand } from '../../../application/commands/zone/reversible-create-zone-command';
+import type { EntityId } from '../../../core/identity/EntityId';
 import { closesPolygon } from '../closeTarget';
 import type { EditorContext } from './editor-context';
 import type { EditorPointerEvent, EditorTool, ToolId } from './editor-tool';
+import type { UndoableCommand } from './undoable-command';
 
 /**
- * What closes the polygon on the tool's behalf. A factory rather than an instance: one
- * reversible command holds that ONE creation's snapshot and undo state, exactly like
- * `CalibrateToolDeps.createCommand` for slice 7's calibration.
+ * The command a `PolygonCompletion` builds, plus the one thing the drawing gesture needs
+ * back from it: which entity the successful dispatch created, so the gesture can select what
+ * the user just drew.
+ *
+ * `createdId` is `null` in two states rather than one — before a successful `execute`, and
+ * for a completion that creates no entity at all (tracing an Asset's footprint replaces a
+ * field of the asset already open, so there is nothing new to select). The tool reads it only
+ * after a success, so the second is the one that decides anything, and `null` there means
+ * "leave the selection alone".
+ */
+export interface PolygonCommand extends UndoableCommand {
+	readonly createdId: EntityId<string> | null;
+}
+
+/**
+ * What a closed polygon DOES — injected, so ONE drawing tool serves a Plan's Zones and an
+ * Asset's footprint and clearance without a branch anywhere in the gesture.
+ *
+ * A factory rather than an instance: one reversible command holds that ONE creation's
+ * snapshot and undo state, exactly like `CalibrateToolDeps.createCommand` for slice 7's
+ * calibration.
+ *
+ * **It returns a COMMAND and never dispatches**, and that is the load-bearing half. The tool
+ * runs it through `context.commandDispatcher.run`, which is the single funnel per leaf: it is
+ * what puts the gesture on the undo stack, refreshes the stores after it and drives the
+ * save-state badge. A completion that wrote for itself would take every drawing gesture off
+ * all three with nothing erroring anywhere.
+ *
+ * It is handed the VALIDATED polygon rather than the tool's raw vertex buffer — the shape
+ * `createPolygon` has already accepted — so a completion cannot build a command out of a
+ * point list the geometry rules refused, and neither end has to validate twice.
+ */
+export interface PolygonCompletion {
+	commandFor(geometry: Polygon): PolygonCommand;
+}
+
+/**
+ * What `DrawPolygonTool` needs beyond its `EditorContext`. Nothing here names a Zone: the
+ * new zone's name, its type and the plan it belongs to are the ZONE completion's business,
+ * bound in `runtime.ts` beside the command it builds.
  */
 export interface DrawPolygonToolDeps {
-	readonly createCommand: (input: CreateZoneInput) => ReversibleCreateZoneCommand;
 	/**
-	 * The new zone's display name — counted from what the editor has hydrated, until slice
-	 * 16's creation forms ask instead. Not slice 15, which shipped the dialog framework such
-	 * a form is mounted in and no form that names a zone.
+	 * Which tool this instance IS — REQUIRED, because one `DrawPolygonTool` class is now two
+	 * registered tools.
+	 *
+	 * The id was `readonly id: ToolId = 'draw-polygon'`, hard-coded, and `ToolManager.register`
+	 * throws on a duplicate — so the asset designer, which needs the identical gesture for a
+	 * footprint and for a clearance, could not register a second instance at all. Design slice
+	 * B2 made the tool's COMPLETION injectable and left its identity fixed; this is the
+	 * remaining half of the same decoupling, and it is one constructor argument rather than a
+	 * wrapper tool per id, which would be a second mechanism answering the same question.
+	 *
+	 * Required rather than defaulted to `'draw-polygon'`, on this repository's own rule for a
+	 * widening: an optional field changes the call sites somebody thought of and leaves the
+	 * rest compiling, so every construction says which tool it is and a third one has to
+	 * decide rather than inherit.
 	 */
-	readonly nextZoneName: () => string;
+	readonly id: ToolId;
+	readonly completion: PolygonCompletion;
 	/**
 	 * Where a DISPATCHED refusal reaches the user. The tool states the seam instead of
 	 * reaching into a UI — the same shape `CalibrateTool`'s `KnownDistanceSupplier` takes for
@@ -42,9 +90,13 @@ export interface DrawPolygonToolDeps {
 }
 
 /**
- * The polygon-drawing tool (design slice 8, SDD §57): click places vertices,
- * clicking near the first vertex of a ≥ 3 vertex buffer closes the shape into ONE
- * `ReversibleCreateZoneCommand`, `Escape` discards.
+ * The polygon-drawing tool (design slice 8, SDD §57), registered under whichever id its deps
+ * name — `'draw-polygon'` in the Plan Editor, `'trace-footprint'` and `'trace-clearance'` in
+ * the asset designer, which registers two instances of it: click places vertices,
+ * clicking near the first vertex of a ≥ 3 vertex buffer closes the shape into ONE command
+ * built by the injected `PolygonCompletion`, `Escape` discards. What that command IS — a
+ * Zone on a Plan, a footprint on an Asset — is the completion's business and not this
+ * tool's.
  *
  * Everything before `closePolygon` touches NO domain state: the buffer and the picture of it
  * are transient (`RenderState.polygonSketch`, InteractionLayer only per SDD §19), and
@@ -70,7 +122,7 @@ export interface DrawPolygonToolDeps {
  * keep placing points or cancel deliberately.
  */
 export class DrawPolygonTool implements EditorTool {
-	readonly id: ToolId = 'draw-polygon';
+	readonly id: ToolId;
 
 	private context: EditorContext | null = null;
 	private buffer: Point[] = [];
@@ -94,7 +146,9 @@ export class DrawPolygonTool implements EditorTool {
 	 */
 	private generation = 0;
 
-	constructor(private readonly deps: DrawPolygonToolDeps) {}
+	constructor(private readonly deps: DrawPolygonToolDeps) {
+		this.id = deps.id;
+	}
 
 	activate(context: EditorContext): void {
 		this.context = context;
@@ -258,30 +312,36 @@ export class DrawPolygonTool implements EditorTool {
 				return; // buffer intact — keep the user's in-progress work
 			}
 			const geometry: Polygon = polygonResult.value;
-			const command = this.deps.createCommand({
-				planId: context.activePlan.id,
-				name: this.deps.nextZoneName(),
-				zoneType: 'Room',
-				geometry,
-			});
+			const command = this.deps.completion.commandFor(geometry);
+			// Through the dispatcher, never by the completion itself: see `PolygonCompletion`.
 			const result = await context.commandDispatcher.run(command);
+			// **Reported BEFORE the generation check, and the order is the whole of it.** A
+			// refusal is a fact about a write that really was attempted and really was declined,
+			// which stays true however the gesture ended — and many of the codes a close can
+			// refuse with are PRE-WRITE, so `affectsSaveState` resolves neutral and the notice
+			// door is the only channel carrying them. Guarding the report made exactly those
+			// silent. `SetFacingTool`'s class docblock records the same correction, arrived at
+			// from the opposite direction: a counter whose ONLY guarded statement was a report
+			// is a counter guarding nothing, and it was deleted there rather than reordered.
+			if (!result.ok) {
+				this.deps.reportRejected(result.error);
+				return; // buffer intact here too — and, if the gesture is over, it is not ours anyway
+			}
 			// The gesture this close belonged to may be over: Escape, a tool switch or a
 			// re-activation happened while the dispatch was in flight. The write landed
 			// either way — the refresh decorator puts it on the canvas — but the buffer,
 			// the preview and the selection now belong to somebody else and must be left
-			// exactly as they are.
+			// exactly as they are. THAT is what a generation guards: a mutation of
+			// gesture-owned state, never the reporting of a refusal.
 			if (generation !== this.generation) return;
-			if (!result.ok) {
-				this.deps.reportRejected(result.error);
-				return; // buffer intact here too
-			}
 			this.buffer = [];
 			this.clearSketch(context);
 			// Selecting what was just drawn is safe now: by the time the dispatch resolves, the
-			// refresh decorator has re-hydrated the store, so the new zone renders and is a
-			// valid hit-test candidate.
-			const zoneId = command.createdZoneId;
-			if (zoneId !== null) context.selection.select([zoneId]);
+			// refresh decorator has re-hydrated the store, so the new entity renders and is a
+			// valid hit-test candidate. A completion that created nothing answers `null`, and
+			// the selection is then left exactly as the user had it.
+			const createdId = command.createdId;
+			if (createdId !== null) context.selection.select([createdId]);
 		} finally {
 			// The window is over whichever way it resolved; the next click is a fresh gesture.
 			// Only for the gesture that opened it — a `cancel()` mid-flight has already

@@ -14,6 +14,7 @@ import {
 	ensureFolder,
 	frontmatterOf,
 	migrateNote,
+	noteIdMismatch,
 	persistenceError,
 	serializeFrontmatter,
 	undoEnsureFolder,
@@ -85,7 +86,7 @@ export class ObsidianProjectRepository {
 	getById(id: ProjectId): Promise<Result<Loaded<Project> | null, RepositoryError>> {
 		const file = this.locate(id);
 		if (!file) return Promise.resolve(ok(null));
-		const read = this.readEntity(file);
+		const read = this.readEntity(id, file);
 		if (!read.ok) {
 			// Content-free (SDD §68): opaque id + the error, of which the ledger keeps only
 			// the code. The whole error goes in because the ledger is the one module allowed
@@ -229,8 +230,18 @@ export class ObsidianProjectRepository {
 		return fileAt(this.deps.vault, this.deps.index.getPath(id));
 	}
 
-	private readEntity(file: TFile): Result<Loaded<Project>, RepositoryError> {
+	/**
+	 * The one note-backed read that does NOT go through `openNoteById`, which is why the
+	 * identity comparison is spelled here as a call to the same predicate rather than left
+	 * to the shared door. A project note's `id` is user-editable like any other, and this
+	 * repository resolves through the index like every other — so a hand edit displaced the
+	 * entry and `getById` answered a stranger's project, which `listAll` then listed under
+	 * the requested id.
+	 */
+	private readEntity(id: ProjectId, file: TFile): Result<Loaded<Project>, RepositoryError> {
 		const raw = frontmatterOf(this.deps, file);
+		const displaced = noteIdMismatch('project', id, raw, file.path);
+		if (displaced) return err(displaced);
 		const migrated = migrateNote(this.deps.migrations, 'project', raw);
 		if (!migrated.ok) return migrated;
 		const entity = projectFromPersistence(migrated.value, this.defaultCurrency);

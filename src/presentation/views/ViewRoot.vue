@@ -47,6 +47,7 @@ import ViewFailure from '../components/ViewFailure.vue';
 import ProjectList from './ProjectList.vue';
 import ProjectDetailState from './ProjectDetailState.vue';
 import NewProjectForm from './NewProjectForm.vue';
+import NewAssetForm from './NewAssetForm.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import { useRenovationProjectContext } from './RenovationProjectContext';
@@ -56,6 +57,9 @@ import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
+import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
+import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
+import type { AssetId } from '../../domain/asset/AssetId';
 
 const context = useRenovationProjectContext();
 const store = useRenovationProjectStore();
@@ -82,6 +86,14 @@ const openProjectId = context.projectId;
  * every line reads as correct and the flag never moves.
  */
 const newProjectBusy = ref(false);
+
+/**
+ * The same mechanism for design slice A10's form, and a SECOND ref rather than one shared
+ * between the two: `busy` is read by `DialogHost` to refuse Escape and disable Cancel while a
+ * write is in flight, and only one dialog is ever open, so sharing would work today and would
+ * mean two forms writing one flag the moment anything opened them in sequence.
+ */
+const newAssetBusy = ref(false);
 
 /**
  * The ONE read this view has, on every occasion it runs — open, after a create, after a row
@@ -130,6 +142,53 @@ async function onCreateProject(): Promise<void> {
 	});
 	if (result === 'cancel') return;
 	await hydrate();
+}
+
+/**
+ * Design slice A10's hand-off, and `onCreateProject`'s shape exactly — including the
+ * `dialogs.current` guard, which is what makes two clicks in one tick reach `openDialog`
+ * once rather than throwing `DialogStackingError`.
+ *
+ * **It does NOT re-hydrate, and that is a difference worth stating rather than an omission.**
+ * `hydrate()` re-reads the PROJECT list, and creating an asset changes nothing in it — an
+ * Asset is vault-wide and carries no project id at all since design slice 19. Re-reading would
+ * be a second answer to what this pane shows, produced by a gesture that did not change it.
+ * There is no catalogue list on this surface for the new asset to appear in, which is why
+ * what this handler does instead — since Task B9 — is open the designer on what it made:
+ * `context.openAsset` is `renovationProjectOpenAsset` at the root, the same door
+ * `open-asset-designer`'s palette picker opens through, so a just-created asset and a picked
+ * one land in exactly one leaf either way.
+ *
+ * The two commands are handed down separately because the form's submit is a SEQUENCE over
+ * them and it owns the ordering — see `NewAssetForm`'s header for why the pure checks run
+ * before the first write and why a retry must not create a second asset.
+ *
+ * `result.values` is the raw payload `NewAssetForm` emitted (`FormDialogResult`'s own
+ * docblock: "typed by the form's own component"), which for this form is the `AssetId` it
+ * created — not an object, unlike the shape a caller might expect by analogy with a DTO.
+ */
+async function onCreateAsset(): Promise<void> {
+	if (dialogs.current !== null) return;
+
+	const result = await dialogs.openDialog({
+		kind: 'form',
+		title: tr('form.new-asset.title'),
+		component: NewAssetForm,
+		props: {
+			createAsset: (input: CreateAssetInput) => context.commands.createAsset.execute(input),
+			setFootprintFromDimensions: (input: SetAssetFootprintFromDimensionsInput) =>
+				context.commands.setAssetFootprintFromDimensions.execute(input),
+			busy: newAssetBusy,
+			// The form's own door for a dispatch that THROWS, which both of these being guarded
+			// commands means they cannot — but the guard is the ROOT's property, not this call
+			// site's, and `useFormCommit` requires the door rather than assuming the caller.
+			logger: context.commands.logger,
+			defaultCurrency: context.commands.defaultCurrency,
+		},
+		busy: newAssetBusy,
+	});
+	if (result === 'cancel') return;
+	await context.openAsset(result.values as AssetId);
 }
 
 /**
@@ -215,11 +274,36 @@ if (openProjectId === null) {
 	<div class="renovation-planner-view">
 		<template v-if="openProjectId === null">
 			<template v-if="status === 'ready'">
-				<EmptyState
-					v-if="empty !== null"
-					v-bind="empty"
-					@action="onCreateProject"
-				/>
+				<template v-if="empty !== null">
+					<EmptyState
+						v-bind="empty"
+						@action="onCreateProject"
+					/>
+					<!--
+						**A fresh vault must still be able to build a catalogue.** The asset
+						action lives in `ProjectList`'s header, and the list is the `v-else`
+						below — so with no projects it was not mounted at all, and the only
+						thing a new vault offered was creating a project. An Asset is
+						VAULT-WIDE since design slice 19: it carries no project id and needs
+						none.
+
+						A SIBLING of the empty state rather than a second action ON it. The
+						empty state's message is "create your first project" and its button is
+						that sentence's verb; `EMPTY_STATE_CONTENT` is a typed registry whose
+						entries carry one action each, so a second one would be a widening
+						every entry inherits for the sake of one. This is an unrelated
+						affordance and is drawn as one.
+					-->
+					<p class="rp-view-aside">
+						<button
+							type="button"
+							class="rp-view-aside__create-asset"
+							@click="onCreateAsset"
+						>
+							{{ tr('view.asset.create') }}
+						</button>
+					</p>
+				</template>
 				<!--
 					`@open` NAVIGATES (design slice 21, criterion 1) rather than opening the
 					project's own note, which is what it did for five slices. `Project.md` stays
@@ -231,6 +315,7 @@ if (openProjectId === null) {
 					:projects="projects"
 					@open="(id) => context.navigate(id)"
 					@create="onCreateProject"
+					@create-asset="onCreateAsset"
 				/>
 				<p
 					v-if="unreadable > 0"

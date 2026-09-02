@@ -172,8 +172,8 @@ describe('CalibrateTool', () => {
 		const h = harness();
 		const tool = new CalibrateTool({
 			supplyKnownDistance: h.supplyKnownDistance,
-			createCommand: h.createCommand,
-			hasSpatialObjects: h.hasSpatialObjects,
+		createCommand: h.createCommand,
+			hasGeometryToRescale: h.hasGeometryToRescale,
 			confirmRecalibration: h.confirmRecalibration,
 			reportRejected: h.reportRejected,
 			// Slice 17 split this door from `reportRejected`; both literals here omitted it.
@@ -342,7 +342,7 @@ describe('CalibrateTool', () => {
  * reached, since a stale gesture must not merely fail to dispatch: it must not ask the
  * user anything either, and `dispatched` alone cannot tell those apart.
  */
-function makeTool(overrides: Pick<Harness, 'hasSpatialObjects' | 'confirmRecalibration'>): {
+function makeTool(overrides: Pick<Harness, 'hasGeometryToRescale' | 'confirmRecalibration'>): {
 	tool: CalibrateTool;
 	dispatched: UndoableCommand[];
 	distancePrompts: () => number;
@@ -356,7 +356,7 @@ function makeTool(overrides: Pick<Harness, 'hasSpatialObjects' | 'confirmRecalib
 			return h.supplyKnownDistance(measuredWorldUnits);
 		},
 		createCommand: h.createCommand,
-		hasSpatialObjects: overrides.hasSpatialObjects,
+		hasGeometryToRescale: overrides.hasGeometryToRescale,
 		confirmRecalibration: overrides.confirmRecalibration,
 		reportRejected: h.reportRejected,
 		reportInvalidInput: h.reportInvalidInput,
@@ -387,7 +387,7 @@ describe('the recalibration gate', () => {
 	it('asks nothing on a plan with no geometry', async () => {
 		let asked = 0;
 		const { tool, dispatched } = makeTool({
-			hasSpatialObjects: () => false,
+			hasGeometryToRescale: () => false,
 			confirmRecalibration: () => {
 				asked += 1;
 				return Promise.resolve(true);
@@ -403,7 +403,7 @@ describe('the recalibration gate', () => {
 	it('asks before rescaling a plan that has geometry', async () => {
 		let asked = 0;
 		const { tool, dispatched } = makeTool({
-			hasSpatialObjects: () => true,
+			hasGeometryToRescale: () => true,
 			confirmRecalibration: () => {
 				asked += 1;
 				return Promise.resolve(true);
@@ -418,7 +418,7 @@ describe('the recalibration gate', () => {
 
 	it('dispatches nothing when the user declines', async () => {
 		const { tool, dispatched, distancePrompts } = makeTool({
-			hasSpatialObjects: () => true,
+			hasGeometryToRescale: () => true,
 			confirmRecalibration: () => Promise.resolve(false),
 		});
 
@@ -443,7 +443,7 @@ describe('the recalibration gate', () => {
 		// cannot see run, so a `| null` union narrows to `null` at every later read.
 		let release!: (confirmed: boolean) => void;
 		const { tool, dispatched, distancePrompts } = makeTool({
-			hasSpatialObjects: () => true,
+			hasGeometryToRescale: () => true,
 			confirmRecalibration: () =>
 				new Promise<boolean>((resolve) => {
 					release = resolve;

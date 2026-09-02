@@ -1,6 +1,6 @@
 import type { DispatchResult } from '../../../application/commands/DispatchOutcome';
 import { isErr } from '../../../core/result/Result';
-import type { RefreshedHistory } from '../tools/with-editor-state-refresh';
+import type { RefreshedHistory } from '../tools/with-state-refresh';
 import type { useSaveStateStore } from './save-state-store';
 import { affectsSaveState } from './affects-save-state';
 

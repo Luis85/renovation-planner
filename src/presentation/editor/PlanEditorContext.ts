@@ -89,6 +89,18 @@ export interface PlanEditorContext {
 	 */
 	onRequirementFiguresChanged(listener: (requirementId: string) => void): () => void;
 	/**
+	 * Subscribe to every vault file event, by PATH — the door `BackgroundLayer` needs and the
+	 * only one in this context that is not about a domain event at all.
+	 *
+	 * A background document is a PNG or a PDF the user put in their vault, so nothing in this
+	 * plugin's write pipeline hears about it changing and the reference in the note does not move
+	 * when the file does. Without this the layer noticed a replaced or deleted sheet only when
+	 * something ELSE re-read the plan — the residual its own document key disclosed and a review
+	 * bot reported. `createVaultFileChangeSource` is what the composition root binds; the layer
+	 * filters on the path it is drawing.
+	 */
+	onVaultFileChanged(listener: (path: string) => void): () => void;
+	/**
 	 * Close THIS leaf — the tab the user is looking at.
 	 *
 	 * The one thing a Plan Editor can offer a user whose plan is gone. `GetPlan` answering

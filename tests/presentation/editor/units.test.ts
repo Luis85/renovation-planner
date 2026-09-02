@@ -161,7 +161,7 @@ describe('resolving the theme before the root element exists', () => {
 		document.documentElement.style.setProperty('--color-blue', 'rgb(4, 5, 6)');
 		const probe = defineComponent({
 			setup() {
-				const { tokens, refresh } = useThemeTokens(ref(null));
+				const { tokens, refresh } = useThemeTokens(ref(null), () => () => undefined);
 				refresh();
 				return () => h('span', tokens.value.zoneRoom);
 			},

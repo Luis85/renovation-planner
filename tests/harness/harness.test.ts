@@ -15,6 +15,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
 import { mountHarness } from '../harness/mount';
 import { mountPlanEditorHarness } from '../harness/planEditor';
+import { mountAssetDesignerHarness } from '../harness/assetDesigner';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver } from '../helpers/layout';
 import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
@@ -562,5 +563,33 @@ describe('the browser harness, plan editor', () => {
 		document.body.querySelector<HTMLElement>('.rp-harness-scheme')?.click();
 
 		expect(fired).toBe(1);
+	});
+});
+
+/**
+ * The asset designer half of the page — `npm run harness` with `?view=asset-designer` (Task
+ * B10). Same job as the block above and the same limit: this asserts the FRAME and the
+ * plumbing, never appearance — a browser is where the shell is actually looked at.
+ *
+ * The canvas backing and the resize observer are installed for the identical reason: a real
+ * Konva stage is constructed inside `DesignerCanvas`, which a browser has natively and jsdom
+ * has neither of. There is no theme-event case to mirror the Plan Editor's: `DesignerCanvas.vue`
+ * 's own docblock records that `AssetDesignerDeps` carries no theme subscription, so this
+ * surface has nothing to fire yet.
+ */
+describe('the browser harness, asset designer', () => {
+	it('mounts the real asset designer inside the same leaf frame', async () => {
+		installCanvas();
+		installResizeObserver();
+
+		const { leafEl, view } = mountAssetDesignerHarness(document.body);
+		// The designer's own hydration settles a tick after the synchronous mount, same as
+		// every other view this file and `accessibility.test.ts` mount.
+		await flushPromises();
+
+		expect(leafEl.classList.contains('rp-harness-leaf')).toBe(true);
+		expect(view.containerEl.parentElement).toBe(leafEl);
+		// Its own first draw ran: the mount point the stylesheet keys off is there.
+		expect(view.contentEl.querySelector('.renovation-asset-designer-view')).not.toBeNull();
 	});
 });

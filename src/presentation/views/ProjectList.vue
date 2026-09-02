@@ -19,7 +19,7 @@ import { statusLabel } from './statusLabel';
 import { tr } from '../i18n/strings';
 
 defineProps<{ projects: readonly ProjectSummaryDto[] }>();
-defineEmits<{ open: [projectId: string]; create: [] }>();
+defineEmits<{ open: [projectId: string]; create: []; createAsset: [] }>();
 </script>
 
 <template>
@@ -33,6 +33,20 @@ defineEmits<{ open: [projectId: string]; create: [] }>();
 			@click="$emit('create')"
 		>
 			{{ tr('view.project.create') }}
+		</button>
+		<!--
+			Design slice A10's entry point. It sits on the LIST header rather than inside a
+			project, because an Asset is vault-wide since design slice 19 — a catalogue entry
+			carries no project id at all — so a per-project button would promise a scoping the
+			domain does not have. It leaves with Epic 6's catalogue surface, which is where a
+			creation action for a catalogue entry properly belongs.
+		-->
+		<button
+			type="button"
+			class="rp-project-list__create-asset"
+			@click="$emit('createAsset')"
+		>
+			{{ tr('view.asset.create') }}
 		</button>
 	</div>
 	<ul class="rp-project-list">

@@ -14,9 +14,10 @@
  * already open, so a caller that dispatched only after this component resolved could never
  * reopen it to show one. `submit` is emitted once `dispatch` has actually succeeded.
  */
-import { nextTick, ref, type Ref } from 'vue';
+import { ref, type Ref } from 'vue';
 import FormSubmitRow from '../dialogs/FormSubmitRow.vue';
 import { useDialogFormBusy } from '../composables/use-dialog-form-busy';
+import { useInvalidFieldFocus } from '../composables/use-invalid-field-focus';
 import { useFormCommit } from '../composables/use-form-commit';
 import type { FieldErrorMap } from '../errors/route-error';
 import { isErr, type Result } from '../../core/result/Result';
@@ -144,25 +145,11 @@ function onNameInput(event: Event): void {
 	form.setField('name', control.value);
 }
 
-/** The rendered `<form>`, for the focus move below. Nothing else reads it. */
-const formEl = ref<HTMLFormElement | null>(null);
-
-/**
- * A REJECTED SUBMIT PUTS THE KEYBOARD ON THE FIELD IT IS ABOUT — WCAG 2.2 AA, which
- * `PRODUCT.md` binds by name, and the argument is `FormBanner`'s own applied to a field:
- * the message appears in response to the user's own submit and is the only feedback that
- * press produced, and `FieldError`'s `<p>` is neither a live region nor focused.
- *
- * The control is found by QUERYING the rendered form rather than from a list of field keys:
- * `aria-invalid='true'` is exactly what `FieldError` puts on a control it has a message for,
- * so the first match in document order is the first errored control, and a second list of
- * keys here would be a second answer to "which fields are wrong". `nextTick` is load-bearing:
- * `submit()` resolves before Vue has flushed the render that applies `aria-invalid`.
- */
-async function focusFirstInvalidControl(): Promise<void> {
-	await nextTick();
-	formEl.value?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-}
+// The focus move a rejected submit owes, and the `<form>` ref it queries. One statement of
+// both for all three creation forms — `useInvalidFieldFocus`'s docblock carries the WCAG
+// argument, why the control is found by query rather than by a key list, and why the
+// Inspector's blur-committed fields deliberately do not get this.
+const { formEl, focusFirstInvalidControl } = useInvalidFieldFocus();
 
 /**
  * Three outcomes rather than the sibling's two, and the middle one is this form's whole

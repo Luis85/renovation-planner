@@ -101,6 +101,43 @@ export interface FormDescriptor {
 }
 
 /**
+ * Task B8's kind, and not a fifth `FormDescriptor` component under `kind: 'form'` the way
+ * `NewAssetForm` and its siblings are — deliberately, because those three each OWN their own
+ * dispatch and resolve `'submit' | 'cancel'` through `useFormCommit`, while this dialog answers
+ * nothing about a command at all. It collects a width and a depth and hands them back, or
+ * `null` for cancelled; the CALLER — the empty state's action, or the inspector's own gesture —
+ * is what dispatches `SetAssetFootprintFromDimensions` once this resolves, exactly as
+ * `AssetDesignerRoot`'s background-picker action already does for `SetAssetBackground`. That
+ * split is what keeps this directory's own rule intact: no query, no command and no repository
+ * is reachable from here, so the shape of "did the user give me a rectangle" has to be
+ * something this file CAN answer without one.
+ */
+export interface AssetDimensionsDescriptor {
+	readonly kind: 'asset-dimensions';
+	readonly title: string;
+	/** Pre-fills the two fields — the inspector's own gesture offers the asset's current
+	 * dimensions back rather than an empty form, since a user editing a rectangle is usually
+	 * adjusting it rather than starting over. Absent for the empty state's caller, which has
+	 * no dimensions to offer, and absent for a footprint whose numbers are not measurements
+	 * yet: see `warning` below. */
+	readonly initial?: { readonly width: number; readonly depth: number };
+	/**
+	 * A sentence about the numbers this form is asking for, shown above the fields.
+	 *
+	 * ALREADY TRANSLATED, like `title` and every other user-facing string a descriptor carries
+	 * — slice 15's rule that the caller resolves copy and the dialog resolves none. A `string`
+	 * and not a `StringKey`, so `presentation/dialogs/` needs no vocabulary of the designer's.
+	 *
+	 * Its one caller today is `AssetDesignerRoot.editDimensions` on a footprint whose
+	 * `dimensionsUnscaled` is set. Optional, because the ordinary case has nothing to warn
+	 * about and an empty paragraph over every form is worse than none.
+	 */
+	readonly warning?: string;
+}
+
+export type AssetDimensionsDialogResult = { readonly width: number; readonly depth: number } | null;
+
+/**
  * THE EXTENSION POINT. A new dialog kind is FIVE additions, not two: a member here, its
  * result type in `DialogResultByKind`, a case in `cancelResultFor`, a branch in
  * `DialogHost`, and the kind component itself. `DialogHost` and `cancelResultFor` both
@@ -115,12 +152,18 @@ export interface FormDescriptor {
  * cannot finish without clearing every one. `DialogHost`'s own template comment carries the
  * one hole the measurement turned up: its check is structural, so a fifth descriptor that
  * happened to satisfy `FormDescriptor` would render as a form rather than fail.
+ *
+ * **This is the fifth kind those two paragraphs were written about**, and it measures true a
+ * second way: `AssetDimensionsDescriptor` does NOT satisfy `FormDescriptor` (no `component`),
+ * so it is the one addition that WOULD have fallen through to `FormDialog` silently had it been
+ * shaped like one — which is exactly why it carries no `component` field at all.
  */
 export type DialogDescriptor =
 	| ConfirmDescriptor
 	| DeleteReferenceDescriptor
 	| EntityPickerDescriptor
-	| FormDescriptor;
+	| FormDescriptor
+	| AssetDimensionsDescriptor;
 
 export type ConfirmDialogResult = 'confirm' | 'cancel';
 
@@ -157,6 +200,7 @@ export interface DialogResultByKind {
 	'delete-reference': DeleteReferenceDialogResult;
 	'entity-picker': EntityPickerDialogResult;
 	form: FormDialogResult;
+	'asset-dimensions': AssetDimensionsDialogResult;
 }
 
 export type DialogResult = DialogResultByKind[DialogDescriptor['kind']];
@@ -198,6 +242,8 @@ export function cancelResultFor(kind: DialogDescriptor['kind']): DialogResult {
 			return 'cancel';
 		case 'form':
 			return 'cancel';
+		case 'asset-dimensions':
+			return null;
 	}
 }
 

@@ -30,6 +30,32 @@ describe('entityRefOf', () => {
 		expect(entityRefOf({ type: 'renovation-plan', id: '' })).toEqual({ kind: 'no-id' });
 		expect(entityRefOf({ type: 'renovation-plan', id: 42 })).toEqual({ kind: 'no-id' });
 	});
+
+	/**
+	 * AN AWKWARD ID IS STILL OURS — the regression this case exists to keep closed.
+	 *
+	 * Two earlier attempts refused an id that cannot be a filename HERE, so a project, zone or
+	 * requirement whose hand-written id held a `:` or a `#` stopped being indexed and became
+	 * unopenable. That traded lost access for a bad write, which is the wrong direction: every
+	 * one of those hazards is a WRITE hazard, and none of them stops a note being read.
+	 *
+	 * The rule now lives at `AssetGeometryStore.pathFor`, the one site that derives a path, so
+	 * the note stays indexed and openable while no sidecar is ever written for it — which
+	 * leaves nothing for a library migration to orphan, the concern that started all of this.
+	 *
+	 * More reachable than it looks: the spec records that the only way a vault has an Asset
+	 * today is a hand-written note, so hand-written ids are the normal case rather than an
+	 * exotic one.
+	 */
+	it('indexes a note whose id could not be a filename, because reading is not writing', () => {
+		for (const id of ['asset:custom', 'asset/custom', 'CON', ' asset ', 'a#b']) {
+			expect(entityRefOf({ type: 'renovation-asset', id })).toEqual({
+				kind: 'ours',
+				type: 'renovation-asset',
+				id,
+			});
+		}
+	});
 });
 
 /**
@@ -56,8 +82,21 @@ function modulesNaming(needle: string): string[] {
 }
 
 describe('entityRefOf callers', () => {
-	it('is named by exactly two modules in src/, and they are the scan and the pipeline', () => {
-		expect(modulesNaming('entityRefOf')).toEqual([
+	/**
+	 * The needle carries the `(`, for the reason the sibling claim below spells out and had
+	 * already measured — a bare name matches a DOCBLOCK, and a docblock is not a caller.
+	 *
+	 * This one was bare until `paths.ts`'s `FORBIDDEN_IN_FILENAME` docblock named `entityRefOf`
+	 * as one of its two consumers, at which point the filter reported three modules and the
+	 * case failed for a cross-reference. The hazard was written down one `describe` below,
+	 * for the other needle, and not applied here — which is this repository's own recurring
+	 * shape: a rule stated in a comment is a rule some neighbour is not following.
+	 *
+	 * Same blind spot as its sibling, said rather than implied: a comment writing the name with
+	 * an empty argument list would read as a call.
+	 */
+	it('is called by exactly two modules in src/, and they are the scan and the pipeline', () => {
+		expect(modulesNaming('entityRefOf(')).toEqual([
 			'src/infrastructure/persistence/index/VaultChangeAdapter.ts',
 			'src/infrastructure/persistence/index/buildProjectIndexEntries.ts',
 		]);

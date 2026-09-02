@@ -1002,6 +1002,121 @@ export default defineConfig({
 			// `ClearAssetPriceOverride.ts`, `SetAssetPriceOverride.ts`, `priceRowExpectation.ts`,
 			// `ListProjectAssetPrices.ts`, `ObsidianAssetPriceOverrideRepository.ts`,
 			// `InMemoryAssetPriceOverrideRepository.ts` and both locale files included.
+			//
+			// **The asset designer's review fixes (2026-09-02), measured after all eleven tasks:**
+			// 99.39 / 98.33 / 99.07 / 99.53. NOTHING RATCHETS unless a figure
+			// rounds down above its floor; functions headroom is 1 unit and branches 12.
+			// Every file this increment changed
+			// that carries an uncovered position carries only INHERITED ones, measured per changed
+			// file from `coverage-final.json` with `git diff --name-only origin/main...HEAD -- src/`
+			// as the file list, not a hand-written filter.
+			//
+			// **PR 43's four review findings (2026-09-02), measured after all four:**
+			// 99.39 / 98.30 / 99.07 / 99.54. NOTHING RATCHETS — every figure rounds down to the
+			// floor already in force. Functions headroom is 1 unit and branches 11, one fewer
+			// than the wave before it, which is this wave's ONE new uncovered position:
+			// `noteEntityWrite.ts`'s `if (indexed)` on the delete-compensation path. That arm is
+			// uncovered rather than untested and the code says so — it NARROWS
+			// `ProjectIndexEntry | undefined` and cannot discriminate, because `openNoteById`
+			// resolved through the same index one synchronous statement earlier; deleting it is
+			// a build error (measured: TS2345), not a behaviour change.
+			//
+			// Every other uncovered position in the six files this wave touched is INHERITED,
+			// attributed one at a time with `git log -L <line>,<line>:<file>` rather than by
+			// reading a filename filter: three in `ReversibleAssetDesignCommands.ts` (two from
+			// the background task, one from the undo pre-flight) and two in
+			// `DesignerInspector.vue` (from the inspector task). The file list came from
+			// `git diff --name-only origin/main...HEAD -- src/`, per the entry above.
+			//
+			// **PR 43's two remaining review findings (2026-09-02):** 99.39 / 98.31 / 99.07 / 99.54.
+			// NOTHING RATCHETS. Functions headroom is 1 unit and branches 11 — branches recovered
+			// the unit the wave before it spent, six covered arms arriving with six total. These
+			// two fixes added NO uncovered position: the only two in the nine files they touched
+			// are inherited (`AssetGeometryStore.ts`'s malformed-sidecar `catch` from the derived-
+			// filename task, `DesignerCanvas.vue`'s empty-bounds arm from the layers task), each
+			// attributed with `git log -L <line>,<line>:<file>`.
+			//
+			// **The follow-up the key itself produced (2026-09-02):** 99.39 / 98.31 / 99.07 / 99.54.
+			// NOTHING RATCHETS; branches headroom 12, functions 1. Watching `{kind, page, path}`
+			// fixed a redundant decode and removed the accidental repair identity-watching had
+			// given a CHANGED file, so the key carries the file's `mtime:size` too — reported by
+			// a review bot on the push that shipped the key, which is the shortest round trip
+			// between a fix and its own consequence this branch has had.
+			//
+			// **The mapping's own three follow-ups (2026-09-02):** 99.39 / 98.31 / 99.07 / 99.54.
+			// NOTHING RATCHETS; branches headroom 12, functions 1. Making an asset's sidecar path
+			// index-backed created three ways to lose the mapping — both note-upsert doors and the
+			// delete's own lookup — each reported by a review bot on the push that shipped it. No
+			// new uncovered position; every one in the files touched is inherited.
+			// **PR 43's four review findings, second wave (2026-09-02):** 99.39 / 98.31 / 99.07 /
+			// 99.54. NOTHING RATCHETS — every figure rounds down to the floor already in force.
+			// Branches headroom 12 covered arms, functions 1, which is where both have sat since the
+			// wave before this one.
+			//
+			// The file list came from `git diff --name-only d9478028 HEAD -- src/` plus
+			// `git status --short -- src/`, never a filename filter, per the entry three paragraphs
+			// above that records what a hand-written one over- and under-matches. Nineteen files, and
+			// FOURTEEN of them measure 100% of all four.
+			//
+			// **This wave added ONE uncovered position and it was covered rather than attributed.**
+			// `vaultFileChanges.ts`'s `create` callback: the unit case fired `modify`, `delete` and
+			// `rename` and took `create` on trust from the registration case beside it — which proves
+			// a listener was registered and says nothing about what its callback does. Found by
+			// reading `coverage-final.json` per changed file, which is the instrument that can see one
+			// arm; the summary moved by 0.03pp and could not. That whole directory is 100% now.
+			//
+			// The five uncovered positions left in the files this wave touched are INHERITED, each
+			// attributed with `git log -L <line>,<line>:<file>` rather than assumed:
+			// `CalibrateAsset.ts`'s `shape === null` arm in `documentFinite` (7eb83f9e, Task B6),
+			// `AssetGeometryStore.ts`'s malformed-sidecar `catch` (0ff672f7, the derived-filename
+			// task, already named in an entry above), `AssetDesignerRoot.vue`'s `dialogs.current`
+			// re-entry guard (d672c3c8, the inspector task), `DesignerCanvas.vue`'s empty-bounds arm
+			// (e6c4ded0, the layers task) and `PlanEditorView.ts`'s `mountedPlanId === null` rebind
+			// arm (335a6dc9, design slice 16's root-swap work).
+			//
+			// **A note about the RUN rather than the numbers, because it cost three attempts.** Two
+			// serial coverage runs failed on a `warmUpEslint` hook timing out — a DIFFERENT
+			// `tests/build/` file each time (`notice-text-boundary`, then
+			// `language-resolution-boundary`), each passing in isolation. Serial is not the remedy for
+			// that contention and is arguably its cause: this file's own paragraph on the twelve
+			// ESLint-booting files records ~30s per boot under default parallelism against ~60s
+			// serial, against a 60s budget. Measured here on the whole suite: **103s parallel against
+			// 825s serial**, and the parallel run passed all 342 files. A failing `beforeAll` in that
+			// directory is a question about the machine before it is a question about the diff, and
+			// running SERIALLY to answer it can be what produces it.
+			//
+			// **THE MERGE OF THE TWO INCREMENTS ABOVE (2026-09-02), measured on the merged tree:**
+			// 7823/7873 statements, 4042/4113 branches, 2069/2088 functions, 6898/6929 lines —
+			// 99.36 / 98.27 / 99.09 / 99.55. **NOTHING RATCHETS**: rounded down these are
+			// 99 / 98 / 99 / 99, exactly the floors already in force, which now makes it ten
+			// increments in a row.
+			//
+			// **This entry exists because NEITHER of the two above measures this tree**, which is
+			// the same defect the triage table in `docs/tests/suites/Smoke Test the Editor.md`
+			// records at this same merge: each branch measured a tree without the other's code in
+			// it, both were correct on the day, and the merge made both stale at once. A ledger
+			// entry is a fact about the commit that wrote it and about nothing after it.
+			//
+			// The headroom, in UNITS, with the arithmetic written out: statements need
+			// `ceil(0.99 × 7873) = 7795` covered and 7823 are (**28**); branches need
+			// `ceil(0.98 × 4113) = 4031` against 4042 (**11**); functions need
+			// `ceil(0.99 × 2088) = 2068` against 2069 (**1**); lines need
+			// `ceil(0.99 × 6929) = 6860` against 6898 (**38**). **FUNCTIONS is still ONE**, which
+			// is where it has sat since slice 19 — the merge of two increments each measuring 1
+			// did not buy a second, and the next untested callback anywhere in `src/` fails this
+			// gate outright.
+			//
+			// The merge itself added NO uncovered position. What it changed in `src/` is wiring
+			// the compiler and the lint budgets forced: `overrides` folded into
+			// `repositoryComposition.ts`, the price and design guarded bundles both spread into
+			// `PersistenceServices`, `ObsidianAssetPriceOverrideRepository.delete` moved to the
+			// `NoteDeleteSpec` signature the designer branch gave `trashNoteBackedEntity`,
+			// `AssetGeometryStore` following `checkExpectedVersion` to
+			// `application/ports/versioning.ts`, and TWO extractions —
+			// `src/plugin/guardedAssetPrice.ts` and `src/plugin/assetDesignerDeps.ts` — because
+			// both branches added to `guardedServices.ts` and `composition-root.ts` and the
+			// merged tree measured 427 and 428 counted lines against a 400 cap. Every one is a
+			// move or a call-shape change over code both branches already covered.
 			thresholds: {
 				statements: 99,
 				functions: 99,

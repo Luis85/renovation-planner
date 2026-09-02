@@ -4,7 +4,7 @@ import { err, ok, type Result } from '../../core/result/Result';
 import type { Logger } from '../../application/ports/Logger';
 import type { ProjectIndex } from '../../application/ports/ProjectIndex';
 import { foldersOverlap } from '../../infrastructure/obsidian/repositories/foldersOverlap';
-import { joinFolder, normalizeFolder, parentOf } from '../../infrastructure/obsidian/repositories/paths';
+import { joinFolder, libraryGeometryFolderFor, normalizeFolder, parentOf } from '../../infrastructure/obsidian/repositories/paths';
 
 /**
  * Everything a `libraryFolder` change needs, and the reason it is a MIGRATION rather than
@@ -29,6 +29,18 @@ export interface LibraryMigrationDeps {
 	 */
 	vaultFolders(): readonly string[];
 	catalogueNotes(from: string): readonly TFile[];
+	/**
+	 * The library's own asset geometry sidecars (ADR-0014), which move WITH the catalogue
+	 * and never in a migration of their own.
+	 *
+	 * A second dep rather than folding these into `catalogueNotes`, because the two are
+	 * found by different questions and only one of them can be asked of the index: a
+	 * catalogue note is whatever the index knows as a `renovation-asset`, while a `.rpgeo`
+	 * carries no frontmatter and is in no index at all — `getGeometrySidecarPath` maps a
+	 * PLAN id, and both index doors skip a sidecar whose basename names no indexed plan. So
+	 * this one is answered from the layout ADR-0014 fixes, by `libraryGeometryIn`.
+	 */
+	geometrySidecars(from: string): readonly TFile[];
 	ensureFolder(path: string): Promise<void>;
 	/**
 	 * A MOVE, never a create-and-delete: Obsidian rewrites the vault's links for a rename
@@ -154,6 +166,33 @@ export async function migrateLibraryFolder(
 		});
 	}
 
+	// 2a. The SOURCE being the vault root, ahead of the generic overlap guard below, because
+	// that guard reports the wrong END for it.
+	//
+	// `normalizeFolder` reduces a hand-edited `libraryFolder` of `/` to `''` (`folderFrom`
+	// keeps `'/'`, since it is non-empty after trimming), and the root contains every folder
+	// there is — so `foldersOverlap(destination, '')` is true for every destination a user
+	// could pick, and its sentence, "That folder overlaps the current library folder", blames
+	// the folder they just chose. They pick another, are refused again, and nothing names the
+	// state. The overlap guard is right about the FACT and wrong about the subject; this says
+	// which end is broken.
+	//
+	// **It is a refusal rather than a carve-out, and the reason is a second defect it stands
+	// in front of.** Step 4 derives a note's new path as `note.path.slice(source.length + 1)`,
+	// which with an empty source strips the first CHARACTER: `Assets/Tiles.md` would be
+	// relocated to `<destination>/ssets/Tiles.md` — measured, not reasoned. And the retry
+	// hazard the guard below describes is at its worst here, since every destination is
+	// inside the root. Making a root library movable is those two things plus an idempotent
+	// enumeration, and it is written up as a residual in this increment's plan rather than
+	// taken as a review-round line.
+	if (source === '') {
+		return err({
+			category: 'Validation',
+			code: 'settings.library-source-is-vault-root',
+			message: 'The library folder is the vault root, which cannot be moved from here.',
+		});
+	}
+
 	// 2. Validate against the SOURCE, before any project folder, because this is the one
 	// overlap that makes the move itself incoherent rather than merely ill-placed.
 	//
@@ -190,8 +229,21 @@ export async function migrateLibraryFolder(
 	}
 
 	// 4. Move, so the vault's links survive.
+	//
+	// Notes and asset geometry in ONE loop and one `moved` ledger, because they are one
+	// move: ADR-0014 puts an asset's sidecar under `<libraryFolder>/Geometry/`, so a
+	// catalogue that relocated without its geometry would leave every designed shape reading
+	// as `shape: null` — `AssetGeometryStore` answers an absent sidecar as a shapeless asset
+	// rather than as an error, which is what makes that particular loss SILENT. Sharing the
+	// loop is also what makes a sidecar failure refuse the whole migration on exactly the
+	// terms a note failure already does: partial, uncompensated, and not persisted.
+	//
+	// Notes FIRST and sidecars after, which is the order the enumeration produces and worth
+	// stating rather than leaving to it: neither half is recoverable from the other, so what
+	// the order buys is only that the diagnostic's `moved` count reads in the order a reader
+	// would reconstruct the folder in.
 	const moved: string[] = [];
-	for (const note of deps.catalogueNotes(source)) {
+	for (const note of [...deps.catalogueNotes(source), ...deps.geometrySidecars(source)]) {
 		// The path RELATIVE to the old root, never `note.name`. A catalogue note lives at
 		// `<library>/Assets/Tiles.md`, so its leaf name alone would flatten it to
 		// `<destination>/Tiles.md` — losing the layout `assetsFolderFor(libraryFolder)`
@@ -372,4 +424,76 @@ export function catalogueNotesIn(
 	);
 	const root = `${normalizeFolder(folder)}/`;
 	return files.filter((file) => catalogue.has(file.path) && file.path.startsWith(root));
+}
+
+/**
+ * WHICH `.rpgeo` FILES ARE THE LIBRARY'S — the sidecars of the CATALOGUE's own assets,
+ * sitting as direct children of the library's `Geometry/` folder.
+ *
+ * Deliberately not "every `.rpgeo` under the source", which is the prefix premise
+ * `catalogueNotesIn` above records four separate findings against. §83 forbids a project
+ * folder inside the library and Tasks 8 and 9 exist to MARK that state rather than to refuse
+ * it, so a project at `Renovation/Library/Kitchen` is legal today — and its PLAN sidecars sit
+ * at `Renovation/Library/Kitchen/Geometry/plan-x.rpgeo`. Sweeping those would move a
+ * project's geometry with a catalogue it has nothing to do with, and leave every plan on it
+ * with an index mapping pointing at a file that is no longer there.
+ *
+ * **The id PREFIX was the third test and it was the wrong question, which is
+ * `catalogueNotesIn`'s own recorded lesson arriving one function later.** `asset-` is a fact
+ * about how `createEntityId` MINTS an id, and `entityRefOf` enforces nothing of the sort — a
+ * hand-authored note carrying `id: cabinet-1` is indexed, readable and designable, and
+ * `assetSidecarPathFor` names its sidecar after that whole id. So every library move took the
+ * note and left the geometry, persisted the new folder, and the designed asset read back as
+ * shapeless. Four fixes had each refined a prefix match; a fix that keeps needing another fix
+ * is answering the wrong question.
+ *
+ * So the third test asks the INDEX, exactly as its sibling does: a `.rpgeo` whose basename is
+ * the id of a `renovation-asset` entry. That separates an asset's sidecar from a co-located
+ * project's plan sidecars MORE exactly than the prefix did — it rests on what the catalogue
+ * holds rather than on a spelling convention — and it is the same authority SDD §47 makes the
+ * single answer to "where is entity X".
+ *
+ * Three tests, and each is load-bearing:
+ *
+ * - **A direct child of `<libraryFolder>/Geometry/`**, so a nested project's own `Geometry/`
+ *   is out of reach whatever it contains.
+ * - **`.rpgeo`**, so a README a user filed there is not ours to relocate.
+ * - **A catalogue id**, which is what makes a project whose folder IS the library folder
+ *   safe: that project contributes no extra segment, so its `plan-*.rpgeo` are direct
+ *   children here and the depth rule alone cannot see them. Reachable without any command
+ *   refusing it — §83's guards cover project CREATION and this migration's DESTINATION, and
+ *   neither compares the SOURCE against a project folder, while ADR-0013 derives a project's
+ *   folder from where its `Project.md` sits.
+ *
+ * **What it deliberately leaves behind**: a sidecar whose asset note is in no index. That is
+ * an orphan rather than the catalogue's, and moving it to the new library is how it would
+ * stop looking like one. Stated because the prefix version DID move it, so this is a
+ * narrowing with a reason and not an oversight.
+ *
+ * It takes the persistence stack rather than the index for the reason `catalogueNotesIn` and
+ * `projectFolderPaths` both state: a session with settings unrecovered composes no
+ * persistence at all, so the arm is asked HERE instead of being spelled as an `?.` at the
+ * call site.
+ *
+ * CASE-SENSITIVE and at the segment boundary, matching `catalogueNotesIn` exactly: for an
+ * ENUMERATION that decides what MOVES, over-selecting is the unsafe direction.
+ */
+export function libraryGeometryIn(
+	persistence: { index: ProjectIndex } | null,
+	files: readonly TFile[],
+	folder: string,
+): TFile[] {
+	if (persistence === null) return [];
+	const assetIds = new Set(
+		persistence.index
+			.entries()
+			.filter((entry) => entry.type === 'renovation-asset')
+			.map((entry) => String(entry.id)),
+	);
+	const root = `${libraryGeometryFolderFor(folder)}/`;
+	return files.filter((file) => {
+		if (!file.path.startsWith(root) || !file.path.endsWith('.rpgeo')) return false;
+		const name = file.path.slice(root.length);
+		return !name.includes('/') && assetIds.has(name.slice(0, -'.rpgeo'.length));
+	});
 }

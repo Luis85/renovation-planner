@@ -103,9 +103,12 @@ import { flushPromises } from '@vue/test-utils';
 import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
+import { mountAssetDesignerHarness } from './assetDesigner';
 import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
+import { installCanvas } from '../helpers/canvas';
+import { installResizeObserver } from '../helpers/layout';
 import { defaultRenovationProjectDeps, makeView } from '../helpers/makeRenovationProjectView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
 import { err, ok } from '../../src/core/result/Result';
@@ -626,6 +629,41 @@ describe('axe against the mounted view', () => {
 		} finally {
 			mounted?.unmount();
 		}
+	});
+
+	/**
+	 * The asset designer (Task B10, ADR-0015) — its `noBackground` empty state, the one this
+	 * task exists to grade. Mounted through `mountAssetDesignerHarness`, the SAME function
+	 * `?view=asset-designer` mounts for a screenshot, so a semantics check and a photograph of
+	 * this surface agree on what "the mounted designer" means, for the reason every other case
+	 * in this file gives: a fixture typed here would grade markup nobody keeps in sync with it.
+	 *
+	 * `installCanvas`/`installResizeObserver` are what `mountPlanEditor` installs internally for
+	 * its own axe case below — Konva constructs a `Context` unconditionally and throws without a
+	 * real canvas behind jsdom's, and `EditorSurface.vue` (shared by both editing surfaces)
+	 * constructs a `ResizeObserver` jsdom does not implement at all. `mountAssetDesignerHarness`
+	 * itself installs neither: it is also what `?view=asset-designer` bundles for a real browser,
+	 * where both already exist natively, so a jsdom-only dependency has no business inside it.
+	 *
+	 * `flushPromises()` before scanning, for the reason every case above states: `onOpen` mounts
+	 * synchronously but `AssetDesignerRoot`'s `onMounted` kicks off `runtime.hydrate()`, which
+	 * resolves the design query a microtask later — a scan taken early finds Vue's
+	 * `<!--v-if-->` placeholders rather than the empty state, and the presence assertions sit
+	 * ABOVE `axe.run` so a regression that reopens that gap fails at the assertion rather than
+	 * passing on a scan of nothing.
+	 */
+	it('reports no semantic violations on the asset designer', async () => {
+		installCanvas();
+		installResizeObserver();
+		const { view } = mountAssetDesignerHarness(document.body);
+		await flushPromises();
+
+		expect(view.contentEl.querySelector('.rp-empty-state')).not.toBeNull();
+		expect(view.contentEl.querySelector('.rp-empty-state__action')).not.toBeNull();
+
+		const results = await axe.run(view.contentEl, runOptions);
+
+		expect(results.violations).toEqual([]);
 	});
 
 	/**

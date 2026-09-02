@@ -25,12 +25,36 @@ export interface MoveSpatialObjectInput {
 	readonly expected?: EntityVersion;
 }
 
+/**
+ * What this command reports: the zone as saved, plus the version its own load FOUND.
+ *
+ * **`before` exists so a caller can tell "this history wrote it last" from "somebody else
+ * did", and the caller that needs it has no read of its own.** `ReversibleMoveZoneCommand`
+ * captures its inverse polygon from the render state at drag start and never opens the
+ * repository, so the reading this command already takes is the only one available to it — and
+ * without it, a foreign write sandwiched between two move gestures is invisible: the second
+ * gesture writes past it last-writer-wins, its undo advances the shared `WriteLedger` to a
+ * version the store really holds, and the first gesture's undo then matches that tip and
+ * restores a pre-peer polygon over the peer's edit with no refusal anywhere.
+ *
+ * ADDITIVE rather than a replacement: every existing caller reads `.zone` and is untouched.
+ * The alternative was giving the adapter a `ZoneRepository` and a pre-read of its own, which
+ * costs a second read of a note this command has already read, a sixth constructor parameter
+ * against a `max-params` of five, and a reading taken at a different instant from the one the
+ * write is conditioned on.
+ */
+export interface MoveSpatialObjectResult {
+	readonly zone: Loaded<Zone>;
+	/** The version this command's own load returned, BEFORE its write. */
+	readonly before: EntityVersion;
+}
+
 export class MoveSpatialObjectCommand
 	implements
 		Command<
 			MoveSpatialObjectInput,
 			Result<
-				{ zone: Loaded<Zone> },
+				MoveSpatialObjectResult,
 				ReferenceError | GeometryError | RepositoryError
 			>
 		>
@@ -49,7 +73,7 @@ export class MoveSpatialObjectCommand
 	// `execute`; what it cost here is a caller unable to name the error type at all.
 	async execute(
 		input: MoveSpatialObjectInput,
-	): Promise<Result<{ zone: Loaded<Zone> }, ReferenceError | GeometryError | RepositoryError>> {
+	): Promise<Result<MoveSpatialObjectResult, ReferenceError | GeometryError | RepositoryError>> {
 		const loaded = await loadZone(this.zones, input.zoneId);
 		if (isErr(loaded)) {
 			return loaded;
@@ -70,6 +94,6 @@ export class MoveSpatialObjectCommand
 				projectId: saved.value.entity.projectId,
 			}),
 		);
-		return ok({ zone: saved.value });
+		return ok({ zone: saved.value, before: loaded.value.version });
 	}
 }

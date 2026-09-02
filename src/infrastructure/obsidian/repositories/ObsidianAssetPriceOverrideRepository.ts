@@ -125,7 +125,12 @@ export class ObsidianAssetPriceOverrideRepository implements AssetPriceOverrideR
 
 	delete(id: AssetPriceOverrideId, expected: EntityVersion): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`asset-price:${id}`, () =>
-			trashNoteBackedEntity(this.deps, 'asset-price', id, 'asset-price.delete-failed', expected),
+			// `expected` before the spec, and the code inside it: the delete signature grew a
+			// `NoteDeleteSpec` on the asset-designer branch so a kind with a SECOND file can
+			// compensate. A price override has no second file, so it passes the code alone.
+			trashNoteBackedEntity(this.deps, 'asset-price', id, expected, {
+				deleteFailedCode: 'asset-price.delete-failed',
+			}),
 		);
 	}
 

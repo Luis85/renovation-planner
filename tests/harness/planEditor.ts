@@ -216,6 +216,10 @@ export function harnessDeps(): PlanEditorDeps {
 		onCatalogueChanged: () => () => undefined,
 		onProjectPricesChanged: () => () => undefined,
 		onRequirementFiguresChanged: () => () => undefined,
+		// Inert for the reason the doors above are: the browser harness has no Obsidian and
+		// therefore no vault to raise a file event, and its background is a fixture rather than a
+		// file. §55 is why this page refuses a background outright.
+		onVaultFileChanged: () => () => undefined,
 	};
 }
 

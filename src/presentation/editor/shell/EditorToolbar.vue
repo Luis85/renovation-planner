@@ -10,7 +10,7 @@
  * flags are the shared ones.
  *
  * Camera mode (`null`) is what slice 5 shipped: drag pans. It is a toolbar STATE here
- * rather than an `EditorTool`, for the reason `PlanCanvas.vue` states — the camera is
+ * rather than an `EditorTool`, for the reason `EditorSurface.vue` states — the camera is
  * ephemeral UI, never a command.
  */
 import { useEditorRuntime } from '../runtime';

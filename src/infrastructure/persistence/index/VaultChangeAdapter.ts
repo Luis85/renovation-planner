@@ -2,11 +2,14 @@ import { TFile, type MetadataCache, type TFile as TFileType, type Vault } from '
 import type { Logger } from '../../../application/ports/Logger';
 import type { ProjectIndex, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type { EventBus } from '../../../core/events/EventBus';
-import { projectIndexEntryChanged } from '../../../application/events/projectIndex.events';
-import { entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
+import {
+	geometrySidecarChanged,
+	projectIndexEntryChanged,
+} from '../../../application/events/projectIndex.events';
+import { derivedPlanSidecarPath, entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
-import { frontmatterOf } from '../../obsidian/repositories/noteIo';
+import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo';
 
 /**
  * The vault-change pipeline (SDD §46): Obsidian's create/modify/rename/delete events,
@@ -126,6 +129,11 @@ export class VaultChangeAdapter {
 
 		const ref = entityRefOf(frontmatter);
 		if (ref.kind !== 'ours') {
+			// The narrowing above is `!== 'ours'`, so a NEW arm of `EntityRef` reaches here and
+			// is excluded correctly with no diagnostic and no compile error — measured when
+			// `bad-id` briefly existed: adding it failed the build at the scan and said nothing
+			// here. The scan's branches are compiler-enforced; this door's are not, so a third
+			// excluded kind must be spelled out rather than left to a default.
 			if (ref.kind === 'no-id') {
 				this.deps.logger.warn('persistence.pipeline.note-excluded', {
 					path,
@@ -144,6 +152,25 @@ export class VaultChangeAdapter {
 		// wrote there. Equal means our own write echoed back through Obsidian's events.
 		if (this.deps.echo.matches(path, observeFrontmatter(frontmatter))) return;
 
+		// The note is still ours and has become a DIFFERENT entity — a hand-edited `id`. Without
+		// this, the upsert below adds the new id and the old one's entry goes on pointing at
+		// this same file, so every read that resolves through the index served this note under
+		// an id it no longer declares. `existing` is found by PATH, which is what makes the
+		// comparison possible here and impossible inside `applyUpsert` (that one displaces by
+		// ID, for the different case of one id changing TYPE).
+		//
+		// The `!== 'ours'` arm above has removed such an entry since this pipeline was written;
+		// the case it does not cover is a note that stayed ours. `echo.forget` is deliberately
+		// NOT called with it — that arm forgets because the path stops being one of ours, and
+		// this one is about to re-index the very same path.
+		//
+		// It is the SECOND remedy, never a substitute for `noteIdMismatch` at the read door:
+		// this fires one vault event late, not at all for an edit made while Obsidian is
+		// closed, and only the read guard fails closed. What it buys is that the refusal is
+		// transient — once the pipeline has seen the edit, the old id is absent rather than
+		// refusing for the life of the session.
+		if (existing && existing.id !== ref.id) this.applyRemove(existing);
+
 		this.warnOnDuplicateId(ref.id, path);
 
 		this.applyUpsert({
@@ -152,22 +179,22 @@ export class VaultChangeAdapter {
 			path,
 			projectId: stringField(frontmatter['project']) as ProjectIndexEntry['projectId'],
 			planId: stringField(frontmatter['plan']) as ProjectIndexEntry['planId'],
-			// Preserve a sidecar mapping an out-of-band note edit cannot have moved —
-			// the sidecar path lives only here and in the Plan repository's writers.
-			geometrySidecarPath:
-				ref.type === 'renovation-plan'
-					? (existing?.geometrySidecarPath ?? this.deps.index.getGeometrySidecarPath(ref.id as never))
-					: undefined,
+			// Preserve a sidecar mapping an out-of-band note edit cannot have moved — the sidecar
+			// path lives only in this index and in the writers that record it. ASSETS as well as
+			// plans since asset paths became index-backed: this door used to answer `undefined`
+			// for everything but a plan, so one synced or hand-edited asset note dropped the
+			// mapping and the asset went shapeless.
+			geometrySidecarPath: existing?.geometrySidecarPath ?? this.deps.index.getGeometrySidecarPath(ref.id as ProjectIndexEntry['id']),
 		});
 	}
 
 	private processSidecar(path: string): void {
-		// The plan id is the sidecar's basename (ADR-011), which is what `joinSidecars`
-		// reads too. It used to be recovered by slicing a configured prefix off the front,
-		// and that is the same bound the scan just lost: a sidecar under a second root
-		// answered no plan at all.
-		const planId = path.slice(path.lastIndexOf('/') + 1).replace(/\.rpgeo$/, '');
-		const planEntry = this.findByPath(this.deps.index.getPath(planId as never) ?? '');
+		// The entity id is the sidecar's basename (ADR-011 for a plan, ADR-0014 for an asset),
+		// which is what `joinSidecars` reads too. It used to be recovered by slicing a
+		// configured prefix off the front, and that is the same bound the scan just lost: a
+		// sidecar under a second root answered no plan at all.
+		const entityId = path.slice(path.lastIndexOf('/') + 1).replace(/\.rpgeo$/, '');
+		const entry = this.findByPath(this.deps.index.getPath(entityId as never) ?? '');
 
 		// A sidecar DELETED out of band (file explorer, sync) clears the mapping instead
 		// of re-affirming a path that no longer exists — leaving it would break every
@@ -177,9 +204,22 @@ export class VaultChangeAdapter {
 		const file = this.deps.vault.getAbstractFileByPath(path);
 		if (!(file instanceof TFile)) {
 			this.deps.echo.forget(path);
-			if (planEntry?.geometrySidecarPath === path) {
-				this.applyUpsert({ ...planEntry, geometrySidecarPath: undefined });
+			if (entry?.geometrySidecarPath === path) {
+				this.applyUpsert({ ...entry, geometrySidecarPath: undefined });
 			}
+			// AFTER the mapping is settled, so a subscriber's re-read sees the index this event
+			// is telling it about rather than the one it is replacing.
+			//
+			// **Deliberately NOT behind the echo check below, and that is a measurement rather
+			// than an oversight.** Both sidecar stores call `echo.forget` on their own delete, so
+			// by the time a plugin-owned delete reaches this door the window has usually let go
+			// of the path already — and "usually" is the whole problem: `trashFile` is awaited, so
+			// Obsidian may raise the event before that line runs. An echo test here would decide
+			// nondeterministically, which reads as protection and is not. So a delete this plugin
+			// made announces too, and costs the leaf one redundant re-read beside the domain event
+			// its command published. The alternative — silence — is a sidecar deleted out of band
+			// reaching nobody, which is the defect this event exists for.
+			this.announceSidecar(entry);
 			return;
 		}
 
@@ -191,18 +231,60 @@ export class VaultChangeAdapter {
 		// working perfectly. The writer owns the mapping in that case, so there is nothing
 		// here to do and nothing to say.
 		//
-		// COARSER than the note path's check, and the sentence has to admit it: notes
-		// compare a digest of what is on disk against what was written, while this asks only
-		// whether this plugin has written here at all — computing a sidecar's digest means
-		// READING the file, and this pipeline is synchronous. What the coarseness costs is
-		// one idempotent `upsert` skipped when someone edits a sidecar we wrote earlier in
-		// the session; the mapping it would have re-affirmed is already the one it holds.
-		if (this.deps.echo.knows(path)) return;
+		// COARSER than the note path's check, and the sentence has to say exactly how: notes
+		// compare a DIGEST of the bytes on disk against the bytes written, while this compares
+		// the file's `mtime:size` against the reading taken immediately after our own write.
+		// Computing a sidecar's digest means READING the file and this pipeline is synchronous,
+		// so `mtime:size` is the whole of what a file states about itself here. What that costs
+		// is `EchoWindow.wroteFile`'s residue: an external write landing within the clock's
+		// granularity of ours AND leaving the byte count alone is taken for our own echo.
+		//
+		// **It used to ask `echo.knows(path)` — "have we written here at all" — and the comment
+		// in this place priced that at one skipped idempotent `upsert`.** That price was honest
+		// while an upsert was the only thing behind the guard, and the announcement below made
+		// it false in the same edit that added it: nothing but a delete forgets a path, so the
+		// first local write silenced every later sync and hand edit of that file for the session
+		// — which is every plan whose zones have been dragged and every asset anyone has
+		// designed. A comment stating what a guard costs is a claim about EVERYTHING behind that
+		// guard, so read this one against the two things now below it before adding a third.
+		//
+		// A path with no recorded stat — one marked by a writer that could not take a reading —
+		// answers `false` and announces. That is the safe direction here: over-announcing costs
+		// the leaf one redundant re-read, under-announcing is the silence above.
+		if (this.deps.echo.wroteFile(path, fileStatToken(file))) return;
 
-		if (!planEntry || planEntry.type !== 'renovation-plan') {
+		// Everything past the echo check is a change this plugin did not make, whoever the
+		// sidecar belongs to — so the announcement goes here, ABOVE the asset return below and
+		// above the plan bookkeeping, rather than being spelled once per branch.
+		this.announceSidecar(entry);
+
+		// An ASSET's sidecar, which this door used to call an orphan. The id lookup above
+		// SUCCEEDS for one — it is a real catalogue entry — so the type test below reported
+		// "no indexed plan carries this id", which is false twice over: an indexed asset
+		// carries it, and nothing about the file is wrong. Every hand move, every sync and
+		// every restore of an asset sidecar produced that line.
+		//
+		// Nothing left to DO, rather than nothing to say — and the two used to be conflated
+		// here, which was the defect: ADR-0014 gives an asset's sidecar one derived home under
+		// `<libraryFolder>/Geometry/`, so this index stores no mapping for it and none can go
+		// stale, but a designer showing that asset still has to hear that its shape moved. The
+		// announcement above is what says so; this return is only about the mapping.
+		//
+		// **The mapping is recorded for an asset too, since the sidecar-mapping increment.** This
+		// door used to return here, and the reason it gave — that an asset's sidecar has one
+		// derived home so no mapping can go stale — was the defect stated as a design: a user
+		// who moved the `.rpgeo` left the asset reading as SHAPELESS, because `pathFor` derived
+		// the old location, and the next design write minted a second file beside the orphan.
+		// ADR-0014 asked for this resolution all along.
+		//
+		// What an asset still cannot answer is which of TWO competing files is the derived one:
+		// that path comes from the `libraryFolder` SETTING and this pipeline is not given it.
+		// `derivedPath: undefined` is that answer, and `sidecarMappingFor` then keeps the
+		// mapping it holds and says so, rather than guessing.
+		if (!entry || (entry.type !== 'renovation-plan' && entry.type !== 'renovation-asset')) {
 			this.deps.logger.warn('persistence.pipeline.sidecar-skipped', {
 				path,
-				reason: 'no indexed plan carries this id',
+				reason: 'no indexed plan or asset carries this id',
 			});
 			return;
 		}
@@ -214,13 +296,16 @@ export class VaultChangeAdapter {
 		// geometry writes into the copy: `sidecarMappingFor` carries the whole argument, and
 		// carries it for the full scan too, so the two doors cannot answer differently.
 		this.applyUpsert({
-			...planEntry,
+			...entry,
 			geometrySidecarPath: sidecarMappingFor({
 				logger: this.deps.logger,
 				event: 'persistence.pipeline.sidecar-duplicate',
-				planEntry,
+				entry,
 				incoming: path,
-				projectPathOf: (projectId) => this.deps.index.getPath(projectId),
+				derivedPath:
+					entry.type === 'renovation-plan'
+						? derivedPlanSidecarPath(entry, (projectId) => this.deps.index.getPath(projectId))
+						: undefined,
 			}),
 		});
 	}
@@ -306,6 +391,26 @@ export class VaultChangeAdapter {
 	 */
 	private announce(id: ProjectIndexEntry['id'], type: ProjectIndexEntry['type']): void {
 		void this.deps.events.publish(projectIndexEntryChanged({ entityId: id, entityType: type }));
+	}
+
+	/**
+	 * The sidecar counterpart of `announce`, and a SEPARATE event rather than a second caller of
+	 * that one — `applyUpsert`/`applyRemove`'s docblock makes a category claim ("every index
+	 * mutation goes through this pair"), and a sidecar change need mutate nothing at all: an
+	 * asset's sidecar has no index mapping to move, so reusing `ProjectIndexEntryChanged` to buy
+	 * a designer its refresh would make that sentence only mostly true.
+	 *
+	 * A sidecar whose basename resolves to no indexed entity announces NOTHING — a stray or
+	 * copied `.rpgeo` names no subject, so there is no leaf it could be about, and publishing
+	 * with an unresolved id would be an event every filter has to reject on the id alone.
+	 *
+	 * Fire-and-forget for the reasons `announce` states, which apply unchanged.
+	 */
+	private announceSidecar(entry: ProjectIndexEntry | undefined): void {
+		if (entry === undefined) return;
+		void this.deps.events.publish(
+			geometrySidecarChanged({ entityId: entry.id, entityType: entry.type }),
+		);
 	}
 
 	private findByPath(path: string): ProjectIndexEntry | undefined {

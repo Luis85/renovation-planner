@@ -15,7 +15,7 @@ import type { ScreenPoint } from './viewport/Viewport';
  *
  * **A predicate, never a cached flag.** The first version of the close target stored the
  * answer on `RenderState` at each `pointermove`. Wheel and keyboard zoom stay live while a
- * drawing tool is active (`PlanCanvas`), so the camera moves under a stationary pointer: the
+ * drawing tool is active (`EditorSurface`), so the camera moves under a stationary pointer: the
  * vertex slides more than the tolerance away while the mark goes on saying a click will
  * close, and the click then places a vertex instead. Asking per render, off a `computed`
  * that reads the viewport, makes that state unrepresentable rather than merely refreshed.

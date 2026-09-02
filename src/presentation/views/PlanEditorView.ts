@@ -69,6 +69,21 @@ export interface PlanEditorDeps {
 	 * delivering the requirement's id so the Inspector can skip a row it is not drawing.
 	 */
 	readonly onRequirementFiguresChanged: (listener: (requirementId: string) => void) => () => void;
+	/**
+	 * "A vault file appeared, changed, moved or went" — every path, unfiltered, so a surface
+	 * drawing a document can notice the document itself moving under it.
+	 *
+	 * A background is a PNG or a PDF the user put in their vault, which puts it outside every
+	 * other change door this bundle carries: `VaultChangeAdapter` reads `.md` and `.rpgeo` and
+	 * drops the rest, and a frontmatter reference does not move when the file it names does. So a
+	 * replaced or deleted sheet went unnoticed for as long as the surface sat idle — the residual
+	 * `BackgroundLayer`'s document key disclosed, and the reason this member is REQUIRED rather
+	 * than optional: a surface that mounts that layer has to answer the question.
+	 *
+	 * Takes NO id, for `onCatalogueChanged`'s reason: there is nothing to filter on here either,
+	 * and the subscriber compares the path against the one it is drawing.
+	 */
+	readonly onVaultFileChanged: (listener: (path: string) => void) => () => void;
 }
 
 /**
@@ -217,11 +232,12 @@ export class PlanEditorView extends ItemView {
 			onPlanChanged: (listener) => this.deps.onPlanChanged(planId, listener),
 			// Passed straight through rather than partially applied: there is no id to bind.
 			onCatalogueChanged: this.deps.onCatalogueChanged,
-			// Passed straight through for the same reason, and for the two below the reason is
-			// the same one more time: neither the price nor the figure door takes an id this
-			// view holds.
+			// Passed straight through for the same reason, and for the three below the reason is
+			// the same one more time: none of the price, figure or vault-file doors takes an id
+			// this view holds.
 			onProjectPricesChanged: this.deps.onProjectPricesChanged,
 			onRequirementFiguresChanged: this.deps.onRequirementFiguresChanged,
+			onVaultFileChanged: this.deps.onVaultFileChanged,
 			// NOT a `PlanEditorDeps` member: the composition root composes services and knows
 			// nothing about which leaf this is. The leaf is the VIEW's, so the view is what can
 			// close it.

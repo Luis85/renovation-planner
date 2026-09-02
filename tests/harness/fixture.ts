@@ -185,7 +185,7 @@ export function seedFixture(): Pinia {
  *
  * `src/presentation/views/PlanEditorView.ts` does three things when it mounts: `createPinia()`,
  * `use(VueKonva)` and **`provide(PLAN_EDITOR_CONTEXT, …)`**. Without the third, every component
- * that calls `usePlanEditorContext()` throws — `PlanEditorRoot`, `BackgroundLayer`, anything
+ * that calls `usePlanEditorContext()` throws — `PlanEditorRoot`, `PlanCanvas`, anything
  * using `useThemeTokens` — so the index would render the named failure for exactly the
  * components a designer most wants to look at, and a prototype composing one would too.
  *
@@ -216,6 +216,8 @@ export function harnessEditorContext(): PlanEditorContext {
 		// declared: this page publishes no domain events at all.
 		onProjectPricesChanged: deps.onProjectPricesChanged,
 		onRequirementFiguresChanged: deps.onRequirementFiguresChanged,
+		// Straight through, like the doors above: no id to bind, and `harnessDeps` says why it is inert.
+		onVaultFileChanged: deps.onVaultFileChanged,
 		// A no-op, and honestly so: the browser harness draws the editor in a page with no
 		// Obsidian and therefore no leaf to close. The action is still RENDERED and pressable —
 		// which is the point of the harness, since a designer looks at the dangling-reference

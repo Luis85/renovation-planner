@@ -16,6 +16,7 @@ import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from './planFixtures';
 export { fakeQueries } from './planFixtures';
 import type { PlanEditorQueryServices } from '../../src/presentation/read-models/planEditorQueries';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
+import { emptyBackgroundVault } from './background';
 import { installCanvas } from './canvas';
 import { installObsidianDom } from './dom';
 import { installResizeObserver, placeAt, resizeTo } from './layout';
@@ -82,6 +83,15 @@ export interface EditorHarness {
 	 * recalculation cascade would. It takes the id because the consumer filters on it.
 	 */
 	readonly changeRequirementFigures: (requirementId: string) => void;
+	/**
+	 * Fire the injected vault-file subscription for one path, as Obsidian's `create`, `modify`,
+	 * `delete` or `rename` would. Its own door and not an alias of `changePlan`: the whole point
+	 * of this source is that a background file moves without the subject being re-read, so a
+	 * fixture that folded the two together could not tell a build that had merged them back.
+	 */
+	readonly changeFile: (path: string) => void;
+	/** How many vault-file listeners are still registered — the unmount leak check. */
+	readonly fileListeners: () => number;
 	/** How many theme listeners are still registered — the unmount leak check. */
 	readonly themeListeners: () => number;
 	/** How many times the tree asked to close this leaf (`PlanEditorContext.closeLeaf`). */
@@ -89,12 +99,6 @@ export interface EditorHarness {
 	readonly unmount: () => void;
 }
 
-/** A vault with nothing in it — enough for a plan whose background is `null`. */
-const EMPTY_VAULT = {
-	getAbstractFileByPath: () => null,
-	getResourcePath: () => '',
-	readBinary: () => Promise.resolve(new ArrayBuffer(0)),
-} as unknown as BackgroundVault;
 
 /**
  * Two ticks, not one. Hydration awaits two query promises before it sets `ready`, and Vue
@@ -195,6 +199,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	const catalogueListeners = new Set<() => void>();
 	const priceListeners = new Set<() => void>();
 	const figureListeners = new Set<(requirementId: string) => void>();
+	const fileListeners = new Set<(path: string) => void>();
 
 	// `plan` is `PlanDto | null | undefined` here: `undefined` means the option was
 	// OMITTED (default to the fixture), `null` means the caller explicitly asked for no
@@ -206,7 +211,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		queries:
 			options.queries ?? fakeQueries(plan, options.zones ?? FIXTURE_ZONES, options.unreadableZones),
 		commands: options.commands ?? unavailablePlanEditorCommands(),
-		vault: options.vault ?? EMPTY_VAULT,
+		vault: options.vault ?? emptyBackgroundVault(),
 		onThemeChange: (listener) => {
 			themeListeners.add(listener);
 			return () => themeListeners.delete(listener);
@@ -223,7 +228,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 			return () => catalogueListeners.delete(listener);
 		},
 		// Their OWN sets too, for the reason above: the price door, the catalogue door and the
-		// figure door fire on different events, and the whole argument for three sources is that
+		// figure door fire on different events, and the whole argument for these sources is that
 		// one of them cannot stand in for another. A fixture that aliased any two could not tell
 		// a build that had merged them back from one that had not.
 		onProjectPricesChanged: (listener) => {
@@ -233,6 +238,12 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		onRequirementFiguresChanged: (listener) => {
 			figureListeners.add(listener);
 			return () => figureListeners.delete(listener);
+		},
+		// Its OWN set again, for the reason the catalogue door gives: this one carries a PATH and
+		// fires for files no domain event ever mentions.
+		onVaultFileChanged: (listener) => {
+			fileListeners.add(listener);
+			return () => fileListeners.delete(listener);
 		},
 		closeLeaf: () => {
 			closedLeaf += 1;
@@ -286,6 +297,10 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		changeRequirementFigures: (requirementId: string) => {
 			for (const listener of figureListeners) listener(requirementId);
 		},
+		changeFile: (path: string) => {
+			for (const listener of fileListeners) listener(path);
+		},
+		fileListeners: () => fileListeners.size,
 		themeListeners: () => themeListeners.size,
 		closedLeaf: () => closedLeaf,
 		unmount: () => {

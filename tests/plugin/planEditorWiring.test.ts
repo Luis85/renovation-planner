@@ -113,6 +113,28 @@ describe('the plan editor dependencies', () => {
 
 		expect(registered).toEqual(['css-change']);
 	});
+
+	/**
+	 * The theme case's sibling, and it earns its place for the reason that one does: the member is
+	 * REQUIRED, so a root that passes nothing fails to build — and a root that passes a FRESH
+	 * no-op compiles, passes every other case here, and leaves both surfaces deaf to the file
+	 * events PR 43's idle-sheet finding is about. The compiler covers the missing argument; only
+	 * this covers the wrong one.
+	 *
+	 * Asserted by the exact set rather than by a count, so an event dropping OUT is as visible as
+	 * one joining: `create` is what makes a dangling reference live again when the file comes
+	 * back, and `rename` is the one that reports two paths.
+	 */
+	it('wires the vault-file subscription to the vault it was given', () => {
+		const root = createCompositionRoot(DEFAULT_SETTINGS, recorder, vaultStack());
+		const registered: string[] = [];
+		const vault = { on: (name: string) => registered.push(name), offref: () => undefined };
+
+		planEditorDeps(root, { on: () => undefined, offref: () => undefined } as never, vault as never)
+			.onVaultFileChanged(() => undefined);
+
+		expect(registered.toSorted()).toEqual(['create', 'delete', 'modify', 'rename']);
+	});
 });
 
 describe('the registered view factory', () => {

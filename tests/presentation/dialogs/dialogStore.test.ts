@@ -87,5 +87,8 @@ describe('cancelResultFor', () => {
 		expect(cancelResultFor('delete-reference')).toEqual({ action: 'cancel' });
 		expect(cancelResultFor('entity-picker')).toBe('cancel');
 		expect(cancelResultFor('form')).toBe('cancel');
+		// `null`, not the string `'cancel'`: `AssetDimensionsDialogResult` carries no such
+		// member for a caller's `result === null` check to read as `undefined`.
+		expect(cancelResultFor('asset-dimensions')).toBe(null);
 	});
 });

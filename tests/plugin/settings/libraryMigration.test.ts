@@ -9,12 +9,14 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TFile } from 'obsidian';
 import {
 	catalogueNotesIn,
+	libraryGeometryIn,
 	libraryDestinations,
 	migrateLibraryFolder,
 	projectFolderPaths,
 	type LibraryMigrationDeps,
 } from '../../../src/plugin/settings/libraryMigration';
 import { isErr, isOk } from '../../../src/core/result/Result';
+import { assetSidecarPathFor } from '../../../src/infrastructure/obsidian/repositories/paths';
 import type { ProjectIndex, ProjectIndexEntry } from '../../../src/application/ports/ProjectIndex';
 import type { EntityId } from '../../../src/core/identity/EntityId';
 
@@ -49,6 +51,13 @@ function harness(overrides: Partial<LibraryMigrationDeps> = {}): Harness {
 		// happens once it is.
 		vaultFolders: () => [SOURCE],
 		catalogueNotes: (from) => [noteAt(`${from}/Assets/Tiles.md`), noteAt(`${from}/Assets/Paint.md`)],
+		/**
+		 * EMPTY by default — a library nobody has designed an asset in yet, which is the
+		 * ordinary state and the one every case written before ADR-0014 was describing. The
+		 * cases that care hand in their own, rather than every existing `order` and `renamed`
+		 * sequence in this file gaining a move it was not written to argue about.
+		 */
+		geometrySidecars: () => [],
 		ensureFolder: (path) => {
 			ensured.push(path);
 			return Promise.resolve();
@@ -465,8 +474,22 @@ it('leaves an asset filed outside the library where it is', async () => {
  * library can never be moved anywhere, which this case also pins. Guarding the enumeration
  * against a folder it cannot receive would be a branch nothing can drive, against a coverage
  * budget of about two.
+ *
+ * **The refusal was arriving under the WRONG CODE, which is what a later round found.** It
+ * fell out of the generic source-overlap guard, whose sentence is *"That folder overlaps the
+ * current library folder"* — a statement about the DESTINATION. The vault root overlaps every
+ * folder there is, so the user was told to pick a different one and refused again, forever,
+ * with nothing naming the actual state. `settings.library-source-is-vault-root` says which
+ * end is wrong, which is the same distinction the source-overlap row in `toUserMessage.test.ts`
+ * already draws against the project-overlap one.
+ *
+ * **And the guard turns out to be load-bearing beyond "moves nothing".** Step 4 computes a
+ * note's new path as `note.path.slice(source.length + 1)`; with `source === ''` that strips
+ * the FIRST CHARACTER, so `Assets/Tiles.md` would be relocated to `<destination>/ssets/Tiles.md`
+ * — measured. Permitting the move is therefore not a one-line carve-out, which is why this
+ * stays a refusal and the fuller remedy is written down as a residual instead.
  */
-it('refuses to move a library configured at the vault root, rather than silently moving nothing', async () => {
+it('refuses to move a library configured at the vault root, naming the source rather than the destination', async () => {
 	const files = [noteAt('Assets/Tiles.md')];
 	const persistence = stackOver([entry('a1', 'renovation-asset', 'Assets/Tiles.md')]);
 	const rig = harness({ catalogueNotes: (from) => catalogueNotesIn(persistence, files, from) });
@@ -474,10 +497,24 @@ it('refuses to move a library configured at the vault root, rather than silently
 	const result = await migrateLibraryFolder(rig.deps, '/', DESTINATION);
 
 	// The refusal, not the no-op: asserted on the CODE, because "moved nothing" is equally
-	// true of the silent success the report describes.
-	expect(isErr(result) && result.error.code).toBe('settings.library-overlaps-source');
+	// true of the silent success the report describes — and on THIS code rather than the
+	// overlap one, because the overlap sentence blames the folder the user just chose.
+	expect(isErr(result) && result.error.code).toBe('settings.library-source-is-vault-root');
 	expect(rig.renamed).toEqual([]);
 	expect(rig.persistedFolder()).toBeUndefined();
+});
+
+/**
+ * The refusal is about the SOURCE, so it must not fire for an ordinary source — otherwise it
+ * would be a rename of the overlap guard rather than a narrowing of it, and every genuine
+ * overlap would start reporting the wrong end.
+ */
+it('still blames the destination when a real source overlaps it', async () => {
+	const rig = harness({});
+
+	const result = await migrateLibraryFolder(rig.deps, SOURCE, `${SOURCE}/New`);
+
+	expect(isErr(result) && result.error.code).toBe('settings.library-overlaps-source');
 });
 
 /**
@@ -558,6 +595,190 @@ it('leaves an asset in a sibling folder differing only in case untouched', async
 	expect(rig.renamed).toEqual([
 		{ from: 'Renovation/Library/Assets/Tiles.md', to: 'Shared/Catalogue/Assets/Tiles.md' },
 	]);
+});
+
+/**
+ * ADR-0014 puts an asset's geometry under `<libraryFolder>/Geometry/`, so the sidecars move
+ * with the catalogue or the setting strands them — and it strands them SILENTLY, because
+ * `AssetGeometryStore` reads an absent sidecar as a shapeless asset rather than as an error.
+ * That is why these two cases exist and why the second one is the important one.
+ */
+describe('the library move takes asset geometry with it', () => {
+	const ASSET_ID = 'asset-01JABC';
+	const sidecarUnder = (folder: string): TFile => noteAt(assetSidecarPathFor(folder, ASSET_ID));
+
+	it('renames each sidecar to exactly where the store will look for it', async () => {
+		const rig = harness({ geometrySidecars: (from) => [sidecarUnder(from)] });
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+		expect(isOk(result)).toBe(true);
+		// Asserted against `assetSidecarPathFor(DESTINATION, …)` rather than against a
+		// hand-spelled string: the claim is not "it moved somewhere under the destination",
+		// it is that the migration and the store agree about one path. A literal here would
+		// go on passing if the store's own derivation changed underneath it.
+		expect(rig.renamed.at(-1)).toEqual({
+			from: assetSidecarPathFor(SOURCE, ASSET_ID),
+			to: assetSidecarPathFor(DESTINATION, ASSET_ID),
+		});
+		expect(rig.order).toEqual(['rebuild', 'move', 'move', 'move', 'rebuild', 'persist']);
+	});
+
+	/**
+	 * Persist LAST, or not at all. Without this the setting lands, the store resolves under
+	 * the new folder, and every designed shape reads as `shape: null` while the files sit
+	 * orphaned under the old path with nothing reporting anything. The recoverable state is
+	 * the one where `data.json` still names the folder the sidecars are actually in.
+	 */
+	it('does not persist the new folder when moving a sidecar fails', async () => {
+		const renamedTo: string[] = [];
+		const rig = harness({
+			geometrySidecars: (from) => [sidecarUnder(from)],
+			renameFile: (file, to) => {
+				if (file.path.endsWith('.rpgeo')) return Promise.reject(new Error('locked'));
+				renamedTo.push(to);
+				return Promise.resolve();
+			},
+		});
+
+		const result = await migrateLibraryFolder(rig.deps, SOURCE, DESTINATION);
+
+		expect(isErr(result) && result.error.code).toBe('settings.library-move-failed');
+		expect(rig.persistedFolder()).toBeUndefined();
+		// The notes really did move first, so this is a PARTIAL move being refused rather
+		// than a migration that never started — which is the case the assertion above would
+		// otherwise pass for either way.
+		expect(renamedTo).toHaveLength(2);
+	});
+});
+
+/**
+ * WHICH `.rpgeo` FILES ARE THE LIBRARY'S. Deliberately not "every `.rpgeo` under the
+ * source", which is the prefix premise `catalogueNotesIn`'s own docblock records four
+ * findings against: §83 grants a project filed inside the library, and that project's plan
+ * sidecars live at `<library>/<project>/Geometry/plan-x.rpgeo`. Moving those would take a
+ * project's geometry with a catalogue it has nothing to do with, and leave every plan on it
+ * unresolvable.
+ *
+ * The rule is therefore DIRECT CHILDREN of the library's own `Geometry/`, which is exactly
+ * the set ADR-0014's layout defines — no deeper, so no nested project folder can be reached,
+ * and `.rpgeo` only, so a file a user dropped in that folder is left alone.
+ */
+/**
+ * Every asset id the cases below name, so the selection is decided by the CATALOGUE rather
+ * than by how an id happens to be spelled. `plan-01ABC` is deliberately absent: a plan's
+ * sidecar is what these cases exist to leave behind.
+ */
+const GEOMETRY_INDEX = stackOver([
+	entry('asset-01JABC', 'renovation-asset', `${SOURCE}/Assets/A.md`),
+	entry('asset-01JOLD', 'renovation-asset', `${SOURCE}/Assets/B.md`),
+	entry('asset-01ABC', 'renovation-asset', `${SOURCE}/Assets/C.md`),
+]);
+
+describe('libraryGeometryIn', () => {
+	it('takes the library\'s own sidecars and not a nested project\'s', () => {
+		const files = [
+			noteAt('Renovation/Library/Geometry/asset-01JABC.rpgeo'),
+			noteAt('Renovation/Library/Kitchen/Geometry/plan-01JXYZ.rpgeo'),
+			noteAt('Renovation/Library/Geometry/Archive/asset-01JOLD.rpgeo'),
+		];
+
+		expect(libraryGeometryIn(GEOMETRY_INDEX, files, SOURCE).map((file) => file.path)).toEqual([
+			'Renovation/Library/Geometry/asset-01JABC.rpgeo',
+		]);
+	});
+
+	it('takes only .rpgeo files, so a note filed in that folder is left where it is', () => {
+		const files = [
+			noteAt('Renovation/Library/Geometry/asset-01JABC.rpgeo'),
+			noteAt('Renovation/Library/Geometry/README.md'),
+		];
+
+		expect(libraryGeometryIn(GEOMETRY_INDEX, files, SOURCE).map((file) => file.path)).toEqual([
+			'Renovation/Library/Geometry/asset-01JABC.rpgeo',
+		]);
+	});
+
+	/** The prefix trap `catalogueNotesIn` already carries: a segment boundary, not a string one. */
+	/**
+	 * A project whose folder IS the library folder, rather than nested inside it.
+	 *
+	 * The depth rule this function is built on separates a nested project's plan sidecars from
+	 * the library's own by one segment — and an IDENTICAL folder contributes none, so
+	 * `<library>/Geometry/plan-*.rpgeo` are direct children and passed every test here. Moving
+	 * the library then relocated a project's plan geometry while leaving the project and its
+	 * note at the source, breaking the folder-scoped layout ADR-011 derives the recovery path
+	 * from.
+	 *
+	 * Reachable without any command refusing it: §83's guards cover project CREATION and the
+	 * migration's DESTINATION, and neither compares the SOURCE against a project folder — while
+	 * ADR-0013 derives a project's folder from where its `Project.md` sits, so dragging that
+	 * note into the library root produces this state by hand, and slice 19 MARKS an overlap
+	 * rather than refusing it.
+	 *
+	 * The id prefix is what separates them and separates them exactly: `createEntityId` mints
+	 * `<prefix>-<ULID>`, `assetSidecarPathFor` names the file after the whole asset id, and the
+	 * two prefixes are `asset` and `plan`.
+	 */
+	it('takes the library\'s asset sidecars and not a co-located project\'s plan sidecars', () => {
+		const files = [
+			noteAt(`${SOURCE}/Geometry/asset-01ABC.rpgeo`),
+			noteAt(`${SOURCE}/Geometry/plan-01ABC.rpgeo`),
+		];
+
+		expect(libraryGeometryIn(GEOMETRY_INDEX, files, SOURCE).map((file) => file.path)).toEqual([
+			`${SOURCE}/Geometry/asset-01ABC.rpgeo`,
+		]);
+	});
+
+	it('does not reach a folder that merely starts with the library\'s name', () => {
+		const files = [noteAt('Renovation/LibraryOld/Geometry/asset-01JABC.rpgeo')];
+
+		expect(libraryGeometryIn(GEOMETRY_INDEX, files, SOURCE)).toEqual([]);
+	});
+
+	/**
+	 * **The prefix was a PREMISE about how ids are minted, and `entityRefOf` does not enforce
+	 * it.** A hand-authored asset note may carry any non-empty id — `cabinet-1`, say — which
+	 * the index accepts and `assetSidecarPathFor` names the file after, so its sidecar was
+	 * excluded from every library move while its note was included. The setting then persisted
+	 * to the new folder with the geometry left behind at the old one, and the designed asset
+	 * read back as shapeless.
+	 *
+	 * This is `catalogueNotesIn`'s own recorded lesson one function over: *"Four fixes each
+	 * refined the prefix match; the prefix match was the wrong question."* The answer is the
+	 * same answer — ask the INDEX which ids are assets — and it separates an asset's sidecar
+	 * from a co-located project's plan sidecars more exactly than the prefix did, since it
+	 * rests on what the catalogue actually holds rather than on how a generated id is spelled.
+	 */
+	it('takes a sidecar whose asset id was not minted with the generated prefix', () => {
+		const index = stackOver([
+			entry('cabinet-1', 'renovation-asset', `${SOURCE}/Assets/Cabinet.md`),
+		]);
+		const files = [noteAt(`${SOURCE}/Geometry/cabinet-1.rpgeo`)];
+
+		expect(libraryGeometryIn(index, files, SOURCE).map((file) => file.path)).toEqual([
+			`${SOURCE}/Geometry/cabinet-1.rpgeo`,
+		]);
+	});
+
+	/**
+	 * The other half, and the reason this is not simply "every `.rpgeo` here": a sidecar whose
+	 * asset note no longer exists is not the catalogue's, so a move leaves it where it is. That
+	 * is a deliberate narrowing rather than a gap — an orphan is garbage, and relocating garbage
+	 * to the new library is how it stops looking like garbage.
+	 */
+	it('leaves behind a sidecar whose asset is in no index', () => {
+		const files = [noteAt(`${SOURCE}/Geometry/asset-01JGONE.rpgeo`)];
+
+		expect(libraryGeometryIn(stackOver([]), files, SOURCE)).toEqual([]);
+	});
+
+	it('answers nothing at all with settings unrecovered, since there is no index to ask', () => {
+		const files = [noteAt(`${SOURCE}/Geometry/asset-01JABC.rpgeo`)];
+
+		expect(libraryGeometryIn(null, files, SOURCE)).toEqual([]);
+	});
 });
 
 describe('catalogueNotesIn', () => {

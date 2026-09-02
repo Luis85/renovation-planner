@@ -48,6 +48,14 @@ let hostCount = 0;
  * belongs to Obsidian, not to a dialog trapped inside one pane. That boundary is accepted,
  * not a defect.
  *
+ * A THIRD route existed and is closed elsewhere, recorded here because this list is where the
+ * next reader will look for it: the APP blurring a control itself, by making it `:disabled`
+ * while the user is standing on it. There is no mousedown to intercept and focus never leaves
+ * the view, so neither remedy above reaches it. It is held at the source instead — no control
+ * inside an open dialog may be `:disabled` (`FormDialog.vue` states the invariant,
+ * `useDialogFormBusy` makes the replacement real) — and `formBusy.test.ts` drives both of its
+ * producers through this trap.
+ *
  * **This is not an Obsidian `Modal`, so Obsidian's own keymap stays live behind it.** No
  * `Scope` is pushed anywhere in this framework, and `onKeydown` calls `preventDefault()`
  * without `stopPropagation()` — so a key pressed inside the panel also reaches Obsidian's
@@ -64,12 +72,26 @@ import ConfirmDialog from './ConfirmDialog.vue';
 import DeleteReferenceDialog from './DeleteReferenceDialog.vue';
 import EntityPickerDialog from './EntityPickerDialog.vue';
 import FormDialog from './FormDialog.vue';
+import AssetDimensionsDialog from './AssetDimensionsDialog.vue';
 import { cancelResultFor, useDialogStore, type DialogResult } from './dialog-store';
 
 /**
  * What counts as focusable, for the trap's two ends. A named list rather than a general
  * "is this reachable" test: this check sees exactly these spellings, and the alternative —
  * walking computed styles for visibility — cannot work in jsdom, where the trap is tested.
+ *
+ * **It excludes `[disabled]` and deliberately says nothing about `[aria-disabled]`.** An
+ * inoperative control STAYS in the cycle: that is the whole point of this framework's
+ * "`aria-disabled`, never `:disabled`" invariant (`FormDialog.vue`), and it is what APG asks
+ * for — a keyboard or screen-reader user reaches the control and is told it is unavailable,
+ * rather than finding it silently absent. Every inoperative control in the plugin is refused in
+ * its own handler instead: `FormDialog.onCancel` early-returns, and `useDialogFormBusy` reads
+ * these same two spellings off the control to refuse and restore an edit.
+ *
+ * So this string must NOT grow an `:not([aria-disabled="true"])` clause. Doing so would thin
+ * the trap by exactly the controls the invariant exists to keep in it — and in the case that
+ * produced it (`NewAssetForm`'s catalogue freeze, five controls at once) it would empty the
+ * trap of the whole field set while the dialog was still open.
  */
 const FOCUSABLE =
 	'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -83,8 +105,8 @@ const dialogEl = ref<HTMLElement | null>(null);
  * The id `.rp-dialog`'s `aria-labelledby` points at. `++hostCount` reads the module-scoped
  * counter declared in the plain `<script>` block above — see its comment for why that,
  * rather than Web Crypto, is what makes this collision-free across two `createApp()`
- * instances. Every one of the four kind components renders exactly one `.rp-dialog-title`,
- * unconditionally, so this id always resolves to something; a hypothetical fifth kind that
+ * instances. Every one of the five kind components renders exactly one `.rp-dialog-title`,
+ * unconditionally, so this id always resolves to something; a hypothetical sixth kind that
  * omitted the title element would leave `aria-labelledby` pointing at nothing, which is
  * this decision's one unstated assumption.
  */
@@ -118,7 +140,7 @@ let previouslyFocused: HTMLElement | null = null;
  * `backgrounded` is a `Set` so a re-sync cannot double-count an element it already holds.
  * That is the widening this docblock asked for rather than a mechanism beside it — the
  * failure is now unrepresentable instead of merely absent from the toggles somebody
- * enumerated, which is the same trade `PlanCanvas` made over its re-issued pointer move.
+ * enumerated, which is the same trade `EditorSurface` made over its re-issued pointer move.
  *
  * **The one gap left, stated rather than glossed:** a `MutationObserver` callback is a
  * microtask, so a newly inserted sibling is non-`inert` for the tick between its insertion
@@ -228,7 +250,7 @@ function onKeydown(event: KeyboardEvent): void {
 	}
 	if (event.key !== 'Tab') return;
 
-	// `first`/`last` stay `HTMLElement | undefined` — every one of the four kind components
+	// `first`/`last` stay `HTMLElement | undefined` — every one of the five kind components
 	// renders at least one focusable control (a Cancel/Close button, unconditionally;
 	// `dialogKinds.test.ts` proves that per kind), so `focusable` is never actually empty,
 	// but the guard against it is the optional chaining on `first?.focus()`/`last?.focus()`
@@ -370,14 +392,17 @@ onBeforeUnmount(() => {
 			@keydown="onKeydown"
 		>
 			<!--
-				A fifth `kind` fails `npm run build` because `FormDialog` declares
+				A sixth `kind` fails `npm run build` because `FormDialog` declares
 				`descriptor: FormDescriptor`, and `vue-tsc`'s template narrowing rejects binding
 				the residual union `current` still carries after every `v-if`/`v-else-if` above —
 				not because this chain has no explicit `v-else`. Measured by adding a fifth kind
 				and reading what `vue-tsc` reports, which is also how the one hole in it was
-				found: the rejection is STRUCTURAL, so a fifth descriptor that happened to carry
-				a `title` and a `component` would satisfy `FormDescriptor` and render here
-				silently instead. Every kind that is not a form variant is caught.
+				found: the rejection is STRUCTURAL, so a descriptor that happened to carry a
+				`title` and a `component` would satisfy `FormDescriptor` and render here
+				silently instead — which is exactly the shape `AssetDimensionsDescriptor` was
+				kept OUT of (see its own docblock in `dialog-store.ts`), so it gets its own
+				explicit branch rather than becoming the hole this comment already named. Every
+				kind that is not a form variant is caught.
 			-->
 			<ConfirmDialog
 				v-if="current.kind === 'confirm'"
@@ -393,6 +418,12 @@ onBeforeUnmount(() => {
 			/>
 			<EntityPickerDialog
 				v-else-if="current.kind === 'entity-picker'"
+				:descriptor="current"
+				:title-id="titleId"
+				@resolve="resolve"
+			/>
+			<AssetDimensionsDialog
+				v-else-if="current.kind === 'asset-dimensions'"
 				:descriptor="current"
 				:title-id="titleId"
 				@resolve="resolve"

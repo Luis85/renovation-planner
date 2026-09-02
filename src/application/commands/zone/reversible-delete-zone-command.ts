@@ -66,6 +66,23 @@ function nothingToUndo(): ReferenceError {
  * (this slice's post-command decorator) re-reads state instead of listening for events. `'absent'` because undo DELETED the note at this ID: if a note
  * is there now, it is somebody else's, and overwriting it is not an undo.
  *
+ * **This is the one reversible adapter that takes NEITHER half of the `WriteLedger`
+ * generation guard, and the absence is a measurement rather than an oversight** — its four
+ * siblings all take one, so a later reader tidying for uniformity would add it here. The
+ * guard exists for a foreign write SANDWICHED between two of this history's gestures
+ * (`WriteLedger` walks the five steps), and this adapter can be neither end of that
+ * sandwich:
+ *
+ * - not the SECOND gesture, the one whose successful write advances the ledger's tip past a
+ *   peer. Its forward delete presents `ledger.lastWritten`, so a foreign write since our last
+ *   one refuses the delete itself — nothing is written and nothing is recorded;
+ * - not the FIRST gesture, the one whose inverse goes stale. Its restore writes `'absent'`
+ *   and its Requirement restores present the expectations the forward resolution's own result
+ *   reported, so each of them refuses a foreign write on its own terms.
+ *
+ * `reversibleDeleteZone.test.ts`'s last block asserts both, because "it refused" is one word
+ * for two mechanisms and an argument kept only in prose is what goes stale.
+ *
  * Restoring the same ID rather than minting a fresh one relies on `save()` being an
  * ID-keyed upsert — slice 3's port contract, asserted in the shared repository contract
  * suite both persistence implementations run.
@@ -98,11 +115,14 @@ export class ReversibleDeleteZoneCommand {
 		private readonly undoDeps: DeleteZoneUndoDeps,
 	) {}
 
-	// Driven only through the `UndoableCommand` shape at the dispatch site
-	// (`inspector.commit` → `dispatcher.run`), which is invisible to the dead-code tool
-	// that resolves members through declared annotations — the same mark
-	// `ReversibleCalibratePlanCommand` carries for the identical reason. (Slice 8's
-	// review pass made `execute` visible to it again; only undo still needs this.)
+	// This used to carry the same note `execute` does — driven only through the
+	// `UndoableCommand` shape at the dispatch site (`inspector.commit` → `dispatcher.run`),
+	// which the dead-code tool cannot resolve — plus a `fallow-ignore-next-line` mark.
+	// `reversibleDeleteZone.test.ts`'s foreign-write block now constructs this class into an
+	// annotated local and calls `undo()` on it directly, so the tool resolves the member and
+	// reported the SUPPRESSION as stale. Removed rather than worked around: an ignore for an
+	// issue that no longer exists reads on as a live exception, and if the reach goes away
+	// again the gate says so and the next author puts it back.
 	async execute(): Promise<Result<DispatchOutcome, ReferenceError | RepositoryError>> {
 		const found = await this.zones.getById(this.input.zoneId);
 		if (isErr(found)) return found;
@@ -129,7 +149,6 @@ export class ReversibleDeleteZoneCommand {
 		return ok('wrote');
 	}
 
-	// fallow-ignore-next-line unused-class-member
 	async undo(): Promise<Result<DispatchOutcome, RepositoryError | ReferenceError>> {
 		const snapshot = this.snapshot;
 		if (snapshot === null) return err(nothingToUndo());

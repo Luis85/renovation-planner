@@ -1,16 +1,28 @@
 import type { AppError } from '../../core/errors/AppError';
-import { noticeOnlySinks, notifyOperationFailure } from '../notices/notify';
+import { err } from '../../core/result/Result';
+import { faultError, noticeOnlySinks, notifyFault, notifyOperationFailure } from '../notices/notify';
+import type { DispatchResult } from '../../application/commands/DispatchOutcome';
+import type { UndoableCommand } from './tools/undoable-command';
+import type { Logger } from '../../application/ports/Logger';
 import { surfaceError, type SurfaceSinks } from '../errors/surfaceError';
 import { isTechnicalFault } from '../../core/errors/technical-fault';
 import { affectsSaveState } from './save-state/affects-save-state';
 
 /**
- * Where a Plan Editor failure goes once the save indicator has had its chance at it.
+ * Where an editing leaf's failure goes once the save indicator has had its chance at it, and
+ * the three last-stop doors a dispatch that nobody awaits needs.
+ *
+ * TWO of them are for a dispatch bound to a CLICK — `reportDispatchFault` and `notifyIfRefused`,
+ * which the toolbar's undo and redo chain together. The third, `mapDispatchFaults`, is for a
+ * dispatch bound to a GESTURE, which is every tool on both surfaces and which had none at all
+ * until a review round asked what happens when `run(...)` rejects.
  *
  * Extracted from `runtime.ts` so the rule is ONE function with several importers rather than
  * one spelled out at each of them — `CLAUDE.md`'s "one rule with two doors is two rules unless
  * one function holds it", and this rule has already been got wrong at five separate sites in
- * as many review rounds.
+ * as many review rounds. The asset designer is the second surface to dispatch through it, which
+ * is what moved `reportDispatchFault` and `notifyIfRefused` in here beside it: both were
+ * `runtime.ts` locals under docblocks that said "in this leaf", and there are two leaves now.
  *
  * The file is `report-failure` and not `report-refusal`, which is what it was called for one
  * round: a REFUSAL is precisely the thing the function below distinguishes from a fault, so
@@ -73,4 +85,143 @@ export function reportDispatchFailure(error: AppError): void {
 		return;
 	}
 	notifyOperationFailure(error);
+}
+
+/**
+ * The last stop for an UNEXPECTED technical fault on a dispatch (SDD §65 reserves throws
+ * for those; every expected failure is a `Result`). Resolves `null` when one happened, so
+ * a caller can tell "the dispatch reported a refusal" from "the dispatch never got to
+ * report anything".
+ *
+ * It exists because every dispatch in an editing leaf is ultimately bound to a click handler
+ * — `@click="runtime.undo()"`, the Inspector's delete — and a Vue click handler discards the
+ * promise it is handed. Without this, a fault surfaced as a console unhandled rejection and
+ * the UI simply stopped responding to that button, which is the one failure mode worse than
+ * an error message.
+ *
+ * There is no `AppError` to translate here — the throw never reached a guard, or it came from
+ * one of the raw repository PORTS a leaf's bundle still hands out — so `notifyFault` maps it
+ * into the same coded `PersistenceError` a guarded service would have produced, LOGS the raw
+ * cause under the caller's event name, and prints the mapped copy. The exception's own message
+ * never reaches the user, and the developer half is not lost with it: no guard ran below this,
+ * so this is the only step in THIS path where both representations can be produced together
+ * (SDD §66).
+ *
+ * `event` is the CALLER's, because two surfaces dispatch through this and a log line has to
+ * say which door faulted. It is the one thing this function cannot know for itself.
+ */
+export async function reportDispatchFault(
+	logger: Logger,
+	event: string,
+	operation: Promise<DispatchResult>,
+): Promise<DispatchResult | null> {
+	try {
+		return await operation;
+	} catch (cause) {
+		notifyFault(cause, logger, event);
+		return null;
+	}
+}
+
+/**
+ * `reportDispatchFault`'s other half: an EXPECTED refusal that RESOLVES rather than throws
+ * (SDD §65). `CommandHistory.undoNow`/`redoNow` deliberately leave a refused undo/redo ON
+ * its stack rather than popping it, so without this the button stays enabled, does
+ * nothing, and says nothing about why. A caller chains
+ * `notifyIfRefused(reportDispatchFault(logger, event, op))` to cover both halves — throw and
+ * resolved refusal — in one line.
+ *
+ * **Design slice 17 narrowed what happens next, and the narrowing is the point.** Every
+ * dispatch reaching here has already passed through `withSaveStateTracking`, which asks
+ * `affectsSaveState` and flips the save indicator for anything that wrote or might have.
+ * Toasting it as well reported ONE failure through TWO widgets that can drift apart — the
+ * toast dismisses and the indicator does not, or the reverse. `reportDispatchFailure` above is
+ * where that decision is made, once, for both surfaces.
+ */
+export async function notifyIfRefused(operation: Promise<DispatchResult | null>): Promise<void> {
+	const result = await operation;
+	if (result === null || result.ok) return;
+	reportDispatchFailure(result.error);
+}
+
+/**
+ * The phantom brand that makes "this dispatcher's faults have been mapped" a fact a type can
+ * hold, borrowed verbatim from `errorSurfacePolicy.ts`'s `Routed` and for the same reason.
+ *
+ * `declare const` plus `unique symbol`: nothing reads it at runtime and the returned object
+ * carries no extra property, so a test may still compare a dispatcher as plain data.
+ */
+declare const FAULT_MAPPED: unique symbol;
+
+type FaultMapped = { readonly [FAULT_MAPPED]: true };
+
+/**
+ * The door a tool dispatches through — a dispatcher whose `run` is guaranteed to RESOLVE, never
+ * to reject.
+ *
+ * `EditorContextDeps.commandDispatcher` is typed as this, which is the whole mechanism: a
+ * surface cannot assemble an `EditorContext` without having put its dispatcher through
+ * `mapDispatchFaults` first, because nothing outside this module can produce the brand. A THIRD
+ * editing surface therefore inherits the guarantee rather than having to remember it — the
+ * failure this closes is precisely that the two surfaces that exist today each composed their
+ * context by hand and neither wrapped `run`.
+ *
+ * State it narrowly: the type holds that the mapping was APPLIED, never that the `event` name
+ * passed with it is the right one. Two runtimes, two names, and review is the whole instrument
+ * for that half.
+ */
+// `FaultMapped` is UNEXPORTABLE on purpose, and this is the third leak in this repository that
+// must not be "fixed" the way the report suggests: exporting it would let a runtime hand
+// `createEditorContext` a raw `wrapDispatcher` result with the brand asserted onto it, which is
+// the exact composition this type exists to make impossible.
+//
+// "next line" is LITERAL, and the reported line is the one the private type is NAMED on — not
+// this alias's head.
+export type ToolDispatcher =
+	// fallow-ignore-next-line private-type-leak
+	{ run(command: UndoableCommand): Promise<DispatchResult> } & FaultMapped;
+
+/**
+ * The THIRD last-stop door in this file, and the one every canvas gesture goes through.
+ *
+ * `reportDispatchFault` above covers `undo()` and `redo()`, which are bound straight to toolbar
+ * clicks. It never covered `run(...)` — what all five tools across both surfaces call — and
+ * `withStateRefresh`/`withEditorStateRefresh` RE-THROW on rejection by design, while every tool
+ * launches its dispatch detached (`void this.commit(...)`, `void this.dispatch(...)`). So a
+ * vault fault under a drag was an unhandled rejection: nothing told the user, nothing logged the
+ * cause, and the gesture silently did nothing — the one failure mode SDD §66 exists to prevent,
+ * standing in the plan editor since design slices 7 and 8.
+ *
+ * **It MAPS and LOGS, and deliberately does not notify.** `faultError` is the map-once,
+ * log-once half of the fault door; the failed `Result` it returns is then indistinguishable in
+ * SHAPE from a refusal the command produced, which is exactly what lets the five tools go on
+ * inspecting `if (!result.ok)` unchanged and report through the door they already have. That
+ * door is `reportDispatchFailure` above, which asks `isTechnicalFault` FIRST and gives a fault
+ * its own sentence rather than a "Save error" badge with no cause. Notifying here as well would
+ * be the double-report design slice 17 closed.
+ *
+ * **The `Result` is preserved rather than replaced**, which is the property to keep: a tool that
+ * holds a buffer keeps it on a fault exactly as it does on a refusal, because the two arrive on
+ * the same channel and the write may or may not have landed either way.
+ *
+ * The alternative — a `.catch` at each of the five tool call sites — is the shape `runDetached`
+ * and `notifyFault` were both written against: a sixth tool would have to remember a `.catch`
+ * that nothing checks. Here it is one function, and `ToolDispatcher`'s brand makes it one the
+ * compiler will not let a surface skip.
+ */
+export function mapDispatchFaults(
+	dispatcher: { run(command: UndoableCommand): Promise<DispatchResult> },
+	logger: Logger,
+	event: string,
+): ToolDispatcher {
+	const mapped = {
+		run: async (command: UndoableCommand): Promise<DispatchResult> => {
+			try {
+				return await dispatcher.run(command);
+			} catch (cause) {
+				return err(faultError(cause, logger, event));
+			}
+		},
+	};
+	return mapped as ToolDispatcher;
 }

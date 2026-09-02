@@ -58,7 +58,7 @@ describe('mapping an entity to a read model', () => {
 	});
 
 	it('carries a plan CALIBRATION onto the read model', () => {
-		// The field the editor's tool framework reads through `EditorContext.activePlan`.
+		// The field the editor's tool framework reads through `EditorContext.subject`.
 		// It was absent from this DTO, so the runtime handed every tool a hard-coded `null`
 		// — an uncalibrated reading of a calibrated plan, with the type satisfied.
 		const calibration = {

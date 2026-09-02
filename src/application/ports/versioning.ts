@@ -6,8 +6,18 @@ import type { ValidationError } from '../../core/errors/AppError';
  *
  * - `ObservationToken` is opaque above `infrastructure/`: minted by the repository at
  *   read time from what the bytes looked like, threaded to the write that presents it,
- *   never parsed or compared by anything in `application/` or `domain/`. Slice 4 derives
+ *   never PARSED by anything in `application/` or `domain/`. Slice 4 derives
  *   a content digest; an in-memory implementation mints a counter.
+ *
+ *   The sentence used to say "never parsed or compared", and `sameVersion` below is a
+ *   comparison — so the claim is narrowed to the half that is actually load-bearing rather
+ *   than left standing beside a function that breaks it. Nothing above `infrastructure/`
+ *   derives MEANING from a token: the only question asked of one is whether two readings are
+ *   the same reading, which is the whole of what the type promises. Keeping that one
+ *   comparison here, in the module that owns the vocabulary, is what stops a second
+ *   hand-spelled `a.revision === b.revision && a.observed === b.observed` appearing beside
+ *   the next caller that needs it — the drift `WRITE_BOUNDARY_CODES` below already refuses
+ *   for the two codes.
  * - `EntityVersion` carries BOTH halves of the contract. `revision` detects another
  *   plugin writer; `observed` detects a change no plugin made (a hand edit, a sync).
  *   Two comparisons, two distinct error codes, because the recoveries differ.
@@ -48,6 +58,24 @@ export type Expected = EntityVersion | 'absent';
 const REVISION_CONFLICT = 'revision-conflict';
 const EXTERNAL_MODIFICATION = 'external-modification';
 export const WRITE_BOUNDARY_CODES = [REVISION_CONFLICT, EXTERNAL_MODIFICATION] as const;
+
+/**
+ * Are these two readings the same reading? Both halves, because they answer different
+ * questions and a comparison of one is silent about the other: `revision` moves when a
+ * plugin writes, `observed` when anything else does. `checkExpectedVersion` in
+ * `infrastructure/obsidian/repositories/versionCheck.ts` asks the same pair and separates
+ * the two answers, because it owes the caller a REASON; this one is asked where all that is
+ * wanted is "did it move at all" — `WriteLedger.observe`, which reports no reason and only
+ * bumps a counter.
+ *
+ * Revision-only would have been the cheaper spelling and it is measurably wrong here: a hand
+ * edit or a sync leaves `revision` alone by construction, which is the entire reason
+ * `observed` exists, so a ledger comparing revisions would wave through exactly the foreign
+ * writes `external-modification` was added to catch.
+ */
+export function sameVersion(a: EntityVersion, b: EntityVersion): boolean {
+	return a.revision === b.revision && a.observed === b.observed;
+}
 
 export function revisionConflict(entity: string, id: string): ValidationError {
 	return {

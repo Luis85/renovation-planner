@@ -1,5 +1,6 @@
 import type { DomainEvent, EventBus } from '../../core/events/EventBus';
 import type { PlanEventPayload } from '../../domain/plan/Plan.events';
+import type { GeometrySidecarChangedPayload } from './projectIndex.events';
 
 /**
  * "Tell me when THIS Plan changed" — the domain event vocabulary, turned into one filtered
@@ -43,6 +44,27 @@ const PLAN_CHANGE_EVENTS = [
 const EVERY_PLAN_EVENTS = ['ProjectIndexRebuilt'] as const;
 
 /**
+ * The plan's own geometry SIDECAR changed on disk out of band — a THIRD list, and a separate
+ * one for the reason the pair above give for being two: it carries a different payload, so
+ * letting it through the plan-id filter would compare an `undefined` plan id, and letting it
+ * through the unfiltered arm would re-read every open editor for a sidecar belonging to some
+ * other plan.
+ *
+ * **It is the one arm that covers a plan's ZONES arriving from outside this plugin.** A `.rpgeo`
+ * is where they live (ADR-011), and it is not a note: sync, a hand edit or the file explorer
+ * touching one raises none of the five domain events above, and `VaultChangeAdapter` reads the
+ * document at no point, so it cannot honestly publish `ZoneGeometryChanged` for it either. The
+ * index side of that path moves a MAPPING at most — announced as `ProjectIndexEntryChanged`,
+ * which this source deliberately does not subscribe to, since a plan note retyped or reindexed
+ * is a different question from its geometry moving. Without this arm the canvas drew the zone
+ * set it read at mount indefinitely and hit-tested against zones the vault no longer had.
+ *
+ * Filtered on the TYPE as well as the id, because a plan's sidecar and an asset's are the same
+ * file type under two owners (ADR-0014) and the id alone does not say which.
+ */
+const PLAN_SIDECAR_EVENTS = ['GeometrySidecarChanged'] as const;
+
+/**
  * `DomainEvent` carries only a `type`; every event in the list above adds a
  * `PlanEventPayload`. Narrowed with a guard rather than a cast so that an event added to
  * the list WITHOUT that payload is simply never delivered, instead of comparing
@@ -51,6 +73,15 @@ const EVERY_PLAN_EVENTS = ['ProjectIndexRebuilt'] as const;
 function planIdOf(event: DomainEvent): string | null {
 	const payload = (event as { payload?: Partial<PlanEventPayload> }).payload;
 	return typeof payload?.planId === 'string' ? payload.planId : null;
+}
+
+/**
+ * The same narrowing for the sidecar event's own payload, which names an entity TYPE as well as
+ * an id. A separate guard rather than a widened `planIdOf`, because these are two payload shapes
+ * and one function reading both would have to accept a partial of either.
+ */
+function changedSidecar(event: DomainEvent): Partial<GeometrySidecarChangedPayload> {
+	return (event as { payload?: Partial<GeometrySidecarChangedPayload> }).payload ?? {};
 }
 
 export function createPlanChangeSource(
@@ -64,6 +95,12 @@ export function createPlanChangeSource(
 				}),
 			),
 			...EVERY_PLAN_EVENTS.map((type) => events.subscribe(type, () => listener())),
+			...PLAN_SIDECAR_EVENTS.map((type) =>
+				events.subscribe(type, (event) => {
+					const sidecar = changedSidecar(event);
+					if (sidecar.entityType === 'renovation-plan' && sidecar.entityId === planId) listener();
+				}),
+			),
 		];
 		return () => {
 			for (const subscription of subscriptions) subscription.dispose();

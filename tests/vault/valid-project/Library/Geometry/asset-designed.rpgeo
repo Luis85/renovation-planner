@@ -1,0 +1,27 @@
+{
+	"schemaVersion": 1,
+	"assetId": "asset-designed",
+	"revision": 2,
+	"unit": "mm",
+	"calibration": null,
+	"shape": {
+		"footprint": {
+			"points": [
+				[-300, -280],
+				[300, -280],
+				[300, 280],
+				[-300, 280]
+			]
+		},
+		"footprintOrigin": "typed",
+		"footprintPending": false,
+		"clearancePending": false,
+		"anchorPending": false,
+		"clearance": null,
+		"anchor": {
+			"x": 0,
+			"y": 0
+		},
+		"facing": 0
+	}
+}

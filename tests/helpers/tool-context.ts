@@ -2,6 +2,7 @@ import type { EntityId } from '../../src/core/identity/EntityId';
 import type { Point } from '../../src/core/geometry/Point';
 import { RenderState } from '../../src/presentation/editor/tools/render-state';
 import { SnapService, type SnapCandidates } from '../../src/presentation/editor/snapping/snap-service';
+import { ANGLE_STEP_RADIANS } from '../../src/presentation/editor/snapping/editorSnapping';
 import type { EditorContext } from '../../src/presentation/editor/tools/editor-context';
 import type { UndoableCommand } from '../../src/presentation/editor/tools/undoable-command';
 import type { EditorPointerEvent } from '../../src/presentation/editor/tools/editor-tool';
@@ -11,7 +12,7 @@ import { screenPoint } from '../../src/presentation/editor/viewport/Viewport';
  * The `EditorContext` double every tool test needs, in ONE place.
  *
  * Three tool suites had built it from scratch — a character-identical `selection` fake, a
- * character-identical identity viewport, the same `activePlan` literal, the same eight-round
+ * character-identical identity viewport, the same `subject` literal, the same eight-round
  * `flush()` — and two more files carried a fourth and fifth `stubViewport()`. Adding a
  * member to `EditorContext` therefore meant the same edit in five files, and `tests/**` is
  * not type-checked, so missing one leaves that suite exercising the old shape with nothing
@@ -41,7 +42,8 @@ export interface ToolContextOptions {
 	readonly commandDispatcher?: EditorContext['commandDispatcher'];
 	/** Replaces the identity snap, for the suites that assert snapping. */
 	readonly snapPoint?: (point: Point) => Point;
-	readonly activePlan?: EditorContext['activePlan'];
+	/** What this editor is editing (design slice B2's rename of `activePlan`). */
+	readonly subject?: EditorContext['subject'];
 }
 
 /** A selection store double narrowed to `SelectionStore`'s four members, and nothing else. */
@@ -73,13 +75,16 @@ function selectionDouble(): EditorContext['selection'] {
  * compile. Subclassing keeps every method the real one has, so the next addition to
  * `SnapService` is present here the day it is written rather than the day someone notices.
  *
- * The angle step is the editor's, 15 degrees (`runtime.ts`'s `SNAP_SERVICE`), because a
- * constraint test that passed under a quarter-turn step and failed in the app would be worse
- * than no test.
+ * The angle step is the editor's OWN constant rather than a `Math.PI / 12` copied beside it,
+ * because a constraint test that passed under a quarter-turn step and failed in the app would
+ * be worse than no test — and a literal here is exactly how the two would come to disagree.
+ * `ANGLE_STEP_RADIANS` moved out of `presentation/editor/runtime.ts` when the asset designer
+ * became a second surface composing the same service; this comment named that file, and a
+ * caller list is a fact about the routing.
  */
 class HarnessSnapService extends SnapService {
 	constructor(private readonly overridePoint?: (point: Point) => Point) {
-		super({ gridSpacingMm: 100, toleranceMm: 8, angleStepRadians: Math.PI / 12 });
+		super({ gridSpacingMm: 100, toleranceMm: 8, angleStepRadians: ANGLE_STEP_RADIANS });
 	}
 
 	override snapPoint(point: Point, candidates: SnapCandidates): Point {
@@ -114,7 +119,11 @@ export function toolContext(options: ToolContextOptions = {}): ToolContextHarnes
 		},
 		writeLedger: {} as never,
 		renderState: new RenderState(),
-		activePlan: options.activePlan ?? { id: 'plan-1' as never, calibration: null },
+		// `as EntityId<string>` rather than `as never`, which every one of these literals used
+		// to be: `never` is assignable to anything, so it stood in for a brand nobody had
+		// checked. The subject's id is `EntityId<string>` since design slice B2, so a
+		// readable literal now casts to the type this field actually declares.
+		subject: options.subject ?? { id: 'plan-1' as EntityId<string>, calibration: null },
 	};
 
 	return { context, dispatched, rejections };

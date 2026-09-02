@@ -7,8 +7,10 @@
  * forgotten HERE compiles, runs, and refuses under whatever the next reader happens to write.
  * That is why every door is asserted rather than the two this increment added.
  *
- * `settings.unrecovered` on all four, from ONE refusal function, so the shared code cannot drift
- * into two spellings of one state.
+ * `settings.unrecovered` on all SIX, from ONE refusal function, so the shared code cannot drift
+ * into two spellings of one state. Six rather than four since the asset designer merged and
+ * brought `createAsset` and `setAssetFootprintFromDimensions` with it — this list is what
+ * caught that at the merge, which is the whole reason it is asserted by exact key set.
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -21,8 +23,9 @@ import type { AppError } from '../../../src/core/errors/AppError';
 /**
  * Every command member, by name. A hand-written list is exactly what this file's own header
  * warns about, so it is derived from the bundle instead: `logger` is the one member that is not
- * a command, and dropping it by shape rather than by name means a fifth command added to the
- * interface is driven here on the day it is written.
+ * a command, and dropping it by shape rather than by name means the next command added to the
+ * interface is driven here on the day it is written. `defaultCurrency` is dropped by the same
+ * shape test, being a branded string rather than a door.
  */
 function commandKeys(bundle: RenovationProjectCommandServices): string[] {
 	return Object.entries(bundle)
@@ -34,13 +37,22 @@ describe('unavailableRenovationProjectCommands', () => {
 	it('offers a refusing door for every command the interface declares', () => {
 		expect(commandKeys(unavailableRenovationProjectCommands()).toSorted()).toEqual([
 			'clearAssetPriceOverride',
+			'createAsset',
 			'createPlan',
 			'createProject',
+			'setAssetFootprintFromDimensions',
 			'setAssetPriceOverride',
 		]);
 	});
 
-	it.each(['createProject', 'createPlan', 'setAssetPriceOverride', 'clearAssetPriceOverride'] as const)(
+	it.each([
+		'createProject',
+		'createPlan',
+		'setAssetPriceOverride',
+		'clearAssetPriceOverride',
+		'createAsset',
+		'setAssetFootprintFromDimensions',
+	] as const)(
 		'refuses %s with the unrecovered-settings code',
 		async (member) => {
 			const bundle = unavailableRenovationProjectCommands();

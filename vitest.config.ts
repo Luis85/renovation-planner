@@ -940,6 +940,14 @@ export default defineConfig({
 			// the background task, one from the undo pre-flight) and two in
 			// `DesignerInspector.vue` (from the inspector task). The file list came from
 			// `git diff --name-only origin/main...HEAD -- src/`, per the entry above.
+			//
+			// **PR 43's two remaining review findings (2026-09-02):** 99.39 / 98.31 / 99.07 / 99.54.
+			// NOTHING RATCHETS. Functions headroom is 1 unit and branches 11 — branches recovered
+			// the unit the wave before it spent, six covered arms arriving with six total. These
+			// two fixes added NO uncovered position: the only two in the nine files they touched
+			// are inherited (`AssetGeometryStore.ts`'s malformed-sidecar `catch` from the derived-
+			// filename task, `DesignerCanvas.vue`'s empty-bounds arm from the layers task), each
+			// attributed with `git log -L <line>,<line>:<file>`.
 			thresholds: {
 				statements: 99,
 				functions: 99,

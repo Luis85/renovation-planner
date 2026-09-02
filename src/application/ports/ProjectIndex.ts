@@ -1,5 +1,6 @@
 import type { EntityId } from '../../core/identity/EntityId';
 import type { PlanId } from '../../domain/plan/PlanId';
+import type { AssetId } from '../../domain/asset/AssetId';
 import type { ProjectId } from '../../domain/project/ProjectId';
 
 /**
@@ -32,8 +33,15 @@ export type EntityType = (typeof ENTITY_TYPES)[number];
  */
 export interface ProjectIndex {
 	getPath(id: EntityId<string>): string | undefined;
-	/** ADR-011: a sidecar path is never derived at read time; this mapping is the only way. */
-	getGeometrySidecarPath(planId: PlanId): string | undefined;
+	/**
+	 * ADR-011 for a plan and ADR-0014 for an asset: where that entity's `.rpgeo` actually sits.
+	 *
+	 * A PLAN's is never derived at read time — this mapping is the only way. An ASSET's has a
+	 * derivable home under `<libraryFolder>/Geometry/`, so there the derivation survives as the
+	 * repair path for an index that has not seen the file yet; `AssetGeometryStore.pathFor` is
+	 * `this ?? derived`, which is ADR-011's own shape.
+	 */
+	getGeometrySidecarPath(entityId: PlanId | AssetId): string | undefined;
 	getIdsByType(type: EntityType): EntityId<string>[];
 	getIdsByProject(projectId: ProjectId): EntityId<string>[];
 	/** Zones today; later spatial-object types extend the same mapping. */
@@ -54,10 +62,15 @@ export interface ProjectIndexEntry {
 	projectId?: ProjectId;
 	planId?: PlanId;
 	/**
-	 * Plan entries only: this Plan's sidecar path. Set in the same upsert that records
-	 * the note path — the writer has just created or resolved the file, so it is the only
-	 * code that knows it. A Plan entry missing it is a broken index, not a Plan without
-	 * geometry (the sidecar exists either way).
+	 * Plan and ASSET entries: where that entity's `.rpgeo` sits.
+	 *
+	 * For a Plan it is set in the same upsert that records the note path — the writer has just
+	 * created or resolved the file, so it is the only code that knows it — and a Plan entry
+	 * missing it is a broken index rather than a Plan without geometry, the sidecar existing
+	 * either way. For an ASSET it is written only by the two sidecar doors (the full scan's
+	 * join and the vault-change pipeline), and its ABSENCE is ordinary: an asset nobody has
+	 * designed has no sidecar, and one whose file the index has not reached yet resolves
+	 * through the derivation instead.
 	 */
 	geometrySidecarPath?: string;
 }

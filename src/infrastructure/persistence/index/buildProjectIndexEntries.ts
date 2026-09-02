@@ -169,12 +169,23 @@ export function sidecarMappingFor(input: {
 	logger: Logger;
 	/** One event per door, so a log line says which pass adjudicated (slice 11's rule). */
 	event: 'persistence.index.sidecar-duplicate' | 'persistence.pipeline.sidecar-duplicate';
-	planEntry: ProjectIndexEntry;
+	entry: ProjectIndexEntry;
 	incoming: string;
-	/** Where the owning project's note sits: the index for the pipeline, the in-flight map for the scan. */
-	projectPathOf: (projectId: ProjectId) => string | undefined;
+	/**
+	 * Where this entity's sidecar WOULD sit if nobody had moved it, or `undefined` when that
+	 * cannot be answered here.
+	 *
+	 * A plan derives it from its project note's own folder, which both doors can reach. An
+	 * ASSET derives it from the `libraryFolder` SETTING (ADR-0014), which neither the scan nor
+	 * the pipeline is given — so both asset callers answer `undefined`, and the rule below then
+	 * keeps the mapping it already holds rather than guessing. That is the honest answer to
+	 * "which of these two files is the real one" when nothing here knows, and it is why this
+	 * takes a derived PATH rather than the project lookup it used to take: the question is the
+	 * same for both kinds and only the way to answer it differs.
+	 */
+	derivedPath: string | undefined;
 }): string {
-	const current = input.planEntry.geometrySidecarPath;
+	const current = input.entry.geometrySidecarPath;
 	// Nothing to report and nothing to adjudicate: the first sidecar this plan has been
 	// offered, or the one it already holds arriving again (an out-of-band edit of a file we
 	// mapped). The second half is not a nicety — without it, one `.rpgeo` re-affirming its
@@ -188,42 +199,62 @@ export function sidecarMappingFor(input: {
 	// `vault.getFiles()` promises no order, and it re-opened the hole the diagnostic exists
 	// to close. `kept` is in the context because "which one won" is then a fact a reader
 	// needs and cannot infer from the two paths alone.
-	const projectPath =
-		input.planEntry.projectId === undefined ? undefined : input.projectPathOf(input.planEntry.projectId);
-	const derived = projectPath === undefined ? undefined : sidecarPathFor(parentOf(projectPath), input.planEntry.id);
+	const derived = input.derivedPath;
 	const kept = input.incoming === derived ? input.incoming : current;
 
 	input.logger.warn(input.event, {
-		planId: input.planEntry.id,
+		entityId: input.entry.id,
+		type: input.entry.type,
 		path: input.incoming,
 		otherPath: current,
 		derivedPath: derived,
 		kept,
-		reason: 'two sidecars name this plan id; the mapping keeps the derived one, or the one it held when nothing derives',
+		reason: 'two sidecars name this entity id; the mapping keeps the derived one, or the one it held when nothing derives',
 	});
 	return kept;
+}
+
+/**
+ * A plan's derived sidecar path from the entries a caller can reach, or `undefined` when the
+ * owning project is not among them — the half of the old `projectPathOf` parameter that is
+ * genuinely plan-specific, lifted out so `sidecarMappingFor` can serve both kinds.
+ */
+export function derivedPlanSidecarPath(
+	planEntry: ProjectIndexEntry,
+	projectPathOf: (projectId: ProjectId) => string | undefined,
+): string | undefined {
+	const projectPath = planEntry.projectId === undefined ? undefined : projectPathOf(planEntry.projectId);
+	return projectPath === undefined ? undefined : sidecarPathFor(parentOf(projectPath), planEntry.id);
 }
 
 /** Pass two: join each sidecar to its Plan entry by filename (see the header on why). */
 function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>): void {
 	for (const file of listSidecars(input.vault)) {
-		const planId = file.basename;
-		const planEntry = entries.get(planId);
-		if (!planEntry || planEntry.type !== 'renovation-plan') {
+		const entityId = file.basename;
+		const entry = entries.get(entityId);
+		// **Assets as well as plans since the sidecar-mapping increment.** ADR-0014 asks that an
+		// asset's sidecar resolve through this index "as it does for plan sidecars", and until
+		// it did, `AssetGeometryStore` derived the path on every read — so a `.rpgeo` a user had
+		// moved left the asset reading as SHAPELESS and the next write minted a second file
+		// beside the orphan. The join is the same one: a sidecar's basename is its entity id.
+		if (!entry || (entry.type !== 'renovation-plan' && entry.type !== 'renovation-asset')) {
 			input.logger.warn('persistence.index.sidecar-skipped', {
 				path: file.path,
-				reason: 'no indexed plan carries this id',
+				reason: 'no indexed plan or asset carries this id',
 			});
 			continue;
 		}
-		entries.set(planId, {
-			...planEntry,
+		entries.set(entityId, {
+			...entry,
 			geometrySidecarPath: sidecarMappingFor({
 				logger: input.logger,
 				event: 'persistence.index.sidecar-duplicate',
-				planEntry,
+				entry,
 				incoming: file.path,
-				projectPathOf: (projectId) => entries.get(projectId)?.path,
+				derivedPath:
+					entry.type === 'renovation-plan'
+						? derivedPlanSidecarPath(entry, (projectId) => entries.get(projectId)?.path)
+						: undefined,
 			}),
 		});
 	}

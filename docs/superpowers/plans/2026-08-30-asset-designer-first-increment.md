@@ -1917,6 +1917,22 @@ derives from a SETTING, where a plan's derives from its own note's folder — pl
 reading the index with derivation as the repair path. **The ADR's decision stands; what is missing
 is its implementation**, so nothing in it is narrowed — this residual is the record of the gap.
 
+##### CLOSED 2026-09-02, and the predicted remedy was one clause too large
+
+Shipped after a review bot reported the same defect from the store's end. Two of the three
+predicted pieces are exactly as written: `geometrySidecarPath` carries an asset's path, both
+doors record it, and `pathFor` is `index.getGeometrySidecarPath(id) ?? derived`.
+
+**`buildProjectIndexEntries` did NOT have to take `libraryFolder`, and the distinction is worth
+keeping.** The setting is needed to ADJUDICATE between two competing files — "which of these is
+the one the library folder derives?" — and not to RECORD a mapping, which is a basename join
+that needs no setting at all. So `sidecarMappingFor` now takes a `derivedPath: string | undefined`
+rather than the project lookup it used to take, both asset callers answer `undefined`, and the
+existing rule ("keep the derived one, or the one it held when nothing derives") then keeps the
+mapping it holds and warns. A prediction that names one mechanism for two questions asks for more
+than the smaller question needs; the honest cost is that an asset's duplicate is adjudicated by
+recency rather than by derivation, which is stated at the parameter.
+
 **5. Two asset ids differing only in CASE share one sidecar file.** `assetSidecarPathFor` names
 the file after the whole id, and `entityRefOf` accepts any non-empty one — so hand-authored ids
 `cabinet-1` and `Cabinet-1` derive two paths that are ONE file on the case-insensitive filesystems

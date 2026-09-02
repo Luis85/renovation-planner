@@ -6,7 +6,7 @@ import {
 	geometrySidecarChanged,
 	projectIndexEntryChanged,
 } from '../../../application/events/projectIndex.events';
-import { entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
+import { derivedPlanSidecarPath, entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo';
@@ -270,18 +270,21 @@ export class VaultChangeAdapter {
 		// stale, but a designer showing that asset still has to hear that its shape moved. The
 		// announcement above is what says so; this return is only about the mapping.
 		//
-		// The same ADR also asks that resolution go through this index as it does for plans —
-		// which is NOT built, because an asset's path derives from a SETTING rather than from
-		// its note's own folder, so the scan would have to take `libraryFolder`. Recorded as a
-		// residual in `docs/superpowers/plans/2026-08-30-asset-designer-first-increment.md`,
-		// where the increment that closes it inherits the argument, rather than left implied by
-		// a diagnostic naming the wrong kind.
-		if (entry?.type === 'renovation-asset') return;
-
-		if (!entry || entry.type !== 'renovation-plan') {
+		// **The mapping is recorded for an asset too, since the sidecar-mapping increment.** This
+		// door used to return here, and the reason it gave — that an asset's sidecar has one
+		// derived home so no mapping can go stale — was the defect stated as a design: a user
+		// who moved the `.rpgeo` left the asset reading as SHAPELESS, because `pathFor` derived
+		// the old location, and the next design write minted a second file beside the orphan.
+		// ADR-0014 asked for this resolution all along.
+		//
+		// What an asset still cannot answer is which of TWO competing files is the derived one:
+		// that path comes from the `libraryFolder` SETTING and this pipeline is not given it.
+		// `derivedPath: undefined` is that answer, and `sidecarMappingFor` then keeps the
+		// mapping it holds and says so, rather than guessing.
+		if (!entry || (entry.type !== 'renovation-plan' && entry.type !== 'renovation-asset')) {
 			this.deps.logger.warn('persistence.pipeline.sidecar-skipped', {
 				path,
-				reason: 'no indexed plan carries this id',
+				reason: 'no indexed plan or asset carries this id',
 			});
 			return;
 		}
@@ -297,9 +300,12 @@ export class VaultChangeAdapter {
 			geometrySidecarPath: sidecarMappingFor({
 				logger: this.deps.logger,
 				event: 'persistence.pipeline.sidecar-duplicate',
-				planEntry: entry,
+				entry,
 				incoming: path,
-				projectPathOf: (projectId) => this.deps.index.getPath(projectId),
+				derivedPath:
+					entry.type === 'renovation-plan'
+						? derivedPlanSidecarPath(entry, (projectId) => this.deps.index.getPath(projectId))
+						: undefined,
 			}),
 		});
 	}

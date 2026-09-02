@@ -560,7 +560,7 @@ export function createRepositoryStack(projectFolder = 'Renovation', libraryFolde
 	const base = stackFoundation({ vault, fileManager, metadataCache }, projectFolder);
 	// Before the asset repository, which takes it: an asset DELETE owns the note and the
 	// geometry sidecar together.
-	const assetGeometry = new AssetGeometryStore(vault as never, fileManager as never, libraryFolder, base.echo);
+	const assetGeometry = new AssetGeometryStore(vault as never, fileManager as never, libraryFolder, base.echo, base.index);
 
 	return {
 		vault,

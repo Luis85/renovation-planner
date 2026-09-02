@@ -3102,6 +3102,28 @@ recurring shapes arriving again:**
   with its own cases; the inspector is mounted in every state and now offers the gesture
   unconditionally, with only its LABEL moving. `selectors.ts` records the consequence where the
   ordering is argued: that selector decides prominence rather than access now.
+- **A limitation written in prose is one nothing schedules — twice in one review, and both had
+  named their own remedy.** `DesignerCanvas`'s header had recorded for two tasks that the
+  palette resolved once at setup and that closing it was "one member on the deps bundle plus the
+  composition root's existing `css-change` binding"; `AssetGeometryStore.pathFor`'s had reserved
+  itself as the seam for `index.get… ?? derived` and called it "a task of its own". Both were
+  accurate, both were re-reported by a review bot, and neither had a gate that could see them.
+  The theme one shipped as written. The sidecar one shipped with the ONE clause of its predicted
+  remedy that turned out unnecessary dropped, which is the part worth carrying: the recorded
+  remedy said `buildProjectIndexEntries` would have to take `libraryFolder`, and it does not —
+  that setting is needed to ADJUDICATE between two competing `.rpgeo` files, not to RECORD a
+  mapping, which is a basename join. `sidecarMappingFor` takes a `derivedPath: string |
+  undefined` now and both asset callers answer `undefined`, so an asset's duplicate is
+  adjudicated by recency and the parameter says so. **A recorded remedy is one route, and
+  re-deriving it can be cheaper than the route already written down** — the same lesson slice
+  13's live-region fix records, arriving in a residual instead of in a contract.
+- **The composable that reached for a context bound the whole plugin to one surface.**
+  `useThemeTokens` called `usePlanEditorContext()` itself, so the designer — a third surface that
+  cannot see that context — could not use it and resolved its palette once instead. The
+  subscription is a parameter now and neither surface owns it. `AssetDesignerDeps.onThemeChange`
+  is REQUIRED, which is why that one-line fix reached eleven fixtures: the compiler asked every
+  construction site the question rather than answering it for them, exactly as
+  `pixelsPerWorldUnit` does.
 - **Two things about the RUN rather than the code.** `vue-tsc` caught four type errors in test
   files that every targeted `npx vitest run` had passed, which is what `tests/**` being in
   `build` is for — a green targeted run is not evidence about the gate. And twelve

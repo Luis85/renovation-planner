@@ -560,7 +560,13 @@ export const openFixtureVault = (caseName: string): Promise<FixtureStack> => {
 	const base = stackFoundation({ vault, fileManager, metadataCache }, DEFAULT_PROJECT_FOLDER);
 	// Before the asset repository, which takes it: an asset DELETE owns the note and the
 	// geometry sidecar together.
-	const assetGeometry = new AssetGeometryStore(vault as never, fileManager as never, DEFAULT_LIBRARY_FOLDER, base.echo);
+	const assetGeometry = new AssetGeometryStore(
+		vault as never,
+		fileManager as never,
+		DEFAULT_LIBRARY_FOLDER,
+		base.echo,
+		base.index,
+	);
 
 	// The five repositories are constructed here rather than inside `stackFoundation`, for the
 	// reason `createRepositoryStack`'s own docblock measures: fallow cannot resolve a class's

@@ -1,5 +1,6 @@
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { PlanId } from '../../../domain/plan/PlanId';
+import type { AssetId } from '../../../domain/asset/AssetId';
 import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { ProjectIndex, ProjectIndexEntry, EntityType } from '../../../application/ports/ProjectIndex';
 
@@ -18,8 +19,8 @@ export class InMemoryProjectIndex implements ProjectIndex {
 		return this.byId.get(id)?.path;
 	}
 
-	getGeometrySidecarPath(planId: PlanId): string | undefined {
-		return this.byId.get(planId)?.geometrySidecarPath;
+	getGeometrySidecarPath(entityId: PlanId | AssetId): string | undefined {
+		return this.byId.get(entityId)?.geometrySidecarPath;
 	}
 
 	getIdsByType(type: EntityType): EntityId<string>[] {

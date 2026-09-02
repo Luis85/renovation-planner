@@ -2,6 +2,7 @@ import { TFile, type FileManager, type Vault } from 'obsidian';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { AssetId } from '../../../domain/asset/AssetId';
 import type { EntityVersion } from '../../../application/ports/versioning';
+import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { checkExpectedVersion } from './versionCheck';
 import { ensureFolder, fileStatAt, persistenceError } from './noteIo';
@@ -93,6 +94,7 @@ export class AssetGeometryStore {
 		private readonly fileManager: FileManager,
 		private readonly libraryFolder: string,
 		private readonly echo: EchoWindow,
+		private readonly index: Pick<ProjectIndex, 'getGeometrySidecarPath'>,
 	) {}
 
 	read(assetId: AssetId): Promise<Result<AssetSidecarSnapshot, RepositoryError>> {
@@ -236,19 +238,20 @@ export class AssetGeometryStore {
 	/**
 	 * WHERE THIS ASSET'S SIDECAR IS — the one resolution site, so that it stays one.
 	 *
-	 * Today it derives, because nothing else can answer: the Project Index maps a sidecar
-	 * path onto a PLAN entry (`getGeometrySidecarPath` is typed `PlanId`), and both doors
-	 * that populate that mapping — the full scan's `joinSidecars` and
-	 * `VaultChangeAdapter.processSidecar` — skip any `.rpgeo` whose basename is not an
-	 * indexed plan id. So an asset sidecar has no index mapping to consult.
+	 * **The index, then the derivation** — ADR-0014's Consequences inheriting ADR-011's rule,
+	 * "derivability is a repair path for a damaged index, not a second lookup mechanism for
+	 * normal reads". Both doors that populate the mapping record an ASSET's now as well as a
+	 * plan's: the full scan's `joinSidecars` and `VaultChangeAdapter.processSidecar`.
 	 *
-	 * ADR-0014's Consequences nevertheless say resolution goes through the index "as it does
-	 * for plan sidecars", inheriting ADR-011's rule. Closing that spans three modules the
-	 * store does not own, so it is a task of its own — and this method is the seam it needs:
-	 * an index lookup goes in FRONT of the derivation (`index.get… ?? derived`), which is
-	 * ADR-011's own shape, "derivability is a repair path for a damaged index". Every read
-	 * and every write resolves here and nowhere else, so that later change is one line
-	 * rather than a rewrite of the read path.
+	 * It derived unconditionally for the whole of the first increment, which is the defect this
+	 * replaced rather than a simplification: a `.rpgeo` a user moved in the file explorer, or
+	 * that arrived elsewhere through sync, left the asset reading as SHAPELESS — an absent
+	 * sidecar is the ordinary state of an undesigned asset, so nothing about that read looked
+	 * wrong — and the next design write minted a second sidecar at the derived path beside the
+	 * orphan. A plan already survived the same gesture.
+	 *
+	 * Every read and every write resolves HERE and nowhere else, which is what made the change
+	 * one line rather than a rewrite of the read path.
 	 */
 	private pathFor(assetId: AssetId): Result<string, RepositoryError> {
 		// The extension is passed in rather than assumed, because the LENGTH rule is about the
@@ -261,7 +264,17 @@ export class AssetGeometryStore {
 				),
 			);
 		}
-		return ok(assetSidecarPathFor(this.libraryFolder, assetId));
+		// **The index FIRST, the derivation as the repair path** — ADR-011's own shape, which
+		// ADR-0014 inherits and which this method's header reserved as one line. Until it was
+		// one, a `.rpgeo` a user had moved in the file explorer or that arrived elsewhere
+		// through sync left the asset reading as SHAPELESS — an absent sidecar is the ordinary
+		// state of an undesigned asset, so nothing about that read looked wrong — and the next
+		// design write minted a SECOND sidecar at the derived path beside the orphan.
+		//
+		// The derivation is not a fallback nobody reaches: it answers for every asset the index
+		// has not joined a file to yet, which is every asset before the first scan and every one
+		// on a build whose index predates this mapping.
+		return ok(this.index.getGeometrySidecarPath(assetId) ?? assetSidecarPathFor(this.libraryFolder, assetId));
 	}
 
 	/** MUST run inside the asset's queue — both callers here do. */

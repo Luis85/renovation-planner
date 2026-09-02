@@ -46,7 +46,15 @@ export function composeRepositories(
 	// and the design commands write through the port below it, and `KeyedQueues` is per
 	// INSTANCE — so a second store built beside this one would split the per-asset lock those
 	// two share and leave a delete free to interleave with a design write.
-	const assetGeometryStore = new AssetGeometryStore(vault.vault, vault.fileManager, libraryFolder, deps.echo);
+	const assetGeometryStore = new AssetGeometryStore(
+		vault.vault,
+		vault.fileManager,
+		libraryFolder,
+		deps.echo,
+		// ADR-0014's index resolution: `pathFor` asks this before it derives, so an asset whose
+		// sidecar a user has moved is read and written where it now sits.
+		deps.index,
+	);
 	return {
 		geometryStore,
 		// The port, not the store: `plugin/` is where an infrastructure class becomes the

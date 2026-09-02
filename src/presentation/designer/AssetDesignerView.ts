@@ -183,6 +183,7 @@ export class AssetDesignerView extends ItemView {
 			vault: this.deps.vault,
 			indexScanCompleted: this.deps.indexScanCompleted,
 			onThemeChange: this.deps.onThemeChange,
+			onVaultFileChanged: this.deps.onVaultFileChanged,
 			onDesignChanged: (listener) => this.deps.onDesignChanged(assetId, listener),
 			// NOT an `AssetDesignerDeps` member, for `PlanEditorView`'s reason: the composition root
 			// composes services and knows nothing about which leaf this is. The leaf is the VIEW's,

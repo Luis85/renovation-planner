@@ -125,6 +125,10 @@ function harness(options: {
 		vault: emptyBackgroundVault(),
 		onDesignChanged: options.onDesignChanged ?? (() => () => undefined),
 		onThemeChange: () => () => undefined,
+		// A source that never fires, rather than one omitted: the member is required precisely so
+		// no surface can forget to answer the question, and this suite's cases are not about a file
+		// moving under the surface. `backgroundInEditor.test.ts` is where that door is driven.
+		onVaultFileChanged: () => () => undefined,
 		indexScanCompleted: options.indexScanCompleted ?? ((): boolean => true),
 	};
 
@@ -597,6 +601,10 @@ describe('reaching the runtime from a region', () => {
 			vault: emptyBackgroundVault(),
 			onDesignChanged: () => () => undefined,
 			onThemeChange: () => () => undefined,
+		// A source that never fires, rather than one omitted: the member is required precisely so
+		// no surface can forget to answer the question, and this suite's cases are not about a file
+		// moving under the surface. `backgroundInEditor.test.ts` is where that door is driven.
+		onVaultFileChanged: () => () => undefined,
 			indexScanCompleted: () => true,
 			// Records nothing here: these cases are not about the dangling state. `assetDesignerRoot.test.ts`
 			// is where the tree is asked whether it CALLS this, and `assetDesignerView.test.ts` whether

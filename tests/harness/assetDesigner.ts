@@ -89,6 +89,11 @@ function assetDesignerHarnessDeps(): AssetDesignerDeps {
 		// keeps. A source that never fires, rather than one omitted, because the member is
 		// required precisely so no surface can forget to answer the question.
 		onThemeChange: () => () => undefined,
+		// And no file events either: the harness draws a fixed fixture in a page with no Obsidian
+		// and therefore no vault to fire them. The `background` in that fixture is `null`, so the
+		// layer this feeds has nothing to reload. Present rather than omitted, for the reason the
+		// theme door above gives.
+		onVaultFileChanged: () => () => undefined,
 	};
 }
 

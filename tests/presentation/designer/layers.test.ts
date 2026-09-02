@@ -191,6 +191,10 @@ function context(design: AssetDesignDto): AssetDesignerContext {
 		vault: emptyBackgroundVault(),
 		onDesignChanged: () => () => undefined,
 		onThemeChange: () => () => undefined,
+		// A source that never fires, rather than one omitted: the member is required precisely so
+		// no surface can forget to answer the question, and this suite's cases are not about a file
+		// moving under the surface. `backgroundInEditor.test.ts` is where that door is driven.
+		onVaultFileChanged: () => () => undefined,
 		indexScanCompleted: () => true,
 		// Not the dangling state's suite: `assetDesignerRoot.test.ts` is where the tree is asked
 		// whether it CALLS this, and `assetDesignerView.test.ts` whether calling it detaches the

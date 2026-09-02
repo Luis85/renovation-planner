@@ -141,6 +141,17 @@ export async function loadedPlugin(
 	 * not pass it the file the pipeline is about.
 	 */
 	const vaultHandlers: ((file: never, oldPath?: string) => void)[] = [];
+	/**
+	 * The same registrations, keyed by the `EventRef` this stub hands back and remembering the
+	 * EVENT NAME — which `vaultHandlers` above cannot, being an ordered list of callbacks.
+	 *
+	 * Both exist because they answer different questions. `vaultHandlers` is "what did the plugin
+	 * register, in order", which is what the pipeline's own wiring cases assert on and what makes
+	 * a second registration visible. This one is "fire the `delete` listeners", which is what a
+	 * case driving a background file through the real composed tree needs, and it is also what
+	 * makes `offref` releasable at all.
+	 */
+	const byReference = new Map<object, { name: string; handler: (file: never, oldPath?: string) => void }>();
 	const vault = {
 		configDir: '.obsidian',
 		adapter: {
@@ -168,9 +179,24 @@ export async function loadedPlugin(
 		modify: (file: TFile, data: string): Promise<void> => mustHaveSurface().modify(file, data),
 		delete: (file: TFile): Promise<void> => mustHaveSurface().delete(file),
 		createFolder: (path: string): Promise<unknown> => mustHaveSurface().createFolder(path),
-		on: (_event: string, handler: (file: never, oldPath?: string) => void): { off(): void } => {
+		// **`offref`, and it was missing** — which made this stub thin in exactly the member a new
+		// subscription had to use. The real `Vault.on` hands back an `EventRef` and `offref` is what
+		// retires one; this answered `{ off }`, a shape the API has not had for years. Measured:
+		// once `BackgroundLayer` released its four listeners on unmount, every case here that mounts
+		// the real composed designer died with `vault.offref is not a function`. `FakeVault` carried
+		// the identical defect and was widened in the same edit.
+		on: (event: string, handler: (file: never, oldPath?: string) => void): object => {
+			const reference = {};
 			vaultHandlers.push(handler);
-			return { off: () => undefined };
+			byReference.set(reference, { name: event, handler });
+			return reference;
+		},
+		offref: (reference: object): void => {
+			const entry = byReference.get(reference);
+			if (entry === undefined) return;
+			byReference.delete(reference);
+			const at = vaultHandlers.indexOf(entry.handler);
+			if (at >= 0) vaultHandlers.splice(at, 1);
 		},
 	};
 	// The persistence stack gathers these three from the app; with no surface passed
@@ -190,5 +216,24 @@ export async function loadedPlugin(
 	plugin.data = stored;
 	plugin.loadFailure = loadFailure;
 	await plugin.onload();
-	return { plugin, workspace, asked, vaultHandlers };
+	return {
+		plugin,
+		workspace,
+		asked,
+		vaultHandlers,
+		/**
+		 * Fire one vault event at every listener still registered for it, as Obsidian would.
+		 *
+		 * Named for the EVENT rather than for the pipeline, because the plugin is no longer its only
+		 * subscriber: `createVaultFileChangeSource` registers four of its own per mounted background
+		 * layer, and a case about a spec sheet moving has to reach those rather than the index's.
+		 */
+		triggerVault: (event: string, ...args: readonly unknown[]): void => {
+			for (const entry of byReference.values()) {
+				if (entry.name === event) entry.handler(...(args as [never, string?]));
+			}
+		},
+		/** How many vault listeners are still registered — what a released subscription leaves. */
+		vaultListenerCount: (): number => byReference.size,
+	};
 }

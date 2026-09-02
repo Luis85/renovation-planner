@@ -146,9 +146,10 @@ export class SetAssetBackgroundCommand implements Command<SetAssetBackgroundInpu
 		// every other case in this command's suite.
 		//
 		// What it does NOT buy, stated where it is made: the file can go at any moment after this
-		// line, so a stored reference is never trustworthy on the strength of this check —
-		// `BackgroundRenderModel`'s own not-found status is what reports that, and the residual
-		// in `BackgroundLayer.vue` bounds when it is noticed. What this closes is the window
+		// line, so a stored reference is never trustworthy on the strength of this check. What
+		// REPORTS that is `BackgroundRenderModel`'s own not-found status, and since PR 43's third
+		// finding the surface hears about it promptly — `BackgroundLayer` subscribes to vault file
+		// events rather than noticing only on the next rehydrate. What this closes is the window
 		// between one gesture's own two halves, where the COMMAND is the thing writing a dangling
 		// reference over a calibration it destroyed on the way.
 		if (!this.files.fileExists(input.path)) {

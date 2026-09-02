@@ -87,6 +87,21 @@ export interface AssetDesignerDeps {
 	 * re-resolve", and handing them a workspace would let any of them reach for the rest of it.
 	 */
 	readonly onThemeChange: (listener: () => void) => () => void;
+	/**
+	 * "A vault file appeared, changed, moved or went" — every path, unfiltered, so a surface
+	 * drawing a document can notice the document itself moving under it.
+	 *
+	 * A background is a PNG or a PDF the user put in their vault, which puts it outside every
+	 * other change door this bundle carries: `VaultChangeAdapter` reads `.md` and `.rpgeo` and
+	 * drops the rest, and a frontmatter reference does not move when the file it names does. So a
+	 * replaced or deleted sheet went unnoticed for as long as the surface sat idle — the residual
+	 * `BackgroundLayer`'s document key disclosed, and the reason this member is REQUIRED rather
+	 * than optional: a surface that mounts that layer has to answer the question.
+	 *
+	 * Takes NO id, for `onCatalogueChanged`'s reason: there is nothing to filter on here either,
+	 * and the subscriber compares the path against the one it is drawing.
+	 */
+	readonly onVaultFileChanged: (listener: (path: string) => void) => () => void;
 }
 
 /**

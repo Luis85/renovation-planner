@@ -28,6 +28,7 @@ import type { VaultFileProbe } from '../application/ports/VaultFileProbe';
 import type { LibraryOverlaps } from '../application/ports/LibraryOverlaps';
 import { createVaultFileProbe } from '../infrastructure/obsidian/vault/vaultFileProbe';
 import { createThemeChangeSource } from '../infrastructure/obsidian/workspace/themeChanges';
+import { createVaultFileChangeSource } from '../infrastructure/obsidian/vault/vaultFileChanges';
 import { ReferenceLocks } from '../application/reference/ReferenceLocks';
 import { RecalculateRequirementCommand } from '../application/commands/requirement/RecalculateRequirement';
 import {
@@ -496,6 +497,7 @@ export function planEditorDeps(
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
 		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
+		onVaultFileChanged: createVaultFileChangeSource(vault),
 	};
 }
 
@@ -560,6 +562,7 @@ export function assetDesignerDeps(
 		// surfaces resolve an Obsidian palette into canvas colours and both need telling when
 		// it moves; a second mechanism here would be a second answer to one question.
 		onThemeChange: createThemeChangeSource(app.workspace),
+		onVaultFileChanged: createVaultFileChangeSource(app.vault),
 		indexScanCompleted: options.indexScanCompleted,
 	};
 }

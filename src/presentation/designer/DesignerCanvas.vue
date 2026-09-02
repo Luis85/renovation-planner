@@ -161,6 +161,7 @@ function framedBounds(all: boolean): BoundingBox | null {
 					:transform="transform"
 					:visible="true"
 					:pixels-per-world-unit="pixelsPerWorldUnit"
+					:file-changes="context.onVaultFileChanged"
 					@status="(status) => emit('backgroundStatus', status)"
 				/>
 				<VLayer :config="designerLayerConfig('asset-footprint', transform)">

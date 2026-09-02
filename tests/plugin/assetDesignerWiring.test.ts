@@ -124,4 +124,55 @@ describe('a designer leaf restored by the composed plugin', () => {
 
 		await view.onClose();
 	});
+
+	/**
+	 * PR 43's idle-sheet finding, at the seam the composition root owns.
+	 *
+	 * `AssetDesignerDeps.onVaultFileChanged` is REQUIRED, so a root that passes nothing fails to
+	 * build — and a root that passes a fresh no-op compiles, passes every other case here, and
+	 * leaves the designer deaf to the file it is drawing. This drives Obsidian's own `delete`
+	 * through the plugin's registered listeners, so what is asserted is the whole chain: the root's
+	 * `createVaultFileChangeSource(app.vault)`, the deps member, the view's pass-through, the
+	 * context, `DesignerCanvas`'s prop and the layer's filter. `designerBackground.test.ts` proves
+	 * the designer's context member reaches the layer; only this proves the ROOT fills it.
+	 *
+	 * The observable is the missing-sheet notice, which is what the user sees. Registering a
+	 * background at all takes a real `getResourcePath`, so this asserts on the notice the layer
+	 * emits rather than on a raster this stub could never decode.
+	 */
+	it('tells an open designer that its spec sheet was deleted from the vault', async () => {
+		const { stack, assetId } = await vaultWithOneAsset();
+		const { plugin, workspace, triggerVault } = await loadedPlugin(DEFAULT_SETTINGS, undefined, true, stack);
+		workspace.layoutReady();
+		// A sheet that IS there when the leaf opens, so the layer has something to lose.
+		const sheet = 'Specs/oven.png';
+		// The FOLDER first: `FakeVault.create` refuses a path whose parent does not exist, exactly
+		// as Obsidian does — the fake-not-kinder rule this repository already paid 86 tests for.
+		await stack.vault.createFolder('Specs');
+		await stack.vault.create(sheet, 'not really a png');
+		stack.metadataCache.catchUp();
+		const loaded = expectOk(await stack.assets.getById(assetId));
+		if (loaded === null) throw new Error('expected the seeded asset to be readable');
+		expectOk(
+			await stack.assets.save(
+				expectOk(loaded.entity.withChanges({ background: { path: sheet, kind: 'image', page: null } })),
+				loaded.version,
+			),
+		);
+		stack.metadataCache.catchUp();
+		const view = designerOn(plugin);
+		await view.setState({ assetId }, {} as never);
+		await view.onOpen();
+		await settle();
+
+		// The user deletes the sheet in Obsidian's file explorer. Nothing re-reads the asset.
+		const file = stack.vault.getAbstractFileByPath(sheet);
+		await stack.vault.delete(file as never);
+		triggerVault('delete', file as never);
+		await settle();
+
+		expect(view.contentEl.textContent).toContain(t('en', 'designer.background-missing'));
+
+		await view.onClose();
+	});
 });

@@ -64,6 +64,10 @@ function leafDeps(bus: ReturnType<typeof createEventBus>, reads: string[]): Asse
 		vault: emptyBackgroundVault(),
 		onDesignChanged: createAssetDesignChangeSource(bus),
 		onThemeChange: () => () => undefined,
+		// A source that never fires, rather than one omitted: the member is required precisely so
+		// no surface can forget to answer the question, and this suite's cases are not about a file
+		// moving under the surface. `backgroundInEditor.test.ts` is where that door is driven.
+		onVaultFileChanged: () => () => undefined,
 		indexScanCompleted: () => true,
 	};
 }

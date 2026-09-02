@@ -212,6 +212,8 @@ export function harnessEditorContext(): PlanEditorContext {
 		onPlanChanged: (listener) => deps.onPlanChanged(HARNESS_PLAN.id, listener),
 		// No id to bind, so it passes straight through — the same shape the real view uses.
 		onCatalogueChanged: deps.onCatalogueChanged,
+		// Straight through, like the door above: no id to bind, and `harnessDeps` says why it is inert.
+		onVaultFileChanged: deps.onVaultFileChanged,
 		// A no-op, and honestly so: the browser harness draws the editor in a page with no
 		// Obsidian and therefore no leaf to close. The action is still RENDERED and pressable —
 		// which is the point of the harness, since a designer looks at the dangling-reference

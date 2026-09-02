@@ -94,6 +94,7 @@ function framedBounds(all: boolean) {
 					:transform="transform"
 					:visible="layerVisibility.background"
 					:pixels-per-world-unit="pixelsPerWorldUnit"
+					:file-changes="context.onVaultFileChanged"
 					@status="(status) => emit('backgroundStatus', status)"
 				/>
 				<EmptyLayer

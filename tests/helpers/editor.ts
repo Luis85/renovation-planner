@@ -71,6 +71,15 @@ export interface EditorHarness {
 	 * events — a test that could only fire one could not tell them apart.
 	 */
 	readonly changeCatalogue: () => void;
+	/**
+	 * Fire the injected vault-file subscription for one path, as Obsidian's `create`, `modify`,
+	 * `delete` or `rename` would. Its own door and not an alias of `changePlan`: the whole point
+	 * of this source is that a background file moves without the subject being re-read, so a
+	 * fixture that folded the two together could not tell a build that had merged them back.
+	 */
+	readonly changeFile: (path: string) => void;
+	/** How many vault-file listeners are still registered — the unmount leak check. */
+	readonly fileListeners: () => number;
 	/** How many theme listeners are still registered — the unmount leak check. */
 	readonly themeListeners: () => number;
 	/** How many times the tree asked to close this leaf (`PlanEditorContext.closeLeaf`). */
@@ -176,6 +185,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	let closedLeaf = 0;
 	const planListeners = new Set<() => void>();
 	const catalogueListeners = new Set<() => void>();
+	const fileListeners = new Set<(path: string) => void>();
 
 	// `plan` is `PlanDto | null | undefined` here: `undefined` means the option was
 	// OMITTED (default to the fixture), `null` means the caller explicitly asked for no
@@ -202,6 +212,12 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		onCatalogueChanged: (listener) => {
 			catalogueListeners.add(listener);
 			return () => catalogueListeners.delete(listener);
+		},
+		// Its OWN set again, for the reason the catalogue door gives: this one carries a PATH and
+		// fires for files no domain event ever mentions.
+		onVaultFileChanged: (listener) => {
+			fileListeners.add(listener);
+			return () => fileListeners.delete(listener);
 		},
 		closeLeaf: () => {
 			closedLeaf += 1;
@@ -247,6 +263,10 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		changeCatalogue: () => {
 			for (const listener of catalogueListeners) listener();
 		},
+		changeFile: (path: string) => {
+			for (const listener of fileListeners) listener(path);
+		},
+		fileListeners: () => fileListeners.size,
 		themeListeners: () => themeListeners.size,
 		closedLeaf: () => closedLeaf,
 		unmount: () => {

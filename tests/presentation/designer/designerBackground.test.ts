@@ -75,6 +75,9 @@ function vaultWith(paths: readonly string[]): BackgroundVault {
 	} as unknown as BackgroundVault;
 }
 
+/** The vault-file listeners the mounted designer registered, so a case can fire one. */
+const fileListeners = new Set<(path: string) => void>();
+
 function context(design: AssetDesignDto, vault: BackgroundVault): AssetDesignerContext {
 	return {
 		assetId: String(design.assetId),
@@ -85,6 +88,15 @@ function context(design: AssetDesignDto, vault: BackgroundVault): AssetDesignerC
 		vault,
 		onDesignChanged: () => () => undefined,
 		onThemeChange: () => () => undefined,
+		// A REAL door here, unlike this suite's other inert ones: the designer mounts the same
+		// `BackgroundLayer` the plan editor does, and what this file has to answer is whether the
+		// designer's own context member reaches it. `backgroundInEditor.test.ts` proves the LAYER
+		// reloads; a thread that stopped at `DesignerCanvas` would leave that proof true and this
+		// surface deaf.
+		onVaultFileChanged: (listener) => {
+			fileListeners.add(listener);
+			return () => fileListeners.delete(listener);
+		},
 		indexScanCompleted: () => true,
 		// Not the dangling state's suite: `assetDesignerRoot.test.ts` is where the tree is asked
 		// whether it CALLS this, and `assetDesignerView.test.ts` whether calling it detaches the
@@ -172,6 +184,11 @@ async function shownNotice(designer: Mounted): Promise<string[]> {
 
 beforeEach(() => {
 	clearResources();
+	// The set is module-level, so a listener a previous case's designer registered would still
+	// be in it — and `mounted?.unmount()` in `afterEach` removes it only if the component really
+	// released it. Cleared here so a case fires exactly its OWN designer's listener; the release
+	// itself is asserted in `backgroundInEditor.test.ts`.
+	fileListeners.clear();
 });
 
 afterEach(() => {
@@ -260,6 +277,39 @@ describe('a spec sheet that cannot be drawn', () => {
 			vaultWith([]),
 		);
 
+		expect(await shownNotice(designer)).toEqual([t('en', 'designer.background-missing')]);
+	});
+
+	/**
+	 * The designer's own end of PR 43's idle-file finding. The layer is the plan editor's and
+	 * `backgroundInEditor.test.ts` proves it reloads; what only this file can say is that the
+	 * designer's `onVaultFileChanged` really reaches it. A thread that stopped at
+	 * `DesignerCanvas` — the prop simply not passed — leaves every case in that file green and
+	 * this surface deaf to a sheet the user just deleted.
+	 */
+	it('notices its sheet being deleted while the designer sat idle', async () => {
+		registerResource(`app://fake/${SHEET}`, pngFixture(48, 48));
+		let present = true;
+		const vault = {
+			getAbstractFileByPath(path: string) {
+				if (path !== SHEET || !present) return null;
+				const file = new TFile();
+				file.path = path;
+				return file;
+			},
+			getResourcePath: (file: { path: string }) => `app://fake/${file.path}`,
+			readBinary: () => Promise.resolve(new ArrayBuffer(0)),
+		} as unknown as BackgroundVault;
+		const designer = await mountDesigner(
+			assetDesign({ background: { path: SHEET, kind: 'image', page: null } }),
+			vault,
+		);
+		await drawnSheet(designer);
+
+		present = false;
+		for (const listener of fileListeners) listener(SHEET);
+
+		await settleUntil(() => sheetImage(designer) === undefined, 'the sheet to go');
 		expect(await shownNotice(designer)).toEqual([t('en', 'designer.background-missing')]);
 	});
 

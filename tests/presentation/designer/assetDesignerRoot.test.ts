@@ -82,6 +82,10 @@ function context(overrides: Partial<AssetDesignerContext> = {}): AssetDesignerCo
 		// shell DRAWS, and `designerRefresh.test.ts` is where the source is driven.
 		onDesignChanged: () => () => undefined,
 		onThemeChange: () => () => undefined,
+		// A source that never fires, rather than one omitted: the member is required precisely so
+		// no surface can forget to answer the question, and this suite's cases are not about a file
+		// moving under the surface. `backgroundInEditor.test.ts` is where that door is driven.
+		onVaultFileChanged: () => () => undefined,
 		// The scan has run, so a miss here is authoritative and the failure cases below mean what
 		// their names say — a leaf reading before the scan holds its loading line instead, which
 		// is `designerRefresh.test.ts`'s restored-leaf case.

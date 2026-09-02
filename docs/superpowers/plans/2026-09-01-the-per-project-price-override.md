@@ -3734,6 +3734,22 @@ describe('ListProjectAssetPrices', () => {
 	 */
 	it('puts orphans after every named row, ordered by asset id', async () => { … });
 
+	/**
+	 * Two catalogue assets with the SAME name, which nothing refuses — there is no
+	 * duplicate-name guard in `domain/asset/` or its commands. Without an id tie-break the
+	 * comparator answers 0 and the pair falls back to `listAll` order, which
+	 * `InMemoryProjectIndex.upsert` reorders whenever either asset is updated or synced
+	 * (`:37-42` unindexes then re-indexes, moving the id to the end of the type `Set`).
+	 *
+	 * Assert the order is the SAME across two reads with an update in between, not merely that
+	 * it is sorted — "sorted by name" is equally true of both orderings, so a single-read
+	 * assertion passes against the defect. Watch it fail with the tie-break removed.
+	 */
+	it('keeps two same-named assets in the same order across an update', async () => {
+		// Seed 'Oak flooring' twice with different ids; read; update one; read again.
+		expect(second.map((r) => r.assetId)).toEqual(first.map((r) => r.assetId));
+	});
+
 	it('propagates a failed catalogue read', async () => { … });
 	it('propagates a failed override read', async () => { … });
 });
@@ -3819,13 +3835,24 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 		// than part of the catalogue the section exists to compare against, and they have no
 		// name to sort by. `localeCompare` on a null would throw, so the null test is not a
 		// nicety.
+		//
+		// **The id breaks a NAME tie too, and without it the promise above is false for
+		// same-named assets.** Nothing makes an asset's name unique — there is no such refusal
+		// anywhere in `domain/asset/` or its commands — and returning 0 falls back to exactly
+		// the `listAll` order this sort exists to replace. That order is not stable either:
+		// `InMemoryProjectIndex.upsert` (`:37-42`) unindexes an existing entry and re-indexes
+		// it, so updating or syncing either of two same-named assets moves its id to the end
+		// of the type `Set` and swaps the pair on the next read. An earlier draft wrote the id
+		// tie-break for ORPHANS — which have no name — and not for the named rows, which is
+		// the same defect one branch over.
 		rows.sort((a, b) => {
 			if (a.assetName === null || b.assetName === null) {
 				if (a.assetName !== null) return -1;
 				if (b.assetName !== null) return 1;
 				return a.assetId.localeCompare(b.assetId);
 			}
-			return a.assetName.localeCompare(b.assetName);
+			const byName = a.assetName.localeCompare(b.assetName);
+			return byName !== 0 ? byName : a.assetId.localeCompare(b.assetId);
 		});
 		return ok(rows);
 	}

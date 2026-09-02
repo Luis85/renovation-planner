@@ -30,6 +30,7 @@ import { ListRequirementsReferencing } from '../application/queries/ListRequirem
 import { ListReassignmentTargets } from '../application/queries/ListReassignmentTargets';
 import { registerOnZoneGeometryChanged } from '../application/event-handlers/requirement/onZoneGeometryChanged';
 import { registerOnAssetUpdated } from '../application/event-handlers/requirement/onAssetUpdated';
+import { registerOnAssetPriceOverrideChanged } from '../application/event-handlers/requirement/onAssetPriceOverrideChanged';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { AssetRepository as AssetRepositoryPort } from '../application/ports/AssetRepository';
@@ -131,6 +132,13 @@ export function composeSlice10(
 			requirements,
 			assets,
 			overrides,
+			events,
+			logger,
+			notify: cascadeNotices,
+			recalculate: (input) => recalculate.execute({ requirementId: input.requirementId as never }),
+		}),
+		registerOnAssetPriceOverrideChanged(events, {
+			requirements,
 			events,
 			logger,
 			notify: cascadeNotices,

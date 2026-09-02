@@ -207,6 +207,8 @@ interface ProjectSummary {
 	unsummable: number;
 	/** Rows reached through this project's zones whose own `projectId` names another project. */
 	foreign: number;
+	/** Requirement notes that could not be read at all. One bad note costs one note. */
+	unreadableRequirements: number;
 }
 ```
 
@@ -238,6 +240,50 @@ counted out and named.
 
 **This is not a licence to leave that residue open.** It is the read side declining to hide
 it.
+
+### One unreadable requirement anywhere in the vault faults the whole summary
+
+**The sharpest finding on this branch, and it defeats this document's own error design.**
+`ObsidianRequirementRepository.filterLoaded` is the body of `listByZone`:
+
+```ts
+for (const id of ids) {
+	const found = await this.getById(id);
+	if (isErr(found)) return found;          // <- first error, whole list
+	if (found.value !== null && predicate(found.value.entity)) loaded.push(found.value);
+}
+```
+
+`ids` is `index.getIdsByType('renovation-requirement')` — **every requirement in the vault** —
+and the zone predicate is applied AFTER the read. So a single malformed or future-version
+requirement note, in any project, makes `listByZone` fail for every zone; `GetRequirementsForZone`
+propagates it; and this walk turns that into a faulted summary. The Overview would replace every
+valid figure with `ViewFailure` because of one note it does not even count.
+
+That is the exact opposite of what the *Error handling* section below promises — a partial read
+draws the section with an additive strip — and it is the failure mode this repository has
+already fixed once, for plans, under the name **one bad note costs one note**
+(`docs/superpowers/specs/2026-08-31-one-bad-note-costs-one-note-design.md`).
+`PlanRepository.listByProject` answers `{ loaded, refused }` for that reason and
+`ListPlansByProject` renames it `unreadable` across the boundary.
+
+So: `RequirementRepository.listByZone` takes the same shape, `GetRequirementsForZone` answers a
+partial result, and `ProjectSummary` gains `unreadableRequirements` beside its siblings. **This
+also closes a pre-existing exposure rather than only serving this surface**: today one bad
+requirement note blanks the Plan Editor's Requirements panel for every zone, which nothing has
+noticed because nothing else reads that many notes at once.
+
+### The walk's real cost, stated rather than discovered
+
+The same `filterLoaded` shape has a second consequence this document should not leave for
+whoever builds it. `listByZone` reads EVERY requirement note in the vault and filters afterwards,
+so delegating per zone costs `zones × all-requirements` reads — for a modest project of 11 rooms
+in a vault of 500 requirements, 5,500 note reads per summary, on every invalidation.
+
+The currency memo fixed the project reads and does nothing for this. The honest options are a
+`listByProject` on the requirement port (which the orphan-requirement limitation below also
+wants) or an index-side filter by zone; both are larger than a memo, and neither should be
+discovered by whoever first opens Overview on a real vault.
 
 ### A row reached through this project's zones may belong to another project
 
@@ -391,7 +437,12 @@ wider question is asked only while the surface that needs it is on screen.
 `Zone.events.ts` and `Requirement.events.ts`:
 
 `PlanCreated`, `ZoneCreated`, `ZoneDeleted`, `ZoneGeometryChanged`, `RequirementCreated`,
-`RequirementRecalculated`.
+`RequirementRecalculated`, **`RequirementDeleted`**.
+
+`RequirementDeleted` is the event this increment mints below, and it was missing from this list
+for one round — **specified as published and never subscribed to**, which is the shape of
+mistake that makes a whole feature a no-op while every part of it reads correct in isolation.
+It carries the same `RequirementEventPayload` its siblings do, so it filters by project.
 
 `ZoneGeometryChanged` is in that list for the reason the whole product exists: an area is an
 input to a cost, so a moved vertex changes the total and marks figures stale.
@@ -415,7 +466,15 @@ so `RequirementRecalculated` never fires for it — omit this event and an overr
 leaf is invisible to the Overview until a remount.
 
 **Index entries**, for a note that arrives out of band — a hand edit, a copy, a sync.
-`ProjectIndexEntryChanged` filtered to the plan, zone, requirement **and project** entity types.
+`ProjectIndexEntryChanged` filtered to the plan, zone, requirement, project **and asset** entity
+types.
+
+**The asset type is not a courtesy either.** `GetRequirementsForZone` re-reads the referenced
+asset on every row and compares its unit and unit cost through `assetMatchesCalculatedFrom` to
+decide whether a persisted figure is still current — so a price edited in the catalogue by hand
+or arriving through sync moves this summary's stale count, and a deleted asset note moves it too
+by way of a missing target. No `AssetUpdated` cascade runs for an out-of-band edit; the index
+entry is the only notice there is.
 
 **The project type is not padding, and leaving it out was a real hole.** A hand edit or a sync
 that changes the project note's `currency` publishes `ProjectIndexEntryChanged` with
@@ -575,6 +634,9 @@ mistake, per this repository's rule.
 | Invalidation | undo of a cost override and of a quantity override each refresh the total | `ReversibleOverrideBase.undo` saves directly and publishes nothing |
 | Invalidation | a `.rpgeo` edit arriving out of band refreshes the stale count | it publishes `GeometrySidecarChanged` and deliberately not `ProjectIndexEntryChanged` |
 | Invalidation | a project note whose currency changed out of band refreshes the summary | the header updates without it and the total keeps the old denominator |
+| Summary | one malformed requirement note leaves every other figure drawn, counted in `unreadableRequirements` | `filterLoaded` returns the first read error today, so the whole summary faults on a note it does not count |
+| Invalidation | an asset price edited out of band refreshes the stale count | no `AssetUpdated` cascade runs for a hand edit; the index entry is the only notice |
+| Invalidation | `RequirementDeleted` refreshes the summary | it was specified as published and not subscribed to for a round — published-and-unheard passes every publishing test |
 | Summary | `summed` is the query's own count, and a row that is both foreign and currency-mismatched is subtracted once | deriving it in the component double-subtracts, and the counts are independent by design |
 | Keyboard | after a section change through view state, focus is on the newly selected tab | the mock's local `ref` hides this; only the real round trip unmounts the element |
 | Keyboard | a restored leaf and a `rebind` do NOT move focus | an unconditional focus-on-mount steals it during layout restoration |
@@ -601,7 +663,8 @@ navigation case.
 
 **New:** `src/application/queries/GetProjectSummary.ts`;
 `src/application/events/projectSummaryChangeSource.ts` (Decision 7);
-a `RequirementDeleted` domain event (Decision 7);
+a `RequirementDeleted` domain event (Decision 7); the `{ loaded, refused }` widening of
+`RequirementRepository.listByZone` and its partial result through `GetRequirementsForZone`;
 `src/presentation/views/sections.ts`
 (the `SECTIONS` list and the parse); `ProjectHeader.vue`, `ProjectNav.vue`,
 `ProjectOverview.vue`, `ProjectEstimate.vue`, `ProjectDesign.vue`; a `styles/` partial carrying

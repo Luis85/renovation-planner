@@ -63,7 +63,11 @@ try the same three in the same order.
   data rather than as a contract somebody implements. The grep does not care about that
   distinction. **Every exported type a test may annotate a literal with is in scope**, and the
   instrument is the type's own name (`grep -rn "RequirementInspectorDTO" src/ tests/`), not a
-  guess at how it is constructed. Read the hits, too: a `as unknown as` cast is immune and a
+  guess at how it is constructed. **And re-read the PATH argument before quoting a grep as
+  evidence**: Task 5 carried `grep -rn "new AssignAssetCommand\|new RecalculateRequirementCommand"
+  src/` under the words "not remembered", reported three sites, and the true figure across both
+  trees is thirty-five. A measurement pointed at the wrong tree reads as the strongest evidence in
+  the document and is the weakest, and the path is the part nobody re-reads. Read the hits, too: a `as unknown as` cast is immune and a
   spread of an already-widened literal inherits the member, so three hits can be one edit.
   **For a member that TRAVELS — a context fed from the composition root through a deps
   bundle — the type's own name is the wrong instrument, and that is the eighth instance.**
@@ -2380,11 +2384,39 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 - Test: `tests/application/commands/requirement/overrideSatisfiesRefusal.test.ts` (**the witness**)
 
 **The wiring is in THIS task, not Task 8, and that is what makes the commit green.** A required
-`overrides` member is a build error at every construction site the moment it exists, and there
-are **three** — measured with
-`grep -rn "new AssignAssetCommand\|new RecalculateRequirementCommand" src/`, not remembered.
-Deferring the repository's construction to Task 8 would leave this task's `npm run check` red,
+`overrides` member is a build error at every construction site the moment it exists, and
+deferring the repository's construction to Task 8 would leave this task's `npm run check` red,
 which contradicts the plan's own "each task ends green on its own".
+
+**There are THIRTY-FIVE construction sites, not three**, and the sentence that used to stand here
+is the worst instance of this plan's recurring defect precisely because it cited its own grep as
+evidence of rigour:
+
+> measured with `grep -rn "new AssignAssetCommand\|new RecalculateRequirementCommand" **src/**`,
+> not remembered.
+
+`src/` alone, in a plan whose Global Constraints say in as many words to grep **across `src/` AND
+`tests/`**, because that is where the constructions overwhelmingly live. "Measured, not
+remembered" is true and useless when the measurement is pointed at the wrong tree; it reads as
+the strongest kind of evidence and was the weakest. **A grep quoted in prose is only as good as
+its path argument, and the path is the part nobody re-reads.**
+
+`grep -rn "new AssignAssetCommand(" src/ tests/` — **23 sites, 21 of them in `tests/`**:
+
+| Count | File |
+| --- | --- |
+| 9 | `tests/application/commands/requirement/requirementRefusals.test.ts` |
+| 2 | `tests/application/commands/requirement/reversibleAssign.test.ts` |
+| 1 each | `tests/helpers/slice10.ts`, `tests/helpers/planEditorRig.ts`, `tests/application/slice10Branches.test.ts`, `tests/application/reference/interleaving.test.ts`, `tests/application/reference/deleteResolutions.test.ts`, `tests/application/queries/requirementStaleness.test.ts`, `tests/application/event-handlers/cascade.test.ts`, `tests/application/errors/guardAgainstThrowing.test.ts`, `tests/application/commands/requirement/currencyMismatch.test.ts`, `tests/application/commands/requirement/assignAsset.test.ts` |
+| 1 each | `src/presentation/editor/planEditorCommands.ts`, `src/plugin/slice10Composition.ts` |
+
+`new RecalculateRequirementCommand(` adds **12 more**, listed under the `RecalculateRequirementDeps`
+bullet below — 1 in `src/`, 11 in `tests/`.
+
+**Every one of them is in this task's scope**, and `tests/**` is type-checked by `npm run build`,
+so leaving them is not a smaller version of the change — it is a task that cannot go green. Nine
+of the twenty-three sit in ONE file, which is worth knowing before estimating: this is thirteen
+files, not thirty-five edits' worth of thinking.
 
 **Interfaces:**
 - Consumes: Task 2's port, Task 4's commands.

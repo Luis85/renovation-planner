@@ -287,10 +287,19 @@ a rule this section always held — see §12:
 | Footprint, **unscaled** | the **same outline, dashed**. The proportions are real and the scale is not, which is exactly what a provisional stroke over true geometry says |
 | Not yet read | **three dots**, centred. Not a shape at all, so no footprint can collide with it, and it is already the printed mark for *still coming* |
 | No shape yet | **nothing**. An empty slot is the one thing no other state can be mistaken for, and a drawn box for *there is no shape* is scaffolding pretending to be data |
+| **Unreadable** | a **struck box** — the only state that draws a box at all, so nothing can confuse it with a square footprint. A box says something *is* there; the cross says it is spent |
 
 The third state is not a skeleton animation; it is what the row draws before its shape arrives,
 and it has to be distinct from *no shape yet* or the surface asserts an absence it has not
-checked. The 20px column is held by the `<svg>` element, which renders in every state including
+checked.
+
+**The fifth arrived late and the first four were incomplete without it.** `AssetGeometryStore`
+refuses a damaged sidecar rather than repairing it — `asset-geometry.unreadable`, `corrupt`,
+`schema-invalid`, `asset-id-mismatch` — and a refusal is a third outcome beside *read it* and
+*there is nothing there*. Neither neighbour can carry it: **`No shape yet` reports an absence
+that is false**, over a file sitting on disk, and **`Not yet read` leaves a mark loading for the
+rest of the session**. The table above was written as though a read could only succeed or find
+nothing. Reported by a review bot. The 20px column is held by the `<svg>` element, which renders in every state including
 the empty one — removing it would let the grid pull every later slot one column left.
 
 The clearance boundary, the anchor and the facing are **not** drawn at 20px — they are mush at
@@ -469,8 +478,16 @@ parse per row**. The bound below is unchanged; only its justification is now acc
 Bounded three ways:
 
 1. Marks are fetched **per expanded shelf**, in one batched query, never for the whole catalogue.
-2. A row **never waits** for its mark: it renders with the *not yet read* box and the mark fills in.
+2. A row **never waits** for its mark: it renders in the *not yet read* state and the mark fills in.
 3. Collapsing a shelf cancels nothing already in flight but requests nothing further.
+
+**And the batch settles per entry, never as a whole.** One damaged sidecar must not fail the
+shelf it is in, and it must not leave the other rows loading either. So the query answers a
+result *per asset id* — an outline, an absence, or a refusal — and a refusal renders §3.4's
+struck box while every other row in the same batch renders normally. Stated because the
+alternatives are both reachable and both wrong: a `Result` over the whole batch poisons a shelf
+for one bad file, and dropping the failed entry silently degrades it into *no shape yet*, which
+is the false absence §3.4 exists to refuse.
 
 This is the strongest practical argument for the structure the user locked, and it was not why it was
 offered: shelves make the expensive read *bounded by a gesture the user already makes*. The filtered
@@ -510,6 +527,16 @@ Every gesture reachable without a pointer, per PRODUCT.md's binding WCAG 2.2 AA 
 | `↑` / `↓` within a shelf | Moves between rows, wrapping into the next shelf's header at the ends |
 | `Escape` in the search field | Clears it |
 | `Escape` in an inspector field | Resyncs that one field (`useFieldCommit.onCancel`) — one field, not the panel, exactly as the Plan editor's Inspector already behaves |
+
+**The arrow-key rule is one focus manager over the shelves region, not a handler per shelf**, and
+that is what makes the wrap fall out rather than be written: headers and rows already alternate in
+DOM order, so *the next focusable thing in this region* IS *the next row, or the next shelf's
+header when the rows run out*. A per-shelf handler would have to be told about its siblings, which
+is a list, and a list goes stale where a rule does not. A collapsed shelf's rows are `v-show`n
+rather than removed, so the manager filters on what is actually laid out — which jsdom cannot
+report, so that filter is checked by an eye in the harness rather than by the suite. The prototype
+carries it, because a mock that draws every state while silently omitting the keyboard leaves a
+builder inheriting a promise nobody has tried.
 
 Every focus stop has a visible ring. Obsidian's global `:focus { outline: none }` reaches buttons, so
 each interactive class opts its own ring back in — `2px solid var(--interactive-accent)`, offset
@@ -807,6 +834,22 @@ written. Both were invisible because no capture had been taken between the two w
 checkable against a specification, and neither check is a picture. The captures found the mark
 collision and the truncated column; they could not have found a DTO that omits a field the
 inspector needs, and they did not draw the two states where four of these lived.
+
+A fourth round on the fix commit found three more, and one of them is the most instructive
+finding on this branch:
+
+- **The narrow-search fix was a refusal that was too broad, and it broke the other half.** Round
+  three's fix withdrew the inspector whenever a search was running; a user who then found an asset
+  through search could not open it, because selecting a result changed `selectedId` while
+  `searching` stayed true. Round two had the opposite defect. The two rounds are the same lesson
+  from both sides — *when a fix is a refusal, write the WIDENED mutation and run it, because a
+  refusal that is too broad is silent in a way a missing refusal is not* — and neither round's
+  defect was visible in a capture, because a capture shows one resting state and this is a
+  question about a sequence. It is one flag now (`pickedSinceQuery`) rather than two conditions
+  that can disagree, and §6.1 carries the rule.
+- **A fifth mark state**, above, for a sidecar that is there and will not parse.
+- **The arrow-key navigation §6.2 specifies did not exist in the mock**, so the contract was a
+  promise nobody had tried. It exists now, as the focus manager §6.2 describes.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

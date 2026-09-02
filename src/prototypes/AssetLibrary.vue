@@ -31,7 +31,7 @@
 	real cost data anywhere in this repository.
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import AssetInspector from './AssetInspector.vue';
 import AssetShelf from './AssetShelf.vue';
 import { ASSETS, CATEGORIES, type CatalogueAsset } from './assetLibraryFixture';
@@ -48,7 +48,7 @@ const query = ref('');
  * the shelf that happened to be shut; the second fixed that and left the non-EUR row unseen. A
  * resting state is a choice about what gets looked at.
  */
-const expanded = ref(new Set<string>(['Material', 'Furniture', 'Fixture']));
+const expanded = ref(new Set<string>(['Material', 'Furniture', 'Fixture', 'Building element']));
 const selectedId = ref<string | null>('oak-plank-floor');
 
 /**
@@ -72,13 +72,38 @@ const matches = computed((): readonly CatalogueAsset[] => {
 		`${a.name} ${a.supplier ?? ''} ${a.sku ?? ''}`.toLowerCase().includes(needle));
 });
 
-/*
- * Also what returns the narrow composition to the shelves: below 35rem the inspector owns the
- * whole pane, so with this reading only `selected !== null` a user typing into the search field
- * filtered a list they could not see and the surface appeared to ignore them. Found by looking
- * at the 460px capture, which is the width that composition only exists for.
- */
 const searching = computed(() => query.value.trim() !== '');
+
+/**
+ * WHICH PANE THE NARROW COMPOSITION IS SHOWING, as one boolean rather than two conditions that
+ * can disagree — and it took two review rounds to land on, in opposite directions.
+ *
+ * Below 35rem this surface is one pane at a time. The first version keyed that on
+ * `selected !== null` alone, so typing into the search field filtered a list the inspector was
+ * covering and the surface appeared to ignore the user. The second version keyed the withdrawal
+ * on `searching`, which fixed that and broke the other half: a user who found an asset through
+ * search then could not open it, because selecting a result changed `selectedId` while
+ * `searching` stayed true and the inspector stayed hidden. A refusal too broad, which is exactly
+ * the failure mode this repository's own notes warn about — *when a fix is a refusal, write the
+ * WIDENED mutation and run it, because a refusal that is too broad is silent in a way a missing
+ * refusal is not.* Both rounds were reported by a review bot rather than caught by a capture,
+ * because a capture shows one resting state and this is a question about a sequence.
+ *
+ * `pickedSinceQuery` is what separates the two: a selection made BEFORE the current search is
+ * the one the search should push aside, and a selection made DURING it is the thing the user
+ * just asked for. So the query field resets it and a row sets it, and everything narrow-width
+ * follows from the one flag — the shelves hide when it is showing the inspector, the inspector
+ * withdraws when it is not, and `Back to library` returns to the results rather than clearing
+ * the field.
+ */
+const pickedSinceQuery = ref(true);
+const inspecting = computed(() => selectedId.value !== null && pickedSinceQuery.value);
+watch(query, () => { pickedSinceQuery.value = false; });
+
+function select(id: string): void {
+	selectedId.value = id;
+	pickedSinceQuery.value = true;
+}
 
 /**
  * The shelves: the DECLARED vocabulary first in its declared order, every one of them drawn
@@ -107,6 +132,40 @@ const selected = computed(() => ASSETS.find((a) => a.id === selectedId.value) ??
 const shelfOf = (category: string): readonly CatalogueAsset[] =>
 	matches.value.filter((a) => a.category === category);
 
+/**
+ * §6.2's arrow-key navigation: up and down move between rows and wrap into the next shelf's
+ * header at the ends.
+ *
+ * ONE handler on the shelves region rather than a handler per shelf, and that is what makes the
+ * wrap rule fall out rather than be written: shelf headers and rows already alternate in DOM
+ * order, so "the next focusable thing in this region" IS "the next row, or the next shelf's
+ * header when the rows run out". A per-shelf handler would have to be told about its siblings,
+ * which is a list, and this repository's own rule is that a list goes stale where a rule does
+ * not.
+ *
+ * Reading the DOM rather than deriving from `shelves` and `matches` for the same reason: the
+ * region's real order is the one the user is moving through, and a computed order is a second
+ * answer that can drift from it — a collapsed shelf's rows are `v-show`n rather than removed,
+ * so a derived list would happily focus something nobody can see. `:not([hidden])` plus
+ * `offsetParent` is what excludes them; jsdom reports neither, which is why this is checked by
+ * an eye in the harness rather than by the suite.
+ *
+ * The prototype carries it because §6.2 is a contract, and a mock that draws every state while
+ * silently omitting the keyboard leaves a builder inheriting a promise nobody has tried. It is
+ * the one part of this screen where trying it is the only way to find out the wrap is natural.
+ */
+function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
+	const region = event.currentTarget as HTMLElement;
+	const stops = [...region.querySelectorAll<HTMLElement>('button')]
+		.filter((el) => el.offsetParent !== null);
+	const here = stops.indexOf(document.activeElement as HTMLElement);
+	if (here === -1) return;
+	const next = stops[here + step];
+	if (next === undefined) return;
+	event.preventDefault();
+	next.focus();
+}
+
 function toggle(category: string): void {
 	const next = new Set(expanded.value);
 	if (!next.delete(category)) next.add(category);
@@ -117,7 +176,7 @@ function toggle(category: string): void {
 <template>
 	<div
 		class="rp-al"
-		:class="{ 'rp-al--inspecting': selected !== null && !searching }"
+		:class="{ 'rp-al--inspecting': inspecting }"
 	>
 		<div class="rp-al-toolbar">
 			<label class="rp-al-search">
@@ -139,7 +198,11 @@ function toggle(category: string): void {
 		</div>
 
 		<div class="rp-al-body">
-			<div class="rp-al-shelves">
+			<div
+				class="rp-al-shelves"
+				@keydown.down="moveFocus($event, 1)"
+				@keydown.up="moveFocus($event, -1)"
+			>
 				<p
 					v-if="searching"
 					class="rp-al-results"
@@ -155,7 +218,7 @@ function toggle(category: string): void {
 					:collapsible="false"
 					:selected-id="selectedId"
 					:show-category="true"
-					@select="selectedId = $event"
+					@select="select($event)"
 				/>
 				<div
 					v-else-if="searching"
@@ -183,13 +246,13 @@ function toggle(category: string): void {
 					:expanded="expanded.has(category)"
 					:selected-id="selectedId"
 					@toggle="toggle(category)"
-					@select="selectedId = $event"
+					@select="select($event)"
 				/>
 			</div>
 
 			<AssetInspector
 				:asset="selected"
-				:withdraw="searching"
+				:withdraw="!inspecting"
 				@back="selectedId = null"
 			/>
 		</div>

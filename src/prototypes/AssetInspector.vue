@@ -74,6 +74,7 @@ const shapeNote = computed((): string | null => {
 		case 'unscaled': return 'Traced before a scale existed, so these are not measurements yet.';
 		case 'none': return 'No outline. This asset has nothing to draw on a plan.';
 		case 'pending': return 'Reading the shape…';
+		case 'unreadable': return 'A shape file is stored for this asset and could not be read.';
 		default: return null;
 	}
 });

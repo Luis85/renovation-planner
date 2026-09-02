@@ -25,7 +25,8 @@
 -->
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ASSETS, markPath, type CatalogueAsset } from './assetLibraryFixture';
+import AssetMark from './AssetMark.vue';
+import { ASSETS, type CatalogueAsset } from './assetLibraryFixture';
 
 /**
  * Every prop is optional and defaulted, so this region draws as a SPECIMEN on the harness index
@@ -61,9 +62,6 @@ const props = withDefaults(defineProps<{
 defineEmits<{ toggle: []; select: [id: string] }>();
 
 const listId = computed(() => `rp-al-shelf-${props.label.toLowerCase().replace(/\s+/g, '-')}`);
-const path = (asset: CatalogueAsset): string =>
-	asset.outline === null ? '' : markPath(asset.outline, 20, 2);
-
 /**
  * The symbol where one is unambiguous, the ISO code where it is not.
  *
@@ -138,25 +136,10 @@ const price = (asset: CatalogueAsset): string => {
 					:aria-current="asset.id === selectedId ? 'true' : undefined"
 					@click="$emit('select', asset.id)"
 				>
-					<svg
-						class="rp-al-mark"
-						:class="`rp-al-mark--${asset.shape}`"
-						viewBox="0 0 20 20"
-						aria-hidden="true"
-					>
-						<path
-							v-if="asset.outline !== null"
-							:d="path(asset)"
-						/>
-						<circle
-							v-for="x in (asset.shape === 'pending' ? [5, 10, 15] : [])"
-							:key="x"
-							class="rp-al-mark__dot"
-							:cx="x"
-							cy="10"
-							r="1.1"
-						/>
-					</svg>
+					<AssetMark
+						:asset="asset"
+						:selected="asset.id === selectedId"
+					/>
 					<span class="rp-al-row__name">{{ asset.name }}</span>
 					<span
 						v-if="showCategory"
@@ -336,58 +319,6 @@ const price = (asset: CatalogueAsset): string => {
 	background-color: var(--background-modifier-active-hover);
 	box-shadow: inset 2px 0 0 0 var(--interactive-accent);
 	font-weight: var(--font-medium);
-}
-
-.rp-al-mark {
-	width: 20px;
-	height: 20px;
-	overflow: visible;
-	fill: none;
-	stroke: currentColor;
-	stroke-width: 1;
-	stroke-linejoin: round;
-	color: var(--text-muted);
-}
-
-.rp-al-row--on .rp-al-mark {
-	color: var(--text-normal);
-}
-
-/*
- * FOUR STATES THAT DIFFER IN KIND, and getting there took a capture.
- *
- * The first version drew an empty box for both absence states, told apart by a diagonal, and
- * put a slash across an unscaled outline. Photographed with all four on screen at once, three
- * of them were a square with a line through it: a measured 600 × 600 tile, an unscaled cabinet
- * and a not-yet-read cabinet were separated by stroke pattern in one case and by COLOUR alone
- * in the other — the exact failure this mark exists to avoid, shipped by the mark. Nothing in
- * jsdom could have said so, and reasoning about it did not either; the two collisions are
- * obvious the moment the shelf holding them is the one that happens to be open.
- *
- * So each state now differs from every other in KIND, never in weight:
- *
- * - `measured` — the outline, solid.
- * - `unscaled` — the SAME outline, dashed. The proportions are real and the scale is not, which
- *   is exactly what a provisional stroke over true geometry says.
- * - `pending` — three dots. Not a shape at all, so no footprint can collide with it, and it is
- *   already the printed mark for "still coming".
- * - `none` — nothing. An empty slot is the one thing no other state can be mistaken for, and a
- *   drawn box for "there is no shape" was only ever scaffolding pretending to be data.
- *
- * The 20px column is held by the `<svg>` itself, which always renders. Removing the element for
- * `none` would let the grid pull every later slot one column left.
- */
-.rp-al-mark--unscaled {
-	stroke-dasharray: 2 2;
-}
-
-.rp-al-mark--pending {
-	color: var(--text-faint);
-}
-
-.rp-al-mark__dot {
-	fill: currentColor;
-	stroke: none;
 }
 
 .rp-al-row__name {

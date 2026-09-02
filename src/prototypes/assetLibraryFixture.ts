@@ -43,13 +43,20 @@
  *   setting rather than from any index, so nothing can answer "does this have one" without a
  *   file read, and a row must never wait for its own mark.
  *
- * `pending` appears in this fixture on one asset deliberately, because a state that only exists
- * for 80ms in production is a state nobody ever looks at hard enough to notice it is
- * indistinguishable from `none`.
+ * - `unreadable` — the sidecar is THERE and could not be read. `AssetGeometryStore` refuses
+ *   rather than repairing (`asset-geometry.unreadable`, `corrupt`, `schema-invalid`,
+ *   `asset-id-mismatch`), and neither neighbouring state can carry that: `none` reports an
+ *   absence that is false, and `pending` leaves a mark loading for the rest of the session.
+ *   Reported by a review bot; the first four were written as though a read could only succeed
+ *   or find nothing.
+ *
+ * `pending` and `unreadable` each appear in this fixture on one asset deliberately, because a
+ * state that only exists for 80ms in production is a state nobody ever looks at hard enough to
+ * notice it is indistinguishable from its neighbour.
  */
 import type { Point } from '../core/geometry/Point';
 
-export type ShapeState = 'measured' | 'unscaled' | 'none' | 'pending';
+export type ShapeState = 'measured' | 'unscaled' | 'none' | 'pending' | 'unreadable';
 
 export interface UsedIn {
 	readonly project: string;
@@ -203,6 +210,13 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		unitCost: '228.00', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Türen Brandt', sku: 'ID-838',
 		heightMm: 1981, notes: null, shape: 'measured', outline: box(838, 44),
 		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 4 }],
+	},
+	{
+		id: 'lintel-precast', name: 'Precast lintel, 1500', category: 'Building element',
+		unitCost: '74.00', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Beton Sauer',
+		sku: 'PL-1500', heightMm: 190,
+		notes: 'The sidecar for this one is on disk and will not parse.',
+		shape: 'unreadable', outline: null, usedIn: [],
 	},
 	{
 		id: 'stud-partition', name: 'Stud partition wall', category: 'Building element',

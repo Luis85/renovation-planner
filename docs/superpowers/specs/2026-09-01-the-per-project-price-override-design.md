@@ -439,6 +439,20 @@ against a shared definition"* — is met by this increment and the epic should s
   That widening is the first half's recorded residual and is not reopened here. Refusing the note
   at the READ was the alternative and is rejected: it makes a note the user can see on disk
   invisible to the plugin, which is the same trade the duplicate-pair rule already refuses.
+- **An out-of-band price change refreshes the views and recalculates nothing.** A price note
+  hand-edited, synced, or deleted in the file explorer reaches `VaultChangeAdapter`, which upserts
+  the index and publishes `ProjectIndexEntryChanged` — no domain event. Decision 5's cascade
+  subscribes to `AssetPriceOverrideChanged`, which only the two commands raise, so the section and
+  the Inspector re-read while every requirement keeps its persisted figure. **Pre-existing and
+  symmetrical**: `registerOnAssetUpdated` listens to `AssetUpdated` the same way, and nothing
+  anywhere subscribes a cascade to the index event, so a library price edited by hand moves no
+  requirement in any project today either — the shared catalogue being the larger half of the same
+  gap. What the user sees is a row that reports itself `stale` rather than a wrong figure claiming
+  to be current, because the staleness backstop reads the effective (override-aware) cost; and
+  re-setting the price through the section is a recovery that runs the cascade. **Not fixed here**:
+  the remedy is one change to the vault-change pipeline serving assets, overrides and whatever
+  comes next, which every index consumer inherits — the same reason slice 19's folder-move marker
+  was narrowed in the documents rather than fixed in the code.
 
 ## What this does not change
 

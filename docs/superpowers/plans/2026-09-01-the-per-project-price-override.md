@@ -2540,6 +2540,35 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
   `runRecalculationCascade` from `event-handlers/requirement/cascade.ts`.
 - Produces: `registerOnAssetPriceOverrideChanged(events: EventBus, deps: CascadeDeps): Disposable`.
 
+**This cascade hears THIS PLUGIN'S writes and nothing else, which is a residual rather than an
+oversight — and it is PRE-EXISTING, symmetrical, and deliberately not closed here.** A price note
+hand-edited in Obsidian, arriving through sync, or deleted from the file explorer reaches
+`VaultChangeAdapter`, which upserts the index and publishes `ProjectIndexEntryChanged` and no
+domain event at all (`processNote`'s one `publish` call). This handler subscribes to
+`AssetPriceOverrideChanged`, which only Task 4's two commands raise. So the section and the
+Inspector both re-read — Task 9 step 4a and Task 8a step 3a wire exactly that — while every
+requirement derived from the pair keeps its persisted figure.
+
+Three things make this the right call rather than a gap to fill inside this increment:
+
+- **The ASSET side already behaves identically, and it is the bigger case.**
+  `registerOnAssetUpdated` subscribes to `AssetUpdated`, a domain event only `UpdateAssetCommand`
+  raises; nothing anywhere subscribes a cascade to `ProjectIndexEntryChanged` — measured, the
+  only consumers are the view change SOURCES. A library price edited by hand today moves no
+  requirement in any project. Building an out-of-band cascade for overrides alone would make the
+  two disagree, with the shared catalogue — which serves every project — left as the unfixed
+  half.
+- **What the user actually sees is a `stale` row, not a wrong number presented as current.**
+  Task 6 step 4 feeds the OVERRIDE-aware effective cost into `isStaleReading`, so an out-of-band
+  price change makes `inputsStillMatch` fail and the row reports itself stale. The figure is not
+  recomputed; the surface does not claim it is. And the recovery is a gesture the user has:
+  setting the price again through the section raises the domain event and runs this cascade.
+- **The fix belongs to the vault-change pipeline**, which every index consumer inherits — the
+  same reason slice 19's folder-move marker was narrowed in the documents rather than fixed in
+  the code. It is one change (a domain event, or a cascade subscriber, for out-of-band entity
+  changes) serving assets, overrides and whatever comes next, and it is not this increment's to
+  design in passing.
+
 - [ ] **Step 1: Write the failing tests**
 
 ```ts

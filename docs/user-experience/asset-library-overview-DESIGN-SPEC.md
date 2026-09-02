@@ -339,21 +339,52 @@ Four sections, in this order:
    | --- | --- | --- |
    | Footprint | `1200 × 190 mm`, the extent derived from the outline | omitted |
    | Clearance | its own extent, `1400 × 400 mm` | `None` |
-   | Anchor | `Set` | `Not set` |
-   | Facing | `90°` | `Not set` |
+   | Anchor | `Centre`, or `340 × 0 mm from centre` | never — it always has one |
+   | Facing | `90°`, converted from radians | never — it always has one |
    | Height | `720 mm` | omitted |
    | Spec sheet | the file's name | omitted |
 
    plus the unscaled warning when it is owed, and **Open designer**.
 
-   **The anchor is a word, not a coordinate pair**, and that is the one row worth arguing. A
-   point in millimetres is meaningless without the drawing to read it against — `(340, 0)` tells
-   a renovator nothing that `Set` does not — and the surface that CAN show it meaningfully is one
-   click away. The same reasoning does not reach the facing, which is an angle and reads as one.
+   **Neither the anchor nor the facing has an absent state, and the first version of this table
+   invented one for both.** `AssetShape` makes `anchor: Point` and `facing: number` mandatory,
+   and `shapeFromDimensions` initialises them to `{ x: 0, y: 0 }` and `0` — so `GetAssetDesign`
+   cannot tell "never placed" from "placed at the origin", and a `Not set` row would have had to
+   guess. Worse, it would guess WRONG for the two users who deliberately chose those values.
 
-   Reported by a review bot: §3.4 and §5.3 both send these three to the inspector, this section
-   listed four rows that did not include them, and §8 defined no labels — so the promise existed
-   in two places and its representation in none.
+   What replaces it is better copy rather than a workaround, and it comes from the domain's own
+   docblock: `footprintFromDimensions` centres a typed rectangle on the origin precisely so that
+   `{ x: 0, y: 0 }` **means the middle of the object rather than a corner nobody chose**. So the
+   anchor row says `Centre` at the origin and an offset from it otherwise — always true, always
+   representable, and it tells a renovator something `Set` never did. The facing prints degrees
+   **converted from the stored radians** (`AssetShape.facing` is "radians, measured anticlockwise
+   from +x, normalised to [0, 2π)"), so `0°` is a real bearing rather than an absence.
+
+   An earlier draft of this paragraph argued the opposite — that the anchor should be a word
+   because a coordinate pair means nothing without the drawing to read it against. That reasoning
+   was sound and its conclusion was unbuildable, which is the more useful thing to record: **this
+   whole section was enumerated from what §3.4 PROMISED rather than from what `AssetShape`
+   holds**, and every one of the round's three findings followed from that. Reported by a review
+   bot citing the domain file and its lines.
+
+   Reported in the round before: §3.4 and §5.3 both send these three to the inspector, this
+   section listed four rows that did not include them, and §8 defined no labels — so the promise
+   existed in two places and its representation in none.
+
+   **The section has its own three states, exactly as *Used in* does** (§3.5), because it is the
+   other selection-triggered read. `GetAssetDesign.execute` returns the sidecar's error rather
+   than a DTO, so a corrupt sidecar leaves this section with nothing while the catalogue entry
+   above it is perfectly readable:
+
+   - **In flight** — a loading line in this section alone; the definition fields are already
+     drawn from the catalogue read and stay usable.
+   - **Refused** — §3.4's `unreadable` wording, in this section, and **`Open designer` stays
+     available**, because the designer is where a damaged shape is repaired.
+   - **Answered** — the rows above.
+
+   §4's failure row covers the catalogue read and cannot cover this one: replacing the whole
+   panel because a sidecar will not parse would hide a name, a price and a supplier that are
+   fine.
 3. **Used in** — the per-project groups, loaded **on selection** (§5.2). One row per project:
    project name, requirement count, **and the project's path wherever the query supplies one**.
    `ListRequirementsReferencing.withPathsWhereAmbiguous` sets `projectPath` on exactly the groups
@@ -751,8 +782,8 @@ view.asset-library.back             view.asset-library.delete
 view.asset-library.shape            view.asset-library.footprint
 view.asset-library.clearance        view.asset-library.anchor
 view.asset-library.facing           view.asset-library.spec-sheet
-view.asset-library.set              view.asset-library.not-set
-view.asset-library.none
+view.asset-library.anchor.centre     view.asset-library.anchor.offset  (interpolated: {x}, {y})
+view.asset-library.none             view.asset-library.shape.loading
 view.asset-library.new-asset        view.asset-library.results
 view.asset-library.category         view.asset-library.unit
 view.asset-library.unit-cost        view.asset-library.waste
@@ -1102,6 +1133,28 @@ disclosure button's class, so an empty shelf and the fixed Results heading carri
 cursor and hover background while clicking them did nothing — the affordance those headings exist
 to remove, put back by a shared class. **No capture could have shown it**, because a cursor and a
 hover state are not in a resting screenshot.
+
+A ninth round found three, **all of them in the Shape section the round before had just added**,
+and all three from one cause: that section was enumerated from what §3.4 PROMISED rather than
+from what `AssetShape` actually holds.
+
+- **`facing` is radians**, "measured anticlockwise from +x, normalised to [0, 2π)", and the row
+  appended a degree sign to the stored number — so a promoted component reading the real DTO
+  would have shown π/2 as `1.57°`.
+- **`Not set` is unrepresentable for the anchor and the facing.** Both are mandatory on
+  `AssetShape` and initialised to `{ x: 0, y: 0 }` and `0`, so nothing downstream can tell "never
+  placed" from "placed at the origin" — and a guess would be wrong for exactly the users who
+  chose those values deliberately. The replacement is better copy rather than a workaround, and
+  it comes from the domain's own docblock: the origin means the MIDDLE of the object, so the row
+  says `Centre` or an offset from it.
+- **The design read had no failure states**, so a corrupt sidecar left the Shape section with
+  nothing while the name, price and supplier above it were fine.
+
+The pattern to carry: **a UI specified against a promise rather than against the model it reads
+will be wrong in the model's own units, in its own absences, and in its own failures — three
+ways, from one cause.** The previous round's fix for "a promise with no representation" created
+three new claims and every one of them was false. Reading `AssetShape` first would have cost five
+minutes.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

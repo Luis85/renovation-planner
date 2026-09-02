@@ -95,9 +95,19 @@ export interface CatalogueAsset {
 	readonly outline: readonly Point[] | null;
 	/** The clearance boundary's own extent in millimetres, or `null` where none is drawn. */
 	readonly clearance?: readonly [width: number, depth: number];
-	/** Whether an anchor has been placed. A WORD rather than a coordinate pair — see §3.5. */
-	readonly anchor?: boolean;
-	/** Degrees, or absent where no facing has been set. */
+	/**
+	 * The anchor, in millimetres from the footprint's origin — a `Point`, mandatory in the real
+	 * `AssetShape` and defaulted to `{ x: 0, y: 0 }`, which `footprintFromDimensions` centres a
+	 * typed rectangle on precisely so that the origin MEANS the middle of the object. Optional
+	 * here only because a shapeless asset has none at all.
+	 */
+	readonly anchor?: Point;
+	/**
+	 * RADIANS, as `AssetShape.facing` stores it — "measured anticlockwise from +x, normalised to
+	 * [0, 2π)" — and NOT degrees. The presentation converts. An earlier version of this field
+	 * held degrees and the inspector appended a degree sign to them, so a promoted component
+	 * reading the real DTO would have rendered π/2 as `1.57°`.
+	 */
 	readonly facing?: number;
 	readonly usedIn: readonly UsedIn[];
 }
@@ -169,7 +179,7 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		id: 'base-cabinet-600', name: 'Base cabinet, 600', category: 'Furniture',
 		unitCost: '245.00', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Küchenhaus Adler', sku: 'BC-600',
 		heightMm: 720, notes: 'Traced from the supplier sheet before the sheet was calibrated.',
-		shape: 'unscaled', outline: box(600, 580), clearance: [600, 1180], anchor: true, facing: 0,
+		shape: 'unscaled', outline: box(600, 580), clearance: [600, 1180], anchor: { x: 0, y: 0 }, facing: 0,
 		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 4 }],
 	},
 	{
@@ -187,7 +197,7 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		id: 'radiator-600-1200', name: 'Radiator, panel 600 × 1200', category: 'Fixture',
 		unitCost: '189.00', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Sanitär Reuter', sku: 'RP-600-1200',
 		heightMm: 600, notes: null, shape: 'measured', outline: box(1200, 100),
-		clearance: [1200, 700], anchor: true, facing: 180,
+		clearance: [1200, 700], anchor: { x: 340, y: 0 }, facing: Math.PI,
 		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 5 }],
 	},
 	{

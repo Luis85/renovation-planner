@@ -86,8 +86,31 @@ const clearance = computed((): string => {
 	return extent === undefined ? 'None' : `${extent[0]} × ${extent[1]} mm`;
 });
 
-const facing = computed((): string =>
-	props.asset?.facing === undefined ? 'Not set' : `${props.asset.facing}°`);
+/**
+ * Degrees, CONVERTED — `AssetShape.facing` is radians measured anticlockwise from +x, and the
+ * first version of this row appended a degree sign to the stored number, so a promoted component
+ * reading the real DTO would have shown π/2 as `1.57°`. Reported by a review bot against the
+ * domain file.
+ */
+const facing = computed((): string => {
+	const radians = props.asset?.facing;
+	if (radians === undefined) return '—';
+	return `${Math.round((radians * 180) / Math.PI)}°`;
+});
+
+/**
+ * `Centre`, or the offset from it — never `Set` or `Not set`, because neither is representable.
+ * `AssetShape.anchor` is mandatory and initialised to `{ x: 0, y: 0 }`, so nothing downstream can
+ * tell "never placed" from "placed at the origin"; and the origin is not an arbitrary corner —
+ * `footprintFromDimensions` centres a typed rectangle on it precisely so that it means the
+ * middle of the object. So the honest reading of the default is also the useful one.
+ */
+const anchor = computed((): string => {
+	const point = props.asset?.anchor;
+	if (point === undefined) return '—';
+	if (point.x === 0 && point.y === 0) return 'Centre';
+	return `${point.x} × ${point.y} mm from centre`;
+});
 
 const shapeNote = computed((): string | null => {
 	switch (props.asset?.shape) {
@@ -196,8 +219,8 @@ const shapeNote = computed((): string | null => {
 				<dt class="rp-al-fields__key">
 					Anchor
 				</dt>
-				<dd class="rp-al-fields__value">
-					{{ asset.anchor === true ? 'Set' : 'Not set' }}
+				<dd class="rp-al-fields__value rp-al-fields__num">
+					{{ anchor }}
 				</dd>
 				<dt class="rp-al-fields__key">
 					Facing

@@ -362,24 +362,35 @@ Four sections, in this order:
    Reported by a review bot: the first version offered groups or "not used" and nothing else, so
    an unreadable usage graph rendered as an unused asset.
 
-   **It re-reads while the asset stays selected, and one half of that is unreachable.** A Plan
-   Editor in another leaf assigning this asset publishes `RequirementCreated`, so the panel
-   subscribes to it, filtered to the selected asset, and re-runs the query. **Undoing that
-   assignment publishes nothing at all**: `ReversibleAssignAssetCommand.undo` calls
-   `requirements.delete` directly, and `Requirement.events.ts` declares `RequirementCreated`,
-   `RequirementInvalidated`, `RequirementRecalculated` and `CostEstimateChanged` — there is no
-   `RequirementDeleted` to subscribe to. So this panel can grow a row it will not lose until the
-   asset is reselected, and that is a limitation of the event vocabulary rather than of this
-   design.
+   **It re-reads while the asset stays selected, UNFILTERED, and one half of that is
+   unreachable.** A Plan Editor in another leaf assigning this asset publishes
+   `RequirementCreated`, and the panel re-runs its query on any of them — **not filtered to the
+   selected asset, because it cannot be**: `RequirementEventPayload` is `{ requirementId,
+   projectId }` and `AssignAsset` publishes exactly those two fields, so nothing in the event
+   says which asset was assigned.
 
-   Written down rather than worked around, because the workaround is worse: polling, or
-   re-reading on every event of any kind, turns one peer's undo into a scan of every requirement
-   in the vault. Closing it properly is a `RequirementDeleted` event — a domain-layer addition,
-   not a view's to make — and §11 carries it. **This is the second time this repository has met
-   this exact shape**: `projectListChangeSource`'s own docblock once said "there is no
-   `ProjectDeleted` to add here until something raises one", which CLAUDE.md records as reading
-   like a survey of the ground while actually describing a missing publisher one layer down. One
-   entity over, same sentence.
+   Unfiltered is cheap here, which is why this needs no domain change. `ListRequirementsReferencing`
+   reads `requirements.listByAsset(selectedAssetId)` — it is bounded by the ONE selected asset's
+   own referents, not by the vault — so the worst case is one small re-read per assignment made
+   anywhere while this panel happens to be open. An earlier draft of this paragraph claimed
+   re-reading on every event "turns one peer's undo into a scan of every requirement in the
+   vault", which is the cost of a different query than the one this panel runs. Corrected rather
+   than left standing: an overstated cost is how a cheap correct design gets refused in favour of
+   a domain change nobody needed.
+
+   **Undoing that assignment publishes nothing at all**, and that half no re-read can fix:
+   `ReversibleAssignAssetCommand.undo` calls `requirements.delete` directly, and
+   `Requirement.events.ts` declares `RequirementCreated`, `RequirementInvalidated`,
+   `RequirementRecalculated` and `CostEstimateChanged` — there is no `RequirementDeleted` to
+   subscribe to at all. So this panel can grow a row it will not lose until the asset is
+   reselected. A limitation of the event vocabulary rather than of this design, recorded rather
+   than worked around, and §11 carries the fix as what it is: a domain-layer addition, not a
+   view's to make.
+
+   **This is the second time this repository has met that exact shape**:
+   `projectListChangeSource`'s own docblock once said "there is no `ProjectDeleted` to add here
+   until something raises one", which CLAUDE.md records as reading like a survey of the ground
+   while actually describing a missing publisher one layer down. One entity over, same sentence.
 
    **It shows no per-project price.** The epic's last open item is §89's override — a project
    recording its own price against a shared definition — and when it lands, the number in section 1
@@ -690,7 +701,12 @@ defect was found, and where this row has four more slots to lose.
 Every string resolves through `t(language, key)`. Sentence case, plain, no exclamation — a
 marketplace rule before it is a preference, linted in `en.ts`.
 
-New keys, by group:
+New keys, by group. **The list is exhaustive for visible copy, which the first version was not
+while looking as though it were** — it declared the states and the actions and left every field
+LABEL, the `Shape` and `Used in` headings, the back control and `Delete` with no key at all, so a
+builder following it would have hard-coded English into exactly the places a German reader looks
+first. Reported by a review bot. A key list that stops at the interesting strings is worse than
+no list, because the gaps read as deliberate:
 
 ```
 view.asset-library.title            command.open-asset-library
@@ -699,6 +715,13 @@ view.asset-library.assets           (interpolated: {count})
 view.asset-library.used-in          view.asset-library.used-in.none
 view.asset-library.used-in.project  (interpolated: {name}, {count})
 view.asset-library.open-designer    view.asset-library.open-note
+view.asset-library.back             view.asset-library.delete
+view.asset-library.shape            view.asset-library.footprint
+view.asset-library.new-asset        view.asset-library.results
+view.asset-library.category         view.asset-library.unit
+view.asset-library.unit-cost        view.asset-library.waste
+view.asset-library.supplier         view.asset-library.sku
+view.asset-library.height           view.asset-library.notes
 view.asset-library.shape.none       view.asset-library.shape.unscaled
 view.asset-library.shape.pending    view.asset-library.shape.unreadable
 view.asset-library.used-in.loading  view.asset-library.used-in.failed
@@ -983,6 +1006,38 @@ sign it is failing.
 One of the three is also a limitation rather than a defect, and it is recorded as one: undoing an
 assignment publishes nothing, so `Used in` has no event for the removal half. That is the
 `RequirementDeleted` gap in §11.
+
+A seventh round found five, and two of them are this document and its prototype disagreeing
+rather than either being wrong alone — **the mock is now old enough that a spec edit can leave
+it behind**, which is a cost of prototyping early and is worth naming rather than resenting:
+
+- **A rule written the round before could not be implemented.** §3.5 said the panel subscribes to
+  `RequirementCreated` "filtered to the selected asset"; `RequirementEventPayload` is
+  `{ requirementId, projectId }` and `AssignAsset` publishes exactly those, so nothing in the
+  event says which asset was assigned. Checking the query changed the conclusion rather than
+  forcing a domain change: `ListRequirementsReferencing` reads `listByAsset`, so it is bounded by
+  the one selected asset and an **unfiltered** re-run is cheap. The previous draft's cost claim —
+  that re-reading on every event scans every requirement in the vault — was about a different
+  query and is corrected, because **an overstated cost is how a cheap correct design gets refused
+  in favour of a domain change nobody needed.**
+- **§8's key list looked exhaustive and was not**, declaring the states and the actions while
+  leaving every field label, both section headings, the back control and `Delete` with no key —
+  so a builder following it would hard-code English into exactly the places a German reader looks
+  first. A key list that stops at the interesting strings is worse than no list, because the gaps
+  read as deliberate.
+- **The prototype had no `<h2>` at all.** §9's outline is one for the view with the shelves
+  beneath it; the first heading the mock emitted was a shelf, and with nothing selected the pane
+  had no level-2 heading anywhere. It is a visually hidden one now — Obsidian prints the view
+  title in the leaf chrome, which is outside `contentEl`, so a visible one duplicates it while
+  its absence leaves heading navigation inside the pane with nothing to land on — and the
+  inspector's headings moved one level down so the outline nests rather than running in parallel.
+- **`localeCompare()` with no argument sorts in the environment's locale, not the UI's**, and the
+  two differ for exactly the reader this plugin ships a `de.ts` for. The round-five fix delivered
+  the sort and not the language.
+- **The mock could not represent `projectPath`** that the spec had required two rounds earlier,
+  and keyed its rows on the project name — so two projects sharing one name rendered as two
+  identical rows AND collided as one Vue key. Both fixed, and the fixture now holds a real
+  collision so the branch is drawn rather than asserted.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

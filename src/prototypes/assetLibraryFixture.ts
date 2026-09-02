@@ -60,6 +60,14 @@ export type ShapeState = 'measured' | 'unscaled' | 'none' | 'pending' | 'unreada
 
 export interface UsedIn {
 	readonly project: string;
+	/**
+	 * The project's folder, and ONLY where its name is not unique among the groups returned —
+	 * which is exactly what `ListRequirementsReferencing.withPathsWhereAmbiguous` supplies. A
+	 * path beside every row is noise on the common case; a missing path where two names collide
+	 * renders two identical rows for the two things the user is being asked to tell apart,
+	 * immediately before an edit or a deletion.
+	 */
+	readonly path?: string;
 	readonly requirements: number;
 }
 
@@ -185,7 +193,11 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		id: 'socket-double', name: 'Wall socket, double', category: 'Fixture',
 		unitCost: '14.90', unit: 'piece', currency: 'EUR', waste: null, supplier: 'Elektro Vogt', sku: 'WS-2-W',
 		heightMm: 86, notes: null, shape: 'measured', outline: box(146, 86),
-		usedIn: [{ project: 'Flat renovation, Hamburg', requirements: 11 }, { project: 'Garden studio', requirements: 4 }],
+		usedIn: [
+			{ project: 'Garden studio', path: 'Renovation/Garden studio', requirements: 4 },
+			{ project: 'Garden studio', path: 'Renovation/Garden studio (2024)', requirements: 2 },
+			{ project: 'Flat renovation, Hamburg', requirements: 11 },
+		],
 	},
 	{
 		id: 'ceiling-light-flush', name: 'Ceiling light, flush', category: 'Fixture',

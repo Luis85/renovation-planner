@@ -99,9 +99,9 @@ const shapeNote = computed((): string | null => {
 			Select an asset to see how it is defined and where it is used.
 		</p>
 		<template v-else>
-			<h2 class="rp-al-inspector__name">
+			<h3 class="rp-al-inspector__name">
 				{{ asset.name }}
-			</h2>
+			</h3>
 			<dl class="rp-al-fields">
 				<dt class="rp-al-fields__key">
 					Category
@@ -155,9 +155,9 @@ const shapeNote = computed((): string | null => {
 				{{ asset.notes }}
 			</p>
 
-			<h3 class="rp-al-inspector__title">
+			<h4 class="rp-al-inspector__title">
 				Shape
-			</h3>
+			</h4>
 			<dl
 				v-if="dimensions !== null"
 				class="rp-al-fields"
@@ -176,19 +176,25 @@ const shapeNote = computed((): string | null => {
 				{{ shapeNote }}
 			</p>
 
-			<h3 class="rp-al-inspector__title">
+			<h4 class="rp-al-inspector__title">
 				Used in
-			</h3>
+			</h4>
 			<ul
 				v-if="asset.usedIn.length > 0"
 				class="rp-al-used"
 			>
 				<li
 					v-for="use in asset.usedIn"
-					:key="use.project"
+					:key="`${use.project}\u0000${use.path ?? ''}`"
 					class="rp-al-used__row"
 				>
-					<span class="rp-al-used__project">{{ use.project }}</span>
+					<span class="rp-al-used__project">
+						{{ use.project }}
+						<span
+							v-if="use.path"
+							class="rp-al-used__path"
+						>{{ use.path }}</span>
+					</span>
 					<span class="rp-al-used__count">{{ use.requirements }}</span>
 				</li>
 			</ul>
@@ -323,9 +329,29 @@ const shapeNote = computed((): string | null => {
 	border-bottom: none;
 }
 
+/*
+ * The name, and BELOW it the folder when two projects share that name.
+ *
+ * `ListRequirementsReferencing.withPathsWhereAmbiguous` sets `projectPath` on exactly the groups
+ * whose name is not unique among the ones returned — a collision a vault legitimately holds,
+ * since `Project.create` trims a name and refuses only an empty one. The specification required
+ * it after an earlier round and the mock still could not represent it, which is a spec and its
+ * prototype disagreeing rather than either being wrong on its own. Reported by a review bot.
+ *
+ * The `:key` had the same defect from the other end: keyed on the name alone, two colliding
+ * groups are one key to Vue.
+ */
 .rp-al-used__project {
+	display: flex;
+	flex-direction: column;
 	min-width: 0;
 	overflow: hidden;
+}
+
+.rp-al-used__path {
+	overflow: hidden;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
 	white-space: nowrap;
 	text-overflow: ellipsis;
 }

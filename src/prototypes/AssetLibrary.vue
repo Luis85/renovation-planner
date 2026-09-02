@@ -61,7 +61,20 @@ const selectedId = ref<string | null>('oak-plank-floor');
  * Sorted ONCE here rather than per shelf, because every list this surface draws — a shelf, a
  * flat result run — is a filter of this one.
  */
-const byName = ASSETS.toSorted((a, b) => a.name.localeCompare(b.name));
+/*
+ * A collator built from the RESOLVED language, not a bare `localeCompare()`, which sorts in the
+ * environment's locale rather than the UI's — and the two differ for exactly the reader this
+ * plugin ships a `de.ts` for: a German UI running on a Swedish system would place `ä` after `z`.
+ * §§3.2 and 6.1 say "locale-aware under the resolved language" and the first fix delivered only
+ * the first half. Reported by a review bot.
+ *
+ * `LANGUAGE` is a constant here because the harness's `obsidian` mock always answers `'en'` from
+ * `getLanguage()`, so a mock reading it would be asserting a fact the harness cannot vary. A
+ * promoted component takes the resolved language the way every other translated surface does.
+ */
+const LANGUAGE = 'en';
+const collator = new Intl.Collator(LANGUAGE);
+const byName = ASSETS.toSorted((a, b) => collator.compare(a.name, b.name));
 
 const matches = computed((): readonly CatalogueAsset[] => {
 	const needle = query.value.trim().toLowerCase();
@@ -193,6 +206,9 @@ function toggle(category: string): void {
 		class="rp-al"
 		:class="{ 'rp-al--inspecting': inspecting }"
 	>
+		<h2 class="rp-al-title">
+			Asset library
+		</h2>
 		<div class="rp-al-toolbar">
 			<label class="rp-al-search">
 				<span class="rp-al-search__label">Search the library</span>
@@ -289,6 +305,30 @@ function toggle(category: string): void {
 	container: rp-al / inline-size;
 	background-color: var(--background-primary);
 	color: var(--text-normal);
+}
+
+/*
+ * The surface's own heading, VISUALLY HIDDEN.
+ *
+ * §9's outline is one `<h2>` for the view with the shelves as `<h3>` beneath it, and the mock had
+ * no `<h2>` at all — the first heading emitted was a shelf, and the inspector's asset name was a
+ * SIBLING of the shelves rather than a parent, so with nothing selected the pane had no level-2
+ * heading anywhere. Reported by a review bot; jsdom can be asked about heading order and the axe
+ * case for this surface does not exist yet, so nothing here was watching it.
+ *
+ * Hidden rather than drawn because Obsidian already prints the view's title in the leaf chrome,
+ * which sits OUTSIDE `contentEl` — so a visible one duplicates it for sighted readers while its
+ * absence leaves heading-based navigation inside the pane with nothing to land on. The same
+ * clip-path pattern the search field's label uses.
+ */
+.rp-al-title {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
 }
 
 .rp-al-toolbar {

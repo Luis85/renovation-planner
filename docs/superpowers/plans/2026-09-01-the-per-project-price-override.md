@@ -455,6 +455,17 @@ export function winningDuplicate(
 export function winnersBy<K>(
 	overrides: readonly Loaded<AssetPriceOverride>[],
 	keyOf: (o: Loaded<AssetPriceOverride>) => K,
+	/**
+	 * **Called once per key that had more than one note, and it is REQUIRED reading rather
+	 * than an option.** `getForPair` logs `asset-price.duplicate-pair` when it resolves one,
+	 * and every other resolution goes through this function — so without a door here, a
+	 * project whose only surface is the price section (no requirements, so no `getForPair`
+	 * on that pair) resolves duplicates silently for the life of the vault, and the design's
+	 * promised diagnostic is one no user can ever provoke. Optional-with-a-no-op default is
+	 * the shape this repository has already paid for twice (`CascadeDeps.notify`,
+	 * `ResolutionOps.notify`): the caller that forgets it compiles, passes and says nothing.
+	 */
+	onDuplicate: (key: K, notes: readonly Loaded<AssetPriceOverride>[]) => void,
 ): Map<K, Loaded<AssetPriceOverride>> {
 	const grouped = new Map<K, Loaded<AssetPriceOverride>[]>();
 	for (const override of overrides) {
@@ -465,6 +476,7 @@ export function winnersBy<K>(
 	}
 	const winners = new Map<K, Loaded<AssetPriceOverride>>();
 	for (const [key, bucket] of grouped) {
+		if (bucket.length > 1) onDuplicate(key, bucket);
 		const best = winningDuplicate(bucket);
 		if (best !== null) winners.set(key, best);
 	}
@@ -524,6 +536,16 @@ export interface AssetPriceOverrideFixture {
 	 * repository resolves an insert's folder through `projectFolderOf(index, projectId)` and
 	 * refuses an unknown project outright, so a contract minting its own ids fails at the very
 	 * first save. `RequirementFixture.otherProject()` is the same member for the same reason.
+	 *
+	 * **SYNCHRONOUS, deliberately, which is a constraint on the FIXTURE rather than a
+	 * convenience here.** Its sibling provisions by PLANTING a note (`plantNote` plus
+	 * `projectToPersistence`) rather than by calling the repository, precisely because a
+	 * `save` is a promise and this signature has nowhere to await one. An earlier draft of
+	 * this plan told the Obsidian fixture to "create a real project note through the project
+	 * repository and rebuild the index", which cannot be done here: the contract calls
+	 * `overrides.save` on the very next line. Making the member async instead would mean
+	 * awaiting it at every call site in all ten cases, and it is the shape the five existing
+	 * contracts do not have.
 	 */
 	newProject(): ProjectId;
 	newAsset(): AssetId;
@@ -1285,11 +1307,13 @@ import { assetPriceOverrideRepositoryContract, makeOverride } from '../../contra
 
 assetPriceOverrideRepositoryContract(() => {
 	// Construct the stack ONCE per fixture, then:
-	//   newProject() — create a real GBP project note through the project repository and
-	//     rebuild the index, so `projectFolderOf` resolves its folder. A bare
-	//     `createProjectId()` here fails every save with
-	//     `asset-price.project-folder-unresolved`, which is the whole reason this member
-	//     exists; follow `RequirementFixture.otherProject()`'s own Obsidian fixture.
+	//   newProject() — PLANT the note, do not save it. `contract.test.ts`'s own
+	//     `registerOtherProject` is the shape and the reason: `plantNote(stack, path,
+	//     'renovation-project', projectToPersistence(project, 1))` writes the note and its
+	//     index entry SYNCHRONOUSLY, where `ObsidianProjectRepository.save` is a promise this
+	//     member's signature has nowhere to await. Give the entity a GBP currency, since the
+	//     read resolves it. A bare `createProjectId()` fails every save with
+	//     `asset-price.project-folder-unresolved`, which is why this member exists at all.
 	//   newAsset() — a catalogue asset id; the price note references it and no folder derives
 	//     from it, so this one may be minted.
 	//   touch() — edit the note's bytes without moving `revision`, the way the sibling
@@ -2391,7 +2415,9 @@ Add `overrides` to `AssetCascadeDeps`, then between loading the asset and filter
 		// id — so this skip test would compare against a different price than recalculation
 		// resolves, and every overridden requirement in a duplicated-pair vault would
 		// false-invalidate on enumeration order alone.
-		const winners = winnersBy(overrides.value, (o) => o.entity.projectId);
+		const winners = winnersBy(overrides.value, (o) => o.entity.projectId, (projectId, notes) => {
+			deps.logger.warn('asset-price.duplicate-pair', { projectId, assetId, count: notes.length });
+		});
 		const byProject = new Map(
 			[...winners].map(([projectId, override]) => [projectId, override.entity.unitCost]),
 		);
@@ -3007,7 +3033,9 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 **Interfaces:**
 - Produces:
   - `interface AssetPriceRowDto { assetId: string; assetName: string; catalogue: Money; override: Money | null; overrideId: string | null; overrideVersion: EntityVersion | null; }`
-  - `class ListProjectAssetPrices` with `execute(projectId): Promise<Result<AssetPriceRowDto[], RepositoryError>>`
+  - `class ListProjectAssetPrices` with `execute(projectId): Promise<Result<AssetPriceRowDto[], RepositoryError>>`,
+    constructed with `(assets, overrides, logger)` — the logger for the duplicate diagnostic,
+    which this query is the only surface for on a project that has no requirements
   - `RequirementInspectorDTO.unitCost: { catalogue: Money; projectOverride: Money | null; effective: Money } | null`
     — `effective` is the PERSISTED provenance, not the current resolution; see the block below.
 
@@ -3016,6 +3044,17 @@ Claude-Session: https://claude.ai/code/session_01G1z4YErxsacXRBUXoH94T8"
 ```ts
 describe('ListProjectAssetPrices', () => {
 	it('returns one row per catalogue asset, with a null override where the project has none', async () => { … });
+
+	/**
+	 * The duplicate a user can meet with NO requirements anywhere — the section is then the only
+	 * surface that resolves the pair, and `getForPair`'s own diagnostic never runs. Assert BOTH
+	 * halves: one row comes back carrying the winner AND the warning was logged, because "one
+	 * row" is equally true of a build that resolves silently.
+	 */
+	it('warns once and returns the winner when a project has two notes for one asset', async () => {
+		// Seed two overrides for the same pair through the repository, then execute.
+		expect(logger.warn).toHaveBeenCalledWith('asset-price.duplicate-pair', expect.anything());
+	});
 
 	it('carries the override id and revision so a row can be cleared without a second read', async () => {
 		// Clearing is a CONDITIONAL write. A row that cannot supply an Expected forces the view
@@ -3052,6 +3091,9 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 	constructor(
 		private readonly assets: AssetRepository,
 		private readonly overrides: AssetPriceOverrideRepository,
+		/** For the duplicate diagnostic below — this query is the only surface some duplicates
+		 *  are ever resolved on. */
+		private readonly logger: Logger,
 	) {}
 
 	async execute(projectId: ProjectId): Promise<Result<AssetPriceRowDto[], RepositoryError>> {
@@ -3062,7 +3104,17 @@ export class ListProjectAssetPrices implements Query<ProjectId, Result<AssetPric
 
 		// `winnersBy`, never `new Map(list.map(...))`: that keeps whichever entry came last in
 		// `listByProject` order, which is a different answer from the one `getForPair` gives.
-		const byAsset = winnersBy(overrides.value, (o) => o.entity.assetId);
+		//
+		// The reporter is what makes the duplicate visible on THIS path. `getForPair` logs its
+		// own, but a project with no requirements never reaches `getForPair` for that pair, so
+		// opening the section was the one way to meet a duplicate and hear nothing.
+		const byAsset = winnersBy(overrides.value, (o) => o.entity.assetId, (assetId, notes) => {
+			this.logger.warn('asset-price.duplicate-pair', {
+				projectId,
+				assetId,
+				count: notes.length,
+			});
+		});
 		const rows = assets.value.map((loaded) => {
 			const override = byAsset.get(loaded.entity.id) ?? null;
 			return {

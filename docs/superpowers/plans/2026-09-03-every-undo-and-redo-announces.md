@@ -1751,6 +1751,11 @@ MSG
 
 ## Task 9: `DeleteAsset`'s resolution paths announce at requirement level
 
+> **DONE** — commit `7459eef`, gate exit 0 (5313 passed, 99.36/99.09/99.55/98.27).
+> Its Step 3 was already satisfied by Task 8's threading, which the brief anticipated in
+> writing; the case passed on first run and the value is the mutation check, which reddened.
+> Review pending. Start at Task 10.
+
 **The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
 contract rather than a call to something already there.** Grep-verified across `src/` and
 `tests/`. This plan invents a rig in four separate tasks and names none of them as new; Task 7

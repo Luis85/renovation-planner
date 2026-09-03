@@ -208,6 +208,13 @@ export const en = {
 	// `routeError` to place. Keyed by the field rather than by any code for that reason.
 	'error.requirement.quantity.unparseable': 'Enter a number, or reset to the calculated figure.',
 	'error.requirement.cost.unparseable': 'Enter an amount, or reset to the calculated figure.',
+	// The Asset library inspector's two unconvertible drafts — `moneyOf` and `new Decimal(...)`
+	// both THROW on a malformed literal, so these are `useFieldCommit`'s own `validate` refusals
+	// rather than a command's, and there is no `AppError` for `routeError` to place. Under
+	// `error.` rather than `view.asset-library.` because §8's inventory is that surface's visible
+	// COPY, and a parse refusal is the same family `error.requirement.*.unparseable` already is.
+	'error.asset.unit-cost.unparseable': 'Enter an amount, such as 34.95.',
+	'error.asset.waste.unparseable': 'Enter a fraction between 0 and 1, such as 0.08.',
 	'error.suffix.schema-version-unsupported':
 		'This note was written by a newer version of this plugin. Update the plugin to open it.',
 	'error.suffix.revision-conflict': 'This entry changed elsewhere in the meantime. Reload and try again.',
@@ -483,6 +490,13 @@ export const en = {
 	'asset.empty-name': 'An asset needs a name.',
 	'asset.unknown-category': 'Choose a category from the list.',
 	'asset.negative-unit-cost': 'A unit cost cannot be negative.',
+	// Three codes a user reaches from the Asset library's Definition fields and nothing else
+	// raised before it: without a row here each falls back to the Validation category sentence,
+	// which names no field and nothing to do differently.
+	'asset.unit-kind-referenced':
+		'This asset is used by a requirement, so its unit cannot change to a different kind of measurement.',
+	'asset.negative-waste-factor-default': 'A waste factor cannot be negative.',
+	'asset.waste-factor-default-above-one': 'A waste factor is a fraction between 0 and 1.',
 	'asset.invalid-height': 'Enter a height as a number of millimetres.',
 	'asset.negative-height': 'A height cannot be negative.',
 	'asset.non-positive-dimension': 'A width and a depth must each be greater than zero.',

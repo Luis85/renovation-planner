@@ -40,6 +40,20 @@ export function assetLibraryDeps(
 	options: { indexScanCompleted: () => boolean },
 ): AssetLibraryDeps {
 	const persistence = root.persistence;
+	// The path-keyed opener, named once because BOTH doors below go through it: the repair
+	// strip already holds a path, and `openAssetNote` resolves one from the index first. Two
+	// spellings would be two fault doors and two coalescing maps for one gesture.
+	const openNote = (path: string): Promise<'opened' | 'missing' | 'failed'> =>
+		openNoteAtPath(
+			{
+				workspace,
+				vault,
+				reportFault: (cause: unknown): void => {
+					notifyFault(cause, root.logger, 'view.asset-library.open-note-failed');
+				},
+			},
+			path,
+		);
 	return {
 		queries:
 			persistence === null
@@ -78,17 +92,16 @@ export function assetLibraryDeps(
 		// `renovationProjectOpenProject`'s reason — `infrastructure/` may not import
 		// `presentation/notices/notify`, and `plugin/` is the one layer that may reach both —
 		// and it is CALLED down there, because that is where the coalescing is.
-		openNote: (path) =>
-			openNoteAtPath(
-				{
-					workspace,
-					vault,
-					reportFault: (cause: unknown): void => {
-						notifyFault(cause, root.logger, 'view.asset-library.open-note-failed');
-					},
-				},
-				path,
-			),
+		openNote,
+		// §3.5's `Open note`, resolved through the INDEX because a catalogue DTO carries no path.
+		// A null persistence has no index to resolve through, so it answers `'failed'` — the same
+		// member `NoteOpenOutcome` reserves for "there was no vault to open through" — rather
+		// than `'missing'`, which would tell the user their note is gone on the strength of a
+		// session that never read one.
+		openAssetNote: (assetId) => {
+			const path = persistence === null ? undefined : persistence.index.getPath(assetId);
+			return path === undefined ? Promise.resolve('failed') : openNote(path);
+		},
 		// The SAME binding the project view's `openAsset` takes, reused rather than duplicated:
 		// one activation function is what stops a double click opening two designer tabs, and a
 		// second spelling here would be a second answer to which leaf an asset opens in.

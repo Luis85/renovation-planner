@@ -240,12 +240,12 @@ describe('interpolation', () => {
 	 *
 	 * It is a RANGE-free exact count on purpose. A `toBeGreaterThan` would pass through exactly
 	 * the additions this exists to make deliberate: §8's inventory is a closed list the spec
-	 * states, so a 60th key is a spec amendment somebody makes rather than a gap somebody fills,
+	 * states, so a 61st key is a spec amendment somebody makes rather than a gap somebody fills,
 	 * and this case is where they find that out. Both locales are counted because an incomplete
 	 * `de.ts` is permitted by the type and would otherwise drift silently.
 	 */
-	it('pins the Asset library inventory at 60 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(60);
-		expect(assetLibraryKeys(de)).toHaveLength(60);
+	it('pins the Asset library inventory at 61 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(61);
+		expect(assetLibraryKeys(de)).toHaveLength(61);
 	});
 });

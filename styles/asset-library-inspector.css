@@ -1,0 +1,288 @@
+/*
+ * The Asset library's inspector (design "Asset library overview" §3.5) — its rail, its
+ * definition list, its per-section headings and its three actions.
+ *
+ * Ported from `src/prototypes/AssetInspector.vue`'s own `<style scoped>` block, which is GONE
+ * with this file rather than kept beside it. That is Task 12's own move on `asset-shelf.css`,
+ * for the reason `tests/build/prototype-styles.test.ts` states as a rule: once the mock's
+ * classes are a real component's classes, a scoped block in the mock is a second, unreachable
+ * copy of these rules that a designer nudging the mock would think was styling the shipped
+ * panel. The gate refuses it, and the refusal is what promoted this file.
+ *
+ * Every colour is an Obsidian variable (SDD §84) — nothing here names one, so a themed vault
+ * stays themed.
+ *
+ * **What the prototype had no rules for, because it could not represent the states:** the
+ * per-section wrapper, the two refusal lines, the editable controls, the override mark and the
+ * withheld-`Delete` reason. Those are new here, in the same vocabulary.
+ */
+.rp-al-inspector {
+	flex: 0 0 280px;
+	min-height: 0;
+	padding: var(--size-4-3);
+	border-left: 1px solid var(--background-modifier-border);
+	overflow-y: auto;
+	background-color: var(--background-secondary);
+}
+
+/* Obsidian's global `:focus { outline: none }` reaches buttons and the vendored reduction puts
+   nothing back that clears WCAG 1.4.11's 3:1 floor. Positive offset: these controls are inset
+   and have the room, unlike the edge-to-edge rows. */
+.rp-al-inspector .rp-al-inspector__back:focus-visible,
+.rp-al-inspector .rp-al-action:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/* The rail is a rail while there is room for one; the back control belongs to the narrow
+   composition, where selecting a row replaces the shelves outright. */
+.rp-al-inspector .rp-al-inspector__back {
+	display: none;
+}
+
+.rp-al-inspector__rest {
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-normal);
+}
+
+.rp-al-inspector__name {
+	margin: 0 0 var(--size-4-3);
+	font-size: var(--font-ui-medium);
+	line-height: var(--line-height-tight);
+}
+
+/* More space above a heading than below it, so the sections group rather than float. */
+.rp-al-inspector__title {
+	margin: var(--size-4-5) 0 var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: var(--font-medium);
+}
+
+.rp-al-fields {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: var(--size-2-1) var(--size-4-2);
+	margin: 0;
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * Every selector's subject carries a class, `dt` and `dd` included. That is
+ * `tests/build/prototype-styles.test.ts`'s rule and it is not pedantry: Vue applies the
+ * PARENT's scope attribute to a composed child's root element, so an element-subject rule in a
+ * scoped block can still restyle a component this file merely mounts. Checked at the forbidden
+ * shape rather than at the cases someone thought of, which is why it fires on markup that is
+ * demonstrably this file's own.
+ */
+.rp-al-fields__key {
+	color: var(--text-muted);
+}
+
+.rp-al-fields__value {
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+/* Tabular numerals so a price, a percentage and a millimetre all sit on the same right edge
+   as the eye runs down the panel. */
+.rp-al-fields__num {
+	font-variant-numeric: tabular-nums;
+}
+
+.rp-al-note {
+	margin: var(--size-4-2) 0 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-normal);
+}
+
+.rp-al-used {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-al-used__row {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	padding: var(--size-2-1) 0;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+/* The rule between rows is a separator, so the last one has nothing to separate and dangles
+   under the list as a stray line. Seen in the first capture; jsdom draws no borders. */
+.rp-al-used__row:last-child {
+	border-bottom: none;
+}
+
+/*
+ * The name, and BELOW it the folder when two projects share that name.
+ *
+ * `ListRequirementsReferencing.withPathsWhereAmbiguous` sets `projectPath` on exactly the groups
+ * whose name is not unique among the ones returned — a collision a vault legitimately holds,
+ * since `Project.create` trims a name and refuses only an empty one. The specification required
+ * it after an earlier round and the mock still could not represent it, which is a spec and its
+ * prototype disagreeing rather than either being wrong on its own. Reported by a review bot.
+ *
+ * The `:key` had the same defect from the other end: keyed on the name alone, two colliding
+ * groups are one key to Vue.
+ */
+.rp-al-used__project {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.rp-al-used__path {
+	overflow: hidden;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.rp-al-used__count {
+	flex: 0 0 auto;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+
+.rp-al-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-5);
+}
+
+/*
+ * BELOW 35rem THE RAIL STOPS BEING A RAIL — the container is declared on the shell's root. At
+ * 460px, an Obsidian sidebar leaf's real width, two columns is not a tight layout but two
+ * unusable ones, so the inspector takes the pane and a back control returns. That is the
+ * one-pane-at-a-time move `ProjectDetailState` already makes, so a user meets one idea and not
+ * two.
+ */
+/*
+ * The ladder's middle rung, which shipped missing. §7 specifies 280px at 45rem and above, 240px
+ * between 35 and 45, and one pane below 35 — and only the last of the three had a rule, so a
+ * 700px pane kept the full rail and took 40px from the shelves at exactly the width where the
+ * dense row is already dropping slots. Reported by a review bot; no capture had been taken
+ * between the two widths that were.
+ */
+@container rp-al (width < 45rem) {
+	.rp-al-inspector {
+		flex-basis: 240px;
+	}
+}
+
+@container rp-al (width < 35rem) {
+	.rp-al-inspector {
+		flex: 1 1 auto;
+		border-left: none;
+		background-color: var(--background-primary);
+	}
+
+	.rp-al-inspector .rp-al-inspector__back {
+		display: inline-flex;
+	}
+
+	/*
+	 * With nothing selected the pane belongs to the shelves, so the resting panel withdraws
+	 * rather than sitting under them as a second empty region. The shell hides the SHELVES in
+	 * the mirror-image case, and the two halves live in two files because a scoped rule may
+	 * not reach into a composed component's markup — which is `prototype-styles.test.ts`'s
+	 * rule and also just how Vue's scoping works.
+	 */
+	.rp-al-inspector--rest {
+		display: none;
+	}
+}
+
+/*
+ * §3.5's four sections are siblings inside one scroller; the heading above each already carries
+ * the space, so a section adds none of its own and exists to group its rows for the cascade.
+ */
+.rp-al-inspector__section {
+	margin: 0;
+}
+
+/*
+ * A refusal and a panel-level failure read the same and mean two different scopes — one section
+ * could not be read, or the whole panel has nothing to draw — so they share the wording style
+ * and differ only in where they sit. `--text-error` rather than a literal, per SDD §84.
+ */
+.rp-al-inspector__refusal,
+.rp-al-inspector__failure {
+	margin: var(--size-4-2) 0 0;
+	color: var(--text-error);
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-normal);
+}
+
+/*
+ * The editable controls fill their `<dd>` so a two-column grid stays two columns — a control
+ * sized by its own content would make every row's value column a different width, which is the
+ * "any child whose width follows CONTENT decides where its siblings start" defect this
+ * repository has already met on three surfaces.
+ */
+.rp-al-fields__input,
+.rp-al-fields__select {
+	width: 100%;
+	min-width: 0;
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * Obsidian's global `:focus { outline: none }` reaches inputs too, and the vendored reduction
+ * puts nothing back that clears WCAG 1.4.11's 3:1 floor.
+ */
+.rp-al-inspector .rp-al-fields__input:focus-visible,
+.rp-al-inspector .rp-al-fields__select:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+/*
+ * §11 item 6's override mark: a MARK and a WORD, never a tint alone (§85). The mark is a
+ * CSS-drawn disc in `currentColor`, so no colour literal appears and the word beside it is the
+ * whole of the accessible name.
+ */
+.rp-al-used__override {
+	display: inline-flex;
+	flex: 0 0 auto;
+	gap: var(--size-2-1);
+	align-items: center;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-al-used__override-mark {
+	width: 0.5em;
+	height: 0.5em;
+	border-radius: 50%;
+	background-color: currentColor;
+}
+
+/* The name half of a row, which is what grows — the override mark is the third child that
+   would otherwise decide where every row's mark starts. */
+.rp-al-used__name {
+	overflow-wrap: anywhere;
+}
+
+/*
+ * The sentence on a withheld `Delete`, referenced by `aria-describedby` rather than by a
+ * `title`: a tooltip is unreachable by keyboard, and `aria-disabled` keeps the control in the
+ * accessibility tree precisely so this line can be read with it.
+ */
+.rp-al-actions__reason {
+	margin: var(--size-2-1) 0 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: var(--line-height-normal);
+}

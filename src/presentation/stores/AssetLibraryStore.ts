@@ -266,8 +266,24 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 		marks.reset();
 	}
 
+	/**
+	 * ONE catalogue row by id, for §3.5's inspector — never the list.
+	 *
+	 * `entries` itself stays unexported for the reason stated on `visibleEntries` above (a root
+	 * able to render the unfiltered list by mistake undoes the one-owner rule), and this door
+	 * does not reopen it: it answers a single DTO, which nothing can draw as rows. It has to
+	 * read the WHOLE listing rather than `visibleEntries`, because §6.1's search filters what is
+	 * drawn and not what is selected — a selection surviving a search that excludes it would
+	 * otherwise resolve to nothing and the panel would report a perfectly readable asset as
+	 * gone.
+	 */
+	function entryFor(assetId: AssetId): CatalogueEntryDto | null {
+		return entries.value.find((entry) => entry.assetId === assetId) ?? null;
+	}
+
 	return {
 		visibleEntries,
+		entryFor,
 		/**
 		 * §3.6's `54 assets` — the whole catalogue's size, which is the one fact about the
 		 * unfiltered listing anything outside this store needs.

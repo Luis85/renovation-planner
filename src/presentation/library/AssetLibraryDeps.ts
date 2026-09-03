@@ -120,6 +120,23 @@ export interface AssetLibraryDeps {
 	 * and it is what that field is FOR.
 	 */
 	readonly openNote: (path: string) => Promise<NoteOpenOutcome>;
+	/**
+	 * Opens an asset's OWN note, addressed by id — §3.5's `Open note`, which the inspector needs
+	 * and `openNote` above cannot serve.
+	 *
+	 * A second door rather than a widening, because the two have different addressing modes for
+	 * a stated reason. §5.1a's repair strip reaches notes that carry no usable id at all (a
+	 * `no-id` note has none; a duplicate-id loser is unreachable by the id the winner holds), so
+	 * that door must take a PATH. The inspector's subject is an id and `CatalogueEntryDto`
+	 * carries no path — the note's location is the Project Index's answer, one layer this view
+	 * may not reach. **The same shape §3.5 records twice already** (`ProjectFolderLookup`, and
+	 * the sidecar path on the port's own refusal): a surface needing a value the read model does
+	 * not carry is a COLLABORATOR change, not something a component can derive.
+	 *
+	 * `'missing'` therefore covers one more cause than the path door's: the index holds no note
+	 * for that id at all, which is the honest answer for an asset that has just been deleted.
+	 */
+	readonly openAssetNote: (assetId: AssetId) => Promise<NoteOpenOutcome>;
 	/** Jumps into the designer for one asset — §3.5's `Open designer` action. */
 	readonly openDesigner: (assetId: AssetId) => Promise<void>;
 	/**

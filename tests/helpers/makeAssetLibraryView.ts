@@ -41,6 +41,7 @@ export function defaultAssetLibraryDeps(overrides: Partial<AssetLibraryDeps> = {
 		onLibraryChanged: createAssetLibraryChangeSource(new RecordingEventBus()),
 		indexScanCompleted: () => true,
 		openNote: () => Promise.resolve('opened'),
+		openAssetNote: () => Promise.resolve('opened'),
 		openDesigner: () => Promise.resolve(),
 		vault: emptyBackgroundVault(),
 		libraryFolder: 'Renovation/Library',

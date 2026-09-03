@@ -34,6 +34,9 @@ export const deAssetLibrary = {
 	'view.asset-library.used-in.none': 'In keinem Projekt verwendet',
 	'view.asset-library.used-in.project': '{name} — {count} Anforderung(en)',
 	'view.asset-library.used-in.vault-root': 'Vault-Stammverzeichnis',
+	// §11 item 6's Wort neben der Markierung — die deutsche UI sagt "Übersteuert"
+	// (`editor.inspector.requirement.overridden`), nicht "überschrieben".
+	'view.asset-library.used-in.overridden': 'Übersteuert diesen Preis',
 	'view.asset-library.open-designer': 'Designer öffnen',
 	'view.asset-library.open-note': 'Notiz öffnen',
 	'view.asset-library.back': 'Zurück zur Bibliothek',

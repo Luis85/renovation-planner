@@ -211,6 +211,8 @@ export const de: Partial<Record<StringKey, string>> = {
 		'Diese beiden Punkte und dieser Abstand ergeben keinen brauchbaren Maßstab. Wählen Sie zwei weiter entfernte Punkte, oder prüfen Sie den eingegebenen Abstand.',
 	'error.requirement.quantity.unparseable': 'Geben Sie eine Zahl ein, oder setzen Sie auf den berechneten Wert zurück.',
 	'error.requirement.cost.unparseable': 'Geben Sie einen Betrag ein, oder setzen Sie auf den berechneten Wert zurück.',
+	'error.asset.unit-cost.unparseable': 'Geben Sie einen Betrag ein, zum Beispiel 34.95.',
+	'error.asset.waste.unparseable': 'Geben Sie einen Bruchteil zwischen 0 und 1 ein, zum Beispiel 0.08.',
 	'error.suffix.schema-version-unsupported':
 		'Diese Notiz wurde von einer neueren Version dieses Plugins geschrieben. Aktualisieren Sie das Plugin, um sie zu öffnen.',
 	'error.suffix.revision-conflict':
@@ -373,6 +375,11 @@ export const de: Partial<Record<StringKey, string>> = {
 	'asset.empty-name': 'Ein Objekt braucht einen Namen.',
 	'asset.unknown-category': 'Wählen Sie eine Kategorie aus der Liste.',
 	'asset.negative-unit-cost': 'Ein Stückpreis kann nicht negativ sein.',
+	// „Übersteuert" ist das Wort der deutschen Benutzeroberfläche für einen Override.
+	'asset.unit-kind-referenced':
+		'Dieses Objekt wird von einer Anforderung verwendet, daher kann seine Einheit nicht zu einer anderen Messgröße wechseln.',
+	'asset.negative-waste-factor-default': 'Ein Verschnitt kann nicht negativ sein.',
+	'asset.waste-factor-default-above-one': 'Ein Verschnitt ist ein Bruchteil zwischen 0 und 1.',
 	'asset.invalid-height': 'Geben Sie eine Höhe als Zahl in Millimetern ein.',
 	'asset.negative-height': 'Eine Höhe kann nicht negativ sein.',
 	'asset.non-positive-dimension': 'Breite und Tiefe müssen jeweils größer als null sein.',

@@ -46,6 +46,13 @@ export const enAssetLibrary = {
 	// rather than nothing"). An empty string is not something a row can print, so this names
 	// the case in words.
 	'view.asset-library.used-in.vault-root': 'Vault root',
+	// §3.5's *Used in* override mark, and §11 item 6's WORD beside it — never a tint alone.
+	// A project holding its own price for this asset is a project the field above will not
+	// reach, so an unmarked row would make this panel's central claim ("a price correction
+	// reaches every room it was used in") false by omission, directly above the field that
+	// makes the correction. §8's 61st key (amendment of 2026-09-03, Task 14): the section's
+	// other six keys shipped in Task 4 and this one had no producer until the marks did.
+	'view.asset-library.used-in.overridden': 'Overrides this price',
 	'view.asset-library.open-designer': 'Open designer',
 	'view.asset-library.open-note': 'Open note',
 	// §6.2's narrow-composition control, quoted verbatim from the spec.

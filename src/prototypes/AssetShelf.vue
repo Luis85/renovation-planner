@@ -26,6 +26,7 @@
 <script setup lang="ts">
 import { useId } from 'vue';
 import AssetMark from './AssetMark.vue';
+import { spokenMarkFor } from './assetShapeFields';
 import { ASSETS, type CatalogueAsset } from './assetLibraryFixture';
 
 /**
@@ -77,6 +78,8 @@ defineEmits<{ toggle: []; select: [id: string] }>();
  * apps set `app.config.idPrefix` so two of them cannot collide either.
  */
 const listId = useId();
+/** One prefix per shelf; each row appends its own id, which is unique within the vault. */
+const markId = useId();
 /**
  * The symbol where one is unambiguous, the ISO code where it is not.
  *
@@ -150,12 +153,17 @@ const price = (asset: CatalogueAsset): string => {
 						'rp-al-row--categorised': showCategory,
 					}"
 					:aria-current="asset.id === selectedId ? 'true' : undefined"
+					:aria-describedby="`${markId}-${asset.id}`"
 					@click="$emit('select', asset.id)"
 				>
 					<AssetMark
 						:asset="asset"
 						:selected="asset.id === selectedId"
 					/>
+					<span
+						:id="`${markId}-${asset.id}`"
+						class="rp-al-row__mark-words"
+					>{{ spokenMarkFor(asset) }}</span>
 					<span class="rp-al-row__name">{{ asset.name }}</span>
 					<span
 						v-if="showCategory"
@@ -315,6 +323,25 @@ const price = (asset: CatalogueAsset): string => {
  * three-digit factor would overflow it, which is a bound worth knowing rather than a case worth
  * widening for.
  */
+/*
+ * Visually hidden and still announced — the standard clip rectangle rather than `display: none`
+ * or `visibility: hidden`, both of which take the text out of the accessibility tree with the
+ * pixels. `aria-describedby` rather than a plain descendant: a text node inside the button JOINS
+ * its accessible name, and this one precedes the asset's name in DOM order, so rows announced
+ * "Measured footprint, 1200 × 190 mm Oak plank floor". The description follows the name instead.
+ */
+.rp-al-row__mark-words {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
 .rp-al-shelf .rp-al-row {
 	display: grid;
 	grid-template-columns: 20px minmax(0, 1fr) auto 5ch minmax(0, 16ch);

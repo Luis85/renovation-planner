@@ -305,8 +305,12 @@ a rule this section always held — see §12:
 state is written out in the inspector. It is, and only AFTER the row is selected: while BROWSING,
 which is what this surface is for, a screen-reader user had no access to the state at all. §3.4's
 own argument is that the mark carries a fact no colour could; a fact carried only in pixels is
-that same failure through the other eye. The text sits in the mark rather than in the row's
-accessible name, which is the asset's name and should not become a sentence.
+that same failure through the other eye. The text is referenced by the row through **`aria-describedby`**, not nested inside it: a text
+node within the button JOINS the button's accessible name, and the mark is the button's FIRST
+child, so a hidden span there made rows announce *"Measured footprint, 1200 × 190 mm Oak plank
+floor"* — the row's name becoming a sentence, which is the exact thing the first version of this
+paragraph said it was avoiding while placing the span where it happens. A description follows the
+name; a descendant precedes it.
 
 **The state alone is not enough**, which was the first version and needed one more round to say:
 *Measured footprint* is what a 600 × 600 tile and a 1200 × 190 radiator both announced, and the
@@ -870,8 +874,16 @@ A vault holding only unreadable asset notes therefore produced
 `{ entries: [], unreadable: [] }` and drew **no assets yet** over a library full of them, which
 is the exact failure §5.1a was written to prevent, arriving through the door it did not check.
 
-So `UnreadableEntry.assetId` is `AssetId | null` and the scan carries the excluded notes' paths
-alongside the repository's skipped ids. The null arm is not a gap: a note with no usable id cannot
+So `UnreadableEntry.assetId` is `AssetId | null` and the excluded notes' paths are carried
+alongside the repository's skipped ids — **which means the INDEX holds them, not just the scan**,
+and that distinction is the whole of the change. `ProjectIndex` has no collection an unindexable
+note can live in, and `VaultChangeAdapter.processNote` logs the `no-id` case and returns: no index
+mutation, no event. So a note created, edited or synced after load never reaches a mounted
+library's count or its repair list until a full rebuild — which happens at layout-ready and on a
+settings save, and nowhere else. *"The scan carries it"* was true of the scan and said nothing
+about the door every later change comes through. The index gains a collection of excluded
+descriptors with the same add/remove treatment its entries already get, and the incremental door
+announces them like any other change. The null arm is not a gap: a note with no usable id cannot
 be SELECTED, because nothing can name it — it can only be counted and listed, and its path is what
 `Open note` needs regardless.
 
@@ -2457,6 +2469,26 @@ to be shown.
 **And the overflow guard went to the mark and not to the dimensions beside it.** Finite vertices
 spanning an infinite extent made the row draw nothing while the inspector printed
 `Infinity × … mm` as a measurement. Same file pair, adjacent derivations, one round apart.
+
+A forty-first round found two, and the first is a paragraph that described the thing it was
+doing wrong.
+
+**The hidden mark text was a descendant of the row BUTTON**, so it joined the button's accessible
+name — and the mark is the button's first child, so rows announced *"Measured footprint,
+1200 × 190 mm Oak plank floor"*. The paragraph introducing that span said the text sits in the
+mark *"rather than in the row's accessible name, which is the asset's name and should not become
+a sentence"*, and put it exactly where it becomes one. It is `aria-describedby` now: a description
+FOLLOWS the name, a descendant PRECEDES it, and that difference is the whole rule. The words moved
+out of `AssetMark.vue` into `spokenMarkFor` so the row can render and reference them.
+
+**And "the scan carries it" was true of the scan and silent about every later change.**
+`ProjectIndex` has no collection an unindexable note can live in, and `VaultChangeAdapter`
+logs the `no-id` case and returns — no index mutation, no event. So a note created, edited or
+synced after load never reaches a mounted library's count or its repair list until a full rebuild,
+which happens at layout-ready and on a settings save and nowhere else. This is **the same shape as
+this repository's own library-overlap marker**, whose limitation is that the index follows
+rebuilds rather than folder moves: a fact derived from the index is only as prompt as the door
+that maintains it, and I checked the scan without checking the incremental one.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

@@ -9,7 +9,7 @@
  * height, and an absence reported after a refused read. A rule that keeps being corrected is a
  * rule worth reading in one place, with nothing else on the screen.
  */
-import { boundsOf, type CatalogueAsset } from './assetLibraryFixture';
+import { boundsOf, type CatalogueAsset, type ShapeState } from './assetLibraryFixture';
 
 /**
  * An extent as a number of millimetres, and it may never print a positive value as `0`.
@@ -120,3 +120,30 @@ export function shapeNotes(asset: CatalogueAsset | null): readonly string[] {
 	}
 	return notes;
 }
+
+const MARK_WORDS: Readonly<Record<ShapeState, string>> = {
+	measured: 'Measured footprint',
+	unscaled: 'Footprint traced before a scale existed',
+	none: 'No footprint',
+	pending: 'Shape not read yet',
+	unreadable: 'Shape file could not be read',
+};
+
+/**
+ * A mark's state and extent in words, for the reader who cannot see it.
+ *
+ * Lives HERE rather than inside `AssetMark.vue`, and that placement is the fix rather than
+ * tidiness: the mark is the row button's first child, so a span inside it is a text descendant
+ * of the button and joins its ACCESSIBLE NAME — ahead of the asset's own name, in DOM order. Rows
+ * announced *"Measured footprint, 1200 × 190 mm Oak plank floor"*. The comment introducing that
+ * span said the text sits in the mark "rather than in the row's accessible name, which is the
+ * asset's name and should not become a sentence", and put it somewhere that made it exactly that.
+ * The row renders this as a described-by element instead, so the name stays the asset's and the
+ * description follows it.
+ */
+export function spokenMarkFor(asset: CatalogueAsset | null): string {
+	const words = MARK_WORDS[asset?.shape ?? 'none'];
+	const extent = shapeDimensions(asset);
+	return extent === null ? words : `${words}, ${extent}`;
+}
+

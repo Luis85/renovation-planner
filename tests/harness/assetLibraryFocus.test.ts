@@ -106,11 +106,21 @@ describe('the asset library mock’s derived geometry', () => {
 		// extent was added — the outline that tells them apart is inside the `aria-hidden` SVG,
 		// so browsing by screen reader gave one sentence for every measured asset.
 		const wrapper = mountLibrary();
-		const spoken = [...wrapper.element.querySelectorAll('.rp-al-mark__state')]
+		const spoken = [...wrapper.element.querySelectorAll('.rp-al-row__mark-words')]
 			.map((el) => el.textContent);
 		const measured = spoken.filter((t) => t?.startsWith('Measured footprint'));
 		expect(measured.length).toBeGreaterThan(1);
 		expect(new Set(measured).size).toBe(measured.length);
+
+		// And the description is REFERENCED, not a descendant text node that would join the
+		// button's accessible name ahead of the asset's own.
+		const row = wrapper.element.querySelector('.rp-al-row');
+		const described = row?.getAttribute('aria-describedby');
+		expect(described).toBeTruthy();
+		// Compared by ATTRIBUTE rather than through a `#id` selector: this file plants an id
+		// holding selector syntax, so a lookup here would be testing `CSS.escape` again instead
+		// of testing that the reference resolves.
+		expect(row?.querySelector('.rp-al-row__mark-words')?.getAttribute('id')).toBe(described);
 		wrapper.unmount();
 	});
 

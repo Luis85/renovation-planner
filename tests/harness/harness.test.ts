@@ -117,6 +117,17 @@ const isStylesheetSpecifier = (specifier: string): boolean =>
 	specifier.split('?')[0]?.split('#')[0]?.endsWith('.css') === true;
 
 const namesStylesheet = (node: ts.Node): boolean => {
+	// `import.meta.glob(['./a/*.css', '!./a/skip.css'])` — Vite's multi-pattern form. A `!`
+	// prefix EXCLUDES, so a negative pattern names nothing that gets loaded and must not count;
+	// treating it as an import would refuse a file for the very pattern keeping the sheet out.
+	if (ts.isArrayLiteralExpression(node)) {
+		return node.elements.some(
+			(element) =>
+				ts.isStringLiteralLike(element)
+				&& !element.text.startsWith('!')
+				&& isStylesheetSpecifier(element.text),
+		);
+	}
 	if (ts.isStringLiteralLike(node)) return isStylesheetSpecifier(node.text);
 	if (ts.isTemplateExpression(node)) {
 		const last = node.templateSpans.at(-1);

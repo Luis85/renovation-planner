@@ -139,10 +139,23 @@ flag left standing would be consumed by whatever mounted next. Every shell unmou
 reading — `true` or `false` — so a rebind or a back-arrow navigation actively records "focus was
 elsewhere" rather than leaving a stale `true` behind.
 
-**The residue, named rather than implied**: an unmount with focus in the switch followed by a
-mount with no `ProjectNav` would leave the flag set for the mount after it. Thin, because the
-nav lives in the shell and the shell always mounts — and the clear-on-read is what bounds it to
-one mount rather than to the leaf's life.
+**The hand-off is consumed by the MOUNT, not by `ProjectNav`.** The view reads-and-clears on
+every mount and passes the value down only when the mounted state has a switch; a state without
+one discards it. So the flag is bounded to exactly one mount in every case.
+
+**That is a correction, and the wrong version is worth keeping because of how it was wrong.** It
+read: *"an unmount with focus in the switch followed by a mount with no `ProjectNav` would leave
+the flag set for the mount after it. Thin, because the nav lives in the shell and the shell
+always mounts."* The second sentence is false. The shell mounts in the DETAIL state; the LIST
+state draws `ProjectList` and the `'gone'` state draws its own screen, and neither has a nav —
+so the sequence is not exotic at all: focus a tab, have the project note deleted underneath you,
+land on `'gone'`, go back to the list, open another project, and the nav that finally mounts
+consumes a flag recorded about a different project and takes focus off the row you activated.
+
+**I named the residue and then bounded it against a belief instead of the states.** This
+document's own rule — *a residue is only as honest as the bound it names* — is one I quoted
+approvingly two rounds earlier, at a different residue. Writing the exception down is not the
+discipline; enumerating the states that reach it is.
 
 **The alternative is to stop remounting the shell**, keeping header and nav mounted and swapping
 only the section pane. That is Decision 1's rejected middle option arriving through a different

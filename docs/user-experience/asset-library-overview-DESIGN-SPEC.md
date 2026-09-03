@@ -1019,9 +1019,25 @@ untouched, no event names it, and a note that is now the ONLY claimant of that i
 and on a settings save and nowhere else. The user resolves the collision exactly as instructed and
 the asset does not come back.
 
-So **removing or re-identifying an entry re-evaluates the excluded contenders for that id**: if
-one remains, it is promoted to an index entry and its descriptor is dropped, and both changes
-announce like any other.
+So **removing or re-identifying an entry re-evaluates the excluded contenders for that id**:
+**exactly one of them is promoted** to an index entry and its descriptor is dropped, every other
+contender for that id stays excluded as `duplicate-id`, and both changes announce like any other.
+
+**"If one remains" was the first wording and it is wrong the moment three notes share an id.**
+Deleting the indexed winner then leaves TWO contenders, so a sole-survivor condition promotes
+neither and the id disappears from the catalogue entirely — worse than the collision it was
+resolving, and a state the full rebuild can never reach: `collectNotes` is last-writer-wins over
+an id-keyed map, so a rebuild always ends with exactly one winner however many notes collide. An
+incremental door that can reach a no-winner state its own rebuild cannot is a door that disagrees
+with the thing it is an increment of. Reported by a review bot, against the specification, one
+round after the same finding was fixed in the implementation plan and not here — which is this
+document's own neighbour-drift arriving between two FILES rather than between two sections, and
+the more dangerous direction of it: §11 makes this document the binding authority, so a worker
+following it would have implemented the stale rule while the plan beside it said otherwise.
+
+**Which contender is promoted must be DETERMINISTIC, and the scan's own answer is the one to
+copy** rather than a second rule invented here: pick the contender the next full rebuild would
+pick. Otherwise an incremental promotion and a reload disagree about which note IS the asset.
 
 **And the ARRIVING duplicate has to demote the winner it displaces, in the same step.** That is
 the opposite transition and the rule above does not reach it: `applyUpsert` is keyed by id, so a
@@ -1396,8 +1412,13 @@ that is what makes the wrap fall out rather than be written: headers and rows al
 DOM order, so *the next focusable thing in this region* IS *the next row, or the next shelf's
 header when the rows run out*. A per-shelf handler would have to be told about its siblings, which
 is a list, and a list goes stale where a rule does not. A collapsed shelf's rows are `v-show`n
-rather than removed, so the manager filters on what is actually laid out — which jsdom cannot
-report, so that filter is checked by an eye in the harness rather than by the suite. The prototype
+rather than removed, so the manager filters them out rather than walking them. **`v-show` sets no
+attribute — it sets an inline `display: none`**, which jsdom DOES reflect, so a filter reading
+`element.style.display` is assertable in the suite; it is genuine LAYOUT (`offsetParent`,
+`getBoundingClientRect`) that jsdom cannot report, and a row hidden by a stylesheet rule rather
+than by `v-show` is the residual an eye in the harness carries. Reaching for `offsetParent` is the
+trap: jsdom answers `null` for every element, so the manager would filter out every row and the
+arrow keys would do nothing with the whole suite green. The prototype
 carries it, because a mock that draws every state while silently omitting the keyboard leaves a
 builder inheriting a promise nobody has tried.
 

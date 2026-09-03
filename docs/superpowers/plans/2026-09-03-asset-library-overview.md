@@ -484,6 +484,8 @@ git add -A && git commit -m "feat: the asset listing reports the notes it skippe
 
 **Two independent defects, one task because they are one read:**
 
+**The code is `dimensions-overflow`**, raised by `dimensionsOf` at `AssetShape.ts:115`. There is no `polygon-extent-overflow` — that was this plan's own invention, corrected before anyone implemented it. `polygon-area-overflow` is a different guard two steps earlier, in `core/geometry/operations.ts`, and a fixture that trips it never reaches this task's change.
+
 1. **`sidecarPath` on the refusal.** §3.5's table says a damaged-sidecar message names the file. `BaseError.message` is developer English by slice 11's rule and has no structured path field, so `toUserMessage` cannot interpolate one. The path has to ride on the read model. It is **absent for `asset-geometry.unusable-id`**, and that is a fact rather than a gap: `pathFor` refuses that id before it derives any path, so there is no file to name — which is exactly why that row's action is `Open note` and not `Open designer`.
 2. **The clearance's extent.** `GetAssetDesign` calls `dimensionsOf` for the footprint alone. `validateAssetShape` does not close the gap: `enclosesArea` tests `Number.isFinite` on the AREA, and a very long, very thin clearance has a finite shoelace sum and an infinite SPAN — coordinates from `-1e308` to `1e308` with a hair's height. Nothing then stops the inspector printing `Infinity mm` as a measurement. The footprint got that guard when `polygon-area-overflow` was written and the clearance beside it did not.
 
@@ -507,11 +509,19 @@ it('carries no sidecar path for an id that cannot name a file', async () => {
 });
 
 it('refuses a clearance whose span overflows rather than reporting Infinity', async () => {
+    // The fixture is the thin NEEDLE the existing footprint case already uses
+    // (getAssetDesign.test.ts, 'refuses a footprint whose extent is not representable'),
+    // copied deliberately rather than invented: an axis-aligned rectangle spanning
+    // -1e308 to 1e308 has a shoelace sum of Infinity, so `enclosesArea` refuses it as
+    // `polygon-area-overflow` inside `validateAssetShape` and the read never reaches
+    // `dimensionsOf` at all — the test would pass while exercising a different guard.
+    // A 1e-300 height keeps the AREA finite and leaves the SPAN infinite, which is the
+    // only arrangement that reaches the code under test.
     const shape = shapeWithClearance([
-        { x: -1e308, y: 0 }, { x: 1e308, y: 0 }, { x: 1e308, y: 1 }, { x: -1e308, y: 1 },
+        { x: 0, y: 1e-300 }, { x: 1e308, y: 0 }, { x: -1e308, y: 0 },
     ]);
     const answered = await getDesignForShape(shape);
-    expect(expectErr(answered).code).toBe('polygon-extent-overflow');
+    expect(expectErr(answered).code).toBe('dimensions-overflow');
 });
 
 it('derives the clearance extent beside the footprint on an ordinary shape', async () => {
@@ -1374,7 +1384,11 @@ git add -A && git commit -m "feat: the asset library stylesheet and its containe
 
 **One focus manager over the shelves region, never a handler per shelf.** Headers and rows already alternate in DOM order, so *the next focusable thing in this region* IS *the next row, or the next shelf's header when the rows run out* — the wrap falls out rather than being written. A per-shelf handler would have to be told about its siblings, which is a list, and a list goes stale where a rule does not.
 
-**A collapsed shelf's rows are `v-show`n rather than removed**, so the manager filters on what is actually laid out. jsdom cannot report layout, so that filter is written against the attribute `v-show` sets and the residual is checked by an eye in the harness — recorded in the manual case rather than claimed here.
+**A collapsed shelf's rows are `v-show`n rather than removed**, so the manager filters them out rather than walking them.
+
+**`v-show` sets no attribute — it sets an inline `display: none`**, and the first version of this paragraph said "the attribute `v-show` sets", which does not exist. An implementation following that sentence would have kept every collapsed row in the arrow-key stop list and let the keyboard focus invisible rows. Reported by a review bot against this plan.
+
+The filter reads `element.style.display !== 'none'`. That is the inline style Vue writes, and **jsdom does reflect it** — so this filter IS assertable in the suite, which narrows the spec's own §6.2 claim that it is checkable by eye alone. What stays unassertable here is genuine LAYOUT — `offsetParent`, `getBoundingClientRect`, `checkVisibility()` — so a row hidden by a stylesheet rule rather than by `v-show` would still slip through, and that residual is what the manual case carries. Do not reach for `offsetParent`: jsdom answers `null` for every element, so the manager would filter out every row and the arrow keys would do nothing, with the whole suite green.
 
 **Empty shelves are skipped, having no header to focus.** This is §3.2's non-interactive heading arriving in the section that promises the gestures.
 
@@ -1391,6 +1405,11 @@ git add -A && git commit -m "feat: the asset library stylesheet and its containe
 ```ts
 it('wraps from the last row of a shelf into the next focusable header', () => { /* ... */ });
 it('skips an empty shelf, which has no header to focus', () => { /* ... */ });
+it('does not stop on the rows of a collapsed shelf', async () => {
+    // v-show leaves them in the DOM with an inline display:none, which jsdom reflects.
+    const surface = await mountShelves({ expanded: [] });
+    expect(focusStops(surface)).toEqual(surface.findAll('.rp-asset-shelf__header button').map(el => el.element));
+});
 it('moves focus to the back control when the narrow composition swaps', async () => { /* ... */ });
 it('returns focus to the row it came from', async () => { /* ... */ });
 it('returns the narrow composition to the shelves when the user types', async () => { /* ... */ });
@@ -1403,7 +1422,11 @@ it('clears the search on Escape and resyncs one inspector field on Escape', asyn
 
 - [ ] **Step 4: Mutation-check the wrap and the swap**
 
-Make the manager per-shelf: the wrap case must go red. Ask `matchMedia` instead of the DOM: the swap case must go red under a container narrower than the viewport. Both watched, both restored.
+- Make the manager per-shelf: the wrap case must go red.
+- Ask `matchMedia` instead of the DOM: the swap case must go red under a container narrower than the viewport.
+- Drop the `display` filter: the collapsed-shelf case must go red.
+
+All three watched, all three restored.
 
 - [ ] **Step 5: Run the gate and commit**
 

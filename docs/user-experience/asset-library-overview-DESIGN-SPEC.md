@@ -805,9 +805,18 @@ A user who has just moved their library needs one place that says where it lande
 | **Loading** | The shell, with a loading line in the shelves region. Never a spinner over an empty pane. **Held until the index scan has run** — see below |
 | **Empty** — no assets at all | `EmptyState` with a new registry entry `assetLibrary.noAssets`, headline, body, and an action button wired to `New asset`. Replaces the shelves region, not the shell: the toolbar and status bar stay |
 | **No matches** — search returns nothing | `assetLibrary.noMatches`, with an action that **clears the search field**. An action that restores the previous view, not one that creates something |
-| **Some unreadable** | The additive `.rp-view-notice` strip above the shelves, listing each path **with its reason** and an `Open note` beside it. The shelves still draw |
+| **Some unreadable** | The additive `.rp-view-notice` strip above the shelves, listing each path **with its reason**, and an `Open note` beside **the rows whose defect a note edit can repair** — never beside every row, per §5.1a. The shelves still draw |
 | **Failed** — the whole read refused | `ViewFailure`, with a retry, except where `viewHydrationOrigin` says otherwise |
 | **Failed, unrecoverable** — `settings.unrecovered` | `ViewFailure` with **no retry button**: nothing was composed to re-run, so a retry is a live control that does nothing, which is the failure mode slice 14's own amendment refuses |
+
+**`Open note` is per ROW and this table said "beside it" as though it were per STRIP.** §5.1a
+withholds that action for a `read-failed` whose code names a future-schema refusal: the note was
+written by a build newer than this one, the remedy is to upgrade the plugin, and inviting the user
+to edit the frontmatter is advice that cannot work — *an action that cannot work is worse than no
+action*. §11 makes this document the binding authority, so an implementation reading only this
+table would have drawn the misleading action in exactly the case §5.1a wrote a rule to prevent.
+Reported by a review bot; the same section-against-its-neighbour drift as the promotion rule one
+round earlier, and the second time the AUTHORITY has been the stale half.
 
 **A count alone strands exactly the notes that need a human.** Two of the three unreadable
 sources (§5.1a) carry no usable id — a `no-id` note and a duplicate-id loser — so neither can be
@@ -1413,12 +1422,23 @@ DOM order, so *the next focusable thing in this region* IS *the next row, or the
 header when the rows run out*. A per-shelf handler would have to be told about its siblings, which
 is a list, and a list goes stale where a rule does not. A collapsed shelf's rows are `v-show`n
 rather than removed, so the manager filters them out rather than walking them. **`v-show` sets no
-attribute — it sets an inline `display: none`**, which jsdom DOES reflect, so a filter reading
-`element.style.display` is assertable in the suite; it is genuine LAYOUT (`offsetParent`,
-`getBoundingClientRect`) that jsdom cannot report, and a row hidden by a stylesheet rule rather
-than by `v-show` is the residual an eye in the harness carries. Reaching for `offsetParent` is the
-trap: jsdom answers `null` for every element, so the manager would filter out every row and the
-arrow keys would do nothing with the whole suite green. The prototype
+attribute — it sets an inline `display: none` — and it sets it on the `<ul>`, not on the buttons
+inside it.** `AssetShelf.vue` binds `v-show` to the row list (`src/prototypes/AssetShelf.vue:136`)
+while the focus stops are the `<button>`s inside its `<li>`s, so each stop's own `style.display`
+is the empty string whether its shelf is open or shut. A filter reading the focus stop itself
+therefore keeps every collapsed row in the arrow-key list — which is what the first correction of
+this paragraph said to do, and it was wrong for the element it named. Reported by a review bot,
+one round after the same paragraph was corrected for claiming `v-show` sets an attribute: **a fix
+that moves a claim from the wrong mechanism to the wrong ELEMENT is still a fix that does not
+work.**
+
+So the filter asks whether any ANCESTOR between the stop and the shelves container carries an
+inline `display: none` — a single `isLaidOut(el)` walk, not a property read. jsdom reflects inline
+styles at every level, so this is assertable in the suite. What jsdom still cannot report is
+genuine LAYOUT (`offsetParent`, `getBoundingClientRect`, `checkVisibility()`), so a row hidden by
+a STYLESHEET rule rather than by `v-show` remains the residual an eye in the harness carries.
+Reaching for `offsetParent` is the trap: jsdom answers `null` for every element, so the manager
+would filter out every row and the arrow keys would do nothing with the whole suite green. The prototype
 carries it, because a mock that draws every state while silently omitting the keyboard leaves a
 builder inheriting a promise nobody has tried.
 

@@ -1388,7 +1388,21 @@ git add -A && git commit -m "feat: the asset library stylesheet and its containe
 
 **`v-show` sets no attribute — it sets an inline `display: none`**, and the first version of this paragraph said "the attribute `v-show` sets", which does not exist. An implementation following that sentence would have kept every collapsed row in the arrow-key stop list and let the keyboard focus invisible rows. Reported by a review bot against this plan.
 
-The filter reads `element.style.display !== 'none'`. That is the inline style Vue writes, and **jsdom does reflect it** — so this filter IS assertable in the suite, which narrows the spec's own §6.2 claim that it is checkable by eye alone. What stays unassertable here is genuine LAYOUT — `offsetParent`, `getBoundingClientRect`, `checkVisibility()` — so a row hidden by a stylesheet rule rather than by `v-show` would still slip through, and that residual is what the manual case carries. Do not reach for `offsetParent`: jsdom answers `null` for every element, so the manager would filter out every row and the arrow keys would do nothing, with the whole suite green.
+**And `v-show` sits on the `<ul>`, not on the focus stops.** `AssetShelf.vue` binds it to the row list (`src/prototypes/AssetShelf.vue:136`) while the stops are the `<button>`s inside its `<li>`s — so each stop's own `style.display` is the empty string whether the shelf is open or shut, and a filter reading the stop itself keeps every collapsed row in the list. That was the FIRST correction of this paragraph and it was wrong for the element it named; a fix that moves a claim from the wrong mechanism to the wrong element is still a fix that does not work. Reported by a review bot, one round after the attribute correction.
+
+So the filter is a walk, not a property read:
+
+```ts
+/** True when no ancestor between `el` and `root` carries an inline `display: none`. */
+function isLaidOut(el: HTMLElement, root: HTMLElement): boolean {
+	for (let node: HTMLElement | null = el; node !== null && node !== root; node = node.parentElement) {
+		if (node.style.display === 'none') return false;
+	}
+	return true;
+}
+```
+
+jsdom reflects inline styles at every level, so this IS assertable in the suite — which narrows the spec's own §6.2 claim that it is checkable by eye alone. What stays unassertable is genuine LAYOUT — `offsetParent`, `getBoundingClientRect`, `checkVisibility()` — so a row hidden by a STYLESHEET rule rather than by `v-show` would still slip through, and that residual is what the manual case carries. Do not reach for `offsetParent`: jsdom answers `null` for every element, so the manager would filter out every row and the arrow keys would do nothing, with the whole suite green.
 
 **Empty shelves are skipped, having no header to focus.** This is §3.2's non-interactive heading arriving in the section that promises the gestures.
 
@@ -1425,6 +1439,7 @@ it('clears the search on Escape and resyncs one inspector field on Escape', asyn
 - Make the manager per-shelf: the wrap case must go red.
 - Ask `matchMedia` instead of the DOM: the swap case must go red under a container narrower than the viewport.
 - Drop the `display` filter: the collapsed-shelf case must go red.
+- Narrow `isLaidOut` to read the stop's OWN `style.display` instead of walking its ancestors: the collapsed-shelf case must go red. This is the mutation that catches the defect two review rounds produced, and no other case in the file distinguishes the two spellings.
 
 All three watched, all three restored.
 

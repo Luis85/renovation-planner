@@ -1417,11 +1417,25 @@ The section has **its own three states**, because `GetAssetDesign` returns the s
 
 **Neither the in-flight state nor the refused one may state an ABSENCE.** `None` is only valid once a read has actually answered.
 
-**3. Used in** — per-project groups, loaded on selection. **A group whose project holds a price override for this asset carries a printed mark and a word** — `listByAsset(assetId)` on `AssetPriceOverrideRepository` is the exact lookup and it is one read on a selection that already performs two. Ruled mid-execution when `main` brought §89's override into existence: an unmarked row makes the Definition section's own claim — *a price correction reaches every room it was used in* — false by omission, directly above the field that makes the correction. Never a tint alone. Each row: project name, requirement count, and the project's path **wherever the query supplies one**. "Supplied" is tested against `undefined`, never truthiness: `''` is a supplied answer — a project whose `Project.md` sits at the vault root — and it renders `view.asset-library.used-in.vault-root`, a root label rather than nothing. **The row's key is `projectId`, never the name-and-path pair**: two projects can share both.
+**3. Used in** — per-project groups from **`ListRequirementsReferencing`** (`src/application/queries/ListRequirementsReferencing.ts`, the query Task 9 widened — its `ReferencingGroup` is the row shape, and `projectPath` is declared `readonly projectPath?: string`, which is why the test below is against `undefined` and not against truthiness), loaded on selection. **A group whose project holds a price override for this asset carries a printed mark and a word** — `listByAsset(assetId)` on `AssetPriceOverrideRepository` is the exact lookup and it is one read on a selection that already performs two. Ruled mid-execution when `main` brought §89's override into existence: an unmarked row makes the Definition section's own claim — *a price correction reaches every room it was used in* — false by omission, directly above the field that makes the correction. Never a tint alone. Each row: project name, requirement count, and the project's path **wherever the query supplies one**. "Supplied" is tested against `undefined`, never truthiness: `''` is a supplied answer — a project whose `Project.md` sits at the vault root — and it renders `view.asset-library.used-in.vault-root`, a root label rather than nothing. **The row's key is `projectId`, never the name-and-path pair**: two projects can share both.
 
 It has its own three states too. On a refusal, **`Delete` is unavailable while the usage read has not succeeded**, with the reason shown on the control; Edit stays available.
 
 **It is a SNAPSHOT taken at selection and does not subscribe**, and that is a decision rather than an omission: the requirement event payload cannot filter to the selected asset, undoing an assignment publishes nothing at all, and an unfiltered re-run is O(every requirement in the vault) with a note read each. Reselecting is the refresh, and the copy says so rather than pretending to be live.
+
+**YOU WILL NEED A NEW LOCALE KEY, AND A PIN WILL FIRE ON IT — that is the pin working, not a
+test to loosen.** Task 4 shipped the section's copy, so `view.asset-library.used-in`,
+`.used-in.none`, `.used-in.project`, `.used-in.vault-root`, `.used-in.loading` and
+`.used-in.failed` all exist in both locales already. The **word beside the override mark does
+not** — measured at `1d2f2a25`, `grep -n "override" src/presentation/i18n/locales/en-assetLibrary.ts`
+prints two comment lines and no key. So the mark's word is a new key in BOTH
+`en-assetLibrary.ts` and `de-assetLibrary.ts`, and `tests/presentation/i18n/strings.test.ts`
+pins the Asset library's key COUNT at 60 — it will fail, naming 61 against 60. Move the pin to
+61 in the same commit; do not widen its filter or delete it. It exists because a count kept in
+prose went stale six times on this branch, and it has already forced two keys into the open that
+would otherwise have shipped in one locale only. German: check `de-assetLibrary.ts`'s own
+vocabulary before inventing a word — this branch has already shipped `Material` where the German
+UI says `Objekt`, and `Grundriss` where a footprint needed `Umriss`.
 
 **4. Actions** — `Open designer` · `Open note` · `Delete`. `Delete` reuses slice 15's `DeleteReferenceDialog` / `EntityPickerDialog` and slice 10's resolution through `deleteZoneFlow.ts`'s shape — the *Used in* read IS that flow's read. **After a successful deletion** the inspector withdraws to its resting state and focus goes to the next row in the shelf the asset was in: the row now occupying the deleted row's index, or the previous surviving row if the deleted one was last; the same rule inside the flat Results list when a search is running; and the search field otherwise, which is the most common case. **The shelf's heading is not a fallback** — it can never receive focus in the one case that would reach it, because an empty shelf's heading is non-interactive.
 

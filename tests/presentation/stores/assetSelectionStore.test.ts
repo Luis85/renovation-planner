@@ -385,10 +385,11 @@ describe('AssetSelectionStore invalidation', () => {
 		expect(doors.listReferencing).not.toHaveBeenCalled();
 	});
 
-	it('restarts both reads when the selected entry has left an applied listing', async () => {
+	it('restarts both reads when the selected entry LEAVES an applied listing', async () => {
 		const doors = counted();
 		const store = useAssetSelectionStore();
 		await store.select(ASSET, doors);
+		await store.applyListing([entryFor(ASSET)], doors);
 
 		await store.applyListing([entryFor(OTHER)], doors);
 
@@ -407,6 +408,40 @@ describe('AssetSelectionStore invalidation', () => {
 		expect(doors.listReferencing).toHaveBeenCalledTimes(1);
 	});
 
+	/**
+	 * The backstop is a TRANSITION. Eight event types feed the `catalogue` arm, so a selection
+	 * whose asset is genuinely gone would otherwise re-run the vault-wide referencing scan once
+	 * per synced note, for as long as the user left it selected.
+	 */
+	it('restarts nothing further while the selected entry stays absent', async () => {
+		const doors = counted();
+		const store = useAssetSelectionStore();
+		await store.select(ASSET, doors);
+		await store.applyListing([entryFor(ASSET)], doors);
+		await store.applyListing([], doors);
+
+		await store.applyListing([], doors);
+		await store.applyListing([], doors);
+
+		expect(doors.getDesign).toHaveBeenCalledTimes(2);
+		expect(doors.listReferencing).toHaveBeenCalledTimes(2);
+	});
+
+	/**
+	 * §5.3's restored view state: an `assetId` no listing has ever held. `select` already read it
+	 * and the answer to *is this asset there* is the one that read gave, so a listing that has
+	 * never contained it is not news.
+	 */
+	it('restarts nothing for a selection no listing has ever held', async () => {
+		const doors = counted();
+		const store = useAssetSelectionStore();
+		await store.select(ASSET, doors);
+
+		await store.applyListing([entryFor(OTHER)], doors);
+
+		expect(doors.getDesign).toHaveBeenCalledTimes(1);
+	});
+
 	it('has no opinion about a listing while nothing is selected', async () => {
 		const doors = counted();
 		const store = useAssetSelectionStore();
@@ -414,6 +449,19 @@ describe('AssetSelectionStore invalidation', () => {
 		await store.applyListing([], doors);
 
 		expect(doors.getDesign).not.toHaveBeenCalled();
+	});
+
+	/** A listing applied while nothing is selected is still RECORDED, or the next selection's
+	 *  departure has no previous listing to have left. */
+	it('records a listing applied before anything is selected', async () => {
+		const doors = counted();
+		const store = useAssetSelectionStore();
+		await store.applyListing([entryFor(ASSET)], doors);
+		await store.select(ASSET, doors);
+
+		await store.applyListing([], doors);
+
+		expect(doors.getDesign).toHaveBeenCalledTimes(2);
 	});
 
 	it('re-reads only the design when refreshDesign is asked directly', async () => {

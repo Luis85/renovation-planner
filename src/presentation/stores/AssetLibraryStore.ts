@@ -26,6 +26,18 @@ type AssetLibraryStatus = 'idle' | 'loading' | 'ready' | 'failed';
  * Case-folded on both sides, and `null` fields simply do not match rather than being coerced to
  * a string, which would let a search for `null` find every asset that has no supplier.
  */
+/**
+ * §6.1's *ordered by name across categories*, through the same `Intl.Collator` the prototype
+ * this surface is ported from already uses rather than a bare `localeCompare` — one collator
+ * constructed once, which is what makes ordering a full catalogue on every keystroke cheap.
+ *
+ * The locale is not read from Obsidian here: `getLanguage()` is `presentation/`'s to resolve at
+ * a component, and a store reaching for it would be this module's first Obsidian dependency for
+ * a sort order. The default collator follows the runtime's locale, which is the honest answer
+ * until something asks for a different one.
+ */
+const BY_NAME = new Intl.Collator();
+
 function matches(entry: CatalogueEntryDto, needle: string): boolean {
 	return [entry.name, entry.supplier, entry.sku].some(
 		(field) => field !== null && field.toLowerCase().includes(needle),
@@ -92,23 +104,28 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 	/**
 	 * The one hydration routine, run on open and on every `catalogue` change.
 	 *
-	 * **`indexScanCompleted` is read TWICE — once before the read and once after — and both must
-	 * answer true.** Obsidian restores its leaves before `onLayoutReady` and the index scan runs
-	 * from it, so `listAll()` enumerates an EMPTY index and answers a perfectly legitimate
-	 * `ok([])` — which a view mapping to §4's Empty row draws as *no assets yet* with a `New
-	 * asset` button under it, and a renovator who takes that invitation defines the duplicate
-	 * this whole feature exists to prevent. The question is whether the scan RAN, never whether
-	 * it FOUND anything: "is the index populated" hangs a restored pane for ever in a vault whose
-	 * last asset note was deleted while Obsidian was closed.
+	 * **`indexScanCompleted` is read BEFORE the listing read, and that reading alone decides.**
+	 * Obsidian restores its leaves before `onLayoutReady` and the index scan runs from it, so
+	 * `listAll()` enumerates an EMPTY index and answers a perfectly legitimate `ok([])` — which a
+	 * view mapping to §4's Empty row draws as *no assets yet* with a `New asset` button under it,
+	 * and a renovator who takes that invitation defines the duplicate this whole feature exists to
+	 * prevent. The question is whether the scan RAN, never whether it FOUND anything: "is the
+	 * index populated" hangs a restored pane for ever in a vault whose last asset note was deleted
+	 * while Obsidian was closed.
 	 *
-	 * Twice, because ONE reading is a claim about the wrong moment either way. The answer
-	 * describes the moment the read RAN and a gate asked after it describes the moment it
-	 * RETURNED — so a scan completing while the read is out publishes a pre-scan `ok([])` as
-	 * `'ready'`, the one window that gate cannot see. Asking only before has the mirror gap for a
-	 * scan that had not started. Requiring both readings costs nothing: `ProjectIndexRebuilt` is
-	 * published unconditionally by the same function that sets the flag, and this store
-	 * re-hydrates on it through `applyChange`, so a refused pre-scan listing is always followed
-	 * by a real one.
+	 * BEFORE, because that is the moment the answer describes. A gate asked AFTER describes the
+	 * moment the read RETURNED, so a scan completing while the read is out publishes a pre-scan
+	 * `ok([])` as `'ready'` — the one window it cannot see, and the whole defect. Reading before
+	 * refuses that same listing conservatively instead, and the refusal costs nothing:
+	 * `ProjectIndexRebuilt` is published unconditionally by the very function that sets the flag,
+	 * and this store re-hydrates on it through `applyChange`.
+	 *
+	 * A second reading after the read was tried and DELETED rather than kept for symmetry: the
+	 * flag is monotonic — `RenovationPlannerPlugin.indexScanCompleted` has exactly one assignment,
+	 * to `true` — so `!scannedBefore || !indexScanCompleted()` can differ from `!scannedBefore`
+	 * only for a supplier that goes back to false, which nothing in this tree can produce. No
+	 * mutation could redden it and v8 reports it as covered, which is the same shape as
+	 * `applyListing`'s deleted null guard: a branch that reads as checked and is not.
 	 *
 	 * The pre-scan answer is DROPPED rather than published under a `loading` status, so this
 	 * store never holds a listing taken before the index existed — a consumer reading `entries`
@@ -125,6 +142,15 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 		const request = ++latestHydration;
 		const superseded = (): boolean => request !== latestHydration;
 		const scannedBefore = indexScanCompleted();
+		// **Resolved above the first await, and that is the whole of Important A.** `useStore()`
+		// with no argument resolves through pinia's module-global `activePinia`, and every
+		// function a setup store returns is wrapped as an action that re-points it at invocation
+		// — so a store action in ANOTHER leaf while this listing read is out would hand the
+		// backstop that leaf's selection store. Measured with two piniass: the call lands on the
+		// other leaf's store, plants a stray one there, and the real one is never told. Every
+		// view mounts its own `createPinia()`, so this is the ordinary two-leaf case rather than
+		// an exotic one.
+		const selection = useAssetSelectionStore();
 
 		if (status.value !== 'ready') status.value = 'loading';
 		error.value = null;
@@ -135,7 +161,7 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 			fail(found.error);
 			return;
 		}
-		if (!scannedBefore || !indexScanCompleted()) {
+		if (!scannedBefore) {
 			status.value = 'loading';
 			return;
 		}
@@ -148,7 +174,7 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 		// the common case, so a forgotten call shows up only for an entry that leaves with no
 		// event at all — and there is exactly one moment it is owed: a listing having been
 		// applied, which is this line.
-		await useAssetSelectionStore().applyListing(found.value.entries, queries);
+		await selection.applyListing(found.value.entries, queries);
 	}
 
 	/** Whether §6.1's field holds a query. Derived, never written — a flag a caller has to keep
@@ -156,12 +182,24 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 	const searching = computed(() => query.value.trim() !== '');
 
 	/**
-	 * What the shelves actually draw. THE filter, and the only one: a root that matched for
-	 * itself would leave the empty state deciding over a different list from the one on screen.
+	 * What the shelves actually draw: the whole catalogue, or §6.1's matches, ordered by name.
+	 *
+	 * THE filter, and the only one — a root that matched for itself would leave the empty state
+	 * deciding over a different list from the one on screen. And THE order: §6.1 asks for the flat
+	 * result list *ordered by name across categories*, which is a property of what is drawn and
+	 * would otherwise be a fourth thing a later task has to remember. Applied unsearched too,
+	 * since one list under two orders is two lists.
+	 *
+	 * `entries` is deliberately NOT exported beside it. The argument for one owner of *what is
+	 * drawn* is undone the moment a root can render the unfiltered list by mistake, and a docblock
+	 * saying which to use is exactly the convention this round has been deleting. §3.6's status
+	 * bar wants the library's SIZE (`54 assets`), which is `total` below — a number nothing can
+	 * render as rows.
 	 */
 	const visibleEntries = computed(() => {
 		const needle = query.value.trim().toLowerCase();
-		return needle === '' ? entries.value : entries.value.filter((entry) => matches(entry, needle));
+		const matched = needle === '' ? entries.value : entries.value.filter((entry) => matches(entry, needle));
+		return matched.toSorted((one, other) => BY_NAME.compare(one.name, other.name));
 	});
 
 	/**
@@ -194,8 +232,13 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 		queries: AssetLibraryQueryServices,
 		indexScanCompleted: () => boolean,
 	): Promise<void> {
-		if (change.marks.length > 0) await marks.invalidate(change.marks, queries);
-		if (change.catalogue) await hydrate(queries, indexScanCompleted);
+		// Concurrently: a sidecar batch and a catalogue listing are independent reads of different
+		// files, and awaiting the marks first only delays the listing behind whatever the slowest
+		// sidecar in the batch costs.
+		const work: Promise<void>[] = [];
+		if (change.marks.length > 0) work.push(marks.invalidate(change.marks, queries));
+		if (change.catalogue) work.push(hydrate(queries, indexScanCompleted));
+		await Promise.all(work);
 	}
 
 	/** Rebuilds this store to its opening state (ADR-005), invalidating whatever is in flight. */
@@ -210,8 +253,10 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 	}
 
 	return {
-		entries,
 		visibleEntries,
+		/** §3.6's `54 assets` — the whole catalogue's size, which is the one fact about the
+		 *  unfiltered listing anything outside this store needs. */
+		total: computed(() => entries.value.length),
 		unreadable,
 		status,
 		error,

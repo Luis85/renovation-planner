@@ -70,6 +70,12 @@ function lessAdvanced(one: SectionStatus, other: SectionStatus): SectionStatus {
  */
 export const useAssetSelectionStore = defineStore('asset-selection', () => {
 	const selectedId = ref<AssetId | null>(null);
+	/**
+	 * The ids of the last listing `applyListing` was shown — the only state that can tell an entry
+	 * LEAVING from one that has been absent all along. Not a `ref`: nothing renders it, and it is
+	 * read exactly once per applied listing.
+	 */
+	let listed: ReadonlySet<AssetId> = new Set();
 	const designSection = createTicketedSection<AssetDesignDto | null, AssetDesignError>(null);
 	const referencingSection = createTicketedSection<readonly ReferencingGroup[], RepositoryError>(NO_GROUPS);
 	const overridingSection = createTicketedSection<readonly ProjectId[], RepositoryError>(NO_OVERRIDES);
@@ -172,27 +178,45 @@ export const useAssetSelectionStore = defineStore('asset-selection', () => {
 	 * `replaced` arm — `AssetDeleted` and the asset's own `ProjectIndexEntryChanged` — is the
 	 * certain, prompt half. This covers what raises no event at all: an entry that simply leaves.
 	 *
+	 * **A TRANSITION, never a standing absence**, which is what §5.4 and §5.5 both word it as —
+	 * *an entry LEAVING*, *a listing that removes*. Asking `listing.some(...)` alone re-reads on
+	 * every catalogue refresh for as long as the selected id is missing, and eight event types
+	 * feed that arm: a selection whose asset is genuinely gone would re-run the vault-wide
+	 * referencing scan once per synced note and flip a failed design section back to `loading`
+	 * each time. So the ids of the PREVIOUSLY applied listing are held, and the restart is
+	 * `previously present AND now absent`.
+	 *
+	 * A restored view state naming an asset no listing has ever held therefore restarts nothing —
+	 * correctly: `select` already read it, and the answer to *is this asset there* is the one that
+	 * read gave.
+	 *
 	 * ABSENCE and never difference. A DTO that has merely changed is a field edit, and restarting
 	 * the vault-wide referencing scan for a renamed asset is the over-restart three sections
 	 * exist to prevent.
 	 *
-	 * There is deliberately no `selectedId === null` early exit: the three refresh doors carry
-	 * that guard already, `entry.assetId === null` is false for every real entry, and a fourth
-	 * copy could not change behaviour — a branch no mutation can redden is a branch that reads as
-	 * checked and is not. `AssetLibraryStore.hydrate` is its only caller and calls it on EVERY
-	 * applied listing, so this runs constantly with nothing selected.
+	 * There is deliberately no `selectedId === null` early exit before the bookkeeping: the three
+	 * refresh doors carry that guard already, and a fourth copy could not change behaviour — a
+	 * branch no mutation can redden is a branch that reads as checked and is not.
+	 * `AssetLibraryStore.hydrate` is its only caller and calls it on EVERY applied listing, so
+	 * this runs constantly with nothing selected and must record the listing regardless.
 	 */
 	async function applyListing(
 		listing: readonly CatalogueEntryDto[],
 		queries: AssetLibraryQueryServices,
 	): Promise<void> {
-		if (listing.some((entry) => entry.assetId === selectedId.value)) return;
+		const previouslyListed = listed;
+		listed = new Set(listing.map((entry) => entry.assetId));
+
+		const assetId = selectedId.value;
+		if (assetId === null) return;
+		if (!previouslyListed.has(assetId) || listed.has(assetId)) return;
 		await Promise.all([refreshDesign(queries), refreshUsedIn(queries)]);
 	}
 
 	/** Rebuilds this store to its opening state (ADR-005), dropping whatever is in flight. */
 	function reset(): void {
 		selectedId.value = null;
+		listed = new Set();
 		designSection.clear();
 		referencingSection.clear();
 		overridingSection.clear();

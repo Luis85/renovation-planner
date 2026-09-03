@@ -97,6 +97,31 @@ function answering(outline: AssetOutline): Partial<AssetLibraryQueryServices> {
 	};
 }
 
+/** A design read that counts, answering for whatever id it is handed. */
+function countedDesign() {
+	return vi.fn<AssetLibraryQueryServices['getDesign']>((assetId) =>
+		Promise.resolve(ok(assetDesign({ assetId }))),
+	);
+}
+
+/**
+ * A bundle whose three SELECTION doors answer, for the two cases that reach them — `hydrate`
+ * hands every applied listing to `AssetSelectionStore.applyListing`, and with an asset selected
+ * that really does read. Every other case in this file keeps the rejecting bundle above.
+ */
+function selectionDoors(
+	listing: { entries?: readonly CatalogueEntryDto[] },
+	getDesign: ReturnType<typeof countedDesign>,
+	overrides: Partial<AssetLibraryQueryServices> = {},
+): AssetLibraryQueryServices {
+	return queriesAnswering(listing, {
+		getDesign,
+		listReferencing: () => Promise.resolve(ok([])),
+		listOverridingProjects: () => Promise.resolve(ok([])),
+		...overrides,
+	});
+}
+
 const scanned = (): boolean => true;
 
 beforeEach(() => {
@@ -108,7 +133,7 @@ describe('AssetLibraryStore hydration', () => {
 		const store = useAssetLibraryStore();
 
 		expect(store.status).toBe('idle');
-		expect(store.entries).toEqual([]);
+		expect(store.visibleEntries).toEqual([]);
 		expect(store.unreadable).toEqual([]);
 		expect(store.emptyStateKey).toBeNull();
 	});
@@ -162,7 +187,7 @@ describe('AssetLibraryStore hydration', () => {
 		await store.hydrate(queriesAnswering({ entries: [entry], unreadable: [A_NO_ID_NOTE] }), scanned);
 
 		expect(store.status).toBe('ready');
-		expect(store.entries).toEqual([entry]);
+		expect(store.visibleEntries).toEqual([entry]);
 		expect(store.unreadable).toEqual([A_NO_ID_NOTE]);
 		expect(store.error).toBeNull();
 	});
@@ -178,7 +203,7 @@ describe('AssetLibraryStore hydration', () => {
 		await first;
 
 		expect(store.status).toBe('ready');
-		expect(store.entries).toEqual([entry]);
+		expect(store.visibleEntries).toEqual([entry]);
 		expect(store.error).toBeNull();
 	});
 
@@ -189,7 +214,7 @@ describe('AssetLibraryStore hydration', () => {
 		await store.hydrate(queriesAnswering({}, { listCatalogue: () => Promise.resolve(err(READ_FAILED)) }), scanned);
 
 		expect(store.status).toBe('failed');
-		expect(store.entries).toEqual([]);
+		expect(store.visibleEntries).toEqual([]);
 		expect(store.unreadable).toEqual([]);
 		expect(store.error).toEqual(READ_FAILED);
 	});
@@ -217,7 +242,7 @@ describe('AssetLibraryStore hydration', () => {
 		await inFlight;
 
 		expect(store.status).toBe('idle');
-		expect(store.entries).toEqual([]);
+		expect(store.visibleEntries).toEqual([]);
 	});
 
 	/**
@@ -226,23 +251,53 @@ describe('AssetLibraryStore hydration', () => {
 	 */
 	it('tells the selection store about a listing its selected entry has left', async () => {
 		const gone = anEntry();
-		const getDesign = vi.fn<AssetLibraryQueryServices['getDesign']>((assetId) =>
-			Promise.resolve(ok(assetDesign({ assetId }))),
-		);
-		const doors = queriesAnswering(
-			{ entries: [anEntry()] },
-			{
-				getDesign,
-				listReferencing: () => Promise.resolve(ok([])),
-				listOverridingProjects: () => Promise.resolve(ok([])),
-			},
-		);
+		const getDesign = countedDesign();
 		const selection = useAssetSelectionStore();
-		await selection.select(gone.assetId, doors);
+		const store = useAssetLibraryStore();
+		await selection.select(gone.assetId, selectionDoors({ entries: [gone] }, getDesign));
+		await store.hydrate(selectionDoors({ entries: [gone] }, getDesign), scanned);
 
-		await useAssetLibraryStore().hydrate(doors, scanned);
+		expect(getDesign).toHaveBeenCalledTimes(1); // still listed — nothing to back up
+
+		await store.hydrate(selectionDoors({ entries: [] }, getDesign), scanned);
 
 		expect(getDesign).toHaveBeenCalledTimes(2);
+	});
+
+	/**
+	 * Important A, pinned rather than merely fixed: every OTHER case in this suite is
+	 * single-pinia, and a single-pinia suite cannot see this at all. Each view mounts its own
+	 * `createPinia()`, and `useStore()` with no argument resolves through the module-global
+	 * `activePinia` — which any store action in another leaf re-points, since every function a
+	 * setup store returns is wrapped as an action. Resolved after the listing read, the backstop
+	 * lands on the OTHER leaf's selection store, plants a stray one there, and the real one is
+	 * never told.
+	 */
+	it('tells its own leaf\u2019s selection store, not whichever pinia acted last', async () => {
+		const gone = anEntry();
+		const getDesign = countedDesign();
+		const slow = defer<CatalogueAnswer>();
+		const leafA = createPinia();
+		const leafB = createPinia();
+
+		setActivePinia(leafA);
+		const selection = useAssetSelectionStore();
+		const library = useAssetLibraryStore();
+		await selection.select(gone.assetId, selectionDoors({ entries: [gone] }, getDesign));
+		await library.hydrate(selectionDoors({ entries: [gone] }, getDesign), scanned);
+
+		const pending = library.hydrate(
+			selectionDoors({ entries: [] }, getDesign, { listCatalogue: () => slow.promise }),
+			scanned,
+		);
+		// Another leaf's store acts while this listing read is out.
+		setActivePinia(leafB);
+		useAssetLibraryStore().reset();
+		slow.resolve(ok({ entries: [], unreadable: [] }));
+		await pending;
+
+		expect(getDesign).toHaveBeenCalledTimes(2);
+		expect(leafB.state.value['asset-selection']).toBeUndefined();
 	});
 });
 
@@ -262,6 +317,34 @@ describe('AssetLibraryStore search', () => {
 		expect(store.searching).toBe(false);
 		expect(store.visibleEntries).toEqual([OAK, TILE]);
 		expect(store.emptyStateKey).toBeNull();
+	});
+
+	/**
+	 * §6.1: the flat result list is *ordered by name across categories*. Applied unsearched too,
+	 * since one list under two orders is two lists — and `ListCatalogueEntries` sorts nothing, so
+	 * without this the rows arrive in whatever order the index enumerated ids in.
+	 */
+	it('orders what it draws by name, across categories', async () => {
+		const zinc = anEntry({ name: 'Zinc trim', category: 'material', supplier: 'Metalux' });
+		const acrylic = anEntry({ name: 'Acrylic sealant', category: 'consumable', supplier: 'Metalux' });
+		const store = useAssetLibraryStore();
+		await store.hydrate(queriesAnswering({ entries: [zinc, acrylic] }), scanned);
+
+		expect(store.visibleEntries.map((entry) => entry.name)).toEqual(['Acrylic sealant', 'Zinc trim']);
+
+		store.query = 'metalux';
+
+		expect(store.visibleEntries.map((entry) => entry.name)).toEqual(['Acrylic sealant', 'Zinc trim']);
+	});
+
+	/** §3.6 prints how large the LIBRARY is, which a search must not shrink. */
+	it('counts the whole catalogue however narrow the search is', async () => {
+		const store = await hydrated();
+
+		store.query = 'timberly';
+
+		expect(store.visibleEntries).toHaveLength(1);
+		expect(store.total).toBe(2);
 	});
 
 	it('matches on name, supplier and SKU, and never on notes', async () => {
@@ -411,7 +494,7 @@ describe('AssetLibraryStore change routing', () => {
 			scanned,
 		);
 
-		expect(store.entries).toHaveLength(1);
+		expect(store.visibleEntries).toHaveLength(1);
 		expect(store.markFor(assetId)).toEqual(MEASURED);
 	});
 
@@ -426,6 +509,6 @@ describe('AssetLibraryStore change routing', () => {
 			scanned,
 		);
 
-		expect(store.entries).toEqual([entry]);
+		expect(store.visibleEntries).toEqual([entry]);
 	});
 });

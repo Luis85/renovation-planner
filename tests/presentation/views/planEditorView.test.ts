@@ -17,7 +17,8 @@ import {
 import { t } from '../../../src/presentation/i18n/strings';
 import type { BackgroundVault } from '../../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import { unavailablePlanEditorCommands } from '../../../src/presentation/editor/planEditorCommands';
-import { installEditorEnvironment, settle } from '../../helpers/editor';
+import { installEditorEnvironment, settle, sizedShellRoot } from '../../helpers/editor';
+import { resizeTo } from '../../helpers/layout';
 import { FIXTURE_PLAN, FIXTURE_PROJECT, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import { FakeLeaf } from '../../helpers/workspace';
 
@@ -99,12 +100,28 @@ function makeView(
 	return view;
 }
 
+/**
+ * Give the just-mounted shell a pane width, the way Obsidian's own layout would.
+ *
+ * `ResponsiveEditorShell` (Task 19) reads its root's `clientWidth` and jsdom answers 0 for
+ * every element, which `layoutModeFor` reads — correctly — as `unsupported`: the width at which
+ * the editor draws a notice instead of a canvas. So a view mounted here has no Konva stage at
+ * all until something says how wide its pane is, and every case below that counts stages is
+ * really about a pane an Obsidian user would have. `sizedShellRoot`'s own docblock carries the
+ * rest; the mount paths in `tests/helpers/editor.ts` call it for the same reason.
+ */
+async function sizeShell(view: PlanEditorView): Promise<void> {
+	sizedShellRoot(view.contentEl);
+	await settle();
+}
+
 /** Opening a view that already knows which Plan it shows — the restored-leaf path. */
 async function opened(planId = FIXTURE_PLAN.id): Promise<PlanEditorView> {
 	const view = makeView();
 	await view.setState({ planId }, {} as never);
 	await view.onOpen();
 	await settle();
+	await sizeShell(view);
 	return view;
 }
 
@@ -190,6 +207,7 @@ describe('the plan a leaf is showing', () => {
 
 		await view.setState({ planId: FIXTURE_PLAN.id }, {} as never);
 		await settle();
+		await sizeShell(view);
 
 		expect(Konva.stages).toHaveLength(1);
 		await view.onClose();
@@ -261,6 +279,7 @@ describe('mount and unmount', () => {
 		for (let cycle = 0; cycle < 3; cycle += 1) {
 			await view.onOpen();
 			await settle();
+			await sizeShell(view);
 			expect(Konva.stages).toHaveLength(1);
 			await view.onClose();
 			await settle();
@@ -307,6 +326,37 @@ describe('mount and unmount', () => {
 	 * can be asked whether it CALLED `closeLeaf`, and only here can it be asked whether calling
 	 * it closes anything.
 	 */
+	/**
+	 * `PlanEditorContext.focusLeaf`, at the same seam and for the same reason as `closeLeaf`
+	 * below: `PlanEditorRoot` can be asked whether it CALLED it, and only here can it be asked
+	 * whether calling it reaches an actual `WorkspaceLeaf`.
+	 *
+	 * The button lives in the UNSUPPORTED layout, which is the whole point of the action — a
+	 * pane too narrow to draw a canvas in — so the case narrows the shell rather than mounting
+	 * anything special. `revealLeaf` is what the pinned typings promise; nothing here maximises
+	 * a pane, because no such call exists to make.
+	 */
+	it('reveals its own leaf when the too-narrow action is pressed', async () => {
+		const leaf = new FakeLeaf();
+		const view = makeView(leaf);
+		await view.setState({ planId: FIXTURE_PLAN.id }, {} as never);
+		await view.onOpen();
+		await settle();
+		resizeTo(sizedShellRoot(view.contentEl), 320, 800);
+		await settle();
+
+		const action = view.contentEl.querySelector<HTMLButtonElement>('.rp-unsupported-width__action');
+		expect(action).not.toBeNull();
+
+		action?.click();
+		await settle();
+
+		// Read through the view, because this fake's `app` is the view's own — see the mock.
+		const revealed = (view as unknown as { app: { workspace: { revealed: unknown[] } } }).app.workspace.revealed;
+		expect(revealed).toEqual([leaf]);
+		await view.onClose();
+	});
+
 	it('closes its own leaf when the dangling-plan action is pressed', async () => {
 		// Driven through the RENDERED button rather than by reaching for the provided context:
 		// the binding is only worth anything if the whole chain works, and this is the one place
@@ -317,6 +367,9 @@ describe('mount and unmount', () => {
 		await view.setState({ planId: FIXTURE_PLAN.id }, {} as never);
 		await view.onOpen();
 		await settle();
+		// The dangling-plan state lives in the canvas REGION, which a shell measuring 0 does
+		// not render at all (`sizeShell`'s docblock): without a width there is no button here.
+		await sizeShell(view);
 
 		const action = view.contentEl.querySelector<HTMLButtonElement>('.rp-view-failure__action');
 		expect(action).not.toBeNull();

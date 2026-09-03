@@ -3,6 +3,12 @@
  * `StringKey` derives from here, so the compiler demands English before a caller can
  * name a key. The file is named `en.ts` because that is the filename the obsidianmd
  * ruleset's locale rules match — sentence case in this table is linted, not reviewed.
+ *
+ * **Two lines under the 400-line budget** as of Task 19 (`max-lines` skips blanks and
+ * comments, so a docblock like this one is free and a key is not). `de.ts` carries the account
+ * of what happens next, including why the obvious extraction is a trap here: this file's NAME
+ * is what puts it under the sentence-case rule, so a second English table would be copy no gate
+ * reads unless that rule's configuration names it in the same edit.
  */
 export const en = {
 	'command.open-project': 'Open renovation project',
@@ -188,6 +194,19 @@ export const en = {
 	'editor.task.calibrate.name': 'Setting the scale',
 	'editor.task.calibrate.instruction': 'Click two points a known distance apart.',
 	'editor.task.cancel': 'Cancel',
+	// Task 19's constrained and unsupported layouts (design spec §5.4/§5.5). The rail's two
+	// labels are TEXT rather than icons — this plugin calls `setIcon` nowhere — and `details`
+	// names the Inspector the way a homeowner would, which is why the rail id and the overlay
+	// kind (`inspector`) deliberately differ.
+	'editor.rail.layers': 'Layers',
+	'editor.rail.details': 'Details',
+	'editor.overlay.close': 'Close panel',
+	'editor.unsupported-width.headline': 'This pane is too narrow to edit the floor plan',
+	// Both holes are filled from what the editor already read — the floor's own name and how
+	// many rooms it holds — so a pane too narrow to draw still says WHICH plan it is refusing
+	// to draw. The counterpart action is the only thing this state can offer.
+	'editor.unsupported-width.body': '{floor} has {rooms} rooms. Widen the pane or focus this tab to edit.',
+	'editor.unsupported-width.action': 'Focus this tab',
 	'background.no-plan-open': 'Open a plan editor first.',
 	'background.unsupported': 'Only PNG, JPEG and PDF files can be a plan background.',
 	'zone.status.planned': 'Planned',

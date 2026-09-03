@@ -93,6 +93,19 @@ export interface PlanEditorContext {
 	 * instead is what the marketplace rules refuse.
 	 */
 	closeLeaf(): void;
+	/**
+	 * Bring THIS leaf forward and give it the focus — the tab the user is looking at.
+	 *
+	 * The one thing a Plan Editor can offer a user whose pane is too narrow to draw a canvas in
+	 * (`UnsupportedWidthNotice`, design spec §5.4): a leaf sharing a split, or sitting in a
+	 * sidebar, becomes the active one and takes the width the workspace gives an active tab.
+	 * It does NOT maximise anything, because the pinned `obsidian` typings promise no such
+	 * call — `revealLeaf` is the supported API and the honest limit of what this offers.
+	 *
+	 * A narrow callback rather than the `WorkspaceLeaf` itself, for the reason `closeLeaf`
+	 * above gives and `onThemeChange` gives before it: the tree's only interest is "focus me".
+	 */
+	focusLeaf(): void;
 }
 
 export const PLAN_EDITOR_CONTEXT: InjectionKey<PlanEditorContext> = Symbol('renovation-planner:editor-context');

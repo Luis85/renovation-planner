@@ -20,6 +20,7 @@
 @import "./editor-requirements.css";
 @import "./editor-cursors.css";
 @import "./editor-shell.css";
+@import "./editor-layout.css";
 @import "./editor-inspector.css";
 @import "./dialogs.css";
 @import "./chrome.css";

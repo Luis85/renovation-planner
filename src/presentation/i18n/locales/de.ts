@@ -3,6 +3,16 @@
  * PER KEY in `t`, so an incomplete translation degrades one string at a time instead of
  * failing the locale. (German noun capitalization is why the English sentence-case lint
  * deliberately does not run here.)
+ *
+ * **This table is AT its 400-line budget** (`max-lines`, which skips blanks and comments), and
+ * Task 19 bought its own six keys by joining four wrapped values onto one line each. That is a
+ * budget already spent, not headroom: the next handful of keys does not fit, and the answer is
+ * an extraction rather than a fifth joined literal — `en.ts` sits two lines under the same cap.
+ * **Extracting is not free and the trap is worth knowing before someone tries it**: the
+ * marketplace sentence-case rule (`obsidianmd/ui/sentence-case-locale-module`) is scoped by
+ * FILE NAME — any file called `en.ts` — so splitting the English table moves half the copy out
+ * of the one gate that reads it. Either name the new file in that rule's configuration in the
+ * same edit, or split neither.
  */
 import type { StringKey } from './en';
 
@@ -14,11 +24,9 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.units.desc': 'Maßsystem für Mengen und Abmessungen.',
 	'settings.units.metric': 'Metrisch',
 	'settings.units.imperial': 'Imperial',
-	'settings.unrecovered':
-		'Einstellungen konnten nicht gelesen werden. data.json im Plugin-Ordner reparieren oder entfernen, dann Obsidian neu laden.',
+	'settings.unrecovered': 'Einstellungen konnten nicht gelesen werden. data.json im Plugin-Ordner reparieren oder entfernen, dann Obsidian neu laden.',
 	'settings.project-folder.name': 'Standardordner für neue Projekte',
-	'settings.project-folder.desc':
-		'Vault-Ordner, in dem der Ordner eines neuen Projekts angelegt wird. Ein bestehendes Projekt behält den Ordner, in dem es sich bereits befindet.',
+	'settings.project-folder.desc': 'Vault-Ordner, in dem der Ordner eines neuen Projekts angelegt wird. Ein bestehendes Projekt behält den Ordner, in dem es sich bereits befindet.',
 	'settings.library-folder.name': 'Bibliotheksordner',
 	'settings.library-folder.current': 'Zurzeit {folder}. Eine Änderung verschiebt die Notizen.',
 	'settings.library-folder.move.name': 'Bibliothek verschieben',
@@ -26,10 +34,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'settings.library-folder-empty': 'Ein Bibliotheksordner darf nicht leer sein.',
 	'settings.library-overlaps-project': 'Dieser Ordner liegt in einem Projektordner oder enthält einen.',
 	'settings.library-overlaps-source': 'Dieser Ordner überlappt den aktuellen Bibliotheksordner.',
-	'settings.library-source-is-vault-root':
-		'Der Bibliotheksordner ist derzeit der gesamte Vault, es gibt also nichts, woraus er verschoben werden könnte. Setzen Sie ihn zuerst in der data.json auf einen echten Ordner.',
-	'settings.library-source-case-mismatch':
-		'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
+	'settings.library-source-is-vault-root': 'Der Bibliotheksordner ist derzeit der gesamte Vault, es gibt also nichts, woraus er verschoben werden könnte. Setzen Sie ihn zuerst in der data.json auf einen echten Ordner.',
+	'settings.library-source-case-mismatch': 'Der Bibliotheksordner existiert nicht in der Schreibweise, die diese Einstellung nennt, aber ein ähnlich benannter Ordner ist vorhanden. Bitte diesen Ordner passend umbenennen, bevor verschoben wird.',
 	'settings.library-refresh-failed':
 		'Die App konnte den Vault nicht einlesen. Es wurde nichts verschoben und die Einstellung wurde nicht geändert. Bitte erneut versuchen oder Obsidian neu laden.',
 	'settings.library-move-failed':
@@ -193,6 +199,13 @@ export const de: Partial<Record<StringKey, string>> = {
 	'editor.task.calibrate.name': 'Maßstab festlegen',
 	'editor.task.calibrate.instruction': 'Klicken Sie auf zwei Punkte mit bekanntem Abstand.',
 	'editor.task.cancel': 'Abbrechen',
+	'editor.rail.layers': 'Ebenen',
+	'editor.rail.details': 'Details',
+	'editor.overlay.close': 'Panel schließen',
+	'editor.unsupported-width.headline': 'Dieser Bereich ist zu schmal, um den Grundriss zu bearbeiten',
+	// The same two holes as the English, in the order German word order wants them.
+	'editor.unsupported-width.body': '{floor} hat {rooms} Räume. Vergrößern Sie den Bereich oder fokussieren Sie diesen Tab, um zu bearbeiten.',
+	'editor.unsupported-width.action': 'Diesen Tab fokussieren',
 	'background.no-plan-open': 'Zuerst einen Grundriss-Editor öffnen.',
 	'background.unsupported': 'Nur PNG-, JPEG- und PDF-Dateien können ein Grundriss-Hintergrund sein.',
 	'zone.status.planned': 'Geplant',

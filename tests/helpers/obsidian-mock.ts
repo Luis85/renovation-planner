@@ -447,6 +447,30 @@ export class ItemView {
 	private typeAssigned = false;
 	readonly contentEl: HTMLElement;
 
+	/**
+	 * Obsidian assigns `View.app` when it constructs a view, and this fake had none at all —
+	 * which was invisible while nothing reached for it and stopped being so with
+	 * `PlanEditorContext.focusLeaf`, bound to `this.app.workspace.revealLeaf(this.leaf)`. A fake
+	 * missing it does not merely make that binding untestable; it turns the button carrying it
+	 * into a `TypeError` the moment anything presses one, which is the fake-thinner-than-the-real-
+	 * thing shape `CLAUDE.md` keeps recording.
+	 *
+	 * RECORDING rather than behaving, like `FakeLeaf` beside it: what a test can ask is which
+	 * leaves were revealed. What is NOT modelled: the real `App` is one object shared by every
+	 * view in the vault and this is one per view, so a test asking "did anything reveal this
+	 * leaf" must ask the view that would have. Nothing here needs the shared form, and a fake
+	 * that invented one would need a workspace to hang it off.
+	 */
+	readonly app = {
+		workspace: {
+			revealed: [] as WorkspaceLeaf[],
+			revealLeaf(leaf: WorkspaceLeaf): Promise<void> {
+				this.revealed.push(leaf);
+				return Promise.resolve();
+			},
+		},
+	};
+
 	constructor(readonly leaf: WorkspaceLeaf) {
 		this.containerElNode = document.createElement('div');
 		this.containerElNode.classList.add('workspace-leaf-content');

@@ -227,6 +227,12 @@ export class PlanEditorView extends ItemView {
 			closeLeaf: () => {
 				this.leaf.detach();
 			},
+			// The same shape as `closeLeaf` above and for the same reason: the leaf is the
+			// VIEW's, so the view is what can reveal it. `void` because the promise is the
+			// workspace's own animation and nothing here waits on it.
+			focusLeaf: () => {
+				void this.app.workspace.revealLeaf(this.leaf);
+			},
 		};
 
 		const app = createApp(PlanEditorRoot);

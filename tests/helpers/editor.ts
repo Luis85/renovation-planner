@@ -85,6 +85,20 @@ export interface EditorHarness {
 	readonly themeListeners: () => number;
 	/** How many times the tree asked to close this leaf (`PlanEditorContext.closeLeaf`). */
 	readonly closedLeaf: () => number;
+	/** How many times the tree asked to focus this leaf (`PlanEditorContext.focusLeaf`). */
+	readonly focusedLeaf: () => number;
+	/**
+	 * `ResponsiveEditorShell`'s own root — the element that carries `data-layout`, the one the
+	 * shell's `ResizeObserver` watches, and therefore the one a case resizes to drive a layout
+	 * change (`resizeTo(harness.rootEl, 460, 800)`).
+	 *
+	 * NOT the wrapper's element: `PlanEditorRoot`'s outermost div is `.renovation-plan-editor`,
+	 * which holds the shell and `DialogHost` as siblings, and resizing THAT would tell the
+	 * observer nothing. Non-nullable because the shell renders unconditionally — a mount that
+	 * did not produce one is a broken tree rather than a state, so `mountPlanEditor` throws
+	 * where it looks for it.
+	 */
+	readonly rootEl: HTMLElement;
 	readonly unmount: () => void;
 }
 
@@ -168,6 +182,38 @@ export async function settleUntil(
 	}
 }
 
+/**
+ * The width and height a mounted editor's shell root is given, standing in for the pane
+ * Obsidian would have laid out. 1280 is `layoutModeFor`'s `full` — the desktop leaf every
+ * case that says nothing about layout means — and it is the width one of the two harness
+ * captures uses, so the suite and the pictures agree on what "an ordinary pane" is.
+ */
+const SHELL_WIDTH_PX = 1280;
+const SHELL_HEIGHT_PX = 800;
+
+/**
+ * Give a just-mounted editor's shell root a real width and tell its observer.
+ *
+ * **Every jsdom mount path owes this call**, which is why it is a function rather than two
+ * lines repeated: `ResponsiveEditorShell` measures `root.clientWidth` in `onMounted` and on
+ * every observer callback, jsdom answers 0 for both, and `layoutModeFor(0)` is `unsupported` —
+ * a state that draws no canvas at all. The real `ResizeObserver` reports once on `observe()`
+ * with the element's actual size, so nothing in a browser or a vault is ever in that state for
+ * longer than a frame; the fake in `layout.ts` deliberately fires only when a test says so.
+ *
+ * It THROWS when there is no shell root, rather than answering `null` for callers to check: the
+ * shell renders unconditionally, so its absence means the tree failed to mount and every
+ * assertion after this point would be about markup that is not there.
+ */
+export function sizedShellRoot(container: HTMLElement): HTMLElement {
+	const root = container.querySelector<HTMLElement>('.rp-editor-shell');
+	if (root === null) {
+		throw new Error('the mounted editor has no .rp-editor-shell root to size');
+	}
+	resizeTo(root, SHELL_WIDTH_PX, SHELL_HEIGHT_PX);
+	return root;
+}
+
 export function installEditorEnvironment(): void {
 	installObsidianDom();
 	installCanvas();
@@ -184,6 +230,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 
 	const themeListeners = new Set<() => void>();
 	let closedLeaf = 0;
+	let focusedLeaf = 0;
 	const planListeners = new Set<() => void>();
 	const catalogueListeners = new Set<() => void>();
 	const fileListeners = new Set<(path: string) => void>();
@@ -223,6 +270,11 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		closeLeaf: () => {
 			closedLeaf += 1;
 		},
+		// Counted beside `closeLeaf`, not stubbed: `UnsupportedWidthNotice`'s only action calls
+		// it, and a no-op here would let a build that wired the button to nothing pass.
+		focusLeaf: () => {
+			focusedLeaf += 1;
+		},
 	};
 
 	// Attached to the document, because Konva measures its container and `getComputedStyle`
@@ -235,6 +287,14 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		attachTo: host,
 		global: { plugins: [pinia, VueKonva], provide: { [PLAN_EDITOR_CONTEXT as symbol]: context } },
 	});
+
+	// BEFORE the settle that lets hydration mount a canvas, because the canvas is one of the
+	// things a layout mode decides. `ResponsiveEditorShell` measures its root in `onMounted`
+	// and jsdom answers 0 for every `clientWidth`, which `layoutModeFor` reads — correctly — as
+	// `unsupported`: no canvas at all. So every mounted editor in the suite would sit in a
+	// state no real pane is ever in unless the harness gives its root a width, exactly as it
+	// already gives the canvas container one two blocks below.
+	const rootEl = sizedShellRoot(wrapper.element as HTMLElement);
 
 	await settle();
 
@@ -270,6 +330,8 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		fileListeners: () => fileListeners.size,
 		themeListeners: () => themeListeners.size,
 		closedLeaf: () => closedLeaf,
+		focusedLeaf: () => focusedLeaf,
+		rootEl,
 		unmount: () => {
 			wrapper.unmount();
 			host.remove();

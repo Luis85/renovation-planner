@@ -35,10 +35,43 @@
 	position: relative;
 }
 
-.rp-editor-body {
+/*
+ * `ResponsiveEditorShell`'s own root (Task 19), between `.renovation-plan-editor` and the five
+ * regions it arranges. It repeats the column rule above rather than inheriting it: the height
+ * chain this file's header calls load-bearing runs through every ancestor from the leaf to the
+ * canvas, and a plain block element inserted into the middle of it is exactly how that chain
+ * broke here once already.
+ */
+.rp-editor-shell {
 	display: flex;
 	flex: 1;
+	flex-direction: column;
 	min-height: 0;
+}
+
+/*
+ * `position: relative` for the constrained layout's sake: `.rp-overlay-panel` and
+ * `.rp-inspector-drawer` are absolutely positioned SIBLINGS of the canvas, so this is what
+ * their `inset` resolves against. Set unconditionally rather than under `[data-layout]`,
+ * because a positioned ancestor changes nothing for a row of static children and a rule that
+ * only applies in one mode is one more thing a mode change has to get right.
+ */
+.rp-editor-body {
+	display: flex;
+	position: relative;
+	flex: 1;
+	min-height: 0;
+}
+
+/*
+ * The unsupported layout holds one child — `UnsupportedWidthNotice` — and centres it. The
+ * attribute is on the shell root, so this is the one place a `[data-layout]` selector is worth
+ * the specificity: everything else the three modes differ in is a component that is or is not
+ * rendered, decided in TypeScript where a test can read it.
+ */
+[data-layout='unsupported'] .rp-editor-body {
+	align-items: center;
+	justify-content: center;
 }
 
 /*

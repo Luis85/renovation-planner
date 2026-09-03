@@ -220,5 +220,9 @@ export function harnessEditorContext(): PlanEditorContext {
 		// state here — it just has nothing to act on. Matching every WRITE in this fixture,
 		// which refuses rather than pretending.
 		closeLeaf: () => undefined,
+		// A no-op for the reason `closeLeaf` above is one: no Obsidian, so no leaf to reveal.
+		// `UnsupportedWidthNotice`'s button still renders and still presses — the index can be
+		// opened at any width — it simply has nothing to act on.
+		focusLeaf: () => undefined,
 	};
 }

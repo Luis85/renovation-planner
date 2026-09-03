@@ -163,20 +163,31 @@ describe('the five regions', () => {
 	 * whose OTHER children it backgrounds. Mounted a level too deep, the context bar would
 	 * stay live and clickable behind the dialog with nothing erroring anywhere — this is the
 	 * case that would catch that.
+	 *
+	 * **The attribute lands on the SHELL now, not on the context bar itself, and the case
+	 * asserts both halves for that reason.** Task 19 moved the five regions one level down into
+	 * `ResponsiveEditorShell`, so `DialogHost`'s siblings are the shell and nothing else —
+	 * which is what its own comment asks for ("every region has to be a sibling of it"), now
+	 * satisfied by one element rather than by five. `inert` applies to the element AND its
+	 * subtree, so the context bar is backgrounded exactly as before; the ANCESTRY assertion is
+	 * what keeps this case about the region rather than about whichever element the attribute
+	 * happens to sit on.
 	 */
 	it('makes a shell region inert while the dialog is open, and releases it on close', async () => {
 		const harness = await mountCanvas();
 		const store = useDialogStore(harness.pinia);
+		const shell = harness.rootEl;
+		expect(shell.contains(harness.wrapper.find('.rp-context-bar').element)).toBe(true);
 
 		void store.openDialog({ kind: 'confirm', title: 'T', message: 'M' });
 		await settle();
 
-		expect(harness.wrapper.find('.rp-context-bar').element.hasAttribute('inert')).toBe(true);
+		expect(shell.hasAttribute('inert')).toBe(true);
 
 		store.resolve('cancel');
 		await settle();
 
-		expect(harness.wrapper.find('.rp-context-bar').element.hasAttribute('inert')).toBe(false);
+		expect(shell.hasAttribute('inert')).toBe(false);
 	});
 });
 

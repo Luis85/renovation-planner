@@ -13,34 +13,25 @@
  * `var(--text-muted)` with an italic style and the words "Not available yet", never a colour
  * shift on its own.
  */
-import { computed } from 'vue';
-import { storeToRefs } from 'pinia';
 import { tr } from '../../i18n/strings';
-import { useProjectStore } from '../../stores/ProjectStore';
-import { buildFloorSummary, type Aggregate } from '../../read-models/spatialRecords';
+import { type Aggregate } from '../../read-models/spatialRecords';
 import { formatArea } from './formatArea';
+import { useFloorSummary } from './useFloorSummary';
 import RoomSummaryList from './RoomSummaryList.vue';
-
-const { plan, project, zones, unreadableZones } = storeToRefs(useProjectStore());
 
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
  * before one lands: the frame mounts unconditionally on `inspectorPanelOpen`
- * (`PlanEditorRoot`'s own sibling `v-if`, matched exactly from `RoomInspector`'s Task 14
+ * (the shell's own sibling `v-if`, matched exactly from `RoomInspector`'s Task 14
  * placement), never gated on `ProjectStore.status`. There is nothing yet to summarise, so
  * the template renders nothing rather than a summary built from a `plan`/`project` that are
  * not there — the same "no live control that does nothing" rule slice 14's own empty-state
  * amendment states elsewhere.
+ *
+ * The derivation itself moved into `useFloorSummary` when Task 19's too-narrow notice became
+ * its second reader; this component's decision about what `null` DRAWS is still its own.
  */
-const summary = computed(() => {
-	if (plan.value === null || project.value === null) return null;
-	return buildFloorSummary({
-		plan: plan.value,
-		project: project.value,
-		zones: [...zones.value.values()],
-		unreadable: unreadableZones.value,
-	});
-});
+const summary = useFloorSummary();
 
 /** The modifier class an `Aggregate` renders under, or `''` for the plain `available` case. */
 function classFor(aggregate: Aggregate<unknown>): string {

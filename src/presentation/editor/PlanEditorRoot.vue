@@ -16,7 +16,6 @@ import { usePlanEditorContext } from './PlanEditorContext';
 import { provideEditorRuntime } from './runtime';
 import { useThemeTokens } from './theme/useThemeTokens';
 import { useProjectStore } from '../stores/ProjectStore';
-import { useWorkspaceStore } from '../stores/WorkspaceStore';
 import DialogHost from '../dialogs/DialogHost.vue';
 import type { BackgroundStatus } from './layers/background/BackgroundRenderModel';
 import EmptyState from '../components/EmptyState.vue';
@@ -28,6 +27,7 @@ import EditorContextBar from './shell/EditorContextBar.vue';
 import FloatingPrimaryActions from './shell/FloatingPrimaryActions.vue';
 import EntityInspector from './shell/EntityInspector.vue';
 import PropertyLayerPanel from './shell/PropertyLayerPanel.vue';
+import ResponsiveEditorShell from './shell/ResponsiveEditorShell.vue';
 import StatusBar from './shell/StatusBar.vue';
 import AddMenu from './add/AddMenu.vue';
 import TemporaryToolBanner from './shell/TemporaryToolBanner.vue';
@@ -39,7 +39,6 @@ const context = usePlanEditorContext();
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
 const { status, error, stale, unreadableZones, plan } = storeToRefs(projectStore);
-const { layersPanelOpen, inspectorPanelOpen } = storeToRefs(useWorkspaceStore());
 const { emptyStateKey } = storeToRefs(projectStore);
 
 /**
@@ -219,111 +218,129 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 		ref="root"
 		class="renovation-plan-editor"
 	>
-		<EditorContextBar />
-		<div class="rp-editor-body">
-			<PropertyLayerPanel
-				v-if="layersPanelOpen"
-				:plan="plan"
-			/>
-			<!--
-				The canvas is mounted only once there is a Plan to draw. A Konva stage over a
-				plan that is still loading, or over one that does not exist, would size itself,
-				bind a camera and draw an empty scene indistinguishable from a plan with no
-				zones — which is the state slice 14's empty states exist to tell apart.
-			-->
-			<PlanCanvas
-				v-if="status === 'ready'"
-				:tokens="tokens"
-				@background-status="(next) => (backgroundStatus = next)"
-			>
-				<EmptyState
-					v-if="overlay !== null"
-					v-bind="overlay"
-					overlay
-					@action="onEmptyStateAction()"
-				/>
-				<TemporaryToolBanner />
-				<FloatingPrimaryActions
-					:add-open="addMenuOpen"
-					@open-add="onOpenAdd"
-				/>
-				<AddMenu
-					v-if="addMenuOpen"
-					:anchor="addButton"
-					@close="addMenuOpen = false"
-				/>
-			</PlanCanvas>
-			<ViewFailure
-				v-else-if="failure !== null"
-				v-bind="failure"
-				@action="onFailureAction()"
-			/>
-			<div
-				v-else
-				class="rp-editor-canvas-message"
-			>
-				<p>{{ tr('editor.loading') }}</p>
-			</div>
-			<EntityInspector v-if="inspectorPanelOpen" />
-		</div>
 		<!--
-			ADDITIVE, and never the in-place failure state, because the canvas is showing valid
-			data. `withEditorStateRefresh` re-reads after a successful write with
-			`keepPreviousOnFailure`, so a failed read-back leaves `status === 'ready'` with the
-			PRE-command scene still drawn and an `error` set. Replacing that with a failure panel
-			would hide a plan the user can still work on, to report a read that failed; saying
-			nothing left the indicator reading Saved over a canvas quietly out of date. A strip
-			that persists while the condition does is the shape that fits — the same one the two
-			background notices already use. Reported by a review bot.
+			The layout is `ResponsiveEditorShell`'s (Task 19, design spec §5.4) and the CONTENT
+			of each region is still this component's: what the canvas region draws — a canvas, a
+			failure, a loading line — is a question about hydration, which is what this file
+			owns, and the shell only decides where that region goes and whether the pane is wide
+			enough for one at all.
+		-->
+		<ResponsiveEditorShell>
+			<template #context-bar>
+				<EditorContextBar />
+			</template>
+			<template #panel>
+				<PropertyLayerPanel :plan="plan" />
+			</template>
+			<template #canvas>
+				<!--
+					The canvas is mounted only once there is a Plan to draw. A Konva stage over a
+					plan that is still loading, or over one that does not exist, would size itself,
+					bind a camera and draw an empty scene indistinguishable from a plan with no
+					zones — which is the state slice 14's empty states exist to tell apart.
+				-->
+				<PlanCanvas
+					v-if="status === 'ready'"
+					:tokens="tokens"
+					@background-status="(next) => (backgroundStatus = next)"
+				>
+					<EmptyState
+						v-if="overlay !== null"
+						v-bind="overlay"
+						overlay
+						@action="onEmptyStateAction()"
+					/>
+					<TemporaryToolBanner />
+					<FloatingPrimaryActions
+						:add-open="addMenuOpen"
+						@open-add="onOpenAdd"
+					/>
+					<AddMenu
+						v-if="addMenuOpen"
+						:anchor="addButton"
+						@close="addMenuOpen = false"
+					/>
+				</PlanCanvas>
+				<ViewFailure
+					v-else-if="failure !== null"
+					v-bind="failure"
+					@action="onFailureAction()"
+				/>
+				<div
+					v-else
+					class="rp-editor-canvas-message"
+				>
+					<p>{{ tr('editor.loading') }}</p>
+				</div>
+			</template>
+			<template #inspector>
+				<EntityInspector />
+			</template>
+			<template #warnings>
+				<!--
+					ADDITIVE, and never the in-place failure state, because the canvas is showing valid
+					data. `withEditorStateRefresh` re-reads after a successful write with
+					`keepPreviousOnFailure`, so a failed read-back leaves `status === 'ready'` with the
+					PRE-command scene still drawn and an `error` set. Replacing that with a failure panel
+					would hide a plan the user can still work on, to report a read that failed; saying
+					nothing left the indicator reading Saved over a canvas quietly out of date. A strip
+					that persists while the condition does is the shape that fits — the same one the two
+					background notices already use. Reported by a review bot.
 
-			**Its own `v-if`, and NOT a link in the chain below it, which is how it first
-			shipped.** The two background notices are alternatives to each other — a background
-			is missing or unreadable, never both — so they are one chain. Staleness is an
-			independent fact about a re-READ, and chaining it in front meant a failed read-back
-			suppressed the sentence explaining why the background was absent: two unrelated
-			failures, one of them silently swallowing the other, and the survivor being the one
-			that says nothing about the background. Also reported by a review bot.
-		-->
-		<p
-			v-if="staleAfterRefresh"
-			class="rp-editor-notice"
-			role="status"
-		>
-			{{ tr('editor.refresh-failed') }}
-		</p>
+					**Its own `v-if`, and NOT a link in the chain below it, which is how it first
+					shipped.** The two background notices are alternatives to each other — a background
+					is missing or unreadable, never both — so they are one chain. Staleness is an
+					independent fact about a re-READ, and chaining it in front meant a failed read-back
+					suppressed the sentence explaining why the background was absent: two unrelated
+					failures, one of them silently swallowing the other, and the survivor being the one
+					that says nothing about the background. Also reported by a review bot.
+				-->
+				<p
+					v-if="staleAfterRefresh"
+					class="rp-editor-notice"
+					role="status"
+				>
+					{{ tr('editor.refresh-failed') }}
+				</p>
+				<!--
+					Its OWN `v-if`, never chained into the background `v-if`/`v-else-if` below, for the
+					reason the block above already paid for: "some zones could not be read" and "this
+					plan's background is missing" are independent facts, and a plan can have both. As a
+					link in that chain, one of them silently swallows the other — measured, by making it
+					one and watching `unreadableZonesNotice.test.ts`'s third case go red.
+				-->
+				<p
+					v-if="unreadableZones > 0"
+					class="rp-editor-notice"
+					role="status"
+				>
+					{{ tr('editor.some-zones-unreadable', { count: String(unreadableZones) }) }}
+				</p>
+				<p
+					v-if="backgroundStatus === 'missing'"
+					class="rp-editor-notice"
+					role="status"
+				>
+					{{ tr('editor.background-missing') }}
+				</p>
+				<p
+					v-else-if="backgroundStatus === 'unreadable'"
+					class="rp-editor-notice"
+					role="status"
+				>
+					{{ tr('editor.background-failed') }}
+				</p>
+			</template>
+			<template #status>
+				<StatusBar :active-tool-id="runtime.activeToolId.value" />
+			</template>
+		</ResponsiveEditorShell>
 		<!--
-			Its OWN `v-if`, never chained into the background `v-if`/`v-else-if` below, for the
-			reason the block above already paid for: "some zones could not be read" and "this
-			plan's background is missing" are independent facts, and a plan can have both. As a
-			link in that chain, one of them silently swallows the other — measured, by making it
-			one and watching `unreadableZonesNotice.test.ts`'s third case go red.
-		-->
-		<p
-			v-if="unreadableZones > 0"
-			class="rp-editor-notice"
-			role="status"
-		>
-			{{ tr('editor.some-zones-unreadable', { count: String(unreadableZones) }) }}
-		</p>
-		<p
-			v-if="backgroundStatus === 'missing'"
-			class="rp-editor-notice"
-			role="status"
-		>
-			{{ tr('editor.background-missing') }}
-		</p>
-		<p
-			v-else-if="backgroundStatus === 'unreadable'"
-			class="rp-editor-notice"
-			role="status"
-		>
-			{{ tr('editor.background-failed') }}
-		</p>
-		<StatusBar :active-tool-id="runtime.activeToolId.value" />
-		<!--
-			Last child, and a sibling of the five regions rather than nested in one: the host
-			makes its parent's OTHER children inert while a dialog is open, so every region
-			has to be a sibling of it for the background to actually go inert.
+			Last child, and a sibling of the SHELL rather than nested inside one of its regions:
+			the host makes its parent's OTHER children inert while a dialog is open, so the whole
+			shell — every region at once — is what has to be its sibling for the background to
+			actually go inert. It sat beside the five regions until Task 19 moved them one level
+			down into `ResponsiveEditorShell`; the rule is unchanged and now covers them in one.
 		-->
 		<DialogHost />
 	</div>

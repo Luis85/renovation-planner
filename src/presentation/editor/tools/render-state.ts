@@ -69,6 +69,21 @@ export interface PolygonSketch {
  */
 export class RenderState {
 	hoveredObjectId: string | null = null;
+	/**
+	 * WHAT the hovered target is, beside WHICH one it is (spec §6.2: a body promises a
+	 * selection and a vertex handle promises a drag of that vertex, and the cursor has to say
+	 * which). `resolveSelectionTarget` has always answered both halves; only the id used to
+	 * survive the trip into render state, so the most precise target on the canvas was
+	 * announced as an ordinary body hit.
+	 *
+	 * **A SECOND field rather than a richer `hoveredObjectId`** (R8, 2026-09-04): every reader
+	 * of the id — the `InteractionLayer`'s outline, the retirement watcher, three tool tests —
+	 * asks only "which id", and widening the field into an object would have moved all of them
+	 * for one consumer's benefit. The price is that the two are written and cleared TOGETHER at
+	 * every site, which is stated here because nothing in any gate can enforce it: an id with a
+	 * stale kind beside it renders the wrong cursor over the right target.
+	 */
+	hoveredTargetKind: 'body' | 'handle' | null = null;
 	previewPolygon: readonly Point[] | null = null;
 	marquee: BoundingBox | null = null;
 	snapGuides: LineSegment[] = [];
@@ -88,6 +103,7 @@ export class RenderState {
 
 	reset(): void {
 		this.hoveredObjectId = null;
+		this.hoveredTargetKind = null;
 		this.previewPolygon = null;
 		this.marquee = null;
 		this.snapGuides = [];

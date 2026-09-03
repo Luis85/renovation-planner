@@ -186,8 +186,15 @@ const cursorClass = computed(() => {
 	// `renderState` is the reactive object every tool writes through (`reactive(new
 	// RenderState())` in `runtime.ts`), so reading a property off it here tracks it the same
 	// way `activeToolId.value` does.
+	//
+	// The two hits are DIFFERENT promises and get different cursors (spec §6.2): a body would
+	// be selected, so `pointer`; a vertex handle of an already-selected room would be dragged,
+	// so `grab` — the same keyword the camera's own armed pan uses, because it is the one the
+	// user has already learnt for "this is about to move under your hand".
 	if (activeToolId.value === 'select' && renderState.hoveredObjectId !== null) {
-		return 'rp-plan-canvas-target';
+		return renderState.hoveredTargetKind === 'handle'
+			? 'rp-plan-canvas-grab'
+			: 'rp-plan-canvas-target';
 	}
 	const tool = activeToolId.value;
 	return tool !== null && PRECISE_TOOLS.includes(tool) ? 'rp-plan-canvas-precise' : null;

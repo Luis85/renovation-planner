@@ -124,9 +124,20 @@ Remains:
 - **The contextual half of Select.** [[Compose predictive and contextual Select surfaces]] shipped
   hover and the cursor; no direct convenience is rendered on a selection at all, so the criteria
   about their Inspector and keyboard equivalents have no subject.
-- **The cursor does not distinguish a body from a handle.** One class,
-  `rp-plan-canvas-target`, answers for both, because `renderState.hoveredObjectId` is written from
-  body hits only — narrower than spec §6.2's pointer-versus-grab sentence.
+
+**2026-09-04** — added to Met, and the third Remains bullet ("the cursor does not distinguish a
+body from a handle") deleted with it. The cursor says grab over a vertex handle of the selected
+room and pointer over its body — spec §6.2's own distinction, carried through
+`RenderState.hoveredTargetKind` beside the id rather than by widening the id — held by
+`tests/presentation/editor/canvasNavigation.test.ts`'s 'says grab over a vertex handle of the
+selected room and pointer over its body', whose third move off every body pins the resting cursor
+in the same case. And a hovered id the vault no longer holds is retired WITH the selection, so
+the outline and the cursor cannot contradict each other after a delete:
+`tests/presentation/editor/runtime.test.ts`'s 'a selected AND hovered zone that disappears from
+the next hydrate is retired from both, and the cursor stops promising it', with 'keeps a selected
+id that survives the next hydrate untouched' holding the other direction for the hover as well —
+without which an unconditional clear would pass the first case and take a live hover with it on
+every hydrate.
 
 **2026-09-03** — `routeEscape` (`src/presentation/editor/escapeRouting.ts`) deviates from §6.3 on
 purpose: the draft test runs before the tool test for every tool, not only a non-Select one, so

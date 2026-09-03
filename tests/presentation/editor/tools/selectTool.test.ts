@@ -213,9 +213,13 @@ describe('SelectTool', () => {
 
 		tool.pointerMove(eventAt(50, 50)); // hovering the body, nothing pressed
 		expect(h.context.renderState.hoveredObjectId).toBe('zone-a');
+		expect(h.context.renderState.hoveredTargetKind).toBe('body');
 
 		tool.deactivate();
 		expect(h.context.renderState.hoveredObjectId).toBeNull();
+		// The KIND is cleared with the id at every site that writes one — two fields, one
+		// fact, so the cursor cannot outlive the hover it was derived from.
+		expect(h.context.renderState.hoveredTargetKind).toBeNull();
 	});
 
 	it('a hover with no gesture predicts the same target a click there would take', () => {
@@ -241,9 +245,11 @@ describe('SelectTool', () => {
 
 		tool.pointerMove(eventAt(50, 50));
 		expect(h.context.renderState.hoveredObjectId).toBe('zone-a');
+		expect(h.context.renderState.hoveredTargetKind).toBe('body');
 
 		tool.pointerDown(eventAt(50, 50));
 		expect(h.context.renderState.hoveredObjectId).toBeNull();
+		expect(h.context.renderState.hoveredTargetKind).toBeNull();
 	});
 
 	it('a selection naming an object the candidate list no longer has just does nothing', () => {

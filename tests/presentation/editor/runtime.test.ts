@@ -26,7 +26,7 @@ import { nextTick } from 'vue';
 import { Notice } from '../../helpers/obsidian-mock';
 import { expectOk } from '../../helpers/domain';
 import { actionButton, click, pointer, rig, type Rig } from '../../helpers/planEditorRig';
-import { mountPlanEditor, runtimeOf, settle } from '../../helpers/editor';
+import { mountPlanEditor, mountPlanEditorCanvas, runtimeOf, settle } from '../../helpers/editor';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import type { ZoneDto } from '../../../src/presentation/read-models/PlanDto';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
@@ -302,27 +302,52 @@ describe('selectAndFrame (Task 12: list framing)', () => {
 		harness.unmount();
 	});
 
-	it('a selected zone that disappears from the next hydrate is retired, not rebound', async () => {
-		const harness = await mountPlanEditor();
+	/**
+	 * Spec §6.5's retirement is about an IDENTITY the vault no longer holds, and the hover is
+	 * the second channel that names one. The outline already withdrew on its own — the
+	 * `InteractionLayer` draws nothing for an id the hydrated map lacks — while the CURSOR went
+	 * on promising a target, so the two predictive channels contradicted each other until some
+	 * later pointer move happened to overwrite the stale id. Mounted through
+	 * `mountPlanEditorCanvas` rather than `mountPlanEditor` because the class is the half of
+	 * this that a user actually sees, and it needs a canvas to be on.
+	 */
+	it('a selected AND hovered zone that disappears from the next hydrate is retired from both, and the cursor stops promising it', async () => {
+		const harness = await mountPlanEditorCanvas();
+		const runtime = runtimeOf(harness);
 		const projectStore = useProjectStore();
 		useSelectionStore().select(['zone-kitchen' as never]);
+		runtime.renderState.hoveredObjectId = 'zone-kitchen';
+		runtime.renderState.hoveredTargetKind = 'body';
+		await settle();
+		expect(harness.canvasEl.classList.contains('rp-plan-canvas-target')).toBe(true);
 
 		await projectStore.hydrate(fakeQueries(FIXTURE_PLAN, [FIXTURE_ZONES[1]]), FIXTURE_PLAN.id);
-		await nextTick();
+		await settle();
 
 		expect(useSelectionStore().selectedIds).toEqual([]);
+		expect(runtime.renderState.hoveredObjectId).toBeNull();
+		expect(runtime.renderState.hoveredTargetKind).toBeNull();
+		expect(harness.canvasEl.classList.contains('rp-plan-canvas-target')).toBe(false);
 		harness.unmount();
 	});
 
 	it('keeps a selected id that survives the next hydrate untouched', async () => {
 		const harness = await mountPlanEditor();
+		const runtime = runtimeOf(harness);
 		const projectStore = useProjectStore();
 		useSelectionStore().select(['zone-kitchen' as never]);
+		// The other direction of the retirement, and the reason it is asserted for the hover
+		// too: a watcher that cleared unconditionally would pass the case above and take a live
+		// hover with it on every hydrate.
+		runtime.renderState.hoveredObjectId = 'zone-kitchen';
+		runtime.renderState.hoveredTargetKind = 'body';
 
 		await projectStore.hydrate(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), FIXTURE_PLAN.id);
 		await nextTick();
 
 		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
+		expect(runtime.renderState.hoveredObjectId).toBe('zone-kitchen');
+		expect(runtime.renderState.hoveredTargetKind).toBe('body');
 		harness.unmount();
 	});
 });

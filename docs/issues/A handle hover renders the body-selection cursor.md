@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Selection]]"
 order: 30
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -58,6 +58,23 @@ Preserve the resolver's target kind in transient render state and map body to po
 grab, and null to the resting cursor. Add one cursor test that hovers the selected room near a
 vertex and expects grab, then moves into its body and expects pointer; mutating either branch to
 the shared class must fail it.
+
+## What closed it
+
+**2026-09-04.** `RenderState` carries `hoveredTargetKind: 'body' | 'handle' | null` beside
+`hoveredObjectId` — a SECOND field rather than a richer id, so none of the id's existing readers
+moved (ruling R8) — written and cleared together at all four sites in `SelectTool` and reset with
+the id. `EditorSurface`'s `cursorClass` maps `handle` to `rp-plan-canvas-grab`, `body` to
+`rp-plan-canvas-target`, and a null hover to no class at all; `styles/editor-cursors.css` declares
+`cursor: grab` for the new class. Holding test:
+`tests/presentation/editor/canvasNavigation.test.ts` › 'says grab over a vertex handle of the
+selected room and pointer over its body', which selects the room, hovers within the grab radius of
+its (198,198) vertex, then its body, then empty canvas. Mutation-checked: returning
+`rp-plan-canvas-target` from the handle arm reddens it at `expected [ 'rp-plan-canvas-target' ] to
+deeply equal [ 'rp-plan-canvas-grab' ]`. `tests/presentation/editor/tools/selectTool.test.ts`'s
+two hover cases assert the kind is `'body'` while hovering and `null` after a deactivate and after
+a press. Commit "fix(select): the cursor tells a handle from a body, and a deleted hover target is
+retired with the selection".
 
 ## References
 

@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Selection]]"
 order: 10
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -58,6 +58,22 @@ Retire `renderState.hoveredObjectId` in the same successful-hydrate watcher when
 from the new zone map. Extend the retirement test by seeding both a selected and hovered ID,
 hydrating without that zone, and asserting both the hover ID and target cursor class are gone;
 keep the surviving-ID direction beside it.
+
+## What closed it
+
+**2026-09-04.** `registerSelectionRetirement` takes the leaf's `RenderState` and clears
+`hoveredObjectId` — with `hoveredTargetKind` beside it — in the same successful-hydrate watcher
+that retires the selection, when the hovered id is absent from the new zone map. So both
+predictive channels withdraw together: the outline already did on its own, and the cursor now
+does as a fact rather than as a race against the next pointer move. Holding test:
+`tests/presentation/editor/runtime.test.ts` › 'a selected AND hovered zone that disappears from
+the next hydrate is retired from both, and the cursor stops promising it', which seeds a selected
+AND hovered id, asserts `rp-plan-canvas-target` is on the canvas before the hydrate and gone
+after, and reads both render-state fields back as `null`. The surviving-ID direction is 'keeps a
+selected id that survives the next hydrate untouched', extended to seed and re-read the hover so
+an unconditional clear fails there. Both mutation-checked: deleting the watcher's three hover
+lines reddens the first at `expected 'zone-kitchen' to be null`. Commit "fix(select): the cursor
+tells a handle from a body, and a deleted hover target is retired with the selection".
 
 ## References
 

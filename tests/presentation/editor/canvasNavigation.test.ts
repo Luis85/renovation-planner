@@ -407,6 +407,34 @@ describe('what the cursor says the pointer will do', () => {
 		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-panning']);
 		harness.unmount();
 	});
+
+	it('says grab over a vertex handle of the selected room and pointer over its body', async () => {
+		// Spec §6.2 distinguishes the two: a body promises a SELECTION, a vertex handle of an
+		// already-selected room promises a DRAG of that vertex. `resolveSelectionTarget` has
+		// always answered which, and the hover used to keep only the id — so the most precise
+		// target on the canvas was announced as an ordinary body hit.
+		const { harness, canvas } = await editor();
+		actionButton(harness, 'Select').click();
+		await settle();
+		click(canvas, 300, 300); // select zone-a; handles only exist on a selected record
+		await settle();
+
+		pointer(canvas, 'pointermove', 199, 199); // within the grab radius of the (198,198) vertex
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-grab']);
+
+		pointer(canvas, 'pointermove', 300, 300); // the body of the same room
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual(['rp-plan-canvas-target']);
+
+		pointer(canvas, 'pointermove', 900, 900); // off every body: back to the resting cursor
+		await settle();
+
+		expect(cursorClasses(canvas)).toEqual([]);
+		harness.unmount();
+	});
 });
 
 describe('keys the canvas deliberately does not act on', () => {

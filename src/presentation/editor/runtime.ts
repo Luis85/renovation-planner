@@ -446,16 +446,31 @@ function selectAndFrameOn(
  * (`ProjectStore.hydrate` assigns a fresh `Map`), so this fires exactly when a hydrate lands —
  * never merely because the map's CONTENTS changed, since Vue's `watch` compares the reference
  * and a mutated map would be the same reference twice.
+ *
+ * **The HOVER is retired here too, and that is the same rule rather than a second one.** §6.5's
+ * subject is an identity the vault no longer holds, and Select names one through two predictive
+ * channels: the outline the `InteractionLayer` draws, and the cursor `EditorSurface` computes.
+ * The outline withdrew on its own — it looks the hovered id up in the hydrated map and draws
+ * nothing when it is absent — while the cursor read only "is the id non-null", so after a
+ * hovered room was deleted the two channels contradicted each other until some later pointer
+ * move happened to overwrite the stale id. Clearing the id here is what makes the cursor's
+ * withdrawal a fact rather than a race, and the KIND goes with it because the two are one fact
+ * in two fields (see `RenderState.hoveredTargetKind`).
  */
 function registerSelectionRetirement(
 	projectStore: ReturnType<typeof useProjectStore>,
 	selection: ReturnType<typeof useSelectionStore>,
+	renderState: RenderState,
 ): void {
 	watch(
 		() => projectStore.zones,
 		(zones) => {
 			const survivors = selection.selectedIds.filter((id) => zones.has(String(id)));
 			if (survivors.length !== selection.selectedIds.length) selection.select(survivors);
+			if (renderState.hoveredObjectId !== null && !zones.has(renderState.hoveredObjectId)) {
+				renderState.hoveredObjectId = null;
+				renderState.hoveredTargetKind = null;
+			}
 		},
 	);
 }
@@ -620,7 +635,7 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	);
 
 	const selectAndFrame = (id: string): void => selectAndFrameOn(projectStore, selection, editor, id);
-	registerSelectionRetirement(projectStore, selection);
+	registerSelectionRetirement(projectStore, selection, renderState);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
 	// refusal — bound straight to the context bar's Undo/Redo clicks.

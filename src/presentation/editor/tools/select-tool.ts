@@ -125,6 +125,7 @@ export class SelectTool implements EditorTool {
 		this.gesture = null;
 		context.renderState.previewPolygon = null;
 		context.renderState.hoveredObjectId = null;
+		context.renderState.hoveredTargetKind = null;
 	}
 
 	deactivate(): void {
@@ -133,6 +134,7 @@ export class SelectTool implements EditorTool {
 		if (context !== null) {
 			context.renderState.previewPolygon = null;
 			context.renderState.hoveredObjectId = null;
+			context.renderState.hoveredTargetKind = null;
 		}
 		this.context = null;
 	}
@@ -145,8 +147,10 @@ export class SelectTool implements EditorTool {
 		// A press is exactly when the predicted hover stops meaning anything, on every path
 		// out of this method — a body hit, a handle hit, a miss that clears the selection, and
 		// a target the candidate list no longer has: the pointer is about to act rather than
-		// merely look, and the resolved target below is what that action works from.
+		// merely look, and the resolved target below is what that action works from. The KIND
+		// goes with the id: they are one fact in two fields (see `RenderState`).
 		context.renderState.hoveredObjectId = null;
+		context.renderState.hoveredTargetKind = null;
 		if (target === null) {
 			context.selection.clear();
 			return;
@@ -179,9 +183,12 @@ export class SelectTool implements EditorTool {
 		if (this.gesture === null) {
 			// No drag in flight: this move is a HOVER, so it predicts rather than acts —
 			// `resolveSelectionTarget` is the same question `pointerDown` asks, which is what
-			// keeps the cursor's promise and the click's outcome unable to disagree.
+			// keeps the cursor's promise and the click's outcome unable to disagree. Both halves
+			// of the resolver's answer are kept: WHICH record, and WHAT of it — a body or one of
+			// its vertex handles — because §6.2 asks the cursor to distinguish the two.
 			const { target } = this.targetAt(context, event.worldPoint);
 			context.renderState.hoveredObjectId = target === null ? null : target.id;
+			context.renderState.hoveredTargetKind = target === null ? null : target.kind;
 			return;
 		}
 		if (this.gesture.kind === 'body') {

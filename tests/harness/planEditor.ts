@@ -1,12 +1,10 @@
-import { isErr, ok } from '../../src/core/result/Result';
-import { area } from '../../src/core/geometry/operations';
-import type { ZoneId } from '../../src/domain/zone/ZoneId';
+import { ok } from '../../src/core/result/Result';
 import { PlanEditorView, type PlanEditorDeps } from '../../src/presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../../src/presentation/editor/planEditorCommands';
 import type { BackgroundVault } from '../../src/presentation/editor/layers/background/BackgroundRenderModel';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import { installObsidianDom } from '../helpers/dom';
-import { emptyRequirementReads } from '../helpers/planFixtures';
+import { emptyRequirementReads, zoneInspectorAnswering } from '../helpers/planFixtures';
 import { FakeLeaf } from '../helpers/workspace';
 // From `../helpers/settle`, deliberately not `../helpers/editor`: that file also imports
 // Konva, Pinia, `@vue/test-utils` and `tests/helpers/canvas.ts`'s native `@napi-rs/canvas`
@@ -184,7 +182,10 @@ export function harnessDeps(): PlanEditorDeps {
 		 * The area is computed with the same `core/geometry` operation `Zone.area()` calls rather
 		 * than being written down beside each fixture zone — a second derivation would answer
 		 * differently the day either changes, and the number on screen has to be the one the
-		 * domain would produce.
+		 * domain would produce. `zoneInspectorAnswering` (`tests/helpers/planFixtures.ts`) is
+		 * where that computation now lives, shared with `tests/helpers/editor.ts`'s jsdom
+		 * default: `fallow` caught this file's own version and that one's as an identical
+		 * 12-line clone the day the jsdom default started answering this read too (Task 22).
 		 *
 		 * **`zones` — the `ZoneRepository` — is deliberately left refusing**, and the reason is
 		 * not that it matters less. Its reads are reached in this bundle only by the reversible
@@ -198,19 +199,7 @@ export function harnessDeps(): PlanEditorDeps {
 		 */
 		commands: {
 			...unavailablePlanEditorCommands(),
-			zoneInspector: {
-				execute: ({ zoneId }) => {
-					const zone = HARNESS_ZONES.find((candidate) => candidate.id === zoneId);
-
-					if (!zone) return Promise.resolve(ok(null));
-
-					const measured = area({ points: zone.points });
-
-					if (isErr(measured)) return Promise.resolve(measured);
-
-					return Promise.resolve(ok({ id: zone.id as ZoneId, name: zone.name, areaMm2: measured.value }));
-				},
-			},
+			zoneInspector: zoneInspectorAnswering(HARNESS_ZONES),
 		},
 		vault: {
 			getAbstractFileByPath: () => null,

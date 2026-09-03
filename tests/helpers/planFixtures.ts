@@ -9,9 +9,12 @@
  * worker installs lazily now), which is exactly why the separation is worth keeping — the
  * next module-scope host reference will not announce itself.
  */
-import { ok } from '../../src/core/result/Result';
+import { isErr, ok } from '../../src/core/result/Result';
+import { area } from '../../src/core/geometry/operations';
 import type { PlanDto, ProjectSummaryDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
 import type { PlanEditorQueryServices } from '../../src/presentation/read-models/planEditorQueries';
+import type { PlanEditorCommandServices } from '../../src/presentation/editor/planEditorCommands';
+import type { ZoneId } from '../../src/domain/zone/ZoneId';
 
 export const FIXTURE_PLAN: PlanDto = {
 	id: 'plan-ground',
@@ -111,6 +114,33 @@ export const emptyRequirementReads = (): Pick<
  * property of `zones` because the two are independent: a plan can have zones AND notes that
  * refused, and the canvas draws the first while saying how many of the second there were.
  */
+/**
+ * The `zoneInspector` READ, answered from a plan's own zones — shared by
+ * `tests/harness/planEditor.ts`'s `harnessDeps` and `tests/helpers/editor.ts`'s
+ * `defaultPlanEditorCommands`, which each spread `unavailablePlanEditorCommands()` and
+ * override only this one member. `fallow`'s duplication check flagged the two ANSWERS
+ * (the `execute` body below) as an identical 12-line clone the day the jsdom default
+ * started answering this read too instead of refusing it (Task 22), and this module —
+ * already the one both files import fixtures from, and free of Vue, Konva and Pinia — is
+ * where a shared answer belongs rather than in either mount helper.
+ *
+ * SDD §59 groups this query with the commands it shares a selection with, and refusing a
+ * read for which there is something to answer is the fake-HARSHER-than-the-real-thing shape
+ * CLAUDE.md's Testing section names: a selected zone drawn on the canvas and empty in the
+ * Inspector, with no error anywhere.
+ */
+export function zoneInspectorAnswering(zones: readonly ZoneDto[]): PlanEditorCommandServices['zoneInspector'] {
+	return {
+		execute: ({ zoneId }) => {
+			const zone = zones.find((candidate) => candidate.id === zoneId);
+			if (!zone) return Promise.resolve(ok(null));
+			const measured = area({ points: zone.points });
+			if (isErr(measured)) return Promise.resolve(measured);
+			return Promise.resolve(ok({ id: zone.id as ZoneId, name: zone.name, areaMm2: measured.value }));
+		},
+	};
+}
+
 export function fakeQueries(
 	plan: PlanDto | null,
 	zones: readonly ZoneDto[] = [],

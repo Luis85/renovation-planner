@@ -108,7 +108,8 @@ import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../helpe
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
 import { installCanvas } from '../helpers/canvas';
-import { installResizeObserver } from '../helpers/layout';
+import { installResizeObserver, resizeTo } from '../helpers/layout';
+import { useSelectionStore } from '../../src/presentation/editor/selection/selection-store';
 import { defaultRenovationProjectDeps, makeView } from '../helpers/makeRenovationProjectView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
 import { err, ok } from '../../src/core/result/Result';
@@ -517,6 +518,34 @@ describe('axe against the mounted view', () => {
 	});
 
 	/**
+	 * Task 13's context bar and floating primary actions — two `full`-layout regions the case
+	 * above already mounts (`mountPlanEditor()`'s default is `full`, 1280px) but never asserts
+	 * on, so a defect in either's own markup could stand behind a green scan of everything
+	 * else in the shell. `EditorContextBar`'s `<nav aria-label>` crumbs and its undo/redo
+	 * buttons, and `FloatingPrimaryActions`'s `role="group"` Select/Add pair, are both new ARIA
+	 * this file had not yet scanned on their own.
+	 *
+	 * The presence assertions are this file's usual reason: `violations` is `[]` on a subtree
+	 * containing nothing at all, so proving both regions are really in the DOM this scan ran
+	 * against is what makes green mean something.
+	 */
+	it('reports no semantic violations on the plan editor context bar and floating actions', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+
+			expect(mounted.wrapper.find('.rp-context-bar').exists()).toBe(true);
+			expect(mounted.wrapper.find('.rp-primary-actions').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
 	 * Task 17's Add menu, OPEN — the surface with the most new ARIA any one task in this file
 	 * has added (`role="menu"`, `role="group"`, `role="menuitem"`, a roving `tabindex`, an
 	 * `aria-describedby` on every unsupported item). `AddMenu.vue`'s own header explains why
@@ -564,6 +593,122 @@ describe('axe against the mounted view', () => {
 			await settle();
 
 			expect(mounted.wrapper.find('.rp-task-banner button').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 19's `constrained` layout with the Layers overlay open — `OverlayPanel`'s own
+	 * `tabindex="-1"` container, its labelled close button, and the real
+	 * `<PropertyLayerPanel>` it holds (the same component the `full` layout renders in a
+	 * column, so a defect here would be a defect there too, reached through a different door).
+	 * Resizing the REAL mounted shell root (`resizeTo(mounted.rootEl, ...)`), the same way
+	 * `responsiveShell.test.ts` drives a layout change, rather than writing `layoutMode` into
+	 * the store directly — the thing worth scanning is what the observer's callback produces.
+	 *
+	 * The presence assertion is this file's usual reason: `violations` is `[]` on a subtree
+	 * containing nothing at all, so proving the overlay is really open is what makes green
+	 * mean something.
+	 */
+	it('reports no semantic violations on the plan editor with the constrained Layers overlay open', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			resizeTo(mounted.rootEl, 460, 800);
+			await settle();
+			await mounted.wrapper.find('[data-rp-rail="layers"]').trigger('click');
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-overlay-panel').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 19's `constrained` layout with the Inspector drawer open, over a REAL selection —
+	 * `InspectorDrawer` wraps the same `<EntityInspector>` the `full` layout renders in its own
+	 * column, so this is what Task 16's Room Inspector looks like drawn through the drawer's
+	 * door rather than through a persistent panel. Task 16's own review deferred "no
+	 * accessibility scan reaches the Room Inspector with a selection" to this task; this case
+	 * and the one below it are what close that gap, for the two layouts a selected room can be
+	 * drawn in.
+	 *
+	 * The zone is selected BEFORE the resize, matching `responsiveShell.test.ts`'s own finding
+	 * that a selection survives a layout change — this proves the drawer renders the SAME
+	 * selection's markup rather than one this case happened to make afterward.
+	 */
+	it('reports no semantic violations on the plan editor with the constrained Inspector drawer open and a room selected', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			useSelectionStore().select(['zone-kitchen' as never]);
+			await settle();
+			resizeTo(mounted.rootEl, 460, 800);
+			await settle();
+			await mounted.wrapper.find('[data-rp-rail="details"]').trigger('click');
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-inspector-drawer .rp-room-inspector').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 16's Room Inspector, in the `full` layout's own persistent column — the other half
+	 * of the gap that task's review deferred to this one. `.rp-question-nav` is the three
+	 * homeowner questions, each marked unavailable with NO control (`roomInspector.test.ts`'s
+	 * own "with no button and no count" case), so the absence assertion is not merely the usual
+	 * presence check: a `<button>` appearing here would be the live-control-that-does-nothing
+	 * slice 14's amendment refuses, wired to nothing this build can act on yet.
+	 */
+	it('reports no semantic violations on the Room Inspector in the full layout with a room selected', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			useSelectionStore().select(['zone-kitchen' as never]);
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-question-nav').exists()).toBe(true);
+			expect(mounted.wrapper.find('.rp-question-nav button').exists()).toBe(false);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 19's `unsupported` width — the floor summary and the one `Focus this tab` action
+	 * `UnsupportedWidthNotice` draws instead of a canvas below `CONSTRAINED_MIN_PX`. Its own
+	 * `<h2>` headline is unconditional and its body withdraws when there is no plan to
+	 * summarise, so the button is what this case proves is really there — the one control a
+	 * pane this narrow still offers.
+	 */
+	it('reports no semantic violations on the plan editor at an unsupported width', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			resizeTo(mounted.rootEl, 320, 800);
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-unsupported-width button').exists()).toBe(true);
 
 			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
 

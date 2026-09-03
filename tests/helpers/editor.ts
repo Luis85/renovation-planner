@@ -10,7 +10,7 @@ import {
 	type PlanEditorCommandServices,
 } from '../../src/presentation/editor/planEditorCommands';
 import type { PlanDto, ZoneDto } from '../../src/presentation/read-models/PlanDto';
-import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from './planFixtures';
+import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES, zoneInspectorAnswering } from './planFixtures';
 
 // Re-exported rather than moved outright: it lives with the fixtures so a NODE test can
 // reach it without loading Vue and Konva, and the jsdom suites already import it from here.
@@ -144,6 +144,34 @@ export function sizedShellRoot(container: HTMLElement): HTMLElement {
 	return root;
 }
 
+/**
+ * The default `zoneInspector` answer for a mounted editor, over every OTHER write still
+ * refusing (`unavailablePlanEditorCommands()`).
+ *
+ * `zoneInspector` is a READ (SDD §59 groups it with the commands it shares a selection
+ * with), and `tests/harness/planEditor.ts`'s `harnessDeps` already answers it this exact
+ * way for the identical reason: refusing a read for which there is something to answer is
+ * the fake-HARSHER-than-the-real-thing shape CLAUDE.md's Testing section names — the
+ * harness page once showed a selected zone drawn on the canvas and empty in the Inspector,
+ * with no error anywhere. `zoneInspectorAnswering` is what the two now share, in
+ * `planFixtures.ts` rather than here, after `fallow` caught this file's own first version
+ * as a byte-for-byte clone of the harness's.
+ * `tests/presentation/editor/shell/roomInspector.test.ts` carried its own third copy of
+ * this before it became the default here; that copy is gone now, and every case that used
+ * to build one selects a zone against this instead.
+ *
+ * Keyed on the caller's OWN zones (`options.zones ?? FIXTURE_ZONES`, from `mountPlanEditor`
+ * below) rather than on `FIXTURE_ZONES` unconditionally — a case that mounts a zone not in
+ * the fixture (`roomInspector.test.ts`'s "Mystery room") still gets an answer without
+ * having to build its own commands bundle for it.
+ */
+function defaultPlanEditorCommands(zones: readonly ZoneDto[]): PlanEditorCommandServices {
+	return {
+		...unavailablePlanEditorCommands(),
+		zoneInspector: zoneInspectorAnswering(zones),
+	};
+}
+
 export function installEditorEnvironment(): void {
 	installObsidianDom();
 	installCanvas();
@@ -174,7 +202,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 		planId: plan?.id ?? FIXTURE_PLAN.id,
 		queries:
 			options.queries ?? fakeQueries(plan, options.zones ?? FIXTURE_ZONES, options.unreadableZones),
-		commands: options.commands ?? unavailablePlanEditorCommands(),
+		commands: options.commands ?? defaultPlanEditorCommands(options.zones ?? FIXTURE_ZONES),
 		vault: options.vault ?? emptyBackgroundVault(),
 		onThemeChange: (listener) => {
 			themeListeners.add(listener);

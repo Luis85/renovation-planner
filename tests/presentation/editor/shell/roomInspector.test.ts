@@ -4,16 +4,10 @@ import { ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import { mount } from '@vue/test-utils';
 import { t } from '../../../../src/presentation/i18n/strings';
-import { ok, isErr } from '../../../../src/core/result/Result';
-import { area } from '../../../../src/core/geometry/operations';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../../src/presentation/editor/runtime';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../../../src/presentation/editor/PlanEditorContext';
-import {
-	unavailablePlanEditorCommands,
-	type PlanEditorCommandServices,
-} from '../../../../src/presentation/editor/planEditorCommands';
 import type { InspectorDto } from '../../../../src/presentation/editor/inspector/inspector-store';
 import type { ZoneDto } from '../../../../src/presentation/read-models/PlanDto';
 import RoomInspector from '../../../../src/presentation/editor/shell/RoomInspector.vue';
@@ -29,27 +23,16 @@ import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../../helpers/planF
  * and floor beside its area — plus two navigation lists whose every row this build marks
  * `Not available yet` rather than wiring a control that does nothing.
  *
- * **`mountPlanEditorCanvas()`'s DEFAULT commands refuse `zoneInspector`**
- * (`unavailablePlanEditorCommands()`), so selecting a zone with no override never reaches
- * `dto.kind === 'zone'` and this whole component renders nothing — measured directly before
- * writing a single assertion here. `commandsWithZoneInspector` answers it from a plan's own
- * zones the same way `tests/harness/planEditor.ts` does for the browser harness, which is
- * where this exact gap was first found and fixed.
+ * `mountPlanEditorCanvas()`'s default `zoneInspector` answer used to REFUSE
+ * (`unavailablePlanEditorCommands()`), so selecting a zone with no override never reached
+ * `dto.kind === 'zone'` and this whole component rendered nothing — measured directly before
+ * writing a single assertion here, and fixed with a local `commandsWithZoneInspector` helper
+ * answering it from a plan's own zones the same way `tests/harness/planEditor.ts` does for
+ * the browser harness, where this exact gap was first found and fixed. Task 22 moved that
+ * answer into `tests/helpers/editor.ts`'s own default (`defaultPlanEditorCommands`), so every
+ * case below now selects a zone against the mount's ordinary default rather than against a
+ * bundle this file built by hand.
  */
-function commandsWithZoneInspector(zones: readonly ZoneDto[] = FIXTURE_ZONES): PlanEditorCommandServices {
-	return {
-		...unavailablePlanEditorCommands(),
-		zoneInspector: {
-			execute: ({ zoneId }) => {
-				const zone = zones.find((candidate) => candidate.id === zoneId);
-				if (!zone) return Promise.resolve(ok(null));
-				const measured = area({ points: zone.points });
-				if (isErr(measured)) return Promise.resolve(measured);
-				return Promise.resolve(ok({ id: zone.id as never, name: zone.name, areaMm2: measured.value }));
-			},
-		},
-	};
-}
 
 let harness: CanvasHarness | null = null;
 
@@ -60,7 +43,7 @@ afterEach(() => {
 
 describe('the Room Inspector, through the real mounted editor', () => {
 	it('heading, canvas selection and Inspector share one id; the type and floor are homeowner words', async () => {
-		harness = await mountPlanEditorCanvas({ commands: commandsWithZoneInspector() });
+		harness = await mountPlanEditorCanvas();
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
 		const room = harness.wrapper.find('.rp-room-inspector');
@@ -71,7 +54,7 @@ describe('the Room Inspector, through the real mounted editor', () => {
 	});
 
 	it('renders the three homeowner questions in order, each unavailable, with no button and no count', async () => {
-		harness = await mountPlanEditorCanvas({ commands: commandsWithZoneInspector() });
+		harness = await mountPlanEditorCanvas();
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
 		const nav = harness.wrapper.find('.rp-question-nav');
@@ -86,7 +69,7 @@ describe('the Room Inspector, through the real mounted editor', () => {
 	});
 
 	it('lists costs, documents, photos and notes as unavailable rows without controls', async () => {
-		harness = await mountPlanEditorCanvas({ commands: commandsWithZoneInspector() });
+		harness = await mountPlanEditorCanvas();
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
 		const list = harness.wrapper.find('.rp-linked-content');
@@ -102,7 +85,7 @@ describe('the Room Inspector, through the real mounted editor', () => {
 	});
 
 	it('keeps the Requirements panel and the Delete button', async () => {
-		harness = await mountPlanEditorCanvas({ commands: commandsWithZoneInspector() });
+		harness = await mountPlanEditorCanvas();
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
 		expect(harness.wrapper.find('.rp-editor-inspector-requirements').exists()).toBe(true);
@@ -117,7 +100,7 @@ describe('the Room Inspector, through the real mounted editor', () => {
 	 */
 	it('falls back to the generic "Other" label for a zone type nothing here labels', async () => {
 		const mystery: ZoneDto = { ...FIXTURE_ZONES[0], id: 'zone-mystery', name: 'Mystery room', zoneType: 'Mystery' };
-		harness = await mountPlanEditorCanvas({ zones: [mystery], commands: commandsWithZoneInspector([mystery]) });
+		harness = await mountPlanEditorCanvas({ zones: [mystery] });
 		useSelectionStore().select(['zone-mystery' as never]);
 		await settle();
 		const room = harness.wrapper.find('.rp-room-inspector');
@@ -132,10 +115,7 @@ describe('the Room Inspector, through the real mounted editor', () => {
 	 * `dto` alone, so they survive; the derived fields do not.
 	 */
 	it('omits the type/floor/area fields and both lists when the selected zone is missing from the store', async () => {
-		harness = await mountPlanEditorCanvas({
-			commands: commandsWithZoneInspector(),
-			queries: fakeQueries(FIXTURE_PLAN, []),
-		});
+		harness = await mountPlanEditorCanvas({ queries: fakeQueries(FIXTURE_PLAN, []) });
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
 		const room = harness.wrapper.find('.rp-room-inspector');

@@ -1924,6 +1924,10 @@ describe('ProjectList groups', () => {
 		expect(details.element.tagName).toBe('DETAILS');
 		expect(details.attributes('open')).toBeUndefined();
 		expect(details.find('summary').text()).toContain('Completed (2)');
+		// §11 asks for an `<h3>` per group heading. Without one this group is absent from
+		// assistive-technology heading navigation while its two siblings are listed — the one
+		// group whose contents are hidden by default being also the one nobody can navigate to.
+		expect(details.find('summary h3').exists()).toBe(true);
 	});
 
 	it('omits a group entirely when it holds nothing', () => {
@@ -2017,8 +2021,18 @@ Replace the single `<ul>` with the two groups:
 			class="rp-project-list__completed"
 			@toggle="completedOpen = ($event.target as HTMLDetailsElement).open"
 		>
-			<summary class="rp-project-list__group-title">
-				{{ tr('view.project.group.completed', { count: String(completed.length) }) }}
+			<!--
+				An `<h3>` INSIDE the `<summary>`, which is what keeps both contracts: §11 asks for
+				an `<h3>` per group heading and this group had only a `<summary>`, so it vanished
+				from assistive-technology heading navigation while `Projects` and `Continue` were
+				both listed — the one group whose contents are hidden by default being also the
+				one a user could not navigate to. `<summary>` takes flow content, so the native
+				disclosure and its announcement are untouched.
+			-->
+			<summary>
+				<h3 class="rp-project-list__group-title">
+					{{ tr('view.project.group.completed', { count: String(completed.length) }) }}
+				</h3>
 			</summary>
 			<ul class="rp-project-list">
 				<li
@@ -2051,6 +2065,9 @@ Append to `styles/project-list.css`:
 .rp-project-list__group-title {
 	margin: 0;
 	padding: 0 var(--size-4-2) var(--size-2-2);
+	/* An `<h3>` inside a `<summary>` is a block child of a list-item-styled box; `display:
+	   inline` keeps it on the disclosure triangle's own line rather than dropping below it. */
+	display: inline;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 	font-weight: var(--font-semibold);
@@ -2420,10 +2437,27 @@ describe('ProjectFilter', () => {
 		);
 	});
 
-	it('announces the count politely, and only the count', () => {
-		const count = line().find('.rp-project-filter__count');
+	it('announces politely through a region separate from the visible count', () => {
+		const wrapper = line();
 
-		expect(count.attributes('role')).toBe('status');
+		expect(wrapper.find('.rp-project-filter__announcement').attributes('role')).toBe('status');
+		// The visible count is NOT the live region: two elements announcing one number makes a
+		// screen reader say it twice.
+		expect(wrapper.find('.rp-project-filter__count').attributes('aria-hidden')).toBe('true');
+	});
+
+	it('updates the VISIBLE count immediately, without waiting for the debounce', async () => {
+		// The count is the pane's state line — §3's teletext discipline and the whole reason the
+		// filter is not furniture. Rows filter immediately, so a debounced visible count would
+		// read `4 projects` above two rows, indefinitely while the user keeps typing.
+		vi.useFakeTimers();
+		const wrapper = line();
+
+		await wrapper.setProps({ query: 'ki', shown: 2, total: 4 });
+
+		expect(wrapper.find('.rp-project-filter__count').text()).toBe('2 of 4');
+		expect(wrapper.find('.rp-project-filter__announcement').text()).toBe('4 projects');
+		vi.useRealTimers();
 	});
 
 	it('gives the input a real accessible name through a label, not a placeholder', () => {
@@ -2468,14 +2502,15 @@ describe('ProjectFilter', () => {
 		for (const value of ['c', 'ce', 'cel', 'cell', 'cella']) {
 			await wrapper.setProps({ query: value, shown: 1, total: 4 });
 		}
-		const announced = wrapper.find('.rp-project-filter__count').text();
+		const announced = wrapper.find('.rp-project-filter__announcement').text();
 		vi.advanceTimersByTime(1000);
 		await wrapper.vm.$nextTick();
 
 		// Before the debounce settles the live region still holds the PREVIOUS text, so a
-		// screen reader is not read five ratios for one word.
+		// screen reader is not read five ratios for one word. The VISIBLE count moved on the
+		// first keystroke and is already correct — that is the case above.
 		expect(announced).toBe('4 projects');
-		expect(wrapper.find('.rp-project-filter__count').text()).toBe('1 of 4');
+		expect(wrapper.find('.rp-project-filter__announcement').text()).toBe('1 of 4');
 		vi.useRealTimers();
 	});
 });
@@ -2523,13 +2558,19 @@ defineEmits<{ 'update:query': [value: string]; cancel: [] }>();
 const inputId = useId();
 
 /**
- * What the LIVE REGION currently holds, which lags the props by one debounce.
+ * What the LIVE REGION currently holds, which lags the visible count by one debounce.
  *
  * A `role="status"` re-read on every keystroke reads a five-character query five times, each
  * announcement interrupting the last — the field becomes unusable with a screen reader on
- * exactly the gesture it exists for. The debounce is on the ANNOUNCED TEXT rather than on the
- * filtering itself: rows appear and disappear immediately (§7 — filtering does not animate and
- * does not wait), and only the spoken count settles.
+ * exactly the gesture it exists for.
+ *
+ * **This is the ANNOUNCEMENT only, and the visible count is not it.** An earlier version
+ * rendered this string as the count itself, which made the pane's own state line wrong for
+ * 400ms after every keystroke — and indefinitely while the user keeps typing, since each
+ * keystroke restarts the timer. The rows filter immediately, so the line could read
+ * `4 projects` above two rows: the count is *the state* (§3's teletext discipline, the whole
+ * reason the filter is not furniture), and a state line that lags the state it reports is the
+ * one thing it must not be. Only the spoken version settles.
  */
 const announced = ref(countText());
 let pending: ReturnType<typeof setTimeout> | undefined;
@@ -2580,8 +2621,23 @@ onBeforeUnmount(() => {
 			@input="$emit('update:query', ($event.target as HTMLInputElement).value)"
 			@keydown.esc.stop="$emit('cancel')"
 		>
+		<!--
+			THE VISIBLE COUNT, immediate. `aria-hidden` because the live region below carries the
+			same fact for assistive technology, and two elements announcing one number is how a
+			screen reader ends up saying it twice.
+		-->
 		<span
 			class="rp-project-filter__count"
+			aria-hidden="true"
+		>{{ countText() }}</span>
+		<!--
+			THE ANNOUNCEMENT, debounced and visually hidden. Separate from the line above because
+			the two have different timing requirements and one element cannot have both: the
+			state line must be immediate to be a state line, and the announcement must settle or
+			a five-character query interrupts itself five times.
+		-->
+		<span
+			class="rp-project-filter__announcement"
 			role="status"
 		>{{ announced }}</span>
 	</div>
@@ -2601,10 +2657,13 @@ Append to `styles/project-list.css`:
 }
 
 /*
- * VISUALLY HIDDEN, not `display: none` and not `hidden` — the label must reach assistive
- * technology, and both of those take it out of the accessibility tree along with the picture.
+ * VISUALLY HIDDEN, not `display: none` and not `hidden` — the label and the announcement must
+ * reach assistive technology, and both of those take an element out of the accessibility tree
+ * along with the picture. The announcement is hidden because the count beside it is already on
+ * screen saying the same thing.
  */
-.rp-project-filter__label {
+.rp-project-filter__label,
+.rp-project-filter__announcement {
 	position: absolute;
 	width: 1px;
 	height: 1px;
@@ -4190,8 +4249,12 @@ So: its own plugin-local JSON file beside `data.json`, with its own parse-and-fa
 rule. `SequenceMarkerFileStore` is the precedent in this exact repository, for this exact reason,
 and its `TextFileAdapter` is reused rather than a second file surface being declared.
 
-**Device-local is a consequence worth stating plainly: Continue does not follow the vault to the
-phone.** That is the price of not dirtying the vault, and it is the right trade.
+**Whether it is device-local is NOT settled, and step 0 is where that is decided.** The file
+sits under the plugin's manifest directory, inside `.obsidian/`, which Obsidian Sync can be
+configured to carry — so the context may follow the vault to another device. A per-device API
+outside the vault tree would restore the stronger guarantee; whether the pinned typings expose
+one is unverified here and is step 0's to answer, because asserting an API this plan has not
+seen is the shape it keeps being corrected for.
 
 **What is stored, per the locked §14 decision: `{ projectId, planId }` and NO leaf identity.**
 Continue restores by navigating THIS leaf through the doors a row already uses, so "restoring
@@ -4214,6 +4277,24 @@ wrong about. Surviving a restart follows for free.
   - `class ContinueContextStore { read(): Promise<ContinueContext | null>; write(context: ContinueContext): Promise<void> }`
   - `RenovationProjectDeps.continueContext: () => Promise<ContinueContext | null>`
   - `RenovationProjectDeps.rememberContinue: (context: ContinueContext) => void`
+
+- [ ] **Step 0: Check whether a per-device storage door exists**
+
+With `node_modules` installed, grep the pinned typings for a storage API outside the vault tree:
+
+```bash
+grep -n "LocalStorage\|localStorage" node_modules/obsidian/obsidian.d.ts
+```
+
+**Why this is a step rather than a footnote.** The file below lives under the plugin's manifest
+directory — inside `.obsidian/` — and Obsidian Sync can carry community-plugin settings, so the
+context can follow the vault to another device. If the typings expose a per-device door that a
+`Plugin` can reach through its own `this.app` (never the global `app`, which the marketplace
+rules refuse), use it and keep the strong guarantee. If they do not, the file stays and the
+narrowed claim in the store's docblock is the honest one.
+
+Either way, **write down what the grep printed** — the point is that the guarantee matches the
+mechanism, and this plan has already been corrected once for asserting the stronger one.
 
 - [ ] **Step 1: Write the failing store test**
 
@@ -4310,6 +4391,30 @@ describe('ContinueContextStore', () => {
 			schemaVersion: 1,
 			context: { projectId: 'p1', planId: null },
 		});
+	});
+
+	it('answers a read AFTER a write that is still in flight', async () => {
+		// The navigate-then-remount sequence: remember, navigate, the view remounts and reads.
+		// An unqueued read is answered the previous file — and the context is read once per
+		// mount, so that stale answer is the whole mount's, not an instant's.
+		const io = adapter();
+		let release = (): void => {};
+		const plain = io.write;
+		io.write = (path, data) =>
+			new Promise((resolve) => {
+				release = () => {
+					void plain(path, data);
+					resolve();
+				};
+			});
+		const s = new ContinueContextStore(io, 'p/continue.json', new RecordingLogger());
+
+		const writing = s.write({ projectId: 'p1', planId: 'plan-1' });
+		const reading = s.read();
+		release();
+		await writing;
+
+		expect(await reading).toEqual({ projectId: 'p1', planId: 'plan-1' });
 	});
 
 	it('keeps the LATEST context when two writes overlap', async () => {
@@ -4433,9 +4538,24 @@ const CONTINUE_CONTEXT_SCHEMA_VERSION = 1;
  * this reasoning, and its `TextFileAdapter` is reused rather than a second file surface being
  * declared — one shape, satisfied by the vault's own adapter as-is.
  *
- * **DEVICE-LOCAL, stated plainly: Continue does not follow the vault to the phone.** That is
- * the price of not dirtying the vault and it is the right trade, but it is a consequence a user
- * can notice, so it is written here rather than left to be discovered.
+ * **It MAY follow the vault to another device, and the earlier draft's flat "device-local,
+ * Continue does not follow the vault to the phone" was wrong.** This file sits under the
+ * plugin's own manifest directory — inside `.obsidian/`, the vault's configuration tree — and
+ * Obsidian Sync can be configured to carry community-plugin settings. So on a synced vault with
+ * that option on, the last-visit context travels, and two devices overwrite each other's.
+ *
+ * **The claim is narrowed rather than the storage moved, because the remedy is unverified.**
+ * Genuinely per-device storage would need an API outside the vault tree; whether the pinned
+ * `obsidian` 1.13.0 typings expose one could not be checked in the session that wrote this
+ * (`node_modules` was absent), and asserting an API this plan has not seen is exactly the shape
+ * this document keeps being corrected for. **Task 10 step 0 is that check**; if such a door
+ * exists, moving there restores the stronger guarantee and this paragraph shrinks back.
+ *
+ * What the weaker guarantee actually costs is small, which is why it is acceptable meanwhile:
+ * the row is an OFFER, both of its ids are re-validated against the vault at every mount, and a
+ * context written by another device either resolves — in which case it names real work — or is
+ * dropped and the group does not render. The failure mode is a Continue row pointing at what
+ * you were doing on the desktop rather than on the phone, not a broken or destructive one.
  *
  * **Neither door ever rejects.** `read` is awaited by a mount that draws a list either way, and
  * `write` is fire-and-forget from a click handler that discards its promise — so a rejection
@@ -4463,7 +4583,23 @@ export class ContinueContextStore {
 		private readonly logger: Logger,
 	) {}
 
-	async read(): Promise<ContinueContext | null> {
+	/**
+	 * **Queued alongside the WRITES, not beside them.** `rememberContinue` starts a
+	 * fire-and-forget write and the caller navigates in the same tick; the view then remounts
+	 * and `resolveStored` reads. An unqueued read races that write and can be answered the
+	 * previous file — or none at all, on the first ever visit — and because the context is read
+	 * exactly ONCE per mount, that stale answer is what the Continue row shows for the whole
+	 * mount rather than for an instant.
+	 *
+	 * Serializing the writes and leaving the read outside the queue was the previous version:
+	 * it closed write-versus-write and left write-versus-read wide open, which is the same
+	 * half-a-fix shape as fixing one door of a pair.
+	 */
+	read(): Promise<ContinueContext | null> {
+		return this.queues.run('continue-context', () => this.readNow());
+	}
+
+	private async readNow(): Promise<ContinueContext | null> {
 		try {
 			if (!(await this.adapter.exists(this.path))) return null;
 			const raw: unknown = JSON.parse(await this.adapter.read(this.path));
@@ -4662,8 +4798,8 @@ const PROJECT: ProjectSummaryDto = {
 	lastWorked: '2026-08-14T00:00:00.000Z',
 };
 
-function row(planId: string | null = 'plan-1') {
-	return mount(ContinueRow, { props: { project: PROJECT, planId } });
+function row(planId: string | null = 'plan-1', plan = { id: 'plan-1', name: 'Kitchen' }) {
+	return mount(ContinueRow, { props: { project: PROJECT, planId, plan: planId === null ? null : plan } });
 }
 
 describe('ContinueRow', () => {
@@ -4673,10 +4809,24 @@ describe('ContinueRow', () => {
 		expect(row().find('.rp-project-list__row').exists()).toBe(true);
 	});
 
-	it('names the project and dates itself by lastWorked', () => {
+	it('names the project AND the plan it will resume', () => {
+		// §7's diagram is `House Renovation 2026 · Kitchen › Work`. Without the plan half the
+		// row cannot answer "which plan will this open" on a project that has several — which
+		// is the question Continue exists to answer.
 		const text = row().text();
 
 		expect(text).toContain('House Renovation 2026');
+		expect(text).toContain('Kitchen');
+	});
+
+	it('names the project alone when the context holds no plan', () => {
+		// Absent, not blank: an empty slot renders nothing and its neighbours close up.
+		expect(row(null).find('.rp-continue__plan').exists()).toBe(false);
+	});
+
+	it('dates itself by lastWorked', () => {
+		const text = row().text();
+
 		// An ABSOLUTE short date, not a relative time: relative needs a live ticker and makes
 		// every test time-dependent.
 		expect(text).toMatch(/2026/);
@@ -4745,11 +4895,16 @@ Create `src/presentation/views/ContinueRow.vue`:
  * what the usability script in the workspace prototype spec §13 is written to test.
  */
 import { computed } from 'vue';
-import type { ProjectSummaryDto } from '../read-models/PlanDto';
+import type { PlanSummaryDto, ProjectSummaryDto } from '../read-models/PlanDto';
 import { statusLabel } from './statusLabel';
 import { currentLanguage, tr } from '../i18n/strings';
 
-const props = defineProps<{ project: ProjectSummaryDto; planId: string | null }>();
+const props = defineProps<{
+	project: ProjectSummaryDto;
+	planId: string | null;
+	/** The resolved plan this will resume, or `null` when the context names the project alone. */
+	plan: PlanSummaryDto | null;
+}>();
 defineEmits<{ resume: []; open: [] }>();
 
 /**
@@ -4770,10 +4925,20 @@ const worked = computed(() => {
 
 <template>
 	<div class="rp-project-list__row rp-continue">
+		<!--
+			The project AND the work inside it — §7's diagram is `House Renovation 2026 ·
+			Kitchen › Work`, and the plan half is what makes the row answer "which plan will
+			this open" on a project that has several. Absent, not blank, when the context names
+			no plan: the content rule is that an empty slot renders nothing and its neighbours
+			close up.
+		-->
 		<span
 			class="rp-project-list__name"
-			:title="project.name"
-		>{{ project.name }}</span>
+			:title="plan === null ? project.name : `${project.name} · ${plan.name}`"
+		>{{ project.name }}<span
+			v-if="plan !== null"
+			class="rp-continue__plan"
+		> · {{ plan.name }}</span></span>
 		<span class="rp-project-row__facts">{{ worked }}</span>
 		<span class="rp-project-list__status">{{ statusLabel(project.status) }}</span>
 		<button
@@ -4844,7 +5009,11 @@ const props = defineProps<{
 	 * §7's rule is that the group renders only when the stored context points at something that
 	 * still exists, and only the view can ask.
 	 */
-	continueProject?: { project: ProjectSummaryDto; planId: string | null } | null;
+	continueProject?: {
+		project: ProjectSummaryDto;
+		planId: string | null;
+		plan: PlanSummaryDto | null;
+	} | null;
 }>();
 ```
 
@@ -4885,6 +5054,7 @@ const props = defineProps<{
 					<ContinueRow
 						:project="continueProject.project"
 						:plan-id="continueProject.planId"
+						:plan="continueProject.plan"
 						@resume="$emit('resume', { projectId: continueProject.project.id, planId: continueProject.planId })"
 						@open="$emit('open', continueProject.project.id)"
 					/>
@@ -4934,18 +5104,32 @@ In `src/presentation/views/ViewRoot.vue`:
  * found — nothing redirects, nothing announces, nothing is retracted.
  *
  * The PLAN half cannot ride that list, because this surface's list holds projects. It is read
- * once at mount by `resolveStored` below and held in `storedPlanLives`, which is why the two
+ * once at mount by `resolveStored` below and held in `storedPlan`, which is why the two
  * halves are two fields rather than one predicate.
  */
 const stored = ref<ContinueContext | null>(null);
-/** Whether the stored context's PLAN still exists — `true` when it names none. */
-const storedPlanLives = ref(false);
+/**
+ * How the stored context's PLAN resolved: `'none'` when it names no plan, `'gone'` when the
+ * plan read did not find it, or the plan itself.
+ *
+ * **The plan rather than a boolean**, because the row has to NAME it. §7's own Continue diagram
+ * is `House Renovation 2026 · Kitchen › Work`, and a first version reduced this read to
+ * `true`/`false` — so the row said which project it would resume and not which plan, which on a
+ * project with several plans is the one thing a user needs it to say. The read was already being
+ * made; only its answer was being thrown away.
+ */
+const storedPlan = ref<PlanSummaryDto | 'none' | 'gone'>('gone');
 
 const continueProject = computed(() => {
 	const resume = stored.value;
-	if (resume === null || !storedPlanLives.value) return null;
+	if (resume === null || storedPlan.value === 'gone') return null;
 	const project = projects.value.find((candidate) => candidate.id === resume.projectId);
-	return project === undefined ? null : { project, planId: resume.planId };
+	if (project === undefined) return null;
+	return {
+		project,
+		planId: resume.planId,
+		plan: storedPlan.value === 'none' ? null : storedPlan.value,
+	};
 });
 ```
 
@@ -4972,13 +5156,20 @@ Read both at mount, inside the existing `onMounted`:
 async function resolveStored(): Promise<void> {
 	const resume = await context.continueContext();
 	stored.value = resume;
-	if (resume === null || resume.planId === null) {
-		storedPlanLives.value = resume !== null;
+	if (resume === null) {
+		storedPlan.value = 'gone';
+		return;
+	}
+	if (resume.planId === null) {
+		storedPlan.value = 'none';
 		return;
 	}
 	const plans = await context.queries.listPlansByProject(resume.projectId);
-	storedPlanLives.value =
-		!isErr(plans) && plans.value.plans.some((plan) => plan.id === resume.planId);
+	// The matched plan is KEPT, not counted: the row names it.
+	const found = isErr(plans)
+		? undefined
+		: plans.value.plans.find((plan) => plan.id === resume.planId);
+	storedPlan.value = found ?? 'gone';
 }
 ```
 
@@ -5070,7 +5261,7 @@ DIFFERENT mutation:
 
 - **the deleted PROJECT** — watch it fail with the `find` removed, so it pins the resolution
   rather than merely the absence;
-- **the deleted PLAN** — watch it fail with `storedPlanLives` hard-coded `true`. That is the
+- **the deleted PLAN** — watch it fail with `storedPlan` hard-coded to a plan. That is the
   version the plan shipped first, and every other case in the file passes against it, which is
   exactly why the case has to exist. Assert `openPlan` was NOT called, not merely that the group
   is absent: a build that draws the group and opens a dead editor is what the case is about.
@@ -5510,6 +5701,26 @@ asked.
 - **The 460px capture pointed at `prototype:StatusTicks`**, which holds ten tick strips and none
   of the filter, foot line, disclosure, Continue controls or long names the checklist beneath it
   inspects. A capture step that cannot see what it asks about reads exactly like one that can.
+
+**Fifth round, five findings, and the shape shifted: three are claims this plan made that its own
+code did not keep.**
+
+- **The continue store queued its WRITES and left `read` outside the queue**, so a read racing a
+  write in flight is answered the previous file — and the context is read once per mount, so that
+  stale answer lasts the mount. Half a fix, in the change that was fixing the other half.
+- **The debounce was applied to the VISIBLE count**, which made the pane's state line wrong for
+  400ms after every keystroke and indefinitely while typing — over rows that had already
+  filtered. The count *is* the state (§3's whole teletext argument), so the one thing it must not
+  do is lag. The announcement is a separate hidden live region now.
+- **The Continue row named its project and not its plan**, though §7's own diagram is
+  `House Renovation 2026 · Kitchen › Work` and `resolveStored` was already reading the plan
+  before reducing it to a boolean. The read was made and its answer thrown away.
+- **`Completed` had no `<h3>`**, so the one group hidden by default was also the one absent from
+  heading navigation, while both its siblings were listed.
+- **"Device-local" was false where the file actually lives** — under `.obsidian/`, which Obsidian
+  Sync can carry. Narrowed rather than relocated, because the relocation needs an API this
+  session could not verify (`node_modules` absent) and asserting an unseen API is precisely what
+  round four cost.
 
 **Third round, on the fixes themselves.** Four more, all real, and two of them are defects the
 second round's own repairs introduced or left standing — which is this repository's recorded

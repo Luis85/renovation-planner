@@ -2776,9 +2776,18 @@ const matching = computed(() =>
 ```
 
 and change `active`/`completed` to filter `matching` rather than `ordered`. Render the filter
-above the groups, passing `:shown="matching.length"` and `:total="projects.length"`, with
-`@update:query="query = $event"`; leave `@cancel` unhandled until Task 8, which is where Escape's
-two meanings are built.
+above the groups **under `v-if="projects.length > 0"`**, passing `:shown="matching.length"` and
+`:total="projects.length"`, with `@update:query="query = $event"`; leave `@cancel` unhandled until
+Task 8, which is where Escape's two meanings are built.
+
+**The guard is the spec's region 2 condition ("at least one project loaded"), and it is
+load-bearing rather than defensive.** `selectRenovationProjectEmptyState` answers `null` on
+`unreadable > 0` before it looks at the length, so a vault whose every project note is unreadable
+renders `ProjectList` with `projects=[]` — the state §9's own row describes. Unguarded, the filter
+then states `0 projects` about a vault that demonstrably holds projects this build could not read,
+which is the notice beside it being contradicted by the line above it. The group headings are
+already guarded (`v-if="active.length > 0"` / `completed.length > 0`), so the filter is the only
+region in this task that could draw over an empty list; that was checked rather than assumed.
 
 Pass `:query="query"` to every `ProjectRow`.
 
@@ -5103,9 +5112,17 @@ In `src/presentation/views/ViewRoot.vue`:
  * re-resolves for free on every hydrate, and a project deleted underneath simply stops being
  * found — nothing redirects, nothing announces, nothing is retracted.
  *
- * The PLAN half cannot ride that list, because this surface's list holds projects. It is read
- * once at mount by `resolveStored` below and held in `storedPlan`, which is why the two
- * halves are two fields rather than one predicate.
+ * The PLAN half cannot ride that list, because this surface's list holds projects. It is read by
+ * `resolveStored` below and held in `storedPlan`, which is why the two halves are two fields
+ * rather than one predicate — and why `resolveStored` runs on every hydrate rather than once at
+ * mount. §7 says "resolve the stored ids against the project index AT HYDRATE TIME"; a mount-only
+ * read does not do that, and the case it loses is the one Continue exists for. Obsidian restores
+ * its leaves BEFORE `onLayoutReady` and the index scan runs FROM it (SDD §47), so a pane restored
+ * with the app resolves its plan against an EMPTY index, finds nothing, and pins `storedPlan` to
+ * `'gone'` for the life of that mount. The project half self-heals — it is a `computed` over
+ * `projects`, which the `ProjectIndexRebuilt` subscription re-hydrates — so the two halves
+ * recovered differently and only the one nothing re-ran stayed broken. Continue-across-restart is
+ * exactly the flow this feature advertises, so it would have failed in its headline case.
  */
 const stored = ref<ContinueContext | null>(null);
 /**
@@ -5133,7 +5150,27 @@ const continueProject = computed(() => {
 });
 ```
 
-Read both at mount, inside the existing `onMounted`:
+Resolve both from inside `hydrate()` — the function `ViewRoot`'s own header already calls "the ONE
+read this view has, on every occasion it runs" — rather than from `onMounted`. That gives the
+mount, the post-create re-read and the `ProjectIndexRebuilt` subscription the same answer for
+free, and it is why no second refresh path is added: a `resolveStored()` call sitting beside each
+`hydrate()` is a list of callers that goes stale at the fourth one.
+
+**Running on every hydrate makes `resolveStored` concurrently callable, which it was not at
+mount, so it needs the request ticket `store.hydrate` already carries.** Two hydrates can be in
+flight at once — the create path awaits its own while the rebuild subscription fires — and both
+resolutions end in a bare assignment to `stored` and `storedPlan`, so the slower earlier one
+overwrites the newer: a just-opened plan's context replaced by the one before it, with nothing to
+say it happened. Take a ticket at entry and drop the result if it is no longer current:
+
+```typescript
+let resolveTicket = 0;
+```
+
+and inside `resolveStored`, capture `const ticket = ++resolveTicket;` first, then guard every
+assignment with `if (ticket !== resolveTicket) return;`. This is the same shape `ProjectStore
+.hydrate` and `InspectorStore` already use, and the reason CLAUDE.md gives for it: a store two
+things hydrate needs a ticket, or the slower earlier read wins.
 
 ```typescript
 /**
@@ -5313,7 +5350,7 @@ figure it quotes is cited to a file that already recorded one. This task is wher
 - Modify: `tests/harness/fixture.ts`
 - Modify: `tests/harness/page.ts`
 - Modify: `tests/harness/accessibility.test.ts`
-- Modify: `scripts/entryShots.mjs` (the two fixed shots Steps 2–3 add)
+- Modify: `scripts/entryShots.mjs` (the three fixed shots Steps 2–3 add)
 - Modify: `styles/project-list.css` (the threshold, once it is measured)
 
 - [ ] **Step 1: Give the harness fixture the ranges §9 names**
@@ -5340,8 +5377,19 @@ existing account of why the bare root must go on meaning the project view — th
 address this surface with no `view` parameter at all, and making a bare root mean something else
 would break them while the test asserting they exist kept passing.
 
-Then add **two fixed shots** in `scripts/entryShots.mjs`'s own set, both on `?projects=30`: one
-at the default width and one at **460**. The fixed shots are the only ones that carry a width of
+Give `tests/harness/page.ts` a **`?q=` parameter** that seeds the filter's initial query, and have
+`ProjectFilter` take that seed as its starting value. Without it the no-match state is
+unreachable by any capture: `harness-shot` navigates and screenshots, it types nothing, so both
+shots below sit at an empty query forever and checklist item 7 — does the create action wrap
+rather than pushing the pane wide, with a long typed query — inspects a block that is never on
+screen. A URL-seeded query is the same state the user reaches by typing, arrived at by the one
+route a headless runner has.
+
+Then add **three fixed shots** in `scripts/entryShots.mjs`'s own set: `home-stress` on
+`?projects=30` at the default width, `home-stress-narrow` on `?projects=30` at **460**, and
+`home-no-match-narrow` on `?projects=30&q=` plus a deliberately long query that matches nothing,
+at **460**. The third is narrow because item 7 asks about wrapping and pane width, which is where
+a long create action can only be judged. The fixed shots are the only ones that carry a width of
 their own — which is what `resolveShots` refuses a bare `--width` for — and this surface's whole
 narrow composition is a container query on the pane, so a 460px capture of the real view is the
 only thing that can show it. Extend `tests/harness/harness.test.ts`'s existing assertion about
@@ -5353,8 +5401,9 @@ the set.
 **The Home surface itself must be one of the 460px shots**, and the fixed set is where it
 belongs: `?projects=30` drives the REAL view through the real data path, where a prototype would
 draw a hand-built copy of it. `resolveShots`'s own error says the fixed shots "carry their own"
-width, which is the mechanism — add two entries to that set, `home-stress` at the default width
-and `home-stress-narrow` at 460, both on `?projects=30`.
+width, which is the mechanism — add three entries to that set: `home-stress` at the default width
+and `home-stress-narrow` at 460, both on `?projects=30`, and `home-no-match-narrow` at 460 on
+`?projects=30` with the seeded query that matches nothing.
 
 **`prototype:StatusTicks` does not substitute for it and never could**: that prototype holds ten
 tick strips and nothing else — no filter, no foot line, no `Completed` disclosure, no Continue
@@ -5364,7 +5413,7 @@ this step listed it as the narrow capture, which would have left every 460px con
 checklist below uninspected while reading as though the capture had been taken.
 
 ```bash
-npm run harness-shot                                        # the fixed set, now including the two Home shots
+npm run harness-shot                                        # the fixed set, now including the three Home shots
 npm run harness-shot prototype:StatusTicks                  # the ten strips, wide
 npm run harness-shot prototype:StatusTicks -- --width=460   # and narrow, for the strip alone
 ```

@@ -503,6 +503,77 @@ const ROOTS = ['src', 'tests/harness', 'tests/helpers'] as const;
 const toPosix = (value: string): string => value.split('\\').join('/');
 
 /**
+ * A small cap on how many branches a brace or extglob pattern may expand into before
+ * `expandGlobBranches` gives up and reports the pattern as unbounded. Nothing in this tree uses
+ * even one brace, so the number only has to be large enough that no legitimate pattern trips it
+ * and small enough that a pathological one (nested groups multiplying against each other) cannot
+ * make this check slow. **Hitting the cap reports an escape rather than checking the first
+ * `MAX_GLOB_BRANCHES` branches and ignoring the rest — a cap that silently truncates is the same
+ * defect `escapesTheRoots` was rewritten for one layer up.**
+ */
+const MAX_GLOB_BRANCHES = 8;
+
+/** One character in front of `(` that makes it an extglob group rather than an ordinary paren. */
+const EXTGLOB_PREFIX = '@?*+!';
+
+/**
+ * Expands every `{a,b}` and `@(a|b)` group in `pattern` into `branches`, recursively — a nested
+ * group inside one alternative is found on the recursive call over THAT branch, since
+ * substituting one alternative leaves the rest of the pattern, any inner group included,
+ * untouched. Answers `false` — "cannot be bounded, treat the whole pattern as escaping" — for an
+ * unclosed group or for more than `MAX_GLOB_BRANCHES` branches, per this file's whole glob
+ * posture: an unrecognised or unbounded construct moves a pattern toward "counts", never toward
+ * "proven safe". `escapesTheRoots` is this function's only caller.
+ *
+ * One pass finds the leftmost group's matching close AND splits its interior on the group's own
+ * separator (`,` for braces, `|` for extglobs) — both are the same "am I at depth zero" question
+ * asked of every character between the opener and its close, so one loop does both jobs a brace
+ * parser usually splits into two.
+ */
+function expandGlobBranches(pattern: string, branches: string[]): boolean {
+	for (let i = 0; i < pattern.length; i += 1) {
+		const isBrace = pattern[i] === '{';
+		if (!isBrace && !(pattern[i] === '(' && i > 0 && EXTGLOB_PREFIX.includes(pattern[i - 1]))) continue;
+		const start = isBrace ? i : i - 1;
+		const [closeChar, separator] = isBrace ? ['}', ','] : [')', '|'];
+		const alternatives: string[] = [];
+		let depth = 0, last = i + 1, end = -1;
+		for (let j = i + 1; j < pattern.length && end < 0; j += 1) {
+			const c = pattern[j];
+			const opensNested = c === '{' || (c === '(' && EXTGLOB_PREFIX.includes(pattern[j - 1] ?? ''));
+			if (depth === 0 && c === closeChar) end = j;
+			else if (depth === 0 && c === separator) {
+				alternatives.push(pattern.slice(last, j));
+				last = j + 1;
+			} else if (opensNested) depth += 1;
+			else if (c === '}' || c === ')') depth -= 1;
+		}
+		if (end < 0) return false;
+		alternatives.push(pattern.slice(last, end));
+		const [before, after] = [pattern.slice(0, start), pattern.slice(end + 1)];
+		for (const alternative of alternatives) {
+			if (!expandGlobBranches(before + alternative + after, branches) || branches.length > MAX_GLOB_BRANCHES) return false;
+		}
+		return true;
+	}
+	branches.push(pattern);
+	return branches.length <= MAX_GLOB_BRANCHES;
+}
+
+/**
+ * Resolves one literal path or glob branch against `file`'s directory and asks whether it lands
+ * outside `ROOTS`. `truncateAtWildcard` is only ever true for a branch already stripped of every
+ * brace/extglob group by `expandGlobBranches` — what remains is an ordinary wildcard (`*`, `?`, a
+ * character class) truncated at its own first occurrence, per the comment on `escapesTheRoots`
+ * below about why that is still safe.
+ */
+const resolvesOutsideRoots = (file: string, branch: string, truncateAtWildcard = false): boolean => {
+	const literal = truncateAtWildcard ? (branch.split(/[*?[\]]/)[0] ?? branch) : branch;
+	const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(toPosix(file)), toPosix(literal)));
+	return !ROOTS.some((root) => resolved === root || resolved.startsWith(`${root}/`));
+};
+
+/**
  * Does this relative specifier leave the trees this scan walks?
  *
  * **The roots were a claimed transitive closure and nothing checked the claim** — reported, and
@@ -522,6 +593,20 @@ const toPosix = (value: string): string => value.split('\\').join('/');
  * A glob pattern is resolved at its literal prefix — the part before the first wildcard — since
  * that is the directory the matches come out of.
  *
+ * **A pattern with N brace/extglob branches has up to N different directories its matches can
+ * come out of, and truncating at the first metacharacter bounds only one of them.** Reported:
+ * `'../{prototypes/ok,../scripts/helper}.ts'` from `src/prototypes/x.ts` truncates to `'../'`,
+ * which resolves inside `src`, while the second branch resolves to `scripts/helper.ts`, outside
+ * every root. `expandGlobBranches` expands every `{a,b}` and `@(a|b)` group — nested ones included
+ * — into its full set of branches, each truncated at its own first remaining wildcard, and the
+ * specifier escapes if ANY branch does. What it still cannot see: a pattern whose branch count or
+ * nesting cannot be bounded within `MAX_GLOB_BRANCHES` reports an escape without checking a single
+ * branch (over-refusing, on purpose); a backslash-escaped `\{` or `\(` is read as real
+ * brace/extglob syntax rather than a literal character, since nothing in this tree quotes one; and
+ * a character class (`[ab]`) is still truncated at its `[` rather than expanded per character —
+ * safe rather than exact, since a class matches one character and never a `/`, so truncating there
+ * can only shorten the prefix, never miss a branch that leaves through a different directory.
+ *
  * **The bound, stated rather than implied: RELATIVE specifiers only.** A bare specifier that
  * resolves to a local module would slip past, which today is unreachable — `tsconfig.json`
  * declares no `paths` mapping and the one alias either config sets (`obsidian`) points at
@@ -531,13 +616,11 @@ const toPosix = (value: string): string => value.split('\\').join('/');
 const escapesTheRoots = (file: string, specifier: Specifier): boolean => {
 	// Truncation is for PATTERNS only. A module path containing a metacharacter is a path, and
 	// cutting it at that character resolves somewhere the import never goes — see `Specifier`.
-	const literal = specifier.isGlob
-		? (specifier.text.split(/[*?{}[\]()!|]/)[0] ?? specifier.text)
-		: specifier.text;
-	const resolved = path.posix.normalize(
-		path.posix.join(path.posix.dirname(toPosix(file)), toPosix(literal)),
-	);
-	return !ROOTS.some((root) => resolved === root || resolved.startsWith(`${root}/`));
+	if (!specifier.isGlob) return resolvesOutsideRoots(file, specifier.text);
+	const branches: string[] = [];
+	// `!expandGlobBranches(...)` short-circuits to an escape when the branches cannot be bounded,
+	// without ever asking `branches.some(...)` about a set it gave up building.
+	return !expandGlobBranches(specifier.text, branches) || branches.some((branch) => resolvesOutsideRoots(file, branch, true));
 };
 
 /**
@@ -982,6 +1065,30 @@ describe('the browser harness', () => {
 			parenthesisedPath: true,
 			globPattern: false,
 		});
+	});
+
+	/**
+	 * Task R7 — a Codex finding against this predicate's OWN earlier fix: truncating at the first
+	 * metacharacter bounds only ONE branch of a brace or extglob alternation, and a pattern with N
+	 * branches can resolve out of N different directories. Each row is a branch the naive fix
+	 * ("any brace escapes") could not tell from the reported bug — see `allInside` in particular.
+	 */
+	it.each([
+		// The reported case, verbatim: truncating at the first `{` reduces this to `../`, which
+		// resolves inside `src`, but the second branch really resolves to `scripts/helper.ts`.
+		['the reported case', 'src/prototypes/x.ts', '../{prototypes/ok,../scripts/helper}.ts', true],
+		// Every branch stays inside the roots — proves the fix isn't "flag any brace at all".
+		['every branch staying inside', 'tests/helpers/vault.ts', './{a,b}.ts', false],
+		// Nine branches against a small cap: hitting the cap reports an escape rather than
+		// silently checking a prefix of the nine.
+		['more branches than the cap', 'tests/helpers/vault.ts', './{a,b,c,d,e,f,g,h,i}.ts', true],
+		// The two real globs this repository uses today, so the suite stays honest.
+		['the real prototypes glob', 'tests/harness/entries.ts', '../../src/prototypes/**/*.vue', false],
+		['the real components glob', 'tests/harness/entries.ts', '../../src/presentation/**/*.vue', false],
+		// The reported case's shape in extglob syntax rather than brace syntax.
+		['an extglob branch leaving the roots', 'src/prototypes/x.ts', '../@(prototypes/ok|../scripts/helper).ts', true],
+	])('bounds every branch of a brace or extglob pattern — %s', (_label, file, text, escapes) => {
+		expect(escapesTheRoots(file, { text, isGlob: true })).toBe(escapes);
 	});
 
 	it('loads no stylesheet through anything the harness can reach', () => {

@@ -9,8 +9,16 @@ import { describe, expect, it } from 'vitest';
  *
  * It reads DECLARATIONS and never the cascade, and it measures no position: spacing, wrapping,
  * overflow and contrast are settled by a capture and by nothing here.
+ *
+ * **COMMENTS STRIPPED, and that is load-bearing rather than tidy.** This sheet documents its own
+ * class names in prose — the narrow block's header explains why the `order` rules are scoped to
+ * `.rp-project-row` — so a raw read counts a sentence ABOUT a rule as the rule. Measured, not
+ * reasoned: with the raw text, renaming `.rp-project-row` out of every selector in the file left
+ * all five cases green, because the comments still named it. `prototype-styles.test.ts` states
+ * the same rule for the same reason, and this file did not follow it until a mutation said so.
  */
-const sheet = readFileSync('styles/project-list.css', 'utf8');
+const RULES_ONLY = /\/\*[\s\S]*?\*\//gu;
+const sheet = readFileSync('styles/project-list.css', 'utf8').replace(RULES_ONLY, '');
 
 /** A rule's own body, so a declaration elsewhere in the file cannot satisfy an assertion about it. */
 const bodyOf = (selector: string): string => {
@@ -20,17 +28,57 @@ const bodyOf = (selector: string): string => {
 	return sheet.slice(start, sheet.indexOf('}', start));
 };
 
+/**
+ * A class declared as a class OF ITS OWN — the name not run on into a longer one.
+ *
+ * A bare `includes('.rp-project-row__tick')` is satisfied by `.rp-project-row__tick--reached`,
+ * and `.rp-project-row` by any of the five `__` names beneath it, so a substring reading is a
+ * no-op assertion for exactly the entries whose rules a later task is most likely to fold away.
+ * `[\w-]` is the negative lookahead because both `_` and `-` continue a class name here.
+ */
+const declaresClass = (cls: string): boolean => new RegExp(String.raw`\.${cls}(?![\w-])`, 'u').test(sheet);
+
 describe('project-list.css', () => {
-	it('declares every class the row emits', () => {
+	/**
+	 * The classes THIS SHEET owns, which is narrower than "every class the row emits" and is the
+	 * honest name: `ProjectRow` also emits `rp-project-list__row`, `__name`, `__status` and
+	 * `__overlap`, and those are declared by `list-row.css`, `forms.css` and
+	 * `project-list-overlap.css` — deliberately, since each carries a capture-found rule argued
+	 * for where it lives. `projectListOverlap.test.ts` holds the last of them.
+	 *
+	 * `rp-project-row` itself is in the list: this sheet is its ONLY declarer, so nothing else
+	 * would notice it being renamed.
+	 */
+	it('declares every class the row emits that this sheet owns', () => {
 		for (const cls of [
+			'rp-project-row',
 			'rp-project-row__facts',
 			'rp-project-row__status',
 			'rp-project-row__ticks',
 			'rp-project-row__tick',
 			'rp-project-row__tick--reached',
 		]) {
-			expect(sheet).toContain(`.${cls}`);
+			expect(declaresClass(cls), `.${cls} is declared as a class of its own`).toBe(true);
 		}
+	});
+
+	/**
+	 * The instrument, before its result is trusted — both halves, since either one silently turns
+	 * every entry above into a pass that proves nothing.
+	 *
+	 * The lookahead: a longer class must not answer for the shorter one it starts with.
+	 * The strip: a comment naming a class must not answer for a rule declaring it — the defect a
+	 * mutation actually found here, and the one no assertion above could have shown, because a
+	 * sheet that documents itself looks identical to one that declares itself.
+	 */
+	it('does not read a longer class as the shorter one it starts with', () => {
+		expect(declaresClass('rp-project-row__tick')).toBe(true);
+		expect(new RegExp(String.raw`\.rp-project-row__tick(?![\w-])`, 'u').test('.rp-project-row__tick--reached {')).toBe(false);
+	});
+
+	it('reads a class named in prose as prose, not as a declaration', () => {
+		expect(sheet).not.toContain('Task 11');
+		expect('/* mentions .rp-gone here */\n'.replace(RULES_ONLY, '')).toBe('\n');
 	});
 
 	it('drops the strip inside a CONTAINER query, not a media query', () => {

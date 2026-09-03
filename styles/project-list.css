@@ -67,15 +67,28 @@
 }
 
 /*
- * THE NARROW ROW — a CONTAINER query, never a media query, and that is a measured finding of
- * this project rather than a preference: the pane's width is the leaf's, not the window's, so a
- * media query asks the wrong element. `?phone` does not substitute for it either — that is a
- * body class answering what the plugin does when it believes it is on a phone.
+ * THE NARROW ROW — a CONTAINER query, never a media query, and that is a STRUCTURAL fact about
+ * Obsidian's panes rather than a preference: the width this row has to fit is its leaf's, not
+ * the window's, so a media query asks the wrong element and is right only when the plugin
+ * happens to own the whole window. `?phone` does not substitute for it either — that is a body
+ * class answering what the plugin does when it believes it is on a phone.
  *
- * The threshold comes from a capture at 460px with the GERMAN status words in place:
- * `Bestandsaufnahme` is 16 characters against `Survey`'s 6, and a threshold validated only in
- * English is not validated. 34rem is the starting value; Task 12 is where it is confirmed or
- * moved, and moving it is expected rather than a failure.
+ * **34rem IS PROVISIONAL AND NO CAPTURE HAS BEEN TAKEN.** It is a starting value chosen so that
+ * a rule exists to measure against, and Task 12 is where it is measured and replaced; moving it
+ * is expected rather than a failure. Nothing here is evidence for it — jsdom lays nothing out,
+ * so no gate in this repository can see a wrap threshold at all.
+ *
+ * What IS known is which case binds, and it is the reason to take that capture in GERMAN rather
+ * than in English: `Bestandsaufnahme` is 16 characters against `Survey`'s 6, so the status word
+ * runs out of room in one locale well before the other, and a threshold confirmed only in
+ * English would be confirmed against the easy case. Nothing renders `de.ts` in any gate here
+ * (CLAUDE.md records that), so this is a note for whoever takes the picture, not a finding.
+ *
+ * One arithmetic consequence, since it is checkable without a capture and reads wrongly
+ * otherwise: 34rem is 544px at a 16px root, which is ABOVE the 460px an Obsidian sidebar leaf
+ * actually has (`forms.css` records finding the name-truncation defect at exactly that width).
+ * So a sidebar leaf is already on the narrow side of this threshold today. `rem` follows the
+ * user's interface font size, so that pixel figure is one root size's answer and not a constant.
  */
 .rp-project-list {
 	container-type: inline-size;

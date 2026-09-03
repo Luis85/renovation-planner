@@ -312,6 +312,22 @@ floor"* — the row's name becoming a sentence, which is the exact thing the fir
 paragraph said it was avoiding while placing the span where it happens. A description follows the
 name; a descendant precedes it.
 
+**The attribute is half of that and the ELEMENT'S POSITION is the other half.** `aria-describedby`
+adds a description; it does not subtract a descendant from name-from-content, so a span that is
+both referenced and nested keeps the mangled name and gains the same sentence a second time as its
+description. **The span lives outside the button**, as a sibling within the row's list item, and
+only that separates the two relationships. Written down because the prototype satisfied the
+sentence above by adding the attribute and leaving the span where it was, for a whole round, and
+an `aria-describedby` assertion passes in both worlds — the check has to ask about CONTAINMENT.
+
+**The reference is minted from the row's ORDINAL, never from the asset's id.**
+`AssetFrontmatterSchemaV1` validates an id with `z.string().min(1)`, so one may hold whitespace —
+and `aria-describedby` is a whitespace-separated IDREF *list*, so an id spelled `wall tile` becomes
+two references to elements that do not exist rather than one to the element that does. Nothing
+errors; the row simply loses its description. This is the same class as the `CSS.escape` finding in
+§6.3 and has the same rule: **an id a user can author may not be interpolated into a syntax that
+gives its characters meaning.**
+
 **The state alone is not enough**, which was the first version and needed one more round to say:
 *Measured footprint* is what a 600 × 600 tile and a 1200 × 190 radiator both announced, and the
 outline that tells them apart is precisely what stays hidden. The extent is what the mark is FOR
@@ -2526,6 +2542,26 @@ moves and a pre-deletion read still in flight lands as current — populating th
 the deleted asset's geometry or its obsolete referents. Round thirty-three added exactly this
 invalidation for the MARK cache and this is the same gap one door over. Both generations bump when
 an applied listing removes or replaces the selected entry, and restart if the id reappears.
+
+A forty-third round found two, both inside the fix the round before it made, and together they
+are one lesson: **an ARIA relationship added is not a relationship subtracted.**
+
+**`aria-describedby` does not exclude the described element from the accessible NAME.** Round
+forty-one moved the mark's words behind that attribute to stop them joining the row's name — and
+left the span nested inside the button, where name-from-content still walks it. So the row kept
+announcing *"Measured footprint, 1200 × 190 mm Oak plank floor"* and now repeated the sentence as
+its description: the defect intact and one more reading of it added. The span is a sibling of the
+button now. The measurement worth carrying is why a round passed over it: the case written for
+that fix asserted the ATTRIBUTE resolved, which is true in both worlds — a check on the
+relationship added cannot see the one that was supposed to go away, and only a containment
+assertion can.
+
+**And the reference was minted from the asset's id, which a user can author with a space in it.**
+`aria-describedby` is a whitespace-separated IDREF list, so `wall tile` names two elements that do
+not exist rather than one that does, and the row loses its description with nothing erroring
+anywhere. It is the row's ordinal now. Same class as §6.3's `CSS.escape` finding, found in the
+same file two rounds apart, which says the rule was learnt as a fact about `querySelector` rather
+than about interpolating a user-authored id into any syntax at all.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

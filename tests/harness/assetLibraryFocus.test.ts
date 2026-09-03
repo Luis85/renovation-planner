@@ -15,12 +15,18 @@ type FixtureModule = typeof FixtureModuleNs;
  * The mock spreads over the ACTUAL module, so every rule under test — the shelves, the rows,
  * the marks — is the one the browser draws, and only the id this case is about is planted.
  */
-const { HOSTILE_ID } = vi.hoisted(() => ({ HOSTILE_ID: 'quote"and\\backslash' }));
+const { HOSTILE_ID, SPACED_ID } = vi.hoisted(() => ({
+	HOSTILE_ID: 'quote"and\\backslash',
+	SPACED_ID: 'wall tile 600',
+}));
 
 vi.mock('../../src/prototypes/assetLibraryFixture', async (importOriginal) => {
 	const real = await importOriginal<FixtureModule>();
-	const [first, ...rest] = real.ASSETS;
-	return { ...real, ASSETS: [{ ...first, id: HOSTILE_ID }, ...rest] };
+	const [first, second, ...rest] = real.ASSETS;
+	return {
+		...real,
+		ASSETS: [{ ...first, id: HOSTILE_ID }, { ...second, id: SPACED_ID }, ...rest],
+	};
 });
 
 /**
@@ -112,15 +118,14 @@ describe('the asset library mock’s derived geometry', () => {
 		expect(measured.length).toBeGreaterThan(1);
 		expect(new Set(measured).size).toBe(measured.length);
 
-		// And the description is REFERENCED, not a descendant text node that would join the
-		// button's accessible name ahead of the asset's own.
+		// And the description is REFERENCED from OUTSIDE the button. This assertion used to
+		// require the opposite — it looked the element up INSIDE the row and so encoded the
+		// very containment that mangles the accessible name, which is a fix written down as a
+		// test. The containment itself is asserted in its own case below.
 		const row = wrapper.element.querySelector('.rp-al-row');
-		const described = row?.getAttribute('aria-describedby');
+		const described = row?.getAttribute('aria-describedby') ?? '';
 		expect(described).toBeTruthy();
-		// Compared by ATTRIBUTE rather than through a `#id` selector: this file plants an id
-		// holding selector syntax, so a lookup here would be testing `CSS.escape` again instead
-		// of testing that the reference resolves.
-		expect(row?.querySelector('.rp-al-row__mark-words')?.getAttribute('id')).toBe(described);
+		expect(document.getElementById(described)).not.toBeNull();
 		wrapper.unmount();
 	});
 
@@ -190,6 +195,45 @@ describe('the asset library mock’s focus chain', () => {
 		await settle();
 
 		expect(document.activeElement).toBe(searchInput(wrapper));
+		wrapper.unmount();
+	});
+});
+
+/**
+ * The row's hidden mark description, which is TWO relationships and only one of them is added.
+ *
+ * `aria-describedby` names a description; it does not remove a descendant from the button's
+ * accessible NAME, which is computed from content. So the round that added the attribute left
+ * the span inside the button and the row went on being announced "Measured footprint,
+ * 1200 × 190 mm Oak plank floor" — now with the same sentence repeated as its description.
+ * Only moving the element out of the button separates the two, and only the first of these
+ * cases can see that: an `aria-describedby` assertion passes in both worlds.
+ *
+ * Watched failing: moving the span back inside the button reddens the first case at its
+ * assertion, and minting the id from `asset.id` again reddens the second — jsdom resolves an
+ * IDREF list the same way a browser does, so the spaced id really does reference nothing.
+ */
+describe('the asset library mock’s row description', () => {
+	it('keeps the mark description out of the row button', () => {
+		const wrapper = mountLibrary();
+		const row = wrapper.element.querySelector('.rp-al-row');
+		expect(row).not.toBeNull();
+		// Name-from-content walks descendants, so the question is containment rather than
+		// whether the description exists — it exists in both worlds.
+		expect(row?.querySelector('.rp-al-row__mark-words')).toBeNull();
+		wrapper.unmount();
+	});
+
+	it('resolves the description for an id holding whitespace', () => {
+		const wrapper = mountLibrary();
+		const row = wrapper.element.querySelector(`[data-asset-id="${CSS.escape(SPACED_ID)}"]`);
+		expect(row).not.toBeNull();
+
+		const described = row?.getAttribute('aria-describedby') ?? '';
+		// An IDREF LIST: whitespace separates references, so an id spelled with a space names
+		// two elements that do not exist rather than one that does. Nothing errors either way.
+		expect(described).not.toContain(' ');
+		expect(document.getElementById(described)?.textContent ?? '').not.toBe('');
 		wrapper.unmount();
 	});
 });

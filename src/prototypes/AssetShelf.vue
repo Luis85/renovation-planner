@@ -27,6 +27,7 @@
 import { useId } from 'vue';
 import AssetMark from './AssetMark.vue';
 import { spokenMarkFor } from './assetShapeFields';
+import { priceOf } from './assetPrice';
 import { ASSETS, type CatalogueAsset } from './assetLibraryFixture';
 
 /**
@@ -78,22 +79,18 @@ defineEmits<{ toggle: []; select: [id: string] }>();
  * apps set `app.config.idPrefix` so two of them cannot collide either.
  */
 const listId = useId();
-/** One prefix per shelf; each row appends its own id, which is unique within the vault. */
-const markId = useId();
 /**
- * The symbol where one is unambiguous, the ISO code where it is not.
+ * One prefix per shelf; each row appends its ORDINAL, never its asset id.
  *
- * An asset carries its own currency and a project carries its own (PRD §72), so a vault-wide
- * catalogue is legitimately mixed — the row hard-coded `€` and reported the wrong currency for
- * anything else, which is a lie about a number rather than a cosmetic slip. `CHF` has no symbol
- * in common use and `$` is ambiguous across several currencies, so both print their code; a
- * promoted component resolves this through the locale rather than through a table this size.
+ * `AssetFrontmatterSchemaV1` validates an id with `z.string().min(1)` alone, so a hand-authored
+ * one may hold whitespace — and `aria-describedby` is a whitespace-separated IDREF LIST, so an
+ * id spelled `wall tile` becomes two references (`…-wall` and `tile`) against one element whose
+ * literal id contains the space. Neither resolves, and the row loses the description silently:
+ * an invalid reference is not an error anywhere, it is simply nothing. The ordinal is unique
+ * within this shelf and `useId()` is unique across shelves and across both Vue apps, so the
+ * pair is unique without reading a value the user controls. Reported by a review bot.
  */
-const SYMBOLS: Readonly<Record<string, string>> = { EUR: '€', GBP: '£' };
-const price = (asset: CatalogueAsset): string => {
-	const symbol = SYMBOLS[asset.currency];
-	return symbol === undefined ? `${asset.unitCost} ${asset.currency}` : `${symbol}${asset.unitCost}`;
-};
+const markId = useId();
 </script>
 
 <template>
@@ -141,8 +138,9 @@ const price = (asset: CatalogueAsset): string => {
 			class="rp-al-rows"
 		>
 			<li
-				v-for="asset in assets"
+				v-for="(asset, row) in assets"
 				:key="asset.id"
+				class="rp-al-rows__item"
 			>
 				<button
 					type="button"
@@ -153,29 +151,29 @@ const price = (asset: CatalogueAsset): string => {
 						'rp-al-row--categorised': showCategory,
 					}"
 					:aria-current="asset.id === selectedId ? 'true' : undefined"
-					:aria-describedby="`${markId}-${asset.id}`"
+					:aria-describedby="`${markId}-${row}`"
 					@click="$emit('select', asset.id)"
 				>
 					<AssetMark
 						:asset="asset"
 						:selected="asset.id === selectedId"
 					/>
-					<span
-						:id="`${markId}-${asset.id}`"
-						class="rp-al-row__mark-words"
-					>{{ spokenMarkFor(asset) }}</span>
 					<span class="rp-al-row__name">{{ asset.name }}</span>
 					<span
 						v-if="showCategory"
 						class="rp-al-row__category"
 					>{{ asset.category }}</span>
 					<span class="rp-al-row__cost">
-						<span class="rp-al-row__amount">{{ price(asset) }}</span>
+						<span class="rp-al-row__amount">{{ priceOf(asset) }}</span>
 						<span class="rp-al-row__unit"> / {{ asset.unit }}</span>
 					</span>
 					<span class="rp-al-row__waste">{{ asset.waste ?? '' }}</span>
 					<span class="rp-al-row__supplier">{{ asset.supplier ?? '' }}</span>
 				</button>
+				<span
+					:id="`${markId}-${row}`"
+					class="rp-al-row__mark-words"
+				>{{ spokenMarkFor(asset) }}</span>
 			</li>
 		</ul>
 	</section>
@@ -297,6 +295,11 @@ const price = (asset: CatalogueAsset): string => {
 	list-style: none;
 }
 
+/* The row item positions its own hidden description, which is absolute and outside the button. */
+.rp-al-rows__item {
+	position: relative;
+}
+
 /*
  * The row. A GRID rather than a flex row, for the reason `project-detail.css` records paying
  * for twice: with a flexible name beside two or three `auto` items, the slack lands wherever
@@ -326,9 +329,17 @@ const price = (asset: CatalogueAsset): string => {
 /*
  * Visually hidden and still announced — the standard clip rectangle rather than `display: none`
  * or `visibility: hidden`, both of which take the text out of the accessibility tree with the
- * pixels. `aria-describedby` rather than a plain descendant: a text node inside the button JOINS
- * its accessible name, and this one precedes the asset's name in DOM order, so rows announced
- * "Measured footprint, 1200 × 190 mm Oak plank floor". The description follows the name instead.
+ * pixels.
+ *
+ * It sits OUTSIDE the row button, and that is the second half of a fix whose first half read as
+ * the whole of one. `aria-describedby` was added because a text node inside the button JOINS its
+ * accessible name, and this one precedes the asset's name in DOM order, so rows announced
+ * "Measured footprint, 1200 × 190 mm Oak plank floor". But a description does not EXCLUDE a
+ * descendant from name-from-content: with the span still inside, the row kept the mangled name
+ * and gained the same sentence again as its description. Only moving the element out of the
+ * button separates the two. **A relationship added is not a relationship subtracted**, and the
+ * first fix was measured against the sentence it added rather than against the one it left.
+ * Reported by a review bot, twice, one round apart.
  */
 .rp-al-row__mark-words {
 	position: absolute;

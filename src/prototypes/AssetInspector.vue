@@ -27,6 +27,7 @@
 import { computed } from 'vue';
 import { ASSETS, type CatalogueAsset } from './assetLibraryFixture';
 import { shapeAnswered, shapeClearance, shapeDimensions, shapeNotes } from './assetShapeFields';
+import { priceOf } from './assetPrice';
 
 /**
  * Defaulted for the same reason `AssetShelf.vue` is: the harness index mounts an entry bare, and
@@ -61,14 +62,8 @@ const clearance = computed(() => shapeClearance(props.asset));
 const answered = computed(() => shapeAnswered(props.asset));
 const shapeWarnings = computed(() => shapeNotes(props.asset));
 
-const SYMBOLS: Readonly<Record<string, string>> = { EUR: '€', GBP: '£' };
-/** The row's rule, stated once more here rather than shared: see `AssetShelf.vue`'s own note. */
-const price = computed((): string => {
-	const asset = props.asset;
-	if (asset === null) return '';
-	const symbol = SYMBOLS[asset.currency];
-	return symbol === undefined ? `${asset.unitCost} ${asset.currency}` : `${symbol}${asset.unitCost}`;
-});
+/** The row's rule, SHARED with it now rather than written out a second time — `assetPrice.ts`. */
+const price = computed((): string => (props.asset === null ? '' : priceOf(props.asset)));
 defineEmits<{ back: [] }>();
 
 /**

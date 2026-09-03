@@ -1611,9 +1611,13 @@ So promoting the loser after a command delete resurrects a catalogue entry whose
 - [ ] **Step 2: Write the failing test for the semantics you chose** — and if promotion is right for a door, assert against what a full `rebuildIndex()` produces rather than a hard-coded path. If promotion is WRONG for the command door, the test asserts the loser stays excluded and says why.
 - [ ] **Step 3: Run it and watch it fail at the assertion.**
 - [ ] **Step 4: Decide the owner and implement it.** Both shapes are legitimate and the choice is the task: an index observer the pipeline registers, or a promotion service both `trashNoteBackedEntity` and `processPath` call. Whichever is chosen, write down at the code why the other was not.
-- [ ] **Step 3b: Cover the rollback door too** — a winner whose `alsoRemove` refuses, restored, with the displaced promoted loser asserted back in `listExclusions()` as `duplicate-id`. Watch it fail against today's raw `index.upsert`.
-- [ ] **Step 4: Prove BOTH doors still promote** — the out-of-band one Task 2 already covers, and the command one this task adds. A fix that moves promotion to the repository and loses the vault-event path is the partial fix this repository keeps paying for.
-- [ ] **Step 5: `npm run check`, then commit.**
+- [ ] **Step 5: Cover the rollback door too** — a winner whose `alsoRemove` refuses, restored, with the displaced promoted loser asserted back in `listExclusions()` as `duplicate-id`. Watch it fail against today's raw `index.upsert`.
+- [ ] **Step 6: Prove each door does what Step 1 DECIDED — which is not the same as proving both promote.**
+
+  This step said "prove BOTH doors still promote", unconditionally, directly beneath the passage arguing that the command door probably must NOT. An implementer choosing the documented non-promotion semantics could not satisfy both instructions, and the way out of that contradiction is to restore the destructive resurrection Step 1 exists to prevent — a plan instructing someone to reintroduce the defect it opens by describing. Reported by a review bot; corrected in place rather than deleted, because a step that quietly stops being wrong teaches the next reader nothing.
+
+  So: the OUT-OF-BAND door promotes, which Task 2 already covers and this step re-asserts, because a fix that moves promotion to the repository and loses the vault-event path is the partial fix this repository keeps paying for. The COMMAND door is asserted to do whatever Step 1 decided, with the assertion naming the decision. If Step 1 chose non-promotion, this step's command case is the INVERSE — the loser stays excluded — and it is the more important of the two to watch fail, since a build that starts promoting there resurrects an entry whose geometry, requirements and price overrides the user was walked through a dialog to destroy.
+- [ ] **Step 7: `npm run check`, then commit.**
 
 ---
 

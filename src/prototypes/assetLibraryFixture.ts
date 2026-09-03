@@ -322,6 +322,18 @@ export function markPath(outline: readonly Point[], size: number, inset: number)
 	const width = Math.max(...xs) - minX;
 	const depth = Math.max(...ys) - minY;
 	const span = size - inset * 2;
+	// **Both ends of the extent, and the existing guard only caught one.** A zero extent makes
+	// the scale `Infinity`, which `Number.isFinite` refuses below. An OVERFLOWING one — finite
+	// vertices spanning `-1e308` to `1e308`, which `validateAssetShape` accepts whenever the
+	// shoelace sum stays finite — makes `width` infinite and the scale exactly `0`, which is
+	// perfectly finite: `Infinity * 0` is then `NaN`, every coordinate is `NaN`, and the path
+	// string is malformed, so a MEASURED asset drew no mark at all. Guarding the extent rather
+	// than the scale catches both, because it asks about the input rather than about one
+	// arithmetic consequence of it. Reported by a review bot, in the same round the spec added
+	// its own extent-overflow state — the mock cannot draw that state (a fixture sets
+	// `ShapeState` by hand rather than deriving it), so returning nothing here is the honest
+	// stand-in and §3.5 is where the real row's answer lives.
+	if (!Number.isFinite(width) || !Number.isFinite(depth)) return '';
 	const scales = [width > 0 ? span / width : Infinity, depth > 0 ? span / depth : Infinity];
 	const scale = Math.min(...scales);
 	if (!Number.isFinite(scale)) return '';

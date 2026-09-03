@@ -17,8 +17,16 @@ export function shapeDimensions(asset: CatalogueAsset | null): string | null {
 	if (!outline) return null;
 	const xs = outline.map((point) => point.x);
 	const ys = outline.map((point) => point.y);
-	const width = Math.round(Math.max(...xs) - Math.min(...xs));
-	const depth = Math.round(Math.max(...ys) - Math.min(...ys));
+	// NOT `Math.round`, which was here and which turns a measurement into a different one:
+	// a traced or calibrated outline has fractional extents, so `1200.4 × 189.6` was reported as
+	// `1200 × 190`, and anything under half a millimetre was reported as `0 mm` — an extent that
+	// cannot be zero, printed as zero. Three decimals is this repository's own figure for
+	// distinguishing a real value from float noise (`594.005` survives; `594.0000001` does not),
+	// and `Number(...)` drops the trailing zeros so the ordinary whole-millimetre case still
+	// reads `1200 × 190`. The Asset designer shows its derived dimensions unrounded; this row is
+	// the same measurement and had been quietly disagreeing with it.
+	const width = Number((Math.max(...xs) - Math.min(...xs)).toFixed(3));
+	const depth = Number((Math.max(...ys) - Math.min(...ys)).toFixed(3));
 	// The unit is WITHHELD while this group's capture is pending, exactly as the clearance's is.
 	// The reported defect was the clearance's; the footprint had it too, one row up, and fixing
 	// only the row in the report is how a partial fix ends up reading like a complete one.

@@ -4,6 +4,8 @@ import { mount, type VueWrapper } from '@vue/test-utils';
 import AssetLibrary from '../../src/prototypes/AssetLibrary.vue';
 import type * as FixtureModuleNs from '../../src/prototypes/assetLibraryFixture';
 import { settle } from '../helpers/editor';
+import { ASSETS, markPath } from '../../src/prototypes/assetLibraryFixture';
+import { shapeDimensions } from '../../src/prototypes/assetShapeFields';
 
 type FixtureModule = typeof FixtureModuleNs;
 
@@ -51,6 +53,40 @@ const searchInput = (wrapper: VueWrapper): Element | null =>
 function mountLibrary(): VueWrapper {
 	return mount(AssetLibrary, { attachTo: document.body });
 }
+
+describe('the asset library mock’s derived geometry', () => {
+	it('fits a mark without emitting NaN for an overflowing extent', () => {
+		// Finite vertices, an infinite SPAN: `validateAssetShape` accepts this whenever the
+		// shoelace sum stays finite, and the scale it produces is `0` rather than `Infinity`,
+		// so the guard that catches a degenerate extent passes it straight through. Watched
+		// failing: without the extent guard this returns a path of `NaN` coordinates.
+		const overflowing = [
+			{ x: -1e308, y: 0 },
+			{ x: 1e308, y: 0 },
+			{ x: 1e308, y: 1e-300 },
+			{ x: -1e308, y: 1e-300 },
+		];
+		const path = markPath(overflowing, 20, 2);
+		expect(path).not.toMatch(/NaN/);
+		expect(path).toBe('');
+	});
+
+	it('keeps a fractional extent out of the whole-millimetre trap', () => {
+		const asset = { ...ASSETS[0], outline: [
+			{ x: 0, y: 0 }, { x: 1200.4, y: 0 }, { x: 1200.4, y: 189.6 }, { x: 0, y: 189.6 },
+		] };
+		expect(shapeDimensions(asset)).toBe('1200.4 × 189.6 mm');
+
+		// The half-millimetre footprint `Math.round` reported as `0 mm`.
+		const tiny = { ...asset, outline: [
+			{ x: 0, y: 0 }, { x: 0.4, y: 0 }, { x: 0.4, y: 0.4 }, { x: 0, y: 0.4 },
+		] };
+		expect(shapeDimensions(tiny)).toBe('0.4 × 0.4 mm');
+
+		// And the ordinary whole-millimetre case still reads as whole millimetres.
+		expect(shapeDimensions(ASSETS[0])).toMatch(/^\d+ × \d+ mm$/);
+	});
+});
 
 describe('the asset library mock’s focus chain', () => {
 	it('falls back to the search field when the primary target is not laid out', async () => {

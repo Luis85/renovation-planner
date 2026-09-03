@@ -2010,6 +2010,31 @@ rule was written as though one list existed.
 nothing is selected, missing from an inventory that calls itself exhaustive. Third key found
 missing there; §8's own note about being the section most exposed to drift keeps earning itself.
 
+A twenty-seventh round found two, both arithmetic in the mock, and both watched failing against
+their mutations before the fix landed.
+
+**A guard on one arithmetic consequence instead of on the input.** `markPath` refused a scale of
+`Infinity` — the degenerate, zero-extent case — and an OVERFLOWING extent produces a scale of
+exactly `0`, which is perfectly finite: `Infinity * 0` is `NaN`, every coordinate is `NaN`, the
+path string is malformed, and a **measured** asset drew no mark at all. The guard asks about the
+extent now rather than about the scale, which catches both ends because it asks about the input.
+Reachable rather than theoretical: `validateAssetShape` accepts finite vertices spanning `-1e308`
+to `1e308` whenever the shoelace sum stays finite, which is the same case §3.5 had just gained an
+extent-overflow state for.
+
+**And `Math.round` was turning a measurement into a different measurement.** A traced or
+calibrated outline has fractional extents, so `1200.4 × 189.6` was reported as `1200 × 190`, and
+anything under half a millimetre as **`0 mm`** — an extent that cannot be zero, printed as zero.
+Three decimals now, which is this repository's own figure for telling a real value from float
+noise, with `Number(...)` dropping trailing zeros so the ordinary case still reads `1200 × 190`.
+The Asset designer shows its derived dimensions unrounded; this row is the same measurement and
+had been quietly disagreeing with it.
+
+**Both are in `assetShapeFields.ts` and `markPath` — the two places the mock does arithmetic** —
+and neither was reachable through any fixture, capture or gate here. They are pinned now by the
+same test file the focus chain got, for the same reason: the argument that a derivation is
+correct is not a test of it.
+
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's
 shapes rather than a fixture's — and nothing in it commits an edit, because the inspector's

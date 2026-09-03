@@ -1284,9 +1284,12 @@ MSG
 
 ## Task 7: The override adapters' undo announces the cost it moved
 
-> **DONE** — commit `715c817`, gate exit 0 (5305 passed, 99.35/99.09/99.55/98.22).
-> Mutation check on the third case confirmed red without the equality guard. Review pending.
-> Start at Task 8.
+> **DONE** — commits `715c817` + `8a19ca3` (one fix round). Review found the implementation
+> added a live read in `undo()` purely to build `previous`, bringing three unreached units and
+> a comment asserting an untested invariant; Codex independently reached the same remedy from
+> the behavioural side (the read GATED the undo, and could escape as an unhandled rejection).
+> The fix DELETES the read and captures the written cost at execute time. Re-review pending.
+> Start at Task 9.
 
 **Files:**
 - Modify: `src/application/commands/requirement/reversible-override-commands.ts`
@@ -1400,6 +1403,11 @@ MSG
 ---
 
 ## Task 8: The delete resolution announces per referent it touched
+
+> **DONE** — commit `54e7770`, gate green on the combined tree (5312 passed,
+> 99.36/99.09/99.55/98.27). Line-budget overflow cleared by extracting
+> `requirementResolutionSteps.test.ts` along a step-builder/engine seam. Review pending.
+> Start at Task 9.
 
 **The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
 contract rather than a call to something already there.** Grep-verified across `src/` and

@@ -1059,6 +1059,18 @@ following it would have implemented the stale rule while the plan beside it said
 copy** rather than a second rule invented here: pick the contender the next full rebuild would
 pick. Otherwise an incremental promotion and a reload disagree about which note IS the asset.
 
+**Promotion is reached by the VAULT's delete event, and a COMMAND-driven delete does not reach
+it — a known residue rather than a claim of coverage.** `trashNoteBackedEntity` awaits
+`trashFile` and calls `index.remove(id)` *after* it, so a duplicate winner deleted through the
+plugin either has its promotion undone by that removal or never triggers one, and the surviving
+note stays unindexed until a full rebuild. Out-of-band resolution — editing the loser's id, or
+deleting either note in the file explorer — works, and those are the routes a user actually has,
+because a `duplicate-id` loser is not in the index and cannot be selected in the app at all.
+Closing it is a decision about who owns *"an id was vacated"*: promotion needs the vault and the
+metadata cache, and `ProjectIndex` is a pure port with neither, so it wants an observer on the
+index or a promotion service both removers call. Written down here rather than left to be
+rediscovered, because the surface this specification describes is what makes the gap visible.
+
 **And the ARRIVING duplicate has to demote the winner it displaces, in the same step.** That is
 the opposite transition and the rule above does not reach it: `applyUpsert` is keyed by id, so a
 second note declaring an id the index already holds REPLACES the entry — the previous winner's

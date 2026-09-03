@@ -1518,6 +1518,35 @@ git add -A && git commit -m "feat: harness, axe cases and captures for the asset
 
 ---
 
+### Task 18: Promotion survives a command-driven delete
+
+**Added mid-execution, by ruling, after Task 2's review.** It is last because it is a decision about who owns *"an id was vacated"* rather than a defect in Task 2 — and because the asset library's repair strip is what makes it observable end to end, so it wants the surface to exist first.
+
+**Spec:** §5.1a's promotion rule, lines 1021–1040.
+
+**Files:**
+- Modify: `src/infrastructure/obsidian/repositories/noteEntityWrite.ts`, `src/application/ports/ProjectIndex.ts`, `src/infrastructure/persistence/index/VaultChangeAdapter.ts`
+- Test: `tests/infrastructure/persistence/index/excludedNotes.test.ts`, plus a case driving `DeleteAssetCommand` end to end
+
+**The defect, measured rather than described.** `trashNoteBackedEntity` awaits `trashFile` at `noteEntityWrite.ts:228` and calls `deps.index.remove(id)` at line 261, after it and after any `alsoRemove` compensation. So for a duplicate winner deleted through a COMMAND rather than out of band, both orderings lose:
+
+- the vault's delete event is handled during `trashFile` → `promoteContender` runs, and line 261 then removes that same id, deleting the entry just promoted;
+- the event arrives after line 261 → `processPath` finds no vacated entry and never reaches promotion.
+
+Either way the surviving note stays unindexed until a full rebuild. **Every promotion case in Task 2's suite drives the out-of-band doors**, so the feature is proven for the case the tests cover and broken for the ordinary in-app delete.
+
+**Why it is not a fix round in Task 2**, in the implementer's own reading, which I accept: routing promotion from the repository's delete path opens a new seam between `noteEntityWrite` and behaviour that lives in the vault-change pipeline; and putting it inside `index.remove` — the *one question, one function* shape this repository prefers — **cannot be done in `InMemoryProjectIndex` at all**, because promotion needs the vault and the metadata cache and `ProjectIndex` is a pure port with neither. It needs an observer on the index, or a promotion service both removers call. That is an ownership decision, not an edit.
+
+**What the residue costs while it stands, stated so it is not read as covered.** A user resolving an id collision by deleting the visible asset through the plugin does not see the survivor appear until a reload. Out-of-band resolution — editing the loser's id, or deleting either note in the file explorer — works today, and those are the routes a user reaching two colliding notes most often takes, because a duplicate-id loser is not in the index and cannot be selected in the app at all. Bounded by a reload, which is the bound every other index fact already lives under.
+
+- [ ] **Step 1: Write the failing test** — delete a duplicate winner through `DeleteAssetCommand` and assert the loser is promoted, comparing against what a full `rebuildIndex()` produces rather than against a hard-coded path.
+- [ ] **Step 2: Run it and watch it fail at the assertion.**
+- [ ] **Step 3: Decide the owner and implement it.** Both shapes are legitimate and the choice is the task: an index observer the pipeline registers, or a promotion service both `trashNoteBackedEntity` and `processPath` call. Whichever is chosen, write down at the code why the other was not.
+- [ ] **Step 4: Prove BOTH doors still promote** — the out-of-band one Task 2 already covers, and the command one this task adds. A fix that moves promotion to the repository and loses the vault-event path is the partial fix this repository keeps paying for.
+- [ ] **Step 5: `npm run check`, then commit.**
+
+---
+
 ## Self-review
 
 **Spec coverage.** §1 and §1a are context. §2 → Task 11. §2a → the §11.9 ruling plus the negative rule bound into every task. §3.1/§3.6/§4/§6.1 → Task 13. §3.2/§3.3/§3.4 → Task 12. §3.5 → Task 14. §5.1 → Task 5. §5.1a → Tasks 1, 2, 3. §5.2 → Task 14's snapshot rule. §5.3 → Task 6. §5.4 → Task 7. §5.5 → Task 10. §6.2/§6.3 → Tasks 11 and 16. §7 → Tasks 15 and 16. §8 → Task 8. §9 → Tasks 12, 15, 17. §10 is anti-goals — nothing to build, and each is a thing no task may add. §11 → the rulings table. §12 → Task 17.

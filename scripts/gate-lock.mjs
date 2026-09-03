@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
@@ -54,6 +54,19 @@ const STALE_MS = 20 * 60 * 1000;
 
 const POLL_MS = 2000;
 
+/**
+ * Who holds the lock, and the file that says so.
+ *
+ * A release used to be "remove whatever is at `LOCK`", which is a claim about a PATH rather
+ * than about a HOLD — and the two come apart in exactly the window `reclaimIfStale` names
+ * below: a waiter can move our lock aside while we run, a third process can then claim the
+ * path, and our release would delete THAT process's lock. The nonce makes the release say
+ * what it means: remove the lock only while it is still the one we took.
+ */
+const HOLDER = path.join(LOCK, "holder");
+
+const NONCE = `${process.pid} ${Date.now()} ${Math.random().toString(36).slice(2)}\n`;
+
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
 /** Whether `target`'s mtime has not moved in `STALE_MS`. A path that is gone is not stale. */
@@ -65,44 +78,93 @@ const isStale = (target) => {
 	}
 };
 
-/** Return a lock we moved aside but should not have, or drop it if the path is taken again. */
-const putBack = (aside) => {
+/**
+ * Return a live lock we should not have moved, without ever leaving the path free.
+ *
+ * `renameSync` replaces an existing EMPTY directory atomically — measured on this platform,
+ * not assumed — so while our placeholder is still standing the lock goes back and the path
+ * is never once unoccupied. Windows cannot rename onto an existing directory at all, so
+ * there the placeholder is removed first; that directory is OURS rather than a holder's, so
+ * removing it takes nobody's lock, and the gap it opens is the residue named below.
+ *
+ * `occupied` is false only when a third process claimed the path in the instant between our
+ * two calls. Then `LOCK` is somebody's real lock and must not be touched, so the live lock
+ * we are holding has nowhere to go and is dropped — which is safe rather than merely
+ * unavoidable, because a release checks its own nonce and so cannot delete the claimant's.
+ */
+const putBack = (aside, occupied) => {
 	try {
 		renameSync(aside, LOCK);
+		return;
 	} catch {
-		rmSync(aside, { recursive: true, force: true });
+		// Windows, or a placeholder we never got. Both are decided by `occupied` below.
+	}
+
+	if (occupied) {
+		rmSync(LOCK, { recursive: true, force: true });
+
+		try {
+			renameSync(aside, LOCK);
+			return;
+		} catch {
+			// Claimed inside the gap this branch exists to admit.
+		}
+	}
+
+	rmSync(aside, { recursive: true, force: true });
+};
+
+/**
+ * Take the path the instant it is free, so the validation below never runs over a claimable
+ * lock. Answers whether the placeholder is OURS: the one thing that can beat us here is
+ * another process's real claim, which must then be left alone.
+ *
+ * Its own function rather than an inline `try`, for the reason the last round of this file
+ * already paid once: `scripts/` sits outside the coverage include, so fallow scores every
+ * function here as 0% covered and a cyclomatic 5 lands exactly on the CRAP threshold.
+ */
+const occupy = () => {
+	try {
+		mkdirSync(LOCK);
+
+		return true;
+	} catch {
+		return false;
 	}
 };
 
 /**
- * Reclaim a lock whose holder is gone — WITHOUT ever unlinking a live one.
+ * Reclaim a lock whose holder is gone — without unlinking a live one, and without leaving
+ * the path free while we work out which we took. Answers whether the lock is now OURS.
  *
- * The first version read `stat(LOCK)` and then `rm(LOCK)`, and its comment called the gap
+ * The first version read `stat(LOCK)` then `rm(LOCK)`, and its comment called the gap
  * between them harmless. It is not, and a review bot said so: if the stale holder releases
  * after the `stat` and a new process claims the path before the `rm`, that `rm` deletes the
- * NEW holder's lock, and the next poller then acquires a path someone is still working
- * under — two gates overlapping, which is the one thing this file exists to prevent. The
- * "harmless" the old comment described is a DIFFERENT race (two waiters both reclaiming one
- * dead lock), which is the shape its author had in mind.
+ * NEW holder's lock. The "harmless" the old comment described is a DIFFERENT race (two
+ * waiters both reclaiming one dead lock), which is the shape its author had in mind.
  *
- * The rule that closes it: **decide staleness on the directory you already hold, not on the
- * path you are about to delete.** `renameSync` is the arbitration — atomic, so exactly one
- * waiter can move a given directory and every other one fails — and it carries the mtime
- * with it, so the SAME question asked of `aside` is being asked of a directory nothing can
- * swap out from under us. A replacement lock is by construction freshly made, so it answers
- * "not stale" and goes back where it came from.
+ * The first rule that closes it: **decide staleness on the directory you already hold, not
+ * on the path you are about to delete.** `renameSync` is the arbitration — atomic, so
+ * exactly one waiter can move a given directory and every other one fails — and it carries
+ * the mtime with it, so the same question is re-asked of something nothing can swap out.
  *
- * TWO RESIDUES, named rather than implied. Between our `rename` and `putBack`'s `rename`
- * the path is briefly free, so a third process can claim it — and then the lock we moved
- * aside is dropped, which is the overlap above with a far narrower window rather than none.
- * Closing that needs an atomic conditional rename, which the platform does not offer. And a
- * holder that genuinely runs longer than `STALE_MS` is stale by this definition and can be
- * reclaimed while alive; the bound is twenty minutes against a gate measured at three, and
- * the obvious remedy — a holder that touches its own lock on a timer — cannot work here,
- * because `spawnSync` blocks the event loop for the whole of the run it is timing.
+ * The second rule cost another review round, because the first one alone was not enough:
+ * **validation may not run over a free path.** Moving the lock aside and only then judging
+ * it left `LOCK` claimable for the length of a `stat`, so a third process could take it
+ * while a live lock sat in our hands — the reported race rebuilt one step further along,
+ * with a put-back that then failed and dropped somebody's live lock. So the placeholder
+ * goes up in the statement after the rename, and every decision below is made behind it.
+ *
+ * TWO RESIDUES, named rather than implied. A third process can still claim the path in the
+ * instant between the `rename` and the `mkdir`, which is two syscalls with nothing between
+ * them rather than a `stat` — and its consequence is now bounded by the holder nonce rather
+ * than by luck. And a holder that genuinely runs longer than `STALE_MS` is stale by this
+ * definition and can be reclaimed while alive; the bound is twenty minutes against a gate
+ * measured at three, and the obvious remedy — a holder touching its own lock on a timer —
+ * cannot work here, because `spawnSync` blocks the event loop for the whole run it times.
  */
 const reclaimIfStale = () => {
-	if (!isStale(LOCK)) return;
+	if (!isStale(LOCK)) return false;
 
 	const aside = `${LOCK}.reclaim-${process.pid}`;
 
@@ -110,29 +172,60 @@ const reclaimIfStale = () => {
 		renameSync(LOCK, aside);
 	} catch {
 		// Released, or another waiter moved it first. Either way it is no longer ours to judge.
-		return;
+		return false;
 	}
 
-	if (isStale(aside)) rmSync(aside, { recursive: true, force: true });
-	else putBack(aside);
+	// Occupy the path before judging what we took. Everything below is validation, and a
+	// validation performed over a free path is what turns a put-back into an overlap.
+	const occupied = occupy();
+
+	if (isStale(aside)) {
+		rmSync(aside, { recursive: true, force: true });
+		return occupied;
+	}
+
+	putBack(aside, occupied);
+
+	return false;
 };
 
 /** Whether the lock is ours now. Answers false rather than throwing, so the caller polls. */
 const claim = () => {
 	try {
 		mkdirSync(LOCK);
-		writeFileSync(path.join(LOCK, "holder"), `${process.pid}\n`);
-		return true;
 	} catch (error) {
 		if (error.code !== "EEXIST") throw error;
 
-		reclaimIfStale();
-
-		return false;
+		// A reclaim that succeeded leaves us holding the placeholder it put up, so the claim
+		// is finished by writing the nonce below rather than by waiting for the next poll.
+		if (!reclaimIfStale()) return false;
 	}
+
+	writeFileSync(HOLDER, NONCE);
+
+	return true;
 };
 
-const release = () => rmSync(LOCK, { recursive: true, force: true });
+/**
+ * Drop the lock — but only while it is still the one we took.
+ *
+ * An unconditional `rm` here is a claim about a PATH, and this script's whole subject is
+ * that a path and a hold are different things. A waiter reclaiming inside the window
+ * `reclaimIfStale` names can leave us running with our lock moved aside and somebody else
+ * legitimately holding `LOCK`; removing it then would hand a third gate the path while that
+ * holder still ran, which is the reported defect one step further on. Reading the nonce
+ * first makes that case a no-op instead.
+ */
+const release = () => {
+	try {
+		if (readFileSync(HOLDER, "utf8") !== NONCE) return;
+	} catch {
+		// Already gone, or a placeholder mid-reclaim. Neither is ours to remove.
+		return;
+	}
+
+	rmSync(LOCK, { recursive: true, force: true });
+};
 
 /**
  * Whether this command has to go through a shell — on Windows, and only there.

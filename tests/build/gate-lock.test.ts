@@ -1,5 +1,15 @@
 import { spawn, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, utimesSync } from 'node:fs';
+import {
+	existsSync,
+	mkdirSync,
+	mkdtempSync,
+	readFileSync,
+	readdirSync,
+	renameSync,
+	rmSync,
+	utimesSync,
+	writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -225,6 +235,84 @@ describe('the queued gate', () => {
 				resolve();
 			});
 		});
+	});
+
+	/**
+	 * The platform primitive the put-back rests on, measured rather than assumed.
+	 *
+	 * A review bot's second round found the fix for its first was the same race one step on:
+	 * `reclaimIfStale` moved the lock aside and only THEN judged it, so `LOCK` sat claimable
+	 * while a live lock was in the reclaimer's hands. The close is to occupy the path with an
+	 * empty placeholder and put the lock back ON TOP of it — which is only atomic because
+	 * `rename` replaces an existing EMPTY directory in one step. That is a libuv/POSIX fact
+	 * this repository has no business assuming, and if it ever stops holding the put-back
+	 * degrades to the windowed path in silence, with every other case here still green.
+	 *
+	 * POSIX only, and the skip is the finding rather than an omission: Windows `MoveFileEx`
+	 * cannot rename onto an existing directory at all, which is why `putBack` carries a
+	 * remove-then-retry arm and why the residue it names is platform-shaped.
+	 *
+	 * What this case does NOT reach, said plainly because the case it replaced pretended
+	 * otherwise: the interleaving itself. Exposing it needs a holder to release between two
+	 * adjacent syscalls in another process, which no test here can drive — a two-waiter race
+	 * was tried and passed against BOTH the un-occupied and the un-arbitrated build, so it
+	 * certified the gap rather than closing it. The holder nonce below is what actually
+	 * bounds the consequence, and that one is mutation-checked.
+	 */
+	it.skipIf(process.platform === 'win32')('can put a lock back atomically, over its own placeholder', () => {
+		const aside = path.join(workspace, 'primitive.aside');
+		const target = path.join(workspace, 'primitive.lock');
+
+		mkdirSync(aside);
+		writeFileSync(path.join(aside, 'holder'), 'live holder\n');
+		mkdirSync(target);
+
+		renameSync(aside, target);
+
+		expect(existsSync(aside)).toBe(false);
+		expect(readFileSync(path.join(target, 'holder'), 'utf8')).toBe('live holder\n');
+
+		rmSync(target, { recursive: true, force: true });
+	});
+
+	/**
+	 * A release removes the lock only while it is still the one this process took.
+	 *
+	 * The residue above is bounded rather than eliminated — a third process can still claim
+	 * the path in the instant between the reclaim's `rename` and its `mkdir` — and this is
+	 * what bounds it. An unconditional `rm` in `release` is a claim about a PATH, so a holder
+	 * whose lock had been moved aside would delete whatever stood there instead: the next
+	 * holder's, handing a fourth gate a path somebody was still working under.
+	 *
+	 * Driven by rewriting the holder file under a running gate, which is what that window
+	 * looks like from the holder's side. Mutation-checked: an unconditional `rmSync(LOCK)`
+	 * turns this red at the assertion below.
+	 */
+	it('does not remove a lock that stopped being its own', async () => {
+		lock = path.join(workspace, 'stolen.lock');
+
+		const holder = spawn(process.execPath, [SCRIPT, process.execPath, ...marker('H', 1500)], {
+			env: { ...process.env, RP_GATE_LOCK: lock, RP_LOG: path.join(workspace, 'stolen.log') },
+			stdio: 'ignore',
+		});
+
+		// Long enough that the claim has certainly written its own nonce, and well inside the
+		// hold above — this has to land while the gate is running, not around it.
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 500);
+		});
+
+		expect(existsSync(path.join(lock, 'holder')), 'the gate never claimed the lock').toBe(true);
+
+		writeFileSync(path.join(lock, 'holder'), 'someone else\n');
+
+		await new Promise<void>((resolve) => {
+			holder.on('exit', () => {
+				resolve();
+			});
+		});
+
+		expect(existsSync(lock), 'a holder deleted a lock that was no longer its own').toBe(true);
 	});
 
 	/**

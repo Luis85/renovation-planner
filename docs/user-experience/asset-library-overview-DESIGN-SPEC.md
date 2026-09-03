@@ -908,6 +908,22 @@ announces them like any other change. The null arm is not a gap: a note with no 
 be SELECTED, because nothing can name it — it can only be counted and listed, and its path is what
 `Open note` needs regardless.
 
+**A duplicate-id loser is excluded RELATIVE to a winner, so losing the winner has to re-open the
+question — and ordinary add/remove treatment cannot do it.** `collectNotes` is last-writer-wins
+over an id-keyed map, and `VaultChangeAdapter` processes the path that changed and no other. So
+when the indexed winner is deleted, or edited to declare a different id, the loser's own file is
+untouched, no event names it, and a note that is now the ONLY claimant of that id stays classified
+`duplicate-id` and absent from the catalogue — until a full rebuild, which happens at layout-ready
+and on a settings save and nowhere else. The user resolves the collision exactly as instructed and
+the asset does not come back.
+
+So **removing or re-identifying an entry re-evaluates the excluded contenders for that id**: if
+one remains, it is promoted to an index entry and its descriptor is dropped, and both changes
+announce like any other. This is the one place the incremental door may not stay path-local, and
+the reason is that `duplicate-id` is the only exclusion whose cause lives in a DIFFERENT file —
+`no-id` and `read-failed` are properties of the note itself, so re-checking the note that changed
+is sufficient for them and insufficient here.
+
 **Each descriptor carries WHY, and a path alone cannot say it.** Open a duplicate-id loser and
 its frontmatter looks entirely valid — the defect is the collision with another file, which is
 invisible from inside the note. `no-id` is diagnosable by eye; `read-failed` and `duplicate-id`
@@ -1080,6 +1096,15 @@ The contract, so a builder does not invent one:
   replaced**: the event is certain and prompt where the rule is inferential, and the rule reaches
   states that raise no event at all. Both, not either. Reported by a review bot against the
   generalisation, one round after it was made.
+- **An asset's own `ProjectIndexEntryChanged` invalidates that id immediately too**, and it is
+  the arm that covers the ordinary out-of-band case rather than an exotic one. `AssetDeleted` is
+  raised by this plugin's own delete COMMAND; a note deleted and recreated in the file explorer,
+  or arriving through sync, reaches `VaultChangeAdapter`, and `applyRemove`/`applyUpsert` publish
+  `ProjectIndexEntryChanged` and nothing else — measured, not assumed: `announce` is that pair's
+  single publisher and it raises exactly one event type. So the previous rule's *"the event is
+  certain and prompt"* held only for deletions the plugin itself performed, which is not how an
+  asset note is most often removed. Filtered to `entityType === 'asset'`, per §5.4's existing
+  filter argument: unfiltered, a burst of synced zone notes would clear every mark on screen.
 - **An entry LEAVING the listing invalidates its mark**, which covers what no event announces. The cache is keyed by asset id, and an id here is
   `z.string().min(1)` in the note's own frontmatter — a user can delete an asset and create
   another carrying the same id, in the same view lifetime. The catalogue refresh then removes the
@@ -1141,8 +1166,9 @@ What differs per seam is only what makes two requests **the same request**:
   into loading and disabling `Delete` while somebody works next door. A geometry change cannot
   alter usage. **The unit of invalidation is the read, and the unit of restart is the gesture**,
   which are different questions and were being answered with one counter.
-- **`AssetDeleted` bumps both selection generations IMMEDIATELY**, and an applied listing that
-  removes or replaces the selected entry bumps them again; either way they restart if that id
+- **`AssetDeleted` and the selected asset's own `ProjectIndexEntryChanged` bump both selection
+  generations IMMEDIATELY**, and an applied listing that removes or replaces the selected entry
+  bumps them again; either way they restart if that id
   reappears. The id is not enough on its own: an asset deleted in another leaf and recreated
   under the SAME id leaves the selection unchanged, so neither counter moves and a pre-deletion
   answer still in flight lands as current — populating the replacement with the deleted asset's
@@ -1157,8 +1183,11 @@ What differs per seam is only what makes two requests **the same request**:
   the immediate `AssetDeleted` invalidation for the mark cache for exactly this reason, and the
   paragraph this replaces NAMED that remedy — *"the same gap one door over"* — and then took the
   weaker one beside it. **Citing the fix is not applying it**; the listing rule stays, because it
-  also covers an entry that leaves the listing without a delete event of ours (a note removed
-  outside the plugin, a sync), which the event cannot see. A selection starts TWO independent reads (`GetAssetDesign` and
+  also covers an entry that leaves the listing without any event at all. **`AssetDeleted` alone
+  was still the narrow half**, and naming that residue as *"a note removed outside the plugin, a
+  sync"* was naming the very case the index event already announces: `VaultChangeAdapter` raises
+  `ProjectIndexEntryChanged` for exactly those, so the honest remedy was a second event rather
+  than a backstop. Both events, then the listing rule. A selection starts TWO independent reads (`GetAssetDesign` and
   `ListRequirementsReferencing`, §3.5), and a counter bumped per read start makes the second
   invalidate the first: both answers are required, so the section holding the older ticket waits
   for a result that will now be discarded — **loading for ever, on the ordinary path**. That was
@@ -1422,9 +1451,15 @@ Binding target: **WCAG 2.2 AA**.
 - **Live region**: `role="status"` for the search result count.
 - **Targets**: rows and shelf headers at `--size-4-6` minimum, WCAG 2.5.8's 24px. The harness index
   shipped 19.5px rows once, found by photographing the page rather than by any gate.
-- **The mark is decorative to assistive technology** and its meaning is duplicated in words in the
+- **The mark's SVG is decorative to assistive technology and its MEANING is not.** The drawing is
+  `aria-hidden`; the state and the extent are carried in words on every ROW — a visually hidden
+  span outside the row button, referenced by `aria-describedby` (§3.4) — and again in the
   inspector. A drawn outline that is the only statement of a fact would be exactly the
-  colour-alone failure in a different medium.
+  colour-alone failure in a different medium, and *"duplicated in words in the inspector"* was
+  this bullet's previous wording: true, and reachable only AFTER a row is selected, so a builder
+  following this section alone would have rebuilt the browsing failure §3.4 exists to close.
+  Both halves of the row's rule matter and both are stated there: `aria-describedby` for the
+  reference, and the span OUTSIDE the button so it does not also join the row's accessible name.
 - **Contrast** against both Obsidian defaults, and legible degradation under a custom theme. Every
   colour is an Obsidian variable — the build refuses a literal, a bare `red` included.
 
@@ -2619,6 +2654,35 @@ a file that has nothing wrong with it. The descriptor carries the refusal's own 
 its source now, `null` for the two scan sources because the index raises no `AppError` at all,
 and the action is offered per row rather than for every row — §3.5's `unusable-id` rule, that an
 action which cannot work is worse than none, applied to the repair list.
+
+A forty-fifth round found three, and the first two are one shape: **`AssetDeleted` is raised by
+this plugin's own delete command, and it is not how an asset note is usually removed.**
+
+**The immediate per-id invalidation was keyed on the command's event alone.** A note deleted and
+recreated in the file explorer, or arriving through sync, reaches `VaultChangeAdapter` — whose
+`applyRemove`/`applyUpsert` publish `ProjectIndexEntryChanged` and nothing else, measured at
+`announce`, their single publisher. So the round before this one wrote *"the event is certain and
+prompt"* about an event the ordinary case never raises, and named the residue as *"a note removed
+outside the plugin, a sync"* — which is precisely the case the index event does announce. The
+honest remedy was a second event, not a backstop. The asset's own filtered
+`ProjectIndexEntryChanged` now invalidates the mark and bumps both selection generations beside
+`AssetDeleted`.
+
+**And a duplicate-id loser is excluded RELATIVE to a winner**, which ordinary add/remove treatment
+cannot express. Delete the winner, or edit it to declare a different id, and the loser's file is
+untouched: no event names it, so a note that is now the only claimant of that id stays classified
+`duplicate-id` and absent from the catalogue until a full rebuild. The user resolves the collision
+exactly as instructed and the asset does not come back. Removing or re-identifying an entry
+re-evaluates the excluded contenders for that id now — the one place the incremental door may not
+stay path-local, because `duplicate-id` is the only exclusion whose cause lives in a different
+file.
+
+**The third is this document's oldest defect class, in the section that grades it.** §9 still said
+the mark's meaning was *"duplicated in words in the inspector"* — true before §3.4 gained the
+row-level description, and reachable only after a row is selected, so a builder following §9 alone
+would have rebuilt the browsing failure §3.4 exists to close. Corrected around rather than
+corrected: the round that added the row description added it to §3.4 and did not re-read the
+section whose whole job is to state what assistive technology gets.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

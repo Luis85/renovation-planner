@@ -54,6 +54,41 @@ export interface CostEstimateChanged extends DomainEvent<'CostEstimateChanged'> 
 	};
 }
 
+/**
+ * This row no longer exists. Minted by the increment that made every undo announce, because
+ * the vocabulary had no member meaning it: `RequirementInvalidated` says a figure stopped
+ * being trustworthy, which is a different claim about a row that is still there.
+ *
+ * Published by `DeleteRequirementCommand` (the exposed removal, and `remove-references`
+ * resolves through it), by `ReversibleAssignAssetCommand.undo` (which deletes the
+ * requirement its own execute created) and by the delete resolutions' `remove-references`
+ * arm. Carries the project so a subscriber scoped to one project can filter.
+ */
+export interface RequirementDeleted extends DomainEvent<'RequirementDeleted'> {
+	readonly payload: RequirementEventPayload;
+}
+
+/**
+ * This row was written back from a snapshot — a restore, not a creation and not a
+ * recalculation.
+ *
+ * It exists because a restore can move NO figure at all: the `delete-anyway` arm marks a
+ * referent stale, and restoring the pre-state marks it current again without touching its
+ * cost, so `publishIfEffectiveCostChanged` is correctly silent and the status change would
+ * otherwise reach nobody. `RequirementInvalidated` is not the substitute — it claims a
+ * recalculation is OWED, which is the opposite of a restore to a `current` pre-state.
+ *
+ * Two publishers, and having two is what earned it its place rather than a fix needing
+ * something to name: `undoDeleteResolution` (a user's undo) and `recoverInterruptedSequences`
+ * (a crash recovery at load). Both compute the same split —
+ * `entry.outcome === 'written' ? entry.version : 'absent'` — so a `written` restore raises
+ * this and an `'absent'` one raises `RequirementCreated`: one rule covering both callers
+ * rather than two descriptions of one act.
+ */
+export interface RequirementRestored extends DomainEvent<'RequirementRestored'> {
+	readonly payload: RequirementEventPayload;
+}
+
 export function requirementCreated(payload: RequirementEventPayload): RequirementCreated {
 	return { type: 'RequirementCreated', payload };
 }
@@ -67,4 +102,10 @@ export function costEstimateChanged(
 	payload: CostEstimateChanged['payload'],
 ): CostEstimateChanged {
 	return { type: 'CostEstimateChanged', payload };
+}
+export function requirementDeleted(payload: RequirementEventPayload): RequirementDeleted {
+	return { type: 'RequirementDeleted', payload };
+}
+export function requirementRestored(payload: RequirementEventPayload): RequirementRestored {
+	return { type: 'RequirementRestored', payload };
 }

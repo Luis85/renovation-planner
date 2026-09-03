@@ -189,6 +189,14 @@ const shapeNotes = computed((): readonly string[] => {
 				<dd class="rp-al-fields__value">
 					{{ asset.sku ?? '—' }}
 				</dd>
+				<template v-if="asset.heightMm !== null">
+					<dt class="rp-al-fields__key">
+						Height
+					</dt>
+					<dd class="rp-al-fields__value rp-al-fields__num">
+						{{ asset.heightMm }} mm
+					</dd>
+				</template>
 			</dl>
 			<p
 				v-if="asset.notes !== null"
@@ -215,14 +223,6 @@ const shapeNotes = computed((): readonly string[] => {
 				<dd class="rp-al-fields__value rp-al-fields__num">
 					{{ clearance }}
 				</dd>
-				<template v-if="asset.heightMm !== null">
-					<dt class="rp-al-fields__key">
-						Height
-					</dt>
-					<dd class="rp-al-fields__value rp-al-fields__num">
-						{{ asset.heightMm }} mm
-					</dd>
-				</template>
 				<template v-if="specSheet !== null">
 					<dt class="rp-al-fields__key">
 						Spec sheet

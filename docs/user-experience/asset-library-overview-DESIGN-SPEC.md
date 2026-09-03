@@ -341,10 +341,24 @@ Four sections, in this order:
    | --- | --- | --- |
    | Footprint | `1200 × 190 mm`, the extent derived from the outline | omitted |
    | Clearance | its own extent, `1400 × 400 mm` | `None` |
-   | Height | `720 mm` | omitted |
    | Spec sheet | the file's name | omitted |
 
    plus **a pending warning per coordinate group**, and **Open designer**.
+
+   **Height is NOT here, and the rule that decides it is worth stating rather than the row.**
+   *Shape lists what the sidecar derives; Definition lists what the note stores and a field
+   edits.* A height is on `Asset`, not on `AssetShape` — typed in millimetres, carried by the
+   note, changed by `SetAssetHeight` — so it is section 1's, beside the unit cost and the SKU,
+   and putting an editable field in a read-only inventory is what makes "which section owns the
+   control" unanswerable. It also fails this section's own admission test: these rows are here
+   *because they are mush at 20px*, and a height is not on the mark at all.
+
+   **This row existed for exactly one round and it was an over-correction of mine.** The round
+   before reported the missing *Spec sheet* row and said nothing about height; reading the Shape
+   table as authoritative, I moved height into it without re-reading section 1, which already
+   listed it — so the fix for one section-against-section contradiction created another, in the
+   same edit. Reported by the next round. The lesson is not the row: **when a report names one
+   row of a list, re-read the neighbouring list before moving a second.**
 
    **The anchor and the facing are NOT here, and that reverses what §3.4 promised.** They were,
    for three review rounds, and each round found the copy wrong in a different way: `Set` /
@@ -511,12 +525,34 @@ A user who has just moved their library needs one place that says where it lande
 
 | State | What draws |
 | --- | --- |
-| **Loading** | The shell, with a loading line in the shelves region. Never a spinner over an empty pane |
+| **Loading** | The shell, with a loading line in the shelves region. Never a spinner over an empty pane. **Held until the index scan has run** — see below |
 | **Empty** — no assets at all | `EmptyState` with a new registry entry `assetLibrary.noAssets`, headline, body, and an action button wired to `New asset`. Replaces the shelves region, not the shell: the toolbar and status bar stay |
 | **No matches** — search returns nothing | `assetLibrary.noMatches`, with an action that **clears the search field**. An action that restores the previous view, not one that creates something |
 | **Some unreadable** | The additive `.rp-view-notice` strip above the shelves, mirroring `view.project.some-unreadable`. The shelves still draw. Requires the list query to answer `{ assets, unreadable }`, the shape `ProjectListResult` already has |
 | **Failed** — the whole read refused | `ViewFailure`, with a retry, except where `viewHydrationOrigin` says otherwise |
 | **Failed, unrecoverable** — `settings.unrecovered` | `ViewFailure` with **no retry button**: nothing was composed to re-run, so a retry is a live control that does nothing, which is the failure mode slice 14's own amendment refuses |
+
+**An empty answer before the index has been scanned is not an empty vault, and on this surface
+that mistake invites the exact duplicate the feature exists to prevent.** Obsidian restores its
+leaves *before* `onLayoutReady`, and the scan runs from it — `RenovationPlannerPlugin.startPersistence`
+rebuilds the index and only then sets `indexScanCompleted` and publishes `ProjectIndexRebuilt`.
+`ObsidianAssetRepository.listAll()` is `this.list(index.getIdsByType('renovation-asset'))`, so
+before that rebuild it enumerates nothing and answers a perfectly legitimate `ok([])`. A view
+mapping that straight to the table's **Empty** row draws *no assets yet* over a full catalogue,
+with a `New asset` button under it — a renovator who takes that invitation defines a second
+*white wall paint*, which is [[Searchable asset catalog]]'s own stated failure. A restored
+selection flashes the gone screen for the same reason.
+
+So **the view holds Loading until `indexScanCompleted` answers true**, and re-reads on
+`ProjectIndexRebuilt`. Two things make this a precedent rather than a new mechanism. It is what
+the project detail state already does, for a defect **reported from a real vault** and recorded in
+that code's own comment: *"a Plan Editor reopened with the app hydrated against an empty one and
+said 'this plan no longer exists' about a plan that does."* And the question is whether the scan
+**ran**, never whether it **found** anything — asking "is the index populated" instead hangs a
+restored pane for ever in a vault whose last asset note was deleted while Obsidian was closed.
+
+Reported by a review bot against this document. Nothing here could have caught it: the prototype
+has no index, and every state above draws correctly from a fixture that is never empty by accident.
 
 Both action-bearing empty states are **scanned by `tests/harness/accessibility.test.ts`** on the day
 they ship, asserting `.rp-empty-state` and `.rp-empty-state__action` are in the scanned DOM.
@@ -708,6 +744,39 @@ The contract, so a builder does not invent one:
 Whether that is a widening of `createAssetCatalogueChangeSource` or a fourth source beside it is a
 decision for the increment that builds this — §11 — because the picker pays for any widening of
 the source it shares.
+
+### 5.5 Every read carries a ticket
+
+Three reads on this surface are asynchronous and all three can be overtaken: the selection's
+`GetAssetDesign`, the selection's `ListRequirementsReferencing`, and a mark batch. **A result
+whose ticket is no longer current is DROPPED — successes and failures alike.** One rule at three
+seams rather than three rules, because this repository's own record is that a question worth
+asking at one door is a function, and the count of doors it is missing from is otherwise
+unknowable.
+
+The ticket differs per seam only in what makes two requests the same request:
+
+- **The selection reads** are ticketed on the **selected asset**. Select A, select B before A's
+  design read resolves, and A's late answer lands in B's panel: the wrong dimensions under B's
+  name, and — because *Used in* governs which delete flow `Delete` opens — the wrong blast radius
+  behind a destructive control. A late *failure* is the same defect wearing the other face, since
+  it paints §3.5's refusal state over a selection that read perfectly well.
+- **The mark reads** are ticketed on a per-asset **generation**, bumped by invalidation. §5.4 has
+  a replacement read start while the pre-event one is still in flight; if the replacement lands
+  first, the older answer overwrites the fresh cache and the stale outline then survives *for the
+  life of the view*, which is exactly the guarantee §5.4 exists to give. A dropped generation
+  drops its failures too, or an old refusal paints the struck box over an outline just read.
+
+Neither is a new mechanism here. `ProjectStore.hydrate` and `InspectorStore` each hold a request
+ticket for the identical reason — CLAUDE.md states it as *a store that two things hydrate needs a
+ticket* — and `WriteLedger` carries a per-entity generation for the same question asked of writes.
+This surface is the first with **three** overtakeable reads at once, which is why the rule is
+stated here rather than left to be re-derived per store.
+
+Both were reported by a review bot against this document, one round after §5.4's invalidation
+rule was rewritten and did not mention them. **A section rewritten to close one hole is not a
+section that has been read for the others**, which is now this document's most frequent finding
+and is recorded as such in §12.
 
 Search matches on **name, supplier and SKU** — never on notes, which is a free-text field whose
 matches would be unexplainable in a row that does not show it.
@@ -1333,6 +1402,44 @@ a capture caught have stopped arriving and the ones a *reader* catches have not.
 is a set of promises that reference each other, and every edit to one section is an unchecked
 claim about the others — no gate in this repository can see one, `npm run check` is green through
 all of them, and the only instrument is somebody reading the two passages together.
+
+A fourteenth round found four, and the first of them is the round before it, undone.
+
+**Height was moved into the Shape inventory and belonged in Definition, and I moved it.** The
+thirteenth round reported the missing *Spec sheet* row and said nothing about height; reading the
+Shape table as authoritative, I moved height to match it without re-reading section 1, which
+already listed it — so §3.5 named the field twice and the prototype rendered it once, leaving
+which section owns the editable control unanswerable. The rule that decides it is now written
+where the table is: *Shape lists what the sidecar derives; Definition lists what the note stores
+and a field edits.* Height is on `Asset` rather than `AssetShape`, typed rather than derived, and
+changed by its own `SetAssetHeight`. **When a report names one row of a list, re-read the
+neighbouring list before moving a second** — the fix for one section-against-section contradiction
+made another, inside the same edit.
+
+**Three asynchronous reads could each be overtaken and none was ticketed.** Selecting A and then B
+before A's design read resolves lands A's dimensions in B's panel, and A's *Used in* behind B's
+`Delete`; a mark whose invalidation starts a replacement read can have the pre-event answer land
+second and reinstate the stale outline for the life of the view, which is precisely the guarantee
+§5.4 had just been rewritten to give. Both were reported against the section that rewrite touched.
+§5.5 states it once for all three seams, failures included — a late failure paints a refusal over a
+selection that read perfectly well, and an old generation's failure paints the struck box over a
+fresh outline. **Not a new mechanism**: `ProjectStore.hydrate` and `InspectorStore` already hold
+tickets and `WriteLedger` a generation; this surface is simply the first with three of them at
+once.
+
+**And the startup case, which is the sharpest of the four because its consequence is the thing
+this feature exists to prevent.** Obsidian restores leaves before `onLayoutReady`, the index scan
+runs from it, and `listAll()` enumerates the index — so the first read of a full catalogue answers
+a legitimate `ok([])` and §4's table drew *no assets yet* with a `New asset` button under it. A
+renovator taking that invitation defines a second *white wall paint*. The view holds Loading until
+`indexScanCompleted`, which is what the project detail state already does for a defect **reported
+from a real vault**, recorded in that code's own comment. The prototype could never have shown it:
+it has no index, and its fixture is never empty by accident.
+
+**Three of the four are the same failure at different distances**, and it is worth naming once
+more because it is now this document's whole finding profile: a section rewritten to close one
+hole is not a section that has been read for the others. Rounds twelve, thirteen and fourteen each
+found the previous round's own edit.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

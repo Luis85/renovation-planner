@@ -23,7 +23,12 @@ import { installResizeObserver } from '../helpers/layout';
 import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
 import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
-import { MAX_GLOB_BRANCHES, expandGlobBranches, resolvesOutsideRoots } from '../helpers/globBranches';
+import {
+	MAX_GLOB_BRANCHES,
+	expandGlobBranches,
+	resolvesOutsideRoots,
+	templateSkeleton,
+} from '../helpers/globBranches';
 
 /**
  * The parser needs the DIALECT, not just the text. `ScriptKind.TS` parses `<div>` in a `.tsx`
@@ -342,7 +347,8 @@ const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
 	|| cssModuleDependsOnFile(file, block.content);
 
 /**
- * A relative specifier, and whether it is a GLOB PATTERN or a module path.
+ * A specifier this predicate can BOUND — relative or root-absolute — and whether it is a GLOB
+ * PATTERN or a module path.
  *
  * The two cannot be treated alike and the first version treated them alike: it truncated every
  * specifier at the first glob metacharacter, so an ordinary import whose path merely CONTAINS
@@ -360,9 +366,44 @@ interface Specifier {
 interface ScriptScan {
 	/** Does this script load a stylesheet? */
 	readonly stylesheet: boolean;
-	/** Every RELATIVE specifier it names, glob patterns included — see `escapesTheRoots`. */
+	/** Every relative or root-absolute specifier it names, glob patterns included — see
+	 *  `escapesTheRoots`. */
 	readonly relative: readonly Specifier[];
 }
+
+/**
+ * Every literal specifier form `collect` can actually receive, enumerated rather than assumed —
+ * this predicate's docblock has twice stated a bound narrower than the code, so the list is
+ * written where the gate is rather than trusted from memory:
+ *
+ * - **Relative** (`.`/`..`) — bounded, resolved from `dirname(file)`.
+ * - **Root-absolute** (a leading `/`) — bounded, resolved from the REPOSITORY ROOT instead;
+ *   Vite's own reading of `import '/scripts/helper.ts'` and `import.meta.glob('/scripts/*.ts')`.
+ *   Reported as unbounded through this exact gate before this fix, dropped alongside every bare
+ *   specifier because neither `.` nor `/` is `.`.
+ * - **Bare** (`'some-package'`, no leading `.` or `/`) — DROPPED. Genuinely out of reach without
+ *   a `paths` mapping (`tsconfig.json` declares none) or a package that resolves to a local file,
+ *   neither of which this repository has; the one alias either config sets (`obsidian`) points at
+ *   `tests/helpers/obsidian-mock.ts`, inside the roots.
+ * - **A negated glob pattern** (`'!./themes/*.css'`) — DROPPED, correctly: it starts with `!`,
+ *   which is neither `.` nor `/`, so it never reaches `relative` at all — names no module Vite
+ *   loads, matching `globNamesStylesheet`'s identical treatment of the same syntax.
+ * - **A template WITH substitutions** — bounded, by its reassembled literal skeleton (see the
+ *   `ts.isTemplateExpression` branch below) rather than its head alone.
+ * - **Anything else in an expression position** — an identifier, a function call, string
+ *   concatenation, a tagged template, a conditional — DROPPED. `ts.isStringLiteralLike` and
+ *   `ts.isTemplateExpression` are the only two shapes this walk recognises; everything else falls
+ *   through `collect`'s loop untouched. This is the one drop with no fixed syntax to check
+ *   against, because the specifier's value exists only at runtime — `importsStylesheet`'s own
+ *   docblock states the identical bound for the file as a whole, and nothing here can narrow it
+ *   further.
+ *
+ * What is NOT enumerated above because it cannot be, honestly: a specifier scheme this repository
+ * has never written (`http:`, `data:`, a bundler alias with its own resolution rules) would reach
+ * whichever of these forms it happens to spell — `resolvesOutsideRoots`'s own docblock records
+ * that a leading `//` (protocol-relative) is read as root-absolute, which can only over-refuse.
+ */
+const isBoundableSpecifier = (text: string): boolean => text.startsWith('.') || text.startsWith('/');
 
 /**
  * The JS half of the question below, so that `importsStylesheet` reads as the pair it is — and
@@ -388,24 +429,30 @@ const scanScript = (file: string, script: Script): ScriptScan => {
 			// A TEMPLATE with substitutions is a real specifier to Vite — `import(`../../scripts/
 			// ${name}.ts`)` is its variable dynamic-import form and it expands to real modules — so
 			// dropping it here let a helper outside the roots go neither scanned nor reported.
-			// Its `head` is the text before the first `${…}`, which is the part every expansion
-			// shares, so it is exactly the prefix this question needs and needs no truncation:
-			// it is already literal. Not marked `isGlob` for that reason.
 			//
-			// This guard mirrored `globNamesStylesheet`'s and inherited a decision that was right
-			// THERE and wrong here. That predicate asks whether a specifier ENDS in `.css`, which a
-			// template with a trailing substitution genuinely cannot answer; this one asks where a
-			// specifier BEGINS, which a template answers perfectly. `namesStylesheet` already
-			// reads template spans for the first question — so the file handled templates for one
-			// question and not the other, one function apart.
+			// **Reading `element.head.text` alone — the text before the first `${…}` — was the
+			// same bug this file already fixed for globs, arriving on this path instead: it answers
+			// "where does this specifier BEGIN", not "where does it END UP".** Reported: ``
+			// `./${dir}/../../../scripts/helper.ts` `` from `src/prototypes/x.ts` recorded only
+			// `'./'`, resolving inside `src/prototypes`, while the literal text AFTER the
+			// substitution keeps walking with its own `../../../` regardless of what `dir` turns out
+			// to be, landing on `scripts/helper.ts`, outside every root. `templateSkeleton`
+			// (`tests/helpers/globBranches.ts` — this file had no room left for both the fix and its
+			// coverage, same as the brace fix) carries the full reasoning for why concatenating every
+			// literal span and dropping each `${…}` EXPRESSION is the conservative direction. Never
+			// marked `isGlob`: a variable dynamic import is a module PATH with an unknown middle, not
+			// a wildcard pattern, so the reassembled skeleton needs no truncation — eliding the
+			// substitutions already did the only safe narrowing this construct allows.
 			if (ts.isTemplateExpression(element)) {
-				if (element.head.text.startsWith('.')) {
-					relative.push({ text: element.head.text, isGlob: false });
-				}
+				const skeleton = templateSkeleton(
+					element.head.text,
+					element.templateSpans.map((span) => span.literal.text),
+				);
+				if (isBoundableSpecifier(skeleton)) relative.push({ text: skeleton, isGlob: false });
 				continue;
 			}
 			if (!ts.isStringLiteralLike(element)) continue;
-			if (element.text.startsWith('.')) relative.push({ text: element.text, isGlob });
+			if (isBoundableSpecifier(element.text)) relative.push({ text: element.text, isGlob });
 		}
 	};
 	const visit = (node: ts.Node): void => {
@@ -509,25 +556,33 @@ const ROOTS = ['src', 'tests/harness', 'tests/helpers'] as const;
  * which resolves inside `src`, while the second branch resolves to `scripts/helper.ts`, outside
  * every root. `expandGlobBranches` (`tests/helpers/globBranches.ts` — moved there once fixing
  * this and covering it both at once outgrew this file's own 450-line cap) expands every `{a,b}`
- * and `@(a|b)` group — nested ones included — into its full set of branches, each truncated at
- * its own first remaining wildcard, and the specifier escapes if ANY branch does. What it still
- * cannot see: a pattern whose branch count or nesting cannot be bounded within
+ * and `@(a|b)` group — nested ones included — into its full set of branches, and the specifier
+ * escapes if ANY branch does. Each branch's own remaining wildcards (`*`, `?`, a character
+ * class) are ELIDED rather than truncated — `resolvesOutsideRoots`'s own docblock carries a
+ * second, measured instance of this exact mistake found one review round after this one: a
+ * wildcard truncated a branch's TAIL away along with any `../` living in it, which is not
+ * hypothetical once brace expansion can put arbitrary literal text after a wildcard. What it
+ * still cannot see: a pattern whose branch count or nesting cannot be bounded within
  * `MAX_GLOB_BRANCHES` reports an escape without checking a single branch (over-refusing, on
  * purpose); a backslash-escaped `\{` or `\(` is read as real brace/extglob syntax rather than a
- * literal character, since nothing in this tree quotes one; a character class (`[ab]`) is still
- * truncated at its `[` rather than expanded per character — safe rather than exact, since a
- * class matches one character and never a `/`, so truncating there can only shorten the prefix,
- * never miss a branch that leaves through a different directory; and a literal, non-extglob `)`
+ * literal character, since nothing in this tree quotes one; and a literal, non-extglob `)`
  * inside a brace group (`'{a(x),b}'`) desyncs the depth counter — it decrements on a close with
  * no matching increment, so the whole group reads as unclosed and the pattern over-refuses. Safe
  * (consistent with this predicate's whole posture) rather than exact, and left that way rather
  * than taught to tell a bare `)` from an extglob's own: nothing in this tree writes one today.
  *
- * **The bound, stated rather than implied: RELATIVE specifiers only.** A bare specifier that
- * resolves to a local module would slip past, which today is unreachable — `tsconfig.json`
- * declares no `paths` mapping and the one alias either config sets (`obsidian`) points at
- * `tests/helpers/obsidian-mock.ts`, inside the roots. A second alias, or a `paths` entry,
- * reopens it.
+ * **The bound, corrected rather than merely narrowed: RELATIVE and ROOT-ABSOLUTE specifiers,
+ * and nothing else.** This sentence said "relative specifiers only" through two more rounds of
+ * this very predicate being found unbounded on a THIRD form — `resolvesOutsideRoots` in
+ * `tests/helpers/globBranches.ts` now resolves a leading `/` from the repository root rather
+ * than from `dirname(file)`, which is what Vite itself does for `import '/scripts/helper.ts'`
+ * and `import.meta.glob('/scripts/*.ts')`. `isBoundableSpecifier` above is the one gate that
+ * decides which specifiers reach this function at all, and its own docblock enumerates every
+ * form `collect` can receive — a BARE specifier (`'some-package'`, no leading `.` or `/`) is the
+ * one still left standing, and remains unreachable today for the reason recorded there:
+ * `tsconfig.json` declares no `paths` mapping, and the one alias either config sets (`obsidian`)
+ * points at `tests/helpers/obsidian-mock.ts`, already inside the roots. A second alias, or a
+ * `paths` entry, reopens it.
  */
 const escapesTheRoots = (file: string, specifier: Specifier): boolean => {
 	// Truncation is for PATTERNS only. A module path containing a metacharacter is a path, and
@@ -1007,12 +1062,7 @@ describe('the browser harness', () => {
 		// `MAX_GLOB_BRANCHES + 1` branches against the cap: hitting it reports an escape rather
 		// than silently checking a prefix of them, even though every one of these branches, fully
 		// expanded, would individually resolve inside the roots.
-		[
-			'more branches than the cap',
-			'tests/helpers/vault.ts',
-			`./{${Array.from({ length: MAX_GLOB_BRANCHES + 1 }, (_unused, i) => String.fromCharCode(97 + i)).join(',')}}.ts`,
-			true,
-		],
+		['more branches than the cap', 'tests/helpers/vault.ts', `./{${Array.from({ length: MAX_GLOB_BRANCHES + 1 }, (_unused, i) => String.fromCharCode(97 + i)).join(',')}}.ts`, true],
 		// The two real globs this repository uses today, so the suite stays honest.
 		['the real prototypes glob', 'tests/harness/entries.ts', '../../src/prototypes/**/*.vue', false],
 		['the real components glob', 'tests/harness/entries.ts', '../../src/presentation/**/*.vue', false],
@@ -1023,14 +1073,34 @@ describe('the browser harness', () => {
 		// The inner group's own branch (`../../scripts/x`) is what actually escapes — this fails
 		// unless the recursive call over the outer group's second alternative finds and expands
 		// the nested `{b,../../scripts/x}` rather than leaving it as an opaque, unexpanded branch.
-		[
-			'a nested brace, its inner branch bounded too',
-			'src/prototypes/x.ts',
-			'../{a,{b,../../scripts/x}}.ts',
-			true,
-		],
+		['a nested brace, its inner branch bounded too', 'src/prototypes/x.ts', '../{a,{b,../../scripts/x}}.ts', true],
 	])('bounds every branch of a brace or extglob pattern — %s', (_label, file, text, escapes) => {
 		expect(escapesTheRoots(file, { text, isGlob: true })).toBe(escapes);
+	});
+
+	/**
+	 * Two more specifier forms reported unbounded through this same predicate, one review round
+	 * each — a TEMPLATE (`element.head.text` answers "where does this begin", not "where does it
+	 * end up") and a ROOT-ABSOLUTE specifier (a leading `/`, which used to start with neither `.`
+	 * nor the old gate's only accepted character and was dropped before `escapesTheRoots` ever
+	 * saw one — no escape was ever even POSSIBLE to report, a different failure shape from the
+	 * brace and template bugs, which both recorded a specifier and then bounded it wrongly).
+	 * `templateSkeleton`'s and `resolvesOutsideRoots`'s own docblocks in
+	 * `tests/helpers/globBranches.ts` carry the reasoning; the edge shapes only a real
+	 * `templateSkeleton` call can't reach on its own (an empty span, a trailing substitution with
+	 * nothing after it) are unit-tested directly there. These rows are end-to-end proof the
+	 * wiring — real TS parsing through `scanScript`, into `isBoundableSpecifier`, into
+	 * `escapesTheRoots` — actually reaches both fixes from real source text.
+	 */
+	it.each([
+		['a template, the reported case', 'src/prototypes/x.ts', `import(\`./\${dir}/../../../scripts/helper.ts\`);`, true],
+		['a template with every literal span staying inside', 'tests/helpers/vault.ts', `import(\`./sibling/\${name}.ts\`);`, false],
+		['a root-absolute specifier, the reported case', 'src/prototypes/x.ts', `import '/scripts/helper.ts';`, true],
+		['a root-absolute specifier landing inside a scanned root', 'tests/harness/page.ts', `import '/src/prototypes/x.ts';`, false],
+		['the root-absolute glob form', 'src/prototypes/x.ts', `import.meta.glob('/scripts/*.ts');`, true],
+	])('admits and correctly bounds %s', (_label, file, code, escapes) => {
+		const scan = scanScript(file, { content: code, kind: ts.ScriptKind.TS });
+		expect(scan.relative.some((specifier) => escapesTheRoots(file, specifier))).toBe(escapes);
 	});
 
 	it('loads no stylesheet through anything the harness can reach', () => {

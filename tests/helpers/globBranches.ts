@@ -1,10 +1,11 @@
 import path from 'node:path';
 
 /**
- * Bounds every branch a brace (`{a,b}`) or extglob (`@(a|b)`, `?(a|b)`, `*(a|b)`, `+(a|b)`,
- * `!(a|b)`) alternation in an `import.meta.glob` pattern can produce, for
- * `tests/harness/harness.test.ts`'s `escapesTheRoots` — the check that a specifier this repo's
- * browser harness scans cannot resolve outside the trees it walks.
+ * Bounds specifier forms `tests/harness/harness.test.ts`'s `escapesTheRoots` cannot resolve at
+ * face value — a brace (`{a,b}`) or extglob (`@(a|b)`, `?(a|b)`, `*(a|b)`, `+(a|b)`, `!(a|b)`)
+ * alternation in an `import.meta.glob` pattern, and a Vite variable dynamic import's template —
+ * for the check that a specifier this repo's browser harness scans cannot resolve outside the
+ * trees it walks.
  *
  * Extracted from `harness.test.ts` itself once that file's own 450-line cap made it impossible
  * to both fix a Codex-reported gap here (truncating a glob at its first metacharacter bounds
@@ -13,9 +14,11 @@ import path from 'node:path';
  * (`src/**\/*.{ts,vue}` only), so nothing there would ever flag an untested branch, which is
  * exactly the kind of silent gap this predicate's documented history warns about. This module
  * has no such exemption once it exists: it is under `tests/helpers/`, in the same `${TESTS}`
- * glob every other test file's `max-lines` budget answers to, and its two exported functions
- * are exercised directly by `globBranches.test.ts` beside the indirect coverage
- * `harness.test.ts`'s own `escapesTheRoots` cases still provide.
+ * glob every other test file's `max-lines` budget answers to, and its exported functions are
+ * exercised directly by `globBranches.test.ts` beside the indirect coverage `harness.test.ts`'s
+ * own `escapesTheRoots` cases still provide. The template fix and the root-absolute fix
+ * (`resolvesOutsideRoots`'s own docblock) arrived here the same way, one review round each,
+ * once this module already existed to receive them.
  */
 
 /**
@@ -110,23 +113,72 @@ export function expandGlobBranches(pattern: string, branches: string[]): boolean
 const toPosix = (value: string): string => value.split('\\').join('/');
 
 /**
- * Resolves one literal path or glob branch against `file`'s directory and asks whether it lands
- * outside `roots`. `truncateAtWildcard` is only ever true for a branch already stripped of
- * every brace/extglob group by `expandGlobBranches` — what remains is an ordinary wildcard
- * (`*`, `?`, a character class) truncated at its own first occurrence. A character class is
- * safe to truncate at its `[` rather than expand per character: it matches exactly one
- * character and never a `/`, so truncating there can only shorten the prefix, never hide a
- * branch that leaves through a different directory.
+ * The literal skeleton of a template expression used as Vite's variable dynamic import form —
+ * `` `./${dir}/../../../scripts/helper.ts` `` — `head` (the text before the first `${…}`) plus
+ * every trailing literal SPAN, concatenated in source order, with each `${…}` EXPRESSION dropped
+ * entirely rather than guessed at.
+ *
+ * **Reported: reading `head` alone answers "where does this specifier BEGIN" and was read as an
+ * answer to "where does it END UP", which static parent traversal in a LATER span can still
+ * follow regardless of the substitution's own runtime value** — `` `./${dir}/../../../scripts/
+ * helper.ts` `` recorded only `'./'`, resolving inside `src/prototypes`, while the real target is
+ * `scripts/helper.ts`. Dropping each substitution is the conservative direction on purpose:
+ * eliding it can only make a trailing `../` in a later span walk further back toward the caller's
+ * directory than a real, non-empty value would (a real value spends each `../` on an extra path
+ * segment first), so the elided form is the WORST CASE for whether the specifier escapes upward —
+ * never the best one. It still cannot see a substitution whose own runtime value itself contains
+ * `/` or `..`, the same "held in an identifier … whose value exists only at runtime" bound this
+ * whole check already accepts elsewhere.
+ */
+export const templateSkeleton = (head: string, spanLiterals: readonly string[]): string =>
+	head + spanLiterals.join('');
+
+/**
+ * Resolves one literal path or glob branch and asks whether it lands outside `roots`.
+ *
+ * **`hasWildcards` ELIDES `*`, `?`, `[`, `]` rather than truncating at the first one — a second,
+ * measured instance of the same mistake this module's `templateSkeleton` fix corrected.** The
+ * first version truncated: `branch.split(/[*?[\]]/)[0]`, keeping only the text BEFORE the first
+ * remaining wildcard once `expandGlobBranches` had already resolved every brace/extglob group.
+ * That discards everything after it, and a `../` living in that discarded tail is not
+ * hypothetical — measured directly against this function: a wildcard segment followed by
+ * `../../../scripts/x.ts` from `src/prototypes/x.ts` truncates to `'src/prototypes'`, reporting
+ * no escape, while the real target for ANY concrete match of that wildcard (a real directory can
+ * never literally be named `..`, so the wildcard itself can only contribute an ordinary segment)
+ * is `scripts/x.ts` — outside every root. Eliding the wildcard characters instead keeps every
+ * literal character around them,
+ * `../` included, so the SAME arithmetic that already resolves an ordinary path or a template's
+ * skeleton handles a glob branch's trailing traversal too, without a second code path for it.
+ * Elision is conservative in the identical direction `templateSkeleton`'s docblock argues for a
+ * substitution: an eliminated wildcard can only make a trailing `../` walk further back than a
+ * real match would (a real match spends each `../` on an extra segment first), so it is the
+ * WORST CASE for whether the branch escapes upward, never the best one. A character class's
+ * brackets are elided individually rather than as a matched pair — `[ab]` becomes the literal
+ * `ab`, which changes no `/`-boundary the roots comparison cares about, since a class matches
+ * exactly one character and never contributes one of its own.
+ *
+ * **A leading `/` means ROOT-ABSOLUTE to Vite** — `import.meta.glob('/scripts/*.ts')` and
+ * `import '/scripts/helper.ts'` both resolve from the repository root, never from `file`'s own
+ * directory, so this branch is resolved against `''` rather than joined onto `dirname(file)`.
+ * Read from the ORIGINAL `branch`, before elision: eliding a LEADING wildcard segment (turning
+ * `*` followed by `/../x.ts` into plain `/../x.ts`) must not be mistaken for a specifier that
+ * was root-absolute all along — measured as the mutation that reading it from the elided text
+ * would have been, and reverted before it shipped. A specifier beginning `//` (protocol-relative
+ * — nothing in this tree writes one) is
+ * read as root-absolute too, which can only OVER-refuse: the segment before its first real path
+ * component is never one of `roots`, so it reports an escape for a specifier Vite would not
+ * treat as a local import at all, rather than silently passing it.
  */
 export const resolvesOutsideRoots = (
 	file: string,
 	branch: string,
 	roots: readonly string[],
-	truncateAtWildcard = false,
+	hasWildcards = false,
 ): boolean => {
-	const literal = truncateAtWildcard ? (branch.split(/[*?[\]]/)[0] ?? branch) : branch;
-	const resolved = path.posix.normalize(
-		path.posix.join(path.posix.dirname(toPosix(file)), toPosix(literal)),
-	);
+	const rootAbsolute = branch.startsWith('/');
+	const literal = toPosix(hasWildcards ? branch.replace(/[*?[\]]/g, '') : branch);
+	const resolved = rootAbsolute
+		? path.posix.normalize(literal.slice(1))
+		: path.posix.normalize(path.posix.join(path.posix.dirname(toPosix(file)), literal));
 	return !roots.some((root) => resolved === root || resolved.startsWith(`${root}/`));
 };

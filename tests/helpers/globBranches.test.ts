@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_GLOB_BRANCHES, expandGlobBranches, resolvesOutsideRoots } from './globBranches';
+import {
+	MAX_GLOB_BRANCHES,
+	expandGlobBranches,
+	resolvesOutsideRoots,
+	templateSkeleton,
+} from './globBranches';
 
 /**
  * `expandGlobBranches` and `resolvesOutsideRoots` were extracted from
@@ -99,10 +104,47 @@ describe('resolvesOutsideRoots', () => {
 		);
 	});
 
-	it('truncates at the first wildcard only when asked to', () => {
+	it('elides a wildcard only when asked to', () => {
 		expect(resolvesOutsideRoots('src/prototypes/x.ts', '../scripts/*.ts', roots, true)).toBe(
 			false,
 		);
+	});
+
+	/**
+	 * Found while answering the coordinator's own question about this function — measured, not
+	 * assumed. The FIRST version of `hasWildcards` truncated at the wildcard instead of eliding
+	 * it (`branch.split(/[*?[\]]/)[0]`), which discards everything after the wildcard — and a
+	 * `../` living in that discarded tail is exactly the template bug's shape one function over: a
+	 * wildcard segment followed by `../../../scripts/x.ts` truncated to `'src/prototypes'`
+	 * (inside), while any concrete match of the wildcard resolves to `scripts/x.ts` (outside). A
+	 * real directory can never be named `..` literally, so the wildcard itself could not have
+	 * produced that escape — only the truncation could, by throwing the tail away.
+	 */
+	it('does not lose a `../` that follows a wildcard', () => {
+		expect(
+			resolvesOutsideRoots('src/prototypes/x.ts', '*/../../../scripts/x.ts', roots, true),
+		).toBe(true);
+	});
+
+	/**
+	 * The companion mutation this fix itself needed watching red: reading root-absolute from the
+	 * ELIDED text rather than the original would misread a wildcard's own leading `*` as if it
+	 * had been a `/` all along.
+	 */
+	it('does not mistake an elided leading wildcard for root-absolute', () => {
+		expect(resolvesOutsideRoots('src/prototypes/x.ts', '*/../x.ts', roots, true)).toBe(false);
+	});
+
+	/**
+	 * The two fixes compose: a root-absolute TEMPLATE skeleton is still resolved from the
+	 * repository root rather than from `file`. Nothing else exercises this combination —
+	 * `templateSkeleton` and root-absolute resolution were each proven separately — so this is
+	 * measured rather than inferred from the two working alone.
+	 */
+	it('resolves a root-absolute template skeleton from the repository root', () => {
+		expect(
+			resolvesOutsideRoots('src/prototypes/x.ts', templateSkeleton('/scripts/', ['.ts']), roots),
+		).toBe(true);
 	});
 
 	/**
@@ -111,5 +153,50 @@ describe('resolvesOutsideRoots', () => {
 	 */
 	it('folds a Windows-style file path to POSIX before resolving it', () => {
 		expect(resolvesOutsideRoots('tests\\helpers\\vault.ts', './sibling', roots)).toBe(false);
+	});
+
+	/**
+	 * Root-absolute — a leading `/` — resolves from the repository root regardless of `file`,
+	 * which is what Vite itself does for `import '/scripts/helper.ts'`. Reported: joining it onto
+	 * `dirname(file)` as if it were relative silently answered a different question about where
+	 * the specifier ends up, the same shape as this module's own brace and template fixes.
+	 */
+	it('resolves a root-absolute specifier from the repository root, not from the file', () => {
+		expect(resolvesOutsideRoots('src/prototypes/x.ts', '/scripts/helper.ts', roots)).toBe(true);
+		expect(resolvesOutsideRoots('tests/harness/page.ts', '/src/prototypes/x.ts', roots)).toBe(
+			false,
+		);
+	});
+
+	it('truncates a root-absolute glob at its own first wildcard', () => {
+		expect(resolvesOutsideRoots('src/prototypes/x.ts', '/scripts/*.ts', roots, true)).toBe(true);
+	});
+});
+
+/**
+ * `harness.test.ts`'s `collect` only ever calls this with a REAL `ts.TemplateExpression`'s parts,
+ * so these cases drive the pure concatenation directly rather than through a parse — the edges a
+ * real template can produce (an empty span between two substitutions, a trailing substitution
+ * with nothing after it) without needing the TS AST to reach them.
+ */
+describe('templateSkeleton', () => {
+	it('concatenates the head with a single trailing literal span', () => {
+		expect(templateSkeleton('./', ['/../../../scripts/helper.ts'])).toBe(
+			'.//../../../scripts/helper.ts',
+		);
+	});
+
+	it('keeps every span in order, including an empty one between two substitutions', () => {
+		expect(templateSkeleton('./', ['', '/../../../scripts/x.ts'])).toBe(
+			'.//../../../scripts/x.ts',
+		);
+	});
+
+	it('equals the head alone when a trailing substitution has nothing after it', () => {
+		expect(templateSkeleton('./scripts/', [''])).toBe('./scripts/');
+	});
+
+	it('equals the head alone when there are no substitutions at all', () => {
+		expect(templateSkeleton('./a.ts', [])).toBe('./a.ts');
 	});
 });

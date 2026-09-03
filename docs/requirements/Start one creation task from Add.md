@@ -110,15 +110,25 @@ Met: criterion 1 is `tests/presentation/editor/shell/floatingPrimaryActions.test
 control anchored over the canvas, beside Select, in the standard state; criterion 2 is
 `tests/presentation/editor/add/creationCatalogue.test.ts`'s 'contains no internal vocabulary in
 either locale', which asks the question of both locale tables rather than the English one;
-criterion 3 is the seventeen cases in `tests/presentation/editor/add/addMenu.test.ts` — open,
+criterion 3 is the cases in `tests/presentation/editor/add/addMenu.test.ts` — open,
 traverse enabled and disabled items alike, search, choose, close; criterion 4 is 'Enter on Room
-starts exactly one tool and closes', with an unsupported entry's `activate` THROWING rather than
-doing nothing, so a menu that called one would fail loudly in a test; criterion 5 is 'closes on
-Escape with focus back on Add and nothing dispatched'; criterion 6 is 'an unsupported item is
+starts exactly one tool and emits exactly one close' (a spied `setTool` asserted
+`toHaveBeenCalledTimes(1)`, not merely called with the right argument) plus
+`creationCatalogue.test.ts`'s own `toHaveBeenCalledTimes(1)`, with an unsupported entry's
+`activate` THROWING rather than doing nothing, so a menu that called one would fail loudly in a
+test; criterion 5 is 'Escape while the menu is open is the root's, and a drafted polygon under
+the canvas survives it' (design spec §6.3's precedence, owned by `PlanEditorRoot.onRootKeydown`
+rather than by the menu) and 'focus leaving the menu for another control in the same editor
+retires it, and nothing else moves'; criterion 6 is 'an unsupported item is
 aria-disabled with its reason and Enter on it changes nothing'; criterion 7's default half is
 `tests/presentation/editor/tools/drawPolygonTool.test.ts`'s `onCompleted` cases bound to
 `returnToSelect`, and `tests/presentation/editor/shell/temporaryToolBanner.test.ts` for the cancel
 half.
+
+**2026-09-04** — criterion 3's close half no longer depends on where focus rests: it used to be
+provable only by dispatching Escape on the menu element itself, and Tab moving focus out of the
+menu (no focus trap, by design) left Escape reaching the canvas instead. The same case now closes
+on a focus MOVE with no Escape at all.
 
 Remains:
 
@@ -134,10 +144,4 @@ Remains:
   residue [[Inspect a selected room]] records for Delete.
 
 - [[A Cancel button with a drafted room leaves the creation task active]]
-- [[The Add menu sends wheel gestures to the canvas]]
-- [[The Add menu survives the canvas that anchored it]]
-- [[Escape closes Add only while focus remains inside the menu]]
-- [[An Add choice activates before the menu closes]]
-- [[The exact-once Add test never counts activations]]
-- [[The Add-menu pointer tests omit pointerup]]
 - [[The manual keymap claim points to a step that never invokes the keymap]]

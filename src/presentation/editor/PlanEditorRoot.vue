@@ -126,11 +126,11 @@ const warnings = computed(() =>
 
 /**
  * Task 17's Add menu — owned HERE rather than by `FloatingPrimaryActions`, for the same
- * reason `DialogHost` sits at this level and not inside whatever opens a dialog: the menu
- * has to close on Escape before the canvas's own `EditorSurface.onKeyDown` ever sees the key
- * (`AddMenu`'s own `@keydown.stop` is what does that), and a component nested inside the
- * button that opens it could not sit ABOVE that button in the DOM the way focus return and
- * an outside-click check both need.
+ * reason `DialogHost` sits at this level and not inside whatever opens a dialog: design spec
+ * §6.3 puts the menu-open Escape precedence at this ROOT (`onRootKeydown` below, capture
+ * phase) so the menu closes before the canvas's own `EditorSurface.onKeyDown` ever sees the
+ * key, and a component nested inside the button that opens it could not sit ABOVE that button
+ * in the DOM the way focus return and an outside-click check both need.
  *
  * `addButton` is resolved from the DOM at the moment Add is pressed rather than held as a
  * template ref on `FloatingPrimaryActions` itself: that component's job is the two buttons,
@@ -147,6 +147,35 @@ const addButton = ref<HTMLElement | null>(null);
 function onOpenAdd(): void {
 	addButton.value = (root.value as HTMLElement).querySelector<HTMLElement>('[data-rp-action="add"]');
 	addMenuOpen.value = !addMenuOpen.value;
+}
+
+/**
+ * The menu-open Escape precedence, §6.3 — bound CAPTURE on this component's own root rather
+ * than on `document`: capture runs top-down, ahead of anything a descendant's own `keydown`
+ * listener (the canvas's `EditorSurface.onKeyDown`, or a focused control inside the shell)
+ * could do with the same key, and it reaches only THIS editor leaf's tree rather than every
+ * Plan Editor leaf a document-global handler would also close.
+ *
+ * Guarded on `addMenuOpen` so Escape with the menu already closed falls through untouched —
+ * to the canvas's own draft-cancel/deselect routing, which this root has no opinion about.
+ */
+function onRootKeydown(event: KeyboardEvent): void {
+	if (!addMenuOpen.value || event.key !== 'Escape') return;
+	event.stopPropagation();
+	event.preventDefault();
+	addMenuOpen.value = false;
+}
+
+/**
+ * The Add-menu state does not outlive the canvas subtree that anchored it. `ResponsiveEditorShell`
+ * removes the `#canvas` slot outright below the floor width (its own `slot v-if`), which unmounts
+ * `AddMenu` and the button `addButton` points at without ever touching the state held here — so
+ * widening the pane back out used to remount the menu against a button already gone. Both fields
+ * reset together: a stale `addButton` is exactly as unusable as a stale `addMenuOpen`.
+ */
+function retireAddMenu(): void {
+	addMenuOpen.value = false;
+	addButton.value = null;
 }
 
 function hydrate(): void {
@@ -232,6 +261,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 	<div
 		ref="root"
 		class="renovation-plan-editor"
+		@keydown.capture="onRootKeydown"
 	>
 		<!--
 			The layout is `ResponsiveEditorShell`'s (Task 19, design spec §5.4) and the CONTENT
@@ -258,6 +288,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					v-if="status === 'ready'"
 					:tokens="tokens"
 					@background-status="(next) => (backgroundStatus = next)"
+					@vue:unmounted="retireAddMenu"
 				>
 					<EmptyState
 						v-if="overlay !== null"

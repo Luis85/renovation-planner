@@ -1234,12 +1234,16 @@ onBeforeUnmount(() => {
 			The modifiers stop propagation at the BUBBLE phase, so the overlay's own controls
 			have already had the event: their handlers run untouched and only the canvas
 			behind them is kept out of it.
+
+			`wheel` too (2026-09-04): the Add menu is scrollable, and a wheel over its overflow
+			used to pan or zoom the plan.
 		-->
 		<div
 			class="rp-plan-overlay"
 			@pointerdown.stop
 			@pointerup.stop
 			@pointercancel.stop
+			@wheel.stop
 		>
 			<slot name="overlay" />
 		</div>

@@ -41,7 +41,12 @@ Add hands control to one bounded creation task and reliably returns the editor t
 
 **2026-09-03** — criterion 1 is
 `tests/presentation/editor/add/addMenu.test.ts`'s 'ArrowDown moves focus through enabled and
-disabled items alike; Enter on Room starts exactly one tool and closes'. Criterion 3 is
+disabled items alike; Enter on Room starts exactly one tool and closes'.
+
+**2026-09-04** — criterion 1's evidence is the COUNTING case instead: 'Enter on Room starts
+exactly one tool and emits exactly one close' asserts `toHaveBeenCalledTimes(1)` on a spied
+`setTool` and one `close` emission, where the cited case above proved only the settled end state
+and would pass just as well on a duplicate activation. Criterion 3 is
 `tests/presentation/editor/shell/temporaryToolBanner.test.ts`'s 'Cancel with an empty draft
 returns to Select; Cancel with a draft clears the draft and keeps the tool' beside
 `tests/presentation/editor/escapeRouting.test.ts` — the banner's Cancel and Escape are the same

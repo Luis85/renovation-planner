@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Start one creation task from Add]]"
 order: 50
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -63,6 +63,15 @@ Emit close before invoking the available entry. Add a standalone `AddMenu` test 
 runtime whose `setTool` throws; after the activation rejects, the component must already have
 emitted exactly one close event. A second assertion should observe that the close callback runs
 before `setTool`, so a final-state-only implementation cannot pass.
+
+## What closed it
+
+**2026-09-04.** `activate` swapped to `emit('close'); entry.activate(runtime);`. Holding test:
+`addMenu.test.ts` › standalone › 'emits close before it calls the entry, and exactly once, even
+when the entry throws' — asserts the SEQUENCE (`order` toEqual `['close', 'setTool']`) rather than
+only the settled end state, with `setTool` throwing so a final-state-only implementation cannot
+pass. Commit "fix(add-menu): close before activate, root-owned Escape, focus boundary, wheel and
+unmount retirement — with tests that count".
 
 ## References
 

@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Start one creation task from Add]]"
 order: 30
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -66,6 +66,17 @@ Retire the Add-menu state when its canvas subtree unmounts and discard the stale
 smallest discriminating test opens Add, resizes to unsupported, resizes back to full, and
 requires the menu to remain closed, `aria-expanded` to be false and a subsequent Add press to
 open against the newly mounted button.
+
+## What closed it
+
+**2026-09-04.** `PlanEditorRoot` gained `retireAddMenu` (`addMenuOpen = false; addButton =
+null;`), bound `@vue:unmounted` on `<PlanCanvas>` — so the state resets the instant the shell's
+own `slot v-if` removes the canvas subtree, whatever unmounted it. Holding test:
+`responsiveShell.test.ts` › 'an open Add menu does not survive the canvas being unmounted below
+the floor width' — opens Add, resizes to unsupported and back, requires the menu closed and
+`aria-expanded="false"`, then opens again and confirms the new button is a live anchor (Escape
+returns focus to a connected element). Commit "fix(add-menu): close before activate, root-owned
+Escape, focus boundary, wheel and unmount retirement — with tests that count".
 
 ## References
 

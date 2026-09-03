@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Start one creation task from Add]]"
 order: 60
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -65,6 +65,17 @@ one close emission for one Enter or click gesture. At minimum, add a count asser
 catalogue spy, but retain a menu-level count so duplicate routing above the catalogue is also
 caught. Mutation-check by calling `activateFocused()` twice and requiring the test to fail.
 Amend the PBI and task evidence until that discriminating assertion exists.
+
+## What closed it
+
+**2026-09-04.** `addMenu.test.ts` gained 'Enter on Room starts exactly one tool and emits
+exactly one close', which spies `setTool` and asserts `toHaveBeenCalledTimes(1)` beside one
+`close` emission; `creationCatalogue.test.ts`'s 'offers exactly one available entry...' gained
+the same `toHaveBeenCalledTimes(1)` assertion on its own spy. Mutation-checked by calling
+`activate(entry)` twice inside `activateFocused`: red at `toHaveBeenCalledTimes(1)` (2 calls
+observed). The PBI and task evidence are amended to cite the counting cases rather than the
+settled-end-state ones. Commit "fix(add-menu): close before activate, root-owned Escape, focus
+boundary, wheel and unmount retirement — with tests that count".
 
 ## References
 

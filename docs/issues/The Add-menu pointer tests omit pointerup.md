@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Start one creation task from Add]]"
 order: 70
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -66,6 +66,19 @@ that it receives zero releases from those overlay controls; camera and tool stat
 discriminating because their unmatched-release guards can absorb the leak. Mutation-check by
 removing only `@pointerup.stop`; the delivery-count assertion must fail while the press
 assertions remain green.
+
+## What closed it
+
+**2026-09-04.** A `press(target)` helper (pointerdown → pointerup → click, the grammar a real
+mouse sends) replaced every bare `pointerdown` plus `trigger('click')` pair in the menu, anchor
+and Select-button cases. Holding tests: `addMenu.test.ts` › 'a press inside the menu does not
+close it, and a second press on the button that opened it toggles it closed', 'pressing Select
+while the Add menu is open closes the menu, and Select still works', and 'no press or release
+from the menu, the anchor or Select ever reaches the canvas boundary' — a boundary observer on
+`canvasEl` asserting zero deliveries of either event, mutation-checked by removing only
+`@pointerup.stop` (red at `releases`, `presses` staying `[]`, proving the two halves are
+independent). Commit "fix(add-menu): close before activate, root-owned Escape, focus boundary,
+wheel and unmount retirement — with tests that count".
 
 ## References
 

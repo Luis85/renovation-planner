@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Start one creation task from Add]]"
 order: 20
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -64,6 +64,15 @@ Stop wheel propagation at the overlay or Add-menu boundary while leaving the eve
 scroll behavior available to the menu. Add a mounted-tree test that dispatches a cancelable
 wheel event over the overflowing menu and requires an unchanged viewport and
 `defaultPrevented === false`; removing the wheel stop must make that test fail.
+
+## What closed it
+
+**2026-09-04.** `@wheel.stop` added to `.rp-plan-overlay` beside its three existing pointer
+stops, at the bubble phase so `defaultPrevented` stays `false` and the menu's own overflow can
+still scroll. Holding test: `addMenu.test.ts` › 'a wheel over the menu scrolls the menu, never
+the plan' — mutation-checked by removing `@wheel.stop` and observing red at
+`wheel.defaultPrevented`. Commit "fix(add-menu): close before activate, root-owned Escape, focus
+boundary, wheel and unmount retirement — with tests that count".
 
 ## References
 

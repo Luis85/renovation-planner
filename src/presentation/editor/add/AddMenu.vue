@@ -27,9 +27,10 @@
  * **A single `@keydown.stop` on the root, not one handler per item.** The menu root is where
  * `EditorSurface`'s own `.rp-plan-overlay` wrapper already stops a POINTER press from
  * reaching the canvas (`.stop` on `pointerdown`/`pointerup`/`pointercancel`); `.stop` on
- * `keydown` here is the same rule for the keyboard, so Escape closes this menu and is never
- * seen by `EditorSurface.onKeyDown`'s own Escape branch — the canvas's active tool and its
- * selection are exactly as they were before the menu opened.
+ * `keydown` here is the same rule for the keyboard. Escape is the ROOT's
+ * (`PlanEditorRoot.onRootKeydown`, capture phase, §6.3): it closes this menu before any
+ * element below the root hears the key; `.stop` here keeps the arrow and Enter keys out of
+ * the canvas.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue';
 import { tr, currentLanguage } from '../../i18n/strings';
@@ -167,11 +168,15 @@ function moveFocus(delta: 1 | -1): void {
 	focusEntry(list[nextIndex].id);
 }
 
-/** Available activates and closes; unsupported does nothing — the only two outcomes a press has. */
+/**
+ * Available closes and then activates; unsupported does nothing — the only two outcomes a
+ * press has. Close first, then activate — §7.2's order, so a faulting activation never
+ * leaves the menu as the top surface.
+ */
 function activate(entry: CreationEntry): void {
 	if (entry.availability.kind !== 'available') return;
-	entry.activate(runtime);
 	emit('close');
+	entry.activate(runtime);
 }
 
 function onItemClick(entry: CreationEntry): void {
@@ -196,10 +201,6 @@ function activateFocused(): void {
  */
 function onKeydown(event: KeyboardEvent): void {
 	const inSearchInput = event.target === searchInputEl.value;
-	if (event.key === 'Escape') {
-		emit('close');
-		return;
-	}
 	if (event.key === 'ArrowDown') {
 		event.preventDefault();
 		moveFocus(1);
@@ -273,6 +274,26 @@ function onDocumentPointerDown(event: Event): void {
 	emit('close');
 }
 
+/**
+ * The menu has no Tab focus trap (see this file's header), so once Tab carries focus outside
+ * `.rp-add-menu` the menu is no longer the topmost interaction surface and retires — design
+ * spec §6.3's boundary, kept even though nothing below this component's `@keydown.stop` can
+ * reach Escape any more.
+ *
+ * A `null` `relatedTarget` is the window losing focus (Alt+Tab) rather than focus moving to
+ * another control, and it must not close the menu — the same reasoning `PanOverride` records
+ * for a key released where the canvas cannot hear it: an interruption is not the user asking
+ * to leave. `props.anchor` is excluded for the reason `onDocumentPointerDown` excludes it:
+ * pressing Add again is a TOGGLE through its own `click` handler, not an outside focus move,
+ * and closing here first would make that toggle close-then-reopen instead.
+ */
+function onFocusOut(event: FocusEvent): void {
+	const next = event.relatedTarget;
+	if (!(next instanceof Node)) return;
+	if ((menuRoot.value as HTMLElement).contains(next) || props.anchor?.contains(next) === true) return;
+	emit('close');
+}
+
 onMounted(() => {
 	// The catalogue always has exactly one available entry — `creationCatalogue.test.ts` pins
 	// it — so this is a fact about the DATA the whole feature depends on rather than a branch
@@ -293,6 +314,7 @@ onBeforeUnmount(() => {
 		ref="menuRoot"
 		class="rp-add-menu"
 		@keydown.stop="onKeydown"
+		@focusout="onFocusOut"
 	>
 		<input
 			ref="searchInputEl"

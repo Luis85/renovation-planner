@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Start one creation task from Add]]"
 order: 40
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -66,6 +66,20 @@ interaction boundary, without introducing a document-global handler that closes 
 editor leaves. Add a mounted-tree test that moves focus from a menu item to another control in
 the same editor, presses Escape, and requires only the menu to close while tool, draft and
 selection remain unchanged.
+
+## What closed it
+
+**2026-09-04.** The Escape branch was deleted from `AddMenu.onKeydown`; `PlanEditorRoot` gained
+`onRootKeydown` (bound `@keydown.capture` on the root, so it sees the key before any descendant,
+including the canvas) and `AddMenu` gained `onFocusOut` (bound `@focusout` on `.rp-add-menu`,
+excluding the anchor so a second Add press still toggles, and a `null` `relatedTarget` — the
+window losing focus — never closes it). Holding tests: `addMenu.test.ts` › 'focus leaving the
+menu for another control in the same editor retires it, and nothing else moves' and 'Escape while
+the menu is open is the root's, and a drafted polygon under the canvas survives it' (dispatched on
+the CANVAS element, which is exactly the keystroke `EditorSurface.onKeyDown` would otherwise
+route through `routeEscape` and cancel the draft with). Commit "fix(add-menu): close before
+activate, root-owned Escape, focus boundary, wheel and unmount retirement — with tests that
+count".
 
 ## References
 

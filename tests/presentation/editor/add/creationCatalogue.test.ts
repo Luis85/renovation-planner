@@ -27,6 +27,7 @@ describe('the creation catalogue', () => {
 		const setTool = vi.fn<(id: ToolId | null) => void>();
 		available[0].activate({ setTool });
 		expect(setTool).toHaveBeenCalledWith('draw-polygon');
+		expect(setTool).toHaveBeenCalledTimes(1);
 	});
 
 	it('every unsupported entry carries a reason and throws if activated', () => {

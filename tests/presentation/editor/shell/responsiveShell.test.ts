@@ -187,6 +187,32 @@ describe('the responsive shell', () => {
 		expect(harness.focusedLeaf()).toBe(1);
 	});
 
+	it('an open Add menu does not survive the canvas being unmounted below the floor width', async () => {
+		const harness = await mountPlanEditorCanvas();
+		open = harness;
+		await harness.wrapper.find('button[data-rp-action="add"]').trigger('click');
+		await settle();
+		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(true);
+
+		resizeTo(harness.rootEl, 320, 800);
+		await settle();
+		resizeTo(harness.rootEl, 1280, 800);
+		await settle();
+
+		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(false);
+		const add = harness.wrapper.find('button[data-rp-action="add"]');
+		expect(add.attributes('aria-expanded')).toBe('false');
+
+		await add.trigger('click');
+		await settle();
+		expect(harness.wrapper.find('[role="menu"]').exists()).toBe(true);
+		// The anchor is the NEW button — Escape returns focus to an element still in the document.
+		harness.wrapper.find('.rp-add-menu').element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+		await settle();
+		expect(document.activeElement).toBe(add.element);
+		expect(document.activeElement?.isConnected).toBe(true);
+	});
+
 	it('disconnects its observer on unmount', async () => {
 		const before = connectedObservers();
 		const harness = await mountPlanEditorCanvas();

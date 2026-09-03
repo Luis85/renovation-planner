@@ -913,7 +913,13 @@ has nothing to publish. `RequirementInvalidated` is the tempting substitute and 
 different — a figure stopped being trustworthy, not a row stopped existing. This increment mints
 `RequirementDeleted`.
 
-**`ReversibleSetPlanBackground` is out of this increment's scope and is recorded anyway.** A
+**`ReversibleSetPlanBackground` is out of this increment's scope and is recorded anyway** — and
+it is therefore the sweep test's one NAMED carve-out, asserted by exact key set the way this
+repository's other carve-out tables are. An unqualified *every writer publishes* would fail
+against a module the increment deliberately leaves alone, so the test contract and the declared
+scope could not both hold; naming it keeps the sweep honest in both directions, since a carve-out
+for a path that has since been fixed reads as a live exception until something compares the list
+to the tree. A
 background is not a cost input, so it moves nothing this summary shows; what it moves is the Plan
 Editor's own picture in a second leaf on the same plan. Named here because the sweep found it and
 a finding recorded nowhere is one the next sweep re-discovers.
@@ -1168,7 +1174,8 @@ mistake, per this repository's rule.
 | Coalescing | a cascade whose writes OUTLAST the debounce causes at most one read per settled burst, never one per event | asserting ONE here fails a correct trailing coalescer on a slow repository — the prose declines a completion boundary, so the test may not demand one |
 | Coalescing | a slower earlier read cannot overwrite a later one | without the request ticket a just-recalculated figure reverts |
 | Coalescing | disposing inside the debounce window performs NO summary read | unsubscribing does not cancel a scheduled callback, so an unmounted section keeps paying the walk this section exists to bound; asserted on reads, since a listener-count assertion passes against a live timer |
-| Sweep | every module under `src/application` that WRITES also publishes, or is a helper whose caller does | five of eleven publish nothing today; and the adapter-only filter is itself a sample — asked the wider way it returns thirteen, three of them genuine |
+| Sweep | every module under `src/application` that WRITES also publishes, is a helper whose caller does, or is a NAMED carve-out | five of eleven publish nothing today; the adapter-only filter is itself a sample — asked the wider way it returns thirteen, three of them genuine |
+| Sweep | the carve-out list is asserted by EXACT key set, and today holds exactly `ReversibleSetPlanBackground` with its reason | an unqualified "every writer publishes" fails against a module this increment deliberately does not change, so the test contract and the declared scope could not both be satisfied; and a carve-out for a path that no longer exists goes on reading as a live exception |
 | Summary | a requirement in project A whose origin zone lives in project B refreshes A when that zone is deleted | zone events carry B, so a project-filtered subscription drops them while A's row derives its area from that zone |
 | Summary | the same requirement does NOT refresh A when the geometry cascade aborts on a malformed sibling, and the warning notice fires instead | pinned as the behaviour this increment leaves standing, so a build that closes it fails here and its author reads the residue |
 | Summary | a requirement deleted through `DeleteRequirementCommand` refreshes an open Overview | that command imports no `EventBus`, so `RequirementDeleted` would be minted, subscribed to, and never raised on the path a user takes |

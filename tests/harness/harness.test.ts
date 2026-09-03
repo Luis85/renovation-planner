@@ -10,6 +10,8 @@
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
+import { parse as parseSfc } from '@vue/compiler-sfc';
 import { transform } from 'lightningcss';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
@@ -23,112 +25,78 @@ import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
 
 /**
- * Source as the ENGINE reads it, before any pattern is matched: line continuations removed, and
- * `${...}` substitutions emptied INSIDE template literals only.
+ * Does this module import a stylesheet? Asked of the TypeScript PARSER, not of a pattern.
  *
- * Module scope because it captures nothing (oxlint `consistent-function-scoping`), and named
- * rather than inlined because the stylesheet walk below is not the only question that would be
- * wrong to ask of un-normalised source.
+ * **Nine rounds of review each named one more lexical construct**, and every intermediate
+ * version failed SILENTLY, because the assertion below is an absence — an under-reaching scan
+ * reports a clean tree. The sequence, so the next author meets the shape rather than the
+ * endpoint: a continuation alternative in the pattern; global continuation removal; `${[^}]*}`;
+ * a balanced depth counter; mode tracking; mode tracking minus comment-stripping. Each was
+ * correct about the case it was given and wrong about the class, and the ninth report — a brace
+ * inside a comment inside a substitution — was the one that could not be closed without telling
+ * a regex literal from division, which is the hard problem in hand-lexing JavaScript.
  *
- * **Six rounds of review narrowed this one reported case at a time, and every intermediate
- * version failed SILENTLY**, because the assertion below is an absence: an under-reaching
- * normaliser reports a clean tree. The versions, so the next author sees the shape rather than
- * the endpoint:
+ * So this stops hand-lexing. `ts.createSourceFile` handles comments, regex literals,
+ * continuations, nested templates and substitutions because it is the real grammar, and the
+ * check becomes a question about NODES: an import declaration, an `export … from`, or a dynamic
+ * `import()` whose specifier ends in `.css`. A template ending in a substitution is correctly
+ * NOT claimed — the extension is unknowable from source.
  *
- * 1. A pattern alternative for continuations — blind to one inside the extension.
- * 2. `.replace(/\\\r?\n/g, '')` — blind to a newline inside `${ }`, which is expression syntax.
- * 3. `.replace(/\$\{[^}]*\}/gs, '')` — stopped at the first `}`, so a nested object or a quoted
- *    brace left its tail behind.
- * 4. A balanced depth counter — but it treated `${` ANYWHERE as a substitution, so
- *    `const marker = '${'; import('./theme.css')` swallowed the import that followed it.
+ * **The `.vue` objection that deferred this twice is answered the same way**: with the real
+ * parser rather than a second hand-rolled one. `@vue/compiler-sfc` hands back `script` and
+ * `scriptSetup`; a template-only SFC yields neither and can import nothing.
  *
- * Each fix was correct about the case it was given and wrong about the class, which is why this
- * one tracks MODE rather than adding a fifth rule: a `${` matters only inside a backtick, and
- * knowing that requires knowing where you are.
+ * A regex over `<script…>` was written first and failed on the real tree within a minute —
+ * `ZoneSummary.vue` mentions `<script setup>` inside an HTML comment, so the extractor found an
+ * opening tag with no close. That is the identical mistake this change exists to stop, one layer
+ * up: hand-lexing a grammar somebody has already written a parser for.
  *
- * **Version 5 was version 4 plus comment-stripping, and the stripping was the defect.** It was
- * added as a bonus nothing asked for — the bare-newline restriction in the pattern already
- * excluded prose — and it cannot be done without lexing REGEX literals, because `/\/\//`
- * contains `//` that is not a comment. Round seven reported exactly that, and a real
- * `const r = /\/\//; import('./theme.css')` was swallowed whole.
- *
- * Distinguishing a regex literal from division needs the PREVIOUS token, which is the classic
- * hard problem in hand-lexing JavaScript and the point at which a parser stops being
- * disproportionate. It is not needed, because comment-stripping is not needed: measured, all
- * eleven cases pass without it, the `${`-in-a-comment case included, since mode tracking
- * already declines a `${` outside a backtick. **The feature added beyond what was required is
- * the one that broke it** — so version 6 is version 5 minus the addition, and the smallest
- * instrument that passes every case is the one that ships.
- *
- * **The honest bound, stated because an earlier revision claimed a class it had closed part
- * of.** Two things this does not reach:
- *
- * - A specifier that is not in the source text at all — held in an identifier, or assembled by
- *   concatenation. No source scan reaches that, and a parser would not either, since the value
- *   exists only at runtime.
- * - A BRACE inside a comment or a regex literal WITHIN a substitution — `` `${/* { *\/ n}.css` ``
- *   — which the depth counter reads as nesting, so it runs past the real close.
- *
- * **The second was reported and is NOT patched, which is a decision with a measurement behind
- * it.** Skipping comments inside the substitution requires telling `//` from a regex, and
- * `tests/helpers/buttonRules.ts` already contains `${url.replace(/^\.\//, '')}` — a regex whose
- * body holds `//`. Adding comment-skipping would read that as a line comment, run to the end of
- * the line and break a file that works today. Measured, not predicted.
- *
- * Distinguishing the two needs the previous token, which is the hard problem in hand-lexing
- * JavaScript. Eight rounds have each named one more lexical construct, and that is the signal to
- * stop patching: **the next report in this class is the trigger for a real parser**, not a ninth
- * rule. Reachability today is measured rather than assumed — exactly two substitutions in the
- * walked tree contain a slash (a division and that regex) and neither carries a brace.
+ * The honest bound is now only the one no analysis reaches: a specifier that is not in the
+ * source at all — held in an identifier, or assembled by concatenation — whose value exists
+ * only at runtime.
  */
-const normalisedSource = (text: string): string => {
-	const source = text.replace(/\\\r?\n/g, '');
-	let out = '';
-	let i = 0;
-	const skipQuoted = (quote: string): void => {
-		i += 1;
-		while (i < source.length && source[i] !== quote) i += source[i] === '\\' ? 2 : 1;
-		i += 1;
-	};
-	while (i < source.length) {
-		const c = source[i];
-		if (c === "'" || c === '"') {
-			const from = i;
-			skipQuoted(c);
-			out += source.slice(from, i);
-		} else if (c === '`') {
-			out += '`';
-			i += 1;
-			while (i < source.length && source[i] !== '`') {
-				if (source[i] === '\\') {
-					out += source.slice(i, i + 2);
-					i += 2;
-				} else if (source[i] === '$' && source[i + 1] === '{') {
-					i += 2;
-					for (let depth = 1; i < source.length && depth > 0; ) {
-						const k = source[i];
-						if (k === '\\') i += 2;
-						else if (k === "'" || k === '"' || k === '`') skipQuoted(k);
-						else {
-							if (k === '{') depth += 1;
-							else if (k === '}') depth -= 1;
-							i += 1;
-						}
-					}
-				} else {
-					out += source[i];
-					i += 1;
-				}
-			}
-			out += '`';
-			i += 1;
-		} else {
-			out += c;
-			i += 1;
-		}
-	}
-	return out;
+const scriptsOf = (file: string, text: string): string[] => {
+	if (!file.endsWith('.vue')) return [text];
+	const { descriptor } = parseSfc(text, { filename: file });
+	return [descriptor.script?.content, descriptor.scriptSetup?.content].filter(
+		(content): content is string => content !== undefined,
+	);
 };
+
+const namesStylesheet = (node: ts.Node): boolean => {
+	if (ts.isStringLiteralLike(node)) return node.text.endsWith('.css');
+	if (ts.isTemplateExpression(node)) {
+		const last = node.templateSpans.at(-1);
+		return last !== undefined && last.literal.text.endsWith('.css');
+	}
+	return false;
+};
+
+const importsStylesheet = (file: string, text: string): boolean =>
+	scriptsOf(file, text).some((script) => {
+		const source = ts.createSourceFile(file, script, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+		let found = false;
+		const visit = (node: ts.Node): void => {
+			if (found) return;
+			if (
+				(ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+				node.moduleSpecifier !== undefined &&
+				namesStylesheet(node.moduleSpecifier)
+			) {
+				found = true;
+				return;
+			}
+			const dynamic =
+				ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword;
+			if (dynamic && node.arguments[0] !== undefined && namesStylesheet(node.arguments[0])) {
+				found = true;
+				return;
+			}
+			ts.forEachChild(node, visit);
+		};
+		ts.forEachChild(source, visit);
+		return found;
+	});
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
@@ -530,7 +498,6 @@ describe('the browser harness', () => {
 		// CRLF continuation defeated the old pattern too. Three rounds narrowed this regex one
 		// reported case at a time; doing what the parser does closes the class, and the third
 		// round is what says a pattern was the wrong instrument rather than a wrong pattern.
-		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`][^'"\r\n]*\.css['"`]/;
 		const sheetLink = /<link[^>]*\bstylesheet\b/i;
 		// Every extension Vite will load as a module, not the two this repository happens to
 		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as
@@ -566,9 +533,7 @@ describe('the browser harness', () => {
 			...sources('tests/helpers'),
 		];
 
-		const importers = reachable.filter((file) =>
-			sheetImport.test(normalisedSource(readText(file))),
-		);
+		const importers = reachable.filter((file) => importsStylesheet(file, readText(file)));
 		const linkers = reachable.filter((file) => sheetLink.test(readText(file)));
 		const styleBlocks = sources('tests/harness').filter((file) =>
 			/<style[\s>]/.test(readText(file)),

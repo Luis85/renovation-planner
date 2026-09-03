@@ -204,19 +204,31 @@ own first draft included:
   the doors a service exposes match the ones it says it guarded — two things the same object
   declares about itself. Mutating only the ROUTING left it green, which is the defect above,
   uncaught, one round later. `tests/plugin/guardCategory.test.ts` is
-  behavioural now: compose a real root, DETONATE seven named collaborators beneath it (the
-  five repositories, the geometry port and the file probe — a hand-written list, and the only
-  one in that file that nothing PINS: the two carve-out tables and the skipped-owners list are
-  each asserted by exact key set, so a drift in one of those three is named at the
-  assertion, while a drift in this one is caught only indirectly, by the fail-closed
-  property in the next bullet), walk everything the root and the editor bundle hand out, drive a
-  hostile input through every door it FINDS, and require the mapped `vault.unexpected-failure`
-  back. A raw command REJECTS, and no amount of declaring makes it resolve a refusal. What
-  the walk does not find is written down in the file's own header — a service hiding inside a
-  class instance, an object whose only door is called something other than `execute…`, and
-  the ports — and the detonation list being seven names rather than a rule costs nothing only
-  because the instrument fails closed (next bullet). Two carve-outs, by name, with reasons,
-  asserted by exact key set AND proven to name paths the walk really finds — a carve-out for
+  behavioural now: compose a real root, DETONATE nine named collaborators beneath it (the six
+  repositories, the plan and asset geometry ports and the file probe — a hand-written list,
+  and the only one in that file that nothing PINS: the two carve-out tables and the
+  skipped-owners list are each asserted by exact key set, so a drift in one of those three
+  is named at the assertion, while a drift in this one is caught only indirectly, by the
+  fail-closed property in the next bullet), walk everything the root and the editor bundle
+  hand out, drive a hostile input through every door it FINDS, and require the mapped
+  `vault.unexpected-failure` back. A raw command REJECTS, and no amount of declaring makes it
+  resolve a refusal. What the walk does not find is written down in the file's own header — a
+  service hiding inside a class instance, an object whose only door is called something other
+  than `execute…`, and the ports — and the detonation list being nine names rather than a rule
+  costs nothing only because the instrument fails closed (next bullet).
+  **PRE-EXISTING correction, recorded so it is not read as a recent drift:** this sentence
+  said SEVEN, and *"the five repositories, the geometry port and the file probe"*, while the
+  test's own header said nine and six and its array held nine entries — the price-override
+  increment's `overrides` and the asset designer's `assetGeometry` each landed there and each
+  left this file alone.
+  `git show origin/main:tests/plugin/guardCategory.test.ts | sed -n '14,16p'` prints the nine
+  on `main`, so the disagreement predates every branch since. **The number was re-derived by
+  reading the array rather than by trusting the header's own quoted grep**, which is
+  self-matching — its `awk` range opens on the docblock line that QUOTES the pattern, so it
+  sweeps up a `persistence.queries` from a carve-out table and prints ten for an array of
+  nine. An instrument written inside the text it measures counts itself.
+  Two carve-outs, by name, with reasons, asserted by exact key set AND proven to name paths
+  the walk really finds — a carve-out for
   a path that no longer exists is a comment that goes on reading as a live exception.
 - **An instrument that reaches nothing looks exactly like a clean tree**, so the walk is
   driven against fixtures first (a raw command in a nested bundle, a facade with one raw
@@ -1403,6 +1415,23 @@ Rules that came out of it:
   Both override commands acquire the level-2 lock now. `RecalculateRequirementCommand`
   deliberately still does not, and the reason is in its sibling's header: the resolution
   calls it inline while holding that very lock.
+- **A SUBSCRIBER MUST NEVER ACQUIRE A REFERENCE LOCK**, which is the bullet above's own premise
+  carried to its conclusion: if a sequence publishes while holding its locks, whatever the bus
+  wakes is running inside them. The mechanism makes it a deadlock rather than contention —
+  `EventBus.publish` AWAITS its handlers, so a subscriber blocked in `acquire` is waiting on a
+  release the publisher reaches only after `publish` returns, and nothing times out. The rule
+  is LOAD-BEARING today rather than prospective: live paths already publish under a held lock
+  into a subscriber that awaits real work, and a user reaches at least one of them by ordinary
+  editing. `src/application/reference/ReferenceLocks.ts`'s header is the authority — it states
+  the rule beside the two the lock enforces itself, names those live paths, says why publishing
+  after release cannot close the class (one pair sits inside a shared command whose event
+  buffering was already declined, so it cannot move at all), why the lock cannot enforce this
+  one (`acquire` cannot see that it is inside a publish, and coupling `ReferenceLocks` to the
+  `EventBus` to find out is worse than the rule), and the four instruments that check it. **What
+  NO instrument reaches, so it is stated here as well as there:** a subscriber handed a
+  collaborator that locks INTERNALLY names no lock, so it is invisible to the text tripwire over
+  the subscriber-registering modules, and the guarantee is that no such module NAMES a lock —
+  never that no subscriber can reach one.
 - **A recording event bus is a fake with no cascade in it.** `tests/helpers/planEditorRig.ts`
   used `RecordingEventBus`, whose `subscribe` discards its handler — so every
   geometry-driven figure in the editor's own e2e rig was as stale as the day it was written
@@ -3420,26 +3449,41 @@ announcing into nothing. The rules that came out of it:
   instruments and not a better regex.** `tests/application/events/reversibleWritePathDiscovery.test.ts`
   does the one thing text is reliable at — finding which CLASSES exist — and
   `reversibleWritePathCensus.test.ts` DRIVES each direction and looks at what came out. Measured
-  in the edit that wrote this sentence: the discovery file dispositions **40** classes
-  (`grep -oE "'src/[^']+\.ts::[A-Za-z_]+':" | sort -u | wc -l`), of which **11** carry
-  behavioural rows and **29** are `notAnAdapter` with a stated reason; `CENSUS_TABLE`
-  (`tests/helpers/reversibleWriteCensusTable.ts`) holds **22** rows — 11 `execute`, 11 `undo`
-  (`grep -c "direction: 'execute'"` and the same for `'undo'`). The table lives in a plain
+  in the edit that wrote this sentence: **11** of the discovery file's dispositions carry
+  behavioural rows, and `CENSUS_TABLE` (`tests/helpers/reversibleWriteCensusTable.ts`) holds
+  **22** — 11 `execute`, 11 `undo` (`grep -c "direction: 'execute'"` and the same for
+  `'undo'`). **Those two are the figures quoted here because they are the two an assertion
+  HOLDS**: the discovery file's *"every module a disposition names carries a row for every
+  direction it claims"* case fails the moment a `rows:` disposition and `CENSUS_TABLE`
+  disagree. The disposition TOTAL is held by nothing —
+  `grep -oE "'src/[^']+\.ts::[A-Za-z_]+':" | sort -u | wc -l` over that file printed **42** on
+  2026-09-03, the balance being `notAnAdapter` with a stated reason — so read it as a dated
+  measurement and re-run the grep rather than quoting the number. It said **40** for two
+  increments, because the increment that added `ReferenceLocks`'s two dispositions did not
+  re-run this file's own grep, and the disposition table is exactly where additions land
+  routinely: **a number no check holds is a number every later author inherits unexamined**,
+  which is why the pinned pair leads and the total is dated. The table lives in a plain
   module rather than being exported from either `.test.ts`, because vitest registers a test
   file's whole suite on IMPORT and a cross-file import would silently run every one of its
   assertions twice.
 - **State what the tripwire cannot see, because "a new adapter cannot be added silently" is
   false as written.** It cannot be added silently *in the shapes the scan covers*, and the scan
   is deliberately crude: it reads `class` KEYWORDS line by line under `src/**`, so it is blind
-  to a class EXPRESSION (`const X = class {}`), a declaration whose `class` keyword is not on
-  the same line as its modifier, a `.vue` file (`sourceFilesUnder` takes `.ts` only), an adapter
-  that is not a class at all, a class reaching `undo` by neither its own file's text nor an
-  `extends` chain, and — the one most likely to bite — a NEW DIRECTION added to a class that
-  already has a disposition, since the cross-check only verifies the directions a disposition
-  already NAMES. **Six blind spots, written in that file's own header**
-  (`sed -n '/What the walk cannot see/,/Two things worth keeping/p' | grep -c "^ \* - "` prints
-  6), because three of them were found by a review round AFTER the first draft of that list
-  claimed to be complete.
+  to a class EXPRESSION (`const X = class {}`), a `.vue` file (`sourceFilesUnder` takes `.ts`
+  only), an adapter that is not a class at all, a class reaching `undo` by neither its own
+  file's text nor an `extends` chain, and — the one most likely to bite — a NEW DIRECTION added
+  to a class that already has a disposition, since the cross-check only verifies the directions
+  a disposition already NAMES. **The list is written in that file's own header and every entry
+  on it has been DRIVEN against the walk** rather than reasoned from the regex; count it with
+  `sed -n '/What the walk cannot see/,/Three things worth keeping/p' | grep -c "^ \* - "`
+  rather than from this sentence, because the number has moved once already and nothing here
+  re-measures it. Three entries were found by a review round AFTER the first draft of that list
+  claimed to be complete — and a sixth was later DELETED rather than corrected, because driving
+  it proved it was not a blind spot at all: a declaration whose `class` keyword sits below its
+  `export`/`default` modifier IS discovered, since every prefix in the regex is optional and the
+  bare `class Foo` line matches on its own. **That is the direction of error nobody
+  re-measures** — an overstated limitation makes an instrument look weaker than it is and costs
+  nothing until somebody spends a round closing a gap that was never open.
 - **Minting an event has two ends, and every file can be right about the end it names.**
   `RequirementDeleted` and `RequirementRestored` were minted here with publishers, payloads, a
   census row and a domain-event test each — **and no subscriber anywhere.** Measured in this
@@ -3449,11 +3493,18 @@ announcing into nothing. The rules that came out of it:
   `undoDeleteResolution.ts`, `recoverInterruptedSequences.ts`), and
   `grep -rn "'RequirementDeleted'\|'RequirementRestored'" src/ --include=*.ts` outside that
   module prints **nothing**. Nobody listens. That is DELIBERATE and it is half a feature: the
-  subscriber is `projectSummaryChangeSource`, which is increment 2's, and
-  `docs/superpowers/specs/2026-09-02-project-home-design.md`'s Amendment 1 carries the
-  obligation. **If increment 2 is abandoned, the honest move is to REVERT rather than to leave
-  two events published to nobody** — an event with no listener is exactly what a later reader
-  deletes as dead, and deleting it takes the publishers with it.
+  subscriber is `projectSummaryChangeSource`, which belongs to **the PROJECT-HOME increment**
+  (`docs/superpowers/specs/2026-09-02-project-home-design.md`, whose Amendment 1 carries the
+  obligation). **If the project-home increment is abandoned, the honest move is to REVERT
+  rather than to leave two events published to nobody** — an event with no listener is exactly
+  what a later reader deletes as dead, and deleting it takes the publishers with it. Still
+  open, re-measured in this edit: `grep -rn "projectSummaryChangeSource" src/ tests/` prints
+  nothing. **Named by its subject rather than by an ordinal on purpose, because the ordinal
+  collided**: this passage read "increment 2's" until a DIFFERENT increment 2 — the
+  lock/publish boundary — landed on this branch, at which point a reader checking whether the
+  obligation was discharged found an increment 2 that had shipped and concluded it was. An
+  ordinal is a fact about one plan's numbering and the next plan starts counting again; the
+  subject is what survives being read from outside the plan that assigned it.
 - **"Every undo and redo announces" is true of the paths this increment TOUCHED, and there is
   one deliberate silence.** `ReversibleSetPlanBackground.undo()` restores straight through
   `PlanRepository.save` and publishes nothing, by the decision its own property 3 states — a
@@ -3481,8 +3532,8 @@ announcing into nothing. The rules that came out of it:
   invisible *precisely because the first had been announced as a sweep*. A completed correction
   is the best available camouflage for the layer beneath it.
 
-Two residuals are named here rather than left to be re-found, because neither is this
-increment's to fix and both read as its defect if met cold:
+One residual is named here rather than left to be re-found, because it is not this
+increment's to fix and reads as its defect if met cold:
 
 - **PRE-EXISTING, and the most consequential thing this branch surfaced: a successfully
   recalculated reassignment cannot be rolled back at all.** `recalculateInline` returns no
@@ -3491,15 +3542,31 @@ increment's to fix and both read as its defect if met cold:
   saves AGAIN, bumping past the recorded expectation, so `compensate`'s restore presents a stale
   version and is REFUSED. Older than this plan, nothing to do with announcements, and the fix
   changes a shared `ResolutionOps` signature plus the engine's progress accounting — its own
-  increment, cases and review.
-- **A LATENT hole in `tests/harness/harness.test.ts`'s closure check**, measured rather than
-  asserted: the walk excludes `*.test.ts` from `scanned` while the closure check ACCEPTS imports
-  targeting such a file, so a stylesheet imported by a helper named `*.test.ts` would be loaded
-  by Vite, absent from `importers`, and the reachability assertion would pass VACUOUSLY. It is
-  latent and not live — 17 such files exist under `tests/helpers` and `tests/harness` and none
-  is imported by a non-test module — and the cheap close is a TRIPWIRE (fail if any file under
-  the roots ending `.test.ts` is imported by a scanned module), not the full import traversal
-  that was proposed for it.
+  increment, cases and review. `docs/superpowers/plans/2026-09-03-the-lock-publish-boundary.md`'s
+  "Not in scope" list carries it as a known exclusion, so meeting it reads as pre-existing
+  rather than as a defect of the increment that named it.
+
+**The second residual this section used to carry is CLOSED**, and it is left written up
+because the close is the more useful half. The hole was a VACUOUS PASS in
+`tests/harness/harness.test.ts`'s closure check: the walk excludes `*.test.ts` from `scanned`
+while the closure check ACCEPTED any import resolving inside the roots, so a stylesheet
+imported by a helper named `*.test.ts` would be loaded by Vite, be absent from `importers`,
+and the reachability assertion would pass having checked nothing — this repository's
+assert-an-absence defect in the INSTRUMENT rather than in a case. `importsATestFile`
+(`tests/helpers/globBranches.ts`) is the tripwire that closes it, reported as a sixth named
+list on the existing `toEqual` rather than as a case of its own, so a scanned module importing
+a `*.test.ts` under the roots fails beside the other five. It was watched red against a
+planted import before being trusted, which a guard over a hole nobody has fallen into is worth
+nothing without. **The bound is ONE HOP and its own docblock says so**: a `*.test.ts` importing
+a SECOND `*.test.ts` that imports a stylesheet is outside it entirely, since neither file is in
+`scanned` and no specifier of either is ever offered — the tripwire makes the FIRST such edge
+fail loudly, which is what stops the chain being built, and is not a proof that no chain
+exists. The full module-graph traversal was the reported remedy and is more than the question
+needs while the tripwire holds the entrance; the rest of what it cannot reach (a glob or a
+template specifier that does not SPELL the suffix) is enumerated where the predicate is.
+Re-measured in this edit, `find src tests/harness tests/helpers -name "*.test.ts" | wc -l`
+still prints **17**, none of them imported by a non-test module — so the hole was latent when
+it was closed, which is the cheapest moment to close one and the moment nothing forces you to.
 
 **Which plan the editor opens is a PICKER**, not the active file. `open-plan-editor` used a
 `checkCallback` requiring the active note to be a Plan, which kept it out of the palette in
@@ -3571,7 +3638,11 @@ gate.** Measured on a quiet four-core box: `vue-tsc` 14.0s + `vite build` 1.6s, 
 1.0s + `eslint .` 23.8s, `test:coverage` 159.7s, `fallow` ~2s. **The suite is 79% of it**,
 and the suite's own accounting says the cost is not the tests — `transform 13.7s, import
 74.3s, tests 143.9s, environment 82.1s` over 362 files, so per-file overhead (a jsdom
-environment and a module registry, both paid once per FILE) exceeds the test bodies. ONE
+environment and a module registry, both paid once per FILE) exceeds the test bodies. **Every
+number in this paragraph is a DATED SNAPSHOT of one machine and one tree, the file count
+included** — `find tests -name "*.test.ts" | wc -l` prints **374** as of 2026-09-03, so the
+362 is already behind and the per-file conclusion is what survives it, since that conclusion
+is a RATIO rather than a total. Re-measure before reasoning from any of them. ONE
 door exists beside `check` for that reason, and it does not replace it:
 
 - **`npm run check:fast [paths]`** — `oxlint`, `vue-tsc -noEmit` and `vitest run`, no

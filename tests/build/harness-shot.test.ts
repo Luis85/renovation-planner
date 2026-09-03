@@ -564,23 +564,34 @@ describe('the headless harness capture script', () => {
 		expect(source).not.toContain('createHash');
 	});
 
-	it('still defines the eighteen fixed shots, so an argumentless run is unchanged', () => {
+	/**
+	 * DERIVED from the `SHOTS` source rather than remembered, which is the fix for the defect
+	 * this case used to be: the hand-written list here said eighteen while `SHOTS` held twenty,
+	 * missing both price-section captures, and deleting either one would have left this test
+	 * green regardless — it was checking its own list against itself. Slicing the block between
+	 * `const SHOTS = [` and its closing `];` and matching every `name: '…'` inside it reads the
+	 * same names `harness-shot.mjs` actually iterates, so a shot added or removed there changes
+	 * this test's answer without anyone touching this file.
+	 */
+	it('defines exactly the twenty-one fixed shots, derived from the SHOTS source rather than remembered', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
+		const shotsBlock = source.slice(source.indexOf('const SHOTS = ['), source.indexOf('];', source.indexOf('const SHOTS = [')));
+		const named = [...shotsBlock.matchAll(/name: '([a-z-]+)'/g)].map((m) => m[1]);
 
-		for (const name of [
+		expect(named).toEqual([
 			'dark',
 			'light',
 			'phone',
 			'project-detail',
+			'project-detail-prices',
 			'project-detail-narrow',
+			'project-detail-prices-narrow',
 			'plan-editor-dark',
 			'plan-editor-light',
-			// Task 21's three: a zone selected (the Room Inspector), the Add menu open, and
-			// the shell at a sidebar's width — the same triple `plan-editor-narrow`'s own case
-			// below pins the width and query of.
 			'plan-editor-selected',
 			'plan-editor-add-menu',
 			'plan-editor-narrow',
+			'plan-editor-unsupported',
 			'asset-designer-dark',
 			'asset-designer-light',
 			'asset-designer-narrow',
@@ -589,9 +600,41 @@ describe('the headless harness capture script', () => {
 			'index-focus',
 			'index-focus-current',
 			'index-failure',
-		]) {
-			expect(source).toContain(`name: '${name}'`);
-		}
+		]);
+	});
+
+	/**
+	 * R14: `plan-editor-dark` and `plan-editor-light` used to wait on `PLAN_EDITOR_VIEW` alone,
+	 * which attaches before asynchronous project hydration establishes the ready floor state —
+	 * so both could complete while the intended contents were still loading. `plan-editor-narrow`
+	 * waited on the same wrapper and could photograph a 460px shell with no proof the constrained
+	 * layout's rail had actually appeared. All three now name a selector that only exists once
+	 * the state each shot is FOR has landed; a mutation back to `PLAN_EDITOR_VIEW` fails here.
+	 */
+	it('waits for the hydrated floor state on the resting plan-editor shots, and for the rail as well on the narrow one', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-dark'[^}]*selector: FLOOR_STATE/);
+		expect(source).toMatch(/name: 'plan-editor-light'[^}]*selector: FLOOR_STATE/);
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
+		expect(source).toContain("const FLOOR_STATE = '.rp-floor-inspector'");
+	});
+
+	/**
+	 * R13: the one width the 460px capture cannot show, and the one shot that MEASURES rather
+	 * than only draws — jsdom lays nothing out, so `measure` reads the real shell's scrollWidth
+	 * against its clientWidth in a browser through the importable `overflowFinding`/`shellMetrics`
+	 * pair, rather than a claim only a source-text pin could hold.
+	 */
+	it('measures the unsupported shell for horizontal overflow at 320 px, through the importable overflowFinding', () => {
+		const source = readFileSync(SCRIPT, 'utf8');
+
+		expect(source).toMatch(/name: 'plan-editor-unsupported'[^}]*width: 320/);
+		expect(source).toMatch(
+			/name: 'plan-editor-unsupported'[^}]*selector: '\.rp-editor-shell\[data-layout="unsupported"\] \.rp-unsupported-width'/,
+		);
+		expect(source).toMatch(/name: 'plan-editor-unsupported'[^}]*measure: '\.rp-editor-shell'/);
+		expect(source).toContain("from './captureMeasures.mjs'");
 	});
 
 	/**
@@ -610,7 +653,9 @@ describe('the headless harness capture script', () => {
 		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*query: '\?view=plan-editor&add/);
 		expect(source).toMatch(/name: 'plan-editor-add-menu'[^}]*selector: '\.rp-add-menu'/);
 		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*width: 460/);
-		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: PLAN_EDITOR_VIEW/);
+		// The rail as well as the canvas (R14) — see 'waits for the hydrated floor state…' below
+		// for why a bare `PLAN_EDITOR_VIEW` wait is exactly the defect being refused here.
+		expect(source).toMatch(/name: 'plan-editor-narrow'[^}]*selector: \[PLAN_CANVAS, '\.rp-editor-shell\[data-layout="constrained"\] \.rp-panel-rail'\]/);
 	});
 
 	/**

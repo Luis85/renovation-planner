@@ -132,7 +132,10 @@ Select drag is abandoned when the canvas unmounts below the floor, and the next 
 normally', and 'a drawing tool keeps its placed vertices across the unmount'. The shell also
 lost `layersPanelOpen`/`inspectorPanelOpen` and their two toggles (R11, spec §5.6): both
 full-mode panels render unconditionally, and `shell.test.ts`'s five-regions case is what proves
-they still compose.
+they still compose. The horizontal-overflow gap this section used to record under Remains is
+closed too (R13): `npm run harness-shot`'s `plan-editor-unsupported` shot reads the real 320 px
+shell's `scrollWidth` against its `clientWidth` in a browser and fails the run on a sideways
+scroll — see [[Unsupported width has no horizontal-overflow check]].
 
 Remains, and each is recorded at the Task that owns it:
 
@@ -145,14 +148,7 @@ Remains, and each is recorded at the Task that owns it:
   mark and a word (R5, 2026-09-04) — but an `EditorWarning` still has no accessible heading, no busy
   state and no action, so there is nothing yet for a keyboard user to reach. See
   [[Render independent simultaneous persistent warnings]].
-- **No measurement of horizontal scrolling below 400px, by any instrument.** jsdom lays nothing
-  out, and the only narrow capture is at 460px, which is `constrained` rather than `unsupported`.
-  The manual case's step 10 opens that state and watches `Focus this tab`; its expected result
-  never asks the tester to look for a sideways scrollbar, so it does not discharge this either.
-  An earlier draft of this line named step 10 as the instrument, which was a guess at what the
-  step checks rather than a reading of it.
 - **No manual case for Undo and Redo beyond one clause.** The context bar carries both controls
   and step 1 of [[Open a floor and select a room]] asserts only that they are present and
   disabled with an empty history; the Undo and redo PBI is not advanced here.
 - [[The toolbar-key retirement contract conflicts with the Asset Designer]]
-- [[Unsupported width has no horizontal-overflow check]]

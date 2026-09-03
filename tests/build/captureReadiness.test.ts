@@ -207,6 +207,45 @@ describe('waitUntilReady', () => {
 
 		expect(seen).toEqual([[isX, 'x']]);
 	});
+
+	/**
+	 * R14: a fixed shot may need MORE than one element attached before it counts as ready — the
+	 * narrow Plan Editor shot waits on the canvas AND the constrained-layout rail, because the
+	 * canvas alone attaches before the reflow that produces the rail has actually happened. A
+	 * `string | string[]` selector is what that costs `waitUntilReady`, and this is the case a
+	 * bare-string fixed shot above could not exercise: two selectors asked, and the wait settles
+	 * only once both of the underlying `waitForSelector` calls have resolved.
+	 */
+	it('waits on every selector of a list for a fixed shot', async () => {
+		const asked: string[] = [];
+		const resolvers = new Map<string, () => void>();
+		const page = {
+			waitForSelector: (selector: string) =>
+				new Promise<void>((resolve) => {
+					asked.push(selector);
+					resolvers.set(selector, resolve);
+				}),
+			waitForFunction: () => {
+				throw new Error('a fixed shot has no entry to poll for');
+			},
+		};
+
+		let settled = false;
+		const done = waitUntilReady(page, ['.a', '.b'], undefined, () => true).then(() => (settled = true));
+
+		await Promise.resolve();
+		expect(asked).toEqual(['.a', '.b']);
+		expect(settled).toBe(false);
+
+		resolvers.get('.a')?.();
+		await Promise.resolve();
+		await Promise.resolve();
+		expect(settled).toBe(false);
+
+		resolvers.get('.b')?.();
+		await done;
+		expect(settled).toBe(true);
+	});
 });
 
 /**

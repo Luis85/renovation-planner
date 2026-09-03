@@ -76,6 +76,8 @@ is no baseline to diff against". Nothing here asks for that to change.
 `scripts/harness-shot.mjs`, reviewed at commit `16757d6d`. The note's ten-count and title are
 therefore historical, while the contact-sheet issue it records has doubled.
 
+**2026-09-04:** twenty-one, `plan-editor-unsupported` added; the sheet is still unbuilt.
+
 ## The alternatives
 
 - **Leave it.** Ten files is not many, and a designer who wants two of them side by side has an

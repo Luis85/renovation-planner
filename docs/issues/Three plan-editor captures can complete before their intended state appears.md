@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Errors, diagnostics and the test harness]]"
 order: 100
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -66,6 +66,26 @@ Extend `tests/build/harness-shot.test.ts` to assert that dark and light name a h
 floor-state selector and that narrow additionally names
 `.rp-editor-shell[data-layout="constrained"] .rp-panel-rail`; mutations back to
 `PLAN_EDITOR_VIEW` must fail those assertions.
+
+## What closed it
+
+**2026-09-04 (R14).** `plan-editor-dark` and `plan-editor-light` now wait on
+`.rp-floor-inspector` (`FLOOR_STATE`) rather than the bare view wrapper — drawn only once
+project hydration is ready and nothing is selected — and `plan-editor-narrow` waits on a LIST,
+`.rp-plan-canvas` alongside `.rp-editor-shell[data-layout="constrained"] .rp-panel-rail`, since
+the canvas alone can attach before the constrained reflow that produces the rail has actually
+happened. `waitUntilReady` in `scripts/captureReadiness.mjs` now accepts `string | string[]`
+for a fixed shot and resolves only once every named selector has attached. `PLAN_EDITOR_VIEW`
+is gone from `scripts/harness-shot.mjs` entirely — every Plan Editor shot now names a selector
+proving its own state, so there is no bare-wrapper spelling left for a future shot to fall back
+to. Mutating `plan-editor-dark` back to a bare view-wrapper selector was run and watched red at
+exactly the predicted assertion before being reverted. Holding tests:
+`tests/build/harness-shot.test.ts` › 'the headless harness capture script' › 'waits for the
+hydrated floor state on the resting plan-editor shots, and for the rail as well on the narrow
+one', and `tests/build/captureReadiness.test.ts` › 'waitUntilReady' › 'waits on every selector
+of a list for a fixed shot'. Commit "test(harness-shot): wait for the state each plan-editor
+shot names, derive the inventory from SHOTS, and measure the 320 px shell for horizontal
+overflow".
 
 ## References
 

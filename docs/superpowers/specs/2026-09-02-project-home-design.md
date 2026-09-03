@@ -1198,7 +1198,21 @@ The increment therefore makes the reversible adapters announce. Concretely:
 
 - `reversible-create-zone-command` and `reversible-delete-zone-command` publish `ZoneCreated` /
   `ZoneDeleted` on the replayed side, and the delete adapter's `undoDeleteResolution` publishes
-  for the requirements it restores.
+  **`RequirementRestored`** for a requirement it writes back and **`RequirementCreated`** for one
+  it puts back from absent — the same split, on the same test, as recovery: `undoDeleteResolution`
+  computes `entry.outcome === 'written' ? entry.version : 'absent'` exactly as `recoverOne` does,
+  so one rule covers both callers rather than two descriptions of one act.
+
+  **This bullet said "publishes for the requirements it restores" — a ROLE, with no event named —
+  for three rounds, and that is the third instance of one defect.** The same wording was reported
+  and fixed at the zone-restore path and at recovery in the two commits before this one, and this
+  sibling was left standing both times. A `delete-anyway` undo is exactly where it bites: the
+  requirement goes from `stale` back to a `current` snapshot without its effective cost moving, so
+  `publishIfEffectiveCostChanged` says nothing, and in the cross-project case `ZoneCreated` is
+  filtered to the zone's project — leaving project A's Overview holding a stale badge after an
+  ordinary undo. Reported, and the reporter also predicted the remedy would be the one that closes
+  the recovery residue. It is: `RequirementRestored` was minted one commit earlier for that residue
+  and has a second caller here, which is what a vocabulary member earning its place looks like.
 - `reversible-assign-asset-command`'s `redoCreate` publishes `RequirementCreated`.
 - `reversible-override-commands`' `undo` publishes `CostEstimateChanged`, since a cost-override
   undo changes the effective total and a quantity-override undo reprices the calculated cost.
@@ -1546,6 +1560,7 @@ mistake, per this repository's rule.
 | Zone restore reaches dependents | a redone zone creation publishes a requirement-level event per referent, including one whose own `projectId` differs from the zone's | nothing subscribes to `ZoneCreated`, so a restore runs no cascade, and the event names the zone's project — a dependent in another project keeps a `missingTarget` badge that a fresh read would already have cleared |
 | Summary | a stale row blocked by a precondition other than a referent's state is counted in `blocked` and carries its own badge | narrowing `recalculable` took those rows out of "needs recalculating" and left them qualified by nothing while their cost stayed in the total — the `missingTargets` lesson, repeated one field over |
 | View state | `getState` round-trips the section: set Design, serialize, parse, and land on Design | the serializer was the one member of the pair the plan did not name, and without it every saved layout reopens on Overview |
+| Undo publishes | a `delete-anyway` undo that returns a requirement to `current` without moving its cost raises `RequirementRestored`, and project A's summary refreshes although the zone event names B | the cost helper is correctly silent and `ZoneCreated` is correctly filtered, so nothing else can reach A — the gap a "publishes for the requirements it restores" wording hid for three rounds |
 | Recovery publishes | a `written` restore that changes NO figure still raises `RequirementRestored`, so a status-only restore reaches an open Overview | `publishIfEffectiveCostChanged` correctly says nothing when the cost is unchanged, and `delete-anyway`'s stale marking is undone by exactly such a restore — the counts this increment makes live would otherwise stay wrong for the life of the leaf |
 | Recovery publishes | a restored requirement raises `RequirementCreated` for an `'absent'` entry, and for a `'written'` one goes through `publishIfEffectiveCostChanged` with `previous` READ LIVE before the save — including the case where the figures match and nothing is published | recovery writes after `projectIndexRebuilt()` has already fired and its writes suppress their own vault echo, so an Overview mounted at startup is stale for the life of the leaf with nothing able to correct it |
 | Recovery is composed | `RecoveryDeps.events` is REQUIRED and the plugin's call site passes it | an optional collaborator makes a composition that forgets it compile, pass and say nothing — the `CascadeDeps.notify` shape this document already records |

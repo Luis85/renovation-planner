@@ -161,7 +161,13 @@ const bodyEl = ref<HTMLElement | null>(null);
 async function focusAfterSwap(selector: string, swapped: () => boolean): Promise<void> {
 	await nextTick();
 	if (!swapped()) return;
-	bodyEl.value?.querySelector<HTMLElement>(selector)?.focus();
+	const target = bodyEl.value?.querySelector<HTMLElement>(selector) ?? null;
+	// A target inside a COLLAPSED shelf is in the DOM and not laid out — `v-show`, not `v-if` —
+	// and `focus()` on it silently does nothing, stranding the user on `<body>` with the
+	// inspector gone too. The search field is the fallback rather than a shelf header: it is the
+	// one control present in every state this function can run in.
+	if (target !== null && target.offsetParent !== null) target.focus();
+	else bodyEl.value?.querySelector<HTMLElement>('.rp-al-search__input')?.focus();
 }
 
 /** The narrow layout is the one that withdraws the shelves. Only true while they are withdrawn. */
@@ -176,10 +182,30 @@ function select(id: string): void {
 	if (swappingIn) void focusAfterSwap('.rp-al-inspector__back', shelvesWithdrawn);
 }
 
-/** The mirror: leaving the inspector returns focus to the row it was opened from. */
+/** One shelf's expansion, flipped. Declared above `back`, which reveals a collapsed shelf. */
+function toggle(category: string): void {
+	const next = new Set(expanded.value);
+	if (!next.delete(category)) next.add(category);
+	expanded.value = next;
+}
+
+/**
+ * The mirror: leaving the inspector returns focus to the row it was opened from — and REVEALS
+ * that row, because a selection can outlive its shelf being open.
+ *
+ * Shelf expansion is per shelf and the selection is restored from the view's own state, so a
+ * narrow leaf reopened on a selected asset whose category is collapsed had a row that was in the
+ * DOM and hidden (`v-show`). Returning focus to it therefore focused nothing at all, with the
+ * inspector already withdrawn — the stranding this pair exists to prevent, arriving through the
+ * one path where the DESTINATION is hidden rather than the origin. Expanding is the honest
+ * reading of *return the user to where they came from*: a fallback alone leaves the row they
+ * were just looking at still out of sight. Reported by a review bot.
+ */
 function back(): void {
 	const leaving = selectedId.value;
 	const swappingOut = shelvesWithdrawn();
+	const category = ASSETS.find((a) => a.id === leaving)?.category;
+	if (category !== undefined && !expanded.value.has(category)) toggle(category);
 	selectedId.value = null;
 	if (leaving !== null) void focusAfterSwap(`[data-asset-id="${leaving}"]`, () => swappingOut);
 }
@@ -203,7 +229,10 @@ const shelves = computed((): readonly string[] => {
 	const declared = new Set<string>(CATEGORIES);
 	const extra = [...new Set(ASSETS.map((a) => a.category))]
 		.filter((c) => !declared.has(c))
-		.toSorted((a, b) => a.localeCompare(b));
+		// The RESOLVED language's collator, the same one the rows are sorted by — a bare
+		// `localeCompare()` orders by the environment's locale, so a German UI on a Swedish
+		// system would sort these shelf names by one rule and the rows inside them by another.
+		.toSorted((a, b) => collator.compare(a, b));
 	return [...CATEGORIES, ...extra];
 });
 
@@ -243,12 +272,6 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
 	if (next === undefined) return;
 	event.preventDefault();
 	next.focus();
-}
-
-function toggle(category: string): void {
-	const next = new Set(expanded.value);
-	if (!next.delete(category)) next.add(category);
-	expanded.value = next;
 }
 </script>
 

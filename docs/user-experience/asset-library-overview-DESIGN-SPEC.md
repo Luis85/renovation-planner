@@ -400,6 +400,17 @@ Four sections, in this order:
 
    - **In flight** — a loading line in this section alone; the definition fields are already
      drawn from the catalogue read and stay usable.
+
+     **Neither this state nor the refused one may state an ABSENCE**, which the first version of
+     these rows got backwards: *Clearance* fell back to `None` whenever no extent was present,
+     so a sidecar that refused or had not been read yet reported *this asset has no clearance
+     boundary* — a claim the read never returned anything to support. Footprint and Clearance
+     are drawn only once the read has ANSWERED; `None` is then true, because a succeeded read
+     with no outline is a real absence. It is the distinction §3.4's mark already draws between
+     `none` and `unreadable`, and this panel was drawing it the other way round one layer down.
+     **The spec sheet survives both states**: its reference rides on `CatalogueEntryDto` from the
+     catalogue read, which succeeded, and it is the one thing a user can act on when a shape will
+     not parse.
    - **Refused** — and **which refusal decides both the wording and whether `Open designer`
      stays**, because `AssetDesignError` is `RepositoryError | ReferenceError | GeometryError`
      and only one of those three is a damaged sidecar:
@@ -1511,6 +1522,40 @@ the one member of it with no folder to name, immediately before an edit or a del
 against `undefined` now, with a root label for the empty string, and the fixture carries a
 three-way collision whose third member sits at the root so the state is drawn rather than
 described.
+
+A sixteenth round found three, all in the prototype, and the first is §3.4's own distinction
+inverted one layer down.
+
+**The panel reported an absence after a refused read.** *Clearance* fell back to `None` whenever
+no extent was present, so the unreadable fixture — a sidecar on disk that will not parse — drew
+*this asset has no clearance boundary* beside a note saying its shape file could not be read. The
+read never returned a shape for a clearance to be absent from; in production `GetAssetDesign`
+refuses before returning one at all. It is exactly the `none`-versus-`unreadable` distinction the
+row's mark is built on, made backwards in the panel. Footprint and Clearance are drawn only once
+the read has ANSWERED — `none` is an answer, so `None` is true there — and the **spec sheet
+survives**, because its reference rides on the catalogue read that succeeded and it is the one
+thing a user can act on when a shape will not parse. The mock now also withdraws `Open designer`
+in that state, which the round before had specified and only the document knew.
+
+**Two collators in one view.** The rows are sorted with the resolved language's `Intl.Collator`
+and the undeclared shelves with a bare `localeCompare()`, which orders by the environment's
+locale — so a German UI on a Swedish system sorts the shelf names by one rule and the assets
+inside them by another. One collator now.
+
+**And the focus fix had a third direction nobody had walked.** Shelf expansion is per shelf and
+the selection is restored from view state, so a narrow leaf reopened on a selected asset whose
+category is collapsed has a row that is in the DOM and hidden — `v-show`, not `v-if` — and
+`focus()` on it silently does nothing, with the inspector already withdrawn. Back now expands
+that shelf, which is the honest reading of *return the user to where they came from*, with the
+search field as the fallback for any target that is still not laid out. **Three rounds have now
+each found one more direction of this one gesture**, which says the thing worth carrying: focus
+management has as many cases as there are ways for a target to be absent, and enumerating them
+from the armchair has failed three times running.
+
+`AssetInspector.vue` crossed the 400-line cap in the course of this, so the Shape section's four
+derivations moved to `assetShapeFields.ts` as pure functions of a `CatalogueAsset`. The seam is
+not merely the cheapest cut: those four rules are where four consecutive rounds have landed, and
+a rule that keeps being corrected is worth reading with nothing else on the screen.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

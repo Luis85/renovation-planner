@@ -26,6 +26,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ASSETS, type CatalogueAsset } from './assetLibraryFixture';
+import { shapeAnswered, shapeClearance, shapeDimensions, shapeNotes } from './assetShapeFields';
 
 /**
  * Defaulted for the same reason `AssetShelf.vue` is: the harness index mounts an entry bare, and
@@ -48,6 +49,18 @@ const props = withDefaults(defineProps<{
 	withdraw: false,
 });
 
+/**
+ * The Shape section's four derivations, bound to this panel's own asset.
+ *
+ * Thin wrappers rather than logic: the rules live in `assetShapeFields.ts`, which takes a
+ * `CatalogueAsset` and knows nothing about props or `computed`. That is what lets each of them
+ * be read — and argued about — without the template around it.
+ */
+const dimensions = computed(() => shapeDimensions(props.asset));
+const clearance = computed(() => shapeClearance(props.asset));
+const answered = computed(() => shapeAnswered(props.asset));
+const shapeWarnings = computed(() => shapeNotes(props.asset));
+
 const SYMBOLS: Readonly<Record<string, string>> = { EUR: '€', GBP: '£' };
 /** The row's rule, stated once more here rather than shared: see `AssetShelf.vue`'s own note. */
 const price = computed((): string => {
@@ -57,35 +70,6 @@ const price = computed((): string => {
 	return symbol === undefined ? `${asset.unitCost} ${asset.currency}` : `${symbol}${asset.unitCost}`;
 });
 defineEmits<{ back: [] }>();
-
-/** Width × depth in millimetres, from the footprint's own extent — derived, never typed (§88). */
-const dimensions = computed((): string | null => {
-	const outline = props.asset?.outline;
-	if (!outline) return null;
-	const xs = outline.map((point) => point.x);
-	const ys = outline.map((point) => point.y);
-	const width = Math.round(Math.max(...xs) - Math.min(...xs));
-	const depth = Math.round(Math.max(...ys) - Math.min(...ys));
-	// The unit is WITHHELD while this group's capture is pending, exactly as the clearance's is.
-	// The reported defect was the clearance's; the footprint had it too, one row up, and fixing
-	// only the row in the report is how a partial fix ends up reading like a complete one.
-	return `${width} × ${depth}${props.asset?.shape === 'unscaled' ? '' : ' mm'}`;
-});
-
-/**
- * The clearance's extent — and its unit WITHHELD while its own capture is pending.
- *
- * `AssetShape` carries `clearancePending` independently of `footprintPending`, so a typed
- * footprint can sit beside a clearance traced before a scale existed. Printing `mm` on those
- * coordinates would present placeholder-space numbers as measurements, which is the one thing
- * this surface's whole unscaled vocabulary exists to refuse. Reported by a review bot.
- */
-const clearance = computed((): string => {
-	const asset = props.asset;
-	if (asset?.clearance === undefined) return 'None';
-	const [width, depth] = asset.clearance;
-	return `${width} × ${depth}${asset.clearancePending === true ? '' : ' mm'}`;
-});
 
 /**
  * The spec sheet's own name, from the reference's path.
@@ -104,30 +88,7 @@ const specSheet = computed((): string | null => {
 	return path.split('/').at(-1) ?? path;
 });
 
-/**
- * The warnings the Shape section owes, as a LIST rather than one string.
- *
- * `AssetShape` carries a pending flag per coordinate group, so a footprint and a clearance can be
- * in different states at once — a typed rectangle beside an outline traced before a scale
- * existed. One string could only ever report the first of them, which is the collapse that made
- * placeholder coordinates read as millimetres in the first place.
- */
-const shapeNotes = computed((): readonly string[] => {
-	const asset = props.asset;
-	const notes: string[] = [];
-	if (asset?.shape === 'unscaled') {
-		notes.push('The footprint was traced before a scale existed, so it is not measured yet.');
-	}
-	if (asset?.shape === 'none') notes.push('No outline. This asset has nothing to draw on a plan.');
-	if (asset?.shape === 'pending') notes.push('Reading the shape…');
-	if (asset?.shape === 'unreadable') {
-		notes.push('A shape file is stored for this asset and could not be read.');
-	}
-	if (asset?.clearancePending === true) {
-		notes.push('The clearance was traced before a scale existed, so it is not measured yet.');
-	}
-	return notes;
-});
+
 </script>
 
 <template>
@@ -209,20 +170,22 @@ const shapeNotes = computed((): readonly string[] => {
 				Shape
 			</h4>
 			<dl class="rp-al-fields">
-				<template v-if="dimensions !== null">
+				<template v-if="answered">
+					<template v-if="dimensions !== null">
+						<dt class="rp-al-fields__key">
+							Footprint
+						</dt>
+						<dd class="rp-al-fields__value rp-al-fields__num">
+							{{ dimensions }}
+						</dd>
+					</template>
 					<dt class="rp-al-fields__key">
-						Footprint
+						Clearance
 					</dt>
 					<dd class="rp-al-fields__value rp-al-fields__num">
-						{{ dimensions }}
+						{{ clearance }}
 					</dd>
 				</template>
-				<dt class="rp-al-fields__key">
-					Clearance
-				</dt>
-				<dd class="rp-al-fields__value rp-al-fields__num">
-					{{ clearance }}
-				</dd>
 				<template v-if="specSheet !== null">
 					<dt class="rp-al-fields__key">
 						Spec sheet
@@ -233,7 +196,7 @@ const shapeNotes = computed((): readonly string[] => {
 				</template>
 			</dl>
 			<p
-				v-for="note in shapeNotes"
+				v-for="note in shapeWarnings"
 				:key="note"
 				class="rp-al-note"
 			>
@@ -270,7 +233,14 @@ const shapeNotes = computed((): readonly string[] => {
 			</p>
 
 			<div class="rp-al-actions">
+				<!--
+					Withdrawn when the sidecar refused: the designer hydrates through the same
+					`GetAssetDesign`, reaches the same `failed` state and offers only a Retry, so
+					the button would send the user to a screen repeating the refusal they are
+					already reading. §3.5's own table, drawn rather than only specified.
+				-->
 				<button
+					v-if="asset.shape !== 'unreadable'"
 					type="button"
 					class="rp-al-action"
 				>

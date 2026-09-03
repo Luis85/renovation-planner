@@ -1018,7 +1018,12 @@ it('announces a written restore even when no figure moved', async () => {
 	const rig = await undoResolutionRig({ resolution: 'delete-anyway' });
 	const seen: unknown[] = [];
 	rig.events.subscribe('RequirementRestored', (event) => { seen.push(event); });
-	rig.events.subscribe('CostEstimateChanged', () => { throw new Error('cost must not move'); });
+	// COLLECTED, never thrown. `createEventBus`'s `deliver` wraps every handler in a `.catch`
+	// and swallows what it caught (EventBus.ts, "isolated at BOTH layers"), so a throwing
+	// subscriber asserts NOTHING — `publish` still resolves and the case passes whether or not
+	// the forbidden event was emitted. Reported against the first draft, which threw here.
+	const costs: unknown[] = [];
+	rig.events.subscribe('CostEstimateChanged', (event) => { costs.push(event); });
 
 	expectOk(await undoDeleteResolution(rig.ops, rig.sequence, rig.locks));
 
@@ -1028,6 +1033,7 @@ it('announces a written restore even when no figure moved', async () => {
 			payload: { requirementId: rig.referent.entity.id, projectId: rig.referent.entity.projectId },
 		},
 	]);
+	expect(costs).toEqual([]);
 });
 
 it('announces a requirement put back from absent as a creation', async () => {
@@ -1488,6 +1494,32 @@ So this arm's announcement is chosen from the outcome the step already computes:
 Two cases, one per outcome, and the second drives a REFUSING `recalculateInline` — a single
 success case passes against a build that always invalidates, which is the defect being fixed.
 
+**A successful inline recalculation announces BEFORE the sequence commits, and that is
+pre-existing rather than this task's doing — but this task is what makes it visible, so it is
+answered here.** Reported and verified at both ends: `RecalculateRequirement.ts:144-155`
+publishes `RequirementRecalculated` and then `publishIfEffectiveCostChanged` immediately after
+its own save; and `runDeleteResolution` calls `compensate(...)` when a LATER referent fails
+(`deleteResolution.ts:455`) or when `deleteEntity` fails (`:458`). So a reassignment that
+recalculated successfully and was then rolled back has already told every subscriber about a
+state the vault no longer holds, and nothing follows to correct it — an open Inspector refreshes
+onto a temporary reassignment and keeps it.
+
+**Buffering the recalculate command's events is the reported remedy and is declined here.** That
+command has its own callers — the geometry cascade, the price cascade, the asset-update
+handler — and giving it a suppressible bus for one caller's benefit changes a shared contract
+from inside a resolution. It is also a larger change than this increment's subject.
+
+**A compensating announcement is what ships**, and it lives entirely in this file: when
+`compensate` finishes rolling a referent back, publish `RequirementInvalidated` for it. That is
+truthful for the identical reason the `delete-anyway` arm's is — the row was written and then
+written back, so any figure a subscriber derived from the intermediate state is owed a
+re-read — and it needs no new vocabulary and no change to a shared command.
+
+Its case is the one the report asks for and the one neither existing case covers: a reassignment
+whose recalculation SUCCEEDS, followed by a later failure that triggers rollback, asserting the
+compensating event arrives. **A rollback case without a preceding successful recalculation passes
+against a build that announces nothing**, so the success is load-bearing in the fixture.
+
 `applyAll` collects the announcements beside the progress entries; `runDeleteResolution`
 publishes them **after `deleteEntity` has returned ok** — the sequence's last mutation, and the
 point past which nothing will be compensated:
@@ -1675,7 +1707,9 @@ it('announces a status-only restore, which no cost event can carry', async () =>
 	const rig = await recoveryRig({ marker: interruptedDeleteAnyway() });
 	const seen: unknown[] = [];
 	rig.events.subscribe('RequirementRestored', (event) => { seen.push(event); });
-	rig.events.subscribe('CostEstimateChanged', () => { throw new Error('no figure moved'); });
+	// Collected rather than thrown — see the sibling case: the bus swallows handler throws.
+	const costs: unknown[] = [];
+	rig.events.subscribe('CostEstimateChanged', (event) => { costs.push(event); });
 
 	await recoverInterruptedSequences(rig.deps);
 
@@ -1685,6 +1719,7 @@ it('announces a status-only restore, which no cost event can carry', async () =>
 			payload: { requirementId: rig.referentId, projectId: rig.projectId },
 		},
 	]);
+	expect(costs).toEqual([]);
 });
 
 it('announces a requirement put back from absent as a creation', async () => {

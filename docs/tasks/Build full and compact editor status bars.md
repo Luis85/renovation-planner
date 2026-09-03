@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 50
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -43,3 +43,22 @@ ordinary canvas movement unusably noisy.
 ## Outcome
 
 The editor communicates its essential state truthfully at full and constrained leaf widths.
+
+## Amendments
+
+**2026-09-03** — spec §5.7 scoped "compact" to one thing, and this increment built exactly that:
+the constrained bar drops the pointer readout and keeps zoom, save state and the NEW scale state,
+so a plan still drawn at the placeholder scale says so. `tests/presentation/editor/shell/statusBar.test.ts`
+holds all of it — 'says the scale is not set for an uncalibrated plan', 'withdraws the pointer
+readout under the constrained layout, and keeps zoom, scale and save state', 'keeps the pointer
+readout in the full layout' — and criterion 5's not-by-colour half is that the scale state is a
+WORD, beside the save indicator's own mark-and-word (design slice 13). Criterion 6 is the
+guidance region's announce-once case in
+`tests/presentation/editor/shell/floorInspector.test.ts` plus the pointer readout being a plain
+`computed` that announces nothing.
+
+What remains: grid and snapping appear in neither bar, because neither exists as a setting
+(spec §5.6), so criterion 1 is unmet by decision; criterion 3 has no subject, because there is no
+View menu to keep an omitted control reachable through, and spec §5.6 says why — nothing would be
+in it; and criterion 4's 'active temporary task' half is asserted by no case across a
+full/compact change.

@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Editor foundation]]"
 order: 60
-status: New
-started: ""
+status: Active
+started: 2026-09-02
 finished: ""
 horizon: "MVP"
 start: ""
@@ -95,3 +95,35 @@ stable ID. Selection is ephemeral and never changes or writes the selected recor
 - [M01 — Standard Plan View](../user-experience/renovation-planner-editor-specs/screens/M01-standard-plan-view.md)
 - [M07 — Wall Selected](../user-experience/renovation-planner-editor-specs/screens/M07-wall-selected.md)
 - [Editor implementation plan: Phase 2](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md)
+
+## Amendments
+
+**2026-09-03** — advanced, not closed, by the plan editor foundation's first increment.
+
+Met: criterion 1 is `tests/presentation/editor/shell/roomInspector.test.ts`'s 'heading, canvas
+selection and Inspector share one id' beside
+`tests/presentation/editor/shell/roomSummaryList.test.ts`; criterion 2 is
+`tests/presentation/editor/selection/resolveSelectionTarget.test.ts`, where ONE function answers
+both the click and the hover — a handle of an already-selected record, then the topmost body, then
+nothing — and 'resolves the same target regardless of the order the same candidates arrive in'
+pins the determinism; criterion 3 is `tests/presentation/editor/tools/selectTool.test.ts`'s 'a
+hover with no gesture predicts the same target a click there would take' with the hover path never
+calling `selection.select`; criterion 4 is the pressed-row case; criterion 5 is
+`tests/presentation/editor/escapeRouting.test.ts` and 'clicking empty canvas clears the
+selection'; criterion 6 is the outline and vertex handles in
+`tests/presentation/editor/interactionLayer.test.ts`; criterion 7 is `SelectionStore` starting
+empty and `tests/presentation/editor/runtime.test.ts`'s retirement case, which never rebinds by
+name.
+
+Remains:
+
+- **Overlap cycling.** Extension 2a's "alternate/cycling route where supported" is out of scope by
+  spec §6.1: this increment has one record type, so the only overlap is a room over a room, and
+  the resolver's shape leaves room for cycling rather than implementing it. Recorded at
+  [[Resolve overlapping selection targets deterministically]].
+- **The contextual half of Select.** [[Compose predictive and contextual Select surfaces]] shipped
+  hover and the cursor; no direct convenience is rendered on a selection at all, so the criteria
+  about their Inspector and keyboard equivalents have no subject.
+- **The cursor does not distinguish a body from a handle.** One class,
+  `rp-plan-canvas-target`, answers for both, because `renderState.hoveredObjectId` is written from
+  body hits only — narrower than spec §6.2's pointer-versus-grab sentence.

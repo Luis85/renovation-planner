@@ -2,8 +2,8 @@
 type: Feature
 parent: "[[Plan editor]]"
 order: 10
-status: New
-started: ""
+status: Active
+started: 2026-09-02
 finished: ""
 horizon: "MVP"
 start: ""
@@ -52,3 +52,22 @@ through one predictable history.
 - [Editor implementation plan, Increment A and Phases 0–3](../user-experience/renovation-planner-editor-specs/implementation/implementation-plan.md)
 - [Vertical-slice plan and data-model specification](../user-experience/renovation-planner-editor-specs/Renovation%20Planner%20—%20First%20Vertical%20Slice%20Plan%20and%20Data-Model%20Specification.md)
 - [Editor design specification set](../user-experience/renovation-planner-editor-specs/README.md)
+
+## Progress
+
+**2026-09-03** — the first increment of this Feature has landed on
+`claude/plan-editor-foundation-read-path`: the READ PATH and SELECTION, which is the vertical-slice
+plan's checkpoints C0 (consolidated model) and C1 (shell and read path). Its design is
+`docs/superpowers/specs/2026-09-02-plan-editor-foundation-read-path-design.md` and its plan
+`docs/superpowers/plans/2026-09-02-plan-editor-foundation-read-path.md`. It writes nothing new to
+the vault and changes no schema.
+
+[[Consolidate the current and target editor data models]] is **Done**. The six remaining PBIs are
+**Active**, each with a dated `## Amendments` section saying which of its acceptance criteria this
+increment met, with the test that holds each, and which remain. Nineteen of the thirty-one Tasks
+under them are Done; twelve are Active for a named half — the compact status bar's View menu,
+overlap cycling, the Add lifecycle's repeat option and the banner's Finish and Remove last,
+contextual dimensions, the homeowner questions' available routes, the two deferred model ADRs, a
+warning's severity and actions, and a resize-driven overlay close that leaves focus on `<body>`.
+
+Checkpoint C2 — Add Room with a rectangular drag and a name form — is the next increment.

@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 70
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -48,3 +48,20 @@ the DOM supports multiple strips.
 ## Outcome
 
 The editor tells the whole recoverable truth when several persistent conditions coexist.
+
+## Amendments
+
+**2026-09-03** — `editorWarnings` and `PersistentWarningStrip.vue` turned four independent
+`v-if` notices in `PlanEditorRoot.vue` into one KEYED collection, which is what makes a warning's
+identity and its live region survive a sibling arriving or clearing. Criteria 1 and 2 are
+`tests/presentation/editor/shell.test.ts`'s two-at-once `role="status"` assertion and
+`tests/presentation/editor/planEditorFailure.test.ts`'s list of them; criterion 5 is
+`tests/presentation/editor/shell/warnings.test.ts`'s fixed-order case, and the order is a property
+of that function rather than of four template blocks' source order; criterion 7 is the strip being
+additive over content the canvas is still drawing.
+
+An `EditorWarning` carries an `id`, a message key and optional params and nothing else — no
+severity, no accessible heading, no busy state, no action. So criterion 3 is met only in its
+IDENTITY clause, and criteria 4 (repeated publication updating or de-duplicating a condition) and
+6 (reaching every warning action by keyboard) have no subject at all: the collection is DERIVED
+per render from three inputs rather than published, and there is nothing to reach.

@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Editor foundation]]"
 order: 50
-status: New
-started: ""
+status: Active
+started: 2026-09-02
 finished: ""
 horizon: "MVP"
 start: ""
@@ -97,3 +97,32 @@ unsupported layer capability is never represented as supported-but-empty.
 - [M01 — Standard Plan View](../user-experience/renovation-planner-editor-specs/screens/M01-standard-plan-view.md)
 - [M16 — Constrained Workspace](../user-experience/renovation-planner-editor-specs/screens/M16-constrained-workspace.md)
 - [Editor component library: Property and layer components](../user-experience/renovation-planner-editor-specs/components/component-library.md)
+
+## Amendments
+
+**2026-09-03** — advanced, not closed, by the plan editor foundation's first increment.
+
+Met: criteria 1 and 3 are `tests/presentation/editor/layers/layerCatalogue.test.ts` — an ordered
+two-entry catalogue, Reference plan then Rooms, with the reference plan's own capability state
+separate from any semantic layer, and nothing else listed; criterion 2 is
+`tests/presentation/editor/shell/layerList.test.ts`'s 'toggles the Konva layer it stands for',
+where visibility is a `WorkspaceStore` field that reaches no command and no repository;
+criterion 4 is the reference row rendering `supported-empty` WITH A REASON when the plan has no
+background, beside lock and opacity not being rendered at all because the sidecar persists
+neither; criterion 6 is every row carrying a text label rather than a colour; criterion 7 is
+`editorRoundTrip.test.ts` — no persisted layer contract moved.
+
+Remains:
+
+- **A resize-driven overlay close leaves focus on `<body>`.** Escape returns focus to the rail
+  button that opened the overlay, asserted in
+  `tests/presentation/editor/shell/responsiveShell.test.ts`; growing the pane back to `full`
+  closes the overlay through the store and strands focus. Spec §5.5 required only the Escape half,
+  which is why it shipped. Recorded at [[Keep layer controls usable in constrained leaves]].
+- **A hidden selected record's coherence is asserted by nothing.** Hiding the rooms layer leaves
+  the Room Inspector drawing a selection whose shape is no longer visible, and no case says
+  whether that is the intended behaviour. Recorded at
+  [[Control layer visibility without changing renovation data]].
+- **Criterion 5's "layer values survive a layout change" half** is true by construction —
+  visibility lives in Pinia — and asserted by no case; the same test asserts selection and
+  viewport only.

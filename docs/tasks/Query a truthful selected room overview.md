@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Inspect a selected room]]"
 order: 10
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -35,3 +35,17 @@ Aggregating convenience counts can turn partial data into apparent completeness.
 ## Outcome
 
 The Inspector receives one honest projection of the selected room.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment. `buildRoomOverview`
+(`src/presentation/read-models/roomOverview.ts`) and
+`tests/presentation/read-models/roomOverview.test.ts` hold criteria 1 and 3: 'carries the same id
+as the zone and the floor it sits on', and 'marks every future section unavailable in this
+increment — none is empty, none has a count', which is `INSPECTOR_SECTIONS` as a closed union of
+seven. Criterion 2 is `tests/presentation/read-models/spatialRecords.test.ts`'s derived area.
+
+Criterion 4 is the pre-existing coded-`Result` path rather than anything this function does: the
+overview is a PURE projection over an already-read zone and plan, so an unreadable dependency
+refuses one layer below it (`tests/presentation/editor/planEditorFailure.test.ts`) and never
+reaches here as a zero.

@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Selection]]"
 order: 10
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -35,3 +35,16 @@ Labels or render-array positions may accidentally become substitute identities.
 ## Outcome
 
 Every single-selection surface agrees on exactly one spatial record.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment. Criterion 1 is
+`tests/presentation/editor/shell/roomInspector.test.ts`'s 'heading, canvas selection and Inspector
+share one id; the type and floor are homeowner words' beside
+`tests/presentation/editor/shell/roomSummaryList.test.ts`'s 'a row click asks the runtime to select
+and frame its own record' — one `SelectionStore` holding stable ids, and `kind` derived from the
+record at read time rather than stored a second time. Criterion 2 is that file's 'marks the row
+matching the current selection pressed, and no other'. Criterion 3 is the Inspector frame routing
+by `selectedIds` (`tests/presentation/editor/shell/floorInspector.test.ts` for the empty arm).
+Criterion 4 is `tests/presentation/editor/tools/selectTool.test.ts`'s 'a near-zero pointerUp is a
+pure selection — no command, no history entry'.

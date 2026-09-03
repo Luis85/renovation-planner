@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Editor foundation]]"
 order: 20
-status: New
-started: ""
+status: Active
+started: 2026-09-02
 finished: ""
 horizon: "MVP"
 start: ""
@@ -99,3 +99,38 @@ unreadable floor as empty.
 - [M16 — Constrained Workspace](../user-experience/renovation-planner-editor-specs/screens/M16-constrained-workspace.md)
 - [Editor component library](../user-experience/renovation-planner-editor-specs/components/component-library.md)
 - [Vertical-slice plan: WP2 and WP4](../user-experience/renovation-planner-editor-specs/Renovation%20Planner%20—%20First%20Vertical%20Slice%20Plan%20and%20Data-Model%20Specification.md)
+
+## Amendments
+
+**2026-09-03** — advanced, not closed, by the plan editor foundation's first increment.
+
+Met: criterion 2 and criterion 7 were already shipped (`revealPlanEditor`,
+`tests/presentation/views/planEditorView.test.ts`) and this increment left them intact;
+criterion 3 is `tests/presentation/editor/runtime.test.ts`'s 'activates Select once the plan
+becomes ready' — Select is the default state and the toolbar that used to offer camera mode is
+gone; criterion 5 is `tests/presentation/editor/planEditorFailure.test.ts` beside
+`tests/presentation/editor/emptyStateOverlay.test.ts`; criterion 6 is
+`tests/presentation/editor/shell/responsiveShell.test.ts`, which asserts the canvas ELEMENT
+survives a full-to-constrained change, so the viewport and the selection survive by construction;
+criterion 4's no-theme-switch half is the build's SDD §84 colour check, and its LEGIBILITY half is
+the two `plan-editor-*` captures read by eye. Criterion 1 is unchanged from before this increment.
+
+Remains, and each is recorded at the Task that owns it:
+
+- **The compact status bar's View menu.** Spec §5.6 built no View menu, because nothing would be
+  in it, and §5.7 scoped "compact" to dropping the pointer readout. Grid and snapping are in
+  neither bar, since neither exists as a setting — see
+  [[Build full and compact editor status bars]].
+- **A warning's severity, heading, busy state and actions.** The strip renders every active
+  warning simultaneously, keyed on its own id, in a fixed order — and an `EditorWarning` carries
+  an id, a message key and params and nothing else, so there is no action for a keyboard user to
+  reach. See [[Render independent simultaneous persistent warnings]].
+- **`Ground floor has 1 rooms`.** The unsupported-width notice's body is a spec-mandated string
+  and `tr` has no plural form, so a single-room floor reads wrong. Recorded at
+  [[Keep the editor truthful across failure and narrow layouts]].
+- **No measurement of horizontal scrolling below 400px.** jsdom lays nothing out and the only
+  narrow capture is at 460px, which is `constrained`. Step 10 of
+  [[Open a floor and select a room]] is the instrument.
+- **No manual case for Undo and Redo beyond one clause.** The context bar carries both controls
+  and step 1 of [[Open a floor and select a room]] asserts only that they are present and
+  disabled with an empty history; the Undo and redo PBI is not advanced here.

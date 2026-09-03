@@ -2,7 +2,7 @@
 type: Task
 parent: "[[View rooms in the Standard Plan View]]"
 order: 30
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -35,3 +35,20 @@ Convenience defaults in DTO mapping can erase the distinction before presentatio
 ## Outcome
 
 The Standard Plan View never claims more certainty or capability than its data supports.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment. Criterion 1's four states are
+`tests/presentation/read-models/spatialRecords.test.ts`'s 'distinguishes a floor with no rooms
+from one whose rooms could not be read' (empty against partial-unreadable),
+`tests/presentation/editor/planEditorFailure.test.ts` (failed, as an in-place failure state) and
+`tests/presentation/read-models/roomOverview.test.ts` with
+`tests/presentation/editor/shell/floorInspector.test.ts` (unsupported, as the word rather than a
+number). Criterion 2 is `tests/presentation/editor/unreadableZonesNotice.test.ts` — the readable
+rooms stay on the canvas beside an additive warning naming the count. Criterion 3 is the
+'never zero' clause of the floor-summary case.
+
+Criterion 4's light-and-dark half is held by the BUILD's colour check and by no picture: SDD §84
+refuses a literal colour in any partial, so each state's palette is the theme's, and the two
+`plan-editor-*` captures photograph the RESTING scene only. None of the four states has a capture
+in either scheme.

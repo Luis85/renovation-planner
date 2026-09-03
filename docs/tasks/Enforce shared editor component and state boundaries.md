@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 60
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -48,3 +48,21 @@ component unless checks target forbidden boundaries.
 
 The editor shell can evolve responsively without blurring presentation, interaction, application
 and persistence ownership.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment. Criterion 6 is the per-directory
+layer bans in `eslint.config.mjs` plus `WRITE_BOUNDARY`, driven through real fixture paths by
+`tests/build/vue-rules.test.ts` — a repository import or a vault write in a shared presentation
+component fails `npm run lint`, not review. Criterion 5 is
+`tests/presentation/editor/shell/responsiveShell.test.ts`'s element-identity assertion: full and
+constrained are ONE `<slot name="canvas">` reordered by CSS, so they cannot fork behaviour even
+in principle. Criterion 4 is `tests/presentation/stores/stores.test.ts` and
+`tests/presentation/editor/shell/layoutMode.test.ts` — `layoutMode` and `overlay` have exactly one
+owner, `WorkspaceStore`, and the responsive variants read it rather than keeping their own.
+Criteria 2 and 3 are the pre-existing §59 Edit-to-Command choke point
+(`tests/presentation/editor/inspector/`).
+
+Criterion 1 ('the shell owns layout only') is a REVIEW obligation and is written down as one:
+`ResponsiveEditorShell` owns its `ResizeObserver` and writes `layoutMode`, and nothing in any
+gate would notice it growing a second responsibility.

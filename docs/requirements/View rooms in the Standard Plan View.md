@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Editor foundation]]"
 order: 30
-status: New
-started: ""
+status: Active
+started: 2026-09-02
 finished: ""
 horizon: "MVP"
 start: ""
@@ -97,3 +97,30 @@ shows resolves to the same stable ID through canvas, list and later Inspector ro
 - [M00 — Kitchen Selected Overview](../user-experience/renovation-planner-editor-specs/screens/M00-kitchen-selected-overview.md)
 - [Vertical-slice plan: WP3 and WP4](../user-experience/renovation-planner-editor-specs/Renovation%20Planner%20—%20First%20Vertical%20Slice%20Plan%20and%20Data-Model%20Specification.md)
 - [Editor component library: PlanCanvas and FloorInspector](../user-experience/renovation-planner-editor-specs/components/component-library.md)
+
+## Amendments
+
+**2026-09-03** — advanced, not closed, by the plan editor foundation's first increment.
+
+Met: criteria 1 and 2 are `tests/presentation/read-models/spatialRecords.test.ts` and
+`tests/presentation/editor/shell/floorInspector.test.ts`'s 'lists every room and every area as a
+button, and a row selects and frames its record' — one `ZoneId` reaches the canvas, the list and
+the Inspector, and nothing was renamed or migrated (ADR-0016,
+`tests/infrastructure/persistence/editorRoundTrip.test.ts`); criteria 3 and 4 are the floor
+summary case, where `plannedChanges` and `estimatedCost` are `unavailable` rather than zero and
+`Aggregate<T>` makes the three states different values rather than three renderings of one;
+criterion 5 is 'marks every count partial when some zones were unreadable, carrying the number'
+beside `tests/presentation/editor/unreadableZonesNotice.test.ts`; criterion 6 is the room list
+being real `<button>` rows, graded for an accessible name by
+`tests/harness/accessibility.test.ts`.
+
+Remains:
+
+- **Contextual dimensions.** [[Frame selected Rooms and show contextual dimensions]] shipped its
+  framing half only; nothing draws a selected room's dimensions, and the only measurement on the
+  canvas belongs to the calibration tool.
+- **Criterion 7 is held by a colour gate rather than by a picture.** SDD §84 refuses a literal
+  colour in any stylesheet partial, so every state's palette is the theme's — and the two
+  `plan-editor-*` captures photograph the RESTING scene, so the empty, partial-unreadable, failed
+  and unsupported states have no picture in either scheme. Recorded at
+  [[Distinguish empty unreadable and unavailable floor data]].

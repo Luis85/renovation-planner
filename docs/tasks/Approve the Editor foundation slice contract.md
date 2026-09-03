@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Consolidate the current and target editor data models]]"
 order: 40
-status: New
+status: Done
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -34,3 +34,15 @@ A contract can merely restate screens without assigning authority to data and co
 ## Outcome
 
 Feature A has an approved, testable contract and may proceed without inventing model decisions in components.
+
+## Closing evidence
+
+**2026-09-03**, the plan editor foundation's first increment. The approved contract is
+`docs/superpowers/specs/2026-09-02-plan-editor-foundation-read-path-design.md`: §1 maps every PBI
+under [[Editor foundation]] to what this increment closes or advances, with the scope of each
+partial advance in the table itself; §3's `INSPECTOR_SECTIONS` gives the unavailable
+representation an explicit closed union, held by
+`tests/presentation/read-models/roomOverview.test.ts`; §2.4 records no schema change and §12
+states what is out of scope so it is not read as forgotten. Criterion 3's migration-and-fixture
+condition is therefore vacuous rather than met, which is why
+[[Establish the editor migration and compatibility contract]] stays Active.

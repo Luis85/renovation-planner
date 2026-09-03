@@ -2,8 +2,8 @@
 type: PBI
 parent: "[[Editor foundation]]"
 order: 70
-status: New
-started: ""
+status: Active
+started: 2026-09-02
 finished: ""
 horizon: "MVP"
 start: ""
@@ -97,3 +97,32 @@ successfully read information; unavailable, empty and failed are three different
 - [M01 — Standard Plan View](../user-experience/renovation-planner-editor-specs/screens/M01-standard-plan-view.md)
 - [M16 — Constrained Workspace](../user-experience/renovation-planner-editor-specs/screens/M16-constrained-workspace.md)
 - [Vertical-slice plan: Inspector honesty rule and WP6](../user-experience/renovation-planner-editor-specs/Renovation%20Planner%20—%20First%20Vertical%20Slice%20Plan%20and%20Data-Model%20Specification.md)
+
+## Amendments
+
+**2026-09-03** — advanced, not closed, by the plan editor foundation's first increment.
+
+Met: criterion 1 is `tests/presentation/editor/shell/roomInspector.test.ts`'s 'heading, canvas
+selection and Inspector share one id; the type and floor are homeowner words'; criterion 2 is
+`tests/presentation/read-models/spatialRecords.test.ts`'s 'derives area from the points rather than
+reading a stored figure' — the figure is computed from sidecar geometry at read time and is stored
+in no frontmatter key; criterion 3 is the seven unavailable rows drawn with no count and no
+control beside the Requirements panel keeping its own empty state; criterion 5 is
+`tests/presentation/editor/shell/floorInspector.test.ts`; criterion 6's constrained half is
+`tests/harness/accessibility.test.ts`'s drawer-with-a-selection scan and
+`tests/presentation/editor/shell/responsiveShell.test.ts`'s element-identity assertion;
+criterion 7 is that same scan plus the room name being an `<h3>` under the frame's `<h2>`, a
+heading-order decision stated in `RoomInspector.vue`'s docblock rather than left to chance.
+
+Remains:
+
+- **`TransformationSummary` and every available route.**
+  [[Assemble shared homeowner-question Inspector navigation]] shipped the ROWS, all seven
+  unavailable, which is what makes an unbuilt section a stated absence rather than an empty one.
+  Nothing navigates, so nothing preserves a stable id or a viewport through a route, and no child
+  view opens for focus to return from.
+- **Criterion 4 is half met: nothing is disabled while stale.** Stale content IS labelled, by the
+  additive warning strip; `stale` reaches exactly one computed in `PlanEditorRoot.vue` and feeds
+  that strip alone, so Delete stays live over data the last read-back could not confirm. Recorded
+  at [[Preserve room inspection across layout and read changes]].
+- **The resize-driven drawer close leaves focus on `<body>`**, the same residue Layers records.

@@ -2,7 +2,7 @@
 type: Task
 parent: "[[View rooms in the Standard Plan View]]"
 order: 50
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -45,3 +45,18 @@ become tied to hover and flicker during ordinary navigation.
 
 Room-list navigation preserves one identity and provides useful measurements only in the contexts
 that need them.
+
+## Amendments
+
+**2026-09-03** — the FRAMING half landed and spec §1 scoped it that way from the start.
+`tests/presentation/editor/runtime.test.ts`'s `selectAndFrame` cases carry criteria 1, 2 and 3:
+'selects the id and moves the camera onto it' (the list row and the canvas reach one stable id,
+through the same `fitViewport` door `Shift+2` uses), 'on a degenerate record selects it and leaves
+the camera alone', and 'selects an id the hydrated zones do not hold, and leaves the camera alone'
+— a safe viewport fallback that keeps the selection truthful. Criterion 6 is
+`tests/presentation/editor/shell/floorInspector.test.ts`'s row-click case, which needs no hover
+and no pointer over the canvas.
+
+Contextual DIMENSIONS are not built. Criteria 4 and 5 have no subject: the only measurement drawn
+on this canvas is the calibration ruler, which belongs to a tool rather than to a selection, so
+nothing shows a room's dimensions while it is selected and nothing has to be absent at rest.

@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Start one creation task from Add]]"
 order: 30
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -36,3 +36,21 @@ Repeated pointer or keyboard activation can race before the menu closes.
 ## Outcome
 
 Add hands control to one bounded creation task and reliably returns the editor to safety.
+
+## Amendments
+
+**2026-09-03** — criterion 1 is
+`tests/presentation/editor/add/addMenu.test.ts`'s 'ArrowDown moves focus through enabled and
+disabled items alike; Enter on Room starts exactly one tool and closes'. Criterion 3 is
+`tests/presentation/editor/shell/temporaryToolBanner.test.ts`'s 'Cancel with an empty draft
+returns to Select; Cancel with a draft clears the draft and keeps the tool' beside
+`tests/presentation/editor/escapeRouting.test.ts` — the banner's Cancel and Escape are the same
+routine, not two. The RETURN half of criterion 4 is
+`tests/presentation/editor/tools/drawPolygonTool.test.ts`'s `DrawPolygonTool.onCompleted` cases,
+bound to `returnToSelect` in `src/presentation/editor/runtime.ts`. Criterion 5 is
+`tests/presentation/editor/toolRefusalSurfaces.test.ts`.
+
+Criterion 2 is vacuous: Room carries no context, so there is no second command path to avoid.
+Criterion 4's 'unless repeat was explicitly chosen' has no subject — repeated creation is not
+built, the banner carries no toggle for it, and spec §7.3 and §12 record that as a decision
+rather than an omission.

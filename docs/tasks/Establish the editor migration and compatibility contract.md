@@ -2,7 +2,7 @@
 type: Task
 parent: "[[Consolidate the current and target editor data models]]"
 order: 60
-status: New
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -53,3 +53,14 @@ user-edited note shapes found in real vaults.
 
 Schema evolution is a versioned, fixture-backed and recoverable contract rather than a migration
 decision made independently by each feature.
+
+## Amendments
+
+**2026-09-03** — the plan editor foundation's first increment recorded the NO-CHANGE decision
+(spec §2.4, consolidation report §5) and gave the no-migration path a fixture-backed contract
+test, `tests/infrastructure/persistence/editorRoundTrip.test.ts`, which is the second half of
+criterion 4 and the whole of criterion 5 — stable ids, references and the user-owned Markdown
+body are each asserted. The transition criteria — 1, 2, 3, 6 and 7 — have no subject: this
+increment accepted no source-to-target transition, and all six migration tables are still empty,
+so `MigrationRunner` remains unproven on a real chain. ADR-SV, which decides when an additive
+change may stay at v1 and when a bump is owed, is recorded as DEFERRED (report §6).

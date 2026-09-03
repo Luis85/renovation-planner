@@ -1000,7 +1000,13 @@ The first case's second assertion is the one that matters: a build that reaches 
 
 - [ ] **Step 4: Mutation-check the scan gate and the per-read generations**
 
-Remove the `indexScanCompleted` guard: the first case must go red at `status`. Collapse the two selection generations into one: the geometry-refresh case must go red. Both watched, both restored.
+Remove the `indexScanCompleted` guard: the first case must go red at `status`.
+
+**Collapse the selection generations into one — and note what that mutation does NOT redden, because this brief predicted the wrong case.** It said "the geometry-refresh case must go red". It cannot: collapsing changes which ANSWERS ARE DROPPED, not which DOORS ARE CALLED, so a call-count-shaped geometry case passes against the collapse and pins nothing. Driven by Task 10's implementer, confirmed by its reviewer, and corrected here rather than quietly — the case that DOES redden is §5.5's own: a `design` refresh must not strand an in-flight *Used in* read, which fails at `expected 'loading' to be 'ready'`. Write that one; keep a call-count case beside it if you like, but know it pins a different half.
+
+**There are THREE selection read kinds, not two** — `design`, `referencing` and `overriding` — settled by ruling after Task 10's review. `listReferencing` and `listOverridingProjects` are separate reads with separate generations: a selection change and `replaced` bump all three, `design` bumps only the design one, and **`usage` bumps only `overriding`**. Joining the two `usedIn` doors under one ticket re-runs the vault-wide referencing scan for a price change and flips *Used in* to `loading` — §5.5's own named `Delete`-flap arriving on a price trigger, and the thing the `usage` channel exists to prevent. Mutate `usage` to bump both and watch the referencing read restart.
+
+All mutations watched, all restored.
 
 - [ ] **Step 5: Run the gate and commit**
 

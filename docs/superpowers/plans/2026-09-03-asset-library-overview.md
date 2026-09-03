@@ -26,7 +26,7 @@ Copied verbatim from the spec and from `CLAUDE.md`. Every task's requirements im
 - **No colour-only status.** PRODUCT.md and SDD §85: every state is a printed mark as well as a colour. Selection is a 2px inset `box-shadow` rule plus `aria-current="true"`, never a tint alone.
 - **No hard-coded colours in `styles/`** — SDD §84 requires an Obsidian CSS variable; the build fails on any literal colour lightningcss resolves.
 - **A style partial is capped at 400 lines** and must be imported by `styles/index.css`.
-- **A row is a flattened `<button>` selected UNDER its block class** (`.rp-asset-shelf .rp-asset-row`), because Obsidian's `button:not(.clickable-icon)` is (0,1,1) and a bare class is (0,1,0). `tests/build/buttonSpecificity.test.ts` reads every shipping sheet.
+- **A row is a flattened `<button>` selected UNDER its block class** (`.rp-al-shelf .rp-al-row` — the classes the components actually emit; the `rp-asset-*` spelling this plan used before Task 12 shipped exists nowhere in `src/`), because Obsidian's `button:not(.clickable-icon)` is (0,1,1) and a bare class is (0,1,0). `tests/build/buttonSpecificity.test.ts` reads every shipping sheet.
 - **Every focus stop has a visible ring** — `2px solid var(--interactive-accent)`, offset negative for edge-to-edge rows and positive for inset controls. `tests/build/buttonFocusRing.test.ts` is the check.
 - **Container queries, never media queries.** The ladder is ≥720px shelves+280px rail; 560–720px rail 240px, row drops supplier then waste; <560px the rail replaces the shelves.
 - **Every asynchronous read carries a ticket, and a result whose ticket is no longer current is DROPPED — successes and failures alike** (§5.5).
@@ -1291,7 +1291,7 @@ A count alone strands exactly the notes that need a human: two of the three sour
 it('draws the shelves beside the unreadable strip, never instead of them', async () => {
     const root = await mountRoot({ entries: [anEntry()], unreadable: [aNoIdNote()] });
     expect(root.find('.rp-view-notice').exists()).toBe(true);
-    expect(root.find('.rp-asset-shelf').exists()).toBe(true);
+    expect(root.find('.rp-al-shelf').exists()).toBe(true);
 });
 
 it('offers Open note per row, and withholds it for a future-schema refusal', async () => {
@@ -1487,10 +1487,20 @@ git add -A && git commit -m "feat: the asset library inspector, its four section
 
 **Spec:** §3.3 (the row's slots and where they drop), §7 lines 1411–1431 (the container-query ladder), §9 lines 1527–1554 (targets and focus).
 
-**Files:**
-- Create: `styles/asset-library.css`, `styles/asset-library-inspector.css`
-- Modify: `styles/index.css` (one `@import` each, after `list-row.css`), `styles/list-row.css` (add the asset row to the shared selector list)
-- Test: `tests/build/buttonSpecificity.test.ts` and `buttonFocusRing.test.ts` (existing category checks — they read every shipping sheet, so this partial is in scope the day it exists)
+**Files — CORRECTED AT `1d2f2a25`, because three of the four entries below were written before
+Tasks 12 and 13 shipped and are stale in the direction that matters:**
+- Create: `styles/asset-library-inspector.css` — the ONE new partial. Its `@import` goes after
+  `asset-shelf.css`'s, which is currently the last line of `styles/index.css`.
+- Modify: `styles/asset-library.css` (Task 13 created it; it holds `.rp-al-shelves`'s
+  `container: rp-al-shelves / inline-size` declaration, which both of `asset-shelf.css`'s
+  container queries key off), `styles/asset-mark.css` and `styles/asset-shelf.css` (Task 12
+  created both), `styles/list-row.css` (Task 12 already joined `.rp-al-shelf .rp-al-row` into
+  the shared selector list — check before adding it a second time).
+- Do NOT create `styles/asset-library.css`. It exists and `styles/index.css` imports it at
+  line 37; the imports for all three are already in place and already correctly ordered after
+  `list-row.css` at line 29.
+- Test: `tests/build/buttonSpecificity.test.ts` and `buttonFocusRing.test.ts` (existing category
+  checks — they read every shipping sheet, so all four partials are already in their scope)
 
 **Interfaces:**
 - Consumes: the class names Tasks 12–14 emit.
@@ -1504,7 +1514,30 @@ git add -A && git commit -m "feat: the asset library inspector, its four section
 | 560–720px | rail narrows to 240px; the row drops its supplier slot, then its waste slot |
 | < 560px | the rail stops being a rail — selecting a row replaces the shelves with the inspector in full |
 
-**The row is a flattened `<button>` selected UNDER its block class** (`.rp-asset-shelf .rp-asset-row`). Obsidian's own `button:not(.clickable-icon)` is (0,1,1) and a bare class is (0,1,0) and loses silently. `buttonSpecificity.test.ts` has caught this exact defect four times already.
+**THE CLASS NAMES IN THIS TASK'S REMAINING TEXT ARE WRONG, INCLUDING IN ITS STEP 1 TEST.** The
+plan was written with `.rp-asset-shelf` / `.rp-asset-row`; what Task 12 actually shipped, and what
+`AssetShelf.vue` and `AssetRow.vue` emit today, is **`.rp-al-shelf` / `.rp-al-row`** — with
+`.rp-al-shelves`, `.rp-al-mark`, `.rp-al-row__name`, `.rp-al-row__supplier`, `.rp-al-row__waste`,
+`.rp-al-toolbar`, `.rp-al-body`, `.rp-al-results`, `.rp-al-status` and `.rp-al-repair` beside
+them. Task 13's report flagged the same stale selector in its own brief. Read the class off the
+component, never off this plan: a test written from the text below asserts a selector nothing
+renders, which passes or fails for reasons unrelated to the rule it means to keep — and the worse
+outcome is an implementer renaming shipped, tested classes to match a stale plan. Substitute
+throughout, Step 1 included.
+
+**Read BOTH width ladders in the spec, because they measure different boxes and this task is
+where they meet.** §3.3's row table (spec lines 305–306) drops the waste slot below **520px** and
+the supplier slot below **640px**, and Task 12 shipped exactly that as `@container rp-al-shelves`
+queries at `32.5rem` and `40rem` — measuring the SHELVES REGION. §7's table below drops the same
+two slots inside its 560–720px rung — measuring the PANE. They are consistent only if the rail is
+taken out of the pane first, which is the arithmetic this task performs and the previous one
+could not. Spec line 1934 already records one finding in this area (a 280px rail held through
+§7's whole middle rung because only the `< 35rem` override had ever been exercised). Do not
+change Task 12's shipped container queries to §7's numbers without stating which box each
+measures; if the two genuinely conflict, the SPEC is the authority and §7's table is the one
+about this composition.
+
+**The row is a flattened `<button>` selected UNDER its block class** (`.rp-al-shelf .rp-al-row`). Obsidian's own `button:not(.clickable-icon)` is (0,1,1) and a bare class is (0,1,0) and loses silently. `buttonSpecificity.test.ts` has caught this exact defect four times already.
 
 **Every focus stop opts its ring back in** — Obsidian's global `:focus { outline: none }` reaches buttons. `2px solid var(--interactive-accent)`, offset **negative** for the edge-to-edge rows (an outside ring would be clipped) and **positive** for the inset toolbar and inspector controls.
 
@@ -1519,7 +1552,7 @@ git add -A && git commit -m "feat: the asset library inspector, its four section
 ```ts
 it('declares a rule the asset row's emitted class can match, under its block', () => {
     const sheet = assembledStylesheet();
-    expect(sheet).toContain('.rp-asset-shelf .rp-asset-row');
+    expect(sheet).toContain('.rp-al-shelf .rp-al-row');
 });
 
 it('declares the three container-query steps', () => {
@@ -1633,7 +1666,7 @@ it('skips an empty shelf, which has no header to focus', () => { /* ... */ });
 it('does not stop on the rows of a collapsed shelf', async () => {
     // v-show leaves them in the DOM with an inline display:none, which jsdom reflects.
     const surface = await mountShelves({ expanded: [] });
-    expect(focusStops(surface)).toEqual(surface.findAll('.rp-asset-shelf__header button').map(el => el.element));
+    expect(focusStops(surface)).toEqual(surface.findAll('button.rp-al-shelf__head').map(el => el.element));
 });
 it('moves focus to the back control when the narrow composition swaps', async () => { /* ... */ });
 it('returns focus to the row it came from', async () => { /* ... */ });

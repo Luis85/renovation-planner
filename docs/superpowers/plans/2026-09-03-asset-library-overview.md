@@ -106,7 +106,7 @@ Run before Task 1. Every pair of tasks that share a file or an interface, and ev
 | 2 → 5 | `ProjectIndex` excluded descriptors → `UnreadableEntry` | Clean — Task 5 maps, never re-derives |
 | 3 → 5 | `AssetRepository.listAll()` listing → `CatalogueListing` | Clean — Task 3 supplies `read-failed` only; Task 5 merges the index's two other sources |
 | 4 → 6, 4 → 14 | `sidecarPath` on refusal | Clean — Task 6 carries it per entry, Task 14 renders it |
-| 7 → 10, 7 → 14 | change source → store invalidation | Clean |
+| 7 → 10, 7 → 14 | change source → store invalidation | **Finding (found late, by a review bot rather than by this scan):** `AssetLibraryChange` carried only `catalogue` and `marks`, which cannot express the difference Task 10 needs between invalidating the design read and restarting both selection reads. Ruled: the payload carries `design` and `replaced` id sets. This row said "Clean" and was not — recorded rather than quietly corrected, because a scan that reports clean on a pair it did not actually hold together is the failure this table exists to prevent |
 | 11 → 12/13/14 | view mounts the components | Task 11 lands a minimal root; 12–14 fill it. Ordered so the view is testable before the components exist |
 | 9 → every UI task | `StringKey`s | Task 9 lands the whole key inventory first, so no later task adds copy piecemeal |
 | 15 → 12/13/14 | class names | Task 15 follows the components, so it styles names that exist |
@@ -232,7 +232,11 @@ export interface ProjectIndexExclusionChangedPayload {
 
 1. **The reason is carried, never reconstructed.** Open a duplicate-id loser and its frontmatter looks entirely valid — the defect is a collision with another file, invisible from inside the note. The three sources are distinct where they are collected and nowhere afterwards.
 2. **The entity type is the LOSER's own, never the winner's.** `ProjectIndex` is one global id namespace and `collectNotes` keys its map by `ref.id` with no type in the key, so an asset note and a project note can collide. Assigning the winner's type files the excluded asset under whatever displaced it. The loser's type is free at both sides: `ref.type` for an arriving note that loses, and the displaced entry's own `type` for one already in the map.
-3. **Promotion.** Removing or re-identifying an entry re-evaluates the excluded contenders for that id: if exactly one remains, it becomes an index entry and its descriptor is dropped. Without this, a user resolves the collision exactly as instructed and the asset does not come back until a full rebuild.
+3. **Promotion.** Removing or re-identifying an entry re-evaluates the excluded contenders for that id, and **exactly one of them is promoted — never only when exactly one remains.** It becomes an index entry, its descriptor is dropped, and every other contender for that id stays excluded as `duplicate-id`. Without promotion at all, a user resolves the collision exactly as instructed and the asset does not come back until a full rebuild.
+
+   **"If exactly one remains" was the first version of this rule and it was wrong for three notes.** With three sharing an id, deleting the indexed winner leaves two contenders, so a sole-survivor condition promotes neither and the id disappears from the catalogue entirely — worse than the collision it was resolving, and a state the SCAN can never produce: `collectNotes` is last-writer-wins over an id-keyed map, so a full rebuild always ends with exactly one winner however many notes collide. An incremental door that can reach a no-winner state its own full rebuild cannot is a door that disagrees with the thing it is supposed to be an increment of. Reported by a review bot against this plan.
+
+   **Which one is promoted must be deterministic**, and the scan's own answer is the one to copy rather than invent a second: last-writer-wins over the enumeration order. Pick the contender the next rebuild would pick, so an incremental promotion and a full rebuild agree — otherwise a reload silently changes which note IS the asset.
 4. **Demotion, in the same atomic step.** `applyUpsert` is keyed by id, so a second note declaring an id the index already holds REPLACES the entry — and without this the displaced path is in neither `entries` nor `unreadable`. It is simply gone from the surface. Demotion and promotion are one change, not two.
 
 - [ ] **Step 1: Write the failing tests — the scan**
@@ -281,6 +285,34 @@ it('promotes the sole surviving contender when the winner is deleted', async () 
     // The loser is now the only claimant of that id, so it IS the asset.
     expect(stack.index.get('tile-01' as EntityId<string>)?.path).toBe(loser);
     expect(stack.index.listExclusions()).toEqual([]);
+});
+
+it('promotes one of two remaining contenders, rather than none', async () => {
+    // Three notes share an id. Deleting the winner leaves TWO contenders — a
+    // sole-survivor rule promotes neither and the id leaves the catalogue entirely,
+    // which is a state the full rebuild can never produce.
+    const stack = await stackWithDuplicates('tile-01', ['one.md', 'two.md', 'three.md']);
+    const winner = stack.index.get('tile-01' as EntityId<string>)!.path;
+    expect(stack.index.listExclusions()).toHaveLength(2);
+
+    await stack.vault.delete(stack.vault.file(winner));
+    await stack.adapter.processPath(winner);
+
+    expect(stack.index.get('tile-01' as EntityId<string>)).toBeDefined();
+    expect(stack.index.listExclusions()).toHaveLength(1);
+});
+
+it('promotes the contender a full rebuild would pick', async () => {
+    // An incremental promotion and a rebuild must agree, or a reload silently
+    // changes which note IS the asset.
+    const stack = await stackWithDuplicates('tile-01', ['one.md', 'two.md', 'three.md']);
+    const winner = stack.index.get('tile-01' as EntityId<string>)!.path;
+    await stack.vault.delete(stack.vault.file(winner));
+    await stack.adapter.processPath(winner);
+    const promoted = stack.index.get('tile-01' as EntityId<string>)!.path;
+
+    await stack.rebuildIndex();
+    expect(stack.index.get('tile-01' as EntityId<string>)!.path).toBe(promoted);
 });
 
 it('demotes the displaced winner in the same step as the arrival takes its id', async () => {
@@ -339,7 +371,12 @@ Expected: PASS.
 
 - [ ] **Step 6: Mutation-check the two rules a green suite would not notice**
 
-Replace `displaced.type` with `ref.type` and run the cross-type case: it must go red. Delete the demotion push and run the demotion case: it must go red. Restore both. Record in the report that you watched each fail.
+Three mutations, each watched red at its own assertion, each restored:
+- Replace `displaced.type` with `ref.type` — the cross-type case must go red.
+- Delete the demotion push — the demotion case must go red.
+- Narrow promotion to "exactly one contender remains" — the three-note case must go red. This is the mutation that matters most, because the two-note case passes against it.
+
+Record in the report what each printed.
 
 - [ ] **Step 7: Run the gate and commit**
 
@@ -643,6 +680,12 @@ export interface AssetLibraryChange {
 	readonly catalogue: boolean;
 	/** Drop the cached mark for these ids; the viewport decides when they are re-read. */
 	readonly marks: readonly AssetId[];
+	/** Ids whose DESIGN read is stale — geometry, height or background moved. Bumps the
+	 *  design generation ALONE, never the referencing one. */
+	readonly design: readonly AssetId[];
+	/** Ids whose ENTRY was removed or replaced. Bumps BOTH selection generations, so a
+	 *  pre-deletion design or usage answer cannot populate a same-id replacement. */
+	readonly replaced: readonly AssetId[];
 }
 export function createAssetLibraryChangeSource(
 	events: EventBus,
@@ -655,13 +698,19 @@ export function createAssetLibraryChangeSource(
 
 | Event | Filter | Does |
 | --- | --- | --- |
-| `AssetCreated`, `AssetUpdated` | none | catalogue |
-| `AssetDeleted` | none | catalogue AND the named mark — certain and prompt where a listing diff is inferential |
-| `AssetDesignChanged` | none | the named mark AND that asset's catalogue entry — `SetAssetHeight` and `SetAssetBackground` write the NOTE and publish only this event |
-| `GeometrySidecarChanged` | none | the named mark |
-| `ProjectIndexEntryChanged` | `entityType === 'renovation-asset'` | catalogue AND the named mark — covers a note deleted or arriving through sync, which raises this and never `AssetDeleted` |
-| `ProjectIndexRebuilt` | none | catalogue |
-| `ProjectIndexExclusionChanged` | `entityType === 'renovation-asset'` | catalogue — the repair strip is part of the listing |
+| Event | Filter | `catalogue` | `marks` | `design` | `replaced` |
+| --- | --- | --- | --- | --- | --- |
+| `AssetCreated`, `AssetUpdated` | none | ✓ | — | — | — |
+| `AssetDeleted` | none | ✓ | the id | — | **the id** |
+| `AssetDesignChanged` | none | ✓ | the id | **the id** | — |
+| `GeometrySidecarChanged` | none | — | the id | the id | — |
+| `ProjectIndexEntryChanged` | `entityType === 'renovation-asset'` | ✓ | the id | — | **the id** |
+| `ProjectIndexRebuilt` | none | ✓ | — | — | — |
+| `ProjectIndexExclusionChanged` | `entityType === 'renovation-asset'` | ✓ | — | — | — |
+
+**`design` and `replaced` are separate sets because Task 10 asks two different things of them**, and a payload carrying only `catalogue` and `marks` cannot answer either. §5.5's rule is that *the unit of invalidation is the read and the unit of restart is the gesture*: a design edit invalidates the DESIGN read alone, while a removal or a replacement restarts BOTH selection reads. Collapsed into one signal, a consumer has exactly two options and both are defects the spec names — re-run the vault-wide `ListRequirementsReferencing` on every designer edit, which is the O(every requirement in the vault) cost §5.2 exists to avoid, or leave a pre-deletion design and usage answer eligible to populate a same-id replacement, which is the staleness §5.5's *"the ticket must follow the ENTRY, not only the id"* exists to prevent. Reported by a review bot against this plan; **the preflight scan's row for `7 → 10` read "Clean" and was not**, which is this plan's own instance of the defect §12 records — a claim about a neighbour section, made without holding the two together.
+
+`AssetCreated` and `AssetUpdated` carry no `marks`: neither touches geometry. `GeometrySidecarChanged` carries no `catalogue`: a sidecar is not in the note.
 
 **Unfiltered on the two design events and filtered on the two index events, deliberately.** A design event names one asset and is always about geometry this surface draws. An index event does not: unfiltered, a burst of synced zone notes would clear every mark on screen.
 
@@ -679,7 +728,20 @@ it('ignores a zone note arriving through the index', () => {
 it('refreshes the catalogue on a design change, not only the mark', () => {
     const heard = collect(source);
     events.publish(assetDesignChanged({ assetId: 'tile-01' }));
-    expect(heard).toEqual([{ catalogue: true, marks: ['tile-01'] }]);
+    expect(heard).toEqual([{ catalogue: true, marks: ['tile-01'], design: ['tile-01'], replaced: [] }]);
+});
+
+it('invalidates the design read on a design change, and never the usage read', () => {
+    // The vault-wide referencing scan must not re-run for a footprint edit.
+    const heard = collect(source);
+    events.publish(assetDesignChanged({ assetId: 'tile-01' }));
+    expect(heard[0]!.replaced).toEqual([]);
+});
+
+it('restarts BOTH selection reads when an entry is removed or replaced', () => {
+    const heard = collect(source);
+    events.publish(assetDeleted({ assetId: 'tile-01' }));
+    expect(heard[0]!.replaced).toEqual(['tile-01']);
 });
 ```
 
@@ -689,7 +751,11 @@ it('refreshes the catalogue on a design change, not only the mark', () => {
 
 - [ ] **Step 4: Mutation-check the two arms a green suite would not notice**
 
-Drop `catalogue: true` from the `AssetDesignChanged` arm — the design case must go red. Remove the `renovation-asset` filter from `ProjectIndexEntryChanged` — the zone negative must go red. Both watched, both restored.
+- Drop `catalogue: true` from the `AssetDesignChanged` arm — the design case must go red.
+- Remove the `renovation-asset` filter from `ProjectIndexEntryChanged` — the zone negative must go red.
+- Move `AssetDesignChanged`'s id from `design` into `replaced` — the case asserting a design edit does NOT restart the referencing read must go red. Without that case the two sets are indistinguishable and the payload is back to the collapsed one this task was corrected for.
+
+All three watched, all three restored.
 
 - [ ] **Step 5: Run the gate and commit**
 

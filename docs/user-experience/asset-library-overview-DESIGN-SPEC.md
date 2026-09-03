@@ -288,7 +288,7 @@ a real shape rather than only a price — and a definition that knows its own di
 placement will need. Overclaiming it as the quantity chain would have been a small lie in the one
 product whose whole argument is that its numbers are derived.
 
-Four states, each a **printed mark** and none of them a colour. Every one differs from every
+Five states, each a **printed mark** and none of them a colour. Every one differs from every
 other in KIND rather than in weight, and that is a correction the prototype forced rather than
 a rule this section always held — see §12:
 
@@ -298,6 +298,8 @@ a rule this section always held — see §12:
 | Footprint, **unscaled** | the **same outline, dashed**. The proportions are real and the scale is not, which is exactly what a provisional stroke over true geometry says |
 | Not yet read | **three dots**, centred. Not a shape at all, so no footprint can collide with it, and it is already the printed mark for *still coming* |
 | No shape yet | **nothing**. An empty slot is the one thing no other state can be mistaken for, and a drawn box for *there is no shape* is scaffolding pretending to be data |
+| **Unreadable** | a **struck box** — the only state that draws a box at all, so nothing can confuse it with a square footprint. The box says a shape *was asked for and could not be had*; the cross says the row will not get one without repair |
+
 **Every mark carries its state in words, visually hidden beside it.** The drawing is
 `aria-hidden` — an outline announces nothing — and the first version justified that by saying the
 state is written out in the inspector. It is, and only AFTER the row is selected: while BROWSING,
@@ -306,7 +308,6 @@ own argument is that the mark carries a fact no colour could; a fact carried onl
 that same failure through the other eye. The text sits in the mark rather than in the row's
 accessible name, which is the asset's name and should not become a sentence.
 
-| **Unreadable** | a **struck box** — the only state that draws a box at all, so nothing can confuse it with a square footprint. The box says a shape *was asked for and could not be had*; the cross says the row will not get one without repair |
 
 The third state is not a skeleton animation; it is what the row draws before its shape arrives,
 and it has to be distinct from *no shape yet* or the surface asserts an absence it has not
@@ -335,7 +336,7 @@ is touched at all) both mean *no shape, and not because there is none to have*. 
 wording said "a box says something **is** there; the cross says it is spent", which is a claim
 about a FILE — true of four codes and false of the fifth, and §3.5 had already split that fifth
 out of its own table while this one still grouped it. A fifth mark is the alternative and it is
-the wrong trade: the four states are distinguished by KIND because each is a different thing to
+the wrong trade: the five states are distinguished by KIND because each is a different thing to
 do next, and these two share theirs — *this row needs repairing before it can have a shape.*
 Which repair differs, and that is what one click into the inspector says. Reported by a review
 bot, in the round that split the inspector's own table.
@@ -1045,8 +1046,14 @@ What differs per seam is only what makes two requests **the same request**:
   `RenovationProjectStore.hydrate`'s `latestHydration`. It is refreshed by events rather than by a
   gesture, so two arriving close together is the ordinary case rather than the fast-fingers one.
 
-- **The selection reads** are ticketed on a **monotonically increasing generation**, bumped
-  whenever a selection read starts — for any reason, including §5.4's refresh of the SAME asset.
+- **The selection reads** are ticketed on a **monotonically increasing generation, one per
+  selection CYCLE** — bumped once when a selection begins and once when §5.4's refresh restarts
+  it, never once per read. A selection starts TWO independent reads (`GetAssetDesign` and
+  `ListRequirementsReferencing`, §3.5), and a counter bumped per read start makes the second
+  invalidate the first: both answers are required, so the section holding the older ticket waits
+  for a result that will now be discarded — **loading for ever, on the ordinary path**. That was
+  the previous spelling of this rule and it traded a stale-overwrite for a permanent hang.
+  Whatever restarts the cycle restarts BOTH reads under one new generation.
   Keying on the selected asset alone was the first spelling and it is not enough, which is worth
   spelling out because it looks sufficient: an initial read for A can still be in flight when
   `AssetDesignChanged` starts a replacement read for A, and if the replacement lands first the
@@ -2042,7 +2049,7 @@ carried far enough.
 own table one round earlier while §3.4 still grouped it. The wording was *"a box says something is
 there; the cross says it is spent"* — a claim about a FILE, true of four codes and false of the
 fifth, which is refused before the disk is touched. Broadened rather than given a fifth mark: the
-four states are distinguished by KIND because each is a different thing to do next, and these two
+five states are distinguished by KIND because each is a different thing to do next, and these two
 share theirs — *this row needs repairing before it can have a shape* — with the inspector, one
 click away, saying which repair.
 
@@ -2353,6 +2360,29 @@ class, repeatedly, by an author who keeps writing that exact rule down. **The re
 actually worked here is mechanical**: the key inventory stopped losing keys when it was derived
 by extraction rather than read off the screen, and every edit stopped silently failing when each
 one was grepped back. Neither came from resolving to be more careful.
+
+A thirty-eighth round found two, and **both are defects I introduced in the two rounds before
+it** — the first one visible in the rendered document.
+
+**Round thirty-five split §3.4's table.** The accessibility paragraph was inserted by anchoring on
+the `| **Unreadable** |` row — a TABLE ROW — so the paragraph landed between the fourth and fifth
+rows and the fifth stopped being a row at all: a stray pipe-delimited line below a paragraph, in
+the one table that defines the mark vocabulary. The lead-in still said *four states* as well, and
+two later passages inherited the count. Repaired: five rows, contiguous, with the paragraph after
+the table. **A markdown table is a structure, and anchoring an insertion inside one is the same
+error as anchoring on a line without reading what the line IS.**
+
+**And round thirty-six's generation traded a stale overwrite for a permanent hang.** It bumped
+"whenever a selection read starts" — but a selection starts TWO independent reads (§3.5), so the
+second bump invalidates the first read, whose section then waits for a result that will be
+discarded. **Loading for ever, on the ordinary path**, which is worse than the race it replaced.
+One generation per selection CYCLE, restarting both reads together.
+
+**Both were fixes to fixes, and both broke something that had been working.** Every other finding
+on this branch has been an omission; these two are regressions, and the difference matters: the
+mechanical remedies that worked earlier — derive the list, grep the edit back — check that a
+change LANDED, not that it was safe. Nothing here reads a repaired table as a table, or a ticket
+rule as a state machine.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

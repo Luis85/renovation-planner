@@ -59,10 +59,16 @@ export interface CostEstimateChanged extends DomainEvent<'CostEstimateChanged'> 
  * the vocabulary had no member meaning it: `RequirementInvalidated` says a figure stopped
  * being trustworthy, which is a different claim about a row that is still there.
  *
- * Published by `DeleteRequirementCommand` (the exposed removal, and `remove-references`
- * resolves through it), by `ReversibleAssignAssetCommand.undo` (which deletes the
- * requirement its own execute created) and by the delete resolutions' `remove-references`
- * arm. Carries the project so a subscriber scoped to one project can filter.
+ * Three publishers, and they are NOT one command reused three ways: `DeleteRequirementCommand`
+ * (the exposed removal), `ReversibleAssignAssetCommand.undo` (which deletes the requirement
+ * its own execute created), and the delete resolutions' `remove-references` arm
+ * (`applyResolutionToRequirement` in `deleteResolution.ts`), which calls
+ * `ops.removeRequirement` — `requirements.delete` on the raw port — and publishes this event
+ * directly rather than dispatching `DeleteRequirementCommand`. An earlier draft of this
+ * docblock claimed the resolution "resolves through" that command, which was false the whole
+ * time this arm published nothing; it is not true now either; a resolution engine dispatching
+ * the very command whose delete it is compensating around would be a second entry point into
+ * one write. Carries the project so a subscriber scoped to one project can filter.
  */
 export interface RequirementDeleted extends DomainEvent<'RequirementDeleted'> {
 	readonly payload: RequirementEventPayload;

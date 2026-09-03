@@ -432,7 +432,8 @@ Four sections, in this order:
      | Cause | Says | `Open designer` |
      | --- | --- | --- |
      | `asset.not-found` | the asset is gone, with a way back to the list | **withdrawn** — there is nothing to open |
-     | any `asset-geometry.*` — `unreadable`, `corrupt`, `schema-invalid`, `asset-id-mismatch` | §3.4's `unreadable` wording, naming the sidecar where the error carries its path | **withdrawn** — see below |
+     | `asset-geometry.unusable-id` | the asset's **id** cannot name a file, so no shape can be stored for it at all — never that a shape file could not be read | **`Open note`** — the id is in the note's frontmatter and editing it is the whole repair |
+     | any other `asset-geometry.*` — `unreadable`, `corrupt`, `schema-invalid`, `asset-id-mismatch` | §3.4's `unreadable` wording, naming the sidecar where the error carries its path | **withdrawn** — see below |
      | anything else | the vault read failed, retryable | withdrawn until a read succeeds |
 
      **Those three rows are about the SHAPE. A selection can also fail one level up, and that
@@ -453,6 +454,18 @@ Four sections, in this order:
      `Open note` too was the alternative and it is the dead-end §3.5 already refused once — the
      one action that would actually fix the thing, withheld because the state was not
      representable.
+
+     **`unusable-id` had to be split out of that group, and its own fixture is what exposed it.**
+     The hostile id planted in `tests/harness/assetLibraryFocus.test.ts` to prove the focus
+     selector is escaped is *also* an id `usableAsFilename` refuses. `AssetGeometryStore.pathFor`
+     checks it **before looking for a sidecar at all** — *"an asset id names its sidecar file, and
+     … cannot be a filename"* — so under the grouped row this surface would have told a user that
+     their stored shape file could not be read, about a file that was never sought and does not
+     exist, "naming the sidecar" that has no path. A wrong sentence rather than a missing one. The
+     action differs for the same reason the note-unreadable state's does: the defect is a value in
+     the note's frontmatter, so `Open note` is the repair and `Open designer` is not. Reported by
+     a review bot, off a fixture added one commit earlier for an unrelated rule — **a hostile
+     input written for one rule is evidence about every rule it passes through.**
 
      **That middle row said `Open designer` STAYS, on the grounds that "the designer is where a
      damaged shape is repaired" — a claim about the designer that I never checked, and it is
@@ -1057,6 +1070,7 @@ view.asset-library.clearance.unscaled
 view.asset-library.loading          view.asset-library.some-unreadable  (interpolated: {count})
 view.asset-library.note-unreadable  (interpolated: {name})
 view.asset-library.asset-gone
+view.asset-library.shape.unusable-id
 view.asset-library.failed.headline
 view.asset-library.new-asset        view.asset-library.results
 view.asset-library.category         view.asset-library.unit
@@ -1814,6 +1828,22 @@ exactly this reason, its own comment arguing that *"a fresh vault must still be 
 catalogue."* A vault that can create an asset and cannot list one is that argument left
 half-applied. **Reading a neighbouring component's comment would have caught it**, and the comment
 was already making the case.
+
+A twenty-second round found one, and the evidence for it was a fixture this branch had added one
+commit earlier for something else.
+
+**`asset-geometry.unusable-id` was inside a grouped row that describes a different failure.** The
+hostile id planted in `assetLibraryFocus.test.ts` — there to prove the focus selector is escaped —
+is also an id `usableAsFilename` refuses, and `AssetGeometryStore.pathFor` refuses it **before
+looking for a sidecar at all**. So §3.5's *any `asset-geometry.*`* row would have reported that a
+stored shape file could not be read, about a file never sought, and offered to name a path that
+does not exist. A wrong sentence rather than a missing one, which is the worse of the two. Split
+out, with `Open note` as its action for the same reason the note-unreadable state has it: the
+defect is a value in the note's frontmatter.
+
+**The shape worth keeping: a hostile input written for one rule is evidence about every rule it
+passes through.** That fixture was chosen to break a CSS selector and it happened to walk into the
+filename rule as well. Nothing here connected the two — a reviewer did, off a diff.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

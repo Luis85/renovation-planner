@@ -292,12 +292,14 @@ describe('the delete resolution announces per referent it touched', () => {
 	 * `publish` returns.
 	 *
 	 * A build that moves the publish loop out of the locked region should fail HERE and read
-	 * this note: doing so is not the remedy for that hazard, because publishing under a
-	 * reference lock is the NORM in this codebase (13 publish source lines over 18
-	 * publish x locked-region pairs), and one of those sites is inside
-	 * `RecalculateRequirement`, a shared command reached through `recalculateInline` whose
-	 * event buffering was already declined. Moving three of eighteen is a partial fix that
-	 * reads exactly like a complete one.
+	 * this note: doing so is not the remedy for that hazard. Publishing under a reference
+	 * lock is routine here rather than exceptional, and one of those sites cannot move at
+	 * all — it is inside `RecalculateRequirementCommand`, a shared command reached through
+	 * `recalculateInline` whose event buffering was already declined — so moving the ones
+	 * that can move is a partial fix that reads exactly like a complete one.
+	 * `ReferenceLocks`'s header holds the measured breadth and its date; it is deliberately
+	 * NOT restated here, because a count kept in four places is a count that disagrees with
+	 * itself.
 	 *
 	 * The readings are COLLECTED and asserted afterwards, never asserted inside the handler:
 	 * `createEventBus`'s `deliver` wraps every subscriber in a `.catch` and swallows it, so an

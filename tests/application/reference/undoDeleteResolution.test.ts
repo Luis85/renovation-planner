@@ -320,10 +320,12 @@ describe('undoDeleteResolution', () => {
 	 * from `releaseAll`, which this publisher reaches only after `publish` returns.
 	 *
 	 * A build that moves the publish loop below the `finally` should fail HERE and read this
-	 * note. That is not the remedy — publishing under a reference lock is the NORM in this
-	 * codebase (13 publish source lines over 18 publish x locked-region pairs) and one of
-	 * those sites is inside a shared command whose event buffering was already declined, so
-	 * moving the ones that CAN move is a partial fix that reads exactly like a complete one.
+	 * note. That is not the remedy — publishing under a reference lock is routine here
+	 * rather than exceptional, and one of those sites is inside a shared command whose event
+	 * buffering was already declined, so moving the ones that CAN move is a partial fix that
+	 * reads exactly like a complete one. `ReferenceLocks`'s header holds the measured breadth
+	 * and its date; it is deliberately NOT restated here, because a count kept in four places
+	 * is a count that disagrees with itself.
 	 *
 	 * Readings are COLLECTED, never asserted inside the handler: `deliver` wraps every
 	 * subscriber in a `.catch` and swallows it, so an in-handler assertion passes either way.

@@ -36,13 +36,16 @@
  *
  * **Why the alternative is unavailable, and therefore why this is a RULE rather than a
  * repositioning of the publishes.** The obvious remedy is to publish after releasing. It
- * cannot close the class, because publishing under a lock is the NORM here rather than the
- * exception: the sweep that produced this rule (2026-09-03) counted 13 publish source lines
- * across 18 (publish x locked-region) pairs, and one of them — `RecalculateRequirement.ts`'s
- * pair at :144 and :155, reached through `recalculateInline` and bound at
- * `deleteResolution.ts:222` — sits inside a shared command whose event buffering a prior
- * ruling already declined. Moving the three that can move would leave a partial fix that
- * reads exactly like a complete one at the precise moment a first subscriber arrives.
+ * cannot close the class. Publishing under a lock is routine here rather than exceptional —
+ * the sweep that produced this rule (2026-09-03) found 13 of the 40 publish source lines in
+ * `src/` reached inside a locked region, across 18 (publish x locked-region) pairs — but the
+ * half that DECIDES is not the breadth. It is that one of those pairs cannot move AT ALL:
+ * `RecalculateRequirementCommand.execute`'s own publish, and the
+ * `publishIfEffectiveCostChanged` call below it, are reached under a lock through
+ * `recalculateInline` in `deleteResolution.ts`'s `requirementResolutionSteps`, so they sit
+ * inside a shared command whose event buffering a prior ruling already declined. Moving the
+ * ones that CAN move would leave a partial fix that reads exactly like a complete one at the
+ * precise moment a first subscriber arrives.
  *
  * **Why it is not enforced at the lock like its two siblings.** `acquire` cannot see that
  * its caller is inside a publish; finding out would mean coupling `ReferenceLocks` to the
@@ -63,12 +66,22 @@
  * handler handed a collaborator that locks internally would name nothing, and is invisible
  * to every instrument above.
  *
- * The rule is honoured everywhere today, and two commands say so where they publish
- * (`updateAssetShape.ts:298-301`, `CalibrateAsset.ts:192-194`, both announcing outside the
- * region on exactly this reasoning). `SetAssetBackground.ts:234`/`:242` publishes INSIDE
- * `withLevel1` and does not — pre-existing, harmless while no subscriber locks, and out of
- * this increment's scope. Named rather than glossed, because uniformity implied is
- * uniformity a later reader relies on.
+ * **No subscriber acquires a lock today** — established on 2026-09-03 by READING every
+ * module that registers one (`event-handlers/requirement/cascade.ts`, the three
+ * `on*.ts` handlers beside it, and `RecalculateRequirementCommand` below them), and NOT by
+ * any of the four instruments above, none of which can see a lock reached through an
+ * injected collaborator. Dated and attributed for the same reason the 13-of-40 figure is: it
+ * is a fact about the tree at the moment somebody looked, and nothing re-establishes it.
+ *
+ * A SECOND and quite separate rule governs where a publisher announces FROM: publish outside
+ * the locked region where you can, so a subscriber's own read does not wait on a lock the
+ * publisher has not let go. `updateAssetShape` and `CalibrateAssetCommand.executeWithVersion`
+ * state that one where they publish and follow it; `SetAssetBackgroundCommand.write`
+ * publishes inside `withLevel1` and does not. **That is an exception to THAT convention and
+ * to nothing on this page** — a publish-POSITION choice, violating no rule stated here, and
+ * harmless for exactly as long as the subscriber rule above holds. Pre-existing, out of this
+ * increment's scope, and named rather than glossed, because uniformity implied is uniformity
+ * a later reader relies on.
  *
  * Deliberately NOT a general write mutex: an ordinary requirement writer holds exactly one
  * level-2 lock through its own short-lived session and waits for nothing else, so the

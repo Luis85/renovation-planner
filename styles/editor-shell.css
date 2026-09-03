@@ -285,7 +285,17 @@
 	color: var(--text-muted);
 }
 
-.rp-task-banner button {
+/*
+ * Same specificity argument as `.rp-context-bar .rp-context-bar__button` and
+ * `.rp-primary-actions .rp-primary-actions__button` above: a bare `.rp-task-banner button`
+ * ties Obsidian's own `button:not(.clickable-icon)` (`tests/harness/obsidian.css`) at (0,1,1) —
+ * `:not()` contributes its argument's specificity — and a tie is not a win, so `box-shadow: none`
+ * and `background-color: transparent` would lose to the host rule and this button would render
+ * with Obsidian's own fill and shadow instead of the flat one this banner asks for. The two-class
+ * compound scores (0,2,0), which is what `tests/build/buttonSpecificity.test.ts` checks for
+ * every button rule in this project rather than trusting this one comment.
+ */
+.rp-task-banner .rp-task-banner__cancel {
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);
 	color: var(--text-normal);
@@ -296,11 +306,11 @@
 	cursor: pointer;
 }
 
-.rp-task-banner button:hover {
+.rp-task-banner .rp-task-banner__cancel:hover {
 	background-color: var(--background-modifier-hover);
 }
 
-.rp-task-banner button:focus-visible {
+.rp-task-banner .rp-task-banner__cancel:focus-visible {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }

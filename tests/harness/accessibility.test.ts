@@ -104,7 +104,7 @@ import { prototypeEntries } from './entries';
 import { openIndex } from './indexApp';
 import { mountHarness } from './mount';
 import { mountAssetDesignerHarness } from './assetDesigner';
-import { mountPlanEditor, type EditorHarness } from '../helpers/editor';
+import { mountPlanEditor, runtimeOf, settle, type EditorHarness } from '../helpers/editor';
 import { FIXTURE_PLAN } from '../helpers/planFixtures';
 import { installObsidianDom } from '../helpers/dom';
 import { installCanvas } from '../helpers/canvas';
@@ -539,6 +539,31 @@ describe('axe against the mounted view', () => {
 			await flushPromises();
 
 			expect(mounted.wrapper.find('[role="menu"]').exists()).toBe(true);
+
+			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			mounted?.unmount();
+		}
+	});
+
+	/**
+	 * Task 18's temporary task banner — `role="status"`, an `aria-label`, and a Cancel
+	 * `<button>` — was never exercised by any scan in this file: the case above mounts the
+	 * default fixture and never switches off Select, so the banner's own `v-if` (the active
+	 * tool has an entry in its `TASKS` table) never passed. `setTool('draw-polygon')` is what
+	 * makes it appear; the presence assertion sits ABOVE `axe.run` for the reason every case in
+	 * this file already gives — this is a scan of the banner or it is a scan of nothing.
+	 */
+	it('reports no semantic violations on the plan editor with the temporary task banner shown', async () => {
+		let mounted: EditorHarness | null = null;
+		try {
+			mounted = await mountPlanEditor();
+			runtimeOf(mounted).setTool('draw-polygon');
+			await settle();
+
+			expect(mounted.wrapper.find('.rp-task-banner button').exists()).toBe(true);
 
 			const results = await axe.run(mounted.wrapper.element as HTMLElement, runOptions);
 

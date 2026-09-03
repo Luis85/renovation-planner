@@ -44,6 +44,7 @@ const task = computed(() => {
 		<span>{{ tr(task.instructionKey) }}</span>
 		<button
 			type="button"
+			class="rp-task-banner__cancel"
 			@click="runtime.cancelActiveTask()"
 		>
 			{{ tr('editor.task.cancel') }}

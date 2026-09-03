@@ -333,7 +333,12 @@ it('demotes the displaced winner in the same step as the arrival takes its id', 
 it('announces an exclusion change through its own event', async () => {
     const stack = createRepositoryStack();
     const heard: ProjectIndexExclusionChangedPayload[] = [];
-    stack.events.subscribe('projectIndexExclusionChanged', (e) => { heard.push(e.payload); });
+    // The discriminant is CAPITALISED — `DomainEvent<'ProjectIndexExclusionChanged'>` in
+    // `projectIndex.events.ts`. `EventBus` keys subscriptions by exact string, so the
+    // lowercase factory name this snippet first used subscribes to nothing: the handler
+    // never runs, `heard` stays empty, and the case fails against a CORRECT implementation
+    // while looking like a real assertion. Reported by a review bot against this plan.
+    stack.events.subscribe('ProjectIndexExclusionChanged', (e) => { heard.push(e.payload); });
     await stack.vault.create('Renovation/Library/broken.md', '---\ntype: renovation-asset\n---\n');
     await stack.adapter.processPath('Renovation/Library/broken.md');
     expect(heard).toEqual([{ path: 'Renovation/Library/broken.md', entityType: 'renovation-asset' }]);

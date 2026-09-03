@@ -1510,15 +1510,50 @@ handler — and giving it a suppressible bus for one caller's benefit changes a 
 from inside a resolution. It is also a larger change than this increment's subject.
 
 **A compensating announcement is what ships**, and it lives entirely in this file: when
-`compensate` finishes rolling a referent back, publish `RequirementInvalidated` for it. That is
-truthful for the identical reason the `delete-anyway` arm's is — the row was written and then
-written back, so any figure a subscriber derived from the intermediate state is owed a
-re-read — and it needs no new vocabulary and no change to a shared command.
+`compensate` successfully rolls a referent back, publish **`RequirementRestored`** for it.
 
-Its case is the one the report asks for and the one neither existing case covers: a reassignment
-whose recalculation SUCCEEDS, followed by a later failure that triggers rollback, asserting the
-compensating event arrives. **A rollback case without a preceding successful recalculation passes
-against a build that announces nothing**, so the success is load-bearing in the fixture.
+**Not `RequirementInvalidated`, and the first draft of this paragraph said `Invalidated` — the
+third time in this document that an event was chosen from its role rather than its contract, and
+the second time in the same task.** `compensate` writes the pre-state SNAPSHOT back, which for a
+row that was `current` before the resolution restores it to `current`. Claiming a recalculation
+is owed for that row is false in exactly the way the arm above was just corrected for.
+`RequirementRestored` — minted by this increment for precisely a snapshot write, with two
+publishers already — says what happened and needs no new vocabulary. Reported.
+
+**Announce only for referents whose restore actually SUCCEEDED**, which `compensate` already
+knows per entry. A blanket announcement after a partial rollback would claim restoration for rows
+still holding their intermediate state.
+
+### The rollback this rests on cannot succeed today, and that is a PRE-EXISTING defect
+
+Reported, and verified at the source rather than reasoned about:
+
+- `ResolutionOps.recalculateInline(requirementId): Promise<Result<unknown, AppError>>`
+  (`deleteResolution.ts:130`) returns **no revision**.
+- `repointAndMarkStale` returns the revision ITS OWN save produced (`:115`), and
+  `applyResolutionToRequirement` records that one in `SequenceProgress` (`:325`).
+- `recalculateInline` then runs (`:330`) and **saves again**, bumping the revision past what
+  `progress` holds.
+
+So on the `reassign` arm, whenever the inline recalculation SUCCEEDS, the recorded expectation is
+already stale — and `compensate`'s `restoreRequirement` presents it and is refused. **A
+successfully-recalculated reassignment cannot be rolled back at all**, with or without any event
+this increment adds. That is a data-integrity defect on `main`, not an event defect, and it is
+older than this plan.
+
+**This increment does NOT fix it**, and the reason is scope rather than difficulty: the fix is to
+return the recalculation's saved revision and record it, which changes a shared `ResolutionOps`
+signature and the engine's progress accounting — a correctness change to the compensation engine
+that deserves its own increment, its own cases and its own review, not a paragraph inside an
+announcement task.
+
+**What that means for the announcement, stated so it is not read as more than it is:** on the
+`reassign`-succeeded path the rollback refuses, so no restore happens, so no `RequirementRestored`
+is published — which is truthful. The compensating announcement is real for every other arm
+(`remove-references`, `delete-anyway`, and `reassign` whose recalculation refused), and its case
+must therefore be built on one of THOSE rather than on the reassign-succeeded path the earlier
+draft named. A case built on the broken path would fail for a reason that has nothing to do with
+this task.
 
 `applyAll` collects the announcements beside the progress entries; `runDeleteResolution`
 publishes them **after `deleteEntity` has returned ok** — the sequence's last mutation, and the

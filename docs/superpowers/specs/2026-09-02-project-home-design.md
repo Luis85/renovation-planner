@@ -873,10 +873,20 @@ beside it.** A single geometry or asset-price change is not one notification.
 the `ZoneGeometryChanged` or `AssetUpdated` that started the cascade. An edit touching **R**
 requirements therefore emits up to **3R + 1** events that this source is subscribed to.
 
-Forwarded straight to `hydrate`, that is 3R+1 full project-summary walks. Each walk already
-costs `zones × all-requirements` reads for the reason recorded above, so the two compound:
-moving one vertex in a room with 8 requirements, in a vault of 500, is 25 walks of 5,500 reads.
-Not a slow surface — an unusable one, and overlapping hydrations racing each other besides.
+Forwarded straight to `hydrate`, that is 3R+1 full project-summary walks.
+
+**This paragraph multiplied that by a per-walk cost the design no longer has, and the stale
+figure was mine.** It read *"each walk already costs `zones × all-requirements` reads … 25 walks
+of 5,500 reads"* — the cost of the PER-ZONE delegation this document rejected two decisions
+earlier, and the project-scoped walk replaced it with three listings each linear in the project:
+its plans, its zones, its own requirements. A walk over 2 plans, 11 rooms and 24 requirements is
+tens of reads, not thousands, and it does not grow with the vault at all.
+
+So the argument for coalescing rests on the **walk count** and not on a product. Moving one
+vertex in a room with 8 requirements issues up to 25 walks where one would do — 25× the reads,
+25 sets of overlapping hydrations racing each other, and a store written 25 times for one edit.
+That is worth removing on its own; inflating it with a retired figure only made it easier to
+disbelieve.
 
 So `createProjectSummaryChangeSource` **coalesces**: every event in a burst schedules one
 trailing refresh rather than its own. The listener is called once when the burst settles, which
@@ -893,7 +903,7 @@ subscribes.* A trailing coalescer without a cancelling disposer makes that sente
 one debounce interval on every navigation away.
 
 The store write is the harmless half — nothing renders it. The WALK is not: it is the
-`zones × all-requirements` read this section exists to bound, run for a surface nobody is
+three project-scoped listings this section exists to bound, run for a surface nobody is
 looking at, and a user navigating quickly between sections queues one per departure.
 
 A case covers unmount-before-settle, and it asserts on **reads** rather than on the listener:

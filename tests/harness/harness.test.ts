@@ -31,27 +31,52 @@ import { isPlantedProbe } from '../helpers/plantedProbe';
  * rather than inlined because the stylesheet walk below is not the only question that would be
  * wrong to ask of un-normalised source.
  *
- * **The name is narrower than the function and is kept deliberately**: it says what the first
- * transformation does, and the second arrived a round later for a case the first could not
- * reach — a bare newline is legal inside `${ }` because it is expression syntax rather than
- * part of the specifier, so `` import(`./styles/${\n name \n}.css`) `` evaluated to a real
- * stylesheet path and matched nothing.
+ * **The substitution scan is BALANCED, and the two cheaper versions before it were not.** The
+ * first spelled a continuation alternative into the pattern and could not see one inside the
+ * extension; the second emptied `${...}` with `[^}]*` and stopped at the first `}`, so a
+ * substitution holding a nested object or a quoted brace — `` `./s/${ x["}"] }.css` `` — left
+ * its tail in the text and the import went unseen. Both failures are SILENT, because the
+ * assertion below is an absence: an under-reaching normaliser reports a clean tree.
  *
- * **What this file claimed and did not deliver**: the previous revision said normalising
- * "closes the class", and it closed the CONTINUATION class only. Template syntax is a second
- * class and there may be a third — an identifier holding the specifier, a specifier assembled
- * by concatenation — which no amount of normalising reaches, because at that point the value
- * is not in the source text at all. Written down rather than implied, per this repository's
- * rule that a guarantee is written to the check and never ahead of it.
+ * So this walks the substitution with a depth counter, skipping quoted spans (backticks
+ * included, so a nested template is stepped over whole) and escapes. Five rounds of review
+ * narrowed a pattern one reported case at a time; a depth counter is what those cases had in
+ * common, and it costs 20 lines against a parser's `.vue` problem — an SFC is not a TS
+ * program, so a parser needs the script block extracted first, and an extraction that silently
+ * missed one returns this instrument to exactly the failure above.
  *
- * **The remedy if a third case arrives is a PARSER, not a fifth transformation.** It has been
- * offered twice by review and declined twice for proportion; the reason to keep declining is
- * shrinking, and the reason it is not free is `.vue` — the walk covers SFCs, so a parser needs
- * the script block extracted first, and an extraction that silently missed one would return
- * this instrument to the silent-pass failure it was fixed for.
+ * **What it still cannot reach, stated because the previous revision claimed a class it had
+ * closed only part of**: a specifier that is not in the source text at all — held in an
+ * identifier, or assembled by concatenation. No normalisation reaches that, and neither would
+ * a parser, since the value exists only at runtime. That is the honest bound of a source scan.
  */
-const withoutContinuations = (text: string): string =>
-	text.replace(/\\\r?\n/g, '').replace(/\$\{[^}]*\}/gs, '');
+const withoutContinuations = (text: string): string => {
+	const source = text.replace(/\\\r?\n/g, '');
+	let out = '';
+	for (let i = 0; i < source.length; ) {
+		if (source[i] !== '$' || source[i + 1] !== '{') {
+			out += source[i];
+			i += 1;
+			continue;
+		}
+		i += 2;
+		for (let depth = 1; i < source.length && depth > 0; ) {
+			const c = source[i];
+			if (c === '\\') {
+				i += 2;
+			} else if (c === "'" || c === '"' || c === '`') {
+				i += 1;
+				while (i < source.length && source[i] !== c) i += source[i] === '\\' ? 2 : 1;
+				i += 1;
+			} else {
+				if (c === '{') depth += 1;
+				else if (c === '}') depth -= 1;
+				i += 1;
+			}
+		}
+	}
+	return out;
+};
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`

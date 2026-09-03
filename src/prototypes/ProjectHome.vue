@@ -255,8 +255,9 @@ const summedCount = 23;
 					One plan note could not be read
 				</p>
 				<p class="rp-warning__body">
-					Its rooms are missing from the counts above. The note may be from a newer
-					version of this plugin.
+					It is missing from the plan count above. Its rooms are still counted, because
+					they are read from the project rather than through its plans. The note may be
+					from a newer version of this plugin.
 				</p>
 				<button
 					type="button"

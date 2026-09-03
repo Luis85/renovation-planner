@@ -640,6 +640,48 @@ there, so a second copy here would be a second answer to one question.
 It said "the row and its referents", which is what made one count answer two questions and let
 the contradiction above hide inside it.
 
+### The third referent read, which refuses for the whole project at once
+
+**Reported, verified, and it needs no new vocabulary — only a correction to the word "referent".**
+The two reads above are the asset and the zone. There is a third: the shared row path resolves an
+effective unit cost through `effectiveAsset` → `projectOverrides` → `overrides.listByProject`, and
+`ObsidianAssetPriceOverrideRepository.hydrate` is **not** tolerant —
+
+```ts
+const found = await this.readById(id);
+if (isErr(found)) return found;      // refuses on the FIRST unreadable in-scope override
+```
+
+— unlike `ObsidianAssetRepository.list`, which records the refusal and continues. So one malformed
+`renovation-asset-price` note faults the read, faults the row, and faults the whole summary: the
+exact defect the section above exists to close, through a door it did not name.
+
+**The rule does not change; its blast radius does, and that is the only thing worth writing down.**
+A failed override read is a failed referent read, so the rows are IN and their persisted costs are
+summed — those figures are still readable and honest — and `recalculationStatus` reads `stale`
+because staleness is a comparison against a price this query could not resolve. `referentsUnreadable`
+is already the bit that stops the strip printing an actionable *"needs recalculating"* for a row
+whose recalculation would fail for the same reason. No new field, no new state.
+
+The difference is scope. An asset or zone read fails for ONE row; `listByProject` refuses
+wholesale, so a single bad price note makes staleness undeterminable for **every** row in that
+project. All of them read `stale` and all of them count in `unreadableReferents`. That is not a
+degenerate case of the per-row rule, it is the same rule with the whole project as its subject,
+and an implementer who wires this per-row will produce a summary that qualifies one row and
+silently vouches for the rest.
+
+**The reported alternative — "or explicitly specify the full-summary failure" — is declined.** The
+summary does not fail. Every requirement note read perfectly well and every persisted cost is
+present; what is missing is the ability to say whether those costs are current, which is precisely
+what `stale` means. Failing the whole Overview because one price note is malformed would hide a
+total the user can still act on, which is the understatement Decision 3 refuses.
+
+**Making the repository tolerant is the other tempting fix and is out of scope here.** It changes
+a shipped repository's contract for every caller, including the commands that must NOT proceed on
+a partial override list — `SetAssetPriceOverride` resolves the existing pair through this same path
+and a silently short list would let it mint a duplicate. Tolerance belongs to the READ MODEL, which
+is where this increment puts it.
+
 ### The foreign-row category dissolved, and that is worth recording rather than deleting
 
 An earlier round found that a requirement whose `origin.zoneId` sits in this project while its
@@ -998,6 +1040,46 @@ snapshots through them". Publishing was never part of that path. So every undo a
 the plugin is invisible to every subscriber, and this surface is simply the first one that reads
 enough of the vault to notice.
 
+**And the census of thirteen was right while the prose that followed it accounted for eleven.**
+That is the FOURTH layer of this one defect and the quietest, because nothing about it looks like
+an error: the count is correct, the correction to the filter was correct, and the enumeration
+under it simply stops where the reader's attention stopped. The thirteen are the five adapters,
+three helpers whose callers publish (`WriteLedger`, `ReferenceLocks`, `restore-zone.ts`),
+`deleteResolution.ts`, `DeleteRequirement.ts`, the retracted `SetRequirementCostOverride.ts`,
+`undoDeleteResolution.ts` — covered in the fix list below — and one this document names nowhere:
+
+- **`reference/recoverInterruptedSequences.ts`** — one write, no publish, and no `EventBus` on
+  `RecoveryDeps` at all. Verified: `recoverOne` calls `deps.requirements.save(snapshot.entity,
+  expected)` per `progress` entry and the file contains no publishing call of any spelling.
+
+**Its ORDERING is what makes it worse than the others, and the report is what named that.**
+`startPersistence` publishes `projectIndexRebuilt()` at `RenovationPlannerPlugin.ts:680` and
+launches `recoverInterruptedSequences` fire-and-forget at 693 — *after*. So the one blanket signal
+Overview subscribes to has already fired by the time recovery writes anything, and the writes it
+then makes are plugin-owned: the index updates synchronously and `EchoWindow` suppresses the vault
+event, so `ProjectIndexEntryChanged` cannot stand in either. An Overview mounted at startup reads
+the pre-recovery vault and stays on it indefinitely.
+
+**Recovery publishes per restored requirement**, which it can do because `recoverOne` holds the
+snapshot entity and therefore its `projectId`. Which event follows the restore it actually
+performed: `expected` is `'absent'` when the forward sequence had REMOVED that referent, so
+putting it back is a creation and publishes `RequirementCreated`; otherwise the row exists and its
+persisted figures are rewritten, which publishes `CostEstimateChanged`. The second over-reports
+when a restore happens to rewrite identical figures — deliberate, and cheap: the cost is one
+redundant re-read of a project-scoped query at startup, against a summary that is otherwise wrong
+for the life of the leaf.
+
+**Awaiting recovery before announcing the rebuild was the reported alternative and is declined.**
+It is the smaller diff and it puts vault reads on the path that gates every view's hydration:
+`ProjectIndexRebuilt` is what tells the surfaces the index is usable, and recovery's cost is
+unbounded in the number of interrupted markers. Startup latency for every user, to serve a state
+that exists only after a crash mid-deletion, is the wrong trade — and it would still leave the
+writes themselves silent for any subscriber that mounts later.
+
+**`RecoveryDeps` therefore gains a REQUIRED `events` member**, not an optional one. This document
+has already recorded why, about `CascadeDeps.notify`: an optional collaborator makes a composition
+that forgets it compile, pass, and say nothing.
+
 **Nothing downstream can compensate**, which is what makes it this increment's problem rather
 than a nice-to-have: a plugin-owned write updates the index synchronously and `EchoWindow`
 suppresses the vault event it raised, so `ProjectIndexEntryChanged` never fires either.
@@ -1297,7 +1379,10 @@ mistake, per this repository's rule.
 | Coalescing | a cascade whose writes OUTLAST the debounce causes at most one read per settled burst, never one per event | asserting ONE here fails a correct trailing coalescer on a slow repository — the prose declines a completion boundary, so the test may not demand one |
 | Coalescing | a slower earlier read cannot overwrite a later one | without the request ticket a just-recalculated figure reverts |
 | Coalescing | disposing inside the debounce window performs NO summary read | unsubscribing does not cancel a scheduled callback, so an unmounted section keeps paying the walk this section exists to bound; asserted on reads, since a listener-count assertion passes against a live timer |
-| Sweep | every module under `src/application` that WRITES also publishes, is a helper whose caller does, or is a NAMED carve-out | five of eleven publish nothing today; the adapter-only filter is itself a sample — asked the wider way it returns thirteen, three of them genuine |
+| Sweep | every module under `src/application` that WRITES also publishes, is a helper whose caller does, or is a NAMED carve-out | the adapter-only filter is a sample and so was the metric; asked the wider way the census returns thirteen, and the prose under it first accounted for eleven — the test is what stops an enumeration drifting from its own count |
+| Recovery publishes | a restored requirement raises `RequirementCreated` for an `'absent'` entry and `CostEstimateChanged` otherwise, with `projectId` from the snapshot | recovery writes after `projectIndexRebuilt()` has already fired and its writes suppress their own vault echo, so an Overview mounted at startup is stale for the life of the leaf with nothing able to correct it |
+| Recovery is composed | `RecoveryDeps.events` is REQUIRED and the plugin's call site passes it | an optional collaborator makes a composition that forgets it compile, pass and say nothing — the `CascadeDeps.notify` shape this document already records |
+| Price overrides | a refused `overrides.listByProject` leaves every row in that project IN, summed, `stale`, and counted in `unreadableReferents` | `hydrate` refuses on the first unreadable override, so this is the one referent read whose failure is project-wide rather than per-row; wiring it per-row qualifies one row and silently vouches for the rest |
 | Sweep | the carve-out list is asserted by EXACT key set, and today holds exactly `ReversibleSetPlanBackground` with its reason | an unqualified "every writer publishes" fails against a module this increment deliberately does not change, so the test contract and the declared scope could not both be satisfied; and a carve-out for a path that no longer exists goes on reading as a live exception |
 | Summary | a requirement in project A whose origin zone lives in project B refreshes A when that zone is deleted | zone events carry B, so a project-filtered subscription drops them while A's row derives its area from that zone |
 | Summary | the same requirement does NOT refresh A when the geometry cascade aborts on a malformed sibling, and the warning notice fires instead | pinned as the behaviour this increment leaves standing, so a build that closes it fails here and its author reads the residue |
@@ -1343,12 +1428,19 @@ list above.
 
 **Changed:** `ProjectSummaryDto` gains `start` and `targetCompletion` (Decision 8);
 `RenovationProjectDeps` gains `openDiagnostics` and the composition root binds it (Decision 8);
-the five reversible adapters that write and publish nothing —
+FOUR of the five reversible adapters that write and publish nothing —
 `reversible-create-zone-command.ts`, `reversible-delete-zone-command.ts`,
-`reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — plus `DeleteAsset.ts`,
-`reference/deleteResolution.ts` and **`commands/requirement/DeleteRequirement.ts`**, the last of
-which needs an `EventBus` it does not currently take (Decision 7); `GetRequirementsForZone.ts` (`projectId` and `referentsUnreadable` on the DTO, and
-its per-row builder extracted for sharing); `RenovationProjectView.ts` (parse, `sync`, `setState`);
+`reversible-assign-asset-command.ts`, `reversible-override-commands.ts`; the fifth,
+`ReversibleSetPlanBackground`, is the named carve-out and is deliberately NOT changed, so the
+count and the enumeration agree here rather than saying five and listing four — plus
+`DeleteAsset.ts`, `reference/deleteResolution.ts`,
+**`commands/requirement/DeleteRequirement.ts`** and
+**`reference/recoverInterruptedSequences.ts`**, the last two of which need an `EventBus` they do
+not currently take — `RecoveryDeps` gains a REQUIRED `events`, and the composition root's
+`recoverInterruptedSequences` call at `RenovationPlannerPlugin.ts:693` passes it (Decision 7);
+`GetRequirementsForZone.ts` (`projectId` and `referentsUnreadable` on the DTO; its per-row builder
+extracted for sharing; and `projectOverrides` tolerating a refused `listByProject` so one
+malformed price note qualifies the project's rows instead of faulting the summary); `RenovationProjectView.ts` (parse, `sync`, `setState`);
 `RenovationProjectContext.ts` (`navigate` gains a section, plus the two focus-handoff members
 over a private field on `RenovationProjectView`), and with it
 `RenovationPlannerPlugin`'s `navigate` binding and `navigateToProject.ts`, whose written state

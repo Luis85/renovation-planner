@@ -122,10 +122,14 @@ export interface AssetLibraryDeps {
  * the library stays mounted and a gesture fails through exactly the path any other refused
  * write takes.
  *
- * **Byte-identical to `designerCommands.ts`'s own `persistenceFailure`, which makes eight
- * `settings.unrecovered` literals in `presentation/` — followed rather than shared, and said
- * out loud so the ninth is a decision somebody makes.** Two lines are far under fallow's clone
- * floor, so no gate will ever raise this; the house pattern is one per bundle, and a shared
+ * **Byte-identical to `designerCommands.ts`'s own `persistenceFailure`, which makes NINE
+ * `settings.unrecovered` code literals across eight modules in `presentation/` — followed
+ * rather than shared, and said out loud so the tenth is a decision somebody makes.** Measured
+ * in the edit that wrote this sentence rather than carried from a review that said eight:
+ * `grep -rn "'settings.unrecovered'" src/presentation/` prints twelve lines over eleven files,
+ * of which two are locale KEYS (`en.ts`, `de.ts`) and one is `errorSurfacePolicy.ts`'s named
+ * constant rather than a raised code. Read the number as a fact about that grep and re-run it
+ * before quoting it. Two lines are far under fallow's clone floor, so no gate will ever raise this; the house pattern is one per bundle, and a shared
  * helper would put the write side's refusal code in a module neither bundle owns. Recorded
  * because a habit nobody has noticed is not the same as a convention somebody chose.
  */

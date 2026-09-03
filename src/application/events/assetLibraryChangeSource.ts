@@ -21,8 +21,10 @@ import type {
  * geometry event it has no use for. This module answers a different, wider question — "what
  * must the LIBRARY re-read" — and the picker's source is untouched.
  *
- * **The four output sets answer four different consumers, per §5.4/§5.5, and collapsing them
- * loses a real distinction:**
+ * **The FIVE output sets answer five different consumers, per §5.4/§5.5, and collapsing them
+ * loses a real distinction** (this said "four" for one commit after `usage` was added beneath
+ * it — count the bullets rather than trusting the sentence, which is why the count is stated
+ * against them):
  * - `catalogue` — re-read the whole listing (`ListCatalogueEntries`).
  * - `marks` — drop the cached geometry-outline mark for these ids; the viewport decides when
  *   each is re-read (§5.3's bound), never eagerly.

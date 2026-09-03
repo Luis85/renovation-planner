@@ -4486,6 +4486,21 @@ Append to `styles/project-list.css`:
 	padding: var(--size-4-4) var(--size-4-2) var(--size-4-2);
 }
 
+/*
+ * THE TRAILING EDGE, and `space-between` alone does not give it. In the EMPTY state the foot
+ * omits the key legend — there is no list to have shortcuts for — so `New asset` is the only
+ * flex item, and `space-between` puts a single item at the LEADING edge. A fresh vault, the
+ * one state where this action is the pane's only secondary affordance, would have drawn it on
+ * the wrong side of §5's foot line.
+ *
+ * An auto leading margin rather than a second rule for the empty state: with the legend present
+ * it changes nothing (`space-between` has already pushed the two apart), and with the legend
+ * absent it is what carries the action across. One declaration, both states, no branch.
+ */
+.rp-project-list__foot .rp-view-aside__create-asset {
+	margin-inline-start: auto;
+}
+
 .rp-project-list__keys {
 	/* A legend, never a control: it is not focusable and it names keys rather than offering
 	   them. Middle-click and modifier-click are undiscoverable on their own, and this is where
@@ -5791,7 +5806,11 @@ figure it quotes is cited to a file that already recorded one. This task is wher
 **Files:**
 - Modify: `tests/harness/fixture.ts`
 - Modify: `tests/harness/page.ts`
-- Modify: `src/presentation/views/ProjectList.vue` — the `?q=` seed's other end
+- Modify: `tests/harness/mount.ts` — `mountHarness` takes the initial query
+- Modify: `src/presentation/views/RenovationProjectView.ts` — provides it beside `projectId`
+- Modify: `src/presentation/views/RenovationProjectContext.ts` — optional `initialQuery`
+- Modify: `src/presentation/views/ViewRoot.vue` — reads it off the context, passes it down
+- Modify: `src/presentation/views/ProjectList.vue` — seeds its `query` ref from it
 - Modify: `src/presentation/views/ProjectFilter.vue` — takes the seed as its starting value
 - Modify: `tests/harness/accessibility.test.ts`
 - Modify: `scripts/harness-shot.mjs` (the four fixed shots Steps 2–3 add to its SHOTS array)
@@ -5822,13 +5841,27 @@ existing account of why the bare root must go on meaning the project view — th
 address this surface with no `view` parameter at all, and making a bare root mean something else
 would break them while the test asserting they exist kept passing.
 
-Give `tests/harness/page.ts` a **`?q=` parameter** that seeds the filter's initial query, and have
-`ProjectFilter` take that seed as its starting value. **This reaches `src/`, which is why this
-task's Files list names two components**: the query is a local `ref` in `ProjectList` (Task 6), so
-`page.ts` cannot seed a controlled filter from outside — `ProjectList` has to accept an initial
-query and pass it down. Staging only the harness would leave the `home-no-match-narrow` route
-starting empty and photographing ordinary results while its name and the checklist both claimed
-otherwise. Without it the no-match state is
+Give `tests/harness/page.ts` a **`?q=` parameter** that seeds the filter's initial query. **This
+reaches `src/`, and naming the two components is not enough — the WIRE between them has to be
+specified too**, which an earlier draft left out: the harness reaches this UI through
+`mountHarness(document.body, params.get('project'))`, and `RenovationProjectView.mount()` builds
+`createApp(ViewRoot)` with no props at all, so nothing carried a query inward and
+`home-no-match-narrow` would still have photographed ordinary results.
+
+The route is the one the view already uses for exactly this shape of per-mount value — the
+PROVIDED CONTEXT, where `projectId` is written over the deps bundle:
+
+- `mountHarness(root, projectId?, initialQuery?)` takes it and hands it to `makeView`.
+- `RenovationProjectDeps` gains `initialQuery?: string`, and `mount` provides
+  `{ ...this.deps, projectId, initialQuery: this.initialQuery }` — the same line that already
+  writes `projectId` over the bundle, for the same reason.
+- `ViewRoot` reads `context.initialQuery` and passes it to `ProjectList`, which seeds its own
+  `query` ref from it. Optional throughout: every existing construction site keeps working, and
+  the production composition root never sets it.
+
+**Do not reach for a scripted keystroke instead.** `harness-shot` navigates and screenshots; a
+typed query would make the capture depend on input timing, which is the class of flake the whole
+fixed-shot set exists to avoid. Without it the no-match state is
 unreachable by any capture: `harness-shot` navigates and screenshots, it types nothing, so both
 shots below sit at an empty query forever and checklist item 7 — does the create action wrap
 rather than pushing the pane wide, with a long typed query — inspects a block that is never on
@@ -6002,8 +6035,7 @@ Run: `npm run check`
 
 ```bash
 git add tests/harness/ tests/build/harness-shot.test.ts scripts/harness-shot.mjs \
-  src/presentation/views/ProjectList.vue src/presentation/views/ProjectFilter.vue \
-  styles/project-list.css
+  src/presentation/views/ styles/project-list.css
 git commit -m "$(cat <<'EOF'
 Capture the Home surface at both widths and fix what it showed
 

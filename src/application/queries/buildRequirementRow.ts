@@ -241,13 +241,21 @@ async function effectiveAsset(
 }
 
 /**
- * The per-row derivation, shared between `GetRequirementsForZone` (one project's currency
- * memoized per `execute`, since an Inspector zone can hold rows from more than one project)
- * and `GetProjectSummary` (one project's currency, resolved once, for every row). Both
- * callers pass the caller-resolved `projectCurrency` and `overrideMemo` rather than this
- * function resolving either itself — the currency's OWNER differs between the two callers
- * (a Requirement's own `projectId` here, a single known project there), so pulling that
- * resolution inside would hand one of the two callers a memo shaped for the other.
+ * The per-row derivation. It has exactly ONE caller today — `GetRequirementsForZone`, which
+ * memoizes one project's currency per `execute`, since an Inspector zone can hold rows from more
+ * than one project — and it is PARAMETERISED for a second the project-home increment will add
+ * (a project summary, resolving one known project's currency once for every row) rather than
+ * being shared with one now.
+ *
+ * That is why `projectCurrency` and `overrideMemo` arrive from the caller instead of being
+ * resolved here: the currency's OWNER WILL differ between the two — a Requirement's own
+ * `projectId` in this caller, a single known project in that one — so resolving inside would
+ * hand one of them a memo shaped for the other. Read the reasoning as the reason for the
+ * SIGNATURE, not as a description of two callers that exist:
+ * `grep -rn 'buildRequirementRow' src/` prints this definition and
+ * `GetRequirementsForZone.ts` alone. Until the second caller lands, the parameters are a
+ * shape the sole caller happens to satisfy, and this comment must not be read as evidence
+ * that anything else already does.
  */
 export async function buildRequirementRow(
 	deps: RequirementRowDeps,

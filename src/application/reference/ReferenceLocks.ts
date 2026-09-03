@@ -34,16 +34,37 @@
  * returns. Neither side can advance, and nothing times out — the publishing command hangs
  * for the life of the session holding every lock it took.
  *
- * **The rule is load-bearing today rather than prospectively, and the shortest live path to
- * it is not either engine below.** `SetAssetPriceOverride.execute` holds level-1 over
- * `[projectId, assetId]` across `upsert`, which publishes `AssetPriceOverrideChanged` before
- * the `finally` releases; `event-handlers/requirement/onAssetPriceOverrideChanged.ts`
- * subscribes to exactly that event and AWAITS `runRecalculationCascade` inside the held
- * region. So a subscriber already runs under a held reference lock on a path a user reaches
- * by editing a price, and the rule is the only thing standing between it and the deadlock
- * above — not a precaution against a subscriber nobody has written yet. The two
- * delete-resolution engines are what the instruments PIN because they are what the rule was
- * derived from; this is the path likeliest to break it.
+ * **The rule is load-bearing today rather than prospectively: at least THREE live paths
+ * already deliver to a subscriber inside a held reference lock.** Not one shortest path with
+ * the engines below as the mere derivation — the forward engine is ON this list. Each was
+ * traced end to end on 2026-09-03:
+ *
+ * - **Editing a price.** `SetAssetPriceOverride.execute` holds level-1 over
+ *   `[projectId, assetId]` across `upsert`, which publishes `AssetPriceOverrideChanged`
+ *   before the `finally` releases; `event-handlers/requirement/onAssetPriceOverrideChanged.ts`
+ *   registers for exactly that event and AWAITS `runRecalculationCascade` inside the held
+ *   region.
+ * - **The forward delete-resolution engine, through a command it does not own.**
+ *   `runDeleteResolution` opens its session (`deleteResolution.ts:499`), takes level-1 (:274)
+ *   and level-2 (:285) inside `prepare`, and releases only in its `finally` (:571). Within
+ *   that try it calls `applyAll` (:522) -> `requirementResolutionSteps` ->
+ *   `ops.recalculateInline` (:377), bound at :222 to `recalculate.execute`, whose
+ *   `RecalculateRequirement.execute` publishes `requirementRecalculated`
+ *   (`RecalculateRequirement.ts:144`); `createRequirementFiguresChangeSource` registers for
+ *   `RequirementRecalculated` and is wired at `composition-root.ts:559`. So this engine
+ *   reaches a live subscriber with BOTH levels held. `CLAUDE.md` already records this path's
+ *   PREMISE — the resolution calls `RecalculateRequirementCommand` inline while holding that
+ *   very lock, which is why that command deliberately takes none of its own — without ever
+ *   drawing the conclusion stated here.
+ * - **Changing an asset's unit KIND.** `UpdateAsset.execute` takes level-1 over the asset
+ *   when `kindChanges` (`UpdateAsset.ts:73`) and publishes `assetUpdated` at :89 inside that
+ *   same try; `event-handlers/requirement/onAssetUpdated.ts:39` registers for `AssetUpdated`.
+ *
+ * So the rule is the only thing standing between three SHIPPED paths and the deadlock above —
+ * not a precaution against a subscriber nobody has written yet, and not a property the two
+ * engines merely SUGGESTED. Three is a floor rather than a census: it is what tracing this
+ * page's own list of locked publishes through to a registrar found, and the other ten locked
+ * publishes were not traced.
  *
  * **Why the alternative is unavailable, and therefore why this is a RULE rather than a
  * repositioning of the publishes.** The obvious remedy is to publish after releasing. It
@@ -57,6 +78,18 @@
  * inside a shared command whose event buffering a prior ruling already declined. Moving the
  * ones that CAN move would leave a partial fix that reads exactly like a complete one at the
  * precise moment a first subscriber arrives.
+ *
+ * **Four of those thirteen arrived with the PUBLISHING increment on this branch**, disclosed
+ * because the 13-of-40 figure otherwise reads as a standing property of the tree rather than
+ * as the dated snapshot it is: `deleteResolution.ts:482` and `:533`,
+ * `undoDeleteResolution.ts:151`, and `redoCreate`'s at
+ * `reversible-assign-asset-command.ts:197`. Measured against the branch point with
+ * `git show origin/main:<file> | grep -c "\.publish("`, which answers 0 for all three of
+ * those files while HEAD holds 2, 1 and 2 respectively — the second of that last file's two
+ * sits in `undo()`, outside any lock, and is not among the thirteen. So nine of the thirteen
+ * predate this branch, and the breadth argument above does not rest on publishes this branch
+ * created. `redoCreate`'s was the only one of the four whose provenance this page disclosed
+ * before, and this count is a fact about the tree on 2026-09-03 that nothing re-establishes.
  *
  * **Why it is not enforced at the lock like its two siblings.** `acquire` cannot see that
  * its caller is inside a publish; finding out would mean coupling `ReferenceLocks` to the
@@ -98,9 +131,19 @@
  * re-establishes it.
  *
  * A SECOND and quite separate rule governs where a publisher announces FROM: publish outside
- * the locked region where you can, so a subscriber's own read does not wait on a lock the
- * publisher has not let go. `updateAssetShape` and `CalibrateAssetCommand.executeWithVersion`
- * state that one where they publish and follow it; `SetAssetBackgroundCommand.write`
+ * the locked region where you can, so the subscriber does not run INSIDE the critical section.
+ * The cost is real, and it is NOT the one this sentence gave until 2026-09-03 — that a
+ * subscriber's own READ would wait on a lock the publisher had not let go. No read waits on
+ * anything, because no read path takes a reference lock at all: measured with
+ * `git grep -lE "locks\.(acquire|withLevel1|withLevel2|beginSession)" HEAD -- src`, every one
+ * of whose hits is a WRITER — a command under `commands/`, or one of the two delete-resolution
+ * engines — while queries, repositories and views take none at all. What publishing under the
+ * lock actually costs is that `publish` AWAITS its handlers, so the subscriber's whole cascade
+ * runs inside the held region — lengthening the critical section and blocking other WRITERS
+ * of that entity for its duration. `updateAssetShape` and
+ * `CalibrateAssetCommand.executeWithVersion` state that rule where they publish and follow it
+ * (both were corrected in the same edit as this sentence, having carried the same false
+ * rationale); `SetAssetBackgroundCommand.write`
  * publishes inside `withLevel1` and does not — and it is the asset-design family's exception
  * rather than the only one in the tree. Two more sit beside it, and each is ATTRIBUTED rather
  * than blanketed, because "pre-existing" is a claim about a baseline and is worth nothing
@@ -109,8 +152,14 @@
  * `reversible-assign-asset-command.ts` acquires, publishes and releases in that order, and
  * its publish arrived with the PUBLISHING increment (earlier on this branch, and already in
  * the tree this one started from) rather than with the lock/publish work. None of the three
- * belongs to this increment. All three are among the thirteen locked publishes this page's
- * own sweep counts, so the convention is followed by most of that set and not by all of it.
+ * belongs to this increment. All three publish INSIDE a locked region, which is what the
+ * thirteen locked publishes this page's own sweep counts ARE — so NONE of that set follows
+ * this convention, and "most" was false of it in either direction. This page classifies only
+ * these three of the thirteen and leaves the other ten unexamined; at least one of those ten
+ * could not follow the convention even in principle, `RecalculateRequirement`'s publish being
+ * reached through the resolution's `recalculateInline`, inside a shared command whose event
+ * buffering a prior ruling declined. The two commands named above as FOLLOWING the convention
+ * publish outside the region they just held and are therefore not among the thirteen at all.
  * **Those are exceptions to THAT convention and to nothing on this page** — a
  * publish-POSITION choice, violating no rule stated here, and harmless for exactly as long as
  * the subscriber rule above holds. Named rather than glossed, because uniformity implied is

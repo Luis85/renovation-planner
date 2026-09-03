@@ -1522,7 +1522,7 @@ git add -A && git commit -m "feat: harness, axe cases and captures for the asset
 
 ---
 
-### Task 18: Promotion survives a command-driven delete
+### Task 18: The exclusion invariant survives the repository's own index mutations
 
 **Added mid-execution, by ruling, after Task 2's review.** It is last because it is a decision about who owns *"an id was vacated"* rather than a defect in Task 2 — and because the asset library's repair strip is what makes it observable end to end, so it wants the surface to exist first.
 
@@ -1539,6 +1539,10 @@ git add -A && git commit -m "feat: harness, axe cases and captures for the asset
 
 Either way the surviving note stays unindexed until a full rebuild. **Every promotion case in Task 2's suite drives the out-of-band doors**, so the feature is proven for the case the tests cover and broken for the ordinary in-app delete.
 
+**A second door, folded in by ruling after a later review round: the delete's own ROLLBACK.** When a winner's delete fails at `alsoRemove` — a geometry sidecar that will not go — `trashNoteBackedEntity` restores the note and calls `deps.index.upsert(indexed)` directly (`noteEntityWrite.ts:250`). That is the RAW port method, not the adapter's `applyUpsert`, so it displaces whichever entry holds the id — including a loser the vault event had just promoted — and creates no `duplicate-id` descriptor for it. The restore's own create event is then echo-suppressed. Both notes are still in the vault and the loser has vanished from the repair list until a full rebuild.
+
+**That is the same seam, which is why it belongs here rather than in its own patch.** Task 2's reviewer named the general shape as a deferred minor: the five repositories mutate the index directly, so the two-collections invariant is kept by the scan and the pipeline rather than by every writer. Promotion-on-delete and restoration-on-rollback are two consequences of that one fact, and patching either alone leaves the other live. Whatever this task chooses — an observer on the index, or a service both the pipeline and the repositories call — must answer for every writer, not for the delete path alone.
+
 **Why it is not a fix round in Task 2**, in the implementer's own reading, which I accept: routing promotion from the repository's delete path opens a new seam between `noteEntityWrite` and behaviour that lives in the vault-change pipeline; and putting it inside `index.remove` — the *one question, one function* shape this repository prefers — **cannot be done in `InMemoryProjectIndex` at all**, because promotion needs the vault and the metadata cache and `ProjectIndex` is a pure port with neither. It needs an observer on the index, or a promotion service both removers call. That is an ownership decision, not an edit.
 
 **What the residue costs while it stands, stated so it is not read as covered.** A user resolving an id collision by deleting the visible asset through the plugin does not see the survivor appear until a reload. Out-of-band resolution — editing the loser's id, or deleting either note in the file explorer — works today, and those are the routes a user reaching two colliding notes most often takes, because a duplicate-id loser is not in the index and cannot be selected in the app at all. Bounded by a reload, which is the bound every other index fact already lives under.
@@ -1546,6 +1550,7 @@ Either way the surviving note stays unindexed until a full rebuild. **Every prom
 - [ ] **Step 1: Write the failing test** — delete a duplicate winner through `DeleteAssetCommand` and assert the loser is promoted, comparing against what a full `rebuildIndex()` produces rather than against a hard-coded path.
 - [ ] **Step 2: Run it and watch it fail at the assertion.**
 - [ ] **Step 3: Decide the owner and implement it.** Both shapes are legitimate and the choice is the task: an index observer the pipeline registers, or a promotion service both `trashNoteBackedEntity` and `processPath` call. Whichever is chosen, write down at the code why the other was not.
+- [ ] **Step 3b: Cover the rollback door too** — a winner whose `alsoRemove` refuses, restored, with the displaced promoted loser asserted back in `listExclusions()` as `duplicate-id`. Watch it fail against today's raw `index.upsert`.
 - [ ] **Step 4: Prove BOTH doors still promote** — the out-of-band one Task 2 already covers, and the command one this task adds. A fix that moves promotion to the repository and loses the vault-event path is the partial fix this repository keeps paying for.
 - [ ] **Step 5: `npm run check`, then commit.**
 

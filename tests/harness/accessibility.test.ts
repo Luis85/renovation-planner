@@ -110,6 +110,7 @@ import { installObsidianDom } from '../helpers/dom';
 import { installCanvas } from '../helpers/canvas';
 import { installResizeObserver } from '../helpers/layout';
 import { defaultRenovationProjectDeps, makeView } from '../helpers/makeRenovationProjectView';
+import { defaultAssetLibraryDeps, makeAssetLibraryView } from '../helpers/makeAssetLibraryView';
 import { unavailableRenovationProjectCommands } from '../../src/presentation/views/renovationProjectCommands';
 import { err, ok } from '../../src/core/result/Result';
 import type { Result } from '../../src/core/result/Result';
@@ -788,6 +789,60 @@ describe('axe against the mounted view', () => {
  * looking at a different file. A mock is exactly the artefact nobody writes a test for, so the
  * set has to come from the tree.
  */
+/**
+ * §2's fourth workspace view (Task 11 review, M12): a cheap addition here rather than a
+ * deferral, since the root is a real, opened `AssetLibraryView` and needs none of the other
+ * cases' hydration-timing care — `mount()` builds the Vue tree synchronously inside `onOpen`
+ * and nothing in `AssetLibraryRoot.vue` awaits a query before it renders. Scanned MINIMAL
+ * rather than covering §3's eventual shelves-and-inspector shell, which is Task 12–14's own
+ * markup to add and to scan when it exists.
+ */
+describe('axe against the asset library', () => {
+	/**
+	 * `axe.run` requires its target to be part of the live document — `mountHarness`'s own
+	 * comment says why (`leafEl.appendChild(view.containerEl)`): the `ItemView` mock builds
+	 * `contentEl` with `document.createElement`, never attached to anything, so scanning it
+	 * unattached answers "No elements found for include in page Context" rather than a result.
+	 * `document.body.appendChild(view.containerEl)` is the same fix, done here rather than
+	 * through the harness mount because this view needs no leaf frame or theme rules.
+	 */
+	it('reports no semantic violations on the surface AssetLibraryView actually draws', async () => {
+		installObsidianDom();
+		const view = makeAssetLibraryView(defaultAssetLibraryDeps());
+		document.body.appendChild(view.containerEl);
+		await view.onOpen();
+		await flushPromises();
+
+		try {
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			await view.onClose();
+			view.containerEl.remove();
+		}
+	});
+
+	/** And with a selection carried in, which is the branch that renders a second paragraph. */
+	it('reports no semantic violations with an asset selected and a category expanded', async () => {
+		installObsidianDom();
+		const view = makeAssetLibraryView(defaultAssetLibraryDeps());
+		document.body.appendChild(view.containerEl);
+		await view.setState({ assetId: 'tile-01', expanded: ['material'] }, {} as ViewStateResult);
+		await view.onOpen();
+		await flushPromises();
+
+		try {
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			await view.onClose();
+			view.containerEl.remove();
+		}
+	});
+});
+
 describe('axe against the harness index', () => {
 	it.each([
 		['the picker', 'index'],

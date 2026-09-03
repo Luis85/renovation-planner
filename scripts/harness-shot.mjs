@@ -158,6 +158,18 @@ const SHOTS = [
 	// shot would never photograph the strip in light at all.
 	{ name: 'home-stress', query: '?projects=30', selector: PROJECT_VIEW },
 	{ name: 'home-stress-light', query: '?projects=30&theme=light', selector: PROJECT_VIEW },
+	// THE WIDE ROW IN GERMAN, which is the INPUT to `project-list.css`'s container-query
+	// threshold and was in no fixed shot until a review round asked how anyone would re-derive
+	// that number. The measurement is the widest trailing group at 1280 — 270px in German
+	// (`Bestandsdokumentation`) against 199px in English — and every other Home shot is either
+	// English or narrow, where the strip is dropped and the group is a different width. So the
+	// one state the threshold is computed from was reachable only by an ad-hoc URL.
+	//
+	// This script's own header records why that is not good enough: an ad-hoc capture "taken
+	// once and never watched again" is exactly what the asset designer's sidebar shot exists to
+	// replace. A status label retranslated longer moves this threshold and nothing else here
+	// would show it.
+	{ name: 'home-stress-de', query: '?projects=30&theme=light&lang=de', selector: PROJECT_VIEW },
 	// THE WHOLE SURFACE IN ONE FRAME, and this is the fifth Home shot rather than the four the
 	// plan named — added because reading the first four against §5's regions showed that TWO of
 	// them were in no picture at all. Thirty rows are taller than an 800px viewport, so the
@@ -190,13 +202,22 @@ const SHOTS = [
 	// nothing, so without a URL-seeded query both narrow shots would sit at an empty query
 	// forever and the create action would never be on screen to be looked at.
 	//
-	// The query is ONE UNBROKEN TOKEN on purpose. A multiword query wraps at its own spaces and
-	// would photograph the easy case, leaving `overflow-wrap: anywhere` — the declaration that
-	// actually stops `New project named "…"` pushing the pane wide — uninspected while the
-	// capture read as though it had been taken.
+	// The query is ONE UNBROKEN TOKEN, and "unbroken" means NO HYPHENS — which the first version
+	// of this shot got wrong, in exactly the way the plan warned it could be got wrong. It
+	// seeded `Dachgeschossausbau-Wintergarten-Sanierungsplanung`, and a hyphen-minus is a
+	// UAX #14 break opportunity: ordinary wrapping has two of them, so the line broke after
+	// `Wintergarten-` where normal line breaking puts it anyway. MEASURED rather than reasoned —
+	// deleting `overflow-wrap: anywhere` from `project-list.css` and re-running this shot
+	// produced a BYTE-IDENTICAL PNG (same md5), so the capture certified a declaration it never
+	// exercised while reading as though it had.
+	//
+	// `project-list.css` states the precondition in its own words: "normal wrapping breaks at
+	// OPPORTUNITIES, and one long unspaced token has none". A query with a break opportunity in
+	// it photographs the easy case. This one has none, so the only thing that can break it is
+	// the declaration under test.
 	{
 		name: 'home-no-match-narrow',
-		query: '?projects=30&theme=light&q=Dachgeschossausbau-Wintergarten-Sanierungsplanung',
+		query: '?projects=30&theme=light&q=Dachgeschossausbauwintergartensanierungsplanungsbesprechung',
 		selector: PROJECT_VIEW,
 		width: 460,
 	},

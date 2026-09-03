@@ -6,11 +6,11 @@
  * Split out of `harness.test.ts` rather than added to it: that file was already at its
  * 450-line budget and these cases are one subject, which is what the budget exists to force.
  * The subject is not "does `ProjectList` work" — its own unit tests own that — but **does the
- * FIXTURE behind the four Home captures actually supply what those captures are of.**
+ * FIXTURE behind the five Home captures actually supply what those captures are of.**
  *
- * That distinction is the whole reason this file exists. All four Home shots wait on
+ * That distinction is the whole reason this file exists. All five Home shots wait on
  * `.renovation-planner-view`, which the EMPTY state satisfies exactly as well as a list of
- * thirty, so a seed that stopped seeding writes four PNGs of an empty pane and exits 0 — the
+ * thirty, so a seed that stopped seeding writes five PNGs of an empty pane and exits 0 — the
  * silent wrong-picture outcome the capture tool exists against. Every assertion below is
  * therefore about a fact the SEED has to establish rather than about a component.
  *
@@ -28,10 +28,10 @@ describe('the browser harness Home fixture', () => {
 	 * Home surface: the bare root's world is empty by construction, so the three fixed shots
 	 * above it photograph the empty state and nothing else ever drew a row.
 	 *
-	 * Driven here for the reason the `?project=` case above gives, and more sharply: the four
+	 * Driven here for the reason the `?project=` case above gives, and more sharply: the five
 	 * shots that use this knob wait on `.renovation-planner-view`, which the EMPTY state
 	 * satisfies just as well as a list of thirty — so a seed that stopped seeding would write
-	 * four PNGs of an empty pane and exit 0.
+	 * five PNGs of an empty pane and exit 0.
 	 *
 	 * **Every assertion here is about a fact the FIXTURE has to supply rather than about the
 	 * components, which are covered by their own unit tests.** Three of the five fields a row
@@ -84,6 +84,14 @@ describe('the browser harness Home fixture', () => {
 	 * failed to reach the filter would leave thirty ordinary rows and a green
 	 * `.renovation-planner-view` behind it.
 	 *
+	 * **The query carries NO HYPHEN, and that is the shot's requirement rather than this case's.**
+	 * A hyphen-minus is a UAX #14 break opportunity, so a hyphenated query wraps at its own
+	 * hyphens and `home-no-match-narrow` photographs the easy case — measured, the first version
+	 * of that shot produced a byte-identical PNG with `overflow-wrap: anywhere` deleted. Nothing
+	 * jsdom can do sees any of that; this case matches the shot's string so the two cannot drift
+	 * into testing different queries, and the sentence is here so a later edit that "tidies" this
+	 * one knows what it would cost.
+	 *
 	 * **ONE row survives a query that matches nothing, and it is the Continue row** — measured
 	 * here rather than predicted: the first draft of this case asserted zero and failed. The
 	 * `Continue` group is outside the filter by construction (`ProjectList`'s own `v-if` reads
@@ -95,7 +103,7 @@ describe('the browser harness Home fixture', () => {
 	 * that would have to change to take it.
 	 */
 	it('seeds the filter from the query, down to the no-match state', async () => {
-		const { view } = mountHarness(document.body, { projects: 30, initialQuery: 'Wintergarten-Sanierungsplanung' });
+		const { view } = mountHarness(document.body, { projects: 30, initialQuery: 'Dachgeschossausbauwintergartensanierungsplanungsbesprechung' });
 
 		await flushPromises();
 
@@ -106,7 +114,7 @@ describe('the browser harness Home fixture', () => {
 		expect(el.querySelector('.rp-project-list__row')?.classList.contains('rp-continue')).toBe(true);
 		expect(el.querySelector('.rp-project-list__no-match')).not.toBeNull();
 		expect(el.querySelector('.rp-project-list__create-named')?.textContent).toContain(
-			'Wintergarten-Sanierungsplanung',
+			'Dachgeschossausbauwintergartensanierungsplanungsbesprechung',
 		);
 	});
 

@@ -82,18 +82,18 @@
  * class answering what the plugin does when it believes it is on a phone.
  *
  * **36rem IS MEASURED.** It replaces the 34rem starting value, which was chosen so a rule
- * existed to measure against and was evidence for nothing. Taken from `home-stress-narrow`'s
- * own URL — `?projects=30&theme=light&lang=de` — in a real browser, IN GERMAN, because the
- * width at which a one-line row stops fitting is decided by the longest status word and a
- * threshold confirmed only in English is confirmed against the easy case.
+ * existed to measure against and was evidence for nothing. Taken in a real browser, IN GERMAN,
+ * because the width at which a one-line row stops fitting is decided by the longest status word
+ * and a threshold confirmed only in English is confirmed against the easy case. The state it was
+ * measured from is the `home-stress-de` capture — the WIDE German row, at 1280; a review round
+ * asked how anyone would re-derive this, found that shot did not exist, and it does now.
  *
  * **The longest word is `Bestandsdokumentation` (AS_BUILT), not `Bestandsaufnahme`** — 21
- * characters against 16, and against `As built`'s 8. The sentence that used to sit here named
- * the wrong one: it reasoned from `SURVEY`, whose English label is the shortest, rather than
- * measuring the set. What was measured is the whole TRAILING GROUP at 1280, across every seeded
- * row: **270px** in German (`3 Pläne · EUR` + `Bestandsdokumentation` + the strip) against
- * **199px** in English. So the locale moves this threshold by 71px, which is more than the
- * example it was argued from suggested.
+ * characters against 16, and against `As built`'s 8. The sentence that used to sit here reasoned
+ * from `SURVEY`, whose English label is the shortest, rather than measuring the set. What was
+ * measured is the whole TRAILING GROUP at 1280, across every seeded row: **270px** in German
+ * (`3 Pläne · EUR` + `Bestandsdokumentation` + the strip) against **199px** in English — so the
+ * locale moves this threshold by 71px, more than the example it was argued from suggested.
  *
  * The arithmetic, so the number can be re-derived rather than trusted: a one-line row spends
  * 16px on its own inline padding and 8px on each of its two gaps, so the name gets `width−302`.
@@ -136,14 +136,8 @@
 	 * row's second line was drawn over the next row's name. Measured rather than described: 41px
 	 * of content in a 30px box, at 460px, in the first picture ever taken of this surface.
 	 *
-	 * `list-row.css`'s `min-height: var(--size-4-6)` is what floors it once `height` stops
-	 * deciding, which is the WCAG 2.5.8 guarantee that file states — so this releases the height
-	 * and inherits the floor rather than restating one.
-	 *
-	 * SCOPED to `.rp-project-row`, and the qualifier is load-bearing rather than tidy: the
-	 * Continue row is a `<div>`, which Obsidian's `button` rule never reaches, so it already
-	 * grows — measured at 66px for its own two lines — and naming it here would be a declaration
-	 * that does nothing, which is the same defect as a comment claiming space that is not there.
+	 * `list-row.css`'s `min-height: var(--size-4-6)` floors it once `height` stops deciding — the
+	 * WCAG 2.5.8 guarantee that file states — so this releases the height and inherits the floor.
 	 *
 	 * ---
 	 *
@@ -154,16 +148,15 @@
 	 * line, so the second line put the status against the leading edge and the facts against the
 	 * trailing one: measured at 460px, `Ausführung` at x=8 and `4 Pläne · EUR` ending at x=452,
 	 * with 280px of nothing between them. §6's own diagram is `Design · 2 plans · EUR` — one
-	 * phrase — and the row's existing `gap` is exactly the separation it asks for, so this is a
-	 * removal rather than a new spacing decision.
+	 * phrase — and the row's existing `gap` is exactly that separation, so this is a removal
+	 * rather than a new spacing decision. It changes nothing on line one, where the name's 100%
+	 * basis makes it the only item either way.
 	 *
-	 * It changes nothing on the first line: the name's basis is 100%, so it is the only item
-	 * there and both values put it in the same place.
-	 *
-	 * SCOPED to `.rp-project-row` for the reason the ordering rules below share: the Continue
-	 * row's second line ends in two BUTTONS, and those belong at the trailing edge where a
-	 * pointer expects an action — packing them left is the one thing `space-between` is right
-	 * about on that row.
+	 * BOTH are SCOPED to `.rp-project-row`, and for two different reasons rather than one habit.
+	 * The height: the Continue row is a `<div>`, which Obsidian's `button` rule never reaches, so
+	 * it already grows — 66px, measured — and naming it would be a declaration doing nothing. The
+	 * packing: that row's second line ends in two BUTTONS, which belong at the trailing edge,
+	 * so `space-between` is right there and only there.
 	 */
 	.rp-project-list .rp-project-row {
 		height: auto;
@@ -311,8 +304,12 @@
 	padding: var(--size-4-2);
 }
 
+/* THE SENTENCE QUOTES THE USER'S QUERY, so it needs the break rule below — which was written
+   about the two BUTTONS and never covered this paragraph. Found by the capture that finally
+   exercised that rule: this line ran off the pane while the action under it wrapped correctly. */
 .rp-project-list__no-match-line {
 	margin: 0;
+	overflow-wrap: anywhere;
 	color: var(--text-muted);
 }
 
@@ -327,7 +324,15 @@
 	 * push the pane wide at 460px under a rule whose comment says it cannot. `anywhere` rather
 	 * than `break-word` because it also lets the intrinsic min-content width shrink, which is
 	 * what stops the flex parent from being widened before the break is ever considered.
+	 *
+	 * **`height: auto` is the row's own defect a second time**, found in the round that re-read
+	 * this shot: these are `<button>`s, so Obsidian's `height: var(--input-height)` pins them at
+	 * 30px while a wrapped label needs 38px — measured — and the text sat 8px outside its own
+	 * border. `min-height` beside it because releasing the height alone takes `Clear filter`,
+	 * one short word, to 23px: under WCAG 2.5.8's floor, also measured.
 	 */
+	height: auto;
+	min-height: var(--size-4-6);
 	max-width: 100%;
 	white-space: normal;
 	overflow-wrap: anywhere;

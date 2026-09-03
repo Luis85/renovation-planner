@@ -154,8 +154,16 @@ if (wantsIndex) {
 	 * `Number.parseInt` and a finiteness test rather than `Number(...)`: `?projects=` with no
 	 * value is `''`, which `Number` reads as `0` — a request for the empty state wearing the
 	 * stress case's clothes. `NaN` falls through to `undefined`, which is the bare root.
+	 *
+	 * **`Math.max(0, …)` because a NEGATIVE is finite and the guard above lets it through.**
+	 * `?projects=-5` reaches `HOME_PROJECTS.slice(0, -5)`, which counts from the END and seeds
+	 * TWENTY-FIVE rows — a picture that looks like a working stress case, under a URL asking for
+	 * something else, at exit 0. That is the silent wrong-picture class every comment in this
+	 * module invokes, and a finiteness test is exactly the shape of guard that reads as though it
+	 * had closed it. Clamped rather than refused, because `0` is a state this page HAS: it is the
+	 * empty vault the bare root already draws.
 	 */
-	const asked = Number.parseInt(params.get('projects') ?? '', 10);
+	const asked = Math.max(0, Number.parseInt(params.get('projects') ?? '', 10));
 	view = wantsPlanEditor
 		? mountPlanEditorHarness(document.body).view
 		: wantsAssetDesigner

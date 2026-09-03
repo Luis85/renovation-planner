@@ -570,6 +570,24 @@ it('reaches a dependent in ANOTHER project, which the zone event cannot name', a
 	]);
 });
 
+// A THROWN lookup, not a refused one. The ports are raw at this boundary, so a vault fault
+// arrives as a rejection — and letting it escape leaves the zone restored, the command stuck
+// on the redo stack, and the retry refused by `restoreZone`'s `'absent'` condition.
+it('falls back to the blanket refresh when the reverse lookup FAULTS', async () => {
+	const rig = await createZoneAdapterRig();
+	await rig.adapter.execute();
+	await rig.adapter.undo();
+	rig.requirements.throwFromListByZone(new Error('vault exploded'));
+
+	const seen: string[] = [];
+	rig.events.subscribe('ProjectIndexRebuilt', () => { seen.push('rebuilt'); });
+	const result = await rig.adapter.execute();
+
+	// Resolved, never rejected: the zone write already succeeded.
+	expectOk(result);
+	expect(seen).toEqual(['rebuilt']);
+});
+
 it('falls back to the blanket refresh when the reverse lookup refuses', async () => {
 	const rig = await createZoneAdapterRig();
 	await rig.adapter.execute();
@@ -676,7 +694,17 @@ and add the method:
 			zoneCreated({ zoneId: zone.id, planId: zone.planId, projectId: zone.projectId }),
 		);
 
-		const referents = await this.deps.requirements.listByZone(zone.id);
+		// `listByZone` can REJECT as well as refuse. The repository ports are raw at this
+		// boundary — `CLAUDE.md` records that carve-out, and it is the reason a vault fault
+		// arrives here as a throw rather than as a coded `Result`. Letting it escape is worse
+		// than the silence this method exists to fix: `execute()` would reject with the zone
+		// already restored, `CommandHistory` would leave the command on the REDO stack, and the
+		// retry would hit `restoreZone`'s `'absent'` condition against a zone that is now
+		// present — an existing zone that history can neither undo nor redo. Reported by review
+		// against the first draft of this method, which handled `isErr` and nothing else.
+		const referents = await this.deps.requirements
+			.listByZone(zone.id)
+			.catch((cause: unknown) => err(faultError('zone.restore.referents-faulted', cause)));
 		if (isErr(referents)) {
 			// The zone write has ALREADY succeeded, so this cannot fail the operation — and
 			// staying silent leaves a cross-project dependent stale, which is the state the
@@ -1783,71 +1811,142 @@ narrower question than *every write path that publishes nothing*) → a METRIC c
 HELPER lives in → an ENUMERATION that trailed its own correct count of thirteen and accounted
 for eleven, leaving `recoverInterruptedSequences` named nowhere.
 
-**So the metric must be about the EFFECT, not the spelling.** Count a file as publishing if it
-reaches a bus at all — `\.publish\(` OR a call to a known publishing helper
-(`publishIfEffectiveCostChanged`) OR an `EventBus` import that the file actually uses. Assert
-the finds-something-at-all property, because an instrument that reaches nothing looks exactly
-like a clean tree.
+**A fifth layer was reported against the first draft of THIS task, and it is the same shape
+again: the draft's remedy was another per-FILE grep.** Two findings, one cause:
+
+- **A per-file boolean cannot enforce a per-path invariant.** `ReversibleCalibratePlan.ts` has a
+  forward path and an inverse path, each with its own write and its own publish. Delete the
+  publication from either one and `.publish(` is still present elsewhere in the file, so a
+  file-granular sweep passes **the exact regression it exists to prevent**.
+- **The write vocabulary was a sample too.** The draft's `WRITE` regex was
+  `save|delete|markStale|restoreZone`, and the geometry sidecars are written with `.write(` —
+  both writes in `ReversibleCalibratePlan.ts` and the inverse writes in
+  `ReversibleAssetDesignCommands.ts`. So removing those files' publications would have dropped
+  them out of the CENSUS rather than failing the check: invisible, not red.
+
+**So the unit is the FUNCTION, not the file, and the walk is an AST walk.** `tests/harness/
+harness.test.ts` already drives the TypeScript compiler API in this repository, so the
+precedent and the dependency both exist. For every function-like node in `src/application/**`
+(function declarations, arrow functions, methods, object-literal methods), ask whether its own
+body contains a write call, and if so whether that same body contains publishing evidence.
+
+**One wrinkle the report did not name, found by grepping before writing the regex:**
+`.write(` is not only a port call. `SetRequirementQuantityOverride.ts:191`,
+`SetRequirementCostOverride.ts:81` and `SetAssetBackground.ts:167` all call `this.write(input)`
+— an internal dispatch to the class's own private method, not a vault write. Counting those as
+writes would demand a publish from a method whose whole job is to delegate to one. **The
+receiver decides**: `this.write(` is excluded, any other receiver's `.write(` counts.
 
 **One carve-out, asserted by exact key set** — the repository's shape for every other carve-out
 table. `ReversibleSetPlanBackground` writes and deliberately does not publish: a background is
 not a cost input, so it moves nothing a summary shows; what it moves is the Plan Editor's own
 picture in a second leaf on the same plan. **A carve-out for a path that has since been fixed
 reads as a live exception**, so the exact-key-set assertion is what makes the list honest in
-both directions.
+both directions. The carve-out is keyed by `file::functionName`, because the unit is now the
+function — a file-keyed carve-out would exempt every path in the file, which is the very
+coarseness this task exists to remove.
 
 - [ ] **Step 1: Write the test, and drive the instrument against fixtures FIRST**
 
 ```ts
 /**
- * Every write path in `src/application` announces, with one named exception.
+ * Every write PATH in `src/application` announces, with one named exception.
  *
- * **What this reads and what it therefore cannot see**, stated at the top because a category
- * check that overstates its reach is worse than none: it reads source TEXT for a write call
- * (`.save(`, `.delete(`, `.markStale(`, `.restoreZone(`) and for evidence that the file
- * reaches a bus. A file that writes through a differently-named port method, or publishes
- * through a helper this list does not know, is invisible to it. The fixtures below are what
- * stop it reaching nothing, which is the failure mode that looks exactly like a clean tree.
+ * **The unit is a function, not a file, and that is the whole point.** A file-granular
+ * version of this check passes when one of a reversible adapter's two directions loses its
+ * publication, because `.publish(` is still somewhere in the file — the exact regression this
+ * exists to prevent. Reported against the draft that made that mistake.
+ *
+ * **What it reads and what it therefore cannot see**, stated at the top because a category
+ * check that overstates its reach is worse than none:
+ *
+ * - It matches CALL EXPRESSIONS in the function's OWN body. A function that writes and
+ *   delegates its announcement to a helper it calls looks silent to this walk, so a real
+ *   helper must be named in `PUBLISH_HELPERS` (as `publishIfEffectiveCostChanged` is) or the
+ *   path needs a carve-out with a reason.
+ * - It does not follow a write into a nested function it defines. A write inside a callback
+ *   is attributed to that callback, which is usually right and is stated so the exception is
+ *   visible.
+ * - `this.write(` is excluded by RECEIVER: three commands here dispatch internally through a
+ *   private `write` method, and demanding a publish from a delegating method is a false
+ *   positive the regex form could not express.
  */
-const WRITE = /\.(save|delete|markStale|restoreZone)\(/;
-const PUBLISH = /\.publish\(|publishIfEffectiveCostChanged\(/;
+const WRITE_METHODS = new Set(['save', 'delete', 'markStale', 'restoreZone', 'write']);
+const PUBLISH_HELPERS = new Set(['publishIfEffectiveCostChanged']);
+
+/** A call is a write when its method name is a write method and its receiver is not `this`. */
+const isWriteCall = (node: ts.CallExpression): boolean => {
+	if (!ts.isPropertyAccessExpression(node.expression)) return false;
+	const { name, expression: receiver } = node.expression;
+	if (!WRITE_METHODS.has(name.text)) return false;
+	// `this.write(input)` is an internal dispatch, not a vault write — see the header.
+	return receiver.kind !== ts.SyntaxKind.ThisKeyword;
+};
+
+const isPublishCall = (node: ts.CallExpression): boolean => {
+	if (ts.isPropertyAccessExpression(node.expression)) return node.expression.name.text === 'publish';
+	return ts.isIdentifier(node.expression) && PUBLISH_HELPERS.has(node.expression.text);
+};
 
 /**
- * Files that write and deliberately do not publish. Asserted by EXACT KEY SET, so a
- * carve-out whose path has since been fixed fails here rather than reading on as a live
- * exception.
+ * Write paths that deliberately announce nothing, keyed `<repo-relative file>::<function>`.
+ * Asserted by EXACT KEY SET, so a carve-out whose path has since been fixed — or renamed —
+ * fails here rather than reading on as a live exception.
  */
 const CARVE_OUTS: Readonly<Record<string, string>> = {
-	'src/application/commands/plan/ReversibleSetPlanBackground.ts':
+	'src/application/commands/plan/ReversibleSetPlanBackground.ts::execute':
 		'A background is not a cost input, so it moves nothing a project summary shows. What it '
 		+ 'moves is the Plan Editor’s own picture in a second leaf on the same plan, which is '
 		+ 'that surface’s decision rather than this increment’s.',
+	'src/application/commands/plan/ReversibleSetPlanBackground.ts::undo':
+		'The inverse of the above, and carved out for the same reason. Keyed separately because '
+		+ 'the unit is the function: one key per direction is what stops a carve-out for the '
+		+ 'forward path silently exempting the inverse.',
 };
 ```
 
-Then: three fixtures driven through the predicates before `src/` is walked (a file that writes
-and publishes; one that writes and does not; one that publishes through the helper), an
-assertion that the walk found a non-trivial number of writing files at all, the exact-key-set
-assertion on `CARVE_OUTS`, and the sweep itself.
+Then, before the walk is pointed at `src/`, drive it against fixtures written as source strings
+and parsed with `ts.createSourceFile`:
 
-- [ ] **Step 2: Run it and watch it fail**
+| fixture | expectation | what it pins |
+|---|---|---|
+| a method that writes and publishes | not reported | the happy path |
+| a method that writes and does not | reported | the check bites at all |
+| a method that writes and calls `publishIfEffectiveCostChanged` | not reported | the helper list works |
+| **two methods in one file, one publishing and one not** | **the silent one reported** | **finding 4 — a per-file check passes this fixture** |
+| **a method calling `sidecar.write(...)` with no publish** | **reported** | **finding 3 — the draft's regex missed it** |
+| a method calling `this.write(...)` with no publish | not reported | the receiver rule |
+| a file with no writes at all | not reported | no false positive from an empty walk |
 
-Temporarily add a `CARVE_OUTS` entry for a path that does not exist and run:
-`npx vitest run tests/application/events/writerPublishSweep.test.ts`
-Expected: FAIL at the exact-key-set assertion. Remove it.
+**Assert the walk found a non-trivial number of writing functions in the real tree** — an
+instrument that reaches nothing looks exactly like a clean tree, and that is how the four
+earlier layers of this defect each survived.
 
-Then revert Task 10's publish (comment it out) and re-run.
-Expected: FAIL naming `recoverInterruptedSequences.ts`. Restore.
+- [ ] **Step 2: Run it and watch it fail, in BOTH directions**
 
-**Both directions, watched.** A sweep that only fails when something is missing does not prove
-its carve-out list is current.
+Run: `npx vitest run tests/application/events/writerPublishSweep.test.ts`
+
+Three separate reds, each restored after:
+
+1. Add a `CARVE_OUTS` key for a `file::function` that does not exist → FAILS at the exact-key-set
+   assertion. This is what stops a stale carve-out reading as a live exception.
+2. Comment out Task 10's publish in `recoverInterruptedSequences` → FAILS naming that function.
+3. **Comment out ONE direction's publish in `ReversibleCalibratePlan.ts`** → FAILS naming that
+   direction. This is the finding-4 regression, and it is the red the draft could not produce.
 
 - [ ] **Step 3: Make it pass**
 
 Run it against the real tree and resolve whatever it names. Every name is either a genuine gap a
-preceding task missed — **fix it, do not carve it out** — or a helper whose caller publishes
-(`WriteLedger`, `ReferenceLocks`, `restore-zone.ts`), which the predicate should exclude by a
-stated RULE rather than by a list of three filenames.
+preceding task missed — **fix it, do not carve it out** — or a path whose announcement genuinely
+lives in its caller, which needs either an entry in `PUBLISH_HELPERS` (if a shared helper does
+the publishing) or a carve-out with a reason. Prefer the helper list: it is a rule, and a
+carve-out is a list.
+
+The helpers whose callers publish (`WriteLedger`, `ReferenceLocks`, `restore-zone.ts`) should
+fall out naturally now — they are not in `src/application/**`'s command surface as writing
+functions with silent bodies, or they take a carve-out apiece with that reason stated. **Do not
+exclude them by filename**: a filename list is the sampling defect this whole task exists to
+retire.
 
 - [ ] **Step 4: Run the whole application suite**
 
@@ -1860,23 +1959,34 @@ Expected: PASS.
 npm run check
 git add -A
 git commit -m "$(cat <<'MSG'
-Hold "every writer announces" as a category, not as a list
+Hold "every writer announces" as a category, per PATH rather than per file
 
-This defect was found by a sweep and the sweep was wrong four times running,
+This defect was found by a sweep and the sweep has now been wrong five times,
 each correction measured with an instrument blind to the next layer: a sample
 of adapters, then a filter that was itself a sample, then a metric counting
 literal publish( syntax that attributed a file's announcement to the file its
 helper lives in, then an enumeration that trailed its own correct count of
-thirteen and accounted for eleven.
+thirteen — and then this check's own first draft, which answered all of that
+with another per-file grep.
 
-So the property is checked at the forbidden thing rather than by naming the
-places, the metric asks about the EFFECT rather than a spelling, and the
-instrument is driven against fixtures before it is pointed at src/ — an
-instrument that reaches nothing looks exactly like a clean tree.
+Two reported consequences of that fifth layer, one cause. A reversible
+adapter has a forward path and an inverse path in one file, so deleting
+either publication leaves .publish( present and a file-granular sweep passes
+the exact regression it exists to prevent. And the write vocabulary was a
+sample too: the geometry sidecars are written with .write(, so removing those
+adapters' publications would have dropped them out of the census rather than
+failing.
 
-ReversibleSetPlanBackground is the one carve-out, asserted by exact key set
-so a carve-out whose path has since been fixed fails here instead of reading
-on as a live exception. Watched red in both directions.
+So the unit is the function and the walk is an AST walk, over the compiler API
+this repository already drives in tests/harness. .write( is included, with
+this.write( excluded by RECEIVER — three commands dispatch internally through
+a private write method, and demanding a publish from a delegating method is a
+false positive a regex could not express.
+
+Carve-outs are keyed file::function for the same reason: a file-keyed one
+exempts every path in the file, which is the coarseness this removes. Watched
+red three ways, including the one the draft could not produce — one direction
+of ReversibleCalibratePlan losing its publish.
 
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01SxdVGjk59oi24VxVp4HWPx

@@ -1196,9 +1196,24 @@ Three failure shapes, three surfaces, and they must not collapse into one:
 1. **The project is gone** — slice 21's `'gone'` screen, unchanged. The shell decides this
    before any section mounts, so it cannot be reached differently from Overview than from
    Design.
-2. **A partial read** — some plans unreadable, some zone reads refused. The section still
-   draws, with `.rp-view-notice`'s additive strip naming the count. The plan list already does
-   this for `unreadablePlans`; Overview joins it rather than inventing a second treatment.
+2. **A partial read** — some plans unreadable, some zone reads refused, **some requirement
+   notes unreadable**. The section still draws, with `.rp-view-notice`'s additive strip naming
+   the count. The plan list already does this for `unreadablePlans`; Overview joins it rather
+   than inventing a second treatment.
+
+   **`unreadableRequirements` belongs in that strip and was missing from it**, which is the
+   worst of the three to omit. An unreadable PLAN or ZONE costs a visible count — the room
+   figure is withheld or the plan count drops, and a reader can see something is wrong. An
+   unreadable REQUIREMENT is excluded from `requirementCount`, from `summed` and from the
+   total, and every remaining figure is internally consistent: **the estimate is simply
+   smaller, and nothing on the surface says so.** A silently understated total is precisely
+   the failure Decision 3 exists to refuse — *"the figure stays useful and never silently
+   claims more than it knows"* — and it had no less right to say what it knows about a figure
+   that is too LOW.
+
+   This is the same shape as the missing-target badge two rounds ago: **counting a thing is not
+   the same as showing it**, and a count that reaches no surface is indistinguishable from one
+   nobody computed.
 3. **The summary read faulted** — `ViewFailure` inside the Overview region only, with the
    header and nav still mounted. Retryable, and `viewHydrationOrigin` already withholds the
    retry from a `settings.unrecovered` bootstrap failure, so this surface re-decides nothing.
@@ -1221,7 +1236,7 @@ mistake, per this repository's rule.
 | Remount | the mount sequence is `[null, 'p1:overview', 'p1:design']` | comparing only `projectId` leaves Design drawing Overview |
 | Summary | the total sums `cost.effective` across two plans and four zones | — |
 | Summary | one stale row with NO exclusion is counted AND contributes to the total | summing only current rows understates it; dropping the count hides it |
-| Summary | a foreign-currency override lands in `unsummable` and the total survives | assuming one currency throws on a reachable input |
+| Summary | a row whose own `currency` differs from the project's lands in `unsummable` and the total survives | assuming one currency throws on a reachable input — and the fixture must be a hand-edited project or requirement currency, since an OVERRIDE in another currency is re-denominated on save and an `AssetPriceOverride` is refused by its own command |
 | Summary | one summary read resolves the project currency ONCE | the figure renders identically however many times it is read, so this is pinned on the CALL COUNT |
 | Delegation | the project total's staleness agrees with `GetRequirementsForZone` | a second derivation passes every other case in the file |
 | Invalidation | a `RequirementRecalculated` for THIS project refreshes the summary; one for another project does not | an unfiltered list re-reads on every requirement in the vault |
@@ -1251,6 +1266,7 @@ mistake, per this repository's rule.
 | Accessibility | only the SELECTED tab carries `aria-controls`, and the id it names exists | one panel exists at a time, so an inactive tab's `aria-controls` is a dangling IDREF |
 | Keyboard | after a section change through view state, focus is on the newly selected tab | the mock's local `ref` hides this; only the real round trip unmounts the element |
 | Overview | a project whose only plan note is unreadable draws the notice, never the empty state | zero visible counts otherwise select onboarding, and following it creates a second plan |
+| Overview | one unreadable REQUIREMENT note draws the strip, and the total is smaller than the same vault without it | every other figure stays internally consistent, so an omitted row is invisible without the strip — a silently understated estimate, which is the one thing Decision 3 refuses |
 | Overview | a project with no plans but surviving requirements shows the summary, not the empty state | gating on plans alone hides figures the project-scoped walk recovered |
 | Overview | a project with no plans and no requirements but surviving zones shows the summary, not the empty state | the same rule for the entity whose walk was corrected a round later |
 | Overview | a withheld room count draws an em dash and the strip, never a dimmed zero | `?? 0` at the render site reads identically and states what the query refused to |

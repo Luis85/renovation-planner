@@ -546,6 +546,33 @@ slice 10's resolution): the *Used in* section the user is already looking at is 
 that flow performs, which is why this surface can offer the gesture without inventing a second
 answer to "what does deleting this break".
 
+**A successful deletion must say where focus goes, and the framework has already declined to.**
+`DialogHost` restores focus to whatever opened the dialog — and its own comment records that this
+is *"a no-op, not a fallback, if `previouslyFocused` was removed from the DOM while the dialog was
+open (the delete flows open from a control their own resolution removes) … focus is left wherever
+the removal left it — typically `<body>`."* Restoring to a view root instead was explicitly
+declined there as a change that task had no mandate for. So it is this surface's to answer, and
+without an answer a keyboard user who deletes an asset is returned to the top of the document with
+the panel they were working in gone.
+
+**A deletion is a `back()` that cannot return to its row.** The inspector withdraws to its resting
+state and focus goes to the **next row in the shelf the asset was in**, falling back in order to:
+
+- **that shelf's header**, when the deleted asset was its last row;
+- **the search field**, when the shelf itself is gone — which is reachable rather than theoretical,
+  since an undeclared shelf exists only because an asset sits in it (§3.2), so deleting the last
+  `insulation` asset removes the `insulation` shelf.
+
+That is the same three-step shape `back()` already takes, and for the same reason: the destination
+can be absent, and a focus rule that names one target is a rule for the case its author happened to
+picture. Reported by a review bot — the **fourth** direction of this one gesture to be found by
+somebody other than me, which §12 records as its own finding rather than as four incidents.
+
+**The prototype does not draw it**, and that is consistent rather than an omission: nothing in the
+mock commits an edit, because every write on this surface belongs to a real command. It is the one
+focus rule here specified and unphotographed, and it is named as such in §12 rather than left to
+read as covered.
+
 ### 3.6 Status bar
 
 `54 assets · Renovation/Library`. Two facts, both otherwise invisible: how large the library is, and
@@ -1556,6 +1583,29 @@ from the armchair has failed three times running.
 derivations moved to `assetShapeFields.ts` as pure functions of a `CatalogueAsset`. The seam is
 not merely the cheapest cut: those four rules are where four consecutive rounds have landed, and
 a rule that keeps being corrected is worth reading with nothing else on the screen.
+
+A seventeenth round found one, and it is the **fourth** direction of the same gesture.
+
+**A successful deletion left focus on `<body>`, and the framework had already said it would.**
+`DialogHost` restores focus to whatever opened the dialog, and its own comment records that this
+is *"a no-op, not a fallback, if `previouslyFocused` was removed from the DOM while the dialog was
+open (the delete flows open from a control their own resolution removes)"* — restoring to a view
+root instead was explicitly declined there as outside that task's mandate. So it was always this
+surface's to answer, and §3.5 specified the gesture without answering it. §3.5 now names the
+destination and its two fallbacks, in the same three-step shape `back()` already takes.
+
+**Four rounds, four directions of one gesture, none of them found by me.** Forward swap, reverse
+swap, a hidden destination, and now a destination that has been deleted. Each fix was written with
+a paragraph explaining why it was complete. The honest generalisation is not *focus is hard*; it
+is that **the number of ways a focus target can be unavailable is not enumerable from the
+armchair**, and every rule here that names one target has turned out to be a rule for the case its
+author happened to picture. What the fixes have in common is the remedy — an ordered fallback
+ending at a control that cannot be absent — which is why the post-delete rule is written that way
+from the start rather than as a single named target.
+
+**This one is specified and unphotographed**, and the reason is structural rather than an
+oversight: nothing in the prototype commits an edit, because every write on this surface belongs
+to a real command. It is named here so it does not read as covered.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

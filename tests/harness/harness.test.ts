@@ -23,8 +23,8 @@ import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
 
 /**
- * Source as the ENGINE reads it, before any pattern is matched: line continuations removed,
- * comments dropped, and `${...}` substitutions emptied INSIDE template literals only.
+ * Source as the ENGINE reads it, before any pattern is matched: line continuations removed, and
+ * `${...}` substitutions emptied INSIDE template literals only.
  *
  * Module scope because it captures nothing (oxlint `consistent-function-scoping`), and named
  * rather than inlined because the stylesheet walk below is not the only question that would be
@@ -44,9 +44,21 @@ import { isPlantedProbe } from '../helpers/plantedProbe';
  *
  * Each fix was correct about the case it was given and wrong about the class, which is why this
  * one tracks MODE rather than adding a fifth rule: a `${` matters only inside a backtick, and
- * knowing that requires knowing where you are. Comments are dropped for the same reason, and it
- * retires the bare-newline restriction's original job — the prose-spanning false positives that
- * started this were comment text.
+ * knowing that requires knowing where you are.
+ *
+ * **Version 5 was version 4 plus comment-stripping, and the stripping was the defect.** It was
+ * added as a bonus nothing asked for — the bare-newline restriction in the pattern already
+ * excluded prose — and it cannot be done without lexing REGEX literals, because `/\/\//`
+ * contains `//` that is not a comment. Round seven reported exactly that, and a real
+ * `const r = /\/\//; import('./theme.css')` was swallowed whole.
+ *
+ * Distinguishing a regex literal from division needs the PREVIOUS token, which is the classic
+ * hard problem in hand-lexing JavaScript and the point at which a parser stops being
+ * disproportionate. It is not needed, because comment-stripping is not needed: measured, all
+ * eleven cases pass without it, the `${`-in-a-comment case included, since mode tracking
+ * already declines a `${` outside a backtick. **The feature added beyond what was required is
+ * the one that broke it** — so version 6 is version 5 minus the addition, and the smallest
+ * instrument that passes every case is the one that ships.
  *
  * **The honest bound, stated because an earlier revision claimed a class it had closed part
  * of**: a specifier that is not in the source text at all — held in an identifier, or assembled
@@ -64,14 +76,7 @@ const normalisedSource = (text: string): string => {
 	};
 	while (i < source.length) {
 		const c = source[i];
-		const next = source[i + 1];
-		if (c === '/' && next === '/') {
-			while (i < source.length && source[i] !== '\n') i += 1;
-		} else if (c === '/' && next === '*') {
-			i += 2;
-			while (i < source.length && !(source[i] === '*' && source[i + 1] === '/')) i += 1;
-			i += 2;
-		} else if (c === "'" || c === '"') {
+		if (c === "'" || c === '"') {
 			const from = i;
 			skipQuoted(c);
 			out += source.slice(from, i);

@@ -448,6 +448,28 @@ the Plan Editor's Requirements panel for every zone, because `listByZone` keeps 
 contract. That is a real defect and it is not this increment's: fixing it means deciding what a
 partial Inspector panel shows, which is the Plan Editor's surface to design.
 
+**That residue has a SECOND face this design creates, and it is recorded here rather than
+fixed.** `registerOnZoneGeometryChanged` calls `listByZone`, and on a refusal it logs, calls
+`notify.cascadeAborted` and RETURNS — verified at the source, not inferred:
+
+```ts
+const listed = await deps.requirements.listByZone(zoneId);
+if (isErr(listed)) { …; deps.notify?.cascadeAborted(zoneId); return; }
+```
+
+So no requirement event is published. For a project watching its own zones that costs nothing
+extra — its `ZoneGeometryChanged` subscription already fired. For the CROSS-PROJECT case it is
+the whole notice: a requirement in project A whose origin zone lives in project B is normally
+rescued by the requirement-level event, and on this path there is none, so A's Overview keeps its
+stale count while the geometry underneath it has moved. Reported by review after the delete-path
+publications closed the sibling case; the abort path is not covered by them.
+
+**Not silent to the USER** — `cascadeAborted` raises a warning notice — and not fixable inside
+this increment either: the remedy is to make geometry invalidation reach dependent projects when
+enumeration fails, which is a change to the cascade's own contract and inherits the same question
+the strict `listByZone` residue above defers. Written down at the residue it belongs to, so the
+next reader meets both faces at once rather than rediscovering the second.
+
 **How the replacement went missing.** The edit that wrote this section ran in a script whose
 later step raised, and the file write was the script's last statement — so nothing was written,
 while a follow-up script's edits to the Files list and the test table succeeded. The document
@@ -1138,6 +1160,7 @@ mistake, per this repository's rule.
 | Coalescing | disposing inside the debounce window performs NO summary read | unsubscribing does not cancel a scheduled callback, so an unmounted section keeps paying the walk this section exists to bound; asserted on reads, since a listener-count assertion passes against a live timer |
 | Sweep | every module under `src/application` that WRITES also publishes, or is a helper whose caller does | five of eleven publish nothing today; and the adapter-only filter is itself a sample — asked the wider way it returns thirteen, three of them genuine |
 | Summary | a requirement in project A whose origin zone lives in project B refreshes A when that zone is deleted | zone events carry B, so a project-filtered subscription drops them while A's row derives its area from that zone |
+| Summary | the same requirement does NOT refresh A when the geometry cascade aborts on a malformed sibling, and the warning notice fires instead | pinned as the behaviour this increment leaves standing, so a build that closes it fails here and its author reads the residue |
 | Summary | a cost override refreshes an Overview in another leaf | `CostEstimateChanged` has one publisher and it is the QUANTITY override; the cost override raises nothing, so the event this list was argued from never fires on its own path |
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
 | Summary | a requirement whose `projectId` names another project is never reached | a zone-started walk reaches it and, on one shared currency, sums it into the wrong project silently |

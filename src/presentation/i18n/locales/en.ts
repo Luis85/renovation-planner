@@ -306,11 +306,18 @@ export const en = {
 	// English and German are both two-form languages, so this is complete for the current
 	// locales and it is the point at which a THIRD locale forces a real plural mechanism.
 	// Recorded here so that arrival is a decision rather than a discovery.
-	// 'Project' rather than 'project': `obsidianmd/ui/sentence-case-locale-module` treats a
-	// leading bare digit as non-content (its emoji-stripping check matches ASCII digits too),
-	// so a value starting `1 …` is read as sentence-initial and the build fails on a lowercase
-	// noun there — measured, not guessed. `view.project.plans-one` has the identical shape.
-	'view.project.count-one': '1 Project',
+	// The numeral is spelled out here, and only in English: `obsidianmd/ui/sentence-case-
+	// locale-module` treats a leading bare digit as non-content (its emoji-stripping check
+	// matches ASCII digits too), so `1 project` is read as sentence-initial and the rule
+	// demands a capital on the noun that follows — measured, not guessed. Capitalising it
+	// instead (`1 Project`) passes the same rule and is wrong on the page: it sits beside
+	// `{count} projects`, so the count line's capitalisation would flip with the count, in
+	// the one region whose whole job is to state the truth about how many there are. Spelling
+	// the numeral out keeps every word correct without coercing one. German needs neither
+	// fix — `Projekt`/`Plan` are capitalised nouns regardless of the numeral in front of them,
+	// so `1 Projekt` and `1 Plan` are both idiomatic and already lint-clean.
+	// `view.project.plans-one` has the identical shape.
+	'view.project.count-one': 'One project',
 	'view.project.count-many': '{count} projects',
 	'view.project.filter.matches': '{shown} of {total}',
 	'view.project.filter.none': 'No project matches “{query}”.',
@@ -321,7 +328,7 @@ export const en = {
 	'view.project.group.completed': 'Completed ({count})',
 	'view.project.continue.resume': 'Continue',
 	'view.project.continue.open': 'Open',
-	'view.project.plans-one': '1 Plan',
+	'view.project.plans-one': 'One plan',
 	'view.project.plans-many': '{count} plans',
 	// `{mod}` is resolved at the CALL SITE — `⌘` on macOS, `Ctrl` elsewhere — never baked into
 	// a locale string, because it is a fact about the machine and not about the language.

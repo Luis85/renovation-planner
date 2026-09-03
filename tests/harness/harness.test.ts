@@ -440,6 +440,26 @@ const importsStylesheet = (file: string, blocks: Blocks, scans: readonly ScriptS
 const ROOTS = ['src', 'tests/harness', 'tests/helpers'] as const;
 
 /**
+ * One separator spelling, so the comparison below is a fact about the PATH rather than about the
+ * platform.
+ *
+ * **This shipped broken and only Windows could see it.** `ROOTS` are written with forward
+ * slashes and the first version compared them against `path.join`-built paths using
+ * `${root}${path.sep}` — which on Windows asks whether `tests\\helpers\\vault.ts` starts with
+ * `tests/helpers\\`. It never does. `src` survived only because it holds no separator at all, so
+ * the whole of `tests/harness` and `tests/helpers` was reported as escaping and the Windows leg
+ * went red on a tree the Linux gate had just passed.
+ *
+ * Fixed by doing the arithmetic in POSIX rather than by spelling the roots per platform: every
+ * input is converted once and `path.posix` is used throughout, so there is no branch that can be
+ * right on one runner and wrong on the other — and a Linux test can then drive a Windows-shaped
+ * path and mean something, which is what the case below does. `CLAUDE.md` names paths and line
+ * endings as the only two things that differ between these platforms; this is the first, met by
+ * an author who had read that sentence the same night.
+ */
+const toPosix = (value: string): string => value.split('\\').join('/');
+
+/**
  * Does this relative specifier leave the trees this scan walks?
  *
  * **The roots were a claimed transitive closure and nothing checked the claim** — reported, and
@@ -467,8 +487,10 @@ const ROOTS = ['src', 'tests/harness', 'tests/helpers'] as const;
  */
 const escapesTheRoots = (file: string, specifier: string): boolean => {
 	const literal = specifier.split(/[*?{}[\]()!|]/)[0] ?? specifier;
-	const resolved = path.normalize(path.join(path.dirname(file), literal));
-	return !ROOTS.some((root) => resolved === root || resolved.startsWith(`${root}${path.sep}`));
+	const resolved = path.posix.normalize(
+		path.posix.join(path.posix.dirname(toPosix(file)), toPosix(literal)),
+	);
+	return !ROOTS.some((root) => resolved === root || resolved.startsWith(`${root}/`));
 };
 
 /**
@@ -864,6 +886,30 @@ describe('the browser harness', () => {
 	 * false hit if scanned, which is exactly the class of guard-fires-on-its-own-explanation
 	 * defect named above for the bare-substring case.
 	 */
+	/**
+	 * The closure check's own separator handling, driven from BOTH platforms' spellings on
+	 * whichever one is running — because the first version was correct on Linux, wrong on
+	 * Windows, and the whole suite could not tell.
+	 *
+	 * Watched failing against that version: with the roots compared using `path.sep`, the two
+	 * backslash rows below report an escape for a sibling import that never leaves the tree.
+	 */
+	it('resolves the root closure identically for either separator', () => {
+		const inside = './sibling';
+		const outside = '../../scripts/helper.ts';
+		expect({
+			posixInside: escapesTheRoots('tests/helpers/vault.ts', inside),
+			windowsInside: escapesTheRoots('tests\\helpers\\vault.ts', inside),
+			posixOutside: escapesTheRoots('tests/harness/page.ts', outside),
+			windowsOutside: escapesTheRoots('tests\\harness\\page.ts', outside),
+		}).toEqual({
+			posixInside: false,
+			windowsInside: false,
+			posixOutside: true,
+			windowsOutside: true,
+		});
+	});
+
 	it('loads no stylesheet through anything the harness can reach', () => {
 		// A specifier may not contain a BARE newline, and may contain an escaped one.
 		//
@@ -916,14 +962,12 @@ describe('the browser harness', () => {
 				return MODULE.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
 			});
 
-		const reachable = [
-			...sources('src'),
-			...sources('tests/harness'),
-			// `tests/helpers/` too: `mount.ts` and `planEditor.ts` are RUNTIME modules of this
-			// page and they import from there, so a stylesheet imported by a helper reaches the
-			// page exactly as surely as one imported here.
-			...sources('tests/helpers'),
-		];
+		// `ROOTS` rather than three literals: the trees that are WALKED and the trees the closure
+		// check compares against have to be one list, or a root added to either is a hole in the
+		// other. `tests/helpers/` is in it because `mount.ts` and `planEditor.ts` are RUNTIME
+		// modules of this page, so a stylesheet imported by a helper reaches the page exactly as
+		// surely as one imported here.
+		const reachable = ROOTS.flatMap((root) => sources(root));
 
 		// Read and parse each file ONCE, then ask it every question. Three separate `.filter`
 		// passes each re-read the file, which cost nothing measurable and made the parse the

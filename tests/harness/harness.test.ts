@@ -384,6 +384,25 @@ const scanScript = (file: string, script: Script): ScriptScan => {
 	const collect = (node: ts.Node, isGlob: boolean): void => {
 		const elements = ts.isArrayLiteralExpression(node) ? [...node.elements] : [node];
 		for (const element of elements) {
+			// A TEMPLATE with substitutions is a real specifier to Vite — `import(`../../scripts/
+			// ${name}.ts`)` is its variable dynamic-import form and it expands to real modules — so
+			// dropping it here let a helper outside the roots go neither scanned nor reported.
+			// Its `head` is the text before the first `${…}`, which is the part every expansion
+			// shares, so it is exactly the prefix this question needs and needs no truncation:
+			// it is already literal. Not marked `isGlob` for that reason.
+			//
+			// This guard mirrored `globNamesStylesheet`'s and inherited a decision that was right
+			// THERE and wrong here. That predicate asks whether a specifier ENDS in `.css`, which a
+			// template with a trailing substitution genuinely cannot answer; this one asks where a
+			// specifier BEGINS, which a template answers perfectly. `namesStylesheet` already
+			// reads template spans for the first question — so the file handled templates for one
+			// question and not the other, one function apart.
+			if (ts.isTemplateExpression(element)) {
+				if (element.head.text.startsWith('.')) {
+					relative.push({ text: element.head.text, isGlob: false });
+				}
+				continue;
+			}
 			if (!ts.isStringLiteralLike(element)) continue;
 			if (element.text.startsWith('.')) relative.push({ text: element.text, isGlob });
 		}

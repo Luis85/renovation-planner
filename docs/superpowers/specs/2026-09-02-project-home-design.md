@@ -1250,6 +1250,32 @@ answer, and it shows it until the leaf is remounted.
 So the replayed side publishes **`RequirementInvalidated`** per referent, found through the same
 referencing query the delete path already uses.
 
+**That query REFUSES on any unreadable requirement in the vault, which the phrase "the same
+query the delete path uses" hid.** Reported, and verified: `listByZone` takes
+`getIdsByType('renovation-requirement')` — every requirement id, since the index has no zone
+axis — and hands it to `filterLoaded`, which does `if (isErr(found)) return found;` BEFORE the
+zone predicate is applied. So one malformed requirement note anywhere refuses the whole lookup,
+and it need have nothing to do with this zone or this project. The third intolerant list this
+document has met tonight, after the asset price overrides and the requirement listing itself.
+
+The ordering is what makes it more than an inconvenience: the zone write has ALREADY succeeded
+when the lookup runs, so the adapter cannot fail the operation, and returning nothing leaves the
+cross-project Overview stale — exactly the state the per-referent publish exists to prevent.
+
+**The fallback is the blanket refresh, and it is the one place this document reaches for it.**
+When the reverse lookup refuses, the adapter records the refusal and publishes
+`ProjectIndexRebuilt` instead of per-referent events. That is the payload-less *cannot say which
+entities changed, refresh anyway* arm this decision already subscribes to unfiltered, and it is
+the truthful signal here for exactly the reason it exists: the adapter genuinely cannot say which
+requirements were affected. Every project's summary re-reads once, on a path that needs a
+malformed note AND a zone restore in the same session.
+
+**Making the repository tolerant is declined for the third time and for the same reason**: it
+changes a shipped contract for every caller, and the delete path in particular must NOT proceed
+on a partial referent list — a resolution that silently missed a referent would leave it dangling
+against a deleted zone. Tolerance belongs to the read model; a WRITE path that needs the whole
+list and cannot get it should say so and fall back, which is what this does.
+
 **Naming the event is the correction, and not naming it was the same defect twice.** The first
 draft said "a requirement-level event" — a role rather than a member of the vocabulary — which is
 exactly what the recovery amendment did with `CostEstimateChanged` before its payload turned out
@@ -1574,6 +1600,7 @@ mistake, per this repository's rule.
 | Zone restore reaches dependents | a redone zone creation publishes a requirement-level event per referent, including one whose own `projectId` differs from the zone's | nothing subscribes to `ZoneCreated`, so a restore runs no cascade, and the event names the zone's project — a dependent in another project keeps a `missingTarget` badge that a fresh read would already have cleared |
 | Summary | a stale row blocked by a precondition other than a referent's state is counted in `blocked` and carries its own badge | narrowing `recalculable` took those rows out of "needs recalculating" and left them qualified by nothing while their cost stayed in the total — the `missingTargets` lesson, repeated one field over |
 | View state | `getState` round-trips the section: set Design, serialize, parse, and land on Design | the serializer was the one member of the pair the plan did not name, and without it every saved layout reopens on Overview |
+| Restore falls back | a redo whose reverse lookup refuses still refreshes: the zone write stands, the refusal is recorded, and `ProjectIndexRebuilt` goes out instead of per-referent events | the lookup walks every requirement id and refuses on the first unreadable one, and it runs AFTER the zone write — so the adapter can neither fail nor stay silent |
 | Summary subscribes | `createProjectSummaryChangeSource` forwards a `RequirementRestored` for THIS project and drops one for another | the publisher and the subscriber are separate halves and a test of either alone passes while the pair does nothing; this is the half that was missing for `RequirementDeleted` and then again for `RequirementRestored` |
 | Undo publishes | a `delete-anyway` undo that returns a requirement to `current` without moving its cost raises `RequirementRestored`, and project A's summary refreshes although the zone event names B | the cost helper is correctly silent and `ZoneCreated` is correctly filtered, so nothing else can reach A — the gap a "publishes for the requirements it restores" wording hid for three rounds |
 | Recovery publishes | a `written` restore that changes NO figure still raises `RequirementRestored`, so a status-only restore reaches an open Overview | `publishIfEffectiveCostChanged` correctly says nothing when the cost is unchanged, and `delete-anyway`'s stale marking is undone by exactly such a restore — the counts this increment makes live would otherwise stay wrong for the life of the leaf |

@@ -10,6 +10,7 @@
  * nothing about the one wire that decides them.
  */
 import { afterEach, describe, expect, it } from 'vitest';
+import { nextTick } from 'vue';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
@@ -384,6 +385,31 @@ describe('the responsive shell', () => {
 		await settle();
 		expect(document.activeElement).toBe(add.element);
 		expect(document.activeElement?.isConnected).toBe(true);
+	});
+
+	/**
+	 * [[Selection clearing is silent while the constrained Inspector is closed]] (R15): the
+	 * transition watcher and its `role="status"` region moved out of `EntityInspector` into
+	 * `SelectionGuidance.vue`, mounted by `PlanEditorRoot` at shell level so it stays mounted
+	 * in every layout mode — including `constrained` with the drawer closed, where
+	 * `EntityInspector` itself is unmounted and therefore has nothing to observe the clear.
+	 */
+	it('announces the return to the floor once even while the constrained drawer is closed, and not again on a refresh', async () => {
+		const harness = await mountPlanEditorCanvas();
+		open = harness;
+		resizeTo(harness.rootEl, 460, 800);
+		await settle();
+		expect(harness.wrapper.find('.rp-inspector-drawer').exists()).toBe(false); // the Inspector is unmounted here
+		useSelectionStore().select(['zone-kitchen' as never]);
+		await settle();
+
+		useSelectionStore().clear();
+		await nextTick();
+		expect(harness.wrapper.find('.rp-selection-guidance[role="status"]').text()).toBe(t('en', 'editor.inspector.floor.guidance'));
+
+		harness.changePlan();
+		await settle();
+		expect(harness.wrapper.find('.rp-selection-guidance').text()).toBe('');
 	});
 
 	it('disconnects its observer on unmount', async () => {

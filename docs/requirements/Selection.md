@@ -148,7 +148,6 @@ by `escapeRouting.test.ts`'s "Select mid-drag cancels the drag before it would c
 selection" case. **2026-09-04** — §6.3 was amended to this order; it is the contract now, not a deviation.
 
 - [[A deleted hover target keeps the target cursor active]]
-- [[Selection clearing is silent while the constrained Inspector is closed]]
 - [[A handle hover renders the body-selection cursor]]
 - [[The overlap-order test repeats the same candidate order]]
 - [[The hover-click agreement test never clicks]]

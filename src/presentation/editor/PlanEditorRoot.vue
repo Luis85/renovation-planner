@@ -29,6 +29,7 @@ import EntityInspector from './shell/EntityInspector.vue';
 import PersistentWarningStrip from './shell/PersistentWarningStrip.vue';
 import PropertyLayerPanel from './shell/PropertyLayerPanel.vue';
 import ResponsiveEditorShell from './shell/ResponsiveEditorShell.vue';
+import SelectionGuidance from './shell/SelectionGuidance.vue';
 import StatusBar from './shell/StatusBar.vue';
 import { editorWarnings } from './shell/warnings';
 import AddMenu from './add/AddMenu.vue';
@@ -340,7 +341,15 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					background notices let a failed read-back silently swallow the sentence explaining
 					an absent background) is now a property of `editorWarnings`' fixed order rather than
 					of four separate template conditions agreeing not to chain.
+
+
+					SelectionGuidance mounts here too, BEFORE the strip (R15,
+					[[Selection clearing is silent while the constrained Inspector is closed]]): this
+					region exists in every layout mode, where EntityInspector does not — the
+					constrained drawer unmounts it while closed, and a watcher that is not mounted
+					hears nothing.
 				-->
+				<SelectionGuidance />
 				<PersistentWarningStrip :warnings="warnings" />
 			</template>
 			<template #status>

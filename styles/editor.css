@@ -249,3 +249,24 @@
 .rp-warning-strip__item--warning {
 	border-left: 2px solid var(--text-warning);
 }
+
+/*
+ * The shell's `role="status"` return-to-floor announcement (`SelectionGuidance.vue`, design
+ * spec §6.6, R15 — moved here 2026-09-04 from `.rp-inspector-guidance` in
+ * `editor-inspector.css`, where it was reachable only while `EntityInspector` happened to be
+ * mounted). It sits in this partial because `SelectionGuidance` is mounted in the warnings
+ * region, BEFORE `.rp-warning-strip` — the same region the rules above lay out.
+ *
+ * Empty text most of the time — cleared shortly after it shows — so `:empty` collapses the
+ * element rather than reserving layout space for a transient line: without it, the warnings
+ * region would carry a blank row on every render where nothing is currently being announced.
+ */
+.rp-selection-guidance {
+	margin: 0 0 var(--size-4-2);
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+.rp-selection-guidance:empty {
+	display: none;
+}

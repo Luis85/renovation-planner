@@ -4,14 +4,20 @@
  * `editor-requirements.css` split out before it.
  *
  * **ITS POSITION IN `index.css` IS NOT LOAD-BEARING**, unlike those two siblings: every
- * selector in this file is `.rp-editor-inspector*`, `.rp-inspector-guidance`,
- * `.rp-floor-inspector*`, `.rp-room-list*`, `.rp-room-inspector`, `.rp-question-nav*` or
- * `.rp-linked-content*` (the last three Task 16's), and no other partial declares a rule at
- * equal specificity for any of them — there is no equal-specificity pair here for source
- * order to decide between. It is imported directly after `editor-shell.css` because that is
- * where the OTHER Plan Editor shell partials already sit (`editor-status.css`, `editor-requirements.css`,
- * `editor-cursors.css`), and grouping keeps the shell's own partials adjacent in the list a
- * reader scans — a convenience, not a cascade requirement.
+ * selector in this file is `.rp-editor-inspector*`, `.rp-floor-inspector*`, `.rp-room-list*`,
+ * `.rp-room-inspector`, `.rp-question-nav*` or `.rp-linked-content*` (the last three Task
+ * 16's), and no other partial declares a rule at equal specificity for any of them — there is
+ * no equal-specificity pair here for source order to decide between. It is imported directly
+ * after `editor-shell.css` because that is where the OTHER Plan Editor shell partials already
+ * sit (`editor-status.css`, `editor-requirements.css`, `editor-cursors.css`), and grouping
+ * keeps the shell's own partials adjacent in the list a reader scans — a convenience, not a
+ * cascade requirement.
+ *
+ * **`.rp-inspector-guidance` moved out (R15, 2026-09-04)**: the `role="status"` return-to-floor
+ * region now lives at shell level, in `SelectionGuidance.vue`, mounted in every layout mode
+ * rather than only while this file's own `.rp-editor-inspector` aside is. Its rule moved with
+ * it, renamed `.rp-selection-guidance`, into `editor.css` — the partial that already lays out
+ * the warnings region `SelectionGuidance` is mounted beside.
  */
 
 .rp-editor-inspector-empty {
@@ -111,17 +117,6 @@
 	padding: var(--size-4-2);
 	background-color: var(--background-secondary);
 	border-left: 1px solid var(--background-modifier-border);
-}
-
-/*
- * The frame's one `role="status"` announcement (Task 15, design spec §6.6). Empty text most
- * of the time — cleared shortly after it shows — so nothing here reserves layout space for it;
- * a transient line is exactly what it is.
- */
-.rp-inspector-guidance {
-	margin: 0 0 var(--size-4-2);
-	font-size: var(--font-ui-smaller);
-	color: var(--text-muted);
 }
 
 .rp-floor-inspector {

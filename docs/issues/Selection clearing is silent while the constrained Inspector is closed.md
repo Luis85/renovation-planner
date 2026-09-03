@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Selection]]"
 order: 20
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -59,6 +59,23 @@ in every supported layout, leaving `EntityInspector` responsible only for visibl
 content. Add a constrained-layout test that closes the drawer, changes selection from one ID to
 none, and observes the guidance once from the still-mounted status region, then proves an
 unrelated refresh does not announce it again.
+
+## What closed it
+
+**2026-09-04.** The transition watcher and its `role="status"` region moved out of
+`EntityInspector.vue` into a new shell-level `src/presentation/editor/shell/SelectionGuidance.vue`
+(R15), mounted by `PlanEditorRoot.vue` in the warnings region beside `PersistentWarningStrip`, so
+it is mounted in every supported layout rather than only while `EntityInspector` happens to be —
+`EntityInspector` is unmounted in `constrained` layout while its drawer is closed. The selector
+renamed from `.rp-inspector-guidance` to `.rp-selection-guidance`, and its rule moved with it from
+`styles/editor-inspector.css` to `styles/editor.css`, the partial that already lays out the
+warnings region. Holding tests: `tests/presentation/editor/shell/responsiveShell.test.ts` ›
+'announces the return to the floor once even while the constrained drawer is closed, and not
+again on a refresh' (the new case, clearing selection with the drawer closed and the Inspector
+unmounted), beside `tests/presentation/editor/shell/floorInspector.test.ts` › 'announces guidance
+once when the selection clears, and not on a refresh' (the pre-existing full-layout case,
+selector renamed). Commit "fix(shell): the return-to-floor announcement is mounted in every
+layout, not only while the Inspector is".
 
 ## References
 

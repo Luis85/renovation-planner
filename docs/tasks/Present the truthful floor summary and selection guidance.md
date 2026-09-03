@@ -42,6 +42,14 @@ announce concise selection guidance only when the editor enters the no-selection
 Aggregating only readable records can produce a precise-looking partial total unless completeness
 and freshness travel with the value.
 
+## Amendments
+
+**2026-09-04** — [[Selection clearing is silent while the constrained Inspector is closed]]
+closed: the transition watcher and the `role="status"` region it drives moved out of
+`EntityInspector` into a shell-level `SelectionGuidance.vue`, mounted by `PlanEditorRoot` in the
+warnings region so it stays mounted in every layout — `EntityInspector` itself is unmounted in
+`constrained` layout while its drawer is closed, and a watcher that is not mounted hears nothing.
+
 ## Outcome
 
 The Standard Plan View gives every user a useful, accessible and honest floor-level home state.
@@ -59,6 +67,14 @@ rounded up to available. Criterion 4 is met by there being nothing to recompute:
 is `unavailable` in this increment, because no floor-level cost query exists. Criteria 5 and 6 are
 one case, `floorInspector.test.ts`'s 'announces guidance once when the selection clears, and not
 on a refresh'. Criterion 7 is the room list rendering below the summary in the same component.
+
+**2026-09-04** — criteria 5 and 6's evidence gains a second case, over the CONSTRAINED layout
+where the summary is not the thing on screen at all:
+`responsiveShell.test.ts`'s 'announces the return to the floor once even while the constrained
+drawer is closed, and not again on a refresh' clears selection with `EntityInspector` unmounted
+(the drawer closed) and observes the guidance from the still-mounted `SelectionGuidance` region,
+then proves `changePlan()` does not re-announce it. See
+[[Selection clearing is silent while the constrained Inspector is closed]].
 
 Criterion 2's STALE arm is answered by the additive warning strip rather than by an aggregate
 state: `Aggregate<T>` has three members and none of them is stale.

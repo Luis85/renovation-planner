@@ -51,12 +51,15 @@ describe('the floor state', () => {
 });
 
 /**
- * The frame's `role="status"` guidance region (design spec §6.6): announced once when a
- * selection CLEARS to nothing, retired shortly after so an unrelated refresh never
- * re-announces it.
+ * The shell-level `role="status"` guidance region (design spec §6.6, R15): announced once when
+ * a selection CLEARS to nothing, retired shortly after so an unrelated refresh never
+ * re-announces it. This case proves the FULL-layout half, with `EntityInspector` mounted
+ * beside it; `responsiveShell.test.ts`'s constrained case proves the region keeps announcing
+ * once `EntityInspector` is unmounted, which is the whole reason the watcher lives in
+ * `SelectionGuidance.vue` rather than here.
  *
  * **The timing is the whole of what this case has to prove, so it is spelled out.**
- * `EntityInspector`'s watcher sets the guidance text SYNCHRONOUSLY on the clear and then
+ * `SelectionGuidance`'s watcher sets the guidance text SYNCHRONOUSLY on the clear and then
  * awaits one tick before arming a REAL `setTimeout(0)` to blank it — and `settle()` (this
  * suite's usual wait) itself waits out exactly such a timer, so asserting the text is present
  * after a `settle()` would already find it cleared. The first half is read after ONE
@@ -74,11 +77,11 @@ describe('the guidance region', () => {
 		useSelectionStore().clear();
 		await nextTick();
 
-		expect(harness.wrapper.find('.rp-inspector-guidance').text()).toBe(t('en', 'editor.inspector.floor.guidance'));
+		expect(harness.wrapper.find('.rp-selection-guidance').text()).toBe(t('en', 'editor.inspector.floor.guidance'));
 
 		harness.changePlan();
 		await settle();
 
-		expect(harness.wrapper.find('.rp-inspector-guidance').text()).toBe('');
+		expect(harness.wrapper.find('.rp-selection-guidance').text()).toBe('');
 	});
 });

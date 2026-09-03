@@ -403,6 +403,28 @@ Four sections, in this order:
    **Editable in place**, committed on blur or Enter through `useFieldCommit`, dispatching the
    existing `UpdateAsset` / `SetAssetHeight`.
 
+   **Every field's commit state is keyed to the asset, and §6.3 is exactly why it has to be
+   said.** `useFieldCommit` holds `drafted` and `error` as refs with no notion of a subject — it
+   is per FIELD, and the field it belongs to is a fact about the template, not about which asset
+   is selected. The Plan editor never had to think about this because `RequirementRow` is
+   `v-for`-keyed per requirement, so changing subject remounts the row and takes the composable
+   with it. Here §6.3 keeps the tree alive on purpose, to protect the shelves' scroll position —
+   so the same instance survives the selection change, and an edit to A that is still in flight
+   when the user clicks B lands afterwards: **A's rejection renders A's inline error, over A's
+   retained draft value, under B's name.** A user then sees a validation message about a field
+   they are not looking at, attached to an asset it is not about.
+
+   So each field's commit state is **keyed by `assetId`** — a `:key` on the fields region is the
+   cheap spelling, and it re-establishes exactly the remount `RequirementRow` gets for free —
+   **and an outcome whose subject is no longer selected updates nothing.** Both halves: the key
+   discards the stale draft, and the subject test stops an in-flight dispatch writing into the
+   new one. Keying alone leaves the resolved promise pointing at a retired instance, which is
+   harmless for the DOM and still runs `notify` for a refusal about an asset the user has left.
+
+   This is §5.5's ticket rule arriving in the one place that is not a read. A selection changes
+   the subject of everything in this panel, and every asynchronous thing already in flight has
+   to be told — reads by their generation, writes by this key.
+
    **A price edit here reaches every project that references the asset**, which is
    [[Asset definitions and categories]]'s whole point — *"the price lives on the definition and the
    reference stays a reference, so a price correction reaches every room it was used in"* — and it
@@ -941,7 +963,20 @@ the asset does not come back.
 
 So **removing or re-identifying an entry re-evaluates the excluded contenders for that id**: if
 one remains, it is promoted to an index entry and its descriptor is dropped, and both changes
-announce like any other. This is the one place the incremental door may not stay path-local, and
+announce like any other.
+
+**And the ARRIVING duplicate has to demote the winner it displaces, in the same step.** That is
+the opposite transition and the rule above does not reach it: `applyUpsert` is keyed by id, so a
+second note declaring an id the index already holds REPLACES the entry — the previous winner's
+path leaves the index, no descriptor is created for it, and that note is in neither `entries` nor
+`unreadable`. It has not been reported as unreadable and it is not in the catalogue: it is simply
+gone from the surface, until a full rebuild. Which is worse than the classification being wrong,
+because the repair strip cannot even name the file. **Demotion and promotion are one atomic
+change**: the displaced path becomes a `duplicate-id` descriptor as the arrival becomes the entry.
+
+Both directions, stated together, because each reads as complete alone — the round that wrote the
+promotion rule had the removal case in front of it and did not ask what the mirror-image event
+does. This is the one place the incremental door may not stay path-local, and
 the reason is that `duplicate-id` is the only exclusion whose cause lives in a DIFFERENT file —
 `no-id` and `read-failed` are properties of the note itself, so re-checking the note that changed
 is sufficient for them and insufficient here.
@@ -2723,6 +2758,33 @@ registration, a deps factory spelled once for the factory and the rebind, and a 
 and the two halves live in different methods 370 lines apart, so specifying one reads as complete.
 Nothing in any gate connects them: a fourth view type with no rebind compiles, passes, and is
 wrong only at runtime and only after a settings save.
+
+A forty-seventh round found two, and each is the mirror image of something this document had
+already got right in one direction.
+
+**A selection changes the subject of a WRITE as well as of the reads.** §5.5 tickets every
+asynchronous read against the selection, and the field commits were never asked the same question.
+`useFieldCommit` holds its draft and its inline error as refs with no notion of a subject — it is
+per FIELD, which is a fact about the template rather than about which asset is selected. The Plan
+editor never had to think about it because `RequirementRow` is `v-for`-keyed per requirement, so
+changing subject remounts the row and takes the composable with it; §6.3 keeps this tree alive on
+purpose, to protect the shelves' scroll position, so the same instance survives. An edit to A
+still in flight when the user clicks B therefore lands afterwards and renders A's error over A's
+retained draft under B's name. The fields region is keyed by `assetId` now AND an outcome whose
+subject is no longer selected updates nothing — keying alone leaves the resolved promise pointing
+at a retired instance, still able to raise a notice about an asset the user has left.
+
+**And a duplicate ARRIVING displaces a winner, which the promotion rule does not reach.** Round
+forty-five specified that removing or re-identifying an entry re-evaluates the excluded contenders
+for its id. The mirror-image event is a second note declaring an id the index already holds:
+`applyUpsert` is keyed by id, so the arrival REPLACES the entry, the previous winner's path leaves
+the index, and no descriptor is created for it — that note is in neither `entries` nor
+`unreadable`, so it is not merely misclassified, it is unnameable by the repair strip. Demotion
+and promotion are one atomic change now.
+
+The shape both share: **a rule written while looking at one direction of a transition reads as
+complete**, and the question that finds the gap is what the same mechanism does when run
+backwards. Two rounds running.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
 	MAX_GLOB_BRANCHES,
 	expandGlobBranches,
+	importsATestFile,
 	resolvesOutsideRoots,
 	templateSkeleton,
 } from './globBranches';
@@ -275,5 +276,50 @@ describe('templateSkeleton', () => {
 
 	it('equals the head alone when there are no substitutions at all', () => {
 		expect(templateSkeleton('./a.ts', [])).toBe('./a.ts');
+	});
+});
+
+/**
+ * The tripwire `harness.test.ts`'s closure check asks over every specifier of every SCANNED
+ * module. Its own docblock states the bound; these cases pin the four answers that bound is made
+ * of — the two spellings that reach an excluded file, the glob that spells the suffix and the one
+ * that does not, and the deliberate `false` for a pattern `escapees` already reports.
+ *
+ * Driven directly rather than through the whole-tree scan because the tree it scans contains no
+ * such import — the hole is LATENT, so every one of these would read the same against a predicate
+ * that answered `false` unconditionally if the only instrument were that scan's green.
+ */
+describe('importsATestFile', () => {
+	const ROOTS = ['src', 'tests/harness', 'tests/helpers'];
+	const from = 'tests/harness/page.ts';
+	const asks = (text: string, isGlob = false): boolean =>
+		importsATestFile(from, { text, isGlob }, ROOTS);
+
+	it('reports the literal spelling of an excluded file', () => {
+		expect(asks('../helpers/globBranches.test.ts')).toBe(true);
+	});
+
+	it('reports the extensionless spelling of the same file', () => {
+		expect(asks('../helpers/globBranches.test')).toBe(true);
+	});
+
+	it('passes an ordinary module beside it', () => {
+		expect(asks('../helpers/globBranches')).toBe(false);
+	});
+
+	it('passes a `.test.ts` OUTSIDE the roots, which `escapees` already reports', () => {
+		expect(asks('../../scripts/chromium.test.ts')).toBe(false);
+	});
+
+	it('reports a glob pattern that spells the suffix, whose wildcards elide away', () => {
+		expect(asks('../helpers/*.test.ts', true)).toBe(true);
+	});
+
+	it('passes a glob that matches such files without spelling the suffix', () => {
+		expect(asks('../helpers/*.ts', true)).toBe(false);
+	});
+
+	it('answers false for an unboundable pattern rather than over-refusing a second time', () => {
+		expect(asks('../helpers/!(a|b).test.ts', true)).toBe(false);
 	});
 });

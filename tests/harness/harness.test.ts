@@ -26,6 +26,7 @@ import { isPlantedProbe } from '../helpers/plantedProbe';
 import {
 	MAX_GLOB_BRANCHES,
 	expandGlobBranches,
+	importsATestFile,
 	resolvesOutsideRoots,
 	templateSkeleton,
 } from '../helpers/globBranches';
@@ -1206,9 +1207,28 @@ describe('the browser harness', () => {
 			predicate: (entry: (typeof scanned)[number]) => boolean,
 		): string[] => scanned.filter((entry) => predicate(entry)).map((entry) => entry.file);
 
+		// **This file is at 449 counted lines against its 450 `max-lines` cap.** A seventh list
+		// here — or any other addition to this file — faces an EXTRACTION to `tests/helpers/`,
+		// not a squeeze: `escapesTheRoots`'s glob branch expansion and `importsATestFile` both
+		// left for `globBranches.ts` under exactly this pressure, and a compaction taken to buy
+		// headroom on this branch was reversed in review. A budget bought back by reformatting
+		// is a budget already spent. Stated here rather than in a review artifact so the next
+		// author makes a decision instead of a discovery.
 		const importers = named(({ file, blocks, scans }) => importsStylesheet(file, blocks, scans));
 		const escapees = named(({ file, scans }) =>
 			scans.some((scan) => scan.relative.some((specifier) => escapesTheRoots(file, specifier))),
+		);
+		// The vacuous pass: `sources()` above EXCLUDES `*.test.ts`, so a scanned module importing
+		// one imports a module Vite loads and this walk never opens — and any stylesheet THAT
+		// module imports is reachable from the page while `importers` reports a clean tree.
+		// `escapesTheRoots` cannot see it either, because a `*.test.ts` under the roots is inside
+		// the roots. A tripwire on that one edge rather than the full module-graph traversal the
+		// report proposed; `importsATestFile`'s own docblock states which chains it does not
+		// reach, the one-hop bound included. Latent rather than live when written (17 such files
+		// under the roots, none imported by a non-test module), which is why it was watched red
+		// against a planted import before being trusted.
+		const testHelpers = named(({ file, scans }) =>
+			scans.some((scan) => scan.relative.some((s) => importsATestFile(file, s, ROOTS))),
 		);
 		const linkers = named(({ text }) => sheetLink.test(text));
 		const externalBlocks = named(({ blocks }) => blocks.external.length > 0);
@@ -1216,12 +1236,13 @@ describe('the browser harness', () => {
 			/<style[\s>]/.test(readText(file)),
 		);
 
-		expect({ importers, linkers, externalBlocks, escapees, styleBlocks }).toEqual({
+		expect({ importers, linkers, externalBlocks, escapees, styleBlocks, testHelpers }).toEqual({
 			importers: [],
 			linkers: [],
 			externalBlocks: [],
 			escapees: [],
 			styleBlocks: [],
+			testHelpers: [],
 		});
 	}, WHOLE_TREE_SCAN_MS);
 

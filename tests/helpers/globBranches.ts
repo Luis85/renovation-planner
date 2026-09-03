@@ -92,7 +92,10 @@ type ExtglobOperator = '@' | '?' | '*' | '+' | '!';
  * repetition count would need its own branch, unboundedly), or for more than
  * `MAX_GLOB_BRANCHES` branches, per this predicate's whole glob posture: an unrecognised or
  * unbounded construct moves a pattern toward "counts", never toward "proven safe".
- * `escapesTheRoots` is this function's only caller.
+ * Two callers besides its own direct test: `harness.test.ts`'s `escapesTheRoots`, and
+ * `importsATestFile` below — measured with `grep -rn 'expandGlobBranches(' src tests` in the
+ * edit that added the second, because this sentence said "only caller" until then and a
+ * caller LIST is a fact about routing that a review round changes.
  *
  * One pass finds the leftmost group's matching close AND splits its interior on the group's own
  * separator (`,` for braces, `|` for extglobs) — both are the same "am I at depth zero" question
@@ -193,6 +196,23 @@ export const templateSkeleton = (head: string, spanLiterals: readonly string[]):
 	head + spanLiterals.join('');
 
 /**
+ * The one resolution both predicates in this module ask for, extracted from
+ * `resolvesOutsideRoots` when `importsATestFile` below needed the RESOLVED PATH rather than the
+ * yes/no answer. Extracted rather than restated: `harness.test.ts`'s own history is that this
+ * arithmetic was wrong on Windows for two roots out of three, and a second copy of it is a
+ * second chance to get the separator handling wrong. Every claim about elision, root-absolute
+ * specifiers and `//` in `resolvesOutsideRoots`'s docblock below is a claim about THIS function
+ * — it is where they are implemented.
+ */
+const resolveBranch = (file: string, branch: string, hasWildcards: boolean): string => {
+	const rootAbsolute = branch.startsWith('/');
+	const literal = toPosix(hasWildcards ? branch.replace(/[*?[\]]/g, '') : branch);
+	return rootAbsolute
+		? path.posix.normalize(literal.slice(1))
+		: path.posix.normalize(path.posix.join(path.posix.dirname(toPosix(file)), literal));
+};
+
+/**
  * Resolves one literal path or glob branch and asks whether it lands outside `roots`.
  *
  * **`hasWildcards` ELIDES `*`, `?`, `[`, `]` rather than truncating at the first one — a second,
@@ -234,10 +254,73 @@ export const resolvesOutsideRoots = (
 	roots: readonly string[],
 	hasWildcards = false,
 ): boolean => {
-	const rootAbsolute = branch.startsWith('/');
-	const literal = toPosix(hasWildcards ? branch.replace(/[*?[\]]/g, '') : branch);
-	const resolved = rootAbsolute
-		? path.posix.normalize(literal.slice(1))
-		: path.posix.normalize(path.posix.join(path.posix.dirname(toPosix(file)), literal));
+	const resolved = resolveBranch(file, branch, hasWildcards);
 	return !roots.some((root) => resolved === root || resolved.startsWith(`${root}/`));
+};
+
+/**
+ * The spellings that name a file `harness.test.ts`'s `sources()` walk EXCLUDES. That walk skips
+ * exactly the names ending `.test.ts`, so the literal form and the extensionless one Vite's
+ * resolver would complete to it are both this suffix. A `.js`-suffixed spelling of a `.test.ts`
+ * file — legal under `moduleResolution: "bundler"` — is NOT matched, and is left that way rather
+ * than added: `.test.js` is also a real, SCANNED file name in this tree's own walk (`MODULE`
+ * admits `.js` and the exclusion is `.test.ts` only), so matching it would report a module that
+ * is not in fact outside the scan. Measured before choosing, with
+ * `grep -rnE "(from|import) '[^']*\.test(\.ts|\.js)?'" src tests/harness tests/helpers`: no
+ * module under the three roots IMPORTS such a specifier today, in any of the three spellings, so
+ * this is a tripwire over an empty set either way and the narrower reading is the one that
+ * cannot cry wolf. (The same grep WITHOUT the `from`/`import` keyword prints eight hits, every
+ * one a string literal in a test BODY — this module's own cases below included — which is why
+ * the keyword is part of the measurement rather than a tidier pattern.)
+ */
+const TEST_FILE = /\.test(?:\.ts)?$/;
+
+/**
+ * Does this specifier, from a module `harness.test.ts`'s walk SCANNED, name a `*.test.ts` file
+ * inside the trees that walk covers?
+ *
+ * The hole it closes: `sources()` excludes `*.test.ts` from `scanned` — it must, since this
+ * repository's own documentation text matches its stylesheet patterns — while the closure check
+ * beside it accepts any specifier resolving INSIDE the roots. A scanned module importing a
+ * `*.test.ts` helper that itself imports a stylesheet would be loaded by Vite, absent from
+ * `importers`, and the reachability assertion would pass having checked nothing. That is this
+ * repository's assert-an-absence defect in the instrument rather than in a case, so the answer
+ * is a tripwire on the one hop that reopens it rather than a full module-graph traversal.
+ *
+ * **What it does NOT reach, stated as a bound rather than implied away** — this module's
+ * predicates have been found unbounded in four consecutive review rounds, and an enumeration
+ * that goes stale is the same defect as no enumeration:
+ *
+ * - **ONE HOP, from a SCANNED module.** A `*.test.ts` importing a SECOND `*.test.ts` that
+ *   imports a stylesheet is outside this entirely: neither file is in `scanned`, so no specifier
+ *   of either is ever offered here. The tripwire makes the FIRST such edge fail loudly, which is
+ *   what stops the chain being built, and it is not a proof that no chain exists. The full
+ *   traversal was the reported remedy and is more than the question needs while the tripwire
+ *   holds the entrance.
+ * - **A glob whose pattern does not SPELL the suffix.** `resolveBranch` elides `*`, `?` and
+ *   `[]`, so `'./*.test.ts'` elides to `'./.test.ts'` and IS matched, while `'./*'` and
+ *   `'./*.ts'` elide to text that is not, however many `*.test.ts` files they really match. Same
+ *   direction as every other elision here — conservative about UPWARD traversal, silent about
+ *   what a wildcard's real matches are named.
+ * - **An unboundable pattern answers `false` here, not `true`** — the opposite posture from
+ *   `escapesTheRoots`, and deliberately so rather than by oversight: `expandGlobBranches`
+ *   refusing a pattern is exactly the case `escapesTheRoots` already reports as an escape, so
+ *   that pattern fails the assertion under `escapees` whatever this answers. Over-refusing it
+ *   here a second time would name the same file in two lists and prove nothing extra.
+ * - **A specifier that is not in the source at all** — held in an identifier, or assembled at
+ *   runtime — the bound the whole scan already accepts.
+ */
+export const importsATestFile = (
+	file: string,
+	specifier: { readonly text: string; readonly isGlob: boolean },
+	roots: readonly string[],
+): boolean => {
+	const branches: string[] = [];
+	if (!specifier.isGlob) branches.push(specifier.text);
+	else if (!expandGlobBranches(specifier.text, branches)) return false;
+	return branches.some(
+		(branch) =>
+			TEST_FILE.test(resolveBranch(file, branch, specifier.isGlob))
+			&& !resolvesOutsideRoots(file, branch, roots, specifier.isGlob),
+	);
 };

@@ -409,6 +409,30 @@ interface ProjectSummary {
 	 * `RequirementInspectorDTO` already draws between `isErr` and `ok(null)`.
 	 */
 	missingTargets: number;
+	/**
+	 * Stale rows a recalculation cannot fix for a reason that is NEITHER an unreadable referent
+	 * NOR a deleted one — the `unit-not-area`, `area-failed`, `currency-mismatch` and
+	 * `project-gone` refusals named under `recalculable`.
+	 *
+	 * **Minted because narrowing `recalculable` created a category with no qualifier — for the
+	 * SECOND time.** `missingTargets` exists for exactly that reason and its own docblock states
+	 * the rule: *removing a false claim is not the same as reporting the truth*. Defining
+	 * `recalculable` from the command's whole precondition set took more rows out of "needs
+	 * recalculating", correctly, and those rows then belonged to no count at all while their
+	 * persisted cost went on contributing to the total — so the amount read as current for
+	 * figures nothing could refresh.
+	 *
+	 * Reported by review one round after that narrowing, which is the useful part: the fix and
+	 * the hole it opened were in the same commit, and the rule against exactly this was already
+	 * written twelve lines above it.
+	 *
+	 * Its own badge rather than a widened one, for the reason every split here gives — it points
+	 * somewhere different. Unreadable points at diagnostics, deleted points at reassigning, and
+	 * this points at a note whose own values are inconsistent. The copy names no remedy: the
+	 * causes differ, and one of them dressed as the general case is the wrong instruction three
+	 * times out of four.
+	 */
+	blocked: number;
 	/** `ListPlansByProject`'s own count, passed through. */
 	unreadablePlans: number;
 	/**
@@ -1457,6 +1481,8 @@ mistake, per this repository's rule.
 | Coalescing | disposing inside the debounce window performs NO summary read | unsubscribing does not cancel a scheduled callback, so an unmounted section keeps paying the walk this section exists to bound; asserted on reads, since a listener-count assertion passes against a live timer |
 | Sweep | every module under `src/application` that WRITES also publishes, is a helper whose caller does, or is a NAMED carve-out | the adapter-only filter is a sample and so was the metric; asked the wider way the census returns thirteen, and the prose under it first accounted for eleven — the test is what stops an enumeration drifting from its own count |
 | Zone restore reaches dependents | a redone zone creation publishes a requirement-level event per referent, including one whose own `projectId` differs from the zone's | nothing subscribes to `ZoneCreated`, so a restore runs no cascade, and the event names the zone's project — a dependent in another project keeps a `missingTarget` badge that a fresh read would already have cleared |
+| Summary | a stale row blocked by a precondition other than a referent's state is counted in `blocked` and carries its own badge | narrowing `recalculable` took those rows out of "needs recalculating" and left them qualified by nothing while their cost stayed in the total — the `missingTargets` lesson, repeated one field over |
+| View state | `getState` round-trips the section: set Design, serialize, parse, and land on Design | the serializer was the one member of the pair the plan did not name, and without it every saved layout reopens on Overview |
 | Recovery publishes | a restored requirement raises `RequirementCreated` for an `'absent'` entry, and for a `'written'` one goes through `publishIfEffectiveCostChanged` with `previous` READ LIVE before the save — including the case where the figures match and nothing is published | recovery writes after `projectIndexRebuilt()` has already fired and its writes suppress their own vault echo, so an Overview mounted at startup is stale for the life of the leaf with nothing able to correct it |
 | Recovery is composed | `RecoveryDeps.events` is REQUIRED and the plugin's call site passes it | an optional collaborator makes a composition that forgets it compile, pass and say nothing — the `CascadeDeps.notify` shape this document already records |
 | Price overrides | a refused `overrides.listByProject` leaves every row in that project IN, summed, `stale`, and counted in `unreadableReferents` | `hydrate` refuses on the first unreadable override, so this is the one referent read whose failure is project-wide rather than per-row; wiring it per-row qualifies one row and silently vouches for the rest |
@@ -1519,13 +1545,30 @@ not currently take — `RecoveryDeps` gains a REQUIRED `events`, and the composi
 `recoverInterruptedSequences` call at `RenovationPlannerPlugin.ts:693` passes it (Decision 7);
 `GetRequirementsForZone.ts` (`projectId` and `referentsUnreadable` on the DTO; its per-row builder
 extracted for sharing; and `projectOverrides` tolerating a refused `listByProject` so one
-malformed price note qualifies the project's rows instead of faulting the summary); `RenovationProjectView.ts` (parse, `sync`, `setState`);
+malformed price note qualifies the project's rows instead of faulting the summary); `RenovationProjectView.ts` (parse, `sync`, `setState`, **and `getState`** — it returns
+`{ projectId: this.projectId ?? '' }` today and would persist a layout with no section at all,
+so a leaf saved on Design reopens on Overview through the documented absent-section fallback and
+§10's *"a section that is not restorable is not a route"* fails on the one path that matters. It
+writes `section` with the same `''`-means-the-default sentinel `projectId` already uses, for the
+reason that file already gives: a key that is sometimes absent is a different shape to reason
+about. Reported by review; the plan had named every OTHER member of the pair and not the
+serializer, which is how a round-trip ends up written in one direction);
 `RenovationProjectContext.ts` (`navigate` gains a section, plus the two focus-handoff members
 over a private field on `RenovationProjectView`), and with it
 `RenovationPlannerPlugin`'s `navigate` binding and `navigateToProject.ts`, whose written state
 is hard-coded to `{ projectId }` — all three, because the binding's arity keeps it compiling
 while dropping the section; `ProjectDetailState.vue` (becomes
-the shell); `ProjectDetail.vue` (splits); the read-model bundle; `composition-root.ts` / `guardedServices.ts`; `errorSurfacePolicy.ts` (one
+the shell); `ProjectDetail.vue` (splits — and the split has THREE regions to place, not two.
+`AssetPriceList` renders at `ProjectDetail.vue:154` and, measured across `src/`, that is its
+ONLY production render: the per-project asset price editor shipped with the price-override
+increment and this is its whole surface. Moving the plan list and the New plan form into Design
+and saying nothing about it would delete the only way to set a per-project price, which is a
+feature regression hidden inside a navigation change. It goes to **Design** for this increment —
+not because prices are design work, but because Design is the only built section other than
+Overview and Overview ships thin by decision. Its real home is Budget, and the trigger is
+written here rather than left to be rediscovered: the increment that builds Budget moves it, and
+until then Design carries a region that does not thematically belong to it. Reported by review,
+against a Files list that named the component's own file and not the component it renders); the read-model bundle; `composition-root.ts` / `guardedServices.ts`; `errorSurfacePolicy.ts` (one
 origin); `en.ts` / `de.ts`; `scripts/harness-shot.mjs`; `tests/harness/page.ts`; `CLAUDE.md`.
 
 ## Deliberately out of scope

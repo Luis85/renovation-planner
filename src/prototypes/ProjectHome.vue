@@ -174,6 +174,11 @@ const unreadableReferentCount = 1;
 const recalculableCount = 1;
 /** Deleted asset or zone — a recalculation cannot fix these either, and they say something else. */
 const missingTargetCount = 1;
+/**
+ * Stale rows a recalculation cannot fix for a reason other than an unreadable or deleted
+ * referent — the category narrowing `recalculable` created and left with no qualifier.
+ */
+const blockedCount = 1;
 const unsummableCount = 1;
 /**
  * Supplied, never derived. subtracting every exclusion category double-counts a row caught by two
@@ -260,6 +265,7 @@ const summedCount = 23;
 				:recalculable="recalculableCount"
 				:unreadable-referents="unreadableReferentCount"
 				:missing-targets="missingTargetCount"
+				:blocked="blockedCount"
 				:unsummable="unsummableCount"
 			/>
 

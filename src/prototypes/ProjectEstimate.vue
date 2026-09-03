@@ -39,7 +39,7 @@ import { computed } from 'vue';
  * A specimen that cannot be opened on its own is one nobody looks at, and the badges are
  * exactly the part an eye has to settle: whether four silhouettes and two border treatments
  * read apart is not a question any gate here can answer. So the defaults are a real state of
- * this component — a total with both qualifiers live — and `ProjectHome.vue` overrides all five.
+ * this component — a total with both qualifiers live — and `ProjectHome.vue` overrides all six.
  *
  * The content is invented and `PRODUCT.md` requires it to be labelled as such: there is no real
  * renovation project, floor plan or cost data anywhere in this repository.
@@ -127,6 +127,24 @@ const props = withDefaults(
 		 * false claim is not the same as reporting the truth.
 		 */
 		missingTargets?: number;
+		/**
+		 * Stale rows a recalculation cannot fix for a reason that is NOT an unreadable referent
+		 * and NOT a deleted one — a readable, present asset hand-edited from an area unit to a
+		 * length, a degenerate polygon, a currency the project no longer uses.
+		 *
+		 * **It exists because narrowing `recalculable` created a category with no qualifier**,
+		 * which is the second time in this component's life: `missingTargets` was minted for
+		 * exactly that reason when `recalculable` first appeared, and its own docblock says
+		 * "removing a false claim is not the same as reporting the truth". Defining
+		 * `recalculable` from the command's whole precondition set took MORE rows out of "needs
+		 * recalculating" — correctly — and those rows then belonged to no badge at all while
+		 * their persisted cost went on contributing to the amount.
+		 *
+		 * A separate badge rather than a widened one, for the reason every other split here
+		 * gives: it points somewhere different. Unreadable points at diagnostics, deleted points
+		 * at reassigning, and this points at the note whose own values are inconsistent.
+		 */
+		blocked?: number;
 		/** Figures the total cannot take, because their currency is not the project's. */
 		unsummable?: number;
 	}>(),
@@ -142,6 +160,7 @@ const props = withDefaults(
 		recalculable: 1,
 		unreadableReferents: 1,
 		missingTargets: 1,
+		blocked: 1,
 		unsummable: 1,
 	},
 );
@@ -212,6 +231,17 @@ const flags = computed(() => {
 			key: 'stale',
 			d: 'M12 7v5l3 2',
 			text: `${props.recalculable} ${props.recalculable === 1 ? 'needs' : 'need'} recalculating`,
+		},
+		{
+			// Stale, in the amount, and NOT offered the remedy above — so it needs a sentence of
+			// its own or the total reads as current for these rows. Deliberately does not name a
+			// remedy: the causes differ (a unit, a degenerate area, a currency), and one of them
+			// dressed as the general case is the wrong instruction three times out of four.
+			when: props.blocked > 0,
+			health: 'stale',
+			key: 'blocked',
+			d: 'M7 12h10',
+			text: `${props.blocked} cannot be recalculated`,
 		},
 		{
 			// Points at the diagnostics door rather than at a remedy. WHICH note failed is

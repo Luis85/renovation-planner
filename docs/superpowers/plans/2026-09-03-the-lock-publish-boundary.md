@@ -4,7 +4,7 @@
 
 **Goal:** Close the one latent hazard the publishing increment left standing before increment 2 can safely add the first subscriber to `RequirementDeleted`/`RequirementRestored`, and make four documented claims true.
 
-**Architecture:** The hazard is that `EventBus.publish` awaits its subscribers while a `ReferenceLocks` lock is held, so a subscriber that acquires a reference lock over an id the publishing sequence holds deadlocks unrecoverably. A pre-planning sweep (recorded below) established that publishing under a lock is the NORM in this codebase — 13 distinct publish source lines across 18 (publish x locked region) pairs — so moving publishes out of the locked region is not an available fix; it would close 3 pairs of 18 while reading exactly like a complete one. What ships instead is the RULE, stated where the lock module already states its other two, plus a two-part instrument: a behavioural pin that the constraint is live, and a discovery tripwire over subscriber modules.
+**Architecture:** The hazard is that `EventBus.publish` awaits its subscribers while a `ReferenceLocks` lock is held, so a subscriber that acquires a reference lock over an id the publishing sequence holds deadlocks unrecoverably. A pre-planning sweep (recorded below) established that publishing under a lock is the NORM in this codebase — 13 distinct publish source lines across 18 (publish x locked region) pairs — so moving publishes out of the locked region is not an available fix; it would close 3 pairs of 18 while reading exactly like a complete one. What ships instead is the RULE, stated where the lock module already states its other two, pinned four ways: both delete-resolution engines are shown delivering while they still hold their locks, the lock's own suite demonstrates that a subscriber reaching for a held lock never gets it, and a discovery tripwire watches the modules that register subscribers.
 
 **Tech Stack:** TypeScript, vitest, the existing `ReferenceLocks` / `EventBus` / delete-resolution engines.
 
@@ -79,103 +79,84 @@ Named here so that meeting one of them reads as a known exclusion rather than as
 
 **Files:**
 - Modify: `src/application/reference/ReferenceLocks.ts` — header docblock only, no behaviour change.
-- Create: `tests/application/reference/lockPublishBoundary.test.ts` — the behavioural half.
+- Modify: `tests/application/reference/referenceLocks.test.ts` (118/450) — the mechanism demonstration.
+- Modify: `tests/application/reference/deleteResolutionAnnouncements.test.ts` (318/450) — the forward-engine pin.
+- Modify: `tests/application/reference/undoDeleteResolution.test.ts` (296/450) — the undo-engine pin.
 - Create: `tests/application/events/subscriberLockBoundary.test.ts` — the discovery tripwire.
 
 **Interfaces:**
-- Consumes: `runDeleteResolution(ops, input, locks, markers?)` from `src/application/reference/deleteResolution.ts`; `ReferenceLocks` with its existing public `isHeld(level: 1 | 2, id: string): boolean` test seam (`ReferenceLocks.ts:166-168`); `makeOps(overrides?)` and `REQUIREMENT_IDS` — the existing rig in `tests/application/reference/deleteResolutionEngine.test.ts` (`makeOps` at :74, `entityId: 'entity-1'`, `entityKind: 'zone'`, `events: createEventBus()` at :91, `REQUIREMENT_IDS = ['requirement-1', 'requirement-2']` at :57).
-- Produces: nothing any later task consumes. Adds NO production function (deliberate — functions coverage has ~1 unit of headroom).
+- Consumes: `ReferenceLocks` with its existing public `isHeld(level: 1 | 2, id: string): boolean` test seam (`ReferenceLocks.ts:166-168`); `resolutionRig(options)` — the existing rig at `deleteResolutionAnnouncements.test.ts:168`, which returns `{ command, input, events, ... }` and is built on `requirementFixture()` from `tests/helpers/slice10.ts` (that fixture exposes `locks` at :173 and `events`); `undoDeleteResolution(ops, sequence, locks)` as already called at `undoDeleteResolution.test.ts:129`.
+- Produces: nothing any later task consumes. Adds NO production function and no production branch — deliberate, because functions coverage has ~1 unit of headroom.
 
-**Rig note, binding:** `makeOps` lives in `deleteResolutionEngine.test.ts`, which is a `.test.ts`. Importing it from another `.test.ts` RE-REGISTERS and RE-RUNS that whole suite under vitest — measured on this branch (one file produced 23 tests: 1 + a full re-registration of 22). So **do not import it.** Build a local ops literal in the new file, or extract to `tests/helpers/` if you prefer sharing; do not cross-import test files.
+**Placement ruling, binding — read before writing any test.** An earlier draft of this plan had these cases in a new file with a hand-built `ops` literal. That was wrong twice over and is REPLACED by the homes above:
+- `makeOps` lives in `deleteResolutionEngine.test.ts`, a `.test.ts`. Importing it from another `.test.ts` RE-REGISTERS and RE-RUNS that whole suite under vitest — measured on this branch (one file produced 23 tests: 1 + a full re-registration of 22). Never cross-import a `.test.ts`.
+- Hand-building a second `ops` literal would duplicate an existing rig verbatim — the exact defect this branch's Task 7 review raised (F4, "~26 lines of `withRequirement()` duplicated verbatim"), and `npm run analyze`'s clone detector is blind to the whole test tree, so nothing would have caught it.
+- Every file named above has ≥130 counted lines of headroom, so no extraction is needed. Driving `resolutionRig` exercises the REAL production path (`DeleteZoneCommand.execute` → `runDeleteResolution`) rather than a synthetic bundle, which is strictly stronger evidence.
 
-- [ ] **Step 1: Write the failing behavioural test**
+- [ ] **Step 1: Pin that the forward engine delivers while it still holds its locks**
 
-Create `tests/application/reference/lockPublishBoundary.test.ts`. The subject is that a subscriber runs while the sequence's locks are still held — which is what makes the rule load-bearing rather than theoretical. Collect readings; never throw in a subscriber.
-
-```ts
-import { describe, expect, it } from 'vitest';
-import { createEventBus } from '../../../src/core/events/EventBus';
-import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
-import { runDeleteResolution } from '../../../src/application/reference/deleteResolution';
-import { expectOk } from '../../helpers/domain';
-
-// Build the ops literal LOCALLY — see the rig note in the plan. Importing `makeOps` from
-// `deleteResolutionEngine.test.ts` would re-register that whole suite.
-// Model it on that file's `makeOps` (:74): entityId 'entity-1', entityKind 'zone', and the
-// per-referent closures it scripts.
-
-describe('the reference-lock / publish boundary', () => {
-  it('delivers a resolution announcement while the sequence still holds its locks', async () => {
-    const locks = new ReferenceLocks();
-    const events = createEventBus();
-    const heldAtDelivery: { entity: boolean; referent: boolean }[] = [];
-    events.subscribe('RequirementInvalidated', () => {
-      // COLLECTED, not asserted here: `deliver` swallows a handler throw, so an
-      // assertion inside this callback would pass in both worlds.
-      heldAtDelivery.push({
-        entity: locks.isHeld(1, 'entity-1'),
-        referent: locks.isHeld(2, 'requirement-1'),
-      });
-    });
-
-    const ops = makeLocalOps({ events });
-    expectOk(
-      await runDeleteResolution(
-        ops,
-        { resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
-        locks,
-      ),
-    );
-
-    expect(heldAtDelivery.length).toBeGreaterThan(0);
-    expect(heldAtDelivery.every((r) => r.entity && r.referent)).toBe(true);
-  });
-});
-```
-
-Write the same case for `undoDeleteResolution`, whose publish loop sits at `undoDeleteResolution.ts:146-152` between the `acquire` at :123 and the `release()` at :155.
-
-Then add the case that makes the hazard a demonstrated fact rather than an argument — a subscriber that actually reaches for the lock does not get it, bounded by a deadline so the failure is a named assertion rather than vitest's anonymous 5000ms timeout:
+Add to `tests/application/reference/deleteResolutionAnnouncements.test.ts`, in the idiom already there. Collect the readings; never assert inside a subscriber — `deliver` wraps every handler in `.catch` and swallows it, so an assertion in the callback passes in both worlds.
 
 ```ts
-  it('deadlocks if a subscriber acquires a lock the sequence holds — the rule this pins', async () => {
-    const locks = new ReferenceLocks();
-    const events = createEventBus();
-    let acquired = false;
-    events.subscribe('RequirementInvalidated', async () => {
-      // Exactly what the rule forbids. It never resolves: `waitForRelease` fires only
-      // from `releaseAll`, which the publisher reaches only after `publish` returns.
-      await locks.acquire(['entity-1'], []);
-      acquired = true;
-    });
+	it('delivers its announcement while the sequence still holds both locks', async () => {
+		const rig = await resolutionRig({ resolution: 'delete-anyway' });
+		const heldAtDelivery: { entity: boolean; referent: boolean }[] = [];
+		rig.events.subscribe('RequirementInvalidated', () => {
+			heldAtDelivery.push({
+				entity: rig.locks.isHeld(1, rig.zoneId),
+				referent: rig.locks.isHeld(2, rig.requirementId),
+			});
+		});
 
-    const ops = makeLocalOps({ events });
-    const sequence = runDeleteResolution(
-      ops,
-      { resolution: 'delete-anyway', resolvedReferents: REQUIREMENT_IDS },
-      locks,
-    );
-    const settled = await Promise.race([
-      sequence.then(() => 'settled' as const),
-      new Promise<'blocked'>((resolve) => setTimeout(() => resolve('blocked'), 50)),
-    ]);
+		expectOk(await rig.command.execute(rig.input));
 
-    expect(settled).toBe('blocked');
-    expect(acquired).toBe(false);
-  });
+		expect(heldAtDelivery).toEqual([{ entity: true, referent: true }]);
+	});
 ```
 
-- [ ] **Step 2: Run them and read what fails**
+`resolutionRig` spreads `requirementFixture()`'s result, so `rig.locks`, `rig.zoneId` and `rig.requirementId` are already reachable — confirm that against the rig at :168 before writing, and if any is not spread, take it from the fixture rather than adding a field.
 
-Run: `npm run check:fast -- tests/application/reference/lockPublishBoundary.test.ts`
+Write the docblock above this case so it says WHY it exists: this is what makes the rule in `ReferenceLocks`'s header load-bearing rather than theoretical, and a build that moves the publish out of the locked region should fail HERE and read the note.
 
-The first two cases are expected to PASS immediately — they pin behaviour that already holds, which is the point (M6: the rule is already honored; nothing stated or checked it). **That means Step 4's mutation check is the whole of their value.** Report honestly if a case passes on first run; do not present a passing case as evidence until Step 4 has shown it can fail.
+- [ ] **Step 2: Pin the same for the undo engine**
 
-The deadline case must also pass. If it reports `'settled'`, STOP and report: that would mean M5 is wrong and the whole task's premise needs re-deriving.
+Add the equivalent to `tests/application/reference/undoDeleteResolution.test.ts`, which already calls `undoDeleteResolution(ops, sequence, locks)` directly at :129. Hold the `ReferenceLocks` instance you pass, subscribe to the event that path publishes (`RequirementRestored` for a `written` outcome, `RequirementCreated` for an `'absent'` one — the split at `undoDeleteResolution.ts:146-152`), and assert the same shape. This engine's publish loop sits between the `acquire` at :123 and the `release()` at :155.
 
-- [ ] **Step 3: Write the discovery tripwire**
+- [ ] **Step 3: Demonstrate the mechanism in isolation**
 
-Create `tests/application/events/subscriberLockBoundary.test.ts`. It answers the one question text can settle reliably — which modules register subscribers — and asserts none of them names the lock.
+Add to `tests/application/reference/referenceLocks.test.ts`, beside the lock's other rules. Steps 1 and 2 establish "locks are held at delivery"; that alone does not prove harm. This is the case that does, and it needs no engine at all:
+
+```ts
+	it('a subscriber that reaches for a held lock never gets it — the rule this pins', async () => {
+		const locks = new ReferenceLocks();
+		const events = createEventBus();
+		let acquired = false;
+		events.subscribe('RequirementInvalidated', async () => {
+			// Exactly what the rule forbids. `waitForRelease` fires only from `releaseAll`,
+			// which the publisher reaches only after `publish` returns — and `publish`
+			// awaits this handler. Neither side can advance.
+			await locks.acquire(['entity-1'], []);
+			acquired = true;
+		});
+
+		const release = await locks.acquire(['entity-1'], []);
+		const published = events.publish(requirementInvalidated('requirement-1' as RequirementId));
+		const settled = await Promise.race([
+			published.then(() => 'settled' as const),
+			new Promise<'blocked'>((resolve) => setTimeout(() => resolve('blocked'), 50)),
+		]);
+
+		expect(settled).toBe('blocked');
+		expect(acquired).toBe(false);
+		release(); // let the stranded subscriber finish, so the test leaves no pending lock
+	});
+```
+
+If this reports `'settled'`, STOP and report: that would mean measurement M5 is wrong and this whole task's premise needs re-deriving.
+
+- [ ] **Step 4: Write the discovery tripwire**
+
+Create `tests/application/events/subscriberLockBoundary.test.ts`. It answers the one question text can settle reliably — which modules register subscribers — and asserts none of them names a lock.
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -191,56 +172,58 @@ import path from 'node:path';
  * **What this tripwire can and cannot see.** It reads module TEXT, so it catches a subscriber
  * module that names `ReferenceLocks` directly. It is blind to a lock reached through an
  * INJECTED collaborator — a handler handed a command that locks would not name the lock
- * itself — which is the likelier shape and is why the behavioural deadline case in
- * `tests/application/reference/lockPublishBoundary.test.ts` is the backstop rather than this.
- * Stated rather than implied: an undocumented residue reads as ground nobody walked.
+ * itself — which is the likelier shape, and is why the mechanism case in
+ * `tests/application/reference/referenceLocks.test.ts` and the two engine pins are the
+ * backstop rather than this. Stated rather than implied: an undocumented residue reads as
+ * ground nobody walked.
  */
 const sources = (dir: string): string[] =>
-  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) return sources(full);
-    return entry.name.endsWith('.ts') ? [full] : [];
-  });
+	readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const full = path.join(dir, entry.name);
+		if (entry.isDirectory()) return sources(full);
+		return entry.name.endsWith('.ts') ? [full] : [];
+	});
+
+const registrars = (): string[] =>
+	sources('src').filter((f) => readFileSync(f, 'utf8').includes('.subscribe('));
 
 describe('subscriber modules and the reference locks', () => {
-  it('finds the subscriber modules at all', () => {
-    // A scan that reaches nothing looks exactly like a clean tree.
-    const registrars = sources('src').filter((f) => readFileSync(f, 'utf8').includes('.subscribe('));
-    expect(registrars.length).toBeGreaterThan(5);
-  });
+	it('finds the subscriber modules at all', () => {
+		// A scan that reaches nothing looks exactly like a clean tree.
+		expect(registrars().length).toBeGreaterThan(5);
+	});
 
-  it('no module registering a subscriber reaches ReferenceLocks', () => {
-    const offenders = sources('src')
-      .filter((f) => readFileSync(f, 'utf8').includes('.subscribe('))
-      .filter((f) => /ReferenceLocks|withLevel1|withLevel2/.test(readFileSync(f, 'utf8')));
-    expect(offenders).toEqual([]);
-  });
+	it('no module registering a subscriber reaches ReferenceLocks', () => {
+		const offenders = registrars().filter((f) =>
+			/ReferenceLocks|withLevel1|withLevel2/.test(readFileSync(f, 'utf8')),
+		);
+		expect(offenders).toEqual([]);
+	});
 });
 ```
 
-- [ ] **Step 4: Mutation-check every case — this is where their value is**
+- [ ] **Step 5: Mutation-check every case — this is where their value is**
 
-Run each mutation, record the exact failure text, then restore the tree.
+Steps 1, 2 and 4 pin behaviour that ALREADY holds, so each passes on first run and is worth nothing until you have seen it fail. Run each mutation, record the exact failure text, restore the tree, and report any case that reddens by CRASHING rather than by a clean assertion — a crash proves the path is reached, not that the assertion works.
 
-1. Move `undoDeleteResolution`'s publish loop (:146-152) below the `finally`, so it publishes after release. Expected: the `undoDeleteResolution` behavioural case reddens at its assertion (`expected false to be true`), NOT by crashing. Record the message.
-2. In the tripwire, add a temporary `src/application/events/probe.ts` containing both `.subscribe(` and `ReferenceLocks`. Expected: the second case reddens naming that file. Delete the probe afterwards — verify with `git status` that it is gone.
-3. Break the first tripwire case's filter (search for a string no file contains). Expected: `finds the subscriber modules at all` reddens. This proves the scan is not vacuous.
+1. Move `undoDeleteResolution`'s publish loop (:146-152) below the `finally`. Expected: Step 2's case reddens at its assertion, not with a TypeError.
+2. Move `runDeleteResolution`'s publish loop (:533) so it runs after `session.release()`. Expected: Step 1's case reddens.
+3. Add a temporary `src/application/events/probe.ts` containing both `.subscribe(` and `ReferenceLocks`. Expected: the tripwire's second case reddens naming that file. Delete it afterwards and confirm with `git status`.
+4. Break the tripwire's filter (search for a string no file contains). Expected: `finds the subscriber modules at all` reddens — proving the scan is not vacuous.
 
-If any mutation reddens by CRASHING rather than by a clean assertion failure, say so plainly and find the mutation that keeps the program running.
-
-- [ ] **Step 5: State the rule where the lock module states its others**
+- [ ] **Step 6: State the rule where the lock module states its others**
 
 Edit `src/application/reference/ReferenceLocks.ts`'s header docblock only. It currently says "The two rules the hierarchy lives on are enforced HERE, at the lock, rather than by reviewing every command that uses it — so they hold for sequences not yet written." Add a THIRD rule beneath those two, and be honest that it is the one rule NOT enforced at the lock:
 
 - State it: **a subscriber must never acquire a reference lock.**
 - State the mechanism: `EventBus.publish` awaits its handlers, so a subscriber blocked in `acquire` awaits `waitForRelease`, which fires only from `releaseAll`, which the publisher reaches only after `publish` returns. A deadlock, not contention.
 - State the measured breadth as the reason the alternative is unavailable: publishing under a lock is the NORM — 13 publish source lines, 18 publish x locked-region pairs — and one of them (`RecalculateRequirement.ts:144`/`:155`, reached through `recalculateInline`, bound at `deleteResolution.ts:222`) sits inside a shared command whose event buffering was already declined. So the publishes cannot be moved out; the rule is what closes the hazard.
-- State why it is NOT enforced here like its two siblings: the lock cannot see that it is inside a publish, and coupling `ReferenceLocks` to the `EventBus` to find out would be worse than the rule. Name the two instruments that do check it, by path.
+- State why it is NOT enforced here like its two siblings: the lock cannot see that it is inside a publish, and coupling `ReferenceLocks` to the `EventBus` to find out would be worse than the rule. Name the four instruments that do check it, by path.
 - Name the known exceptions rather than implying uniformity: `updateAssetShape.ts:298-301` and `CalibrateAsset.ts:192-194` state the publish-outside-lock rule and follow it, while `SetAssetBackground.ts:234`/`:242` publishes inside `withLevel1` and does not — pre-existing, out of this increment's scope.
 
 Do NOT overstate. The guarantee is that no subscriber module *names* a lock and that the constraint is *live*; it is not that no subscriber can ever reach one through an injected collaborator.
 
-- [ ] **Step 6: Coverage, then gate, then commit**
+- [ ] **Step 7: Coverage, then gate, then commit**
 
 The task adds no production function and no production branch, so the floors should not move. Confirm rather than assume: read `coverage/coverage-final.json` for `ReferenceLocks.ts` and check nothing regressed.
 
@@ -250,11 +233,13 @@ Message the controller and WAIT for the word `GATE`. Do not start `npm run check
 npm run check ; echo "EXIT:$?"
 ```
 
-Read the `EXIT:` line, not the summary glyphs. Then:
+Read the `EXIT:` line, not the summary glyphs. Then stage by name — never `git add -A`:
 
 ```bash
 git add src/application/reference/ReferenceLocks.ts \
-        tests/application/reference/lockPublishBoundary.test.ts \
+        tests/application/reference/referenceLocks.test.ts \
+        tests/application/reference/deleteResolutionAnnouncements.test.ts \
+        tests/application/reference/undoDeleteResolution.test.ts \
         tests/application/events/subscriberLockBoundary.test.ts
 git commit -m "Establish the rule that a subscriber never takes a reference lock
 
@@ -263,8 +248,9 @@ Publishing under a reference lock is the norm here rather than the exception
 publishes from inside a shared command whose event buffering was already
 declined, so moving the publishes out cannot close the class. The rule is
 what closes it, stated where the lock module states its other two and pinned
-two ways: a behavioural case that the constraint is live, and a tripwire
-over the modules that register subscribers."
+four ways: both engines deliver while holding their locks, the lock itself
+demonstrates that a subscriber reaching for one never gets it, and a
+tripwire watches the modules that register subscribers."
 ```
 
 ---
@@ -415,8 +401,8 @@ the bound it does not reach written down beside it."
 
 **Spec coverage.** Item 1 -> Task 1 (decided against the original default, on M2/M3/M4, with the reasoning recorded). Item 2's three findings -> Task 2 Steps 1-3. Item 3 -> Task 3. Item 4 -> Task 2 Step 4, corrected to one pointer by M8. The three out-of-scope items are named in "Not in scope" with the two new pre-existing findings the sweep added.
 
-**Placeholder scan.** No TBDs. Every code step carries real code or a named file-and-line to edit. The one deliberate omission is the local ops literal in Task 1 Step 1 (`makeLocalOps`), which the plan cannot spell without duplicating 60 lines of an existing rig — the rig note names the model (`deleteResolutionEngine.test.ts:74`), its field values, and the reason it must not be imported.
+**Placeholder scan.** No TBDs. Every code step carries real code or a named file-and-line to edit. Task 1's earlier draft carried a hand-built `ops` literal it could not spell; the pre-flight scan replaced it with the four real homes and the existing `resolutionRig`, so nothing is left unspecified.
 
-**Type consistency.** `isHeld(level: 1 | 2, id: string): boolean` matches `ReferenceLocks.ts:166`. `runDeleteResolution(ops, input, locks, markers?)` matches `deleteResolution.ts:490-495` and the existing four-argument call at `deleteResolutionEngine.test.ts:255`. `REQUIREMENT_IDS` is `readonly RequirementId[]` (:57), which is what `resolvedReferents` takes. `createEventBus()` and `.subscribe(type, handler)` match `EventBus.ts:41`.
+**Type consistency.** `isHeld(level: 1 | 2, id: string): boolean` matches `ReferenceLocks.ts:166`. `undoDeleteResolution(ops, sequence, locks)` matches its call at `undoDeleteResolution.test.ts:129`. `resolutionRig(options)` at `deleteResolutionAnnouncements.test.ts:168` returns `{ command, input, events, ... }` spread over `requirementFixture()`, which exposes `locks` (`tests/helpers/slice10.ts:173`). `createEventBus()` and `.subscribe(type, handler)` match `EventBus.ts:41`.
 
 **Ordering.** The three tasks share no file and may be reviewed independently, but the gate is a single-holder resource, so they are dispatched and gated one at a time.

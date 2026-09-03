@@ -173,9 +173,11 @@ export const editorEn = {
 	'editor.calibrate.recalibrate.title': 'Rescale the zones on this plan?',
 	'editor.calibrate.recalibrate.message': 'This plan already has zones drawn on it. Setting the scale rescales every one of them. You can undo it.',
 	// Task 18's temporary task banner: names the active creation task over the canvas and
-	// offers the same Cancel `routeEscape` (Task 9) already gives a keyboard user through
-	// Escape. `draw-room` names the TASK, not the `draw-polygon` tool id — the same
-	// distinction `editor.add.room.label` already draws for the menu entry that starts it.
+	// offers a Cancel button. NOT `routeEscape` (R7, 2026-09-04): Cancel LEAVES the task —
+	// clears any draft, returns to Select, never touches the selection — where Escape (Task 9)
+	// instead steps back one interaction at a time through `routeEscape`. `draw-room` names the
+	// TASK, not the `draw-polygon` tool id — the same distinction `editor.add.room.label`
+	// already draws for the menu entry that starts it.
 	'editor.task.banner': 'Current task',
 	'editor.task.draw-room.name': 'Adding a room',
 	'editor.task.draw-room.instruction': 'Click to place corners; click the first corner to finish.',

@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /**
- * Task 18: a visible banner naming the active creation task, with a Cancel button whose
- * behaviour is `routeEscape`'s (Task 9) — a mouse user gets what Escape already gives a
- * keyboard user. Mounted in `PlanEditorRoot`'s canvas overlay slot, over the top edge.
+ * Task 18: a visible banner naming the active creation task, with a Cancel button. NOT
+ * `routeEscape` (R7, 2026-09-04): Cancel LEAVES the task in one gesture — clears any draft
+ * and returns to Select, never touching the selection — where Escape (Task 9) instead steps
+ * back one interaction at a time through `routeEscape`. Mounted in `PlanEditorRoot`'s canvas
+ * overlay slot, over the top edge.
  *
  * `TASKS` covers `draw-polygon` and `calibrate` only: Select, camera mode (`null`) and every
  * designer tool id share no entry, and the `v-if` below is "the active tool has one" rather

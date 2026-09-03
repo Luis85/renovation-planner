@@ -564,15 +564,32 @@ describe('the headless harness capture script', () => {
 		expect(source).not.toContain('createHash');
 	});
 
-	it('still defines the fifteen fixed shots, so an argumentless run is unchanged', () => {
+	/**
+	 * **The list is measured against the ARRAY now, and that is a fix rather than a widening.**
+	 * It called itself "the fifteen fixed shots" and named fifteen — internally consistent, and
+	 * two short of what `SHOTS` actually held: `project-detail-prices` and
+	 * `project-detail-prices-narrow` landed without being added here, so either could have been
+	 * deleted with this case green. A list of names cannot notice a name that was never in it,
+	 * which is why the case below counts the array as well: the count is what makes an addition
+	 * that skips this list fail HERE rather than silently reducing what an argumentless run
+	 * captures.
+	 */
+	it('still defines the twenty-two fixed shots, so an argumentless run is unchanged', () => {
 		const source = readFileSync(SCRIPT, 'utf8');
 
 		for (const name of [
 			'dark',
 			'light',
 			'phone',
+			'home-stress',
+			'home-stress-light',
+			'home-whole',
+			'home-stress-narrow',
+			'home-no-match-narrow',
 			'project-detail',
+			'project-detail-prices',
 			'project-detail-narrow',
+			'project-detail-prices-narrow',
 			'plan-editor-dark',
 			'plan-editor-light',
 			'asset-designer-dark',
@@ -586,6 +603,12 @@ describe('the headless harness capture script', () => {
 		]) {
 			expect(source).toContain(`name: '${name}'`);
 		}
+
+		// The array's own size, so a shot added without being named above fails here instead of
+		// joining the set unwatched — which is exactly what happened to the two price shots.
+		// `name: '` counts one per entry: no other construct in this file uses that spelling,
+		// measured, and a stray one in a comment would over-count and fail rather than pass.
+		expect(source.match(/name: '/gu)?.length).toBe(22);
 	});
 
 	/**

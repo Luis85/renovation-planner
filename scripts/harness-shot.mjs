@@ -138,6 +138,68 @@ const SHOTS = [
 	{ name: 'dark', query: '', selector: PROJECT_VIEW },
 	{ name: 'light', query: '?theme=light', selector: PROJECT_VIEW },
 	{ name: 'phone', query: '?phone', selector: PROJECT_VIEW },
+	// THE HOME SURFACE, POPULATED (Task 12). The three shots above photograph the EMPTY state —
+	// the bare harness root's world is empty by construction — so until this knob existed, the
+	// launcher's rows, its filter line, its `Completed` group, its Continue row and its foot line
+	// had never been rendered by anything at all. jsdom lays nothing out, so spacing, wrapping,
+	// overflow, hit size and the lifecycle strip's legibility are measurements no gate here
+	// performs and a capture is the only instrument.
+	//
+	// `?projects=30` is §9's stress case: past what fits a pane, so the ordering and the scroll
+	// have something to do, and wide enough a spread of statuses that the strip shows real stages
+	// side by side rather than ten copies of one. `tests/harness/mount.ts` carries what the
+	// fixture holds and why each field is in it.
+	//
+	// TWO WIDE SHOTS, one per scheme, where `project-detail-narrow` deliberately takes only one:
+	// that trade rests on nothing about the surface changing with the palette, and it does not
+	// survive here. The lifecycle tick strip is `--text-normal` against `--text-faint` and it is
+	// DROPPED at narrow, so it exists ONLY in a wide shot — and whether a reached cell can be
+	// told from an unreached one is exactly a contrast question. A single default-scheme wide
+	// shot would never photograph the strip in light at all.
+	{ name: 'home-stress', query: '?projects=30', selector: PROJECT_VIEW },
+	{ name: 'home-stress-light', query: '?projects=30&theme=light', selector: PROJECT_VIEW },
+	// THE WHOLE SURFACE IN ONE FRAME, and this is the fifth Home shot rather than the four the
+	// plan named — added because reading the first four against §5's regions showed that TWO of
+	// them were in no picture at all. Thirty rows are taller than an 800px viewport, so the
+	// `Completed` disclosure and the foot line (region 7 — the key legend and `New asset`) sit
+	// below the fold in every one of the shots above, and the no-match shot has no `Completed`
+	// group to show. A region no capture contains is a region nobody looks at, which is the
+	// whole failure this script exists against.
+	//
+	// TEN is the count that fits: `HOME_PROJECTS`' first ten walk the lifecycle exactly once
+	// each, so both terminal stages are present and the disclosure draws, and the foot lands at
+	// y≈465 of 800 — measured. LIGHT because what this shot is FOR is two regions made entirely
+	// of muted and faint text, which is a contrast question, and light is the scheme that
+	// breaches first.
+	{ name: 'home-whole', query: '?projects=10&theme=light', selector: PROJECT_VIEW },
+	// 460 is an Obsidian sidebar leaf's real width and the one this surface's whole narrow
+	// composition is a container query on: the row wraps to two lines, the strip goes, and the
+	// status and the facts share the second line. LIGHT and single-scheme, which is
+	// `project-detail-narrow`'s own trade taken for its own reason — what this shot is FOR is
+	// wrapping and the two-line row, none of which moves with the palette, and light is the
+	// scheme a contrast regression breaches first.
+	//
+	// **IN GERMAN, and that is the whole point of the shot rather than a flourish.** The width at
+	// which a one-line row stops holding name, facts and status is decided by the longest status
+	// word, and `Bestandsaufnahme` is 16 characters against `Survey`'s 6 — so a threshold
+	// measured in English is measured against the easy case. `styles/project-list.css`'s
+	// container query cites this capture for its number.
+	{ name: 'home-stress-narrow', query: '?projects=30&theme=light&lang=de', selector: PROJECT_VIEW, width: 460 },
+	// FILTERED TO NOTHING, at 460 — §3's signature interaction, and the state a capture could not
+	// reach at all until `?q=` existed: `harness-shot` navigates and screenshots and types
+	// nothing, so without a URL-seeded query both narrow shots would sit at an empty query
+	// forever and the create action would never be on screen to be looked at.
+	//
+	// The query is ONE UNBROKEN TOKEN on purpose. A multiword query wraps at its own spaces and
+	// would photograph the easy case, leaving `overflow-wrap: anywhere` — the declaration that
+	// actually stops `New project named "…"` pushing the pane wide — uninspected while the
+	// capture read as though it had been taken.
+	{
+		name: 'home-no-match-narrow',
+		query: '?projects=30&theme=light&q=Dachgeschossausbau-Wintergarten-Sanierungsplanung',
+		selector: PROJECT_VIEW,
+		width: 460,
+	},
 	// The project view's DETAIL state (design slice 21), which the harness index cannot
 	// photograph: it mounts a component bare, and `ProjectDetail` requires three props and
 	// reads `project.name` immediately, so the picture would be the index's own failure card.

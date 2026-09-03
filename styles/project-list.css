@@ -6,6 +6,14 @@
  * was found by a capture and is argued for where it lives, and a second declaration of a
  * settled layout finding is how one becomes two that disagree.
  *
+ * TWO of this surface's own regions live in siblings imported directly after this file, both
+ * split out in Task 12 when recording a MEASURED threshold took the file past the 400-line cap:
+ * `continue-row.css` (§7's Continue row) and `project-filter.css` (§7's filter line). Each is a
+ * region with a component file of its own and no rule another region reads, which is the seam
+ * that cuts nothing — the alternative, splitting row rules from list chrome, runs straight
+ * through `.rp-project-list .rp-project-list__row`'s descendant pairs. What is left here is the
+ * row's own anatomy, the groups, the narrow composition and the foot line.
+ *
  * Every colour is an Obsidian variable, at every nesting depth — `scripts/styles-assemble.mjs`
  * fails the build on a literal, a bare colour word included.
  */
@@ -73,42 +81,93 @@
  * happens to own the whole window. `?phone` does not substitute for it either — that is a body
  * class answering what the plugin does when it believes it is on a phone.
  *
- * **34rem IS PROVISIONAL AND NO CAPTURE HAS BEEN TAKEN.** It is a starting value chosen so that
- * a rule exists to measure against, and Task 12 is where it is measured and replaced; moving it
- * is expected rather than a failure. Nothing here is evidence for it — jsdom lays nothing out,
- * so no gate in this repository can see a wrap threshold at all.
+ * **36rem IS MEASURED.** It replaces the 34rem starting value, which was chosen so a rule
+ * existed to measure against and was evidence for nothing. Taken from `home-stress-narrow`'s
+ * own URL — `?projects=30&theme=light&lang=de` — in a real browser, IN GERMAN, because the
+ * width at which a one-line row stops fitting is decided by the longest status word and a
+ * threshold confirmed only in English is confirmed against the easy case.
  *
- * What IS known is which case binds, and it is the reason to take that capture in GERMAN rather
- * than in English: `Bestandsaufnahme` is 16 characters against `Survey`'s 6, so the status word
- * runs out of room in one locale well before the other, and a threshold confirmed only in
- * English would be confirmed against the easy case. Nothing renders `de.ts` in any gate here
- * (CLAUDE.md records that), so this is a note for whoever takes the picture, not a finding.
+ * **The longest word is `Bestandsdokumentation` (AS_BUILT), not `Bestandsaufnahme`** — 21
+ * characters against 16, and against `As built`'s 8. The sentence that used to sit here named
+ * the wrong one: it reasoned from `SURVEY`, whose English label is the shortest, rather than
+ * measuring the set. What was measured is the whole TRAILING GROUP at 1280, across every seeded
+ * row: **270px** in German (`3 Pläne · EUR` + `Bestandsdokumentation` + the strip) against
+ * **199px** in English. So the locale moves this threshold by 71px, which is more than the
+ * example it was argued from suggested.
  *
- * One arithmetic consequence, since it is checkable without a capture and reads wrongly
- * otherwise: 34rem is 544px at a 16px root, which is ABOVE the 460px an Obsidian sidebar leaf
- * actually has (`forms.css` records finding the name-truncation defect at exactly that width).
- * So a sidebar leaf is already on the narrow side of this threshold today. `rem` follows the
- * user's interface font size, so that pixel figure is one root size's answer and not a constant.
+ * The arithmetic, so the number can be re-derived rather than trusted: a one-line row spends
+ * 16px on its own inline padding and 8px on each of its two gaps, so the name gets `width−302`.
+ * The line taken is **the name must keep at least as much room as the trailing group it sits
+ * beside** — below that the row stops being a named thing with facts beside it and becomes facts
+ * with a name squeezed in — which is `302 + 270 = 572px`, rounded up to the whole rem at 576px.
+ * `rem` rather than `px` because it must follow the user's interface font size, which moves both
+ * halves of that sum together; 576px is therefore one root size's answer, not a constant. It is
+ * well above the 460px an Obsidian sidebar leaf actually has, so a sidebar is firmly narrow.
+ *
+ * **The MARKED row is deliberately not what this protects, and that is a decision.** PRD §83's
+ * marker measures 217px on its own in German, so a marked row's trailing content is 381px and
+ * it truncates hard well above this threshold — measured, its name is 178px at a 600px pane.
+ * Sizing for it would put every one of thirty unmarked rows onto two lines to protect the one
+ * row that is marked, in a vault where the usual number of marked projects is zero.
  */
 .rp-project-list {
 	container-type: inline-size;
 	container-name: rp-project-list;
 }
 
-@container rp-project-list (max-width: 34rem) {
+@container rp-project-list (max-width: 36rem) {
 	/*
-	 * BOTH row kinds. `.rp-continue` is Task 11's Continue row and DOES NOT EXIST IN THIS TREE
-	 * YET — it is named here rather than left to that task because the two rows wrap for the
-	 * same reason and a rule naming only `.rp-project-row` is one Task 11 would have to
-	 * rediscover: it renders inside `.rp-project-list`, so it inherits the generic name rule
-	 * below (a 100% basis on the name) while staying at `nowrap` itself, which puts its date,
-	 * its status and its two buttons on one line to truncate or overflow at exactly the width
-	 * the design calls a designed state rather than a fallback. Stated as a forward reference
-	 * with its own reason, not as a finding: nothing has drawn a Continue row here to observe.
+	 * BOTH row kinds, and this is now a FINDING rather than the forward reference it was
+	 * written as: Task 11 built `.rp-continue`, and Task 12's capture drew it at 460px for the
+	 * first time. It wraps to name / date · status / two buttons and its box grows to 66px —
+	 * measured — because it is a `<div>` and Obsidian's fixed button height never reaches it.
+	 * The sentence here used to say the row "DOES NOT EXIST IN THIS TREE YET" and stayed after
+	 * it did, which is the stale-forward-reference defect this repository keeps re-finding.
 	 */
 	.rp-project-list .rp-project-row,
 	.rp-project-list .rp-continue {
 		flex-wrap: wrap;
+	}
+
+	/*
+	 * THE BOX HAS TO BE ALLOWED TO GROW, and until Task 12's capture nothing said so: a row is
+	 * a `<button>` and Obsidian's own `button` rule sets `height: var(--input-height)` — a FIXED
+	 * 30px. So the rule above wrapped the content and the box stayed one line tall, and every
+	 * row's second line was drawn over the next row's name. Measured rather than described: 41px
+	 * of content in a 30px box, at 460px, in the first picture ever taken of this surface.
+	 *
+	 * `list-row.css`'s `min-height: var(--size-4-6)` is what floors it once `height` stops
+	 * deciding, which is the WCAG 2.5.8 guarantee that file states — so this releases the height
+	 * and inherits the floor rather than restating one.
+	 *
+	 * SCOPED to `.rp-project-row`, and the qualifier is load-bearing rather than tidy: the
+	 * Continue row is a `<div>`, which Obsidian's `button` rule never reaches, so it already
+	 * grows — measured at 66px for its own two lines — and naming it here would be a declaration
+	 * that does nothing, which is the same defect as a comment claiming space that is not there.
+	 *
+	 * ---
+	 *
+	 * THE SECOND LINE IS ONE PHRASE, not two things at opposite edges of the pane.
+	 *
+	 * `forms.css` gives the row `justify-content: space-between`, which is right for the WIDE
+	 * row — two items, name left and trailing column right. A wrapped row applies it to EVERY
+	 * line, so the second line put the status against the leading edge and the facts against the
+	 * trailing one: measured at 460px, `Ausführung` at x=8 and `4 Pläne · EUR` ending at x=452,
+	 * with 280px of nothing between them. §6's own diagram is `Design · 2 plans · EUR` — one
+	 * phrase — and the row's existing `gap` is exactly the separation it asks for, so this is a
+	 * removal rather than a new spacing decision.
+	 *
+	 * It changes nothing on the first line: the name's basis is 100%, so it is the only item
+	 * there and both values put it in the same place.
+	 *
+	 * SCOPED to `.rp-project-row` for the reason the ordering rules below share: the Continue
+	 * row's second line ends in two BUTTONS, and those belong at the trailing edge where a
+	 * pointer expects an action — packing them left is the one thing `space-between` is right
+	 * about on that row.
+	 */
+	.rp-project-list .rp-project-row {
+		height: auto;
+		justify-content: flex-start;
 	}
 
 	/* The name takes the whole first line; the status and the facts share the second. */
@@ -228,67 +287,6 @@
 }
 
 /*
- * THE FILTER LINE (design spec §7's region 2) — one input across the pane with the count at its
- * trailing edge.
- *
- * The INLINE padding is `--size-4-2`, which is what `list-row.css` gives a row
- * (`padding: var(--size-2-2) var(--size-4-2)`) and what `.rp-project-list__group-title` gives a
- * heading — so an armature exists and this line is on it. **What that buys is narrower than
- * "aligned", and the difference is worth stating rather than discovering in a capture**: a
- * heading's inline padding puts its TEXT at that offset, while this one puts the input's BORDER
- * there, and the input's own chrome then pushes its text further in again. The field's edge
- * lines up with a row's text; the field's text does not. Whether that reads as one armature or
- * as two is a question no gate here can answer — jsdom lays nothing out — and it is on this
- * task's capture-only list.
- *
- * The BLOCK-end `--size-2-2` is the gap to whatever follows, matching the group heading's own.
- */
-.rp-project-filter {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-	padding: 0 var(--size-4-2) var(--size-2-2);
-}
-
-/*
- * VISUALLY HIDDEN, not `display: none` and not `hidden` — the label and the announcement must
- * reach assistive technology, and both of those take an element out of the accessibility tree
- * along with the picture. The announcement is hidden because the count beside it is already on
- * screen saying the same thing.
- */
-.rp-project-filter__label,
-.rp-project-filter__announcement {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-}
-
-/* Quiet at rest: the host's own input chrome, taking the pane's slack so the count sits at the
-   trailing edge whatever the pane's width. `min-width: 0` because a flex item's is `auto` and
-   an input's intrinsic width would otherwise stop the row shrinking to a narrow leaf. */
-.rp-project-filter__input {
-	flex-grow: 1;
-	min-width: 0;
-}
-
-.rp-project-filter__input:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
-}
-
-/* `flex-shrink: 0` because the count is what the line exists to state — the input is the half
-   that gives way, exactly as the name is in a row. */
-.rp-project-filter__count {
-	flex-shrink: 0;
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-	font-variant-numeric: tabular-nums;
-}
-
-/*
  * WEIGHT, NOT COLOUR, for the matched run — the house rule (*colour reinforces, it never
  * carries*) applied to a highlight, and a second channel by construction rather than by a
  * contrast measurement somebody has to take. `--font-semibold` is the token
@@ -348,6 +346,23 @@
  * the empty state draws only the action, that one child sits at the leading edge, which is what
  * `flex-start` would have given anyway.
  *
+ * **`.rp-project-list__keys` CARRIES NO RULE OF ITS OWN, and that is a finding rather than an
+ * omission.** It shipped with `color: var(--text-faint)`, which the first capture ever taken of
+ * this surface showed to fail WCAG 1.4.3: measured in the browser, `--text-faint` is
+ * `rgb(171, 171, 171)` on the light scheme's `rgb(255, 255, 255)` — **2.30:1** against the 4.5:1
+ * floor PRODUCT.md binds by name. The legend is not decoration; it is the only place
+ * middle-click and modifier-click are discoverable at all.
+ *
+ * The override is DELETED rather than set to `--text-muted`, because that is what this line
+ * already gives it: `.rp-view-aside` (`forms.css`) sets it on the `<p>` the `<span>` sits in,
+ * and it measures **6.69:1** — the figure `project-detail-narrow`'s comment records for the
+ * status label, being the same token on the same ground. Restating it would be a declaration
+ * that changes nothing, and inheriting keeps the legend and the action beside it on ONE colour.
+ * "Quiet" was the requirement and muted is quiet; faint was not quiet, it was unreadable.
+ *
+ * A capture is the only gate here that can settle a colour: the axe scan runs in jsdom, which
+ * resolves no CSS and cannot measure contrast at all, and its own header says so.
+ *
  * `.rp-view-aside`'s own muted colour and smaller size come from `forms.css` and are not
  * restated — that block is imported first and this class is added beside it, so both apply.
  */
@@ -377,24 +392,4 @@
  */
 .rp-project-list__foot .rp-view-aside__create-asset {
 	margin-inline-start: auto;
-}
-
-.rp-project-list__keys {
-	/* A legend, never a control: it is not focusable and it names keys rather than offering
-	   them. Middle-click and modifier-click are undiscoverable on their own, and this is where
-	   they are discovered. */
-	color: var(--text-faint);
-}
-
-/* Two buttons, not the row, are the target here: the shared hover/cursor come back off. */
-.rp-project-list .rp-continue {
-	cursor: default;
-}
-.rp-project-list .rp-continue:hover {
-	background-color: transparent;
-}
-.rp-project-list__continue .rp-continue__resume:focus-visible,
-.rp-project-list__continue .rp-continue__open:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
 }

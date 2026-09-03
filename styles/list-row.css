@@ -37,8 +37,22 @@
 .rp-plan-list .rp-plan-list__row {
 	display: flex;
 	width: 100%;
-	/* WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
-	   photographing the page rather than by any gate. */
+	/*
+	 * WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
+	 * photographing the page rather than by any gate.
+	 *
+	 * **It is a GUARANTEE rather than the mechanism, and Task 12's capture is what established
+	 * the difference.** A row is a `<button>`, and Obsidian's own `button` rule sets
+	 * `height: var(--input-height)` — 30px, measured — so the used height is that and this floor
+	 * is satisfied by something else rather than binding. It is kept because it is what holds if
+	 * that ever changes, and because it states the requirement where the row is; it is NOT what
+	 * produces the resting height, and reading it as such is what would make a later reader
+	 * think a wrapped row could grow. It cannot: `height` is a fixed value, so a row whose
+	 * content wraps OVERFLOWS its box rather than growing, which is exactly what the Home
+	 * surface's narrow rows did — 41px of content in a 30px box, each row's second line drawn
+	 * over the next row's first. `project-list.css`'s narrow block is where that is released,
+	 * because that is the one place a row here is meant to wrap.
+	 */
 	min-height: var(--size-4-6);
 	padding: var(--size-2-2) var(--size-4-2);
 	border: none;

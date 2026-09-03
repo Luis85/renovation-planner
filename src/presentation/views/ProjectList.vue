@@ -47,6 +47,17 @@ const props = defineProps<{
 		planId: string | null;
 		plan: PlanSummaryDto | null;
 	} | null;
+	/**
+	 * What the filter starts with. Absent in production; set only by the browser harness, so a
+	 * headless capture can photograph a filtered — and, with a query matching nothing, a
+	 * no-match — list. `RenovationProjectContext.initialQuery` carries the whole argument.
+	 *
+	 * A STARTING VALUE and not a bound one: `query` below is seeded from it once and owned here
+	 * afterwards, so typing still works exactly as it does with no seed. Making it reactive
+	 * would be a second writer of the one value Escape, the no-match block and the row
+	 * highlighting all read.
+	 */
+	initialQuery?: string;
 }>();
 /**
  * `create` widened to carry the typed query (Task 7, design spec §3/§9's `Filtered to
@@ -94,8 +105,12 @@ const sortKeys = new Map<string, string | null>();
  * NOT PERSISTED, per §7 — it resets on remount, which is every navigation. A query surviving a
  * round trip into a project would have the pane come back showing a filtered vault the user has
  * no memory of typing.
+ *
+ * Seeded from `initialQuery`, which is absent in production and so resets to `''` exactly as
+ * before. The seed does not weaken the rule above: a remount reads the same fixed starting
+ * value it was built with rather than carrying anything forward from the mount before it.
  */
-const query = ref('');
+const query = ref(props.initialQuery ?? '');
 
 const ordered = computed(() => orderProjects(props.projects, collator, sortKeys));
 

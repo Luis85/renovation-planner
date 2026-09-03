@@ -4,9 +4,11 @@
  *
  * `?view=plan-editor` opens the Plan Editor instead of the project surface, `?view=asset-designer`
  * (Task B10) opens the asset designer the same way, `?project=<id>` opens the Renovation Project
- * view's DETAIL state on a seeded project of that id rather than its list, and `?index` (or an
- * `?entry=`) opens the harness index. A query parameter rather than a second page, for the same
- * reason `?theme` and `?phone` are ones: a headless screenshot needs a URL and nothing to click.
+ * view's DETAIL state on a seeded project of that id rather than its list, `?projects=<n>` and
+ * `?q=<text>` (Task 12) open its LIST state over a seeded vault of that size with the filter
+ * already carrying that query, and `?index` (or an `?entry=`) opens the harness index. A query
+ * parameter rather than a second page, for the same reason `?theme`, `?phone` and `?lang` are
+ * ones: a headless screenshot needs a URL and nothing to click.
  */
 import { createApp } from 'vue';
 import VueKonva from 'vue-konva';
@@ -18,12 +20,16 @@ import { PLAN_EDITOR_CONTEXT } from '../../src/presentation/editor/PlanEditorCon
 import { componentEntries, prototypeEntries, registerEntries, registrableComponents } from './entries';
 import IndexPage from './IndexPage.vue';
 import { installObsidianDom } from '../helpers/dom';
-import { applyPlatform, applyWantedScheme, drawSchemeToggle } from './theme';
+import { applyLanguage, applyPlatform, applyWantedScheme, drawSchemeToggle } from './theme';
 
 // Before the mount: `is-phone` is a body class that a toolbar's own fit measurement can
 // see, and applying it afterwards would leave that measurement made against the other
 // layout.
 applyPlatform(window.location.search);
+// Before the mount for the same reason, differently spelled: `ProjectList` resolves its name
+// collator and its key legend ONCE at setup, so a language applied after the mount would draw
+// a half-translated pane. See `applyLanguage` for why this knob exists at all.
+applyLanguage(window.location.search);
 
 const params = new URLSearchParams(window.location.search);
 
@@ -31,16 +37,18 @@ const params = new URLSearchParams(window.location.search);
  * The index is OPT-IN, and that is a decision rather than an accident.
  *
  * `?view=plan-editor` keeps the Plan Editor and everything else keeps the project view,
- * because `scripts/harness-shot.mjs`'s FIVE fixed shots address the project surface with no
- * `view` parameter at all — `''`, `?theme=light`, `?phone`, and design slice 21's
- * `?project=project-1` at both widths. Making a bare URL mean "index" would break all five, and
+ * because EVERY fixed shot of the project surface in `scripts/harness-shot.mjs` addresses it
+ * with no `view` parameter at all. Making a bare URL mean "index" would break all of them, and
  * the test in Task 6 that asserts the fixed shots still exist would keep passing while the
  * captures timed out.
  *
- * This sentence said THREE and named the first three until slice 21 added the other two — a
- * count that goes stale in the direction of a WEAKER argument, which is the quiet kind. Found
- * while acting on a review finding about its neighbours rather than by any gate: nothing reads
- * a prose enumeration against the list it describes.
+ * **Stated as a rule rather than a count, because the count has now gone stale twice.** It said
+ * THREE and named the first three until slice 21 added two more; it was corrected to FIVE and
+ * was already wrong again, since the price section's own two shots had landed in the same
+ * merge, and Task 12's four Home shots took it to eleven. A prose enumeration goes stale in the
+ * direction of a WEAKER argument, which is the quiet kind, and nothing reads one against the
+ * list it describes — so the enumeration is gone and what is left is the property that makes
+ * the decision, which every shot added since has satisfied without anybody editing this.
  *
  * The PBI leaves "does the index displace the current root" open. This answers it: it does
  * not, because displacing it costs a working workflow to save one query parameter.
@@ -136,12 +144,27 @@ if (wantsIndex) {
 	 * value `mountHarness` reads as "the list" — the same sentinel `RenovationProjectDeps.
 	 * projectId` uses, so no translation happens here and a bare root keeps taking the
 	 * untouched default.
+	 *
+	 * `?projects=<n>` (Task 12) seeds that many projects into the LIST state, which is the
+	 * only way a headless capture reaches a populated Home surface: the bare root's world is
+	 * empty by construction and draws the empty state, which is what its own three fixed shots
+	 * are for. `?q=` seeds the filter beside it — `harness-shot` navigates and screenshots and
+	 * types nothing, so the no-match state has no other route.
+	 *
+	 * `Number.parseInt` and a finiteness test rather than `Number(...)`: `?projects=` with no
+	 * value is `''`, which `Number` reads as `0` — a request for the empty state wearing the
+	 * stress case's clothes. `NaN` falls through to `undefined`, which is the bare root.
 	 */
+	const asked = Number.parseInt(params.get('projects') ?? '', 10);
 	view = wantsPlanEditor
 		? mountPlanEditorHarness(document.body).view
 		: wantsAssetDesigner
 			? mountAssetDesignerHarness(document.body).view
-			: mountHarness(document.body, params.get('project')).view;
+			: mountHarness(document.body, {
+					projectId: params.get('project'),
+					projects: Number.isFinite(asked) ? asked : undefined,
+					initialQuery: params.get('q') ?? undefined,
+				}).view;
 }
 
 // After the mount: the toggle is the harness's own furniture and is appended to the body,

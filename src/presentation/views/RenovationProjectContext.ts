@@ -74,6 +74,33 @@ export interface RenovationProjectDeps {
 	 */
 	readonly projectId: string | null;
 	/**
+	 * What the filter starts with — absent everywhere in production, and set only by the browser
+	 * harness so that a headless capture can photograph a FILTERED list.
+	 *
+	 * **It exists because `harness-shot` navigates and screenshots and types nothing.** The
+	 * no-match state — a query matching no project, which is where §3's signature interaction
+	 * lives and where `overflow-wrap: anywhere` is the only thing stopping a long unspaced query
+	 * pushing the pane wide — is reachable by no other route a headless runner has. A scripted
+	 * keystroke was the alternative and is worse: the filter only exists once the list has
+	 * hydrated, so driving it would make the capture depend on input timing, which is the class
+	 * of flake the whole fixed-shot set exists to avoid.
+	 *
+	 * The same seam as `projectId` above and NOT the same mechanism, which is worth stating
+	 * because the two read alike: `RenovationProjectView.mount` writes its own `projectId` field
+	 * over the bundle on every mount, and it does not touch this — the value simply travels in
+	 * the `{ ...this.deps }` spread from whatever composed the bundle. So there is nothing in
+	 * `RenovationProjectView` to change for it, and a composition that sets nothing gets nothing.
+	 * What it shares with `projectId` is the property that matters: the view REMOUNTS per
+	 * navigation, so a per-mount starting value cannot go stale.
+	 *
+	 * OPTIONAL, unlike `projectId`, and the asymmetry is deliberate. `projectId` is required
+	 * because an absent value and `null` mean different things nobody can tell apart at the site
+	 * that branches on them. Here they mean the same thing — the filter starts empty — so an
+	 * omitted field draws exactly the surface every existing mount already draws, which is the
+	 * behaviour every construction site of this bundle is entitled to keep.
+	 */
+	readonly initialQuery?: string;
+	/**
 	 * Go to a project, or back to the list with `null`. The ONE writer of that state.
 	 *
 	 * It is a `setViewState` round trip rather than a store mutation, and that round trip is

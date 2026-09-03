@@ -495,11 +495,19 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 					zero render identically, so a forgotten one would draw no notice and say
 					nothing.
 				-->
+				<!--
+					`initial-query` is read straight off the context rather than held in a local,
+					unlike `projectId` above: nothing here narrows on it and nothing branches on it,
+					so a local would only be a second name for one read. Absent in every production
+					composition — see the field's own docblock for why the browser harness is the one
+					caller and what it buys.
+				-->
 				<ProjectList
 					v-else
 					:projects="projects"
 					:unreadable="unreadable"
 					:continue-project="continueProject"
+					:initial-query="context.initialQuery"
 					@open="onOpenProject"
 					@open-note="onOpenNote"
 					@create="onCreateProject"

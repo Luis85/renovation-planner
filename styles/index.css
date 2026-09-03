@@ -35,6 +35,20 @@
  * untouched by anything here.
  */
 @import "./project-list.css";
+/*
+ * AFTER `project-list.css`, and load-bearing for the same reason that file's own position is:
+ * the Continue row's rules override shared row declarations from `list-row.css`, and the
+ * `container-name` its narrow rules query is declared in `project-list.css`. It was split out
+ * of that file in Task 12 because the file had reached the 400-line cap exactly — a budget,
+ * not a new organising idea; `continue-row.css`'s own header carries the seam's argument.
+ */
+@import "./continue-row.css";
+/*
+ * The filter line, split out of `project-list.css` in the same task and for the same reason.
+ * Its position here is NOT load-bearing — every selector in it names a class no other partial
+ * declares — so it sits beside its siblings for a reader's sake rather than the cascade's.
+ */
+@import "./project-filter.css";
 @import "./project-list-overlap.css";
 @import "./notices.css";
 @import "./project-detail.css";

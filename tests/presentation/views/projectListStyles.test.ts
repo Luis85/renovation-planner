@@ -47,9 +47,13 @@ describe('project-list.css', () => {
 	 * for where it lives. `projectListOverlap.test.ts` holds the last of them.
 	 *
 	 * `rp-project-row` itself is in the list: this sheet is its ONLY declarer, so nothing else
-	 * would notice it being renamed. So are the five `rp-project-filter__*` names and
-	 * `rp-project-row__match`, which arrived with the filter line and which no other sheet
-	 * touches.
+	 * would notice it being renamed. So is `rp-project-row__match`, which arrived with the
+	 * filter line and which no other sheet touches.
+	 *
+	 * The five `rp-project-filter*` names LEFT this list in Task 12, when they left this sheet:
+	 * `styles/project-filter.css` declares them now and `projectFilterStyles.test.ts` is what
+	 * holds them. They are not merely dropped — a name removed from a list is a name nothing
+	 * checks, which is the failure `harness-shot.test.ts`'s own fixed-shot list had.
 	 *
 	 * `.rp-view-notice` is deliberately NOT here even though `ProjectList` emits it since the
 	 * filter line's task: `view.css` declares it, and it moved COMPONENT without moving sheet.
@@ -63,11 +67,6 @@ describe('project-list.css', () => {
 			'rp-project-row__tick',
 			'rp-project-row__tick--reached',
 			'rp-project-row__match',
-			'rp-project-filter',
-			'rp-project-filter__label',
-			'rp-project-filter__input',
-			'rp-project-filter__count',
-			'rp-project-filter__announcement',
 		]) {
 			expect(declaresClass(cls), `.${cls} is declared as a class of its own`).toBe(true);
 		}
@@ -158,23 +157,6 @@ describe('project-list.css', () => {
 
 		expect(body).toContain('font-weight: var(--font-semibold)');
 		expect(body).not.toContain('color');
-	});
-
-	/**
-	 * VISUALLY HIDDEN, not hidden. The label and the live region must both reach assistive
-	 * technology, and `display: none` (like the `hidden` attribute) takes an element out of the
-	 * accessibility tree along with the picture — which would leave the input with no accessible
-	 * name at all and the announcement unspoken, the two things this pair exists for.
-	 *
-	 * `bodyOf` reaches the shared rule through its SECOND selector, which is the whole body of
-	 * the pair; the label alone would need the first.
-	 */
-	it('hides the label and the announcement from sight without hiding them from assistive technology', () => {
-		const body = bodyOf('.rp-project-filter__announcement');
-
-		expect(body).toContain('clip-path: inset(50%)');
-		expect(body).not.toContain('display: none');
-		expect(body).not.toContain('visibility: hidden');
 	});
 
 	it('is assembled into the shipped sheet', () => {

@@ -420,9 +420,33 @@ which is the same rule the empty state is held to two decisions down.
 writer: `SetRequirementCostOverrideCommand` writes `estimatedCost.override` from a
 caller-supplied `Money` with no currency comparison, which `CLAUDE.md` already records as an
 open residue, reproducible through `RequirementRow.vue`'s cost override. A foreign-currency
-override is therefore reachable today. A summing query that assumed one currency would either
-throw on a real input or silently produce a total in the wrong denomination. Those rows are
-counted out and named.
+override is therefore reachable **in memory** — and that is where this rationale stopped, which
+was not far enough.
+
+**The persistence layer ERASES that mismatch, so the state this paragraph rested on never
+reaches the summary.** Verified at the mapper: `requirementToPersistence` takes
+`const currency = requirement.calculatedFrom.unitCost.currency` — ONE currency for the whole
+note — and `moneyOrNull` writes the override's AMOUNT alone; on the way back, `derivedMoney`
+rebuilds `calculated` and `override` from that single `dto.currency`. A foreign-currency override
+round-trips as a same-currency one. **An in-memory test of this case would have passed while
+production could not produce it**, which is the shape of a test agreeing with its own fixture.
+
+**`unsummable` survives, on a different and better-grounded mechanism**: the row's own currency
+against the PROJECT's. A requirement note carries one `currency` key, and nothing keeps it equal
+to the project's — three ways it parts, all of which survive a round trip because they are what
+is written:
+
+- A project's `currency` is hand-edited, or its note has no `currency:` key at all and the
+  plugin's `defaultCurrency` setting changes, which `CLAUDE.md` records as re-denominating every
+  legacy project.
+- A requirement note is hand-edited.
+- An `AssetPriceOverride` is set in another currency — its constructor states that *"the
+  project's currency is deliberately NOT checked here"* — and `resolveEffectiveUnitCost` feeds it
+  into the derivation, so it becomes that note's `currency` and differs from the project's.
+
+So a summing query still meets rows it cannot add, and still must count them out rather than
+throw or silently mis-denominate. The field is unchanged; only the reason it exists is, and the
+old reason would have sent an implementer to write a test that could not fail.
 
 **The `main` merge added a SECOND reachable door, and it is the broader of the two.**
 `AssetPriceOverride`'s constructor says so itself: *"The project's currency is deliberately NOT
@@ -1204,6 +1228,7 @@ mistake, per this repository's rule.
 | Summary | a row whose ASSET note cannot be read contributes to the total WHEN NO EXCLUSION APPLIES, reads `stale`, and carries `missingTarget: null` | excluding it understates the project invisibly; `missingTarget: 'asset'` reports a deletion that did not happen; and an unqualified "IS in the total" contradicts the intersection row below it, which is the same flat claim this document has now had to retire in six places |
 | Summary | the same row is counted in `unreadableReferents` and the strip does not offer it as recalculable | "needs recalculating" is an instruction that cannot be followed for this row |
 | Summary | a row that is both stale and currency-mismatched is counted in BOTH and summed into NEITHER | the flat reading of `stale` attempts the mismatched addition |
+| Summary | the mismatch fixture is a row whose OWN `currency` differs from the project's, written through the vault | a foreign-currency cost OVERRIDE is re-denominated by `requirementToPersistence`, so an in-memory fixture of it tests a state production cannot reach |
 | Summary | a row that is both unreadable-referent and currency-mismatched is counted in BOTH and summed into NEITHER | the same flat reading, re-derived one count over — the exclusions decide membership, never the state counts |
 | Summary | a malformed requirement in ANOTHER project is invisible here | an unscoped walk both faults on it and miscounts it |
 | Commands | `DeleteZoneCommand` still refuses when a referent cannot be read | widening the shared `listByZone` lets it delete a zone whose referent it never saw |

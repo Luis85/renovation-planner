@@ -11,7 +11,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
-import { parse as parseSfc } from '@vue/compiler-sfc';
+import { parse as parseSfc, compileTemplate } from '@vue/compiler-sfc';
 import { transform } from 'lightningcss';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
@@ -68,17 +68,37 @@ const stylesOf = (file: string, text: string): StyleBlock[] =>
 			}))
 		: [];
 
+/**
+ * A TEMPLATE is executable too, and that is not a technicality: Vue compiles
+ * `@click="import('./theme.css')"` into render code containing a live
+ * `onClick: $event => (import('./theme.css'))` — measured, not assumed — so a template-only SFC
+ * with no script block at all can load a stylesheet when the handler runs. The runtime check
+ * elsewhere in this file mounts entries and never clicks anything, so nothing else would see it.
+ *
+ * Compiled with the real template compiler and then scanned with the real TS parser, which is
+ * the same move this file has now made three times. The generated code is plain JS, so it is
+ * handed the JS script kind rather than the SFC's own `lang`.
+ */
 const scriptsOf = (file: string, text: string): Script[] => {
 	if (!file.endsWith('.vue')) {
 		return [{ content: text, kind: KIND_BY_EXTENSION.get(path.extname(file)) ?? ts.ScriptKind.TS }];
 	}
 	const { descriptor } = parseSfc(text, { filename: file });
-	return [descriptor.script, descriptor.scriptSetup]
+	const blocks: Script[] = [descriptor.script, descriptor.scriptSetup]
 		.filter((block): block is NonNullable<typeof block> => block !== null)
 		.map((block) => ({
 			content: block.content,
 			kind: KIND_BY_LANG.get(block.lang ?? '') ?? ts.ScriptKind.TS,
 		}));
+	if (descriptor.template !== null) {
+		const rendered = compileTemplate({
+			id: file,
+			filename: file,
+			source: descriptor.template.content,
+		});
+		blocks.push({ content: rendered.code, kind: ts.ScriptKind.JS });
+	}
+	return blocks;
 };
 
 const namesStylesheet = (node: ts.Node): boolean => {

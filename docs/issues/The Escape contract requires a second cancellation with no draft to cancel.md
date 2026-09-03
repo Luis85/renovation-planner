@@ -62,7 +62,7 @@ ToolManager test proving the pair settles exactly once.
 
 ## What closed it
 
-**2026-09-04.** §6.3 amended (R2); holding assertion `expect(d.cancelGesture).not.toHaveBeenCalled()` in 'a drawing tool WITHOUT a draft returns to Select through setTool alone'.
+**2026-09-04.** §6.3 amended (R2); holding assertion `expect(d.cancelGesture).not.toHaveBeenCalled()` in 'a drawing tool WITHOUT a draft returns to Select through setTool alone'. Commit `19774858`, "docs(spec): rule on the four contract conflicts the review found, and pin the no-draft Escape arm".
 
 ## References
 

@@ -62,7 +62,7 @@ closing evidence to cite the amended rule rather than a deviation.
 
 ## What closed it
 
-**2026-09-04.** §6.3 amended to the implemented order (R1); holding test `escapeRouting.test.ts` 'Select mid-drag cancels the drag before it would clear the selection'.
+**2026-09-04.** §6.3 amended to the implemented order (R1); holding test `escapeRouting.test.ts` 'Select mid-drag cancels the drag before it would clear the selection'. Commit `19774858`, "docs(spec): rule on the four contract conflicts the review found, and pin the no-draft Escape arm".
 
 ## References
 

@@ -225,6 +225,25 @@ const claim = () => {
  * legitimately holding `LOCK`; removing it then would hand a third gate the path while that
  * holder still ran, which is the reported defect one step further on. Reading the nonce
  * first makes that case a no-op instead.
+ *
+ * RESIDUE, reported and deliberately not patched. The read and the `rm` are two operations,
+ * so ownership can change between them: if this process is descheduled after the read while
+ * a waiter reclaims, the `rm` removes that waiter's PLACEHOLDER rather than our lock, and
+ * the waiter then puts a finished holder's directory back at `LOCK`. The consequence is a
+ * stall until `STALE_MS`, not the overlap this file exists to prevent — and it is
+ * self-clearing, because the restored directory is exactly the stale lock the next reclaim
+ * is for. Reaching it needs this process descheduled between two adjacent statements for as
+ * long as a whole gate takes to claim, run and reach its own release.
+ *
+ * It is not patchable in the shape below, and the reason is worth stating once because four
+ * review rounds have now circled it. The placeholder `occupy` puts up must be EMPTY, because
+ * that is the only thing `rename` can atomically replace — and an empty directory is exactly
+ * what another process's brand-new claim looks like between its own `mkdirSync` and
+ * `writeFileSync`. Atomicity requires the placeholder be indistinguishable from a fresh
+ * claim; safety requires telling them apart. No ordering resolves that, and every remedy
+ * reachable from `node:fs` reduces to a check-then-act somewhere else. Closing the class
+ * means changing the MECHANISM — dropping automatic reclamation, or holding exclusion in
+ * something the kernel releases on death rather than in a directory.
  */
 const release = () => {
 	try {

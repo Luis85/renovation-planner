@@ -555,13 +555,25 @@ it('announces the restore, so create/undo/redo no longer emits one create and tw
 	expect(seen).toEqual(['created', 'deleted', 'created', 'deleted']);
 });
 
+// **Seed the referent AFTER the undo, and the ordering is load-bearing rather than
+// stylistic.** `ReversibleCreateZoneCommand.undo()` dispatches `DeleteZoneCommand` with
+// `{ zoneId, expected }` and NO `resolution`, and `applyResolutionToRequirement`'s
+// `case undefined` refuses with `reference.resolution-required` whenever live referents
+// exist. So seeding first makes the undo refuse, the zone stay, and the next `execute()`
+// attempt an `'absent'` restore that also refuses — a test that cannot pass against any
+// implementation of this task. Reported against the first draft, which did exactly that.
+//
+// Seeding after the undo is the honest reconstruction of the case anyway: the scenario is a
+// HAND-EDITED requirement pointing at a zone id, which is a thing that appears in the vault
+// independently of this gesture, not a referent the delete path ever consented to.
 it('reaches a dependent in ANOTHER project, which the zone event cannot name', async () => {
 	const rig = await createZoneAdapterRig();
 	await rig.adapter.execute();
+	const zoneId = rig.adapter.createdZoneId!;
+	await rig.adapter.undo();
 	// A hand-edited requirement in project A whose origin zone lives in project B: the
 	// residue Decision 3 accepts as honest, and the one row ZoneCreated's filter drops.
-	const foreign = await rig.seedRequirementInOtherProject(rig.adapter.createdZoneId!);
-	await rig.adapter.undo();
+	const foreign = await rig.seedRequirementInOtherProject(zoneId);
 
 	const seen: unknown[] = [];
 	rig.events.subscribe('RequirementInvalidated', (event) => { seen.push(event); });
@@ -1937,25 +1949,50 @@ publish*, but *is this path in the table at all*:
  */
 ```
 
-**Discover ADAPTERS, not modules — and this correction is the reason the table above grew six
-rows.** Reported against the first draft, which discovered files: `ReversibleAssetDesignCommands.ts`
-holds THREE adapter classes (`ReversibleAssetGeometryEdit`, `ReversibleAssetNoteEdit`,
-`ReversibleAssetBackgroundEdit`), so a new silent adapter added to that file leaves the
-discovered MODULE set unchanged and every existing row green — the identical granularity defect
-as the per-file sweep, surviving in the half of the instrument that was supposed to be the safe
-one.
+**Over-discover and force an explicit disposition — the fifth granularity finding is what
+retired the discover-precisely approach.** Reported, and both halves verified at the source:
 
-Verified at the source before this paragraph was written, and it is worse than reported in one
-way that decides the implementation: **none of those three classes is exported.** A scan keyed
-on `export class` finds only `ReversibleAssetDesignCommands`, the facade. So the walk must find
-CLASS DECLARATIONS with both an `execute` and an `undo` member, exported or not, and require a
-row per class PER DIRECTION — `<ClassName>::execute` and `<ClassName>::undo` — not per file and
-not per class.
+- **The scan root was wrong.** `ReversibleMoveZoneCommand` is declared at
+  `src/presentation/editor/tools/reversible-move-zone-command.ts:63` and `implements
+  UndoableCommand`. A walk over `src/application/**` cannot see it at all.
+- **A declaration scan cannot see an INHERITED member.** `ReversibleOverrideBase` is abstract
+  and declares `execute` and `undo`; `ReversibleSetRequirementQuantityOverrideCommand` and
+  `ReversibleSetRequirementCostOverrideCommand` extend it and declare NEITHER. So the walk finds
+  the abstract base and misses both concrete adapters — the ones the census is about.
 
-Assert the discovery found a non-trivial number, because an instrument that reaches nothing
-looks exactly like a clean tree. And assert the count is at least what the table above
-enumerates, so a walk that silently stops finding the unexported ones fails rather than
-shrinking to agree with itself.
+Chasing those two would be the fifth refinement of one idea in six rounds (file → function →
+module → class → layer-and-inheritance), and each refinement has been correct about the axis it
+was given and blind to the next. **So the discovery inverts to the posture the rest of this file
+already takes: over-refuse rather than under-refuse.**
+
+Discovery is deliberately CRUDE and over-inclusive: every file under `src/**` whose text
+contains a member named `undo`. That needs no class resolution, no inheritance graph and no
+layer list, so none of the five axes above can hide anything from it. Every discovered file must
+then carry an explicit entry in a `DISPOSITIONS` map:
+
+```ts
+/**
+ * Every file in `src/**` that mentions an `undo` member, and what the census does about it.
+ * Two shapes, and a file must be one of them:
+ *
+ *   'rows: ClassA::execute, ClassA::undo, ClassB::undo'   — covered by the table above
+ *   'not an adapter: <reason>'                            — e.g. CommandHistory, which CALLS undo
+ *
+ * Asserted by EXACT KEY SET in both directions: a file with no entry fails, and an entry for a
+ * file that no longer exists fails. That is what makes a NEW adapter — in any layer, declaring
+ * its members or inheriting them — fail here until somebody writes its rows.
+ *
+ * Crude on purpose. Precise discovery was tried and reported wrong five times, each time on an
+ * axis the previous fix had not thought of; this one cannot be wrong about an axis because it
+ * does not model one.
+ */
+```
+
+Assert the discovery found a non-trivial number of files, because an instrument that reaches
+nothing looks exactly like a clean tree. **And assert that every class named in a `rows:`
+disposition actually appears in the census table**, so a disposition cannot claim coverage the
+table does not provide — the two halves must agree or the check is a pair of lists nodding at
+each other.
 
 **The carve-out stays and keeps its exact-key-set assertion.** `ReversibleSetPlanBackground` is
 in the table with "nothing" as its expected events and a reason: a background is not a cost
@@ -1975,11 +2012,16 @@ adapter the table omits, the table was wrong — add it.
 The enumeration check is the cheap half and it fails immediately (the table starts empty).
 Then watch it fail the two ways that matter, which is what the first draft could not do:
 
-1. Add a fake adapter CLASS to an already-enumerated file — `ReversibleAssetDesignCommands.ts`
-   is the right one, since it already holds three — and confirm it is reported as unenumerated.
-   A module-granular check passes this; that is the whole finding.
-2. Add a fake adapter class that is NOT exported, and confirm it is still found. Three of the
-   real ones are module-private, so an `export class` scan would miss the majority of them.
+1. Add a fake adapter class to an ALREADY-DISPOSED file — `ReversibleAssetDesignCommands.ts`,
+   which already holds three — and confirm the `rows:`/table cross-check reports the class as
+   uncovered. A module-granular check passes this; that was finding four.
+2. Add a fake adapter in `src/presentation/**` that INHERITS `execute`/`undo` from a base and
+   declares neither, and confirm the file is still reported as undisposed. That is finding five,
+   both of its halves at once — wrong layer and inherited members — and it is the mutation the
+   declaration-based draft could not survive.
+3. Delete a `DISPOSITIONS` entry whose file still exists, and confirm the exact-key-set
+   assertion fails; then add one for a file that does not exist, and confirm it fails the other
+   way.
 
 - [ ] **Step 3: Write the rows**
 
@@ -2098,19 +2140,38 @@ project's note against this project.
 
 - [ ] **Step 1: Write the failing tests**
 
+**The matrix was wrong in the first draft and the correction is the point of having one.**
+Both `createRepositoryStack` (`tests/helpers/vault.ts:611`) and `openFixtureVault`
+(`tests/helpers/fixtureVault.ts:584`) construct `new ObsidianRequirementRepository(...)` — the
+first over `FakeVault`, the second over a disk-backed vault. So a matrix of those two compares
+one implementation against itself over two hosts, and `InMemoryRequirementRepository.listByProject`
+would have shipped with **no behavioural coverage at all** under a comment claiming both were
+compared. An in-memory implementation returning every project's requirements passes that suite.
+Reported by review.
+
+Three cases, not two, and they are not interchangeable: the in-memory repository is exercised
+DIRECTLY, and the unreadable-note behaviour stays on the vault-backed rows, because a repository
+with no notes behind it has no malformed note to refuse.
+
 ```ts
-// Run against BOTH implementations, so the two cannot answer differently.
+// The two REAL implementations, plus the second host. `createRepositoryStack` and
+// `openFixtureVault` both build ObsidianRequirementRepository — over FakeVault and over disk —
+// so listing only those two compares one implementation against itself.
 describe.each([
-	['in-memory', createRepositoryStack],
-	['obsidian', openFixtureVault],
+	['in-memory', openInMemoryRequirements],   // InMemoryRequirementRepository, directly
+	['obsidian/fake-vault', createRepositoryStack],
+	['obsidian/disk', openFixtureVault],
 ])('listByProject (%s)', (_name, open) => {
 	it('returns this project’s requirements and nothing else', async () => { /* … */ });
 
-	it('counts an unreadable note instead of refusing the whole list', async () => {
+	// The two unreadable-note cases are VAULT-BACKED ONLY — skip them for the in-memory row
+	// rather than faking a refusal into it. A repository with no notes behind it cannot produce
+	// a malformed one, and a stub that pretends to would be testing the stub.
+	it.runIf(hasVault)('counts an unreadable note instead of refusing the whole list', async () => {
 		// The difference from listByZone, and the reason this method exists.
 	});
 
-	it('counts only THIS project’s unreadable note', async () => {
+	it.runIf(hasVault)('counts only THIS project’s unreadable note', async () => {
 		// Two malformed notes, one per project. Unscoped ids would count both.
 	});
 

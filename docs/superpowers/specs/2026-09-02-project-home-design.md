@@ -927,7 +927,8 @@ this project's total is built from move".
 `Zone.events.ts` and `Requirement.events.ts`:
 
 `PlanCreated`, `ZoneCreated`, `ZoneDeleted`, `ZoneGeometryChanged`, `RequirementCreated`,
-`RequirementRecalculated`, **`RequirementDeleted`**, **`AssetPriceOverrideChanged`**.
+`RequirementRecalculated`, **`RequirementDeleted`**, **`RequirementRestored`**,
+**`AssetPriceOverrideChanged`**.
 
 **`AssetPriceOverrideChanged` arrived with the `main` merge, and its absence was a real gap
 rather than a stale sentence.** Slice 20's second half makes a project's own price for a shared
@@ -943,6 +944,19 @@ list having been made canonical two rounds earlier.
 `RequirementDeleted` is the event this increment mints below, and it was missing from this list
 for one round — **specified as published and never subscribed to**, which is the shape of
 mistake that makes a whole feature a no-op while every part of it reads correct in isolation.
+
+**`RequirementRestored` then did exactly the same thing, one round after that sentence was
+written, three lines above where it belonged.** Reported. It was minted, given two publishers
+across two commits, and named in a test row promising that a status-only recovery reaches an open
+Overview — while this list, the only place anything SUBSCRIBES, went untouched. So the promised
+test could not have passed: `CostEstimateChanged` is deliberately silent on that path and
+`RequirementRestored` was the sole signal, heard by nobody.
+
+The lesson is not "remember the list". It is that **minting an event has two ends and finishing
+one of them leaves a feature that reads correct in every file** — the publisher is right, the
+payload is right, the subscriber list is right about every event it names. Nothing is wrong
+anywhere; the two halves simply never meet. Both times the miss was in the same list, and both
+times a paragraph naming the hazard was already on the page.
 It carries the same `RequirementEventPayload` its siblings do, so it filters by project.
 
 `ZoneGeometryChanged` is in that list for the reason the whole product exists: an area is an
@@ -1560,6 +1574,7 @@ mistake, per this repository's rule.
 | Zone restore reaches dependents | a redone zone creation publishes a requirement-level event per referent, including one whose own `projectId` differs from the zone's | nothing subscribes to `ZoneCreated`, so a restore runs no cascade, and the event names the zone's project — a dependent in another project keeps a `missingTarget` badge that a fresh read would already have cleared |
 | Summary | a stale row blocked by a precondition other than a referent's state is counted in `blocked` and carries its own badge | narrowing `recalculable` took those rows out of "needs recalculating" and left them qualified by nothing while their cost stayed in the total — the `missingTargets` lesson, repeated one field over |
 | View state | `getState` round-trips the section: set Design, serialize, parse, and land on Design | the serializer was the one member of the pair the plan did not name, and without it every saved layout reopens on Overview |
+| Summary subscribes | `createProjectSummaryChangeSource` forwards a `RequirementRestored` for THIS project and drops one for another | the publisher and the subscriber are separate halves and a test of either alone passes while the pair does nothing; this is the half that was missing for `RequirementDeleted` and then again for `RequirementRestored` |
 | Undo publishes | a `delete-anyway` undo that returns a requirement to `current` without moving its cost raises `RequirementRestored`, and project A's summary refreshes although the zone event names B | the cost helper is correctly silent and `ZoneCreated` is correctly filtered, so nothing else can reach A — the gap a "publishes for the requirements it restores" wording hid for three rounds |
 | Recovery publishes | a `written` restore that changes NO figure still raises `RequirementRestored`, so a status-only restore reaches an open Overview | `publishIfEffectiveCostChanged` correctly says nothing when the cost is unchanged, and `delete-anyway`'s stale marking is undone by exactly such a restore — the counts this increment makes live would otherwise stay wrong for the life of the leaf |
 | Recovery publishes | a restored requirement raises `RequirementCreated` for an `'absent'` entry, and for a `'written'` one goes through `publishIfEffectiveCostChanged` with `previous` READ LIVE before the save — including the case where the figures match and nothing is published | recovery writes after `projectIndexRebuilt()` has already fired and its writes suppress their own vault echo, so an Overview mounted at startup is stale for the life of the leaf with nothing able to correct it |

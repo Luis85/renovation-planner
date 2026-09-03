@@ -1095,6 +1095,35 @@ The increment therefore makes the reversible adapters announce. Concretely:
 - `DeleteAsset`'s resolution paths publish requirement-level events rather than leaving
   `assetDeleted({ assetId })` — which carries no project id — to stand for them.
 
+**A restored zone announces in the WRONG PROJECT, and that is the mirror of a case this
+decision already answers.** Reported, and verified at the source: nothing subscribes to
+`ZoneCreated` at all — the only cascade handlers are `onZoneGeometryChanged`,
+`onAssetPriceOverrideChanged` and `onAssetUpdated` — so a restore triggers no requirement
+recalculation, and the event carries the ZONE's project. Take Decision 3's accepted residue, a
+hand-edited requirement in project A whose `origin.zoneId` sits in project B: undoing that
+zone's creation reaches A through the resolution's requirement-level events, and REDOING it
+emits `ZoneCreated` for B alone. A's filter drops it.
+
+**The badge that survives is stale UI rather than an accurate reading**, which is what makes it
+worth fixing rather than tolerating. `missingTarget` is derived per read from whether the origin
+zone loads; once the zone is back a fresh read clears it. Only the open pane still shows the old
+answer, and it shows it until the leaf is remounted.
+
+So the replayed side publishes a requirement-level event per referent, found through the same
+referencing query the delete path already uses. **The adapter cannot supply that set from what it
+holds** — `ReversibleCreateZoneCommand` retains `snapshot: Loaded<Zone>`, the zone and nothing
+else, and its `undo` dispatches `DeleteZoneCommand`, which resolves the referents internally and
+hands none of them back. So this is a new dependency on the adapter rather than bookkeeping it
+already has, and the Files list says so.
+
+**Unfiltering `ZoneCreated` is the cheap alternative and is declined**, for the reason this
+decision already gives about zone events: it makes every project's summary re-read on any zone
+edit anywhere in the vault, which is sync traffic, to serve a state only a hand edit produces.
+The per-referent publish costs one reverse lookup on a USER GESTURE — a redo in an editor leaf,
+not a synced note — and that asymmetry is the whole argument for affording it here and not there.
+It duplicates for same-project referents, which `ZoneCreated` already covered; a redundant
+re-read of a project-scoped query is the price of covering the one referent it did not.
+
 **One event has to be minted.** The vocabulary is `RequirementCreated`, `RequirementRecalculated`
 and `RequirementInvalidated`, and none means "this row is gone", so the assign adapter's `undo`
 has nothing to publish. `RequirementInvalidated` is the tempting substitute and it says something
@@ -1380,6 +1409,7 @@ mistake, per this repository's rule.
 | Coalescing | a slower earlier read cannot overwrite a later one | without the request ticket a just-recalculated figure reverts |
 | Coalescing | disposing inside the debounce window performs NO summary read | unsubscribing does not cancel a scheduled callback, so an unmounted section keeps paying the walk this section exists to bound; asserted on reads, since a listener-count assertion passes against a live timer |
 | Sweep | every module under `src/application` that WRITES also publishes, is a helper whose caller does, or is a NAMED carve-out | the adapter-only filter is a sample and so was the metric; asked the wider way the census returns thirteen, and the prose under it first accounted for eleven — the test is what stops an enumeration drifting from its own count |
+| Zone restore reaches dependents | a redone zone creation publishes a requirement-level event per referent, including one whose own `projectId` differs from the zone's | nothing subscribes to `ZoneCreated`, so a restore runs no cascade, and the event names the zone's project — a dependent in another project keeps a `missingTarget` badge that a fresh read would already have cleared |
 | Recovery publishes | a restored requirement raises `RequirementCreated` for an `'absent'` entry and `CostEstimateChanged` otherwise, with `projectId` from the snapshot | recovery writes after `projectIndexRebuilt()` has already fired and its writes suppress their own vault echo, so an Overview mounted at startup is stale for the life of the leaf with nothing able to correct it |
 | Recovery is composed | `RecoveryDeps.events` is REQUIRED and the plugin's call site passes it | an optional collaborator makes a composition that forgets it compile, pass and say nothing — the `CascadeDeps.notify` shape this document already records |
 | Price overrides | a refused `overrides.listByProject` leaves every row in that project IN, summed, `stale`, and counted in `unreadableReferents` | `hydrate` refuses on the first unreadable override, so this is the one referent read whose failure is project-wide rather than per-row; wiring it per-row qualifies one row and silently vouches for the rest |
@@ -1430,7 +1460,9 @@ list above.
 `RenovationProjectDeps` gains `openDiagnostics` and the composition root binds it (Decision 8);
 FOUR of the five reversible adapters that write and publish nothing —
 `reversible-create-zone-command.ts`, `reversible-delete-zone-command.ts`,
-`reversible-assign-asset-command.ts`, `reversible-override-commands.ts`; the fifth,
+`reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — the create-zone
+adapter additionally gaining the referencing query, since it retains the zone snapshot alone and
+can name no referent without it; the fifth,
 `ReversibleSetPlanBackground`, is the named carve-out and is deliberately NOT changed, so the
 count and the enumeration agree here rather than saying five and listing four — plus
 `DeleteAsset.ts`, `reference/deleteResolution.ts`,

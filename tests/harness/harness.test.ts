@@ -154,43 +154,58 @@ const namesStylesheet = (node: ts.Node): boolean => {
 	return false;
 };
 
-/** The characters that make a glob segment a PATTERN rather than a name. */
-const GLOB_WILDCARDS = '*?{}[]';
+/**
+ * The characters an ordinary filename tail is made of. An ALLOW-list, not a list of glob
+ * metacharacters, and that is the whole point of it — see `literalTailOf`.
+ */
+const LITERAL_TAIL = /[A-Za-z0-9._/-]*$/;
+
+/**
+ * The pattern's trailing run of ordinary filename characters — the part that is the same in
+ * every path the glob can match, so the only part that can pin a match's extension.
+ *
+ * **Written as an allow-list because the deny-list version was a treadmill, and it shipped
+ * one round of that treadmill first.** The first version carried an alphabet of glob
+ * metacharacters (`*?{}[]`) and was immediately reported for extglobs: `./themes/*.@(css|js)`
+ * matches `themes/theme.css`, and against that alphabet the tail reads as the fixed string
+ * `.@(css|js)`, which does not end in `.css` — so the pattern was declared PROVEN CSS-FREE and
+ * the sheet stayed reachable with the case green. Measured before fixing, not reasoned about.
+ *
+ * Adding `(` and `)` would have closed the report and left the class open, which is exactly
+ * what this file's own regex history did nine times: each round named one more lexical
+ * construct and every intermediate version failed silently. So the question is inverted. A tail
+ * is literal only while every character in it is one a plain filename is made of; ANY other
+ * punctuation ends it, whether or not this author knew what that punctuation meant. Extglobs,
+ * braces, classes, POSIX classes and whatever picomatch grows next are all covered by not being
+ * letters.
+ *
+ * Deliberately conservative in the one direction that is safe: an unrecognised character
+ * shortens the tail, which can only move a pattern from "proven CSS-free" to "counts". This
+ * check's whole job is that a stylesheet must be UNREACHABLE, and over-refusing costs an
+ * argument while under-refusing is the silent pass.
+ */
+const literalTailOf = (pattern: string): string =>
+	(LITERAL_TAIL.exec(pattern)?.[0] ?? '').toLowerCase();
 
 /**
  * A glob names a SET, and whether that set holds a stylesheet is a fact about the files on disk
  * rather than about the pattern's last four characters. `import.meta.glob('./themes/*')` loads
- * `themes/theme.css` when a loader is called, and `isStylesheetSpecifier` says no to it because
- * the text ends in `*`; a brace list is the same hole one character further along. Reported
- * against a scan that tested a pattern as if it were a specifier — the mistake this file keeps
- * making in new places: asking of the TEXT a question only answerable about what it RESOLVES to.
+ * `themes/theme.css` when a loader runs, and a plain `.endsWith('.css')` says no to it because
+ * the text ends in `*`. Reported against a scan that tested a pattern as if it were a specifier
+ * — the mistake this file keeps making in new places: asking of the TEXT a question only
+ * answerable about what it RESOLVES to.
  *
  * Resolving the glob against the tree was the reported remedy and is deliberately not what this
  * does: that buys a glob engine plus an answer that moves with the files present at scan time,
  * to decide a question this file already has a standing preference about. The pattern is asked
- * whether it can be PROVEN CSS-free instead. Only a literal tail after the last wildcard pins a
- * match's extension, so a pattern ending `.vue` is proven while a bare `*`, a `**` and a brace
- * list are not — and anything unproven counts. Over-refusing costs an argument; under-refusing
- * is the silent pass, which is the same trade `isStylesheetSpecifier` records for `?raw`.
- *
- * Case-folded in the refusing direction for that same reason.
+ * whether it can be PROVEN CSS-free instead — only a literal tail pins a match's extension — and
+ * anything unproven counts.
  */
 const mayMatchStylesheet = (pattern: string): boolean => {
-	const lastWildcard = Math.max(...[...GLOB_WILDCARDS].map((char) => pattern.lastIndexOf(char)));
-	const tail = pattern.slice(lastWildcard + 1).toLowerCase();
+	const tail = literalTailOf(pattern);
 	return !tail.includes('.') || tail.endsWith('.css');
 };
 
-/**
- * `import.meta.glob(['./a/*.css', '!./a/skip.css'])` — Vite's multi-pattern form. A `!` prefix
- * EXCLUDES, so a negative pattern names nothing that gets loaded and must not count; treating
- * it as an import would refuse a file for the very pattern keeping the sheet out.
- *
- * A pattern Vite cannot resolve statically — a template carrying a substitution — reaches
- * `isStringLiteralLike` as false and counts as nothing, which is right rather than a gap: Vite
- * REFUSES a non-literal glob pattern outright, so it loads no module at all. A backtick pattern
- * with no substitution is a literal and is covered.
- */
 const globNamesStylesheet = (node: ts.Node): boolean =>
 	(ts.isArrayLiteralExpression(node) ? [...node.elements] : [node]).some(
 		(element) =>

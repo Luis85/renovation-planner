@@ -715,7 +715,7 @@ export function createAssetLibraryChangeSource(
 | `AssetCreated`, `AssetUpdated` | none | ✓ | — | — | — |
 | `AssetDeleted` | none | ✓ | the id | — | **the id** |
 | `AssetDesignChanged` | none | ✓ | the id | **the id** | — |
-| `GeometrySidecarChanged` | none | — | the id | the id | — |
+| `GeometrySidecarChanged` | `entityType === 'renovation-asset'` | — | the id | the id | — |
 | `ProjectIndexEntryChanged` | `entityType === 'renovation-asset'` | ✓ | the id | — | **the id** |
 | `ProjectIndexRebuilt` | none | ✓ | — | — | — |
 | `ProjectIndexExclusionChanged` | `entityType === 'renovation-asset'` | ✓ | — | — | — |
@@ -724,13 +724,21 @@ export function createAssetLibraryChangeSource(
 
 `AssetCreated` and `AssetUpdated` carry no `marks`: neither touches geometry. `GeometrySidecarChanged` carries no `catalogue`: a sidecar is not in the note.
 
-**Unfiltered on the two design events and filtered on the two index events, deliberately.** A design event names one asset and is always about geometry this surface draws. An index event does not: unfiltered, a burst of synced zone notes would clear every mark on screen.
+**Three of the five are FILTERED, and the first version of this paragraph got the split wrong.** It said "unfiltered on the two design events and filtered on the two index events", justifying the first half with *"a design event names one asset and is always about geometry this surface draws"*. That is true of `AssetDesignChanged`, whose payload carries an `assetId` — and false of `GeometrySidecarChanged`, which a PLAN's `.rpgeo` raises too: `VaultChangeAdapter` publishes `geometrySidecarChanged({ entityId: entry.id, entityType: entry.type })` for whatever entry the sidecar belongs to. Unfiltered, a plan sidecar edited by hand or arriving through sync would have this surface invalidate the mark and the design read of an asset whose id happens to equal that plan's.
+
+`createAssetDesignChangeSource` already filters that exact event on `entityType === 'renovation-asset'` — the shared-event problem is solved three files away and the plan proposed to re-open it. **Copy the filter rather than restating the reason.** Reported by a review bot against this plan; an index event has the same hazard for the same reason, which is why a burst of synced zone notes must not clear every mark on screen.
 
 **`AssetDesignChanged` refreshing the catalogue is the arm that is easy to miss**, because the event's name says *design*. Two of the five design commands write the note — `SetAssetHeight` writes `height`, which the Definition section draws, and `SetAssetBackground` writes the keys behind the Spec sheet row. Both are `CatalogueEntryDto` fields, both publish this event and nothing else, and `VaultChangeAdapter` checks the echo window before announcing so no compensating vault signal arrives. Without this arm a peer leaf's height edit leaves the number stale for the life of the view.
 
 - [ ] **Step 1: Write one failing test per row of that table, plus two negatives**
 
 ```ts
+it('ignores a PLAN sidecar, which raises the same event a asset sidecar does', () => {
+    const heard = collect(source);
+    events.publish(geometrySidecarChanged({ entityId: 'plan-01', entityType: 'renovation-plan' }));
+    expect(heard).toEqual([]);
+});
+
 it('ignores a zone note arriving through the index', () => {
     const heard = collect(source);
     events.publish(projectIndexEntryChanged({ entityType: 'renovation-zone', entityId: 'zone-1' }));
@@ -765,6 +773,7 @@ it('restarts BOTH selection reads when an entry is removed or replaced', () => {
 
 - Drop `catalogue: true` from the `AssetDesignChanged` arm — the design case must go red.
 - Remove the `renovation-asset` filter from `ProjectIndexEntryChanged` — the zone negative must go red.
+- Remove the `renovation-asset` filter from `GeometrySidecarChanged` — the plan-sidecar negative must go red. Without that case the shared event reads as asset-only, which is what the first version of this plan assumed.
 - Move `AssetDesignChanged`'s id from `design` into `replaced` — the case asserting a design edit does NOT restart the referencing read must go red. Without that case the two sets are indistinguishable and the payload is back to the collapsed one this task was corrected for.
 
 All three watched, all three restored.

@@ -1205,6 +1205,18 @@ adapter holds. In `undo`, publish `requirementDeleted(...)` **only** in the `kin
 arm, after the delete succeeds. Pass `events: context.commands.events` at
 `inspector-wiring.ts:118`.
 
+**And fix the stale revision, which is a behavioural bug this task would otherwise ship.**
+Reported against the first draft, which added publication and nothing else. `redoCreate()` saves
+a NEW repository revision, while the `created` outcome still holds the FIRST execute's version —
+so on `execute → undo → redo → undo`, the second undo presents a stale `expected`, the delete
+refuses, and no `RequirementDeleted` is published because the write never happened. The event gap
+is the symptom; the stale version is the cause, and adding the publish without it produces a
+cycle that is silent for a *correct* reason, which is the worst of both.
+
+`redoCreate` must update the recorded version from `saved.value.version`. The case is the FULL
+four-operation cycle — execute, undo, redo, undo — asserting the second undo SUCCEEDS and
+publishes. A two-operation case passes against the stale version and proves nothing about it.
+
 - [ ] **Step 4: Run and watch pass**
 
 Run: `npx vitest run tests/application/commands/requirement/reversibleAssignAsset.test.ts`
@@ -1348,7 +1360,7 @@ per-referent write, and it holds `requirement: Loaded<Requirement>` — so the r
 |---|---|---|---|
 | `remove-references` | `removeRequirement` deleted it | `RequirementDeleted` | the row is gone, which is the claim no existing member made |
 | `delete-anyway` | `markStalePersisted` | `RequirementInvalidated` | a recalculation is now literally what is owed |
-| `reassign` | `repointAndMarkStale` | `RequirementInvalidated` | its figures were derived against the target it no longer points at |
+| `reassign` | `repointAndMarkStale`, then `recalculateInline` | **depends on the recalculation outcome** | see below — announcing unconditionally makes the event false exactly when the recalculation worked |
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1360,7 +1372,8 @@ already covers it — so a same-project test certifies the defect.
 it.each([
 	['remove-references', 'RequirementDeleted'],
 	['delete-anyway', 'RequirementInvalidated'],
-	['reassign', 'RequirementInvalidated'],
+	// `reassign` is NOT in this table — its event depends on the inline recalculation's
+	// outcome and gets its own pair of cases below.
 ] as const)('the %s arm announces %s for a referent in another project', async (resolution, type) => {
 	const rig = await resolutionRig({ resolution, referentInOtherProject: true });
 	const seen: unknown[] = [];
@@ -1452,8 +1465,28 @@ Each arm builds its own, from the referent it already holds:
 		}
 ```
 
-with `delete-anyway` and `reassign` both building
-`requirementInvalidated(requirement.entity.id)`.
+with `delete-anyway` building `requirementInvalidated(requirement.entity.id)`.
+
+**`reassign` cannot answer before it acts, and the first draft had it lying.** Reported: that arm
+repoints, marks stale, and then runs `recalculateInline`. When that recalculation SUCCEEDS,
+`RecalculateRequirementCommand` has already saved the row as `current` and published
+`RequirementRecalculated` itself — so a `RequirementInvalidated` announced afterwards claims a
+recalculation is OWED for a row that is current and freshly derived. That event's own docblock
+defines it as the transient notification that one is owed; publishing it here makes it false at
+the moment it is sent.
+
+So this arm's announcement is chosen from the outcome the step already computes:
+
+- recalculation **succeeded** → announce NOTHING from here. The recalculate command published
+  `RequirementRecalculated`, and `CostEstimateChanged` if the figure moved. A second event would
+  be a duplicate or a contradiction.
+- recalculation **refused** → `RequirementInvalidated` is truthful: the row was repointed, its
+  stale marker is persisted, and a recalculation is genuinely still owed. This is the failure the
+  existing code already logs as `requirement.reassignment-recalculation.failed` and deliberately
+  does not fail the sequence for.
+
+Two cases, one per outcome, and the second drives a REFUSING `recalculateInline` — a single
+success case passes against a build that always invalidates, which is the defect being fixed.
 
 `applyAll` collects the announcements beside the progress entries; `runDeleteResolution`
 publishes them **after `deleteEntity` has returned ok** — the sequence's last mutation, and the

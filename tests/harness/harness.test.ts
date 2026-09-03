@@ -299,9 +299,9 @@ const importUrlsOf = (filename: string, code: Buffer): string[] => {
  * permitted style block carries only stylesheets.
  */
 /**
- * Whether a CSS-MODULE block depends on another file — `composes: base from './theme.css'`, and
- * `@value brand from './theme.css'`, both of which Vite loads and neither of which the
- * `Rule.import` visitor can see, because both are DECLARATIONS rather than `@import` rules.
+ * Whether a CSS-MODULE block depends on another file — `composes: base from './theme.css'`,
+ * `@value brand from './theme.css'`, and ICSS's `:import('./theme.css') { … }` — all three loaded
+ * by Vite and none of them seen by the `Rule.import` visitor, because none is an `@import` rule.
  *
  * **A REGRESSION the parser rewrite introduced, and the counter-example to its own argument.**
  * That rewrite replaced a source regex with real parsers on the grounds that a parser strictly
@@ -326,6 +326,22 @@ const importUrlsOf = (filename: string, code: Buffer): string[] => {
  * That warning type is a lightningcss API detail rather than a rule of CSS, so it is PINNED by
  * the case below driving a real `@value … from`: a renamed warning turns this silently permissive
  * otherwise, which is the `rule-custom-message` hazard this repository already records.
+ *
+ * **A THIRD form, carried from an earlier round: ICSS's `:import(...)` selector.** Measured
+ * directly against lightningcss 1.33.0 rather than assumed from the CSS Modules spec: it does not
+ * implement `:import`/`:export` ICSS blocks at all — `result.exports`, `result.references` and
+ * `result.dependencies` all stay empty for one, and the specifier string is not exposed through
+ * any structured field. `:import('./theme.css') { … }` is parsed as an ordinary selector with an
+ * unrecognised pseudo-class, and rejected the same way any other unknown pseudo-class would be —
+ * emitting `warnings: [{ type: 'SelectorError', value: { type: 'UnsupportedPseudoClass', value:
+ * 'import' } }]`, with no memory anywhere of the string that was inside the parentheses. There is
+ * nothing structural left to read, so — exactly like `@value` — the warning's mere PRESENCE
+ * counts, whether or not the block's `:import` names a real file. `::import` (a pseudo-ELEMENT,
+ * which the warning's own suggested correction points at) is a different, unrelated selector and
+ * produces `UnsupportedPseudoElement` instead, so the type check does not fold the two together;
+ * `:local(...)` and `:global(...)`, the two ICSS forms lightningcss DOES implement, parse cleanly
+ * with no warning at all — measured, not assumed, so this is not "any unrecognised pseudo-class
+ * counts" read backwards into a broader claim than the evidence supports.
  */
 const cssModuleDependsOnFile = (filename: string, css: string): boolean => {
 	const { exports, warnings } = transform({
@@ -338,7 +354,10 @@ const cssModuleDependsOnFile = (filename: string, css: string): boolean => {
 	const composes = Object.values(exports ?? {}).some((entry) =>
 		entry.composes.some((reference) => reference.type === 'dependency'),
 	);
-	return composes || warnings.some((w) => w.type === 'DeprecatedCssModulesValueRule');
+	const icssImport = warnings.some(
+		(w) => w.type === 'SelectorError' && w.value?.type === 'UnsupportedPseudoClass' && w.value?.value === 'import',
+	);
+	return composes || warnings.some((w) => w.type === 'DeprecatedCssModulesValueRule') || icssImport;
 };
 
 const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
@@ -999,17 +1018,23 @@ describe('the browser harness', () => {
 	 * backslash rows below report an escape for a sibling import that never leaves the tree.
 	 */
 	/**
-	 * Both CSS-module dependency forms, pinned as BEHAVIOUR rather than left to the probe file
-	 * that found them — and the `@value` row doubles as the lock on lightningcss's warning type,
-	 * which is the only signal that form exposes. A renamed warning turns the check silently
-	 * permissive, which is the `rule-custom-message` hazard this repository already records.
+	 * All three CSS-module dependency forms, pinned as BEHAVIOUR rather than left to the probe
+	 * file that found them — and the `value`/`icssImport` rows double as the lock on
+	 * lightningcss's own warning shape, which is the only signal either form exposes. A renamed
+	 * warning type or value turns the check silently permissive, which is the
+	 * `rule-custom-message` hazard this repository already records. `pseudoElement` proves the
+	 * narrowing rather than assuming it: `::import` is a real, different, unrelated pseudo-ELEMENT
+	 * selector (lightningcss's own suggested correction for the typo `:import` would be), and
+	 * must not be folded into the same detection as the pseudo-CLASS ICSS actually uses.
 	 */
-	it('sees both CSS-module dependency forms and neither plain block', () => {
+	it('sees all three CSS-module dependency forms and neither plain block nor a lookalike selector', () => {
 		expect({
 			composes: cssModuleDependsOnFile('x.css', ".a { composes: base from './theme.css'; }"),
 			value: cssModuleDependsOnFile('x.css', "@value brand from './theme.css';\n.a { color: brand }"),
+			icssImport: cssModuleDependsOnFile('x.css', ":import('./theme.css') { imported: color; }"),
 			plain: cssModuleDependsOnFile('x.css', '.a { color: var(--text-normal); }'),
-		}).toEqual({ composes: true, value: true, plain: false });
+			pseudoElement: cssModuleDependsOnFile('x.css', '::import { color: red; }'),
+		}).toEqual({ composes: true, value: true, icssImport: true, plain: false, pseudoElement: false });
 	});
 
 	it('resolves the root closure by separator and by specifier kind', () => {
@@ -1074,6 +1099,13 @@ describe('the browser harness', () => {
 		// unless the recursive call over the outer group's second alternative finds and expands
 		// the nested `{b,../../scripts/x}` rather than leaving it as an opaque, unexpanded branch.
 		['a nested brace, its inner branch bounded too', 'src/prototypes/x.ts', '../{a,{b,../../scripts/x}}.ts', true],
+		// `?()`'s empty match staying inside the roots — proves the empty-branch fix isn't "any
+		// optional group escapes": both the matched and the empty alternative land under `tests/helpers`.
+		['an optional group whose empty match also stays inside', 'tests/helpers/vault.ts', './?(sub)/y.ts', false],
+		// The two reported worked examples, verbatim — a repeating `+()` whose alternative is `../`
+		// walks further up with every extra occurrence, which no fixed number of branches bounds.
+		['a repeating operator whose alternative can traverse upward', 'src/prototypes/x.ts', '+(../)prototypes/*.ts', true],
+		['the same shape one directory deeper', 'src/prototypes/deep/x.ts', './+(../)helper.ts', true],
 	])('bounds every branch of a brace or extglob pattern — %s', (_label, file, text, escapes) => {
 		expect(escapesTheRoots(file, { text, isGlob: true })).toBe(escapes);
 	});

@@ -136,6 +136,39 @@ describe('expandGlobBranches', () => {
 		const branches: string[] = [];
 		expect(expandGlobBranches('../!(a|b).ts', branches)).toBe(false);
 	});
+
+	/**
+	 * `*()` and `+()` REPEAT their alternative, and an alternative containing `..` walks further
+	 * up with every additional occurrence — unboundedly, since nothing caps how many times a
+	 * repeating operator may match. `'+(../)prototypes/*.ts'` checked as one repetition
+	 * ('../prototypes/*.ts') resolves under `src`, while two repetitions ('../../prototypes/*.ts')
+	 * do not — and there is no fixed number of repetitions whose branches could cover every case,
+	 * so this reports the escape rather than enumerating up to a cap (a cap is a number someone
+	 * has to justify, and the next round finds the pattern that needs one more). Detected on the
+	 * alternative's own TEXT — `.includes('..')` — rather than on a resolved path, per the
+	 * reported guidance.
+	 */
+	it.each([
+		['*', '../*(../)prototypes.ts'],
+		['+', '../+(../)prototypes.ts'],
+	])('reports false for %s(...) whose alternative can traverse upward', (_operator, pattern) => {
+		const branches: string[] = [];
+		expect(expandGlobBranches(pattern, branches)).toBe(false);
+	});
+
+	/**
+	 * The narrowing this fix must hold: a repeating operator whose alternative CANNOT traverse
+	 * upward is unaffected and expands exactly as before — the refusal is about the alternative's
+	 * own text, not about `*()`/`+()` as a category.
+	 */
+	it.each([
+		['*', '../*(sub).ts', ['../sub.ts', '../.ts']],
+		['+', '../+(sub).ts', ['../sub.ts']],
+	])('still expands %s(...) normally when its alternative cannot traverse upward', (_operator, pattern, expected) => {
+		const branches: string[] = [];
+		expect(expandGlobBranches(pattern, branches)).toBe(true);
+		expect(branches).toEqual(expected);
+	});
 });
 
 describe('resolvesOutsideRoots', () => {

@@ -50,18 +50,21 @@ const EXTGLOB_PREFIX = '@?*+!';
  *   ("exactly one of the patterns").
  * - **`?(a|b)`** — each listed alternative once, PLUS the empty string (zero occurrences).
  *   Complete for BOUNDING purposes: "zero or one" has exactly two shapes, and both are produced.
- * - **`*(a|b)`** — each listed alternative once, PLUS the empty string. NOT a complete
- *   enumeration of what `*()` can match (two-or-more repeated occurrences are real matches this
- *   does not produce) — declared complete only for the narrower question this function answers,
- *   because the reasoning is asymmetric rather than exhaustive: repeating an alternative can only
- *   ADD literal path segments, which can only push a resolved path DEEPER, never further outside
- *   the roots than the zero-occurrence branch already reaches. The empty branch is the genuine
- *   worst case for escaping upward; every repetition beyond one alternative is safe to leave
- *   unexpanded precisely because it cannot be worse than a case already checked.
- * - **`+(a|b)`** — each listed alternative once, no empty branch. Same asymmetry as `*()` from
- *   the other side: the minimum is ONE occurrence, already the alternative itself, and every
- *   additional repetition only adds segments. Adding an empty branch here would be wrong in the
- *   OTHER direction — it would check a match `+()` cannot actually produce.
+ * - **`*(a|b)`** — each listed alternative once, PLUS the empty string, UNLESS some alternative
+ *   can traverse upward (contains `..` anywhere in its own text), in which case the whole group
+ *   reports an escape instead of expanding at all. Bounded by REFUSAL rather than by
+ *   enumeration, and that split is load-bearing, not cosmetic: repeating a `..`-FREE alternative
+ *   can only add literal path segments, pushing a resolved path DEEPER — never further outside
+ *   the roots than the zero-occurrence branch already reaches, so a fixed two-branch expansion
+ *   is genuinely complete for that case. Repeating a `..`-CONTAINING alternative walks further
+ *   UP with every additional occurrence, unboundedly, with no fixed number of branches that
+ *   could ever cover it — an earlier version of this sentence argued the first reasoning applied
+ *   to both and was wrong: it does not.
+ * - **`+(a|b)`** — each listed alternative once, no empty branch, with the IDENTICAL upward-
+ *   traversal refusal as `*()` — the same reasoning applies with the same one-line difference
+ *   (minimum one occurrence rather than zero). An earlier version of this row called `+()`
+ *   complete outright, before the refusal existed; it was not, for the same reason `*()`'s
+ *   admitted gap was real. Both are complete again now, by refusal rather than by enumeration.
  * - **`!(a|b)`** — NOT enumerable at all, and not attempted: negation's true match set is
  *   everything EXCEPT the listed alternatives, which is unconstrained (it can contain `/`, `..`,
  *   anything). Substituting the negated alternatives themselves — this function's behaviour
@@ -85,9 +88,11 @@ type ExtglobOperator = '@' | '?' | '*' | '+' | '!';
  * is that table implemented.
  *
  * Answers `false` — "cannot be bounded, treat the whole pattern as escaping" — for an unclosed
- * group, for a `!(…)` negation, or for more than `MAX_GLOB_BRANCHES` branches, per this
- * predicate's whole glob posture: an unrecognised or unbounded construct moves a pattern toward
- * "counts", never toward "proven safe". `escapesTheRoots` is this function's only caller.
+ * group, for a `!(…)` negation, for a `*()`/`+()` whose alternative can traverse upward (any
+ * repetition count would need its own branch, unboundedly), or for more than
+ * `MAX_GLOB_BRANCHES` branches, per this predicate's whole glob posture: an unrecognised or
+ * unbounded construct moves a pattern toward "counts", never toward "proven safe".
+ * `escapesTheRoots` is this function's only caller.
  *
  * One pass finds the leftmost group's matching close AND splits its interior on the group's own
  * separator (`,` for braces, `|` for extglobs) — both are the same "am I at depth zero" question
@@ -128,6 +133,12 @@ export function expandGlobBranches(pattern: string, branches: string[]): boolean
 		}
 		if (end < 0) return false;
 		alternatives.push(pattern.slice(last, end));
+		if (
+			(operator === '*' || operator === '+')
+			&& alternatives.some((alternative) => alternative.includes('..'))
+		) {
+			return false;
+		}
 		if (operator === '?' || operator === '*') alternatives.push('');
 
 		const before = pattern.slice(0, start);

@@ -217,10 +217,28 @@ nothing refused, and with no requirements either the empty state then invites th
 a plan over a project full of rooms. `ZoneRepository.listByProject` already exists and is
 already skip-and-count, so closing it costs a call rather than a port.
 
-**A shared failure is still shared, and that bounds what the third walk buys.**
-`ObsidianZoneRepository.list` propagates a plan's unreadable geometry sidecar rather than
-counting it N times — deliberately, and its own comment carries the account. So an unreadable
-sidecar refuses the ZONE walk. `GetProjectSummary` catches that at the walk rather than at the
+**A shared failure is still shared, and that bounds what the third walk buys — further than
+this section first claimed.** `ObsidianZoneRepository.list` propagates a plan's unreadable
+geometry sidecar rather than counting it N times, deliberately, and its own comment carries the
+account. So an unreadable sidecar refuses the ZONE walk.
+
+**And a DELETED PLAN NOTE is one of those, which retires half of what the project-scoped zone
+walk was claimed to buy.** Verified at the source rather than reasoned about:
+`InMemoryProjectIndex.getGeometrySidecarPath` reads the PLAN's own index entry
+(`this.byId.get(entityId)?.geometrySidecarPath`), so deleting the plan note takes the mapping
+with it; `PlanGeometryStore.readUnlocked` then answers `plan-geometry.path-unresolved`; and
+`SKIPPABLE_ZONE_CODES` holds `zone.*` codes only, so `isSkippableZoneRefusal` is false and the
+listing propagates. A zone cannot be LOADED without its plan's sidecar, whatever axis it was
+found on.
+
+**What the round-14 change did and did not buy, stated separately, because it bought the more
+important half.** It DID close the reported defect: the walk no longer answers a confident zero
+with nothing refused, so the empty state no longer offers onboarding over a project that holds
+rooms — a refusal reaches the surface instead, and the room count is withheld with its reason.
+It did NOT make the surviving zones countable, which the test row said and now does not.
+Preserving or rediscovering the sidecar mapping after a plan note is deleted is a change to the
+index and the vault-change pipeline that every index consumer inherits, which is the same owner
+the strict-`listByZone` residue above already names, and not this increment's to make. `GetProjectSummary` catches that at the walk rather than at the
 query: the room count is withheld and reported, while the plan and requirement figures still
 print. One walk failing may cost its own count and never the surface.
 
@@ -1182,7 +1200,7 @@ mistake, per this repository's rule.
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
 | Summary | a requirement whose `projectId` names another project is never reached | a zone-started walk reaches it and, on one shared currency, sums it into the wrong project silently |
 | Summary | a requirement whose zone was deleted IS reached and reports `missingTarget: 'zone'` | a zone-started walk cannot produce that row at all |
-| Summary | a project whose only plan note is deleted still counts its surviving zones | a plan-started zone walk reads zero with nothing refused, and the empty state then offers onboarding over a project holding rooms |
+| Summary | a project whose only plan note is deleted WITHHOLDS its room count and reports a refusal — it does not read zero | a plan-started zone walk reads zero with nothing refused, and the empty state then offers onboarding over a project holding rooms; the refusal is what stops that, and counting the zones is what the sidecar dependency below prevents |
 | Summary | one unreadable zone NOTE costs one count, not the walk | a strict listing would blank the room count for a single bad note |
 | Summary | an unreadable geometry sidecar withholds `zoneCount` and leaves the plan and requirement figures printed | `ObsidianZoneRepository.list` propagates a shared failure, so an uncaught one faults the whole summary |
 | Invalidation | the Design section does NOT re-read its plan list on a requirement event | folding this into `projectPlansChangeSource` passes every Overview case and costs Design a read per requirement in the vault |

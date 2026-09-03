@@ -114,8 +114,8 @@ spec and from `CLAUDE.md`.
 | `src/presentation/views/ProjectRow.vue` | One project as a row: name, facts, status word + tick strip, §83 marker. Emits `open`. |
 | `src/presentation/views/ProjectFilter.vue` | The filter line: input, visually-hidden label, and the count that is the pane's state line. |
 | `src/presentation/views/ContinueRow.vue` | The resolved continue context as a row in the same armature, carrying two actions. |
-| `src/presentation/views/continueContext.ts` | The presentation-side shape of a continue context and its parse-or-absent rule. |
-| `src/plugin/continueContextStore.ts` | The plugin-local FILE beside `data.json` holding it. Not `settingsFrom`, which drops undeclared keys. |
+| `src/application/continueContext.ts` | The shape of a continue context and its parse-or-absent rule. **Moved here from `presentation/views/` when Task 10 built it**: the store that reads it landed in `infrastructure/`, and `INFRASTRUCTURE_LAYER`'s ban on `presentation` makes `application/` the only layer both readers may reach. |
+| `src/infrastructure/obsidian/plugin-data/continueContextStore.ts` | Obsidian's own per-device `App.loadLocalStorage`/`saveLocalStorage`, keyed by the manifest id. **Not the plugin-local file this table first named**: Task 10's Step 0 grep found the per-device door promised at `minAppVersion`, and `WRITE_BOUNDARY` refuses those members outside `infrastructure/obsidian/` anyway. Device-locality is restored rather than retracted, and `KeyedQueues` is entailed away — a `void`-returning synchronous call offers no completion handle to serialize on. |
 | `src/prototypes/StatusTicks.vue` | All ten lifecycle stages side by side — the only place stages other than one are ever drawn, so a capture can settle that they read. |
 | `styles/project-list.css` | Every rule this surface adds: the filter line, the groups, the facts slot, the tick strip, the foot line, and the narrow container query. |
 | `docs/tests/cases/Find and resume a project.md` | What only a live vault verifies: contrast, the focus ring, the 24px floor, `Mod+↵`, and whether Continue restores what it claims. |

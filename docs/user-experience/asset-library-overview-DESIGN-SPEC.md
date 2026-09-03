@@ -97,6 +97,28 @@ away.
 | Ribbon | **No second ribbon icon.** The ribbon is shared real estate across every installed plugin and this surface is reached often but not constantly. A command plus an in-app door is the whole of it |
 | In-app door | `ProjectList`'s header gains an **Assets** control beside its existing `New asset` button — **and so does the no-projects aside**, see below. `ProjectList` is where a user already is when the thought "have I got a definition for this?" arrives |
 | Reveal | Through `revealView(ASSET_LIBRARY_VIEW)` — the one activation function, per the *one action, every input* rule, which is also what stops a double click opening two tabs of a singleton |
+| Root swap | An `assetLibraryViewDeps()` factory spelled ONCE for the registration and the rebind, plus a **fourth loop in `rebindOpenViews`** and an `AssetLibraryView.rebind` |
+
+**A registered view that is not rebound holds the retired root for as long as it stays open**, and
+this table specified the registration and stopped. `applySettings` replaces the composition root
+and `rebindOpenViews` reconnects the three view types that exist today, one `getLeavesOfType` loop
+each — so a fourth type registered and not added there is attached to the previous root's index,
+repositories and event bus indefinitely, with nothing failing anywhere.
+
+**This surface is the one where that matters most, which is why it is a table row rather than a
+footnote.** §83's library-folder migration is a settings write: it MOVES every catalogue note and
+then swaps the root, so an un-rebound library goes on resolving asset notes at the folder they
+have just left — a view of the catalogue that is not the catalogue. Every other view would show
+stale data; this one shows an empty or wrong library immediately after the single gesture most
+likely to be performed from it.
+
+Two details the three existing loops already pay for and a fourth inherits. The deps factory is
+**one spelling shared by the registration and the rebind**, so a rebind cannot hand the view
+something its factory would not have built. And the loop body annotates the narrowed view
+(`const view: AssetLibraryView = leaf.view;`) rather than calling through the `instanceof`
+narrowing, because `fallow` resolves a class member through an explicit type and reports a
+`rebind` reached only by property access as an unused class member — measured on the three that
+exist. Reported by a review bot, at P1.
 
 **One door is not enough, because `ProjectList` is not always mounted.** `ViewRoot` draws the
 project empty state instead of the list when a vault has no projects — so a door placed only in
@@ -2683,6 +2705,24 @@ row-level description, and reachable only after a row is selected, so a builder 
 would have rebuilt the browsing failure §3.4 exists to close. Corrected around rather than
 corrected: the round that added the row description added it to §3.4 and did not re-read the
 section whose whole job is to state what assistive technology gets.
+
+A forty-sixth round found one, at **P1** — the first of this branch — and it is a whole mechanism
+the placement table did not know it owed.
+
+**A registered view that is not rebound holds the retired composition root.** §2 specified the
+registration and stopped there. `applySettings` replaces the root and `rebindOpenViews` reconnects
+the three view types that exist, one `getLeavesOfType` loop each; a fourth registered and not added
+stays attached to the previous root's index, repositories and event bus for as long as the leaf is
+open, with nothing failing anywhere. What makes it P1 rather than a tidy-up is which settings write
+this surface invites: §83's library-folder migration MOVES every catalogue note and then swaps the
+root, so an un-rebound library resolves asset notes at the folder they have just left — an empty or
+wrong catalogue, immediately after the gesture most likely to be performed from this very view.
+
+The general shape is worth more than the fix. **A view is not only a registration; it is a
+registration, a deps factory spelled once for the factory and the rebind, and a rebind loop** —
+and the two halves live in different methods 370 lines apart, so specifying one reads as complete.
+Nothing in any gate connects them: a fourth view type with no rebind compiles, passes, and is
+wrong only at runtime and only after a settings save.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

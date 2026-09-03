@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { Notice } from '../../../helpers/obsidian-mock';
 import { Decimal } from 'decimal.js';
 import { settleUntil as until } from '../../../helpers/editor';
-import { click, rig, toolbarButton } from '../../../helpers/planEditorRig';
+import { actionButton, click, rig } from '../../../helpers/planEditorRig';
 import { expectOk } from '../../../helpers/domain';
 import { makeAsset } from '../../../helpers/entities';
 import { lines, resetRecorder } from '../../../helpers/logger';
@@ -53,7 +53,7 @@ async function selectedZone(seedAssets = 1) {
 			);
 		}
 	});
-	toolbarButton(r.harness, 'Select').click();
+	actionButton(r.harness, 'Select').click();
 	click(r.harness.canvasEl as HTMLElement, 300, 300);
 	await until(() => r.harness.wrapper.text().includes('Delete zone'), 'the panel shows the zone');
 	return r;
@@ -178,7 +178,7 @@ describe('a failure at an Inspector control', () => {
 			throw new Error('the index is gone');
 		};
 
-		toolbarButton(r.harness, 'Delete zone').click();
+		actionButton(r.harness, 'Delete zone').click();
 		await until(() => Notice.shown.length > before, 'the fault notice');
 
 		// Mapped rather than printed, for the reason the first case gives — this is the
@@ -209,7 +209,7 @@ describe('a failure at an Inspector control', () => {
 			throw notAnError;
 		};
 
-		toolbarButton(r.harness, 'Delete zone').click();
+		actionButton(r.harness, 'Delete zone').click();
 		await until(() => Notice.shown.length > before, 'the fault notice');
 
 		expect(Notice.shown.at(-1)).toContain('Reading or writing the vault failed unexpectedly.');
@@ -279,7 +279,7 @@ describe('a failure at an Inspector control', () => {
 		);
 
 		const before = Notice.shown.length;
-		toolbarButton(r.harness, 'Delete zone').click();
+		actionButton(r.harness, 'Delete zone').click();
 		await until(() => r.harness.wrapper.find('[data-rp-action="reassign"]').exists(), 'the dialog');
 		await r.harness.wrapper.find('[data-rp-action="reassign"]').trigger('click');
 		await until(() => Notice.shown.length > before, 'the unavailable notice');

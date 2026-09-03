@@ -31,7 +31,7 @@ import { describe, expect, it } from 'vitest';
 // the same statics — proven, not assumed — and the import now says which surface it
 // wants.
 import { Notice } from '../../helpers/obsidian-mock';
-import { click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { actionButton, activateTool, click, pointer, rig } from '../../helpers/planEditorRig';
 import { mountPlanEditor, settle } from '../../helpers/editor';
 import { flushPromises } from '@vue/test-utils';
 import { err } from '../../../src/core/result/Result';
@@ -56,7 +56,7 @@ describe('a refusal the dispatcher never saw', () => {
 		Notice.shown.length = 0;
 		const { harness } = await rig();
 
-		toolbarButton(harness, 'Calibrate').click();
+		activateTool(harness, 'calibrate');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -123,7 +123,7 @@ describe('a DISPATCHED refusal the indicator resolved neutral', () => {
 		// The same gesture `zoneEditing.test.ts` drives: down inside the zone selects AND begins
 		// the drag, up ends it. SelectTool builds a reversible move, dispatches it, and the
 		// command refuses.
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		pointer(canvas, 'pointerdown', 200, 200);
 		pointer(canvas, 'pointermove', 230, 200);
@@ -185,7 +185,7 @@ describe('a FAULT the application boundary mapped', () => {
 		if (canvas === null) throw new Error('expected a mounted canvas');
 		const before = Notice.shown.length;
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		pointer(canvas, 'pointerdown', 200, 200);
 		pointer(canvas, 'pointermove', 230, 200);

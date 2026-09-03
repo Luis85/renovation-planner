@@ -10,12 +10,15 @@
  * activate it is invisible to all four gates, because nothing is wrong with the code — design
  * slice 7's `CalibrateTool` shipped that way for two whole slices.
  *
- * `EditorToolbar`'s shape, deliberately, down to the `MODES` table and the `aria-pressed`
- * mirror: the two surfaces' toolbars answer the same questions about different tools, and a
- * reader who knows one should not have to learn the other. What is NOT shared is the component
- * — this one injects `DesignerRuntime` and reads `DESIGNER_TOOL_LABELS`, and a generic toolbar
- * parameterised over both would need its runtime, its label table and its subject injected,
- * which is three parameters to save nine lines of template.
+ * Modelled deliberately on the Plan Editor's own toolbar, down to the `MODES` table and the
+ * `aria-pressed` mirror — the two surfaces' toolbars answered the same questions about
+ * different tools, and a reader who knew one did not have to learn the other. **The Plan
+ * Editor's has since been retired** (Task 13 replaced it with a context bar and a floating
+ * Select/Add group, since that surface's tools are reachable without a toolbar at all); this
+ * one remains the asset designer's own, out of that task's scope. What was never shared is the
+ * component — this one injects `DesignerRuntime` and reads `DESIGNER_TOOL_LABELS`, and a
+ * generic toolbar parameterised over both would need its runtime, its label table and its
+ * subject injected, which is three parameters to save nine lines of template.
  *
  * Camera mode (`null`) is a toolbar STATE rather than a fifth `EditorTool`, exactly as it is on
  * a plan: the camera is ephemeral UI (SDD §15) and never a command, so "no active tool" is what

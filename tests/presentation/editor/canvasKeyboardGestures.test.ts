@@ -26,7 +26,7 @@ import { describe, expect, it } from 'vitest';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import { settle } from '../../helpers/editor';
-import { click, drawnLines, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { actionButton, activateTool, click, drawnLines, pointer, rig } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
 const PLAN = 'plan-e2e' as never;
@@ -67,7 +67,7 @@ describe('escape while the camera owns the canvas', () => {
 		// letting it through; it loses to the fact that a pan has nothing for Escape to undo,
 		// so the tool's buffer was the only thing it could destroy.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -97,7 +97,7 @@ describe('escape while the camera owns the canvas', () => {
 		// the polygon survived came down to whether the release beat the next repeat, which is
 		// a race rather than a rule. One press is one press.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -129,7 +129,7 @@ describe('escape while the camera owns the canvas', () => {
 		// still reach the tool. Without this, a filter that keyed on the pan having swallowed
 		// anything at all would leave Escape dead for the rest of the session.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -163,7 +163,7 @@ describe('escape while the camera owns the canvas', () => {
 		// whenever space was down would break the camera lock's own deliberate exception — a
 		// user must be able to abandon a drawing while holding the key that offers the camera.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -206,7 +206,7 @@ describe('escape while the camera owns the canvas', () => {
 describe('Escape beyond the camera: the tool and the selection', () => {
 	it('Escape with Select active and a zone selected clears the selection', async () => {
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		useSelectionStore(harness.pinia).select(['zone-a' as never]);
 
@@ -220,7 +220,7 @@ describe('Escape beyond the camera: the tool and the selection', () => {
 	it('Escape on an empty drawing tool returns to Select rather than clearing anything', async () => {
 		const { harness, canvas, camera } = await editor();
 		useSelectionStore(harness.pinia).select(['zone-a' as never]);
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		key(canvas, 'keydown', { key: 'Escape' });
@@ -265,7 +265,7 @@ describe('the space bar autorepeating through a long pan', () => {
 describe('space pressed while another gesture is already running', () => {
 	it('still arms the camera once a TOOL drag ends', async () => {
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		pointer(canvas, 'pointerdown', 50, 50);
@@ -283,7 +283,7 @@ describe('space pressed while another gesture is already running', () => {
 		// Codex's own framing of the finding, kept as its own case because the two gestures
 		// reach the lock by different routes — a tool's in-flight flag, and the store's drag.
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		pointer(canvas, 'pointerdown', 50, 50, 1);
@@ -303,7 +303,7 @@ describe('space pressed while another gesture is already running', () => {
 		// fix cannot be read as having dropped the protection. It moved to the one place a
 		// gesture is actually claimed — `PanOverride.pointerDown` — which is where it belongs.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		pointer(canvas, 'pointerdown', 50, 50);
@@ -324,8 +324,8 @@ describe('space pressed while another gesture is already running', () => {
 
 describe('the window losing focus, not just the element', () => {
 	/**
-	 * `@blur` on the container covers focus moving WITHIN the document — a click on the
-	 * toolbar, a Tab to the next control. It is not guaranteed to cover the application
+	 * `@blur` on the container covers focus moving WITHIN the document — a click elsewhere in
+	 * the shell, a Tab to the next control. It is not guaranteed to cover the application
 	 * losing focus: Chromium can deactivate a window while leaving the focused DOM element
 	 * focused, and Obsidian is Electron. The space keyup then happens in whatever the user
 	 * alt-tabbed to, so this canvas never hears it and stays armed forever — which is the
@@ -340,7 +340,7 @@ describe('the window losing focus, not just the element', () => {
 	 */
 	it('disarms a held space bar when the WINDOW blurs', async () => {
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		key(canvas, 'keydown', { key: ' ' });
 		await settle();
@@ -388,7 +388,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// gesture left in flight refuses every wheel and both fit shortcuts from then on — with
 		// nothing on screen to say why, and no way back short of reopening the leaf.
 		const { harness, canvas, camera } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		pointer(canvas, 'pointerdown', 300, 300);
@@ -409,7 +409,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// `SelectTool` keeps a translated preview with no button held, and the user's next
 		// click anywhere commits a move by the delta between the abandoned start and it.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 		const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points;
 
@@ -435,7 +435,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// `abandonGesture()` is what the interruption calls instead: each tool answers for its
 		// own press-to-release transient, and a placed vertex is not one.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -460,7 +460,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// whose `pointercancel` reached `cancelGesture()` and emptied the buffer the blur had
 		// just been careful to keep. The narrow fix for one door, undone by the next one along.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -493,7 +493,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// tool that had thrown the measurement away, with no dialog coming and nothing to say
 		// why.
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Calibrate').click();
+		activateTool(harness, 'calibrate');
 		await settle();
 
 		click(canvas, 300, 300); // the anchor: a complete click, down and up both
@@ -527,7 +527,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// Same shape as its predecessor, one door along: a guard on the direct path says
 		// nothing about the value the direct path left behind.
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		pointer(canvas, 'pointerdown', 300, 300, 0, 11);
@@ -558,7 +558,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// but the swallowed position is still written down, and a pan ends on its release with
 		// no move after it to correct the record. The first Shift press afterwards replays it.
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -593,7 +593,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// pointer into the tool, so whether the tool hears anything came down to how many
 		// blur events the host chose to deliver.
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -641,7 +641,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// asked it. The one door built to keep a synthetic move out of a running pan was the
 		// one door that walked around it.
 		const { harness, canvas } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -671,7 +671,7 @@ describe('a tool gesture the window took the focus away from', () => {
 		// rather than unconditional: between two complete clicks nothing is in flight, and a
 		// user who alt-tabs to check a measurement must come back to their vertices.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);

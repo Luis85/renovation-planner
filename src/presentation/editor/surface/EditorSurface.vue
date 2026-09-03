@@ -42,8 +42,9 @@ import { routeEscape } from '../escapeRouting';
  * `toolManager` and `activeToolId` are `EditorRuntime`'s two members the doors below read; they
  * arrive as props rather than through `useEditorRuntime()` so that a surface mounted outside the
  * Plan Editor's own injection still has them. `activeToolId` is the RUNTIME's `Ref` rather than
- * its value: the pointer doors read it synchronously, in the same tick a toolbar click writes
- * it, and a plain value prop would only be refreshed by the host's next render.
+ * its value: the pointer doors read it synchronously, in the same tick a tool-switching click
+ * writes it — the Plan Editor's Select button or the asset designer's own toolbar — and a plain
+ * value prop would only be refreshed by the host's next render.
  *
  * `framedBounds` is the one question the fit shortcuts ask that names a Plan's own contents —
  * `Shift+1` frames everything, `Shift+2` the selection — so the host answers it and this file

@@ -40,14 +40,16 @@ export const en = {
 	'sample.zone.living-room': 'Living room',
 	'sample.zone.terrace': 'Terrace',
 	'sample.zone.garden': 'Garden',
-	'editor.toolbar': 'Editor tools',
 	'editor.layers': 'Layers',
 	'editor.toolbar.pan': 'Pan',
-	'editor.toolbar.select': 'Select',
-	'editor.toolbar.draw-zone': 'Draw zone',
 	'editor.toolbar.undo': 'Undo',
 	'editor.toolbar.redo': 'Redo',
-	'editor.toolbar.calibrate': 'Calibrate',
+	'editor.context-bar': 'Editor context',
+	'editor.context.undo': 'Undo',
+	'editor.context.redo': 'Redo',
+	'editor.primary-actions': 'Primary actions',
+	'editor.primary.select': 'Select',
+	'editor.primary.add': 'Add',
 	'editor.inspector': 'Inspector',
 	'editor.inspector.empty': 'Nothing selected.',
 	'editor.inspector.multiple': 'Multiple objects selected.',
@@ -514,13 +516,16 @@ export const en = {
 	// vault, unrecovered settings and an asset that is gone each say their own sentence.
 	'view.asset-designer.name': 'Asset designer',
 	'designer.canvas': 'Asset canvas',
-	// The designer's toolbar (design slice B5). FOUR labels rather than six: camera mode, Select,
-	// Undo and Redo say the same words as the Plan Editor's and take its keys
-	// (`editor.toolbar.pan`/`.select`/`.undo`/`.redo`) rather than shipping a second translation
-	// of "Undo" for a translator to keep in step with the first. What is designer-specific is
-	// the five gestures below. Four have no counterpart on a plan; `calibrate` has one and still
-	// gets a key of its own, because the Plan Editor's says "Calibrate" about a plan's background
-	// and each surface's toolbar builds its buttons from its own table.
+	// The designer's toolbar (design slice B5). THREE labels are BORROWED rather than minted:
+	// camera mode, Undo and Redo say the same words as the Plan Editor's and take its keys
+	// (`editor.toolbar.pan`/`.undo`/`.redo`) rather than shipping a second translation of "Undo"
+	// for a translator to keep in step with the first. The Plan Editor's own Undo/Redo moved to
+	// `editor.context.undo`/`.redo` on its context bar (Task 13), which is a different pair of
+	// keys for the same words — a second translation is still not owed, because this table
+	// already has its own. What is designer-specific is the five gestures below; `calibrate` has
+	// a counterpart on a plan and still gets a key of its own, because the Plan Editor's own
+	// calibrate label lives in its own table and says "Calibrate" about a plan's background, and
+	// each surface's toolbar builds its buttons from its own table.
 	'designer.toolbar': 'Asset tools',
 	'designer.toolbar.trace-footprint': 'Trace footprint',
 	'designer.toolbar.trace-clearance': 'Trace clearance',

@@ -9,8 +9,9 @@ import { readFileSync } from 'node:fs';
  *
  * Nesting matters both ways. OUTSIDE `withEditorStateRefresh`, so `saved` never appears
  * while the canvas still shows the pre-command state. INSIDE `wrapDispatcher`, which is the
- * one object every tool, the toolbar and the Inspector dispatch through — a tracker outside
- * it would miss nothing today and miss everything the moment the wrapping changes.
+ * one object every tool, the context bar's Undo/Redo and the Inspector dispatch through — a
+ * tracker outside it would miss nothing today and miss everything the moment the wrapping
+ * changes.
  *
  * **The ARGUMENTS, never the textual order.** An earlier draft compared `indexOf` positions,
  * which is the "address code by position" defect this repository writes down: it passed for

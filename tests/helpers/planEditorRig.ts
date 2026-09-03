@@ -12,7 +12,8 @@
  * has the screen footprint (198,198)-(488,388), inside the 800×600 stage.
  */
 import type Konva from 'konva';
-import { mountPlanEditor, type EditorHarness } from './editor';
+import { mountPlanEditor, runtimeOf, type EditorHarness } from './editor';
+import type { ToolId } from '../../src/presentation/editor/tools/editor-tool';
 import { expectOk } from './domain';
 import { CreateZoneCommand } from '../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../src/application/commands/zone/MoveSpatialObject';
@@ -324,11 +325,27 @@ export function click(element: HTMLElement, x: number, y: number, button = 0): v
 }
 
 
-export function toolbarButton(harness: EditorHarness, label: string): HTMLButtonElement {
+/**
+ * A button anywhere in the mounted tree, found by its exact text — Task 13 retired the
+ * toolbar this was named for, and the shell now spreads its actions across the context bar,
+ * the floating Select/Add group and the Inspector's own Delete button, so this searches the
+ * whole wrapper rather than one region.
+ */
+export function actionButton(harness: EditorHarness, label: string): HTMLButtonElement {
 	const buttons = harness.wrapper.findAll('button');
 	const found = buttons.find((button) => button.text() === label);
-	if (found === undefined) throw new Error(`no toolbar button labelled ${label}`);
+	if (found === undefined) throw new Error(`no button labelled ${label}`);
 	return found.element as HTMLButtonElement;
+}
+
+/**
+ * Activates a tool through the runtime directly, for Pan/Draw zone/Calibrate — the three
+ * gestures Task 13's shell offers no button for any more (`null` is camera mode/Pan;
+ * `draw-polygon` is Draw zone; `calibrate` reaches the tool Task 14 gives its own door).
+ * Select, Undo, Redo and Delete zone still have real buttons and go through `actionButton`.
+ */
+export function activateTool(harness: EditorHarness, id: ToolId | null): void {
+	runtimeOf(harness).setTool(id);
 }
 
 

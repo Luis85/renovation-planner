@@ -50,9 +50,10 @@ import { SetFacingTool } from './set-facing-tool';
  * `calibrate` shares the Plan Editor's `CalibrateTool` rather than a designer copy of it (Task
  * B6): that tool's two-click gesture, its generation counter, its buffered second point and its
  * `abandonGesture` asymmetry are two hundred lines of subtle state a second implementation would
- * have to get right twice. What it does NOT share is a label key — `editor.toolbar.calibrate`
- * says "Calibrate" about a plan's background, and this table is what the designer's own toolbar
- * builds its buttons from.
+ * have to get right twice. What it does NOT share is a label key — the Plan Editor's own
+ * calibrate label lives in its own table (Task 13 retired its toolbar; Task 14 gives the gesture
+ * a new door there) and says "Calibrate" about a plan's background, while this table is what the
+ * designer's own toolbar builds its buttons from.
  */
 
 /**

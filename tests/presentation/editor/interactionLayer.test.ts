@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest';
 import type Konva from 'konva';
 import { mountPlanEditorCanvas, runtimeOf, settle, type EditorHarness } from '../../helpers/editor';
-import { click, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { activateTool, click, pointer, rig } from '../../helpers/planEditorRig';
 import { useSelectionStore } from '../../../src/presentation/editor/selection/selection-store';
 import {
 	POLYGON_CLOSE_TARGET_HOVER_RADIUS_PX,
@@ -53,7 +53,7 @@ function linesNamed(harness: EditorHarness, name: string): Konva.Line[] {
 describe('the interaction layer while a zone is being drawn', () => {
 	it('marks every placed vertex, and draws the first one as the close target', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -76,7 +76,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 
 	it('grows the close target while the pointer is close enough to CLOSE the shape', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -109,7 +109,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 	 */
 	it('stops promising a close when a ZOOM moves the target out from under a still pointer', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -140,7 +140,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 	 */
 	it('stops promising a close when a KEYBOARD zoom moves the world under a still pointer', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -164,7 +164,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 
 	it('does not promise a close before there are enough vertices for one', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -182,7 +182,7 @@ describe('the interaction layer while a zone is being drawn', () => {
 describe('the interaction layer while a plan is being calibrated', () => {
 	it('caps the anchor with a bar as soon as the first point is placed', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Calibrate').click();
+		activateTool(harness, 'calibrate');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -206,7 +206,7 @@ describe('the interaction layer while a plan is being calibrated', () => {
 	 */
 	it('keeps the loose end under the pointer when the camera zooms beneath it', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Calibrate').click();
+		activateTool(harness, 'calibrate');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -236,7 +236,7 @@ describe('the interaction layer while a plan is being calibrated', () => {
 	 */
 	it('keeps the loose end under the pointer when shift+wheel pans beneath it', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Calibrate').click();
+		activateTool(harness, 'calibrate');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -268,7 +268,7 @@ describe('the interaction layer while a plan is being calibrated', () => {
 	 */
 	it('tells the tool where the pointer is when a fit shortcut jumps the camera', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Calibrate').click();
+		activateTool(harness, 'calibrate');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -293,7 +293,7 @@ describe('the interaction layer while a plan is being calibrated', () => {
 
 	it('rules the segment with ticks as it is dragged out', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Calibrate').click();
+		activateTool(harness, 'calibrate');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -330,7 +330,7 @@ describe('the interaction layer while a plan is being calibrated', () => {
 	 */
 	it('draws a long segment on no more nodes than a short one', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Calibrate').click();
+		activateTool(harness, 'calibrate');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -408,7 +408,7 @@ describe('the angle constraint while drawing', () => {
 
 	it('flattens the rubber band the moment Shift goes down, with the pointer still', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -431,7 +431,7 @@ describe('the angle constraint while drawing', () => {
 
 	it('lets go again on release, just as promptly', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -463,7 +463,7 @@ describe('the angle constraint while drawing', () => {
 	 */
 	it('drops the constraint when the canvas loses focus, where no keyup can reach it', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
@@ -482,7 +482,7 @@ describe('the angle constraint while drawing', () => {
 
 	it('ignores a key that is not the modifier, rather than re-issuing on every keystroke', async () => {
 		const { harness } = await rig();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');

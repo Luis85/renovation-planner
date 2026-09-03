@@ -25,7 +25,7 @@ import { nextTick } from 'vue';
 // wants.
 import { Notice } from '../../helpers/obsidian-mock';
 import { expectOk } from '../../helpers/domain';
-import { click, pointer, rig, toolbarButton, type Rig } from '../../helpers/planEditorRig';
+import { actionButton, click, pointer, rig, type Rig } from '../../helpers/planEditorRig';
 import { mountPlanEditor, runtimeOf, settle } from '../../helpers/editor';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../helpers/planFixtures';
 import type { ZoneDto } from '../../../src/presentation/read-models/PlanDto';
@@ -68,7 +68,7 @@ async function externallyTouchZoneA(zonesRepo: Rig['zonesRepo']): Promise<void> 
 async function moveZoneA(harness: Rig['harness']): Promise<void> {
 	const canvas = harness.canvasEl;
 	if (canvas === null) throw new Error('expected a mounted canvas');
-	toolbarButton(harness, 'Select').click();
+	actionButton(harness, 'Select').click();
 	await settle();
 	pointer(canvas, 'pointerdown', 200, 200);
 	pointer(canvas, 'pointermove', 230, 200);
@@ -101,7 +101,7 @@ describe('a refused undo', () => {
 		await externallyTouchZoneA(zonesRepo);
 
 		const noticesBefore = Notice.shown.length;
-		const undoButton = toolbarButton(harness, 'Undo');
+		const undoButton = actionButton(harness, 'Undo');
 		expect(undoButton.disabled).toBe(false);
 		undoButton.click();
 		await settle();
@@ -136,7 +136,7 @@ describe('a refused redo', () => {
 
 		// A clean undo first — nothing has touched the zone yet, so this one succeeds and
 		// moves the command onto the redo stack.
-		const undoButton = toolbarButton(harness, 'Undo');
+		const undoButton = actionButton(harness, 'Undo');
 		undoButton.click();
 		await settle();
 		expect(
@@ -147,7 +147,7 @@ describe('a refused redo', () => {
 		await externallyTouchZoneA(zonesRepo);
 
 		const noticesBefore = Notice.shown.length;
-		const redoButton = toolbarButton(harness, 'Redo');
+		const redoButton = actionButton(harness, 'Redo');
 		expect(redoButton.disabled).toBe(false);
 		redoButton.click();
 		await settle();
@@ -169,19 +169,19 @@ describe('a refused redo', () => {
 		const canvas = harness.canvasEl;
 		if (canvas === null) throw new Error('expected a mounted canvas');
 
-		toolbarButton(harness, 'Select').click();
+		actionButton(harness, 'Select').click();
 		await settle();
 
 		// Every other assertion on this control in the suite is `disabled === false`. A
 		// binding that lost its condition — an Undo always live — satisfies all of them and
 		// offers the user a control for a history that does not exist.
-		expect(toolbarButton(harness, 'Undo').disabled).toBe(true);
+		expect(actionButton(harness, 'Undo').disabled).toBe(true);
 
 		click(canvas, 200, 200);
 		await settle();
 
 		// A plain selection is not a command: still nothing to undo.
-		expect(toolbarButton(harness, 'Undo').disabled).toBe(true);
+		expect(actionButton(harness, 'Undo').disabled).toBe(true);
 
 		harness.unmount();
 	});
@@ -194,12 +194,16 @@ describe('Select is the default tool (Task 10)', () => {
 		// transition INTO `'ready'` has already happened by this line — Select is what a fresh
 		// Plan Editor leaf opens onto rather than camera mode.
 		const { harness } = await rig();
+		const runtime = runtimeOf(harness);
 
-		expect(toolbarButton(harness, 'Select').getAttribute('aria-pressed')).toBe('true');
+		expect(actionButton(harness, 'Select').getAttribute('aria-pressed')).toBe('true');
 
-		toolbarButton(harness, 'Draw zone').click();
+		// Task 13 retired the toolbar's own Draw zone button; the tool is asked for directly,
+		// and the claim under test — the ACTIVE TOOL, not one button's rendering of it —
+		// is what `activeToolId` states.
+		runtime.setTool('draw-polygon');
 		await settle();
-		expect(toolbarButton(harness, 'Draw zone').getAttribute('aria-pressed')).toBe('true');
+		expect(runtime.activeToolId.value).toBe('draw-polygon');
 
 		// `PlanEditorRoot` subscribes a plain re-hydration to `onPlanChanged`, and
 		// `ProjectStore.hydrate` only sets `status = 'loading'` when it was not already
@@ -208,7 +212,7 @@ describe('Select is the default tool (Task 10)', () => {
 		// without the watch needing to ask what the status used to be.
 		harness.changePlan();
 		await settle();
-		expect(toolbarButton(harness, 'Draw zone').getAttribute('aria-pressed')).toBe('true');
+		expect(runtime.activeToolId.value).toBe('draw-polygon');
 
 		harness.unmount();
 	});

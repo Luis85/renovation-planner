@@ -4,9 +4,10 @@ import type { CommandHistory } from './command-history';
 import type { RefreshedHistory } from './with-state-refresh';
 
 /**
- * The ONE dispatcher a leaf hands out — tools, toolbar and panels alike — wrapped so the
- * history-flag mirror hears about a tool gesture as well as a toolbar one. A dispatch that
- * bypasses this object silently breaks the reactive undo/redo flags and nothing errors.
+ * The ONE dispatcher a leaf hands out — tools, the shell's own action buttons and panels
+ * alike — wrapped so the history-flag mirror hears about a tool gesture as well as an
+ * Undo/Redo click. A dispatch that bypasses this object silently breaks the reactive
+ * undo/redo flags and nothing errors.
  *
  * Two plain refs re-read from the history rather than an invalidation counter that two
  * computeds subscribed to with a `void revision.value` statement: that spelling put a line

@@ -3,9 +3,10 @@
  *
  * The editor shell (SDD §60) and the camera on the canvas inside it.
  *
- * The five regions are a layout CONTRACT — slice 6 fills the toolbar and inspector, slice
- * 13 mounts into the status bar's third region by name — so what is asserted here is that
- * each region exists, is labelled, and holds what this slice puts in it.
+ * The five regions are a layout CONTRACT — slice 6 fills the toolbar (Task 13 replaced it
+ * with a context bar and a floating Select/Add group) and the inspector, slice 13 mounts
+ * into the status bar's third region by name — so what is asserted here is that each region
+ * exists, is labelled, and holds what this slice puts in it.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { useDialogStore } from '../../../src/presentation/dialogs/dialog-store';
@@ -28,7 +29,7 @@ import {
 	type EditorHarnessOptions,
 } from '../../helpers/editor';
 import { FIXTURE_PLAN } from '../../helpers/planFixtures';
-import { toolbarButton } from '../../helpers/planEditorRig';
+import { activateTool } from '../../helpers/planEditorRig';
 
 /**
  * What `afterEach` has to unmount, which is the only thing the whole file shares.
@@ -66,13 +67,14 @@ function wheelOver(mounted: CanvasHarness, deltaY: number, at = { clientX: 400, 
 }
 
 describe('the five regions', () => {
-	it('stands up the toolbar, both panels, the canvas and the status bar', async () => {
+	it('stands up the context bar, both panels, the canvas, the floating actions and the status bar', async () => {
 		const harness = await mountCanvas();
 		const { wrapper } = harness;
 
-		expect(wrapper.find('.rp-editor-toolbar').exists()).toBe(true);
+		expect(wrapper.find('.rp-context-bar').exists()).toBe(true);
 		expect(wrapper.find('.rp-editor-layers').exists()).toBe(true);
 		expect(wrapper.find('.rp-plan-canvas').exists()).toBe(true);
+		expect(wrapper.find('.rp-primary-actions').exists()).toBe(true);
 		expect(wrapper.find('.rp-editor-inspector').exists()).toBe(true);
 		expect(wrapper.find('.rp-editor-status-bar').exists()).toBe(true);
 	});
@@ -111,34 +113,32 @@ describe('the five regions', () => {
 	it('announces the angle constraint under the tools that take it, and no others', async () => {
 		const harness = await mountCanvas();
 		const hint = () => harness.wrapper.find('.rp-editor-hint');
-		const press = (label: string) => {
-			const button = harness.wrapper.findAll('button').find((candidate) => candidate.text() === label);
-			if (button === undefined) throw new Error(`no toolbar button labelled ${label}`);
-			button.element.click();
-		};
 
 		// Camera mode: no tool, so no constraint to announce.
 		expect(hint().exists()).toBe(false);
 
-		press(t('en', 'editor.toolbar.draw-zone'));
+		activateTool(harness, 'draw-polygon');
 		await settle();
 		expect(hint().text()).toBe(t('en', 'editor.hint.constrain-angle'));
 
-		press(t('en', 'editor.toolbar.calibrate'));
+		activateTool(harness, 'calibrate');
 		await settle();
 		expect(hint().exists()).toBe(true);
 
 		// Select moves and picks; it constrains nothing, so the key would be a dead letter.
-		press(t('en', 'editor.toolbar.select'));
+		activateTool(harness, 'select');
 		await settle();
 		expect(hint().exists()).toBe(false);
 	});
 
-	it('labels the toolbar and the inspector, empty though they are', async () => {
+	it('labels the context bar, the primary actions and the inspector, empty though they are', async () => {
 		const harness = await mountCanvas();
 		const { wrapper } = harness;
 
-		expect(wrapper.find('.rp-editor-toolbar').attributes('aria-label')).toBe(t('en', 'editor.toolbar'));
+		expect(wrapper.find('.rp-context-bar').attributes('aria-label')).toBe(t('en', 'editor.context-bar'));
+		expect(wrapper.find('.rp-primary-actions').attributes('aria-label')).toBe(
+			t('en', 'editor.primary-actions'),
+		);
 		expect(wrapper.find('.rp-editor-inspector').attributes('aria-label')).toBe(t('en', 'editor.inspector'));
 	});
 
@@ -160,9 +160,9 @@ describe('the five regions', () => {
 	/**
 	 * Presence alone does not prove the mount point is correct: `DialogHost`'s
 	 * `inertBackground` walks exactly two levels up from `.rp-dialog` to reach the element
-	 * whose OTHER children it backgrounds. Mounted a level too deep, the toolbar would stay
-	 * live and clickable behind the dialog with nothing erroring anywhere — this is the case
-	 * that would catch that.
+	 * whose OTHER children it backgrounds. Mounted a level too deep, the context bar would
+	 * stay live and clickable behind the dialog with nothing erroring anywhere — this is the
+	 * case that would catch that.
 	 */
 	it('makes a shell region inert while the dialog is open, and releases it on close', async () => {
 		const harness = await mountCanvas();
@@ -171,12 +171,12 @@ describe('the five regions', () => {
 		void store.openDialog({ kind: 'confirm', title: 'T', message: 'M' });
 		await settle();
 
-		expect(harness.wrapper.find('.rp-editor-toolbar').element.hasAttribute('inert')).toBe(true);
+		expect(harness.wrapper.find('.rp-context-bar').element.hasAttribute('inert')).toBe(true);
 
 		store.resolve('cancel');
 		await settle();
 
-		expect(harness.wrapper.find('.rp-editor-toolbar').element.hasAttribute('inert')).toBe(false);
+		expect(harness.wrapper.find('.rp-context-bar').element.hasAttribute('inert')).toBe(false);
 	});
 });
 
@@ -271,7 +271,7 @@ describe('the camera', () => {
 		// Task 10 made Select — not camera mode — the tool a ready plan opens onto, and
 		// (0,0)-(4000,3000) zone-kitchen sits under this drag's start; back to camera mode so
 		// the drag pans rather than moving the zone.
-		toolbarButton(harness, 'Pan').click();
+		activateTool(harness, null);
 		await settle();
 		const positionOf = () => ({ x: harness.stage.findOne('.zone')?.x(), y: harness.stage.findOne('.zone')?.y() });
 		const before = positionOf();
@@ -320,7 +320,7 @@ describe('the camera', () => {
 		const harness = await mountCanvas();
 		// Same reason as the case above: an explicit return to camera mode, since Select would
 		// otherwise turn this into a completed (and irrelevant) zone move.
-		toolbarButton(harness, 'Pan').click();
+		activateTool(harness, null);
 		await settle();
 		const positionOf = () => harness.stage.findOne('.zone')?.x();
 
@@ -345,7 +345,7 @@ describe('the camera', () => {
 	it('ends a pan that leaves the pane, so the view does not stay stuck to the cursor', async () => {
 		const harness = await mountCanvas();
 		// Same reason again: without it, this is a Select press over zone-kitchen instead.
-		toolbarButton(harness, 'Pan').click();
+		activateTool(harness, null);
 		await settle();
 		const positionOf = () => harness.stage.findOne('.zone')?.x();
 
@@ -462,8 +462,8 @@ describe('what the shell shows when there is no plan to draw', () => {
 /**
  * The panels are collapsible chrome, not content: hiding one is a `WorkspaceStore` toggle
  * with nothing persisted behind it. Driven through the store because there is no toggle
- * CONTROL yet — slice 6's toolbar is where that button goes, and the state it will drive
- * is stood up now so the button is all that has to arrive.
+ * CONTROL yet — the context bar (Task 13) is where that button goes, and the state it will
+ * drive is stood up now so the button is all that has to arrive.
  */
 describe('collapsing a panel', () => {
 	it('removes the layers panel and leaves the canvas', async () => {

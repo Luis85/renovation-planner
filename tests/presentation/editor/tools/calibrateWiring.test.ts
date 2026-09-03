@@ -9,7 +9,6 @@ import type Konva from 'konva';
 import { mount } from '@vue/test-utils';
 import KnownDistanceForm from '../../../../src/presentation/editor/shell/KnownDistanceForm.vue';
 import { useDialogStore } from '../../../../src/presentation/dialogs/dialog-store';
-import { t } from '../../../../src/presentation/i18n/strings';
 import { ok } from '../../../../src/core/result/Result';
 import type { CalibratePlanInput } from '../../../../src/application/commands/plan/ReversibleCalibratePlan';
 import {
@@ -17,7 +16,7 @@ import {
 	type PlanEditorCommandServices,
 } from '../../../../src/presentation/editor/planEditorCommands';
 import { mountPlanEditor, settle, type EditorHarness } from '../../../helpers/editor';
-import { click as clickOnCanvas, toolbarButton } from '../../../helpers/planEditorRig';
+import { actionButton, activateTool, click as clickOnCanvas } from '../../../helpers/planEditorRig';
 
 describe('KnownDistanceForm', () => {
 	it('shows what was measured on the plan, so the user knows what they are naming', () => {
@@ -90,9 +89,13 @@ describe('KnownDistanceForm', () => {
 	});
 });
 
-/** Presses a toolbar button by its label — Task 12's own `setToolByLabel`. */
-function setToolByLabel(harness: EditorHarness, label: string): void {
-	toolbarButton(harness, label).click();
+/**
+ * Activates the tool directly through the runtime — Task 12's own `setToolByLabel` pressed a
+ * toolbar button; Task 13 retired the toolbar, and Task 14 routes this through the Set scale
+ * action, so there is no button here to press today.
+ */
+function activateCalibrate(harness: EditorHarness): void {
+	activateTool(harness, 'calibrate');
 }
 
 /**
@@ -132,20 +135,15 @@ function recordingCommands(): {
 }
 
 /**
- * The end-to-end wiring (Task 12): the tool registered in `ToolManager`, its toolbar row,
- * and the two dialogs it opens going through the mounted leaf's OWN `DialogHost`/store —
- * driven with a real click pair, never a bare `pointerdown`.
+ * The end-to-end wiring (Task 12): the tool registered in `ToolManager`, and the two dialogs
+ * it opens going through the mounted leaf's OWN `DialogHost`/store — driven with a real click
+ * pair, never a bare `pointerdown`.
+ *
+ * Task 13 retired the toolbar this tool used to be reached through; every case below activates
+ * it through the runtime directly (`activateCalibrate`) rather than through a button, since
+ * Task 14 routes this through the Set scale action and no door exists here yet.
  */
 describe('the calibrate tool in a mounted editor', () => {
-	it('offers Calibrate in the toolbar', async () => {
-		const harness = await mountPlanEditor();
-
-		const labels = harness.wrapper.findAll('.rp-editor-tool-button').map((b) => b.text());
-
-		expect(labels).toContain(t('en', 'editor.toolbar.calibrate'));
-		harness.unmount();
-	});
-
 	/**
 	 * Two clicks, each a real down+up pair on the primary button. A simulated stream has to
 	 * obey the grammar of the device it stands in for — a bare `pointerdown` with no `up`
@@ -155,7 +153,7 @@ describe('the calibrate tool in a mounted editor', () => {
 	it('asks for a distance after two clicks', async () => {
 		const harness = await mountPlanEditor({ zones: [] });
 		const store = useDialogStore(harness.pinia);
-		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
+		activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -184,7 +182,7 @@ describe('the calibrate tool in a mounted editor', () => {
 	it('submits the distance and dispatches through the one command dispatcher', async () => {
 		const { calls, commands } = recordingCommands();
 		const harness = await mountPlanEditor({ zones: [], commands });
-		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
+		activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -206,7 +204,7 @@ describe('the calibrate tool in a mounted editor', () => {
 		// Proves this ran through the WRAPPED dispatcher specifically: only
 		// `wrappedDispatcher` moves the reactive undo/redo flags the toolbar reads, so a
 		// dispatch that bypassed it would leave Undo disabled with nothing else erroring.
-		expect(toolbarButton(harness, t('en', 'editor.toolbar.undo')).disabled).toBe(false);
+		expect(actionButton(harness, 'Undo').disabled).toBe(false);
 
 		harness.unmount();
 	});
@@ -223,7 +221,7 @@ describe('the calibrate tool in a mounted editor', () => {
 		const { calls, commands } = recordingCommands();
 		const harness = await mountPlanEditor({ commands }); // the default fixture has zones
 		const store = useDialogStore(harness.pinia);
-		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
+		activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -252,7 +250,7 @@ describe('the calibrate tool in a mounted editor', () => {
 		const { calls, commands } = recordingCommands();
 		const harness = await mountPlanEditor({ commands }); // the default fixture has zones
 		const store = useDialogStore(harness.pinia);
-		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
+		activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -290,7 +288,7 @@ describe('the calibrate tool in a mounted editor', () => {
 	 */
 	it('draws the measured segment on the interaction layer while the prompt is open', async () => {
 		const harness = await mountPlanEditor({ zones: [] });
-		setToolByLabel(harness, t('en', 'editor.toolbar.calibrate'));
+		activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -323,7 +321,7 @@ describe('the calibrate tool in a mounted editor', () => {
 		const first = await mountPlanEditor(); // the default fixture has zones
 		const second = await mountPlanEditor();
 		const secondStore = useDialogStore(second.pinia);
-		setToolByLabel(first, t('en', 'editor.toolbar.calibrate'));
+		activateCalibrate(first);
 
 		click(first, { x: 0, y: 0 });
 		click(first, { x: 100, y: 0 });

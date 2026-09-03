@@ -18,7 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { settle } from '../../helpers/editor';
 import { useEditorStore } from '../../../src/presentation/stores/EditorStore';
-import { click, drawnLines, pointer, rig, toolbarButton } from '../../helpers/planEditorRig';
+import { actionButton, activateTool, click, drawnLines, pointer, rig } from '../../helpers/planEditorRig';
 import { expectOk } from '../../helpers/domain';
 
 const PLAN = 'plan-e2e' as never;
@@ -46,7 +46,7 @@ it('keeps a swallowed pointer out of the tool after the gesture that swallowed i
 	// nothing — so B, a finger deliberately excluded from the gesture, steered the rubber band
 	// the moment A let go, and B's eventual release is swallowed, so nothing corrects it.
 	const { harness, canvas } = await editor();
-	toolbarButton(harness, 'Draw zone').click();
+	activateTool(harness, 'draw-polygon');
 	await settle();
 
 	click(canvas, 500, 100);
@@ -80,7 +80,7 @@ it('does not REMEMBER a swallowed pointer either, for a later modifier to replay
 	// The pan is taken at the cursor's own pixel so that an honest re-issue is a no-op here
 	// and any change is B's coordinates arriving.
 	const { harness, canvas } = await editor();
-	toolbarButton(harness, 'Draw zone').click();
+	activateTool(harness, 'draw-polygon');
 	await settle();
 
 	click(canvas, 500, 100);
@@ -110,7 +110,7 @@ describe('a pointer the canvas swallowed, cancelled after the pan ended', () => 
 		// then the OS cancels B. The cancel branch asks "is a pan running", which is now false,
 		// so it cancels the ACTIVE TOOL — for a pointer that tool never received a press from.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -139,7 +139,7 @@ describe('a pointer the canvas swallowed, cancelled after the pan ended', () => 
 		// the tool, which placed a vertex the user never asked for — a release with no matching
 		// press, which is the grammar defect this file exists to refuse.
 		const { harness, canvas, zonesRepo } = await editor();
-		toolbarButton(harness, 'Draw zone').click();
+		activateTool(harness, 'draw-polygon');
 		await settle();
 
 		click(canvas, 500, 100);
@@ -192,7 +192,7 @@ it('does not strand its id when the pointer LEAVES before it is released', async
 	// are both swallowed by the stale entry, leaving the tool gesture in flight for good — the
 	// camera locked, and the preview live for whatever the user clicks next.
 	const { harness, canvas, zonesRepo } = await editor();
-	toolbarButton(harness, 'Select').click();
+	actionButton(harness, 'Select').click();
 	await settle();
 
 	// Pointer 11 drags the zone; finger 12 lands mid-drag and is swallowed…
@@ -222,7 +222,7 @@ it('says nothing about a TOOL gesture it does not own either, not just a pan', a
 	// foreign pointer crossing the edge fell straight through and forgot where the drawing
 	// hand was, blanking the status bar with it.
 	const { harness, canvas, camera } = await editor();
-	toolbarButton(harness, 'Select').click();
+	actionButton(harness, 'Select').click();
 	await settle();
 
 	pointer(canvas, 'pointerdown', 300, 300, 0, 11);
@@ -247,7 +247,7 @@ it('says nothing about a TOOL gesture it does not own either, not just a pan', a
  */
 async function dragInterruptedByAReturningPointer(interloper: boolean): Promise<number> {
 	const { harness, canvas, zonesRepo } = await editor();
-	toolbarButton(harness, 'Select').click();
+	actionButton(harness, 'Select').click();
 	await settle();
 	const before = expectOk(await zonesRepo.listByPlan(PLAN)).loaded[0].entity.geometry.points[0].x;
 

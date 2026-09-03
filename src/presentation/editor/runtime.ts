@@ -533,7 +533,8 @@ function buildRuntime(context: PlanEditorContext): EditorRuntime {
 	registerSelectionRetirement(projectStore, selection);
 
 	// Both halves of SDD §65 — `reportFault`'s throw and `notifyIfRefused`'s resolved
-	// refusal — bound straight to toolbar clicks. `ReversibleCalibratePlanCommand.undo()`
+	// refusal — bound straight to the context bar's Undo/Redo clicks.
+	// `ReversibleCalibratePlanCommand.undo()`
 	// refuses with a revision conflict whenever anything else has touched the plan's
 	// sidecar since (every zone create, move and delete does), and this is what makes THAT
 	// refusal say something rather than nothing.

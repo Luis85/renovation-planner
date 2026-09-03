@@ -164,8 +164,9 @@ describe('the harness index, the one-sheet claim over the rendered document', ()
 	 * The components that need the EDITOR RUNTIME, which the index provides per entry.
 	 *
 	 * Measured before it did: four of the twelve real components could not be opened here at
-	 * all, each failing on this one injection — `InspectorPanel`, `EditorToolbar`, `PlanCanvas`
-	 * and `InteractionLayer`. That is the class a prototype could not have worked around, since
+	 * all, each failing on this one injection — `InspectorPanel`, the toolbar (`EditorToolbar`,
+	 * since retired in favour of `EditorContextBar`), `PlanCanvas` and `InteractionLayer`. That
+	 * is the class a prototype could not have worked around, since
 	 * a template-only mock has no script block: it can pass a prop and can never supply an
 	 * injection, which made the shell components a designer most wants to compose the ones the
 	 * harness could not show. `EntryBoundary` calls `provideEditorRuntime(usePlanEditorContext())`
@@ -179,7 +180,7 @@ describe('the harness index, the one-sheet claim over the rendered document', ()
 	 * control above gives at length: `openEntry` settles on a stage marker OR a failure card,
 	 * so anything weaker would pass on the failure card these cases exist to rule out.
 	 */
-	it.each([['component:editor/shell/InspectorPanel'], ['component:editor/shell/EditorToolbar']])(
+	it.each([['component:editor/shell/InspectorPanel'], ['component:editor/shell/EditorContextBar']])(
 		'opens %s, which needs a runtime nothing above it would otherwise provide',
 		async (id) => {
 			const page = await openEntry(id);

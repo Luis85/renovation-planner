@@ -24,7 +24,8 @@ import ViewFailure from '../components/ViewFailure.vue';
 import { EMPTY_STATE_CONTENT } from '../emptyStates/content';
 import { resolveEmptyState } from '../emptyStates/resolve';
 import PlanCanvas from './PlanCanvas.vue';
-import EditorToolbar from './shell/EditorToolbar.vue';
+import EditorContextBar from './shell/EditorContextBar.vue';
+import FloatingPrimaryActions from './shell/FloatingPrimaryActions.vue';
 import InspectorPanel from './shell/InspectorPanel.vue';
 import LayersPanel from './shell/LayersPanel.vue';
 import StatusBar from './shell/StatusBar.vue';
@@ -32,7 +33,7 @@ import StatusBar from './shell/StatusBar.vue';
 const context = usePlanEditorContext();
 // The return value is USED now, not discarded: `activeToolId` is what displaces the empty
 // state and `setTool` is what the noZones action calls, and this is the same runtime object
-// every tool and the toolbar already share.
+// every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
 const { status, error, stale, unreadableZones } = storeToRefs(projectStore);
@@ -71,7 +72,9 @@ const overlay = computed(() => {
  *
  * Setting the tool rather than dispatching a command is deliberate: a Zone cannot be created
  * with zero user-supplied geometry, so there is no `CreateZoneCommand` call to make — the
- * correct action is putting the user in the same drawing mode the toolbar's own button would.
+ * correct action is putting the user in the same drawing mode `runtime.setTool('draw-polygon')`
+ * always would (Task 13 retired the toolbar button that used to make this call; nothing in the
+ * shell offers Draw zone directly today).
  *
  * `noBackground` has no button (settled at the top of this task): slice 5's picker is a
  * PLUGIN COMMAND, not a member of the editor's bundle, so there is nothing here to call that
@@ -189,7 +192,7 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 		ref="root"
 		class="renovation-plan-editor"
 	>
-		<EditorToolbar />
+		<EditorContextBar />
 		<div class="rp-editor-body">
 			<LayersPanel v-if="layersPanelOpen" />
 			<!--
@@ -209,6 +212,8 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					overlay
 					@action="onEmptyStateAction()"
 				/>
+				<!-- Task 18 replaces this handler with the real Add menu. -->
+				<FloatingPrimaryActions @open-add="() => {}" />
 			</PlanCanvas>
 			<ViewFailure
 				v-else-if="failure !== null"

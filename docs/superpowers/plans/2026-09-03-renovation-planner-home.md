@@ -1453,13 +1453,42 @@ rule here can override one there at equal specificity.
 }
 
 @container rp-project-list (max-width: 34rem) {
-	.rp-project-list .rp-project-row {
+	/*
+	 * BOTH row kinds, and the Continue row is not an afterthought here. It renders as
+	 * `.rp-continue` inside `.rp-project-list` (Task 11 moved it there so the shared row
+	 * declarations, scoped as descendants to beat Obsidian's own button rule, actually reach
+	 * it). Named only `.rp-project-row`, this rule left Continue at `nowrap` while the generic
+	 * name rule below still gave its name a 100% basis — so its date, its status and its two
+	 * buttons stayed on that one line and truncated or overflowed, at exactly the width the
+	 * design calls a designed state rather than a fallback.
+	 */
+	.rp-project-list .rp-project-row,
+	.rp-project-list .rp-continue {
 		flex-wrap: wrap;
 	}
 
-	/* The name takes the whole first line; the facts and the status share the second. */
+	/* The name takes the whole first line; the status and the facts share the second. */
 	.rp-project-list .rp-project-list__name {
 		flex-basis: 100%;
+	}
+
+	/*
+	 * SECOND LINE ORDER: status, then facts — `Design · 2 plans · EUR`, which is what §6's own
+	 * diagram specifies and what DOM order alone does not give. The row is name, facts, status
+	 * (the wide row's trailing column belongs at the trailing edge), so wrapping without this
+	 * renders `2 plans · EUR` followed by `Design`: the stage word, which is the fact a
+	 * renovator scans for, pushed to the end of the line behind two lesser ones.
+	 *
+	 * `order` rather than reordering the markup, because the WIDE row's sequence is correct and
+	 * is what the armature aligns; this is a narrow-only rearrangement and belongs in the
+	 * narrow-only block. The name keeps the implicit `order: 0` and so keeps line one.
+	 */
+	.rp-project-list .rp-project-row__status {
+		order: 1;
+	}
+
+	.rp-project-list .rp-project-row__facts {
+		order: 2;
 	}
 
 	/*
@@ -1472,6 +1501,20 @@ rule here can override one there at equal specificity.
 	}
 }
 ```
+
+**The `·` in §6's diagram marks the reading order, not a glyph this rule draws.** The row's own
+`gap` separates the two slots, and a `content: '·'` between them would be CSS generated content —
+which screen readers announce, so the row's accessible name would gain a "middle dot" between two
+facts that already read as separate. The separator INSIDE the facts slot is different and stays:
+it is part of that slot's own composed text (`2 plans · EUR`), not chrome between slots. Whether
+the gap reads as enough separation at 460px is a measurement, and Task 12's checklist is where it
+is taken — add it there rather than deciding it here.
+
+Both narrow behaviours are Task 12's to confirm by eye, and both need naming in its checklist:
+that the second line reads status-first, and that the Continue row wraps rather than truncating.
+A `home-stress-narrow` capture with a Continue context in the fixture is what shows the second —
+which means the harness fixture needs one, or the shot shows a surface with no Continue group at
+all and the check silently inspects nothing.
 
 - [ ] **Step 6: Import the partial**
 
@@ -3252,6 +3295,7 @@ would flatten into one string.
 
 **Files:**
 - Create: `src/presentation/views/useRovingFocus.ts`
+- Create: `src/presentation/views/platformModifier.ts` — `opensNote()` and `modifierLabel()`
 - Modify: `src/presentation/views/ProjectList.vue`
 - Modify: `src/presentation/views/ProjectRow.vue`
 - Test: `tests/presentation/views/projectListKeyboard.test.ts`
@@ -3875,12 +3919,27 @@ defineEmits<{ open: [projectId: string]; openNote: [projectId: string] }>();
 
 ```typescript
 /**
- * A modifier-click opens the NOTE, a plain click NAVIGATES. `metaKey` on macOS and `ctrlKey`
- * elsewhere is the host's own convention for "open this somewhere else", and Obsidian uses it
- * throughout its file explorer.
+ * **THE PLATFORM MODIFIER, asked once for every door that needs it.** `metaKey` on macOS and
+ * `ctrlKey` elsewhere is the host's own convention, and `modifierLabel()` already resolves it
+ * through `Platform.isMacOS` for the foot legend — so accepting BOTH keys on BOTH platforms, as
+ * an earlier draft did, made the pane advertise `⌘` on macOS while `Ctrl` silently worked too.
+ *
+ * That is not merely untidy on macOS: **control-click IS the platform's secondary-click
+ * gesture**, so a user opening a context menu on a row would have opened the project's note
+ * instead. The inverse costs less and is still wrong — `Meta` is the Windows key, and a Win+click
+ * is a shell gesture nothing in this pane should claim.
+ *
+ * One predicate rather than the test spelled out at each door: `onClick` and the `Mod+↵` keydown
+ * ask the same question, and the foot legend's `modifierLabel()` answers the other half of it —
+ * which is why both live in `platformModifier.ts` rather than each reaching for `Platform`
+ * separately. `onAuxClick` is deliberately NOT a third caller: the middle button opens the note
+ * unconditionally and carries no modifier at all.
  */
+import { opensNote } from './platformModifier';
+
+/** A modifier-click opens the NOTE, a plain click NAVIGATES. */
 function onClick(event: MouseEvent): void {
-	if (event.metaKey || event.ctrlKey) {
+	if (opensNote(event)) {
 		event.preventDefault();
 		emit('openNote', props.project.id);
 		return;
@@ -3908,7 +3967,7 @@ function onAuxClick(event: MouseEvent): void {
  * NOT handled here — intercepting it would reimplement what the element already does.
  */
 function onKeydown(event: KeyboardEvent): void {
-	if (event.key !== 'Enter' || !(event.metaKey || event.ctrlKey)) return;
+	if (event.key !== 'Enter' || !opensNote(event)) return;
 	event.preventDefault();
 	emit('openNote', props.project.id);
 }
@@ -4003,8 +4062,9 @@ covers the thing refused, not the thing still allowed.
 Run: `npm run check`
 
 ```bash
-git add src/presentation/views/useRovingFocus.ts src/presentation/views/ProjectList.vue \
-  src/presentation/views/ProjectRow.vue src/presentation/views/ProjectFilter.vue tests/presentation/views/
+git add src/presentation/views/useRovingFocus.ts src/presentation/views/platformModifier.ts \
+  src/presentation/views/ProjectList.vue src/presentation/views/ProjectRow.vue \
+  src/presentation/views/ProjectFilter.vue tests/presentation/views/
 git commit -m "$(cat <<'EOF'
 Give the launcher its keyboard, without an autofocus
 
@@ -4059,7 +4119,7 @@ action in the palette, which is where the stranger looks.
 - Consumes: `revealView`, the plugin's existing `openProject` door.
 - Produces:
   - Command id `new-project`, name from `command.new-project`.
-  - `modifierLabel(): string` in `src/presentation/views/modifierLabel.ts` — `⌘` or `Ctrl`.
+  - `modifierLabel(): string` in `src/presentation/views/platformModifier.ts` — `⌘` or `Ctrl`.
   - `ProjectList` renders the foot; `ViewRoot` renders it in the empty state too.
 
 - [ ] **Step 1: Write the failing foot test**
@@ -4132,9 +4192,12 @@ describe('ProjectList foot line', () => {
 Run: `npx vitest run tests/presentation/views/projectListFoot.test.ts`
 Expected: FAIL — no `.rp-project-list__foot`.
 
-- [ ] **Step 3: Write the modifier label**
+- [ ] **Step 3: Use the modifier label**
 
-Create `src/presentation/views/modifierLabel.ts`:
+`modifierLabel()` already exists — Task 8 created `src/presentation/views/platformModifier.ts`
+for `opensNote()` and put the label beside it, because both are the same question about the
+machine and two modules each testing `Platform.isMacOS` is how the pane came to advertise `⌘`
+while `Ctrl` also worked. Import it; do not add a second module:
 
 ```typescript
 import { Platform } from 'obsidian';
@@ -4146,9 +4209,16 @@ import { Platform } from 'obsidian';
  *
  * `Platform.isMacOS` rather than sniffing `navigator.platform`: Obsidian answers this itself,
  * and this is `presentation/`, which may name `obsidian`.
+ *
+ * `opensNote(event)` sits beside it and is the same fact asked of an EVENT rather than for a
+ * label — see Task 8, where a row's modifier-click and `Mod+↵` both ask it.
  */
 export function modifierLabel(): string {
 	return Platform.isMacOS ? '⌘' : 'Ctrl';
+}
+
+export function opensNote(event: MouseEvent | KeyboardEvent): boolean {
+	return Platform.isMacOS ? event.metaKey : event.ctrlKey;
 }
 ```
 
@@ -4185,7 +4255,7 @@ foot after the groups and the no-match block:
 ```
 
 ```typescript
-import { modifierLabel } from './modifierLabel';
+import { modifierLabel } from './platformModifier';
 
 // Resolved once per mount, like the collator: the platform does not change under a running app.
 const keyLegend = tr('view.project.keys', { mod: modifierLabel() });

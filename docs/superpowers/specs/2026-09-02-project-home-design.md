@@ -360,6 +360,29 @@ interface ProjectSummary {
 	 * exactly the missing-target rows. Subtracting both would then double-count a row that is
 	 * both, which is the union only this query can size — the identical argument `summed`
 	 * carries, and the identical mistake made one field over.
+	 *
+	 * **Unreadable and gone were named as the ONLY blockers and they are not**, which is this
+	 * count's own live-control-that-does-nothing defect, one class further out. Reported, and
+	 * verified at the raise sites: `RecalculateRequirementCommand` also refuses a row whose
+	 * referents are readable AND present. A hand edit changing the referenced asset's unit from
+	 * an area to a length is refused `requirement.unit-not-area` — the command re-checks it
+	 * precisely because the creation-time guard can be bypassed by a hand edit or a migration —
+	 * and beside it sit `requirement.area-failed` (a degenerate polygon: zero-area, or the
+	 * shoelace overflow `core/geometry` records), `cost.currency-mismatch` from the currency
+	 * invariant, and `requirement.project-gone`.
+	 *
+	 * So the definition is not a list of referent STATES. It is the command's own preconditions,
+	 * and the row builder already holds every input they need — it loads the asset (so
+	 * `isAreaKind()` is in hand), it computes the zone area to decide staleness at all, and
+	 * since the currency increment it resolves the project's currency per row.
+	 *
+	 * **Shared predicate, not a second derivation**, and that is the whole of the design note.
+	 * Re-deriving these four in the query is two statements of one rule that will drift on the
+	 * day a fifth precondition is added to the command — the shape this repository has already
+	 * paid for twice, and the reason `assetMatchesCalculatedFrom` exists. The increment extracts
+	 * the command's pre-write precondition check and both call it, so a row counts as
+	 * recalculable exactly when the command would proceed. A precondition added in one place is
+	 * then added in both by construction rather than by memory.
 	 */
 	recalculable: number;
 	/**
@@ -1064,10 +1087,32 @@ the pre-recovery vault and stays on it indefinitely.
 snapshot entity and therefore its `projectId`. Which event follows the restore it actually
 performed: `expected` is `'absent'` when the forward sequence had REMOVED that referent, so
 putting it back is a creation and publishes `RequirementCreated`; otherwise the row exists and its
-persisted figures are rewritten, which publishes `CostEstimateChanged`. The second over-reports
-when a restore happens to rewrite identical figures — deliberate, and cheap: the cost is one
-redundant re-read of a project-scoped query at startup, against a summary that is otherwise wrong
-for the life of the leaf.
+persisted figures are rewritten, which publishes `CostEstimateChanged`.
+
+**That second half named an event recovery cannot truthfully fill, and the correction is the
+useful part.** Reported and verified: `CostEstimateChanged`'s payload requires `previous: Money`
+and `current: Money`, while `SequenceProgress` is `{ id, outcome, version }` and retains no figure
+at all. `marker.affectedBefore` holds the BEFORE snapshot — which is what recovery restores, so it
+supplies `current` and never `previous`. Specifying that event from its NAME rather than from its
+payload is the same defect as citing a raise site without tracing it, one document over.
+
+Recovery therefore READS the live requirement before it saves, which is where `previous` actually
+lives, and hands both figures to `publishIfEffectiveCostChanged` — the helper
+`SetRequirementQuantityOverride` already exports for exactly this comparison. Nothing is minted and
+no payload is fabricated. It publishes nothing when the figures match, which is truthful rather
+than a gap, and it costs one extra read per restored entry on a startup path over interrupted
+markers.
+
+**One residue, named because it follows from that truthfulness.** A restore that moves only
+`recalculationStatus` — the `delete-anyway` path marks referents stale, and restoring the
+pre-state marks them current again — changes no figure, so the helper correctly publishes nothing
+and the summary's `stale` count lags until the leaf is remounted. Closing it means an event
+meaning "this row was written back", which none of `RequirementCreated`,
+`RequirementRecalculated`, `RequirementInvalidated` or `RequirementDeleted` says: `Invalidated` is
+the nearest and claims a recalculation is OWED, which is the opposite of what a restore to a
+`current` pre-state means. Minting a second event inside a fix for a payload mistake is how the
+vocabulary grows without anyone deciding, so it is written down here instead, with its trigger:
+the increment that gives the strip a live stale count people act on.
 
 **Awaiting recovery before announcing the rebuild was the reported alternative and is declined.**
 It is the smaller diff and it puts vault reads on the path that gates every view's hydration:
@@ -1384,6 +1429,8 @@ mistake, per this repository's rule.
 | Summary | one malformed requirement note leaves every other figure drawn, counted once in `unreadableRequirements` | an unscoped walk counts it once per zone, and a per-zone widening counts another project's note too |
 | Summary | a row whose ASSET note cannot be read contributes to the total WHEN NO EXCLUSION APPLIES, reads `stale`, and carries `missingTarget: null` | excluding it understates the project invisibly; `missingTarget: 'asset'` reports a deletion that did not happen; and an unqualified "IS in the total" contradicts the intersection row below it, which is the same flat claim this document has now had to retire in six places |
 | Summary | the same row is counted in `unreadableReferents` and the strip does not offer it as recalculable | "needs recalculating" is an instruction that cannot be followed for this row |
+| Summary | a row whose referents are readable and present but whose asset unit is a LENGTH is excluded from `recalculable` | the command refuses it `requirement.unit-not-area`, so offering the remedy is the live-control-that-does-nothing defect; referent state is not the whole precondition set |
+| Summary | `recalculable` and the command agree by calling ONE predicate, driven by adding a precondition and watching both move | two derivations of one rule drift at the fifth precondition, which is the shape `assetMatchesCalculatedFrom` exists to prevent |
 | Summary | a row that is both stale and currency-mismatched is counted in BOTH and summed into NEITHER | the flat reading of `stale` attempts the mismatched addition |
 | Summary | the mismatch fixture is a hand-edited project or requirement `currency`, written through the vault | a foreign-currency cost OVERRIDE is re-denominated by `requirementToPersistence`, and a foreign `AssetPriceOverride` is refused by its own command — both fixtures test states production cannot reach |
 | Summary | a row that is both unreadable-referent and currency-mismatched is counted in BOTH and summed into NEITHER | the same flat reading, re-derived one count over — the exclusions decide membership, never the state counts |
@@ -1410,7 +1457,7 @@ mistake, per this repository's rule.
 | Coalescing | disposing inside the debounce window performs NO summary read | unsubscribing does not cancel a scheduled callback, so an unmounted section keeps paying the walk this section exists to bound; asserted on reads, since a listener-count assertion passes against a live timer |
 | Sweep | every module under `src/application` that WRITES also publishes, is a helper whose caller does, or is a NAMED carve-out | the adapter-only filter is a sample and so was the metric; asked the wider way the census returns thirteen, and the prose under it first accounted for eleven — the test is what stops an enumeration drifting from its own count |
 | Zone restore reaches dependents | a redone zone creation publishes a requirement-level event per referent, including one whose own `projectId` differs from the zone's | nothing subscribes to `ZoneCreated`, so a restore runs no cascade, and the event names the zone's project — a dependent in another project keeps a `missingTarget` badge that a fresh read would already have cleared |
-| Recovery publishes | a restored requirement raises `RequirementCreated` for an `'absent'` entry and `CostEstimateChanged` otherwise, with `projectId` from the snapshot | recovery writes after `projectIndexRebuilt()` has already fired and its writes suppress their own vault echo, so an Overview mounted at startup is stale for the life of the leaf with nothing able to correct it |
+| Recovery publishes | a restored requirement raises `RequirementCreated` for an `'absent'` entry, and for a `'written'` one goes through `publishIfEffectiveCostChanged` with `previous` READ LIVE before the save — including the case where the figures match and nothing is published | recovery writes after `projectIndexRebuilt()` has already fired and its writes suppress their own vault echo, so an Overview mounted at startup is stale for the life of the leaf with nothing able to correct it |
 | Recovery is composed | `RecoveryDeps.events` is REQUIRED and the plugin's call site passes it | an optional collaborator makes a composition that forgets it compile, pass and say nothing — the `CascadeDeps.notify` shape this document already records |
 | Price overrides | a refused `overrides.listByProject` leaves every row in that project IN, summed, `stale`, and counted in `unreadableReferents` | `hydrate` refuses on the first unreadable override, so this is the one referent read whose failure is project-wide rather than per-row; wiring it per-row qualifies one row and silently vouches for the rest |
 | Sweep | the carve-out list is asserted by EXACT key set, and today holds exactly `ReversibleSetPlanBackground` with its reason | an unqualified "every writer publishes" fails against a module this increment deliberately does not change, so the test contract and the declared scope could not both be satisfied; and a carve-out for a path that no longer exists goes on reading as a live exception |

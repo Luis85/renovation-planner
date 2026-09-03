@@ -244,8 +244,8 @@ describe('interpolation', () => {
 	 * and this case is where they find that out. Both locales are counted because an incomplete
 	 * `de.ts` is permitted by the type and would otherwise drift silently.
 	 */
-	it('pins the Asset library inventory at 59 keys in both locales', () => {
-		expect(assetLibraryKeys(en)).toHaveLength(59);
-		expect(assetLibraryKeys(de)).toHaveLength(59);
+	it('pins the Asset library inventory at 60 keys in both locales', () => {
+		expect(assetLibraryKeys(en)).toHaveLength(60);
+		expect(assetLibraryKeys(de)).toHaveLength(60);
 	});
 });

@@ -33,8 +33,19 @@
  * Imported BEFORE both component partials in `index.css`, so either can still override a
  * property from its own file at equal specificity when one needs to differ.
  */
+/*
+ * `.rp-al-shelf .rp-al-row` (design "Asset library overview" §3.3, task 12 review round 1)
+ * joined this list rather than restating seven of these ten properties a second time — the
+ * same clone this file's own header already refused once, under the clone detector's floor
+ * and therefore undeclared to `npm run analyze`. `styles/asset-shelf.css`'s own `.rp-al-row`
+ * rule, loaded after this one, still overrides `display` (a GRID, not a flex row — five slots
+ * rather than two or one), `padding` and `border-radius` at equal specificity, exactly as
+ * `project-detail.css`/`plan-list.css` already do for their own two properties apiece — this
+ * partial's own header states that's what the import order is FOR.
+ */
 .rp-project-list .rp-project-list__row,
-.rp-plan-list .rp-plan-list__row {
+.rp-plan-list .rp-plan-list__row,
+.rp-al-shelf .rp-al-row {
 	display: flex;
 	width: 100%;
 	/* WCAG 2.5.8 asks 24px minimum. The harness index shipped 19.5px rows once, found by
@@ -50,6 +61,7 @@
 }
 
 .rp-project-list .rp-project-list__row:hover,
-.rp-plan-list .rp-plan-list__row:hover {
+.rp-plan-list .rp-plan-list__row:hover,
+.rp-al-shelf .rp-al-row:hover {
 	background-color: var(--background-modifier-hover);
 }

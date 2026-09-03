@@ -115,8 +115,13 @@ export const enAssetLibrary = {
 	'view.asset-library.height': 'Height',
 	'view.asset-library.notes': 'Notes',
 	// §3.4's row mark, described in words beside the (`aria-hidden`) drawing it sits next to.
-	// Four of the mark's five states get a word here; the fifth, measured, needs none — its
-	// extent alone, printed plainly, is what the other four are stated against.
+	// All five states get a word here — §3.4 asks for "state AND extent", without a carve-out
+	// for the one state whose extent alone might seem to say enough, and a browsing
+	// screen-reader user inferring "measured" from the ABSENCE of a word is the same failure
+	// §3.4 exists to refuse in the other medium. This is the spec's 60th key (amendment of
+	// 2026-09-03, after Task 12's own count pin caught the omission): a prior version of this
+	// file argued `measured` needed none, and that argument is corrected here rather than kept.
+	'view.asset-library.shape.measured': 'Measured footprint',
 	'view.asset-library.shape.none': 'No footprint',
 	'view.asset-library.shape.unscaled': 'Unscaled footprint',
 	'view.asset-library.shape.pending': 'Footprint not yet read',

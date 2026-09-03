@@ -145,10 +145,13 @@ describe('AssetRow', () => {
 		expect(description).not.toContain('mm');
 	});
 
-	it('describes a measured footprint by its extent alone, with its unit', () => {
+	it('describes a measured footprint by its word AND its extent, with its unit', () => {
+		// Spec amendment of 2026-09-03: §3.4 asks for "state AND extent" with no carve-out, so
+		// `measured` carries a word exactly as the other four do, following the spec's own
+		// worked example ("Measured footprint, 1200 × 190 mm").
 		const row = mountRow({ outline: MEASURED });
 		const description = row.get('.rp-al-row__mark-words').text();
-		expect(description).toContain('1200 × 190 mm');
+		expect(description).toBe('Measured footprint, 1200 × 190 mm');
 	});
 
 	it('describes "no footprint" and "unreadable" without an extent', () => {

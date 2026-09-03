@@ -1621,8 +1621,15 @@ specification's: a screen-reader user browsing hears `1200 × 190 mm` and must i
 ABSENCE of a word that the figure is measured rather than unscaled, which is inference from silence
 — the same failure §3.4 refuses when it says a fact carried only in pixels fails through the other
 eye. A fact carried only in an omission fails the same way.
-Its German is `Gemessener Grundriss`, matching the `Grundriss` the other four state words already
-use.
+Its German is `Gemessener Umriss`. **The coordinator's instruction said `Gemessener Grundriss`,
+"matching the `Grundriss` the other four state words already use", and that was wrong twice over —
+Task 12's implementer checked the file rather than complying, and flagged the disagreement instead
+of silently substituting.** The other four shape keys all use `Umriss`; `Grundriss` is `de.ts`'s
+established word for a PLAN (`Grundriss-Editor`, `command.open-plan-editor`), so the suggested
+wording would have named an asset's footprint with the word this plugin uses for a plan — the
+German-vocabulary drift CLAUDE.md records fixing twice already (`Material`/`Objekt`, and one noun
+given two genders across two keys). An instruction from the coordinator is a claim like any other,
+and this one was checkable against the file it was a claim about.
 **This amendment exists because a test caught it.** `tests/presentation/i18n/strings.test.ts` pins
 the inventory at an exact count in both locales, so a 60th key cannot be added quietly — it fails,
 somebody reads why, and the addition becomes a decision. That pin was written after the count went

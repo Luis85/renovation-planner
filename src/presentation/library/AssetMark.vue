@@ -31,15 +31,15 @@ import type { AssetOutline } from '../../application/queries/ListAssetOutlines';
 import type { Point } from '../../core/geometry/Point';
 
 /**
- * `ordinal` is part of this component's contract in the task brief's own "Produces" list.
- * Nothing in §3.4 asks the DRAWING to vary by a row's position, so it is accepted here for
- * parity with that signature and not read: the row's own hidden description span is what is
- * minted from the ordinal (§3.4's own rule), and that span belongs to `AssetRow.vue` — never
- * a descendant of this `aria-hidden` element, which carries no meaning for an id to describe.
+ * The task brief's own "Produces" line also named an `ordinal` prop here. It was dropped
+ * (Task 12 review round 1): nothing in §3.4 asks the DRAWING to vary by a row's position — the
+ * row's own hidden description span is what is minted from the ordinal (§3.4's own rule), and
+ * that span belongs to `AssetRow.vue`, never to this `aria-hidden` element, which carries no
+ * meaning for an id to describe. A REQUIRED prop every caller must supply and nothing reads is
+ * worse than a corrected line in a brief.
  */
 const props = defineProps<{
 	outline: AssetOutline | null;
-	ordinal: number;
 }>();
 
 /** §3.4's fifth state — `null` meaning "the query has not answered for this asset yet". */
@@ -85,6 +85,11 @@ const INSET = 2;
  */
 const path = computed((): string => {
 	const outline = props.outline;
+	// A TYPE-NARROWING guard rather than a runtime one, and coverage says so: the template
+	// reads `:d="path"` only under `v-if="kind === 'measured' || kind === 'unscaled'"`, so this
+	// branch is unreachable from any mount and costs the one uncovered statement/branch this
+	// file has. It stays because `outline.extent` below does not exist on the `none`/`refused`
+	// members, and `computed` has no narrower signature to ask for instead.
 	if (outline === null || (outline.kind !== 'measured' && outline.kind !== 'unscaled')) return '';
 
 	const { width, depth } = outline.extent;

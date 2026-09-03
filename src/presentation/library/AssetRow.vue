@@ -35,11 +35,7 @@ const props = defineProps<{
 	/** `null` for §3.4's *not yet read* — a row must never wait for its own mark. */
 	outline: AssetOutline | null;
 	selected: boolean;
-	/**
-	 * This row's position within its shelf. See `AssetMark.vue`'s own header for why it takes
-	 * the identical prop and does not use it: here, it is what the description span below is
-	 * minted from.
-	 */
+	/** This row's position within its shelf — what the description span below is minted from. */
 	ordinal: number;
 }>();
 
@@ -66,18 +62,25 @@ function dimensionsText(extent: Dimensions, withUnit: boolean): string {
 }
 
 /**
- * The mark's state and extent in words (§3.4), referenced by the row through
- * `aria-describedby` rather than nested inside it — a text descendant of the button would
- * join its accessible name ahead of the asset's own, and the row's name would become a
- * sentence. Four of the five states have a word in `en-assetLibrary.ts`; `measured` does not
- * — its extent alone, printed with its unit, is what the other four are stated against, and
- * `unscaled` withholds the unit exactly as the definition panel's own dimensions warning does,
- * so nothing recites a placeholder number as a measurement.
+ * The mark's state AND extent in words (§3.4 — "every", with no carve-out for `measured`),
+ * referenced by the row through `aria-describedby` rather than nested inside it — a text
+ * descendant of the button would join its accessible name ahead of the asset's own, and the
+ * row's name would become a sentence. Every one of the five states has its own word now,
+ * following the spec's own worked example verbatim ("Measured footprint, 1200 × 190 mm") —
+ * an earlier version of this file withheld `measured`'s word on the reasoning that its extent
+ * alone was what the other four are stated against, which is a real argument and not this
+ * specification's: a browsing screen-reader user hears the figure and would have had to infer
+ * "measured" from the ABSENCE of a word, the identical failure carried in pixels §3.4 exists
+ * to refuse in words instead. `unscaled` still withholds its UNIT (never its word) exactly as
+ * the definition panel's own dimensions warning does, so nothing recites a placeholder number
+ * as a measurement.
  */
 const spokenMark = computed((): string => {
 	const outline = props.outline;
 	if (outline === null) return tr('view.asset-library.shape.pending');
-	if (outline.kind === 'measured') return dimensionsText(outline.extent, true);
+	if (outline.kind === 'measured') {
+		return `${tr('view.asset-library.shape.measured')}, ${dimensionsText(outline.extent, true)}`;
+	}
 	if (outline.kind === 'unscaled') {
 		return `${tr('view.asset-library.shape.unscaled')}, ${dimensionsText(outline.extent, false)}`;
 	}
@@ -124,10 +127,7 @@ const wasteLabel = computed((): string | null => {
 			:aria-describedby="descriptionId"
 			@click="emit('select', entry.assetId)"
 		>
-			<AssetMark
-				:outline="outline"
-				:ordinal="ordinal"
-			/>
+			<AssetMark :outline="outline" />
 			<span class="rp-al-row__name">{{ entry.name }}</span>
 			<span class="rp-al-row__cost">
 				<span class="rp-al-row__amount">{{ priceLabel }}</span>

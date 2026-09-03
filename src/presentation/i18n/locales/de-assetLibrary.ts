@@ -72,6 +72,10 @@ export const deAssetLibrary = {
 	'view.asset-library.sku': 'SKU',
 	'view.asset-library.height': 'Höhe',
 	'view.asset-library.notes': 'Notizen',
+	// `Umriss`, not `Grundriss` — this file's own word for an asset's footprint everywhere
+	// else in this list (`view.asset-library.footprint`, and the four keys below); `Grundriss`
+	// is `en.ts`'s separate word for a PLAN, unrelated to an asset's shape.
+	'view.asset-library.shape.measured': 'Gemessener Umriss',
 	'view.asset-library.shape.none': 'Kein Umriss',
 	'view.asset-library.shape.unscaled': 'Nicht skalierter Umriss',
 	'view.asset-library.shape.pending': 'Umriss noch nicht gelesen',

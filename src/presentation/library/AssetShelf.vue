@@ -45,7 +45,7 @@ const props = withDefaults(
 		label: string;
 		entries: readonly CatalogueEntryDto[];
 		expanded?: boolean;
-		selectedId?: string | null;
+		selectedId?: AssetId | null;
 		/**
 		 * §6.1's flattened Results heading passes `false` over a non-empty list — the plain
 		 * heading it draws then is not the same fact as "this shelf has nothing in it", which

@@ -7,7 +7,10 @@ import { enAssetLibrary } from './en-assetLibrary';
  * ruleset's locale rules match — sentence case in this table is linted, not reviewed.
  *
  * `enAssetLibrary` is spread in rather than declared here: this file had 29 lines of
- * `max-lines` headroom and the Asset library's §8 inventory is 59 keys (58 at first ship, plus `view.asset-library.door` by amendment), so appending them
+ * `max-lines` headroom and the Asset library's §8 inventory is 60 keys (58 at first ship,
+ * plus `view.asset-library.door` by amendment, plus `view.asset-library.shape.measured` by
+ * a second amendment once Task 12's own count pin caught a measured mark announcing its
+ * extent and not its state), so appending them
  * inline would have been the reformatting-buys-nothing shape this repository's own rule
  * refuses — the fix is the extraction in `en-assetLibrary.ts`, not a wider budget. `en` is
  * still the one object `StringKey` derives from; the spread does not create a second source

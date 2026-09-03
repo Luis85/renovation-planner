@@ -110,7 +110,7 @@ away.
 | Ribbon | **No second ribbon icon.** The ribbon is shared real estate across every installed plugin and this surface is reached often but not constantly. A command plus an in-app door is the whole of it |
 | In-app door | `ProjectList`'s header gains an **Assets** control beside its existing `New asset` button — **and so does the no-projects aside**, see below. `ProjectList` is where a user already is when the thought "have I got a definition for this?" arrives |
 | Reveal | Through `revealView(ASSET_LIBRARY_VIEW)` — the one activation function, per the *one action, every input* rule, which is also what stops a double click opening two tabs of a singleton |
-| Root swap | An `assetLibraryViewDeps()` factory spelled ONCE for the registration and the rebind, plus a **fourth loop in `rebindOpenViews`** and an `AssetLibraryView.rebind` |
+| Root swap | An `assetLibraryDeps()` factory spelled ONCE for the registration and the rebind, plus a **fourth loop in `rebindOpenViews`** and an `AssetLibraryView.rebind` |
 
 **A registered view that is not rebound holds the retired root for as long as it stays open**, and
 this table specified the registration and stopped. `applySettings` replaces the composition root

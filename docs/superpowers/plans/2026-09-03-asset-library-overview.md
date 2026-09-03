@@ -861,7 +861,7 @@ git add -A && git commit -m "feat: the asset library's copy, in both locales, an
 **Files:**
 - Create: `src/presentation/read-models/assetLibraryQueries.ts`
 - Modify: `src/plugin/guardedServices.ts` — guard `ListCatalogueEntries` and `ListAssetOutlines`
-- Modify: `src/application/queries/ListRequirementsReferencing.ts` and its composition — **widen `ProjectFolderLookup` to the NOTE path**
+- Modify: `src/application/queries/ListRequirementsReferencing.ts` and its composition — **give `ProjectFolderLookup` the note path as a SECOND-LEVEL discriminator** (see the correction below; the first draft of this line said "widen to the NOTE path" and was wrong)
 - Test: `tests/application/queries/listRequirementsReferencing.test.ts` — two same-named projects in ONE folder
 - Modify: `src/plugin/composition-root.ts` — `assetLibraryDeps(...)`
 - Test: `tests/presentation/read-models/assetLibraryQueries.test.ts`, `tests/plugin/guardCategory.test.ts` (existing — it walks what the root hands out)
@@ -902,7 +902,9 @@ export interface AssetLibraryDeps {
 }
 ```
 
-**The `ProjectFolderLookup` widening is part of THIS task, with files and a test — not a sentence in the self-review.** The self-review said it was "folded into Task 9" and Task 9's file list did not name `ListRequirementsReferencing.ts`, so an implementer following the checklist would leave the folder-only collaborator intact and two same-named projects in ONE folder would still draw indistinguishable *Used in* rows. That is the case §3.5 needs `projectPath` for, and it is the case a folder lookup cannot answer: `projectFolderOf` is `parentOf(path)`, so both projects share a folder and differ only in filename. Widen the lookup to the note path, and test it with two projects that share BOTH a display name and a directory. A declared fold with no files behind it is a fold that did not happen. Reported by a review bot.
+**The `ProjectFolderLookup` widening is part of THIS task, with files and a test — not a sentence in the self-review.** The self-review said it was "folded into Task 9" and Task 9's file list did not name `ListRequirementsReferencing.ts`, so an implementer following the checklist would leave the folder-only collaborator intact and two same-named projects in ONE folder would still draw indistinguishable *Used in* rows. That is the case §3.5 needs `projectPath` for, and it is the case a folder lookup cannot answer: `projectFolderOf` is `parentOf(path)`, so both projects share a folder and differ only in filename. Test it with two projects that share BOTH a display name and a directory. A declared fold with no files behind it is a fold that did not happen. Reported by a review bot.
+
+**CORRECTION, and this brief was the thing that was wrong.** "Widen the lookup to the note path" reads as *always show the note path*, and that kills `view.asset-library.used-in.vault-root` — copy Task 8 has already shipped and §8 states in the present tense. §3.5 states a TWO-LEVEL rule verbatim: the project's folder is the discriminator, and the note's own path is the discriminator only *where the folder does not separate two rows*; `''` stays a supplied answer that renders the root label rather than an absence. Build the two-level rule, and mutation-check BOTH directions — the same-name-same-folder pair must yield two distinguishable rows, and a vault-root project must still render its root label. Task 9's implementer overruled this brief in the spec's favour and was upheld on review; this paragraph is corrected rather than deleted, because a brief that quietly stops being wrong teaches the next reader nothing.
 
 **`refuseUnrecovered` reuses the exact code string `settings.unrecovered`** — several call sites branch on it, and `viewHydrationOrigin` decides "no retry" from it. A new code here would silently give the bootstrap failure a retry button that cannot work.
 
@@ -1015,6 +1017,7 @@ git add -A && git commit -m "feat: the asset library's stores, and a ticket on e
 
 **Files:**
 - Create: `src/presentation/library/AssetLibraryView.ts`, `AssetLibraryContext.ts`, and a minimal `AssetLibraryRoot.vue` (Tasks 12–14 fill it)
+- **Do NOT declare `AssetLibraryDeps`** — Task 9 already shipped it at `src/presentation/library/AssetLibraryDeps.ts`. Import it. This plan originally had Task 11 create it inside `AssetLibraryContext.ts`; that would half-write a second home for one type, and Task 9's review upheld the shipped placement. The sibling convention (`RenovationProjectContext.ts`, `AssetDesignerContext.ts`) does put deps in the context file, so if a later reader wonders: the deviation is known, deliberate and reviewed.
 - Modify: `src/plugin/RenovationPlannerPlugin.ts`
 - Modify: `src/presentation/views/ViewRoot.vue` (the no-projects aside) and `ProjectList.vue` (the header)
 - Modify: `tests/build/registration-locality.test.ts` if the command lands in its own module
@@ -1618,7 +1621,7 @@ So promoting the loser after a command delete resurrects a catalogue entry whose
 
 **Spec coverage.** §1 and §1a are context. §2 → Task 11. §2a → the §11.9 ruling plus the negative rule bound into every task. §3.1/§3.6/§4/§6.1 → Task 13. §3.2/§3.3/§3.4 → Task 12. §3.5 → Task 14. §5.1 → Task 5. §5.1a → Tasks 1, 2, 3. §5.2 → Task 14's snapshot rule. §5.3 → Task 6. §5.4 → Task 7. §5.5 → Task 10. §6.2/§6.3 → Tasks 11 and 16. §7 → Tasks 15 and 16. §8 → Task 8. §9 → Tasks 12, 15, 17. §10 is anti-goals — nothing to build, and each is a thing no task may add. §11 → the rulings table. §12 → Task 17.
 
-**One gap, ruled rather than left open:** §3.5's *Used in* needs `ListRequirementsReferencing` to widen its `ProjectFolderLookup` to the note path so a vault-root project answers `''` rather than `undefined`. It is a two-line change inside Task 14's dependency and is folded into **Task 9**, whose brief carries spec lines 640–660. Cost if wrong: two identically named projects are indistinguishable in the one panel where the price edit that reaches both is about to happen.
+**One gap, ruled rather than left open:** §3.5's *Used in* needs `ListRequirementsReferencing` to widen its `ProjectFolderLookup` to the note path so a vault-root project answers `''` rather than `undefined`. It is folded into **Task 9**, whose brief carries spec lines 640–660. (It is NOT the "two-line change" this sentence first called it, and it is not a plain widening: §3.5's rule is two-level — folder first, note path only where the folder fails to separate two rows — because always showing the note path destroys the vault-root label. Corrected after Task 9's review upheld the implementer against this plan.) Cost if wrong: two identically named projects are indistinguishable in the one panel where the price edit that reaches both is about to happen.
 
 **Placeholder scan:** no "TBD", no "add appropriate error handling", no "similar to Task N". Where a test body is elided it is because the spec's own line range carries the exact values, and the brief names that range.
 

@@ -9,6 +9,7 @@ import type {
 	PlanListResult,
 } from '../../application/queries/ListPlansByProject';
 import type { ProjectListResult } from '../../application/queries/ListProjects';
+import type { AssetPriceRowDto } from '../../application/queries/ListProjectAssetPrices';
 import type { Loaded } from '../../application/ports/versioning';
 import type { Project } from '../../domain/project/Project';
 import type { ProjectId } from '../../domain/project/ProjectId';
@@ -51,6 +52,13 @@ export interface RenovationProjectQueryServices {
 	getProject(projectId: string): Promise<Result<ProjectSummaryDto | null, RepositoryError>>;
 	/** That project's plans, as list rows read them, and how many notes refused to be read. */
 	listPlansByProject(projectId: string): Promise<Result<PlanListView, RepositoryError>>;
+	/**
+	 * The price section's own read: the whole shared catalogue with this project's own price
+	 * beside each default. Answers `AssetPriceRowDto[]` directly rather than a mapped DTO —
+	 * `ListProjectAssetPrices` already builds the row this view renders, and a second mapping
+	 * here would be a second derivation of the same shape.
+	 */
+	listAssetPrices(projectId: string): Promise<Result<AssetPriceRowDto[], RepositoryError>>;
 }
 
 /**
@@ -91,6 +99,7 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
 		listProjects: refuseUnrecovered,
 		getProject: refuseUnrecovered,
 		listPlansByProject: refuseUnrecovered,
+		listAssetPrices: refuseUnrecovered,
 	};
 }
 
@@ -119,13 +128,24 @@ export function unavailableRenovationProjectQueries(): RenovationProjectQuerySer
  */
 const NO_FACTS: ProjectRowFacts = { planCount: 0, lastWorked: null };
 
-export function createRenovationProjectQueries(
-	listProjects: Query<void, Result<ProjectListResult, RepositoryError>>,
-	getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>,
-	listPlansByProject: Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>,
-	overlaps: LibraryOverlaps,
-	facts: ProjectListFacts,
-): RenovationProjectQueryServices {
+/**
+ * ONE bundle rather than six positional parameters, which is `createPlanEditorQueries`'s own
+ * shape one file over and the reason is the same: this boundary grows a member every time a
+ * surface above it grows a section, and the Home surface's facts port and the price section's
+ * catalogue read arrived from two independent branches into a signature that was already at
+ * five. Positional, that merge is a `max-params` failure and — worse — two adjacent ports of
+ * the same shape that a call site can silently transpose; named, a caller that supplies the
+ * wrong one names it at the call.
+ */
+export function createRenovationProjectQueries(deps: {
+	readonly listProjects: Query<void, Result<ProjectListResult, RepositoryError>>;
+	readonly getProject: Query<GetProjectInput, Result<Loaded<Project> | null, RepositoryError>>;
+	readonly listPlansByProject: Query<ListPlansByProjectInput, Result<PlanListResult, RepositoryError>>;
+	readonly overlaps: LibraryOverlaps;
+	readonly facts: ProjectListFacts;
+	readonly listAssetPrices: Query<ProjectId, Result<AssetPriceRowDto[], RepositoryError>>;
+}): RenovationProjectQueryServices {
+	const { listProjects, getProject, listPlansByProject, overlaps, facts, listAssetPrices } = deps;
 	return {
 		async listProjects() {
 			const found = await listProjects.execute();
@@ -188,6 +208,11 @@ export function createRenovationProjectQueries(
 				plans: listed.value.plans.map(toPlanSummaryDto),
 				unreadable: listed.value.unreadable,
 			});
+		},
+
+		/** Straight through — `ListProjectAssetPrices` already builds the row this view renders. */
+		listAssetPrices(projectId) {
+			return listAssetPrices.execute(projectId as ProjectId);
 		},
 	};
 }

@@ -10,6 +10,8 @@
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import ts from 'typescript';
+import { parse as parseSfc, compileTemplate } from '@vue/compiler-sfc';
 import { transform } from 'lightningcss';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushPromises } from '@vue/test-utils';
@@ -21,6 +23,599 @@ import { installResizeObserver } from '../helpers/layout';
 import { installEditorEnvironment, settle as flushAsync } from '../helpers/editor';
 import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
+import {
+	MAX_GLOB_BRANCHES,
+	expandGlobBranches,
+	importsATestFile,
+	resolvesOutsideRoots,
+	templateSkeleton,
+} from '../helpers/globBranches';
+
+/**
+ * The parser needs the DIALECT, not just the text. `ScriptKind.TS` parses `<div>` in a `.tsx`
+ * file as a type assertion and then an unterminated regular expression, so a dynamic
+ * `import('./theme.css')` inside JSX never becomes a `CallExpression` and the walk reports a
+ * clean tree — the silent-pass failure again, one layer inside the fix for it.
+ *
+ * **Unreachable today and admitted anyway**: there are no `.tsx` or `.jsx` files in the walked
+ * tree, but `MODULE` below lists both, so the first one written would go unscanned with nothing
+ * to say so. A gate that stops working when a permitted file type appears is worse than one that
+ * never permitted it.
+ */
+const KIND_BY_EXTENSION: ReadonlyMap<string, ts.ScriptKind> = new Map([
+	['.tsx', ts.ScriptKind.TSX],
+	['.jsx', ts.ScriptKind.JSX],
+	['.js', ts.ScriptKind.JS],
+	['.mjs', ts.ScriptKind.JS],
+	['.cjs', ts.ScriptKind.JS],
+]);
+
+/** An SFC block states its own dialect; `lang` absent means TS here, as `<script setup>` does. */
+const KIND_BY_LANG: ReadonlyMap<string, ts.ScriptKind> = new Map([
+	['tsx', ts.ScriptKind.TSX],
+	['jsx', ts.ScriptKind.JSX],
+	['js', ts.ScriptKind.JS],
+]);
+
+interface Script {
+	readonly content: string;
+	readonly kind: ts.ScriptKind;
+}
+
+interface StyleBlock {
+	readonly content: string;
+	readonly src: string | undefined;
+}
+
+interface Blocks {
+	readonly styles: readonly StyleBlock[];
+	readonly scripts: readonly Script[];
+	/**
+	 * Every block that names its content in a `src` instead of holding it — `<template src>` and
+	 * `<script src>` alike. The descriptor's `content` is EMPTY for one of these, so compiling or
+	 * parsing it scans nothing, and the file it names is not walked: `.html` is not in `MODULE`,
+	 * and a `.ts` helper outside the three roots is outside the sweep. So both absence checks
+	 * passed over a file Vite loads — an `import('./theme.css')` in a handler, a
+	 * `<link rel="stylesheet">` in an external template, a stylesheet imported by an external
+	 * script.
+	 *
+	 * **ONE key rather than one per block type, because this arrived as three separate rounds of
+	 * the same finding.** `<style src>` was answered first (it counts as an importer outright — a
+	 * style block's `src` genuinely IS a stylesheet), `<template src>` second, and `<script src>`
+	 * was reported after both, against a function that handles all three block kinds side by
+	 * side. Fixing the reported door twice and never asking what the third one did is the partial
+	 * fix this repository has a name for, so the question is now asked of BLOCKS rather than of
+	 * the block somebody reported.
+	 *
+	 * Reported under its own name rather than folded into `importers`: an external block does not
+	 * itself load a stylesheet, it is a file this scan cannot read, and saying "loads a
+	 * stylesheet" about it would send the next reader hunting an import that is not there.
+	 */
+	readonly external: readonly string[];
+}
+
+/**
+ * Both halves of one SFC parse. They were two functions, each calling `parseSfc` on the same
+ * text and throwing half the descriptor away.
+ *
+ * **Merged for clarity, and explicitly NOT as the fix for the timeout below** — a claim this
+ * docblock made for one commit and could not defend. A cold pass of `parseSfc` over the 52
+ * prototypes costs 122ms and a WARM one costs 1.1ms, so the duplicate was buying back about a
+ * millisecond of a 760ms scan, not the 122ms first measured: the number was real and it was a
+ * fact about JIT warm-up, not about the second call. One parse answering both questions is
+ * worth having on its own terms; it is not worth reporting as a saving.
+ *
+ * A TEMPLATE is executable too, and that is not a technicality: Vue compiles
+ * `@click="import('./theme.css')"` into render code containing a live
+ * `onClick: $event => (import('./theme.css'))` — measured, not assumed — so a template-only SFC
+ * with no script block at all can load a stylesheet when the handler runs. The runtime check
+ * elsewhere in this file mounts entries and never clicks anything, so nothing else would see it.
+ *
+ * Compiled with the real template compiler and then scanned with the real TS parser, which is
+ * the same move this file has now made three times. The generated code is plain JS, so it is
+ * handed the JS script kind rather than the SFC's own `lang`.
+ */
+const blocksOf = (file: string, text: string): Blocks => {
+	if (!file.endsWith('.vue')) {
+		return {
+			styles: [],
+			scripts: [
+				{ content: text, kind: KIND_BY_EXTENSION.get(path.extname(file)) ?? ts.ScriptKind.TS },
+			],
+			external: [],
+		};
+	}
+	const { descriptor } = parseSfc(text, { filename: file });
+	const scriptBlocks = [descriptor.script, descriptor.scriptSetup].filter(
+		(block): block is NonNullable<typeof block> => block !== null,
+	);
+	const scripts: Script[] = scriptBlocks.map((block) => ({
+		content: block.content,
+		kind: KIND_BY_LANG.get(block.lang ?? '') ?? ts.ScriptKind.TS,
+	}));
+	if (descriptor.template !== null) {
+		const rendered = compileTemplate({
+			id: file,
+			filename: file,
+			source: descriptor.template.content,
+		});
+		scripts.push({ content: rendered.code, kind: ts.ScriptKind.JS });
+	}
+	return {
+		styles: descriptor.styles.map((block) => ({ content: block.content, src: block.src })),
+		scripts,
+		external: [descriptor.template?.src, ...scriptBlocks.map((block) => block.src)].filter(
+			(src): src is string => src !== undefined,
+		),
+	};
+};
+
+/**
+ * `./theme.css?variant` and `./theme.css#x` are CSS requests to Vite, and a bare
+ * `.endsWith('.css')` says no to both. The QUERY and HASH are stripped before the suffix is
+ * tested — Vite splits a specifier at the first `?`, and `#` after that.
+ *
+ * Note what this does NOT do: `?raw` and `?url` make Vite return a string rather than load a
+ * sheet, so treating them as stylesheet imports would be a false positive. They are not carved
+ * out, deliberately — this guard's whole job is that a stylesheet must be UNREACHABLE, and a
+ * `?raw` import of a stylesheet in a harness module is worth a red test and a sentence in
+ * review either way. Over-refusing costs an argument; under-refusing is the silent pass this
+ * file has now paid for eleven times.
+ */
+const isStylesheetSpecifier = (specifier: string): boolean =>
+	specifier.split('?')[0]?.split('#')[0]?.endsWith('.css') === true;
+
+const namesStylesheet = (node: ts.Node): boolean => {
+	if (ts.isStringLiteralLike(node)) return isStylesheetSpecifier(node.text);
+	if (ts.isTemplateExpression(node)) {
+		const last = node.templateSpans.at(-1);
+		return last !== undefined && isStylesheetSpecifier(last.literal.text);
+	}
+	return false;
+};
+
+/**
+ * The characters an ordinary filename tail is made of. An ALLOW-list, not a list of glob
+ * metacharacters, and that is the whole point of it — see `literalTailOf`.
+ */
+const LITERAL_TAIL = /[A-Za-z0-9._/-]*$/;
+
+/**
+ * The pattern's trailing run of ordinary filename characters — the part that is the same in
+ * every path the glob can match, so the only part that can pin a match's extension.
+ *
+ * **Written as an allow-list because the deny-list version was a treadmill, and it shipped
+ * one round of that treadmill first.** The first version carried an alphabet of glob
+ * metacharacters (`*?{}[]`) and was immediately reported for extglobs: `./themes/*.@(css|js)`
+ * matches `themes/theme.css`, and against that alphabet the tail reads as the fixed string
+ * `.@(css|js)`, which does not end in `.css` — so the pattern was declared PROVEN CSS-FREE and
+ * the sheet stayed reachable with the case green. Measured before fixing, not reasoned about.
+ *
+ * Adding `(` and `)` would have closed the report and left the class open, which is exactly
+ * what this file's own regex history did nine times: each round named one more lexical
+ * construct and every intermediate version failed silently. So the question is inverted. A tail
+ * is literal only while every character in it is one a plain filename is made of; ANY other
+ * punctuation ends it, whether or not this author knew what that punctuation meant. Extglobs,
+ * braces, classes, POSIX classes and whatever picomatch grows next are all covered by not being
+ * letters.
+ *
+ * Deliberately conservative in the one direction that is safe: an unrecognised character
+ * shortens the tail, which can only move a pattern from "proven CSS-free" to "counts". This
+ * check's whole job is that a stylesheet must be UNREACHABLE, and over-refusing costs an
+ * argument while under-refusing is the silent pass.
+ */
+const literalTailOf = (pattern: string): string =>
+	(LITERAL_TAIL.exec(pattern)?.[0] ?? '').toLowerCase();
+
+/**
+ * A glob names a SET, and whether that set holds a stylesheet is a fact about the files on disk
+ * rather than about the pattern's last four characters. `import.meta.glob('./themes/*')` loads
+ * `themes/theme.css` when a loader runs, and a plain `.endsWith('.css')` says no to it because
+ * the text ends in `*`. Reported against a scan that tested a pattern as if it were a specifier
+ * — the mistake this file keeps making in new places: asking of the TEXT a question only
+ * answerable about what it RESOLVES to.
+ *
+ * Resolving the glob against the tree was the reported remedy and is deliberately not what this
+ * does: that buys a glob engine plus an answer that moves with the files present at scan time,
+ * to decide a question this file already has a standing preference about. The pattern is asked
+ * whether it can be PROVEN CSS-free instead — only a literal tail pins a match's extension — and
+ * anything unproven counts.
+ */
+const mayMatchStylesheet = (pattern: string): boolean => {
+	const tail = literalTailOf(pattern);
+	return !tail.includes('.') || tail.endsWith('.css');
+};
+
+/**
+ * `import.meta.glob(['./a/*.css', '!./a/skip.css'])` — Vite's multi-pattern form.
+ *
+ * A pattern Vite cannot resolve statically — a template carrying a substitution — reaches
+ * `isStringLiteralLike` as false and counts as nothing, which is right rather than a gap: Vite
+ * REFUSES a non-literal glob pattern outright, so it loads no module at all. A backtick pattern
+ * with no substitution is a literal and is covered.
+ *
+ * **A `!` pattern is DROPPED rather than APPLIED, and that is a false positive kept on
+ * purpose.** A negative excludes, so it names nothing that gets loaded and must not count as an
+ * import — but neither is it subtracted from the positives beside it. Reported:
+ * `['./themes/*', '!./themes/*.css']` loads no stylesheet, because the exclusion removes every
+ * CSS match, and this counts the broad positive and reports the module. The report is right and
+ * the behaviour stays.
+ *
+ * Two reasons, and the second decides it. Applying an exclusion means deciding whether the
+ * negatives remove EVERY css match of a positive, which is set subtraction over globs:
+ * `!./themes/*.css` subsumes and `!./themes/a.css` does not, and telling those apart is the glob
+ * matcher this check has now declined twice — for an answer that would then move with the files
+ * on disk. And the failure lands in the safe direction: over-refusing costs a red test and a
+ * sentence in review, where under-refusing is the silent pass this file has paid for eleven
+ * times, and twice more on this glob path since.
+ *
+ * It costs nothing today — no pattern in the tree is negated at all. A build that needs one can
+ * split the glob or state the exclusion in the pattern's own tail.
+ */
+const globNamesStylesheet = (node: ts.Node): boolean =>
+	(ts.isArrayLiteralExpression(node) ? [...node.elements] : [node]).some(
+		(element) =>
+			ts.isStringLiteralLike(element)
+			&& !element.text.startsWith('!')
+			&& mayMatchStylesheet(element.text),
+	);
+
+/** Every `@import` URL one stylesheet declares, per the account on `importsIn` below. */
+const importUrlsOf = (filename: string, code: Buffer): string[] => {
+	const found: string[] = [];
+	transform({
+		filename,
+		code,
+		minify: false,
+		errorRecovery: true,
+		visitor: { Rule: { import: (rule) => (found.push(rule.value.url), []) } },
+	});
+	return found;
+};
+
+/**
+ * An SFC `<style>` block can pull a stylesheet too — `@import './theme.css'` — and Vite loads it.
+ * Prototypes are PERMITTED a `<style scoped>` block, and the style-block check further down
+ * rejects blocks only under `tests/harness`, so a prototype was the one place this could hide.
+ *
+ * Asked of the CSS PARSER for the reason the JS side is, and through the extractor this file
+ * ALREADY had. I wrote a second one first — reprint the sheet and match `^@import` — and lint
+ * caught the duplicate import before the duplication itself did. `importsIn` was three
+ * definitions away, and it carries an `errorRecovery: true` my version did not: the vendored
+ * `obsidian.css` contains a literal `*\/` inside preserved upstream prose, which closes a
+ * comment in any conformant parser, so a stricter extractor throws on it. **Reuse was not
+ * tidiness here — the copy would have been wrong on a real file in the tree.**
+ *
+ * **Two narrowings I added and then had to take back out, both reported in one round.** The
+ * first version kept only `content`, and `<style scoped src="./theme.css">` puts the dependency
+ * in `src` with the content EMPTY — measured, not assumed. The second filtered the parsed URLs
+ * with `.endsWith('.css')`, which discards `@import './theme'` and
+ * `@import url('https://…/theme')`; both load a stylesheet, and `importsIn` — the extractor this
+ * one now shares — never filtered by extension at all.
+ *
+ * So ANY `@import` the CSS parser finds counts, and a `src` counts on its own. The rule this
+ * keeps arriving at: **the parser has already decided the thing is an import; a suffix test
+ * after it can only throw that answer away.** It is the JS side's `.css` check that is the
+ * exception, and it is one because a module graph carries every kind of specifier while a
+ * permitted style block carries only stylesheets.
+ */
+/**
+ * Whether a CSS-MODULE block depends on another file — `composes: base from './theme.css'`,
+ * `@value brand from './theme.css'`, and ICSS's `:import('./theme.css') { … }` — all three loaded
+ * by Vite and none of them seen by the `Rule.import` visitor, because none is an `@import` rule.
+ *
+ * **A REGRESSION the parser rewrite introduced, and the counter-example to its own argument.**
+ * That rewrite replaced a source regex with real parsers on the grounds that a parser strictly
+ * dominates a pattern. It does for the grammar it is asked about — and the regex caught both of
+ * these by accident, matching `from './theme.css'` because that text happens to look like a JS
+ * import. Measured both ways rather than argued. The honest form of the earlier claim is
+ * narrower: a parser beats a pattern at the question you point it AT, and pointing it at a
+ * different question than the pattern was accidentally answering loses coverage.
+ *
+ * The two forms need two instruments, which is the part that took a second round. `composes`
+ * lands on `exports[…].composes` as `{ type: 'dependency', specifier }` once `cssModules` is on.
+ * `@value` does NOT: measured, its exports are empty, `analyzeDependencies` answers null, and the
+ * import visitor sees nothing — lightningcss parses the rule and deprecates it without ever
+ * exposing what it points at. What it does emit is a `DeprecatedCssModulesValueRule` warning, so
+ * the block can be proven to CONTAIN a value rule and never proven free of a dependency.
+ *
+ * So a value rule COUNTS, whether or not it names a file. `@value x: 10px` imports nothing and is
+ * reported anyway — over-refusing, the direction this whole check takes, and free here because no
+ * block in the tree uses one at all. Proving absence and counting everything else is the same
+ * shape `mayMatchStylesheet` uses for globs.
+ *
+ * That warning type is a lightningcss API detail rather than a rule of CSS, so it is PINNED by
+ * the case below driving a real `@value … from`: a renamed warning turns this silently permissive
+ * otherwise, which is the `rule-custom-message` hazard this repository already records.
+ *
+ * **A THIRD form, carried from an earlier round: ICSS's `:import(...)` selector.** Measured
+ * directly against lightningcss 1.33.0 rather than assumed from the CSS Modules spec: it does not
+ * implement `:import`/`:export` ICSS blocks at all — `result.exports`, `result.references` and
+ * `result.dependencies` all stay empty for one, and the specifier string is not exposed through
+ * any structured field. `:import('./theme.css') { … }` is parsed as an ordinary selector with an
+ * unrecognised pseudo-class, and rejected the same way any other unknown pseudo-class would be —
+ * emitting `warnings: [{ type: 'SelectorError', value: { type: 'UnsupportedPseudoClass', value:
+ * 'import' } }]`, with no memory anywhere of the string that was inside the parentheses. There is
+ * nothing structural left to read, so — exactly like `@value` — the warning's mere PRESENCE
+ * counts, whether or not the block's `:import` names a real file. `::import` (a pseudo-ELEMENT,
+ * which the warning's own suggested correction points at) is a different, unrelated selector and
+ * produces `UnsupportedPseudoElement` instead, so the type check does not fold the two together;
+ * `:local(...)` and `:global(...)`, the two ICSS forms lightningcss DOES implement, parse cleanly
+ * with no warning at all — measured, not assumed, so this is not "any unrecognised pseudo-class
+ * counts" read backwards into a broader claim than the evidence supports.
+ */
+const cssModuleDependsOnFile = (filename: string, css: string): boolean => {
+	const { exports, warnings } = transform({
+		filename,
+		code: Buffer.from(css),
+		minify: false,
+		errorRecovery: true,
+		cssModules: true,
+	});
+	const composes = Object.values(exports ?? {}).some((entry) =>
+		entry.composes.some((reference) => reference.type === 'dependency'),
+	);
+	const icssImport = warnings.some(
+		(w) => w.type === 'SelectorError' && w.value?.type === 'UnsupportedPseudoClass' && w.value?.value === 'import',
+	);
+	return composes || warnings.some((w) => w.type === 'DeprecatedCssModulesValueRule') || icssImport;
+};
+
+const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
+	block.src !== undefined
+	|| importUrlsOf(file, Buffer.from(block.content)).length > 0
+	|| cssModuleDependsOnFile(file, block.content);
+
+/**
+ * A specifier this predicate can BOUND — relative or root-absolute — and whether it is a GLOB
+ * PATTERN or a module path.
+ *
+ * The two cannot be treated alike and the first version treated them alike: it truncated every
+ * specifier at the first glob metacharacter, so an ordinary import whose path merely CONTAINS
+ * one — `'../(route)/../../scripts/helper.ts'`, and a parenthesised segment is an everyday
+ * routing convention — was cut down to `'../'`, resolved to `src/`, and reported as staying
+ * inside the roots. Measured: the real target is `scripts/helper.ts`, outside them, and the
+ * absence assertion passed. Truncation is only ever right for a pattern, where the literal
+ * prefix is the directory the matches come out of.
+ */
+interface Specifier {
+	readonly text: string;
+	readonly isGlob: boolean;
+}
+
+interface ScriptScan {
+	/** Does this script load a stylesheet? */
+	readonly stylesheet: boolean;
+	/** Every relative or root-absolute specifier it names, glob patterns included — see
+	 *  `escapesTheRoots`. */
+	readonly relative: readonly Specifier[];
+}
+
+/**
+ * Every literal specifier form `collect` can actually receive, enumerated rather than assumed —
+ * this predicate's docblock has twice stated a bound narrower than the code, so the list is
+ * written where the gate is rather than trusted from memory:
+ *
+ * - **Relative** (`.`/`..`) — bounded, resolved from `dirname(file)`.
+ * - **Root-absolute** (a leading `/`) — bounded, resolved from the REPOSITORY ROOT instead;
+ *   Vite's own reading of `import '/scripts/helper.ts'` and `import.meta.glob('/scripts/*.ts')`.
+ *   Reported as unbounded through this exact gate before this fix, dropped alongside every bare
+ *   specifier because neither `.` nor `/` is `.`.
+ * - **Bare** (`'some-package'`, no leading `.` or `/`) — DROPPED. Genuinely out of reach without
+ *   a `paths` mapping (`tsconfig.json` declares none) or a package that resolves to a local file,
+ *   neither of which this repository has; the one alias either config sets (`obsidian`) points at
+ *   `tests/helpers/obsidian-mock.ts`, inside the roots.
+ * - **A negated glob pattern** (`'!./themes/*.css'`) — DROPPED, correctly: it starts with `!`,
+ *   which is neither `.` nor `/`, so it never reaches `relative` at all — names no module Vite
+ *   loads, matching `globNamesStylesheet`'s identical treatment of the same syntax.
+ * - **A template WITH substitutions** — bounded, by its reassembled literal skeleton (see the
+ *   `ts.isTemplateExpression` branch below) rather than its head alone.
+ * - **Anything else in an expression position** — an identifier, a function call, string
+ *   concatenation, a tagged template, a conditional — DROPPED. `ts.isStringLiteralLike` and
+ *   `ts.isTemplateExpression` are the only two shapes this walk recognises; everything else falls
+ *   through `collect`'s loop untouched. This is the one drop with no fixed syntax to check
+ *   against, because the specifier's value exists only at runtime — `importsStylesheet`'s own
+ *   docblock states the identical bound for the file as a whole, and nothing here can narrow it
+ *   further.
+ *
+ * What is NOT enumerated above because it cannot be, honestly: a specifier scheme this repository
+ * has never written (`http:`, `data:`, a bundler alias with its own resolution rules) would reach
+ * whichever of these forms it happens to spell — `resolvesOutsideRoots`'s own docblock records
+ * that a leading `//` (protocol-relative) is read as root-absolute, which can only over-refuse.
+ */
+const isBoundableSpecifier = (text: string): boolean => text.startsWith('.') || text.startsWith('/');
+
+/**
+ * The JS half of the question below, so that `importsStylesheet` reads as the pair it is — and
+ * the specifier list the closure check needs, gathered on the same walk rather than by parsing
+ * every module a second time.
+ */
+const scanScript = (file: string, script: Script): ScriptScan => {
+	const source = ts.createSourceFile(
+		file,
+		script.content,
+		ts.ScriptTarget.Latest,
+		false,
+		script.kind,
+	);
+	let found = false;
+	const relative: Specifier[] = [];
+	// Every literal specifier the node carries, so one walk answers both questions. An array
+	// element is a glob's own multi-pattern form; a `!` prefix is an EXCLUSION and names no
+	// module, so it is dropped here exactly as it is in `globNamesStylesheet`.
+	const collect = (node: ts.Node, isGlob: boolean): void => {
+		const elements = ts.isArrayLiteralExpression(node) ? [...node.elements] : [node];
+		for (const element of elements) {
+			// A TEMPLATE with substitutions is a real specifier to Vite — `import(`../../scripts/
+			// ${name}.ts`)` is its variable dynamic-import form and it expands to real modules — so
+			// dropping it here let a helper outside the roots go neither scanned nor reported.
+			//
+			// **Reading `element.head.text` alone — the text before the first `${…}` — was the
+			// same bug this file already fixed for globs, arriving on this path instead: it answers
+			// "where does this specifier BEGIN", not "where does it END UP".** Reported: ``
+			// `./${dir}/../../../scripts/helper.ts` `` from `src/prototypes/x.ts` recorded only
+			// `'./'`, resolving inside `src/prototypes`, while the literal text AFTER the
+			// substitution keeps walking with its own `../../../` regardless of what `dir` turns out
+			// to be, landing on `scripts/helper.ts`, outside every root. `templateSkeleton`
+			// (`tests/helpers/globBranches.ts` — this file had no room left for both the fix and its
+			// coverage, same as the brace fix) carries the full reasoning for why concatenating every
+			// literal span and dropping each `${…}` EXPRESSION is the conservative direction. Never
+			// marked `isGlob`: a variable dynamic import is a module PATH with an unknown middle, not
+			// a wildcard pattern, so the reassembled skeleton needs no truncation — eliding the
+			// substitutions already did the only safe narrowing this construct allows.
+			if (ts.isTemplateExpression(element)) {
+				const skeleton = templateSkeleton(
+					element.head.text,
+					element.templateSpans.map((span) => span.literal.text),
+				);
+				if (isBoundableSpecifier(skeleton)) relative.push({ text: skeleton, isGlob: false });
+				continue;
+			}
+			if (!ts.isStringLiteralLike(element)) continue;
+			if (isBoundableSpecifier(element.text)) relative.push({ text: element.text, isGlob });
+		}
+	};
+	const visit = (node: ts.Node): void => {
+		if (
+			(ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+			node.moduleSpecifier !== undefined
+		) {
+			collect(node.moduleSpecifier, false);
+			if (namesStylesheet(node.moduleSpecifier)) found = true;
+		}
+		if (ts.isCallExpression(node) && node.arguments[0] !== undefined) {
+			const callee = node.expression;
+			// `import('…')` — the callee IS the keyword, not an identifier.
+			const isDynamicImport = callee.kind === ts.SyntaxKind.ImportKeyword;
+			// `import.meta.glob('./themes/*.css')` — Vite turns each match into a dynamic
+			// import, so a glob naming stylesheets loads them. The callee is a property
+			// access ending in `glob` over an `import.meta` meta-property, which the
+			// dynamic-import test above cannot see: its `.kind` is `PropertyAccessExpression`.
+			// `entries.ts` already uses this primitive, so it is house vocabulary rather than
+			// an exotic input — the walk simply could not see the one shape the harness itself
+			// is built on.
+			const isGlob =
+				ts.isPropertyAccessExpression(callee)
+				&& callee.name.text === 'glob'
+				&& callee.expression.getText(source).startsWith('import.meta');
+			// A glob PATTERN and a specifier are different questions, so they take different
+			// predicates rather than one predicate that has to mean both.
+			if (isGlob || isDynamicImport) collect(node.arguments[0], isGlob);
+			const claimsStylesheet = isGlob
+				? globNamesStylesheet(node.arguments[0])
+				: isDynamicImport && namesStylesheet(node.arguments[0]);
+			if (claimsStylesheet) found = true;
+		}
+		ts.forEachChild(node, visit);
+	};
+	ts.forEachChild(source, visit);
+	return { stylesheet: found, relative };
+};
+
+/**
+ * Does this module import a stylesheet? Asked of the TypeScript PARSER, not of a pattern.
+ *
+ * **Nine rounds of review each named one more lexical construct**, and every intermediate
+ * version failed SILENTLY, because the assertion below is an absence — an under-reaching scan
+ * reports a clean tree. The sequence, so the next author meets the shape rather than the
+ * endpoint: a continuation alternative in the pattern; global continuation removal; `${[^}]*}`;
+ * a balanced depth counter; mode tracking; mode tracking minus comment-stripping. Each was
+ * correct about the case it was given and wrong about the class, and the ninth report — a brace
+ * inside a comment inside a substitution — was the one that could not be closed without telling
+ * a regex literal from division, which is the hard problem in hand-lexing JavaScript.
+ *
+ * So this stops hand-lexing. `ts.createSourceFile` handles comments, regex literals,
+ * continuations, nested templates and substitutions because it is the real grammar, and the
+ * check becomes a question about NODES: an import declaration, an `export … from`, or a dynamic
+ * `import()` whose specifier ends in `.css`. A template ending in a substitution is correctly
+ * NOT claimed — the extension is unknowable from source.
+ *
+ * **The `.vue` objection that deferred this twice is answered the same way**: with the real
+ * parser rather than a second hand-rolled one. `@vue/compiler-sfc` hands back `script` and
+ * `scriptSetup`; a template-only SFC yields neither and can import nothing.
+ *
+ * A regex over `<script…>` was written first and failed on the real tree within a minute —
+ * `ZoneSummary.vue` mentions `<script setup>` inside an HTML comment, so the extractor found an
+ * opening tag with no close. That is the identical mistake this change exists to stop, one layer
+ * up: hand-lexing a grammar somebody has already written a parser for.
+ *
+ * The honest bound is now only the one no analysis reaches: a specifier that is not in the
+ * source at all — held in an identifier, or assembled by concatenation — whose value exists
+ * only at runtime.
+ */
+const importsStylesheet = (file: string, blocks: Blocks, scans: readonly ScriptScan[]): boolean =>
+	blocks.styles.some((block) => styleImportsStylesheet(file, block))
+	|| scans.some((scan) => scan.stylesheet);
+
+/** The three trees this scan walks. Named once: the closure check below compares against them. */
+const ROOTS = ['src', 'tests/harness', 'tests/helpers'] as const;
+
+/**
+ * Does this relative specifier leave the trees this scan walks?
+ *
+ * **The roots were a claimed transitive closure and nothing checked the claim** — reported, and
+ * the report is right about the mechanism even though nothing in the tree does it today
+ * (measured: resolving every relative specifier in all 443 modules lands every one of them
+ * inside these three). `tests/harness/page.ts` importing `../../scripts/helper.ts`, which
+ * imports `./theme.css`, would load a stylesheet through a module this sweep never opens — and
+ * the execution check below cannot compensate, because Vitest's `css: false` stubs a real CSS
+ * import into an empty module.
+ *
+ * Traversing the module graph was the reported remedy and is more than the question needs. The
+ * roots do not have to be FOLLOWED, they have to be a CLOSURE — so the escape is what gets
+ * reported, and then either an import stays inside trees that are already scanned or this test
+ * says which file left and where it went. Cheap, because the walk above already has every
+ * specifier, and it fails loudly instead of silently.
+ *
+ * A glob pattern is resolved at its literal prefix — the part before the first wildcard — since
+ * that is the directory the matches come out of.
+ *
+ * **A pattern with N brace/extglob branches has up to N different directories its matches can
+ * come out of, and truncating at the first metacharacter bounds only one of them.** Reported:
+ * `'../{prototypes/ok,../scripts/helper}.ts'` from `src/prototypes/x.ts` truncates to `'../'`,
+ * which resolves inside `src`, while the second branch resolves to `scripts/helper.ts`, outside
+ * every root. `expandGlobBranches` (`tests/helpers/globBranches.ts` — moved there once fixing
+ * this and covering it both at once outgrew this file's own 450-line cap) expands every `{a,b}`
+ * and `@(a|b)` group — nested ones included — into its full set of branches, and the specifier
+ * escapes if ANY branch does. Each branch's own remaining wildcards (`*`, `?`, a character
+ * class) are ELIDED rather than truncated — `resolvesOutsideRoots`'s own docblock carries a
+ * second, measured instance of this exact mistake found one review round after this one: a
+ * wildcard truncated a branch's TAIL away along with any `../` living in it, which is not
+ * hypothetical once brace expansion can put arbitrary literal text after a wildcard. What it
+ * still cannot see: a pattern whose branch count or nesting cannot be bounded within
+ * `MAX_GLOB_BRANCHES` reports an escape without checking a single branch (over-refusing, on
+ * purpose); a backslash-escaped `\{` or `\(` is read as real brace/extglob syntax rather than a
+ * literal character, since nothing in this tree quotes one; and a literal, non-extglob `)`
+ * inside a brace group (`'{a(x),b}'`) desyncs the depth counter — it decrements on a close with
+ * no matching increment, so the whole group reads as unclosed and the pattern over-refuses. Safe
+ * (consistent with this predicate's whole posture) rather than exact, and left that way rather
+ * than taught to tell a bare `)` from an extglob's own: nothing in this tree writes one today.
+ *
+ * **The bound, corrected rather than merely narrowed: RELATIVE and ROOT-ABSOLUTE specifiers,
+ * and nothing else.** This sentence said "relative specifiers only" through two more rounds of
+ * this very predicate being found unbounded on a THIRD form — `resolvesOutsideRoots` in
+ * `tests/helpers/globBranches.ts` now resolves a leading `/` from the repository root rather
+ * than from `dirname(file)`, which is what Vite itself does for `import '/scripts/helper.ts'`
+ * and `import.meta.glob('/scripts/*.ts')`. `isBoundableSpecifier` above is the one gate that
+ * decides which specifiers reach this function at all, and its own docblock enumerates every
+ * form `collect` can receive — a BARE specifier (`'some-package'`, no leading `.` or `/`) is the
+ * one still left standing, and remains unreachable today for the reason recorded there:
+ * `tsconfig.json` declares no `paths` mapping, and the one alias either config sets (`obsidian`)
+ * points at `tests/helpers/obsidian-mock.ts`, already inside the roots. A second alias, or a
+ * `paths` entry, reopens it.
+ */
+const escapesTheRoots = (file: string, specifier: Specifier): boolean => {
+	// Truncation is for PATTERNS only. A module path containing a metacharacter is a path, and
+	// cutting it at that character resolves somewhere the import never goes — see `Specifier`.
+	if (!specifier.isGlob) return resolvesOutsideRoots(file, specifier.text, ROOTS);
+	const branches: string[] = [];
+	if (!expandGlobBranches(specifier.text, branches)) {
+		// The branches could not be bounded (an unclosed group, or more than
+		// `MAX_GLOB_BRANCHES`) — over-refuse rather than check a truncated subset of them.
+		return true;
+	}
+	return branches.some((branch) => resolvesOutsideRoots(file, branch, ROOTS, true));
+};
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
@@ -49,6 +644,34 @@ function harnessGrowthSelectors(): string[] {
 	return rules.filter(([, selector, body]) => selector.includes('.rp-harness-leaf') && body.includes('flex: 1')).map(([, selector]) => selector.trim());
 }
 
+/**
+ * This one case parses the whole reachable tree with three real parsers, so it is a
+ * static-analysis sweep wearing a unit test's clothes, and vitest's 5000ms default is a budget
+ * written for the latter. It timed out at that default on `verify (windows-latest, 22)` —
+ * measured there, not predicted.
+ *
+ * **Where the cost actually is, because it decided what NOT to do about it.** The case takes
+ * about 760ms on a quiet Linux machine, and warm medians for the three stages total about
+ * 186ms of that (`ts.createSourceFile` 138ms over 391 modules, `compileTemplate` 47ms over 52
+ * prototypes, `parseSfc` and lightningcss under 2ms between them). The rest is first-pass JIT
+ * warm-up of the parsers themselves — a cost paid per WORKER, not per file. So the obvious
+ * cheapening, a text pre-filter skipping the 416 of 443 files whose source cannot contain a
+ * stylesheet specifier at all, would have cut the small half: the first `.css`-bearing file
+ * still warms TypeScript. It was measured before it was declined, and it would have bought a
+ * heuristic in front of the parser — whose failure mode is the silent pass this file has now
+ * paid for eleven times — for the minority of the runtime.
+ *
+ * So the budget is the fix. Thirty seconds is roughly forty times the local figure, well past
+ * the six-fold parallel-contention factor this repository has already measured on that runner,
+ * and far enough from a real regression's shape to still fail on one.
+ *
+ * What it cannot measure is whether the VALUE suits a runner nobody here has: the same
+ * unmeasurable this repository's `settleUntil` deadline carries, and the same answer — a
+ * deadline that only a genuine regression trips, rather than a tick count that encodes one
+ * machine's speed.
+ */
+const WHOLE_TREE_SCAN_MS = 30_000;
+
 /** Module scope because it captures nothing per-call; `unicorn/consistent-function-scoping`. */
 const readText = (file: string): string => readFileSync(file, 'utf8');
 
@@ -70,17 +693,8 @@ const readText = (file: string): string => readFileSync(file, 'utf8');
  * vendored sheet this way, rather than excluding it from the scan, means an `@import` added to
  * it tomorrow is still caught — an excluded file is an unguarded file.
  */
-const importsIn = (file: string): string[] => {
-	const found: string[] = [];
-	transform({
-		filename: file,
-		code: readFileSync(file),
-		minify: false,
-		errorRecovery: true,
-		visitor: { Rule: { import: (rule) => (found.push(rule.value.url), []) } },
-	});
-	return found;
-};
+
+const importsIn = (file: string): string[] => importUrlsOf(file, readFileSync(file));
 
 /** Every `.css` file directly in `dir` (excluding `skip`) that itself `@import`s another. */
 const sheetsImporting = (dir: string, skip: string[] = []): string[] =>
@@ -396,8 +1010,158 @@ describe('the browser harness', () => {
 	 * false hit if scanned, which is exactly the class of guard-fires-on-its-own-explanation
 	 * defect named above for the bare-substring case.
 	 */
+	/**
+	 * The closure check's own separator handling, driven from BOTH platforms' spellings on
+	 * whichever one is running — because the first version was correct on Linux, wrong on
+	 * Windows, and the whole suite could not tell.
+	 *
+	 * Watched failing against that version: with the roots compared using `path.sep`, the two
+	 * backslash rows below report an escape for a sibling import that never leaves the tree.
+	 */
+	/**
+	 * All three CSS-module dependency forms, pinned as BEHAVIOUR rather than left to the probe
+	 * file that found them — and the `value`/`icssImport` rows double as the lock on
+	 * lightningcss's own warning shape, which is the only signal either form exposes. A renamed
+	 * warning type or value turns the check silently permissive, which is the
+	 * `rule-custom-message` hazard this repository already records. `pseudoElement` proves the
+	 * narrowing rather than assuming it: `::import` is a real, different, unrelated pseudo-ELEMENT
+	 * selector (lightningcss's own suggested correction for the typo `:import` would be), and
+	 * must not be folded into the same detection as the pseudo-CLASS ICSS actually uses.
+	 */
+	it('sees all three CSS-module dependency forms and neither plain block nor a lookalike selector', () => {
+		expect({
+			composes: cssModuleDependsOnFile('x.css', ".a { composes: base from './theme.css'; }"),
+			value: cssModuleDependsOnFile('x.css', "@value brand from './theme.css';\n.a { color: brand }"),
+			icssImport: cssModuleDependsOnFile('x.css', ":import('./theme.css') { imported: color; }"),
+			plain: cssModuleDependsOnFile('x.css', '.a { color: var(--text-normal); }'),
+			pseudoElement: cssModuleDependsOnFile('x.css', '::import { color: red; }'),
+		}).toEqual({ composes: true, value: true, icssImport: true, plain: false, pseudoElement: false });
+	});
+
+	it('resolves the root closure by separator and by specifier kind', () => {
+		const inside: Specifier = { text: './sibling', isGlob: false };
+		const outside: Specifier = { text: '../../scripts/helper.ts', isGlob: false };
+		// A module path that merely CONTAINS a glob metacharacter is still a path: truncating it
+		// at the `(` resolved to `src/` and reported no escape, while the import really leaves.
+		const parenthesised: Specifier = {
+			text: '../(route)/../../scripts/helper.ts',
+			isGlob: false,
+		};
+		// The same text as a PATTERN is truncated on purpose — the literal prefix is the directory
+		// its matches come out of, and `../` from here is inside the roots.
+		const pattern: Specifier = { text: '../(route)/*.ts', isGlob: true };
+		expect({
+			posixInside: escapesTheRoots('tests/helpers/vault.ts', inside),
+			windowsInside: escapesTheRoots('tests\\helpers\\vault.ts', inside),
+			posixOutside: escapesTheRoots('tests/harness/page.ts', outside),
+			windowsOutside: escapesTheRoots('tests\\harness\\page.ts', outside),
+			parenthesisedPath: escapesTheRoots('src/prototypes/x.ts', parenthesised),
+			globPattern: escapesTheRoots('src/prototypes/x.ts', pattern),
+		}).toEqual({
+			posixInside: false,
+			windowsInside: false,
+			posixOutside: true,
+			windowsOutside: true,
+			parenthesisedPath: true,
+			globPattern: false,
+		});
+	});
+
+	/**
+	 * Task R7 — a Codex finding against this predicate's OWN earlier fix: truncating at the first
+	 * metacharacter bounds only ONE branch of a brace or extglob alternation, and a pattern with N
+	 * branches can resolve out of N different directories. Each row is a branch the naive fix
+	 * ("any brace escapes") could not tell from the reported bug — see `allInside` in particular.
+	 *
+	 * The unclosed-group and nested-brace rows exist because `tests/harness/*.ts` sits outside
+	 * `vitest.config.ts`'s coverage `include` (`src/**\/*.{ts,vue}` only) — nothing here would ever
+	 * flag either behaviour going uncovered, so `expandGlobBranches`'s own suite
+	 * (`tests/helpers/globBranches.test.ts`) is where those two are actually pinned; these rows
+	 * are `escapesTheRoots`'s end-to-end confirmation that the wiring reaches them.
+	 */
+	it.each([
+		// The reported case, verbatim: truncating at the first `{` reduces this to `../`, which
+		// resolves inside `src`, but the second branch really resolves to `scripts/helper.ts`.
+		['the reported case', 'src/prototypes/x.ts', '../{prototypes/ok,../scripts/helper}.ts', true],
+		// Every branch stays inside the roots — proves the fix isn't "flag any brace at all".
+		['every branch staying inside', 'tests/helpers/vault.ts', './{a,b}.ts', false],
+		// `MAX_GLOB_BRANCHES + 1` branches against the cap: hitting it reports an escape rather
+		// than silently checking a prefix of them, even though every one of these branches, fully
+		// expanded, would individually resolve inside the roots.
+		['more branches than the cap', 'tests/helpers/vault.ts', `./{${Array.from({ length: MAX_GLOB_BRANCHES + 1 }, (_unused, i) => String.fromCharCode(97 + i)).join(',')}}.ts`, true],
+		// The two real globs this repository uses today, so the suite stays honest.
+		['the real prototypes glob', 'tests/harness/entries.ts', '../../src/prototypes/**/*.vue', false],
+		['the real components glob', 'tests/harness/entries.ts', '../../src/presentation/**/*.vue', false],
+		// The reported case's shape in extglob syntax rather than brace syntax.
+		['an extglob branch leaving the roots', 'src/prototypes/x.ts', '../@(prototypes/ok|../scripts/helper).ts', true],
+		// No matching `}` at all — `expandGlobBranches` cannot bound the branches and over-refuses.
+		['an unclosed group', 'tests/helpers/vault.ts', '../{a,b', true],
+		// The inner group's own branch (`../../scripts/x`) is what actually escapes — this fails
+		// unless the recursive call over the outer group's second alternative finds and expands
+		// the nested `{b,../../scripts/x}` rather than leaving it as an opaque, unexpanded branch.
+		['a nested brace, its inner branch bounded too', 'src/prototypes/x.ts', '../{a,{b,../../scripts/x}}.ts', true],
+		// `?()`'s empty match staying inside the roots — proves the empty-branch fix isn't "any
+		// optional group escapes": both the matched and the empty alternative land under `tests/helpers`.
+		['an optional group whose empty match also stays inside', 'tests/helpers/vault.ts', './?(sub)/y.ts', false],
+		// The two reported worked examples, verbatim — a repeating `+()` whose alternative is `../`
+		// walks further up with every extra occurrence, which no fixed number of branches bounds.
+		['a repeating operator whose alternative can traverse upward', 'src/prototypes/x.ts', '+(../)prototypes/*.ts', true],
+		['the same shape one directory deeper', 'src/prototypes/deep/x.ts', './+(../)helper.ts', true],
+	])('bounds every branch of a brace or extglob pattern — %s', (_label, file, text, escapes) => {
+		expect(escapesTheRoots(file, { text, isGlob: true })).toBe(escapes);
+	});
+
+	/**
+	 * Two more specifier forms reported unbounded through this same predicate, one review round
+	 * each — a TEMPLATE (`element.head.text` answers "where does this begin", not "where does it
+	 * end up") and a ROOT-ABSOLUTE specifier (a leading `/`, which used to start with neither `.`
+	 * nor the old gate's only accepted character and was dropped before `escapesTheRoots` ever
+	 * saw one — no escape was ever even POSSIBLE to report, a different failure shape from the
+	 * brace and template bugs, which both recorded a specifier and then bounded it wrongly).
+	 * `templateSkeleton`'s and `resolvesOutsideRoots`'s own docblocks in
+	 * `tests/helpers/globBranches.ts` carry the reasoning; the edge shapes only a real
+	 * `templateSkeleton` call can't reach on its own (an empty span, a trailing substitution with
+	 * nothing after it) are unit-tested directly there. These rows are end-to-end proof the
+	 * wiring — real TS parsing through `scanScript`, into `isBoundableSpecifier`, into
+	 * `escapesTheRoots` — actually reaches both fixes from real source text.
+	 */
+	it.each([
+		['a template, the reported case', 'src/prototypes/x.ts', `import(\`./\${dir}/../../../scripts/helper.ts\`);`, true],
+		['a template with every literal span staying inside', 'tests/helpers/vault.ts', `import(\`./sibling/\${name}.ts\`);`, false],
+		['a root-absolute specifier, the reported case', 'src/prototypes/x.ts', `import '/scripts/helper.ts';`, true],
+		['a root-absolute specifier landing inside a scanned root', 'tests/harness/page.ts', `import '/src/prototypes/x.ts';`, false],
+		['the root-absolute glob form', 'src/prototypes/x.ts', `import.meta.glob('/scripts/*.ts');`, true],
+	])('admits and correctly bounds %s', (_label, file, code, escapes) => {
+		const scan = scanScript(file, { content: code, kind: ts.ScriptKind.TS });
+		expect(scan.relative.some((specifier) => escapesTheRoots(file, specifier))).toBe(escapes);
+	});
+
 	it('loads no stylesheet through anything the harness can reach', () => {
-		const sheetImport = /(?:\bfrom\s*|\bimport\s*\(?\s*)['"`][^'"]*\.css['"`]/;
+		// A specifier may not contain a BARE newline, and may contain an escaped one.
+		//
+		// The bare-newline exclusion is what stops the class spanning prose. Measured twice, both
+		// times on comments: "Split from `onKey`" paired with a backticked `canvas.css`
+		// twenty-one lines below it and matched across the gap, and the second instance was
+		// written by an author who had just recorded the first. The failure message says "loads
+		// no stylesheet", which points nowhere near a comment, so each false positive costs a
+		// debugging cycle rather than a glance.
+		//
+		// Line continuations are REMOVED BEFORE MATCHING rather than spelled into the pattern,
+		// which is the transformation JavaScript's own parser performs: a specifier holding
+		// ``./styles\<newline>/index.css`` really does load a stylesheet, so the source newline
+		// must not defend against the match. Verified in node rather than reasoned about.
+		//
+		// **This replaced a `(?:[^'"\n]|\\\n)*` alternative that handled continuations in the
+		// PRECEDING repetition only, so `'./styles.cs\<newline>s'` — a continuation inside the
+		// EXTENSION — evaluated to `./styles.css` and matched nothing.** The assertion below is
+		// `toEqual({ importers: [] })`, so an under-matching pattern is a SILENT PASS: the
+		// stylesheet stays reachable and the walk reports a clean tree. That is this
+		// repository's own assert-an-absence defect, in the instrument rather than in a case.
+		//
+		// Normalising also closed a gap nobody reported: `\\\n` does not match `\\\r\n`, so a
+		// CRLF continuation defeated the old pattern too. Three rounds narrowed this regex one
+		// reported case at a time; doing what the parser does closes the class, and the third
+		// round is what says a pattern was the wrong instrument rather than a wrong pattern.
 		const sheetLink = /<link[^>]*\bstylesheet\b/i;
 		// Every extension Vite will load as a module, not the two this repository happens to
 		// hold today: `tsconfig.json` sets `allowJs`, so a `.js` or `.mjs` helper is as
@@ -424,23 +1188,65 @@ describe('the browser harness', () => {
 				return MODULE.test(entry.name) && !entry.name.endsWith('.test.ts') ? [full] : [];
 			});
 
-		const reachable = [
-			...sources('src'),
-			...sources('tests/harness'),
-			// `tests/helpers/` too: `mount.ts` and `planEditor.ts` are RUNTIME modules of this
-			// page and they import from there, so a stylesheet imported by a helper reaches the
-			// page exactly as surely as one imported here.
-			...sources('tests/helpers'),
-		];
+		// `ROOTS` rather than three literals: the trees that are WALKED and the trees the closure
+		// check compares against have to be one list, or a root added to either is a hole in the
+		// other. `tests/helpers/` is in it because `mount.ts` and `planEditor.ts` are RUNTIME
+		// modules of this page, so a stylesheet imported by a helper reaches the page exactly as
+		// surely as one imported here.
+		const reachable = ROOTS.flatMap((root) => sources(root));
 
-		const importers = reachable.filter((file) => sheetImport.test(readText(file)));
-		const linkers = reachable.filter((file) => sheetLink.test(readText(file)));
+		// Read and parse each file ONCE, then ask it every question. Three separate `.filter`
+		// passes each re-read the file, which cost nothing measurable and made the parse the
+		// caller's business to remember rather than the scan's.
+		const scanned = reachable.map((file) => {
+			const text = readText(file);
+			const blocks = blocksOf(file, text);
+			return { file, text, blocks, scans: blocks.scripts.map((s) => scanScript(file, s)) };
+		});
+		const named = (
+			predicate: (entry: (typeof scanned)[number]) => boolean,
+		): string[] => scanned.filter((entry) => predicate(entry)).map((entry) => entry.file);
+
+		// **This file has effectively no `max-lines` headroom left, so a SEVENTH list here faces
+		// an EXTRACTION to `tests/helpers/`, not a squeeze** — the predicate goes there and this
+		// block keeps its one `named` call, which is how `escapesTheRoots`'s glob expansion and
+		// `importsATestFile` both left. A compaction taken to buy headroom on this branch was
+		// reversed in review: a budget bought back by reformatting is a budget already spent.
+		// Deliberately no NUMBER here — the count is a fact about the moment it was taken and no
+		// gate reads this comment; `npx eslint tests/harness/harness.test.ts` is what answers it.
+		// The note is sited at the addition it can actually see, and claims nothing about an
+		// addition made elsewhere in the file, which would never pass this line.
+		const importers = named(({ file, blocks, scans }) => importsStylesheet(file, blocks, scans));
+		const escapees = named(({ file, scans }) =>
+			scans.some((scan) => scan.relative.some((specifier) => escapesTheRoots(file, specifier))),
+		);
+		// The vacuous pass: `sources()` above EXCLUDES `*.test.ts`, so a scanned module importing
+		// one imports a module Vite loads and this walk never opens — and any stylesheet THAT
+		// module imports is reachable from the page while `importers` reports a clean tree.
+		// `escapesTheRoots` cannot see it either, because a `*.test.ts` under the roots is inside
+		// the roots. A tripwire on that one edge rather than the full module-graph traversal the
+		// report proposed; `importsATestFile`'s own docblock states which chains it does not
+		// reach, the one-hop bound included. Latent rather than live when written (17 such files
+		// under the roots, none imported by a non-test module), which is why it was watched red
+		// against a planted import before being trusted.
+		const testHelpers = named(({ file, scans }) =>
+			scans.some((scan) => scan.relative.some((s) => importsATestFile(file, s, ROOTS))),
+		);
+		const linkers = named(({ text }) => sheetLink.test(text));
+		const externalBlocks = named(({ blocks }) => blocks.external.length > 0);
 		const styleBlocks = sources('tests/harness').filter((file) =>
 			/<style[\s>]/.test(readText(file)),
 		);
 
-		expect({ importers, linkers, styleBlocks }).toEqual({ importers: [], linkers: [], styleBlocks: [] });
-	});
+		expect({ importers, linkers, externalBlocks, escapees, styleBlocks, testHelpers }).toEqual({
+			importers: [],
+			linkers: [],
+			externalBlocks: [],
+			escapees: [],
+			styleBlocks: [],
+			testHelpers: [],
+		});
+	}, WHOLE_TREE_SCAN_MS);
 
 	/**
 	 * Round 8's item 5 — the route no source pattern can ever see, at any width: a stylesheet

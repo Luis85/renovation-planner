@@ -32,6 +32,7 @@ function queries(overrides: Partial<RenovationProjectQueryServices> = {}): Renov
 		listProjects: () => Promise.resolve(ok({ projects: [PROJECT], unreadable: 0 })),
 		getProject: () => Promise.resolve(ok(null)),
 		listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
+		listAssetPrices: () => Promise.reject(new Error('not exercised')),
 		...overrides,
 	};
 }

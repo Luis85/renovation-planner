@@ -49,10 +49,14 @@ import { SetAssetFootprintFromDimensionsCommand } from '../../src/application/co
 import { InMemoryAssetRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetRepository';
 import { InMemoryAssetGeometrySidecar } from './asset-geometry-sidecar';
 import { CreateProjectCommand } from '../../src/application/commands/project/CreateProject';
+import { SetAssetPriceOverrideCommand } from '../../src/application/commands/asset-price/SetAssetPriceOverride';
+import { ClearAssetPriceOverrideCommand } from '../../src/application/commands/asset-price/ClearAssetPriceOverride';
 import { GetProject } from '../../src/application/queries/GetProject';
 import { ListPlansByProject } from '../../src/application/queries/ListPlansByProject';
 import { ListProjects } from '../../src/application/queries/ListProjects';
+import { ListProjectAssetPrices } from '../../src/application/queries/ListProjectAssetPrices';
 import { InMemoryPlanRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { InMemoryAssetPriceOverrideRepository } from '../../src/infrastructure/persistence/in-memory/InMemoryAssetPriceOverrideRepository';
 import { IndexProjectListFacts } from '../../src/infrastructure/obsidian/repositories/IndexProjectListFacts';
 import { IndexLibraryOverlaps } from '../../src/infrastructure/obsidian/repositories/IndexLibraryOverlaps';
 import { InMemoryProjectIndex } from '../../src/infrastructure/persistence/index/InMemoryProjectIndex';
@@ -74,6 +78,18 @@ import type { RenovationProjectDeps } from '../../src/presentation/views/Renovat
 export interface SeedRepositories {
 	readonly projects: InMemoryProjectRepository;
 	readonly plans: InMemoryPlanRepository;
+	/**
+	 * The shared catalogue and this project's own prices, so a seeded caller can draw the price
+	 * section with real rows rather than its empty state.
+	 *
+	 * These two arrived with their first caller rather than ahead of it: this file's own comment
+	 * declined to declare them while `?project=` seeded projects and plans alone, and the harness
+	 * capture of the price section is what needed them — that capture is the ONLY instrument in
+	 * this repository for spacing, wrapping and overflow, and it can say nothing about a section
+	 * showing an empty state.
+	 */
+	readonly assets: InMemoryAssetRepository;
+	readonly overrides: InMemoryAssetPriceOverrideRepository;
 }
 
 /**
@@ -191,10 +207,15 @@ export const defaultRenovationProjectDeps = (
 	// repositories — so `entries()` is empty, no path is ever stat'd and the vault stand-in
 	// beside it is never called: an honest zero for the right reason rather than a stubbed one.
 	const listFacts = new IndexProjectListFacts(index, { getAbstractFileByPath: () => null });
+	// Real in-memory repositories — an ANSWERING query rather than a refusing double, so the
+	// browser harness's price section has something to render through this factory. Both are in
+	// `SeedRepositories` since the capture of that section needed rows to photograph; see that
+	// interface's own comment for why they arrived with their caller rather than ahead of it.
+	const assets = new InMemoryAssetRepository();
+	const overrides = new InMemoryAssetPriceOverrideRepository();
 	// Design slice A10's catalogue side. Built here beside the other repositories so the two
 	// asset commands below share ONE world: a form that creates an asset and then writes its
 	// footprint must find, in the sidecar, the very asset the create put in the repository.
-	const assets = new InMemoryAssetRepository();
 	const assetGeometry = new InMemoryAssetGeometrySidecar();
 
 	// Before the queries and the commands are built over them, so a seeded caller gets ONE
@@ -202,23 +223,42 @@ export const defaultRenovationProjectDeps = (
 	// browser harness's `?project=` knob is the only caller today (`tests/harness/mount.ts`):
 	// a detail state has to be OPENED on a project that exists, and every id here is
 	// generated, so a seed is the only way a URL can name one.
-	seed?.({ projects, plans });
+	seed?.({ projects, plans, assets, overrides });
 
 	// ANNOTATED rather than inferred, so a member the interface grows is a compile error here
 	// rather than an `undefined` handed to whoever reads it — which is what this file shipped:
 	// `commands` was built with `createProject` alone, and `RenovationProjectCommandServices`
 	// requires a `logger` beside it.
 	const defaults: RenovationProjectDeps = {
-		queries: createRenovationProjectQueries(
-			new ListProjects(projects, overlaps, listFacts),
-			new GetProject(projects),
-			new ListPlansByProject(plans),
+		queries: createRenovationProjectQueries({
+			listProjects: new ListProjects(projects, overlaps, listFacts),
+			getProject: new GetProject(projects),
+			listPlansByProject: new ListPlansByProject(plans),
 			overlaps,
-			listFacts,
-		),
+			facts: listFacts,
+			listAssetPrices: new ListProjectAssetPrices(assets, overrides, index, recorder),
+		}),
 		commands: {
 			createProject: new CreateProjectCommand(projects, events, DEFAULT_SETTINGS.defaultCurrency),
 			createPlan: new CreatePlanCommand(plans, projects, events),
+			// REAL commands over the SAME `assets`/`overrides` this file's `listAssetPrices`
+			// reads through, not refusals: a stand-in that refuses what production answers turns
+			// a tool built for looking into one that shows a false picture, and the price section
+			// is unusable in the browser harness otherwise. It is also the read-and-write pairing
+			// this file already insists on for `createPlan` — one world, not a read model over
+			// content beside a write side over an empty pair.
+			setAssetPriceOverride: new SetAssetPriceOverrideCommand({
+				overrides,
+				projects,
+				assets,
+				events,
+				locks: new ReferenceLocks(),
+			}),
+			clearAssetPriceOverride: new ClearAssetPriceOverrideCommand({
+				overrides,
+				events,
+				locks: new ReferenceLocks(),
+			}),
 			// Design slice A10's pair, and REAL commands over real in-memory collaborators
 			// rather than stubs — the same argument `overlaps` above makes. A stub answering
 			// `ok` could not refuse an empty name, could not conflict, and would let a case
@@ -256,6 +296,11 @@ export const defaultRenovationProjectDeps = (
 		openPlan: () => Promise.resolve(),
 		openAsset: () => Promise.resolve(),
 		onPlansChanged: () => () => undefined,
+		// INERT, like `onProjectsChanged` and `onPlansChanged` above and for the same reason:
+		// nothing here publishes, so a real source would deliver nothing anyway, and a case that
+		// asserts on either of these passes its own `deps`.
+		onCatalogueChanged: () => () => undefined,
+		onProjectPricesChanged: () => () => undefined,
 		// TRUE, deliberately: the default vault here is a real in-memory repository that has
 		// already been read, so `ok(null)` from it is authoritative. Defaulting to `false`
 		// would put every case that mounts a detail state through this factory into the

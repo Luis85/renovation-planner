@@ -108,6 +108,7 @@ export function createInspector(
 							requirements: context.commands.requirementEdits.requirements,
 							locks: context.commands.requirementEdits.locks,
 							logger: context.commands.logger,
+							events: context.commands.events,
 						},
 					);
 				case 'assign': {
@@ -122,6 +123,7 @@ export function createInspector(
 							zones: context.commands.zones,
 							assets: context.commands.requirementEdits.assets,
 							locks: context.commands.requirementEdits.locks,
+							events: context.commands.events,
 						},
 						{ zoneId: edit.zoneId, assetId: edit.assetId },
 					);
@@ -134,6 +136,7 @@ export function createInspector(
 					const adapter = new ReversibleSetRequirementQuantityOverrideCommand(
 						context.commands.requirementEdits.setQuantityOverride,
 						context.commands.requirementEdits.requirements,
+						context.commands.events,
 					);
 					return asDispatchCommand(
 						adapter,
@@ -145,6 +148,7 @@ export function createInspector(
 					const adapter = new ReversibleSetRequirementCostOverrideCommand(
 						context.commands.requirementEdits.setCostOverride,
 						context.commands.requirementEdits.requirements,
+						context.commands.events,
 					);
 					return asDispatchCommand(
 						adapter,

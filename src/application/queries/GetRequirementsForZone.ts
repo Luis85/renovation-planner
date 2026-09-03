@@ -1,121 +1,61 @@
-import { Decimal } from 'decimal.js';
-import { err, isErr, isOk, ok, type Result } from '../../core/result/Result';
+import { err, isErr, ok, type Result } from '../../core/result/Result';
 import type { RepositoryError } from '../ports/repositoryErrors';
-import { effectiveValue } from '../../core/derived/DerivedValue';
-import type { Currency, Money } from '../../core/money/Money';
-import type { MeasurementUnit } from '../../core/units/MeasurementUnit';
-import type { RequirementId } from '../../domain/requirement/RequirementId';
-import type { CalculatedFrom, Requirement } from '../../domain/requirement/Requirement';
+import type { Currency } from '../../core/money/Money';
 import type { ZoneId } from '../../domain/zone/ZoneId';
 import type { AssetRepository } from '../ports/AssetRepository';
+import type { AssetId } from '../../domain/asset/AssetId';
 import type { ProjectId } from '../../domain/project/ProjectId';
 import type { ProjectRepository } from '../ports/ProjectRepository';
 import type { RequirementRepository } from '../ports/RequirementRepository';
+import type { AssetPriceOverrideRepository } from '../ports/AssetPriceOverrideRepository';
+import type { AssetPriceOverride } from '../../domain/asset-price/AssetPriceOverride';
+import type { Logger } from '../ports/Logger';
 import type { Loaded } from '../ports/versioning';
-import type { Zone } from '../../domain/zone/Zone';
 import type { ZoneRepository } from '../ports/ZoneRepository';
 import type { Query } from './Query';
-import { toMeasuredQuantity } from '../../domain/cost/quantityEngine';
-import { assetMatchesCalculatedFrom } from '../commands/requirement/deriveRequirementFigures';
+import { buildRequirementRow, type RequirementInspectorDTO } from './buildRequirementRow';
+
+// Re-exported so no consumer's import path moves — the DTO's home is the extracted
+// module now, and a rename of a widely-imported type is a different change from an
+// extraction.
+export type { RequirementInspectorDTO };
 
 /**
- * The row the Requirements panel renders. `assetName: string | null` and
- * `missingTarget: 'asset' | null` are what make a requirement whose ASSET is gone
- * renderable at all — typed `string`, the query could not build the row, and the stale
- * warning would be unreachable for exactly the requirements that most need it. Only the
- * Asset end is representable: every query building this DTO is scoped to a Zone, so a
- * requirement whose zone is gone never reaches a row (the union gains 'zone' with the
- * project-level surface that can produce it).
+ * One bundle instead of six positional collaborators (the max-params budget) — the shape
+ * `AssignAssetDeps` and its siblings already take, reached here the day the `Logger` below
+ * made this the sixth.
  */
-export interface RequirementInspectorDTO {
-	requirementId: RequirementId;
-	assetId: string;
-	assetName: string | null;
-	missingTarget: 'asset' | null;
-	unit: MeasurementUnit;
-	wasteFactor: Decimal;
-	quantity: {
-		calculated: Decimal;
-		override: Decimal | null;
-		effective: Decimal;
-	};
-	cost: {
-		calculated: Money;
-		override: Money | null;
-		effective: Money;
-	};
+export interface GetRequirementsForZoneDeps {
+	readonly requirements: RequirementRepository;
+	readonly zones: ZoneRepository;
+	readonly assets: AssetRepository;
+	readonly projects: ProjectRepository;
+	readonly overrides: AssetPriceOverrideRepository;
 	/**
-	 * Reported "stale" when the persisted marker says so, when `calculatedFrom` does not
-	 * match the loaded zone and asset, or when the target is missing — never "current"
-	 * for a figure this query cannot re-derive. One-way: a persisted "stale" stays stale
-	 * even if the inputs happen to match again.
+	 * For the duplicate diagnostic `winnersBy` demands — the same one
+	 * `ListProjectAssetPrices` takes a `Logger` for, and for the same reason.
+	 *
+	 * Until this member existed the diagnostic on the Inspector path was
+	 * `ObsidianAssetPriceOverrideRepository.getForPair`'s own
+	 * `logger.warn('asset-price.duplicate-pair', …)`. This query stopped calling
+	 * `getForPair`, so without a door here a duplicated pair would resolve silently on the
+	 * one surface a user meets it most often.
 	 */
-	recalculationStatus: 'current' | 'stale';
-}
-
-/**
- * The read-model backstop, on PERSISTED values: the area is recomputed through the same
- * pipeline step (`toMeasuredQuantity`) and rounding that produced the stored figure — a
- * comparison at a finer precision than the pipeline uses would report drift the pipeline
- * could not have produced, and every requirement would read permanently stale. The asset
- * half of the comparison is `assetMatchesCalculatedFrom` itself, called rather than
- * re-spelled, so a pipeline that starts reading another Asset field has exactly one place
- * to add it and this backstop cannot silently fall behind. What this function adds beside
- * that call is the two conjuncts specific to a READ MODEL rather than to an Asset: the
- * zone's own area, and the project's currency.
- */
-function inputsStillMatch(
-	recordedFrom: CalculatedFrom,
-	currentAreaMm2: Result<number, unknown>,
-	asset: { unit: MeasurementUnit; unitCost: Money },
-	projectCurrency: Currency,
-): boolean {
-	if (!isOk(currentAreaMm2)) return false;
-	const measured = toMeasuredQuantity(new Decimal(currentAreaMm2.value), recordedFrom.assetUnit);
-	if (!measured.ok) return false;
-	return (
-		measured.value.value.equals(recordedFrom.zoneArea.value) &&
-		assetMatchesCalculatedFrom(recordedFrom, asset) &&
-		// The project's currency at calculation time IS the recorded unit cost's — the
-		// requirement note carries one `currency` key for both. So this needs no new field
-		// and no migration: a project whose currency moved no longer matches what its own
-		// figures were derived from.
-		projectCurrency === recordedFrom.unitCost.currency
-	);
-}
-
-/**
- * The one-way staleness reading: the persisted marker, a missing endpoint, or a
- * calculatedFrom mismatch — any one of the three reads "stale", and nothing here can
- * move a persisted "stale" back to "current" (only RecalculateRequirementCommand's own
- * successful save clears the marker). The project is an endpoint like the zone and the
- * asset: a project that is gone reads "stale" rather than "current", the same rule the
- * other two already carry.
- */
-function isStaleReading(
-	r: Requirement,
-	zone: { area(): Result<number, unknown> } | null,
-	asset: { unit: MeasurementUnit; unitCost: Money } | null,
-	projectCurrency: Currency | null,
-): boolean {
-	if (r.recalculationStatus === 'stale') return true;
-	if (asset === null || zone === null || projectCurrency === null) return true;
-	return !inputsStillMatch(r.calculatedFrom, zone.area(), asset, projectCurrency);
+	readonly logger: Logger;
 }
 
 export class GetRequirementsForZone
 	implements
 			Query<ZoneId, Result<RequirementInspectorDTO[], RepositoryError>>
 {
-	constructor(
-		private readonly requirements: RequirementRepository,
-		private readonly zones: ZoneRepository,
-		private readonly assets: AssetRepository,
-		private readonly projects: ProjectRepository,
-	) {}
+	private readonly deps: GetRequirementsForZoneDeps;
+
+	constructor(deps: GetRequirementsForZoneDeps) {
+		this.deps = deps;
+	}
 
 	async execute(zoneId: ZoneId): Promise<Result<RequirementInspectorDTO[], RepositoryError>> {
-		const listed = await this.requirements.listByZone(zoneId);
+		const listed = await this.deps.requirements.listByZone(zoneId);
 		if (isErr(listed)) return listed;
 
 		// Resolved from each Requirement's OWN `projectId`, never from the queried Zone's.
@@ -134,12 +74,22 @@ export class GetRequirementsForZone
 		// Memoized rather than read per row, because they DO agree in the ordinary case:
 		// one Zone, one project, one read, which is what the previous shape got right.
 		const currencies = new Map<ProjectId, Currency | null>();
+		// Keyed on the PROJECT, like the currency memo above, and holding a RESOLUTION rather
+		// than one pair's answer: `Map<AssetId, …>` is what keeps a project-keyed memo from
+		// answering the first row's asset for every row.
+		//
+		// **Why not keyed on the pair.** `ObsidianAssetPriceOverrideRepository.getForPair`
+		// calls `listByProject` and filters, so one pair lookup hydrates every price note in
+		// the project. A pair-keyed memo therefore costs N x M note reads for a zone with N
+		// distinct assets in a project holding M overrides, where this shape costs 1 x M —
+		// strictly worse at every N > 1 and equal at N = 1.
+		const overrideMemo = new Map<ProjectId, ReadonlyMap<AssetId, Loaded<AssetPriceOverride>>>();
 
 		const rows: RequirementInspectorDTO[] = [];
 		for (const loaded of listed.value) {
 			const currency = await this.projectCurrency(loaded.entity.projectId, currencies);
 			if (isErr(currency)) return err(currency.error);
-			const row = await this.buildRow(loaded.entity, currency.value);
+			const row = await buildRequirementRow(this.deps, loaded.entity, currency.value, overrideMemo);
 			if (isErr(row)) return row;
 			rows.push(row.value);
 		}
@@ -155,59 +105,10 @@ export class GetRequirementsForZone
 		const cached = memo.get(projectId);
 		if (cached !== undefined) return ok(cached);
 
-		const project = await this.projects.getById(projectId);
+		const project = await this.deps.projects.getById(projectId);
 		if (isErr(project)) return err(project.error);
 		const currency = project.value?.entity.currency ?? null;
 		memo.set(projectId, currency);
 		return ok(currency);
 	}
-
-	private async buildRow(
-		r: Requirement,
-		projectCurrency: Currency | null,
-	): Promise<Result<RequirementInspectorDTO, RepositoryError>> {
-		const asset = await this.assets.getById(r.assetId);
-		if (isErr(asset)) return err(asset.error);
-		const assetEntity = asset.value?.entity ?? null;
-
-		const zone = await this.loadOriginZone(r);
-		if (isErr(zone)) return err(zone.error);
-
-		const stale = isStaleReading(
-			r,
-			zone.value?.entity ?? null,
-			assetEntity,
-			projectCurrency,
-		);
-
-		return ok({
-			requirementId: r.id,
-			assetId: r.assetId,
-			assetName: assetEntity?.name ?? null,
-			missingTarget: assetEntity === null ? 'asset' : null,
-			unit: r.unit,
-			wasteFactor: r.wasteFactor,
-			quantity: {
-				calculated: r.quantity.calculated.value,
-				override: r.quantity.override?.value ?? null,
-				effective: effectiveValue(r.quantity).value,
-			},
-			cost: {
-				calculated: r.estimatedCost.calculated,
-				override: r.estimatedCost.override ?? null,
-				effective: effectiveValue(r.estimatedCost),
-			},
-			recalculationStatus: stale ? 'stale' : 'current',
-		});
-	}
-
-	private async loadOriginZone(
-		r: Requirement,
-	): Promise<Result<Loaded<Zone> | null, RepositoryError>> {
-		if (r.origin.kind !== 'zone') return ok(null);
-		const found = await this.zones.getById(r.origin.zoneId);
-		if (isErr(found)) return err(found.error);
-		return ok(found.value);
-	}
 }
-

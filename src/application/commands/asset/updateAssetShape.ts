@@ -298,7 +298,15 @@ export async function updateAssetShape(
 	// `null` is the no-write arm, carried out of the region rather than returned from inside it:
 	// the announcement below must happen OUTSIDE the lock, because `events.publish` awaits its
 	// subscribers and a peer leaf's re-read reaches this same asset. Publishing while holding
-	// level 1 would make every subscriber's own read wait on a lock this command has not let go.
+	// level 1 would run that whole subscriber INSIDE the critical section, lengthening it by the
+	// subscriber's own work and blocking other WRITERS of this asset for its duration.
+	//
+	// CORRECTED 2026-09-03, and PRE-EXISTING rather than introduced by the lock/publish work:
+	// this comment used to give the cost as every subscriber's own READ waiting on a lock this
+	// command had not let go. No read waits on anything — no read path takes a reference lock at
+	// all; every acquirer under `src/` is a command. `ReferenceLocks`'s header carries the grep
+	// that measures it. `CalibrateAsset.ts` stated the same wrong rationale and is corrected
+	// with it.
 	if (written.value === null) return ok({ outcome: 'no-write' });
 	await events.publish(assetDesignChanged({ assetId: input.assetId }));
 	// The version the WRITE produced, carried out to the caller rather than left to be

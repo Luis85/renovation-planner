@@ -56,9 +56,18 @@ export interface ProjectSummaryDto {
 	readonly name: string;
 	readonly status: string;
 	/**
-	 * The project's currency, for display only. A plain `string` rather than the branded
-	 * `Currency`: this surface prints it and compares nothing, and a brand at a boundary
-	 * with no consumer is a claim nothing rests on.
+	 * The project's currency. Slice 21's header PRINTS it, and since the per-project price
+	 * override increment it also DRIVES a write: the price section mints every typed amount as
+	 * `createMoney(typed, project.currency)`, because a GBP project pricing an EUR catalogue
+	 * asset has no other currency to reach for and minting from the row's own would submit EUR
+	 * against a command whose coherence rule refuses it — the dead end this increment exists to
+	 * close, reachable through the shipped surface.
+	 *
+	 * **This docblock said "for display only… this surface prints it and compares nothing, and a
+	 * brand at a boundary with no consumer is a claim nothing rests on" until that increment,
+	 * which made both halves false.** It stays a plain `string` all the same, and the reason is
+	 * the same one read the other way round: `createMoney` is the VALIDATING door, so a brand
+	 * here would move that check earlier without removing it.
 	 */
 	readonly currency: string;
 	/**

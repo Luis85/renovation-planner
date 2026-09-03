@@ -359,9 +359,12 @@ watch(
  * What that costs, measured rather than assumed: the project IS created, under the PREVIOUS
  * default project folder; `ProjectCreated` reaches the retired root's event bus, so the
  * rebound tree's `onProjectsChanged` never hears it; and `VaultChangeAdapter` indexes the
- * note into the new root while publishing nothing — `projectIndexRebuilt()` has exactly one
- * publisher, the full scan, and `saveSettings` runs that BEFORE the rebind. The rebound list
- * is stale until the leaf is reopened.
+ * note into the new root while publishing nothing — the publisher that matters on this path is
+ * the full scan, and `saveSettings` runs that BEFORE the rebind. The rebound list is stale
+ * until the leaf is reopened. (This said `projectIndexRebuilt()` has "exactly one publisher",
+ * which stopped being true when the create-zone adapter gained a refused-reverse-lookup
+ * fallback that publishes it too. That second publisher does not sit on this path, so the
+ * conclusion is unchanged and only the count was wrong.)
  *
  * The remedy the report named — defer the rebind, or otherwise coordinate the active write —
  * needs the `ItemView` to learn that its Vue tree is mid-write, a seam that does not exist,

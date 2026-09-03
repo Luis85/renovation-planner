@@ -12,7 +12,7 @@ afterEach(() => {
 
 /**
  * A TEST-LOCAL step, registered in a test-local runner. The production `MIGRATION_SET` is
- * empty for all six kinds, so there is no production migration to exercise and none may be
+ * empty for all seven kinds, so there is no production migration to exercise and none may be
  * added here: slice 12 owns no schema. Registered through the SAME `createMigrationRunner`
  * the composition root calls (`plugin/composition-root.ts:457`) — only the TABLE handed to
  * it is test-local, never a second runner mechanism.

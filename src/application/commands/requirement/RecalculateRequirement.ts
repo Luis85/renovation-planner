@@ -16,10 +16,12 @@ import type { AssetRepository } from '../../ports/AssetRepository';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
 import type { ProjectRepository } from '../../ports/ProjectRepository';
+import type { AssetPriceOverrideRepository } from '../../ports/AssetPriceOverrideRepository';
 import { loadAsset } from './AssignAsset';
 import { loadZone } from '../zone/loadZone';
 import { loadRequirement } from './loadRequirement';
 import { deriveRequirementFigures } from './deriveRequirementFigures';
+import { resolveEffectiveUnitCost } from './resolveEffectiveUnitCost';
 import { publishIfEffectiveCostChanged } from './SetRequirementQuantityOverride';
 
 export interface RecalculateRequirementInput {
@@ -30,6 +32,17 @@ export type RecalculateRequirementErrors =
 	| CalculationError
 	| ReferenceError
 	| RepositoryError;
+
+/** One bundle instead of six positional collaborators (the max-params budget). */
+export interface RecalculateRequirementDeps {
+	readonly requirements: RequirementRepository;
+	readonly zones: ZoneRepository;
+	readonly assets: AssetRepository;
+	readonly events: EventBus;
+	readonly projects: ProjectRepository;
+	/** The precedence's input half: a project may price a shared asset in its own currency. */
+	readonly overrides: AssetPriceOverrideRepository;
+}
 
 /**
  * Re-runs the derivation pipeline for one Requirement against the CURRENT world and
@@ -47,18 +60,12 @@ export class RecalculateRequirementCommand
 	implements
 		Command<RecalculateRequirementInput, Result<Requirement, RecalculateRequirementErrors>>
 {
-	constructor(
-		private readonly requirements: RequirementRepository,
-		private readonly zones: ZoneRepository,
-		private readonly assets: AssetRepository,
-		private readonly events: EventBus,
-		private readonly projects: ProjectRepository,
-	) {}
+	constructor(private readonly deps: RecalculateRequirementDeps) {}
 
 	async execute(
 		input: RecalculateRequirementInput,
 	): Promise<Result<Requirement, RecalculateRequirementErrors>> {
-		const loaded = await loadRequirement(this.requirements, input.requirementId);
+		const loaded = await loadRequirement(this.deps.requirements, input.requirementId);
 		if (isErr(loaded)) return err(loaded.error);
 		const requirement = loaded.value.entity;
 
@@ -71,11 +78,11 @@ export class RecalculateRequirementCommand
 				),
 			);
 		}
-		const zone = await loadZone(this.zones, requirement.origin.zoneId);
+		const zone = await loadZone(this.deps.zones, requirement.origin.zoneId);
 		if (isErr(zone)) {
 			return err(calculationError('requirement.zone-gone', zone.error.message, zone.error));
 		}
-		const asset = await loadAsset(this.assets, requirement.assetId);
+		const asset = await loadAsset(this.deps.assets, requirement.assetId);
 		if (isErr(asset)) {
 			return err(calculationError('requirement.asset-gone', asset.error.message, asset.error));
 		}
@@ -97,7 +104,7 @@ export class RecalculateRequirementCommand
 				calculationError('requirement.area-failed', area.error.message, area.error),
 			);
 		}
-		const project = await this.projects.getById(requirement.projectId);
+		const project = await this.deps.projects.getById(requirement.projectId);
 		if (isErr(project)) {
 			return err(calculationError('requirement.project-gone', project.error.message, project.error));
 		}
@@ -109,10 +116,15 @@ export class RecalculateRequirementCommand
 				),
 			);
 		}
+		// Resolved from the REQUIREMENT's own `projectId`, never the zone's — one fact, one
+		// derivation. The currency increment shipped a defect precisely by letting the read
+		// and the write take a project from two different places.
+		const unitCost = await resolveEffectiveUnitCost(this.deps.overrides, requirement.projectId, asset.value);
+		if (isErr(unitCost)) return unitCost;
 		const figures = deriveRequirementFigures({
 			zoneAreaMm2: area.value,
 			assetUnit: asset.value.unit,
-			unitCost: asset.value.unitCost,
+			unitCost: unitCost.value,
 			wasteFactor: requirement.wasteFactor,
 			expectedCurrency: project.value.entity.currency,
 		});
@@ -127,9 +139,9 @@ export class RecalculateRequirementCommand
 			return err(calculationError('requirement.update-invalid', updated.error.message));
 		}
 		const previousEffective = effectiveValue(loaded.value.entity.estimatedCost);
-		const saved = await this.requirements.save(updated.value, loaded.value.version);
+		const saved = await this.deps.requirements.save(updated.value, loaded.value.version);
 		if (isErr(saved)) return saved;
-		await this.events.publish(
+		await this.deps.events.publish(
 			requirementRecalculated({
 				requirementId: saved.value.entity.id,
 				projectId: saved.value.entity.projectId,
@@ -140,7 +152,7 @@ export class RecalculateRequirementCommand
 		// pre-save and post-save figures, and a forwarding handler would have to re-read
 		// both to reconstruct what its publisher already knew. The order subscribers
 		// observe — RequirementRecalculated then CostEstimateChanged — is unchanged.
-		await publishIfEffectiveCostChanged(this.events, saved.value.entity, previousEffective);
+		await publishIfEffectiveCostChanged(this.deps.events, saved.value.entity, previousEffective);
 		return ok(saved.value.entity);
 	}
 }

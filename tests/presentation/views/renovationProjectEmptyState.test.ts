@@ -43,7 +43,8 @@ const commands = unavailableRenovationProjectCommands();
 const detailDoors = {
 	getProject: () => Promise.resolve(ok(null)),
 	listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
-} satisfies Pick<RenovationProjectQueryServices, 'getProject' | 'listPlansByProject'>;
+	listAssetPrices: () => Promise.reject(new Error('not exercised')),
+} satisfies Pick<RenovationProjectQueryServices, 'getProject' | 'listPlansByProject' | 'listAssetPrices'>;
 
 const PROJECT: ProjectSummaryDto = {
 	id: 'project-1',
@@ -77,6 +78,7 @@ const refusing = (): RenovationProjectQueryServices => ({
 	listProjects: refuseUnrecovered,
 	getProject: refuseUnrecovered,
 	listPlansByProject: refuseUnrecovered,
+	listAssetPrices: refuseUnrecovered,
 });
 
 /** The view hydrates on open; the same settle shape the editor harness uses. */

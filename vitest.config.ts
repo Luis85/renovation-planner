@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
@@ -17,7 +17,58 @@ export default defineConfig({
 	},
 	test: {
 		environment: 'node',
-		include: ['tests/**/*.test.ts'],
+		// TWO PROJECTS, and the split is a COST decision rather than a taxonomy.
+		//
+		// `tests/build/` is 36 files that boot a type-aware ESLint eleven times over, and
+		// `tests/helpers/eslint.ts` says what one boot costs (~3s idle, 17.8s seen under full
+		// parallel load). Every boot is paid AGAIN per file, because vitest gives each test
+		// file its own module registry — so the module-level `new ESLint(...)` that file
+		// exists to share is shared within a file and nowhere else. Turning isolation off for
+		// that directory alone shares them across files in a worker: 34.6s to 20.8s measured,
+		// 36 of 36 still passing.
+		//
+		// **Only that directory, and that bound is measured rather than cautious.**
+		// `--no-isolate` over the WHOLE suite halves it (121.8s to 61.3s) and is not a flag
+		// anybody may safely flip: three runs produced three DISJOINT failure sets — four
+		// files, a different three under coverage, a different three again with the first
+		// four excluded — so which files break depends on worker scheduling, and quarantining
+		// the observed ones is whack-a-mole. Four families of module-level state cause it
+		// (Konva's `stages` registry, a `npm_package_version` mutation, `@napi-rs/canvas`'s
+		// install against a reused jsdom global, and the harness `import.meta.glob`
+		// registry). `tests/build/` holds none of them, and its own numbers say why it is the
+		// safe half: 605ms of environment across all 36 files, against 82s for the rest.
+		//
+		// WHAT THE SPLIT COSTS, said out loud rather than left to be discovered: a file in
+		// `tests/build/` no longer proves anything about its own isolation, so a leak between
+		// two of those files now reads as a pass. Nothing there asserts one today — every
+		// leak-detection case the whole-suite experiment broke lives under
+		// `tests/presentation/` or `tests/harness/`, which stay isolated.
+		//
+		// `exclude` spreads `configDefaults.exclude` rather than replacing it: a project's
+		// `exclude` OVERRIDES the default rather than adding to it, so naming only
+		// `tests/build/**` would put `node_modules/**` back in scope.
+		//
+		// AND THERE IS NO `include` BESIDE THIS KEY, which is the one thing here a reader is
+		// likely to put back. With `extends: true` a project's `include` MERGES with the root's
+		// rather than replacing it, so a root `include: ['tests/**/*.test.ts']` gives the
+		// `build` project every file in `tests/` on top of its own — measured, and it does not
+		// fail: the run reports 688 files and 9520 tests, every file collected twice, the whole
+		// suite once under `isolate: false`, and two cases red from leakage in a directory that
+		// was never meant to be there. Discovery belongs to the projects now.
+		projects: [
+			{
+				extends: true,
+				test: { name: 'build', include: ['tests/build/**/*.test.ts'], isolate: false },
+			},
+			{
+				extends: true,
+				test: {
+					name: 'suite',
+					include: ['tests/**/*.test.ts'],
+					exclude: [...configDefaults.exclude, 'tests/build/**'],
+				},
+			},
+		],
 		coverage: {
 			provider: 'v8',
 			// `.vue` as well as `.ts`: the floors are ratcheted and they are one of the four
@@ -916,6 +967,93 @@ export default defineConfig({
 			// the check is actually asking is "which files did this branch change", and
 			// `git diff --name-only` is the instrument that answers it.
 			//
+			// Measured 2026-09-02 at the end of the PER-PROJECT PRICE OVERRIDE increment —
+			// design slice 20's second half: the `AssetPriceOverride` entity, its id, events and
+			// errors; both repositories, the shared contract test and the note-backed one's
+			// index-narrowed hydration; `winningDuplicate`/`winnersBy` as the one duplicate rule;
+			// `resolveEffectiveUnitCost` and `effectiveUnitCostFrom` as the one precedence, read
+			// by `AssignAsset`, `RecalculateRequirement` and `onAssetUpdated`;
+			// `AssetPriceOverrideChanged` and its project-narrowed cascade;
+			// `ListProjectAssetPrices` and `RequirementInspectorDTO`'s `unitCost` group;
+			// `checkExpectedVersion`'s move into `application/ports/versioning.ts` and
+			// `priceRowExpectation` above it; and the two surfaces —
+			// `AssetPriceList`/`AssetPriceRow` on the project detail state and
+			// `UnitCostFigures` in the Inspector:
+			// 6462/6511 statements, 3224/3284 branches, 1684/1699 functions, 5732/5761 lines —
+			// 99.24 / 98.17 / 99.11 / 99.49.
+			//
+			// NOTHING RATCHETS: rounded down these are 99 / 98 / 99 / 99, exactly the floors
+			// already in force — the ninth increment in a row to measure them, after slices 5,
+			// 11, 13, 15, 16, 18, 19 and the currency half.
+			//
+			// **AND THE BLOCK ABOVE DOES NOT MEASURE THE TREE THIS ONE STARTED FROM, for the
+			// THIRD consecutive entry.** The previous entry is the currency half's, written on
+			// that branch at `d8d6703` — and `e0db1c5`, the merge that brought the
+			// unreadable-note increment (#59) into it, is NOT an ancestor of that commit, so
+			// that increment is in `main` and in NO entry here. Measured with
+			// `git merge-base --is-ancestor` rather than read off the dates, because two
+			// branches merging is exactly the case a date ordering gets wrong. So the jump in
+			// every denominator below is TWO increments wide: statements 5994 → 6511 (+517
+			// denominator, +512 covered), branches 3008 → 3284 (+276, +270), functions
+			// 1548 → 1699 (+151, +150), lines 5313 → 5761 (+448, +447). Six more uncovered
+			// branch arms and one more uncovered function across the two, and **which increment
+			// owns which cannot be read off this artifact** — the per-file account below is
+			// what says it for THIS one, and nothing says it for the other.
+			//
+			// The headroom, in UNITS with the arithmetic written out so the next increment does
+			// not redo it: statements need `ceil(0.99 × 6511) = 6446` covered and 6462 are
+			// (**16**); branches need `ceil(0.98 × 3284) = 3219` against 3224 (**5**); functions
+			// need `ceil(0.99 × 1699) = 1683` against 1684 (**1**); lines need
+			// `ceil(0.99 × 5761) = 5704` against 5732 (**28**). **FUNCTIONS is the tightest and
+			// is still ONE** — unchanged from slice 19, from its fix wave and from the currency
+			// half, which is four increments at that margin: the next untested callback anywhere
+			// in `src/` fails this gate outright. One branch is 0.030pp and one function
+			// 0.059pp, both below the hundredth this summary prints, so a figure that did not
+			// visibly move is not evidence that nothing moved.
+			//
+			// **THIS INCREMENT'S OWN UNCOVERED POSITIONS ARE EIGHT, ACROSS SIX FILES — it is the
+			// first entry here in three that cannot say "only inherited ones".** Read per
+			// changed file out of `coverage/coverage-final.json`, over
+			// `git diff --name-only origin/main...HEAD -- 'src/**'` (64 files) rather than a
+			// hand-written filename filter, which is the instrument the paragraph above this one
+			// was written to correct. Each was traced with `git blame` against the merge base:
+			//
+			//   - `AssignAsset.ts` and `RecalculateRequirement.ts` — `if (isErr(unitCost))`, the
+			//     failed-price-read arm of `resolveEffectiveUnitCost`, `[0, 223]` and `[0, 21]`.
+			//     REACHABLE, and untested: a spy on `getForPair` would drive both. They are the
+			//     two arms this increment added to commands that already carried an inherited
+			//     uncovered one each (`isErr(requirement)` and `isErr(updated)`, slice 10's).
+			//   - `assetPriceMapper.ts` — `!unitCost.ok` and `!created.ok`, both `[0, 50]`.
+			//     Effectively unreachable through this door: the Zod schema's `unit-cost` regex
+			//     is a subset of `AMOUNT_PATTERN` and refuses a negative, so neither
+			//     `createMoney` nor `AssetPriceOverride.create` can refuse a frontmatter that
+			//     parsed. The same shape as `assetMapper.ts`'s slice-10 arm named above.
+			//   - `AssetPriceOverrideRepository.ts` — `winnersBy`'s `if (best !== null)`,
+			//     `[21, 0]`. UNREACHABLE by construction and kept because it narrows
+			//     `Loaded | null` to the map's value type; the final fix round wrote that reason
+			//     beside it, because its sibling in the currency increment got the note and this
+			//     one did not.
+			//   - `runtime.ts` — `if (options.ok)` in the asset-options refresh, `[338, 0]`.
+			//     REACHABLE (a failed catalogue read) and untested.
+			//   - `AssetPriceRow.vue` — the `snapshot.value ?? expectationOf(props.row)`
+			//     fallback, `[23, 0]`, UNREACHABLE and documented at the code as earning its
+			//     place by making the type total; and the `undo: () => ok('no-write')` stub,
+			//     which `history.run` never reaches because it calls `execute()` alone. That
+			//     stub is one of the fifteen uncovered functions the whole tree has, and the
+			//     only one this increment added — `RequirementRow.vue` already carries two of
+			//     exactly the same shape, named in the slice-16 paragraph above.
+			//
+			// Every OTHER uncovered position in a file this increment touched is INHERITED, and
+			// the blame ran rather than being assumed: `AssignAsset`'s and
+			// `RecalculateRequirement`'s second arms, `Requirement.ts`, `ObsidianZoneRepository`,
+			// `PlanGeometryStore`, `slice10Composition`, `planEditorCommands`, `PlanEditorView`,
+			// three of `RequirementRow.vue`'s four and five of `runtime.ts`'s six. Every other
+			// file this increment created or rewrote measures 100% of all four, `AssetPriceList.vue`,
+			// `ProjectDetail.vue`, `ProjectDetailState.vue`, `UnitCostFigures.vue`,
+			// `ClearAssetPriceOverride.ts`, `SetAssetPriceOverride.ts`, `priceRowExpectation.ts`,
+			// `ListProjectAssetPrices.ts`, `ObsidianAssetPriceOverrideRepository.ts`,
+			// `InMemoryAssetPriceOverrideRepository.ts` and both locale files included.
+			//
 			// **The asset designer's review fixes (2026-09-02), measured after all eleven tasks:**
 			// 99.39 / 98.33 / 99.07 / 99.53. NOTHING RATCHETS unless a figure
 			// rounds down above its floor; functions headroom is 1 unit and branches 12.
@@ -997,6 +1135,39 @@ export default defineConfig({
 			// 825s serial**, and the parallel run passed all 342 files. A failing `beforeAll` in that
 			// directory is a question about the machine before it is a question about the diff, and
 			// running SERIALLY to answer it can be what produces it.
+			//
+			// **THE MERGE OF THE TWO INCREMENTS ABOVE (2026-09-02), measured on the merged tree:**
+			// 7823/7873 statements, 4042/4113 branches, 2069/2088 functions, 6898/6929 lines —
+			// 99.36 / 98.27 / 99.09 / 99.55. **NOTHING RATCHETS**: rounded down these are
+			// 99 / 98 / 99 / 99, exactly the floors already in force, which now makes it ten
+			// increments in a row.
+			//
+			// **This entry exists because NEITHER of the two above measures this tree**, which is
+			// the same defect the triage table in `docs/tests/suites/Smoke Test the Editor.md`
+			// records at this same merge: each branch measured a tree without the other's code in
+			// it, both were correct on the day, and the merge made both stale at once. A ledger
+			// entry is a fact about the commit that wrote it and about nothing after it.
+			//
+			// The headroom, in UNITS, with the arithmetic written out: statements need
+			// `ceil(0.99 × 7873) = 7795` covered and 7823 are (**28**); branches need
+			// `ceil(0.98 × 4113) = 4031` against 4042 (**11**); functions need
+			// `ceil(0.99 × 2088) = 2068` against 2069 (**1**); lines need
+			// `ceil(0.99 × 6929) = 6860` against 6898 (**38**). **FUNCTIONS is still ONE**, which
+			// is where it has sat since slice 19 — the merge of two increments each measuring 1
+			// did not buy a second, and the next untested callback anywhere in `src/` fails this
+			// gate outright.
+			//
+			// The merge itself added NO uncovered position. What it changed in `src/` is wiring
+			// the compiler and the lint budgets forced: `overrides` folded into
+			// `repositoryComposition.ts`, the price and design guarded bundles both spread into
+			// `PersistenceServices`, `ObsidianAssetPriceOverrideRepository.delete` moved to the
+			// `NoteDeleteSpec` signature the designer branch gave `trashNoteBackedEntity`,
+			// `AssetGeometryStore` following `checkExpectedVersion` to
+			// `application/ports/versioning.ts`, and TWO extractions —
+			// `src/plugin/guardedAssetPrice.ts` and `src/plugin/assetDesignerDeps.ts` — because
+			// both branches added to `guardedServices.ts` and `composition-root.ts` and the
+			// merged tree measured 427 and 428 counted lines against a 400 cap. Every one is a
+			// move or a call-shape change over code both branches already covered.
 			thresholds: {
 				statements: 99,
 				functions: 99,

@@ -108,6 +108,31 @@ export interface RenovationProjectDeps {
 	 */
 	readonly onPlansChanged: (projectId: string, listener: () => void) => () => void;
 	/**
+	 * "The vault's asset catalogue may have changed — re-read it."
+	 * `createAssetCatalogueChangeSource`, the same door the Plan Editor's assign picker takes,
+	 * REUSED rather than duplicated: a source that covered both halves of the price section's
+	 * question would be a second copy of an event list that goes stale.
+	 *
+	 * The price section renders the whole catalogue, so an asset renamed, repriced, added by
+	 * hand or arriving through sync moves a row it draws.
+	 */
+	readonly onCatalogueChanged: (listener: () => void) => () => void;
+	/**
+	 * "SOME project's own price for some asset may have moved — here is which project."
+	 *
+	 * The listener takes the project because this pane draws exactly ONE, and the source cannot
+	 * narrow on its behalf: its other caller is the Plan Editor, which holds a PLAN id and would
+	 * need an async read to resolve one. So the source reports and each caller decides — the
+	 * editor's listener takes no parameter at all and is unaffected.
+	 *
+	 * **`null` means "cannot say — refresh anyway", never "no project".** The index arm of that
+	 * source announces a price NOTE by id and type, and `ProjectIndexEntryChangedPayload` carries
+	 * no project id at all, so a narrowing listener must treat `null` as a MATCH. Skipping it
+	 * would make a price note added by hand, copied in, or arriving through sync invisible to
+	 * this pane for the life of the leaf, which is the half no COMMAND can raise.
+	 */
+	readonly onProjectPricesChanged: (listener: (projectId: string | null) => void) => () => void;
+	/**
 	 * Has the initial index scan RUN — zero entries included.
 	 *
 	 * What makes a `getProject` answering `ok(null)` authoritative rather than a race against

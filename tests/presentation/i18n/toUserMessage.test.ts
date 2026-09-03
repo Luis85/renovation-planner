@@ -20,6 +20,15 @@ function error(partial: Partial<AppError>): AppError {
 	} as AppError;
 }
 
+/**
+ * The category sentence each row below must NOT resolve to. Spelled here rather than inline,
+ * because the two cases that use it each drive several codes.
+ */
+const CATEGORY_KEY: Partial<Record<ErrorCategory, StringKey>> = {
+	Validation: 'error.category.validation',
+	Persistence: 'error.category.persistence',
+};
+
 describe('toUserMessage', () => {
 	it('resolves a code the table knows through t()', () => {
 		expect(toUserMessage('en', error({ code: 'vault.unexpected-failure' }))).toBe(
@@ -31,6 +40,56 @@ describe('toUserMessage', () => {
 		const future = error({ category: 'Migration', code: 'zone.schema-version-unsupported' });
 		expect(toUserMessage('en', future)).toContain('newer version of this plugin');
 	});
+
+	/**
+	 * The TWO suffixes the price section's own read needed, and the grep that says the class is
+	 * closed rather than merely extended:
+	 * `grep -rno '\${spec\.kind}\.[a-z-]*\|\${kind}\.[a-z-]*' src/infrastructure/` reports
+	 * exactly four shared raise sites, and all four now have a row in `CODE_SUFFIX_KEYS`.
+	 *
+	 * Driven with `plan.` and `zone.` prefixes rather than `asset-price.`, deliberately: both
+	 * sites are ONE raise parameterised by kind, so a per-kind entry would answer for one kind
+	 * and leave the siblings on the generic category sentence — which is where every kind was
+	 * until these rows. Asserting the sibling kinds is what makes that a claim about the class.
+	 */
+	it.each([
+		['plan.schema-version-malformed', 'Validation'],
+		['zone.schema-version-malformed', 'Validation'],
+		['plan.project-folder-unresolved', 'Persistence'],
+		['asset-price.project-folder-unresolved', 'Persistence'],
+	] as const)('resolves %s by suffix rather than by category', (code, category) => {
+		const refusal = error({ category, code });
+
+		const categoryKey = CATEGORY_KEY[category] as StringKey;
+		expect(toUserMessage('en', refusal)).not.toBe(t('en', categoryKey));
+		expect(toUserMessage('de', refusal)).not.toBe(t('de', categoryKey));
+	});
+
+	/**
+	 * **A direct code key BEATS a matching suffix**, because `hasLocaleKey(error.code)` is asked
+	 * first — and these two rely on it. `error.suffix.revision-conflict` says "Reload and try
+	 * again", which is wrong on the price section: there is nothing to reload, and the row's
+	 * expectation is frozen for exactly as long as the draft is, so a refresh cannot help and the
+	 * DISCARD is the gesture that unsticks the field.
+	 *
+	 * Asserted as "not the suffix sentence" rather than as "equals the entry", because the
+	 * failure this guards against is the ORDER of the two lookups rather than the copy: an
+	 * implementation that walked the suffixes first would return the suffix sentence and pass
+	 * every other case in this file.
+	 */
+	it.each(['asset-price.revision-conflict', 'asset-price.external-modification'])(
+		'%s answers its own copy rather than the suffix it also matches',
+		(code) => {
+			const refusal = error({ category: 'Validation', code });
+			const suffix = code === 'asset-price.revision-conflict'
+				? 'error.suffix.revision-conflict'
+				: 'error.suffix.external-modification';
+
+			expect(toUserMessage('en', refusal)).toBe(t('en', code as StringKey));
+			expect(toUserMessage('en', refusal)).not.toBe(t('en', suffix));
+			expect(toUserMessage('de', refusal)).not.toBe(t('de', suffix));
+		},
+	);
 
 	it('falls back per category when neither the code nor a suffix has an entry', () => {
 		for (const category of [
@@ -319,6 +378,68 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'Calculation',
 		'error.category.calculation',
 		'application/commands/requirement/RecalculateRequirement.ts',
+	],
+	// The per-project price override increment's section. Every row is copied from its RAISE
+	// SITE, not from `en.ts`.
+	//
+	// THREE `asset-price.*` codes are deliberately absent, and each absence is a decision rather
+	// than an omission, exactly as `project.negative-amount` above is:
+	// `asset-price.duplicate-pair` is a logger warning, `asset-price.orphaned-by-asset-delete`
+	// has its own notice, and `asset-price.pre-write-invalid` has no user-facing door at all.
+	[
+		'asset-price.currency-mismatch',
+		'Validation',
+		'error.category.validation',
+		'application/commands/asset-price/SetAssetPriceOverride.ts',
+	],
+	// Held out of reach by `AssetPriceRow`'s own validator, and localized anyway: a code kept
+	// unreachable by a GUARD degrades to the wrong sentence the day the guard moves, which is a
+	// different kind of unreachability from `project.negative-amount`'s structural one.
+	[
+		'asset-price.negative-unit-cost',
+		'Validation',
+		'error.category.validation',
+		'domain/asset-price/AssetPriceOverride.ts',
+	],
+	[
+		'asset-price.project-not-found',
+		'Reference',
+		'error.category.reference',
+		'application/commands/asset-price/SetAssetPriceOverride.ts',
+	],
+	[
+		'asset-price.asset-not-found',
+		'Reference',
+		'error.category.reference',
+		'application/commands/asset-price/SetAssetPriceOverride.ts',
+	],
+	[
+		'asset-price.write-failed',
+		'Persistence',
+		'error.category.persistence',
+		'infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository.ts',
+	],
+	[
+		'asset-price.delete-failed',
+		'Persistence',
+		'error.category.persistence',
+		'infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository.ts',
+	],
+	// `Persistence`, not `Validation`: `readNoteBackedEntity` re-wraps the mapper's own
+	// `ValidationError` as a `persistenceError` under this code, so the category is the
+	// WRAPPER's. Read from the raise site rather than guessed from the name, which would have
+	// put it beside `frontmatter-invalid` below.
+	[
+		'asset-price.entity-invalid',
+		'Persistence',
+		'error.category.persistence',
+		'infrastructure/obsidian/repositories/ObsidianAssetPriceOverrideRepository.ts',
+	],
+	[
+		'asset-price.frontmatter-invalid',
+		'Validation',
+		'error.category.validation',
+		'infrastructure/persistence/mappers/assetPriceMapper.ts',
 	],
 	// The two calibration refusals a user can produce, on either surface. Both pre-date the
 	// asset designer and had no entry in either locale for fifteen slices, so a refused

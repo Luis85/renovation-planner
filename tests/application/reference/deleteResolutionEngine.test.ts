@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { err, ok, type Result } from '../../../src/core/result/Result';
 import type { AppError, PersistenceError } from '../../../src/core/errors/AppError';
+import { createEventBus } from '../../../src/core/events/EventBus';
 import {
-	requirementResolutionSteps,
 	runDeleteResolution,
 	type DeleteResolutionErrors,
 	type ResolutionOps,
@@ -25,7 +25,6 @@ import type { RequirementId } from '../../../src/domain/requirement/RequirementI
 import { makeRequirement } from '../../helpers/entities';
 import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
 import { leftWritesBehind, markUncompensated } from '../../../src/application/commands/DispatchOutcome';
-import { InMemoryRequirementRepository } from '../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
 
 /**
  * The compensated sequence's own arms, driven at the engine with hand-built `ops` — the
@@ -86,6 +85,10 @@ function makeOps(overrides?: {
 	const ops: RecordedOps = {
 		entityId: 'entity-1',
 		entityKind: 'zone',
+		// A real dispatching bus with nothing subscribed — the announcement behaviour
+		// itself is asserted at the command level in deleteResolutions.test.ts; this file's
+		// own cases only need every arm to be able to publish without throwing.
+		events: createEventBus(),
 		// Two forward writes succeed by default; each test shifts in the failures it needs.
 		// Declared IN the literal rather than assigned after it: the annotation is what makes
 		// this object a `RecordedOps`, and five members arriving later are five members the
@@ -528,73 +531,7 @@ describe('marker bookkeeping on the success path', () => {
 	});
 });
 
-
-/**
- * **The post-write refusal that never reaches `compensate`'s loop, which is why closing the
- * loop case alone would have been a partial fix wearing a complete one's clothes.**
- * `markStalePersisted` WRITES (`requirements.markStale`) and then re-reads through
- * `loadRequirement`. When the re-read refuses, `applyResolutionToRequirement` returns before
- * `applyAll` can append anything to `marker.progress` — so the write that just landed is in
- * no progress record, `compensate` iterates past it, and nothing restores it. The step is the
- * only code that knows, so the step is what stamps.
- *
- * `repointAndMarkStale` deliberately has no counterpart case: its own refusals all precede
- * its `save`, and a failed `save` wrote nothing.
- */
-const noRecalculation = { execute: () => Promise.resolve(ok(undefined)) };
-
-/** `delete-anyway` never repoints, so this arm of the step set must not be reached. */
-function repointNowhere(): never {
-	throw new Error('not reached');
-}
-
-describe('requirementResolutionSteps', () => {
-	/** `markStale` lands; the requirement is gone by the time the step re-reads it. */
-	class VanishesAfterMarkStale extends InMemoryRequirementRepository {
-		private vanished = false;
-
-		override markStale(id: Parameters<InMemoryRequirementRepository['markStale']>[0]) {
-			const marked = super.markStale(id);
-			this.vanished = true;
-			return marked;
-		}
-
-		override getById(id: Parameters<InMemoryRequirementRepository['getById']>[0]) {
-			if (this.vanished) return Promise.resolve(ok(null));
-			return super.getById(id);
-		}
-	}
-
-	it('stamps a re-read refusal that follows its own markStale write', async () => {
-		const requirements = new VanishesAfterMarkStale();
-		const saved = await requirements.save(referent(FIRST_REQUIREMENT).entity, 'absent');
-		if (!saved.ok) throw new Error('fixture failed to save');
-
-		const steps = requirementResolutionSteps(requirements, noRecalculation, repointNowhere);
-		const result = await steps.markStalePersisted(saved.value);
-
-		if (result.ok) throw new Error('expected the re-read to refuse');
-		// The category is the one `affectsSaveState` reads as "wrote nothing" — the exact
-		// misreading the stamp exists to overrule.
-		expect(result.error.category).toBe('Reference');
-		expect(result.error.code).toBe('requirement.not-found');
-		expect(leftWritesBehind(result.error)).toBe(true);
-	});
-
-	it('does NOT stamp a markStale that refused, because that one wrote nothing', async () => {
-		class RefusesMarkStale extends InMemoryRequirementRepository {
-			override markStale() {
-				return Promise.resolve(err(injectedPersistenceError()));
-			}
-		}
-		const requirements = new RefusesMarkStale();
-		const saved = await requirements.save(referent(FIRST_REQUIREMENT).entity, 'absent');
-		if (!saved.ok) throw new Error('fixture failed to save');
-
-		const steps = requirementResolutionSteps(requirements, noRecalculation, repointNowhere);
-		const result = await steps.markStalePersisted(saved.value);
-
-		if (result.ok) throw new Error('expected markStale to refuse');
-		expect(leftWritesBehind(result.error)).toBe(false);
-	});
-});
+// `requirementResolutionSteps` — the per-kind step-builder `markStalePersisted` and its
+// write-then-reread stamping — has its own file, `requirementResolutionSteps.test.ts`: a
+// different unit from the engine this file drives, and pulling it out is what keeps this
+// file under the suite's line budget.

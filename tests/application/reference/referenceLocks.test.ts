@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ReferenceLocks } from '../../../src/application/reference/ReferenceLocks';
+import { createEventBus } from '../../../src/core/events/EventBus';
+import { requirementInvalidated } from '../../../src/domain/requirement/Requirement.events';
+import type { RequirementId } from '../../../src/domain/requirement/RequirementId';
 
 /**
  * The lock hierarchy's own rules, checked at the lock rather than by driving the commands
@@ -116,6 +119,49 @@ describe('ReferenceLocks', () => {
 		})();
 		await Promise.all([first, second]);
 		expect(order).toEqual(['first', 'second']);
+	});
+
+	/**
+	 * The THIRD rule in `ReferenceLocks`'s header — a subscriber must never acquire a
+	 * reference lock — demonstrated at the mechanism rather than at an engine.
+	 *
+	 * The two engine pins (`deleteResolutionAnnouncements.test.ts`,
+	 * `undoDeleteResolution.test.ts`) establish that a publish really does happen while the
+	 * sequence still holds its locks. That alone is not harm. THIS is the case that shows the
+	 * harm, and it needs no engine, no repository and no resolution: `publish` awaits its
+	 * handlers, so a handler blocked in `acquire` is awaiting `waitForRelease`, which fires
+	 * only from `releaseAll`, which the publisher reaches only after `publish` returns.
+	 * Neither side can advance — a deadlock, not contention.
+	 *
+	 * If this ever reports 'settled', the rule stated in that header has stopped being
+	 * load-bearing and the reason for it needs re-deriving from scratch.
+	 */
+	it('a subscriber that reaches for a held lock never gets it — the rule this pins', async () => {
+		const locks = new ReferenceLocks();
+		const events = createEventBus();
+		let acquired = false;
+		events.subscribe('RequirementInvalidated', async () => {
+			// Exactly what the rule forbids.
+			await locks.acquire(['entity-1'], []);
+			acquired = true;
+		});
+
+		const release = await locks.acquire(['entity-1'], []);
+		const published = events.publish(requirementInvalidated('requirement-1' as RequirementId));
+		const settled = await Promise.race([
+			published.then(() => 'settled' as const),
+			new Promise<'blocked'>((resolve) => {
+				setTimeout(() => {
+					resolve('blocked');
+				}, 50);
+			}),
+		]);
+
+		expect(settled).toBe('blocked');
+		expect(acquired).toBe(false);
+		// Let the stranded subscriber finish, so the case leaves no pending lock behind it.
+		release();
+		await published;
 	});
 
 	it('a level-2 contender waits for its id without taking the level-1 ids of the holder', async () => {

@@ -13,7 +13,9 @@ import {
 
 /**
  * The deletion & reference-integrity rules, at the command — the enforcement a script or
- * migration must not be able to walk past.
+ * migration must not be able to walk past. The event-announcement half split out to
+ * `deleteResolutionAnnouncements.test.ts` once this file's own line count crossed the
+ * suite's cap; that file's own docblock names the split from its side.
  */
 
 async function wiredWithRequirement() {
@@ -209,6 +211,7 @@ describe('DeleteZoneCommand reference integrity', () => {
 			events: w.events,
 			locks: w.locks,
 			projects: w.projects,
+			overrides: w.overrides,
 		}).execute({ zoneId: w.zoneId, assetId: otherAsset.entity.id });
 
 		const results = await Promise.all([deleting, assigning] as const);

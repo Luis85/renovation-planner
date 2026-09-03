@@ -62,6 +62,12 @@ async function mountOnOneProject(outcome: ProjectOpenOutcome) {
 						listProjects: () => Promise.resolve(ok({ projects: [KITCHEN], unreadable: 0 })),
 						getProject,
 						listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
+						// The detail state's price section reads this on mount. Stated for the same
+						// reason every other key here is: a `provide` value is `unknown`, so nothing
+						// type-checks this literal and an absent member reaches the store as an
+						// `undefined` that faults when the section hydrates — which is exactly what it
+						// did when the section landed, in this file and in no other.
+						listAssetPrices: () => Promise.resolve(ok([])),
 					},
 					commands: unavailableRenovationProjectCommands(),
 					openProject,
@@ -74,6 +80,13 @@ async function mountOnOneProject(outcome: ProjectOpenOutcome) {
 					openPlan: () => Promise.resolve(),
 					onProjectsChanged: () => () => undefined,
 					onPlansChanged: () => () => undefined,
+					// The price section's two subscriptions, registered by `ProjectDetailState` at
+					// setup. `viewRootCreateProject.test.ts` and `viewRootIndexRebuild.test.ts` both
+					// pass `projectId: null` — the LIST state, which never mounts the detail tree —
+					// so neither needs these and neither gets them: a member spelled into a
+					// list-state fixture is a key nothing reads.
+					onCatalogueChanged: () => () => undefined,
+					onProjectPricesChanged: () => () => undefined,
 					// TRUE, so an `ok(null)` from the fake above is authoritative rather than a
 					// read that merely raced the index scan — which is the state this file's
 					// first case is about.

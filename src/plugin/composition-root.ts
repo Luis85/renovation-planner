@@ -1,12 +1,12 @@
-import type { App, Vault, Workspace } from 'obsidian';
-import { ObsidianBackgroundPicker } from './assetBackgroundPicker';
+import type { Vault, Workspace } from 'obsidian';
 import { createEventBus, type EventBus } from '../core/events/EventBus';
 import type { Result } from '../core/result/Result';
 import type { Logger } from '../application/ports/Logger';
 import type { Command } from '../application/commands/Command';
-import { createAssetDesignChangeSource } from '../application/events/assetDesignChangeSource';
 import { createPlanChangeSource } from '../application/events/planChangeSource';
 import { createAssetCatalogueChangeSource } from '../application/events/assetCatalogueChangeSource';
+import { createProjectPricesChangeSource } from '../application/events/projectPricesChangeSource';
+import { createRequirementFiguresChangeSource } from '../application/events/requirementFiguresChangeSource';
 import { createProjectListChangeSource } from '../application/events/projectListChangeSource';
 import { createProjectPlansChangeSource } from '../application/events/projectPlansChangeSource';
 import { CreatePlanCommand } from '../application/commands/plan/CreatePlan';
@@ -40,15 +40,6 @@ import {
 import type { PlanEditorDeps } from '../presentation/views/PlanEditorView';
 import { unavailablePlanEditorCommands } from '../presentation/editor/planEditorCommands';
 import {
-	createAssetDesignerQueries,
-	unavailableAssetDesignerQueries,
-} from '../presentation/read-models/assetDesignerQueries';
-import type { AssetDesignerDeps } from '../presentation/designer/AssetDesignerContext';
-import {
-	createAssetDesignerCommands,
-	unavailableAssetDesignerCommands,
-} from '../presentation/designer/designerCommands';
-import {
 	createRenovationProjectQueries,
 	unavailableRenovationProjectQueries,
 } from '../presentation/read-models/renovationProjectQueries';
@@ -60,12 +51,14 @@ import {
 	renovationProjectOpenPlan,
 	renovationProjectOpenProject,
 } from './renovationProjectOpenSeams';
+import { renovationProjectCommandBundle } from './renovationProjectCommandBundle';
 import type { ProjectIndex } from '../application/ports/ProjectIndex';
 import type { SequenceMarkerStore } from '../application/ports/SequenceMarkerStore';
 import type { PlanGeometrySidecar } from '../application/ports/PlanGeometrySidecar';
 import type { AssetGeometrySidecar } from '../application/ports/AssetGeometrySidecar';
 import type { AssetRepository as AssetRepositoryPort } from '../application/ports/AssetRepository';
 import type { RequirementRepository as RequirementRepositoryPort } from '../application/ports/RequirementRepository';
+import type { AssetPriceOverrideRepository as AssetPriceOverrideRepositoryPort } from '../application/ports/AssetPriceOverrideRepository';
 import type { PlanRepository } from '../application/ports/PlanRepository';
 import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
@@ -97,6 +90,10 @@ import {
 	type QueryServices,
 	type UnguardedSlice10Services,
 } from './guardedServices';
+import { guardAssetPriceServices, type GuardedAssetPriceServices } from './guardedAssetPrice';
+import { SetAssetPriceOverrideCommand } from '../application/commands/asset-price/SetAssetPriceOverride';
+import { ClearAssetPriceOverrideCommand } from '../application/commands/asset-price/ClearAssetPriceOverride';
+import { ListProjectAssetPrices } from '../application/queries/ListProjectAssetPrices';
 import { composeSlice10, sequenceNotices, type Slice10Wiring } from './slice10Composition';
 import { composeRepositories, type VaultStack } from './repositoryComposition';
 import type { RenovationPlannerSettings } from './settings/settings';
@@ -177,6 +174,7 @@ export interface CompositionRoot {
 export interface PersistenceServices
 	extends GuardedEditorServices,
 		GuardedSlice10Services,
+		GuardedAssetPriceServices,
 		GuardedAssetDesignServices {
 	readonly index: ProjectIndex;
 	readonly vaultDeps: NoteVaultDeps;
@@ -202,6 +200,14 @@ export interface PersistenceServices
 	/** Design slice 10's catalog and link entities. */
 	readonly assets: AssetRepositoryPort;
 	readonly requirements: RequirementRepositoryPort;
+	/**
+	 * A project's own price for a shared catalogue Asset. Exposed here, beside its sibling
+	 * repositories, so `guardCategory.test.ts` can detonate it: `SetAssetPriceOverrideCommand`,
+	 * `ClearAssetPriceOverrideCommand` and `ListProjectAssetPrices` all read and write through
+	 * this port, and it was the one collaborator this increment's two commands and query added
+	 * that the seven-name detonation list had not yet named.
+	 */
+	readonly overrides: AssetPriceOverrideRepositoryPort;
 	/** The one reference-lock set per plugin; every command that links or unlinks shares it. */
 	readonly locks: ReferenceLocks;
 	readonly queries: QueryServices;
@@ -287,6 +293,53 @@ export interface SessionCollaborators {
 }
 
 /**
+ * Design slice 10's lock set, the `RecalculateRequirementCommand` both the write side and
+ * the cascade handlers dispatch through, and the `Slice10Wiring` bundle `composeSlice10` and
+ * `composeGuarded` both take — pulled out of `createCompositionRoot`'s own body when the
+ * currency-override increment's wiring pushed that function over its 100-line cap.
+ *
+ * **An extraction, not a second collapsed literal.** `runtime.ts` already recorded the wrong
+ * remedy for this shape: a budget bought back by reformatting is a budget already spent, and
+ * the next line of code — of any size — trips the cap again. This is that next line, in the
+ * same file, one slice later; the fix is the seam `composeRepositories`/`composeGuarded`
+ * already model, not a third one.
+ */
+function composeSlice10Wiring(
+	repositories: ReturnType<typeof composeRepositories>,
+	index: ProjectIndex,
+	events: EventBus,
+	logger: Logger,
+	markers: SequenceMarkerStore | undefined,
+): { locks: ReferenceLocks; wiring: Slice10Wiring; slice10: ReturnType<typeof composeSlice10> } {
+	const { projects, zones, assets, requirements, overrides } = repositories;
+	// One lock set per plugin: assignment, unit changes and delete resolutions across
+	// every view serialize against the same keys.
+	const locks = new ReferenceLocks();
+	const recalculate = new RecalculateRequirementCommand({
+		requirements,
+		zones,
+		assets,
+		events,
+		projects,
+		overrides,
+	});
+	const wiring: Slice10Wiring = {
+		zones,
+		assets,
+		requirements,
+		projects,
+		index,
+		recalculate,
+		events,
+		locks,
+		logger,
+		markers,
+		overrides,
+	};
+	return { locks, wiring, slice10: composeSlice10(wiring) };
+}
+
+/**
  * Everything that leaves the root through the Error Boundary, in ONE place: the guard is
  * applied here and nowhere else, so "is this service guarded?" is answered by whether it
  * is composed in this function. Its collaborators are the same ones the unguarded
@@ -299,8 +352,9 @@ function composeGuarded(
 	files: VaultFileProbe,
 	diagnostics: { versions: RuntimeVersions; migrations: MigrationRunner; ledger: DiagnosticsLedger },
 ) {
-	const { projects, plans, zones, assets, assetGeometry, requirements, overlaps, listFacts, defaultCurrency } = repositories;
-	const { events: eventBus, logger, recalculate, locks, markers } = wiring;
+	const { projects, plans, zones, assets, assetGeometry, requirements, overlaps, listFacts, defaultCurrency, overrides } =
+		repositories;
+	const { events: eventBus, logger, recalculate, locks, markers, index } = wiring;
 	const map = VAULT_EXCEPTION_MAPPER;
 	const deleteZone = new DeleteZoneCommand({
 		zones,
@@ -317,9 +371,23 @@ function composeGuarded(
 		{ eventBus, files, logger, map, overlaps, listFacts },
 		diagnostics,
 	);
+	// Task 5's repository is what these needed; nothing else is built here beyond the two
+	// commands and the query Tasks 4 and 8 wrote. `index` is `wiring.index` — the same
+	// instance every repository and `IndexLibraryOverlaps` already share — so this is a
+	// wiring change at one call site, not a new construction.
+	const assetPrice = guardAssetPriceServices(
+		{
+			setAssetPriceOverride: new SetAssetPriceOverrideCommand({ overrides, projects, assets, events: eventBus, locks }),
+			clearAssetPriceOverride: new ClearAssetPriceOverrideCommand({ overrides, events: eventBus, locks }),
+			listProjectAssetPrices: new ListProjectAssetPrices(assets, overrides, index, logger),
+		},
+		logger,
+		map,
+	);
 	return {
 		...editor,
 		...guardSlice10(slice10, recalculate, logger, map),
+		...assetPrice,
 		// The SAME `locks` the delete resolution takes — `wiring.locks`, one instance per root. A
 		// second `new ReferenceLocks()` here would be two mutual-exclusion sets that exclude
 		// nothing from each other, which is the shape this file already refuses for the event bus.
@@ -378,25 +446,8 @@ export function createCompositionRoot(
 		settings.libraryFolder,
 		settings.defaultCurrency,
 	);
-	const { geometryStore, projects, plans, zones, assets, requirements } = repositories;
-
-	// One lock set per plugin: assignment, unit changes and delete resolutions across
-	// every view serialize against the same keys.
-	const locks = new ReferenceLocks();
-	const recalculate = new RecalculateRequirementCommand(requirements, zones, assets, eventBus, projects);
-	const wiring: Slice10Wiring = {
-		zones,
-		assets,
-		requirements,
-		projects,
-		index,
-		recalculate,
-		events: eventBus,
-		locks,
-		logger,
-		markers,
-	};
-	const slice10 = composeSlice10(wiring);
+	const { geometryStore, projects, plans, zones, assets, requirements, overrides } = repositories;
+	const { locks, wiring, slice10 } = composeSlice10Wiring(repositories, index, eventBus, logger, markers);
 
 	const files = createVaultFileProbe(vault.vault);
 	const guarded = composeGuarded(repositories, slice10, wiring, files, {
@@ -421,6 +472,7 @@ export function createCompositionRoot(
 			zones,
 			assets,
 			requirements,
+			overrides,
 			locks,
 			files,
 			overlaps: repositories.overlaps,
@@ -477,6 +529,9 @@ export function planEditorDeps(
 					moveObject: persistence.moveZone,
 					deleteZone: persistence.deleteZone,
 					zones: persistence.zones,
+					// The real bus, so the reversible adapters constructed from this bundle can
+					// finally publish what their undo and redo write.
+					events: root.eventBus,
 					zoneInspector: persistence.zoneInspector,
 					requirementEdits: {
 						// The GUARDED services, not the composed classes: the adapters take
@@ -511,73 +566,9 @@ export function planEditorDeps(
 		onThemeChange: createThemeChangeSource(workspace),
 		onPlanChanged: createPlanChangeSource(root.eventBus),
 		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
+		onProjectPricesChanged: createProjectPricesChangeSource(root.eventBus),
+		onRequirementFiguresChanged: createRequirementFiguresChangeSource(root.eventBus),
 		onVaultFileChanged: createVaultFileChangeSource(vault),
-	};
-}
-
-/**
- * The asset designer's own dependency bundle (design slice B3, ADR-0015; the picker since
- * Task B7).
- *
- * It takes an `App` and no `Workspace`, which is what still separates it from its two siblings
- * and is a fact about the surface rather than an omission: the designer navigates nowhere and
- * follows no theme. It DOES read raw files — Obsidian's own file suggester to pick a spec
- * sheet, and the vault behind it to draw the sheet that was picked — and an `App` is the
- * narrowest thing that gets it both, which is why the signature did not have to grow a
- * parameter when the background layer stopped being empty.
- *
- * **The picker is bound UNCONDITIONALLY, independent of `persistence`.** Picking a file needs
- * no vault write of this plugin's own, and the picker's own result reaches a command that
- * refuses through the ordinary refused-write path when there is nothing to dispatch it to —
- * the same reasoning `onDesignChanged` above already states for wiring off the bus regardless
- * of session state.
- *
- * TOTAL rather than nullable, for `planEditorDeps`'s reason: with settings unrecovered there is
- * no query service to hand over, so the view is handed one that REFUSES and draws the same
- * failure state it draws for any unreadable asset. Not registering the view at all would leave a
- * restored designer leaf pointing at a view type Obsidian does not know.
- */
-export function assetDesignerDeps(
-	root: CompositionRoot,
-	app: App,
-	options: { indexScanCompleted: () => boolean },
-): AssetDesignerDeps {
-	const persistence = root.persistence;
-	return {
-		picker: new ObsidianBackgroundPicker(app),
-		// Obsidian's real `Vault`, passed straight in: `BackgroundVault` is a `Pick` of it, so
-		// there is nothing to adapt and nothing that can drift from the API.
-		vault: app.vault,
-		queries:
-			persistence === null
-				? unavailableAssetDesignerQueries()
-				: createAssetDesignerQueries(persistence.assetDesign),
-		// The write side (design slice B5), composed from the GUARDED design bundle plus the
-		// three ports its reversible adapters restore through. Presentation holding a port is
-		// the bargain `PlanEditorCommandServices.zones` already makes and for the same reason:
-		// an inverse writes a whole snapshot back, which is a repository call and not a command.
-		commands:
-			persistence === null
-				? unavailableAssetDesignerCommands()
-				: createAssetDesignerCommands(
-						{
-							sidecar: persistence.assetGeometry,
-							assets: persistence.assets,
-							events: root.eventBus,
-						},
-						persistence.assetDesign,
-					),
-		logger: root.logger,
-		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
-		// `renovationProjectDeps.onPlansChanged` states: the bus is the root's own and exists
-		// either way, and a refusal bundle re-reading simply refuses again.
-		onDesignChanged: createAssetDesignChangeSource(root.eventBus),
-		// The SAME `css-change` source the Plan Editor takes, from the same workspace. Two
-		// surfaces resolve an Obsidian palette into canvas colours and both need telling when
-		// it moves; a second mechanism here would be a second answer to one question.
-		onThemeChange: createThemeChangeSource(app.workspace),
-		onVaultFileChanged: createVaultFileChangeSource(app.vault),
-		indexScanCompleted: options.indexScanCompleted,
 	};
 }
 
@@ -654,28 +645,27 @@ export function renovationProjectDeps(
 		// `onProjectsChanged` states three lines down: the bus is the root's own and exists
 		// either way, and a refusal bundle re-reading simply refuses again.
 		onPlansChanged: createProjectPlansChangeSource(root.eventBus),
+		// The price section's two doors, wired from the bus for the same reason. The catalogue
+		// source is the SAME one the Plan Editor's assign picker takes, reused rather than
+		// duplicated; the price source reports which project changed and this view narrows at its
+		// own end, where the id already is.
+		onCatalogueChanged: createAssetCatalogueChangeSource(root.eventBus),
+		onProjectPricesChanged: createProjectPricesChangeSource(root.eventBus),
 		queries: persistence
-			? createRenovationProjectQueries(
-					persistence.listProjects,
-					persistence.queries.getProject,
-					persistence.listPlansByProject,
-					persistence.overlaps,
-					persistence.listFacts,
-				)
+			? createRenovationProjectQueries({
+					listProjects: persistence.listProjects,
+					getProject: persistence.queries.getProject,
+					listPlansByProject: persistence.listPlansByProject,
+					overlaps: persistence.overlaps,
+					facts: persistence.listFacts,
+					listAssetPrices: persistence.listProjectAssetPrices,
+				})
 			: unavailableRenovationProjectQueries(),
+		// `renovationProjectCommandBundle` is the same line-budget extraction
+		// `renovationProjectOpenSeams.ts` already carries for this function's two open doors —
+		// every member is still the GUARDED service composed above.
 		commands: persistence
-			? {
-					createProject: persistence.createProject,
-					createPlan: persistence.createPlan,
-					// Design slice A10. `assetDesign` is the guarded bundle slice A9 composed, and
-					// only the one door the creation form dispatches is handed over: the rest of
-					// that bundle belongs to the designer view Phase B builds, and spreading it
-					// here would make this the second place its membership is decided.
-					createAsset: persistence.createAsset,
-					setAssetFootprintFromDimensions: persistence.assetDesign.setFootprintFromDimensions,
-					logger: root.logger,
-					defaultCurrency: persistence.defaultCurrency,
-				}
+			? renovationProjectCommandBundle(persistence, root.logger)
 			: unavailableRenovationProjectCommands(),
 		openProject: persistence
 			? renovationProjectOpenProject(workspace, vault, persistence.index, root.logger)

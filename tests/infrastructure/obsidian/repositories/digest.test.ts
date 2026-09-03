@@ -5,6 +5,8 @@ import { PLAN_TYPE, PlanFrontmatterSchemaV1 } from '../../../../src/infrastructu
 import { ZONE_TYPE, ZoneFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/zoneFrontmatter';
 import { ASSET_TYPE, AssetFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/assetFrontmatter';
 import { REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/requirementFrontmatter';
+import { ASSET_PRICE_TYPE, AssetPriceFrontmatterSchemaV1 } from '../../../../src/infrastructure/persistence/dto/assetPriceFrontmatter';
+import { ENTITY_TYPES, type EntityType } from '../../../../src/application/ports/ProjectIndex';
 
 /**
  * What "external modification" MEANS, pinned: the note token covers plugin-owned
@@ -47,7 +49,7 @@ describe('observation tokens', () => {
 
 /**
  * WHAT THE PLUGIN OWNS IS THE SCHEMAS' ANSWER, NOT A SECOND LIST BESIDE THEM — AND IT IS
- * ONE KIND'S ANSWER, NOT THE UNION OF FIVE.
+ * ONE KIND'S ANSWER, NOT THE UNION OF EVERY KIND.
  *
  * `digest.ts` states the rule as a category — "ONLY the frontmatter keys this plugin owns
  * in a note of THAT KIND" — and held a hand-written array covering every kind at once,
@@ -64,20 +66,42 @@ describe('observation tokens', () => {
  *   write ever touches. Pre-existing for an asset's `notes` on a plan note; slice 16 only
  *   widened it into keys a user is likely to have.
  *
- * So both directions are asked here, per kind, DERIVED from the five `z.object` shapes: a
+ * **A third instance, in the sixth entity type's own arrival.** `digest.ts`'s `SCHEMAS` is
+ * itself the "second list" the paragraph above names — it derives `OWNED_KEYS_BY_TYPE` from
+ * the schemas, but nothing forced it to REGISTER a new schema there, so the Asset Price
+ * override note landed with no entry and fell through to `EVERY_OWNED_KEY`, the union —
+ * silently reintroducing the exact defect this file exists to refuse, for the exact reason
+ * this file's own header warns about: `byType` below was hand-written too, covering the
+ * five kinds that existed when it was written and comparing nothing against `ENTITY_TYPES`,
+ * so a sixth kind missing from `SCHEMAS` was also missing here and nothing went red.
+ *
+ * `byType` is DERIVED from `ENTITY_TYPES` now — the same array `digest.ts` itself should be
+ * complete against — rather than transcribed from it, so a kind `ENTITY_TYPES` names and
+ * `SCHEMA_BY_TYPE` does not is a compile error (`Record<EntityType, …>` requires every key),
+ * and a kind whose entry in `digest.ts`'s own `SCHEMAS` is missing or wrong falls through to
+ * the union at RUNTIME and is caught by the foreign-key case below going red — not by a
+ * second hand-written list agreeing with the first one's gap.
+ *
+ * So both directions are asked here, per kind, DERIVED from the `z.object` shapes: a
  * hand-written second list is how this drifted, and a hand-written third one in the test
  * would agree with the drift. Asked BEHAVIOURALLY rather than by exporting the map — a key
  * the digest reads is one whose value cannot change without moving the token, and a key it
  * ignores is one whose value can, which is the property a user loses an edit to either way.
  */
 describe("a note is digested against its own kind's schema", () => {
-	const byType = [
-		[PROJECT_TYPE, ProjectFrontmatterSchemaV1],
-		[PLAN_TYPE, PlanFrontmatterSchemaV1],
-		[ZONE_TYPE, ZoneFrontmatterSchemaV1],
-		[ASSET_TYPE, AssetFrontmatterSchemaV1],
-		[REQUIREMENT_TYPE, RequirementFrontmatterSchemaV1],
-	] as const;
+	const SCHEMA_BY_TYPE: Readonly<Record<EntityType, { readonly shape: Readonly<Record<string, unknown>> }>> = {
+		[PROJECT_TYPE]: ProjectFrontmatterSchemaV1,
+		[PLAN_TYPE]: PlanFrontmatterSchemaV1,
+		[ZONE_TYPE]: ZoneFrontmatterSchemaV1,
+		[ASSET_TYPE]: AssetFrontmatterSchemaV1,
+		[REQUIREMENT_TYPE]: RequirementFrontmatterSchemaV1,
+		[ASSET_PRICE_TYPE]: AssetPriceFrontmatterSchemaV1,
+	};
+
+	// `ENTITY_TYPES.map`, not a second array naming the six by hand — a type this array
+	// names and `SCHEMA_BY_TYPE` does not is a compile error, and a type this array is
+	// missing (impossible, since it is the one declaration) is not a gap this file can have.
+	const byType = ENTITY_TYPES.map((type) => [type, SCHEMA_BY_TYPE[type]] as const);
 
 	const everyKey = [...new Set(byType.flatMap(([, schema]) => Object.keys(schema.shape)))].toSorted();
 
@@ -136,6 +160,30 @@ describe("a note is digested against its own kind's schema", () => {
 		};
 		expect(observeFrontmatter({ ...zone, description: 'mine' })).toBe(
 			observeFrontmatter({ ...zone, description: 'edited after the zone was loaded' }),
+		);
+	});
+
+	/**
+	 * The finding this round fixes, spelled out the same way the zone case above is: an
+	 * override note has no `description` of its own — that key belongs to a project note —
+	 * so a user adding one must not have it digested. Before `SCHEMAS` named `asset-price`,
+	 * this note fell through to `EVERY_OWNED_KEY` and `description` moved the token, so
+	 * editing it refused the override's next save with `asset-price.external-modification`
+	 * for a key `AssetPriceFrontmatterSchemaV1` does not declare and the mapper never writes.
+	 */
+	it("leaves an asset-price note alone when a user edits their own description", () => {
+		const override = {
+			type: ASSET_PRICE_TYPE,
+			'schema-version': 1,
+			id: 'assetprice-x',
+			revision: 2,
+			project: 'project-x',
+			asset: 'asset-x',
+			'unit-cost': '19.50',
+			currency: 'GBP',
+		};
+		expect(observeFrontmatter({ ...override, description: 'mine' })).toBe(
+			observeFrontmatter({ ...override, description: 'edited after the override was loaded' }),
 		);
 	});
 

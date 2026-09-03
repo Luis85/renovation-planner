@@ -3,12 +3,13 @@ import type { RepositoryError } from '../../../application/ports/repositoryError
 import { ok, err, type Result } from '../../../core/result/Result';import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { EntityId } from '../../../core/identity/EntityId';
 import type { DiagnosticEntityKind } from '../../../application/ports/diagnostics';
+import type { EntityType, ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 import type {
 	EntityVersion,
 	Expected,
 	Loaded,
 } from '../../../application/ports/versioning';
-import { revisionConflict } from '../../../application/ports/versioning';
+import { checkExpectedVersion, revisionConflict } from '../../../application/ports/versioning';
 import {
 	cacheReading,
 	fileStatAt,
@@ -20,12 +21,11 @@ import {
 	serializeFrontmatter,
 	writeOwnedFrontmatter,
 } from './noteIo';
-import { checkExpectedVersion, versionOfFrontmatter } from './versionCheck';
+import { versionOfFrontmatter } from './versionCheck';
 import { observeFrontmatter } from './digest';
 import { freshNotePath } from './paths';
 import { fileAt } from './NoteVaultDeps';
 import type { NoteVaultDeps } from './NoteVaultDeps';
-import type { ProjectIndexEntry } from '../../../application/ports/ProjectIndex';
 
 /**
  * The conditional note write the asset and requirement repositories share — the Zone
@@ -36,7 +36,7 @@ import type { ProjectIndexEntry } from '../../../application/ports/ProjectIndex'
  */
 export interface NoteWriteSpec<TEntity> {
 	readonly kind: string;
-	readonly indexType: 'renovation-asset' | 'renovation-requirement';
+	readonly indexType: EntityType;
 	/**
 	 * Where an INSERT creates the note, and `undefined` when the folder did not resolve —
 	 * which is the owning project's folder (ADR-0013) for a Requirement, and never happens

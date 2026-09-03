@@ -1,6 +1,6 @@
 import { Decimal } from 'decimal.js';
 import type { CalculationError } from '../../../core/errors/AppError';
-import type { Currency, Money } from '../../../core/money/Money';
+import { sameMoney, type Currency, type Money } from '../../../core/money/Money';
 import { ok, type Result } from '../../../core/result/Result';
 import type { MeasurementUnit, Quantity } from '../../../core/units/MeasurementUnit';
 import type { CalculatedFrom } from '../../../domain/requirement/Requirement';
@@ -104,14 +104,22 @@ export function deriveRequirementFigures(
  * The unit compares by SYMBOL, not kind: `assetUnit` fixes the dimension of the recorded
  * figures, and an `m2 → ft2` change is exactly as capable of invalidating them as an
  * `m2 → m` one.
+ *
+ * **`unitCost` compares by VALUE, through `sameMoney`, not by string.** `createMoney` stores
+ * an amount verbatim, so `19.5` and `19.50` are two spellings of one price — pre-existing
+ * since slice 10, and a false mismatch in both directions this predicate serves: the read
+ * model reports "stale" for a requirement whose inputs did not move, and `onAssetUpdated`
+ * recalculates it — churn and a wrong status badge over an unchanged figure. The per-project
+ * price override this parameter now carries (an INPUT the caller resolves, not the asset's
+ * own catalogue default) is a SECOND writer of the compared field, and two writers of one
+ * compared field is when a by-rendering comparison stops being theoretical.
  */
 export function assetMatchesCalculatedFrom(
 	calculatedFrom: CalculatedFrom,
 	asset: { readonly unitCost: Money; readonly unit: MeasurementUnit },
 ): boolean {
 	return (
-		asset.unitCost.amount === calculatedFrom.unitCost.amount &&
-		asset.unitCost.currency === calculatedFrom.unitCost.currency &&
+		sameMoney(asset.unitCost, calculatedFrom.unitCost) &&
 		asset.unit === calculatedFrom.assetUnit
 	);
 }

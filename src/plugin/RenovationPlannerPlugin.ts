@@ -22,8 +22,8 @@ import { registerAssetDesignerCommands } from './assetDesignerCommands';
 import { registerSampleProjectCommand } from './sampleProject';
 import { claimKonvaGlobal } from '../presentation/editor/scene/konvaGlobal';
 import { activateNotices, disposeNotices, notifyFault } from '../presentation/notices/notify';
+import { assetDesignerDeps } from './assetDesignerDeps';
 import {
-	assetDesignerDeps,
 	createCompositionRoot,
 	planEditorDeps,
 	renovationProjectDeps,
@@ -738,6 +738,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			void recoverInterruptedSequences({
 				markers: persistence.markers,
 				requirements: persistence.requirements,
+				events: this.root.eventBus,
 				logger: this.root.logger,
 			});
 		}

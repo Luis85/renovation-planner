@@ -1,13 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { makeDeleteZoneCommand } from '../../../helpers/slice10';
+import { recorder } from '../../../helpers/logger';
 import { CreateZoneCommand } from '../../../../src/application/commands/zone/CreateZone';
 import { MoveSpatialObjectCommand } from '../../../../src/application/commands/zone/MoveSpatialObject';
 import { ReversibleCreateZoneCommand } from '../../../../src/application/commands/zone/reversible-create-zone-command';
 import { SessionWriteLedger, type WriteLedger } from '../../../../src/application/editor/WriteLedger';
+import { createEventBus } from '../../../../src/core/events/EventBus';
+import { err } from '../../../../src/core/result/Result';
+import type { PersistenceError } from '../../../../src/core/errors/AppError';
 import { InMemoryPlanRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryPlanRepository';
+import { InMemoryRequirementRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryRequirementRepository';
 import { InMemoryZoneRepository } from '../../../../src/infrastructure/persistence/in-memory/InMemoryZoneRepository';
 import { expectErr, expectOk, injectedPersistenceError, RecordingEventBus } from '../../../helpers/domain';
-import { makePlan, squareAt } from '../../../helpers/entities';
+import { makePlan, makeRequirement, squareAt } from '../../../helpers/entities';
+import { createAssetId } from '../../../../src/domain/asset/AssetId';
 import { createPolygon } from '../../../../src/core/geometry/Polygon';
 import { createProjectId } from '../../../../src/domain/project/ProjectId';
 import type { ZoneId } from '../../../../src/domain/zone/ZoneId';
@@ -21,22 +27,53 @@ import { ReversibleMoveZoneCommand } from '../../../../src/presentation/editor/t
  * that weaker assertion.
  */
 
+/**
+ * The rig every case in this file shares. `events` is a REAL dispatching bus rather than
+ * `RecordingEventBus` (which only records and never delivers) — the redo-announces cases
+ * below subscribe to it and need a handler that actually runs. `requirements` is the
+ * reverse lookup `announceRestore` reads and the same repository `DeleteZoneCommand`
+ * resolves referents through, so a foreign requirement seeded into it is visible to both.
+ */
 async function wired() {
 	const plans = new InMemoryPlanRepository();
 	const plan = makePlan({ projectId: createProjectId() });
 	await plans.save(plan, 'absent');
 	const zones = new InMemoryZoneRepository();
-	const events = new RecordingEventBus();
+	const requirements = new InMemoryRequirementRepository();
+	const events = createEventBus();
 	const ledger: WriteLedger = new SessionWriteLedger();
+	const logger = {
+		debug: vi.fn<(event: string, context?: Record<string, unknown>) => void>(),
+		info: vi.fn<(event: string, context?: Record<string, unknown>) => void>(),
+		warn: vi.fn<(event: string, context?: Record<string, unknown>) => void>(),
+		error: vi.fn<(event: string, context?: Record<string, unknown> & { cause?: unknown }) => void>(),
+	};
 	const makeCommand = () =>
 		new ReversibleCreateZoneCommand(
 			new CreateZoneCommand(zones, plans, events),
-			makeDeleteZoneCommand(zones, events),
-			zones,
+			makeDeleteZoneCommand(zones, events, requirements),
 			ledger,
 			{ planId: plan.id, name: 'Living room', zoneType: 'Room', geometry: squareAt() },
+			{ zones, events, requirements, logger },
 		);
-	return { zones, ledger, makeCommand };
+	/**
+	 * A hand-edited requirement in ANOTHER project whose `origin.zoneId` names the given
+	 * zone — Decision 3's honest residue, and the one row `ZoneCreated`'s per-project
+	 * filter drops. Never a referent the delete resolution consented to.
+	 */
+	async function seedRequirementInOtherProject(zoneId: ZoneId) {
+		return expectOk(
+			await requirements.save(
+				makeRequirement({
+					projectId: createProjectId(),
+					assetId: createAssetId(),
+					origin: { kind: 'zone', zoneId },
+				}),
+				'absent',
+			),
+		);
+	}
+	return { zones, ledger, makeCommand, events, requirements, logger, seedRequirementInOtherProject };
 }
 
 /**
@@ -174,9 +211,9 @@ describe('ReversibleCreateZoneCommand', () => {
 		const command = new ReversibleCreateZoneCommand(
 			new CreateZoneCommand(zones, plans, events),
 			makeDeleteZoneCommand(zones, events),
-			zones,
 			silentLedger,
 			{ planId: plan.id, name: 'Living room', zoneType: 'Room', geometry: squareAt() },
+			{ zones, events, requirements: new InMemoryRequirementRepository(), logger: recorder },
 		);
 
 		await command.execute();
@@ -198,12 +235,116 @@ describe('ReversibleCreateZoneCommand', () => {
 		const command = new ReversibleCreateZoneCommand(
 			new CreateZoneCommand(zones, plans, events),
 			makeDeleteZoneCommand(new InMemoryZoneRepository(), events),
-			zones,
 			new SessionWriteLedger(),
 			{ planId: plan.id, name: 'Living room', zoneType: 'Room', geometry: squareAt() },
+			{ zones, events, requirements: new InMemoryRequirementRepository(), logger: recorder },
 		);
 
 		expect(expectErr(await command.execute()).code).toBe('test.injected-failure');
 		expect(command.createdZoneId).toBeNull();
+	});
+
+	it('announces the restore, so create/undo/redo no longer emits one create and two deletes', async () => {
+		const rig = await wired();
+		const command = rig.makeCommand();
+		const seen: string[] = [];
+		rig.events.subscribe('ZoneCreated', () => {
+			seen.push('created');
+		});
+		rig.events.subscribe('ZoneDeleted', () => {
+			seen.push('deleted');
+		});
+
+		await command.execute();
+		await command.undo();
+		await command.execute(); // the redo — the silent half
+		await command.undo();
+
+		expect(seen).toEqual(['created', 'deleted', 'created', 'deleted']);
+	});
+
+	// **Seed the referent AFTER the undo, and the ordering is load-bearing rather than
+	// stylistic.** `ReversibleCreateZoneCommand.undo()` dispatches `DeleteZoneCommand` with
+	// `{ zoneId, expected }` and NO `resolution`, and `applyResolutionToRequirement`'s
+	// `case undefined` refuses with `reference.resolution-required` whenever live referents
+	// exist. So seeding first makes the undo refuse, the zone stay, and the next `execute()`
+	// attempt an `'absent'` restore that also refuses — a test that cannot pass against any
+	// implementation of this task.
+	//
+	// Seeding after the undo is the honest reconstruction of the case anyway: the scenario is
+	// a HAND-EDITED requirement pointing at a zone id, which is a thing that appears in the
+	// vault independently of this gesture, not a referent the delete path ever consented to.
+	it('reaches a dependent in ANOTHER project, which the zone event cannot name', async () => {
+		const rig = await wired();
+		const command = rig.makeCommand();
+		await command.execute();
+		const zoneId = command.createdZoneId;
+		if (zoneId === null) throw new Error('expected the creation to record its zone');
+		await command.undo();
+		// A hand-edited requirement in project A whose origin zone lives in project B: the
+		// residue Decision 3 accepts as honest, and the one row ZoneCreated's filter drops.
+		const foreign = await rig.seedRequirementInOtherProject(zoneId);
+
+		const seen: unknown[] = [];
+		rig.events.subscribe('RequirementInvalidated', (event) => {
+			seen.push(event);
+		});
+		await command.execute();
+
+		expect(seen).toEqual([
+			{ type: 'RequirementInvalidated', payload: { requirementId: foreign.entity.id } },
+		]);
+	});
+
+	// A THROWN lookup, not a refused one. The ports are raw at this boundary, so a vault fault
+	// arrives as a rejection — and letting it escape leaves the zone restored, the command
+	// stuck on the redo stack, and the retry refused by `restoreZone`'s `'absent'` condition.
+	it('falls back to the blanket refresh when the reverse lookup FAULTS', async () => {
+		const rig = await wired();
+		const command = rig.makeCommand();
+		await command.execute();
+		await command.undo();
+		rig.requirements.listByZone = () => Promise.reject(new Error('vault exploded'));
+
+		const seen: string[] = [];
+		rig.events.subscribe('ProjectIndexRebuilt', () => {
+			seen.push('rebuilt');
+		});
+		const result = await command.execute();
+
+		// Resolved, never rejected: the zone write already succeeded.
+		expectOk(result);
+		expect(seen).toEqual(['rebuilt']);
+	});
+
+	it('falls back to the blanket refresh when the reverse lookup refuses', async () => {
+		const rig = await wired();
+		const command = rig.makeCommand();
+		await command.execute();
+		await command.undo();
+		// The zone write will still succeed; only the lookup after it refuses.
+		const refusal: PersistenceError = {
+			category: 'Persistence',
+			code: 'requirement.unreadable',
+			message: 'A requirement note could not be read.',
+		};
+		rig.requirements.listByZone = () => Promise.resolve(err(refusal));
+
+		const seen: string[] = [];
+		rig.events.subscribe('ProjectIndexRebuilt', () => {
+			seen.push('rebuilt');
+		});
+		rig.events.subscribe('RequirementInvalidated', () => {
+			seen.push('invalidated');
+		});
+		const result = await command.execute();
+
+		// The write stands. The adapter cannot fail an operation that already succeeded.
+		expectOk(result);
+		expect(seen).toEqual(['rebuilt']);
+		expect(rig.logger.error).toHaveBeenCalledWith(
+			'zone.restore.referents-unreadable',
+			expect.objectContaining({ cause: refusal }),
+		);
 	});
 });

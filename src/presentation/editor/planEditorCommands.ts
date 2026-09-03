@@ -1,5 +1,5 @@
 import { err, type Result } from '../../core/result/Result';
-import { createEventBus } from '../../core/events/EventBus';
+import { createEventBus, type EventBus } from '../../core/events/EventBus';
 import type {
 	CalculationError,
 	GeometryError,
@@ -82,6 +82,15 @@ export interface PlanEditorCommandServices {
 	 * only `infrastructure/` knows what stands behind it.
 	 */
 	readonly zones: ZoneRepository;
+	/**
+	 * The bus the REVERSIBLE adapters publish on. The plain commands take their own; these
+	 * adapters are constructed here in `presentation/` and had no way to reach one, which is
+	 * the mechanical half of why every undo and redo in this plugin announced nothing.
+	 *
+	 * Required rather than optional: a composition that forgets it must not compile, per the
+	 * `CascadeDeps.notify` precedent.
+	 */
+	readonly events: EventBus;
 	/** The Inspector query (SDD §59), beside the commands it shares a selection with. */
 	readonly zoneInspector: Query<
 		GetZoneInspectorInput,
@@ -207,6 +216,10 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 			},
 		},
 		zones: refusingPort(),
+		// The same local bus the refusing inner commands already take. Nothing subscribes to
+		// it and nothing ever publishes on it, because every write in an unrecovered session
+		// refuses before it reaches a publish.
+		events,
 		zoneInspector: {
 			execute(): Promise<ZoneInspectorResult> {
 				return Promise.resolve(err(persistenceFailure()) as ZoneInspectorResult);
@@ -228,6 +241,7 @@ export function unavailablePlanEditorCommands(): PlanEditorCommandServices {
 				events,
 				locks,
 				projects: refusingPort(),
+				overrides: refusingPort(),
 			}),
 			setQuantityOverride: new SetRequirementQuantityOverrideCommand(refusingPort(), events, locks),
 			setCostOverride: new SetRequirementCostOverrideCommand(refusingPort(), events, locks),

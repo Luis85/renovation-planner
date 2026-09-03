@@ -9,6 +9,13 @@ import type { Requirement } from '../../domain/requirement/Requirement';
 import type { RequirementOrigin } from '../../domain/requirement/RequirementOrigin';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { RequirementId } from '../../domain/requirement/RequirementId';
+import type { DomainEvent, EventBus } from '../../core/events/EventBus';
+import {
+	requirementCreated,
+	requirementDeleted,
+	requirementInvalidated,
+	requirementRestored,
+} from '../../domain/requirement/Requirement.events';
 import type { Logger } from '../ports/Logger';
 import type { SequenceMarkerStore } from '../ports/SequenceMarkerStore';
 import type { ReferenceLocks, LockSession } from './ReferenceLocks';
@@ -107,6 +114,13 @@ export interface ResolutionOps<TEntity> {
 	readonly notify?: {
 		markerClearFailed(entityId: string): void;
 	};
+	/**
+	 * Announced per referent, and the reason is the CROSS-PROJECT case. A requirement in
+	 * project A whose `origin.zoneId` sits in project B is marked stale here, and the only
+	 * event that used to follow was `ZoneDeleted` carrying B — so A's surfaces kept a total
+	 * and a stale count that this resolution had already invalidated.
+	 */
+	readonly events: EventBus;
 	listReferents(): Promise<Result<Loaded<Requirement>[], RepositoryError>>;
 	loadEntity(): Promise<Result<Loaded<TEntity> | null, RepositoryError>>;
 	deleteEntity(expected: EntityVersion): Promise<Result<void, RepositoryError>>;
@@ -305,36 +319,73 @@ async function clearMarker(
 	return ok(undefined);
 }
 
+/**
+ * One per-referent write plus the event it earns — collected rather than published
+ * inline, because this whole sequence is compensated on a later failure and an event is a
+ * statement that something happened. `null` when the arm's own work has already told the
+ * story on its own behalf (a successful inline recalculation publishes
+ * `RequirementRecalculated` — and `CostEstimateChanged`, if the figure moved — from inside
+ * its own save, and announcing `RequirementInvalidated` here as well would claim a
+ * recalculation is still owed for a row that is current and freshly derived).
+ */
+interface AppliedStep {
+	readonly progress: SequenceProgress;
+	readonly announcement: DomainEvent | null;
+}
+
 async function applyResolutionToRequirement<TEntity>(
 	ops: ResolutionOps<TEntity>,
 	input: ResolutionInput,
 	requirement: Loaded<Requirement>,
-): Promise<Result<SequenceProgress, DeleteResolutionErrors>> {
+): Promise<Result<AppliedStep, DeleteResolutionErrors>> {
 	switch (input.resolution) {
 		case 'remove-references': {
 			const removed = await ops.removeRequirement(requirement);
 			if (isErr(removed)) return err(removed.error);
-			return ok({ id: requirement.entity.id, outcome: 'deleted' });
+			return ok({
+				progress: { id: requirement.entity.id, outcome: 'deleted' },
+				// The project comes off the REFERENT, never off the entity being deleted: a
+				// shared asset has no single project, and a zone's project is precisely the
+				// one this event exists to reach past.
+				announcement: requirementDeleted({
+					requirementId: requirement.entity.id,
+					projectId: requirement.entity.projectId,
+				}),
+			});
 		}
 		case 'delete-anyway': {
 			const marked = await ops.markStalePersisted(requirement);
 			if (isErr(marked)) return err(marked.error);
-			return ok({ id: requirement.entity.id, outcome: 'written', version: marked.value });
+			return ok({
+				progress: { id: requirement.entity.id, outcome: 'written', version: marked.value },
+				announcement: requirementInvalidated(requirement.entity.id),
+			});
 		}
 		case 'reassign': {
 			const repointed = await ops.repointAndMarkStale(requirement, input.reassignTo as string);
 			if (isErr(repointed)) return err(repointed.error);
+			const progress: SequenceProgress = {
+				id: requirement.entity.id,
+				outcome: 'written',
+				version: repointed.value,
+			};
 			// Inline recalculation: a FAILURE does not fail the sequence — the stale
 			// marker is already persisted and the failure is logged (slice 17's
-			// background-cascade case).
+			// background-cascade case). It is also the one outcome this arm can still
+			// truthfully announce: the row was repointed, its stale marker is persisted,
+			// and a recalculation is genuinely still owed.
 			const recalculated = await ops.recalculateInline(requirement.entity.id);
 			if (isErr(recalculated)) {
 				ops.logger.warn('requirement.reassignment-recalculation.failed', {
 					requirementId: requirement.entity.id,
 					cause: recalculated.error,
 				});
+				return ok({ progress, announcement: requirementInvalidated(requirement.entity.id) });
 			}
-			return ok({ id: requirement.entity.id, outcome: 'written', version: repointed.value });
+			// The recalculation succeeded and has already published `RequirementRecalculated`
+			// (and `CostEstimateChanged`, if the figure moved) from inside its own save. A
+			// second event here would be a duplicate or a contradiction.
+			return ok({ progress, announcement: null });
 		}
 		case undefined:
 			return err({
@@ -355,15 +406,17 @@ async function applyAll<TEntity>(
 	input: ResolutionInput,
 	marker: SequenceMarker,
 	markers: SequenceMarkerStore | undefined,
-): Promise<Result<void, DeleteResolutionErrors>> {
+): Promise<Result<readonly DomainEvent[], DeleteResolutionErrors>> {
+	const announcements: DomainEvent[] = [];
 	for (const requirement of marker.affectedBefore) {
 		const applied = await applyResolutionToRequirement(ops, input, requirement);
 		if (isErr(applied)) return err(applied.error);
-		marker.progress.push(applied.value);
+		marker.progress.push(applied.value.progress);
+		if (applied.value.announcement !== null) announcements.push(applied.value.announcement);
 		const recorded = await recordMarker(markers, marker);
 		if (isErr(recorded)) return err(recorded.error);
 	}
-	return ok(undefined);
+	return ok(announcements);
 }
 
 /**
@@ -414,6 +467,21 @@ async function compensate<TEntity>(
 				requirementId: entry.id,
 				cause: restored.error,
 			});
+		} else {
+			// The pre-state snapshot's write landed, so the row is back — announced only for
+			// a restore that actually SUCCEEDED; a blanket announcement after a partial
+			// rollback would claim restoration for rows still holding their intermediate
+			// state. Which EVENT is the same split `undoDeleteResolution.ts` computes for its
+			// own restores, and for the identical reason: an entry whose forward outcome was
+			// `'absent'` was REMOVED, so putting it back is a re-creation, not a restore of a
+			// row that was merely edited.
+			const payload = {
+				requirementId: snapshot.entity.id,
+				projectId: snapshot.entity.projectId,
+			};
+			await ops.events.publish(
+				entry.outcome === 'written' ? requirementRestored(payload) : requirementCreated(payload),
+			);
 		}
 	}
 	return err(uncompensated ? markUncompensated(cause) : cause);
@@ -456,6 +524,14 @@ export async function runDeleteResolution<TEntity>(
 
 		const deleted = await ops.deleteEntity(entitySnapshot.version);
 		if (isErr(deleted)) return compensate(ops, marker, deleted.error);
+
+		// Published after `deleteEntity` has returned ok — the sequence's last mutation,
+		// and the point past which nothing will be compensated. A resolution that raised
+		// `RequirementDeleted` for referent 1 and then failed to delete the entity would
+		// leave a subscriber believing a row was gone that `compensate` had just put back.
+		for (const announcement of applied.value) {
+			await ops.events.publish(announcement);
+		}
 
 		const recorded = await recordMarker(markers, { ...marker, entityDeleted: true });
 		if (isErr(recorded)) {

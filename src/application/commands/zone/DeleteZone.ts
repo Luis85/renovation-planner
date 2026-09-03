@@ -82,6 +82,7 @@ export class DeleteZoneCommand
 				entityKind: 'zone',
 				logger: this.ops.logger,
 				notify: this.ops.notify,
+				events: this.ops.events,
 				listReferents: () => this.ops.requirements.listByZone(input.zoneId),
 				loadEntity: () => this.ops.zones.getById(input.zoneId),
 				deleteEntity: (snapshotVersion) =>

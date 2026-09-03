@@ -23,6 +23,8 @@ import type { ZoneRepository } from '../../ports/ZoneRepository';
 import type { ProjectRepository } from '../../ports/ProjectRepository';
 import type { ReferenceLocks } from '../../reference/ReferenceLocks';
 import { deriveRequirementFigures } from './deriveRequirementFigures';
+import { resolveEffectiveUnitCost } from './resolveEffectiveUnitCost';
+import type { AssetPriceOverrideRepository } from '../../ports/AssetPriceOverrideRepository';
 import type { EntityVersion } from '../../ports/versioning';
 
 export async function loadAsset(
@@ -70,6 +72,8 @@ export interface AssignAssetDeps {
 	readonly locks: ReferenceLocks;
 	/** The currency invariant's read: `deriveRequirementFigures` is told the PROJECT's. */
 	readonly projects: ProjectRepository;
+	/** The precedence's input half: a project may price a shared asset in its own currency. */
+	readonly overrides: AssetPriceOverrideRepository;
 }
 
 /**
@@ -152,10 +156,12 @@ export class AssignAssetCommand
 				message: `Zone ${zone.id} names project ${zone.projectId}, which is not there.`,
 			});
 		}
+		const unitCost = await resolveEffectiveUnitCost(this.deps.overrides, zone.projectId, asset);
+		if (isErr(unitCost)) return unitCost;
 		const figures = deriveRequirementFigures({
 			zoneAreaMm2: area.value,
 			assetUnit: asset.unit,
-			unitCost: asset.unitCost,
+			unitCost: unitCost.value,
 			wasteFactor: asset.wasteFactorDefault,
 			expectedCurrency: project.value.entity.currency,
 		});

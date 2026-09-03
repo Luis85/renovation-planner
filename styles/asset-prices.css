@@ -1,0 +1,189 @@
+/*
+ * The project's own price section (the per-project price override increment) — the shared
+ * catalogue with this project's price beside each default.
+ *
+ * The header, the row shape and the focus rings are LIFTED from `.rp-plan-list` in
+ * `styles/project-detail.css` rather than reinvented: the two sections are stacked on one pane,
+ * and a user moving between them should not be able to tell that two people wrote them. Where a
+ * rule here differs from that block, the difference is stated.
+ *
+ * Every colour is an Obsidian variable (SDD §84) — the build refuses a literal, including a bare
+ * word like `red`, so a themed vault stays themed.
+ */
+
+/*
+ * The same row as the plans region's header one level up, minus the button: this section has no
+ * create action, because a price is set on a row rather than added.
+ *
+ * The rule above it is what separates two regions that now scroll together in one body: without
+ * it — measured in a real browser — `Asset prices` sat directly under the last plan row with
+ * nothing to say the list had ended, so the first price row read as a sixteenth plan.
+ */
+.rp-asset-price-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	margin-top: var(--size-4-4);
+	padding: var(--size-4-2) var(--size-4-2) var(--size-2-2);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.rp-asset-price-title {
+	margin: 0;
+	font-size: var(--font-ui-medium);
+}
+
+/*
+ * The project-wide disclosure. It sits between the heading and the list, so it is read before
+ * the first control rather than discovered after one, and it is drawn as muted body text rather
+ * than as a warning strip: it states what the control DOES, and a warning colour would say
+ * something has gone wrong.
+ */
+.rp-asset-price-scope {
+	margin: 0;
+	padding: 0 var(--size-4-2) var(--size-2-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-asset-price-empty,
+.rp-asset-price-failure {
+	margin: 0;
+	padding: var(--size-4-2);
+	color: var(--text-muted);
+}
+
+/*
+ * NEITHER list claims the free height, and that is the point rather than an omission: two
+ * scrolling regions stacked in one column would each get half of it, so a project with three
+ * plans and forty assets would show three plans in a tall empty box above a forty-row list in a
+ * short one. Both grow to their content inside `.rp-project-detail__body`, which is the ONE
+ * scroller — see that rule in `project-detail.css` for what the plan list gave up and why.
+ */
+.rp-asset-price-list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+/*
+ * A WRAPPING flex row, so a narrow leaf (460px is an Obsidian sidebar's real width) puts the
+ * input and the button on their own line rather than crushing the name.
+ *
+ * `.rp-asset-price-name` takes the slack with `flex-grow: 1`, which is slice 19's own lesson
+ * stated where it applies: a third item in a `space-between` row pushes the other two to
+ * wherever each row's name length happens to leave them, so the statuses stop forming a column.
+ * Giving the slack to ONE item puts it in one place.
+ */
+.rp-asset-price-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-2) var(--size-4-2);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-asset-price-name {
+	flex-grow: 1;
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+/*
+ * The two figures §89 asks to be read against each other: the shared default and what this
+ * project actually pays. Same size and same muted colour, because neither is subordinate to the
+ * other — the row's own name is the heading, and these are its two readings.
+ */
+.rp-asset-price-catalogue,
+.rp-asset-price-yours {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * **The field's own label is a LABEL, not a heading**, and the first capture of this section is
+ * what said so: `FieldError` mints a `<label>` per row and Obsidian's own body type drew it at
+ * full size directly above the input, so every row read as a titled block and the row's real
+ * name — at its left edge — read as a caption. The pair is a column so the label sits over its
+ * own input rather than over the whole row, and both are muted and small, which is what makes
+ * the ASSET the row's heading again.
+ *
+ * The FIXED basis is the second half of that same capture. The label used to carry the asset
+ * name visibly, so it sized this column and a long name shoved that row's input and its button
+ * right — measured, three rows starting at x=923, x=887 and x=923, which is slice 19's
+ * `.rp-project-list__overlap` defect (a third item in a row moving the other two) arriving on a
+ * third surface. The name moved into a visually hidden span and the block takes a fixed width, so
+ * every row's input and button share one left edge whatever the row is called.
+ *
+ * `.rp-field-error` is `FieldError`'s own wrapper and is styled generically in `forms.css`; only
+ * its behaviour INSIDE this row is set here, so nothing about the shared component moves.
+ */
+.rp-asset-price-row .rp-field-error {
+	display: flex;
+	flex-direction: column;
+	flex: 0 0 14rem;
+	gap: var(--size-2-1);
+}
+
+.rp-asset-price-row .rp-field-error label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * Off the screen and IN the accessible name — the standard clip, not `display: none` and not
+ * `visibility: hidden`, both of which take the text out of the accessibility tree along with
+ * the picture and would leave every row's input labelled `Set a price`.
+ *
+ * Declared here rather than as a shared utility because this is its first and only caller;
+ * promote it to a partial of its own at the second.
+ */
+.rp-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/*
+ * TWO selectors, not one styled two ways. They draw identically today and they must not share a
+ * class: the SENTENCE each carries is what tells them apart — one names a deletion, the other
+ * names a read that failed — and a shared selector would leave nothing to key that split on.
+ * `--text-warning` on both, because both are states the user may want to act on rather than
+ * failures of this pane.
+ */
+.rp-asset-price-orphan,
+.rp-asset-price-unreadable {
+	color: var(--text-warning);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * A disabled input still has to READ as disabled, and Obsidian's own reduction does not always
+ * say so on every theme. The cursor and the muted text are the two channels that do not depend
+ * on a colour a theme may have flattened.
+ */
+.rp-asset-price-input:disabled {
+	color: var(--text-muted);
+	cursor: not-allowed;
+}
+
+/*
+ * The clear button opts its own focus ring back in, for the reason
+ * `.rp-project-detail__back`'s rule states at length: Obsidian's global `:focus { outline: none }`
+ * reaches buttons, and the vendored app.css reduction puts nothing back that clears WCAG
+ * 1.4.11's 3:1 floor. `outline-offset` is POSITIVE because the button is inset in the row and
+ * has room.
+ */
+.rp-asset-price-row .rp-asset-price-clear:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}

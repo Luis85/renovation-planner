@@ -45,12 +45,13 @@ async function wired() {
 function makeAdapter(
 	w: Awaited<ReturnType<typeof wired>>,
 ) {
-	const assign = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+	const assign = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 	return new ReversibleAssignAssetCommand(assign, {
 		requirements: w.requirements,
 		zones: w.zones,
 		assets: w.assets,
 		locks: w.locks,
+		events: w.events,
 	}, {
 		zoneId: w.zoneId,
 		assetId: w.assetId,
@@ -78,9 +79,78 @@ describe('ReversibleAssignAssetCommand', () => {
 		expect(restored?.entity.id).toBe(createdId);
 	});
 
+	it('announces the re-created requirement on redo', async () => {
+		const w = await wired();
+		const adapter = makeAdapter(w);
+
+		expectOk(await adapter.execute());
+		expectOk(await adapter.undo());
+		const seen: unknown[] = [];
+		w.events.subscribe('RequirementCreated', (event) => { seen.push(event); });
+
+		expectOk(await adapter.execute()); // redoCreate — the silent half
+
+		expect(seen).toHaveLength(1);
+	});
+
+	it('announces the removal its own undo performed', async () => {
+		const w = await wired();
+		const adapter = makeAdapter(w);
+		const first = expectOk(await adapter.execute());
+		const seen: unknown[] = [];
+		w.events.subscribe('RequirementDeleted', (event) => { seen.push(event); });
+
+		expectOk(await adapter.undo());
+
+		expect(seen).toEqual([
+			{
+				type: 'RequirementDeleted',
+				payload: { requirementId: first.requirementId, projectId: w.project.entity.id },
+			},
+		]);
+	});
+
+	// An already-linked pair writes nothing, so its undo removes nothing.
+	it('announces nothing when its execute found an existing link', async () => {
+		const w = await wired();
+		expectOk(await w.assign.execute({ zoneId: w.zoneId, assetId: w.assetId }));
+		const adapter = makeAdapter(w);
+		const found = expectOk(await adapter.execute());
+		expect(found.outcome).toBe('no-write');
+		const seen: unknown[] = [];
+		w.events.subscribe('RequirementDeleted', (event) => { seen.push(event); });
+
+		expectOk(await adapter.undo());
+
+		expect(seen).toEqual([]);
+	});
+
+	// The full four-operation cycle: redoCreate must record the FRESH revision, or the
+	// second undo presents a stale `expected`, the delete refuses, and no RequirementDeleted
+	// follows because no write happened. A two-operation case cannot see this.
+	it('keeps the delete\'s expected revision fresh across redo, so a SECOND undo still deletes and announces', async () => {
+		const w = await wired();
+		const adapter = makeAdapter(w);
+
+		const first = expectOk(await adapter.execute());
+		expectOk(await adapter.undo());
+		expectOk(await adapter.execute()); // redoCreate — must record the NEW revision
+
+		const seen: unknown[] = [];
+		w.events.subscribe('RequirementDeleted', (event) => { seen.push(event); });
+
+		expect(await adapter.undo()).toEqual({ ok: true, value: 'wrote' });
+		expect(seen).toEqual([
+			{
+				type: 'RequirementDeleted',
+				payload: { requirementId: first.requirementId, projectId: w.project.entity.id },
+			},
+		]);
+	});
+
 	it('on the idempotent path undo deletes NOTHING and preserves overrides', async () => {
 		const w = await wired();
-		const assign = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects });
+		const assign = new AssignAssetCommand({ zones: w.zones, assets: w.assets, requirements: w.requirements, events: w.events, locks: w.locks, projects: w.projects, overrides: w.overrides });
 		const preExisting = await assign.execute({ zoneId: w.zoneId, assetId: w.assetId });
 		if (!preExisting.ok) throw new Error('unexpected failure');
 

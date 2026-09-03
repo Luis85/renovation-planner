@@ -33,13 +33,14 @@ describe('RecalculateRequirementCommand refusals', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new RecalculateRequirementCommand(
+			await new RecalculateRequirementCommand({
 				requirements,
-				w.zones,
-				w.assets,
-				w.events,
-				w.projects,
-			).execute({
+				zones: w.zones,
+				assets: w.assets,
+				events: w.events,
+				projects: w.projects,
+				overrides: w.overrides,
+			}).execute({
 				requirementId: w.requirementId,
 			}),
 		);
@@ -59,13 +60,14 @@ describe('RecalculateRequirementCommand refusals', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new RecalculateRequirementCommand(
-				w.requirements,
-				w.zones,
-				w.assets,
-				w.events,
+			await new RecalculateRequirementCommand({
+				requirements: w.requirements,
+				zones: w.zones,
+				assets: w.assets,
+				events: w.events,
 				projects,
-			).execute({ requirementId: w.requirementId }),
+				overrides: w.overrides,
+			}).execute({ requirementId: w.requirementId }),
 		);
 		expect((error as { code: string }).code).toBe('requirement.project-gone');
 	});
@@ -115,13 +117,14 @@ describe('RecalculateRequirementCommand refusals', () => {
 	it('propagates a lost race on its conditional save', async () => {
 		const w = await wiredWithLink();
 		const error = expectErr(
-			await new RecalculateRequirementCommand(
-				withConflictingReads(w.requirements),
-				w.zones,
-				w.assets,
-				w.events,
-				w.projects,
-			).execute({ requirementId: w.requirementId }),
+			await new RecalculateRequirementCommand({
+				requirements: withConflictingReads(w.requirements),
+				zones: w.zones,
+				assets: w.assets,
+				events: w.events,
+				projects: w.projects,
+				overrides: w.overrides,
+			}).execute({ requirementId: w.requirementId }),
 		);
 		expect(error.category).toBe('Validation');
 	});
@@ -134,7 +137,7 @@ describe('DeleteRequirementCommand error propagation', () => {
 			getById: () => Promise.resolve(err(injectedPersistenceError())),
 		});
 		const error = expectErr(
-			await new DeleteRequirementCommand(requirements).execute({ requirementId: w.requirementId }),
+			await new DeleteRequirementCommand(requirements, w.events).execute({ requirementId: w.requirementId }),
 		);
 		expect(error.code).toBe('test.injected-failure');
 	});
@@ -144,10 +147,17 @@ describe('DeleteRequirementCommand error propagation', () => {
 		const requirements = overridePort(w.requirements, {
 			delete: () => Promise.resolve(err(injectedPersistenceError())),
 		});
+		// This is the case that actually reaches the write: `loadRequirement` succeeds and
+		// `delete` is what refuses, so a build that published right after the load — before
+		// checking whether the delete itself succeeded — would still pass every case in
+		// deleteRequirement.test.ts, which never gets this far. Clearing first drops the
+		// events wiredWithLink's own assign already published.
+		w.events.clear();
 		const error = expectErr(
-			await new DeleteRequirementCommand(requirements).execute({ requirementId: w.requirementId }),
+			await new DeleteRequirementCommand(requirements, w.events).execute({ requirementId: w.requirementId }),
 		);
 		expect(error.code).toBe('test.injected-failure');
+		expect(w.events.published).toEqual([]);
 	});
 });
 

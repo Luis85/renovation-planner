@@ -23,17 +23,30 @@ import { splitMatch } from './projectFilter';
 import { tr } from '../i18n/strings';
 
 /**
- * `query` is OPTIONAL because a row can be drawn with no filter above it — the Continue group
- * and the prototypes both do — and defaulting to no match is the honest answer for those rather
- * than a flag each has to remember to pass.
+ * TWO NEW PROPS AND ONLY ONE OF THEM IS REQUIRED, which is this file arguing both sides of one
+ * rule three lines apart — so the asymmetry is stated rather than left to read as an oversight.
+ * What separates them is what a FORGOTTEN one draws.
  *
  * `collator` is REQUIRED, and that is a deliberate departure from the brief, which had this
  * component build one inside the highlight computed. `Intl.Collator`'s construction is the
  * expensive half and its `compare` the cheap one, so a per-render build is thirty collators per
- * keystroke — the very cost `projectOrder`'s own hoisting comment exists to avoid. Required
- * rather than optional-with-a-fallback for the reason `unreadable` on `ProjectList` is: an
- * optional one would be silently forgotten at the mount that needed it most, and the compiler
- * naming every site is cheap when the production site is `ProjectList` alone.
+ * keystroke — the very cost `projectOrder`'s own hoisting comment exists to avoid. Optional
+ * would mean a fallback, and a fallback is that per-render build arriving at exactly the mount
+ * that forgot to pass one: correct output at silently thirty times the cost, which no test can
+ * see. Same shape as `ProjectList`'s own `unreadable`, where an absent field and a zero render
+ * identically.
+ *
+ * `query` is OPTIONAL because the brief specifies it so, and because the harm is bounded and
+ * VISIBLE: a mount that forgets it draws the name with no highlight, which is exactly what a
+ * row above no filter is meant to look like. Nothing is silently wrong and nothing costs
+ * anything it should not.
+ *
+ * **Both of today's mounts pass it**, so the optionality is currently unexercised in production
+ * — an earlier draft of this paragraph justified it by naming the Continue group and the
+ * prototypes, and NEITHER exists: the Continue group is a later task's, and no prototype mounts
+ * this component at all (`StatusTicks.vue`'s own header says why it duplicates the markup
+ * instead). A reason that names a caller is a reason a grep can check, and that one was never
+ * run.
  */
 const props = defineProps<{
 	project: ProjectSummaryDto;

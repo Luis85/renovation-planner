@@ -229,8 +229,19 @@
 
 /*
  * THE FILTER LINE (design spec §7's region 2) — one input across the pane with the count at its
- * trailing edge. The padding matches `.rp-project-list__group-title`'s inline padding so the
- * field's edges sit on the same armature as every heading below it.
+ * trailing edge.
+ *
+ * The INLINE padding is `--size-4-2`, which is what `list-row.css` gives a row
+ * (`padding: var(--size-2-2) var(--size-4-2)`) and what `.rp-project-list__group-title` gives a
+ * heading — so an armature exists and this line is on it. **What that buys is narrower than
+ * "aligned", and the difference is worth stating rather than discovering in a capture**: a
+ * heading's inline padding puts its TEXT at that offset, while this one puts the input's BORDER
+ * there, and the input's own chrome then pushes its text further in again. The field's edge
+ * lines up with a row's text; the field's text does not. Whether that reads as one armature or
+ * as two is a question no gate here can answer — jsdom lays nothing out — and it is on this
+ * task's capture-only list.
+ *
+ * The BLOCK-end `--size-2-2` is the gap to whatever follows, matching the group heading's own.
  */
 .rp-project-filter {
 	display: flex;

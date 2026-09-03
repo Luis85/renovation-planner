@@ -71,10 +71,29 @@ describe('ProjectFilter', () => {
 		expect(input.attributes('placeholder')).toBeUndefined();
 	});
 
+	/**
+	 * No autofocus: a pane that takes focus on open hijacks whatever the user was typing.
+	 *
+	 * **ATTACHED, and that is the whole of what makes the second assertion mean anything.**
+	 * `document.activeElement` is `<body>` for any mount outside the document, so the unattached
+	 * version of this case is true of every build ever written — including one that focuses its
+	 * input on mount. Measured both ways rather than reasoned: against a component given a
+	 * template ref and `onMounted(() => input.focus())`, this case goes RED attached and stays
+	 * GREEN unattached.
+	 *
+	 * The first assertion discriminates either way, but it refuses only the ATTRIBUTE — jsdom
+	 * does not act on `autofocus` — so it is the check about the markup and the second one is
+	 * the check about the behaviour. `unmount` because an attached mount outlives the case.
+	 */
 	it('does not steal the caret on mount', () => {
-		// No autofocus: a pane that takes focus on open hijacks whatever the user was typing.
-		expect(line().find('input').attributes('autofocus')).toBeUndefined();
+		const wrapper = mount(ProjectFilter, {
+			props: { query: '', shown: 4, total: 4 },
+			attachTo: document.body,
+		});
+
+		expect(wrapper.find('input').attributes('autofocus')).toBeUndefined();
 		expect(document.activeElement?.tagName).not.toBe('INPUT');
+		wrapper.unmount();
 	});
 
 	it('emits every keystroke', async () => {

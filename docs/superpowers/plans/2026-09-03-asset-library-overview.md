@@ -738,37 +738,39 @@ export function createAssetLibraryChangeSource(
 - [ ] **Step 1: Write one failing test per row of that table, plus two negatives**
 
 ```ts
-it('ignores a PLAN sidecar, which raises the same event a asset sidecar does', () => {
+it('ignores a PLAN sidecar, which raises the same event a asset sidecar does', async () => {
     const heard = collect(source);
-    events.publish(geometrySidecarChanged({ entityId: 'plan-01', entityType: 'renovation-plan' }));
+    await events.publish(geometrySidecarChanged({ entityId: 'plan-01', entityType: 'renovation-plan' }));
     expect(heard).toEqual([]);
 });
 
-it('ignores a zone note arriving through the index', () => {
+it('ignores a zone note arriving through the index', async () => {
     const heard = collect(source);
-    events.publish(projectIndexEntryChanged({ entityType: 'renovation-zone', entityId: 'zone-1' }));
+    await events.publish(projectIndexEntryChanged({ entityType: 'renovation-zone', entityId: 'zone-1' }));
     expect(heard).toEqual([]);
 });
 
-it('refreshes the catalogue on a design change, not only the mark', () => {
+it('refreshes the catalogue on a design change, not only the mark', async () => {
     const heard = collect(source);
-    events.publish(assetDesignChanged({ assetId: 'tile-01' }));
+    await events.publish(assetDesignChanged({ assetId: 'tile-01' }));
     expect(heard).toEqual([{ catalogue: true, marks: ['tile-01'], design: ['tile-01'], replaced: [] }]);
 });
 
-it('invalidates the design read on a design change, and never the usage read', () => {
+it('invalidates the design read on a design change, and never the usage read', async () => {
     // The vault-wide referencing scan must not re-run for a footprint edit.
     const heard = collect(source);
-    events.publish(assetDesignChanged({ assetId: 'tile-01' }));
+    await events.publish(assetDesignChanged({ assetId: 'tile-01' }));
     expect(heard[0]!.replaced).toEqual([]);
 });
 
-it('restarts BOTH selection reads when an entry is removed or replaced', () => {
+it('restarts BOTH selection reads when an entry is removed or replaced', async () => {
     const heard = collect(source);
-    events.publish(assetDeleted({ assetId: 'tile-01' }));
+    await events.publish(assetDeleted({ assetId: 'tile-01' }));
     expect(heard[0]!.replaced).toEqual(['tile-01']);
 });
 ```
+
+**`publish` is asynchronous and every one of these cases MUST await it.** `EventBus.publish` returns `Promise<void>` and is Promise-aware — its own docblock records "one microtask hop per delivery even for a synchronous handler — deliberate". A case that asserts immediately after an unawaited `publish` reads `heard` before any subscriber has run: the POSITIVE cases stay red against a correct implementation, and — the part that matters — **the NEGATIVE cases pass vacuously**, so the mutations prescribed below cannot discriminate at all. The first version of these snippets did exactly that. Reported by a review bot against this plan.
 
 - [ ] **Step 2: Run them and watch each fail**
 

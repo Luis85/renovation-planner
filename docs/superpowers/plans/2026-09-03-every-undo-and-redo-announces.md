@@ -127,6 +127,8 @@ on it against a duplicate assignment. **A read concern must not weaken a write g
 
 ## Task 1: Mint `RequirementDeleted` and `RequirementRestored`
 
+> **DONE** — commit `bc0ad1c`, review clean. Start at Task 2.
+
 **Files:**
 - Modify: `src/domain/requirement/Requirement.events.ts`
 - Test: `tests/domain/requirement/requirementEvents.test.ts` (create if absent)
@@ -156,7 +158,7 @@ returns a requirement from `stale` to a `current` snapshot **without moving its 
 `RequirementInvalidated` is the opposite claim there — it says a recalculation is OWED, where a
 restore to a `current` pre-state says one is not.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `tests/domain/requirement/requirementEvents.test.ts` (append to it if it exists):
 
@@ -192,12 +194,12 @@ describe('the two events this increment mints', () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run tests/domain/requirement/requirementEvents.test.ts`
 Expected: FAIL — `requirementDeleted is not a function` (or a TS resolution error on the import).
 
-- [ ] **Step 3: Mint the two events**
+- [x] **Step 3: Mint the two events**
 
 Append to `src/domain/requirement/Requirement.events.ts`, beside the existing interfaces:
 
@@ -245,12 +247,12 @@ export function requirementRestored(payload: RequirementEventPayload): Requireme
 }
 ```
 
-- [ ] **Step 4: Run it and watch it pass**
+- [x] **Step 4: Run it and watch it pass**
 
 Run: `npx vitest run tests/domain/requirement/requirementEvents.test.ts`
 Expected: PASS, 2 tests.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

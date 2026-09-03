@@ -675,8 +675,8 @@ state and focus goes to the **next row in the shelf the asset was in**, falling 
   LAST, **the previous surviving row** — "next" alone drops a keyboard user to the search field
   for the most ordinary deletion there is, tidying up the end of a shelf, with a neighbour sitting
   directly above them;
-- **the next result row**, when a search is running — §6.1 replaces every shelf with the flat
-  Results list, so the shelf row this rule names is not mounted at all and the chain would drop
+- **the same deleted-index-then-previous rule inside the flat Results list**, when a search is
+  running — §6.1 replaces every shelf with it, so the shelf row this rule names is not mounted at all and the chain would drop
   straight past it to the search field, losing a keyboard user's position while a perfectly good
   neighbour is on screen. The destination is *the next row the user can actually see*, and which
   list holds that row depends on the state;
@@ -839,11 +839,17 @@ exactly how a user repairs the frontmatter that broke it — the same shape as `
 the repair path for a damaged sidecar. With only a count, §3.5 would have to collapse the two and
 withhold the one action that works, which is the dead-end this document already refused once.
 
-**Two sources feed that list, and the first version of this section knew about one.** A note
+**THREE sources feed that list, and each was found one at a time.** A note
 whose read FAILED is skipped by `ObsidianAssetRepository.list`, which has its id. A note whose
 `id` is missing, empty or not a string never reaches the repository at all: `entityRefOf`
 classifies it `no-id` and `buildProjectIndexEntries` excludes it, so `listAll()` — which
-enumerates index ids — cannot see it. A vault holding only such asset notes therefore produced
+enumerates index ids — cannot see it. And a note whose id DUPLICATES another's is dropped by the scan itself:
+`collectNotes` keys its map by id, `warnOnDuplicate` logs the collision, and last-writer-wins is
+deliberate — *"changing it would make which note wins depend on scan order — arbitrary AND
+invisible instead of merely arbitrary"* — so the losing note is unreachable by design and its path
+is known only to that warning. Obsidian's own **Duplicate file** command produces exactly this,
+and so does a sync conflict copy, which makes it the likeliest of the three in a real vault.
+A vault holding only unreadable asset notes therefore produced
 `{ entries: [], unreadable: [] }` and drew **no assets yet** over a library full of them, which
 is the exact failure §5.1a was written to prevent, arriving through the door it did not check.
 
@@ -2323,6 +2329,30 @@ from the letters after the digits. Aligning them means separate tracks for amoun
 five grid variants, for a refinement over a treatment that is ordinary and readable. **Not taken,
 and written down where the CSS is** rather than left for the next reader to discover the promise
 was looser than it sounded.
+
+A thirty-seventh round found two, and both are the round before it applied to one case and not
+its neighbour. That is now measurable rather than anecdotal, so it is stated as a finding about
+the author.
+
+**A third source of unreadable notes.** §5.1a knew about repository-skipped reads, then about
+index-excluded `no-id` notes, and not about **duplicate ids** — `collectNotes` keys its map by
+id and last-writer-wins is deliberate, so the losing note is unreachable by design and its path
+lives only in a `warnOnDuplicate` log line. Obsidian's own *Duplicate file* command produces
+exactly this, and so does a sync conflict copy, which makes it the likeliest of the three in a
+real vault and the one the section found last.
+
+**And the post-delete fallback was carried to the shelf list and not to the Results list** —
+adjacent bullets, written in the same edit. Deleting the last matching row of an active search
+still dropped a keyboard user to the search field past a neighbour on screen.
+
+**The pattern, counted:** of the last twelve findings, seven are a rule I wrote correctly in one
+place and not in the place beside it — a table row two lines down, the second of two bullets, the
+key handler two lines from the button, the second of two derivations. This is not the document
+drifting between rounds; it is a fix being applied to the instance in the report and not to the
+class, repeatedly, by an author who keeps writing that exact rule down. **The remedy that has
+actually worked here is mechanical**: the key inventory stopped losing keys when it was derived
+by extraction rather than read off the screen, and every edit stopped silently failing when each
+one was grepped back. Neither came from resolving to be more careful.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

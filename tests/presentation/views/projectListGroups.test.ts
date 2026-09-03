@@ -28,7 +28,7 @@ const MIXED = [
 
 describe('ProjectList groups', () => {
 	it('draws active projects most recently worked first', () => {
-		const wrapper = mount(ProjectList, { props: { projects: MIXED } });
+		const wrapper = mount(ProjectList, { props: { projects: MIXED, unreadable: 0 } });
 		const names = wrapper
 			.findAll('.rp-project-list__group--projects .rp-project-list__name')
 			.map((el) => el.text());
@@ -37,7 +37,7 @@ describe('ProjectList groups', () => {
 	});
 
 	it('files the two terminal stages into a collapsed group with its count', () => {
-		const wrapper = mount(ProjectList, { props: { projects: MIXED } });
+		const wrapper = mount(ProjectList, { props: { projects: MIXED, unreadable: 0 } });
 		const details = wrapper.find('.rp-project-list__completed');
 
 		// A native `<details>`/`<summary>`, so disclosure state is announced by the HOST rather
@@ -52,14 +52,14 @@ describe('ProjectList groups', () => {
 	});
 
 	it('omits a group entirely when it holds nothing', () => {
-		const wrapper = mount(ProjectList, { props: { projects: [project({ name: 'Only' })] } });
+		const wrapper = mount(ProjectList, { props: { projects: [project({ name: 'Only' })], unreadable: 0 } });
 
 		expect(wrapper.find('.rp-project-list__completed').exists()).toBe(false);
 	});
 
 	it('omits the Projects group when every project is completed', () => {
 		const wrapper = mount(ProjectList, {
-			props: { projects: [project({ name: 'Done', status: 'COMPLETE' })] },
+			props: { projects: [project({ name: 'Done', status: 'COMPLETE' })], unreadable: 0 },
 		});
 
 		expect(wrapper.find('.rp-project-list__group--projects').exists()).toBe(false);
@@ -67,7 +67,7 @@ describe('ProjectList groups', () => {
 	});
 
 	it('titles each group at h3, the level the detail state already uses', () => {
-		const wrapper = mount(ProjectList, { props: { projects: MIXED } });
+		const wrapper = mount(ProjectList, { props: { projects: MIXED, unreadable: 0 } });
 
 		// Heading order is what the accessibility scan checks, and the pane's own `<h2>` is the
 		// only title it has — the leaf's own header is hidden for this view type.
@@ -79,7 +79,7 @@ describe('ProjectList groups', () => {
 		// The completed group's `<ProjectRow>` re-emits through its own template arrow, a
 		// separate binding from the active group's — this is what exercises it rather than
 		// leaving it reachable only in principle.
-		const wrapper = mount(ProjectList, { props: { projects: MIXED } });
+		const wrapper = mount(ProjectList, { props: { projects: MIXED, unreadable: 0 } });
 
 		await wrapper.get('.rp-project-list__completed .rp-project-list__row').trigger('click');
 
@@ -94,7 +94,7 @@ describe('ProjectList groups', () => {
 	 * that state off `$event.target`.
 	 */
 	it('tracks the Completed group’s disclosure state on toggle', async () => {
-		const wrapper = mount(ProjectList, { props: { projects: MIXED } });
+		const wrapper = mount(ProjectList, { props: { projects: MIXED, unreadable: 0 } });
 		const details = wrapper.get('.rp-project-list__completed');
 		expect((wrapper.vm as unknown as { completedOpen: boolean }).completedOpen).toBe(false);
 

@@ -18,10 +18,19 @@
 import { computed, ref } from 'vue';
 import type { ProjectSummaryDto } from '../read-models/PlanDto';
 import ProjectRow from './ProjectRow.vue';
+import ProjectFilter from './ProjectFilter.vue';
 import { isCompleted, nameCollator, orderProjects } from './projectOrder';
+import { matchesQuery } from './projectFilter';
 import { currentLanguage, tr } from '../i18n/strings';
 
-const props = defineProps<{ projects: readonly ProjectSummaryDto[] }>();
+/**
+ * `unreadable` is REQUIRED rather than optional, and the reason is the one
+ * `ProjectSummaryDto.libraryOverlap` already gives one layer up: an absent field and a zero
+ * read identically at the site that renders them, so an optional one that a mount forgot would
+ * draw no partial-read notice and nothing anywhere would say so. There is one production mount
+ * (`ViewRoot`), which is what makes the compiler's check cheap.
+ */
+const props = defineProps<{ projects: readonly ProjectSummaryDto[]; unreadable: number }>();
 defineEmits<{ open: [projectId: string]; create: []; createAsset: [] }>();
 
 /**
@@ -42,9 +51,26 @@ const collator = nameCollator(currentLanguage());
  */
 const sortKeys = new Map<string, string | null>();
 
+/**
+ * NOT PERSISTED, per §7 — it resets on remount, which is every navigation. A query surviving a
+ * round trip into a project would have the pane come back showing a filtered vault the user has
+ * no memory of typing.
+ */
+const query = ref('');
+
 const ordered = computed(() => orderProjects(props.projects, collator, sortKeys));
-const active = computed(() => ordered.value.filter((project) => !isCompleted(project)));
-const completed = computed(() => ordered.value.filter(isCompleted));
+
+/**
+ * The filter applies ABOVE the group split, so both groups narrow together. Filtering each
+ * group separately would work identically today and would be a second answer to what is being
+ * shown the moment §5's Continue group arrives — and the `Completed ({count})` summary would
+ * then claim a row the filter had excluded.
+ */
+const matching = computed(() =>
+	ordered.value.filter((project) => matchesQuery(project.name, query.value, collator)),
+);
+const active = computed(() => matching.value.filter((project) => !isCompleted(project)));
+const completed = computed(() => matching.value.filter(isCompleted));
 
 /**
  * The `Completed` group's disclosure state. Declared here rather than read from the `<details>`
@@ -82,6 +108,38 @@ const completedOpen = ref(false);
 			{{ tr('view.asset.create') }}
 		</button>
 	</div>
+	<!--
+		REGION 2, guarded on "at least one project loaded" — the spec's own condition, and
+		load-bearing rather than defensive. `selectRenovationProjectEmptyState` answers `null` on
+		`unreadable > 0` BEFORE it looks at the length, so a vault whose every project note
+		refused mounts this component with `projects: []`. Unguarded the line would state
+		`0 projects` about a vault that demonstrably holds projects this build could not read —
+		the notice below it contradicted by the line above it.
+
+		`@cancel` is deliberately unhandled until Task 8, which is where Escape's two meanings
+		(clear a query, or hand focus to the first row when there is none) are built.
+	-->
+	<ProjectFilter
+		v-if="projects.length > 0"
+		:query="query"
+		:shown="matching.length"
+		:total="projects.length"
+		@update:query="query = $event"
+	/>
+	<!--
+		REGION 6, and it lives HERE rather than in `ViewRoot` because that is where §5 puts it.
+		`ViewRoot` rendered it AFTER `<ProjectList>`, which was correct while the list was a bare
+		`<ul>` — this task and the four after it move the header, the filter, both groups and the
+		foot line inside, so left where it was the sentence saying some projects could not be
+		read would sit under thirty rows of the ones that could.
+	-->
+	<p
+		v-if="unreadable > 0"
+		class="rp-view-notice"
+		role="status"
+	>
+		{{ tr('view.project.some-unreadable') }}
+	</p>
 	<section
 		v-if="active.length > 0"
 		class="rp-project-list__group rp-project-list__group--projects"
@@ -104,6 +162,8 @@ const completedOpen = ref(false);
 				-->
 				<ProjectRow
 					:project="project"
+					:collator="collator"
+					:query="query"
 					@open="(id) => $emit('open', id)"
 				/>
 			</li>
@@ -140,6 +200,8 @@ const completedOpen = ref(false);
 			>
 				<ProjectRow
 					:project="project"
+					:collator="collator"
+					:query="query"
 					@open="(id) => $emit('open', id)"
 				/>
 			</li>

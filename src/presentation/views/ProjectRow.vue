@@ -19,10 +19,35 @@ import { computed } from 'vue';
 import type { ProjectSummaryDto } from '../read-models/PlanDto';
 import { statusLabel } from './statusLabel';
 import { PROJECT_STATUS_STAGE_COUNT, projectStatusStage } from './projectStatusStage';
+import { splitMatch } from './projectFilter';
 import { tr } from '../i18n/strings';
 
-const props = defineProps<{ project: ProjectSummaryDto }>();
+/**
+ * `query` is OPTIONAL because a row can be drawn with no filter above it — the Continue group
+ * and the prototypes both do — and defaulting to no match is the honest answer for those rather
+ * than a flag each has to remember to pass.
+ *
+ * `collator` is REQUIRED, and that is a deliberate departure from the brief, which had this
+ * component build one inside the highlight computed. `Intl.Collator`'s construction is the
+ * expensive half and its `compare` the cheap one, so a per-render build is thirty collators per
+ * keystroke — the very cost `projectOrder`'s own hoisting comment exists to avoid. Required
+ * rather than optional-with-a-fallback for the reason `unreadable` on `ProjectList` is: an
+ * optional one would be silently forgotten at the mount that needed it most, and the compiler
+ * naming every site is cheap when the production site is `ProjectList` alone.
+ */
+const props = defineProps<{
+	project: ProjectSummaryDto;
+	collator: Intl.Collator;
+	query?: string;
+}>();
 defineEmits<{ open: [projectId: string] }>();
+
+/**
+ * The name, split around the matched run. The runs carry the NAME's own characters — a `Küche`
+ * found by typing `kuche` still renders with its umlaut — because a highlight says WHERE the
+ * match is and never replaces the text.
+ */
+const runs = computed(() => splitMatch(props.project.name, props.query ?? '', props.collator));
 
 /**
  * The facts slot's content, in the order §8 specifies, with EMPTY ENTRIES ABSENT rather than
@@ -79,10 +104,20 @@ const ticks = computed(() => {
 	>
 		<!-- The half that gives way. `title` is what makes a truncated name readable at all,
 		     and it is the shipped rule `forms.css` records finding at 460px. -->
+		<!--
+			The runs are written with NO WHITESPACE between the tags. Vue's default
+			`whitespace: 'condense'` removes whitespace between two elements only when it
+			contains a newline, and a name split into runs must not gain or lose a character —
+			this is the `ZonePanelprototype` defect read from the other side.
+		-->
 		<span
 			class="rp-project-list__name"
 			:title="project.name"
-		>{{ project.name }}</span>
+		><span
+			v-for="(run, at) in runs"
+			:key="at"
+			:class="{ 'rp-project-row__match': run.matched }"
+		>{{ run.text }}</span></span>
 		<span class="rp-project-row__facts">{{ facts }}</span>
 		<span class="rp-project-list__status rp-project-row__status">
 			{{ statusLabel(project.status) }}

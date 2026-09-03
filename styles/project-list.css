@@ -226,3 +226,63 @@
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }
+
+/*
+ * THE FILTER LINE (design spec §7's region 2) — one input across the pane with the count at its
+ * trailing edge. The padding matches `.rp-project-list__group-title`'s inline padding so the
+ * field's edges sit on the same armature as every heading below it.
+ */
+.rp-project-filter {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: 0 var(--size-4-2) var(--size-2-2);
+}
+
+/*
+ * VISUALLY HIDDEN, not `display: none` and not `hidden` — the label and the announcement must
+ * reach assistive technology, and both of those take an element out of the accessibility tree
+ * along with the picture. The announcement is hidden because the count beside it is already on
+ * screen saying the same thing.
+ */
+.rp-project-filter__label,
+.rp-project-filter__announcement {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+/* Quiet at rest: the host's own input chrome, taking the pane's slack so the count sits at the
+   trailing edge whatever the pane's width. `min-width: 0` because a flex item's is `auto` and
+   an input's intrinsic width would otherwise stop the row shrinking to a narrow leaf. */
+.rp-project-filter__input {
+	flex-grow: 1;
+	min-width: 0;
+}
+
+.rp-project-filter__input:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+/* `flex-shrink: 0` because the count is what the line exists to state — the input is the half
+   that gives way, exactly as the name is in a row. */
+.rp-project-filter__count {
+	flex-shrink: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-variant-numeric: tabular-nums;
+}
+
+/*
+ * WEIGHT, NOT COLOUR, for the matched run — the house rule (*colour reinforces, it never
+ * carries*) applied to a highlight, and a second channel by construction rather than by a
+ * contrast measurement somebody has to take. `--font-semibold` is the token
+ * `.rp-project-list__group-title` already uses, so the surface has one emphasis weight.
+ */
+.rp-project-row__match {
+	font-weight: var(--font-semibold);
+}

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
 import ProjectRow from '../../../src/presentation/views/ProjectRow.vue';
+import { nameCollator } from '../../../src/presentation/views/projectOrder';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
 const PROJECT: ProjectSummaryDto = {
@@ -16,8 +17,15 @@ const PROJECT: ProjectSummaryDto = {
 	lastWorked: '2026-08-14T00:00:00.000Z',
 };
 
-function row(overrides: Partial<ProjectSummaryDto> = {}) {
-	return mount(ProjectRow, { props: { project: { ...PROJECT, ...overrides } } });
+/**
+ * The collator is handed IN rather than built here, which is what the component requires: it is
+ * a required prop precisely so that thirty rows share the one `ProjectList` hoists rather than
+ * constructing thirty per keystroke.
+ */
+const collator = nameCollator('en');
+
+function row(overrides: Partial<ProjectSummaryDto> = {}, query?: string) {
+	return mount(ProjectRow, { props: { project: { ...PROJECT, ...overrides }, collator, query } });
 }
 
 describe('ProjectRow', () => {
@@ -88,6 +96,46 @@ describe('ProjectRow', () => {
 
 		expect(wrapper.find('.rp-project-list__overlap').exists()).toBe(true);
 		expect(html.indexOf('rp-project-list__status')).toBeLessThan(html.indexOf('rp-project-list__overlap'));
+	});
+
+	/**
+	 * WEIGHT, never colour — `.rp-project-row__match` carries `--font-semibold` and no colour of
+	 * its own, which `projectListStyles.test.ts` asserts at the sheet. Here the claim is about
+	 * the RUNS: the marked one holds the name's own characters, umlaut and all, even though the
+	 * query that found it had none.
+	 */
+	it('marks the matched run by weight, keeping the name’s own characters', () => {
+		const wrapper = mount(ProjectRow, {
+			props: { project: { ...PROJECT, name: 'Küche' }, collator: nameCollator('de'), query: 'kuche' },
+		});
+
+		expect(wrapper.find('.rp-project-row__match').text()).toBe('Küche');
+		expect(wrapper.find('.rp-project-list__name').text()).toBe('Küche');
+	});
+
+	/**
+	 * The runs must not GAIN a character either. Vue's default `whitespace: 'condense'` drops
+	 * whitespace between two elements when it contains a newline, which is why the `<span>`s are
+	 * written with none between their tags — this is the `ZonePanelprototype` defect read from
+	 * the other side.
+	 *
+	 * `element.textContent` rather than `.text()`, and that is the whole reason the case can see
+	 * anything: vue-test-utils TRIMS, so the run `'House '` reads as `'House'` and a rendering
+	 * that dropped the separating space would pass. Measured — the first draft of this case did
+	 * exactly that.
+	 */
+	it('splits a mid-name match into three runs without moving a character', () => {
+		const wrapper = row({ name: 'House Renovation' }, 'reno');
+
+		expect(
+			wrapper.findAll('.rp-project-list__name > span').map((el) => el.element.textContent),
+		).toEqual(['House ', 'Reno', 'vation']);
+		expect(wrapper.find('.rp-project-list__name').element.textContent).toBe('House Renovation');
+	});
+
+	it('renders the whole name as one unmarked run with no query', () => {
+		expect(row().findAll('.rp-project-row__match')).toHaveLength(0);
+		expect(row().find('.rp-project-list__name').text()).toBe('House Renovation 2026');
 	});
 
 	it('emits open with its own id', async () => {

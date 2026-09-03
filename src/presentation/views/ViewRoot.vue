@@ -310,20 +310,23 @@ if (openProjectId === null) {
 					reachable from the detail header's Open note action — `ProjectDetailState`'s
 					`onOpenNote`, the one caller that still opens one.
 				-->
+				<!--
+					`unreadable` is handed DOWN rather than drawn here. The partial-read notice
+					used to render as a sibling AFTER this component, which was right while the
+					list was a bare `<ul>` — the Home surface puts the header, the filter, both
+					groups and the foot line inside it, so §5's "above the groups" is a position
+					only `ProjectList` can express. It is a required prop: an absent one and a
+					zero render identically, so a forgotten one would draw no notice and say
+					nothing.
+				-->
 				<ProjectList
 					v-else
 					:projects="projects"
+					:unreadable="unreadable"
 					@open="(id) => context.navigate(id)"
 					@create="onCreateProject"
 					@create-asset="onCreateAsset"
 				/>
-				<p
-					v-if="unreadable > 0"
-					class="rp-view-notice"
-					role="status"
-				>
-					{{ tr('view.project.some-unreadable') }}
-				</p>
 			</template>
 			<ViewFailure
 				v-else-if="failure !== null"

@@ -335,6 +335,12 @@ describe('axe against the mounted view', () => {
 
 		expect(view.contentEl.querySelector('.rp-project-list__row')).not.toBeNull();
 		expect(view.contentEl.querySelector('.rp-project-list__overlap')).not.toBeNull();
+		// THE FILTER, asserted present for the reason the empty-state cases assert
+		// `.rp-empty-state__action`: a populated list draws it (the guard is
+		// `projects.length > 0`), it is this surface's only text input, and its accessible name
+		// comes from a visually-hidden `<label>` — which is precisely the shape a scan grades
+		// and a green `violations: []` is equally true of a subtree that has no input in it.
+		expect(view.contentEl.querySelector('.rp-project-filter__input')).not.toBeNull();
 		expect(results.violations).toEqual([]);
 		await view.onClose();
 	});

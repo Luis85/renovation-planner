@@ -36,7 +36,7 @@ import type { ProjectSummaryDto } from '../../../src/presentation/read-models/Pl
 
 const KITCHEN: ProjectSummaryDto = { id: 'p1', name: 'Kitchen', status: 'IDEA', currency: 'EUR', libraryOverlap: false, planCount: 0, lastWorked: null };
 
-const listOf = (...projects: readonly ProjectSummaryDto[]) => mount(ProjectList, { props: { projects } });
+const listOf = (...projects: readonly ProjectSummaryDto[]) => mount(ProjectList, { props: { projects, unreadable: 0 } });
 
 describe('the §83 library-overlap marker on a project row', () => {
 	it('marks a row whose project overlaps the library', () => {

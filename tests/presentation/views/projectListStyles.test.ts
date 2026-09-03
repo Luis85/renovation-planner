@@ -47,7 +47,12 @@ describe('project-list.css', () => {
 	 * for where it lives. `projectListOverlap.test.ts` holds the last of them.
 	 *
 	 * `rp-project-row` itself is in the list: this sheet is its ONLY declarer, so nothing else
-	 * would notice it being renamed.
+	 * would notice it being renamed. So are the five `rp-project-filter__*` names and
+	 * `rp-project-row__match`, which arrived with the filter line and which no other sheet
+	 * touches.
+	 *
+	 * `.rp-view-notice` is deliberately NOT here even though `ProjectList` emits it since the
+	 * filter line's task: `view.css` declares it, and it moved COMPONENT without moving sheet.
 	 */
 	it('declares every class the row emits that this sheet owns', () => {
 		for (const cls of [
@@ -57,6 +62,12 @@ describe('project-list.css', () => {
 			'rp-project-row__ticks',
 			'rp-project-row__tick',
 			'rp-project-row__tick--reached',
+			'rp-project-row__match',
+			'rp-project-filter',
+			'rp-project-filter__label',
+			'rp-project-filter__input',
+			'rp-project-filter__count',
+			'rp-project-filter__announcement',
 		]) {
 			expect(declaresClass(cls), `.${cls} is declared as a class of its own`).toBe(true);
 		}
@@ -130,6 +141,40 @@ describe('project-list.css', () => {
 		// Reset rather than inherited: an inline box cannot apply this anyway, so a left-over
 		// non-zero value here would be exactly the dead declaration this fix removes elsewhere.
 		expect(summaryTitle).toContain('padding-block-end: 0');
+	});
+
+	/**
+	 * WEIGHT, NOT COLOUR, for the matched run — the house rule (*colour reinforces, it never
+	 * carries*) applied to a highlight. Both halves: a rule that added a colour would still
+	 * satisfy "declares this class" while making the highlight a channel a themed vault, a
+	 * colour-blind reader or a monochrome display can lose.
+	 *
+	 * `styles-assemble.mjs` already fails the build on a literal colour, so this is not about
+	 * the token — a `var(--text-accent)` here would clear that gate and still be the wrong
+	 * design.
+	 */
+	it('marks the matched run by weight and gives it no colour of its own', () => {
+		const body = bodyOf('.rp-project-row__match');
+
+		expect(body).toContain('font-weight: var(--font-semibold)');
+		expect(body).not.toContain('color');
+	});
+
+	/**
+	 * VISUALLY HIDDEN, not hidden. The label and the live region must both reach assistive
+	 * technology, and `display: none` (like the `hidden` attribute) takes an element out of the
+	 * accessibility tree along with the picture — which would leave the input with no accessible
+	 * name at all and the announcement unspoken, the two things this pair exists for.
+	 *
+	 * `bodyOf` reaches the shared rule through its SECOND selector, which is the whole body of
+	 * the pair; the label alone would need the first.
+	 */
+	it('hides the label and the announcement from sight without hiding them from assistive technology', () => {
+		const body = bodyOf('.rp-project-filter__announcement');
+
+		expect(body).toContain('clip-path: inset(50%)');
+		expect(body).not.toContain('display: none');
+		expect(body).not.toContain('visibility: hidden');
 	});
 
 	it('is assembled into the shipped sheet', () => {

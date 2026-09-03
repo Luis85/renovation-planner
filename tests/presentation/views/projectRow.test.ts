@@ -170,6 +170,32 @@ describe('ProjectRow', () => {
 		expect(wrapper.emitted('openNote')).toEqual([['p1']]);
 	});
 
+	/**
+	 * **The autoscroll widget is a default action of `mousedown`, not of `auxclick`** — by the
+	 * time `auxclick` fires (on release) Chrome has already opened it, so `preventDefault()`
+	 * there suppresses nothing. Dispatched by hand rather than through `.trigger()`, which
+	 * returns `nextTick()` and not the event: this needs the event object itself, to read
+	 * `defaultPrevented` back off it, the same way `emptyStateOverlay.test.ts` does for its own
+	 * `preventDefault` case.
+	 */
+	it('suppresses the autoscroll widget at mousedown, where auxclick cannot reach it', () => {
+		const wrapper = row();
+		const pressed = new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true });
+
+		wrapper.find('.rp-project-list__row').element.dispatchEvent(pressed);
+
+		expect(pressed.defaultPrevented).toBe(true);
+	});
+
+	it('leaves every other button’s mousedown alone', () => {
+		const wrapper = row();
+		const pressed = new MouseEvent('mousedown', { button: 0, bubbles: true, cancelable: true });
+
+		wrapper.find('.rp-project-list__row').element.dispatchEvent(pressed);
+
+		expect(pressed.defaultPrevented).toBe(false);
+	});
+
 	it('ignores the secondary button, which belongs to the context menu', async () => {
 		const wrapper = row();
 
@@ -199,6 +225,24 @@ describe('ProjectRow', () => {
 		await wrapper.find('.rp-project-list__row').trigger('click', { metaKey: true });
 		await wrapper.find('.rp-project-list__row').trigger('click', { altKey: true });
 		await wrapper.find('.rp-project-list__row').trigger('click', { shiftKey: true });
+
+		expect(wrapper.emitted('openNote')).toBeUndefined();
+		expect(wrapper.emitted('open')).toBeUndefined();
+	});
+
+	/**
+	 * §7: "a press carrying any OTHER modifier does neither thing" — `Ctrl` chorded with
+	 * `Shift` is still some OTHER modifier held alongside the platform key, on both the click
+	 * and the `Mod+↵` keydown door. `opensNote`'s first version checked only `ctrlKey`/`metaKey`
+	 * and never asked about `Shift` at all, so this chord opened the note on both doors.
+	 */
+	it('does NEITHER for the platform key chorded with Shift', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('click', { ctrlKey: true, shiftKey: true });
+		await wrapper
+			.find('.rp-project-list__row')
+			.trigger('keydown', { key: 'Enter', ctrlKey: true, shiftKey: true });
 
 		expect(wrapper.emitted('openNote')).toBeUndefined();
 		expect(wrapper.emitted('open')).toBeUndefined();

@@ -3,6 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import { nextTick } from 'vue';
 import ProjectList from '../../../src/presentation/views/ProjectList.vue';
 import type { ProjectSummaryDto } from '../../../src/presentation/read-models/PlanDto';
 
@@ -74,6 +75,31 @@ describe('ProjectList keyboard', () => {
 		await rows[0].trigger('keydown', { key: 'ArrowUp' });
 
 		expect(document.activeElement).toBe(rows[0].element);
+	});
+
+	/**
+	 * **`syncFromFocus` had no discriminating case.** Every arrow case above starts at index 0
+	 * — where the index already is — or moves the index THROUGH `focusAt`, which sets
+	 * `activeIndex` on its own; a click case starts and stays on index 0 too, since `THREE`'s
+	 * order puts the clicked row first. None of them can tell the real `syncFromFocus` from a
+	 * no-op. This focuses row 3 DIRECTLY — never through an arrow — and asks two questions a
+	 * no-op answers wrong: which row is the tab stop NOW, and where the NEXT arrow press goes.
+	 */
+	it('follows a row focused directly, not just one the arrows moved to', async () => {
+		const wrapper = list();
+		const rows = wrapper.findAll('.rp-project-list__row');
+		focus(rows[2]); // Cellar — no arrow has ever touched `activeIndex`
+		await nextTick();
+
+		expect(rows[2].attributes('tabindex')).toBe('0');
+		expect(rows[0].attributes('tabindex')).toBe('-1');
+
+		await rows[2].trigger('keydown', { key: 'ArrowUp' });
+
+		// Relative to where the focus REALLY is (Cellar, index 2) — Bathroom, index 1. A stale
+		// `activeIndex` still reading its initial 0 would clamp `-1` back to 0 and go nowhere,
+		// which is indistinguishable from success only because Attic already occupies index 0.
+		expect(document.activeElement).toBe(rows[1].element);
 	});
 
 	it('opens the project the row is for when it is activated', async () => {

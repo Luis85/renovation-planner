@@ -248,6 +248,52 @@ describe('ViewRoot, creating a project', () => {
 	});
 
 	/**
+	 * **The carried Task 7 finding, closed end to end (Task 8).** The `New project named "…"`
+	 * button lives inside `ProjectList`'s no-match block — and the created project, named from
+	 * the query by default, now MATCHES it, so `hydrate()`'s re-read makes that whole block
+	 * unmount. `DialogHost`'s own focus-restore targets the button that opened the dialog,
+	 * which is that same block; its own docblock calls restoring to a removed element "a no-op,
+	 * not a fallback" it declines to compensate for — so whichever of the two removals runs
+	 * last, focus is orphaned to `<body>` unless `ProjectList` catches it, which is what this
+	 * proves happens through the REAL dialog and store, not a stand-in for either.
+	 *
+	 * `attachTo: document.body` and a real `.focus()` before the click — VTU's `trigger('focus')`
+	 * only dispatches a synthetic event and never moves `document.activeElement` at all, the
+	 * same gap `projectListKeyboard.test.ts` documents.
+	 */
+	it('moves focus to the filter when a successful create removes the block focus was in', async () => {
+		const pinia = createPinia();
+		setActivePinia(pinia);
+		let projects: readonly { id: string; name: string; status: string }[] = [
+			{ id: 'p1', name: 'Kitchen', status: 'IDEA' },
+		];
+		const listProjects = vi.fn<() => Promise<unknown>>(() =>
+			Promise.resolve(ok({ projects, unreadable: 0 })),
+		);
+		const context = deps(listProjects);
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+			attachTo: document.body,
+		});
+		await flushPromises();
+
+		await wrapper.get('.rp-project-filter__input').setValue('Cellar conversion');
+		const createNamed = wrapper.get('.rp-project-list__create-named');
+		(createNamed.element as HTMLElement).focus();
+		await createNamed.trigger('click');
+		await flushPromises();
+
+		// The write lands, and the vault now holds a project whose name matches the query still
+		// sitting in the field — exactly the default `initialName` produces when nobody edits it.
+		projects = [{ id: 'p2', name: 'Cellar conversion', status: 'IDEA' }];
+		wrapper.findComponent(NewProjectForm).vm.$emit('submit', { name: 'Cellar conversion' });
+		await flushPromises();
+
+		expect(wrapper.find('.rp-project-list__no-match').exists()).toBe(false);
+		expect(document.activeElement).toBe(wrapper.get('.rp-project-filter__input').element);
+	});
+
+	/**
 	 * `EmptyState` emits `action` with NO payload. Without `onCreateProject`'s parameter
 	 * default this reaches `NewProjectForm` as `initialName: undefined`, and the form's
 	 * `initial: { ...INITIAL, name: props.initialName ?? '' }` line is the only reason that

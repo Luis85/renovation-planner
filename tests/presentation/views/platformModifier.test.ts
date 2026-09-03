@@ -18,17 +18,51 @@ afterEach(() => {
 	Platform.isMacOS = false;
 });
 
+/** Every modifier defaults to unheld, so a case states only the ones it cares about. */
+function modifiers(
+	held: Partial<{ metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean }>,
+): { metaKey: boolean; ctrlKey: boolean; altKey: boolean; shiftKey: boolean } {
+	return { metaKey: false, ctrlKey: false, altKey: false, shiftKey: false, ...held };
+}
+
 describe('opensNote', () => {
 	it('answers to Ctrl off macOS, and not to Cmd', () => {
-		expect(opensNote({ ctrlKey: true, metaKey: false })).toBe(true);
-		expect(opensNote({ ctrlKey: false, metaKey: true })).toBe(false);
+		expect(opensNote(modifiers({ ctrlKey: true }))).toBe(true);
+		expect(opensNote(modifiers({ metaKey: true }))).toBe(false);
 	});
 
 	it('answers to Cmd on macOS, and never to Ctrl — the platform’s own secondary-click gesture', () => {
 		Platform.isMacOS = true;
 
-		expect(opensNote({ ctrlKey: false, metaKey: true })).toBe(true);
-		expect(opensNote({ ctrlKey: true, metaKey: false })).toBe(false);
+		expect(opensNote(modifiers({ metaKey: true }))).toBe(true);
+		expect(opensNote(modifiers({ ctrlKey: true }))).toBe(false);
+	});
+
+	/**
+	 * §7: "a press carrying any OTHER modifier does neither thing" — a `Ctrl+Shift+click` or a
+	 * `Mod+Shift+↵` must not open the note either. The first version of this predicate checked
+	 * only the platform's own key and never asked about `Shift`/`Alt` at all, so both chords
+	 * opened the note anyway; watched red against that version before this case existed.
+	 */
+	it('refuses the platform key chorded with Shift or Alt', () => {
+		expect(opensNote(modifiers({ ctrlKey: true, shiftKey: true }))).toBe(false);
+		expect(opensNote(modifiers({ ctrlKey: true, altKey: true }))).toBe(false);
+
+		Platform.isMacOS = true;
+		expect(opensNote(modifiers({ metaKey: true, shiftKey: true }))).toBe(false);
+		expect(opensNote(modifiers({ metaKey: true, altKey: true }))).toBe(false);
+	});
+
+	/** The two keys together, on either platform — still "some other modifier", never a third meaning. */
+	it('refuses both platform keys held at once', () => {
+		expect(opensNote(modifiers({ ctrlKey: true, metaKey: true }))).toBe(false);
+
+		Platform.isMacOS = true;
+		expect(opensNote(modifiers({ ctrlKey: true, metaKey: true }))).toBe(false);
+	});
+
+	it('refuses no modifier at all', () => {
+		expect(opensNote(modifiers({}))).toBe(false);
 	});
 });
 

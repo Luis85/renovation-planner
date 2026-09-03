@@ -207,6 +207,47 @@ function onFilterCancel(): void {
 	}
 	focusFirstRow();
 }
+
+/**
+ * Named rather than left as the template's own inline expression, so the fix below and the
+ * `v-if` it repairs cannot drift into asking two different questions.
+ */
+const filteredToNothing = computed(
+	() => query.value.trim().length > 0 && matching.value.length === 0,
+);
+
+/**
+ * **Both no-match actions live inside a block that UNMOUNTS the instant either one succeeds**
+ * — `Clear filter` empties the query and restores every row; `New project named "…"` opens a
+ * dialog whose successful create re-hydrates the list, and the created project (named from
+ * this very query, by default) then matches it too. Neither button's own click handler runs
+ * again after that removal, so nothing on either path moves focus — and a focused element
+ * removed from the document is left on `<body>` (Chromium's own behaviour, which jsdom
+ * matches), from which the next Tab restarts at the top of the document rather than at the
+ * filter this block sits below.
+ *
+ * `flush: 'post'`, checked AFTER the unmount has actually happened: only then is `<body>` a
+ * fact about what the removal DID, not a guess about what it will do. The `=== document.body`
+ * test is deliberately unconditional on WHICH action fired: the create path resolves through
+ * `DialogHost`'s own focus-restore, which may or may not have already run by the time this
+ * watcher does (`DialogHost`'s own docblock: restoring to a removed element is "a no-op, not a
+ * fallback" it declines to compensate for) — either way the observable symptom is identical
+ * orphaned focus, and that is what this repairs rather than which mechanism produced it. The
+ * `nextTick` wrap matches `onListKeydown`'s own hand-off to this same input further up this
+ * file — harmless here, since `flush: 'post'` has already settled the DOM this watcher reads,
+ * and it keeps every focus-into-the-filter call in this component the same shape.
+ */
+watch(
+	filteredToNothing,
+	(isFilteredToNothing, wasFilteredToNothing) => {
+		if (wasFilteredToNothing && !isFilteredToNothing && document.activeElement === document.body) {
+			void nextTick(() => {
+				filterInput.value?.focus();
+			});
+		}
+	},
+	{ flush: 'post' },
+);
 </script>
 
 <template>
@@ -362,7 +403,7 @@ function onFilterCancel(): void {
 		this is a claim about the QUERY — a vault with fifty projects can be here.
 	-->
 	<div
-		v-if="query.trim().length > 0 && matching.length === 0"
+		v-if="filteredToNothing"
 		class="rp-project-list__no-match"
 	>
 		<p class="rp-project-list__no-match-line">

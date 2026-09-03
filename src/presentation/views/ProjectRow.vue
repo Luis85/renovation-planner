@@ -155,17 +155,28 @@ function onClick(event: MouseEvent): void {
 }
 
 /**
+ * **The autoscroll widget is suppressed HERE, on `mousedown`, and cannot be suppressed on
+ * `auxclick`.** Chrome opens it as a default action of the PRESS; `auxclick` fires only after
+ * the button is released, by which point the widget has already opened, so cancelling that
+ * event cancels nothing. The exact lesson this repository's own plan editor canvas already
+ * paid for at its own middle button (`EditorSurface.vue`'s `onMouseDown`, cited in CLAUDE.md):
+ * "no pointer handler hears every press" — `auxclick` is one more handler that does not hear
+ * the one that matters.
+ */
+function onMouseDown(event: MouseEvent): void {
+	if (event.button === 1) event.preventDefault();
+}
+
+/**
  * The MIDDLE button, which fires `auxclick` rather than `click` — a `click` handler testing
  * `event.button === 1` would never run, because the middle button never produces one.
  *
  * `event.button === 1` is still tested here, because `auxclick` fires for the secondary
- * button too and the right button belongs to the context menu.
+ * button too and the right button belongs to the context menu. It only EMITS: the autoscroll
+ * suppression this door cannot deliver lives at `onMouseDown`, above.
  */
 function onAuxClick(event: MouseEvent): void {
 	if (event.button !== 1) return;
-	// Chrome opens its autoscroll widget on a middle press otherwise — the same rule the plan
-	// editor's canvas states for its own middle button.
-	event.preventDefault();
 	emit('openNote', props.project.id);
 }
 
@@ -186,6 +197,7 @@ function onKeydown(event: KeyboardEvent): void {
 		class="rp-project-list__row rp-project-row"
 		:data-project-id="project.id"
 		:tabindex="tabbable ? 0 : -1"
+		@mousedown="onMouseDown"
 		@click="onClick"
 		@auxclick="onAuxClick"
 		@keydown="onKeydown"

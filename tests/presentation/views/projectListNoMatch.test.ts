@@ -22,8 +22,14 @@ const PROJECTS: ProjectSummaryDto[] = [
 	},
 ];
 
+// `attachTo: document.body` for the same reason `projectListKeyboard.test.ts` gives: a
+// detached tree cannot hold focus, so a case asserting a focus move against one passes or
+// fails for reasons that have nothing to do with the code.
 async function filteredToNothing() {
-	const wrapper = mount(ProjectList, { props: { projects: PROJECTS, unreadable: 0 } });
+	const wrapper = mount(ProjectList, {
+		props: { projects: PROJECTS, unreadable: 0 },
+		attachTo: document.body,
+	});
 	await wrapper.find('.rp-project-filter__input').setValue('Cellar conversion');
 	return wrapper;
 }
@@ -77,6 +83,23 @@ describe('ProjectList filtered to nothing', () => {
 
 		expect(wrapper.findAll('.rp-project-list__row')).toHaveLength(1);
 		expect(wrapper.find('.rp-project-list__no-match').exists()).toBe(false);
+	});
+
+	/**
+	 * **Task 7 carried this finding into Task 8's dispatch**: the button unmounts the instant
+	 * it acts, so a focused element removed from the document is left on `<body>` — the next
+	 * Tab restarts at the top of the document rather than at the filter this block sits below.
+	 * `(button.element as HTMLElement).focus()` rather than `.trigger('focus')`: VTU's `trigger`
+	 * only dispatches a synthetic event, which does not move `document.activeElement` at all.
+	 */
+	it('moves focus to the filter when Clear filter removes the block focus was in', async () => {
+		const wrapper = await filteredToNothing();
+		const button = wrapper.find('.rp-project-list__clear-filter');
+		(button.element as HTMLElement).focus();
+
+		await button.trigger('click');
+
+		expect(document.activeElement).toBe(wrapper.find('.rp-project-filter__input').element);
 	});
 
 	it('emits an empty name from the header button, which opens an empty form', async () => {

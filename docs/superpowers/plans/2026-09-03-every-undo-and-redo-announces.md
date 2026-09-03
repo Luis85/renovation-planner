@@ -83,7 +83,7 @@ this section.
 
 | File | Responsibility |
 |---|---|
-| `tests/application/events/writerPublishSweep.test.ts` | The category check: every write path in `src/application` that writes also publishes, with `ReversibleSetPlanBackground` the one carve-out, asserted by exact key set. |
+| `tests/application/events/reversibleWritePathCensus.test.ts` | The census: one behavioural row per adapter and direction, plus a crude over-inclusive discovery that forces an explicit disposition for every adapter class in `src/**`. `ReversibleSetPlanBackground` is a row asserting it publishes nothing. |
 | `src/application/queries/buildRequirementRow.ts` | `GetRequirementsForZone`'s per-row builder, extracted so a second caller cannot derive a row differently. |
 | `tests/application/queries/buildRequirementRow.test.ts` | Row-builder unit cases. |
 | `tests/application/repositories/requirementListByProject.test.ts` | `listByProject` over both implementations. |
@@ -1768,7 +1768,15 @@ delta genuinely cannot be computed. Spell it as a value rather than a control-fl
 			// Best-effort, never a gate. A malformed live note is what this refuses AND what
 			// the save below can still overwrite, so failing here would abandon the row that
 			// most needs recovering — and the throw would take every later marker with it.
-			const live = expected === 'absent' ? null : await deps.requirements.getById(snapshot.entity.id);
+			// `.catch` as well as `isErr`, because this port is raw at this boundary and a vault
+			// fault arrives as a REJECTION. Without it the direct `await` exits before the save
+			// and the outer catch abandons every later marker — which is the exact defect the
+			// best-effort rule was written to fix, reintroduced by the fix for it. Reported.
+			const live = expected === 'absent'
+				? null
+				: await deps.requirements
+						.getById(snapshot.entity.id)
+						.catch((cause: unknown) => err(faultError('sequence.recovery.cost-baseline-faulted', cause)));
 			const previous = live !== null && isOk(live) && live.value !== null
 				? effectiveValue(live.value.entity.estimatedCost)
 				: null;
@@ -1780,9 +1788,10 @@ delta genuinely cannot be computed. Spell it as a value rather than a control-fl
 			}
 ```
 
-A sixth case covers it: a marker whose live note cannot be read still restores, still raises
-`RequirementRestored`, raises no `CostEstimateChanged`, and **leaves the following marker
-processed** — that last clause is what pins the outer-catch consequence, and a case asserting
+Two cases cover it — a REFUSED pre-read and a REJECTED one, because they arrive through
+different arms and a case for one passes against a build that mishandles the other. Each asserts
+that the marker still restores, still raises `RequirementRestored`, raises no
+`CostEstimateChanged`, and **leaves the following marker processed** — that last clause is what pins the outer-catch consequence, and a case asserting
 only the first three passes against a build that aborts the rest of the run.
 
 Then `src/plugin/RenovationPlannerPlugin.ts:693`:
@@ -1965,32 +1974,47 @@ module → class → layer-and-inheritance), and each refinement has been correc
 was given and blind to the next. **So the discovery inverts to the posture the rest of this file
 already takes: over-refuse rather than under-refuse.**
 
-Discovery is deliberately CRUDE and over-inclusive: every file under `src/**` whose text
-contains a member named `undo`. That needs no class resolution, no inheritance graph and no
-layer list, so none of the five axes above can hide anything from it. Every discovered file must
-then carry an explicit entry in a `DISPOSITIONS` map:
+Discovery is deliberately CRUDE and over-inclusive, and **the unit is the CLASS, not the
+file** — keying it by file was reported as the sixth instance of this same defect, because
+adding an adapter class to an already-disposed module leaves the file-key set unchanged and the
+assertion passes without a behavioural row. The inversion was right and I applied it at the
+wrong grain, which is this plan's own recurring shape one more time.
+
+So: every `class <Name>` DECLARED in any file under `src/**` that mentions an `undo` member.
+Textual, so it needs no inheritance graph — a class inheriting `execute`/`undo` from a base
+still appears as its own declaration — no layer list, and no export filter. None of the six axes
+can hide from it, because it models none of them. It over-collects non-adapter classes that
+happen to sit in such a file, and those take a `not an adapter:` disposition, which is the
+over-refusing direction this file takes everywhere.
+
+Every discovered CLASS must carry an explicit entry in a `DISPOSITIONS` map:
 
 ```ts
 /**
- * Every file in `src/**` that mentions an `undo` member, and what the census does about it.
- * Two shapes, and a file must be one of them:
+ * Every CLASS declared in a `src/**` file that mentions an `undo` member, and what the census
+ * does about it. Keyed `<repo-relative file>::<ClassName>`, because a file key cannot see a
+ * class ADDED to a file that already has one — reported, and the sixth instance of one defect.
  *
- *   'rows: ClassA::execute, ClassA::undo, ClassB::undo'   — covered by the table above
- *   'not an adapter: <reason>'                            — e.g. CommandHistory, which CALLS undo
+ * Two shapes, and a class must be one of them:
  *
- * Asserted by EXACT KEY SET in both directions: a file with no entry fails, and an entry for a
- * file that no longer exists fails. That is what makes a NEW adapter — in any layer, declaring
- * its members or inheriting them — fail here until somebody writes its rows.
+ *   'rows: execute, undo'        — the table above carries a behavioural row per direction
+ *   'not an adapter: <reason>'   — e.g. CommandHistory, which CALLS undo rather than being one
+ *
+ * Asserted by EXACT KEY SET in both directions: a class with no entry fails, and an entry for a
+ * class that no longer exists fails. That is what makes a NEW adapter fail here until somebody
+ * writes its rows — in any layer, exported or not, declaring its members or inheriting them,
+ * and in a file that already holds three of them.
  *
  * Crude on purpose. Precise discovery was tried and reported wrong five times, each time on an
- * axis the previous fix had not thought of; this one cannot be wrong about an axis because it
- * does not model one.
+ * axis the previous fix had not modelled; this one cannot be wrong about an axis because it
+ * models none — it reads `class` and `undo` and nothing else.
  */
 ```
 
-Assert the discovery found a non-trivial number of files, because an instrument that reaches
-nothing looks exactly like a clean tree. **And assert that every class named in a `rows:`
-disposition actually appears in the census table**, so a disposition cannot claim coverage the
+Assert the discovery found a non-trivial number of classes, because an instrument that reaches
+nothing looks exactly like a clean tree. **And assert that every class carrying a `rows:`
+disposition actually appears in the census table, with a row per direction that disposition
+names**, so a disposition cannot claim coverage the
 table does not provide — the two halves must agree or the check is a pair of lists nodding at
 each other.
 
@@ -2013,8 +2037,9 @@ The enumeration check is the cheap half and it fails immediately (the table star
 Then watch it fail the two ways that matter, which is what the first draft could not do:
 
 1. Add a fake adapter class to an ALREADY-DISPOSED file — `ReversibleAssetDesignCommands.ts`,
-   which already holds three — and confirm the `rows:`/table cross-check reports the class as
-   uncovered. A module-granular check passes this; that was finding four.
+   which already holds three — and confirm it is reported as an undisposed CLASS. Both a
+   module-granular check and a file-keyed dispositions map pass this mutation; those were
+   findings four and six, and this is the red neither could produce.
 2. Add a fake adapter in `src/presentation/**` that INHERITS `execute`/`undo` from a base and
    declares neither, and confirm the file is still reported as undisposed. That is finding five,
    both of its halves at once — wrong layer and inherited members — and it is the mutation the
@@ -2180,7 +2205,12 @@ describe.each([
 		// Without the type intersection this inflates `refused` on every ordinary project.
 	});
 
-	it('leaves listByZone strict', async () => {
+	// Vault-backed only, for the same reason as the two above and missed when they were
+	// scoped — `InMemoryRequirementRepository.listByZone` always answers ok() and has no
+	// unreadable-note state that could produce the strict error this asserts, so the
+	// in-memory row would be permanently red after a CORRECT implementation. Reported;
+	// scoping two of three cases and not the third is this plan's own partial-fix shape.
+	it.runIf(hasVault)('leaves listByZone strict', async () => {
 		// The write guarantee: DeleteZoneCommand relies on this error.
 		const listed = await repo.listByZone(zoneId);
 		expect(isErr(listed)).toBe(true);
@@ -2368,8 +2398,8 @@ of files, per this repository's own standard. At minimum:
   through the carve-out.
 - **A sweep's own filter can be a sample, and so can its metric, and so can the enumeration
   under a correct count.** Four layers, each correction measured with an instrument blind to the
-  next. The remedy is the category test in `tests/application/events/writerPublishSweep.test.ts`
-  and its exact-key-set carve-out.
+  next. The remedy is the census in `tests/application/events/reversibleWritePathCensus.test.ts`
+  and its per-class dispositions.
 - **Minting an event has two ends.** The publisher, the payload and the subscriber list can each
   be right about everything they name while the two halves never meet. `RequirementRestored`
   shipped with two publishers, a test row and no subscriber, and every file read correctly.

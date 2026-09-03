@@ -31,7 +31,13 @@ import { currentLanguage, tr } from '../i18n/strings';
  * (`ViewRoot`), which is what makes the compiler's check cheap.
  */
 const props = defineProps<{ projects: readonly ProjectSummaryDto[]; unreadable: number }>();
-defineEmits<{ open: [projectId: string]; create: []; createAsset: [] }>();
+/**
+ * `create` widened to carry the typed query (Task 7, design spec §3/§9's `Filtered to
+ * nothing` row): the header button emits `''`, and the no-match block's own action emits
+ * whatever the user had typed, so a query that matched nothing becomes the fastest path to
+ * the project that did not exist yet.
+ */
+defineEmits<{ open: [projectId: string]; create: [initialName: string]; createAsset: [] }>();
 
 /**
  * ONE collator for this mount, built once rather than per comparison: `Intl.Collator`'s
@@ -89,7 +95,7 @@ const completedOpen = ref(false);
 		<button
 			type="button"
 			class="rp-project-list__create"
-			@click="$emit('create')"
+			@click="$emit('create', '')"
 		>
 			{{ tr('view.project.create') }}
 		</button>
@@ -207,4 +213,35 @@ const completedOpen = ref(false);
 			</li>
 		</ul>
 	</details>
+	<!--
+		THE SIGNATURE INTERACTION (design spec §3). A query that matches nothing offers to
+		become a project: the dead end is turned into the fastest path to the thing the user
+		was looking for and did not have. It is what a launcher is FOR, and it is why this
+		block carries an action rather than only a sentence.
+
+		Never the empty state. `renovationProject.noProjects` is a claim about the VAULT and
+		this is a claim about the QUERY — a vault with fifty projects can be here.
+	-->
+	<div
+		v-if="query.trim().length > 0 && matching.length === 0"
+		class="rp-project-list__no-match"
+	>
+		<p class="rp-project-list__no-match-line">
+			{{ tr('view.project.filter.none', { query: query.trim() }) }}
+		</p>
+		<button
+			type="button"
+			class="rp-project-list__clear-filter"
+			@click="query = ''"
+		>
+			{{ tr('view.project.filter.clear') }}
+		</button>
+		<button
+			type="button"
+			class="rp-project-list__create-named"
+			@click="$emit('create', query.trim())"
+		>
+			{{ tr('view.project.create-named', { query: query.trim() }) }}
+		</button>
+	</div>
 </template>

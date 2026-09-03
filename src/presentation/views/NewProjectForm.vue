@@ -60,6 +60,15 @@ const props = defineProps<{
 	 * not that shape — it is a fault that reaches nobody.
 	 */
 	logger: Logger;
+	/**
+	 * The name to open with, from the Home surface's signature interaction (Task 7): a query
+	 * that matched nothing offers to become a project, and the form arrives carrying what the
+	 * user typed. Empty from every other caller.
+	 *
+	 * Optional rather than required, so the two existing call sites and every existing test
+	 * mount are unchanged — which the compiler enforces rather than a sweep.
+	 */
+	initialName?: string;
 }>();
 
 const emit = defineEmits<{ submit: [values: CreateProjectInput] }>();
@@ -92,7 +101,10 @@ const INITIAL: CreateProjectInput = {
 };
 
 const form = useFormCommit<CreateProjectInput, { project: Loaded<Project> }>({
-	initial: INITIAL,
+	// A fresh object per mount, never `INITIAL` itself: that constant is module-level and
+	// shared by every mount of this form, and `useFormCommit` holds its argument as the value a
+	// cancel resyncs to.
+	initial: { ...INITIAL, name: props.initialName ?? '' },
 	dispatch: props.dispatch,
 	errorMap: NEW_PROJECT_ERRORS,
 	toUserMessage: trError,

@@ -122,8 +122,14 @@ function hydrate(): Promise<void> {
  *
  * The re-hydrate is not optional politeness: without it a created project is written and
  * never appears, which is indistinguishable from a create that silently failed.
+ *
+ * `initialName` defaults to `''` so `EmptyState`'s `@action` — which emits no payload —
+ * keeps calling this with nothing, and the header button's own `create` emit carries the
+ * same empty string explicitly. The Home surface's signature interaction (Task 7) is the
+ * one caller that supplies a real value: a query that matched no project offers to become
+ * one, and the form opens carrying what the user already typed.
  */
-async function onCreateProject(): Promise<void> {
+async function onCreateProject(initialName = ''): Promise<void> {
 	if (dialogs.current !== null) return;
 
 	const result = await dialogs.openDialog({
@@ -137,6 +143,7 @@ async function onCreateProject(): Promise<void> {
 			// guarded command means it cannot — but the guard is the ROOT's property, not this
 			// call site's, and `useFormCommit` requires the door rather than assuming the caller.
 			logger: context.commands.logger,
+			initialName,
 		},
 		busy: newProjectBusy,
 	});

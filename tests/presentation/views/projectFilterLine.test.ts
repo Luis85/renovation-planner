@@ -225,6 +225,19 @@ describe('the filter line inside ProjectList', () => {
 	});
 
 	/**
+	 * Task 7's no-match block is gated on the QUERY, not merely on an empty `matching` list —
+	 * and this is the one production state where the two disagree: every project note refused,
+	 * so `matching` is empty with NOTHING typed. Without the `query.trim().length > 0` half of
+	 * the guard this would draw `No project matches ""` beside a notice already explaining why
+	 * the vault looks empty, which is a second, wrong account of the same fact.
+	 */
+	it('draws no no-match block either, over the same empty-and-unread list', () => {
+		const wrapper = list({ projects: [], unreadable: 3 });
+
+		expect(wrapper.find('.rp-project-list__no-match').exists()).toBe(false);
+	});
+
+	/**
 	 * ORDER, not mere presence — which is the whole reason region 6 moved out of `ViewRoot`.
 	 * There it rendered AFTER the entire list, so the sentence saying some projects could not
 	 * be read sat under thirty rows of the ones that could. A presence check is satisfied by

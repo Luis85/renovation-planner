@@ -221,4 +221,52 @@ describe('ViewRoot, creating a project', () => {
 		expect(wrapper.findAll('.rp-project-list__row')).toHaveLength(1);
 		expect(wrapper.find('.rp-view-notice').exists()).toBe(true);
 	});
+
+	/**
+	 * The Home surface's signature interaction (Task 7), threaded end to end: a query that
+	 * matched no project offers to become one, and the form that opens actually carries what
+	 * the user typed — not merely that SOME form opened.
+	 */
+	it('opens the form pre-filled when the list asks for a named project', async () => {
+		const pinia = createPinia();
+		setActivePinia(pinia);
+		const context = deps(() =>
+			Promise.resolve(ok({ projects: [{ id: 'p1', name: 'Kitchen', status: 'IDEA' }], unreadable: 0 })),
+		);
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+		});
+		await flushPromises();
+
+		await wrapper.get('.rp-project-filter__input').setValue('Cellar conversion');
+		await wrapper.get('.rp-project-list__create-named').trigger('click');
+		await flushPromises();
+
+		const current = useDialogStore(pinia).current;
+		if (current?.kind !== 'form') throw new Error('expected a form dialog to be open');
+		expect(current.props?.initialName).toBe('Cellar conversion');
+	});
+
+	/**
+	 * `EmptyState` emits `action` with NO payload. Without `onCreateProject`'s parameter
+	 * default this reaches `NewProjectForm` as `initialName: undefined`, and the form's
+	 * `initial: { ...INITIAL, name: props.initialName ?? '' }` line is the only reason that
+	 * does not become the literal string "undefined" in the name field.
+	 */
+	it('opens it empty from the empty state, whose action carries no payload', async () => {
+		const pinia = createPinia();
+		setActivePinia(pinia);
+		const context = deps(() => Promise.resolve(ok({ projects: [], unreadable: 0 })));
+		const wrapper = mount(ViewRoot, {
+			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
+		});
+		await flushPromises();
+
+		await wrapper.get('.rp-empty-state__action').trigger('click');
+		await flushPromises();
+
+		const current = useDialogStore(pinia).current;
+		if (current?.kind !== 'form') throw new Error('expected a form dialog to be open');
+		expect(current.props?.initialName).toBe('');
+	});
 });

@@ -297,3 +297,47 @@
 .rp-project-row__match {
 	font-weight: var(--font-semibold);
 }
+
+/*
+ * THE SIGNATURE INTERACTION (design spec §3, §9's `Filtered to nothing` row). The no-match
+ * block sits where the rows would have been, so the eye lands on it rather than hunting: same
+ * horizontal padding as a row, the actions stacked under the sentence rather than beside it,
+ * because `New project named "…"` carries the user's own typing and is as long as whatever
+ * they typed.
+ */
+.rp-project-list__no-match {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--size-2-2);
+	padding: var(--size-4-2);
+}
+
+.rp-project-list__no-match-line {
+	margin: 0;
+	color: var(--text-muted);
+}
+
+.rp-project-list__no-match .rp-project-list__create-named,
+.rp-project-list__no-match .rp-project-list__clear-filter {
+	/*
+	 * The name the user typed can be long, so this wraps rather than pushing the pane wide.
+	 *
+	 * `overflow-wrap: anywhere` is the load-bearing one and `white-space: normal` alone is not
+	 * enough: normal wrapping breaks at OPPORTUNITIES, and one long unspaced token has none, so
+	 * a filter query typed as a single run — which is what a user hunting a name types — would
+	 * push the pane wide at 460px under a rule whose comment says it cannot. `anywhere` rather
+	 * than `break-word` because it also lets the intrinsic min-content width shrink, which is
+	 * what stops the flex parent from being widened before the break is ever considered.
+	 */
+	max-width: 100%;
+	white-space: normal;
+	overflow-wrap: anywhere;
+	text-align: left;
+}
+
+.rp-project-list__no-match .rp-project-list__create-named:focus-visible,
+.rp-project-list__no-match .rp-project-list__clear-filter:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}

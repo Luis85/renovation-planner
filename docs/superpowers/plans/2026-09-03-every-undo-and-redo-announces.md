@@ -286,7 +286,7 @@ MSG
 
 ## Task 2: The exposed removal announces, and the editor bundle carries a bus
 
-> **IMPLEMENTED** — commit `71826d0`. Reviewed: spec ✅, one Important finding open (the refusal case drives a LOAD refusal, not a delete refusal), fix round pending. Do NOT re-execute these steps; the code, the interface member and the test file all exist.
+> **DONE** — commits `71826d0` + `2dc929b` (one fix round), review clean. Start at Task 3.
 
 **Files:**
 - Modify: `src/application/commands/requirement/DeleteRequirement.ts`
@@ -321,7 +321,7 @@ every write refuses, so nothing is ever published, and a bus nobody subscribes t
 truthful stand-in. It must NOT be a refusing stub — a refusal bundle is the honest stand-in only
 where the real thing would also have nothing to give, and `publish` gives nothing either way.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/application/commands/requirement/deleteRequirement.test.ts` (create the file
 following the sibling tests' `createRepositoryStack` setup if it does not exist):
@@ -362,12 +362,12 @@ it('announces nothing when the delete refuses', async () => {
 });
 ```
 
-- [ ] **Step 2: Run it and watch it fail**
+- [x] **Step 2: Run it and watch it fail**
 
 Run: `npx vitest run tests/application/commands/requirement/deleteRequirement.test.ts`
 Expected: FAIL — the constructor takes one argument, and no event is published.
 
-- [ ] **Step 3: Publish, then wire**
+- [x] **Step 3: Publish, then wire**
 
 In `src/application/commands/requirement/DeleteRequirement.ts`:
 
@@ -440,7 +440,7 @@ Then supply the real bus where `composition-root.ts` builds the editor bundle. F
 grep -rn "PlanEditorCommandServices" src/plugin/
 ```
 
-- [ ] **Step 4: Run the test, then the compiler**
+- [x] **Step 4: Run the test, then the compiler**
 
 Run: `npx vitest run tests/application/commands/requirement/deleteRequirement.test.ts`
 Expected: PASS.
@@ -448,7 +448,7 @@ Run: `npm run build`
 Expected: PASS — and if it does not, the error names a construction site that must supply
 `events`. Fix each; do not widen the member to optional.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

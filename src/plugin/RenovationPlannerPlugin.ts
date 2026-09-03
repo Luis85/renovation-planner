@@ -755,11 +755,13 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 * `navigateToProject` — `openProject`, `openProjectDetail` and `projectViewDeps`'s own
 	 * `navigate` each carried an identical inline closure before this field existed, and Task
 	 * 9's `newProject` was the copy that made four worth naming as one rather than a new fifth.
-	 * `grep -n "notifyFault(cause" src/plugin/RenovationPlannerPlugin.ts` prints ONE line — this
-	 * field's own body — which is what keeps this a fact about the file rather than a count
-	 * somebody has to re-verify by reading every call site. A bound class field rather than a
-	 * method, so a call site can hand it over directly (`reportFault: this.reportRevealFault`)
-	 * with no wrapping arrow that would just be a fifth copy of the same shape.
+	 * All four now hand over `reportFault: this.reportRevealFault` rather than a copy, so this
+	 * body is the single remaining place that calls `notifyFault` for a reveal fault — a count
+	 * stated in prose rather than as a grep line count, because a docblock quoting its own grep
+	 * pattern verbatim is a docblock that matches itself, and this repository has already paid
+	 * for that exact shape once (CLAUDE.md's account of the notice-door count). A bound class
+	 * field rather than a method, so a call site can hand it over directly with no wrapping
+	 * arrow that would just be a fifth copy of the same shape.
 	 */
 	private reportRevealFault = (cause: unknown): void => {
 		notifyFault(cause, this.root.logger, 'view.project.reveal-failed');

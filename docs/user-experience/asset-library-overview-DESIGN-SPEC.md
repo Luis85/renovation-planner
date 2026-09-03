@@ -905,6 +905,19 @@ The contract, so a builder does not invent one:
   view**, and a re-picked spec sheet leaves the old filename — indefinitely, and worst on a
   corrupt sidecar, where the design read refuses and only the catalogue half could have been
   refreshed at all. Reported by a review bot.
+- **An entry LEAVING the listing invalidates its mark**, which is the rule the two event
+  subscriptions above are only part of. The cache is keyed by asset id, and an id here is
+  `z.string().min(1)` in the note's own frontmatter — a user can delete an asset and create
+  another carrying the same id, in the same view lifetime. The catalogue refresh then removes the
+  row and puts a new one back, and without this the replacement draws the **deleted asset's
+  footprint**, indefinitely. `GeometrySidecarChanged` cannot be relied on to cover it: the delete
+  path can take the index entry out before that event is handled, so the mark it would have
+  cleared is cleared for an id nothing is watching any more.
+
+  Stated as *left the listing* rather than as *`AssetDeleted`*, because the same staleness follows
+  from a note becoming unreadable (§5.1a moves it out of `entries`) or from a hand-edited id
+  changing which asset a row IS — and those raise no delete event at all. Reported by a review bot
+  as the deletion case; the rule is what covers the two it did not name.
 - Invalidation is **per asset**, never per shelf and never whole-view: a shelf-wide refetch turns
   one peer's edit into a read of every sidecar in that category, which is the cost §5.3's whole
   bound exists to avoid.
@@ -1947,6 +1960,21 @@ formed the column the comment promises, in any capture ever taken here, tabular 
 notwithstanding. **Reported by a review bot reading the CSS against its own comment** — jsdom lays
 nothing out and the shift is a few pixels nobody was measuring, which is the same blind spot the
 harness index's `ZonePanelprototype` defect lived in.
+
+A twenty-fifth round found one, and it is the enumerate-versus-rule lesson arriving in the
+invalidation contract.
+
+**Nothing invalidated a mark when its asset left the listing.** The contract named two events —
+design and sidecar — and a deletion is neither. An asset id is `z.string().min(1)` in the note's
+own frontmatter, so a user can delete an asset and create another with the same id inside one view
+lifetime; the catalogue refresh removes the row and puts a new one back, and the replacement then
+draws the **deleted asset's footprint** for the life of the view. `GeometrySidecarChanged` is no
+backstop: the delete path can take the index entry out before that event is handled.
+
+Written as *an entry leaving the listing* rather than as *`AssetDeleted`*, because two other paths
+produce the identical staleness and raise no delete event — a note becoming unreadable, which
+§5.1a moves out of `entries`, and a hand-edited id changing which asset a row IS. The report named
+the deletion; **a rule was cheaper than the list and covers the two it did not name.**
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

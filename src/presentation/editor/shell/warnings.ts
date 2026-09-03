@@ -12,8 +12,17 @@ import type { BackgroundStatus } from '../layers/background/BackgroundRenderMode
  */
 export type WarningId = 'stale' | 'unreadable-zones' | 'background-missing' | 'background-unreadable';
 
+/**
+ * R5 (2026-09-04): the one axis this model carries beyond identity and message. `warning` —
+ * what is on screen may be incomplete or out of date; `error` — a read refused, so something
+ * the user owns is not on screen. Heading, busy state and actions are deliberately NOT here:
+ * no warning has an action yet, and a field with no producer is a self-declared shape.
+ */
+export type WarningSeverity = 'warning' | 'error';
+
 export interface EditorWarning {
 	readonly id: WarningId;
+	readonly severity: WarningSeverity;
 	readonly messageKey: StringKey;
 	readonly params?: Readonly<Record<string, string>>;
 }
@@ -41,18 +50,19 @@ export interface EditorWarningInput {
  */
 export function editorWarnings(input: EditorWarningInput): readonly EditorWarning[] {
 	const warnings: EditorWarning[] = [];
-	if (input.stale) warnings.push({ id: 'stale', messageKey: 'editor.refresh-failed' });
+	if (input.stale) warnings.push({ id: 'stale', severity: 'warning', messageKey: 'editor.refresh-failed' });
 	if (input.unreadableZones > 0) {
 		warnings.push({
 			id: 'unreadable-zones',
+			severity: 'error',
 			messageKey: 'editor.some-zones-unreadable',
 			params: { count: String(input.unreadableZones) },
 		});
 	}
 	if (input.backgroundStatus === 'missing') {
-		warnings.push({ id: 'background-missing', messageKey: 'editor.background-missing' });
+		warnings.push({ id: 'background-missing', severity: 'warning', messageKey: 'editor.background-missing' });
 	} else if (input.backgroundStatus === 'unreadable') {
-		warnings.push({ id: 'background-unreadable', messageKey: 'editor.background-failed' });
+		warnings.push({ id: 'background-unreadable', severity: 'error', messageKey: 'editor.background-failed' });
 	}
 	return warnings;
 }

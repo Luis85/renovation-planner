@@ -209,7 +209,10 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		// ADDITIVE: the canvas stays, because the data it draws is valid — only stale.
 		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(true);
 		expect(harness.wrapper.find('.rp-view-failure').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(t('en', 'editor.refresh-failed'));
+		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
+		);
 
 		harness.wrapper.unmount();
 	});
@@ -242,13 +245,19 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 
 		await store.hydrate(flaky, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		await flushPromises();
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(t('en', 'editor.refresh-failed'));
+		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
+		);
 
 		// A third refresh starts and does not resolve. The canvas is showing exactly what it was
 		// showing a moment ago, so the warning has to stand.
 		const inFlight = store.hydrate(flaky, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		await flushPromises();
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(t('en', 'editor.refresh-failed'));
+		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
+		);
 
 		// And it retires on the one event that earns it: a read that came back.
 		resolveSecond(ok(FIXTURE_PLAN));
@@ -287,12 +296,18 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 
 		await store.hydrate(flaky, FIXTURE_PLAN.id, { keepPreviousOnFailure: true });
 		await flushPromises();
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(t('en', 'editor.refresh-failed'));
+		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
+		);
 
 		// No options — exactly what `onPlanChanged` triggers — and held open.
 		const inFlight = store.hydrate(flaky, FIXTURE_PLAN.id);
 		await flushPromises();
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(t('en', 'editor.refresh-failed'));
+		// R5: `stale` is `warning`, so the item's text carries that word beside the message.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
+		);
 
 		resolveThird(ok(FIXTURE_PLAN));
 		await inFlight;
@@ -334,8 +349,8 @@ describe('the Plan Editor, when a post-write refresh fails', () => {
 		// BOTH, in order. Asserted as the whole list rather than by picking one out, because
 		// `find` answers the first match and would have been satisfied by the defect.
 		expect(harness.wrapper.findAll('.rp-warning-strip__item').map((el) => el.text())).toStrictEqual([
-			t('en', 'editor.refresh-failed'),
-			t('en', 'editor.background-missing'),
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.refresh-failed')}`,
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.background-missing')}`,
 		]);
 
 		harness.wrapper.unmount();

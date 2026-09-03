@@ -123,10 +123,11 @@ Remains, and each is recorded at the Task that owns it:
   in it, and §5.7 scoped "compact" to dropping the pointer readout. Grid and snapping are in
   neither bar, since neither exists as a setting — see
   [[Build full and compact editor status bars]].
-- **A warning's severity, heading, busy state and actions.** The strip renders every active
-  warning simultaneously, keyed on its own id, in a fixed order — and an `EditorWarning` carries
-  an id, a message key and params and nothing else, so there is no action for a keyboard user to
-  reach. See [[Render independent simultaneous persistent warnings]].
+- **A warning's heading, busy state and actions.** The strip renders every active warning
+  simultaneously, keyed on its own id, in a fixed order, and each now carries its own severity as a
+  mark and a word (R5, 2026-09-04) — but an `EditorWarning` still has no accessible heading, no busy
+  state and no action, so there is nothing yet for a keyboard user to reach. See
+  [[Render independent simultaneous persistent warnings]].
 - **`Ground floor has 1 rooms`.** The unsupported-width notice's body is a spec-mandated string
   and `tr` has no plural form, so a single-room floor reads wrong. Recorded at
   [[Keep the editor truthful across failure and narrow layouts]].
@@ -140,8 +141,6 @@ Remains, and each is recorded at the Task that owns it:
   and step 1 of [[Open a floor and select a room]] asserts only that they are present and
   disabled with an empty history; the Undo and redo PBI is not advanced here.
 - [[Unsupported layout can preserve an interrupted canvas gesture]]
-- [[The warning model cannot carry its contract's severity]]
-- [[The warning live-region contract and implementation describe different semantics]]
 - [[The toolbar-key retirement contract conflicts with the Asset Designer]]
 - [[Unsupported width has no horizontal-overflow check]]
 - [[The two full-panel toggle actions have no production caller]]

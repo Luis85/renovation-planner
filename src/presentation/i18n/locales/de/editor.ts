@@ -138,4 +138,6 @@ export const editorDe: Record<keyof typeof editorEn, string> = {
 	'editor.status.scale.calibrated': 'Maßstab festgelegt',
 	'editor.status.scale.uncalibrated': 'Maßstab nicht festgelegt',
 	'editor.hint.pan': 'Leertaste oder mittlere Maustaste halten, um zu verschieben',
+	'editor.warning.severity.warning': 'Warnung',
+	'editor.warning.severity.error': 'Fehler',
 };

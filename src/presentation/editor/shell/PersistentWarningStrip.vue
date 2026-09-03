@@ -18,11 +18,22 @@
  * already carries a stable id; what keying on it buys is that a warning which STAYS keeps its
  * own DOM node when a sibling arrives or leaves, rather than Vue reconciling by position and
  * tearing down and remounting every `<p>` below the one that changed.
+ *
+ * **R4/R5 (2026-09-04):** the region stays on the container; every item carries its severity
+ * as a mark AND a word — `docs/components/Toast.md`'s "both, always, never one". Heading, busy
+ * state and actions are not in the model: no warning has an action yet, and a field with no
+ * producer is a self-declared shape.
  */
 import { tr } from '../../i18n/strings';
-import type { EditorWarning } from './warnings';
+import type { StringKey } from '../../i18n/locales/en';
+import type { EditorWarning, WarningSeverity } from './warnings';
 
 defineProps<{ warnings: readonly EditorWarning[] }>();
+
+const SEVERITY_LABEL: Record<WarningSeverity, StringKey> = {
+	warning: 'editor.warning.severity.warning',
+	error: 'editor.warning.severity.error',
+};
 </script>
 
 <template>
@@ -34,8 +45,11 @@ defineProps<{ warnings: readonly EditorWarning[] }>();
 			v-for="w in warnings"
 			:key="w.id"
 			class="rp-warning-strip__item"
+			:class="`rp-warning-strip__item--${w.severity}`"
 			:data-rp-warning="w.id"
+			:data-rp-severity="w.severity"
 		>
+			<span class="rp-warning-strip__severity">{{ tr(SEVERITY_LABEL[w.severity]) }}</span>
 			{{ tr(w.messageKey, w.params) }}
 		</p>
 	</div>

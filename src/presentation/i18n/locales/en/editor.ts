@@ -210,4 +210,9 @@ export const editorEn = {
 	'editor.status.scale.calibrated': 'Scale set',
 	'editor.status.scale.uncalibrated': 'Scale not set',
 	'editor.hint.pan': 'Space or the middle button pans',
+	// R5 (2026-09-04): the persistent warning strip's per-item severity mark, a word beside
+	// `data-rp-severity` — SDD §85's "status not colour-only", read at slice 13's own "a word
+	// is not a colour" cost: both, never one.
+	'editor.warning.severity.warning': 'Warning',
+	'editor.warning.severity.error': 'Error',
 } as const;

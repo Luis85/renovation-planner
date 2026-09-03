@@ -44,7 +44,10 @@ describe('the canvas reports zones it could not read', () => {
 		harness = await mountPlanEditor({ unreadableZones: 3 });
 		await settle();
 
-		expect(notices(harness)).toContain(t('en', 'editor.some-zones-unreadable', { count: '3' }));
+		// R5: `unreadable-zones` is `error` (a read refused), so the item carries that word.
+		expect(notices(harness)).toContain(
+			`${t('en', 'editor.warning.severity.error')} ${t('en', 'editor.some-zones-unreadable', { count: '3' })}`,
+		);
 	});
 
 	it('draws no such notice when every zone note was read', async () => {
@@ -77,7 +80,10 @@ describe('the canvas reports zones it could not read', () => {
 		await settle();
 
 		expect(harness.wrapper.find('.rp-empty-state').exists()).toBe(false);
-		expect(notices(harness)).toContain(t('en', 'editor.some-zones-unreadable', { count: '3' }));
+		// R5: `unreadable-zones` is `error` (a read refused), so the item carries that word.
+		expect(notices(harness)).toContain(
+			`${t('en', 'editor.warning.severity.error')} ${t('en', 'editor.some-zones-unreadable', { count: '3' })}`,
+		);
 	});
 
 	it('still offers the no-zones empty state when nothing refused', async () => {
@@ -107,8 +113,8 @@ describe('the canvas reports zones it could not read', () => {
 		await settle();
 
 		expect(notices(harness)).toEqual([
-			t('en', 'editor.some-zones-unreadable', { count: '1' }),
-			t('en', 'editor.background-missing'),
+			`${t('en', 'editor.warning.severity.error')} ${t('en', 'editor.some-zones-unreadable', { count: '1' })}`,
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.background-missing')}`,
 		]);
 	});
 });

@@ -227,3 +227,22 @@
 	background-color: var(--background-secondary);
 	border-top: 1px solid var(--background-modifier-border);
 }
+
+/*
+ * R5's per-item severity: a mark (the border) AND a word (`.rp-warning-strip__severity`),
+ * never one alone — `docs/components/Toast.md`'s "both, always, never one". `warning` gets no
+ * border override of its own; `.rp-warning-strip__item` already carries `--text-warning`, so
+ * `--item--warning` would restate the colour this rule already applies.
+ */
+.rp-warning-strip__severity {
+	font-weight: var(--bold-weight);
+	margin-right: var(--size-4-1);
+}
+
+.rp-warning-strip__item--error {
+	border-left: 2px solid var(--text-error);
+}
+
+.rp-warning-strip__item--warning {
+	border-left: 2px solid var(--text-warning);
+}

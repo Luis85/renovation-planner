@@ -65,3 +65,17 @@ severity, no accessible heading, no busy state, no action. So criterion 3 is met
 IDENTITY clause, and criteria 4 (repeated publication updating or de-duplicating a condition) and
 6 (reaching every warning action by keyboard) have no subject at all: the collection is DERIVED
 per render from three inputs rather than published, and there is nothing to reach.
+
+**2026-09-04** — R4/R5 close two more clauses without building the rest. `EditorWarning` gains
+`severity: 'warning' | 'error'` (`stale` and `background-missing` are `warning`, `unreadable-zones`
+and `background-unreadable` are `error`), rendered per item as a mark AND a word
+(`data-rp-severity` plus a translated `.rp-warning-strip__severity` label) — criterion 3's SEVERITY
+clause is met, by `tests/presentation/editor/shell.test.ts`'s 'keeps each warning's own severity
+mark and word when the other one clears'. Criterion 6's announcement clause is met too: R4 keeps
+the live region on the container, never per item, pinned by that same file's 'is ONE unconditional
+live region, and no item is one — before and after two warnings arrive'. Criterion 3's heading and
+busy-state clauses and criterion 6's keyboard-reach-an-action clause remain open: no warning has an
+action, so there is nothing to be busy over and nothing for a keyboard user to reach — the increment
+that adds a retry action supplies the producer those fields need. `warnings.test.ts`'s
+`@ts-expect-error` case is what makes a bare `{ id, messageKey }` fixture a build error rather than
+a passing type.

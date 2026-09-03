@@ -143,7 +143,11 @@ describe('a background that cannot be drawn', () => {
 		});
 		await settle();
 
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(t('en', 'editor.background-missing'));
+		// R5: the item's text includes its severity word (`background-missing` is `warning`)
+		// beside the message, per `PersistentWarningStrip.vue`'s severity mark.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+			`${t('en', 'editor.warning.severity.warning')} ${t('en', 'editor.background-missing')}`,
+		);
 	});
 
 	it('says something DIFFERENT when the file is there but will not decode', async () => {
@@ -156,7 +160,10 @@ describe('a background that cannot be drawn', () => {
 		});
 		await settle();
 
-		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(t('en', 'editor.background-failed'));
+		// `background-unreadable` is `error` (a read refused), unlike the missing-file case above.
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(
+			`${t('en', 'editor.warning.severity.error')} ${t('en', 'editor.background-failed')}`,
+		);
 	});
 
 	it('shows no notice at all for a plan with no background', async () => {

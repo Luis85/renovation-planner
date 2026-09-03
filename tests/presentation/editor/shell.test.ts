@@ -315,6 +315,54 @@ describe('the persistent warning strip', () => {
 		expect(harness.wrapper.find('.rp-warning-strip[role="status"]').exists()).toBe(true);
 		expect(harness.wrapper.findAll('.rp-warning-strip__item')).toHaveLength(0);
 	});
+
+	/**
+	 * R5: every warning carries its severity as a mark AND a word
+	 * (`docs/components/Toast.md`'s "both, always, never one"), and each warning's own mark
+	 * survives a sibling clearing — the same identity guarantee the keying case above proves
+	 * for the item itself, proven here for the severity it carries.
+	 */
+	it('keeps each warning\'s own severity mark and word when the other one clears', async () => {
+		const harness = await mountCanvas({ unreadableZones: 1 });
+		const store = useProjectStore(harness.pinia);
+		store.stale = true;
+		await settle();
+
+		const marks = () => harness.wrapper.findAll('.rp-warning-strip__item').map((item) => [
+			item.attributes('data-rp-warning'), item.attributes('data-rp-severity'), item.find('.rp-warning-strip__severity').text(),
+		]);
+		expect(marks()).toStrictEqual([
+			['stale', 'warning', t('en', 'editor.warning.severity.warning')],
+			['unreadable-zones', 'error', t('en', 'editor.warning.severity.error')],
+		]);
+
+		store.stale = false;
+		await settle();
+		expect(marks()).toStrictEqual([['unreadable-zones', 'error', t('en', 'editor.warning.severity.error')]]);
+	});
+
+	/**
+	 * R4: exactly one unconditional `.rp-warning-strip[role="status"]` and zero item status
+	 * roles, before and after two warnings arrive independently — the discriminating test the
+	 * note's `## What closes it` asks for, proving the container model rather than a per-item
+	 * one.
+	 */
+	it('is ONE unconditional live region, and no item is one — before and after two warnings arrive', async () => {
+		const harness = await mountCanvas();
+		const regions = () => harness.wrapper.findAll('[role="status"]').filter((el) => el.classes().includes('rp-warning-strip'));
+		const itemRoles = () => harness.wrapper.findAll('.rp-warning-strip__item [role], .rp-warning-strip__item[role]');
+		expect(regions()).toHaveLength(1);
+		expect(itemRoles()).toHaveLength(0);
+
+		const store = useProjectStore(harness.pinia);
+		store.stale = true;
+		store.unreadableZones = 2;
+		await settle();
+
+		expect(harness.wrapper.findAll('.rp-warning-strip__item')).toHaveLength(2);
+		expect(regions()).toHaveLength(1);
+		expect(itemRoles()).toHaveLength(0);
+	});
 });
 
 describe('the camera', () => {

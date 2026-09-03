@@ -1,5 +1,5 @@
 /**
- * The Plan Editor's own vocabulary — the shell (toolbar, context bar, rail, status bar),
+ * The Plan Editor's own vocabulary — the shell (context bar, rail, status bar),
  * the add-menu catalogue, the Inspector (its floor and room panels, its requirements
  * panel, its zone-type labels), the task banner and the calibration dialogs. Split out of
  * `en.ts` at Task 20 to keep the assembled table under the 400-line `max-lines` cap
@@ -24,9 +24,6 @@
  * `editor.zone.default-name` in the source file's reading order. They stayed in `en.ts`.
  */
 export const editorEn = {
-	'editor.toolbar.pan': 'Pan',
-	'editor.toolbar.undo': 'Undo',
-	'editor.toolbar.redo': 'Redo',
 	'editor.context-bar': 'Editor context',
 	'editor.context.undo': 'Undo',
 	'editor.context.redo': 'Redo',

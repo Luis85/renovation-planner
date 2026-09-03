@@ -151,4 +151,3 @@ Remains, and each is recorded at the Task that owns it:
 - **No manual case for Undo and Redo beyond one clause.** The context bar carries both controls
   and step 1 of [[Open a floor and select a room]] asserts only that they are present and
   disabled with an empty history; the Undo and redo PBI is not advanced here.
-- [[The toolbar-key retirement contract conflicts with the Asset Designer]]

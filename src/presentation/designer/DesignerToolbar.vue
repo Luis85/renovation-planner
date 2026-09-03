@@ -47,7 +47,7 @@ const runtime = useDesignerRuntime();
  * button and asserts the manager's active tool, rather than counting them.
  */
 const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[] = [
-	{ id: null, label: 'editor.toolbar.pan' },
+	{ id: null, label: 'designer.toolbar.pan' },
 	...Object.entries(DESIGNER_TOOL_LABELS).map(([id, label]) => ({ id: id as ToolId, label: label as StringKey })),
 ];
 </script>
@@ -75,19 +75,19 @@ const MODES: readonly { readonly id: ToolId | null; readonly label: StringKey }[
 			type="button"
 			class="rp-designer-tool-button"
 			:disabled="!runtime.canUndo.value"
-			:title="tr('editor.toolbar.undo')"
+			:title="tr('designer.toolbar.undo')"
 			@click="runtime.undo()"
 		>
-			{{ tr('editor.toolbar.undo') }}
+			{{ tr('designer.toolbar.undo') }}
 		</button>
 		<button
 			type="button"
 			class="rp-designer-tool-button"
 			:disabled="!runtime.canRedo.value"
-			:title="tr('editor.toolbar.redo')"
+			:title="tr('designer.toolbar.redo')"
 			@click="runtime.redo()"
 		>
-			{{ tr('editor.toolbar.redo') }}
+			{{ tr('designer.toolbar.redo') }}
 		</button>
 	</div>
 </template>

@@ -120,7 +120,7 @@ describe('tracing an outline', () => {
 		await settle();
 		expect((await rig.document()).shape?.clearance).not.toBeNull();
 
-		rig.toolbarButton(t('en', 'editor.toolbar.undo')).click();
+		rig.toolbarButton(t('en', 'designer.toolbar.undo')).click();
 		await settle();
 
 		expect((await rig.document()).shape?.clearance).toBeNull();
@@ -478,11 +478,11 @@ describe('undoing a gesture', () => {
 		await settle();
 		expect((await rig.document()).shape).not.toBeNull();
 
-		rig.toolbarButton(t('en', 'editor.toolbar.undo')).click();
+		rig.toolbarButton(t('en', 'designer.toolbar.undo')).click();
 		await settle();
 		const undone = (await rig.document()).shape;
 
-		rig.toolbarButton(t('en', 'editor.toolbar.redo')).click();
+		rig.toolbarButton(t('en', 'designer.toolbar.redo')).click();
 		await settle();
 
 		expect(undone).toBeNull();

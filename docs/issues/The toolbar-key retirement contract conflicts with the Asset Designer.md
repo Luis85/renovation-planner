@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 60
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -73,6 +73,33 @@ toolbar interaction test so renaming copy cannot disconnect the controls.
 ## Decision
 
 **2026-09-04.** **R6** Ruling: the Asset Designer's three borrowed strings become `designer.toolbar.pan`, `designer.toolbar.undo`, `designer.toolbar.redo`; `editor.toolbar.*` is deleted from both locales; spec §5.2/§8/§10 are narrowed to the Plan Editor toolbar keys the increment actually retired; a test refuses the literal `editor.toolbar.` anywhere under `src/` — because ownership of a key namespace must be expressible by a test, and three German words are cheaper than an ambiguous owner — cost if wrong: two identical "Undo" translations in the locale tables.
+
+## What closed it
+
+**2026-09-04.** The DECISION above (R6) is the substance; Task 0 supplied the spec narrowing
+(§5.2/§8/§10 now name the Plan Editor toolbar keys the increment actually retired rather than
+every `editor.toolbar.*` key in the plugin), and this task supplied the rename plus the test
+half the note asks for. `DesignerToolbar.vue` now builds its camera-mode, Undo and Redo buttons
+from `designer.toolbar.pan`/`.undo`/`.redo`; both locales gained those three keys beside their
+existing `designer.toolbar.*` block (`en.ts`, `de.ts` — `'Pan'`/`'Undo'`/`'Redo'`,
+`'Verschieben'`/`'Rückgängig'`/`'Wiederholen'`) and lost the three `editor.toolbar.*` entries
+from `en/editor.ts` and `de/editor.ts`. The three designer test files
+(`designerToolbar.test.ts`, `assetDesignerRoot.test.ts`, `designerTools.test.ts`) were updated
+to the new keys in the same edit, so renaming the copy could not silently disconnect the
+controls the interaction tests already drive.
+
+Holding tests: `tests/presentation/i18n/strings.test.ts` › 'the Plan Editor toolbar is retired
+(spec §5.2, R6)' › 'declares no editor.toolbar.* key in either locale' (both locale tables) and
+› 'names editor.toolbar. nowhere under src/, and the designer uses its own keys' — a category
+claim ("no surface names a retired key") checked at the forbidden thing, a `src/`-wide text scan
+for the literal, rather than by listing files, plus a `.toBeDefined()` check that both locales
+declare the three designer-owned keys. Watched red first: with the old keys still in place, the
+first case reported the three surviving `editor.toolbar.*` entries and the second reported four
+`src/` files still naming the literal (`DesignerToolbar.vue`, both `editor.ts` locale files and
+`en.ts`'s two comments describing the borrowing).
+
+Commit "refactor(i18n): the asset designer owns designer.toolbar.pan/undo/redo; no
+editor.toolbar.* key survives".
 
 ## References
 

@@ -544,17 +544,21 @@ export const en = {
 	// vault, unrecovered settings and an asset that is gone each say their own sentence.
 	'view.asset-designer.name': 'Asset designer',
 	'designer.canvas': 'Asset canvas',
-	// The designer's toolbar (design slice B5). THREE labels are BORROWED rather than minted:
-	// camera mode, Undo and Redo say the same words as the Plan Editor's and take its keys
-	// (`editor.toolbar.pan`/`.undo`/`.redo`) rather than shipping a second translation of "Undo"
-	// for a translator to keep in step with the first. The Plan Editor's own Undo/Redo moved to
-	// `editor.context.undo`/`.redo` on its context bar (Task 13), which is a different pair of
-	// keys for the same words — a second translation is still not owed, because this table
-	// already has its own. What is designer-specific is the five gestures below; `calibrate` has
-	// a counterpart on a plan and still gets a key of its own, because the Plan Editor's own
-	// calibrate label lives in its own table and says "Calibrate" about a plan's background, and
-	// each surface's toolbar builds its buttons from its own table.
+	// The designer's toolbar (design slice B5). Camera mode, Undo and Redo are designer-owned
+	// keys — `designer.toolbar.pan`/`.undo`/`.redo` — rather than a share of the Plan Editor's
+	// namespace: note 33 (R6) found the two surfaces' toolbars disagreeing about who owns those
+	// three words, since the Plan Editor's own toolbar is retired (Task 13 replaced it with a
+	// context bar and a floating Select/Add group, whose Undo/Redo live at `editor.context.undo`/
+	// `.redo`) and a designer control naming a retired surface's keys read as a regression against
+	// that retirement rather than as a working control. What is designer-specific beyond those
+	// three is the five gestures below; `calibrate` has a counterpart on a plan and still gets a
+	// key of its own, because the Plan Editor's own calibrate label lives in its own table and
+	// says "Calibrate" about a plan's background, and each surface's toolbar builds its buttons
+	// from its own table.
 	'designer.toolbar': 'Asset tools',
+	'designer.toolbar.pan': 'Pan',
+	'designer.toolbar.undo': 'Undo',
+	'designer.toolbar.redo': 'Redo',
 	'designer.toolbar.trace-footprint': 'Trace footprint',
 	'designer.toolbar.trace-clearance': 'Trace clearance',
 	'designer.toolbar.set-anchor': 'Set anchor',
@@ -575,11 +579,12 @@ export const en = {
 	// The DANGLING state, and the three keys are the designer's own rather than a reuse of
 	// `editor.plan-missing.*`. The first two must be: every surface's copy is written from its
 	// own subject, and the plan editor's say "plan". The ACTION says "Close this tab" on both
-	// surfaces and could have been borrowed — the toolbar borrows `editor.toolbar.undo` on
-	// exactly that argument — and is minted anyway, because the key that would be borrowed is
-	// `editor.plan-missing.action`: its NAME claims the plan editor's state, so a later change
-	// to that state reaches into this one with nothing to notice. A borrowed key whose name
-	// names a sibling's state is not the same trade as a borrowed word.
+	// surfaces and could have been borrowed, and is minted anyway, because the key that would be
+	// borrowed is `editor.plan-missing.action`: its NAME claims the plan editor's state, so a
+	// later change to that state reaches into this one with nothing to notice. A borrowed key
+	// whose name names a sibling's state is not the same trade as a borrowed word — note 33 (R6)
+	// is the same argument reached from the toolbar's own three keys, which used to borrow the
+	// Plan Editor's and mint their own designer-owned pair now for the identical reason.
 	'designer.asset-missing.headline': 'This asset no longer exists',
 	'designer.asset-missing.body': 'This tab points at an asset that is not in the vault any more.',
 	'designer.asset-missing.action': 'Close this tab',

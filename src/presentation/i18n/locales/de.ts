@@ -4,31 +4,18 @@
  * failing the locale. (German noun capitalization is why the English sentence-case lint
  * deliberately does not run here.)
  *
- * **This table is AT its 400-line budget** (`max-lines`, which skips blanks and comments), and
- * Task 19 bought its own six keys by joining four wrapped values onto one line each. That is a
- * budget already spent, not headroom: the next handful of keys does not fit, and the answer is
- * a SPLIT rather than a fifth joined literal — `en.ts` sits two lines under the same cap, so
- * both tables are out of room at once.
- *
- * **The split is safe, which took a measurement rather than a reading.** An earlier draft of
- * this paragraph warned that the marketplace sentence-case rule
- * (`obsidianmd/ui/sentence-case-locale-module`) is scoped to files literally called `en.ts` and
- * that a new file would have to be named in its configuration. Both halves are false: the rule
- * self-scopes through `isEnglishLocalePath`
- * (`node_modules/eslint-plugin-obsidianmd/dist/lib/rules/ui/sentenceCaseUtil.js`), whose regex
- * is `(?:^|/)en(?:[._-][^/]+)?(?:/.*)?\.(ts|js|cjs|mjs)$`, case-insensitive and built from the
- * rule's own extension list — there is no filename option to configure. Asked of that function
- * directly, `en.editor.ts`, `en-editor.ts` and `locales/en/editor.ts` are all inside the gate
- * and `de/editor.ts` is outside it, which is exactly the asymmetry the two tables want.
- *
- * So the remedy is `locales/en/<subject>.ts` beside `locales/de/<subject>.ts`, spread into the
- * assembled `en`/`de` objects — every English part stays linted, and `StringKey` still derives
- * from one composed table. **Task 20 performs that split** (controller ruling); Task 19 stopped
- * at recording it, because a locale refactor inside a shell task is a change nobody reviewed.
+ * **Split at Task 20**, alongside `en.ts` and for the same reason: this table was at its
+ * 400-line budget (`max-lines`, which skips blanks and comments) with no room for the next
+ * handful of keys. `de/editor.ts` holds the German half of the Plan Editor's own
+ * vocabulary — the counterpart of `en/editor.ts`, spread into this object below
+ * (`...editorDe,`) — and its own header explains why it is typed `Record` rather than this
+ * table's `Partial`.
  */
 import type { StringKey } from './en';
+import { editorDe } from './de/editor';
 
 export const de: Partial<Record<StringKey, string>> = {
+	...editorDe,
 	'command.open-project': 'Renovierungsprojekt öffnen',
 	'command.open-project-detail': 'Zu Renovierungsprojekt wechseln',
 	'view.project.name': 'Renovierungsprojekt',
@@ -98,126 +85,11 @@ export const de: Partial<Record<StringKey, string>> = {
 	'sample.zone.living-room': 'Wohnzimmer',
 	'sample.zone.terrace': 'Terrasse',
 	'sample.zone.garden': 'Garten',
-	'editor.layers': 'Ebenen',
-	'editor.toolbar.pan': 'Verschieben',
-	'editor.toolbar.undo': 'Rückgängig',
-	'editor.toolbar.redo': 'Wiederholen',
-	'editor.context-bar': 'Editor-Kontext',
-	'editor.context.undo': 'Rückgängig',
-	'editor.context.redo': 'Wiederholen',
-	'editor.primary-actions': 'Hauptaktionen',
-	'editor.primary.select': 'Auswählen',
-	'editor.primary.add': 'Hinzufügen',
-	'editor.add.menu': 'Hinzufügen',
-	'editor.add.search': 'Suchen, was hinzugefügt werden soll',
-	'editor.add.group.structure': 'Struktur',
-	'editor.add.group.property': 'Grundstück',
-	'editor.add.group.planning': 'Planung',
-	'editor.add.room.label': 'Raum',
-	'editor.add.room.description': 'Der schnellste Einstieg',
-	'editor.add.room.synonyms': 'Küche, Schlafzimmer, Bad, Wohnzimmer',
-	'editor.add.wall.label': 'Wand',
-	'editor.add.wall.description': 'Für präzise Grundrisse',
-	'editor.add.door.label': 'Tür',
-	'editor.add.door.description': 'Eine Öffnung zwischen zwei Räumen',
-	'editor.add.window.label': 'Fenster',
-	'editor.add.window.description': 'Eine Öffnung für Licht und Luft',
-	'editor.add.area.label': 'Fläche',
-	'editor.add.area.description': 'Eine Außenfläche ohne Wände',
-	'editor.add.path.label': 'Weg',
-	'editor.add.path.description': 'Eine Route zum Gehen oder Fahren',
-	'editor.add.fence.label': 'Zaun',
-	'editor.add.fence.description': 'Markiert die Grenze eines Grundstücks',
-	'editor.add.item.label': 'Objekt',
-	'editor.add.item.description': 'Ein einzelnes Möbelstück oder Gerät',
-	'editor.add.measurement.label': 'Messung',
-	'editor.add.measurement.description': 'Eine auf dem Plan vermerkte Distanz',
-	'editor.add.note.label': 'Notiz',
-	'editor.add.note.description': 'Ein an einer Stelle angehefteter Hinweis',
-	'editor.add.unsupported.not-yet': 'In dieser Version noch nicht verfügbar.',
-	'editor.inspector': 'Inspektor',
-	'editor.inspector.multiple': 'Mehrere Objekte ausgewählt.',
-	'editor.inspector.name': 'Name',
-	'editor.inspector.area': 'Fläche',
-	'editor.inspector.delete-zone': 'Zone löschen',
-	'editor.inspector.requirements': 'Anforderungen',
-	'editor.inspector.requirements.empty': 'Noch keine Anforderungen für diese Zone.',
-	'editor.inspector.requirement.asset': 'Objekt',
-	'editor.inspector.requirement.quantity': 'Menge',
-	'editor.inspector.requirement.cost': 'Kosten',
-	'editor.inspector.requirement.overridden': 'Übersteuert',
-	'editor.inspector.requirement.stale': 'Werte sind veraltet; Anforderung neu berechnen.',
-	'editor.inspector.requirement.missing-asset': 'Objekt fehlt im Katalog.',
-	'editor.inspector.assign.label': 'Objekt zuweisen',
-	'editor.inspector.assign.button': 'Zuweisen',
-	'editor.inspector.quantity-override.label': 'Mengen-Übersteuerung für',
-	'editor.inspector.cost-override.label': 'Kosten-Übersteuerung für',
-	'editor.inspector.override.reset': 'Auf berechneten Wert zurücksetzen',
-	'editor.inspector.delete-zone.reassign-title': 'Zu welcher Zone sollen diese Anforderungen verschoben werden?',
-	'editor.inspector.floor.rooms': 'Räume',
-	'editor.inspector.floor.areas': 'Flächen',
-	'editor.inspector.floor.total-area': 'Gesamtfläche',
-	'editor.inspector.floor.planned-changes': 'Geplante Änderungen',
-	'editor.inspector.floor.estimated-cost': 'Geschätzte Kosten',
-	'editor.inspector.unavailable': 'Noch nicht verfügbar',
-	'editor.inspector.partial': '{count} konnten nicht gelesen werden',
-	'editor.inspector.floor.guidance': 'Wählen Sie einen Raum auf der Zeichenfläche oder in der Liste aus, um Details zu sehen.',
-	'editor.inspector.floor.no-rooms': 'Dieses Geschoss hat noch keine Räume.',
-	'editor.inspector.type': 'Typ',
-	'editor.inspector.floor-context': 'Geschoss',
-	'editor.zone-type.Room': 'Raum',
-	'editor.zone-type.Garden': 'Garten',
-	'editor.zone-type.Terrace': 'Terrasse',
-	'editor.zone-type.Driveway': 'Einfahrt',
-	'editor.zone-type.Roof': 'Dach',
-	'editor.zone-type.ConstructionArea': 'Baubereich',
-	'editor.zone-type.Custom': 'Sonstiges',
-	'editor.inspector.question.existing': 'Was ist vorhanden',
-	'editor.inspector.question.planned': 'Was wird sich ändern',
-	'editor.inspector.question.work': 'Was ist zu tun',
-	'editor.inspector.linked.costs': 'Kosten',
-	'editor.inspector.linked.documents': 'Dokumente',
-	'editor.inspector.linked.photos': 'Fotos',
-	'editor.inspector.linked.notes': 'Notizen',
+	// Three keys that are not `editor.*` but happened to sit inside the moved block's reading
+	// order — see `de/editor.ts`'s own header (and `en/editor.ts`'s) for why they stayed.
 	'sequence.marker-clear-failed': 'Das Löschen wurde gespeichert, aber der Wiederherstellungseintrag konnte nicht aus dem Vault entfernt werden. Er wird beim nächsten Öffnen dieses Vaults entfernt.',
 	'cascade.stale-marker-failed': 'Eine Anforderung konnte nicht als veraltet markiert werden. Ihre Werte können falsch sein, bis sie neu berechnet wird.',
 	'cascade.aborted': 'Mit dieser Änderung verknüpfte Anforderungen konnten nicht aktualisiert werden. Ihre Werte können veraltet sein.',
-	'editor.zone.default-name': 'Zone',
-	'editor.canvas': 'Grundriss-Zeichenfläche',
-	'editor.status': 'Status',
-	'editor.measurements': 'Messwerte',
-	'editor.save-state': 'Speicherstatus',
-	'editor.zoom': 'Zoom',
-	// `Umschalttaste` is the German name of the key itself, which is what a hint about holding
-	// it has to say — `Shift` is the legend printed on many keyboards but not the word.
-	'editor.hint.constrain-angle': 'Umschalttaste beschränkt den Winkel',
-	'editor.loading': 'Grundriss wird geladen …',
-	'editor.background-missing': 'Die Hintergrunddatei dieses Grundrisses fehlt.',
-	'editor.background-failed': 'Der Hintergrund dieses Grundrisses konnte nicht gezeichnet werden.',
-	'editor.property-panel': 'Grundstück und Ebenen',
-	'editor.floor': 'Geschoss',
-	'editor.layer.reference-plan': 'Referenzplan',
-	'editor.layer.reference-plan.none': 'Diesem Geschoss wurde noch kein Referenzplan hinzugefügt.',
-	'editor.layer.reference-plan.set-scale': 'Maßstab festlegen',
-	'editor.layer.rooms': 'Räume',
-	'editor.calibrate.distance.title': 'Reale Entfernung festlegen',
-	'editor.calibrate.distance.label': 'Entfernung in Millimetern',
-	'editor.calibrate.distance.measured': 'Auf dem Hintergrund gemessen:',
-	'editor.calibrate.recalibrate.title': 'Die Zonen auf diesem Plan neu skalieren?',
-	'editor.calibrate.recalibrate.message': 'Auf diesem Plan sind bereits Zonen eingezeichnet. Beim Festlegen des Maßstabs werden alle skaliert. Sie können den Vorgang rückgängig machen.',
-	'editor.task.banner': 'Aktuelle Aufgabe',
-	'editor.task.draw-room.name': 'Raum hinzufügen',
-	'editor.task.draw-room.instruction': 'Klicken Sie, um Ecken zu setzen; klicken Sie auf die erste Ecke, um abzuschließen.',
-	'editor.task.calibrate.name': 'Maßstab festlegen',
-	'editor.task.calibrate.instruction': 'Klicken Sie auf zwei Punkte mit bekanntem Abstand.',
-	'editor.task.cancel': 'Abbrechen',
-	'editor.rail.layers': 'Ebenen',
-	'editor.rail.details': 'Details',
-	'editor.overlay.close': 'Panel schließen',
-	'editor.unsupported-width.headline': 'Dieser Bereich ist zu schmal, um den Grundriss zu bearbeiten',
-	// The same two holes as the English, in the order German word order wants them.
-	'editor.unsupported-width.body': '{floor} hat {rooms} Räume. Vergrößern Sie den Bereich oder fokussieren Sie diesen Tab, um zu bearbeiten.',
-	'editor.unsupported-width.action': 'Diesen Tab fokussieren',
 	'background.no-plan-open': 'Zuerst einen Grundriss-Editor öffnen.',
 	'background.unsupported': 'Nur PNG-, JPEG- und PDF-Dateien können ein Grundriss-Hintergrund sein.',
 	'zone.status.planned': 'Geplant',

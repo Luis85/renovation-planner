@@ -1739,6 +1739,40 @@ lives) and call `publishIfEffectiveCostChanged(deps.events, saved.value.entity, 
 after it. Skip the pre-read for the `'absent'` case — there is no previous figure, and
 `RequirementCreated` is the whole statement.
 
+**The pre-read is BEST-EFFORT and must not gate the restore.** Reported against the first draft
+of this task, and it is the sharper half of the whole design: a malformed live note is exactly
+what `getById` refuses and exactly what `save(snapshot.entity, expected)` can still overwrite,
+because the save conditions on the index revision rather than on a successful parse. So gating
+the restore on the pre-read would refuse to recover **precisely the rows recovery exists for**
+— and worse, a rejection propagates to `recoverInterruptedSequences`' outer `catch`, abandoning
+every marker after this one, for want of an OPTIONAL cost payload.
+
+So: a failed pre-read is logged and the restore proceeds. `RequirementRestored` still goes out,
+because the row really was written back; only `CostEstimateChanged` is omitted, because the
+delta genuinely cannot be computed. Spell it as a value rather than a control-flow branch —
+`previous` is `Money | null`, and `null` means *no cost event*, never *do not restore*:
+
+```ts
+			// Best-effort, never a gate. A malformed live note is what this refuses AND what
+			// the save below can still overwrite, so failing here would abandon the row that
+			// most needs recovering — and the throw would take every later marker with it.
+			const live = expected === 'absent' ? null : await deps.requirements.getById(snapshot.entity.id);
+			const previous = live !== null && isOk(live) && live.value !== null
+				? effectiveValue(live.value.entity.estimatedCost)
+				: null;
+			if (live !== null && isErr(live)) {
+				deps.logger.warn('sequence.recovery.cost-baseline-unreadable', {
+					requirementId: snapshot.entity.id,
+					cause: live.error,
+				});
+			}
+```
+
+A sixth case covers it: a marker whose live note cannot be read still restores, still raises
+`RequirementRestored`, raises no `CostEstimateChanged`, and **leaves the following marker
+processed** — that last clause is what pins the outer-catch consequence, and a case asserting
+only the first three passes against a build that aborts the rest of the run.
+
 Then `src/plugin/RenovationPlannerPlugin.ts:693`:
 
 ```ts
@@ -1866,7 +1900,12 @@ The table is the specification; the rows are the proof.
 | `ReversibleCalibratePlan` | undo | its existing event |
 | `MoveSpatialObject` | execute | `ZoneGeometryChanged` |
 | `MoveSpatialObject` | undo | `ZoneGeometryChanged` |
-| `ReversibleAssetDesignCommands` | each execute/undo pair | its existing events |
+| `ReversibleAssetGeometryEdit` (in `ReversibleAssetDesignCommands.ts`) | execute | its existing events |
+| `ReversibleAssetGeometryEdit` | undo | its existing events |
+| `ReversibleAssetNoteEdit` | execute | its existing events |
+| `ReversibleAssetNoteEdit` | undo | its existing events |
+| `ReversibleAssetBackgroundEdit` | execute | its existing events |
+| `ReversibleAssetBackgroundEdit` | undo | its existing events |
 | `ReversibleSetPlanBackground` | execute, undo | **nothing — the carve-out** |
 
 **Read the last four groups from the tree rather than from this table**: they are adapters this
@@ -1898,10 +1937,25 @@ publish*, but *is this path in the table at all*:
  */
 ```
 
-Discover candidate modules by their `undo` member — a reversible adapter is an object with an
-`execute` and an `undo` — and require every discovered module to appear in the census table.
+**Discover ADAPTERS, not modules — and this correction is the reason the table above grew six
+rows.** Reported against the first draft, which discovered files: `ReversibleAssetDesignCommands.ts`
+holds THREE adapter classes (`ReversibleAssetGeometryEdit`, `ReversibleAssetNoteEdit`,
+`ReversibleAssetBackgroundEdit`), so a new silent adapter added to that file leaves the
+discovered MODULE set unchanged and every existing row green — the identical granularity defect
+as the per-file sweep, surviving in the half of the instrument that was supposed to be the safe
+one.
+
+Verified at the source before this paragraph was written, and it is worse than reported in one
+way that decides the implementation: **none of those three classes is exported.** A scan keyed
+on `export class` finds only `ReversibleAssetDesignCommands`, the facade. So the walk must find
+CLASS DECLARATIONS with both an `execute` and an `undo` member, exported or not, and require a
+row per class PER DIRECTION — `<ClassName>::execute` and `<ClassName>::undo` — not per file and
+not per class.
+
 Assert the discovery found a non-trivial number, because an instrument that reaches nothing
-looks exactly like a clean tree.
+looks exactly like a clean tree. And assert the count is at least what the table above
+enumerates, so a walk that silently stops finding the unexported ones fails rather than
+shrinking to agree with itself.
 
 **The carve-out stays and keeps its exact-key-set assertion.** `ReversibleSetPlanBackground` is
 in the table with "nothing" as its expected events and a reason: a background is not a cost
@@ -1919,8 +1973,13 @@ adapter the table omits, the table was wrong — add it.
 - [ ] **Step 2: Write Part B first, and watch it fail**
 
 The enumeration check is the cheap half and it fails immediately (the table starts empty).
-Then watch it fail the other way: add a fake adapter module under a temp path, confirm it is
-reported as unenumerated, remove it.
+Then watch it fail the two ways that matter, which is what the first draft could not do:
+
+1. Add a fake adapter CLASS to an already-enumerated file — `ReversibleAssetDesignCommands.ts`
+   is the right one, since it already holds three — and confirm it is reported as unenumerated.
+   A module-granular check passes this; that is the whole finding.
+2. Add a fake adapter class that is NOT exported, and confirm it is still found. Three of the
+   real ones are module-private, so an `export class` scan would miss the majority of them.
 
 - [ ] **Step 3: Write the rows**
 

@@ -25,37 +25,6 @@ import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
 
 /**
- * Does this module import a stylesheet? Asked of the TypeScript PARSER, not of a pattern.
- *
- * **Nine rounds of review each named one more lexical construct**, and every intermediate
- * version failed SILENTLY, because the assertion below is an absence — an under-reaching scan
- * reports a clean tree. The sequence, so the next author meets the shape rather than the
- * endpoint: a continuation alternative in the pattern; global continuation removal; `${[^}]*}`;
- * a balanced depth counter; mode tracking; mode tracking minus comment-stripping. Each was
- * correct about the case it was given and wrong about the class, and the ninth report — a brace
- * inside a comment inside a substitution — was the one that could not be closed without telling
- * a regex literal from division, which is the hard problem in hand-lexing JavaScript.
- *
- * So this stops hand-lexing. `ts.createSourceFile` handles comments, regex literals,
- * continuations, nested templates and substitutions because it is the real grammar, and the
- * check becomes a question about NODES: an import declaration, an `export … from`, or a dynamic
- * `import()` whose specifier ends in `.css`. A template ending in a substitution is correctly
- * NOT claimed — the extension is unknowable from source.
- *
- * **The `.vue` objection that deferred this twice is answered the same way**: with the real
- * parser rather than a second hand-rolled one. `@vue/compiler-sfc` hands back `script` and
- * `scriptSetup`; a template-only SFC yields neither and can import nothing.
- *
- * A regex over `<script…>` was written first and failed on the real tree within a minute —
- * `ZoneSummary.vue` mentions `<script setup>` inside an HTML comment, so the extractor found an
- * opening tag with no close. That is the identical mistake this change exists to stop, one layer
- * up: hand-lexing a grammar somebody has already written a parser for.
- *
- * The honest bound is now only the one no analysis reaches: a specifier that is not in the
- * source at all — held in an identifier, or assembled by concatenation — whose value exists
- * only at runtime.
- */
-/**
  * The parser needs the DIALECT, not just the text. `ScriptKind.TS` parses `<div>` in a `.tsx`
  * file as a type assertion and then an unterminated regular expression, so a dynamic
  * `import('./theme.css')` inside JSX never becomes a `CallExpression` and the walk reports a
@@ -86,6 +55,11 @@ interface Script {
 	readonly kind: ts.ScriptKind;
 }
 
+const stylesOf = (file: string, text: string): string[] =>
+	file.endsWith('.vue')
+		? parseSfc(text, { filename: file }).descriptor.styles.map((block) => block.content)
+		: [];
+
 const scriptsOf = (file: string, text: string): Script[] => {
 	if (!file.endsWith('.vue')) {
 		return [{ content: text, kind: KIND_BY_EXTENSION.get(path.extname(file)) ?? ts.ScriptKind.TS }];
@@ -108,7 +82,68 @@ const namesStylesheet = (node: ts.Node): boolean => {
 	return false;
 };
 
+/** Every `@import` URL one stylesheet declares, per the account on `importsIn` below. */
+const importUrlsOf = (filename: string, code: Buffer): string[] => {
+	const found: string[] = [];
+	transform({
+		filename,
+		code,
+		minify: false,
+		errorRecovery: true,
+		visitor: { Rule: { import: (rule) => (found.push(rule.value.url), []) } },
+	});
+	return found;
+};
+
+/**
+ * An SFC `<style>` block can pull a stylesheet too — `@import './theme.css'` — and Vite loads it.
+ * Prototypes are PERMITTED a `<style scoped>` block, and the style-block check further down
+ * rejects blocks only under `tests/harness`, so a prototype was the one place this could hide.
+ *
+ * Asked of the CSS PARSER for the reason the JS side is, and through the extractor this file
+ * ALREADY had. I wrote a second one first — reprint the sheet and match `^@import` — and lint
+ * caught the duplicate import before the duplication itself did. `importsIn` was three
+ * definitions away, and it carries an `errorRecovery: true` my version did not: the vendored
+ * `obsidian.css` contains a literal `*\/` inside preserved upstream prose, which closes a
+ * comment in any conformant parser, so a stricter extractor throws on it. **Reuse was not
+ * tidiness here — the copy would have been wrong on a real file in the tree.**
+ */
+const styleImportsStylesheet = (file: string, css: string): boolean =>
+	importUrlsOf(file, Buffer.from(css)).some((url) => url.endsWith('.css'));
+
+/**
+ * Does this module import a stylesheet? Asked of the TypeScript PARSER, not of a pattern.
+ *
+ * **Nine rounds of review each named one more lexical construct**, and every intermediate
+ * version failed SILENTLY, because the assertion below is an absence — an under-reaching scan
+ * reports a clean tree. The sequence, so the next author meets the shape rather than the
+ * endpoint: a continuation alternative in the pattern; global continuation removal; `${[^}]*}`;
+ * a balanced depth counter; mode tracking; mode tracking minus comment-stripping. Each was
+ * correct about the case it was given and wrong about the class, and the ninth report — a brace
+ * inside a comment inside a substitution — was the one that could not be closed without telling
+ * a regex literal from division, which is the hard problem in hand-lexing JavaScript.
+ *
+ * So this stops hand-lexing. `ts.createSourceFile` handles comments, regex literals,
+ * continuations, nested templates and substitutions because it is the real grammar, and the
+ * check becomes a question about NODES: an import declaration, an `export … from`, or a dynamic
+ * `import()` whose specifier ends in `.css`. A template ending in a substitution is correctly
+ * NOT claimed — the extension is unknowable from source.
+ *
+ * **The `.vue` objection that deferred this twice is answered the same way**: with the real
+ * parser rather than a second hand-rolled one. `@vue/compiler-sfc` hands back `script` and
+ * `scriptSetup`; a template-only SFC yields neither and can import nothing.
+ *
+ * A regex over `<script…>` was written first and failed on the real tree within a minute —
+ * `ZoneSummary.vue` mentions `<script setup>` inside an HTML comment, so the extractor found an
+ * opening tag with no close. That is the identical mistake this change exists to stop, one layer
+ * up: hand-lexing a grammar somebody has already written a parser for.
+ *
+ * The honest bound is now only the one no analysis reaches: a specifier that is not in the
+ * source at all — held in an identifier, or assembled by concatenation — whose value exists
+ * only at runtime.
+ */
 const importsStylesheet = (file: string, text: string): boolean =>
+	stylesOf(file, text).some((css) => styleImportsStylesheet(file, css)) ||
 	scriptsOf(file, text).some((script) => {
 		const source = ts.createSourceFile(
 			file,
@@ -188,17 +223,8 @@ const readText = (file: string): string => readFileSync(file, 'utf8');
  * vendored sheet this way, rather than excluding it from the scan, means an `@import` added to
  * it tomorrow is still caught — an excluded file is an unguarded file.
  */
-const importsIn = (file: string): string[] => {
-	const found: string[] = [];
-	transform({
-		filename: file,
-		code: readFileSync(file),
-		minify: false,
-		errorRecovery: true,
-		visitor: { Rule: { import: (rule) => (found.push(rule.value.url), []) } },
-	});
-	return found;
-};
+
+const importsIn = (file: string): string[] => importUrlsOf(file, readFileSync(file));
 
 /** Every `.css` file directly in `dir` (excluding `skip`) that itself `@import`s another. */
 const sheetsImporting = (dir: string, skip: string[] = []): string[] =>

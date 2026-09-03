@@ -333,6 +333,23 @@ interface ProjectSummary {
 	/** Rows reading `stale`, whatever put them there. */
 	stale: number;
 	/**
+	 * Stale rows a RECALCULATION COULD ACTUALLY FIX. Supplied, never derived by a caller — the
+	 * same reason `summed` is, and it arrived by the same route: a component subtracting one
+	 * count was right for one obstacle and wrong the moment a second existed.
+	 *
+	 * Two things stop a recalculation, and they are counted separately because they say
+	 * different things to the user: an unreadable referent note (`unreadableReferents`) and a
+	 * DELETED one (`missingTarget` on the row). `RecalculateRequirementCommand` refuses the
+	 * second with `requirement.zone-gone` / `requirement.asset-gone` — verified at the raise
+	 * sites — so "needs recalculating" is an impossible instruction for those rows too.
+	 *
+	 * `stale - unreadableReferents` was the arithmetic before this field and it over-counted by
+	 * exactly the missing-target rows. Subtracting both would then double-count a row that is
+	 * both, which is the union only this query can size — the identical argument `summed`
+	 * carries, and the identical mistake made one field over.
+	 */
+	recalculable: number;
+	/**
 	 * Rows built from a referent note that could not be READ — a subset of `stale`, since a
 	 * figure whose inputs cannot be re-read is never reported `current`.
 	 *

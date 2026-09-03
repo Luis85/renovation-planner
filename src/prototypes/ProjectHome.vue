@@ -170,6 +170,8 @@ const staleCount = 3;
  * different summary from the total beside them.
  */
 const unreadableReferentCount = 1;
+/** Supplied by the query, not `stale - unreadableReferents` — see `ProjectEstimate`'s prop. */
+const recalculableCount = 2;
 const unsummableCount = 1;
 /**
  * Supplied, never derived. subtracting every exclusion category double-counts a row caught by two
@@ -253,6 +255,7 @@ const summedCount = 23;
 				:rooms="counts[1]?.value ?? null"
 				:summed="summedCount"
 				:stale="staleCount"
+				:recalculable="recalculableCount"
 				:unreadable-referents="unreadableReferentCount"
 				:unsummable="unsummableCount"
 			/>

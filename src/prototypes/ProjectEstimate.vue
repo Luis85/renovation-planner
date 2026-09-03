@@ -98,6 +98,17 @@ const props = withDefaults(
 		 */
 		stale?: number;
 		/**
+		 * Stale rows a recalculation could actually fix — SUPPLIED, not derived here.
+		 *
+		 * This was `stale - unreadableReferents`, which was right for one obstacle and wrong the
+		 * moment a second existed: a row whose asset or zone was DELETED carries `missingTarget`
+		 * rather than an unreadable referent, and `RecalculateRequirementCommand` refuses it with
+		 * `requirement.asset-gone` / `requirement.zone-gone`. Subtracting both counts instead
+		 * would double-count a row that is both, which is a union only the query can size — the
+		 * same argument `summed` carries, and the same mistake one field over.
+		 */
+		recalculable?: number;
+		/**
 		 * Rows built from a referent note that could not be READ — a subset of `stale`, since a
 		 * figure whose inputs cannot be re-read is never reported current. A STATE, like every
 		 * count here: whether such a row reached the amount is `unsummable`'s question, not this
@@ -115,6 +126,7 @@ const props = withDefaults(
 		summed: 23,
 		rooms: 11,
 		stale: 3,
+		recalculable: 2,
 		unreadableReferents: 1,
 		unsummable: 1,
 	},
@@ -159,11 +171,10 @@ const provenance = computed(() => {
  * a shared `<circle>` is a fact about the icon set rather than an accident of the collapse.
  */
 const flags = computed(() => {
-	// **Only the rows recalculating can actually fix.** `stale` includes `unreadableReferents`,
-	// and recalculating a row whose asset or zone note cannot be read fails for the same reason
-	// the read did — so printing the whole stale count here offers a remedy that cannot be
-	// applied, which is slice 14's live-control-that-does-nothing rule arriving as copy.
-	const recalculable = props.stale - props.unreadableReferents;
+	// **Only the rows a recalculation could actually fix**, which is a count the QUERY supplies
+	// rather than one this component derives. `stale` includes both obstacles — an unreadable
+	// referent and a DELETED one — and printing the whole stale count offers a remedy that
+	// cannot be applied, which is slice 14's live-control-that-does-nothing rule as copy.
 	// The PREDICATES are data too, not just the rows. Three `if` blocks pushing into an array
 	// put this function over fallow's CRAP threshold the moment a third condition arrived — a
 	// prototype has no test coverage, so cyclomatic complexity squares — and the file's own
@@ -171,11 +182,11 @@ const flags = computed(() => {
 	// select them.
 	return [
 		{
-			when: recalculable > 0,
+			when: props.recalculable > 0,
 			health: 'stale',
 			key: 'stale',
 			d: 'M12 7v5l3 2',
-			text: `${recalculable} need recalculating`,
+			text: `${props.recalculable} need recalculating`,
 		},
 		{
 			// Points at the diagnostics door rather than at a remedy. WHICH note failed is

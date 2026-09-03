@@ -959,8 +959,19 @@ mutation, and the repair strip would have gone on being stale exactly as before.
 
 **`ProjectIndexExclusionChanged { path: string; entityType: EntityType }`** is the addition —
 keyed by PATH, which is the only stable identifier a note with no id has, and carrying the type so
-a subscriber can filter. Added to `createAssetCatalogueChangeSource` under a
-`entityType === 'asset'` filter, per the filter argument §5.4 already makes.
+a subscriber can filter. Added to the library's own source under an
+`entityType === 'renovation-asset'` filter, per the filter argument §5.4 already makes.
+
+**The literal is `renovation-asset`, not `asset`**, and the shorter spelling was wrong twice over:
+`ENTITY_TYPES` declares the persisted discriminators (`renovation-project`, `renovation-plan`,
+`renovation-zone`, `renovation-asset`, `renovation-requirement`) and `EntityType` is derived from
+that array, so `'asset'` is not a member of the union at all — and
+`createAssetCatalogueChangeSource` already compares `changedEntityTypeOf(event) === 'renovation-asset'`
+three lines from where this filter would sit. A filter written to the short spelling matches
+nothing, silently: every exclusion event is dropped and the repair strip goes stale exactly as it
+did before the event existed, which is the defect this whole section adds the event to close.
+Reported by a review bot against this document; the same correction applies to §5.4's repeat of
+the filter.
 
 **And the descriptor carries `EntityType`, which the index cannot supply from its key.**
 `ProjectIndex` is keyed by id GLOBALLY — one namespace across projects, plans, zones, requirements,
@@ -974,8 +985,15 @@ The type is **free at the point of exclusion and nowhere else**, which is what d
 captured: `entityRefOf` validates `type` against `ENTITY_TYPES` on the line ABOVE the id check and
 returns `{ kind: 'no-id' }` having already proved it. That union member gains `type: EntityType` —
 no new parsing, no second read of the frontmatter, and the alternative (re-reading the note when
-the strip is drawn) is a vault read per excluded note per render. A duplicate-id loser has its
-winner's type for the same reason. The null arm is not a gap: a note with no usable id cannot
+the strip is drawn) is a vault read per excluded note per render. A duplicate-id loser carries **its OWN parsed
+type, never the winner's** — and the difference is reachable rather than pedantic, because
+`ProjectIndex` is one global id namespace and `collectNotes` keys its map by `ref.id` with no type
+in the key. So an asset note and a project note declaring the same id collide, and assigning the
+winner's type puts the excluded asset into the repair list of whichever entity displaced it: an
+asset displaced by a project vanishes from this surface's `unreadable` list, while a project
+displaced by an asset appears in it. The loser's own type is free at both sides of the collision —
+`ref.type` for an arriving note that loses, and the displaced entry's own `type` field for one
+already in the map — so nothing has to be re-read to get it right. Reported by a review bot. The null arm is not a gap: a note with no usable id cannot
 be SELECTED, because nothing can name it — it can only be counted and listed, and its path is what
 `Open note` needs regardless.
 
@@ -1187,7 +1205,7 @@ The contract, so a builder does not invent one:
   `ProjectIndexEntryChanged` and nothing else — measured, not assumed: `announce` is that pair's
   single publisher and it raises exactly one event type. So the previous rule's *"the event is
   certain and prompt"* held only for deletions the plugin itself performed, which is not how an
-  asset note is most often removed. Filtered to `entityType === 'asset'`, per §5.4's existing
+  asset note is most often removed. Filtered to `entityType === 'renovation-asset'`, per §5.4's existing
   filter argument: unfiltered, a burst of synced zone notes would clear every mark on screen.
 - **An entry LEAVING the listing invalidates its mark**, which covers what no event announces. The cache is keyed by asset id, and an id here is
   `z.string().min(1)` in the note's own frontmatter — a user can delete an asset and create

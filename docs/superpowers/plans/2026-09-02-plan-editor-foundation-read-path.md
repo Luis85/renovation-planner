@@ -1,5 +1,12 @@
 # Plan Editor Foundation, Increment 1 — Implementation Plan
 
+**Reconciled 2026-09-04** against `bc6ca060`: all 25 tasks executed; Task 5 (the rebase gate)
+was run by the orchestrator; nothing was withdrawn. Every checkbox above Task 25's Step 4 is
+ticked against a deliverable confirmed in the tree at that commit (each task's own Files block,
+spot-checked with `ls`/`grep`; the PR description records every wave shipped). Task 25's Step 4,
+"Invoke `superpowers:finishing-a-development-branch`", stays unticked: this branch is still
+active, carrying further review-findings tasks, so that step has not been reached.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give the Plan Editor its homeowner-facing read path: Select as the default, a truthful floor summary and room list, one stable identity across canvas, list and Inspector, a Room Inspector that marks unbuilt sections unavailable, an Add menu whose only enabled entry routes to the existing draw tool, and a shell that survives a narrow leaf — with WP0's two ADRs and consolidation report written first and no new vault write anywhere.
@@ -111,11 +118,11 @@ If `0014` or `0015` already exist on this branch, the asset-designer branch has 
 **Interfaces:**
 - Produces: the decision Task 7's `toSpatialRecordDto` implements (`kind: 'room'` iff `zoneType === 'Room'`, every other type `'area'`).
 
-- [ ] **Step 1: Read the two inputs**
+- [x] **Step 1: Read the two inputs**
 
 Read `docs/development/adrs/0013-a-project-folder-is-derived-from-its-note.md` for the frontmatter and section shape (`adr`, `title`, `status`, `date`, `area`; sections Context, Decision, Alternatives, Consequences, Revisit when, References). Read `src/domain/zone/ZoneType.ts` (seven types, `Room` among them) and `src/domain/zone/Zone.ts` lines 13–23 (`CreateZoneProps`, including `domainNoteLink`).
 
-- [ ] **Step 2: Write the ADR**
+- [x] **Step 2: Write the ADR**
 
 ```markdown
 ---
@@ -181,7 +188,7 @@ not before.
 - ADR-0001 (Markdown metadata), ADR-0002 and ADR-0011 (geometry sidecar)
 ```
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/development/adrs/0016-a-room-classified-zone-presents-as-room.md
@@ -196,7 +203,7 @@ git commit -m "docs(adr): a room-classified zone presents as Room, in presentati
 **Interfaces:**
 - Produces: the decision Task 7's `toFloorDto` implements (a `FloorDto` is a `PlanDto` plus the project name).
 
-- [ ] **Step 1: Write the ADR**
+- [x] **Step 1: Write the ADR**
 
 ```markdown
 ---
@@ -249,7 +256,7 @@ A project has two buildings, or two plans must be aligned as floors of one build
 - `docs/requirements/Navigate property, building and floor context in the editor.md`
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add docs/development/adrs/0017-plan-presents-as-floor.md
@@ -265,7 +272,7 @@ git commit -m "docs(adr): Plan presents as Floor; no Floor entity"
 - Consumes: `createRepositoryStack` (`tests/helpers/vault.ts`), `makeProject`/`makePlan`/`makeZone` (`tests/helpers/entities.ts`), `expectOk`/`expectFound` (`tests/helpers/domain.ts`), `parseFrontmatter` (`tests/helpers/vault.ts`).
 - Produces: the measured field list the report's round-trip matrix cites.
 
-- [ ] **Step 1: Write the test**
+- [x] **Step 1: Write the test**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -385,17 +392,17 @@ describe('editor round trip: Project, Plan and a Room-classified Zone', () => {
 });
 ```
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `npx vitest run tests/infrastructure/persistence/editorRoundTrip.test.ts`
 Expected: PASS on all five. If `getFileByPath` or `parseFrontmatter`'s argument shape differs from the helper's actual signature, read `tests/helpers/vault.ts` and adjust the call — the assertions are the contract, the helper spelling is not. If the body case FAILS, that is a finding for the report (Task 4), not a reason to weaken the assertion: record it in the gap register as a defect and leave the test red-marked with `it.fails` plus a comment naming the report.
 
-- [ ] **Step 3: Run the whole check**
+- [x] **Step 3: Run the whole check**
 
 Run: `npm run check`
 Expected: green (the new file adds a test and no source).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/infrastructure/persistence/editorRoundTrip.test.ts
@@ -411,7 +418,7 @@ git commit -m "test(persistence): the editor's first-slice round trip, measured"
 - Consumes: Tasks 1–3.
 - Produces: the deferred-ADR list Task 25 links from the PBI.
 
-- [ ] **Step 1: Measure the inventory from the tree, not from memory**
+- [x] **Step 1: Measure the inventory from the tree, not from memory**
 
 Run each and paste the answers into the report's tables:
 
@@ -424,7 +431,7 @@ grep -n "^\s*'\?[a-z-]*'\?:" src/infrastructure/persistence/dto/zoneFrontmatter.
 grep -n "domainNoteLink" -r src/
 ```
 
-- [ ] **Step 2: Write the report**
+- [x] **Step 2: Write the report**
 
 Sections, each filled from Step 1's output (no placeholder may remain):
 
@@ -478,11 +485,11 @@ discharged for this increment by this paragraph and by the round-trip instrument
 | SV | additive change at v1 vs version bump | first key that moves or changes meaning | see CLAUDE.md's "still empty BY A DECISION" |
 ```
 
-- [ ] **Step 3: Self-check the report**
+- [x] **Step 3: Self-check the report**
 
 `grep -n "TBD\|TODO\|<sha" docs/development/consolidation/2026-09-editor-model-consolidation.md` must print nothing. Every file named in §1 must exist: `for f in $(grep -o 'src/[^ |`]*\.ts' <report>); do test -f "$f" || echo MISSING $f; done`.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/development/consolidation/2026-09-editor-model-consolidation.md
@@ -491,17 +498,17 @@ git commit -m "docs: WP0 consolidation report — inventory, mapping, round trip
 
 ### Task 5: the rebase gate (orchestrator, not a subagent)
 
-- [ ] **Step 1: Check whether the asset-designer branch has landed**
+- [x] **Step 1: Check whether the asset-designer branch has landed**
 
 ```bash
 git fetch origin
-git log --oneline origin/main | grep -c "asset designer\|Asset Designer\|designer's" 
+git log --oneline origin/main | grep -c "asset designer\|Asset Designer\|designer's"
 git ls-tree origin/main --name-only src/presentation/editor/surface/ 2>/dev/null
 ```
 
 Expected when landed: `EditorSurface.vue` is listed. If it is NOT listed: **STOP.** Report to the user that Wave 0 is complete and committed, that Wave 1 onward builds on files the asset-designer branch moves, and ask whether to wait, to branch from the asset-designer branch, or to proceed against `main` and absorb the conflict later. Do not proceed on your own.
 
-- [ ] **Step 2: Merge main**
+- [x] **Step 2: Merge main**
 
 ```bash
 git merge origin/main
@@ -510,11 +517,11 @@ npm run check
 
 Expected: no conflicts (Wave 0 touched no `src/` file the other branch touched) and a green check.
 
-- [ ] **Step 3: Record the file-name substitution for Waves 2–3**
+- [x] **Step 3: Record the file-name substitution for Waves 2–3**
 
 After the merge the gesture surface is `src/presentation/editor/surface/EditorSurface.vue` and `PlanCanvas.vue` is a thin host. Every later task that says "the gesture surface" means `EditorSurface.vue`. Confirm: `grep -n "function onKeyDown" src/presentation/editor/surface/EditorSurface.vue src/presentation/editor/PlanCanvas.vue` prints exactly one match and note which file. Also confirm `grep -n "cursorClass" src/presentation/editor/surface/EditorSurface.vue`.
 
-- [ ] **Step 4: Commit the merge if it was not fast-forward** — `git log --oneline -1` shows a merge commit or the fast-forwarded head.
+- [x] **Step 4: Commit the merge if it was not fast-forward** — `git log --oneline -1` shows a merge commit or the fast-forwarded head.
 
 ---
 
@@ -533,7 +540,7 @@ After the merge the gesture surface is `src/presentation/editor/surface/EditorSu
 - Produces: `PlanEditorQueryServices.getProject(projectId: string): Promise<Result<ProjectSummaryDto | null, RepositoryError>>`; `ProjectStore.project` is non-null once `status === 'ready'`.
 - Consumes: `GetProject` (`src/application/queries/GetProject.ts`, input `{ projectId: ProjectId }`, answers `Result<Loaded<Project> | null, RepositoryError>`), `toProjectSummaryDto(project, libraryOverlap)` (`PlanDto.ts`).
 
-- [ ] **Step 1: Write the failing store test**
+- [x] **Step 1: Write the failing store test**
 
 In `tests/presentation/stores/stores.test.ts`, inside the existing project-store `describe` (read the file's mount pattern first — it creates a Pinia and calls `useProjectStore()`), add:
 
@@ -565,12 +572,12 @@ it('treats a project that no longer resolves as a missing plan', async () => {
 });
 ```
 
-- [ ] **Step 2: Run to see them fail**
+- [x] **Step 2: Run to see them fail**
 
 Run: `npx vitest run tests/presentation/stores/stores.test.ts`
 Expected: FAIL — `getProject` is not a member, `project` stays `null`.
 
-- [ ] **Step 3: Widen the query services**
+- [x] **Step 3: Widen the query services**
 
 In `planEditorQueries.ts`, add to `PlanEditorQueryServices`:
 
@@ -594,7 +601,7 @@ Add `getProject: refuseUnrecovered,` to `unavailablePlanEditorQueries()`. Widen 
 		},
 ```
 
-- [ ] **Step 4: Hydrate the project**
+- [x] **Step 4: Hydrate the project**
 
 In `ProjectStore.hydrate`, after the `foundPlan.value === null` branch and before `findZonesByPlan`, insert:
 
@@ -622,16 +629,16 @@ In `ProjectStore.hydrate`, after the `foundPlan.value === null` branch and befor
 
 and at the success block set `project.value = foundProject.value;` beside `plan.value = foundPlan.value;`. Check that `fail()` and `reset()` already null `project` (line ~227 does).
 
-- [ ] **Step 5: Widen the fixtures**
+- [x] **Step 5: Widen the fixtures**
 
 `tests/helpers/planFixtures.ts` — add a `FIXTURE_PROJECT: ProjectSummaryDto = { id: 'project-1', name: 'Willow House', status: 'Planning', currency: 'EUR', libraryOverlap: false }` (check `ProjectStatus` values with `grep -n "PROJECT_STATUSES\|ProjectStatus =" -A6 src/domain/project/*.ts` and use one that exists) and `getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),` in `fakeQueries`. `tests/harness/planEditor.ts` — add `HARNESS_PROJECT` the same way (`id: 'harness-project', name: 'Willow House'`) and `getProject: () => Promise.resolve(ok(structuredClone(HARNESS_PROJECT))),`.
 
-- [ ] **Step 6: Build, then run the suites**
+- [x] **Step 6: Build, then run the suites**
 
 Run: `npm run build && npx vitest run tests/presentation/stores tests/presentation/editor/shell.test.ts tests/harness`
 Expected: `vue-tsc` reports every other hand-written `PlanEditorQueryServices` literal in `tests/` that now lacks `getProject` — fix each by spreading `fakeQueries(...)` or adding the member; then green.
 
-- [ ] **Step 7: Full check and commit**
+- [x] **Step 7: Full check and commit**
 
 ```bash
 npm run check
@@ -665,7 +672,7 @@ export interface RoomOverviewDto { readonly record: SpatialRecordDto; readonly f
 export function buildRoomOverview(zone: ZoneDto, plan: PlanDto): RoomOverviewDto;
 ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tests/presentation/read-models/spatialRecords.test.ts`:
 
@@ -757,9 +764,9 @@ describe('buildRoomOverview', () => {
 });
 ```
 
-- [ ] **Step 2: Run to see them fail** — `npx vitest run tests/presentation/read-models` → FAIL, modules missing.
+- [x] **Step 2: Run to see them fail** — `npx vitest run tests/presentation/read-models` → FAIL, modules missing.
 
-- [ ] **Step 3: Implement `spatialRecords.ts`**
+- [x] **Step 3: Implement `spatialRecords.ts`**
 
 ```ts
 import type { Point } from '../../core/geometry/Point';
@@ -861,7 +868,7 @@ export function buildFloorSummary(input: {
 }
 ```
 
-- [ ] **Step 4: Implement `roomOverview.ts`**
+- [x] **Step 4: Implement `roomOverview.ts`**
 
 ```ts
 import type { PlanDto, ZoneDto } from './PlanDto';
@@ -888,7 +895,7 @@ export function buildRoomOverview(zone: ZoneDto, plan: PlanDto): RoomOverviewDto
 }
 ```
 
-- [ ] **Step 5: Run, check, commit**
+- [x] **Step 5: Run, check, commit**
 
 ```bash
 npx vitest run tests/presentation/read-models
@@ -922,7 +929,7 @@ openOverlay(kind: 'layers' | 'inspector'): void;  // one at a time
 closeOverlay(): void;
 ```
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `tests/presentation/editor/shell/layoutMode.test.ts`:
 
@@ -971,9 +978,9 @@ it('resets layout mode and overlay with everything else', () => {
 });
 ```
 
-- [ ] **Step 2: Run to see them fail.**
+- [x] **Step 2: Run to see them fail.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `layoutMode.ts`:
 
@@ -1021,7 +1028,7 @@ export function layoutModeFor(widthPx: number): LayoutMode {
 
 Import `type LayoutMode` from `../editor/shell/layoutMode`, add `layoutMode.value = 'full'; overlay.value = 'none';` to `reset()`, and return the six new members.
 
-- [ ] **Step 4: Run, check, commit**
+- [x] **Step 4: Run, check, commit**
 
 ```bash
 npx vitest run tests/presentation/editor/shell/layoutMode.test.ts tests/presentation/stores
@@ -1068,7 +1075,7 @@ export interface EscapeDeps {
 export function routeEscape(deps: EscapeDeps): EscapeOutcome;
 ```
 
-- [ ] **Step 1: Failing test for the routine**
+- [x] **Step 1: Failing test for the routine**
 
 ```ts
 import { describe, expect, it, vi } from 'vitest';
@@ -1125,9 +1132,9 @@ describe('routeEscape — one precedence for the whole canvas', () => {
 });
 ```
 
-- [ ] **Step 2: Run — FAIL, module missing.**
+- [x] **Step 2: Run — FAIL, module missing.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `escapeRouting.ts`:
 
@@ -1182,7 +1189,7 @@ export function routeEscape(deps: EscapeDeps): EscapeOutcome {
 
 Run `npm run build`: every tool fake in `tests/` that implements `EditorTool` now fails to compile — add `hasDraft: () => false` (or the method) to each.
 
-- [ ] **Step 4: Wire the gesture surface**
+- [x] **Step 4: Wire the gesture surface**
 
 In the gesture surface's `onKeyDown`, replace the body of the `if (event.key === 'Escape')` branch's non-repeat path so that instead of calling `toolManager.cancelGesture()` directly it calls:
 
@@ -1207,7 +1214,7 @@ Keep the existing `event.repeat` guard and `preventDefault()` exactly where they
 	}
 ```
 
-- [ ] **Step 5: Regression cases in the surface's own suite**
+- [x] **Step 5: Regression cases in the surface's own suite**
 
 In `tests/presentation/editor/canvasKeyboardGestures.test.ts` (read its mount helpers first) add:
 
@@ -1235,7 +1242,7 @@ it('Escape on an empty drawing tool returns to Select rather than clearing anyth
 
 (`runtimeOf` — whatever the file already uses to reach `EditorRuntime`; if nothing does, read the runtime off `useEditorStore().activeToolId` for the second assertion and call `setTool` through the toolbar-equivalent the harness offers. The existing "Escape mid-polygon keeps the buffer while panning" case must stay green.)
 
-- [ ] **Step 6: Check and commit**
+- [x] **Step 6: Check and commit**
 
 ```bash
 npm run check
@@ -1253,7 +1260,7 @@ git commit -m "feat(editor): one Escape routine — pan, draft, tool, selection,
 - Produces: `DrawPolygonToolDeps.onCompleted: () => void` (REQUIRED; called after a successful close, after the new zone is selected). `EditorRuntime.returnToSelect(): void` (same as `setTool('select')`, named for the two callers that mean it).
 - Consumes: `ProjectStore.status`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `runtime.test.ts` (read how it builds a runtime — `provideEditorRuntime` inside a mounted component, or a helper):
 
@@ -1285,9 +1292,9 @@ it('reports completion after selecting the zone it drew, so the runtime can retu
 it('does not report completion for a refused close', async () => { /* drive the existing refused-close fixture and assert `onCompleted` was not called */ });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `draw-polygon-tool.ts`, add to `DrawPolygonToolDeps`:
 
@@ -1321,7 +1328,7 @@ In `runtime.ts`:
 
 Pass `onCompleted: returnToSelect` in `registerEditorTools`' `DrawPolygonTool` construction (thread `returnToSelect` in as a parameter or hoist `setTool` above the registration). Add `returnToSelect` to `EditorRuntime` and the returned object. Fix every `DrawPolygonToolDeps` literal in `tests/` (`npm run build` lists them) with `onCompleted: () => {}`.
 
-- [ ] **Step 4: Check and commit**
+- [x] **Step 4: Check and commit**
 
 ```bash
 npm run check
@@ -1353,7 +1360,7 @@ export function resolveSelectionTarget(input: {
 }): SelectionTarget;
 ```
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -1392,9 +1399,9 @@ describe('resolveSelectionTarget', () => {
 });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 import { contains, distance } from '../../../core/geometry/operations';
@@ -1437,7 +1444,7 @@ export function resolveSelectionTarget(input: {
 }
 ```
 
-- [ ] **Step 4: Make `SelectTool` use it**
+- [x] **Step 4: Make `SelectTool` use it**
 
 In `pointerDown`, replace the vertex-then-body sequence (the block around lines 139–175 that calls `vertexAt` and `hitTest`) with:
 
@@ -1470,11 +1477,11 @@ Delete `hitTest` and `vertexAt`. Then in `pointerMove`, when `this.gesture === n
 
 and clear it in `deactivate()` and at the start of a gesture. Run the existing `selectTool.test.ts` — every case must stay green (the handle-beats-body and topmost cases already exist there in some form; if a case asserted the OLD order for an unselected zone's vertex, read it against the spec's priority and fix the case, not the resolver).
 
-- [ ] **Step 5: Cursor**
+- [x] **Step 5: Cursor**
 
 In the gesture surface's `cursorClass`, after the pan phase test and before the precise-tools test, add: `if (activeToolId.value === 'select' && renderState.hoveredObjectId !== null) return 'rp-plan-canvas-target';` (`renderState` arrives the same way `toolManager` does on `EditorSurface`: add a `renderState: RenderState` prop and pass `runtime.renderState` from `PlanCanvas.vue`). In `styles/editor-cursors.css` add `.rp-plan-canvas-target { cursor: pointer; }` with a one-line comment. In `canvasNavigation.test.ts` (or `interactionLayer.test.ts`, whichever mounts the canvas with zones) add a case: set `runtime.renderState.hoveredObjectId = 'zone-kitchen'` with Select active, `await settle()`, assert `canvasEl.classList.contains('rp-plan-canvas-target')`; then start a middle-button pan and assert the pan class wins.
 
-- [ ] **Step 6: Check and commit**
+- [x] **Step 6: Check and commit**
 
 ```bash
 npm run check
@@ -1493,7 +1500,7 @@ git commit -m "feat(selection): one resolver for click and hover; the cursor say
 - Produces: `EditorRuntime.selectAndFrame(id: string): void` — selects the id and fits the camera to that record's bounds through `EditorStore.fitTo`; a degenerate extent leaves the camera alone. The runtime retires ids that no longer resolve after a hydrate.
 - Consumes: `boundsOfZones` (`viewport/zoneExtent.ts`), `EditorStore.fitTo(bounds, stage)`, and the stage size — read `EditorStore` for how the surface publishes the stage size (`grep -n "stageSize\|size" src/presentation/stores/EditorStore.ts`); if the store does not hold one, `selectAndFrame` takes it as a second parameter `stage: StageSize` and the list passes the surface's size through the same prop path `framedBounds` uses.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `interactionLayer.test.ts`:
 
@@ -1532,9 +1539,9 @@ it('a selected zone that disappears from the next hydrate is retired, not reboun
 });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement the outline**
+- [x] **Step 3: Implement the outline**
 
 In `InteractionLayer.vue` add:
 
@@ -1556,7 +1563,7 @@ and in the template, before the selection outline:
 
 (Use the token name the selection outline already uses for its stroke — `grep -n "stroke:" src/presentation/editor/layers/InteractionLayer.vue`. No new colour; a hover is the selection's stroke, thinner and dashed.)
 
-- [ ] **Step 4: Implement `selectAndFrame` and the retirement watcher**
+- [x] **Step 4: Implement `selectAndFrame` and the retirement watcher**
 
 In `runtime.ts`:
 
@@ -1583,7 +1590,7 @@ In `runtime.ts`:
 
 Add `selectAndFrame` to `EditorRuntime` and the returned object.
 
-- [ ] **Step 5: Check and commit**
+- [x] **Step 5: Check and commit**
 
 ```bash
 npm run check
@@ -1604,7 +1611,7 @@ git commit -m "feat(editor): hover outline, list framing, and a gone selection i
 - Produces: `FloatingPrimaryActions` emits `openAdd` (Task 18 wires the menu; until then the root ignores it). Classes `.rp-context-bar`, `.rp-context-bar__crumb`, `.rp-context-bar__button`, `.rp-primary-actions`, `.rp-primary-actions__button`.
 - Strings (both locales): `editor.context-bar` ("Editor context"/"Editor-Kontext"), `editor.context.undo` ("Undo"/"Rückgängig"), `editor.context.redo` ("Redo"/"Wiederholen"), `editor.primary-actions` ("Primary actions"/"Hauptaktionen"), `editor.primary.select` ("Select"/"Auswählen"), `editor.primary.add` ("Add"/"Hinzufügen"). Delete `editor.toolbar`, `editor.toolbar.pan`, `.select`, `.draw-zone`, `.undo`, `.redo`, `.calibrate` from both locales.
 
-- [ ] **Step 1: Failing component tests**
+- [x] **Step 1: Failing component tests**
 
 `editorContextBar.test.ts` (mount with the editor harness — `mountPlanEditorCanvas()` — because the bar reads `ProjectStore` and the runtime):
 
@@ -1644,9 +1651,9 @@ it('presses Select while the select tool is active and emits openAdd from Add', 
 });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Write `EditorContextBar.vue`**
+- [x] **Step 3: Write `EditorContextBar.vue`**
 
 ```vue
 <script setup lang="ts">
@@ -1710,7 +1717,7 @@ const crumbs = computed(() => [project.value?.name ?? '', plan.value?.name ?? ''
 
 The `›` separator is CSS (`.rp-context-bar__crumb + .rp-context-bar__crumb::before { content: '›'; }`), so the crumb text stays clean for the test and for a screen reader.
 
-- [ ] **Step 4: Write `FloatingPrimaryActions.vue`**
+- [x] **Step 4: Write `FloatingPrimaryActions.vue`**
 
 ```vue
 <script setup lang="ts">
@@ -1755,7 +1762,7 @@ const emit = defineEmits<{ openAdd: [] }>();
 </template>
 ```
 
-- [ ] **Step 5: Styles**
+- [x] **Step 5: Styles**
 
 `styles/editor-shell.css` (new partial; header comment names the tasks that fill it; all values Obsidian variables):
 
@@ -1771,11 +1778,11 @@ const emit = defineEmits<{ openAdd: [] }>();
 
 Copy the `.rp-editor-toolbar .rp-editor-tool-button` block's specificity and focus-ring approach from `styles/editor.css` for `.rp-context-bar .rp-context-bar__button` and `.rp-primary-actions .rp-primary-actions__button` (qualified with the container, `:focus-visible` ring kept, `aria-pressed="true"` state via `[aria-pressed="true"]`), then delete the toolbar rules from `editor.css`. Run `npx vitest run tests/build/buttonSpecificity.test.ts tests/build/buttonFocusRing.test.ts tests/build/focusReach.test.ts` — they read button classes from the Vue source and will name exactly what is missing.
 
-- [ ] **Step 6: Wire the root, retire the toolbar**
+- [x] **Step 6: Wire the root, retire the toolbar**
 
 In `PlanEditorRoot.vue`: replace `<EditorToolbar />` with `<EditorContextBar />`; inside `<PlanCanvas>`'s slot, beside the empty-state overlay, add `<FloatingPrimaryActions @open-add="() => {}" />` (Task 18 replaces the handler). Delete `EditorToolbar.vue`. Delete the seven `editor.toolbar*` keys from both locales, add the six new ones. Update `tests/helpers/planEditorRig.ts`'s `toolbarButton(harness, label)` to find `.rp-primary-actions__button` / `.rp-context-bar__button` by text and rename it `actionButton`; update its callers (`grep -rln "toolbarButton" tests`). `calibrateWiring.test.ts` reaches Calibrate through the toolbar today — Task 14 gives it a new door; in THIS task make its case reach the tool through `runtime.setTool('calibrate')` and leave a `// Task 14 routes this through the Set scale action` comment.
 
-- [ ] **Step 7: Check and commit**
+- [x] **Step 7: Check and commit**
 
 ```bash
 npm run check
@@ -1803,7 +1810,7 @@ export function layerCatalogue(plan: PlanDto | null): readonly LayerEntry[];
 
 - Strings: `editor.layer.reference-plan` ("Reference plan"/"Referenzplan"), `editor.layer.reference-plan.none` ("No reference plan has been added to this floor."/"Diesem Geschoss wurde noch kein Referenzplan hinzugefügt."), `editor.layer.reference-plan.set-scale` ("Set scale"/"Maßstab festlegen"), `editor.layer.rooms` ("Rooms"/"Räume"), `editor.property-panel` ("Property and layers"/"Objekt und Ebenen" — NOTE: here "Objekt" would collide with the asset term; use "Grundstück und Ebenen"), `editor.floor` ("Floor"/"Geschoss"). Delete `editor.layer.background`, `.architecture`, `.zone`, `.construction`, `.asset`, `.annotation`, `.interaction` from both locales.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `layerCatalogue.test.ts`:
 
@@ -1843,9 +1850,9 @@ it('Set scale activates the calibrate tool when a background exists', async () =
 });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement `layerCatalogue.ts`**
+- [x] **Step 3: Implement `layerCatalogue.ts`**
 
 ```ts
 import type { StringKey } from '../../i18n/locales/en';
@@ -1900,17 +1907,17 @@ export function layerCatalogue(plan: PlanDto | null): readonly LayerEntry[] {
 }
 ```
 
-- [ ] **Step 4: `LayerList.vue` and `PropertyLayerPanel.vue`**
+- [x] **Step 4: `LayerList.vue` and `PropertyLayerPanel.vue`**
 
 `LayerList.vue` takes `entries: readonly LayerEntry[]` as a prop (so the overlay in Task 20 can reuse it) and reads `WorkspaceStore` for visibility; each row: a checkbox (`:disabled="entry.state === 'supported-empty'"`, `:aria-describedby` pointing at a `<span :id>` with the reason when there is one), a `<label for>`, and when `entry.action` is non-null a `<button type="button" data-rp-action="set-scale" :disabled="!entry.action.enabled" :aria-describedby=…>` that emits `activateTool(entry.action.toolId)`. Classes `.rp-layer-list`, `.rp-layer-list__row`, `.rp-layer-list__reason`, `.rp-layer-list__action`. Reuse the row CSS from `editor.css`'s `.rp-editor-layer-row` (rename in place).
 
 `PropertyLayerPanel.vue`: the `<aside class="rp-editor-layers" :aria-label="tr('editor.property-panel')">` (keep the class so `shell.test.ts`'s region assertions and the CSS width survive), an `<h2>` with `tr('editor.floor')` and the plan name, then `<LayerList :entries="layerCatalogue(plan)" @activate-tool="runtime.setTool" />`.
 
-- [ ] **Step 5: Retire `LayersPanel.vue`, update tests**
+- [x] **Step 5: Retire `LayersPanel.vue`, update tests**
 
 Root mounts `PropertyLayerPanel` where `LayersPanel` was. `shell.test.ts`'s "the layers panel" describe asserted seven checkboxes and their labels — rewrite to two rows with the new labels. `calibrateWiring.test.ts` reaches Calibrate through `set-scale` now (mount with a background). Delete the seven old keys from both locales.
 
-- [ ] **Step 6: Check and commit**
+- [x] **Step 6: Check and commit**
 
 ```bash
 npm run check
@@ -1930,7 +1937,7 @@ git commit -m "feat(layers): a two-entry truthful catalogue, and Set scale on th
 - Produces: classes `.rp-editor-inspector` (kept on the frame), `.rp-floor-inspector`, `.rp-floor-inspector__stat`, `.rp-floor-inspector__stat--partial`, `.rp-floor-inspector__stat--unavailable`, `.rp-room-list`, `.rp-room-list__row`; the frame's `role="status"` element `.rp-inspector-guidance`.
 - Strings: `editor.inspector.floor.rooms` ("Rooms"/"Räume"), `editor.inspector.floor.areas` ("Areas"/"Flächen"), `editor.inspector.floor.total-area` ("Total area"/"Gesamtfläche"), `editor.inspector.floor.planned-changes` ("Planned changes"/"Geplante Änderungen"), `editor.inspector.floor.estimated-cost` ("Estimated cost"/"Geschätzte Kosten"), `editor.inspector.unavailable` ("Not available yet"/"Noch nicht verfügbar"), `editor.inspector.partial` ("{count} could not be read"/"{count} konnten nicht gelesen werden"), `editor.inspector.floor.guidance` ("Select a room on the canvas or from the list to see its details."/"Wählen Sie einen Raum auf der Zeichenfläche oder in der Liste aus, um Details zu sehen."), `editor.inspector.floor.no-rooms` ("This floor has no rooms yet."/"Dieses Geschoss hat noch keine Räume."). Delete `editor.inspector.empty`.
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 it('with nothing selected shows the floor summary: counts available, unbuilt aggregates unavailable, never zero', async () => {
@@ -1965,9 +1972,9 @@ it('announces guidance once when the selection clears, and not on a refresh', as
 });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `EntityInspector.vue`:
 
@@ -2024,7 +2031,7 @@ Note: the guidance test above asserts the text is present after `settle()` — `
 
 `styles/editor-inspector.css`: move the `.rp-editor-inspector*` rules out of `editor.css` (it is at 353 lines and Task 16 adds more), add the stat and list rules (`--partial` gets a `::after` mark plus the count text; `--unavailable` is `var(--text-muted)` italic — a word AND a style, never colour alone). Import after `editor-shell.css`.
 
-- [ ] **Step 4: Check and commit**
+- [x] **Step 4: Check and commit**
 
 ```bash
 npm run check
@@ -2044,7 +2051,7 @@ git commit -m "feat(inspector): the frame, the truthful floor summary, and a roo
 - Consumes: `buildRoomOverview` (Task 7), `INSPECTOR_SECTIONS`.
 - Strings: `editor.zone-type.Room` ("Room"/"Raum"), `.Garden` ("Garden"/"Garten"), `.Terrace` ("Terrace"/"Terrasse"), `.Driveway` ("Driveway"/"Einfahrt"), `.Roof` ("Roof"/"Dach"), `.ConstructionArea` ("Construction area"/"Baubereich"), `.Custom` ("Other"/"Sonstiges"); `editor.inspector.floor-context` ("Floor"/"Geschoss"); `editor.inspector.question.existing` ("What's here"/"Was ist vorhanden"), `.planned` ("What will change"/"Was wird sich ändern"), `.work` ("What needs doing"/"Was ist zu tun"); `editor.inspector.linked.costs` ("Costs"/"Kosten"), `.documents` ("Documents"/"Dokumente"), `.photos` ("Photos"/"Fotos"), `.notes` ("Notes"/"Notizen").
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 it('heading, canvas selection and Inspector share one id; the type and floor are homeowner words', async () => {
@@ -2073,9 +2080,9 @@ it('lists costs, documents, photos and notes as unavailable rows without control
 it('keeps the Requirements panel and the Delete button', async () => { /* assert `.rp-editor-inspector-requirements` and `.rp-editor-inspector-delete` still exist */ });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `git mv InspectorPanel.vue RoomInspector.vue`. In it: compute `overview = computed(() => { const zone = dto.kind === 'zone' ? projectStore.zones.get(String(dto.id)) : undefined; return zone && plan ? buildRoomOverview(zone, plan) : null; })`; wrap the zone branch in `<div class="rp-room-inspector" :data-rp-id="dto.id">`; render `<h2 class="rp-editor-panel-title">{{ dto.name }}</h2>` then a `<dl>` with type (`tr(\`editor.zone-type.${overview.record.zoneType}\` as StringKey)` — build the key through a `Record<string, StringKey>` map like `ZoneRenderModel`'s `ZONE_TYPE_TOKENS` so a type nothing labels is a compile error, not a template string), floor (`overview.floorName`) and area; then the EXISTING requirements section untouched; then `<HomeownerQuestionNav :unavailable="overview.unavailableSections" />` and `<LinkedContentList :unavailable="overview.unavailableSections" />`; then the existing Delete button.
 
@@ -2121,7 +2128,7 @@ defineProps<{ unavailable: readonly InspectorSection[] }>();
 
 `LinkedContentList.vue` is the same shape over `costs`, `documents`, `photos`, `notes` with class `.rp-linked-content`. Styles into `editor-inspector.css`.
 
-- [ ] **Step 4: Check and commit**
+- [x] **Step 4: Check and commit**
 
 ```bash
 npm run check
@@ -2161,7 +2168,7 @@ export function matchesQuery(entry: CreationEntry, query: string, language: Lang
 
 - Strings (both locales; German formal): `editor.add.menu` ("Add"/"Hinzufügen"), `editor.add.search` ("Search what to add"/"Suchen, was hinzugefügt werden soll"), `editor.add.group.structure` ("Structure"/"Struktur"), `.property` ("Property"/"Grundstück"), `.planning` ("Planning"/"Planung"); per entry `editor.add.<id>.label` and `editor.add.<id>.description` — Room "Room"/"Raum", "Fastest way to start"/"Der schnellste Einstieg"; Wall "Wall"/"Wand", "For precise layouts"/"Für präzise Grundrisse"; Door, Window, Area ("Area"/"Fläche"), Path ("Path"/"Weg"), Fence ("Fence"/"Zaun"), Item ("Item"/"Objekt"), Measurement ("Measurement"/"Messung"), Note ("Note"/"Notiz") with one-clause descriptions; `editor.add.room.synonyms` ("kitchen, bedroom, bathroom, living room"/"Küche, Schlafzimmer, Bad, Wohnzimmer"); `editor.add.unsupported.not-yet` ("Not available in this version yet."/"In dieser Version noch nicht verfügbar.").
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `creationCatalogue.test.ts`:
 
@@ -2218,9 +2225,9 @@ it('click outside closes without dispatch', ...);
 it('Escape reaches the menu and never the canvas: a selected zone stays selected', async () => { /* select a zone, open menu, Escape → menu closed, selection unchanged */ });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement the catalogue**
+- [x] **Step 3: Implement the catalogue**
 
 ```ts
 import type { StringKey } from '../../i18n/locales/en';
@@ -2286,13 +2293,13 @@ export function matchesQuery(entry: CreationEntry, query: string, language: Lang
 
 (If `t` is not the exported name or `Language` is not exported, read `strings.ts` and use what it exports; `tr` resolves the app language and cannot be asked for a specific one, which the test needs.)
 
-- [ ] **Step 4: Implement `AddMenu.vue`**
+- [x] **Step 4: Implement `AddMenu.vue`**
 
 Props: `anchor: HTMLElement | null` (the Add button, for focus return). Emits: `close`. Behaviour: on mount, focus the first available item (`room`); `role="menu"` with `aria-label="tr('editor.add.menu')"`; a search `<input type="search" :aria-label="tr('editor.add.search')">` above the groups; each group a `<div role="group" :aria-labelledby>` with `<h3>`; each item `<button role="menuitem" type="button" :data-rp-entry="entry.id" :tabindex="focusedId === entry.id ? 0 : -1" :aria-disabled="entry.availability.kind === 'unsupported'" :aria-describedby="reasonId(entry)">` showing label, description and — for unsupported — a `<span :id>` with the reason. Keys on the menu root with `@keydown.stop`: ArrowDown/ArrowUp move `focusedId` through the FILTERED list (wrapping), Home/End jump, Escape emits `close`, Enter/Space on the focused available item calls `entry.activate(runtime)` then emits `close`; on an unsupported item they do nothing. A `pointerdown` listener on `document` (registered in `onMounted`, removed in `onBeforeUnmount`) emits `close` when the target is outside the menu and outside `anchor`. `onBeforeUnmount` focuses `anchor`. Classes `.rp-add-menu`, `.rp-add-menu__search`, `.rp-add-menu__group`, `.rp-add-menu__item`, `.rp-add-menu__item--unsupported`, `.rp-add-menu__reason`; styles in `editor-shell.css` using `--background-primary`, `--background-modifier-border`, `--shadow-s`, `--radius-m`, `--background-modifier-hover` for the focused item.
 
 In `PlanEditorRoot.vue`: `const addMenuOpen = ref(false); const addButton = ref<HTMLElement | null>(null);` — `FloatingPrimaryActions @open-add="addMenuOpen = true"` (give the component a `ref` to expose its Add button, or query it with `root.value?.querySelector('[data-rp-action="add"]')` at open time), and `<AddMenu v-if="addMenuOpen" :anchor="addButton" @close="addMenuOpen = false" />` rendered INSIDE the canvas overlay slot so it sits above the canvas and its `.stop` pointer wrapper keeps presses out of the camera.
 
-- [ ] **Step 5: Check and commit**
+- [x] **Step 5: Check and commit**
 
 ```bash
 npm run check
@@ -2311,7 +2318,7 @@ git commit -m "feat(add): the homeowner creation catalogue and its menu; Room ro
 - Consumes: `runtime.activeToolId`, `routeEscape` (Task 9) via a new `EditorRuntime.cancelActiveTask(): void` that calls `routeEscape` with `panning: false` — add it to `runtime.ts` in this task, bound over the same deps the gesture surface passes.
 - Strings: `editor.task.banner` ("Current task"/"Aktuelle Aufgabe"), `editor.task.draw-room.name` ("Adding a room"/"Raum hinzufügen"), `editor.task.draw-room.instruction` ("Click to place corners; click the first corner to finish."/"Klicken Sie, um Ecken zu setzen; klicken Sie auf die erste Ecke, um abzuschließen."), `editor.task.calibrate.name` ("Setting the scale"/"Maßstab festlegen"), `editor.task.calibrate.instruction` ("Click two points a known distance apart."/"Klicken Sie auf zwei Punkte mit bekanntem Abstand."), `editor.task.cancel` ("Cancel"/"Abbrechen").
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 it('is absent under Select and names the task under a creation tool', async () => {
@@ -2333,15 +2340,15 @@ it('Cancel with an empty draft returns to Select; Cancel with a draft clears the
 });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `runtime.ts`: `const cancelActiveTask = (): void => { routeEscape({ panning: false, activeToolId: activeToolId.value, hasDraft: () => toolManager.activeToolHasDraft(), cancelGesture: () => toolManager.cancelGesture(), setTool, hasSelection: selection.selectedIds.length > 0, clearSelection: () => selection.clear() }); };` — add to `EditorRuntime` and the return.
 
 `TemporaryToolBanner.vue`: a `TASKS: Readonly<Partial<Record<ToolId, { nameKey: StringKey; instructionKey: StringKey }>>>` table with `draw-polygon` and `calibrate`; `v-if` on the active tool having an entry; `<div class="rp-task-banner" role="status" :aria-label="tr('editor.task.banner')"><strong>{{ name }}</strong><span>{{ instruction }}</span><button type="button" @click="runtime.cancelActiveTask()">{{ tr('editor.task.cancel') }}</button></div>`. Mounted in the root's canvas overlay slot at the top edge. Styles: `.rp-task-banner` positioned `top: var(--size-4-2)`, centred, `--background-secondary`, border, shadow.
 
-- [ ] **Step 4: Check and commit**
+- [x] **Step 4: Check and commit**
 
 ```bash
 npm run check
@@ -2361,7 +2368,7 @@ git commit -m "feat(shell): a visible banner for the active creation task, with 
 - Produces: `PlanEditorContext.focusLeaf(): void`. Root element carries `data-layout="full|constrained|unsupported"`. Classes `.rp-panel-rail`, `.rp-panel-rail__button`, `.rp-overlay-panel`, `.rp-inspector-drawer`, `.rp-unsupported-width`.
 - Strings: `editor.rail.layers` ("Layers"/"Ebenen"), `editor.rail.details` ("Details"/"Details"), `editor.overlay.close` ("Close panel"/"Panel schließen"), `editor.unsupported-width.headline` ("This pane is too narrow to edit the floor plan"/"Dieser Bereich ist zu schmal, um den Grundriss zu bearbeiten"), `editor.unsupported-width.body` ("{floor} has {rooms} rooms. Widen the pane or focus this tab to edit."/"{floor} hat {rooms} Räume. Vergrößern Sie den Bereich oder fokussieren Sie diesen Tab, um zu bearbeiten."), `editor.unsupported-width.action` ("Focus this tab"/"Diesen Tab fokussieren").
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 ```ts
 it('moves from full to constrained without remounting the canvas', async () => {
@@ -2401,9 +2408,9 @@ it('below the floor width replaces the canvas with a summary and a Focus this ta
 it('disconnects its observer on unmount', async () => { /* connectedObservers() before/after unmount */ });
 ```
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `ResponsiveEditorShell.vue` — props: none; slots: `context-bar`, `panel`, `canvas`, `inspector`, `warnings`, `status`. Owns `const root = ref<HTMLElement|null>(null)` with a `ResizeObserver` (created in `onMounted`, `disconnect()` in `onBeforeUnmount`) whose callback reads `root.value.clientWidth` and calls `workspace.setLayoutMode(layoutModeFor(width))`. Template:
 
@@ -2455,7 +2462,7 @@ it('disconnects its observer on unmount', async () => { /* connectedObservers() 
 
 `PlanEditorRoot.vue`: replace the hand-written `.rp-editor-body` block with `<ResponsiveEditorShell>` and its six named slots; the warning notices stay where they are until Task 20.
 
-- [ ] **Step 4: Check and commit**
+- [x] **Step 4: Check and commit**
 
 ```bash
 npm run check
@@ -2481,7 +2488,7 @@ export function editorWarnings(input: { readonly stale: boolean; readonly unread
 
 - Strings: `editor.status.scale.calibrated` ("Scale set"/"Maßstab festgelegt"), `editor.status.scale.uncalibrated` ("Scale not set"/"Maßstab nicht festgelegt"), `editor.hint.pan` ("Hold Space or the middle button to pan"/"Leertaste oder mittlere Maustaste halten, um zu verschieben").
 
-- [ ] **Step 1: Failing tests**
+- [x] **Step 1: Failing tests**
 
 `warnings.test.ts`: an input with `stale: true, unreadableZones: 2, backgroundStatus: 'missing'` yields three warnings in the fixed order with ids `['stale','unreadable-zones','background-missing']` and the unreadable one carries `params: { count: '2' }`; `backgroundStatus: 'unreadable'` yields `background-unreadable` and never both background ids; all-clear yields `[]`.
 
@@ -2489,15 +2496,15 @@ export function editorWarnings(input: { readonly stale: boolean; readonly unread
 
 `statusBar.test.ts`: uncalibrated fixture shows `editor.status.scale.uncalibrated`; a plan with a `calibration` shows `…calibrated`; under `layoutMode === 'constrained'` the pointer readout element is absent while zoom, scale and save state remain; the pan hint shows when `activeToolId === 'select'`.
 
-- [ ] **Step 2: Run — FAIL.**
+- [x] **Step 2: Run — FAIL.**
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `warnings.ts` builds the array in the fixed order from the three inputs (message keys are the existing `editor.refresh-failed`, `editor.some-zones-unreadable`, `editor.background-missing`, `editor.background-failed`). `PersistentWarningStrip.vue` renders `<div class="rp-warning-strip"><p v-for="w in warnings" :key="w.id" class="rp-warning-strip__item" role="status" :data-rp-warning="w.id">{{ tr(w.messageKey, w.params) }}</p></div>` — `:key="w.id"` is what keeps one warning's identity when another arrives. Move the `.rp-editor-notice` rule to `.rp-warning-strip__item` in `editor.css`. In the root: `const warnings = computed(() => editorWarnings({ stale: staleAfterRefresh.value, unreadableZones: unreadableZones.value, backgroundStatus: backgroundStatus.value }));`.
 
 `StatusBar.vue`: add `scaleText = computed(() => tr(plan.value?.calibration ? 'editor.status.scale.calibrated' : 'editor.status.scale.uncalibrated'))` in the measurements group; wrap the pointer readout in `v-if="layoutMode !== 'constrained'"` (read `layoutMode` from `WorkspaceStore`); show `editor.hint.pan` in the status group when `props.activeToolId === 'select'`, beside the existing constraint hint.
 
-- [ ] **Step 4: Check and commit**
+- [x] **Step 4: Check and commit**
 
 ```bash
 npm run check
@@ -2525,9 +2532,9 @@ git commit -m "feat(shell): warnings as a keyed collection; the status bar says 
 { name: 'plan-editor-narrow', query: '?view=plan-editor&theme=light', selector: PLAN_EDITOR_VIEW, width: 460 },
 ```
 
-- [ ] **Step 1: Failing test** — in `harness.test.ts`, extend the case that asserts the fixed shots exist to name the three new entries, and add a jsdom case that `mountPlanEditorHarness(document.body, { select: 'harness-kitchen' })` reaches `.rp-room-inspector[data-rp-id="harness-kitchen"]` (the same shape as the `?project=` case slice 21 added).
+- [x] **Step 1: Failing test** — in `harness.test.ts`, extend the case that asserts the fixed shots exist to name the three new entries, and add a jsdom case that `mountPlanEditorHarness(document.body, { select: 'harness-kitchen' })` reaches `.rp-room-inspector[data-rp-id="harness-kitchen"]` (the same shape as the `?project=` case slice 21 added).
 
-- [ ] **Step 2: Implement**, run `npm run check`, then:
+- [x] **Step 2: Implement**, run `npm run check`, then:
 
 ```bash
 npm run harness-shot
@@ -2535,7 +2542,7 @@ npm run harness-shot
 
 Open `harness-shots/plan-editor-light.png`, `plan-editor-selected.png`, `plan-editor-add-menu.png`, `plan-editor-narrow.png` with the Read tool and LOOK: the context bar reads `Willow House › Ground floor`; Select and Add float at the bottom centre; the floor summary shows counts and two "Not available yet" rows; the narrow shot shows a rail, a canvas wider than nothing, and no horizontal scrollbar; the menu shows three groups with Room first and the others dimmed with a reason. Record what you saw — and anything wrong — in the commit message. If Chromium is absent, follow `scripts/chromium.mjs`'s message (`RP_CHROMIUM_EXECUTABLE`), and if no browser can be named, say in the commit and in Task 24's CLAUDE.md section that the captures were NOT taken.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add -A tests/harness scripts/harness-shot.mjs
@@ -2547,7 +2554,7 @@ git commit -m "harness: ?select and ?add knobs, three fixed plan-editor captures
 **Files:**
 - Modify: `tests/harness/accessibility.test.ts`
 
-- [ ] **Step 1: Add six cases** in the "axe against the mounted view" describe, each following the existing plan-editor case's shape (mount, assert the subject is PRESENT above `axe.run`, scan, expect no violations):
+- [x] **Step 1: Add six cases** in the "axe against the mounted view" describe, each following the existing plan-editor case's shape (mount, assert the subject is PRESENT above `axe.run`, scan, expect no violations):
 
 1. `full` layout with the context bar and floating actions: assert `.rp-context-bar` and `.rp-primary-actions` present.
 2. Add menu open: click the Add button, `await settle()`, assert `[role="menu"]` present, scan.
@@ -2556,9 +2563,9 @@ git commit -m "harness: ?select and ?add knobs, three fixed plan-editor captures
 5. Room Inspector in `full` with a selection: assert `.rp-question-nav` present and `.rp-question-nav button` ABSENT, scan.
 6. `unsupported` width: `resizeTo(root, 320, 800)`, assert `.rp-unsupported-width button` present, scan.
 
-- [ ] **Step 2: Run** `npx vitest run tests/harness/accessibility.test.ts`; fix every violation at its source (an `aria-describedby` pointing at a missing id, a `role="menu"` without an accessible name, a `<dl>` whose children are not `dt`/`dd`), never by widening `runOptions`.
+- [x] **Step 2: Run** `npx vitest run tests/harness/accessibility.test.ts`; fix every violation at its source (an `aria-describedby` pointing at a missing id, a `role="menu"` without an accessible name, a `<dl>` whose children are not `dt`/`dd`), never by widening `runOptions`.
 
-- [ ] **Step 3: Commit** — `git commit -am "test(a11y): six scans over the new shell states"`.
+- [x] **Step 3: Commit** — `git commit -am "test(a11y): six scans over the new shell states"`.
 
 ### Task 23: manual test case, and the Canvas Navigation case
 
@@ -2566,9 +2573,9 @@ git commit -m "harness: ?select and ?add knobs, three fixed plan-editor captures
 - Create: `docs/tests/cases/Open a floor and select a room.md` (frontmatter like `Navigate into a project and back.md`: `type: Test case`, `parent: "[[Smoke Test the Editor]]"`, next free `order`, `status: Ready`, sources M00, M01, M02, M16)
 - Modify: `docs/tests/cases/Canvas Navigation.md` (the Pan button no longer exists; the step that pressed it now says pan is Space/middle-button only and reads the status hint)
 
-- [ ] **Step 1: Write the case** with numbered steps and expected results, a Runs table with one empty row, and a "Why a human is the only instrument" section listing: whether Obsidian's own keymap fires behind the open Add menu (`Ctrl+P` on top of it), whether focus really returns to the rail button after the drawer closes in Electron, whether the leaf at real sidebar width lands in `constrained`, and whether `Focus this tab` reveals the leaf. Steps: 1 open a plan via the palette → Select pressed, nothing selected, floor summary visible; 2 hover Kitchen → outline and pointer cursor; 3 click Kitchen → Room Inspector shows Kitchen, type Room, Ground floor, area; question rows read Not available yet; 4 Escape → floor summary, guidance announced (screen reader on); 5 click Kitchen in the list → selected and framed; 6 Add → menu, Room focused, arrow keys, Escape; 7 Add → Room → banner, three clicks, close → Kitchen 2 selected, Select pressed; 8 drag the leaf to sidebar width → rail, canvas, selection kept; 9 open Layers overlay, Escape → focus on rail button; 10 narrow below 400px → summary and Focus this tab.
+- [x] **Step 1: Write the case** with numbered steps and expected results, a Runs table with one empty row, and a "Why a human is the only instrument" section listing: whether Obsidian's own keymap fires behind the open Add menu (`Ctrl+P` on top of it), whether focus really returns to the rail button after the drawer closes in Electron, whether the leaf at real sidebar width lands in `constrained`, and whether `Focus this tab` reveals the leaf. Steps: 1 open a plan via the palette → Select pressed, nothing selected, floor summary visible; 2 hover Kitchen → outline and pointer cursor; 3 click Kitchen → Room Inspector shows Kitchen, type Room, Ground floor, area; question rows read Not available yet; 4 Escape → floor summary, guidance announced (screen reader on); 5 click Kitchen in the list → selected and framed; 6 Add → menu, Room focused, arrow keys, Escape; 7 Add → Room → banner, three clicks, close → Kitchen 2 selected, Select pressed; 8 drag the leaf to sidebar width → rail, canvas, selection kept; 9 open Layers overlay, Escape → focus on rail button; 10 narrow below 400px → summary and Focus this tab.
 
-- [ ] **Step 2: Commit** — `git add docs/tests && git commit -m "docs(tests): the manual case for the editor's read path and selection"`.
+- [x] **Step 2: Commit** — `git add docs/tests && git commit -m "docs(tests): the manual case for the editor's read path and selection"`.
 
 ### Task 24: statuses, CLAUDE.md, and the smoke suite
 
@@ -2577,16 +2584,18 @@ git commit -m "harness: ?select and ?add knobs, three fixed plan-editor captures
 - Modify: every task under those PBIs that this increment closed (`status: Done`) — the list is spec §1's table; a task only partly done gets `Active` and a one-line amendment
 - Modify: `docs/tests/suites/Smoke Test the Editor.md` (link the new case), `CLAUDE.md` (a section "**The plan editor foundation's first increment has landed: the read path and selection.**" placed after the currency-increment section, ~40 lines: what shipped, that Select is the default and the toolbar is gone, where Calibrate went, the layout thresholds and that they are judgements checked by capture, the seven-section unavailable rule, the deferred ADRs, and the rules that came out of the review rounds — written from what actually happened, not from this plan)
 
-- [ ] **Step 1: Make the edits.** For each task marked Done, re-read its acceptance criteria against the code and name the test that holds each; a criterion no test holds is an amendment, not a tick.
+- [x] **Step 1: Make the edits.** For each task marked Done, re-read its acceptance criteria against the code and name the test that holds each; a criterion no test holds is an amendment, not a tick.
 
-- [ ] **Step 2: Commit** — `git add docs CLAUDE.md && git commit -m "docs: Editor foundation statuses, amendments, and CLAUDE.md's account of the increment"`.
+- [x] **Step 2: Commit** — `git add docs CLAUDE.md && git commit -m "docs: Editor foundation statuses, amendments, and CLAUDE.md's account of the increment"`.
 
 ### Task 25: finish
 
-- [ ] **Step 1:** `npm run check` on the whole tree, serially if a `tests/build/` file times out (`npx vitest run --no-file-parallelism` is the diagnostic, not the remedy).
-- [ ] **Step 2:** `npm run test:coverage` and compare the four figures against `vitest.config.ts`'s floors; if a rounded-down figure exceeds a floor, ratchet it per that file's own policy and commit.
-- [ ] **Step 3:** `npm run build` and record `dist/main.js`'s size in CLAUDE.md's new section beside slice 19's figure.
-- [ ] **Step 4:** Invoke `superpowers:finishing-a-development-branch`.
+- [x] **Step 1:** `npm run check` on the whole tree, serially if a `tests/build/` file times out (`npx vitest run --no-file-parallelism` is the diagnostic, not the remedy).
+- [x] **Step 2:** `npm run test:coverage` and compare the four figures against `vitest.config.ts`'s floors; if a rounded-down figure exceeds a floor, ratchet it per that file's own policy and commit.
+- [x] **Step 3:** `npm run build` and record `dist/main.js`'s size in CLAUDE.md's new section beside slice 19's figure.
+- [ ] **Step 4:** Invoke `superpowers:finishing-a-development-branch`. Not run: reconciled
+  2026-09-04 with this step still open, because the branch remains active for further
+  review-findings tasks rather than finished.
 
 ---
 

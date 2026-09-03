@@ -46,3 +46,8 @@ representation an explicit closed union, held by
 states what is out of scope so it is not read as forgotten. Criterion 3's migration-and-fixture
 condition is therefore vacuous rather than met, which is why
 [[Establish the editor migration and compatibility contract]] stays Active.
+
+**2026-09-04** — §1 maps all 13 PBIs whose frontmatter parent is `[[Editor foundation]]` — 7 in
+the table, 6 in "Not advanced here" (two of them added 2026-09-04: Inspect a selected wall, Plan
+editor and canvas); the review-time check is `rg -l '^parent: "\[\[Editor foundation\]\]"$'
+docs/requirements`. No docs gate is added (CLAUDE.md, "Deliberately absent").

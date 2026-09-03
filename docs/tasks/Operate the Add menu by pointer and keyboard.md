@@ -52,4 +52,8 @@ an unsupported item changes nothing' beside it.
 
 What no test here reaches is whether Obsidian's OWN keymap fires behind the open menu: jsdom
 models no host `Scope` stack, so `@keydown.stop` proves only that the canvas never sees the key.
-Step 6 of [[Open a floor and select a room]] is the instrument.
+Step 11 of [[Open a floor and select a room]] is the instrument.
+
+**2026-09-04** — see [[The manual keymap claim points to a step that never invokes the keymap]],
+closed: the previous sentence pointed at step 6, which navigates the menu with arrow keys and
+never presses `Ctrl+P`. Step 11 is the one that actually invokes the host keymap.

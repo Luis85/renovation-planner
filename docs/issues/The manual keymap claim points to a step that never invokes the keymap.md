@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Start one creation task from Add]]"
 order: 80
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -63,6 +63,17 @@ Add an `obsidian`-reachable step that opens Add, presses `Ctrl+P`, records wheth
 palette opens and verifies focus and Escape behavior after dismissal. Point the task's closing
 evidence to that step. The discriminating evidence is an actual keymap invocation, not another
 menu-navigation assertion; amend the current task evidence until it exists.
+
+## What closed it
+
+**2026-09-04.** `docs/tests/cases/Open a floor and select a room.md` gains step 11, `obsidian`:
+"With Add open, press `Ctrl+P` (`Cmd+P` on macOS)", passing when Obsidian's command palette
+opens on top of the menu (or the shortcut is swallowed — recorded which), dismissing the palette
+returns focus to the menu item that had it, and Escape then closes the menu with focus back on
+Add. The case's "Why a human is the only instrument" bullet 1 and
+`docs/tasks/Operate the Add menu by pointer and keyboard.md`'s closing evidence both now point at
+step 11 rather than step 6. Commit "docs(review): correct the records the review found
+overclaiming, and defer the vault walk".
 
 ## References
 

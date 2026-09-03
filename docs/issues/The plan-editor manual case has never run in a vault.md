@@ -63,6 +63,12 @@ Run the case in the test vault, record the build, date and outcome in its Runs t
 any host-only failures separately. This is actionable verification work retained by the known
 amendment, not a request to widen the automated suite.
 
+## Decision
+
+**2026-09-04.** Not now. Closing this means a person opening the vault built by
+`npm run test-build` and walking the eleven steps; no agent here can. It reopens when the Runs
+table gains a row. Status stays New.
+
 ## References
 
 - [[Errors, diagnostics and the test harness]]

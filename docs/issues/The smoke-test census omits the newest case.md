@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Errors, diagnostics and the test harness]]"
 order: 70
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -61,6 +61,17 @@ Re-run the documented two-pattern census over all case files and update the tota
 and five tier counts together. Also change the triage section's stale “twelve cases whose steps
 are a table” to fourteen; otherwise the corrected total would still sit beside an older
 denominator.
+
+## What closed it
+
+**2026-09-04.** [[Smoke Test the Editor]]'s triage column now carries a dated "proved itself a
+SIXTH time" paragraph over a fresh run of both census greps against the tree as this same task
+left it (after adding step 11 to [[Open a floor and select a room]] and a tenth-numbered hover
+step to [[Canvas Navigation]]): 259 table rows across fourteen files plus 17 list steps in
+[[Canvas Navigation]], for 276 steps across fifteen cases — `suite` 99, `browser` 42, `obsidian`
+113, `desktop` 13, `judgement` 9. The triage table's five per-tier figures and the stale "twelve
+cases whose steps are a table" (now fourteen) are both updated in place. Commit "docs(review):
+correct the records the review found overclaiming, and defer the vault walk".
 
 ## References
 

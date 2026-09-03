@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[View rooms in the Standard Plan View]]"
 order: 30
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -65,6 +65,17 @@ model represents and state separately that floor-level staleness is an additive 
 Update Closing evidence to map those two promises independently. No product test is needed; the
 existing closed TypeScript union is the check for the three aggregate states, and the amendment
 removes the impossible fourth promise rather than implementing it.
+
+## What closed it
+
+**2026-09-04.** `docs/tasks/Present the truthful floor summary and selection guidance.md`'s
+criterion 2 is narrowed to "Supported zero, unavailable and unreadable (partial) are distinct
+for every aggregate; floor-level staleness is an additive global warning, never an aggregate
+state." Closing evidence now maps both promises independently: the three-member `Aggregate<T>`
+union in `src/presentation/read-models/spatialRecords.ts` for the first, and
+`tests/presentation/editor/shell/warnings.test.ts`'s `editorWarnings` cases for the second — no
+fourth aggregate state was added. Commit "docs(review): correct the records the review found
+overclaiming, and defer the vault walk".
 
 ## References
 

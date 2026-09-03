@@ -68,3 +68,10 @@ leaving the union rather than by a second navigation model.
 Criteria 2, 5 and 6 have no subject: no route is available, so nothing preserves a stable id or a
 viewport through one; `TransformationSummary` is not built; and no child view opens, so there is
 no return for focus to make.
+
+**2026-09-04** — criterion 7 is UNMET, not met, and the paragraph above WITHDRAWS its claim
+otherwise: one closed unavailable-section vocabulary (`INSPECTOR_SECTIONS`) feeds TWO
+presentation models (`HomeownerQuestionNav`'s and `LinkedContentList`'s private `ROWS`), which is
+the approved design's own two-list structure (§5.1, §6.7). The first available section decides
+which list owns it; a shared descriptor registry is that increment's work, not this one's
+(2026-09-04). See [[The Inspector's two unavailable lists are separate navigation models]].

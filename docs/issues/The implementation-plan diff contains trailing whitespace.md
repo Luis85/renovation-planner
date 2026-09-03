@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Errors, diagnostics and the test harness]]"
 order: 120
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -50,6 +50,15 @@ noise to later edits of a plan already used as the audit record for this increme
 
 Remove the trailing whitespace from the affected plan line and confirm the same diff check no
 longer reports it.
+
+## What closed it
+
+**2026-09-04.** Line 498 of
+`docs/superpowers/plans/2026-09-02-plan-editor-foundation-read-path.md` (the
+`git log --oneline origin/main | grep -c "asset designer\|Asset Designer\|designer's"` line) had
+its trailing space removed. `git diff --check -- docs/superpowers/plans/2026-09-02-plan-editor-foundation-read-path.md`
+now reports nothing. Commit "docs(review): correct the records the review found overclaiming, and
+defer the vault walk".
 
 ## References
 

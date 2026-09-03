@@ -153,4 +153,3 @@ Remains:
   additive warning strip; `stale` reaches exactly one computed in `PlanEditorRoot.vue` and feeds
   that strip alone, so Delete stays live over data the last read-back could not confirm. Recorded
   at [[Preserve room inspection across layout and read changes]].
-- [[The Inspector's two unavailable lists are separate navigation models]]

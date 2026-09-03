@@ -75,7 +75,7 @@ into an automated check will find the same thing again next release.
 
 ## The triage column
 
-Every step below carries a **`Reachable by`** verdict — a column in the twelve cases whose
+Every step below carries a **`Reachable by`** verdict — a column in the fourteen cases whose
 steps are a table, and an inline token after the step number in [[Canvas Navigation]], whose
 procedure is a list. The verdict names the **cheapest instrument that could discharge that
 step as written**. It is a claim about the step's own pass condition, not a report on what is
@@ -83,10 +83,10 @@ tested today.
 
 | Verdict | What it means | Steps |
 | --- | --- | --- |
-| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 96 |
-| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 39 |
-| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 108 |
-| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 12 |
+| `suite` | The pass condition is DOM state, a render model, a command outcome or a vault file — expressible in the jsdom suite with no new infrastructure | 99 |
+| `browser` | Needs a real engine: layout, the CSS cascade, focus BEHAVIOUR or a visible focus ring, paint, or an input grammar jsdom cannot produce. Not focus ASSIGNMENT — jsdom models `activeElement`, so "the caret lands on Start" is `suite` | 42 |
+| `obsidian` | Needs Obsidian itself — its chrome, keymap, workspace, settings pane, language, `Notice`, its copy of pdf.js, or its file explorer | 113 |
+| `desktop` | Needs a real desktop or real hardware beyond a headless browser: window activation, browser chrome, a physical mouse or a touch screen | 13 |
 | `judgement` | NO clause of the pass condition can be settled by any instrument. It beats the other four rather than ranking among them — a step needing Obsidian AND resting on an eye is `judgement`, because naming the host would imply an automatable claim. A judgement clause inside an otherwise assertable step does NOT promote the row: it is recorded as a residue in that case's clause table, or [[Zone Editing Walkthrough]] 4 would be `judgement` for one adverb beside three assertable clauses | 9 |
 
 **264 steps across FOURTEEN cases, and this paragraph has now proved itself a FIFTH time — at
@@ -110,6 +110,19 @@ project]] together, so the current figures are one measurement of the whole tree
 two arithmetic corrections stacked. A count is only as current as its last grep, and the
 increment that adds a case is the one that has a reason to take it.
 
+**276 steps across FIFTEEN cases, and this paragraph has now proved itself a SIXTH time — not at
+a merge this time, but at an omission inside one tree.** [[Open a floor and select a room]] had
+been in `docs/tests/cases/` since the plan editor foundation's first increment, so the case count
+here was never wrong; only the step total was, because the census had not been re-run since that
+case's own step 6 and step 9 were written, and it had not been re-run again after this
+review-findings task gave that case a step 11 (the `Ctrl+P` keymap instrument,
+[[The manual keymap claim points to a step that never invokes the keymap]]) and gave [[Canvas
+Navigation]] a tenth-numbered hover step for the Select tool's two new cursor classes. The two
+greps below, run in the edit that resolved it, print 259 table rows across fourteen files and 17
+list steps in [[Canvas Navigation]], for 276 across fifteen cases — `suite` 99, `browser` 42,
+`obsidian` 113, `desktop` 13 and `judgement` 9. See
+[[The smoke-test census omits the newest case]], closed.
+
 **This paragraph is its own worked example, twice over.** Design slices 19 and 21 each re-ran
 the two greps and each wrote down what it measured; both were correct on the day, and the merge
 of the two made both wrong at once, because each had counted a tree without the other's cases in
@@ -124,7 +137,7 @@ pass gave that case its verdict column, and it contributes 17 steps. Eleven case
 carrying verdicts, measured per file rather than assumed.
 
 The instrument is TWO patterns, because the verdict has two spellings and a grep that sees only
-the table form silently under-counts by the sixteen steps of [[Canvas Navigation]]:
+the table form silently under-counts by the seventeen steps of [[Canvas Navigation]]:
 
 ```bash
 grep -rhoE '^\| [0-9]+[a-z]? \| `(suite|browser|obsidian|desktop|judgement)` \|' docs/tests/cases/*.md
@@ -315,13 +328,16 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   round trip through a real reload.
 - [[Canvas Navigation]] — the camera gestures a user reaches for while doing something
   else: space-drag, middle-drag, shift+wheel and the two zoom-to-fit shortcuts. **NINE of its
-  SIXTEEN steps** need Obsidian, a real desktop, or settle nothing an instrument can reach:
+  SEVENTEEN steps** need Obsidian, a real desktop, or settle nothing an instrument can reach:
   what Obsidian's own keymap does with the space bar and `Shift+1`, what a real desktop does
   with a middle press, a trackpad, a touch screen and a chorded mouse, and what a right-click
   produces, which the step records rather than asserts. This sentence read "four of its twelve
   steps" until the triage gave it something to be checked against — the procedure had grown to
   sixteen and the summary had not moved. The cursor keyword it used to name is `browser` now,
-  not manual: a real pointer over a real element has a computed style.
+  not manual: a real pointer over a real element has a computed style. **2026-09-04** added a
+  seventeenth, `browser`, step — hovering a selected room's vertex handle and its body for the
+  Select tool's two new cursor classes — so the ratio needing a host or a desktop is unchanged
+  at nine while the denominator moves.
 - [[Empty States Walkthrough]] — design slice 14's two central-view empty states. Its step 4
   is the sharpest example in this suite of a claim only a vault can settle: the Plan Editor's
   empty states are OVERLAYS over a canvas that stays mounted, and the two things that
@@ -392,13 +408,14 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   because there is no asset-specific fixture and none of this case needs one.
 - [[Open a floor and select a room]] — the plan editor foundation's first increment: the read
   path and selection, with Select as the resting state, the toolbar gone, and the shell rearranged
-  around one canvas instance by leaf width. FOUR of its ten steps are tagged `obsidian` — 1, 8, 9
-  and 10 — and its own header tabulates the four things no gate here can settle, which is a
-  different set by one: step 6 (tagged `browser`) is the only instrument for whether Obsidian's
+  around one canvas instance by leaf width. FIVE of its eleven steps are tagged `obsidian` — 1, 8,
+  9, 10 and 11 — and its own header tabulates the four things no gate here can settle, which is a
+  different set by one: step 11 (added 2026-09-04) is the only instrument for whether Obsidian's
   keymap fires behind an open Add menu, since jsdom models no host `Scope`; step 8 for whether a
   real sidebar leaf lands in `constrained` once the tab bar, ribbon and resize handle are
   subtracted from `layoutMode.ts`'s 900/400 JUDGEMENTS; step 9 for whether Electron honours the
-  `.focus()` the overlay's close path demonstrably calls; and step 10 for whether `focusLeaf()`
-  visibly brings the tab forward. What NO step here reaches, and no gate either, is whether the
-  unsupported-width notice scrolls sideways — a measurement no layout engine in this repository
-  performs and no expected result in this case asks for.
+  `.focus()` the overlay's close path demonstrably calls, and, since the same date, whether Tab
+  from the reopened overlay's last control leaves it for the canvas without trapping focus (R3);
+  and step 10 for whether `focusLeaf()` visibly brings the tab forward. What NO step here reaches,
+  and no gate either, is whether the unsupported-width notice scrolls sideways — a measurement no
+  layout engine in this repository performs and no expected result in this case asks for.

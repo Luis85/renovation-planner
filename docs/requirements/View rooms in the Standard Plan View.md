@@ -127,5 +127,3 @@ Remains:
   The empty, partial-unreadable, failed and unsupported states have no picture in either scheme.
   Recorded at [[Distinguish empty unreadable and unavailable floor data]], which stays **Active**
   for it.
-
-- [[The completed floor-summary task promises a stale aggregate no model can represent]]

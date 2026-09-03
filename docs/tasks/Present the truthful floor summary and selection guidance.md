@@ -29,7 +29,8 @@ announce concise selection guidance only when the editor enters the no-selection
 
 - No selection shows the floor name, room count, total area, planned changes and estimated cost
   when each value is available.
-- Supported zero, unavailable, unreadable and stale are distinct for every aggregate.
+- Supported zero, unavailable and unreadable (partial) are distinct for every aggregate;
+  floor-level staleness is an additive global warning, never an aggregate state.
 - A partial or stale aggregate cannot make other current values disappear.
 - The estimated cost is formatted from the project/cost authority and is never independently
   recomputed by the Inspector.
@@ -79,5 +80,11 @@ drawer is closed, and not again on a refresh' clears selection with `EntityInspe
 then proves `changePlan()` does not re-announce it. See
 [[Selection clearing is silent while the constrained Inspector is closed]].
 
-Criterion 2's STALE arm is answered by the additive warning strip rather than by an aggregate
-state: `Aggregate<T>` has three members and none of them is stale.
+**2026-09-04** — criterion 2 is now two independent promises, mapped separately.
+Supported-zero/unavailable/unreadable(partial) is the closed three-member `Aggregate<T>` union
+in `src/presentation/read-models/spatialRecords.ts`, held by the two cases cited above. Stale is
+not a fourth aggregate member: it is the additive `stale` warning `editorWarnings` yields at the
+floor level, independent of any one count's own state, held by
+`tests/presentation/editor/shell/warnings.test.ts`'s 'orders every warning fixed: stale,
+unreadable-zones, background-*' and 'carries a severity on every warning' cases. See
+[[The completed floor-summary task promises a stale aggregate no model can represent]], closed.

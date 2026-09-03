@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Inspect a selected room]]"
 order: 20
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -84,6 +84,17 @@ rather than component-owned membership. A discriminating test should add or enab
 and assert it appears once, in the intended group, with the same state and route semantics in full
 and constrained layouts; deleting either consumer's private list must not require changing the
 test fixture.
+
+## What closed it
+
+**2026-09-04.** `docs/tasks/Assemble shared homeowner-question Inspector navigation.md`'s
+2026-09-03 amendment is withdrawn in place rather than deleted: a new dated paragraph says
+criterion 7 is UNMET, not met — one closed unavailable-section vocabulary
+(`INSPECTOR_SECTIONS`) feeds TWO presentation models (`HomeownerQuestionNav`'s and
+`LinkedContentList`'s private `ROWS`), which is the approved design's own two-list structure
+(§5.1, §6.7). The first available section decides which list owns it; a shared descriptor
+registry is that increment's work, not this one's. Commit "docs(review): correct the records
+the review found overclaiming, and defer the vault walk".
 
 ## References
 

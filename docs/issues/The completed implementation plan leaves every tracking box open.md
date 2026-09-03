@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Errors, diagnostics and the test harness]]"
 order: 80
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -54,6 +54,20 @@ without reconstructing completion from commits and the live tree.
 
 Reconcile the plan against the shipped increment: check completed steps, explicitly mark any
 withdrawn or superseded work, and leave open only work that remains actionable.
+
+## What closed it
+
+**2026-09-04.** `docs/superpowers/plans/2026-09-02-plan-editor-foundation-read-path.md` is
+reconciled against `bc6ca060`: measured at the current tree, the plan carries 106 `- [ ]` boxes
+(six more than this note's own 100, added by later work on the branch before this task), of
+which 105 are now ticked. Every ticked box was spot-checked against its own task's Files block
+(`ls`/`grep` per task; the PR description records every wave shipped) — all 25 tasks executed,
+including Task 5 (the rebase gate), which the orchestrator ran rather than a subagent, and
+nothing was withdrawn. The one box left open is Task 25's Step 4, "Invoke
+`superpowers:finishing-a-development-branch`", because this branch remains active for further
+review-findings tasks rather than finished; the plan says so beside it and in a new dated note
+under the header. Commit "docs(review): correct the records the review found overclaiming, and
+defer the vault walk".
 
 ## References
 

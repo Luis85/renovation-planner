@@ -143,5 +143,3 @@ Remains:
 - **Extension 1a — Add is not blocked in a stale or failed state.** `stale` feeds the warning strip
   and nothing else, so Add stays live over content the last read-back could not confirm; the same
   residue [[Inspect a selected room]] records for Delete.
-
-- [[The manual keymap claim points to a step that never invokes the keymap]]

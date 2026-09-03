@@ -132,3 +132,4 @@ Remains:
 - **Criterion 5's "layer values survive a layout change" half** is true by construction —
   visibility lives in Pinia — and asserted by no case; the same test asserts selection and
   viewport only.
+- [[A shrink below the floor with an overlay open strands focus on body]]

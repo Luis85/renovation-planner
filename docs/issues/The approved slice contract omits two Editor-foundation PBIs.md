@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Consolidate the current and target editor data models]]"
 order: 10
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -68,6 +68,17 @@ deliberately outside the contract. A parser-backed documentation check should co
 `docs/requirements/` note whose frontmatter parent is [[Editor foundation]] and require its
 basename to appear in one of those two §1 inventories; the command above is the review-time
 check until such a gate exists.
+
+## What closed it
+
+**2026-09-04.** §1 of `docs/superpowers/specs/2026-09-02-plan-editor-foundation-read-path-design.md`
+was amended (by an earlier task of this same review round) to map all 13 PBIs whose frontmatter
+parent is `[[Editor foundation]]` — 7 in the table, 6 in "Not advanced here" (two of them added
+2026-09-04: Inspect a selected wall, Plan editor and canvas). This task edited
+`docs/tasks/Approve the Editor foundation slice contract.md`'s Closing evidence to say so and to
+name the review-time check, `rg -l '^parent: "\[\[Editor foundation\]\]"$' docs/requirements`. No
+docs gate is added (CLAUDE.md, "Deliberately absent"). Commit "docs(review): correct the records
+the review found overclaiming, and defer the vault walk".
 
 ## References
 

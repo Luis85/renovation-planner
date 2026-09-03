@@ -82,6 +82,3 @@ ADR-SV as DEFERRED with a first consumer and a trigger each (report §6) rather 
 them, because no code in this increment reads any of them and a decision nothing pins drifts.
 Both are exactly what this PBI asked for — "no unresolved high-severity conflict remains" — and
 neither is a promise this increment left unkept.
-
-- [[The approved slice contract omits two Editor-foundation PBIs]]
-- [[The migration amendment counts a pre-merge tree]]

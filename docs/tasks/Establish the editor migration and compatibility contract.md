@@ -61,6 +61,14 @@ decision made independently by each feature.
 test, `tests/infrastructure/persistence/editorRoundTrip.test.ts`, which is the second half of
 criterion 4 and the whole of criterion 5 — stable ids, references and the user-owned Markdown
 body are each asserted. The transition criteria — 1, 2, 3, 6 and 7 — have no subject: this
-increment accepted no source-to-target transition, and all six migration tables are still empty,
-so `MigrationRunner` remains unproven on a real chain. ADR-SV, which decides when an additive
-change may stay at v1 and when a bump is owed, is recorded as DEFERRED (report §6).
+increment accepted no source-to-target transition, and every registered migration table is
+empty — `rg -n '_MIGRATIONS: (readonly )?Migration\[\] = \[\];' src/infrastructure/persistence/migration`
+prints one line per table and every one ends `= [];` (seven at `bc6ca060`, stated as a rule
+rather than a count) — so `MigrationRunner` remains unproven on a real chain. ADR-SV, which
+decides when an additive change may stay at v1 and when a bump is owed, is recorded as DEFERRED
+(report §6).
+
+**2026-09-04** — see [[The migration amendment counts a pre-merge tree]], closed: the count above
+was fixed at six against the pre-merge tree; the amendment now states the property (every table
+empty) rather than an ordinal, so a later branch adding an eighth entity kind does not make this
+paragraph false again.

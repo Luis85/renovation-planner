@@ -206,6 +206,32 @@ const mayMatchStylesheet = (pattern: string): boolean => {
 	return !tail.includes('.') || tail.endsWith('.css');
 };
 
+/**
+ * `import.meta.glob(['./a/*.css', '!./a/skip.css'])` — Vite's multi-pattern form.
+ *
+ * A pattern Vite cannot resolve statically — a template carrying a substitution — reaches
+ * `isStringLiteralLike` as false and counts as nothing, which is right rather than a gap: Vite
+ * REFUSES a non-literal glob pattern outright, so it loads no module at all. A backtick pattern
+ * with no substitution is a literal and is covered.
+ *
+ * **A `!` pattern is DROPPED rather than APPLIED, and that is a false positive kept on
+ * purpose.** A negative excludes, so it names nothing that gets loaded and must not count as an
+ * import — but neither is it subtracted from the positives beside it. Reported:
+ * `['./themes/*', '!./themes/*.css']` loads no stylesheet, because the exclusion removes every
+ * CSS match, and this counts the broad positive and reports the module. The report is right and
+ * the behaviour stays.
+ *
+ * Two reasons, and the second decides it. Applying an exclusion means deciding whether the
+ * negatives remove EVERY css match of a positive, which is set subtraction over globs:
+ * `!./themes/*.css` subsumes and `!./themes/a.css` does not, and telling those apart is the glob
+ * matcher this check has now declined twice — for an answer that would then move with the files
+ * on disk. And the failure lands in the safe direction: over-refusing costs a red test and a
+ * sentence in review, where under-refusing is the silent pass this file has paid for eleven
+ * times, and twice more on this glob path since.
+ *
+ * It costs nothing today — no pattern in the tree is negated at all. A build that needs one can
+ * split the glob or state the exclusion in the pattern's own tail.
+ */
 const globNamesStylesheet = (node: ts.Node): boolean =>
 	(ts.isArrayLiteralExpression(node) ? [...node.elements] : [node]).some(
 		(element) =>
@@ -256,8 +282,19 @@ const importUrlsOf = (filename: string, code: Buffer): string[] => {
 const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
 	block.src !== undefined || importUrlsOf(file, Buffer.from(block.content)).length > 0;
 
-/** The JS half of the question below, so that `importsStylesheet` reads as the pair it is. */
-const scriptImportsStylesheet = (file: string, script: Script): boolean => {
+interface ScriptScan {
+	/** Does this script load a stylesheet? */
+	readonly stylesheet: boolean;
+	/** Every RELATIVE specifier it names, glob patterns included — see `escapesTheRoots`. */
+	readonly relative: readonly string[];
+}
+
+/**
+ * The JS half of the question below, so that `importsStylesheet` reads as the pair it is — and
+ * the specifier list the closure check needs, gathered on the same walk rather than by parsing
+ * every module a second time.
+ */
+const scanScript = (file: string, script: Script): ScriptScan => {
 	const source = ts.createSourceFile(
 		file,
 		script.content,
@@ -266,15 +303,24 @@ const scriptImportsStylesheet = (file: string, script: Script): boolean => {
 		script.kind,
 	);
 	let found = false;
+	const relative: string[] = [];
+	// Every literal specifier the node carries, so one walk answers both questions. An array
+	// element is a glob's own multi-pattern form; a `!` prefix is an EXCLUSION and names no
+	// module, so it is dropped here exactly as it is in `globNamesStylesheet`.
+	const collect = (node: ts.Node): void => {
+		const elements = ts.isArrayLiteralExpression(node) ? [...node.elements] : [node];
+		for (const element of elements) {
+			if (!ts.isStringLiteralLike(element)) continue;
+			if (element.text.startsWith('.')) relative.push(element.text);
+		}
+	};
 	const visit = (node: ts.Node): void => {
-		if (found) return;
 		if (
 			(ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-			node.moduleSpecifier !== undefined &&
-			namesStylesheet(node.moduleSpecifier)
+			node.moduleSpecifier !== undefined
 		) {
-			found = true;
-			return;
+			collect(node.moduleSpecifier);
+			if (namesStylesheet(node.moduleSpecifier)) found = true;
 		}
 		if (ts.isCallExpression(node) && node.arguments[0] !== undefined) {
 			const callee = node.expression;
@@ -293,18 +339,16 @@ const scriptImportsStylesheet = (file: string, script: Script): boolean => {
 				&& callee.expression.getText(source).startsWith('import.meta');
 			// A glob PATTERN and a specifier are different questions, so they take different
 			// predicates rather than one predicate that has to mean both.
+			if (isGlob || isDynamicImport) collect(node.arguments[0]);
 			const claimsStylesheet = isGlob
 				? globNamesStylesheet(node.arguments[0])
 				: isDynamicImport && namesStylesheet(node.arguments[0]);
-			if (claimsStylesheet) {
-				found = true;
-				return;
-			}
+			if (claimsStylesheet) found = true;
 		}
 		ts.forEachChild(node, visit);
 	};
 	ts.forEachChild(source, visit);
-	return found;
+	return { stylesheet: found, relative };
 };
 
 /**
@@ -338,9 +382,44 @@ const scriptImportsStylesheet = (file: string, script: Script): boolean => {
  * source at all — held in an identifier, or assembled by concatenation — whose value exists
  * only at runtime.
  */
-const importsStylesheet = (file: string, blocks: Blocks): boolean =>
+const importsStylesheet = (file: string, blocks: Blocks, scans: readonly ScriptScan[]): boolean =>
 	blocks.styles.some((block) => styleImportsStylesheet(file, block))
-	|| blocks.scripts.some((script) => scriptImportsStylesheet(file, script));
+	|| scans.some((scan) => scan.stylesheet);
+
+/** The three trees this scan walks. Named once: the closure check below compares against them. */
+const ROOTS = ['src', 'tests/harness', 'tests/helpers'] as const;
+
+/**
+ * Does this relative specifier leave the trees this scan walks?
+ *
+ * **The roots were a claimed transitive closure and nothing checked the claim** — reported, and
+ * the report is right about the mechanism even though nothing in the tree does it today
+ * (measured: resolving every relative specifier in all 443 modules lands every one of them
+ * inside these three). `tests/harness/page.ts` importing `../../scripts/helper.ts`, which
+ * imports `./theme.css`, would load a stylesheet through a module this sweep never opens — and
+ * the execution check below cannot compensate, because Vitest's `css: false` stubs a real CSS
+ * import into an empty module.
+ *
+ * Traversing the module graph was the reported remedy and is more than the question needs. The
+ * roots do not have to be FOLLOWED, they have to be a CLOSURE — so the escape is what gets
+ * reported, and then either an import stays inside trees that are already scanned or this test
+ * says which file left and where it went. Cheap, because the walk above already has every
+ * specifier, and it fails loudly instead of silently.
+ *
+ * A glob pattern is resolved at its literal prefix — the part before the first wildcard — since
+ * that is the directory the matches come out of.
+ *
+ * **The bound, stated rather than implied: RELATIVE specifiers only.** A bare specifier that
+ * resolves to a local module would slip past, which today is unreachable — `tsconfig.json`
+ * declares no `paths` mapping and the one alias either config sets (`obsidian`) points at
+ * `tests/helpers/obsidian-mock.ts`, inside the roots. A second alias, or a `paths` entry,
+ * reopens it.
+ */
+const escapesTheRoots = (file: string, specifier: string): boolean => {
+	const literal = specifier.split(/[*?{}[\]()!|]/)[0] ?? specifier;
+	const resolved = path.normalize(path.join(path.dirname(file), literal));
+	return !ROOTS.some((root) => resolved === root || resolved.startsWith(`${root}${path.sep}`));
+};
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`
@@ -801,23 +880,28 @@ describe('the browser harness', () => {
 		// caller's business to remember rather than the scan's.
 		const scanned = reachable.map((file) => {
 			const text = readText(file);
-			return { file, text, blocks: blocksOf(file, text) };
+			const blocks = blocksOf(file, text);
+			return { file, text, blocks, scans: blocks.scripts.map((s) => scanScript(file, s)) };
 		});
 		const named = (
 			predicate: (entry: (typeof scanned)[number]) => boolean,
 		): string[] => scanned.filter((entry) => predicate(entry)).map((entry) => entry.file);
 
-		const importers = named(({ file, blocks }) => importsStylesheet(file, blocks));
+		const importers = named(({ file, blocks, scans }) => importsStylesheet(file, blocks, scans));
+		const escapees = named(({ file, scans }) =>
+			scans.some((scan) => scan.relative.some((specifier) => escapesTheRoots(file, specifier))),
+		);
 		const linkers = named(({ text }) => sheetLink.test(text));
 		const externalTemplates = named(({ blocks }) => blocks.externalTemplate !== undefined);
 		const styleBlocks = sources('tests/harness').filter((file) =>
 			/<style[\s>]/.test(readText(file)),
 		);
 
-		expect({ importers, linkers, externalTemplates, styleBlocks }).toEqual({
+		expect({ importers, linkers, externalTemplates, escapees, styleBlocks }).toEqual({
 			importers: [],
 			linkers: [],
 			externalTemplates: [],
+			escapees: [],
 			styleBlocks: [],
 		});
 	}, WHOLE_TREE_SCAN_MS);

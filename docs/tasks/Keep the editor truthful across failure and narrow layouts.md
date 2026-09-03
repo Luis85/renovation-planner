@@ -49,8 +49,10 @@ without remounting the canvas' and 'keeps selection and viewport across the chan
 element identity rather than a redraw. Criterion 4's first half is that file's 'below the floor
 width replaces the canvas with a summary and a Focus this tab action that asks the leaf'.
 
-Criterion 4's 'without horizontal scrolling' half is held by NOTHING: jsdom lays nothing out, and
-the only narrow capture is at 460px, which is `constrained` rather than `unsupported`. The manual
-case's step 10 ([[Open a floor and select a room]]) is the instrument. The unsupported notice's
-own body also reads "1 rooms" for a single-room floor — a spec-mandated string, and `tr` has no
-plural form.
+Criterion 4's 'without horizontal scrolling' half is held by NOTHING, and by no manual step
+either: jsdom lays nothing out, the only narrow capture is at 460px (which is `constrained`
+rather than `unsupported`), and step 10 of [[Open a floor and select a room]] — which does open
+this state — asks the tester to watch `Focus this tab`, never to look for a sideways scrollbar.
+An earlier draft of this line named that step as the instrument; it is not one. The unsupported
+notice's own body also reads "1 rooms" for a single-room floor — a spec-mandated string, and `tr`
+has no plural form.

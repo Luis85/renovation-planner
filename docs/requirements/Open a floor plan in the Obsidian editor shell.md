@@ -113,7 +113,9 @@ gone; criterion 5 is `tests/presentation/editor/planEditorFailure.test.ts` besid
 `tests/presentation/editor/shell/responsiveShell.test.ts`, which asserts the canvas ELEMENT
 survives a full-to-constrained change, so the viewport and the selection survive by construction;
 criterion 4's no-theme-switch half is the build's SDD §84 colour check, and its LEGIBILITY half is
-the two `plan-editor-*` captures read by eye. Criterion 1 is unchanged from before this increment.
+the `plan-editor-dark` and `plan-editor-light` captures read by eye — the only pair taken in both
+schemes; `plan-editor-selected`, `-add-menu` and `-narrow` are light only. Criterion 1 is
+unchanged from before this increment.
 
 Remains, and each is recorded at the Task that owns it:
 
@@ -128,9 +130,12 @@ Remains, and each is recorded at the Task that owns it:
 - **`Ground floor has 1 rooms`.** The unsupported-width notice's body is a spec-mandated string
   and `tr` has no plural form, so a single-room floor reads wrong. Recorded at
   [[Keep the editor truthful across failure and narrow layouts]].
-- **No measurement of horizontal scrolling below 400px.** jsdom lays nothing out and the only
-  narrow capture is at 460px, which is `constrained`. Step 10 of
-  [[Open a floor and select a room]] is the instrument.
+- **No measurement of horizontal scrolling below 400px, by any instrument.** jsdom lays nothing
+  out, and the only narrow capture is at 460px, which is `constrained` rather than `unsupported`.
+  The manual case's step 10 opens that state and watches `Focus this tab`; its expected result
+  never asks the tester to look for a sideways scrollbar, so it does not discharge this either.
+  An earlier draft of this line named step 10 as the instrument, which was a guess at what the
+  step checks rather than a reading of it.
 - **No manual case for Undo and Redo beyond one clause.** The context bar carries both controls
   and step 1 of [[Open a floor and select a room]] asserts only that they are present and
   disabled with an empty history; the Undo and redo PBI is not advanced here.

@@ -366,11 +366,13 @@ verdict the way this project treats a docblock: evidence of intent, and of nothi
   because there is no asset-specific fixture and none of this case needs one.
 - [[Open a floor and select a room]] — the plan editor foundation's first increment: the read
   path and selection, with Select as the resting state, the toolbar gone, and the shell rearranged
-  around one canvas instance by leaf width. Four of its ten steps need a vault for four different
-  reasons, and its own header tabulates them: step 6 is the only instrument for whether Obsidian's
-  keymap fires behind an open Add menu (jsdom models no host `Scope`), step 8 for whether a real
-  sidebar leaf lands in `constrained` once the tab bar, ribbon and resize handle are subtracted
-  from `layoutMode.ts`'s 900/400 judgements, step 9 for whether Electron honours the `.focus()`
-  the overlay's close path demonstrably calls, and step 10 for whether `focusLeaf()` visibly
-  brings the tab forward and whether the unsupported-width notice scrolls sideways — a
-  measurement no layout engine in this repository performs.
+  around one canvas instance by leaf width. FOUR of its ten steps are tagged `obsidian` — 1, 8, 9
+  and 10 — and its own header tabulates the four things no gate here can settle, which is a
+  different set by one: step 6 (tagged `browser`) is the only instrument for whether Obsidian's
+  keymap fires behind an open Add menu, since jsdom models no host `Scope`; step 8 for whether a
+  real sidebar leaf lands in `constrained` once the tab bar, ribbon and resize handle are
+  subtracted from `layoutMode.ts`'s 900/400 JUDGEMENTS; step 9 for whether Electron honours the
+  `.focus()` the overlay's close path demonstrably calls; and step 10 for whether `focusLeaf()`
+  visibly brings the tab forward. What NO step here reaches, and no gate either, is whether the
+  unsupported-width notice scrolls sideways — a measurement no layout engine in this repository
+  performs and no expected result in this case asks for.

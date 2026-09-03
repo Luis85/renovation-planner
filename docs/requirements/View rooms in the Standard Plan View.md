@@ -119,8 +119,11 @@ Remains:
 - **Contextual dimensions.** [[Frame selected Rooms and show contextual dimensions]] shipped its
   framing half only; nothing draws a selected room's dimensions, and the only measurement on the
   canvas belongs to the calibration tool.
-- **Criterion 7 is held by a colour gate rather than by a picture.** SDD §84 refuses a literal
-  colour in any stylesheet partial, so every state's palette is the theme's — and the two
-  `plan-editor-*` captures photograph the RESTING scene, so the empty, partial-unreadable, failed
-  and unsupported states have no picture in either scheme. Recorded at
-  [[Distinguish empty unreadable and unavailable floor data]].
+- **Criterion 7 is held by a SOURCE gate, not by a light-and-dark check of any state.** SDD §84
+  refuses a literal colour in any stylesheet partial, so every state's palette is the theme's —
+  which is a fact about what a partial may declare, not evidence that anything was looked at in
+  both schemes. Only `plan-editor-dark` and `plan-editor-light` are captured in both, and they
+  photograph the RESTING scene; `plan-editor-selected`, `-add-menu` and `-narrow` are light only.
+  The empty, partial-unreadable, failed and unsupported states have no picture in either scheme.
+  Recorded at [[Distinguish empty unreadable and unavailable floor data]], which stays **Active**
+  for it.

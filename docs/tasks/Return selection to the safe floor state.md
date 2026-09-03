@@ -51,5 +51,14 @@ the menu and never the canvas: a selected zone stays selected'. Criterion 3 is
 `tests/presentation/editor/shell/floorInspector.test.ts`. Criterion 4 is
 `tests/presentation/editor/runtime.test.ts`'s 'a selected zone that disappears from the next
 hydrate is retired, not rebound', with its sibling 'keeps a selected id that survives the next
-hydrate untouched' holding the other direction. Criterion 5 is what `routeEscape` does NOT reach —
-no arm of it touches the viewport — and the retirement case asserts the camera is left alone.
+hydrate untouched' holding the other direction.
+
+**Criterion 5 ("Viewport remains unchanged") is held by CONSTRUCTION and by no test**, and the
+first draft of this section said the retirement case asserted it, which is false:
+`tests/presentation/editor/runtime.test.ts`'s 'a selected zone that disappears from the next
+hydrate is retired, not rebound' asserts `selectedIds` and nothing else. The three cases that do
+compare `editor.viewport` against a captured `before` belong to `selectAndFrame` — a different
+criterion, on a different Task. What actually holds this one is `routeEscape`'s SHAPE: no member
+of `EscapeDeps` reaches the camera, so no arm of the routine has a viewport to change. A shape is
+weaker evidence than an assertion, and saying which one is in hand is the point of writing it
+down.

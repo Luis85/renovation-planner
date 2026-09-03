@@ -64,10 +64,15 @@ the vault and changes no schema.
 
 [[Consolidate the current and target editor data models]] is **Done**. The six remaining PBIs are
 **Active**, each with a dated `## Amendments` section saying which of its acceptance criteria this
-increment met, with the test that holds each, and which remain. Nineteen of the thirty-one Tasks
-under them are Done; twelve are Active for a named half — the compact status bar's View menu,
-overlap cycling, the Add lifecycle's repeat option and the banner's Finish and Remove last,
-contextual dimensions, the homeowner questions' available routes, the two deferred model ADRs, a
-warning's severity and actions, and a resize-driven overlay close that leaves focus on `<body>`.
+increment met, with the test that holds each, and which remain. **Seventeen of the thirty-one
+Tasks under them are Done; fourteen are Active**, each for a named half: the compact status bar's
+View menu, overlap cycling, the Add lifecycle's repeat option and the banner's Finish and Remove
+last, contextual dimensions, the homeowner questions' available routes, the two deferred model
+ADRs, a warning's severity and actions, a resize-driven overlay close that leaves focus on
+`<body>`, nothing disabled while stale, a hidden selected record's coherence, and the four data
+states having no capture in either colour scheme. The rule those fourteen were split out by is
+stated in each of them: **a whole acceptance criterion whose subject this increment built and
+which no instrument holds is an amendment, not a tick.** Two Tasks were moved from Done to Active
+by review round 1 under exactly that rule.
 
 Checkpoint C2 — Add Room with a rectangular drag and a name form — is the next increment.

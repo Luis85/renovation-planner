@@ -2,7 +2,7 @@
 type: Task
 parent: "[[View rooms in the Standard Plan View]]"
 order: 30
-status: Done
+status: Active
 horizon: "MVP"
 release: "[[MVP]]"
 ---
@@ -36,7 +36,7 @@ Convenience defaults in DTO mapping can erase the distinction before presentatio
 
 The Standard Plan View never claims more certainty or capability than its data supports.
 
-## Closing evidence
+## Amendments
 
 **2026-09-03**, the plan editor foundation's first increment. Criterion 1's four states are
 `tests/presentation/read-models/spatialRecords.test.ts`'s 'distinguishes a floor with no rooms
@@ -48,7 +48,11 @@ number). Criterion 2 is `tests/presentation/editor/unreadableZonesNotice.test.ts
 rooms stay on the canvas beside an additive warning naming the count. Criterion 3 is the
 'never zero' clause of the floor-summary case.
 
-Criterion 4's light-and-dark half is held by the BUILD's colour check and by no picture: SDD §84
-refuses a literal colour in any partial, so each state's palette is the theme's, and the two
-`plan-editor-*` captures photograph the RESTING scene only. None of the four states has a capture
-in either scheme.
+**Criterion 4 is held by NOTHING, which is why this Task is Active rather than Done.** SDD §84
+refuses a literal colour in any stylesheet partial, so no state can carry a palette of its own —
+that is a check on the SOURCE, not a light-and-dark check of any state, and reading it as one was
+the error this amendment corrects. The `plan-editor-dark` and `plan-editor-light` captures
+photograph the RESTING scene; `plan-editor-selected`, `-add-menu` and `-narrow` are each light
+only. None of the four states this Task exists to distinguish — empty, partial-unreadable, failed,
+unsupported — has a picture in either scheme, and jsdom lays nothing out, so nothing else here can
+see one either.

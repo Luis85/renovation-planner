@@ -34,6 +34,17 @@
  * returns. Neither side can advance, and nothing times out — the publishing command hangs
  * for the life of the session holding every lock it took.
  *
+ * **The rule is load-bearing today rather than prospectively, and the shortest live path to
+ * it is not either engine below.** `SetAssetPriceOverride.execute` holds level-1 over
+ * `[projectId, assetId]` across `upsert`, which publishes `AssetPriceOverrideChanged` before
+ * the `finally` releases; `event-handlers/requirement/onAssetPriceOverrideChanged.ts`
+ * subscribes to exactly that event and AWAITS `runRecalculationCascade` inside the held
+ * region. So a subscriber already runs under a held reference lock on a path a user reaches
+ * by editing a price, and the rule is the only thing standing between it and the deadlock
+ * above — not a precaution against a subscriber nobody has written yet. The two
+ * delete-resolution engines are what the instruments PIN because they are what the rule was
+ * derived from; this is the path likeliest to break it.
+ *
  * **Why the alternative is unavailable, and therefore why this is a RULE rather than a
  * repositioning of the publishes.** The obvious remedy is to publish after releasing. It
  * cannot close the class. Publishing under a lock is routine here rather than exceptional —
@@ -66,22 +77,44 @@
  * handler handed a collaborator that locks internally would name nothing, and is invisible
  * to every instrument above.
  *
- * **No subscriber acquires a lock today** — established on 2026-09-03 by READING every
- * module that registers one (`event-handlers/requirement/cascade.ts`, the three
- * `on*.ts` handlers beside it, and `RecalculateRequirementCommand` below them), and NOT by
- * any of the four instruments above, none of which can see a lock reached through an
- * injected collaborator. Dated and attributed for the same reason the 13-of-40 figure is: it
- * is a fact about the tree at the moment somebody looked, and nothing re-establishes it.
+ * **No subscriber acquires a lock today** — established on 2026-09-03 by READING all TEN
+ * modules that register one (`grep -rlE '\.subscribe\(' src/` — the escaped spelling is
+ * deliberate: `subscriberLockBoundary.test.ts` discovers registrars by TEXT, so quoting the
+ * bare call here would enrol this very file as one, which is exactly what the first draft of
+ * this sentence did and what that instrument then caught): the three
+ * `event-handlers/requirement/on*.ts` handlers, and the seven `events/*ChangeSource.ts`
+ * forwarders. The cascade chain BELOW those handlers was read with them —
+ * `event-handlers/requirement/cascade.ts` and `RecalculateRequirementCommand`, neither of
+ * which registers anything itself — because a registrar's own compliance is worth nothing if
+ * what it calls locks. An earlier draft of this sentence claimed to have read "every module
+ * that registers one" and then enumerated that chain INSTEAD of the seven forwarders: three
+ * of ten, two of them not registrars at all. `subscriberLockBoundary.test.ts`'s own
+ * `registrars().length > 5` already contradicted it — prose and tripwire disagreeing about
+ * the size of one set inside one increment, which is why the set is now named by the command
+ * that measures it. The conclusion was unaffected; none of the ten names or reaches a lock.
+ * Established NOT by any of the four instruments above, none of which can see a lock reached
+ * through a collaborator that locks internally. Dated and attributed for the same reason the
+ * 13-of-40 figure is: it is a fact about the tree at the moment somebody looked, and nothing
+ * re-establishes it.
  *
  * A SECOND and quite separate rule governs where a publisher announces FROM: publish outside
  * the locked region where you can, so a subscriber's own read does not wait on a lock the
  * publisher has not let go. `updateAssetShape` and `CalibrateAssetCommand.executeWithVersion`
  * state that one where they publish and follow it; `SetAssetBackgroundCommand.write`
- * publishes inside `withLevel1` and does not. **That is an exception to THAT convention and
- * to nothing on this page** — a publish-POSITION choice, violating no rule stated here, and
- * harmless for exactly as long as the subscriber rule above holds. Pre-existing, out of this
- * increment's scope, and named rather than glossed, because uniformity implied is uniformity
- * a later reader relies on.
+ * publishes inside `withLevel1` and does not — and it is the asset-design family's exception
+ * rather than the only one in the tree. Two more sit beside it, and each is ATTRIBUTED rather
+ * than blanketed, because "pre-existing" is a claim about a baseline and is worth nothing
+ * without one: `SetAssetPriceOverride.execute` publishes inside its own `acquire`/`release`
+ * pair around `upsert` and predates this branch, like the background command; `redoCreate` in
+ * `reversible-assign-asset-command.ts` acquires, publishes and releases in that order, and
+ * its publish arrived with the PUBLISHING increment (earlier on this branch, and already in
+ * the tree this one started from) rather than with the lock/publish work. None of the three
+ * belongs to this increment. All three are among the thirteen locked publishes this page's
+ * own sweep counts, so the convention is followed by most of that set and not by all of it.
+ * **Those are exceptions to THAT convention and to nothing on this page** — a
+ * publish-POSITION choice, violating no rule stated here, and harmless for exactly as long as
+ * the subscriber rule above holds. Named rather than glossed, because uniformity implied is
+ * uniformity a later reader relies on.
  *
  * Deliberately NOT a general write mutex: an ordinary requirement writer holds exactly one
  * level-2 lock through its own short-lived session and waits for nothing else, so the

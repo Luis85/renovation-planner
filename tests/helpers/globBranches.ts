@@ -289,11 +289,13 @@ export const resolvesOutsideRoots = (
  * A count is left out because it would be **UNSTABLE BY CONSTRUCTION, not merely stale**: the
  * command searches quoted strings under the roots, this file is under the roots, so every example
  * literal anyone writes in this comment changes the answer it reports about itself. That is not a
- * hypothetical — a previous revision stated a figure correctly, and the same edit's own new prose
- * invalidated it by adding four more literals, which is this predicate's documented failure mode
- * arriving inside the fix for it. Correcting the digits would schedule the next wrong number for
- * whoever edits this paragraph. **If a figure is ever wanted here, the only honest one comes from
- * an instrument that EXCLUDES the file it is quoted in** (`--exclude=globBranches.ts`), and that
+ * hypothetical — a previous revision MEASURED a figure correctly, and the same edit's own new
+ * prose invalidated it before it was committed, by adding four more literals: the measurement was
+ * true of the tree it was taken from and the STATEMENT was false in every tree that ever held it,
+ * which is this predicate's documented failure mode arriving inside the fix for it. Correcting
+ * the digits would schedule the next wrong number for whoever edits this paragraph. **If a
+ * figure is ever wanted here, the only honest one comes from an instrument that EXCLUDES the
+ * file it is quoted in** (`--exclude=globBranches.ts`), and that
  * exclusion has to be part of the command rather than a caveat under it.
  */
 const TEST_FILE = /\.test(?:\.ts)?$/;

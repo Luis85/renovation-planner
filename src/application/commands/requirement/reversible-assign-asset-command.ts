@@ -121,12 +121,13 @@ export class ReversibleAssignAssetCommand {
 		// recalculation landed since is a conflict, not a casualty.
 		const deleted = await this.deps.requirements.delete(recorded.snapshot.id, recorded.version);
 		if (isErr(deleted)) return err(deleted.error);
-		// Held by the type, not by a behavioural guard: `outcome`'s 'found' arm (:84) carries
-		// no `snapshot`, and the early return above is what narrows `recorded` to the 'created'
-		// arm — the only shape `recorded.snapshot` compiles against, at the delete above and
-		// the publish below. Moving this publish above that return does not merely fail a
-		// test; it does not compile (`recorded.snapshot` becomes a `TS2339` on the union), which
-		// is why no test covers this and none is owed.
+		// Held by the type, not by a behavioural guard: the 'found' member of the `outcome`
+		// field's union, declared above, carries no `snapshot`, and the early return above is
+		// what narrows `recorded` to the 'created' arm — the only shape `recorded.snapshot`
+		// compiles against, at the delete above and the publish below. Moving this publish
+		// above that return does not merely fail a test; it does not compile
+		// (`recorded.snapshot` becomes a `TS2339` on the union), which is why no test covers
+		// this and none is owed.
 		await this.deps.events.publish(
 			requirementDeleted({ requirementId: recorded.snapshot.id, projectId: recorded.snapshot.projectId }),
 		);
@@ -184,8 +185,9 @@ export class ReversibleAssignAssetCommand {
 			// a redo writes byte-identical frontmatter, so both halves of the stale pair
 			// coincide there and the unfixed second undo would have SUCCEEDED against a vault,
 			// silently deleting a row a later gesture had recreated. The fix stays regardless:
-			// it is the invariant `reversible-delete-zone-command.ts:200` already states, and
-			// the frontmatter coincidence it closes breaks the moment the index is stale.
+			// it is the invariant `ReversibleDeleteZoneCommand.undo` already states where it
+			// advances its own `snapshot` from `restored.value`, and the frontmatter
+			// coincidence it closes breaks the moment the index is stale.
 			this.outcome = { kind: 'created', snapshot: recorded.snapshot, version: saved.value.version };
 			// Created rather than Restored: the save above presents 'absent', so this is a
 			// re-creation of a row undo removed, not a restore of one merely edited — the same

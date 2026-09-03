@@ -257,11 +257,15 @@
  * it — and `docs/user-experience/concepts/README.md` records what measuring the wrong box
  * costs.
  *
- * **Inert in the shipped app today, and that is a fact worth stating rather than leaving to be
- * discovered.** No partial in `styles/` declares `container-name: rp-al-shelves` — only the
- * prototype `AssetLibrary.vue` does, on its own `.rp-al-shelves` wrapper — so these two rules
- * fire in the harness (which mounts that prototype) and nowhere in a vault until whichever task
- * composes the shelves region around `AssetShelf.vue` for real declares the container there.
+ * **LIVE in the shipped app since Task 13, and this paragraph named its own trigger.** It said
+ * these rules were inert because no partial in `styles/` declared `container-name:
+ * rp-al-shelves` — only the prototype did — and that they would stay so "until whichever task
+ * composes the shelves region around `AssetShelf.vue` for real declares the container there".
+ * That task is Task 13: `styles/asset-library.css`'s `.rp-al-shelves` block declares
+ * `container: rp-al-shelves / inline-size`, so both rules below now fire in a vault as well as
+ * in the harness. Recorded rather than deleted because the shape is this project's own recurring
+ * one — a comment that names its trigger is a comment nothing re-reads when the trigger fires,
+ * and this one went a whole commit describing the opposite of what shipped.
  */
 @container rp-al-shelves (width < 40rem) {
 	.rp-al-shelf .rp-al-row {

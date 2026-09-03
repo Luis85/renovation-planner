@@ -25,6 +25,19 @@
 	The row's action is EMITTED rather than handled: what to do after opening a note — the
 	`'missing'` re-read — is a fact about the listing this strip was drawn from, which the root
 	owns. This component knows a path and a reason and nothing about hydration.
+
+	**No `role="status"`, and that is a correction rather than an omission.** It carried one for
+	a review round, on a region that does not exist until its content does — the exact shape
+	design slice 13's Toast finding refuses by name, and one a screen reader announces nothing
+	for. Rather than keep an attribute that claims a behaviour it cannot have, the strip is what
+	it actually is: a static region rendered with the pane. §5.1a asks for a repair strip and
+	names no announcement; the one announcement §6.1 DOES ask for — the search result count — is
+	a persistent, always-drawn region in `AssetLibraryRoot.vue`, written into on each keystroke.
+
+	`rp-al-repair` beside the shared `rp-view-notice`: the strip's three-part rows are this
+	surface's own layout, and `styles/view.css`'s `.rp-view-notice` was written for a single
+	`<p>`. Declaring the row rules under a library-specific class leaves the shared one untouched
+	rather than widening a rule `ViewRoot`'s own strip also draws with.
 -->
 <script setup lang="ts">
 import type { UnreadableEntry } from '../../application/queries/ListCatalogueEntries';
@@ -54,10 +67,7 @@ function reasonLabel(entry: UnreadableEntry): string {
 </script>
 
 <template>
-	<div
-		class="rp-view-notice"
-		role="status"
-	>
+	<div class="rp-view-notice rp-al-repair">
 		<p>{{ tr('view.asset-library.some-unreadable', { count: String(entries.length) }) }}</p>
 		<ul>
 			<li

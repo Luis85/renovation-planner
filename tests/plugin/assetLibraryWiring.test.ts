@@ -64,9 +64,21 @@ describe('assetLibraryDeps with a composed root', () => {
 		expect(deps.commands.updateAsset).toBe(persistence.updateAsset);
 		expect(deps.commands.setAssetHeight).toBe(persistence.assetDesign.setHeight);
 		expect(deps.commands.deleteAsset).toBe(persistence.deleteAsset);
+		// §3.1's `New asset` pair, added when the toolbar's door was built. Unchecked for a
+		// round, and the two mutations that measures are the reason this file exists: binding
+		// `createAsset` to `deleteAsset` and `setAssetFootprintFromDimensions` to `setHeight`
+		// passed 701 tests — a library whose creation button dispatches a DELETE, green.
+		expect(deps.commands.createAsset).toBe(persistence.createAsset);
+		expect(deps.commands.setAssetFootprintFromDimensions).toBe(
+			persistence.assetDesign.setFootprintFromDimensions,
+		);
+		expect(deps.commands.defaultCurrency).toBe(DEFAULT_SETTINGS.defaultCurrency);
 		expect(deps.logger).toBe(root.logger);
 		expect(deps.vault).toBe(stack.vault);
 		expect(deps.indexScanCompleted()).toBe(true);
+		// §3.6's status-bar half — a settings echo, so identity is again the whole check.
+		// `libraryFolder: ''` passed 406 tests.
+		expect(deps.libraryFolder).toBe(DEFAULT_SETTINGS.libraryFolder);
 	});
 
 	/**

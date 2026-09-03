@@ -10,10 +10,17 @@
 	in which order, is this component's own per the brief's own hand-off: Task 12 built the
 	shelf and the row; nothing before this task built the LIST of shelves.
 
-	**The two-group derivation, verbatim from §3.2**: every category `ASSET_CATEGORIES`
-	declares, in that array's own order (the same order `NewAssetForm`'s own `<select>`
-	renders, since both read `ASSET_CATEGORY_LABELS`), ALL of them including the ones holding
-	nothing — then every category the passed-in `entries` actually name that the build does not
+	**The two-group derivation, verbatim from §3.2**: every category the build declares, in
+	`ASSET_CATEGORY_LABELS`'s own key order — which is the order `NewAssetForm`'s `<select>`
+	renders, because that control iterates the same Record (`NewAssetForm.vue`'s `CATEGORIES`),
+	so the category a user picked in the form is in the position they picked it from. **That
+	Record and not `ASSET_CATEGORIES`**, which is a correction rather than a detail: for one
+	review round this derivation read the ARRAY while this paragraph claimed the Record. The two
+	agree today, so nothing was visibly wrong — and a category inserted at a different position
+	in one of them would have parted the shelves from the form silently, with the shelf-order
+	test asserting against the code's source rather than the spec's. One source now, and
+	`assetLibraryRoot.test.ts` compares the shelf order against the form's own rendered control
+	rather than against either list. ALL of them, including the ones holding nothing — then every category the passed-in `entries` actually name that the build does not
 	declare, ordered by `localeCompare` under the resolved language and kept AS WRITTEN, never
 	case-folded or retitled. Group 2 is UNREACHABLE in today's code — an unrecognised category
 	never becomes an `Asset` at all (`kebabEnum(ASSET_CATEGORIES)` answers `z.NEVER` and
@@ -37,7 +44,6 @@ import type { CatalogueEntryDto } from '../../application/queries/ListCatalogueE
 import type { AssetOutline } from '../../application/queries/ListAssetOutlines';
 import type { AssetId } from '../../domain/asset/AssetId';
 import type { AssetCategory } from '../../domain/asset/AssetCategory';
-import { ASSET_CATEGORIES } from '../../domain/asset/AssetCategory';
 import { ASSET_CATEGORY_LABELS } from '../views/assetLabels';
 import { currentLanguage, tr } from '../i18n/strings';
 import AssetShelf from './AssetShelf.vue';
@@ -79,8 +85,13 @@ const resultsLabel = computed((): string => tr('view.asset-library.results'));
  * CLAUDE.md's own account of this branch already records finding twice on this exact surface
  * (the rows, and then the shelves themselves).
  */
+/** §3.2's group-1 ORDER and group-1 MEMBERSHIP, from one source. The `Record` type makes every
+ *  `AssetCategory` present, so the cast asserts nothing the compiler has not already checked —
+ *  `NewAssetForm`'s own `CATEGORIES` is the identical expression. */
+const DECLARED: readonly AssetCategory[] = Object.keys(ASSET_CATEGORY_LABELS) as AssetCategory[];
+
 const shelves = computed((): readonly Shelf[] => {
-	const declared = new Set<string>(ASSET_CATEGORIES);
+	const declared = new Set<string>(DECLARED);
 	const byCategory = new Map<string, CatalogueEntryDto[]>();
 	for (const entry of props.entries) {
 		const bucket = byCategory.get(entry.category);
@@ -97,7 +108,7 @@ const shelves = computed((): readonly Shelf[] => {
 	const undeclared = [...byCategory.keys()]
 		.filter((category) => !declared.has(category))
 		.toSorted(collator.compare);
-	return [...ASSET_CATEGORIES, ...undeclared].map((category) => ({
+	return [...DECLARED, ...undeclared].map((category) => ({
 		category,
 		label: declared.has(category)
 			? tr(ASSET_CATEGORY_LABELS[category as AssetCategory])

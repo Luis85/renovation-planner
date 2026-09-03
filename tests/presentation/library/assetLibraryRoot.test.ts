@@ -14,6 +14,7 @@
  * the shipped file disagree, the shipped file wins") applied to a second file.
  */
 import { describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
 import { ok } from '../../../src/core/result/Result';
 import type { Result } from '../../../src/core/result/Result';
 import type { RepositoryError } from '../../../src/application/ports/repositoryErrors';
@@ -81,12 +82,27 @@ describe('AssetLibraryRoot', () => {
 		const root = await mountRoot({ entries: [], unreadable: [], indexScanCompleted: () => false });
 
 		expect(root.find('.rp-empty-state').exists()).toBe(false);
+		// The POSITIVE half, and without it this case passes against a root whose body never
+		// draws at all — measured: `<div class="rp-al-body">` behind a `v-if="false"` keeps the
+		// absence assertion above green. §4's row is "the shell, with a loading line in the
+		// shelves region", so the line is the thing that must be there.
+		expect(root.get('.rp-view-message').text()).toBe(tr('view.asset-library.loading'));
+		expect(root.find('.rp-al-shelf').exists()).toBe(false);
 	});
 
-	it('announces the match count in a live region', async () => {
+	/**
+	 * The region has to be DRAWN AND EMPTY before it is written into, which is design slice 13's
+	 * own finding: a live region created together with its first content is announced by nothing,
+	 * because there is no change for the assistive technology to observe. So the first assertion
+	 * is not decoration — a build that went back to `v-if="store.searching"` passes the second
+	 * assertion and fails this one.
+	 */
+	it('announces the match count into a live region that was already there', async () => {
 		const root = await mountRoot({
 			entries: [anEntry({ name: 'Oak plank floor' }), anEntry({ assetId: createAssetId(), name: 'Wall paint' })],
 		});
+
+		expect(root.get('[role="status"].rp-al-results').text()).toBe('');
 
 		await root.get('.rp-al-search__input').setValue('Oak');
 		await settle();
@@ -155,6 +171,95 @@ describe('AssetLibraryRoot', () => {
  * wrong thing.
  */
 /**
+ * §6.3, from the side that had no case at all for a review round: the two `data-*` attributes
+ * Task 11 proved and WHAT IS DRAWN have to agree.
+ *
+ * Both were measured broken and both are asserted against the DRAWN surface rather than against
+ * the attribute — the attribute was already right in the broken build, which is exactly why the
+ * defect was invisible: `data-selected-asset-id` named an asset while no row was marked, and
+ * `data-expanded-categories` named a category while every shelf stayed collapsed.
+ */
+describe('AssetLibraryRoot, following Obsidian\'s own view state', () => {
+	it('marks the row a restored leaf was carrying a selection of', async () => {
+		const entry = anEntry({ category: 'material' });
+		const root = await mountRoot({ entries: [entry], assetId: ref(entry.assetId) });
+
+		expect(root.attributes('data-selected-asset-id')).toBe(entry.assetId);
+		expect(root.findAll('.rp-al-row')).toHaveLength(1);
+		expect(root.find('.rp-al-row--on').exists()).toBe(true);
+	});
+
+	/** And back to nothing: `''` is §6.3's sentinel for no selection, never `null`, so a build
+	 *  that passed it straight through would mark a row whose id is the empty string — or, more
+	 *  likely, mark nothing and never un-mark. */
+	it('un-marks every row when the view state clears the selection', async () => {
+		const entry = anEntry({ category: 'material' });
+		const assetId = ref<string>(entry.assetId);
+		const root = await mountRoot({ entries: [entry], assetId });
+
+		expect(root.find('.rp-al-row--on').exists()).toBe(true);
+
+		assetId.value = '';
+		await settle();
+
+		expect(root.find('.rp-al-row--on').exists()).toBe(false);
+	});
+
+	it('opens the shelf an already-open leaf is told to expand', async () => {
+		const expanded = ref<readonly string[]>([]);
+		const root = await mountRoot({
+			entries: [anEntry({ category: 'material' }), anEntry({ assetId: createAssetId(), category: 'furniture' })],
+			expanded,
+		});
+		expect(root.findAll('.rp-al-shelf__head').map((head) => head.attributes('aria-expanded'))).toEqual([
+			'false',
+			'false',
+		]);
+
+		expanded.value = ['furniture'];
+		await settle();
+
+		expect(root.findAll('.rp-al-shelf__head').map((head) => head.attributes('aria-expanded'))).toEqual([
+			'false',
+			'true',
+		]);
+	});
+});
+
+/**
+ * §3.6, which shipped drawn and asserted by nothing for a review round — deleting the whole
+ * `<footer>` passed 128 tests. Two cases, because the region has two halves and they fail
+ * differently: the folder is a settings echo that a wiring mistake breaks, and the count is a
+ * CLAIM that was false during loading.
+ */
+describe('AssetLibraryRoot, the status bar', () => {
+	it('counts the readable catalogue and names the library folder', async () => {
+		const root = await mountRoot({
+			entries: [anEntry(), anEntry({ assetId: createAssetId(), name: 'Wall paint' })],
+			unreadable: [aNoIdNote()],
+		});
+
+		const status = root.get('.rp-al-status');
+		// TWO, not three: §3.6 counts the library, and a note this build cannot read is not an
+		// asset yet — its count is the repair strip's, separately and with each path.
+		expect(status.get('.rp-al-status__count').text()).toBe(
+			tr('view.asset-library.assets', { count: '2' }),
+		);
+		expect(status.get('.rp-al-status__folder').text()).toBe('Renovation/Library');
+	});
+
+	/** The region stays (§4 keeps the shell during loading) and the NUMBER does not: `total` is
+	 *  `entries.length`, so a count drawn here asserts an empty library while the read is still
+	 *  out. `0 assets` is what this drew for a review round. */
+	it('claims no count while the catalogue is still being read', async () => {
+		const root = await mountRoot({ entries: [], indexScanCompleted: () => false });
+
+		expect(root.get('.rp-al-status__count').text()).toBe('');
+		expect(root.get('.rp-al-status__folder').text()).toBe('Renovation/Library');
+	});
+});
+
+/**
  * §3.2's shelf DERIVATION, which is `AssetShelves.vue`'s own and which nothing before this
  * task built: EVERY category the build declares, in `ASSET_CATEGORIES`' own order, INCLUDING
  * the ones holding nothing — an empty shelf is what tells a user the category exists and that
@@ -169,6 +274,14 @@ describe('AssetLibraryRoot', () => {
  * wrong reason and certify a gap that is not closed; see this task's report.
  */
 describe('AssetLibraryRoot, the shelf list', () => {
+	/**
+	 * Asserted against `ASSET_CATEGORIES` — the DOMAIN array — while the derivation reads
+	 * `ASSET_CATEGORY_LABELS`, deliberately, because the two are independent lists and this case
+	 * is then a drift detector between them as well as a shelf-list assertion. §3.2's own claim,
+	 * that the order matches the order `NewAssetForm`'s control renders, is a different question
+	 * and is asked of the form itself in `assetLibraryRootDoors.test.ts` rather than of either
+	 * list here.
+	 */
 	it('draws every declared category in the build order, empty ones included', async () => {
 		const root = await mountRoot({ entries: [anEntry({ category: 'material' })] });
 
@@ -275,7 +388,7 @@ describe('AssetLibraryRoot, shelves and selection', () => {
 	it('opens the shelves the restored view state named', async () => {
 		const root = await mountRoot({
 			entries: [anEntry({ category: 'material' }), anEntry({ assetId: createAssetId(), category: 'furniture' })],
-			expanded: ['material'],
+			expanded: ref(['material']),
 		});
 
 		const open = root
@@ -329,6 +442,8 @@ describe('AssetLibraryRoot, shelves and selection', () => {
 		await settle();
 
 		expect((field().element as HTMLInputElement).value).toBe('');
-		expect(root.find('.rp-al-results').exists()).toBe(false);
+		// EMPTIED, never removed: the live region outlives the search that wrote into it, or the
+		// next search announces into a region that has just appeared and says nothing.
+		expect(root.get('.rp-al-results').text()).toBe('');
 	});
 });

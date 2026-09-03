@@ -14,7 +14,7 @@
  */
 import { createPinia, setActivePinia } from 'pinia';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { ref } from 'vue';
+import { ref, type Ref } from 'vue';
 import AssetLibraryRoot from '../../src/presentation/library/AssetLibraryRoot.vue';
 import {
 	ASSET_LIBRARY_CONTEXT,
@@ -98,7 +98,14 @@ export interface MountOptions {
 	openNote?: (path: string) => Promise<'opened' | 'missing' | 'failed'>;
 	openDesigner?: (assetId: AssetId) => Promise<void>;
 	onLibraryChanged?: AssetLibraryDeps['onLibraryChanged'];
-	expanded?: readonly string[];
+	/**
+	 * §6.3's own per-leaf view state, as the WRITABLE refs `AssetLibraryView` holds privately —
+	 * so a case can move them after the mount, which is the whole of what §6.3 claims ("a
+	 * selection or an expansion changes what is drawn without the view remounting the tree").
+	 * Passed in rather than returned, because a case that moves one already holds it.
+	 */
+	assetId?: Ref<string>;
+	expanded?: Ref<readonly string[]>;
 }
 
 export async function mountRoot(options: MountOptions = {}): Promise<VueWrapper> {
@@ -113,8 +120,8 @@ export async function mountRoot(options: MountOptions = {}): Promise<VueWrapper>
 	});
 	const context: AssetLibraryContext = {
 		...deps,
-		assetId: ref(''),
-		expanded: ref(options.expanded ?? []),
+		assetId: options.assetId ?? ref(''),
+		expanded: options.expanded ?? ref<readonly string[]>([]),
 	};
 	// The SAME pinia the tree installs is made active here, so a case reaching for
 	// `useDialogStore()` after the mount resolves the store this root is actually writing.

@@ -195,9 +195,12 @@ function select(id: string): void {
  * **These are two gestures and they were one function, on a premise that was false.** The old
  * docblock argued that below 35rem clearing "hides the shelves — including the input the user is
  * typing in", so Escape had to hand focus on. The input is not in the shelves: the toolbar is
- * their SIBLING (`.rp-al-toolbar`, beside `.rp-al-shelves`), and the narrow rule hides
- * `.rp-al--inspecting .rp-al-shelves` and nothing else. The field the user pressed Escape in
- * stays laid out in every layout, so there is nothing to hand focus away from, and the move was
+ * their SIBLING (`.rp-al-toolbar`, beside `.rp-al-shelves`), and the narrow rule hid
+ * `.rp-al--inspecting .rp-al-shelves` and nothing else — that rule and its flag are both gone
+ * from this file now (the closing paragraph of this file's own style block says why), which
+ * changes none of the reasoning: the toolbar was never inside the shelves under any
+ * composition. The field the user pressed Escape in stays laid out in every layout, so there is
+ * nothing to hand focus away from, and the move was
  * a key doing something it never promised — on a narrow pane with a retained selection, Escape
  * cleared the query and sent the user to the inspector's Back button.
  *
@@ -445,9 +448,20 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
  * a real component's class in its markup"), but their RULES moved out: a real component now
  * draws with every one of them, and a rule kept here would be a second, drifting source of
  * truth for a class this mock no longer owns the look of. `styles/asset-library.css` is where
- * they live once Task 15 builds it — until then this prototype renders those regions unstyled
- * in the harness, which is the honest state of "built, not yet styled" rather than a mock's own
- * approximation of it.
+ * they live, as of this task rather than of Task 15 — so this prototype renders those regions
+ * with the SHIPPED rules in the harness (`tests/harness/index.html` links `/styles.css`, the
+ * assembled sheet), which is what criterion 5 asks for: a mock lays a promoted region out using
+ * the real sheet rather than its own approximation of it. An earlier draft of this paragraph
+ * said the regions render "unstyled" here; that was true only in the window between the classes
+ * being promoted and their rules landing, and it never was after the same commit did both.
+ *
+ * ONE promoted class did not stay in this template: `.rp-al--inspecting` was removed from the
+ * root element, because `prototype-styles.test.ts` refuses a prototype DECLARING a class a real
+ * component uses and the rule it drove (`.rp-al--inspecting .rp-al-shelves`) names
+ * `.rp-al-shelves`. The deletion is right and gate-forced; the consequence is that §7's narrow
+ * composition — the "one pane at a time" behaviour the 460px capture found — is demonstrated by
+ * NOTHING until Task 16 builds it in `AssetLibraryRoot.vue`. Said here rather than smoothed
+ * over, because a capability that quietly stops being shown is one nobody schedules.
  */
 
 .rp-al-nothing {
@@ -478,10 +492,12 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
 /*
  * Below 35rem there is one pane at a time in the PROMOTED narrow composition too (§7, Task 16's
  * to build in `AssetLibraryRoot.vue`) — the rule that hid `.rp-al-shelves` there moved out with
- * every other promoted class above, for the identical reason. `.rp-al--inspecting` is this
- * prototype's own remaining narrow-composition flag and currently styles nothing, which is
- * honest: Task 16 has not shipped yet, and a mock's own approximation of a feature not yet
- * built is exactly the second-source-of-truth risk `prototype-styles.test.ts` exists to refuse
- * once that feature IS built.
+ * every other promoted class above, for the identical reason.
+ *
+ * `.rp-al--inspecting` is GONE from this file entirely, and this paragraph described it as a
+ * "remaining flag" for a commit after the template stopped setting it. There is no narrow
+ * composition demonstrated anywhere now — not here, and not in the shipped root until Task 16.
+ * That is the honest state and it is a LOSS rather than a neutral tidy-up: the behaviour was
+ * visible in a capture and is now visible nowhere.
  */
 </style>

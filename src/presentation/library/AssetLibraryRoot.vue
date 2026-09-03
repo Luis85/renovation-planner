@@ -11,12 +11,23 @@
  * **The two data attributes Task 11 built this file to prove stay exactly where they were.**
  * `data-selected-asset-id`/`data-expanded-categories` on the ROOT element are what
  * `assetLibraryView.test.ts` reads to assert the in-place-update mechanism (§6.3: a selection
- * or an expansion changes what is drawn without the view remounting the tree) — a mechanism
- * this task does not own and must not disturb. They are independent of the LOCAL selection and
- * expansion state this file introduces below (`selectedId`, `expandedCategories`): the context
- * pair is Obsidian's own per-leaf view state, restored on a leaf reopen, and nothing in this
- * task wires a write back into it — see this task's own report for why that is a deliberate,
- * flagged deviation rather than an oversight.
+ * or an expansion changes what is drawn without the view remounting the tree).
+ *
+ * **What is DRAWN follows them, and the first version of this file did not.** `selectedId` and
+ * `expandedCategories` below are seeded from the context pair at setup AND kept in step with it
+ * by two `watch`es, because for one review round they were a second, desynchronised copy: a leaf
+ * restored carrying a selection published `data-selected-asset-id` and marked no row, and a
+ * `setState` on an open leaf moved `data-expanded-categories` while every shelf stayed
+ * `aria-expanded="false"`. Task 11's proof then certified a mechanism this surface no longer
+ * honoured, which is worse than an untested gap because the test still passed. Both directions
+ * are pinned by `assetLibraryRoot.test.ts`'s *follows the view state* cases.
+ *
+ * The refs are still LOCAL rather than the context's own, because the context's are
+ * `DeepReadonly<Ref<T>>` by deliberate design (`assetLibraryContext.test-d.ts` proves a write
+ * through them is a compile error) — so this file reads them and cannot write them. The
+ * remaining half, a WRITE back into Obsidian's view state so a selection made here survives a
+ * leaf reopen, is genuinely outside this file and is recorded in this task's report with the
+ * route it should take.
  *
  * **Four shell regions** (§3, "the Asset designer's count rather than the Plan editor's five"):
  * toolbar, shelves, inspector, status. The INSPECTOR is Task 14's (`AssetInspector.vue`) and
@@ -28,7 +39,7 @@
  * one sheet. `.renovation-asset-library` (`styles/asset-library.css`) is this file's one entry
  * point into it; Task 15 is what actually STYLES the classes this file emits.
  */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import DialogHost from '../dialogs/DialogHost.vue';
 import EmptyState from '../components/EmptyState.vue';
 import ViewFailure from '../components/ViewFailure.vue';
@@ -142,6 +153,37 @@ async function onCreateAsset(): Promise<void> {
  * `status === 'ready'` and already refuses unconditionally on `unreadable.length > 0` — this
  * component adds no second policy on top of it.
  */
+/**
+ * §6.1's announcement, and `''` when nothing is being searched for.
+ *
+ * The `<p role="status">` it feeds is drawn UNCONDITIONALLY, which is design slice 13's own
+ * finding applied here rather than rediscovered: a live region attributed on a container that
+ * APPEARS is announced by nothing, because the region and its first content arrive together.
+ * The region is present and empty from the ready branch's first paint and is written into on
+ * each keystroke, which is the shape that actually speaks. It also costs one template branch
+ * LESS than the `v-if` it replaces, which this template — at fallow's cognitive threshold
+ * exactly — has no room to spend.
+ */
+const matchCount = computed(() =>
+	store.searching
+		? tr('view.asset-library.search.results', { count: String(store.visibleEntries.length) })
+		: '',
+);
+
+/**
+ * §3.6's `54 assets`, and `''` until the read has actually answered.
+ *
+ * The status bar stays drawn during loading (§4 keeps the SHELL), and for one review round it
+ * drew `0 assets` while the read was in flight — `total` is `entries.length`, so an empty store
+ * asserts an empty library. A count is a claim, and there is no true one to make yet; the region
+ * holds its place and says nothing rather than saying something false. Resolved here rather than
+ * with a `v-if` in the template for the headroom reason above, and with no new locale key: §8's
+ * inventory is pinned at 60.
+ */
+const assetCount = computed(() =>
+	store.status === 'ready' ? tr('view.asset-library.assets', { count: String(store.total) }) : '',
+);
+
 const empty = computed(() => {
 	const key = store.emptyStateKey;
 	return key === null ? null : resolveEmptyState(EMPTY_STATE_CONTENT.assetLibrary[key]);
@@ -167,19 +209,36 @@ async function onOpenNoteRow(path: string): Promise<void> {
 	if ((await context.openNote(path)) === 'missing') await hydrate();
 }
 
+/** §6.3's own sentinel: `context.assetId` is `''` for "nothing selected", never `null`, and
+ *  `AssetRow`'s `selected` prop compares against an id — so the two vocabularies meet here and
+ *  in exactly one place. */
+function selectionOf(assetId: string): AssetId | null {
+	return assetId === '' ? null : (assetId as AssetId);
+}
+
 /**
- * The shelves' own selection and expansion — LOCAL to this component rather than routed
- * through `AssetLibraryContext`, and held HERE rather than inside `AssetShelves.vue` for
- * `AssetShelves.vue`'s own reason: a search that briefly matches nothing swaps the shelves
+ * The shelves' own selection and expansion — held HERE rather than inside `AssetShelves.vue`
+ * for `AssetShelves.vue`'s own reason: a search that briefly matches nothing swaps the shelves
  * region for an `EmptyState`, unmounting `AssetShelves` entirely, and a value only that
  * component held would reset with it — exactly the loss §6.1's "a search must not cost a user
- * the arrangement they had" refuses. Seeded from the context's own restored value once, at
- * setup, so a leaf reopened on a saved expansion still shows it on first render; not kept in
- * step with further EXTERNAL changes to `context.expanded`; the coordinator's own note on this
- * is the flagged deviation this file's header points to.
+ * the arrangement they had" refuses. A value the parent holds survives that swap.
+ *
+ * SEEDED from the context at setup and WATCHED after it, which is §6.3's whole mechanism: the
+ * view state is what a restored leaf and every `setState` speak through, so it is the authority
+ * and this pair follows it. The watches are not deep — `setState` REPLACES both refs — and they
+ * overwrite whatever the user last toggled, which is correct while nothing writes back: a state
+ * change arriving from outside is newer than a local gesture, and the alternative (ignoring it)
+ * is the desynchronisation these two lines exist to close.
  */
 const expandedCategories = ref<ReadonlySet<string>>(new Set(context.expanded.value));
-const selectedId = ref<AssetId | null>(null);
+const selectedId = ref<AssetId | null>(selectionOf(context.assetId.value));
+
+watch(context.assetId, (assetId) => {
+	selectedId.value = selectionOf(assetId);
+});
+watch(context.expanded, (categories) => {
+	expandedCategories.value = new Set(categories);
+});
 
 function toggleShelf(category: string): void {
 	const next = new Set(expandedCategories.value);
@@ -235,11 +294,10 @@ function onSelect(assetId: AssetId): void {
 				</div>
 				<template v-else>
 					<p
-						v-if="store.searching"
 						class="rp-al-results"
 						role="status"
 					>
-						{{ tr('view.asset-library.search.results', { count: String(store.visibleEntries.length) }) }}
+						{{ matchCount }}
 					</p>
 					<UnreadableStrip
 						v-if="store.unreadable.length > 0"
@@ -263,7 +321,7 @@ function onSelect(assetId: AssetId): void {
 				</template>
 			</div>
 			<footer class="rp-al-status">
-				<span>{{ tr('view.asset-library.assets', { count: String(store.total) }) }}</span>
+				<span class="rp-al-status__count">{{ assetCount }}</span>
 				<span class="rp-al-status__sep" />
 				<span class="rp-al-status__folder">{{ context.libraryFolder }}</span>
 			</footer>

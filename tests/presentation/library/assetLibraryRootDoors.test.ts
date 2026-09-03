@@ -138,6 +138,33 @@ describe('AssetLibraryRoot, the New asset door', () => {
 });
 
 /**
+ * §3.2's order claim, asked of the two surfaces it is about rather than of a list either of them
+ * reads: *"in `ASSET_CATEGORY_LABELS`'s order — the same order `NewAssetForm`'s own control
+ * renders, so the category a user picked in the form is in the position they picked it from."*
+ *
+ * This is the one case that can see the two part company. Both read the same Record today, so a
+ * case asserting the shelves against a list would agree with the drift; comparing the two
+ * RENDERED controls does not. It lives in this file because the form is already mounted here.
+ */
+describe('AssetLibraryRoot, the shelf order against the form that fills them', () => {
+	it('shelves the categories in the order the New asset control offers them', async () => {
+		const { commands } = creationCommands();
+		const root = await mountRoot({ entries: [anEntry()], commands });
+		const shelves = root.findAll('.rp-al-shelf__name').map((name) => name.text());
+
+		await root.get('.rp-al-create').trigger('click');
+		await settle();
+		const options = root
+			.findComponent(NewAssetForm)
+			.findAll('[data-field="category"] option')
+			.map((option) => option.text());
+
+		expect(options.length).toBeGreaterThan(1);
+		expect(shelves).toEqual(options);
+	});
+});
+
+/**
  * §4's two empty states share ONE action handler and mean opposite things by it — a create
  * offered from *no matches* is the wrong gesture, and a *clear the search* offered over an
  * empty vault clears a field the user never filled. A build with the two arms swapped draws

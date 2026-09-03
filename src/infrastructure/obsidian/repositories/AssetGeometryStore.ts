@@ -274,13 +274,12 @@ export class AssetGeometryStore {
 		// The extension is passed in rather than assumed, because the LENGTH rule is about the
 		// whole filename and this store is what knows the suffix it appends.
 		if (!usableAsFilename(assetId, SIDECAR_EXTENSION_BYTES)) {
-			return err({
-				...persistenceError(
+			return err(
+				persistenceError(
 					'asset-geometry.unusable-id',
 					`An asset id names its sidecar file, and ${assetId} cannot be a filename.`,
 				),
-				sidecarPath: assetSidecarPathFor(this.libraryFolder, assetId),
-			});
+			);
 		}
 		// **The index FIRST, the derivation as the repair path** — ADR-011's own shape, which
 		// ADR-0014 inherits and which this method's header reserved as one line. Until it was

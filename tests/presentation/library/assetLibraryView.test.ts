@@ -8,11 +8,17 @@
  * shape shared by every registered view here, and departs from both exactly where §6.3 says
  * this surface departs: there is no "nothing to draw yet" state (the library always has a
  * catalogue to show), and a changed `assetId`/`expanded` must NOT remount the tree.
+ *
+ * The root renders the selected asset id as a `data-selected-asset-id` ATTRIBUTE rather than as
+ * prose (`AssetLibraryRoot.vue`'s own docblock says why — a raw id is not user-facing text this
+ * placeholder should ever have shown), so every assertion below that means "the tree still shows
+ * this selection" reads the attribute rather than `textContent`.
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { ASSET_LIBRARY_ICON, ASSET_LIBRARY_VIEW } from '../../../src/presentation/library/AssetLibraryView';
 import type { AssetLibraryView } from '../../../src/presentation/library/AssetLibraryView';
 import type { AssetLibraryDeps } from '../../../src/presentation/library/AssetLibraryDeps';
+import { useAssetLibraryContext } from '../../../src/presentation/library/AssetLibraryContext';
 import { t } from '../../../src/presentation/i18n/strings';
 import { defaultAssetLibraryDeps, makeAssetLibraryView } from '../../helpers/makeAssetLibraryView';
 import { installObsidianDom } from '../../helpers/dom';
@@ -35,6 +41,18 @@ function makeView(
 	const view = makeAssetLibraryView(deps, leaf);
 	openViews.push(view);
 	return view;
+}
+
+/** The root's own attribute for the selection, read off the DOM rather than off the context. */
+function selectedAssetId(view: AssetLibraryView): string | null {
+	return view.contentEl.querySelector('.renovation-asset-library')?.getAttribute('data-selected-asset-id') ?? null;
+}
+
+/** Its sibling for the expanded set, comma-joined the same way the root renders it. */
+function expandedCategories(view: AssetLibraryView): string | null {
+	return (
+		view.contentEl.querySelector('.rp-asset-library__expanded')?.getAttribute('data-expanded-categories') ?? null
+	);
 }
 
 afterEach(async () => {
@@ -103,13 +121,34 @@ describe('the library always has something to draw', () => {
 
 		expect(view.contentEl.querySelectorAll('.renovation-asset-library')).toHaveLength(1);
 	});
+
+	/**
+	 * The implicit `else` of `onOpen`'s own guard: Obsidian does not promise it calls `onOpen`
+	 * only once per mounted lifetime, and a second call while the tree is already up must be a
+	 * no-op rather than a second mount stacked on the first.
+	 *
+	 * **A element COUNT cannot see this**, because `mount()` empties `contentEl` before it
+	 * builds — so an unguarded second `mount()` still leaves exactly one
+	 * `.renovation-asset-library` node, replacing the first with a second one nobody unmounted,
+	 * rather than adding a sibling. Watched failing to discriminate this way before landing on
+	 * DOM NODE IDENTITY, the same instrument the in-place and the rebind-remount cases use.
+	 */
+	it('leaves the mounted tree untouched across two consecutive onOpen calls', async () => {
+		const view = makeView();
+
+		await view.onOpen();
+		const before = view.contentEl.querySelector('.renovation-asset-library');
+		await view.onOpen();
+
+		expect(view.contentEl.querySelector('.renovation-asset-library')).toBe(before);
+	});
 });
 
 describe('the selection and the expanded set this leaf remembers', () => {
 	/**
-	 * §6.3's own three-way parse, `projectIdFrom`'s exact shape: a non-object and a non-string
-	 * both refuse, and `''` is ACCEPTED — the sentinel a restore has to be able to reach, never
-	 * confused with a value this build could not parse.
+	 * §6.3's own three-way parse, `projectIdFrom`'s exact shape: a non-object refuses, a
+	 * non-string refuses, and `''` is ACCEPTED — the sentinel a restore has to be able to reach,
+	 * never confused with a value this build could not parse.
 	 */
 	it('accepts an empty assetId as the unselected state and refuses a non-string', async () => {
 		const view = makeView();
@@ -120,6 +159,31 @@ describe('the selection and the expanded set this leaf remembers', () => {
 
 		await view.setState({ assetId: 42 }, result);
 		expect(view.getState().assetId).toBe('');
+	});
+
+	/**
+	 * The non-object arm of the same parse, and the reason it earns its own case rather than
+	 * being folded into the one above: for every OTHER primitive (a string, a number, a
+	 * boolean) the non-string-`assetId` fallback refuses just as gracefully, since indexing an
+	 * arbitrary property off a primitive answers `undefined` rather than throwing — so a test
+	 * asserting only the REFUSED outcome cannot tell "caught by the object check" from "caught
+	 * by the string check" apart; watched failing to discriminate the OBVIOUS way (deleting the
+	 * object check outright, and narrowing it to `state === null` alone) before landing here.
+	 * `null` and `undefined` are where the two arms genuinely differ: `(null)['assetId']` and
+	 * `(undefined)['assetId']` both THROW, which is the one behaviour the object check actually
+	 * prevents — a workspace layout carrying `null` (Obsidian's own JSON round-trip can produce
+	 * one) must refuse the state, not crash `setState`.
+	 */
+	it('refuses a non-object state without throwing, including null and undefined', async () => {
+		const view = makeView();
+		const result = {} as never;
+		await view.setState({ assetId: 'tile-01' }, result);
+
+		for (const state of [null, undefined, 'not an object', 5, ['array']]) {
+			await expect(view.setState(state, result)).resolves.toBeUndefined();
+		}
+
+		expect(view.getState().assetId).toBe('tile-01');
 	});
 
 	it('carries an accepted assetId and expanded set into getState', async () => {
@@ -165,19 +229,24 @@ describe('the selection and the expanded set this leaf remembers', () => {
 	 * cost of copying `RenovationProjectView`'s remount-per-navigation shape — would be lost on
 	 * every row click. Asserted on the DOM NODE identity, which a remount cannot fake: unmounting
 	 * and remounting an identically-shaped tree would still replace this element.
+	 *
+	 * BOTH refs, not only `assetId` — a review round found the `expanded` half of this mechanism
+	 * unproven (deleting its in-place write left every existing case green, since nothing here
+	 * read it), so this case drives and asserts both.
 	 */
-	it('draws in place rather than remounting when the selection changes', async () => {
+	it('draws in place rather than remounting when the selection or the expanded set changes', async () => {
 		const view = makeView();
 		await view.onOpen();
 		await settle();
 		const before = view.contentEl.querySelector('.renovation-asset-library');
 		expect(before).not.toBeNull();
 
-		await view.setState({ assetId: 'tile-01', expanded: [] }, {} as never);
+		await view.setState({ assetId: 'tile-01', expanded: ['material'] }, {} as never);
 		await settle();
 
 		expect(view.contentEl.querySelector('.renovation-asset-library')).toBe(before);
-		expect(view.contentEl.textContent).toContain('tile-01');
+		expect(selectedAssetId(view)).toBe('tile-01');
+		expect(expandedCategories(view)).toBe('material');
 	});
 
 	/** And a refused parse leaves the tree showing whatever it was already showing. */
@@ -191,7 +260,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 		await settle();
 
 		expect(view.getState()).toEqual({ assetId: 'tile-01', expanded: [] });
-		expect(view.contentEl.textContent).toContain('tile-01');
+		expect(selectedAssetId(view)).toBe('tile-01');
 	});
 
 	/**
@@ -205,7 +274,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 		await view.onOpen();
 		await settle();
 
-		expect(view.contentEl.textContent).toContain('tile-02');
+		expect(selectedAssetId(view)).toBe('tile-02');
 	});
 });
 
@@ -236,9 +305,9 @@ describe('a settings save that replaces the composition root', () => {
 	});
 
 	/**
-	 * The remount's one real risk: `assetId`/`expanded` are this view's OWN fields and a
-	 * rebind must not touch them, or a settings save would blank a library a user was
-	 * browsing — the identical guarantee `AssetDesignerView.rebind` and
+	 * The remount's one real risk: `assetIdRef`/`expandedRef` are this view's OWN fields,
+	 * constructed once and reused across `rebind`'s `unmount()`/`mount()` pair, so a rebind
+	 * must not touch what they hold — the identical guarantee `AssetDesignerView.rebind` and
 	 * `RenovationProjectView.rebind` each state for their own per-leaf field.
 	 */
 	it('leaves the library showing the same selection it was showing', async () => {
@@ -251,17 +320,46 @@ describe('a settings save that replaces the composition root', () => {
 		await settle();
 
 		expect(view.getState()).toEqual({ assetId: 'tile-01', expanded: ['material'] });
-		expect(view.contentEl.textContent).toContain('tile-01');
+		expect(selectedAssetId(view)).toBe('tile-01');
 	});
 
 	/**
-	 * Redrawn against the NEW bundle: a rebind that quietly kept the old `deps` reference would
-	 * leave every context member — the read the shelves will eventually run among them — bound
-	 * to services `saveSettings` has already replaced. Asserted through a member the context
-	 * actually carries, `logger`, rather than through a private field, since the whole point is
-	 * that the TREE — not merely the view's own bookkeeping — reads through the new bundle.
+	 * **The task's own headline guarantee**: a rebind actually REMOUNTS the tree, so the queries
+	 * and commands the new `deps` carries reach whatever the tree does next. A review round
+	 * found this entirely unpinned — deleting `rebind`'s `unmount(); mount();` while keeping
+	 * `this.deps = deps` left the whole suite green, because every other rebind case asserts
+	 * either the PRIVATE `deps` field (which a no-op rebind still updates) or that the SELECTION
+	 * survives (which is equally true of a rebind that touched nothing at all).
+	 *
+	 * Asserted on DOM NODE IDENTITY, the same instrument the in-place case above uses from the
+	 * opposite direction: a genuine `unmount()`/`mount()` pair always produces a NEW element,
+	 * because `mount()` calls `this.contentEl.empty()` and builds a fresh Vue app: `assertion`
+	 * here is the exact inverse of "stays the same node" — "does NOT stay the same node".
 	 */
-	it('rebinds the mounted tree onto the new bundle rather than the one it opened with', async () => {
+	it('remounts the tree on rebind, replacing the element the previous context was provided to', async () => {
+		const view = makeView();
+		await view.onOpen();
+		await settle();
+		const before = view.contentEl.querySelector('.renovation-asset-library');
+		expect(before).not.toBeNull();
+
+		view.rebind(defaultAssetLibraryDeps());
+		await settle();
+
+		const after = view.contentEl.querySelector('.renovation-asset-library');
+		expect(after).not.toBeNull();
+		expect(after).not.toBe(before);
+	});
+
+	/**
+	 * Redrawn against the NEW bundle, asserted through the view's own private `deps` field —
+	 * which is exactly what it says, and no more: this case alone cannot tell a rebind that
+	 * remounts the tree from one that only updates its own bookkeeping, which is why the DOM
+	 * node identity above is a SEPARATE case rather than a second assertion folded into this
+	 * one. The pair together is what closes the gap a review round found: this proves the
+	 * bundle changed, the one above proves the TREE is what changed with it.
+	 */
+	it('rebinds onto the new bundle rather than the one it opened with', async () => {
 		const first = defaultAssetLibraryDeps({ logger: { ...defaultAssetLibraryDeps().logger } });
 		const view = makeView(first);
 		await view.onOpen();
@@ -272,10 +370,19 @@ describe('a settings save that replaces the composition root', () => {
 		view.rebind(second);
 		await settle();
 
-		// Rebinding remounts a fresh tree onto a fresh context; the surest external evidence
-		// that the SECOND bundle is what got provided is that the view answers it back as its
-		// own current `deps` — mirrored from `rootSwapRebind.test.ts`'s own project-view case,
-		// which reads the same private field the same way.
 		expect((view as unknown as { deps: AssetLibraryDeps }).deps).toBe(second);
+	});
+});
+
+/**
+ * Mirrors `viewRoot.test.ts`'s "the renovation project context guard" and
+ * `assetDesignerRoot.test.ts`'s equivalent: called directly rather than from inside a mounted
+ * component, `inject()` finds no active instance and answers `undefined` regardless of what has
+ * been provided anywhere, which is the same path a component mounted with no
+ * `AssetLibraryContext` takes.
+ */
+describe('the asset library context guard', () => {
+	it('throws rather than mounting a library with nothing behind it', () => {
+		expect(() => useAssetLibraryContext()).toThrow(/AssetLibraryContext/);
 	});
 });

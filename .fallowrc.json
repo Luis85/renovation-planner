@@ -32,7 +32,11 @@
 	// only way to hold one is to have gone through `parseCurrency` or `currencyOf`;
 	// `costPipelineInput.test-d.ts` holds `CostPipelineInput.expectedCurrency` being REQUIRED — a
 	// claim only the compiler can hold, since a runtime test cannot distinguish "omitted" from
-	// "omitted and defaulted". In all seven, an
+	// "omitted and defaulted"; `assetLibraryContext.test-d.ts` (Task 11 review) holds
+	// `AssetLibraryContext.assetId`/`.expanded` being `DeepReadonly<Ref<T>>` rather than a bare
+	// `Ref<T>` — a claim about what the injected TYPE refuses a consumer, which is identical at
+	// runtime either way (both are the same writable ref underneath, cast at the one
+	// `provide()` call) and so has no runtime form. In all eight, an
 	// unsatisfied `@ts-expect-error` or assignment failure is itself a compile error, which is the
 	// mechanism. Named one at a time rather than
 	// globbed `tests/**/*.test-d.ts`, for the reason `dynamicallyLoaded`'s own comment gives:
@@ -78,6 +82,7 @@
 		"tests/application/errors/exceptionMapper.test-d.ts",
 		"tests/core/money/currency.test-d.ts",
 		"tests/domain/cost/costPipelineInput.test-d.ts",
+		"tests/presentation/library/assetLibraryContext.test-d.ts",
 		"src/prototypes/**/*.vue",
 		"tests/fixtures/promotion/ZoneSummary.promoted.vue",
 		"tests/build/fixtures/brokenFake.fixture.ts",

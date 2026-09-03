@@ -1,4 +1,4 @@
-import { inject, type InjectionKey, type Ref } from 'vue';
+import { inject, type DeepReadonly, type InjectionKey, type Ref } from 'vue';
 import type { AssetLibraryDeps } from './AssetLibraryDeps';
 
 /**
@@ -19,14 +19,26 @@ import type { AssetLibraryDeps } from './AssetLibraryDeps';
  * with it. Here a changed `assetId` or `expanded` set has to reach an ALREADY-MOUNTED tree
  * with nothing else disturbed — and a plain field frozen at the one `provide()` call this view
  * ever makes cannot carry a later write to a component that already read it; only a reactive
- * `Ref` can. `AssetLibraryView` is their one writer, mirroring the "ONE writer of that state"
- * rule `RenovationProjectDeps.navigate`'s own docblock states for its own per-leaf field.
+ * `Ref` can.
+ *
+ * **`DeepReadonly<Ref<T>>`, never a bare `Ref<T>`.** `AssetLibraryView` is the one writer of
+ * this state, and a bare `Ref` cannot make that true — its own `readonly` modifier freezes the
+ * PROPERTY (nobody can do `context.assetId = otherRef`) and leaves `.value` wide open, so any
+ * of Tasks 12–14's components could do `context.assetId.value = id` and desynchronise the tree
+ * from `AssetLibraryView`'s own copy, after which `getState()` persists one value while the
+ * pane draws another. This repository already has both the lesson and the mechanism:
+ * `use-field-commit.ts`'s `draft` is `DeepReadonly<Ref<T>>` for the identical reason, and
+ * `type-safety.test-d.ts` records that the SHALLOW `Readonly<Ref<T>>` "reads as read-only and
+ * is not" — it freezes `.value` and stops there, so `v-model` still unwraps and writes straight
+ * past it. `AssetLibraryView` holds the real, writable `Ref`s privately and casts them to this
+ * type at the one `provide()` call it makes; see `assetLibraryContext.test-d.ts` for the
+ * compile-time proof that a write through the injected type fails.
  */
 export interface AssetLibraryContext extends AssetLibraryDeps {
 	/** The selected asset, or `''` for none — §6.3's own sentinel, read LIVE. */
-	readonly assetId: Ref<string>;
+	readonly assetId: DeepReadonly<Ref<string>>;
 	/** The shelf categories currently expanded (§3.2), read LIVE. */
-	readonly expanded: Ref<readonly string[]>;
+	readonly expanded: DeepReadonly<Ref<readonly string[]>>;
 }
 
 export const ASSET_LIBRARY_CONTEXT: InjectionKey<AssetLibraryContext> = Symbol(

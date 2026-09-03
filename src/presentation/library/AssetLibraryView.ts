@@ -91,9 +91,10 @@ export class AssetLibraryView extends ItemView {
 	 * and `RenovationProjectView.rebind` already take, for the identical reason a member-by-
 	 * member update would be a second, drifting spelling of the whole bundle.
 	 *
-	 * `assetId` and `expanded` are this VIEW's own fields, never the bundle's, so a rebind
-	 * carries the current selection across the remount rather than losing it — `mount` reads
-	 * them fresh each time it runs.
+	 * `assetIdRef`/`expandedRef` are this VIEW's own fields, constructed ONCE and never the
+	 * bundle's, so a rebind's `unmount`/`mount` pair reuses the SAME refs — the current
+	 * selection survives the remount because nothing ever recreates or reseeds them; there is
+	 * no second copy of the value for a rebind to forget to carry across.
 	 */
 	rebind(deps: AssetLibraryDeps): void {
 		this.deps = deps;
@@ -119,9 +120,13 @@ export class AssetLibraryView extends ItemView {
 	 * gives: a key that is sometimes absent is a different shape for every reader to reason
 	 * about, and here it also carries meaning — `''` IS "nothing selected". `expanded` is
 	 * always present as an array, even when empty, for the identical reason.
+	 *
+	 * Reads the refs directly rather than a pair of plain fields kept in step with them: there
+	 * is exactly ONE storage location for each of `assetId` and `expanded` now, so this cannot
+	 * disagree with what `setState` last wrote or with what the mounted tree is showing.
 	 */
 	getState(): Record<string, unknown> {
-		return { assetId: this.assetId, expanded: this.expanded };
+		return { assetId: this.assetIdRef.value, expanded: this.expandedRef.value };
 	}
 
 	/**
@@ -131,23 +136,22 @@ export class AssetLibraryView extends ItemView {
 	 * history entry behind every row a user clicks, which is exactly the defect a review bot
 	 * found reading the API rather than an early draft of this spec's own sentence.
 	 *
-	 * A refused parse leaves both fields untouched — the conservative answer is to go on
+	 * A refused parse leaves both refs untouched — the conservative answer is to go on
 	 * showing whatever is already shown, `projectIdFrom`'s own refusal arm.
 	 *
 	 * **Never remounts.** This is what makes a selection change different from a navigation at
-	 * the mechanism level, not only at the `history` flag: the two refs `mount` handed the tree
-	 * are updated IN PLACE, so an already-mounted app sees the new subject without losing
-	 * anything else it holds — the shelves' scroll position among them (§6.3). Before the first
-	 * mount there is nothing to update in place, so only the view's own fields move; `mount`
-	 * reads them when it eventually runs.
+	 * the mechanism level, not only at the `history` flag: `assetIdRef`/`expandedRef` are
+	 * constructed once, at the class's own field initializers, and handed to the tree at the
+	 * one `provide()` call `mount` makes — so writing `.value` here reaches an already-mounted
+	 * app directly, with nothing else it holds disturbed, the shelves' scroll position among
+	 * them (§6.3). Before the first mount the write is just as real; there is simply no tree
+	 * yet to see it happen, and `mount` reads the SAME refs whenever it eventually runs.
 	 */
 	setState(state: unknown, _result: ViewStateResult): Promise<void> {
 		const parsed = assetLibraryStateFrom(state);
 		if (parsed !== null) {
-			this.assetId = parsed.assetId;
-			this.expanded = parsed.expanded;
-			if (this.assetIdRef !== null) this.assetIdRef.value = parsed.assetId;
-			if (this.expandedRef !== null) this.expandedRef.value = parsed.expanded;
+			this.assetIdRef.value = parsed.assetId;
+			this.expandedRef.value = parsed.expanded;
 		}
 		return Promise.resolve();
 	}
@@ -169,8 +173,20 @@ export class AssetLibraryView extends ItemView {
 		return Promise.resolve();
 	}
 
-	private assetId = '';
-	private expanded: readonly string[] = [];
+	/**
+	 * The selection and the expanded set, constructed ONCE for the life of this view rather
+	 * than per mount. Both are read by `getState`/written by `setState` directly, and handed
+	 * to the tree — cast to `DeepReadonly` — at `mount`'s one `provide()` call.
+	 *
+	 * Constructing them here rather than inside `mount()` is what removes the duplication a
+	 * review round found: there used to be a plain `assetId`/`expanded` field pair ALSO, kept
+	 * in step by hand at every write, plus a nullable `Ref | null` pair recreated on every
+	 * mount and reseeded from the fields. One ref per value, always present, is a fact that
+	 * cannot go out of step with itself — `rebind`'s `unmount()`/`mount()` reuses the SAME
+	 * objects, so there is nothing left to reseed.
+	 */
+	private readonly assetIdRef: Ref<string> = ref('');
+	private readonly expandedRef: Ref<readonly string[]> = ref([]);
 
 	/**
 	 * The Vue app this view mounted, held only so `unmount` can unmount the same one. `null`
@@ -182,45 +198,50 @@ export class AssetLibraryView extends ItemView {
 	 */
 	private vueApp: VueApp | null = null;
 
-	/** The two refs `setState` writes in place once mounted; `null` before the first mount. */
-	private assetIdRef: Ref<string> | null = null;
-	private expandedRef: Ref<readonly string[]> | null = null;
-
 	private mounted = false;
 
 	private mount(): void {
 		this.contentEl.empty();
 		// One isolated app per ItemView with its OWN Pinia (ADR-004, SDD §12), exactly as every
-		// other registered view here.
+		// other registered view here. `app.use(createPinia())` claims Pinia's module-global
+		// `activePinia`, and `rebind` re-runs this on every settings save — so it is a FOURTH
+		// writer of that global, the same shape design slice A10 already shipped a defect in
+		// once (a store handle resolved after an `await` landed on another leaf's, because
+		// `useStore()` with no argument re-points at whichever pinia claimed the global most
+		// recently). No live defect today: neither this file, `AssetLibraryContext.ts` nor
+		// `AssetLibraryRoot.vue` calls `useStore()` at all. Tasks 12–14 will, and the rule
+		// they inherit is the one that fixed that defect — resolve the store handle BEFORE the
+		// first `await`, or take an explicit `pinia` argument, never a bare `useXStore()` after
+		// one.
 		const app = createApp(AssetLibraryRoot);
 		app.config.idPrefix = nextAppIdPrefix();
 		app.use(createPinia());
 
-		const assetIdRef = ref(this.assetId);
-		const expandedRef = ref<readonly string[]>(this.expanded);
 		// Provided BEFORE mount, the same order every sibling view uses: a component's setup
 		// runs during `mount`, and `useAssetLibraryContext` throws if it runs before the context
-		// is there to find.
+		// is there to find. NO cast needed at the door: a writable `Ref<T>` already satisfies
+		// `DeepReadonly<Ref<T>>` structurally — TypeScript's assignability runs one way, so
+		// handing the more permissive value into the less permissive slot type-checks on its
+		// own, while a write attempted THROUGH that slot (`context.assetId.value = …`) is what
+		// `DeepReadonly` refuses — see `assetLibraryContext.test-d.ts` for the compile-time
+		// proof of exactly that asymmetry. The refs stay writable here, where `setState` is the
+		// one place that legitimately changes them.
 		const context: AssetLibraryContext = {
 			...this.deps,
-			assetId: assetIdRef,
-			expanded: expandedRef,
+			assetId: this.assetIdRef,
+			expanded: this.expandedRef,
 		};
 		app.provide(ASSET_LIBRARY_CONTEXT, context);
 		// Onto `contentEl` itself, with no wrapper — see the class docblock's height chain.
 		app.mount(this.contentEl);
 
 		this.vueApp = app;
-		this.assetIdRef = assetIdRef;
-		this.expandedRef = expandedRef;
 		this.mounted = true;
 	}
 
 	private unmount(): void {
 		this.vueApp?.unmount();
 		this.vueApp = null;
-		this.assetIdRef = null;
-		this.expandedRef = null;
 		this.mounted = false;
 	}
 }

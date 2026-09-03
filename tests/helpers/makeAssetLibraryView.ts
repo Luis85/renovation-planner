@@ -43,6 +43,7 @@ export function defaultAssetLibraryDeps(overrides: Partial<AssetLibraryDeps> = {
 		openNote: () => Promise.resolve('opened'),
 		openDesigner: () => Promise.resolve(),
 		vault: emptyBackgroundVault(),
+		libraryFolder: 'Renovation/Library',
 		...overrides,
 	};
 }

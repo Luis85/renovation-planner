@@ -329,10 +329,7 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
 </script>
 
 <template>
-	<div
-		class="rp-al"
-		:class="{ 'rp-al--inspecting': inspecting }"
-	>
+	<div class="rp-al">
 		<h2 class="rp-al-title">
 			Asset library
 		</h2>
@@ -440,96 +437,18 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
 }
 
 /*
- * The surface's own heading, VISUALLY HIDDEN.
- *
- * §9's outline is one `<h2>` for the view with the shelves as `<h3>` beneath it, and the mock had
- * no `<h2>` at all — the first heading emitted was a shelf, and the inspector's asset name was a
- * SIBLING of the shelves rather than a parent, so with nothing selected the pane had no level-2
- * heading anywhere. Reported by a review bot; jsdom can be asked about heading order and the axe
- * case for this surface does not exist yet, so nothing here was watching it.
- *
- * Hidden rather than drawn because Obsidian already prints the view's title in the leaf chrome,
- * which sits OUTSIDE `contentEl` — so a visible one duplicates it for sighted readers while its
- * absence leaves heading-based navigation inside the pane with nothing to land on. The same
- * clip-path pattern the search field's label uses.
+ * §9's own heading, §3.6's toolbar and status bar, and the shelves container are PROMOTED now
+ * (design "Asset library overview" Task 13, `src/presentation/library/AssetLibraryRoot.vue`
+ * and `AssetShelves.vue`) — the classes below (`rp-al-title`, `rp-al-toolbar`, `rp-al-search*`,
+ * `rp-al-create`, `rp-al-body`, `rp-al-shelves`, `rp-al-results`, `rp-al-status*`) stay in this
+ * file's TEMPLATE, which is legitimate (`prototype-styles.test.ts`'s own rule: "a mock may name
+ * a real component's class in its markup"), but their RULES moved out: a real component now
+ * draws with every one of them, and a rule kept here would be a second, drifting source of
+ * truth for a class this mock no longer owns the look of. `styles/asset-library.css` is where
+ * they live once Task 15 builds it — until then this prototype renders those regions unstyled
+ * in the harness, which is the honest state of "built, not yet styled" rather than a mock's own
+ * approximation of it.
  */
-.rp-al-title {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	margin: 0;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-}
-
-.rp-al-toolbar {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-	padding: var(--size-4-2) var(--size-4-3);
-	border-bottom: 1px solid var(--background-modifier-border);
-}
-
-.rp-al-search {
-	flex: 1 1 auto;
-	min-width: 0;
-	/* Capped rather than greedy: at a main pane's width an unbounded field is a 1160px input
-	   for a word, which reads as a page that has not been laid out. It still takes the whole
-	   toolbar in a sidebar leaf, where the cap never binds. */
-	max-width: 22rem;
-}
-
-/* Visually hidden rather than absent: a placeholder is a hint and never a label, and the
-   accessibility suite scans an entry open on the stage, so an unlabelled control here is a real
-   failure rather than a mock's licence. */
-.rp-al-search__label {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-}
-
-.rp-al-search__input {
-	width: 100%;
-}
-
-.rp-al-toolbar .rp-al-create:focus-visible,
-.rp-al-nothing .rp-al-nothing__action:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
-}
-
-.rp-al-body {
-	display: flex;
-	flex: 1 1 auto;
-	min-height: 0;
-}
-
-/*
- * The shelves are their own container, so a row's droppable slots measure the region they
- * actually sit in rather than the pane — which matters precisely because the inspector beside
- * them takes 280px of it. A CONTAINER query and never a media query:
- * `docs/user-experience/concepts/README.md` records what measuring the wrong box costs, a canvas
- * given 67% of a 1440px pane and 29% of a 680px one.
- */
-.rp-al-shelves {
-	flex: 1 1 auto;
-	min-width: 0;
-	min-height: 0;
-	padding-top: var(--size-4-2);
-	overflow-y: auto;
-	container: rp-al-shelves / inline-size;
-}
-
-.rp-al-results {
-	margin: 0;
-	padding: 0 var(--size-4-3) var(--size-4-2);
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-}
 
 .rp-al-nothing {
 	padding: var(--size-4-8) var(--size-4-4);
@@ -548,45 +467,21 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
 	line-height: var(--line-height-normal);
 }
 
-.rp-al-status {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-	padding: var(--size-2-2) var(--size-4-3);
-	border-top: 1px solid var(--background-modifier-border);
-	color: var(--text-faint);
-	font-size: var(--font-ui-smaller);
-}
-
-.rp-al-status__sep {
-	width: 3px;
-	height: 3px;
-	border-radius: 50%;
-	background-color: currentColor;
-}
-
-.rp-al-status__folder {
-	min-width: 0;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
+/* `.rp-al-nothing__action` alone now — its sibling half of this selector,
+   `.rp-al-toolbar .rp-al-create:focus-visible`, named a class that is promoted and moved out
+   with the rest above. */
+.rp-al-nothing .rp-al-nothing__action:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
 }
 
 /*
- * Below 35rem there is one pane at a time. The inspector's own file carries the half that makes
- * it fill the pane and the half that withdraws it; this is the half that gets the shelves out of
- * its way, and they are separate because a scoped rule may not reach into a composed component's
- * markup — `prototype-styles.test.ts`'s rule, and also just how Vue's scoping works.
- *
- * `withdraw` is the third state that pairing needs. Searching clears `rp-al--inspecting`, which
- * brings the shelves back — and the inspector went on rendering beside them, because it only
- * withdrew when it had no asset at all. So a narrow search drew both panes at once, which is the
- * opposite of what §6.1 promises. Reported by a review bot; the selection is kept rather than
- * cleared, so clearing the field restores the panel the user was reading.
+ * Below 35rem there is one pane at a time in the PROMOTED narrow composition too (§7, Task 16's
+ * to build in `AssetLibraryRoot.vue`) — the rule that hid `.rp-al-shelves` there moved out with
+ * every other promoted class above, for the identical reason. `.rp-al--inspecting` is this
+ * prototype's own remaining narrow-composition flag and currently styles nothing, which is
+ * honest: Task 16 has not shipped yet, and a mock's own approximation of a feature not yet
+ * built is exactly the second-source-of-truth risk `prototype-styles.test.ts` exists to refuse
+ * once that feature IS built.
  */
-@container rp-al (width < 35rem) {
-	.rp-al--inspecting .rp-al-shelves {
-		display: none;
-	}
-}
 </style>

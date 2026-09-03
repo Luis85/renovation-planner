@@ -6,9 +6,14 @@
  * browser harness. `.renovation-planner-view` is `RenovationProjectView`'s own class by its
  * stylesheet's own docblock, so this is a class of its own rather than a second claimant.
  *
- * Only the root is styled here — Tasks 12 through 14 build the toolbar, the shelves and the
- * inspector this shell will hold, and each task's own stylesheet partial is where their layout
- * belongs.
+ * Task 13 adds the toolbar, the shelves container and the status bar below, ported from
+ * `src/prototypes/AssetLibrary.vue`'s own `<style scoped>` block — moved rather than copied,
+ * per `prototype-styles.test.ts`'s own rule: a real component drawing with these classes and a
+ * mock still styling them would be two sources of truth for one look, so the mock's rules for
+ * every promoted class came out of it in the same commit these rules went in. The container
+ * query ladder these regions eventually take (§7) and the focus-ring/specificity gates
+ * (`buttonSpecificity.test.ts`, `buttonFocusRing.test.ts`) are Task 15's; the INSPECTOR rail is
+ * Task 14's own partial.
  */
 .renovation-asset-library {
 	display: flex;
@@ -21,4 +26,110 @@
 	   view` and `.renovation-asset-designer` both take the identical rule for the identical
 	   reason. Stated ahead of a caller rather than left `static` until the first one needs it. */
 	position: relative;
+}
+
+/* §9's own heading, visually hidden: Obsidian already prints the view's title in the leaf
+   chrome, which sits outside `contentEl`, so a visible one would duplicate it for sighted
+   readers while its absence would leave heading-based navigation with nothing to land on. */
+.rp-al-title {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.rp-al-toolbar {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-4-2) var(--size-4-3);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.rp-al-search {
+	flex: 1 1 auto;
+	min-width: 0;
+	/* Capped rather than greedy: at a main pane's width an unbounded field is a 1160px input
+	   for a word, which reads as a page that has not been laid out. It still takes the whole
+	   toolbar in a sidebar leaf, where the cap never binds. */
+	max-width: 22rem;
+}
+
+/* Visually hidden rather than absent: a placeholder is a hint and never a label. */
+.rp-al-search__label {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.rp-al-search__input {
+	width: 100%;
+}
+
+/* Obsidian's global `:focus { outline: none }` reaches buttons too, so every control here
+   opts its ring back in per control — `styles/asset-shelf.css`'s own rules for the shelf
+   header and the row carry the identical comment. Positive offset: this button is inset in
+   the toolbar and has room, unlike an edge-to-edge row. */
+.rp-al-toolbar .rp-al-create:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}
+
+.rp-al-body {
+	display: flex;
+	flex: 1 1 auto;
+	min-height: 0;
+}
+
+/*
+ * The shelves are their own container, so a row's droppable slots (§3.3) measure the region
+ * they actually sit in rather than the pane — which will matter once the inspector rail beside
+ * them (Task 14) takes some of it. A CONTAINER query and never a media query:
+ * `docs/user-experience/concepts/README.md` records what measuring the wrong box costs, a
+ * canvas given 67% of a 1440px pane and 29% of a 680px one.
+ */
+.rp-al-shelves {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	padding-top: var(--size-4-2);
+	overflow-y: auto;
+	container: rp-al-shelves / inline-size;
+}
+
+.rp-al-results {
+	margin: 0;
+	padding: 0 var(--size-4-3) var(--size-4-2);
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-al-status {
+	display: flex;
+	align-items: center;
+	gap: var(--size-4-2);
+	padding: var(--size-2-2) var(--size-4-3);
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
+.rp-al-status__sep {
+	width: 3px;
+	height: 3px;
+	border-radius: 50%;
+	background-color: currentColor;
+}
+
+.rp-al-status__folder {
+	min-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
 }

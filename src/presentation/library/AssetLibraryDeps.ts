@@ -1,11 +1,14 @@
 import { err, type Result } from '../../core/result/Result';
-import type { PersistenceError } from '../../core/errors/AppError';
+import type { AppError, PersistenceError } from '../../core/errors/AppError';
+import { currencyOf, type Currency } from '../../core/money/Money';
 import type { Command } from '../../application/commands/Command';
 import type { DispatchResult } from '../../application/commands/DispatchOutcome';
 import type { VersionedDesignCommand } from '../../application/editor/asset/ReversibleAssetDesignCommands';
 import type { UpdateAssetInput, UpdateAssetErrors } from '../../application/commands/asset/UpdateAsset';
 import type { SetAssetHeightInput } from '../../application/commands/asset/SetAssetHeight';
 import type { DeleteAssetInput, DeleteAssetErrors } from '../../application/commands/asset/DeleteAsset';
+import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
+import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { ResolvedSequence } from '../../application/reference/deleteResolution';
 import type { AssetLibraryChange } from '../../application/events/assetLibraryChangeSource';
 import type { Logger } from '../../application/ports/Logger';
@@ -15,13 +18,20 @@ import type { BackgroundVault } from '../editor/layers/background/BackgroundRend
 import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueries';
 
 /**
- * The write side of the Asset library: the three gestures §3.5's inspector offers.
+ * The write side of the Asset library: the three gestures §3.5's inspector offers, plus the
+ * three §3.1's toolbar needs for `New asset`.
  *
- * THREE, and every one of them already exists — `UpdateAsset` for the definition fields,
- * `SetAssetHeight` for the one field that lives on the design rather than in the catalogue
- * row, and `DeleteAsset` for the resolution flow the *Used in* section is literally the read
- * of. This surface invents no command, which is §2a's scope test applied to the write side: a
- * fact about an asset that existed only here would be a fact Bases could never see.
+ * **SIX now, not three** — this section used to say "three, and every one of them already
+ * exists", true of the Inspector alone. §3.1 hands off to the identical `NewAssetForm` /
+ * `CreateAssetCommand` / `SetAssetFootprintFromDimensionsCommand` sequence
+ * `RenovationProjectCommandServices` already carries for its own `New asset` door (Task B9),
+ * and this bundle had no way to reach any of the three: a hand-off the plan named
+ * ("New asset opens the existing NewAssetForm … unchanged") without widening the bundle the
+ * form actually needs, the same shape CLAUDE.md records for `ProjectFolderLookup`. Copied
+ * rather than shared with `RenovationProjectCommandServices` — each bundle's own module
+ * assembles its slice of the SAME guarded services the composition root composed once, and a
+ * shared bundle type would couple two independent view surfaces (§2's "a sibling of that whole
+ * ladder rather than a state inside it") to one shape.
  *
  * `setAssetHeight` carries BOTH doors. It is `GuardedDesignCommand<SetAssetHeightInput>` as the
  * composition root spells it, written out structurally here because that type lives in
@@ -33,6 +43,11 @@ export interface AssetLibraryCommandServices {
 	readonly setAssetHeight: Command<SetAssetHeightInput, DispatchResult> &
 		VersionedDesignCommand<SetAssetHeightInput>;
 	readonly deleteAsset: Command<DeleteAssetInput, Result<ResolvedSequence, DeleteAssetErrors>>;
+	/** §3.1's `New asset` door — `NewAssetForm`'s own sequence, unchanged. */
+	readonly createAsset: Command<CreateAssetInput, Result<Asset, AppError>>;
+	readonly setAssetFootprintFromDimensions: Command<SetAssetFootprintFromDimensionsInput, DispatchResult>;
+	/** The creation form's currency prefill — `RenovationProjectCommandServices`'s own field. */
+	readonly defaultCurrency: Currency;
 }
 
 /**
@@ -114,6 +129,13 @@ export interface AssetLibraryDeps {
 	 * rather than a second decode path.
 	 */
 	readonly vault: BackgroundVault;
+	/**
+	 * §3.6's status bar folder half — `54 assets · Renovation/Library` — a plain settings echo
+	 * rather than a query, exactly as `RenovationProjectCommandServices.defaultCurrency` mirrors
+	 * `defaultCurrency` from the same settings object: nothing here computes it, so a query
+	 * seam would answer a value this bundle already has for free at composition time.
+	 */
+	readonly libraryFolder: string;
 }
 
 /**
@@ -152,5 +174,12 @@ export function unavailableAssetLibraryCommands(): AssetLibraryCommandServices {
 		// same rule for the same shape.
 		setAssetHeight: { execute: refuse, executeWithVersion: refuse },
 		deleteAsset: { execute: refuse },
+		// The `New asset` pair, refused for `renovationProjectCommands.ts`'s own reason: without
+		// settings there is no library folder for the note to land in.
+		createAsset: { execute: refuse },
+		setAssetFootprintFromDimensions: { execute: refuse },
+		// The refusal bundle writes nothing, so its prefill is never persisted; a valid code is
+		// all the form needs — `renovationProjectCommands.ts`'s own identical default.
+		defaultCurrency: currencyOf('EUR'),
 	};
 }

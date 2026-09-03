@@ -122,7 +122,9 @@ import type { ViewStateResult } from 'obsidian';
 import type { RenovationProjectDeps } from '../../src/presentation/views/RenovationProjectContext';
 import type { PlanSummaryDto } from '../../src/presentation/read-models/PlanDto';
 import type { AssetPriceRowDto } from '../../src/application/queries/ListProjectAssetPrices';
-import { createMoney, type Money } from '../../src/core/money/Money';
+import { createMoney, currencyOf, type Money } from '../../src/core/money/Money';
+import { createAssetId } from '../../src/domain/asset/AssetId';
+import type { CatalogueEntryDto } from '../../src/application/queries/ListCatalogueEntries';
 
 /**
  * A read side where every door refuses with the same code — which is what production does for
@@ -792,11 +794,40 @@ describe('axe against the mounted view', () => {
 /**
  * §2's fourth workspace view (Task 11 review, M12): a cheap addition here rather than a
  * deferral, since the root is a real, opened `AssetLibraryView` and needs none of the other
- * cases' hydration-timing care — `mount()` builds the Vue tree synchronously inside `onOpen`
- * and nothing in `AssetLibraryRoot.vue` awaits a query before it renders. Scanned MINIMAL
- * rather than covering §3's eventual shelves-and-inspector shell, which is Task 12–14's own
- * markup to add and to scan when it exists.
+ * cases' hydration-timing care — `mount()` builds the Vue tree synchronously inside `onOpen`,
+ * and the first paint draws before `hydrate()`'s own query resolves.
+ *
+ * **Task 13 built §3's shelves-and-inspector-less shell** (the toolbar, the shelves region and
+ * every one of §4's states except the Inspector, which is Task 14's), so the first two cases
+ * below now scan REAL branching rather than the placeholder div Task 11 left here — both were
+ * strengthened with a load-bearing assertion on `.rp-view-failure` for exactly the reason this
+ * file's own header names as the recurring hazard on this branch (an axe scan that passes with
+ * nothing meaningful mounted): `defaultAssetLibraryDeps()` refuses every query, so both cases
+ * scan the FAILED state, and a mount that silently stopped drawing `ViewFailure` would still
+ * pass an unguarded `axe.run` on an empty subtree. A third case below scans the READY state —
+ * the toolbar, the shelves and the repair strip — which is the branch these two cannot reach.
  */
+/** A minimal, real `CatalogueEntryDto` for the ready-state scan below — the exact shape
+ *  `tests/presentation/library/assetRow.test.ts`'s own fixture builds, since this file's job
+ *  is to scan what those unit-tested components draw together rather than to invent a second
+ *  reading of the DTO. */
+function anAxeCatalogueEntry(): CatalogueEntryDto {
+	return {
+		assetId: createAssetId(),
+		name: 'Oak plank floor',
+		category: 'material',
+		unit: 'm2',
+		unitCostAmount: '34.95',
+		currency: currencyOf('EUR'),
+		wasteFactorDefault: '0.08',
+		supplier: 'Holzhandel Nord',
+		sku: 'EIC-1200-190',
+		height: null,
+		notes: null,
+		background: null,
+	};
+}
+
 describe('axe against the asset library', () => {
 	/**
 	 * `axe.run` requires its target to be part of the live document — `mountHarness`'s own
@@ -815,8 +846,13 @@ describe('axe against the asset library', () => {
 
 		try {
 			// Load-bearing, not decorative (see the file header): without this, a scan that ran
-			// before the tree mounted would find nothing and pass on an empty subtree.
+			// before the tree mounted would find nothing and pass on an empty subtree. Refined
+			// past the outer wrapper to `.rp-view-failure` — the `defaultAssetLibraryDeps()`
+			// refusal bundle drives this mount to `status === 'failed'`, so the outer div alone
+			// was already true before Task 13 drew anything, and would stay true even if the
+			// failure branch stopped rendering.
 			expect(view.contentEl.querySelector('.renovation-asset-library')).not.toBeNull();
+			expect(view.contentEl.querySelector('.rp-view-failure')).not.toBeNull();
 
 			const results = await axe.run(view.contentEl, runOptions);
 
@@ -840,6 +876,49 @@ describe('axe against the asset library', () => {
 
 		try {
 			expect(view.contentEl.querySelector('.renovation-asset-library')).not.toBeNull();
+			expect(view.contentEl.querySelector('.rp-view-failure')).not.toBeNull();
+
+			const results = await axe.run(view.contentEl, runOptions);
+
+			expect(results.violations).toEqual([]);
+		} finally {
+			await view.onClose();
+			view.containerEl.remove();
+		}
+	});
+
+	/**
+	 * The READY branch neither case above can reach: a catalogue that actually answers, so the
+	 * toolbar, a shelf with a real row and the `.rp-view-notice` repair strip (with its own
+	 * per-row `Open note` button) are all on screen at once — the surface Task 13 actually
+	 * built, scanned rather than assumed. `.rp-al-toolbar` is this case's own load-bearing
+	 * assertion, mirroring the two above: without it, a mount that regressed to the loading or
+	 * failed branch would still pass an `axe.run` finding nothing wrong with an empty pane.
+	 */
+	it('reports no semantic violations on the ready shelves, beside a repair strip', async () => {
+		installObsidianDom();
+		const deps = defaultAssetLibraryDeps({
+			queries: {
+				...defaultAssetLibraryDeps().queries,
+				listCatalogue: () =>
+					Promise.resolve(
+						ok({
+							entries: [anAxeCatalogueEntry()],
+							unreadable: [
+								{ assetId: null, path: 'Renovation/Library/mystery.md', reason: 'no-id', code: null },
+							],
+						}),
+					),
+			},
+		});
+		const view = makeAssetLibraryView(deps);
+		document.body.appendChild(view.containerEl);
+		await view.onOpen();
+		await flushPromises();
+
+		try {
+			expect(view.contentEl.querySelector('.rp-al-toolbar')).not.toBeNull();
+			expect(view.contentEl.querySelector('.rp-view-notice')).not.toBeNull();
 
 			const results = await axe.run(view.contentEl, runOptions);
 

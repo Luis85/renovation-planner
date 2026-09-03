@@ -59,6 +59,13 @@ export function assetLibraryDeps(
 						updateAsset: persistence.updateAsset,
 						setAssetHeight: persistence.assetDesign.setHeight,
 						deleteAsset: persistence.deleteAsset,
+						// §3.1's `New asset` door — the identical guarded services
+						// `renovationProjectCommandBundle` hands the Renovation project view's own
+						// door, reached here rather than shared because the two bundles are
+						// siblings, not one type (`AssetLibraryCommandServices`'s own docblock).
+						createAsset: persistence.createAsset,
+						setAssetFootprintFromDimensions: persistence.assetDesign.setFootprintFromDimensions,
+						defaultCurrency: persistence.defaultCurrency,
 					},
 		logger: root.logger,
 		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
@@ -89,5 +96,11 @@ export function assetLibraryDeps(
 		// Obsidian's real `Vault`, passed straight in: `BackgroundVault` is a `Pick` of it, so
 		// there is nothing to adapt and nothing that can drift from the API.
 		vault,
+		// §3.6's status bar folder half. Read from `root.settings` directly rather than from
+		// `persistence`, because the two can disagree (a null `vault` with real settings) — and
+		// it costs nothing to be right about that case: the status bar this feeds is drawn only
+		// once the catalogue itself read successfully, which a null `persistence` already
+		// prevents through the refused `queries` above. `''` is never shown for the same reason.
+		libraryFolder: root.settings?.libraryFolder ?? '',
 	};
 }

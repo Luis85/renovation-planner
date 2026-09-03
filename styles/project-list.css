@@ -1,0 +1,154 @@
+/*
+ * The Renovation Planner Home — the launcher's own rules.
+ *
+ * The rows' SHARED properties are in `list-row.css` and the shipped name/status/header rules
+ * are in `forms.css`, both imported before this file. Nothing here restates one of those: each
+ * was found by a capture and is argued for where it lives, and a second declaration of a
+ * settled layout finding is how one becomes two that disagree.
+ *
+ * Every colour is an Obsidian variable, at every nesting depth — `scripts/styles-assemble.mjs`
+ * fails the build on a literal, a bare colour word included.
+ */
+
+/*
+ * THE FACTS SLOT. `flex-shrink: 0` because the NAME is the half that gives way, which
+ * `forms.css` records finding at 460px: a flex item's `min-width` is `auto`, so anything that
+ * CAN shrink is what loses, and the row's trailing facts are the ones a user is reading it for.
+ */
+.rp-project-row__facts {
+	flex-shrink: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/*
+ * THE STATUS, and the strip beside it. The word and the strip are one flex line so the strip
+ * sits with the word it describes rather than at the row's own edge, where a §83 marker would
+ * come between them.
+ */
+.rp-project-row__status {
+	display: flex;
+	align-items: center;
+	gap: var(--size-2-2);
+}
+
+.rp-project-row__ticks {
+	display: flex;
+	gap: 1px;
+}
+
+/*
+ * TEN CELLS, at the two tokens the design spec's §6 names: reached cells `--text-normal`,
+ * unreached `--text-faint`. No hue at either end — the status WORD beside them is the second
+ * channel, and PRD's accessibility section and SDD §85 both refuse a status carried by colour.
+ *
+ * **NOT `currentColor`, and the reason is the CONTRACT rather than the gate.** The design spec
+ * §6 says both things in one sentence — "ten cells drawn from `currentColor`" and "cells up to
+ * and including the current stage at `--text-normal`, the rest at `--text-faint`" — and the two
+ * cannot both hold: `currentColor` resolves to a single inherited colour, so it can produce the
+ * strip's SHAPE and not its two states. These cells sit inside `.rp-project-list__status`,
+ * which `forms.css` sets to `--text-muted`, so an inheriting strip would draw every cell that
+ * one muted grey and a reached cell would have to be told apart by an opacity — dimmer than the
+ * `--text-normal` the spec asks for at one end, and bearing no relation to `--text-faint` at
+ * the other, with a theme moving `--text-faint` relative to `--text-muted` moving nothing here
+ * at all. Naming the two tokens gives up nothing on the themed-vault half either: a `var()` on
+ * an Obsidian token is exactly what SDD §84's check asks to see, so both spellings clear that
+ * gate and the gate is not what decides between them.
+ */
+.rp-project-row__tick {
+	width: 3px;
+	height: var(--size-2-3);
+	border-radius: 1px;
+	background-color: var(--text-faint);
+}
+
+.rp-project-row__tick--reached {
+	background-color: var(--text-normal);
+}
+
+/*
+ * THE NARROW ROW — a CONTAINER query, never a media query, and that is a measured finding of
+ * this project rather than a preference: the pane's width is the leaf's, not the window's, so a
+ * media query asks the wrong element. `?phone` does not substitute for it either — that is a
+ * body class answering what the plugin does when it believes it is on a phone.
+ *
+ * The threshold comes from a capture at 460px with the GERMAN status words in place:
+ * `Bestandsaufnahme` is 16 characters against `Survey`'s 6, and a threshold validated only in
+ * English is not validated. 34rem is the starting value; Task 12 is where it is confirmed or
+ * moved, and moving it is expected rather than a failure.
+ */
+.rp-project-list {
+	container-type: inline-size;
+	container-name: rp-project-list;
+}
+
+@container rp-project-list (max-width: 34rem) {
+	/*
+	 * BOTH row kinds. `.rp-continue` is Task 11's Continue row and DOES NOT EXIST IN THIS TREE
+	 * YET — it is named here rather than left to that task because the two rows wrap for the
+	 * same reason and a rule naming only `.rp-project-row` is one Task 11 would have to
+	 * rediscover: it renders inside `.rp-project-list`, so it inherits the generic name rule
+	 * below (a 100% basis on the name) while staying at `nowrap` itself, which puts its date,
+	 * its status and its two buttons on one line to truncate or overflow at exactly the width
+	 * the design calls a designed state rather than a fallback. Stated as a forward reference
+	 * with its own reason, not as a finding: nothing has drawn a Continue row here to observe.
+	 */
+	.rp-project-list .rp-project-row,
+	.rp-project-list .rp-continue {
+		flex-wrap: wrap;
+	}
+
+	/* The name takes the whole first line; the status and the facts share the second. */
+	.rp-project-list .rp-project-list__name {
+		flex-basis: 100%;
+	}
+
+	/*
+	 * SECOND LINE ORDER: status, then facts — `Design · 2 plans · EUR`, which is what §6's own
+	 * diagram specifies and what DOM order alone does not give. The row is name, facts, status
+	 * (the wide row's trailing column belongs at the trailing edge), so wrapping without this
+	 * renders `2 plans · EUR` followed by `Design`: the stage word, which is the fact a
+	 * renovator scans for, pushed to the end of the line behind two lesser ones.
+	 *
+	 * `order` rather than reordering the markup, because the WIDE row's sequence is correct and
+	 * is what the armature aligns; this is a narrow-only rearrangement and belongs in the
+	 * narrow-only block. The name keeps the implicit `order: 0` and so keeps line one.
+	 *
+	 * SCOPED TO `.rp-project-row`, and the qualifier is load-bearing rather than tidy: Task 11's
+	 * `ContinueRow` reuses `.rp-project-row__facts` for its date, so an unqualified rule would
+	 * give that date `order: 2` while the Continue row's own status and its two buttons kept the
+	 * default 0 — rearranging `name, date, status, Continue, Open` into a sequence with the date
+	 * stranded after the controls. The wrapping rule above deliberately includes `.rp-continue`;
+	 * the ORDERING deliberately does not, because the two rows have different items to order and
+	 * only one of them has a status/facts pair to swap.
+	 */
+	.rp-project-list .rp-project-row .rp-project-row__status {
+		order: 1;
+	}
+
+	.rp-project-list .rp-project-row .rp-project-row__facts {
+		order: 2;
+	}
+
+	/*
+	 * THE WARNING KEEPS THE TAIL, and giving it an order is not tidiness — the two rules above
+	 * created this. `order` defaults to 0, so the moment status and facts moved to 1 and 2 the
+	 * §83 overlap marker became the LOWEST-ordered item after the name: it would land on the
+	 * first line beside a name whose basis is 100%, and `project-list-overlap.css` sets
+	 * `flex-shrink: 0` on it deliberately (a truncated warning no longer says what it is about),
+	 * so the name is what gives — or the line breaks a third time. A marked row would have laid
+	 * out unlike every other row at exactly the width the design calls a designed state.
+	 */
+	.rp-project-list .rp-project-row .rp-project-list__overlap {
+		order: 3;
+	}
+
+	/*
+	 * THE STRIP IS DROPPED, and nothing is lost: the translated word alone is complete and
+	 * conformant, and a ten-cell strip in a 460px row is exactly the ceremony this direction's
+	 * own recorded risk warns about.
+	 */
+	.rp-project-list .rp-project-row__ticks {
+		display: none;
+	}
+}

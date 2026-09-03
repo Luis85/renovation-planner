@@ -15,7 +15,7 @@
  * lands that commit, and the component the sentence is ABOUT is the one nobody re-read.
  */
 import type { ProjectSummaryDto } from '../read-models/PlanDto';
-import { statusLabel } from './statusLabel';
+import ProjectRow from './ProjectRow.vue';
 import { tr } from '../i18n/strings';
 
 defineProps<{ projects: readonly ProjectSummaryDto[] }>();
@@ -54,24 +54,18 @@ defineEmits<{ open: [projectId: string]; create: []; createAsset: [] }>();
 			v-for="project in projects"
 			:key="project.id"
 		>
-			<button
-				type="button"
-				class="rp-project-list__row"
-				@click="$emit('open', project.id)"
-			>
-				<span class="rp-project-list__name">{{ project.name }}</span>
-				<span class="rp-project-list__status">{{ statusLabel(project.status) }}</span>
-				<!--
-					PRD §83's only surface. A MARK and a WORD, never one: the CSS-drawn triangle
-					lives on the class's `::before` and the translated sentence is the element's
-					own text, so the row says what is wrong to a reader who cannot see the colour
-					and to one who cannot see the glyph alike.
-				-->
-				<span
-					v-if="project.libraryOverlap"
-					class="rp-project-list__overlap"
-				>{{ tr('view.project.library-overlap') }}</span>
-			</button>
+			<!--
+				What a row IS lives in `ProjectRow.vue` from here on, and this file knows only
+				that there is one per project. The Home surface grows four more regions around
+				this list, and a row spelled out here would be edited by every one of them.
+
+				It re-emits rather than handling: `ViewRoot` owns the one handler, which is design
+				slice 16's division and slice 21's navigation, both unchanged by the extraction.
+			-->
+			<ProjectRow
+				:project="project"
+				@open="(id) => $emit('open', id)"
+			/>
 		</li>
 	</ul>
 </template>

@@ -28,6 +28,13 @@
 @import "./view-failure.css";
 @import "./list-row.css";
 @import "./forms.css";
+/*
+ * AFTER `forms.css`, which is load-bearing: that file holds the shipped `.rp-project-list__*`
+ * rules, and the Home surface's own partial must be able to override one at equal specificity.
+ * Before `project-list-overlap.css`, which declares only `.rp-project-list__overlap` and is
+ * untouched by anything here.
+ */
+@import "./project-list.css";
 @import "./project-list-overlap.css";
 @import "./notices.css";
 @import "./project-detail.css";

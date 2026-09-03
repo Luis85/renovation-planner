@@ -829,6 +829,8 @@ MSG
 
 ## Task 4: The delete-zone adapter's UNDO announces the zone it restores
 
+> **DONE** — commit `6b683dc`, review clean, no fix round. Start at Task 5.
+
 **Files:**
 - Modify: `src/application/commands/zone/reversible-delete-zone-command.ts`
 - Modify: `src/presentation/editor/inspector-wiring.ts:95`
@@ -862,7 +864,7 @@ from each doing half of one job. This `undo` restores the requirements through
 A is reached there, by an event carrying A. Adding a reverse lookup here as well would publish
 the same fact twice from two places.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `tests/application/commands/zone/reversibleDeleteZone.test.ts`:
 
@@ -895,14 +897,14 @@ it('announces nothing for a restore its own rollback undid', async () => {
 });
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `npx vitest run tests/application/commands/zone/reversibleDeleteZone.test.ts`
 Expected: the first FAILS on `['deleted', 'deleted']` — the restore is silent. The second may
 pass vacuously today (nothing is ever published, so nothing can be published wrongly); that is
 expected and it becomes load-bearing in Step 4.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/application/commands/zone/reversible-delete-zone-command.ts`, add to
 `DeleteZoneUndoDeps`:
@@ -945,7 +947,7 @@ In `src/presentation/editor/inspector-wiring.ts:95`, add to the `undoDeps` liter
 							events: context.commands.events,
 ```
 
-- [ ] **Step 4: Run them, then watch the ordering bite**
+- [x] **Step 4: Run them, then watch the ordering bite**
 
 Run: `npx vitest run tests/application/commands/zone/reversibleDeleteZone.test.ts tests/application/commands/zone/reversibleDeleteZoneWithReferents.test.ts`
 Expected: PASS.
@@ -958,7 +960,7 @@ Restore.
 If the rig has no `failRequirementRestore`, add it in this commit — a fake that cannot produce
 the rollback makes the guard untestable.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

@@ -292,8 +292,45 @@ const importUrlsOf = (filename: string, code: Buffer): string[] => {
  * exception, and it is one because a module graph carries every kind of specifier while a
  * permitted style block carries only stylesheets.
  */
+/**
+ * Every stylesheet a CSS-MODULE block composes from — `composes: base from './theme.css'`, which
+ * Vite loads and which neither of this file's other CSS instruments can see.
+ *
+ * **A REGRESSION the parser rewrite introduced, and the counter-example to its own argument.**
+ * That rewrite replaced a source regex with real parsers on the grounds that a parser strictly
+ * dominates a pattern. It does for the grammar it is asked about — and `composes` is a
+ * DECLARATION, not an `@import` rule, so the `Rule.import` visitor never sees it. The regex
+ * caught it by accident, matching `from './theme.css'` because that text happens to look like a
+ * JS import; measured both ways rather than argued. So the honest form of the earlier claim is
+ * narrower: a parser beats a pattern at the question you point it at, and pointing it at a
+ * different question than the pattern was accidentally answering loses coverage.
+ *
+ * `analyzeDependencies` does not report these either (measured: `[]`). What does is
+ * `cssModules: true`, which puts them on `exports` as `{ type: 'dependency', specifier }`.
+ *
+ * Enabled for every style block rather than only `<style module>` ones. A `composes` in a plain
+ * block is not processed by Vite and loads nothing, so counting it over-refuses — the direction
+ * this file takes everywhere, and free here, since no block in the tree composes at all.
+ */
+const composesFrom = (filename: string, css: string): string[] => {
+	const { exports } = transform({
+		filename,
+		code: Buffer.from(css),
+		minify: false,
+		errorRecovery: true,
+		cssModules: true,
+	});
+	return Object.values(exports ?? {}).flatMap((entry) =>
+		entry.composes.flatMap((reference) =>
+			reference.type === 'dependency' ? [reference.specifier] : [],
+		),
+	);
+};
+
 const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
-	block.src !== undefined || importUrlsOf(file, Buffer.from(block.content)).length > 0;
+	block.src !== undefined
+	|| importUrlsOf(file, Buffer.from(block.content)).length > 0
+	|| composesFrom(file, block.content).length > 0;
 
 interface ScriptScan {
 	/** Does this script load a stylesheet? */

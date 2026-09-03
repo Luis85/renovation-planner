@@ -947,8 +947,16 @@ The contract, so a builder does not invent one:
   view**, and a re-picked spec sheet leaves the old filename — indefinitely, and worst on a
   corrupt sidecar, where the design read refuses and only the catalogue half could have been
   refreshed at all. Reported by a review bot.
-- **An entry LEAVING the listing invalidates its mark**, which is the rule the two event
-  subscriptions above are only part of. The cache is keyed by asset id, and an id here is
+- **`AssetDeleted` invalidates the named id immediately**, and this is NOT made redundant by the
+  rule below it — which is what the round proposing that rule got wrong. A listing-diff notices an
+  id LEAVING, and there may be no applied listing in which it is absent: delete and recreate the
+  same id before the refresh lands and both reads see the replacement, or §5.5's latest-wins
+  ticket discards the earlier one. The rule then never fires and the recreated asset draws the
+  deleted footprint. **A derived rule covering more cases is not a superset of the event it
+  replaced**: the event is certain and prompt where the rule is inferential, and the rule reaches
+  states that raise no event at all. Both, not either. Reported by a review bot against the
+  generalisation, one round after it was made.
+- **An entry LEAVING the listing invalidates its mark**, which covers what no event announces. The cache is keyed by asset id, and an id here is
   `z.string().min(1)` in the note's own frontmatter — a user can delete an asset and create
   another carrying the same id, in the same view lifetime. The catalogue refresh then removes the
   row and puts a new one back, and without this the replacement draws the **deleted asset's
@@ -2181,6 +2189,29 @@ suppressed by a truthiness test. Different symptom, same error: treating a value
 the cases in front of me as though it held for all of them. **An identity should be a field
 guaranteed unique, not a composite that usually is**, and the id was sitting in the query's own
 result type the whole time.
+
+A thirty-third round found two, and the first is a generalisation of mine that **dropped a
+guarantee while claiming to widen one.**
+
+Round twenty-five replaced *`AssetDeleted` invalidates the mark* with *an entry leaving the
+listing invalidates the mark*, on the argument that a rule beats a list and covers two cases the
+event does not. Both halves of that are true and the conclusion was still wrong: **the rule needs
+an applied listing in which the id is ABSENT**, and there may never be one. Delete and recreate
+the same id before the refresh lands and both reads see the replacement; or §5.5's latest-wins
+ticket discards the earlier read. The rule then never fires, and the recreated asset draws the
+deleted asset's footprint — exactly the defect the event had been covering. Both rules now: the
+event is certain and prompt, the listing-diff reaches states nothing announces.
+
+**A derived rule that covers more cases is not automatically a superset of the specific rule it
+replaces.** This document's own preference for a rule over a list is sound and I applied it
+without asking what the list was guaranteeing that the rule could not.
+
+**The second is the same false sentence in a second file, uncorrected for the whole branch.** The
+fixture's own docblock said an asset's sidecar path "derives from a setting rather than from any
+index" — the claim §5.3 was corrected for in one of the first rounds, sitting unchanged in the
+prototype the entire time, where a builder promoting that explicitly reusable helper would bypass
+a moved or synced sidecar, report it absent, and later write a duplicate at the derived path. **A
+claim corrected in one file is not corrected**, and nothing here greps for the sentence.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

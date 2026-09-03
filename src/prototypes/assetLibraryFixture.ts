@@ -40,7 +40,11 @@
  *   withholding it.
  * - `none` — no sidecar at all. Wall paint has no footprint and never will.
  * - `pending` — not read yet. An asset's shape lives in a sidecar whose path derives from a
- *   setting rather than from any index, so nothing can answer "does this have one" without a
+ *   sidecar whose path the project INDEX answers first and the library setting only derives as
+ *   a fallback (`AssetGeometryStore.pathFor`, §5.3) — this comment said "derives from a setting
+ *   rather than from any index" for the whole life of the branch, the same false claim §5.3 was
+ *   corrected for early on and this copy of it never was. Either way nothing can answer "does
+ *   this have one" without a
  *   file read, and a row must never wait for its own mark.
  *
  * - `unreadable` — the sidecar is THERE and could not be read. `AssetGeometryStore` refuses

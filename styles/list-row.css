@@ -1,12 +1,19 @@
 /**
- * The flattened button both list rows are drawn as.
+ * The flattened button every list row is drawn as.
  *
  * `.rp-project-list__row` (design slice 16) and `.rp-plan-list__row` (design slice 21) declared
  * the same ten properties each, which `npm run analyze` reported as a clone group once `main`
- * drove duplication to zero — and the sameness is INTENT rather than coincidence: both are one
+ * drove duplication to zero — and the sameness is INTENT rather than coincidence: each is one
  * entity per row, edge-to-edge in a pane, a `<button>` stripped of its button-ness so the row
  * reads as a row and still answers the keyboard. A designer changing what a row looks like
- * means both.
+ * means all of them.
+ *
+ * **THREE rows now, not two**, since the asset library joined this list — and the header said
+ * "both" in three places while the selector list below already named a third. `.rp-al-row` is a
+ * GRID rather than a flex row, so it takes the seven properties that are genuinely shared and
+ * overrides `display`, `padding` and `border-radius` in `asset-shelf.css`, which loads after
+ * this file at equal specificity. That also makes the `text-align: left` note below untrue of
+ * it: inert on the two flex rows, and load-bearing on the grid one.
  *
  * A SELECTOR LIST rather than a shared class in the markup, for the reason `message-panel.css`
  * gives: it buys the same single definition and costs no template change, so every existing
@@ -24,7 +31,8 @@
  * which has one and whose first capture showed twelve plan names centred in the pane. And the
  * focus ring, whose offset is negative on the plan row for a reason that file states.
  *
- * `text-align: left` is shared and is INERT on both, which is written down rather than quietly
+ * `text-align: left` is shared and is INERT on the two FLEX rows — but not on `.rp-al-row`,
+ * which is a grid and needs it. Written down rather than quietly
  * dropped: it positions inline content and a flex item is not inline content —
  * `project-detail.css` records finding exactly that. It is kept because removing it is a
  * behaviour question rather than a duplication one, and this extraction is meant to preserve
@@ -40,7 +48,7 @@
  * and therefore undeclared to `npm run analyze`. `styles/asset-shelf.css`'s own `.rp-al-row`
  * rule, loaded after this one, still overrides `display` (a GRID, not a flex row — five slots
  * rather than two or one), `padding` and `border-radius` at equal specificity, exactly as
- * `project-detail.css`/`plan-list.css` already do for their own two properties apiece — this
+ * `project-detail.css` already does for its own two properties — this
  * partial's own header states that's what the import order is FOR.
  */
 .rp-project-list .rp-project-list__row,

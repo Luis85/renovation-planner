@@ -1106,7 +1106,13 @@ git add -A && git commit -m "feat: register the asset library view, its command 
 
 **Interfaces:**
 - Consumes: Task 6's `AssetOutline`, Task 5's `CatalogueEntryDto`.
-- Produces: `<AssetMark :outline :ordinal>`, `<AssetRow :entry :outline :selected :ordinal @select>`, `<AssetShelf :label :entries :expanded :collapsible @toggle @select>`.
+- Produces: `<AssetMark :outline>`, `<AssetRow :entry :outline :selected :ordinal @select>`, `<AssetShelf :label :entries :expanded :collapsible @toggle @select>`.
+  **`AssetMark` takes no `ordinal`** — this line advertised one and Task 12 dropped it, with the
+  reason at the code: the mark is `aria-hidden`, so the ordinal it would have been for is minted
+  into the ROW's hidden description span instead (§3.4). Corrected here rather than left to read
+  as a prop a later task can pass.
+- **`AssetShelf.selectedId` is an `AssetId`, not a `string`** — the comparand is branded, and a
+  `string` here silently accepts any other id-shaped value.
 
 **The shelf list is DERIVED, never enumerated.** Two groups: every category the build declares, in `ASSET_CATEGORY_LABELS`'s order — all of them, empty ones included — then every category the vault names that the build does not, ordered by `localeCompare` and **kept as written**: not case-normalized, not retitled, not folded into `custom`. A configured eighth category joins group 1 the day the vocabulary declares it, with no edit here. A literal seven is the one arrangement that could answer neither.
 

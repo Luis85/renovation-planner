@@ -74,7 +74,9 @@ export const deAssetLibrary = {
 	'view.asset-library.notes': 'Notizen',
 	// `Umriss`, not `Grundriss` — this file's own word for an asset's footprint everywhere
 	// else in this list (`view.asset-library.footprint`, and the four keys below); `Grundriss`
-	// is `en.ts`'s separate word for a PLAN, unrelated to an asset's shape.
+	// is `de.ts`'s separate word for a PLAN (`Grundriss-Editor`, `command.open-plan-editor`,
+	// ~25 keys), unrelated to an asset's shape. The coordinator's instruction for this key said
+	// `Gemessener Grundriss`; checking the file rather than complying is what caught it.
 	'view.asset-library.shape.measured': 'Gemessener Umriss',
 	'view.asset-library.shape.none': 'Kein Umriss',
 	'view.asset-library.shape.unscaled': 'Nicht skalierter Umriss',

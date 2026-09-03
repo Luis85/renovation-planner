@@ -171,14 +171,7 @@
  * replaced while focused: the leading-edge selection mark is a fact about this row regardless
  * of focus, and a ring that hid it while focused would be the same "selection is a printed
  * mark, not a tint" rule broken from the other side.
- */
-.rp-al-shelf .rp-al-row--on:focus-visible {
-	box-shadow:
-		inset 2px 0 0 0 var(--interactive-accent),
-		inset 0 0 0 2px var(--interactive-accent);
-}
-
-/*
+ *
  * A selected AND focused row therefore draws TWO indicators at once: the base
  * `.rp-al-row:focus-visible` rule above sets a 2px inset `outline`, and this rule's own 2px
  * inset `box-shadow` sits at the same edge — different properties, so neither suppresses the
@@ -187,6 +180,11 @@
  * band is an eye question review round 1 raised and nothing here can settle — jsdom resolves
  * no `:focus-visible` and no `box-shadow` rendering at all.
  */
+.rp-al-shelf .rp-al-row--on:focus-visible {
+	box-shadow:
+		inset 2px 0 0 0 var(--interactive-accent),
+		inset 0 0 0 2px var(--interactive-accent);
+}
 
 /*
  * No `min-width: 0` here, and that is a considered gap rather than an oversight (review round

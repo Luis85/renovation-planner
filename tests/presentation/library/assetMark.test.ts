@@ -43,11 +43,21 @@ describe('AssetMark', () => {
 		// This is a CLASS-distinctness assertion and no wider: `measured` and `unscaled` draw
 		// the identical element (a `<path>` with the identical `d`, per the case below), told
 		// apart on screen by a CSS rule this assertion cannot see at all — that is what the
-		// second `describe` block in this file checks instead. What this DOES catch is a build
-		// that renders two states under the SAME class, which is unreachable from the CSS check
-		// (a rule keyed on a class nothing ever applies proves nothing).
-		const drawn = FIVE_STATES.map((o) => shallowMount(AssetMark, { props: { outline: o } }).html());
-		expect(new Set(drawn).size).toBe(5);
+		// second `describe` block in this file checks instead.
+		//
+		// It reads the CLASSES rather than the markup, and the difference is not pedantic: an
+		// earlier draft compared whole `html()` strings and its comment claimed it caught two
+		// states rendering under one class. Measured false — collapse `none` and `pending` onto
+		// a single class while leaving their drawings different and the markup strings still
+		// differ, so the set still holds five. The comment was written in the fix for a finding
+		// that the comment above it overpromised, which is how this defect class survives:
+		// the fix's own prose is where the next instance lives. Asserting the classes is what
+		// makes the sentence true rather than narrower.
+		const classes = FIVE_STATES.map((outline) => {
+			const wrapper = shallowMount(AssetMark, { props: { outline } });
+			return wrapper.find('svg').classes().join(' ');
+		});
+		expect(new Set(classes).size).toBe(5);
 	});
 
 	it('renders the mark column even when there is no shape', () => {
@@ -161,15 +171,23 @@ describe('AssetMark', () => {
  * Mirrors `saveStateIndicator.test.ts`'s own remedy for the identical shape
  * (`rp-save-state-error` shipped once against a template emitting
  * `rp-save-state-save-error`, invisible until the selector was BUILT from the same expression
- * the template interpolates rather than transcribed): the class name here is read out of
- * `AssetMark.vue`'s own `` `rp-al-mark--${kind}` `` source text, not retyped, so a renamed
- * state breaks this test rather than leaving it quietly unable to match anything.
+ * the template interpolates rather than transcribed).
+ *
+ * **Say exactly what holds the rename guarantee, because an earlier draft of this docblock did
+ * not.** It claimed the class name is "read out of `AssetMark.vue`'s own source text, not
+ * retyped", and it is not: the selector below is a hand-written literal. What is read from the
+ * component is the INTERPOLATION SHAPE — the first case asserts the source still contains
+ * `` `rp-al-mark--${kind}` ``, so a changed prefix fails there. A changed STATE NAME fails at
+ * the second case instead, where the regex finds no rule and `expect(rule).not.toBeNull()`
+ * reddens. Both renames are caught; neither is caught by the mechanism the old sentence named.
+ * A test that describes its own guarantee wrongly is the defect this whole block exists for,
+ * committed inside the fix for it.
  */
 describe('the one pair of states told apart only by a CSS rule', () => {
 	const componentSource = readFileSync('src/presentation/library/AssetMark.vue', 'utf8');
 	const css = readFileSync('styles/asset-mark.css', 'utf8');
 
-	it('is measured by a selector this test does not transcribe by hand', () => {
+	it('fails if the component stops interpolating the class this way', () => {
 		// If `AssetMark.vue` stops interpolating the class this way, this fails here rather
 		// than silently asking the stylesheet about a class nothing renders. Built through a
 		// `$` variable rather than written as a literal `${`, because `no-template-curly-in-

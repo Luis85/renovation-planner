@@ -190,34 +190,39 @@ function select(id: string): void {
 }
 
 /**
- * Clearing the search, and the focus that goes with it.
+ * Clearing the search from the FIELD. Clears, and moves nothing.
  *
- * **Two gestures, one function**, which it was not: `Escape` in the field assigned `query = ''`
- * directly, two lines from the button that routes through here, and the round that gave the
- * button its focus move looked at the button alone. Below 35rem a retained selection means
- * clearing swaps the inspector back IN and hides the shelves — including the input the user is
- * typing in — so Escape left focus on a hidden element or on the document. The narrow swap is
- * the whole reason this function exists, and the key that reaches it most naturally was the one
- * path that skipped it.
+ * **These are two gestures and they were one function, on a premise that was false.** The old
+ * docblock argued that below 35rem clearing "hides the shelves — including the input the user is
+ * typing in", so Escape had to hand focus on. The input is not in the shelves: the toolbar is
+ * their SIBLING (`.rp-al-toolbar`, beside `.rp-al-shelves`), and the narrow rule hides
+ * `.rp-al--inspecting .rp-al-shelves` and nothing else. The field the user pressed Escape in
+ * stays laid out in every layout, so there is nothing to hand focus away from, and the move was
+ * a key doing something it never promised — on a narrow pane with a retained selection, Escape
+ * cleared the query and sent the user to the inspector's Back button.
  *
- * The `Clear search` button lives INSIDE the no-matches state, so clearing removes the very
- * control the user pressed — focus falls to the document in every layout, which is why the move
- * here is unconditional rather than gated on a swap. Where it lands is the interesting half and
- * it needs no branch: clearing also restores `showSelection`, so on a narrow pane with a
- * selection still held the inspector swaps back IN, and its Back control is the honest
- * destination; anywhere else that control is not laid out and `focusAfterSwap`'s own fallback
- * takes the search field. The fifth direction of this gesture, reported by a review bot, and the
- * first one an existing fallback chain already answered — which is the argument for having
- * written it as a chain rather than as a named target.
+ * Two rounds of review found this one gesture at a time: first with an already-empty query,
+ * where nothing changed at all, then with a real one, where the clearing is right and the
+ * handoff still is not. The guard added for the first case was a fix for the case in the report
+ * rather than for the class — this repository's oldest recurring shape — and splitting the
+ * function is what actually answers both.
  */
 function clearSearch(): void {
-	// **Nothing to clear is nothing to announce.** `Escape` reaches here from the field
-	// itself, where an already-empty query means no state changes at all — and the
-	// unconditional move below then yanked focus to the inspector's Back control for a key
-	// documented only to clear the field. The guard costs the button path nothing: `Clear
-	// search` lives inside the no-matches state, which cannot be drawn while the query is
-	// empty, so every press of it passes this line. Reported by a review bot.
-	if (query.value === '') return;
+	query.value = '';
+}
+
+/**
+ * Clearing the search from the no-matches BUTTON, which is a different gesture.
+ *
+ * `Clear search` lives INSIDE the no-matches state, so clearing removes the very control the
+ * user pressed and focus falls to the document in every layout. That is why this path moves
+ * focus and the field's path does not: here the focused element really does stop existing.
+ * Where it lands needs no branch — clearing restores `showSelection`, so on a narrow pane with
+ * a selection still held the inspector swaps back IN and its Back control is the honest
+ * destination; anywhere else that control is not laid out and `focusAfterSwap`'s own fallback
+ * takes the search field.
+ */
+function clearSearchFromNoMatches(): void {
 	query.value = '';
 	void focusAfterSwap('.rp-al-inspector__back', () => true);
 }
@@ -391,7 +396,7 @@ function moveFocus(event: KeyboardEvent, step: 1 | -1): void {
 					<button
 						type="button"
 						class="rp-al-nothing__action"
-						@click="clearSearch"
+						@click="clearSearchFromNoMatches"
 					>
 						Clear search
 					</button>

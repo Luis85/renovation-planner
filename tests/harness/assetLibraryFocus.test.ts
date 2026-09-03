@@ -206,6 +206,30 @@ describe('the asset library mock’s focus chain', () => {
 		wrapper.unmount();
 	});
 
+	it('leaves focus in the search field when Escape clears a query that had text', async () => {
+		// The SECOND direction of the same defect, and the one the empty-field guard missed.
+		// The toolbar is a sibling of `.rp-al-shelves` and the narrow rule hides only the
+		// shelves, so the field the user pressed Escape in stays laid out — there is nothing
+		// to hand focus away from, whatever the query held.
+		const wrapper = mountLibrary();
+		await wrapper.find('.rp-al-row').trigger('click');
+		await settle();
+
+		const input = wrapper.find('.rp-al-search__input');
+		const field = input.element as HTMLInputElement;
+		await input.setValue('oak');
+		field.focus();
+
+		const handoff = vi.spyOn(field, 'focus');
+		await input.trigger('keydown', { key: 'Escape' });
+		await settle();
+
+		expect((wrapper.find('.rp-al-search__input').element as HTMLInputElement).value).toBe('');
+		expect(handoff).not.toHaveBeenCalled();
+		handoff.mockRestore();
+		wrapper.unmount();
+	});
+
 	it('builds a row selector that survives an id holding selector syntax', async () => {
 		// `AssetFrontmatterSchemaV1` validates an id as `z.string().min(1)`, so this is a note a
 		// user can really write, and this surface exists to show the notes people wrote. Driven

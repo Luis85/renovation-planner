@@ -438,15 +438,27 @@ is written:
 
 - A project's `currency` is hand-edited, or its note has no `currency:` key at all and the
   plugin's `defaultCurrency` setting changes, which `CLAUDE.md` records as re-denominating every
-  legacy project.
-- A requirement note is hand-edited.
-- An `AssetPriceOverride` is set in another currency — its constructor states that *"the
-  project's currency is deliberately NOT checked here"* — and `resolveEffectiveUnitCost` feeds it
-  into the derivation, so it becomes that note's `currency` and differs from the project's.
+  legacy project. The requirement notes keep the currency they were written with, and a
+  recalculation cannot quietly reconcile them — `computeEstimatedCost` refuses a mismatch with
+  `cost.currency-mismatch`, so the divergence PERSISTS rather than being repaired on next read.
+- A requirement note's own `currency:` is hand-edited.
 
 So a summing query still meets rows it cannot add, and still must count them out rather than
-throw or silently mis-denominate. The field is unchanged; only the reason it exists is, and the
-old reason would have sent an implementer to write a test that could not fail.
+throw or silently mis-denominate.
+
+**This rationale has now been wrong TWICE, and the second time is the one worth recording.** The
+first version named a foreign-currency cost OVERRIDE, which the mapper re-denominates. The
+correction named an `AssetPriceOverride` in another currency — and that is refused at
+`SetAssetPriceOverride.ts:144`, *"A price override must be in the project's currency"*, with the
+out-of-band route closed too because the pipeline refuses a unit price differing from
+`expectedCurrency`. **I replaced one unreachable path with another.**
+
+The error both times was the same and is not about currency: **I read one door's ABSENCE of a
+guard as the absence of all guards.** `AssetPriceOverride`'s constructor genuinely does not check
+the project's currency, and `CLAUDE.md` records that sentence — but a constructor is not the write
+path, and the COMMAND that calls it does check. *Reachability is a property of the write path, not
+of the type*, and the only way to establish it is to read every guard between the input and the
+bytes on disk.
 
 **The `main` merge added a SECOND reachable door, and it is the broader of the two.**
 `AssetPriceOverride`'s constructor says so itself: *"The project's currency is deliberately NOT
@@ -1228,7 +1240,7 @@ mistake, per this repository's rule.
 | Summary | a row whose ASSET note cannot be read contributes to the total WHEN NO EXCLUSION APPLIES, reads `stale`, and carries `missingTarget: null` | excluding it understates the project invisibly; `missingTarget: 'asset'` reports a deletion that did not happen; and an unqualified "IS in the total" contradicts the intersection row below it, which is the same flat claim this document has now had to retire in six places |
 | Summary | the same row is counted in `unreadableReferents` and the strip does not offer it as recalculable | "needs recalculating" is an instruction that cannot be followed for this row |
 | Summary | a row that is both stale and currency-mismatched is counted in BOTH and summed into NEITHER | the flat reading of `stale` attempts the mismatched addition |
-| Summary | the mismatch fixture is a row whose OWN `currency` differs from the project's, written through the vault | a foreign-currency cost OVERRIDE is re-denominated by `requirementToPersistence`, so an in-memory fixture of it tests a state production cannot reach |
+| Summary | the mismatch fixture is a hand-edited project or requirement `currency`, written through the vault | a foreign-currency cost OVERRIDE is re-denominated by `requirementToPersistence`, and a foreign `AssetPriceOverride` is refused by its own command — both fixtures test states production cannot reach |
 | Summary | a row that is both unreadable-referent and currency-mismatched is counted in BOTH and summed into NEITHER | the same flat reading, re-derived one count over — the exclusions decide membership, never the state counts |
 | Summary | a malformed requirement in ANOTHER project is invisible here | an unscoped walk both faults on it and miscounts it |
 | Commands | `DeleteZoneCommand` still refuses when a referent cannot be read | widening the shared `listByZone` lets it delete a zone whose referent it never saw |

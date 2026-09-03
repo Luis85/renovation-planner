@@ -101,11 +101,26 @@ const scriptsOf = (file: string, text: string): Script[] => {
 	return blocks;
 };
 
+/**
+ * `./theme.css?variant` and `./theme.css#x` are CSS requests to Vite, and a bare
+ * `.endsWith('.css')` says no to both. The QUERY and HASH are stripped before the suffix is
+ * tested — Vite splits a specifier at the first `?`, and `#` after that.
+ *
+ * Note what this does NOT do: `?raw` and `?url` make Vite return a string rather than load a
+ * sheet, so treating them as stylesheet imports would be a false positive. They are not carved
+ * out, deliberately — this guard's whole job is that a stylesheet must be UNREACHABLE, and a
+ * `?raw` import of a stylesheet in a harness module is worth a red test and a sentence in
+ * review either way. Over-refusing costs an argument; under-refusing is the silent pass this
+ * file has now paid for eleven times.
+ */
+const isStylesheetSpecifier = (specifier: string): boolean =>
+	specifier.split('?')[0]?.split('#')[0]?.endsWith('.css') === true;
+
 const namesStylesheet = (node: ts.Node): boolean => {
-	if (ts.isStringLiteralLike(node)) return node.text.endsWith('.css');
+	if (ts.isStringLiteralLike(node)) return isStylesheetSpecifier(node.text);
 	if (ts.isTemplateExpression(node)) {
 		const last = node.templateSpans.at(-1);
-		return last !== undefined && last.literal.text.endsWith('.css');
+		return last !== undefined && isStylesheetSpecifier(last.literal.text);
 	}
 	return false;
 };

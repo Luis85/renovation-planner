@@ -225,6 +225,10 @@ async function resolutionRig(options: ResolutionRigOptions) {
 
 	return {
 		events: w.events,
+		// The fixture's own `ReferenceLocks` instance, the one `DeleteZoneCommand` was wired
+		// with above. Reachable so the publish-under-lock pin can ASK what is held at the
+		// moment of delivery; `zoneId` and the referent ids are already on `input`.
+		locks: w.locks,
 		referentProjectId,
 		deletedEntityProjectId,
 		requirements: w.requirements,
@@ -273,6 +277,46 @@ describe('the delete resolution announces per referent it touched', () => {
 		expectOk(await rig.command.execute(rig.input));
 
 		expect(seen).toHaveLength(1);
+	});
+
+	/**
+	 * The publish-under-lock pin for the FORWARD engine, and what makes `ReferenceLocks`'s
+	 * third header rule — a subscriber must never acquire a reference lock — load-bearing
+	 * rather than theoretical.
+	 *
+	 * `runDeleteResolution` publishes inside the `try` whose `finally` calls
+	 * `session.release()`, so every subscriber runs with both levels still held: level 1 on
+	 * the zone being deleted and level 2 on each referent. `EventBus.publish` AWAITS its
+	 * handlers, so a subscriber reaching for either of those locks deadlocks unrecoverably —
+	 * `waitForRelease` fires only from `releaseAll`, which this publisher reaches only after
+	 * `publish` returns.
+	 *
+	 * A build that moves the publish loop out of the locked region should fail HERE and read
+	 * this note: doing so is not the remedy for that hazard, because publishing under a
+	 * reference lock is the NORM in this codebase (13 publish source lines over 18
+	 * publish x locked-region pairs), and one of those sites is inside
+	 * `RecalculateRequirement`, a shared command reached through `recalculateInline` whose
+	 * event buffering was already declined. Moving three of eighteen is a partial fix that
+	 * reads exactly like a complete one.
+	 *
+	 * The readings are COLLECTED and asserted afterwards, never asserted inside the handler:
+	 * `createEventBus`'s `deliver` wraps every subscriber in a `.catch` and swallows it, so an
+	 * assertion in the callback passes in both worlds.
+	 */
+	it('delivers its announcement while the sequence still holds both locks', async () => {
+		const rig = await resolutionRig({ resolution: 'delete-anyway' });
+		const requirementId = rig.input.resolvedReferents[0] as RequirementId;
+		const heldAtDelivery: { entity: boolean; referent: boolean }[] = [];
+		rig.events.subscribe('RequirementInvalidated', () => {
+			heldAtDelivery.push({
+				entity: rig.locks.isHeld(1, String(rig.input.zoneId)),
+				referent: rig.locks.isHeld(2, String(requirementId)),
+			});
+		});
+
+		expectOk(await rig.command.execute(rig.input));
+
+		expect(heldAtDelivery).toEqual([{ entity: true, referent: true }]);
 	});
 
 	it('names the REFERENT’s project, not the deleted entity’s', async () => {

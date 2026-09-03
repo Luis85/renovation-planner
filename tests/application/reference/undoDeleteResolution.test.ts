@@ -307,6 +307,57 @@ describe('undoDeleteResolution', () => {
 		expect(costs).toEqual([]);
 	});
 
+	/**
+	 * The publish-under-lock pin for the UNDO engine — the sibling of
+	 * `deleteResolutionAnnouncements.test.ts`'s forward one, and what makes `ReferenceLocks`'s
+	 * third header rule (a subscriber must never acquire a reference lock) load-bearing here
+	 * rather than theoretical.
+	 *
+	 * `undoDeleteResolution`'s publish loop sits between its `locks.acquire` and the
+	 * `release()` in its `finally`, so every subscriber runs with level 1 held on the entity
+	 * and level 2 on each restored requirement. `EventBus.publish` AWAITS its handlers, so a
+	 * subscriber reaching for either lock deadlocks unrecoverably: `waitForRelease` fires only
+	 * from `releaseAll`, which this publisher reaches only after `publish` returns.
+	 *
+	 * A build that moves the publish loop below the `finally` should fail HERE and read this
+	 * note. That is not the remedy — publishing under a reference lock is the NORM in this
+	 * codebase (13 publish source lines over 18 publish x locked-region pairs) and one of
+	 * those sites is inside a shared command whose event buffering was already declined, so
+	 * moving the ones that CAN move is a partial fix that reads exactly like a complete one.
+	 *
+	 * Readings are COLLECTED, never asserted inside the handler: `deliver` wraps every
+	 * subscriber in a `.catch` and swallows it, so an in-handler assertion passes either way.
+	 */
+	it('delivers its announcement while the undo still holds both locks', async () => {
+		const repo = new InMemoryRequirementRepository();
+		const [one] = await seed(repo, 1);
+		if (one === undefined) throw new Error('seed failed');
+		const rewritten = expectOk(await repo.save(one.entity, one.version));
+		const events = createEventBus();
+		const wiring = recordingEntity(repo, { events });
+		const locks = new ReferenceLocks();
+		const heldAtDelivery: { entity: boolean; referent: boolean }[] = [];
+		events.subscribe('RequirementRestored', () => {
+			heldAtDelivery.push({
+				entity: locks.isHeld(1, String(ZONE)),
+				referent: locks.isHeld(2, String(one.entity.id)),
+			});
+		});
+
+		expectOk(
+			await undoDeleteResolution(
+				wiring.ops,
+				{
+					affectedBefore: [one],
+					affectedAfter: [{ id: one.entity.id, outcome: 'written', version: rewritten.version }],
+				},
+				locks,
+			),
+		);
+
+		expect(heldAtDelivery).toEqual([{ entity: true, referent: true }]);
+	});
+
 	it('announces a requirement put back from absent as a creation', async () => {
 		// remove-references DELETED the referent, so the undo inserts it: a creation, not a
 		// restore, and the two say different things to a subscriber.

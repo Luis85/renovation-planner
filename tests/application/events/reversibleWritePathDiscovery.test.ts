@@ -244,6 +244,17 @@ const DISPOSITIONS: Readonly<Record<string, Disposition>> = {
 	'src/application/queries/GetAssetDesign.ts::GetAssetDesignQuery': notAnAdapter(
 		'a query — declares execute, never undo',
 	),
+	// Pulled into scope by the WORD rather than by any undo behaviour: the walk's file filter
+	// is `text.includes('undo')`, and `ReferenceLocks`'s header now cites
+	// `undoDeleteResolution.ts` and its test while stating the rule that a subscriber must
+	// never acquire a reference lock. Neither class has an execute/undo pair of any kind.
+	'src/application/reference/ReferenceLocks.ts::ReferenceLocks': notAnAdapter(
+		'the two-level mutual-exclusion set; declares acquire/withLevel1/withLevel2/beginSession, ' +
+			'never execute or undo — "undo" appears only in its header prose',
+	),
+	'src/application/reference/ReferenceLocks.ts::LockSessionImpl': notAnAdapter(
+		'one ReferenceLocks session; declares acquire/release, never execute or undo',
+	),
 	'src/domain/plan/Plan.ts::Plan': notAnAdapter('a domain entity; "undo" appears only in prose'),
 	'src/domain/requirement/Requirement.ts::Requirement': notAnAdapter(
 		'a domain entity; "undo" appears only in prose',

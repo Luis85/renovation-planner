@@ -24,6 +24,52 @@
  * - a session holding level-2 asking for level-1 raises (a level-2 holder never reaches
  *   back; nothing does today and the raise keeps that true).
  *
+ * A THIRD rule stands beside those two and is the one NOT enforced here:
+ *
+ * - **a subscriber must never acquire a reference lock.**
+ *
+ * The mechanism, which makes this a deadlock rather than contention: `EventBus.publish`
+ * AWAITS its handlers, so a subscriber blocked in `acquire` is awaiting `waitForRelease`,
+ * which fires only from `releaseAll`, which the publisher reaches only after `publish`
+ * returns. Neither side can advance, and nothing times out — the publishing command hangs
+ * for the life of the session holding every lock it took.
+ *
+ * **Why the alternative is unavailable, and therefore why this is a RULE rather than a
+ * repositioning of the publishes.** The obvious remedy is to publish after releasing. It
+ * cannot close the class, because publishing under a lock is the NORM here rather than the
+ * exception: the sweep that produced this rule (2026-09-03) counted 13 publish source lines
+ * across 18 (publish x locked-region) pairs, and one of them — `RecalculateRequirement.ts`'s
+ * pair at :144 and :155, reached through `recalculateInline` and bound at
+ * `deleteResolution.ts:222` — sits inside a shared command whose event buffering a prior
+ * ruling already declined. Moving the three that can move would leave a partial fix that
+ * reads exactly like a complete one at the precise moment a first subscriber arrives.
+ *
+ * **Why it is not enforced at the lock like its two siblings.** `acquire` cannot see that
+ * its caller is inside a publish; finding out would mean coupling `ReferenceLocks` to the
+ * `EventBus`, which is a worse thing to own than the rule. Four instruments check it
+ * instead, and what each one reaches differs:
+ *
+ * - `tests/application/reference/referenceLocks.test.ts` — the mechanism, with no engine:
+ *   a subscriber reaching for a held lock never gets it, and the publish never settles;
+ * - `tests/application/reference/deleteResolutionAnnouncements.test.ts` — the forward
+ *   engine really does deliver with both levels still held;
+ * - `tests/application/reference/undoDeleteResolution.test.ts` — the same for the undo
+ *   engine, whose publish loop sits between its `acquire` and its `finally`;
+ * - `tests/application/events/subscriberLockBoundary.test.ts` — a text tripwire over the
+ *   modules that register subscribers.
+ *
+ * **Do not read that as more than it is.** The guarantee is that no subscriber module NAMES
+ * a lock and that the constraint is live. It is NOT that no subscriber can reach one: a
+ * handler handed a collaborator that locks internally would name nothing, and is invisible
+ * to every instrument above.
+ *
+ * The rule is honoured everywhere today, and two commands say so where they publish
+ * (`updateAssetShape.ts:298-301`, `CalibrateAsset.ts:192-194`, both announcing outside the
+ * region on exactly this reasoning). `SetAssetBackground.ts:234`/`:242` publishes INSIDE
+ * `withLevel1` and does not — pre-existing, harmless while no subscriber locks, and out of
+ * this increment's scope. Named rather than glossed, because uniformity implied is
+ * uniformity a later reader relies on.
+ *
  * Deliberately NOT a general write mutex: an ordinary requirement writer holds exactly one
  * level-2 lock through its own short-lived session and waits for nothing else, so the
  * recalculation cascade's concurrent pairs neither contend nor deadlock.

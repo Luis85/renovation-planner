@@ -24,6 +24,147 @@
  * - a session holding level-2 asking for level-1 raises (a level-2 holder never reaches
  *   back; nothing does today and the raise keeps that true).
  *
+ * A THIRD rule stands beside those two and is the one NOT enforced here:
+ *
+ * - **a subscriber must never acquire a reference lock.**
+ *
+ * The mechanism, which makes this a deadlock rather than contention: `EventBus.publish`
+ * AWAITS its handlers, so a subscriber blocked in `acquire` is awaiting `waitForRelease`,
+ * which fires only from `releaseAll`, which the publisher reaches only after `publish`
+ * returns. Neither side can advance, and nothing times out — the publishing command hangs
+ * for the life of the session holding every lock it took.
+ *
+ * **The rule is load-bearing today rather than prospectively: at least THREE live paths
+ * already deliver to a subscriber inside a held reference lock.** Not one shortest path with
+ * the engines below as the mere derivation — the forward engine is ON this list. Each was
+ * traced end to end on 2026-09-03:
+ *
+ * - **Editing a price.** `SetAssetPriceOverride.execute` holds level-1 over
+ *   `[projectId, assetId]` across `upsert`, which publishes `AssetPriceOverrideChanged`
+ *   before the `finally` releases; `event-handlers/requirement/onAssetPriceOverrideChanged.ts`
+ *   registers for exactly that event and AWAITS `runRecalculationCascade` inside the held
+ *   region.
+ * - **The forward delete-resolution engine, through a command it does not own.**
+ *   `runDeleteResolution` opens its session (`deleteResolution.ts:499`), takes level-1 (:274)
+ *   and level-2 (:285) inside `prepare`, and releases only in its `finally` (:571). Within
+ *   that try it calls `applyAll` (:522) -> `requirementResolutionSteps` ->
+ *   `ops.recalculateInline` (:377), bound at :222 to `recalculate.execute`, whose
+ *   `RecalculateRequirement.execute` publishes `requirementRecalculated`
+ *   (`RecalculateRequirement.ts:144`); `createRequirementFiguresChangeSource` registers for
+ *   `RequirementRecalculated` and is wired at `composition-root.ts:559`. So this engine
+ *   reaches a live subscriber with BOTH levels held. `CLAUDE.md` already records this path's
+ *   PREMISE — the resolution calls `RecalculateRequirementCommand` inline while holding that
+ *   very lock, which is why that command deliberately takes none of its own — without ever
+ *   drawing the conclusion stated here.
+ * - **Changing an asset's unit KIND.** `UpdateAsset.execute` takes level-1 over the asset
+ *   when `kindChanges` (`UpdateAsset.ts:73`) and publishes `assetUpdated` at :89 inside that
+ *   same try; `event-handlers/requirement/onAssetUpdated.ts:39` registers for `AssetUpdated`.
+ *
+ * So the rule is the only thing standing between three SHIPPED paths and the deadlock above —
+ * not a precaution against a subscriber nobody has written yet, and not a property the two
+ * engines merely SUGGESTED. Three is a floor rather than a census: it is what tracing this
+ * page's own list of locked publishes through to a registrar found, and the other ten locked
+ * publishes were not traced.
+ *
+ * **Why the alternative is unavailable, and therefore why this is a RULE rather than a
+ * repositioning of the publishes.** The obvious remedy is to publish after releasing. It
+ * cannot close the class. Publishing under a lock is routine here rather than exceptional —
+ * the sweep that produced this rule (2026-09-03) found 13 of the 40 publish source lines in
+ * `src/` reached inside a locked region, across 18 (publish x locked-region) pairs — but the
+ * half that DECIDES is not the breadth. It is that one of those pairs cannot move AT ALL:
+ * `RecalculateRequirementCommand.execute`'s own publish, and the
+ * `publishIfEffectiveCostChanged` call below it, are reached under a lock through
+ * `recalculateInline` in `deleteResolution.ts`'s `requirementResolutionSteps`, so they sit
+ * inside a shared command whose event buffering a prior ruling already declined. Moving the
+ * ones that CAN move would leave a partial fix that reads exactly like a complete one at the
+ * precise moment a first subscriber arrives.
+ *
+ * **Four of those thirteen arrived with the PUBLISHING increment on this branch**, disclosed
+ * because the 13-of-40 figure otherwise reads as a standing property of the tree rather than
+ * as the dated snapshot it is: `deleteResolution.ts:482` and `:533`,
+ * `undoDeleteResolution.ts:151`, and `redoCreate`'s at
+ * `reversible-assign-asset-command.ts:197`. Measured against the branch point with
+ * `git show origin/main:<file> | grep -c "\.publish("`, which answers 0 for all three of
+ * those files while HEAD holds 2, 1 and 2 respectively — the second of that last file's two
+ * sits in `undo()`, outside any lock, and is not among the thirteen. So nine of the thirteen
+ * predate this branch, and the breadth argument above does not rest on publishes this branch
+ * created. `redoCreate`'s was the only one of the four whose provenance this page disclosed
+ * before, and this count is a fact about the tree on 2026-09-03 that nothing re-establishes.
+ *
+ * **Why it is not enforced at the lock like its two siblings.** `acquire` cannot see that
+ * its caller is inside a publish; finding out would mean coupling `ReferenceLocks` to the
+ * `EventBus`, which is a worse thing to own than the rule. Four instruments check it
+ * instead, and what each one reaches differs:
+ *
+ * - `tests/application/reference/referenceLocks.test.ts` — the mechanism, with no engine:
+ *   a subscriber reaching for a held lock never gets it, and the publish never settles;
+ * - `tests/application/reference/deleteResolutionAnnouncements.test.ts` — the forward
+ *   engine really does deliver with both levels still held;
+ * - `tests/application/reference/undoDeleteResolution.test.ts` — the same for the undo
+ *   engine, whose publish loop sits between its `acquire` and its `finally`;
+ * - `tests/application/events/subscriberLockBoundary.test.ts` — a text tripwire over the
+ *   modules that register subscribers.
+ *
+ * **Do not read that as more than it is.** The guarantee is that no subscriber module NAMES
+ * a lock and that the constraint is live. It is NOT that no subscriber can reach one: a
+ * handler handed a collaborator that locks internally would name nothing, and is invisible
+ * to every instrument above.
+ *
+ * **No subscriber acquires a lock today** — established on 2026-09-03 by READING all TEN
+ * modules that register one (`grep -rlE '\.subscribe\(' src/` — the escaped spelling is
+ * deliberate: `subscriberLockBoundary.test.ts` discovers registrars by TEXT, so quoting the
+ * bare call here would enrol this very file as one, which is exactly what the first draft of
+ * this sentence did and what that instrument then caught): the three
+ * `event-handlers/requirement/on*.ts` handlers, and the seven `events/*ChangeSource.ts`
+ * forwarders. The cascade chain BELOW those handlers was read with them —
+ * `event-handlers/requirement/cascade.ts` and `RecalculateRequirementCommand`, neither of
+ * which registers anything itself — because a registrar's own compliance is worth nothing if
+ * what it calls locks. An earlier draft of this sentence claimed to have read "every module
+ * that registers one" and then enumerated that chain INSTEAD of the seven forwarders: three
+ * of ten, two of them not registrars at all. `subscriberLockBoundary.test.ts`'s own
+ * `registrars().length > 5` already contradicted it — prose and tripwire disagreeing about
+ * the size of one set inside one increment, which is why the set is now named by the command
+ * that measures it. The conclusion was unaffected; none of the ten names or reaches a lock.
+ * Established NOT by any of the four instruments above, none of which can see a lock reached
+ * through a collaborator that locks internally. Dated and attributed for the same reason the
+ * 13-of-40 figure is: it is a fact about the tree at the moment somebody looked, and nothing
+ * re-establishes it.
+ *
+ * A SECOND and quite separate rule governs where a publisher announces FROM: publish outside
+ * the locked region where you can, so the subscriber does not run INSIDE the critical section.
+ * The cost is real, and it is NOT the one this sentence gave until 2026-09-03 — that a
+ * subscriber's own READ would wait on a lock the publisher had not let go. No read waits on
+ * anything, because no read path takes a reference lock at all: measured with
+ * `git grep -lE "locks\.(acquire|withLevel1|withLevel2|beginSession)" HEAD -- src`, every one
+ * of whose hits is a WRITER — a command under `commands/`, or one of the two delete-resolution
+ * engines — while queries, repositories and views take none at all. What publishing under the
+ * lock actually costs is that `publish` AWAITS its handlers, so the subscriber's whole cascade
+ * runs inside the held region — lengthening the critical section and blocking other WRITERS
+ * of that entity for its duration. `updateAssetShape` and
+ * `CalibrateAssetCommand.executeWithVersion` state that rule where they publish and follow it
+ * (both were corrected in the same edit as this sentence, having carried the same false
+ * rationale); `SetAssetBackgroundCommand.write`
+ * publishes inside `withLevel1` and does not — and it is the asset-design family's exception
+ * rather than the only one in the tree. Two more sit beside it, and each is ATTRIBUTED rather
+ * than blanketed, because "pre-existing" is a claim about a baseline and is worth nothing
+ * without one: `SetAssetPriceOverride.execute` publishes inside its own `acquire`/`release`
+ * pair around `upsert` and predates this branch, like the background command; `redoCreate` in
+ * `reversible-assign-asset-command.ts` acquires, publishes and releases in that order, and
+ * its publish arrived with the PUBLISHING increment (earlier on this branch, and already in
+ * the tree this one started from) rather than with the lock/publish work. None of the three
+ * belongs to this increment. All three publish INSIDE a locked region, which is what the
+ * thirteen locked publishes this page's own sweep counts ARE — so NONE of that set follows
+ * this convention, and "most" was false of it in either direction. This page classifies only
+ * these three of the thirteen and leaves the other ten unexamined; at least one of those ten
+ * could not follow the convention even in principle, `RecalculateRequirement`'s publish being
+ * reached through the resolution's `recalculateInline`, inside a shared command whose event
+ * buffering a prior ruling declined. The two commands named above as FOLLOWING the convention
+ * publish outside the region they just held and are therefore not among the thirteen at all.
+ * **Those are exceptions to THAT convention and to nothing on this page** — a
+ * publish-POSITION choice, violating no rule stated here, and harmless for exactly as long as
+ * the subscriber rule above holds. Named rather than glossed, because uniformity implied is
+ * uniformity a later reader relies on.
+ *
  * Deliberately NOT a general write mutex: an ordinary requirement writer holds exactly one
  * level-2 lock through its own short-lived session and waits for nothing else, so the
  * recalculation cascade's concurrent pairs neither contend nor deadlock.

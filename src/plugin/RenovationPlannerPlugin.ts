@@ -738,6 +738,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 			void recoverInterruptedSequences({
 				markers: persistence.markers,
 				requirements: persistence.requirements,
+				events: this.root.eventBus,
 				logger: this.root.logger,
 			});
 		}

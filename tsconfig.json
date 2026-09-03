@@ -11,6 +11,19 @@
     // it TypeScript names each of those files as its own output and refuses (TS5055). An IDE
     // reads this file and not the npm script, so the flag alone left the error on screen.
     "noEmit": true,
+    // Incremental type-checking, which is a fact about the EDIT LOOP rather than about the
+    // gate: 14.3s cold against 3.8s warm — measured on this tree, and 3.8s again after
+    // touching a source file — so an agent re-checking between edits pays four seconds where
+    // it used to pay fourteen. CI installs fresh and is therefore always cold, so the gate's
+    // own cost is unchanged; this buys nothing there and is not meant to.
+    //
+    // Under `node_modules/.cache/` for two reasons, neither of them taste: the repository
+    // root holds no artifacts (`vite.config.ts` says why), and `node_modules/` is already
+    // ignored, so there is no `.gitignore` entry to remember for a file that `git add -A`
+    // would otherwise commit. TypeScript creates the directory itself — measured, against a
+    // tree with no `node_modules/.cache` at all.
+    "incremental": true,
+    "tsBuildInfoFile": "node_modules/.cache/tsbuildinfo",
     "strict": true,
     "moduleResolution": "bundler",
     "isolatedModules": true,

@@ -54,6 +54,51 @@ export interface CostEstimateChanged extends DomainEvent<'CostEstimateChanged'> 
 	};
 }
 
+/**
+ * This row no longer exists. Minted by the increment that made every undo announce, because
+ * the vocabulary had no member meaning it: `RequirementInvalidated` says a figure stopped
+ * being trustworthy, which is a different claim about a row that is still there.
+ *
+ * Three publishers, and they are NOT one command reused three ways: `DeleteRequirementCommand`
+ * (the exposed removal), `ReversibleAssignAssetCommand.undo` (which deletes the requirement
+ * its own execute created), and the delete resolutions' `remove-references` arm
+ * (`applyResolutionToRequirement` in `deleteResolution.ts`), which calls
+ * `ops.removeRequirement` — `requirements.delete` on the raw port — and publishes this event
+ * directly rather than dispatching `DeleteRequirementCommand`. An earlier draft of this
+ * docblock claimed the resolution "resolves through" that command, which was false the whole
+ * time this arm published nothing; it is not true now either; a resolution engine dispatching
+ * the very command whose delete it is compensating around would be a second entry point into
+ * one write. Carries the project so a subscriber scoped to one project can filter.
+ */
+export interface RequirementDeleted extends DomainEvent<'RequirementDeleted'> {
+	readonly payload: RequirementEventPayload;
+}
+
+/**
+ * This row was written back from a snapshot — a restore, not a creation and not a
+ * recalculation.
+ *
+ * It exists because a restore can move NO figure at all: the `delete-anyway` arm marks a
+ * referent stale, and restoring the pre-state marks it current again without touching its
+ * cost, so `publishIfEffectiveCostChanged` is correctly silent and the status change would
+ * otherwise reach nobody. `RequirementInvalidated` is not the substitute — it claims a
+ * recalculation is OWED, which is the opposite of a restore to a `current` pre-state.
+ *
+ * Three publishers, all computing the same split — `entry.outcome === 'written'` raises
+ * this, `'absent'` raises `RequirementCreated`, because an entry removed forward and put back
+ * is a re-creation and not a restore of a row that was merely edited: `undoDeleteResolution`
+ * (a user's undo, `created ? requirementCreated : requirementRestored`), the delete
+ * resolutions' own `compensate` (a mid-sequence rollback, the identical ternary on the same
+ * `outcome` field), and `recoverInterruptedSequences` (a crash recovery at load, the identical
+ * ternary on `expected === 'absent'`, its own `save`'s `expected` parameter). That third one
+ * used to compute the split and publish NEITHER event — `RecoveryDeps` carried no `EventBus`
+ * at all, so a requirement a crash left mid-resolution was restored silently. `RecoveryDeps.events`
+ * is REQUIRED now, per the same `CascadeDeps.notify` precedent slice 17's silent writers follow.
+ */
+export interface RequirementRestored extends DomainEvent<'RequirementRestored'> {
+	readonly payload: RequirementEventPayload;
+}
+
 export function requirementCreated(payload: RequirementEventPayload): RequirementCreated {
 	return { type: 'RequirementCreated', payload };
 }
@@ -67,4 +112,10 @@ export function costEstimateChanged(
 	payload: CostEstimateChanged['payload'],
 ): CostEstimateChanged {
 	return { type: 'CostEstimateChanged', payload };
+}
+export function requirementDeleted(payload: RequirementEventPayload): RequirementDeleted {
+	return { type: 'RequirementDeleted', payload };
+}
+export function requirementRestored(payload: RequirementEventPayload): RequirementRestored {
+	return { type: 'RequirementRestored', payload };
 }

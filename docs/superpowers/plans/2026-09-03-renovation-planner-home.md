@@ -402,8 +402,18 @@ export class IndexProjectListFacts implements ProjectListFacts {
 
 			if (entry.type === 'renovation-plan') plans.set(owner, (plans.get(owner) ?? 0) + 1);
 
-			const mtime = this.mtimeOf(entry.path);
-			if (mtime !== null && mtime > (newest.get(owner) ?? -Infinity)) newest.set(owner, mtime);
+			// BOTH the note and its geometry sidecar. A plan's zones live in its `.rpgeo`
+			// (ADR-011) and zone frontmatter deliberately carries no geometry, so an afternoon
+			// spent drawing zones or calibrating writes the sidecar and touches no note this
+			// loop would otherwise see — and `lastWorked` is exactly the fact that afternoon
+			// should move. `geometrySidecarPath` is on the index entry already
+			// (`InMemoryProjectIndex.getGeometrySidecarPath`), so this costs a second stat on
+			// the entries that have one and nothing on the entries that do not.
+			for (const path of [entry.path, entry.geometrySidecarPath]) {
+				if (path === undefined) continue;
+				const mtime = this.mtimeOf(path);
+				if (mtime !== null && mtime > (newest.get(owner) ?? -Infinity)) newest.set(owner, mtime);
+			}
 		}
 
 		const answer = new Map<string, ProjectRowFacts>();
@@ -1492,6 +1502,19 @@ rule here can override one there at equal specificity.
 	}
 
 	/*
+	 * THE WARNING KEEPS THE TAIL, and giving it an order is not tidiness — the two rules above
+	 * created this. `order` defaults to 0, so the moment status and facts moved to 1 and 2 the
+	 * §83 overlap marker became the LOWEST-ordered item after the name: it landed on the first
+	 * line beside a name whose basis is 100%, and `project-list-overlap.css` sets
+	 * `flex-shrink: 0` on it deliberately (a truncated warning no longer says what it is about),
+	 * so the name is what gives — or the line breaks a third time. A marked row would have laid
+	 * out unlike every other row at exactly the width the design calls a designed state.
+	 */
+	.rp-project-list .rp-project-list__overlap {
+		order: 3;
+	}
+
+	/*
 	 * THE STRIP IS DROPPED, and nothing is lost: the translated word alone is complete and
 	 * conformant, and a ten-cell strip in a 460px row is exactly the ceremony this direction's
 	 * own recorded risk warns about.
@@ -2474,6 +2497,24 @@ function findMatch(
 		if (equals(at, needle.length)) return { at, width: needle.length };
 	}
 
+	// Pass 2 exists only for COLLATION EXPANSIONS — a span whose width differs from the
+	// needle's while comparing equal (`ß`/`ss`, `æ`/`ae`, `œ`/`oe`, the f-ligatures). It is
+	// O(name.length²) comparisons, and it runs on every MISS, which is every keystroke of every
+	// query that does not match: a vault of long names would block the caret while typing.
+	//
+	// The gate is that **every expansion these two locales have is non-ASCII**. Measured in node
+	// rather than assumed, which is this plan's own round-four lesson: over the 40-character
+	// alphabet `a–z 0–9 space - _ .`, in `en` and `de` alike, there is NO pair where one ASCII
+	// character compares equal to two at base sensitivity — zero hits out of 64,000 — while
+	// `ß`/`ss`, `æ`/`ae` and `ﬃ`/`ffi` are equal in both. So when the name and the needle are
+	// both pure ASCII, pass 1 is already complete and pass 2 can only burn cycles.
+	//
+	// **State the bound at its real width**: that is a measurement at 1-vs-2 over that alphabet,
+	// not a proof over every ASCII substring of every width. It is paired with a test that runs
+	// the probe, so adding a locale whose expansions are ASCII fails there rather than silently
+	// returning a miss — which is the failure mode either way, never a crash.
+	if (isAscii(name) && isAscii(needle)) return null;
+
 	// Pass 2: every other width, shortest first at each position.
 	for (let at = 0; at < name.length; at += 1) {
 		for (let width = 1; at + width <= name.length; width += 1) {
@@ -2481,6 +2522,12 @@ function findMatch(
 		}
 	}
 	return null;
+}
+
+/** Cheap enough to run per row per keystroke; `i < 128` is the whole test. */
+function isAscii(value: string): boolean {
+	for (let i = 0; i < value.length; i += 1) if (value.charCodeAt(i) > 127) return false;
+	return true;
 }
 ```
 
@@ -3119,9 +3166,19 @@ Append to `styles/project-list.css`:
 
 .rp-project-list__no-match .rp-project-list__create-named,
 .rp-project-list__no-match .rp-project-list__clear-filter {
-	/* The name the user typed can be long, so this wraps rather than pushing the pane wide. */
+	/*
+	 * The name the user typed can be long, so this wraps rather than pushing the pane wide.
+	 *
+	 * `overflow-wrap: anywhere` is the load-bearing one and `white-space: normal` alone is not
+	 * enough: normal wrapping breaks at OPPORTUNITIES, and one long unspaced token has none, so
+	 * a filter query typed as a single run — which is what a user hunting a name types — would
+	 * push the pane wide at 460px under a rule whose comment says it cannot. `anywhere` rather
+	 * than `break-word` because it also lets the intrinsic min-content width shrink, which is
+	 * what stops the flex parent from being widened before the break is ever considered.
+	 */
 	max-width: 100%;
 	white-space: normal;
+	overflow-wrap: anywhere;
 	text-align: left;
 }
 
@@ -5628,7 +5685,13 @@ Then add **four fixed shots** to the `SHOTS` array in `scripts/harness-shot.mjs`
 | `home-stress` | `?projects=30` | default |
 | `home-stress-light` | `?projects=30&theme=light` | default |
 | `home-stress-narrow` | `?projects=30&theme=light` | 460 |
-| `home-no-match-narrow` | `?projects=30&q=` + a long query matching nothing | 460 |
+| `home-no-match-narrow` | `?projects=30&q=` + a long UNSPACED query matching nothing | 460 |
+
+**The no-match query is one unbroken token on purpose.** A multiword query wraps at its own
+spaces and would photograph the easy case, leaving `overflow-wrap: anywhere` — the rule that
+actually stops the create action pushing the pane wide — uninspected while the capture read as
+though it had been taken. Checklist item 7 is about the hard case, so the fixture must supply
+it.
 
 **Four rather than the three an earlier draft listed, and the scheme of each is reasoned rather
 than paired by habit.** `project-detail-narrow`'s own comment sets the precedent — two shots hold
@@ -5722,7 +5785,14 @@ At 1280 and at 460, in both schemes:
    vault size the direction's own recorded risk names.
 6. Is the foot line quiet enough to be secondary and visible enough to be found?
 7. Does the no-match block's create action wrap rather than pushing the pane wide, with a long
-   typed query?
+   **unspaced** typed query — the case with no natural break opportunity, which is the only one
+   that exercises `overflow-wrap: anywhere`?
+7a. Does the second line of a narrow row read status first (`Design · 2 plans · EUR`), and is the
+   row's `gap` enough separation between the two slots without a drawn `·`?
+7b. Does a narrow row carrying the §83 overlap marker still lay out like its unmarked siblings —
+   name, then status and facts, with the warning last and unshrunk?
+7c. Does the Continue row WRAP at 460 rather than truncating? This needs a Continue context in
+   the harness fixture; without one the shot draws no Continue group and this inspects nothing.
 8. Is the 24px hit floor met by the row, the `Completed` summary and both Continue buttons?
 
 - [ ] **Step 5: Move the container-query threshold to what the capture says**

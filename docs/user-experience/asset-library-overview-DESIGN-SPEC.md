@@ -95,8 +95,19 @@ away.
 | Registration | `registerView` in `RenovationPlannerPlugin`, per `registration-locality.test.ts` |
 | Command | `open-asset-library` — a plain callback, not a `checkCallback`; the lesson `open-plan-editor` already paid for is that a command gated on the active note is a command absent from the palette in every vault that has none of the thing |
 | Ribbon | **No second ribbon icon.** The ribbon is shared real estate across every installed plugin and this surface is reached often but not constantly. A command plus an in-app door is the whole of it |
-| In-app door | `ProjectList`'s header gains an **Assets** control beside its existing `New asset` button. `ProjectList` is where a user already is when the thought "have I got a definition for this?" arrives |
+| In-app door | `ProjectList`'s header gains an **Assets** control beside its existing `New asset` button — **and so does the no-projects aside**, see below. `ProjectList` is where a user already is when the thought "have I got a definition for this?" arrives |
 | Reveal | Through `revealView(ASSET_LIBRARY_VIEW)` — the one activation function, per the *one action, every input* rule, which is also what stops a double click opening two tabs of a singleton |
+
+**One door is not enough, because `ProjectList` is not always mounted.** `ViewRoot` draws the
+project empty state instead of the list when a vault has no projects — so a door placed only in
+that header disappears in exactly the state where a user has fewest other routes. And the
+catalogue is VAULT-WIDE since design slice 19: a vault with no projects can hold a full library,
+and the aside beside that empty state already offers **New asset** for precisely this reason, its
+own comment arguing that *"a fresh vault must still be able to build a catalogue."* A vault that
+can create an asset and cannot list one is the same argument left half-applied. The **Assets**
+control joins it there, as a sibling of the empty state rather than a second action on it — the
+same placement, and for the same stated reason: `EMPTY_STATE_CONTENT` carries one action per
+entry, and this is an unrelated affordance. Reported by a review bot.
 
 `open-asset-designer`'s fuzzy picker **stays**. It is a different gesture: jump straight into
 designing an asset whose name you already know. This surface is for the case where you do not.
@@ -424,6 +435,25 @@ Four sections, in this order:
      | any `asset-geometry.*` — `unreadable`, `corrupt`, `schema-invalid`, `asset-id-mismatch` | §3.4's `unreadable` wording, naming the sidecar where the error carries its path | **withdrawn** — see below |
      | anything else | the vault read failed, retryable | withdrawn until a read succeeds |
 
+     **Those three rows are about the SHAPE. A selection can also fail one level up, and that
+     state is the panel's rather than this section's.** §5.1a's listing omits an asset whose NOTE
+     could not be read, so a selected or restored id can resolve to no `CatalogueEntryDto` at all
+     — nothing to draw Definition from, nothing behind the spec-sheet row, and the panel collapses
+     to a gone state about an asset whose note is sitting on disk. It is `unreadable`'s ids
+     (§5.1a) that make the two tellable apart, which is why that listing carries them:
+
+     | The selected id is | The panel says | Actions |
+     | --- | --- | --- |
+     | in `unreadable` | the note could not be read, and names it | **`Open note` alone** — the raw note is where broken frontmatter is repaired, exactly as the designer is where a damaged shape is |
+     | in neither | the asset is gone, with a way back | none |
+
+     `Open designer` and `Delete` are withdrawn for an unreadable note and the reason differs per
+     action: the designer needs a shape for an asset the catalogue could not parse, and `Delete`
+     is specified against the *Used in* read, which this panel does not have. Withholding
+     `Open note` too was the alternative and it is the dead-end §3.5 already refused once — the
+     one action that would actually fix the thing, withheld because the state was not
+     representable.
+
      **That middle row said `Open designer` STAYS, on the grounds that "the designer is where a
      damaged shape is repaired" — a claim about the designer that I never checked, and it is
      false.** `GetAssetDesign.execute` is `if (isErr(snapshot)) return snapshot;` — a sidecar
@@ -558,10 +588,19 @@ the panel they were working in gone.
 **A deletion is a `back()` that cannot return to its row.** The inspector withdraws to its resting
 state and focus goes to the **next row in the shelf the asset was in**, falling back in order to:
 
-- **that shelf's header**, when the deleted asset was its last row;
-- **the search field**, when the shelf itself is gone — which is reachable rather than theoretical,
-  since an undeclared shelf exists only because an asset sits in it (§3.2), so deleting the last
-  `insulation` asset removes the `insulation` shelf.
+- **the search field** otherwise — which is every remaining case rather than a rare one.
+
+**The shelf's own heading was the middle step here and it has been REMOVED, because it could never
+receive focus in the one case that reaches it.** The header is only a candidate once the deleted
+asset was the shelf's last row, and precisely then the shelf is empty: §3.2 requires a zero-count
+declared shelf to stay a non-interactive heading, so it renders as a plain `<h3>` with no focus
+target, and an undeclared shelf disappears altogether (it exists only because an asset sits in it,
+so deleting the last `insulation` asset removes the `insulation` shelf). Either way the step
+landed nowhere. Making the heading programmatically focusable was the alternative and it is worse:
+it adds a tab stop to an element §3.2 deliberately keeps non-interactive, to satisfy a fallback
+rather than a user. Reported by a review bot, in a rule I wrote four rounds earlier — **a
+fallback chain is only as good as its links being reachable, which is the same defect as the
+search-field link that could never fire**, found in the same document two rounds apart.
 
 That is the same three-step shape `back()` already takes, and for the same reason: the destination
 can be absent, and a focus rule that names one target is a rule for the case its author happened to
@@ -676,6 +715,19 @@ that is a change to `application/ports/AssetRepository.ts` and to its two implem
 than something a query can paper over. It is small, it has a precedent to copy, and the reason it
 belongs in this document is that a spec claiming a layer is untouched is a spec somebody plans
 against.
+
+**And it carries the IDS, not only the count** — one field wider than the project precedent, for a
+reason this surface has and the project list does not. A selection here names one asset, and a
+listing that omits the unreadable ones cannot say whether the selected id is *unreadable* or
+*absent*: both arrive as "no entry". Those want opposite answers. An absent asset is gone and there
+is nothing to do about it; an unreadable one has a note **on disk**, and opening that note is
+exactly how a user repairs the frontmatter that broke it — the same shape as `Open designer` being
+the repair path for a damaged sidecar. With only a count, §3.5 would have to collapse the two and
+withhold the one action that works, which is the dead-end this document already refused once.
+
+`ObsidianAssetRepository.list` already HAS the ids at the point it skips them — it records each
+one to the diagnostics ledger — so this is a wider return rather than new bookkeeping. The status
+strip (§4) still draws a count, now `unreadable.length`, so nothing else in the document moves.
 
 ### 5.2 What it deliberately does not read
 
@@ -1003,6 +1055,8 @@ view.asset-library.none             view.asset-library.shape.loading
 view.asset-library.shape.gone       view.asset-library.shape.read-failed
 view.asset-library.clearance.unscaled
 view.asset-library.loading          view.asset-library.some-unreadable  (interpolated: {count})
+view.asset-library.note-unreadable  (interpolated: {name})
+view.asset-library.asset-gone
 view.asset-library.failed.headline
 view.asset-library.new-asset        view.asset-library.results
 view.asset-library.category         view.asset-library.unit
@@ -1015,6 +1069,10 @@ view.asset-library.used-in.loading  view.asset-library.used-in.failed
 empty.asset-library.no-assets.headline / .body / .action
 empty.asset-library.no-matches.headline / .body / .action
 ```
+
+`view.asset-library.note-unreadable` and `.asset-gone` are the selection-level states §3.5's
+second table draws — added WITH that table rather than a round after it, which is the practice
+those two preceding rounds bought.
 
 **The three §4 keys were found by sweeping that section's state table row by row**, which is how
 this list should have been derived in the first place and was not. §4 tabulates six states and the
@@ -1725,6 +1783,37 @@ escape removed from the component, and pinned nothing — this repository's own 
 in both worlds* defect, committed inside the file written to stop exactly that. It drives the real
 `back()` against a planted hostile id now, and the mutation reports the `SyntaxError` the code
 really throws.
+
+A twenty-first round found three, and one of them is a fallback link that could never fire — the
+second such link in this document, found two rounds after the first.
+
+**The post-delete chain's middle step was unreachable.** It named *the shelf's own heading*, and
+that step is only reached once the deleted asset was the shelf's last row — precisely when the
+shelf is empty, and §3.2 requires an empty declared shelf to stay a non-interactive `<h3>` with no
+focus target, while an undeclared one disappears entirely. Removed rather than made focusable:
+adding a tab stop to an element §3.2 deliberately keeps non-interactive, in order to satisfy a
+fallback rather than a user, is the wrong trade. **A fallback chain is only as good as its links
+being reachable** — the same defect as the search-field link two rounds ago, in a rule written four
+rounds ago.
+
+**A selection can fail one level above the shape, and §3.5 had no state for it.** §5.1a's listing
+omits an asset whose NOTE could not be read, so a selected or restored id resolves to no
+`CatalogueEntryDto` at all and the panel collapsed to *gone* about an asset sitting on disk. The
+fix is in the listing rather than in the panel: `unreadable` carries the **ids** now, not only a
+count, because absent and unreadable want opposite answers — an absent asset is gone and there is
+nothing to do; an unreadable one is repaired by opening its note, which is the same shape as
+`Open designer` repairing a damaged sidecar. With only a count the two collapse and the one action
+that works gets withheld, which is the dead-end this document already refused once. One field
+wider than the project precedent, for a distinction the project list does not have to draw.
+
+**And the in-app door disappeared in the state that needs it most.** `ViewRoot` draws the project
+empty state instead of `ProjectList` when a vault has no projects, and §2 placed the only visible
+**Assets** control in that list's header. The catalogue is vault-wide, so a vault with no projects
+can hold a full library — and the aside beside that empty state already offers *New asset* for
+exactly this reason, its own comment arguing that *"a fresh vault must still be able to build a
+catalogue."* A vault that can create an asset and cannot list one is that argument left
+half-applied. **Reading a neighbouring component's comment would have caught it**, and the comment
+was already making the case.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

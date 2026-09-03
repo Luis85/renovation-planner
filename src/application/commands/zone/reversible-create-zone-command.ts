@@ -8,12 +8,18 @@ import type { RepositoryError } from '../../ports/repositoryErrors';
 import type { Command } from '../Command';
 import type { CreateZoneInput } from './CreateZone';
 import type { DeleteZoneInput } from './DeleteZone';
+import type { EventBus } from '../../../core/events/EventBus';
+import type { Logger } from '../../ports/Logger';
+import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { ZoneRepository } from '../../ports/ZoneRepository';
 import type { Loaded } from '../../ports/versioning';
 import type { Zone } from '../../../domain/zone/Zone';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
+import { zoneCreated } from '../../../domain/zone/Zone.events';
+import { requirementInvalidated } from '../../../domain/requirement/Requirement.events';
 import { undoSuperseded, type WriteLedger } from '../../editor/WriteLedger';
-import { referenceError } from '../../errors';
+import { persistenceError, referenceError } from '../../errors';
+import { projectIndexRebuilt } from '../../events/projectIndex.events';
 import { restoreZone } from './restore-zone';
 
 export type CreateCommand = Command<
@@ -24,6 +30,28 @@ export type UndoDeleteCommand = Command<
 	DeleteZoneInput,
 	Result<{ zoneId: ZoneId }, ReferenceError | RepositoryError>
 >;
+
+/**
+ * What the redo half needs that the create half does not, plus the one repository port the
+ * create half already took positionally. A bundle rather than the four separate
+ * parameters that would otherwise put this constructor at six — `max-params` caps at five,
+ * `DeleteZoneUndoDeps` is the sibling's shape for the identical reason, and `zones` moves in
+ * here rather than `deps` growing a fourth field beside it that only `execute`/`undo` read:
+ * every member below is read from `deps` now, so there is exactly one bundle of
+ * collaborators rather than a port living outside it for no reason but history.
+ */
+export interface ReversibleCreateZoneDeps {
+	readonly zones: ZoneRepository;
+	readonly events: EventBus;
+	/**
+	 * The reverse lookup, and a NEW dependency rather than bookkeeping this adapter already
+	 * has: it retains `snapshot: Loaded<Zone>` and nothing else, and its `undo` dispatches
+	 * `DeleteZoneCommand`, which resolves the referents internally and hands back none.
+	 */
+	readonly requirements: RequirementRepository;
+	/** Records a refused or faulted reverse lookup — see `announceRestore`. */
+	readonly logger: Logger;
+}
 
 // Through the factory, not a hand-built literal: the sibling delete adapter minted the
 // same `zone.nothing-to-undo` code with a DIFFERENT category, and category is the
@@ -65,17 +93,12 @@ function nothingToUndo(): ReferenceError {
  * presents a revision for a note that does not exist. `WriteLedger` states that rule
  * once for all four adapters.
  *
- * **Known asymmetry in the EVENT stream, stated because it is not fixed here.** The first
- * `execute` publishes `ZoneCreated` (through the plain command) and `undo` publishes
- * `ZoneDeleted` (likewise), but the redo restore publishes nothing — the sibling delete
- * adapter argues at length that a restore is not a creation. So create → undo → redo →
- * undo emits one create and two deletes. Nothing today counts them: the editor refreshes
- * off the history, not off events, and `planChangeSource` only re-reads. Slice 10's
- * recalculation is the kind of subscriber that would care. **This sentence named slice 13's
- * save tracking as a second one, and slice 13 has since landed and disproved that half**:
- * `withSaveStateTracking` decorates the command DISPATCHER and subscribes to no event at
- * all. What an undo/redo pair OUGHT to announce is still a real subscriber's decision to
- * make, not a detail to settle silently here.
+ * **The redo restore announces now, both halves.** The first `execute` publishes
+ * `ZoneCreated` (through the plain command) and `undo` publishes `ZoneDeleted` (likewise);
+ * the redo restore used to publish nothing, so create → undo → redo → undo emitted one
+ * create and two deletes. `announceRestore` closes that — see its own docblock for why a
+ * restore needs a SECOND event beside `ZoneCreated`, and for the one case it still
+ * over-claims.
  */
 export class ReversibleCreateZoneCommand {
 	private snapshot: Loaded<Zone> | null = null;
@@ -96,9 +119,9 @@ export class ReversibleCreateZoneCommand {
 	constructor(
 		private readonly createCommand: CreateCommand,
 		private readonly deleteCommand: UndoDeleteCommand,
-		private readonly zones: ZoneRepository,
 		private readonly ledger: WriteLedger,
 		private readonly input: CreateZoneInput,
+		private readonly deps: ReversibleCreateZoneDeps,
 	) {}
 
 	async execute(): Promise<DispatchResult> {
@@ -111,13 +134,14 @@ export class ReversibleCreateZoneCommand {
 			this.generation = this.ledger.generation(result.value.zone.entity.id);
 			return ok('wrote');
 		}
-		const written = await restoreZone(this.zones, this.ledger, snapshot);
+		const written = await restoreZone(this.deps.zones, this.ledger, snapshot);
 		if (isErr(written)) return written;
 		// The next undo must delete what THIS redo wrote, not what the original create did.
 		this.snapshot = written.value;
 		// And it must rest on the premise THIS redo ran under: the restore succeeded against
 		// an `'absent'` condition, so whatever a foreign write did before it is now moot.
 		this.generation = this.ledger.generation(written.value.entity.id);
+		await this.announceRestore(written.value);
 		return ok('wrote');
 	}
 
@@ -140,5 +164,76 @@ export class ReversibleCreateZoneCommand {
 	/** Set once `execute()` has succeeded; how the drawing tool selects what it drew. */
 	get createdZoneId(): ZoneId | null {
 		return this.snapshot?.entity.id ?? null;
+	}
+
+	/**
+	 * A restore is a write, and until this existed it was a write nobody heard. Two events,
+	 * because they answer two different questions and neither subsumes the other.
+	 *
+	 * `ZoneCreated` is what the plain command would have raised, and it is filtered by every
+	 * consumer to the ZONE's project. That is right for the zone and insufficient for its
+	 * dependents: nothing subscribes to `ZoneCreated` at all today (the cascade handlers are
+	 * `onZoneGeometryChanged`, `onAssetPriceOverrideChanged` and `onAssetUpdated`), so a
+	 * dependent in ANOTHER project — a hand-edited requirement whose `origin.zoneId` sits
+	 * here — keeps a `missingTarget` badge a fresh read would already have cleared.
+	 *
+	 * So the surviving dependents get `RequirementInvalidated`, which carries the
+	 * requirement's own id and claims a recalculation is OWED. That is truthful rather than a
+	 * name picked off the list: the dependents that SURVIVE a delete resolution are exactly
+	 * the ones `delete-anyway` marked stale through `markStalePersisted`, and restoring the
+	 * zone does not un-mark them, so one is genuinely owed and can now actually succeed.
+	 *
+	 * **Where it over-claims, stated rather than left to be found:** a hand-edited requirement
+	 * pointing at a zone id that never existed, whose id a later redo happens to create. That
+	 * row was never marked stale, so "a recalculation is owed" is stronger than its state
+	 * supports. It takes a hand edit and a coincidence of ids, and the alternative is minting
+	 * a neutral "this row may read differently" event, which is one gap with two callers and
+	 * belongs to whatever forces it rather than to a fix for a naming mistake.
+	 */
+	private async announceRestore(restored: Loaded<Zone>): Promise<void> {
+		const zone = restored.entity;
+		await this.deps.events.publish(
+			zoneCreated({ zoneId: zone.id, planId: zone.planId, projectId: zone.projectId }),
+		);
+
+		// `listByZone` can REJECT as well as refuse. The repository ports are raw at this
+		// boundary — `CLAUDE.md` records that carve-out, and it is the reason a vault fault
+		// arrives here as a throw rather than as a coded `Result`. Letting it escape is worse
+		// than the silence this method exists to fix: `execute()` would reject with the zone
+		// already restored, `CommandHistory` would leave the command on the REDO stack, and the
+		// retry would hit `restoreZone`'s `'absent'` condition against a zone that is now
+		// present — an existing zone that history can neither undo nor redo.
+		const referents = await this.deps.requirements.listByZone(zone.id).catch((cause: unknown) =>
+			err(
+				persistenceError(
+					'zone.restore.referents-faulted',
+					'Reading the requirements referencing the restored zone failed unexpectedly.',
+					cause,
+				),
+			),
+		);
+		if (isErr(referents)) {
+			// The zone write has ALREADY succeeded, so this cannot fail the operation — and
+			// staying silent leaves a cross-project dependent stale, which is the state the
+			// per-referent publish exists to prevent. `listByZone` walks every requirement id
+			// in the vault and refuses on the first unreadable one, so this needs a malformed
+			// note that has nothing to do with this zone.
+			//
+			// `ProjectIndexRebuilt` is the payload-less "cannot say which entities changed,
+			// refresh anyway" arm, and it is the truthful signal here for exactly that reason:
+			// the adapter genuinely cannot say which requirements were affected. Every
+			// project's summary re-reads once, on a path needing a malformed note AND a zone
+			// restore in the same session.
+			this.deps.logger.error('zone.restore.referents-unreadable', {
+				zoneId: zone.id,
+				cause: referents.error,
+			});
+			await this.deps.events.publish(projectIndexRebuilt());
+			return;
+		}
+
+		for (const referent of referents.value) {
+			await this.deps.events.publish(requirementInvalidated(referent.entity.id));
+		}
 	}
 }

@@ -4,6 +4,7 @@ import type { AssetId } from '../../../domain/asset/AssetId';
 import type { EntityVersion } from '../../../application/ports/versioning';
 import type { ProjectIndex } from '../../../application/ports/ProjectIndex';
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
+import type { AssetGeometryError } from '../../../application/ports/AssetGeometrySidecar';
 import { checkExpectedVersion } from '../../../application/ports/versioning';
 import { ensureFolder, fileStatAt, persistenceError } from './noteIo';
 import { assetSidecarPathFor, parentOf, usableAsFilename } from './paths';
@@ -97,7 +98,7 @@ export class AssetGeometryStore {
 		private readonly index: Pick<ProjectIndex, 'getGeometrySidecarPath'>,
 	) {}
 
-	read(assetId: AssetId): Promise<Result<AssetSidecarSnapshot, RepositoryError>> {
+	read(assetId: AssetId): Promise<Result<AssetSidecarSnapshot, AssetGeometryError>> {
 		return this.queues.run(`asset:${assetId}`, () => this.readUnlocked(assetId));
 	}
 
@@ -224,7 +225,7 @@ export class AssetGeometryStore {
 		assetId: AssetId,
 		content: AssetSidecarContent,
 		expected?: EntityVersion,
-	): Promise<Result<{ version: EntityVersion }, RepositoryError>> {
+	): Promise<Result<{ version: EntityVersion }, AssetGeometryError>> {
 		return this.queues.run(`asset:${assetId}`, async () => {
 			const current = await this.readUnlocked(assetId);
 			if (!current.ok) return current;
@@ -269,16 +270,17 @@ export class AssetGeometryStore {
 	 * Every read and every write resolves HERE and nowhere else, which is what made the change
 	 * one line rather than a rewrite of the read path.
 	 */
-	private pathFor(assetId: AssetId): Result<string, RepositoryError> {
+	private pathFor(assetId: AssetId): Result<string, AssetGeometryError> {
 		// The extension is passed in rather than assumed, because the LENGTH rule is about the
 		// whole filename and this store is what knows the suffix it appends.
 		if (!usableAsFilename(assetId, SIDECAR_EXTENSION_BYTES)) {
-			return err(
-				persistenceError(
+			return err({
+				...persistenceError(
 					'asset-geometry.unusable-id',
 					`An asset id names its sidecar file, and ${assetId} cannot be a filename.`,
 				),
-			);
+				sidecarPath: assetSidecarPathFor(this.libraryFolder, assetId),
+			});
 		}
 		// **The index FIRST, the derivation as the repair path** — ADR-011's own shape, which
 		// ADR-0014 inherits and which this method's header reserved as one line. Until it was
@@ -294,7 +296,7 @@ export class AssetGeometryStore {
 	}
 
 	/** MUST run inside the asset's queue — both callers here do. */
-	private async readUnlocked(assetId: AssetId): Promise<Result<AssetSidecarSnapshot, RepositoryError>> {
+	private async readUnlocked(assetId: AssetId): Promise<Result<AssetSidecarSnapshot, AssetGeometryError>> {
 		const resolved = this.pathFor(assetId);
 		if (isErr(resolved)) return resolved;
 		const path = resolved.value;
@@ -307,14 +309,20 @@ export class AssetGeometryStore {
 		try {
 			rawText = await this.vault.read(file);
 		} catch (cause) {
-			return err(persistenceError('asset-geometry.unreadable', `Could not read sidecar ${path}.`, cause));
+			return err({
+				...persistenceError('asset-geometry.unreadable', `Could not read sidecar ${path}.`, cause),
+				sidecarPath: path,
+			});
 		}
 
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(rawText);
 		} catch (cause) {
-			return err(persistenceError('asset-geometry.corrupt', `Sidecar ${path} is not valid JSON.`, cause));
+			return err({
+				...persistenceError('asset-geometry.corrupt', `Sidecar ${path} is not valid JSON.`, cause),
+				sidecarPath: path,
+			});
 		}
 
 		const validated = AssetGeometrySchemaV1.safeParse(parsed);
@@ -323,6 +331,7 @@ export class AssetGeometryStore {
 				category: 'Validation',
 				code: 'asset-geometry.schema-invalid',
 				message: `Sidecar ${path} failed validation: ${validated.error.issues.map((issue) => issue.message).join('; ')}`,
+				sidecarPath: path,
 			});
 		}
 
@@ -333,12 +342,13 @@ export class AssetGeometryStore {
 		// ordinary way to reach it: duplicating a `.rpgeo` in the file explorer and renaming
 		// it is what a user does to reuse a shape.
 		if (validated.data.assetId !== assetId) {
-			return err(
-				persistenceError(
+			return err({
+				...persistenceError(
 					'asset-geometry.asset-id-mismatch',
 					`Sidecar ${path} declares asset ${validated.data.assetId}, not ${assetId}.`,
 				),
-			);
+				sidecarPath: path,
+			});
 		}
 
 		return ok({

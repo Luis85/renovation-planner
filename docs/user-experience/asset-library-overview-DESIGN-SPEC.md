@@ -1236,8 +1236,20 @@ expansion.
 
 The contract, so a builder does not invent one:
 
-- The library subscribes to `AssetDesignChanged` and `GeometrySidecarChanged` **unfiltered**, and
-  invalidates the mark for the asset each event names.
+- The library subscribes to `AssetDesignChanged` **unfiltered** — its payload carries an
+  `assetId`, so every one of them is about an asset this surface draws — and to
+  `GeometrySidecarChanged` filtered on **`entityType === 'renovation-asset'`**, invalidating the
+  mark for the asset each names.
+
+  **The filter on the second is not symmetry, it is a shared event.** `VaultChangeAdapter`
+  publishes `geometrySidecarChanged({ entityId: entry.id, entityType: entry.type })` for whatever
+  entry a `.rpgeo` belongs to, so a PLAN's sidecar raises the identical event — and unfiltered,
+  a plan sidecar edited by hand or arriving through sync would invalidate the mark and the design
+  read of an asset whose id equals that plan's. `createAssetDesignChangeSource` already filters
+  this exact event that way, for this exact reason. Both this list and its counterpart in the
+  implementation plan said *unfiltered* for a round; the plan was corrected first and this
+  contract, which §11 makes the authority, was the stale half — the same neighbour drift §12
+  records, and the third time on this branch that the AUTHORITY was the half left behind.
 - **`AssetDesignChanged` also refreshes that asset's CATALOGUE entry, not only its mark** — and
   this is the arm that is easy to miss, because the event's name says *design*. Two of the five
   design commands write the NOTE: `SetAssetHeight` writes `height`, which §3.5 draws in the

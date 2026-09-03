@@ -35,6 +35,13 @@ export interface AssetDesignDto {
 	/** Null when there is no footprint to measure — never `{ width: 0, depth: 0 }`. */
 	readonly dimensions: Dimensions | null;
 	/**
+	 * The clearance's own extent, derived through the SAME guarded `dimensionsOf` call the
+	 * footprint's `dimensions` takes above — never a second derivation. `null` when there is
+	 * no clearance to measure (§3.5's Shape section prints `None` for that state, never for
+	 * a read that has not answered yet), never `{ width: 0, depth: 0 }`.
+	 */
+	readonly clearanceExtent: Dimensions | null;
+	/**
 	 * `shape.footprintPending` — a stored fact about the FOOTPRINT's own capture, and never
 	 * a join. Reading it as "pending, or there is no calibration" would re-flag a measured
 	 * outline the moment its background was replaced (Decision 5 clears the calibration and
@@ -60,9 +67,18 @@ export interface AssetDesignDto {
  * that cannot carry what its own body produces is a bug waiting for its first failure; a
  * union WIDER than the body is a caller narrowing on arms nothing raises. Three sources,
  * and each is reachable: either port (`RepositoryError`), an asset that is not there
- * (`ReferenceError`), and a footprint whose extent is not representable (`GeometryError`).
+ * (`ReferenceError`), and a footprint or clearance whose extent is not representable
+ * (`GeometryError`).
+ *
+ * Intersected with `sidecarPath` rather than unioned with `AssetGeometrySidecar`'s own
+ * `AssetGeometryError`, so the field reads the same way off every arm — a caller narrowing
+ * to `asset.not-found` and one narrowing to `asset-geometry.corrupt` ask the identical
+ * question rather than two different ones, and TypeScript refuses a bare property read off
+ * a plain union whose other members never declare it at all.
  */
-export type AssetDesignError = RepositoryError | ReferenceError | GeometryError;
+export type AssetDesignError = (RepositoryError | ReferenceError | GeometryError) & {
+	readonly sidecarPath?: string;
+};
 
 /**
  * Read one asset's whole design (Task A8).
@@ -117,6 +133,17 @@ export class GetAssetDesignQuery
 			dimensions = measured.value;
 		}
 
+		// The SAME guarded call the footprint's own `dimensions` takes above, never a second
+		// derivation: `validateAssetShape` refuses a clearance whose shoelace sum overflows
+		// but not one whose SPAN does, so a long, thin clearance would otherwise reach the
+		// inspector as `Infinity mm` with nothing having refused it.
+		let clearanceExtent: Dimensions | null = null;
+		if (shape !== null && shape.clearance !== null) {
+			const measuredClearance = dimensionsOf(shape.clearance);
+			if (isErr(measuredClearance)) return measuredClearance;
+			clearanceExtent = measuredClearance.value;
+		}
+
 		return ok({
 			assetId: asset.id,
 			name: asset.name,
@@ -125,6 +152,7 @@ export class GetAssetDesignQuery
 			calibration: document.calibration,
 			shape,
 			dimensions,
+			clearanceExtent,
 			dimensionsUnscaled: shape?.footprintPending ?? false,
 			noteVersion: loaded.version,
 			geometryVersion,

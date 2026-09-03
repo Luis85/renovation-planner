@@ -46,6 +46,7 @@ const HARNESS_ASSET_DESIGN: AssetDesignDto = {
 	calibration: null,
 	shape: null,
 	dimensions: null,
+	clearanceExtent: null,
 	dimensionsUnscaled: false,
 	noteVersion: HARNESS_VERSION,
 	geometryVersion: HARNESS_VERSION,

@@ -47,6 +47,7 @@ export function assetDesign(overrides: Partial<AssetDesignDto> = {}): AssetDesig
 			facing: 0,
 		},
 		dimensions: { width: 1200, depth: 800 },
+		clearanceExtent: null,
 		dimensionsUnscaled: false,
 		noteVersion: { revision: 1, observed: observationToken('note-1') },
 		geometryVersion: { revision: 1, observed: observationToken('geometry-1') },

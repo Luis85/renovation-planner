@@ -12,19 +12,41 @@ export type ReferencedTarget =
 	| { readonly kind: 'asset'; readonly assetId: AssetId };
 
 /**
- * Where a project's folder comes from, as a collaborator rather than as an import.
+ * Where a project IS: the path of its own `Project.md`, and the folder that note sits in.
  *
- * A project's folder is DERIVED — the folder its `Project.md` sits in (ADR-0013) — and the
- * one function that derives it (`projectFolderOf`) lives in `infrastructure/`, beside the
- * rest of the path vocabulary and above an `obsidian` import this layer may not name. So
- * the composition root binds that same function here rather than this module deriving a
- * folder for the second time: two derivations of one rule is exactly the drift a single
- * injected lookup cannot have.
+ * BOTH, because the row below needs both and the folder is derived from the path — so a
+ * lookup answering one of them would leave the other to be derived a second time, at a call
+ * site that cannot reach `parentOf` (it lives in `infrastructure/`, above an `obsidian`
+ * import this layer may not name). One value carrying both makes a folder that disagrees
+ * with its path unrepresentable.
+ */
+export interface ProjectLocation {
+	/** The project note's own path — the discriminator where two projects share a folder. */
+	readonly path: string;
+	/** `parentOf(path)`, and `''` for a note at the vault root — a real answer, not an absence. */
+	readonly folder: string;
+}
+
+/**
+ * Where a project's note is, as a collaborator rather than as an import.
+ *
+ * A project's location is DERIVED — its folder is wherever its `Project.md` sits (ADR-0013) —
+ * and the one function that derives it (`projectLocationOf`) lives in `infrastructure/`,
+ * beside the rest of the path vocabulary and above an `obsidian` import this layer may not
+ * name. So the composition root binds that same function here rather than this module
+ * deriving a location for the second time: two derivations of one rule is exactly the drift a
+ * single injected lookup cannot have.
+ *
+ * **It answers the NOTE PATH as well as the folder, and that widening is the Asset library's
+ * §3.5.** A folder-only lookup cannot separate two projects sharing a display name AND a
+ * directory, which is a vault nothing refuses — no command decides which directory a project's
+ * note sits in — and an instruction to *display the full path* leaves an implementation with
+ * nothing to display.
  *
  * `undefined` is the resolver REFUSING (the index holds no note for that id), and it stays
  * a refusal here: an unplaceable project gets no path rather than a guessed one.
  */
-export type ProjectFolderLookup = (projectId: ProjectId) => string | undefined;
+export type ProjectLocationLookup = (projectId: ProjectId) => ProjectLocation | undefined;
 
 /**
  * One project's referents — what slice 15's delete-confirmation dialog draws a row from,
@@ -41,9 +63,46 @@ export type ProjectFolderLookup = (projectId: ProjectId) => string | undefined;
 export interface ReferencingGroup {
 	readonly projectId: ProjectId;
 	readonly projectName: string;
-	/** Only where `projectName` is not unique among the groups returned. */
+	/**
+	 * Only where `projectName` is not unique among the groups returned — the project's FOLDER
+	 * ordinarily, and its whole NOTE PATH where the folder does not separate the colliding
+	 * rows either.
+	 *
+	 * Read it against `undefined` and never for truthiness: `''` is a supplied answer, for a
+	 * `Project.md` sitting at the vault root, and a truthy test suppresses exactly the row the
+	 * path was added to disambiguate.
+	 *
+	 * It is never the row's KEY. `projectId` is, being the only field unique by construction.
+	 */
 	readonly projectPath?: string;
 	readonly requirementIds: readonly RequirementId[];
+}
+
+/**
+ * The keys more than one item answers to — the colliding half of a tally.
+ *
+ * A SET of the colliding keys rather than a second `counts.get` at the map step: that second
+ * lookup can never miss, so its own absent arm would be a branch no fixture can reach — and an
+ * unreachable arm is not free against a coverage floor.
+ *
+ * Shared by both levels of the ambiguity rule below, which is what keeps "the name collides"
+ * and "the folder collides too" one question asked twice rather than two spellings of it.
+ */
+function collidingKeys<T>(items: readonly T[], keyOf: (item: T) => string): ReadonlySet<string> {
+	const counts = new Map<string, number>();
+	for (const item of items) {
+		const key = keyOf(item);
+		counts.set(key, (counts.get(key) ?? 0) + 1);
+	}
+	return new Set([...counts].filter(([, count]) => count > 1).map(([key]) => key));
+}
+
+/**
+ * A name and a folder as ONE key, joined by a character no path can hold, so that
+ * `('Refit', 'a/b')` and `('Refit/a', 'b')` cannot collide by accident.
+ */
+function nameAndFolder(projectName: string, folder: string): string {
+	return `${projectName}\u0000${folder}`;
 }
 
 /**
@@ -56,7 +115,7 @@ export class ListRequirementsReferencing {
 	constructor(
 		private readonly requirements: RequirementRepository,
 		private readonly projects: ProjectRepository,
-		private readonly folderOf: ProjectFolderLookup,
+		private readonly locationOf: ProjectLocationLookup,
 	) {}
 
 	async execute(target: ReferencedTarget): Promise<Result<readonly ReferencingGroup[], RepositoryError>> {
@@ -88,18 +147,34 @@ export class ListRequirementsReferencing {
 	 * collide renders two identical rows for the two things the user is choosing between.
 	 * `Project.create` trims a name and rejects only an empty one, so a collision is a thing
 	 * a vault legitimately holds and nothing refuses.
+	 *
+	 * **TWO levels, because a folder does not always separate the rows it is added to.** Two
+	 * notes declaring `type: renovation-project` can sit in ONE directory under different
+	 * filenames, so two colliding names can share a folder as well — and the disambiguator then
+	 * disambiguates nothing. Where that happens the discriminator is the project note's own
+	 * path, which is unique by construction; everywhere else the folder stands, which is what
+	 * keeps `''` (a note at the vault root) a supplied answer with a label of its own rather
+	 * than a filename nobody asked for.
+	 *
+	 * A location the resolver DECLINED leaves the group untouched, exactly as an unambiguous
+	 * name does: the ambiguity rule cannot invent what the index could not place.
 	 */
 	private withPathsWhereAmbiguous(groups: readonly ReferencingGroup[]): readonly ReferencingGroup[] {
-		const counts = new Map<string, number>();
-		for (const group of groups) counts.set(group.projectName, (counts.get(group.projectName) ?? 0) + 1);
-		// A SET of the colliding names rather than a second `counts.get` at the map step: that
-		// second lookup can never miss, so its own absent arm would be a branch no fixture can
-		// reach — and an unreachable arm is not free against a coverage floor.
-		const ambiguous = new Set([...counts].filter(([, count]) => count > 1).map(([name]) => name));
-		return groups.map((group) =>
-			ambiguous.has(group.projectName)
-				? { ...group, projectPath: this.folderOf(group.projectId) }
-				: group,
+		const ambiguousNames = collidingKeys(groups, (group) => group.projectName);
+		const located = groups.map((group) => ({
+			group,
+			// Resolved for the colliding groups ALONE, so an unambiguous listing costs no index
+			// lookups at all — the common case, and the one this rule exists not to clutter.
+			location: ambiguousNames.has(group.projectName) ? this.locationOf(group.projectId) : undefined,
+		}));
+		const ambiguousFolders = collidingKeys(
+			located.filter((entry) => entry.location !== undefined),
+			(entry) => nameAndFolder(entry.group.projectName, entry.location?.folder ?? ''),
 		);
+		return located.map(({ group, location }) => {
+			if (location === undefined) return group;
+			const folderCollides = ambiguousFolders.has(nameAndFolder(group.projectName, location.folder));
+			return { ...group, projectPath: folderCollides ? location.path : location.folder };
+		});
 	}
 }

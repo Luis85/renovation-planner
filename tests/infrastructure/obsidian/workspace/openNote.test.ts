@@ -6,7 +6,7 @@
  * is the one the index answers.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { openProjectNote } from '../../../../src/infrastructure/obsidian/workspace/openNote';
+import { openNoteAtPath, openProjectNote } from '../../../../src/infrastructure/obsidian/workspace/openNote';
 import { InMemoryProjectIndex } from '../../../../src/infrastructure/persistence/index/InMemoryProjectIndex';
 import { createRepositoryStack } from '../../../helpers/vault';
 import { FakeWorkspace } from '../../../helpers/workspace';
@@ -280,6 +280,56 @@ describe('opening a project note', () => {
 		// The same answer as an unresolved id, and deliberately so: both mean the row points at
 		// nothing, which is the only distinction the caller can act on. A note deleted while the
 		// index has not caught up yet takes THIS arm rather than the one above.
+		expect(outcome).toBe('missing');
+		expect(workspace.leaves).toHaveLength(0);
+	});
+});
+
+/**
+ * The path-addressed door the Asset library's repair strip needs (§5.1a).
+ *
+ * It exists because the notes that strip lists have NO USABLE ID — a note whose `id` is
+ * missing or not a string never reaches the index — so the id-keyed door above cannot reach
+ * the one file a user has to edit to fix it.
+ */
+describe('opening a note by path', () => {
+	it('opens the file at the path, with no index consulted at all', async () => {
+		const { vault } = createRepositoryStack();
+		await vault.createFolder('Library');
+		await vault.create('Library/Broken.md', '---\nname: no id here\n---\n');
+		const workspace = new FakeWorkspace();
+
+		const outcome = await openNoteAtPath(
+			{
+				workspace: workspace as never,
+				vault: vault as never,
+				reportFault: (cause: unknown) => {
+					faults.push(cause);
+				},
+			},
+			'Library/Broken.md',
+		);
+
+		expect(outcome).toBe('opened');
+		expect(workspace.leaves[0].opened).toHaveLength(1);
+	});
+
+	it('answers missing for a path naming no file, rather than opening a blank tab', async () => {
+		const { vault } = createRepositoryStack();
+		const workspace = new FakeWorkspace();
+
+		const outcome = await openNoteAtPath(
+			{
+				workspace: workspace as never,
+				vault: vault as never,
+				reportFault: (cause: unknown) => {
+					faults.push(cause);
+				},
+			},
+			'Library/Gone.md',
+		);
+
+		// The listing that named this path is stale — the note was deleted since it was read.
 		expect(outcome).toBe('missing');
 		expect(workspace.leaves).toHaveLength(0);
 	});

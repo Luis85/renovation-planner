@@ -89,6 +89,7 @@ import {
 	type UnguardedSlice10Services,
 } from './guardedServices';
 import { guardAssetPriceServices, type GuardedAssetPriceServices } from './guardedAssetPrice';
+import { guardAssetLibrary, type GuardedAssetLibraryServices } from './guardedAssetLibrary';
 import { SetAssetPriceOverrideCommand } from '../application/commands/asset-price/SetAssetPriceOverride';
 import { ClearAssetPriceOverrideCommand } from '../application/commands/asset-price/ClearAssetPriceOverride';
 import { ListProjectAssetPrices } from '../application/queries/ListProjectAssetPrices';
@@ -173,7 +174,8 @@ export interface PersistenceServices
 	extends GuardedEditorServices,
 		GuardedSlice10Services,
 		GuardedAssetPriceServices,
-		GuardedAssetDesignServices {
+		GuardedAssetDesignServices,
+		GuardedAssetLibraryServices {
 	readonly index: ProjectIndex;
 	readonly vaultDeps: NoteVaultDeps;
 	readonly migrations: MigrationRunner;
@@ -365,6 +367,9 @@ function composeGuarded(
 	// commands and the query Tasks 4 and 8 wrote. `index` is `wiring.index` — the same
 	// instance every repository and `IndexLibraryOverlaps` already share — so this is a
 	// wiring change at one call site, not a new construction.
+	// The library's three reads, composed and guarded together — `guardAssetDesign`'s shape,
+	// and every port here is one this function already holds.
+	const assetLibrary = guardAssetLibrary({ assets, index, geometry: assetGeometry, overrides }, logger, map);
 	const assetPrice = guardAssetPriceServices(
 		{
 			setAssetPriceOverride: new SetAssetPriceOverrideCommand({ overrides, projects, assets, events: eventBus, locks }),
@@ -378,6 +383,7 @@ function composeGuarded(
 		...editor,
 		...guardSlice10(slice10, recalculate, logger, map),
 		...assetPrice,
+		...assetLibrary,
 		// The SAME `locks` the delete resolution takes — `wiring.locks`, one instance per root. A
 		// second `new ReferenceLocks()` here would be two mutual-exclusion sets that exclude
 		// nothing from each other, which is the shape this file already refuses for the event bus.

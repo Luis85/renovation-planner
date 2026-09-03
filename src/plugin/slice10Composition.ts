@@ -37,7 +37,7 @@ import type { AssetRepository as AssetRepositoryPort } from '../application/port
 import type { RequirementRepository as RequirementRepositoryPort } from '../application/ports/RequirementRepository';
 import type { ProjectRepository } from '../application/ports/ProjectRepository';
 import type { ZoneRepository } from '../application/ports/ZoneRepository';
-import { projectFolderOf } from '../infrastructure/obsidian/repositories/paths';
+import { projectLocationOf } from '../infrastructure/obsidian/repositories/paths';
 import { notifyWarning } from '../presentation/notices/notify';
 import { tr } from '../presentation/i18n/strings';
 import type { UnguardedSlice10Services } from './guardedServices';
@@ -178,7 +178,7 @@ export function composeSlice10(
 			listRequirementsReferencing: new ListRequirementsReferencing(
 				requirements,
 				projects,
-				(projectId) => projectFolderOf(index, projectId),
+				(projectId) => projectLocationOf(index, projectId),
 			),
 			listReassignmentTargets: new ListReassignmentTargets(zones, assets),
 		},

@@ -20,10 +20,14 @@ import { FakeWorkspace } from '../helpers/workspace';
 import { recorder, resetRecorder, lines } from '../helpers/logger';
 import { expectErr } from '../helpers/domain';
 import type { AssetId } from '../../src/domain/asset/AssetId';
+import { ok } from '../../src/core/result/Result';
+import type { CatalogueListing } from '../../src/application/queries/ListCatalogueEntries';
 
 installObsidianDom();
 
 const TILES = 'asset-tiles' as AssetId;
+const PAINT = 'asset-paint' as AssetId;
+const EMPTY_LISTING: CatalogueListing = { entries: [], unreadable: [] };
 
 function composedRoot(): { root: CompositionRoot; stack: ReturnType<typeof createRepositoryStack> } {
 	const stack = createRepositoryStack();
@@ -42,7 +46,7 @@ function unrecoveredRoot(): CompositionRoot {
 }
 
 describe('assetLibraryDeps with a composed root', () => {
-	it('binds every read to the guarded query the root composed, and never a second copy', () => {
+	it('binds the commands, the logger and the vault to the root\'s own', () => {
 		const { root, stack } = composedRoot();
 		const persistence = root.persistence;
 		if (persistence === null) throw new Error('expected a composed persistence stack');
@@ -51,15 +55,111 @@ describe('assetLibraryDeps with a composed root', () => {
 			indexScanCompleted: () => true,
 		});
 
-		// The bundle is built FROM these, so what a case can check is that the members it maps
-		// are the root's own objects rather than freshly constructed ones — two instruments
-		// answering one question is what lets two surfaces disagree about one asset.
+		// The PASS-THROUGH half of the bundle: these five members are handed on by reference, so
+		// identity is the whole of what there is to check. The QUERIES are the group the bundle
+		// CONSTRUCTS, so they cannot be checked this way and are not — the case below drives
+		// them instead. This case was named "binds every read … and never a second copy" for a
+		// round while asserting not one read; a mutation composing a second `guardAssetLibrary`
+		// passed it and the whole suite.
 		expect(deps.commands.updateAsset).toBe(persistence.updateAsset);
 		expect(deps.commands.setAssetHeight).toBe(persistence.assetDesign.setHeight);
 		expect(deps.commands.deleteAsset).toBe(persistence.deleteAsset);
 		expect(deps.logger).toBe(root.logger);
 		expect(deps.vault).toBe(stack.vault);
 		expect(deps.indexScanCompleted()).toBe(true);
+	});
+
+	/**
+	 * **Every read reaches the query the ROOT composed, and never a second copy.**
+	 *
+	 * The queries are the one group this bundle CONSTRUCTS rather than passes through, which
+	 * makes them the one group where a second copy is possible at all — and a second copy is
+	 * not a cosmetic duplication: it is a second guard, applied with whatever exception mapper
+	 * that composition happens to reach for, over collaborators the guard-category walk has
+	 * detonated somewhere else.
+	 *
+	 * Driven by REPLACING each guarded door's `execute` on the root's own object AFTER the
+	 * bundle is built, which is what makes this an identity check rather than a behaviour one:
+	 * the bundle spreads `persistence.assetLibrary`, so it holds those very objects and reads
+	 * `.execute` off them at call time. A build composing its own `guardAssetLibrary(...)` — or
+	 * its own `GetAssetDesignQuery` — reaches none of these and records nothing.
+	 *
+	 * Watched failing against exactly that mutation.
+	 */
+	it('routes all five reads through the root\'s own guarded queries', async () => {
+		const { root, stack } = composedRoot();
+		const persistence = root.persistence;
+		if (persistence === null) throw new Error('expected a composed persistence stack');
+		const deps = assetLibraryDeps(root, new FakeWorkspace() as never, stack.vault as never, {
+			indexScanCompleted: () => true,
+		});
+
+		const asked: string[] = [];
+		const record = (name: string, answer: unknown) => ({
+			execute: () => {
+				asked.push(name);
+				return Promise.resolve(answer);
+			},
+		});
+		Object.assign(persistence.assetLibrary.listCatalogue, record('listCatalogue', ok(EMPTY_LISTING)));
+		Object.assign(persistence.assetLibrary.listOutlines, record('listOutlines', ok(new Map())));
+		Object.assign(
+			persistence.assetLibrary.listOverridingProjects,
+			record('listOverridingProjects', ok([])),
+		);
+		Object.assign(persistence.assetDesign.get, record('getDesign', ok(null)));
+		Object.assign(
+			persistence.requirementQueries.listRequirementsReferencing,
+			record('listReferencing', ok([])),
+		);
+
+		await deps.queries.listCatalogue();
+		await deps.queries.listOutlines([TILES]);
+		await deps.queries.getDesign(TILES);
+		await deps.queries.listReferencing(TILES);
+		await deps.queries.listOverridingProjects(TILES);
+
+		expect(asked).toEqual([
+			'listCatalogue',
+			'listOutlines',
+			'getDesign',
+			'listReferencing',
+			'listOverridingProjects',
+		]);
+	});
+
+	/**
+	 * The two halves of the outline boundary, JOINED — which neither of the files proving them
+	 * separately can do. `guardCategory.test.ts` proves a detonated collaborator produces
+	 * `vault.unexpected-failure` at the guarded door; `assetLibraryQueries.test.ts` proves a
+	 * refused batch becomes one `refused` entry per requested id. Nothing drove a THROWING
+	 * sidecar all the way through the bundle a view actually holds, so the join followed by
+	 * construction and by nothing else.
+	 *
+	 * The code matters as much as the count: a mark reading `refused` with the mapped code is
+	 * what tells a user their shape could not be read, where an empty map would have said *no
+	 * shape yet* about every asset in the batch.
+	 */
+	it('turns a thrown sidecar read into one mapped refused mark per requested id', async () => {
+		const { root, stack } = composedRoot();
+		const persistence = root.persistence;
+		if (persistence === null) throw new Error('expected a composed persistence stack');
+		const deps = assetLibraryDeps(root, new FakeWorkspace() as never, stack.vault as never, {
+			indexScanCompleted: () => true,
+		});
+		Object.assign(persistence.assetGeometry, {
+			read: () => {
+				throw new Error('the vault exploded');
+			},
+		});
+
+		const outlines = await deps.queries.listOutlines([TILES, PAINT]);
+
+		expect([...outlines.keys()]).toEqual([TILES, PAINT]);
+		expect([...outlines.values()]).toEqual([
+			{ kind: 'refused', code: 'vault.unexpected-failure', sidecarPath: undefined },
+			{ kind: 'refused', code: 'vault.unexpected-failure', sidecarPath: undefined },
+		]);
 	});
 
 	it('reads the catalogue through the composed stack rather than refusing', async () => {

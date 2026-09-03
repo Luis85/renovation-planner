@@ -167,9 +167,16 @@ export class ListRequirementsReferencing {
 			// lookups at all — the common case, and the one this rule exists not to clutter.
 			location: ambiguousNames.has(group.projectName) ? this.locationOf(group.projectId) : undefined,
 		}));
+		// A type-PREDICATE filter rather than a plain one, so the key builder reads
+		// `entry.location.folder` outright. Spelled `?? ''` behind a plain filter it was an arm
+		// no fixture could reach — the exact thing `collidingKeys`'s own docblock four lines up
+		// refuses, and `coverage-final.json` reported it as the only uncovered arm this
+		// increment added.
 		const ambiguousFolders = collidingKeys(
-			located.filter((entry) => entry.location !== undefined),
-			(entry) => nameAndFolder(entry.group.projectName, entry.location?.folder ?? ''),
+			located.filter((entry): entry is typeof entry & { location: ProjectLocation } =>
+				entry.location !== undefined,
+			),
+			(entry) => nameAndFolder(entry.group.projectName, entry.location.folder),
 		);
 		return located.map(({ group, location }) => {
 			if (location === undefined) return group;

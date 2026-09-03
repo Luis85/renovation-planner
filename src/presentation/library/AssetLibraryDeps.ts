@@ -48,8 +48,13 @@ export interface AssetLibraryCommandServices {
  * three members come from: `presentation/` may not import `infrastructure/`, and the
  * composition root is the layer that may see both. `RenovationProjectContext`'s
  * `ProjectOpenOutcome` is the same three members declared for the same reason on the other
- * surface — two declarations rather than one shared module, because a union of three string
- * literals shared across two view folders buys an indirection and saves nothing.
+ * surface. **This is the THIRD declaration of the union overall and the SECOND in
+ * `presentation/`** — `openNote.ts`'s `ProjectNoteOpenOutcome` is where all three members come
+ * from — and the count is written down because the argument quoted for the first copy ("a
+ * union of three string literals shared across two view folders buys an indirection and saves
+ * nothing") was an argument for having ONE copy here. There is no layer ban between two
+ * `presentation/` folders, so the third copy is the point at which this stops being a bound
+ * imposed by the architecture and becomes a habit: whoever writes it should share instead.
  */
 export type NoteOpenOutcome = 'opened' | 'missing' | 'failed';
 
@@ -116,6 +121,13 @@ export interface AssetLibraryDeps {
  * total-rather-than-nullable shape `unavailableAssetLibraryQueries` gives the read side, so
  * the library stays mounted and a gesture fails through exactly the path any other refused
  * write takes.
+ *
+ * **Byte-identical to `designerCommands.ts`'s own `persistenceFailure`, which makes eight
+ * `settings.unrecovered` literals in `presentation/` — followed rather than shared, and said
+ * out loud so the ninth is a decision somebody makes.** Two lines are far under fallow's clone
+ * floor, so no gate will ever raise this; the house pattern is one per bundle, and a shared
+ * helper would put the write side's refusal code in a module neither bundle owns. Recorded
+ * because a habit nobody has noticed is not the same as a convention somebody chose.
  */
 function persistenceFailure(): PersistenceError {
 	return {

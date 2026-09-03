@@ -52,6 +52,15 @@ export interface GuardedAssetLibraryServices {
 		 * §3.4's fifth mark state exists to refuse. So the boundary reports it in the one shape
 		 * that can carry it, and `createAssetLibraryQueries` turns that refusal into one
 		 * `refused` entry per requested id.
+		 *
+		 * **So a THROWING sidecar collapses the whole batch where a REFUSING one settles per
+		 * entry, and the asymmetry is invisible from either side.** `ListAssetOutlines.execute`
+		 * fans out through `Promise.all`, so one rejected read rejects the lot; a read that
+		 * answers a coded refusal is caught by that query itself and becomes one `refused`
+		 * entry beside four normal ones. Both are right — a refusal is a fact about ONE
+		 * sidecar and a fault is "the batch was not read at all" — but nothing else in either
+		 * file says so, and the two produce visibly different screens for what looks to a
+		 * reader like one broken file. Pre-existing to this bundle; reachable because of it.
 		 */
 		readonly listOutlines: Query<
 			ListAssetOutlinesInput,

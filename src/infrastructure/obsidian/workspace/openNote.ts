@@ -114,9 +114,11 @@ export type ProjectNoteOpenOutcome = 'opened' | 'missing' | 'failed';
  * The half of the work that touches Obsidian, split out so the WHOLE of it — and therefore
  * the whole of what a joined click waits on — sits under one fault handler rather than two.
  *
- * What is left above it in `openProjectNote` is `ProjectIndex.getPath`, `normalizePath` and
- * `Vault.getAbstractFileByPath`: three synchronous in-memory lookups, none of which reaches
- * I/O. That is the honest bound on what the handler covers, stated rather than implied.
+ * What is left above it is three synchronous in-memory lookups, none of which reaches I/O —
+ * `normalizePath` and `Vault.getAbstractFileByPath` in `openNoteAtPath`, and
+ * `ProjectIndex.getPath` one door further out in `openProjectNote`. That is the honest bound
+ * on what the handler covers, stated rather than implied. The split moved two of the three and
+ * this sentence moved with them, which is the point of naming them at all.
  */
 async function revealOrOpen(
 	deps: { readonly workspace: Workspace },

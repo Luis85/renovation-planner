@@ -75,6 +75,8 @@ Named here so that meeting one of them reads as a known exclusion rather than as
 
 ### Task 1: The publish-under-lock rule — decide it, state it, check it
 
+> **DONE** — commits 393a478 + e0dda0e (fix round 1). Review clean; all five findings addressed and mutation-verified against the live tree.
+
 **Decision, made deliberately and recorded here rather than left to the implementer:** establish and document that **a subscriber must never acquire a reference lock**. Publish-after-release is REJECTED as the remedy, on M2/M3/M4: it would move 3 of 18 pairs, cannot touch the one inside `RecalculateRequirement` at all, and would leave a partial fix that reads exactly like a complete one at the precise moment increment 2 adds its first subscriber. The rule is also already universally honored (M6), so this states and checks an existing invariant rather than imposing a new one.
 
 **Files:**
@@ -93,7 +95,7 @@ Named here so that meeting one of them reads as a known exclusion rather than as
 - Hand-building a second `ops` literal would duplicate an existing rig verbatim — the exact defect this branch's Task 7 review raised (F4, "~26 lines of `withRequirement()` duplicated verbatim"), and `npm run analyze`'s clone detector is blind to the whole test tree, so nothing would have caught it.
 - Every file named above has ≥130 counted lines of headroom, so no extraction is needed. Driving `resolutionRig` exercises the REAL production path (`DeleteZoneCommand.execute` → `runDeleteResolution`) rather than a synthetic bundle, which is strictly stronger evidence.
 
-- [ ] **Step 1: Pin that the forward engine delivers while it still holds its locks**
+- [x] **Step 1: Pin that the forward engine delivers while it still holds its locks**
 
 Add to `tests/application/reference/deleteResolutionAnnouncements.test.ts`, in the idiom already there. Collect the readings; never assert inside a subscriber — `deliver` wraps every handler in `.catch` and swallows it, so an assertion in the callback passes in both worlds.
 
@@ -118,11 +120,11 @@ Add to `tests/application/reference/deleteResolutionAnnouncements.test.ts`, in t
 
 Write the docblock above this case so it says WHY it exists: this is what makes the rule in `ReferenceLocks`'s header load-bearing rather than theoretical, and a build that moves the publish out of the locked region should fail HERE and read the note.
 
-- [ ] **Step 2: Pin the same for the undo engine**
+- [x] **Step 2: Pin the same for the undo engine**
 
 Add the equivalent to `tests/application/reference/undoDeleteResolution.test.ts`, which already calls `undoDeleteResolution(ops, sequence, locks)` directly at :129. Hold the `ReferenceLocks` instance you pass, subscribe to the event that path publishes (`RequirementRestored` for a `written` outcome, `RequirementCreated` for an `'absent'` one — the split at `undoDeleteResolution.ts:146-152`), and assert the same shape. This engine's publish loop sits between the `acquire` at :123 and the `release()` at :155.
 
-- [ ] **Step 3: Demonstrate the mechanism in isolation**
+- [x] **Step 3: Demonstrate the mechanism in isolation**
 
 Add to `tests/application/reference/referenceLocks.test.ts`, beside the lock's other rules. Steps 1 and 2 establish "locks are held at delivery"; that alone does not prove harm. This is the case that does, and it needs no engine at all:
 
@@ -154,7 +156,7 @@ Add to `tests/application/reference/referenceLocks.test.ts`, beside the lock's o
 
 If this reports `'settled'`, STOP and report: that would mean measurement M5 is wrong and this whole task's premise needs re-deriving.
 
-- [ ] **Step 4: Write the discovery tripwire**
+- [x] **Step 4: Write the discovery tripwire**
 
 Create `tests/application/events/subscriberLockBoundary.test.ts`. It answers the one question text can settle reliably — which modules register subscribers — and asserts none of them names a lock.
 
@@ -202,7 +204,7 @@ describe('subscriber modules and the reference locks', () => {
 });
 ```
 
-- [ ] **Step 5: Mutation-check every case — this is where their value is**
+- [x] **Step 5: Mutation-check every case — this is where their value is**
 
 Steps 1, 2 and 4 pin behaviour that ALREADY holds, so each passes on first run and is worth nothing until you have seen it fail. Run each mutation, record the exact failure text, restore the tree, and report any case that reddens by CRASHING rather than by a clean assertion — a crash proves the path is reached, not that the assertion works.
 
@@ -211,7 +213,7 @@ Steps 1, 2 and 4 pin behaviour that ALREADY holds, so each passes on first run a
 3. Add a temporary `src/application/events/probe.ts` containing both `.subscribe(` and `ReferenceLocks`. Expected: the tripwire's second case reddens naming that file. Delete it afterwards and confirm with `git status`.
 4. Break the tripwire's filter (search for a string no file contains). Expected: `finds the subscriber modules at all` reddens — proving the scan is not vacuous.
 
-- [ ] **Step 6: State the rule where the lock module states its others**
+- [x] **Step 6: State the rule where the lock module states its others**
 
 Edit `src/application/reference/ReferenceLocks.ts`'s header docblock only. It currently says "The two rules the hierarchy lives on are enforced HERE, at the lock, rather than by reviewing every command that uses it — so they hold for sequences not yet written." Add a THIRD rule beneath those two, and be honest that it is the one rule NOT enforced at the lock:
 
@@ -223,7 +225,7 @@ Edit `src/application/reference/ReferenceLocks.ts`'s header docblock only. It cu
 
 Do NOT overstate. The guarantee is that no subscriber module *names* a lock and that the constraint is *live*; it is not that no subscriber can ever reach one through an injected collaborator.
 
-- [ ] **Step 7: Coverage, then gate, then commit**
+- [x] **Step 7: Coverage, then gate, then commit**
 
 The task adds no production function and no production branch, so the floors should not move. Confirm rather than assume: read `coverage/coverage-final.json` for `ReferenceLocks.ts` and check nothing regressed.
 
@@ -257,6 +259,8 @@ tripwire watches the modules that register subscribers."
 
 ### Task 2: Four documented claims that are not true
 
+> **DONE** — commit 1b87d1a. Review clean, zero findings; F4 confirmed to name the observation token rather than the revision.
+
 Pure prose. No behaviour changes anywhere in this task — if you find yourself changing an expression, stop and report it.
 
 **Files:**
@@ -265,7 +269,7 @@ Pure prose. No behaviour changes anywhere in this task — if you find yourself 
 
 **Interfaces:** Consumes nothing, produces nothing. Independent of Tasks 1 and 3.
 
-- [ ] **Step 1: F1 — a comment implying a behavioural guard that a TYPE actually holds**
+- [x] **Step 1: F1 — a comment implying a behavioural guard that a TYPE actually holds**
 
 `reversible-assign-asset-command.ts:124-125` reads:
 
@@ -278,11 +282,11 @@ The reasoning is right and the framing is wrong. Verify first, then write: the `
 
 Confirm the claim before writing it: `npx vue-tsc --noEmit` after temporarily hoisting the publish above :119 should report the missing property. Restore the file, and report the exact error text.
 
-- [ ] **Step 2: F3 — a rule stated in another file's docblock and invisible at the publish site**
+- [x] **Step 2: F3 — a rule stated in another file's docblock and invisible at the publish site**
 
 `reversible-assign-asset-command.ts:177-179` publishes `requirementCreated` in `redoCreate`. Why it is Created rather than Restored lives in `RequirementRestored`'s own docblock and nowhere near this code. Add one sentence at the publish site naming the rule and the evidence beside it: the save at :168 presents `'absent'`, so this is a re-creation rather than a restore of a row that was merely edited — the same split `deleteResolution.compensate` and `undoDeleteResolution` both compute.
 
-- [ ] **Step 3: F4 — a production consequence that is unreachable in the store it implies**
+- [x] **Step 3: F4 — a production consequence that is unreachable in the store it implies**
 
 `reversible-assign-asset-command.ts:170-175` currently claims the second undo's delete "would refuse as an external modification, and no RequirementDeleted would follow it". Measured (plan M10) that is true of `VersionedStore` and FALSE of the Obsidian repository. Rewrite it to name the store it was measured against, and to say why the two differ:
 
@@ -293,7 +297,7 @@ Confirm the claim before writing it: `npx vue-tsc --noEmit` after temporarily ho
 
 This is "write the guarantee to the check, never ahead of it" applied to a comment.
 
-- [ ] **Step 4: The missing forward seam pointer**
+- [x] **Step 4: The missing forward seam pointer**
 
 Correcting the scope's premise (plan M8): the pointer is **one-way, not absent**. `deleteResolutionAnnouncements.test.ts:14` already points back. What is missing is the FORWARD pointer.
 
@@ -301,7 +305,7 @@ Add one sentence to `deleteResolutions.test.ts`'s docblock (:15-17) naming `dele
 
 Do NOT touch the census trio (`reversibleWritePathCensus.test.ts`, `reversibleWritePathDiscovery.test.ts`, `tests/helpers/reversibleWriteCensusTable.ts`) — verified fully cross-pointed already.
 
-- [ ] **Step 5: Verify, gate, commit**
+- [x] **Step 5: Verify, gate, commit**
 
 Nothing here changes behaviour, so the whole suite should be unchanged. Prove it:
 

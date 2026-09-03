@@ -46,8 +46,20 @@ import { computed } from 'vue';
  */
 const props = withDefaults(
 	defineProps<{
-		/** Already formatted in the PROJECT's currency, never the reader's — `PRODUCT.md`'s rule. */
-		amount?: string;
+		/**
+		 * Already formatted in the PROJECT's currency, never the reader's — `PRODUCT.md`'s rule.
+		 *
+		 * **`null` when `ProjectSummary.total` is `null`**, which means the project's currency
+		 * could not be resolved at all — the one state in which no figure can honestly be
+		 * printed. A currency is the denominator of every amount here, so this is not "zero" and
+		 * not "unknown yet": there is nothing a number could mean.
+		 *
+		 * The region draws an em dash and a REASON in place of both the figure and the
+		 * provenance sentence, because provenance is a claim about where an amount came from and
+		 * there is no amount. Rendering the sentence under a blank value is the misleading
+		 * half — worse than the blank, since it describes inputs to a total nobody computed.
+		 */
+		amount?: string | null;
 		requirements?: number;
 		/**
 		 * The rows that actually CONTRIBUTED to `amount`, supplied rather than derived.
@@ -110,7 +122,12 @@ const props = withDefaults(
  * overstates its own inputs is worse than none. With every row counted it stays the plain
  * sentence; with any excluded it says `23 of 24`, and the badge then explains the gap.
  */
+/**
+ * `null` when there is no amount to have provenance FOR. The template branches on this rather
+ * than on `amount`, so the two can never disagree about whether a figure exists.
+ */
 const provenance = computed(() => {
+	if (props.amount === null) return null;
 	const inputs =
 		props.summed < props.requirements
 			? `${props.summed} of ${props.requirements} requirements`
@@ -133,40 +150,48 @@ const provenance = computed(() => {
  * a shared `<circle>` is a fact about the icon set rather than an accident of the collapse.
  */
 const flags = computed(() => {
-	const rows: { health: string; key: string; d: string; text: string }[] = [];
 	// **Only the rows recalculating can actually fix.** `stale` includes `unreadableReferents`,
 	// and recalculating a row whose asset or zone note cannot be read fails for the same reason
 	// the read did — so printing the whole stale count here offers a remedy that cannot be
 	// applied, which is slice 14's live-control-that-does-nothing rule arriving as copy.
 	const recalculable = props.stale - props.unreadableReferents;
-	if (recalculable > 0) {
-		rows.push({
+	// The PREDICATES are data too, not just the rows. Three `if` blocks pushing into an array
+	// put this function over fallow's CRAP threshold the moment a third condition arrived — a
+	// prototype has no test coverage, so cyclomatic complexity squares — and the file's own
+	// argument for collapsing the badges into data applies unchanged to the questions that
+	// select them.
+	return [
+		{
+			when: recalculable > 0,
 			health: 'stale',
 			key: 'stale',
 			d: 'M12 7v5l3 2',
 			text: `${recalculable} need recalculating`,
-		});
-	}
-	// Its own badge, pointing at the diagnostics door rather than at a remedy. WHICH note failed
-	// is deliberately not named: the diagnostics ledger already records it, and a second copy
-	// here would be a second answer to one question.
-	if (props.unreadableReferents > 0) {
-		rows.push({
+		},
+		{
+			// Points at the diagnostics door rather than at a remedy. WHICH note failed is
+			// deliberately not named: the diagnostics ledger already records it, and a second
+			// copy here would be a second answer to one question.
+			when: props.unreadableReferents > 0,
 			health: 'excluded',
 			key: 'unreadable',
 			d: 'M12 8v4m0 3.5v.5',
 			text: `${props.unreadableReferents} could not be read — see diagnostics`,
-		});
-	}
-	if (props.unsummable > 0) {
-		rows.push({
+		},
+		{
+			// The two above survive `amount === null` and this one does not, which is the
+			// spec's own state-versus-exclusion split applied to copy. They describe the ROWS,
+			// and the rows are in those states whether or not a total could be computed. "Not
+			// counted" describes EXCLUSION FROM A TOTAL, and with no total nothing was counted
+			// or not counted — so it would qualify a figure the region has just declined to
+			// print. Found by capturing the no-total state and looking: all three rendered.
+			when: props.amount !== null && props.unsummable > 0,
 			health: 'excluded',
 			key: 'currency',
 			d: 'M5.6 5.6l12.8 12.8',
 			text: `${props.unsummable} in another currency, not counted`,
-		});
-	}
-	return rows;
+		},
+	].filter((flag) => flag.when);
 });
 </script>
 
@@ -176,10 +201,25 @@ const flags = computed(() => {
 			Estimated cost
 		</h3>
 		<p class="rp-estimate__value">
-			{{ amount }}
+			{{ amount ?? '—' }}
 		</p>
-		<p class="rp-estimate__provenance">
+		<p
+			v-if="provenance !== null"
+			class="rp-estimate__provenance"
+		>
 			{{ provenance }}
+		</p>
+		<!--
+			The reason stands where the provenance sentence would have. It is a sentence rather
+			than a badge because the badges qualify a figure that EXISTS, and this state has
+			none to qualify — putting it in the badge row would file "there is no total" beside
+			"1 in another currency, not counted" as though they were the same kind of remark.
+		-->
+		<p
+			v-else
+			class="rp-estimate__provenance"
+		>
+			No total: this project's currency could not be read.
 		</p>
 		<p
 			v-if="flags.length > 0"

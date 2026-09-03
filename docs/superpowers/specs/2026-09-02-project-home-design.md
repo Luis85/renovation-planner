@@ -302,6 +302,14 @@ interface ProjectSummary {
 	 * shape is not the sentence: **a rule repeated per member is a rule each new member
 	 * re-derives, and re-derives wrong.** The next count added here says what state it names
 	 * and stops.
+	 *
+	 * **And centralising it here did not retire the copies elsewhere, which is the third
+	 * instance and the one that says what the discipline actually is.** Decision 3's opening
+	 * sentence and one test row still carried the flat claim in their own words, so the
+	 * "single" rule was one of four statements of it. This repository's standing rule is that
+	 * a docblock claiming to be the only place X gets a `grep` in the SAME edit; a rule
+	 * MOVED to one place owes exactly that grep, and the edit that moved it here did not run
+	 * one. Both copies now defer to this paragraph rather than restating it.
 	 * ────────────────────────────────────────────────────────────────────────────────────
 	 */
 	/** Rows reading `stale`, whatever put them there. */
@@ -338,7 +346,9 @@ implying arithmetic that does not hold: a row may be both `stale` and `unsummabl
 
 ## Decision 3 — sum everything, qualify the total
 
-A stale row is **in** the total and **counted** beside it. The alternatives were weighed:
+**Staleness does not exclude a row.** A stale row is counted beside the total and contributes to
+it *unless an exclusion applies* — the exclusions being `unsummable` and nothing else, per the
+rule stated once above `ProjectSummary`'s counts. The alternatives were weighed:
 
 - *Sum only current figures* — the headline number understates the project, and any geometry
   edit makes figures stale, so it would understate it most of the time.
@@ -873,6 +883,23 @@ trailing refresh rather than its own. The listener is called once when the burst
 is the only shape that stays correct as the cascade's event count changes, since a fix counting
 today's three would go stale the next time a command learns to announce something.
 
+**The disposer cancels the pending timer, and that is a REQUIREMENT rather than an
+implementation detail.** Disposing the subscriptions stops new events arriving and does nothing
+about a refresh already scheduled — so leaving Overview inside the debounce window fired a full
+project-summary walk after the section had unmounted, and wrote its result into an abandoned
+store. Every cost this section argues about is a cost the unmounted section was still paying,
+which contradicts the premise the remount decision rests on: *only the mounted section
+subscribes.* A trailing coalescer without a cancelling disposer makes that sentence false for
+one debounce interval on every navigation away.
+
+The store write is the harmless half — nothing renders it. The WALK is not: it is the
+`zones × all-requirements` read this section exists to bound, run for a surface nobody is
+looking at, and a user navigating quickly between sections queues one per departure.
+
+A case covers unmount-before-settle, and it asserts on **reads** rather than on the listener:
+a disposer that unsubscribed the listener while leaving the timer to run would satisfy a
+callback-count assertion and still do the walk.
+
 **Coalescing is not deduplication and the distinction matters here**: the events differ, and
 collapsing them is legitimate only because the ANSWER is the same — one re-read of one summary,
 whatever moved. That is true of this source and would not be true of a source whose listener
@@ -1022,7 +1049,7 @@ mistake, per this repository's rule.
 | Navigation | selecting Design writes `{ projectId, section }` through the plugin binding and arrives as `'design'` | a one-argument binding compiles unchanged and discards the section, and a test on `navigate` alone passes against it |
 | Remount | the mount sequence is `[null, 'p1:overview', 'p1:design']` | comparing only `projectId` leaves Design drawing Overview |
 | Summary | the total sums `cost.effective` across two plans and four zones | — |
-| Summary | one stale row is counted AND still in the total | summing only current rows understates it; dropping the count hides it |
+| Summary | one stale row with NO exclusion is counted AND contributes to the total | summing only current rows understates it; dropping the count hides it |
 | Summary | a foreign-currency override lands in `unsummable` and the total survives | assuming one currency throws on a reachable input |
 | Summary | one summary read resolves the project currency ONCE | the figure renders identically however many times it is read, so this is pinned on the CALL COUNT |
 | Delegation | the project total's staleness agrees with `GetRequirementsForZone` | a second derivation passes every other case in the file |
@@ -1062,6 +1089,7 @@ mistake, per this repository's rule.
 | Coalescing | a cascade whose writes settle within the debounce causes ONE summary read | forwarding each event directly issues up to 3R+1 walks; asserted on reads, since a notification count passes either way |
 | Coalescing | a cascade whose writes OUTLAST the debounce causes at most one read per settled burst, never one per event | asserting ONE here fails a correct trailing coalescer on a slow repository — the prose declines a completion boundary, so the test may not demand one |
 | Coalescing | a slower earlier read cannot overwrite a later one | without the request ticket a just-recalculated figure reverts |
+| Coalescing | disposing inside the debounce window performs NO summary read | unsubscribing does not cancel a scheduled callback, so an unmounted section keeps paying the walk this section exists to bound; asserted on reads, since a listener-count assertion passes against a live timer |
 | Sweep | every adapter matching `UndoableCommand\|Reversible` that writes also publishes | five of eleven publish nothing today; a per-adapter test lets the sixth ship |
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
 | Summary | a requirement whose `projectId` names another project is never reached | a zone-started walk reaches it and, on one shared currency, sums it into the wrong project silently |

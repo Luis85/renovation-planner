@@ -79,8 +79,10 @@ describe('the §83 library-overlap marker on a project row', () => {
 
 		const rows = list.findAll('.rp-project-list__row');
 
-		expect(rows[0].find('.rp-project-list__overlap').exists()).toBe(false);
-		expect(rows[1].find('.rp-project-list__overlap').exists()).toBe(true);
+		// Both fixtures carry `lastWorked: null`, so Task 5's ordering ties them and falls back
+		// to name ascending — 'Bathroom' (p2, overlapping) before 'Kitchen' (p1, not).
+		expect(rows[0].find('.rp-project-list__overlap').exists()).toBe(true);
+		expect(rows[1].find('.rp-project-list__overlap').exists()).toBe(false);
 	});
 });
 

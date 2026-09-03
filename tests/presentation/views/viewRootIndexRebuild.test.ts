@@ -162,7 +162,12 @@ describe('ViewRoot, and an index built after the pane was restored', () => {
 		// insertion — awaited here for the same reason it is invisible to a user.
 		await flushPromises();
 
-		const list = wrapper.get('.rp-project-list');
+		// `DialogHost`'s `syncBackground` walks the view root's DIRECT children — Task 5 nested
+		// `.rp-project-list` (the `<ul>`) inside `.rp-project-list__group--projects`, which is
+		// the direct child now and the one that carries the attribute. The `<ul>` is inert too,
+		// inherited from that ancestor, which is what HTML `inert` means — jsdom does not model
+		// the inherited BEHAVIOUR, only the attribute, so the direct child is what this asserts.
+		const list = wrapper.get('.rp-project-list__group--projects');
 		expect(list.attributes('inert')).toBe('');
 		// The dialog itself is never inerted by its own host, which is the other half of the
 		// rule and the one a blanket sweep of the parent's children would have broken.

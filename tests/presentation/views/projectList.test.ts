@@ -32,9 +32,11 @@ describe('ProjectList', () => {
 	it('emits open with that row’s id', async () => {
 		const wrapper = mount(ProjectList, { props: { projects: PROJECTS } });
 
+		// Both fixtures carry `lastWorked: null`, so Task 5's ordering ties them and falls back
+		// to name ascending — 'Bathroom' (p2) before 'Kitchen' (p1). Row 1 is therefore Kitchen.
 		await wrapper.findAll('.rp-project-list__row')[1].trigger('click');
 
-		expect(wrapper.emitted('open')).toEqual([['p2']]);
+		expect(wrapper.emitted('open')).toEqual([['p1']]);
 	});
 
 	it('offers a create affordance even when the list is populated', async () => {

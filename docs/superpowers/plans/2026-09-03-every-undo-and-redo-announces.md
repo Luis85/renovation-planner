@@ -996,6 +996,8 @@ MSG
 
 ## Task 5: `undoDeleteResolution` announces per requirement it restores
 
+> **DONE** — commit `a26c0dc`, review clean, no fix round. Start at Task 6.
+
 **Files:**
 - Modify: `src/application/reference/undoDeleteResolution.ts`
 - Modify: `src/application/commands/zone/reversible-delete-zone-command.ts` — the `UndoSequenceOps`
@@ -1028,7 +1030,7 @@ computes the same expression. So: `'written'` → `RequirementRestored`; `'absen
 `RequirementCreated` (the forward sequence had REMOVED that referent, so putting it back is a
 creation). **One rule covering both callers rather than two descriptions of one act.**
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 it('announces a written restore even when no figure moved', async () => {
@@ -1081,12 +1083,12 @@ it('announces nothing for a restore that was rolled back', async () => {
 });
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `npx vitest run tests/application/reference/undoDeleteResolution.test.ts`
 Expected: FAIL — no events at all.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 `UndoSequenceOps` gains `readonly events: EventBus`. **Publish after the whole sequence
 succeeds, not inside `restoreOne`** — that is what makes the third case pass: `restoreOne`'s
@@ -1114,7 +1116,7 @@ Add to the function's docblock a fourth bullet beside the existing three, saying
 announcements are deferred to the end: **the contract is that a failure part-way leaves the
 vault exactly as the delete left it, and an event is a statement that something happened.**
 
-- [ ] **Step 4: Run and watch them pass, then mutate**
+- [x] **Step 4: Run and watch them pass, then mutate**
 
 Run: `npx vitest run tests/application/reference/undoDeleteResolution.test.ts`
 Expected: PASS.
@@ -1123,7 +1125,7 @@ Then move the publish INTO `restoreOne` and re-run. Expected: the rollback case 
 is the ordering that a reviewer cannot see from the diff, so it is proven rather than argued.
 Restore.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

@@ -227,6 +227,14 @@ const MINTED: ReadonlyArray<readonly [code: string, category: ErrorCategory, cat
 		'error.category.persistence',
 		'application/queries/ListReassignmentTargets.ts',
 	],
+	// The asset-side sibling (§5.1a): the same refusal, over the vault-wide catalogue rather
+	// than a per-project zone list, raised at the same site.
+	[
+		'asset.listing-incomplete',
+		'Persistence',
+		'error.category.persistence',
+		'application/queries/ListReassignmentTargets.ts',
+	],
 	// Slice 19's library-folder migration, and the four rows are the four ways it can
 	// refuse. Each category below is copied from the RAISE SITE rather than from what the
 	// sentence sounds like: the two refusals are `Validation` because nothing has been read

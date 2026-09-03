@@ -629,6 +629,12 @@ export const en = {
 	// same increment: a sentence naming a surface that does not exist is a promise on screen.
 	'zone.listing-incomplete':
 		'Some zones in this project could not be read, so the list of places to move this to is incomplete. Open the diagnostics report to see which notes refused.',
+	// The asset-side sibling: the catalogue is vault-wide rather than per-project (design
+	// slice 19), so this names the catalogue rather than a project, but the reasoning is
+	// `zone.listing-incomplete`'s own — an incomplete reassignment picker is how a user
+	// reassigns to the wrong asset and then deletes the right one.
+	'asset.listing-incomplete':
+		'Some assets in the catalogue could not be read, so the list of assets to reassign to is incomplete. Open the diagnostics report to see which notes refused.',
 	'save-state.saved': 'Saved',
 	'save-state.saving': 'Saving',
 	'save-state.unsaved-changes': 'Unsaved changes',

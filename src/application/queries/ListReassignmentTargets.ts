@@ -41,6 +41,18 @@ export class ListReassignmentTargets {
 			if (listed.value === null) return ok([]);
 			const all = await this.assets.listAll();
 			if (isErr(all)) return all;
+			if (all.value.skipped.length > 0) {
+				// The one consumer that must NOT carry the count. This list is offered before a
+				// delete, so an incomplete one is how a user reassigns to the wrong asset and then
+				// destroys the right one. A refusal is recoverable by asking again; a silently short
+				// picker is not recoverable at all.
+				return err(
+					persistenceError(
+						'asset.listing-incomplete',
+						`${String(all.value.skipped.length)} asset note(s) in the catalogue could not be read, so the set of reassignment targets is incomplete`,
+					),
+				);
+			}
 			return ok(
 				all.value.loaded
 					.filter((a) => a.entity.id !== target.assetId && UNIT_KIND[a.entity.unit] === 'area')

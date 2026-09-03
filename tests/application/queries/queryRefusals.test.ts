@@ -357,4 +357,41 @@ describe('picker query refusals', () => {
 		// pass the case above and break the delete flow outright.
 		expect(offered).toEqual([]);
 	});
+
+	// The asset-side sibling (§5.1a): the catalogue is vault-wide rather than per-project, but
+	// `AssetRepository.listAll`'s `skipped` list is exactly `ZoneRepository.listByProject`'s
+	// `refused` count widened to a descriptor, and this reader's own reasoning is unchanged by
+	// that — an incomplete reassignment picker is how a user reassigns to the wrong asset and
+	// then deletes the right one.
+	it('refuses rather than offering a partial set of asset targets', async () => {
+		const w = await wiredWithLink();
+		const incomplete = overridePort(w.assets, {
+			listAll: () =>
+				Promise.resolve(
+					ok({
+						loaded: [],
+						skipped: [{ assetId: 'asset-ghost' as never, code: 'asset.schema-version-unsupported', path: 'Library/Assets/ghost.md' }],
+					}),
+				),
+		});
+
+		const refusal = expectErr(
+			await new ListReassignmentTargets(w.zones, incomplete).execute({ kind: 'asset', assetId: w.assetId }),
+		);
+
+		expect(refusal.code).toBe('asset.listing-incomplete');
+		expect(refusal.category).toBe('Persistence');
+	});
+
+	it('offers every asset target when nothing was skipped', async () => {
+		const w = await wiredWithLink();
+
+		const offered = expectOk(
+			await new ListReassignmentTargets(w.zones, w.assets).execute({ kind: 'asset', assetId: w.assetId }),
+		);
+
+		// The contrast case: a query that refused unconditionally on the new field would pass
+		// the case above and replace a silent short picker with one that never works at all.
+		expect(offered).toEqual([]);
+	});
 });

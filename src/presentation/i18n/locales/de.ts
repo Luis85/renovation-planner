@@ -63,6 +63,8 @@ export const de: Partial<Record<StringKey, string>> = {
 	'diagnostics.copied': 'Diagnosebericht kopiert.',
 	'zone.listing-incomplete':
 		'Einige Zonen in diesem Projekt konnten nicht gelesen werden, daher ist die Liste möglicher Ziele unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
+	'asset.listing-incomplete':
+		'Einige Objekte im Katalog konnten nicht gelesen werden, daher ist die Liste möglicher Objekte unvollständig. Der Diagnosebericht zeigt, welche Notizen abgelehnt wurden.',
 	'settings.verbose-logging.name': 'Ausführliche Protokollierung',
 	'settings.verbose-logging.desc': 'Debug-Meldungen in der Entwicklerkonsole anzeigen. Alles bleibt auf diesem Gerät.',
 	'view.geometry.name': 'Geometrie-Seitendatei',

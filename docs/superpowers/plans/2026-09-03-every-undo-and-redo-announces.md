@@ -1405,15 +1405,14 @@ MSG
 
 ## Task 8: The delete resolution announces per referent it touched
 
-> **IMPLEMENTED, NOT DONE** — commit `54e7770`, gate green on the combined tree (5312 passed,
-> 99.36/99.09/99.55/98.27). Line-budget overflow cleared by extracting
-> `requirementResolutionSteps.test.ts` along a step-builder/engine seam. **Review returned
-> CHANGES REQUESTED: four blocking findings, a fix round is pending.** Two invariants this
-> code asserts in comments survive their own mutation — the publish-after-`deleteEntity`
-> ordering and the announce-only-on-successful-restore guard — plus a false publisher list in
-> `RequirementRestored`'s docblock and a `compensate` arm that publishes `RequirementRestored`
-> where an `'absent'` outcome calls for `RequirementCreated`. Boxes stay unticked until the
-> fix round lands.
+> **DONE** — commits `54e7770` + `3c4c29a` (one fix round). The review found FOUR blocking
+> problems, two of them invariants this code states in comments that survived their own
+> mutation — the suite could not tell correct code from broken. The fix added a fixture whose
+> `deleteEntity` refuses after every referent write landed, a failing-restore case, and the
+> written/`'absent'` branch in `compensate` so a removed referent is announced as
+> `RequirementCreated` rather than `RequirementRestored`. Re-review APPROVED with every
+> mutation re-run independently. Line cap hit a second time; announcement cases split into
+> `deleteResolutionAnnouncements.test.ts`, all 14 originals present and none weakened.
 
 **The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
 contract rather than a call to something already there.** Grep-verified across `src/` and
@@ -1484,7 +1483,7 @@ per-referent write, and it holds `requirement: Loaded<Requirement>` — so the r
 | `delete-anyway` | `markStalePersisted` | `RequirementInvalidated` | a recalculation is now literally what is owed |
 | `reassign` | `repointAndMarkStale`, then `recalculateInline` | **depends on the recalculation outcome** | see below — announcing unconditionally makes the event false exactly when the recalculation worked |
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Every case seeds the referent in a **different project** from the entity being deleted. A
 same-project fixture passes against a build that publishes nothing new, because the zone event
@@ -1536,13 +1535,13 @@ it('announces nothing for referents a failed resolution compensated', async () =
 });
 ```
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `npx vitest run tests/application/reference/deleteResolutions.test.ts`
 Expected: the first three FAIL with 0 events. The fourth passes vacuously today and becomes
 load-bearing at Step 4.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add to `ResolutionOps<TEntity>`:
 
@@ -1687,7 +1686,7 @@ about them. That case already has its own channel through the save indicator's
 `leftWritesBehind`, and closing it here would mean announcing writes whose extent this function
 does not know.
 
-- [ ] **Step 4: Run the whole reference suite, then mutate**
+- [x] **Step 4: Run the whole reference suite, then mutate**
 
 Run: `npx vitest run tests/application/reference/`
 Expected: PASS across the directory. `deleteResolutionEngine`, `interleaving`,
@@ -1701,7 +1700,7 @@ Then change the payload to `projectId: ops.entityId`-derived and re-run. Expecte
 names-the-referent's-project case goes RED. **Both mutations, because a payload that is merely
 plausible reads exactly like a correct one.**
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check
@@ -1751,10 +1750,11 @@ MSG
 
 ## Task 9: `DeleteAsset`'s resolution paths announce at requirement level
 
-> **DONE** — commit `7459eef`, gate exit 0 (5313 passed, 99.36/99.09/99.55/98.27).
-> Its Step 3 was already satisfied by Task 8's threading, which the brief anticipated in
-> writing; the case passed on first run and the value is the mutation check, which reddened.
-> Review pending. Start at Task 10.
+> **IMPLEMENTED, NOT REVIEWED** — commit `7459eef`, gate exit 0 (5313 passed,
+> 99.36/99.09/99.55/98.27). Its Step 3 was already satisfied by Task 8's threading, which the
+> brief anticipated in writing; the case passed on first run and the value is the mutation
+> check, which reddened with a `TypeError` rather than a failed expectation — weaker evidence,
+> stated rather than dressed up. **Boxes stay unticked until its review clears.**
 
 **The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
 contract rather than a call to something already there.** Grep-verified across `src/` and

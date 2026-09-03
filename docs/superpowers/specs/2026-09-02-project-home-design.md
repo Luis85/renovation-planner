@@ -852,16 +852,26 @@ than inferred:
   requirement in project A whose `origin.zoneId` sits in project B — the mirror case Decision 3
   accepts as an honest residue — is marked stale here, and the only event that follows is
   `ZoneDeleted` carrying B. A's Overview keeps its old total and stale count.
-- **`commands/requirement/SetRequirementCostOverride.ts`** — one write, no publish, **and it is
-  the exact path this decision's `CostEstimateChanged` membership was argued from.**
-  `grep -rn "costEstimateChanged(" src/` outside the events module prints ONE line, in
-  `SetRequirementQuantityOverride.ts`. The event was admitted to the unfiltered list on the
-  reasoning that *"a cost override changes the total without recalculating anything, so
-  `RequirementRecalculated` never fires for it"* — and the cost override command raises nothing
-  at all. The subscription is right and has nothing to hear: the same asymmetry the sweep exists
-  to close, in the very event the sweep's own argument defended.
-- **`commands/requirement/DeleteRequirement.ts`** — one write, no publish, and no publishing
-  caller anywhere in `src/`.
+- **`commands/requirement/DeleteRequirement.ts`** — one write, no publish, no publishing caller,
+  and no `EventBus` imported at all. So a deletion through the exposed command leaves an open
+  Overview stale. `RequirementDeleted` — the event this increment mints — must be published
+  HERE as well as from the reversible assign undo path, and the Files list says so; specifying
+  the event and wiring it to one of its two producers is how a mint ends up subscribed to and
+  never raised on the path a user actually takes.
+
+**A THIRD file was named here and the claim was wrong.** `SetRequirementCostOverride.ts` was
+listed as silent, on the strength of `grep -c "publish("` returning zero for it — and it calls
+`publishIfEffectiveCostChanged` at line 100, imported from `SetRequirementQuantityOverride.ts`,
+which publishes `costEstimateChanged`. The cost override does announce; the sweep attributed the
+announcement to the file the HELPER lives in.
+
+**That is the third layer of one defect, and it is the instructive one.** The sweep began as a
+sample of adapters; the census fixed the sample and left its FILTER a sample; correcting the
+filter left the METRIC counting literal `publish(` syntax rather than behaviour. Each correction
+was real and each was measured with an instrument that could not see the next layer. A count of
+a SPELLING is not a count of an EFFECT, and an indirect call through a shared helper is exactly
+what a per-file grep cannot see. The two files above were re-checked against that objection —
+neither imports an `EventBus` or any publishing helper — before this paragraph was rewritten.
 
 **The remedy for the cross-project case is the requirement-level event, not unfiltered zone
 events.** A requirement event carries the requirement's own `projectId` — A, the project that
@@ -1161,7 +1171,7 @@ mistake, per this repository's rule.
 | Sweep | every module under `src/application` that WRITES also publishes, or is a helper whose caller does | five of eleven publish nothing today; and the adapter-only filter is itself a sample — asked the wider way it returns thirteen, three of them genuine |
 | Summary | a requirement in project A whose origin zone lives in project B refreshes A when that zone is deleted | zone events carry B, so a project-filtered subscription drops them while A's row derives its area from that zone |
 | Summary | the same requirement does NOT refresh A when the geometry cascade aborts on a malformed sibling, and the warning notice fires instead | pinned as the behaviour this increment leaves standing, so a build that closes it fails here and its author reads the residue |
-| Summary | a cost override refreshes an Overview in another leaf | `CostEstimateChanged` has one publisher and it is the QUANTITY override; the cost override raises nothing, so the event this list was argued from never fires on its own path |
+| Summary | a requirement deleted through `DeleteRequirementCommand` refreshes an open Overview | that command imports no `EventBus`, so `RequirementDeleted` would be minted, subscribed to, and never raised on the path a user takes |
 | Invalidation | deleting an asset with `remove-references` refreshes the total; with `delete-anyway` it refreshes the stale count | `AssetDeleted` alone reports the wrong subject and cannot be filtered by project |
 | Summary | a requirement whose `projectId` names another project is never reached | a zone-started walk reaches it and, on one shared currency, sums it into the wrong project silently |
 | Summary | a requirement whose zone was deleted IS reached and reports `missingTarget: 'zone'` | a zone-started walk cannot produce that row at all |
@@ -1205,8 +1215,9 @@ list above.
 `RenovationProjectDeps` gains `openDiagnostics` and the composition root binds it (Decision 8);
 the five reversible adapters that write and publish nothing —
 `reversible-create-zone-command.ts`, `reversible-delete-zone-command.ts`,
-`reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — plus `DeleteAsset.ts`
-(Decision 7); `GetRequirementsForZone.ts` (`projectId` and `referentsUnreadable` on the DTO, and
+`reversible-assign-asset-command.ts`, `reversible-override-commands.ts` — plus `DeleteAsset.ts`,
+`reference/deleteResolution.ts` and **`commands/requirement/DeleteRequirement.ts`**, the last of
+which needs an `EventBus` it does not currently take (Decision 7); `GetRequirementsForZone.ts` (`projectId` and `referentsUnreadable` on the DTO, and
 its per-row builder extracted for sharing); `RenovationProjectView.ts` (parse, `sync`, `setState`);
 `RenovationProjectContext.ts` (`navigate` gains a section, plus the two focus-handoff members
 over a private field on `RenovationProjectView`), and with it

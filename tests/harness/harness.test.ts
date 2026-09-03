@@ -61,9 +61,25 @@ import { isPlantedProbe } from '../helpers/plantedProbe';
  * instrument that passes every case is the one that ships.
  *
  * **The honest bound, stated because an earlier revision claimed a class it had closed part
- * of**: a specifier that is not in the source text at all — held in an identifier, or assembled
- * by concatenation. No source scan reaches that, and a parser would not either, since the value
- * exists only at runtime.
+ * of.** Two things this does not reach:
+ *
+ * - A specifier that is not in the source text at all — held in an identifier, or assembled by
+ *   concatenation. No source scan reaches that, and a parser would not either, since the value
+ *   exists only at runtime.
+ * - A BRACE inside a comment or a regex literal WITHIN a substitution — `` `${/* { *\/ n}.css` ``
+ *   — which the depth counter reads as nesting, so it runs past the real close.
+ *
+ * **The second was reported and is NOT patched, which is a decision with a measurement behind
+ * it.** Skipping comments inside the substitution requires telling `//` from a regex, and
+ * `tests/helpers/buttonRules.ts` already contains `${url.replace(/^\.\//, '')}` — a regex whose
+ * body holds `//`. Adding comment-skipping would read that as a line comment, run to the end of
+ * the line and break a file that works today. Measured, not predicted.
+ *
+ * Distinguishing the two needs the previous token, which is the hard problem in hand-lexing
+ * JavaScript. Eight rounds have each named one more lexical construct, and that is the signal to
+ * stop patching: **the next report in this class is the trigger for a real parser**, not a ninth
+ * rule. Reachability today is measured rather than assumed — exactly two substitutions in the
+ * walked tree contain a slash (a division and that regex) and neither carries a brace.
  */
 const normalisedSource = (text: string): string => {
 	const source = text.replace(/\\\r?\n/g, '');

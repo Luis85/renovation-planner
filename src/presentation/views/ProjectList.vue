@@ -19,7 +19,7 @@ import { statusLabel } from './statusLabel';
 import { tr } from '../i18n/strings';
 
 defineProps<{ projects: readonly ProjectSummaryDto[] }>();
-defineEmits<{ open: [projectId: string]; create: []; createAsset: [] }>();
+defineEmits<{ open: [projectId: string]; create: []; createAsset: []; openLibrary: [] }>();
 </script>
 
 <template>
@@ -47,6 +47,19 @@ defineEmits<{ open: [projectId: string]; create: []; createAsset: [] }>();
 			@click="$emit('createAsset')"
 		>
 			{{ tr('view.asset.create') }}
+		</button>
+		<!--
+			§2's own placement: the Assets control, beside `New asset` rather than replacing it
+			— this is where a user already is when the thought "have I got a definition for
+			this?" arrives. Reveals the singleton library view; it opens and dispatches nothing
+			itself, the same rule the row buttons above already follow.
+		-->
+		<button
+			type="button"
+			class="rp-project-list__open-library"
+			@click="$emit('openLibrary')"
+		>
+			{{ tr('view.asset-library.title') }}
 		</button>
 	</div>
 	<ul class="rp-project-list">

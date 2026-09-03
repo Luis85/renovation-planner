@@ -48,6 +48,19 @@ describe('ProjectList', () => {
 		expect(wrapper.emitted('create')).toHaveLength(1);
 	});
 
+	/**
+	 * §2's own placement: the Assets control sits in this header beside `New asset`, reached
+	 * whenever the list — not the empty state — is what a vault draws. It emits rather than
+	 * opening anything itself, the same rule `create`/`createAsset` already follow.
+	 */
+	it('offers a door into the asset library', async () => {
+		const wrapper = mount(ProjectList, { props: { projects: PROJECTS } });
+
+		await wrapper.get('.rp-project-list__open-library').trigger('click');
+
+		expect(wrapper.emitted('openLibrary')).toHaveLength(1);
+	});
+
 	it('gives every row a real button, not a clickable div', () => {
 		// A div with a click handler is neither focusable nor announced. There is no href
 		// here, so a link would be the wrong element in the other direction.

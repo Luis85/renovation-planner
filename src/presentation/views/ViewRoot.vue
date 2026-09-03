@@ -293,6 +293,12 @@ if (openProjectId === null) {
 						entries carry one action each, so a second one would be a widening
 						every entry inherits for the sake of one. This is an unrelated
 						affordance and is drawn as one.
+
+						**§2's Assets control joins it here for the identical reason.** The
+						catalogue is vault-wide, so a vault with no projects can hold a full
+						library — and `ProjectList`'s own header, where §2 places this control's
+						other door, is not mounted in this state either. A vault that can create
+						an asset and cannot list one is the same argument left half-applied.
 					-->
 					<p class="rp-view-aside">
 						<button
@@ -301,6 +307,13 @@ if (openProjectId === null) {
 							@click="onCreateAsset"
 						>
 							{{ tr('view.asset.create') }}
+						</button>
+						<button
+							type="button"
+							class="rp-view-aside__open-library"
+							@click="context.openAssetLibrary"
+						>
+							{{ tr('view.asset-library.title') }}
 						</button>
 					</p>
 				</template>
@@ -316,6 +329,7 @@ if (openProjectId === null) {
 					@open="(id) => context.navigate(id)"
 					@create="onCreateProject"
 					@create-asset="onCreateAsset"
+					@open-library="context.openAssetLibrary"
 				/>
 				<p
 					v-if="unreadable > 0"

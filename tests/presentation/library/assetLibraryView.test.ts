@@ -31,10 +31,10 @@ const openViews: AssetLibraryView[] = [];
 function makeView(
 	deps: AssetLibraryDeps = defaultAssetLibraryDeps(),
 	leaf: FakeLeaf = new FakeLeaf(),
-): { view: AssetLibraryView; leaf: FakeLeaf } {
-	const built = makeAssetLibraryView(deps, leaf);
-	openViews.push(built.view);
-	return built;
+): AssetLibraryView {
+	const view = makeAssetLibraryView(deps, leaf);
+	openViews.push(view);
+	return view;
 }
 
 afterEach(async () => {
@@ -44,7 +44,7 @@ afterEach(async () => {
 
 describe('what the library tells Obsidian about itself', () => {
 	it('answers its persisted type, its icon, and a translated display name', () => {
-		const { view } = makeView();
+		const view = makeView();
 
 		expect(view.getViewType()).toBe(ASSET_LIBRARY_VIEW);
 		expect(view.getIcon()).toBe(ASSET_LIBRARY_ICON);
@@ -57,7 +57,7 @@ describe('what the library tells Obsidian about itself', () => {
 	 * out of four — nothing in jsdom draws enough to notice on its own.
 	 */
 	it('adds the container class the leaf chrome is styled through', async () => {
-		const { view } = makeView();
+		const view = makeView();
 
 		await view.onOpen();
 
@@ -71,7 +71,7 @@ describe('what the library tells Obsidian about itself', () => {
 	 * root, so the stylesheet's entry point is a DIRECT child of `contentEl`.
 	 */
 	it('mounts directly onto contentEl with no wrapper element', async () => {
-		const { view } = makeView();
+		const view = makeView();
 
 		await view.onOpen();
 
@@ -87,7 +87,7 @@ describe('the library always has something to draw', () => {
 	 * view state at all.
 	 */
 	it('mounts on open with no state at all', async () => {
-		const { view } = makeView();
+		const view = makeView();
 
 		await view.onOpen();
 
@@ -95,7 +95,7 @@ describe('the library always has something to draw', () => {
 	});
 
 	it('redraws exactly one app when a closed leaf is reopened', async () => {
-		const { view } = makeView();
+		const view = makeView();
 		await view.onOpen();
 
 		await view.onClose();
@@ -112,7 +112,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 	 * confused with a value this build could not parse.
 	 */
 	it('accepts an empty assetId as the unselected state and refuses a non-string', async () => {
-		const { view } = makeView();
+		const view = makeView();
 		const result = {} as never;
 
 		await view.setState({ assetId: '' }, result);
@@ -123,7 +123,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 	});
 
 	it('carries an accepted assetId and expanded set into getState', async () => {
-		const { view } = makeView();
+		const view = makeView();
 
 		await view.setState({ assetId: 'tile-01', expanded: ['material'] }, {} as never);
 
@@ -136,7 +136,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 		['not an array', { expanded: 'material' }],
 		['an array holding a non-string', { expanded: ['material', 7] }],
 	])('falls back to no expanded categories when the field is %s', async (_label, extra) => {
-		const { view } = makeView();
+		const view = makeView();
 
 		await view.setState({ assetId: 'tile-01', ...extra }, {} as never);
 
@@ -151,7 +151,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 	 * draft's sentence.
 	 */
 	it('never records a selection or an expansion as a navigation', async () => {
-		const { view } = makeView();
+		const view = makeView();
 		const result = {} as never as { history?: boolean };
 
 		await view.setState({ assetId: 'tile-01', expanded: ['material'] }, result as never);
@@ -167,7 +167,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 	 * and remounting an identically-shaped tree would still replace this element.
 	 */
 	it('draws in place rather than remounting when the selection changes', async () => {
-		const { view } = makeView();
+		const view = makeView();
 		await view.onOpen();
 		await settle();
 		const before = view.contentEl.querySelector('.renovation-asset-library');
@@ -182,7 +182,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 
 	/** And a refused parse leaves the tree showing whatever it was already showing. */
 	it('leaves the drawn selection alone when a later state refuses to parse', async () => {
-		const { view } = makeView();
+		const view = makeView();
 		await view.setState({ assetId: 'tile-01' }, {} as never);
 		await view.onOpen();
 		await settle();
@@ -199,7 +199,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 	 * only has to be remembered so the eventual `mount` draws the right thing.
 	 */
 	it('draws the selection a setState named before onOpen ever ran', async () => {
-		const { view } = makeView();
+		const view = makeView();
 
 		await view.setState({ assetId: 'tile-02' }, {} as never);
 		await view.onOpen();
@@ -212,7 +212,7 @@ describe('the selection and the expanded set this leaf remembers', () => {
 describe('a settings save that replaces the composition root', () => {
 	/** A leaf that never mounted has nothing to remount, and must not mount one on a rebind. */
 	it('draws nothing on a rebind of a leaf that was never opened', () => {
-		const { view } = makeView();
+		const view = makeView();
 
 		view.rebind(defaultAssetLibraryDeps());
 
@@ -226,7 +226,7 @@ describe('a settings save that replaces the composition root', () => {
 	 * detached from the workspace.
 	 */
 	it('draws nothing when a CLOSED leaf is rebound, rather than resurrecting its tree', async () => {
-		const { view } = makeView();
+		const view = makeView();
 		await view.onOpen();
 		await view.onClose();
 
@@ -242,7 +242,7 @@ describe('a settings save that replaces the composition root', () => {
 	 * `RenovationProjectView.rebind` each state for their own per-leaf field.
 	 */
 	it('leaves the library showing the same selection it was showing', async () => {
-		const { view } = makeView();
+		const view = makeView();
 		await view.setState({ assetId: 'tile-01', expanded: ['material'] }, {} as never);
 		await view.onOpen();
 		await settle();
@@ -263,7 +263,7 @@ describe('a settings save that replaces the composition root', () => {
 	 */
 	it('rebinds the mounted tree onto the new bundle rather than the one it opened with', async () => {
 		const first = defaultAssetLibraryDeps({ logger: { ...defaultAssetLibraryDeps().logger } });
-		const { view } = makeView(first);
+		const view = makeView(first);
 		await view.onOpen();
 		await settle();
 

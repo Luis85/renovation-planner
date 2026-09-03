@@ -49,13 +49,21 @@ export function defaultAssetLibraryDeps(overrides: Partial<AssetLibraryDeps> = {
 
 /**
  * Builds the view against `deps`, or — handed none — against `defaultAssetLibraryDeps()`
- * above, and against a fresh `FakeLeaf` unless a caller supplies its own (the rebind cases need
- * to keep one leaf across two builds' worth of state, exactly as `assetDesignerView.test.ts`'s
- * own `makeView` does).
+ * above, and against a fresh `FakeLeaf` unless a caller supplies its own (a caller that needs
+ * the leaf back already holds the one it passed in, `assetDesignerView.test.ts`'s own
+ * `makeView` shape).
+ *
+ * Returns the view DIRECTLY rather than wrapped in an object, the same shape every sibling
+ * factory here takes (`makeRenovationProjectView.ts`'s `makeView`, `assetDesignerView.test.ts`'s
+ * own). Not a style preference: `fallow` resolves a class member through a variable's OWN
+ * explicit type, not through a property read off a destructured object — a first draft of this
+ * helper answered `{ view, leaf }`, and every `const { view } = makeAssetLibraryView(...)` call
+ * that followed left `AssetLibraryView.getState` reported as an unused class member, despite
+ * being called from every case in `assetLibraryView.test.ts`.
  */
 export function makeAssetLibraryView(
 	deps: AssetLibraryDeps = defaultAssetLibraryDeps(),
 	leaf: FakeLeaf = new FakeLeaf(),
-): { view: AssetLibraryView; leaf: FakeLeaf } {
-	return { view: new AssetLibraryView(leaf as never, deps), leaf };
+): AssetLibraryView {
+	return new AssetLibraryView(leaf as never, deps);
 }

@@ -1605,6 +1605,20 @@ git add -A && git commit -m "feat: the asset library stylesheet and its containe
 - Consumes: Tasks 12–15.
 - Produces: nothing any other task imports.
 
+**THIS TASK ALSO OWNS THE DELETE FLOW, handed over by Task 14 with a measured reason.** The
+`Delete` control ships — drawn, and `aria-disabled` with its reason while the usage read has not
+succeeded — but it EMITS rather than running slice 10's reference resolution. Two things forced
+that and both are this task's to resolve. `deleteZoneFlow.ts` is not reusable as written: its
+dispatch takes an `InspectorEdit`, and its reassign branch needs a read for the reassignment
+TARGET that `AssetLibraryQueryServices` has no door for — so reuse means either widening that
+bundle or extracting the flow's shape, which is a decision about a shared seam rather than a wiring
+line. And §3.5's post-deletion focus rule names three targets that live in SIBLING regions (the
+next row in the shelf the asset was in, the same rule inside the flat Results list while a search
+runs, and the search field otherwise) — this task's `shelfFocus.ts` is exactly the thing that can
+address them, and Task 14 could not reach them from inside the panel. **The shelf heading is not a
+fallback**: it can never receive focus in the one case that would reach it, because an empty
+shelf's heading is non-interactive.
+
 **THIS TASK ALSO CLOSES THE WRITE-BACK INTO OBSIDIAN'S VIEW STATE, folded in by ruling
 mid-execution.** Task 13 shipped only the READ half of §6.3 and said so in
 `AssetLibraryRoot.vue`'s header and its report: `expandedCategories` is seeded from
@@ -1742,7 +1756,21 @@ it('opens the asset library on ?view=asset-library', async () => { /* mirrors th
 
 - [ ] **Step 3: Wire the harness mount, the page branch and the index entries**
 
-- [ ] **Step 4: Add the axe cases — populated, no-assets, no-matches, some-unreadable, failed**
+**A SIXTH CASE: POPULATED WITH AN ASSET SELECTED, so the INSPECTOR is in the scanned DOM.**
+Task 14 shipped the panel and reported, as its own last concern, that **no axe scan reaches it** —
+and it is the largest new ARIA surface on this view: four sections, each with three states, a
+definition list of live fields with inline errors, `aria-disabled` controls carrying their reason,
+and a per-group override mark. The five cases below all rest at the resting state, where the panel
+is not drawn at all, so every one of them would pass a build in which the inspector's ARIA is
+broken. Assert `.rp-al-inspector` is in the scanned DOM the same way the empty-state cases assert
+`.rp-empty-state`, or the case grades the shelves twice.
+
+Scan it in its ANSWERED state, and say why in the case: a panel whose two reads are still in
+flight draws loading lines rather than the fields, so a scan taken one tick early grades the
+smaller surface and reads identically to one that grades the larger. `flushPromises()` is what
+separates them, which is the same hazard the paragraph above states for the empty states.
+
+- [ ] **Step 4: Add the axe cases — populated, populated-with-a-selection, no-assets, no-matches, some-unreadable, failed**
 
 - [ ] **Step 5: Capture and LOOK at every capture**
 

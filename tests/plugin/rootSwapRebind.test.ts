@@ -23,6 +23,7 @@ import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { RENOVATION_PROJECT_VIEW, RenovationProjectView } from '../../src/presentation/views/RenovationProjectView';
 import { PLAN_EDITOR_VIEW, PlanEditorView } from '../../src/presentation/views/PlanEditorView';
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
+import { ASSET_LIBRARY_VIEW, AssetLibraryView } from '../../src/presentation/library/AssetLibraryView';
 import { loadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
 import { resetRecorder } from '../helpers/logger';
@@ -179,6 +180,42 @@ describe('a view already open when the root is replaced', () => {
 		expect(view.getState()).toEqual({ assetId: 'asset-1' });
 	});
 
+	/**
+	 * The fourth member of the category, and the one this task exists for: §2's placement
+	 * table names it by name — §83's library-folder migration MOVES every catalogue note and
+	 * then swaps the root, so an un-rebound library would go on resolving asset notes at the
+	 * folder they have just left.
+	 */
+	it('rebinds the asset library too, which is the fourth member of the same category', async () => {
+		resetRecorder();
+		const { plugin, workspace } = await loadedPlugin();
+		const { view } = await openViewOnLeaf(plugin, workspace, ASSET_LIBRARY_VIEW, { assetId: 'tile-01' });
+		expect(view).toBeInstanceOf(AssetLibraryView);
+		const before = view.deps;
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		expect(view.deps).not.toBe(before);
+	});
+
+	/**
+	 * The remount's one real risk, asked of the library for the reason it is asked of the
+	 * designer above: `assetId` and `expanded` are this view's own fields and a rebind must
+	 * not touch them, or a settings save would blank a library a user was browsing.
+	 */
+	it('leaves the asset library showing the same selection it was showing', async () => {
+		resetRecorder();
+		const { plugin, workspace } = await loadedPlugin();
+		const { view } = await openViewOnLeaf(plugin, workspace, ASSET_LIBRARY_VIEW, {
+			assetId: 'tile-01',
+			expanded: ['material'],
+		});
+
+		await plugin.saveSettings({ ...DEFAULT_SETTINGS, projectFolder: 'Somewhere Else' });
+
+		expect(view.getState()).toEqual({ assetId: 'tile-01', expanded: ['material'] });
+	});
+
 	it('leaves the plan editor showing the same plan it was showing', async () => {
 		// The remount's one real risk: `planId` is this view's own field and a rebind must not
 		// touch it, or a settings save would blank an editor the user was working in.
@@ -218,7 +255,7 @@ describe('a view already open when the root is replaced', () => {
 		// which is a `TypeError` inside `saveSettings` rather than a wrong picture.
 		resetRecorder();
 		const { plugin, workspace } = await loadedPlugin();
-		for (const type of [RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW, ASSET_DESIGNER_VIEW]) {
+		for (const type of [RENOVATION_PROJECT_VIEW, PLAN_EDITOR_VIEW, ASSET_DESIGNER_VIEW, ASSET_LIBRARY_VIEW]) {
 			const leaf = new FakeLeaf();
 			await leaf.setViewState({ type });
 			leaf.view = { notOneOfOurs: true };

@@ -17,6 +17,7 @@ import { loadedPlugin } from '../../helpers/plugin';
 import { GEOMETRY_SIDECAR_VIEW } from '../../../src/presentation/views/GeometrySidecarView';
 import { PLAN_EDITOR_VIEW } from '../../../src/presentation/views/PlanEditorView';
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../../src/presentation/designer/AssetDesignerView';
+import { ASSET_LIBRARY_VIEW, AssetLibraryView } from '../../../src/presentation/library/AssetLibraryView';
 import { FakeLeaf } from '../../helpers/workspace';
 import { RENOVATION_PROJECT_VIEW } from '../../../src/presentation/views/RenovationProjectView';
 import { t } from '../../../src/presentation/i18n/strings';
@@ -74,6 +75,7 @@ describe('a read that failed', () => {
 			RENOVATION_PROJECT_VIEW,
 			PLAN_EDITOR_VIEW,
 			ASSET_DESIGNER_VIEW,
+			ASSET_LIBRARY_VIEW,
 			GEOMETRY_SIDECAR_VIEW,
 		]);
 		expect(plugin.commands.map((command) => command.id)).toEqual([
@@ -84,6 +86,11 @@ describe('a read that failed', () => {
 			// unrecovered sentence rather than opening an empty report — see
 			// `diagnosticsReportDoors.test.ts`, which drives that refusal.
 			'show-diagnostics-report',
+			// Registered here too, unconditionally: the library's own command is a plain
+			// callback gated on nothing, so an unrecovered session still binds a user's hotkey
+			// to it — the view it opens draws its own failure state (§4) rather than being
+			// missing from the palette.
+			'open-asset-library',
 			'open-plan-editor',
 			'set-plan-background',
 			// Registered here too, the same shape `open-plan-editor` already takes: with no
@@ -107,6 +114,20 @@ describe('a read that failed', () => {
 		const built = plugin.views.get(ASSET_DESIGNER_VIEW)?.(new FakeLeaf() as never);
 
 		expect(built).toBeInstanceOf(AssetDesignerView);
+	});
+
+	/**
+	 * The library's own sibling case: `assetLibraryDeps` answers
+	 * `unavailableAssetLibraryQueries()`/`unavailableAssetLibraryCommands()` for a root with no
+	 * persistence, the identical total-rather-than-nullable shape, so the view draws its
+	 * failure state rather than failing to construct at all.
+	 */
+	it('builds an asset library whose queries refuse, rather than one that cannot be built', async () => {
+		const { plugin } = await unrecovered();
+
+		const built = plugin.views.get(ASSET_LIBRARY_VIEW)?.(new FakeLeaf() as never);
+
+		expect(built).toBeInstanceOf(AssetLibraryView);
 	});
 
 	/**

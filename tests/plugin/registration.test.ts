@@ -18,6 +18,7 @@ import {
 import { GEOMETRY_SIDECAR_VIEW, GeometrySidecarView } from '../../src/presentation/views/GeometrySidecarView';
 import { PLAN_EDITOR_VIEW } from '../../src/presentation/views/PlanEditorView';
 import { ASSET_DESIGNER_VIEW, AssetDesignerView } from '../../src/presentation/designer/AssetDesignerView';
+import { ASSET_LIBRARY_VIEW, AssetLibraryView } from '../../src/presentation/library/AssetLibraryView';
 import { DEFAULT_SETTINGS } from '../../src/plugin/settings/settings';
 import { t } from '../../src/presentation/i18n/strings';
 import { loadedPlugin, type LoadedPlugin } from '../helpers/plugin';
@@ -51,6 +52,9 @@ describe('what onload registers', () => {
 			// ADR-0015's fourth registration and third workspace surface. A view type is DATA:
 			// Obsidian persists it in the layout, so this list is asserted rather than counted.
 			ASSET_DESIGNER_VIEW,
+			// §2's fifth registration and fourth workspace surface — the vault-wide catalogue,
+			// a singleton like the project view rather than per-subject like the two above it.
+			ASSET_LIBRARY_VIEW,
 			GEOMETRY_SIDECAR_VIEW,
 		]);
 	});
@@ -73,6 +77,16 @@ describe('what onload registers', () => {
 		const built = plugin.views.get(RENOVATION_PROJECT_VIEW)?.(new FakeLeaf() as never);
 
 		expect(built).toBeInstanceOf(RenovationProjectView);
+	});
+
+	/**
+	 * The library's own factory has to reach `assetLibraryDeps`, which did not exist before
+	 * this task — the same reason the designer's own case above matters most of the four.
+	 */
+	it('registers a factory that builds the asset library', () => {
+		const built = plugin.views.get(ASSET_LIBRARY_VIEW)?.(new FakeLeaf() as never);
+
+		expect(built).toBeInstanceOf(AssetLibraryView);
 	});
 
 	/**
@@ -105,6 +119,9 @@ describe('what onload registers', () => {
 			// and both reach `openDiagnosticsReport`. Pinned here as an id like the rest,
 			// because a user's hotkey binds to this string.
 			'show-diagnostics-report',
+			// §2's fourth registration's own command: a plain callback, never gated on the
+			// active note, exactly like every other command in this list.
+			'open-asset-library',
 			'open-plan-editor',
 			'set-plan-background',
 			// Task B9: what makes ADR-0015's Asset Designer reachable at all — a picker over

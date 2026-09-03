@@ -14,12 +14,14 @@ import type { RequirementId } from '../../../src/domain/requirement/RequirementI
 
 /**
  * One row's whole interface: `.requirements` is the port under test everywhere, and the
- * other three members are how each row answers the questions the generic cases need to
- * ask — "make this project exist", "put a non-requirement entry under it" and "make one
- * requirement note unreadable" — without the test bodies caring which host they are
- * driving. `seedPlan` and `corruptRequirementNote` are no-ops on the in-memory row: it
- * holds nothing but Requirement objects, so there is no index to intersect and no note to
- * corrupt, which is also why the two `it.runIf(hasVault)` cases never call the latter.
+ * other members are how each row answers the questions the generic cases need to ask —
+ * "make this project exist", "put a non-requirement entry under it", "make one requirement
+ * note unreadable" and "leave the index pointing at a note that is gone" — without the test
+ * bodies caring which host they are driving. `seedPlan`, `corruptRequirementNote` and
+ * `dropNoteKeepIndexEntry` are all no-ops or absent on the in-memory row: it holds nothing
+ * but Requirement objects, so there is no index to intersect, no note to corrupt and no
+ * index entry that can outlive one, which is also why the `it.runIf(hasVault)` cases never
+ * call the latter two.
  */
 interface RequirementRow {
 	requirements: RequirementRepository;
@@ -28,6 +30,13 @@ interface RequirementRow {
 	seedPlan(projectId: ProjectId): Promise<void>;
 	/** Rewrites one requirement note's `schema-version` to a value no migration reaches — a note from a build this one predates. Vault-backed rows only. */
 	corruptRequirementNote?(id: RequirementId): Promise<void>;
+	/**
+	 * Removes the underlying note directly through the vault's own `delete`, never through
+	 * the repository — the repository's `delete` also removes the index entry, and a STALE
+	 * index entry (one the index still holds for a note that is gone) is exactly the state
+	 * this exists to produce. Vault-backed rows only.
+	 */
+	dropNoteKeepIndexEntry?(id: RequirementId): Promise<void>;
 	dispose(): void;
 }
 
@@ -77,6 +86,15 @@ function openFakeVaultRow(): Promise<RequirementRow> {
 			stack.vault.entries.set(path, after);
 			return Promise.resolve();
 		},
+		dropNoteKeepIndexEntry: (id) => {
+			const path = stack.index.getPath(id);
+			if (!path) throw new Error(`No path indexed for requirement ${id}`);
+			const file = stack.vault.getAbstractFileByPath(path);
+			if (!(file instanceof TFile)) throw new Error(`No fixture note at ${path}`);
+			// `vault.delete`, not `stack.requirements.delete` — the repository's delete also
+			// removes the index entry, and a STALE one is the point.
+			return stack.vault.delete(file);
+		},
 		dispose: () => {},
 	});
 }
@@ -101,6 +119,15 @@ async function openDiskRow(): Promise<RequirementRow> {
 			if (after === before) throw new Error(`Corrupting ${path} changed nothing — the fixture's frontmatter has moved`);
 			await stack.vault.modify(file, after);
 			stack.metadataCache.catchUp();
+		},
+		dropNoteKeepIndexEntry: async (id) => {
+			const path = stack.index.getPath(id);
+			if (!path) throw new Error(`No path indexed for requirement ${id}`);
+			const file = stack.vault.getAbstractFileByPath(path);
+			if (!(file instanceof TFile)) throw new Error(`No fixture note at ${path}`);
+			// `vault.delete`, not `stack.requirements.delete` — the repository's delete also
+			// removes the index entry, and a STALE one is the point.
+			await stack.vault.delete(file);
 		},
 		dispose: () => stack.dispose(),
 	};
@@ -156,6 +183,31 @@ describe.each([
 			if (!listed.ok) return;
 			expect(listed.value.loaded).toHaveLength(1);
 			expect(listed.value.refused).toBe(1);
+		} finally {
+			row.dispose();
+		}
+	});
+
+	// The false arm of `listTolerantly`'s `found.value !== null` check: an id the index still
+	// holds for a note that is GONE reads as `ok(null)` (not found is not a failure, §36),
+	// never as a read failure — so it must land in neither `loaded` nor `refused`. Vault-backed
+	// only, for the same reason as the unreadable-note cases above: the in-memory store has no
+	// index to go stale, so there is nothing to drive this with.
+	it.runIf(hasVault)('drops a stale index entry rather than counting it as refused', async () => {
+		const row = await open();
+		try {
+			const projectA = createProjectId();
+			await row.seedProject(projectA);
+			const good = await seedRequirement(row, projectA);
+			const stale = await seedRequirement(row, projectA);
+			await row.dropNoteKeepIndexEntry?.(stale);
+
+			const listed = await row.requirements.listByProject(projectA);
+
+			expect(listed.ok).toBe(true);
+			if (!listed.ok) return;
+			expect(listed.value.loaded.map((l) => l.entity.id)).toEqual([good]);
+			expect(listed.value.refused).toBe(0);
 		} finally {
 			row.dispose();
 		}

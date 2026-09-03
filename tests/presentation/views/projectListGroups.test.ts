@@ -103,4 +103,54 @@ describe('ProjectList groups', () => {
 
 		expect((wrapper.vm as unknown as { completedOpen: boolean }).completedOpen).toBe(true);
 	});
+
+	/**
+	 * **The Continue group is not filtered.** It is an ACTION rather than a member of the
+	 * index, so a query that excludes its project still leaves it offered — and its own row
+	 * says which project it is, so nothing is ambiguous. The opposite is the reflex, so this
+	 * pins it rather than leaving it to be assumed.
+	 */
+	it('offers the Continue row regardless of the filter', () => {
+		const wrapper = mount(ProjectList, {
+			props: {
+				projects: MIXED,
+				unreadable: 0,
+				continueProject: { project: MIXED[1], planId: null, plan: null },
+			},
+		});
+
+		expect(wrapper.find('.rp-project-list__continue').exists()).toBe(true);
+	});
+
+	it('renders the Continue row INSIDE a .rp-project-list, like every other row', () => {
+		const wrapper = mount(ProjectList, {
+			props: {
+				projects: MIXED,
+				unreadable: 0,
+				continueProject: { project: MIXED[1], planId: null, plan: null },
+			},
+		});
+
+		// Every shared row declaration is scoped `.rp-project-list .rp-project-list__row` — the
+		// descendant selector that beats Obsidian's own `button:not(.clickable-icon)`. Outside
+		// that ancestor the row gets no flex, no width, no padding and no 24px floor, and the
+		// "same armature" claim is false in the one place it is made. jsdom resolves no CSS, so
+		// this asserts the STRUCTURE the selector needs rather than the result.
+		//
+		// `wrapper.element.querySelector`, deliberately not `wrapper.find`: `ProjectList` has
+		// SEVERAL top-level template elements, so VTU treats each as its own root and runs
+		// `querySelectorAll` scoped to it — and jsdom's selector engine cannot resolve a
+		// three-compound descendant chain (`.a .b .c`) when the first compound is the scope root
+		// itself, dropping to zero matches even though the same selector run against the whole
+		// mounted container (or a real browser) finds the row. Measured directly: a two-compound
+		// version of the identical shape (`.rp-project-list__group--projects .rp-project-list__name`,
+		// used elsewhere in this file) resolves fine, and a minimal three-element reproduction
+		// outside this component reproduces the same drop to zero. `wrapper.element` is the whole
+		// mounted container for a multi-root component, so a query against it is not scoped to any
+		// one fragment root and sidesteps the engine limitation rather than working around it with
+		// a weaker selector.
+		expect(
+			wrapper.element.querySelector('.rp-project-list__continue .rp-project-list .rp-continue'),
+		).not.toBeNull();
+	});
 });

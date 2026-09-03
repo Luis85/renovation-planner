@@ -38,6 +38,9 @@ function deps(listProjects: () => Promise<unknown>) {
 		// `projectId` to branch on, with nothing to report it. See
 		// `viewRootIndexRebuild.test.ts` for the whole argument.
 		projectId: null,
+		// Task 11's continue read, stated for the same reason: no case in this file is about
+		// Continue, so `null` — no stored context — is the honest default.
+		continueContext: () => Promise.resolve(null),
 	};
 }
 
@@ -142,6 +145,7 @@ describe('ViewRoot, creating a project', () => {
 		// `projectId` to branch on, with nothing to report it. See
 		// `viewRootIndexRebuild.test.ts` for the whole argument.
 		projectId: null,
+		continueContext: () => Promise.resolve(null),
 		};
 		const wrapper = mount(ViewRoot, {
 			global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },

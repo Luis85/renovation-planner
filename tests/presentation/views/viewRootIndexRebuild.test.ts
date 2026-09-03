@@ -61,6 +61,10 @@ async function mountBeforeTheScan() {
 					// deliberately avoid; see `defaultRenovationProjectDeps`'s docblock.
 					projectId: null,
 					onProjectsChanged,
+					// Task 11's continue read, stated for the same reason `projectId` is: no case
+					// here is about Continue, so `null` — no stored context — is the honest default,
+					// matching `defaultRenovationProjectDeps`'s own.
+					continueContext: () => Promise.resolve(null),
 				},
 			},
 		},
@@ -125,6 +129,7 @@ describe('ViewRoot, and an index built after the pane was restored', () => {
 							listeners.push(listener);
 							return () => undefined;
 						},
+						continueContext: () => Promise.resolve(null),
 					},
 				},
 			},

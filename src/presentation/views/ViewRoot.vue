@@ -56,10 +56,13 @@ import { useDialogStore } from '../dialogs/dialog-store';
 import { tr } from '../i18n/strings';
 import { trError } from '../i18n/toUserMessage';
 import { surfaceFor, viewHydrationOrigin } from '../errors/errorSurfacePolicy';
+import { isErr } from '../../core/result/Result';
 import type { CreateProjectInput } from '../../application/commands/project/CreateProject';
 import type { CreateAssetInput } from '../../application/commands/asset/CreateAsset';
 import type { SetAssetFootprintFromDimensionsInput } from '../../application/commands/asset/SetAssetFootprint';
 import type { AssetId } from '../../domain/asset/AssetId';
+import type { ContinueContext } from '../../application/continueContext';
+import type { PlanSummaryDto } from '../read-models/PlanDto';
 
 const context = useRenovationProjectContext();
 const store = useRenovationProjectStore();
@@ -96,13 +99,148 @@ const newProjectBusy = ref(false);
 const newAssetBusy = ref(false);
 
 /**
+ * The stored context, resolved against the list this mount actually read — §7's "validation is
+ * a READ, not a subscription".
+ *
+ * The PROJECT half is a `computed` over `projects` rather than a second query: it must still
+ * exist, and the list in front of us is the freshest answer to that there is. It therefore
+ * re-resolves for free on every hydrate, and a project deleted underneath simply stops being
+ * found — nothing redirects, nothing announces, nothing is retracted.
+ *
+ * The PLAN half cannot ride that list, because this surface's list holds projects. It is read by
+ * `resolveStored` below and held in `storedPlan`, which is why the two halves are two fields
+ * rather than one predicate — and why `resolveStored` runs on every hydrate rather than once at
+ * mount. §7 says "resolve the stored ids against the project index AT HYDRATE TIME"; a mount-only
+ * read does not do that, and the case it loses is the one Continue exists for. Obsidian restores
+ * its leaves BEFORE `onLayoutReady` and the index scan runs FROM it (SDD §47), so a pane restored
+ * with the app resolves its plan against an EMPTY index, finds nothing, and pins `storedPlan` to
+ * `'gone'` for the life of that mount. The project half self-heals — it is a `computed` over
+ * `projects`, which the `ProjectIndexRebuilt` subscription re-hydrates — so the two halves
+ * recovered differently and only the one nothing re-ran stayed broken. Continue-across-restart is
+ * exactly the flow this feature advertises, so it would have failed in its headline case.
+ */
+const stored = ref<ContinueContext | null>(null);
+/**
+ * How the stored context's PLAN resolved: `'none'` when it names no plan, `'gone'` when the
+ * plan read did not find it, or the plan itself.
+ *
+ * **The plan rather than a boolean**, because the row has to NAME it. §7's own Continue diagram
+ * is `House Renovation 2026 · Kitchen › Work`, and a first version reduced this read to
+ * `true`/`false` — so the row said which project it would resume and not which plan, which on a
+ * project with several plans is the one thing a user needs it to say. The read was already being
+ * made; only its answer was being thrown away.
+ */
+const storedPlan = ref<PlanSummaryDto | 'none' | 'gone'>('gone');
+
+const continueProject = computed(() => {
+	const resume = stored.value;
+	if (resume === null || storedPlan.value === 'gone') return null;
+	const project = projects.value.find((candidate) => candidate.id === resume.projectId);
+	if (project === undefined) return null;
+	return {
+		project,
+		planId: resume.planId,
+		plan: storedPlan.value === 'none' ? null : storedPlan.value,
+	};
+});
+
+/**
+ * **BOTH ids are resolved, which is what §7 asks for**: "resolve the stored ids against the
+ * project index at hydrate time, and if EITHER misses, the group does not render."
+ *
+ * Validating only the project would leave `onResume` calling `openPlan` on a plan that is gone —
+ * and `renovationProjectOpenPlan` reveals a Plan Editor leaf for that id, whose `missing` state
+ * draws `editor.plan-missing.*` and asks the user to close the tab. So Continue on a deleted
+ * plan would open a dead editor. The plan half costs ONE extra read, and only when a stored
+ * context names a plan: the query bundle already carries `listPlansByProject`, so nothing new is
+ * commissioned for it. A project whose plans could not be read is treated as a miss — the group
+ * is an offer, and an offer that might open a dead editor is worse than no offer.
+ *
+ * Running on every hydrate makes this concurrently callable, which it was not at mount, so it
+ * carries the request ticket `store.hydrate` already has: two hydrates can be in flight at once
+ * — the create path awaits its own while the rebuild subscription fires — and without the ticket
+ * both resolutions end in bare assignments to `stored` and `storedPlan`, so the slower earlier one
+ * overwrites the newer. Worse than stale, the two fields are written at different awaits, so an
+ * interleaving can leave `storedPlan` describing a different context than `stored` holds — the
+ * group then vanishes or offers the wrong work. This is the same shape `ProjectStore.hydrate` and
+ * `InspectorStore` already use: a store two things hydrate needs a ticket, or the slower earlier
+ * read wins.
+ */
+let resolveTicket = 0;
+
+async function resolveStored(): Promise<void> {
+	// Taken BEFORE the first await, and compared before every assignment below: this runs on
+	// every hydrate, and two hydrates can be in flight at once.
+	const ticket = ++resolveTicket;
+	const resume = await context.continueContext();
+	if (ticket !== resolveTicket) return;
+
+	// RESOLVED INTO LOCALS, and both refs committed together at the end. The ticket keeps two
+	// concurrent resolutions from interleaving; it does nothing about the window INSIDE one, and
+	// assigning `stored` here while leaving the previous `storedPlan` standing across the plan
+	// lookup below would describe a context that never existed — project B with plan A — and,
+	// worse, clickable: the row emits from `stored`, so a click would resume B's
+	// not-yet-validated plan id, opening the dead editor this validation exists to prevent. The
+	// pair is one fact and is written once.
+	let plan: PlanSummaryDto | 'none' | 'gone';
+	if (resume === null) {
+		plan = 'gone';
+	} else if (resume.planId === null) {
+		plan = 'none';
+	} else {
+		const plans = await context.queries.listPlansByProject(resume.projectId);
+		if (ticket !== resolveTicket) return;
+		// The matched plan is KEPT, not counted: the row names it.
+		plan = (isErr(plans) ? undefined : plans.value.plans.find((p) => p.id === resume.planId)) ?? 'gone';
+	}
+
+	stored.value = resume;
+	storedPlan.value = plan;
+}
+
+/**
+ * Continue's own destination, which is the whole of what makes it different from Open: it
+ * restores where the user WAS — the plan editor when the context names one — while Open always
+ * goes to the project's detail state.
+ *
+ * It goes through the SAME doors a row already uses. Nothing here reclaims a leaf by identity,
+ * which is what makes surviving a restart a non-question rather than a behaviour to design.
+ *
+ * The `planId` branch is safe to take unguarded ONLY because `resolveStored` established that
+ * the plan exists — this function has no fallback of its own and must not grow one, because a
+ * fallback here would be a second answer to a question the resolution already owns.
+ */
+function onResume(resume: ContinueContext): void {
+	if (resume.planId === null) {
+		context.navigate(resume.projectId);
+		return;
+	}
+	void context.openPlan(resume.planId);
+}
+
+/**
+ * A project row's plain click, and the one place the LIST state remembers a visit: this is what
+ * makes Continue offer a project again after a plan-less navigation. A NAMED function rather
+ * than a template arrow doing two things — that is where the second one gets dropped by an edit
+ * which only meant to change the first.
+ */
+function onOpenProject(id: string): void {
+	context.rememberContinue({ projectId: id, planId: null });
+	context.navigate(id);
+}
+
+/**
  * The ONE read this view has, on every occasion it runs — open, after a create, after a row
  * turned out to point at nothing, and after the Project Index was rebuilt underneath it. A
  * second "refresh" path would be a second answer to what this pane is showing;
  * `PlanEditorRoot` states the identical rule about its own.
+ *
+ * `resolveStored` rides along on every one of those occasions too — §7's own "at hydrate time"
+ * — rather than a second refresh path kept beside this one, which is exactly the kind of list
+ * of callers that goes stale at the fourth one.
  */
-function hydrate(): Promise<void> {
-	return store.hydrate(context.queries);
+async function hydrate(): Promise<void> {
+	await Promise.all([store.hydrate(context.queries), resolveStored()]);
 }
 
 /**
@@ -352,10 +490,12 @@ defineExpose({ openNewProjectDialog: onCreateProject });
 					v-else
 					:projects="projects"
 					:unreadable="unreadable"
-					@open="(id) => context.navigate(id)"
+					:continue-project="continueProject"
+					@open="onOpenProject"
 					@open-note="onOpenNote"
 					@create="onCreateProject"
 					@create-asset="onCreateAsset"
+					@resume="onResume"
 				/>
 			</template>
 			<ViewFailure

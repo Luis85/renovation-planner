@@ -83,6 +83,7 @@ interface Overrides {
 	navigate?: (projectId: string | null) => void;
 	openProject?: (projectId: string) => Promise<ProjectOpenOutcome>;
 	openPlan?: (planId: string) => Promise<void>;
+	rememberContinue?: (context: { projectId: string; planId: string | null }) => void;
 	/**
 	 * Wired into `commands`, NOT `queries` — it is a write, and `ViewRoot` dispatches it through
 	 * `useFormCommit`. Typed as the bundle's own method rather than restated: the alias behind it
@@ -115,6 +116,7 @@ function mountRoot(over: Overrides): VueWrapper {
 		navigate: over.navigate ?? base.navigate,
 		openProject: over.openProject ?? base.openProject,
 		openPlan: over.openPlan ?? base.openPlan,
+		rememberContinue: over.rememberContinue ?? base.rememberContinue,
 		indexScanCompleted: over.indexScanCompleted ?? base.indexScanCompleted,
 		onProjectsChanged: over.onProjectsChanged ?? base.onProjectsChanged,
 		onPlansChanged: over.onPlansChanged ?? base.onPlansChanged,
@@ -234,6 +236,33 @@ describe('ViewRoot in the detail state', () => {
 
 		await wrapper.get('.rp-plan-list__row').trigger('click');
 
+		expect(openPlan).toHaveBeenCalledWith('plan-1');
+	});
+
+	/**
+	 * **Task 11's half of Continue that nothing else writes.** `ProjectDetailState` is the ONLY
+	 * path in the app that opens a plan, and therefore the only thing that can ever store a
+	 * non-null `planId` — the list row's own `rememberContinue` always writes `planId: null`.
+	 * BEFORE the open rather than after: `openPlan` is fire-and-forget, so a case asserting
+	 * ordering via call order on one spy would not discriminate a build that swapped the two
+	 * statements — asserted instead by making `openPlan` never resolve and reading
+	 * `rememberContinue`'s call regardless, which is watched failing with the call removed,
+	 * because every other case in this file passes without it.
+	 */
+	it('remembers the plan before opening it', async () => {
+		const rememberContinue = vi.fn<(context: { projectId: string; planId: string | null }) => void>();
+		const openPlan = vi.fn<(planId: string) => Promise<void>>(() => new Promise<void>(() => {}));
+		const wrapper = mountRoot({
+			projectId: 'project-1',
+			rememberContinue,
+			openPlan,
+			plans: [{ id: 'plan-1', name: 'Ground floor' }],
+		});
+		await flushPromises();
+
+		await wrapper.get('.rp-plan-list__row').trigger('click');
+
+		expect(rememberContinue).toHaveBeenCalledWith({ projectId: 'project-1', planId: 'plan-1' });
 		expect(openPlan).toHaveBeenCalledWith('plan-1');
 	});
 

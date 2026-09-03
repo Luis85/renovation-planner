@@ -16,9 +16,11 @@
  * lands that commit, and the component the sentence is ABOUT is the one nobody re-read.
  */
 import { computed, nextTick, ref, watch } from 'vue';
-import type { ProjectSummaryDto } from '../read-models/PlanDto';
+import type { PlanSummaryDto, ProjectSummaryDto } from '../read-models/PlanDto';
+import type { ContinueContext } from '../../application/continueContext';
 import ProjectRow from './ProjectRow.vue';
 import ProjectFilter from './ProjectFilter.vue';
+import ContinueRow from './ContinueRow.vue';
 import { isCompleted, nameCollator, orderProjects } from './projectOrder';
 import { matchesQuery } from './projectFilter';
 import { currentLanguage, tr } from '../i18n/strings';
@@ -32,7 +34,20 @@ import { modifierLabel } from './platformModifier';
  * draw no partial-read notice and nothing anywhere would say so. There is one production mount
  * (`ViewRoot`), which is what makes the compiler's check cheap.
  */
-const props = defineProps<{ projects: readonly ProjectSummaryDto[]; unreadable: number }>();
+const props = defineProps<{
+	projects: readonly ProjectSummaryDto[];
+	unreadable: number;
+	/**
+	 * The resolved continue context, or absent. RESOLVED by the view, not by this component:
+	 * §7's rule is that the group renders only when the stored context points at something that
+	 * still exists, and only the view can ask.
+	 */
+	continueProject?: {
+		project: ProjectSummaryDto;
+		planId: string | null;
+		plan: PlanSummaryDto | null;
+	} | null;
+}>();
 /**
  * `create` widened to carry the typed query (Task 7, design spec §3/§9's `Filtered to
  * nothing` row): the header button emits `''`, and the no-match block's own action emits
@@ -45,6 +60,8 @@ defineEmits<{
 	openNote: [projectId: string];
 	create: [initialName: string];
 	createAsset: [];
+	/** Task 11's Continue row, re-emitted with the context it names rather than left bare. */
+	resume: [context: ContinueContext];
 }>();
 
 /**
@@ -307,6 +324,49 @@ watch(
 	>
 		{{ tr('view.project.some-unreadable') }}
 	</p>
+	<!--
+		ZERO OR ONE ROW, and absent rather than empty when there is nothing to resume — not a
+		placeholder, not a disabled button. With no stored context the most recently worked
+		project is simply the first row of `Projects`, which is where it would be anyway.
+
+		The project ALSO appears in `Projects` below, and the duplicate is correct: Continue
+		is an action and Projects is the index, so hiding a project from the index because it
+		happens to be resumable would make the index lie.
+	-->
+	<section
+		v-if="continueProject"
+		class="rp-project-list__group rp-project-list__continue"
+	>
+		<h3 class="rp-project-list__group-title">
+			{{ tr('view.project.group.continue') }}
+		</h3>
+		<!--
+			INSIDE a `.rp-project-list` `<ul>`, exactly like the other two groups, and that is
+			load-bearing rather than tidy: every shared row declaration in `list-row.css` and
+			`forms.css` is scoped `.rp-project-list .rp-project-list__row` — the descendant
+			selector that beats Obsidian's own `button:not(.clickable-icon)` — so a row
+			rendered outside that ancestor gets none of `display: flex`, the width, the
+			padding, the 24px minimum height or the name's truncation, and the "same armature
+			as every other row" claim would be false in the one place it is made.
+
+			It also puts the row inside the container query, so the Continue row narrows with
+			its siblings instead of being the one row that does not.
+
+			A list of ONE is the right shape rather than a concession: the group is zero-or-one
+			by design, and `<li>` is what `<ul>` may contain.
+		-->
+		<ul class="rp-project-list">
+			<li>
+				<ContinueRow
+					:project="continueProject.project"
+					:plan="continueProject.plan"
+					@resume="$emit('resume', { projectId: continueProject.project.id, planId: continueProject.planId })"
+					@open="$emit('open', continueProject.project.id)"
+					@open-note="$emit('openNote', continueProject.project.id)"
+				/>
+			</li>
+		</ul>
+	</section>
 	<section
 		v-if="active.length > 0"
 		class="rp-project-list__group rp-project-list__group--projects"

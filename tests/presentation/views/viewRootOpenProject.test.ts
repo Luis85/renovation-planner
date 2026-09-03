@@ -170,6 +170,9 @@ async function mountOnListState(outcome: ProjectOpenOutcome) {
 					onProjectsChanged: () => () => undefined,
 					onPlansChanged: () => () => undefined,
 					indexScanCompleted: () => true,
+					// Task 11's continue read; no case in this describe block is about Continue,
+					// so `null` is the honest default here too.
+					continueContext: () => Promise.resolve(null),
 				},
 			},
 		},

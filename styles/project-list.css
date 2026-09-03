@@ -385,3 +385,16 @@
 	   they are discovered. */
 	color: var(--text-faint);
 }
+
+/* Two buttons, not the row, are the target here: the shared hover/cursor come back off. */
+.rp-project-list .rp-continue {
+	cursor: default;
+}
+.rp-project-list .rp-continue:hover {
+	background-color: transparent;
+}
+.rp-project-list__continue .rp-continue__resume:focus-visible,
+.rp-project-list__continue .rp-continue__open:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}

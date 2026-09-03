@@ -69,6 +69,9 @@ function deps() {
 			onProjectsChanged: () => () => undefined,
 			projectId: null,
 			openAsset,
+			// Task 11's continue read; no case in this file is about Continue, so `null` — no
+			// stored context — is the honest default.
+			continueContext: () => Promise.resolve(null),
 		},
 		createAsset,
 		setAssetFootprintFromDimensions,

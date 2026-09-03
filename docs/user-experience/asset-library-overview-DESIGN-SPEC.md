@@ -410,8 +410,25 @@ Four sections, in this order:
      | Cause | Says | `Open designer` |
      | --- | --- | --- |
      | `asset.not-found` | the asset is gone, with a way back to the list | **withdrawn** — there is nothing to open |
-     | any `asset-geometry.*` — `unreadable`, `corrupt`, `schema-invalid`, `asset-id-mismatch` | §3.4's `unreadable` wording | **stays** — the designer is where a damaged shape is repaired |
+     | any `asset-geometry.*` — `unreadable`, `corrupt`, `schema-invalid`, `asset-id-mismatch` | §3.4's `unreadable` wording, naming the sidecar where the error carries its path | **withdrawn** — see below |
      | anything else | the vault read failed, retryable | withdrawn until a read succeeds |
+
+     **That middle row said `Open designer` STAYS, on the grounds that "the designer is where a
+     damaged shape is repaired" — a claim about the designer that I never checked, and it is
+     false.** `GetAssetDesign.execute` is `if (isErr(snapshot)) return snapshot;` — a sidecar
+     refusal fails the whole design read — so the designer hydrates through the same query, its
+     store reaches `failed`, and `AssetDesignerRoot` renders a `ViewFailure` whose only action is
+     Retry. There is no canvas, no background picker and no delete: the button sends the user to
+     a screen that repeats the refusal they just left. **A live control that does nothing is the
+     failure mode slice 14's own amendment refuses**, and this one is worse than inert — it costs
+     a navigation to find that out.
+
+     So it is withdrawn for these codes until the designer has a repair path. **The gap is the
+     designer's rather than this surface's**, and the honest remedy — a way to replace or discard
+     an unreadable sidecar — is a change to that view, not a row in this table; §11 carries it as
+     a decision rather than this section inventing one. What is left for the user today is the
+     `.rpgeo` file itself, which is why the wording names it where the error carries a path.
+     Reported by a review bot, which read `AssetDesignerRoot` when I had only read the table.
 
      The union arm cannot make this distinction. `AssetGeometryStore.readUnlocked` raises all four
      sidecar failures as `PersistenceError` or `ValidationError`, and `RepositoryError` is
@@ -435,7 +452,13 @@ Four sections, in this order:
    since `Project.create` trims a name and refuses only an empty one — so discarding it renders
    two identical rows for the two things the user is being asked to tell apart, immediately before
    an edit or a deletion. Shown only where the query supplies it, which is the rule that keeps a
-   path off every row on the common case. `Not used in any project` when there are none, which is the
+   path off every row on the common case — and **"supplied" is tested against `undefined`, never
+   against truthiness**, because `''` is a supplied answer. `projectFolderOf` is `parentOf(path)`
+   and `parentOf` slices to the last `/`, so a `Project.md` at the vault root derives the empty
+   string; `joinFolder`'s own docblock names that case as the one it exists for. A truthy test
+   suppresses exactly the row the path was added to disambiguate and draws it identically to a
+   row whose path was never supplied — the collision restored, in the one member of it that has
+   no folder to name. The empty string renders a root label rather than nothing. `Not used in any project` when there are none, which is the
    sentence that makes a deletion safe to reason about, and the sentence a price edit is read
    against.
 
@@ -747,14 +770,21 @@ the source it shares.
 
 ### 5.5 Every read carries a ticket
 
-Three reads on this surface are asynchronous and all three can be overtaken: the selection's
-`GetAssetDesign`, the selection's `ListRequirementsReferencing`, and a mark batch. **A result
-whose ticket is no longer current is DROPPED — successes and failures alike.** One rule at three
-seams rather than three rules, because this repository's own record is that a question worth
-asking at one door is a function, and the count of doors it is missing from is otherwise
-unknowable.
+**EVERY asynchronous read this surface makes carries a ticket, and a result whose ticket is no
+longer current is DROPPED — successes and failures alike.** Stated as a rule over the category
+rather than as a list of the reads, because a rule holds for the read somebody adds next and a
+list does not. **The first version of this section was that list**, opening *"three reads on this
+surface are asynchronous"* and enumerating them; the very next review round named the fourth,
+`ListCatalogueEntries`, which two rapid `AssetUpdated` events can overlap so that the slower
+earlier listing lands last and restores assets the newer one had seen deleted. This document's own
+§12 had recorded *a table that enumerates goes stale; a table that states a rule does not* one
+section earlier, and this section was written as the former in the same commit.
 
-The ticket differs per seam only in what makes two requests the same request:
+What differs per seam is only what makes two requests **the same request**:
+
+- **The catalogue listing** is ticketed on the view — one counter, latest wins, exactly
+  `RenovationProjectStore.hydrate`'s `latestHydration`. It is refreshed by events rather than by a
+  gesture, so two arriving close together is the ordinary case rather than the fast-fingers one.
 
 - **The selection reads** are ticketed on the **selected asset**. Select A, select B before A's
   design read resolves, and A's late answer lands in B's panel: the wrong dimensions under B's
@@ -767,16 +797,16 @@ The ticket differs per seam only in what makes two requests the same request:
   life of the view*, which is exactly the guarantee §5.4 exists to give. A dropped generation
   drops its failures too, or an old refusal paints the struck box over an outline just read.
 
-Neither is a new mechanism here. `ProjectStore.hydrate` and `InspectorStore` each hold a request
-ticket for the identical reason — CLAUDE.md states it as *a store that two things hydrate needs a
-ticket* — and `WriteLedger` carries a per-entity generation for the same question asked of writes.
-This surface is the first with **three** overtakeable reads at once, which is why the rule is
-stated here rather than left to be re-derived per store.
+None of this is a new mechanism. `ProjectStore.hydrate` and `RenovationProjectStore.hydrate` each
+hold a request ticket for the identical reason — CLAUDE.md states it as *a store that two things
+hydrate needs a ticket* — `InspectorStore` holds one too, and `WriteLedger` carries a per-entity
+generation for the same question asked of writes. This surface is simply the first to hold several
+at once, which is why the rule is stated over the category here rather than re-derived per store.
 
-Both were reported by a review bot against this document, one round after §5.4's invalidation
-rule was rewritten and did not mention them. **A section rewritten to close one hole is not a
-section that has been read for the others**, which is now this document's most frequent finding
-and is recorded as such in §12.
+Every one of these was reported by a review bot against this document, across two consecutive
+rounds, each against the section the round before it had just rewritten. **A section rewritten to
+close one hole is not a section that has been read for the others**, which is now this document's
+most frequent finding and is recorded as such in §12.
 
 Search matches on **name, supplier and SKU** — never on notes, which is a free-text field whose
 matches would be unexplainable in a row that does not show it.
@@ -1014,28 +1044,35 @@ Each of these is a thing a reader will reasonably expect, refused for a stated r
 2. **Whether a shelf's expansion state is per leaf or per vault.** Per leaf follows Obsidian's view
    state and is what §6.3 specifies; per vault would be a setting, and settings here write through
    `saveSettings` on every change, which rebinds every view.
-3. **Whether `Delete` belongs on this surface at all.** It is specified here because the *Used in*
+3. **How an unreadable asset sidecar is repaired at all.** §3.5 withdraws `Open designer` for
+   every `asset-geometry.*` refusal because the designer hydrates through the same
+   `GetAssetDesign` and reaches the same `failed` state with only a Retry — so today a corrupt
+   `.rpgeo` is unfixable from inside the plugin, on any surface. The remedy is a designer that
+   can replace or discard a sidecar it cannot read, which is a change to that view and not to
+   this one. Named here because a gap this surface merely *reveals* is still a gap somebody has
+   to schedule, and the withdrawal above is what makes it visible rather than what causes it.
+4. **Whether `Delete` belongs on this surface at all.** It is specified here because the *Used in*
    read the gesture needs is already on screen. The argument against is that a browsing surface with
    a destructive action one Tab from a row is a surface people will be careful on.
-4. **The ceiling on drawing empty shelves** (§3.2). Right at seven, wrong at twenty-five, and the
+5. **The ceiling on drawing empty shelves** (§3.2). Right at seven, wrong at twenty-five, and the
    number in between is a judgement nobody has made. It belongs to whoever ships §84's
    configuration surface, because that is the change that makes the vocabulary long enough to
    matter.
-5. **Whether `Used in` marks the projects that override the price** once §89's override exists
+6. **Whether `Used in` marks the projects that override the price** once §89's override exists
    (§3.5). This is the only screen where *"your correction will not reach these three"* could be
    said, which is an argument for it; it is also a project-scoped fact on a vault-wide surface,
    which is the argument against. Not this document's to settle, and not a builder's to settle
    silently.
-6. **Whether the geometry-event subscription widens the shared catalogue source or adds a
+7. **Whether the geometry-event subscription widens the shared catalogue source or adds a
    fourth one** (§5.4). The picker shares `createAssetCatalogueChangeSource` and would pay for
    any widening of it — re-reading every asset note on a design event it has no use for — so the
    cheap edit is the one with a cost on a surface this document does not own.
-7. **Whether the requirement event vocabulary grows** (§3.5) — `assetId` on the payload, and a
+8. **Whether the requirement event vocabulary grows** (§3.5) — `assetId` on the payload, and a
    `RequirementDeleted` sibling. Together they are what would let *Used in* be live instead of a
    snapshot; without them it can grow a row it will not lose, and the only alternative refresh is
    a vault-wide scan per assignment. A domain-layer addition with consequences past this surface,
    and not a view's to introduce.
-8. **Whether this surface ships a Bases view beside it** (§2a). The epic's Definition of Done is
+9. **Whether this surface ships a Bases view beside it** (§2a). The epic's Definition of Done is
    not discharged by a plugin view, and *"reachable through Bases"* has at least three readings —
    a `.base` file this plugin writes, a documented recipe, or nothing at all on the grounds that a
    user's own Bases view over `type: renovation-asset` already works. Picking one is a product
@@ -1440,6 +1477,40 @@ it has no index, and its fixture is never empty by accident.
 more because it is now this document's whole finding profile: a section rewritten to close one
 hole is not a section that has been read for the others. Rounds twelve, thirteen and fourteen each
 found the previous round's own edit.
+
+A fifteenth round found three, and the first one is this document's own rule broken by the
+section that quotes it.
+
+**§5.5 was written as a list and the next round named the read it left out.** It opened *"three
+reads on this surface are asynchronous"* and enumerated them — while §12, one section away, had
+just recorded *a table that enumerates goes stale; a table that states a rule does not*. The
+missing fourth is `ListCatalogueEntries`: two `AssetUpdated` events arriving close together start
+consecutive vault-wide listings, and the slower earlier one landing last restores assets the
+newer one had seen deleted. It is a rule over the category now — every asynchronous read carries
+a ticket — with the seams as illustration rather than as the contract, so the read somebody adds
+next is covered by a sentence already written.
+
+**`Open designer` was kept for damaged sidecars on a claim about the designer I never checked.**
+The table's reason read *"the designer is where a damaged shape is repaired"*. It is not:
+`GetAssetDesign.execute` is `if (isErr(snapshot)) return snapshot;`, so a sidecar refusal fails
+the whole design read, the designer's store reaches `failed`, and `AssetDesignerRoot` renders a
+`ViewFailure` whose only action is Retry. The button sent the user to a screen repeating the
+refusal they had just left — a live control that does nothing, which slice 14's own amendment
+refuses, and worse than inert because finding out costs a navigation. Withdrawn for every
+`asset-geometry.*` code. **The gap is the designer's, not this surface's** — a corrupt `.rpgeo`
+is unfixable from inside the plugin on any surface today — and §11 carries it as a decision
+rather than this section inventing a repair flow for a view it does not own. The reviewer read
+`AssetDesignerRoot`; I had read the table.
+
+**And `''` is a real path, which a truthiness test cannot say.** `projectFolderOf` is
+`parentOf(path)` and `parentOf` slices to the last `/`, so a `Project.md` at the vault root
+derives the empty string — `joinFolder`'s docblock names that case as the one it exists for. The
+mock's `v-if="use.path"` therefore suppressed exactly the row the path was added to disambiguate,
+drawing it identically to a row whose path was never supplied: the name collision restored, in
+the one member of it with no folder to name, immediately before an edit or a deletion. Tested
+against `undefined` now, with a root label for the empty string, and the fixture carries a
+three-way collision whose third member sits at the root so the state is drawn rather than
+described.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

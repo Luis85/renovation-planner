@@ -68,6 +68,14 @@ export interface UsedIn {
 	 * renders two identical rows for the two things the user is being asked to tell apart,
 	 * immediately before an edit or a deletion.
 	 */
+	/**
+	 * `''` is a REAL answer and not an absence: `projectFolderOf` is `parentOf(path)`, and
+	 * `parentOf` slices to the last `/` — so a `Project.md` sitting at the vault root derives
+	 * the empty string, which `joinFolder`'s own docblock names as the case it exists for.
+	 * A truthiness test therefore suppresses exactly the row it was added to disambiguate, and
+	 * renders it identically to a row whose path was never supplied. The template tests against
+	 * `undefined` and labels the empty string.
+	 */
 	readonly path?: string;
 	readonly requirements: number;
 }
@@ -226,6 +234,10 @@ export const ASSETS: readonly CatalogueAsset[] = [
 		usedIn: [
 			{ project: 'Garden studio', path: 'Renovation/Garden studio', requirements: 4 },
 			{ project: 'Garden studio', path: 'Renovation/Garden studio (2024)', requirements: 2 },
+			// The third of the collision is at the VAULT ROOT, so its derived folder is `''`.
+			// Here rather than as a fourth entry somewhere tidier, because the row only means
+			// anything beside the two it has to be told apart from.
+			{ project: 'Garden studio', path: '', requirements: 1 },
 			{ project: 'Flat renovation, Hamburg', requirements: 11 },
 		],
 	},

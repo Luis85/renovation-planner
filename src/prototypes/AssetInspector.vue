@@ -255,9 +255,9 @@ const shapeNotes = computed((): readonly string[] => {
 					<span class="rp-al-used__project">
 						{{ use.project }}
 						<span
-							v-if="use.path"
+							v-if="use.path !== undefined"
 							class="rp-al-used__path"
-						>{{ use.path }}</span>
+						>{{ use.path === '' ? 'vault root' : use.path }}</span>
 					</span>
 					<span class="rp-al-used__count">{{ use.requirements }}</span>
 				</li>

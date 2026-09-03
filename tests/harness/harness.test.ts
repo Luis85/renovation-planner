@@ -64,17 +64,27 @@ interface Blocks {
 	readonly styles: readonly StyleBlock[];
 	readonly scripts: readonly Script[];
 	/**
-	 * `<template src="./view.html">`. The descriptor's `content` is EMPTY for one of these, so
-	 * compiling it scans nothing, and `.html` is not in `MODULE` — so `sources()` never walks the
-	 * real template either. Both absence checks then pass over a file Vite loads: an
-	 * `import('./theme.css')` in a handler and a `<link rel="stylesheet">` element alike would be
-	 * invisible. Reported, and the same door `<style src>` was already given an answer at.
+	 * Every block that names its content in a `src` instead of holding it — `<template src>` and
+	 * `<script src>` alike. The descriptor's `content` is EMPTY for one of these, so compiling or
+	 * parsing it scans nothing, and the file it names is not walked: `.html` is not in `MODULE`,
+	 * and a `.ts` helper outside the three roots is outside the sweep. So both absence checks
+	 * passed over a file Vite loads — an `import('./theme.css')` in a handler, a
+	 * `<link rel="stylesheet">` in an external template, a stylesheet imported by an external
+	 * script.
 	 *
-	 * Reported under its own name rather than folded into `importers`: an external template does
-	 * not itself load a stylesheet, it is a file this scan cannot see, and saying "loads a
-	 * stylesheet" about it would send the next reader looking for an import that is not there.
+	 * **ONE key rather than one per block type, because this arrived as three separate rounds of
+	 * the same finding.** `<style src>` was answered first (it counts as an importer outright — a
+	 * style block's `src` genuinely IS a stylesheet), `<template src>` second, and `<script src>`
+	 * was reported after both, against a function that handles all three block kinds side by
+	 * side. Fixing the reported door twice and never asking what the third one did is the partial
+	 * fix this repository has a name for, so the question is now asked of BLOCKS rather than of
+	 * the block somebody reported.
+	 *
+	 * Reported under its own name rather than folded into `importers`: an external block does not
+	 * itself load a stylesheet, it is a file this scan cannot read, and saying "loads a
+	 * stylesheet" about it would send the next reader hunting an import that is not there.
 	 */
-	readonly externalTemplate: string | undefined;
+	readonly external: readonly string[];
 }
 
 /**
@@ -105,16 +115,17 @@ const blocksOf = (file: string, text: string): Blocks => {
 			scripts: [
 				{ content: text, kind: KIND_BY_EXTENSION.get(path.extname(file)) ?? ts.ScriptKind.TS },
 			],
-			externalTemplate: undefined,
+			external: [],
 		};
 	}
 	const { descriptor } = parseSfc(text, { filename: file });
-	const scripts: Script[] = [descriptor.script, descriptor.scriptSetup]
-		.filter((block): block is NonNullable<typeof block> => block !== null)
-		.map((block) => ({
-			content: block.content,
-			kind: KIND_BY_LANG.get(block.lang ?? '') ?? ts.ScriptKind.TS,
-		}));
+	const scriptBlocks = [descriptor.script, descriptor.scriptSetup].filter(
+		(block): block is NonNullable<typeof block> => block !== null,
+	);
+	const scripts: Script[] = scriptBlocks.map((block) => ({
+		content: block.content,
+		kind: KIND_BY_LANG.get(block.lang ?? '') ?? ts.ScriptKind.TS,
+	}));
 	if (descriptor.template !== null) {
 		const rendered = compileTemplate({
 			id: file,
@@ -126,7 +137,9 @@ const blocksOf = (file: string, text: string): Blocks => {
 	return {
 		styles: descriptor.styles.map((block) => ({ content: block.content, src: block.src })),
 		scripts,
-		externalTemplate: descriptor.template?.src,
+		external: [descriptor.template?.src, ...scriptBlocks.map((block) => block.src)].filter(
+			(src): src is string => src !== undefined,
+		),
 	};
 };
 
@@ -892,15 +905,15 @@ describe('the browser harness', () => {
 			scans.some((scan) => scan.relative.some((specifier) => escapesTheRoots(file, specifier))),
 		);
 		const linkers = named(({ text }) => sheetLink.test(text));
-		const externalTemplates = named(({ blocks }) => blocks.externalTemplate !== undefined);
+		const externalBlocks = named(({ blocks }) => blocks.external.length > 0);
 		const styleBlocks = sources('tests/harness').filter((file) =>
 			/<style[\s>]/.test(readText(file)),
 		);
 
-		expect({ importers, linkers, externalTemplates, escapees, styleBlocks }).toEqual({
+		expect({ importers, linkers, externalBlocks, escapees, styleBlocks }).toEqual({
 			importers: [],
 			linkers: [],
-			externalTemplates: [],
+			externalBlocks: [],
 			escapees: [],
 			styleBlocks: [],
 		});

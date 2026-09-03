@@ -182,4 +182,17 @@ export const editorEn = {
 	// to draw. The counterpart action is the only thing this state can offer.
 	'editor.unsupported-width.body': '{floor} has {rooms} rooms. Widen the pane or focus this tab to edit.',
 	'editor.unsupported-width.action': 'Focus this tab',
+	// Task 20's status bar additions. `.scale.*` says whether `PlanDto.calibration` is set — a
+	// number would need `t()`'s interpolation for a unit no homeowner reads usefully off a
+	// status bar anyway. `.hint.pan` sits beside `.hint.constrain-angle` under the same
+	// argument that key's own comment already makes: a modifier nothing mentions is a feature
+	// only its author knows about, so the status bar is where it is admitted to.
+	//
+	// Phrased with the key first for the same reason `.hint.constrain-angle` is: the
+	// marketplace's sentence-case rule (`obsidianmd/ui/sentence-case-locale-module`) refuses
+	// a capitalised `Space` mid-sentence — measured, it fails the build — and "hold space to
+	// pan" reads as an instruction to hold down the word rather than the key.
+	'editor.status.scale.calibrated': 'Scale set',
+	'editor.status.scale.uncalibrated': 'Scale not set',
+	'editor.hint.pan': 'Space or the middle button pans',
 } as const;

@@ -143,7 +143,7 @@ describe('a background that cannot be drawn', () => {
 		});
 		await settle();
 
-		expect(harness.wrapper.find('.rp-editor-notice').text()).toBe(t('en', 'editor.background-missing'));
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(t('en', 'editor.background-missing'));
 	});
 
 	it('says something DIFFERENT when the file is there but will not decode', async () => {
@@ -156,13 +156,13 @@ describe('a background that cannot be drawn', () => {
 		});
 		await settle();
 
-		expect(harness.wrapper.find('.rp-editor-notice').text()).toBe(t('en', 'editor.background-failed'));
+		expect(harness.wrapper.find('.rp-warning-strip__item').text()).toBe(t('en', 'editor.background-failed'));
 	});
 
 	it('shows no notice at all for a plan with no background', async () => {
 		harness = await mountPlanEditor();
 
-		expect(harness.wrapper.find('.rp-editor-notice').exists()).toBe(false);
+		expect(harness.wrapper.find('.rp-warning-strip__item').exists()).toBe(false);
 	});
 });
 

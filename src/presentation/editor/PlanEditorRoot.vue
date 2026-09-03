@@ -26,9 +26,11 @@ import PlanCanvas from './PlanCanvas.vue';
 import EditorContextBar from './shell/EditorContextBar.vue';
 import FloatingPrimaryActions from './shell/FloatingPrimaryActions.vue';
 import EntityInspector from './shell/EntityInspector.vue';
+import PersistentWarningStrip from './shell/PersistentWarningStrip.vue';
 import PropertyLayerPanel from './shell/PropertyLayerPanel.vue';
 import ResponsiveEditorShell from './shell/ResponsiveEditorShell.vue';
 import StatusBar from './shell/StatusBar.vue';
+import { editorWarnings } from './shell/warnings';
 import AddMenu from './add/AddMenu.vue';
 import TemporaryToolBanner from './shell/TemporaryToolBanner.vue';
 
@@ -108,6 +110,19 @@ const staleAfterRefresh = computed(() => status.value === 'ready' && stale.value
 const root = ref<HTMLElement | null>(null);
 const { tokens, refresh } = useThemeTokens(root, context.onThemeChange);
 const backgroundStatus = ref<BackgroundStatus>('none');
+
+/**
+ * Task 20's keyed collection over the same three facts the four `<p class="rp-editor-notice">`
+ * blocks used to read independently — see `editorWarnings`' own header for the fixed order and
+ * why the collection replaced four separate `v-if`s.
+ */
+const warnings = computed(() =>
+	editorWarnings({
+		stale: staleAfterRefresh.value,
+		unreadableZones: unreadableZones.value,
+		backgroundStatus: backgroundStatus.value,
+	}),
+);
 
 /**
  * Task 17's Add menu — owned HERE rather than by `FloatingPrimaryActions`, for the same
@@ -284,52 +299,18 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 					PRE-command scene still drawn and an `error` set. Replacing that with a failure panel
 					would hide a plan the user can still work on, to report a read that failed; saying
 					nothing left the indicator reading Saved over a canvas quietly out of date. A strip
-					that persists while the condition does is the shape that fits — the same one the two
-					background notices already use. Reported by a review bot.
+					that persists while the condition does is the shape that fits.
 
-					**Its own `v-if`, and NOT a link in the chain below it, which is how it first
-					shipped.** The two background notices are alternatives to each other — a background
-					is missing or unreadable, never both — so they are one chain. Staleness is an
-					independent fact about a re-READ, and chaining it in front meant a failed read-back
-					suppressed the sentence explaining why the background was absent: two unrelated
-					failures, one of them silently swallowing the other, and the survivor being the one
-					that says nothing about the background. Also reported by a review bot.
+					Task 20 collapsed what used to be four independent `<p class="rp-editor-notice">`
+					blocks — each with its own `v-if`, none sharing an identity Vue could track — into
+					`editorWarnings`, one pure derivation of the same three facts, rendered by
+					`PersistentWarningStrip` keyed on `w.id`. The independence those four blocks were
+					careful to keep (a review bot's own finding: chaining staleness in front of the
+					background notices let a failed read-back silently swallow the sentence explaining
+					an absent background) is now a property of `editorWarnings`' fixed order rather than
+					of four separate template conditions agreeing not to chain.
 				-->
-				<p
-					v-if="staleAfterRefresh"
-					class="rp-editor-notice"
-					role="status"
-				>
-					{{ tr('editor.refresh-failed') }}
-				</p>
-				<!--
-					Its OWN `v-if`, never chained into the background `v-if`/`v-else-if` below, for the
-					reason the block above already paid for: "some zones could not be read" and "this
-					plan's background is missing" are independent facts, and a plan can have both. As a
-					link in that chain, one of them silently swallows the other — measured, by making it
-					one and watching `unreadableZonesNotice.test.ts`'s third case go red.
-				-->
-				<p
-					v-if="unreadableZones > 0"
-					class="rp-editor-notice"
-					role="status"
-				>
-					{{ tr('editor.some-zones-unreadable', { count: String(unreadableZones) }) }}
-				</p>
-				<p
-					v-if="backgroundStatus === 'missing'"
-					class="rp-editor-notice"
-					role="status"
-				>
-					{{ tr('editor.background-missing') }}
-				</p>
-				<p
-					v-else-if="backgroundStatus === 'unreadable'"
-					class="rp-editor-notice"
-					role="status"
-				>
-					{{ tr('editor.background-failed') }}
-				</p>
+				<PersistentWarningStrip :warnings="warnings" />
 			</template>
 			<template #status>
 				<StatusBar :active-tool-id="runtime.activeToolId.value" />

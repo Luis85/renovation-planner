@@ -18,6 +18,7 @@ import {
 	screenToWorld,
 	STAGE_PIXELS,
 } from '../../../src/presentation/editor/viewport/Viewport';
+import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
 import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import {
 	fakeQueries,
@@ -98,10 +99,16 @@ describe('the five regions', () => {
 		expect(saveState.text()).toBe(t('en', 'save-state.saved'));
 	});
 
+	/**
+	 * Scoped to `.rp-editor-plan-name` rather than the whole `.rp-editor-status` group: Task
+	 * 20 added a pan-override hint to that same region, shown under Select — the tool a fresh
+	 * canvas arms by default (design spec §7.3/task 10) — so the group's full text now
+	 * includes it too.
+	 */
 	it('shows the plan name in the status region', async () => {
 		const harness = await mountCanvas();
 
-		expect(harness.wrapper.find('.rp-editor-status').text()).toBe(FIXTURE_PLAN.name);
+		expect(harness.wrapper.find('.rp-editor-plan-name').text()).toBe(FIXTURE_PLAN.name);
 	});
 
 	/**
@@ -265,6 +272,32 @@ describe('the measurements readout', () => {
 		await settle();
 
 		expect(harness.wrapper.find('.rp-editor-measurements').text()).toContain('—');
+	});
+});
+
+describe('the persistent warning strip', () => {
+	/**
+	 * Task 20's keyed collection over the four independent `<p class="rp-editor-notice">`s
+	 * this replaced: `:key="w.id"` is what keeps a warning's identity when a second one
+	 * arrives or leaves, so this asserts on `data-rp-warning` rather than on position or
+	 * translated text alone, and asserts the count both before and after one clears.
+	 */
+	it('keys each warning by its id, and drops one when its own condition clears', async () => {
+		const harness = await mountCanvas({ unreadableZones: 1 });
+		const store = useProjectStore(harness.pinia);
+		store.stale = true;
+		await settle();
+
+		let items = harness.wrapper.findAll('.rp-warning-strip__item[role="status"]');
+		expect(items).toHaveLength(2);
+		expect(items.map((item) => item.attributes('data-rp-warning'))).toStrictEqual(['stale', 'unreadable-zones']);
+
+		store.stale = false;
+		await settle();
+
+		items = harness.wrapper.findAll('.rp-warning-strip__item[role="status"]');
+		expect(items).toHaveLength(1);
+		expect(items[0].attributes('data-rp-warning')).toBe('unreadable-zones');
 	});
 });
 

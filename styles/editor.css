@@ -213,7 +213,13 @@
 	text-align: center;
 }
 
-.rp-editor-notice {
+/*
+ * Task 20's keyed warning strip, over the four independent `.rp-editor-notice` blocks this
+ * rule replaces — same declarations, new name: `PersistentWarningStrip.vue` renders each
+ * warning as `.rp-warning-strip__item`, keyed on its own id, inside one `.rp-warning-strip`
+ * container that adds no styling of its own beyond what stacking its children already gives.
+ */
+.rp-warning-strip__item {
 	margin: 0;
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-smaller);

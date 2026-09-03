@@ -37,7 +37,7 @@ const planNamingABackground = (): PlanDto => ({
 });
 
 const notices = (mounted: EditorHarness): readonly string[] =>
-	mounted.wrapper.findAll('.rp-editor-notice').map((notice) => notice.text());
+	mounted.wrapper.findAll('.rp-warning-strip__item').map((notice) => notice.text());
 
 describe('the canvas reports zones it could not read', () => {
 	it('draws a counted notice when some zone notes refused', async () => {

@@ -290,6 +290,24 @@ describe('ProjectStore hydration', () => {
 		expect(store.project?.name).toBe('Willow House');
 	});
 
+	/**
+	 * [[Project-hydration fakes ignore the requested project ID]]: neither `fakeQueries` nor
+	 * `harnessDeps().queries` used to consult the id passed to `getProject` — they answered
+	 * their fixture project for ANY id — so a `hydrate` that asked for the wrong field (the
+	 * plan's OWN id, say, rather than `foundPlan.value.projectId`) would still have read back
+	 * the right project by coincidence. This spies on the fake's own `getProject` to assert
+	 * the ARGUMENT the store actually calls it with, which only discriminates once the fake
+	 * itself is honest about the id it was given.
+	 */
+	it('asks for the PLAN\'s project, by the id the plan carries', async () => {
+		const store = useProjectStore();
+		const getProject = vi.fn<PlanEditorQueryServices['getProject']>(fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES).getProject);
+		await store.hydrate({ ...fakeQueries(FIXTURE_PLAN, FIXTURE_ZONES), getProject }, FIXTURE_PLAN.id);
+		expect(getProject).toHaveBeenCalledTimes(1);
+		expect(getProject).toHaveBeenCalledWith(FIXTURE_PLAN.projectId);
+		expect(store.project?.name).toBe('Willow House');
+	});
+
 	it('fails the hydration when the project read fails, like a failed plan read', async () => {
 		const store = useProjectStore();
 		const failingProject = {

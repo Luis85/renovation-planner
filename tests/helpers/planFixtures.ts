@@ -148,7 +148,11 @@ export function fakeQueries(
 ): PlanEditorQueryServices {
 	return {
 		getPlan: () => Promise.resolve(ok(plan)),
-		getProject: () => Promise.resolve(ok(FIXTURE_PROJECT)),
+		// Honours the requested id — the real query answers `ok(null)` for a project it does
+		// not recognise, and a fake that answered `FIXTURE_PROJECT` for any id could not tell
+		// a `hydrate` that asks for the right field (a plan's `projectId`) from one that asks
+		// for the wrong one. See [[Project-hydration fakes ignore the requested project ID]].
+		getProject: (id) => Promise.resolve(ok(id === FIXTURE_PROJECT.id ? FIXTURE_PROJECT : null)),
 		findZonesByPlan: () => Promise.resolve(ok({ zones, unreadable })),
 		...emptyRequirementReads(),
 	};

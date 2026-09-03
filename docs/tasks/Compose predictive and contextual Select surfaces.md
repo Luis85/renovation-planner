@@ -75,3 +75,10 @@ now carries the resolver's KIND beside its id (`RenderState.hoveredTargetKind`, 
 the erasure it described no longer happens. Closes [[A handle hover renders the body-selection
 cursor]] and, with the retirement watcher clearing a hovered id the hydrated map no longer holds,
 [[A deleted hover target keeps the target cursor active]].
+
+**2026-09-04** — criterion 1's citation, `selectTool.test.ts`'s 'a hover with no gesture predicts
+the same target a click there would take', now proves the claim end to end rather than only
+predicting a hover in isolation: it hovers two overlapping candidates, captures the prediction,
+then drives a real `pointerDown`/`pointerUp` at the same point and asserts the selection matches
+it — the case it replaces invoked only `pointerMove`, twice, and never compared a predicted hover
+against a click's own outcome. Closes [[The hover-click agreement test never clicks]].

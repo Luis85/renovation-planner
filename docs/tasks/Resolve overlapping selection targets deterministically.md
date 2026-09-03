@@ -23,7 +23,8 @@ Centralize hit candidates and priority, make hover use the same resolution as se
 
 ## Acceptance criteria
 
-- Identical candidate sets resolve identically regardless of layer iteration order.
+- The same ordered candidate list resolves identically; z-order (bottom first) is the input, and
+  reversing it selects the newly topmost body.
 - Hover predicts the record a click selects.
 - Alternate selection can reach lower-priority candidates.
 - Priority cases are tested with overlapping fixtures.
@@ -51,3 +52,13 @@ the two degenerate-input cases). Criterion 2 is
 Criterion 3 is out of scope by spec §6.1: this increment has ONE record type, so the only overlap
 is a room over a room, and the resolver's shape leaves room for cycling rather than implementing
 it. No alternate route to a lower-priority candidate exists.
+
+**2026-09-04** — criterion 1's evidence moves to
+`resolveSelectionTarget.test.ts`'s 'is a function of z-order: the same ordered list answers the
+same, and reversing it makes the other body topmost', which replaces a case that computed both
+sides of its equality from the SAME `[below, above]` order — a call repeated rather than a
+discriminating one, unable to detect nondeterminism or an accidental reversal of the z-order rule.
+The criterion's own wording is rewritten to state that rule rather than "regardless of layer
+iteration order", which the resolver was never meant to hold: `candidates` IS z-order, bottom
+first, and the resolver deliberately scans it in reverse so the last-drawn body wins. Closes
+[[The overlap-order test repeats the same candidate order]].

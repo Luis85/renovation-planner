@@ -128,5 +128,4 @@ Remains:
   Recorded at [[Distinguish empty unreadable and unavailable floor data]], which stays **Active**
   for it.
 
-- [[The partial-summary test never checks the area count]]
 - [[The completed floor-summary task promises a stale aggregate no model can represent]]

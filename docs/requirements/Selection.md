@@ -147,7 +147,23 @@ cleared out from under a hand still moving the mouse is worse than the drag bein
 by `escapeRouting.test.ts`'s "Select mid-drag cancels the drag before it would clear the
 selection" case. **2026-09-04** — §6.3 was amended to this order; it is the contract now, not a deviation.
 
+**2026-09-04** — criteria 1, 2 and 3's evidence is replaced by three stronger cases from the
+instrument-review task. Criterion 1's evidence is
+`tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
+outline, pressed list row and Inspector all carry zone-kitchen', which drives one real primary
+click through the mounted canvas rather than writing `SelectionStore` directly, and reads the
+`SelectionStore` id, the named `.selection-outline` line and the Inspector's `data-rp-id` in the
+same mount — the case it replaces never crossed the canvas-to-selection boundary. Criterion 2's
+evidence is `resolveSelectionTarget.test.ts`'s 'is a function of z-order: the same ordered list
+answers the same, and reversing it makes the other body topmost', which replaces a case that
+computed both sides of its equality from the identical candidate order and so could not detect
+nondeterminism or an accidental reversal of the z-order rule. Criterion 3's evidence is
+`selectTool.test.ts`'s rewritten 'a hover with no gesture predicts the same target a click there
+would take', which now drives a real `pointerDown`/`pointerUp` at the hovered point over two
+overlapping candidates and asserts the selection lands on the predicted id, rather than only
+comparing two hovers. Closes [[The cross-surface identity test starts after selection]],
+[[The overlap-order test repeats the same candidate order]] and
+[[The hover-click agreement test never clicks]].
+
 - [[A deleted hover target keeps the target cursor active]]
 - [[A handle hover renders the body-selection cursor]]
-- [[The overlap-order test repeats the same candidate order]]
-- [[The hover-click agreement test never clicks]]

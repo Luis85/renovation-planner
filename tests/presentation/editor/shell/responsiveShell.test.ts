@@ -22,7 +22,7 @@ import {
 	settle,
 	type EditorHarness,
 } from '../../../helpers/editor';
-import { connectedObservers, resizeTo } from '../../../helpers/layout';
+import { clientWidthFor, connectedObservers, resizeTo } from '../../../helpers/layout';
 import { click, pointer } from '../../../helpers/planEditorRig';
 import { FIXTURE_ZONES } from '../../../helpers/planFixtures';
 
@@ -39,6 +39,30 @@ function escapeOn(element: Element): void {
 }
 
 describe('the responsive shell', () => {
+	/**
+	 * [[The fake ResizeObserver hides removal of the mount-time measurement]]: every other case
+	 * here reads `harness.rootEl.dataset.layout` only after a `resizeTo` call, which supplies
+	 * the width through the fake observer's callback — the same path `ResponsiveEditorShell`'s
+	 * OWN `onMounted` read would also have reached, since the fake observer never fires on its
+	 * own. So removing that direct `onMounted` `measure()` call left every existing case here
+	 * green, because none of them ever asked what the layout was BEFORE the first `resizeTo`.
+	 * `clientWidthFor` gives the shell root a real width ahead of mount, through
+	 * `Element.prototype.clientWidth` itself rather than through the fake observer, and
+	 * `skipShellSizing` stops the harness's own post-mount `resizeTo` from supplying that same
+	 * width a second way — so this case can only pass if the direct read inside `onMounted`
+	 * is what set the mode.
+	 */
+	it('derives its first layout from the mounted root\'s real width, before any observer callback', async () => {
+		const restore = clientWidthFor((el) => (el.classList.contains('rp-editor-shell') ? 460 : 0));
+		try {
+			const harness = await mountPlanEditor({ skipShellSizing: true });
+			open = harness;
+			expect(harness.rootEl.dataset.layout).toBe('constrained');
+		} finally {
+			restore();
+		}
+	});
+
 	it('moves from full to constrained without remounting the canvas', async () => {
 		const harness = await mountPlanEditorCanvas();
 		open = harness;

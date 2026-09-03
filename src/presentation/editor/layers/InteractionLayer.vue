@@ -220,6 +220,7 @@ function vertexFill(index: number): string {
 		<template v-if="selectedFlat !== null">
 			<VLine
 				:config="{
+					name: 'selection-outline',
 					points: selectedFlat,
 					closed: true,
 					stroke: props.tokens.accent,

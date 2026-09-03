@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Selection]]"
 order: 70
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -57,6 +57,18 @@ In one overlapping-candidate fixture, hover the point, capture the predicted ID,
 primary click grammar (`pointerDown` plus `pointerUp`) at the same point and assert the selected
 ID equals that prediction. Keep the off-target hover assertion separately; mutate either path to
 choose the lower candidate and watch the agreement case fail.
+
+## What closed it
+
+**2026-09-04.** The case now hovers a point inside two overlapping candidates, captures the
+predicted id, then sends a real primary click grammar (`pointerDown` plus `pointerUp`) at the
+same point and asserts the selected id equals that prediction — the off-target hover assertion
+is kept as a separate step in the same case. Holding test:
+`tests/presentation/editor/tools/selectTool.test.ts` › 'SelectTool' › "a hover with no gesture
+predicts the same target a click there would take"; mutation-checked by making `pointerDown`
+select `candidates[0]` unconditionally for a body hit (red, `['zone-below']` where
+`['zone-above']` was expected; reverted). Commit "test(editor): fakes that respect the id and
+the width, and six cases whose bodies now hold what their names claim".
 
 ## References
 

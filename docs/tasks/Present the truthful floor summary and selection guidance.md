@@ -62,6 +62,9 @@ sums their area' beside `tests/presentation/editor/shell/floorInspector.test.ts`
 selected shows the floor summary: counts available, unbuilt aggregates unavailable, never zero'.
 Criterion 2's available/partial/unavailable arms are 'marks every count partial when some zones
 were unreadable, carrying the number' and 'never fabricates a planned-change count or a cost'.
+**2026-09-04** — that first case's assertions now include `areaCount`, not only `roomCount`: it
+was named for every count staying partial and had checked only two of the three, which is
+[[The partial-summary test never checks the area count]], closed.
 Criterion 3 is that a partial total is a total OVER WHAT WAS READ and says so, rather than being
 rounded up to available. Criterion 4 is met by there being nothing to recompute: `estimatedCost`
 is `unavailable` in this increment, because no floor-level cost query exists. Criteria 5 and 6 are

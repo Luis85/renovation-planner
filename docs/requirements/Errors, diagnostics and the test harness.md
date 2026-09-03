@@ -60,8 +60,6 @@ A failure has one path from where it happened to what the user sees, and an arch
 violation is refused by a gate rather than by a reviewer noticing — including violations in
 code nobody has written yet.
 
-- [[Project-hydration fakes ignore the requested project ID]]
-- [[The fake ResizeObserver hides removal of the mount-time measurement]]
 - [[The smoke-test census omits the newest case]]
 - [[The completed implementation plan leaves every tracking box open]]
 - [[The plan-editor manual case has never run in a vault]]

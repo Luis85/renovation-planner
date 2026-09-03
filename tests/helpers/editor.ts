@@ -58,6 +58,17 @@ export interface EditorHarnessOptions {
 	/** The write side; defaults to the refusal commands, for tests that dispatch nothing. */
 	readonly commands?: PlanEditorCommandServices;
 	readonly vault?: BackgroundVault;
+	/**
+	 * Skip the ordinary post-mount `resizeTo` this harness otherwise gives the shell root, so a
+	 * case can size the root a different way — `clientWidthFor` (`tests/helpers/layout.ts`) —
+	 * and read the layout `ResponsiveEditorShell.onMounted` derives BEFORE its `ResizeObserver`
+	 * ever fires. `rootEl` is still located; only the resize is skipped.
+	 *
+	 * [[The fake ResizeObserver hides removal of the mount-time measurement]]: every OTHER
+	 * mount path calls `resizeTo` right after mounting, which supplies the width through the
+	 * observer callback and leaves the direct `onMounted` read unable to be told apart from it.
+	 */
+	readonly skipShellSizing?: boolean;
 }
 
 export interface EditorHarness {
@@ -146,13 +157,17 @@ const SHELL_HEIGHT_PX = 800;
  * It THROWS when there is no shell root, rather than answering `null` for callers to check: the
  * shell renders unconditionally, so its absence means the tree failed to mount and every
  * assertion after this point would be about markup that is not there.
+ *
+ * `skipResize` is the one door that gives that width some OTHER way — `clientWidthFor`
+ * (`tests/helpers/layout.ts`) ahead of mount — and still wants the root located: every other
+ * caller leaves it unset, so this stays the same call it always was for them.
  */
-export function sizedShellRoot(container: HTMLElement): HTMLElement {
+export function sizedShellRoot(container: HTMLElement, options: { readonly skipResize?: boolean } = {}): HTMLElement {
 	const root = container.querySelector<HTMLElement>('.rp-editor-shell');
 	if (root === null) {
 		throw new Error('the mounted editor has no .rp-editor-shell root to size');
 	}
-	resizeTo(root, SHELL_WIDTH_PX, SHELL_HEIGHT_PX);
+	if (options.skipResize !== true) resizeTo(root, SHELL_WIDTH_PX, SHELL_HEIGHT_PX);
 	return root;
 }
 
@@ -278,7 +293,7 @@ export async function mountPlanEditor(options: EditorHarnessOptions = {}): Promi
 	// `unsupported`: no canvas at all. So every mounted editor in the suite would sit in a
 	// state no real pane is ever in unless the harness gives its root a width, exactly as it
 	// already gives the canvas container one two blocks below.
-	const rootEl = sizedShellRoot(wrapper.element as HTMLElement);
+	const rootEl = sizedShellRoot(wrapper.element as HTMLElement, { skipResize: options.skipShellSizing === true });
 
 	await settle();
 

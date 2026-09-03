@@ -32,10 +32,19 @@ describe('resolveSelectionTarget', () => {
 	it('a vertex of an UNSELECTED record is just a body hit', () => {
 		expect(resolveSelectionTarget({ ...base, worldPoint: { x: 1010, y: 1010 } })).toEqual({ kind: 'body', id: 'above' });
 	});
-	it('resolves the same target regardless of the order the same candidates arrive in, once z-order is fixed', () => {
-		const a = resolveSelectionTarget({ ...base, worldPoint: { x: 700, y: 700 } });
-		const b = resolveSelectionTarget({ ...base, candidates: [below, above], worldPoint: { x: 700, y: 700 } });
-		expect(a).toEqual(b);
+	/**
+	 * [[The overlap-order test repeats the same candidate order]]: the case this replaces
+	 * computed both values from the SAME `[below, above]` order, so it was the same call
+	 * repeated and could not detect nondeterminism or an accidental reversal of the z-order
+	 * rule. `candidates` is z-order, bottom first (design spec §6.1), and
+	 * `resolveSelectionTarget` deliberately scans it in reverse so the LAST drawn body wins —
+	 * so the discriminating property is that the same ORDERED list is stable, and reversing
+	 * that order makes the other body newly topmost.
+	 */
+	it('is a function of z-order: the same ordered list answers the same, and reversing it makes the other body topmost', () => {
+		const at = { x: 700, y: 700 };
+		expect(resolveSelectionTarget({ ...base, worldPoint: at })).toEqual(resolveSelectionTarget({ ...base, worldPoint: at }));
+		expect(resolveSelectionTarget({ ...base, candidates: [above, below], worldPoint: at })).toEqual({ kind: 'body', id: 'below' });
 	});
 
 	// Two arms the six cases above never drive, each a coverage-floor requirement rather than

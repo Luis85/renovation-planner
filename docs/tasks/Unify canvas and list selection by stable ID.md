@@ -48,3 +48,10 @@ matching the current selection pressed, and no other'. Criterion 3 is the Inspec
 by `selectedIds` (`tests/presentation/editor/shell/floorInspector.test.ts` for the empty arm).
 Criterion 4 is `tests/presentation/editor/tools/selectTool.test.ts`'s 'a near-zero pointerUp is a
 pure selection — no command, no history entry'.
+
+**2026-09-04** — criterion 1's citation moves to
+`tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
+outline, pressed list row and Inspector all carry zone-kitchen', for the reason
+[[The cross-surface identity test starts after selection]] gives: the case it replaces wrote
+`SelectionStore` directly and never crossed the canvas-to-selection boundary the criterion is
+about.

@@ -53,3 +53,9 @@ is what pins it surviving the frame/body split. Criterion 5 is
 `tests/presentation/editor/shell/floorInspector.test.ts`. The room name is an `<h3>` under the
 frame's `<h2>` rather than a second `<h2>`, which is a heading-order decision stated in
 `RoomInspector.vue`'s own docblock and graded by `tests/harness/accessibility.test.ts`.
+
+**2026-09-04** — criterion 1's citation moves to the click-driven case:
+`tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
+outline, pressed list row and Inspector all carry zone-kitchen', for the reason
+[[The cross-surface identity test starts after selection]] gives — the case it replaces wrote
+`SelectionStore` directly and never drove a canvas click.

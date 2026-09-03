@@ -48,6 +48,7 @@ describe('buildFloorSummary', () => {
 	it('marks every count partial when some zones were unreadable, carrying the number', () => {
 		const summary = buildFloorSummary({ ...input, unreadable: 2 });
 		expect(summary.roomCount).toEqual({ state: 'partial', value: 1, unreadable: 2 });
+		expect(summary.areaCount).toEqual({ state: 'partial', value: 1, unreadable: 2 });
 		expect(summary.totalAreaMm2.state).toBe('partial');
 	});
 

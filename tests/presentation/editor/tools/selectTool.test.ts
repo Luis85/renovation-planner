@@ -222,18 +222,30 @@ describe('SelectTool', () => {
 		expect(h.context.renderState.hoveredTargetKind).toBeNull();
 	});
 
+	/**
+	 * [[The hover-click agreement test never clicks]]: the case this replaces only invoked
+	 * `pointerMove`, twice, and never compared a predicted hover against a click's own
+	 * outcome — a resolver moved onto a different order or target mapping for one path and
+	 * not the other could have left it green. This is `resolveSelectionTarget` asked by
+	 * `pointerMove` and then by a real primary click grammar (`pointerDown` plus
+	 * `pointerUp`) over the SAME overlapping candidates, and it asserts the click actually
+	 * lands on what the hover predicted.
+	 */
 	it('a hover with no gesture predicts the same target a click there would take', () => {
-		// This is `resolveSelectionTarget` asked by `pointerMove` rather than by `pointerDown` —
-		// the same question, so the cursor's promise and the click's outcome cannot disagree.
-		const candidates = [{ id: 'zone-a', points: squarePoints(0, 0) }];
+		const candidates = [{ id: 'zone-below', points: squarePoints(0, 0) }, { id: 'zone-above', points: squarePoints(50, 50) }];
 		const h = harness();
 		const tool = build(h, candidates);
 		tool.activate(h.context);
 
-		tool.pointerMove(eventAt(50, 50)); // inside the body, nothing pressed
-		expect(h.context.renderState.hoveredObjectId).toBe('zone-a');
+		tool.pointerMove(eventAt(75, 75)); // inside both; the topmost body is the prediction
+		const predicted = h.context.renderState.hoveredObjectId;
+		expect(predicted).toBe('zone-above');
 
-		tool.pointerMove(eventAt(9999, 9999)); // off every body
+		tool.pointerDown(eventAt(75, 75));
+		tool.pointerUp(eventAt(75, 75));
+		expect(h.context.selection.selectedIds.map(String)).toEqual([predicted]);
+
+		tool.pointerMove(eventAt(9999, 9999));
 		expect(h.context.renderState.hoveredObjectId).toBeNull();
 	});
 

@@ -3,19 +3,34 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { ref } from 'vue';
 import { createPinia, setActivePinia } from 'pinia';
 import { mount } from '@vue/test-utils';
+import type Konva from 'konva';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { useProjectStore } from '../../../../src/presentation/stores/ProjectStore';
+import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
 import { EDITOR_RUNTIME, type EditorRuntime } from '../../../../src/presentation/editor/runtime';
 import { PLAN_EDITOR_CONTEXT, type PlanEditorContext } from '../../../../src/presentation/editor/PlanEditorContext';
 import type { InspectorDto } from '../../../../src/presentation/editor/inspector/inspector-store';
 import type { ZoneDto } from '../../../../src/presentation/read-models/PlanDto';
+import { STAGE_PIXELS, worldToScreen } from '../../../../src/presentation/editor/viewport/Viewport';
 import RoomInspector from '../../../../src/presentation/editor/shell/RoomInspector.vue';
 import HomeownerQuestionNav from '../../../../src/presentation/editor/shell/HomeownerQuestionNav.vue';
 import LinkedContentList from '../../../../src/presentation/editor/shell/LinkedContentList.vue';
 import { recorder } from '../../../helpers/logger';
 import { mountPlanEditorCanvas, settle, type CanvasHarness } from '../../../helpers/editor';
+import { click } from '../../../helpers/planEditorRig';
 import { fakeQueries, FIXTURE_PLAN, FIXTURE_ZONES } from '../../../helpers/planFixtures';
+
+/**
+ * The interaction layer, by the same `.interaction` name
+ * `tests/presentation/editor/interactionLayer.test.ts` finds it under — duplicated locally
+ * rather than imported, because that file keeps it as a private helper of its own suite.
+ */
+function interactionLayer(stage: Konva.Stage | null): Konva.Layer {
+	const layer = stage?.findOne<Konva.Layer>('.interaction');
+	if (layer === undefined) throw new Error('expected a mounted interaction layer');
+	return layer;
+}
 
 /**
  * The Room Inspector (Task 16, component library §8): `InspectorPanel.vue`'s body renamed
@@ -42,10 +57,31 @@ afterEach(() => {
 });
 
 describe('the Room Inspector, through the real mounted editor', () => {
-	it('heading, canvas selection and Inspector share one id; the type and floor are homeowner words', async () => {
+	/**
+	 * [[The cross-surface identity test starts after selection]]: the case this replaces wrote
+	 * `SelectionStore` directly and never crossed the canvas-to-selection boundary, so a
+	 * regression that stopped a canvas click from selecting, or that suppressed the selected
+	 * outline, left it green. This one drives one real primary click through the mounted
+	 * canvas and reads the store, the named selection outline and the Inspector — three of
+	 * the design's four surfaces.
+	 *
+	 * The FOURTH — the Room-list row reading pressed — cannot be asserted in this same mount:
+	 * `EntityInspector` renders `FloorInspector` (and with it `RoomSummaryList`) only while
+	 * `selectedIds.length === 0`, so the instant this click selects Kitchen, the row this case
+	 * would read is unmounted. That clause is held instead by
+	 * `roomSummaryList.test.ts`'s existing 'marks the row matching the current selection
+	 * pressed, and no other', which selects the same stable id from the store the click above
+	 * writes to and reads `aria-pressed` on the matching row.
+	 */
+	it('one real click on Kitchen: store, named outline, pressed list row and Inspector all carry zone-kitchen', async () => {
 		harness = await mountPlanEditorCanvas();
-		useSelectionStore().select(['zone-kitchen' as never]);
+		const editor = useEditorStore();
+		const inKitchen = worldToScreen({ x: 2000, y: 1500 }, editor.viewport, STAGE_PIXELS);
+		click(harness.canvasEl, inKitchen.x, inKitchen.y);
 		await settle();
+
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
+		expect(interactionLayer(harness.stage).find('.selection-outline')).toHaveLength(1);
 		const room = harness.wrapper.find('.rp-room-inspector');
 		expect(room.attributes('data-rp-id')).toBe('zone-kitchen');
 		expect(room.find('h3').text()).toBe('Kitchen');

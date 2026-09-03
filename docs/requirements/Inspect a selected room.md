@@ -129,6 +129,17 @@ no traversal: step 9 of [[Open a floor and select a room]] is the one place this
 opened under a real keyboard, and it watches Escape's focus return rather than a Tab out — so
 the traversal itself is measured by nothing today.
 
+**2026-09-04** — criterion 1 closed by the instrument-review task. The citation moves to
+`tests/presentation/editor/shell/roomInspector.test.ts`'s 'one real click on Kitchen: store, named
+outline, pressed list row and Inspector all carry zone-kitchen', which drives one real primary
+click through the mounted canvas — the case it replaces wrote `SelectionStore` directly and never
+crossed that boundary. Three of the four cross-surface facts are read from that one mount: the
+`SelectionStore` id, the named `.selection-outline` outline and the Inspector's `data-rp-id`. The
+fourth — the Room-list row reading pressed — cannot be read from the same mount, because
+`EntityInspector` unmounts `FloorInspector` (and with it `RoomSummaryList`) the instant a room is
+selected; it is held instead by `roomSummaryList.test.ts`'s existing 'marks the row matching the
+current selection pressed, and no other'.
+
 Remains:
 
 - **`TransformationSummary` and every available route.**
@@ -140,5 +151,4 @@ Remains:
   additive warning strip; `stale` reaches exactly one computed in `PlanEditorRoot.vue` and feeds
   that strip alone, so Delete stays live over data the last read-back could not confirm. Recorded
   at [[Preserve room inspection across layout and read changes]].
-- [[The cross-surface identity test starts after selection]]
 - [[The Inspector's two unavailable lists are separate navigation models]]

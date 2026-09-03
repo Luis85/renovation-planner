@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Inspect a selected room]]"
 order: 10
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -83,6 +83,25 @@ case while an Inspector-only assertion still passes.
 
 Until that case exists, amend the PBI and task evidence to describe the narrower Inspector DTO
 check rather than marking the cross-surface criterion met.
+
+## What closed it
+
+**2026-09-04.** `InteractionLayer.vue`'s selected `VLine` carries `name: 'selection-outline'`,
+matching the hover line's existing `name: 'hover-outline'`. Holding test:
+`tests/presentation/editor/shell/roomInspector.test.ts` › 'the Room Inspector, through the real
+mounted editor' › "one real click on Kitchen: store, named outline, pressed list row and
+Inspector all carry zone-kitchen", which drives one real primary click through the mounted
+canvas and asserts, in one case, the resulting `SelectionStore` id, the named
+`.selection-outline` Konva line and the Room Inspector's `data-rp-id` — three of the four
+cross-surface facts; mutation-checked by bypassing the canvas selection write (red at
+`selectedIds`) and by suppressing the selected line (red at `find('.selection-outline')`), both
+reverted. The fourth fact — the Room-list row reading pressed — cannot be read from that same
+mount: `EntityInspector` renders `FloorInspector` (and with it `RoomSummaryList`) only while
+`selectedIds.length === 0`, so the row this click would select is unmounted the instant it
+selects. That clause is held instead by the existing
+`tests/presentation/editor/shell/roomSummaryList.test.ts` › "marks the row matching the current
+selection pressed, and no other". Commit "test(editor): fakes that respect the id and the
+width, and six cases whose bodies now hold what their names claim".
 
 ## References
 

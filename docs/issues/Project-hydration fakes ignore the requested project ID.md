@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Errors, diagnostics and the test harness]]"
 order: 50
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -62,6 +62,19 @@ editor's plan id.
 
 Make the shared fakes respect the requested project id, and assert the `getProject` argument in
 the store hydration case so the wrong-field mutation fails.
+
+## What closed it
+
+**2026-09-04.** `fakeQueries.getProject` (`tests/helpers/planFixtures.ts`) and
+`harnessDeps().queries.getProject` (`tests/harness/planEditor.ts`) both answer `ok(FIXTURE_
+PROJECT)`/`ok(HARNESS_PROJECT)` only for the id that project actually carries, and `ok(null)`
+for any other — the same shape the real query has. Holding test:
+`tests/presentation/stores/stores.test.ts` › 'ProjectStore hydration' › "asks for the PLAN's
+project, by the id the plan carries", which spies on the fake's own `getProject` and asserts
+`toHaveBeenCalledWith(FIXTURE_PLAN.projectId)`; mutation-checked by changing
+`ProjectStore.hydrate`'s call to `queries.getProject(planId)` (the plan's own id rather than its
+`projectId`) — red at `toHaveBeenCalledWith`, reverted. Commit "test(editor): fakes that respect
+the id and the width, and six cases whose bodies now hold what their names claim".
 
 ## References
 

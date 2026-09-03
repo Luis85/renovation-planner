@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Errors, diagnostics and the test harness]]"
 order: 60
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -61,6 +61,20 @@ fake makes its removal invisible.
 Add a mount case that establishes a non-zero shell width before mount and verifies the mode
 before any `resizeTo` callback, or provide a focused fake mode that can drive the mount-time path
 without also firing the observer.
+
+## What closed it
+
+**2026-09-04.** `clientWidthFor` (`tests/helpers/layout.ts`) overrides
+`Element.prototype.clientWidth` directly, ahead of mount, so a shell root can be given a real
+width before `ResponsiveEditorShell`'s `onMounted` ever reads it — a path the fake
+`ResizeObserver` cannot reach, since it fires only through `resizeTo`. `EditorHarnessOptions.
+skipShellSizing` stops the harness's own post-mount `resizeTo` from supplying that same width a
+second way, so the new case can only pass if the direct `onMounted` read is what set the mode.
+Holding test: `tests/presentation/editor/shell/responsiveShell.test.ts` › 'the responsive shell'
+› "derives its first layout from the mounted root's real width, before any observer callback",
+mutation-checked by deleting `measure()` from `onMounted` (red at `'full'`, the store default;
+reverted). Commit "test(editor): fakes that respect the id and the width, and six cases whose
+bodies now hold what their names claim".
 
 ## References
 

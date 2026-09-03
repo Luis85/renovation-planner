@@ -140,11 +140,6 @@ export const HARNESS_ZONES: readonly ZoneDto[] = [
 export function harnessDeps(): PlanEditorDeps {
 	return {
 		queries: {
-			// Ignores the plan id it is given and always answers `HARNESS_PLAN` — the real
-			// query answers `ok(null)` for one it does not recognise. Fine while only
-			// `mountPlanEditorHarness` called this with `HARNESS_PLAN.id`; worth stating now
-			// that exporting `harnessDeps` widens the audience to whatever id a caller passes.
-			//
 			// **A fresh DTO per call, not the constant.** The real query builds its DTOs from
 			// notes it just read, so every caller gets objects of its own; handing back the
 			// module constant made this fake THINNER than the thing it stands in for, and
@@ -155,7 +150,11 @@ export function harnessDeps(): PlanEditorDeps {
 			// re-opened one seam over. Both clones are needed: this one covers hydration, that
 			// one covers the synchronous seed, and neither path goes through the other.
 			getPlan: () => Promise.resolve(ok(structuredClone(HARNESS_PLAN))),
-			getProject: () => Promise.resolve(ok(structuredClone(HARNESS_PROJECT))),
+			// Honours the requested id — the real query answers `ok(null)` for one it does not
+			// recognise, and answering `HARNESS_PROJECT` for any id would leave a `hydrate`
+			// call that asked for the wrong field indistinguishable from one that asked for the
+			// right one. See [[Project-hydration fakes ignore the requested project ID]].
+			getProject: (id) => Promise.resolve(ok(id === HARNESS_PROJECT.id ? structuredClone(HARNESS_PROJECT) : null)),
 			findZonesByPlan: () =>
 				Promise.resolve(ok({ zones: structuredClone(HARNESS_ZONES), unreadable: 0 })),
 			// Slice 10's four reads, shared with `fakeQueries` — see `emptyRequirementReads`

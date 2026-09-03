@@ -322,9 +322,13 @@ const pluginRules = obsidianmd.configs.recommendedWithLocalesEn.map((c) => ({
  *
  * The `files` list is DERIVED from `recommendedWithLocalesEn` itself — the one config block
  * whose `rules` names `sentence-case-locale-module` — rather than retyped, so this override
- * cannot drift from the glob the rule is actually scoped to; `assetSkuAcronymRule.test.ts`
- * pins that the derivation finds something (a stale plugin-internal path would otherwise make
- * this whole block a no-op silently).
+ * cannot drift from the glob the rule is actually scoped to.
+ * `tests/build/localeModuleSentenceCase.test.ts` pins that the RESOLVED config for a real
+ * locale file actually carries `SKU` in its `acronyms` option, which is what a stale
+ * derivation here would break: `files: undefined` is not a silent no-op, it is an ESLint
+ * config VALIDATION ERROR (`Key "files": Expected value to be a non-empty array`), so the
+ * whole lint run would fail loudly rather than quietly losing this override — measured
+ * rather than assumed, because the safe-sounding direction was the wrong one to guess.
  */
 const localeModuleFiles = obsidianmd.configs.recommendedWithLocalesEn.find(
 	(c) => c.rules?.['obsidianmd/ui/sentence-case-locale-module'] !== undefined,
@@ -737,8 +741,19 @@ export default defineConfig([
 	// entry, for the identical `files`, wins: two flat-config blocks matching one file OVERRIDE
 	// a rule key rather than merging it, which is this file's own recorded trap for
 	// `no-restricted-globals` and `no-restricted-syntax` alike.
+	//
+	// `ignores: [TESTS]` MATCHES `pluginRules`' own exclusion rather than omitting it, and that
+	// match is load-bearing rather than tidiness: this block's `files` is `localeModuleFiles`,
+	// the SAME glob `pluginRules` scopes the rule to, and without the identical `ignores` this
+	// block would reach further than `pluginRules` does — a test fixture or helper directory
+	// named `en…` under `tests/` would match here and NOWHERE ELSE, so the `obsidianmd` plugin
+	// this block's rule key names would never have been registered for it, and ESLint throws
+	// "Could not find plugin obsidianmd in configuration" for the whole file rather than
+	// reporting a lint finding. Measured: nothing under `tests/` matches today, which is why
+	// this was green before the exclusion existed.
 	{
 		files: localeModuleFiles,
+		ignores: [TESTS],
 		rules: {
 			'obsidianmd/ui/sentence-case-locale-module': ['warn', { acronyms: ASSET_LIBRARY_ACRONYMS }],
 		},

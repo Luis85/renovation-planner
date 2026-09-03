@@ -54,11 +54,28 @@ describe('every English locale module carries the sentence-case rule', () => {
 		expect(severityOf(config, 'obsidianmd/ui/sentence-case-locale-module')).toBe(1);
 	});
 
-	// The other direction, named once rather than left implicit: a German partial sitting in
-	// the same directory must NOT be swept into the same rule by a widened predicate, since
-	// German noun capitalization is incompatible with it (`de.ts`'s own header states this).
-	it('does not reach the German partials beside it', async () => {
-		const config = await resolveConfig(path.join(REPO, `${LOCALES_DIR}/de.ts`));
+	/**
+	 * The `acronyms` option `eslint.config.mjs` adds for `SKU` (design "Asset library
+	 * overview" §5's own vocabulary), pinned rather than left to `npm run lint` alone: the
+	 * severity case above stays green with that option deleted entirely, since a stale
+	 * `undefined` fourth argument leaves the rule at its bare `"warn"` shape — so nothing
+	 * short of THIS assertion would notice `SKU` falling back out of scope. Watched red with
+	 * the option removed before writing this comment.
+	 */
+	it.each(englishLocaleModules)('%s widens the rule with SKU as an acronym', async (file) => {
+		const config = await resolveConfig(path.join(REPO, file));
+		const options = config.rules['obsidianmd/ui/sentence-case-locale-module'];
+
+		expect(options?.[1]).toMatchObject({ acronyms: expect.arrayContaining(['SKU']) });
+	});
+
+	// The other direction, named once rather than left implicit: neither German partial in
+	// this same directory may be swept into the rule by a widened predicate — the HYPHENATED
+	// one is the closer call, since it is the one this repo's own `en-*`/`de-*` naming
+	// convention pairs with an English file the rule DOES reach. German noun capitalization
+	// is incompatible with the rule either way (`de.ts`'s own header states this).
+	it.each(['de.ts', 'de-assetLibrary.ts'])('does not reach %s', async (file) => {
+		const config = await resolveConfig(path.join(REPO, `${LOCALES_DIR}/${file}`));
 
 		expect(severityOf(config, 'obsidianmd/ui/sentence-case-locale-module')).toBeUndefined();
 	});

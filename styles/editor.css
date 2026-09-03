@@ -163,24 +163,64 @@
 	line-height: var(--line-height-tight);
 }
 
-.rp-editor-layer-list {
+.rp-layer-list {
 	margin: 0;
 	padding: 0;
 	list-style: none;
 }
 
-.rp-editor-layer-row {
+/*
+ * Wraps rather than a bare row of three inline items: the reason and the Set scale button
+ * both belong to the SAME entry as its checkbox, and a disabled reference row (no
+ * background yet) draws its reason beneath the label rather than fighting the action
+ * button for one line.
+ */
+.rp-layer-list__row {
 	display: flex;
+	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--size-4-2);
+	gap: var(--size-4-1) var(--size-4-2);
 	padding: var(--size-4-1) 0;
 	font-size: var(--font-ui-small);
 }
 
-.rp-editor-layer-row label {
+.rp-layer-list__row label {
 	/* The whole row is the hit target, not just the box — §85 asks for adequate ones. */
 	flex: 1;
 	cursor: pointer;
+}
+
+.rp-layer-list__reason {
+	flex-basis: 100%;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+}
+
+/* Qualified specificity, same reasoning as `.rp-context-bar .rp-context-bar__button`: a bare
+   class loses to Obsidian's own `button:not(.clickable-icon)` at (0,1,1). */
+.rp-layer-list .rp-layer-list__action {
+	padding: var(--size-4-1) var(--size-4-2);
+	font-size: var(--font-ui-small);
+	color: var(--text-normal);
+	background-color: transparent;
+	box-shadow: none;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-s);
+	cursor: pointer;
+}
+
+.rp-layer-list .rp-layer-list__action:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
+}
+
+.rp-layer-list .rp-layer-list__action:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.rp-layer-list .rp-layer-list__action:disabled {
+	color: var(--text-faint);
+	cursor: default;
 }
 
 /*

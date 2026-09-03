@@ -27,7 +27,7 @@ import PlanCanvas from './PlanCanvas.vue';
 import EditorContextBar from './shell/EditorContextBar.vue';
 import FloatingPrimaryActions from './shell/FloatingPrimaryActions.vue';
 import InspectorPanel from './shell/InspectorPanel.vue';
-import LayersPanel from './shell/LayersPanel.vue';
+import PropertyLayerPanel from './shell/PropertyLayerPanel.vue';
 import StatusBar from './shell/StatusBar.vue';
 
 const context = usePlanEditorContext();
@@ -36,7 +36,7 @@ const context = usePlanEditorContext();
 // every tool, the context bar and the floating Select/Add group already share.
 const runtime = provideEditorRuntime(context);
 const projectStore = useProjectStore();
-const { status, error, stale, unreadableZones } = storeToRefs(projectStore);
+const { status, error, stale, unreadableZones, plan } = storeToRefs(projectStore);
 const { layersPanelOpen, inspectorPanelOpen } = storeToRefs(useWorkspaceStore());
 const { emptyStateKey } = storeToRefs(projectStore);
 
@@ -194,7 +194,10 @@ onBeforeUnmount(context.onPlanChanged(hydrate));
 	>
 		<EditorContextBar />
 		<div class="rp-editor-body">
-			<LayersPanel v-if="layersPanelOpen" />
+			<PropertyLayerPanel
+				v-if="layersPanelOpen"
+				:plan="plan"
+			/>
 			<!--
 				The canvas is mounted only once there is a Plan to draw. A Konva stage over a
 				plan that is still loading, or over one that does not exist, would size itself,

@@ -15,8 +15,10 @@ import {
 	unavailablePlanEditorCommands,
 	type PlanEditorCommandServices,
 } from '../../../../src/presentation/editor/planEditorCommands';
+import type { PlanDto } from '../../../../src/presentation/read-models/PlanDto';
 import { mountPlanEditor, settle, type EditorHarness } from '../../../helpers/editor';
-import { actionButton, activateTool, click as clickOnCanvas } from '../../../helpers/planEditorRig';
+import { FIXTURE_PLAN } from '../../../helpers/planFixtures';
+import { actionButton, click as clickOnCanvas } from '../../../helpers/planEditorRig';
 
 describe('KnownDistanceForm', () => {
 	it('shows what was measured on the plan, so the user knows what they are naming', () => {
@@ -90,13 +92,20 @@ describe('KnownDistanceForm', () => {
 });
 
 /**
- * Activates the tool directly through the runtime — Task 12's own `setToolByLabel` pressed a
- * toolbar button; Task 13 retired the toolbar, and Task 14 routes this through the Set scale
- * action, so there is no button here to press today.
+ * Set scale, on the reference-plan row of the layer list (`LayerList.vue`), is Calibrate's
+ * only door now — the toolbar that used to hold it is gone. The button is disabled without a
+ * background (`layerCatalogue.test.ts` and `layerList.test.ts` own that gate), so every case
+ * below that activates the tool mounts a plan carrying one.
  */
-function activateCalibrate(harness: EditorHarness): void {
-	activateTool(harness, 'calibrate');
+async function activateCalibrate(harness: EditorHarness): Promise<void> {
+	await harness.wrapper.find('button[data-rp-action="set-scale"]').trigger('click');
 }
+
+/** A plan WITH a reference background, since Set scale refuses to activate without one. */
+const PLAN_WITH_BACKGROUND: PlanDto = {
+	...FIXTURE_PLAN,
+	background: { path: 'Plans/g.png', kind: 'image' },
+};
 
 /**
  * A down+up pair at one canvas point — the house spelling from `planEditorRig.ts`'s own
@@ -139,9 +148,9 @@ function recordingCommands(): {
  * it opens going through the mounted leaf's OWN `DialogHost`/store — driven with a real click
  * pair, never a bare `pointerdown`.
  *
- * Task 13 retired the toolbar this tool used to be reached through; every case below activates
- * it through the runtime directly (`activateCalibrate`) rather than through a button, since
- * Task 14 routes this through the Set scale action and no door exists here yet.
+ * Every case below activates the tool through the layer list's Set scale button
+ * (`activateCalibrate`), the door Task 14's layer catalogue gave it — the toolbar this tool
+ * used to be reached through is gone since Task 13.
  */
 describe('the calibrate tool in a mounted editor', () => {
 	/**
@@ -151,9 +160,9 @@ describe('the calibrate tool in a mounted editor', () => {
 	 * certified one gesture test against a state the tool never reaches.
 	 */
 	it('asks for a distance after two clicks', async () => {
-		const harness = await mountPlanEditor({ zones: [] });
+		const harness = await mountPlanEditor({ zones: [], plan: PLAN_WITH_BACKGROUND });
 		const store = useDialogStore(harness.pinia);
-		activateCalibrate(harness);
+		await activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -181,8 +190,8 @@ describe('the calibrate tool in a mounted editor', () => {
 	 */
 	it('submits the distance and dispatches through the one command dispatcher', async () => {
 		const { calls, commands } = recordingCommands();
-		const harness = await mountPlanEditor({ zones: [], commands });
-		activateCalibrate(harness);
+		const harness = await mountPlanEditor({ zones: [], commands, plan: PLAN_WITH_BACKGROUND });
+		await activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -219,9 +228,10 @@ describe('the calibrate tool in a mounted editor', () => {
 	 */
 	it('confirms before recalibrating a plan that has zones, and stops on a decline', async () => {
 		const { calls, commands } = recordingCommands();
-		const harness = await mountPlanEditor({ commands }); // the default fixture has zones
+		// The default fixture has zones; Set scale also needs it to have a background.
+		const harness = await mountPlanEditor({ commands, plan: PLAN_WITH_BACKGROUND });
 		const store = useDialogStore(harness.pinia);
-		activateCalibrate(harness);
+		await activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -248,9 +258,10 @@ describe('the calibrate tool in a mounted editor', () => {
 	 */
 	it('confirms, then asks for a distance, and dispatches the calibration once both are answered', async () => {
 		const { calls, commands } = recordingCommands();
-		const harness = await mountPlanEditor({ commands }); // the default fixture has zones
+		// The default fixture has zones; Set scale also needs it to have a background.
+		const harness = await mountPlanEditor({ commands, plan: PLAN_WITH_BACKGROUND });
 		const store = useDialogStore(harness.pinia);
-		activateCalibrate(harness);
+		await activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -287,8 +298,8 @@ describe('the calibrate tool in a mounted editor', () => {
 	 * form is still open, which is the state the segment exists for.
 	 */
 	it('draws the measured segment on the interaction layer while the prompt is open', async () => {
-		const harness = await mountPlanEditor({ zones: [] });
-		activateCalibrate(harness);
+		const harness = await mountPlanEditor({ zones: [], plan: PLAN_WITH_BACKGROUND });
+		await activateCalibrate(harness);
 
 		click(harness, { x: 0, y: 0 });
 		click(harness, { x: 100, y: 0 });
@@ -318,10 +329,11 @@ describe('the calibrate tool in a mounted editor', () => {
 	 * in the first must leave the second's dialog store untouched.
 	 */
 	it('opens the confirmation only in the leaf that raised it, never in a second split pane', async () => {
-		const first = await mountPlanEditor(); // the default fixture has zones
+		// The default fixture has zones; Set scale also needs it to have a background.
+		const first = await mountPlanEditor({ plan: PLAN_WITH_BACKGROUND });
 		const second = await mountPlanEditor();
 		const secondStore = useDialogStore(second.pinia);
-		activateCalibrate(first);
+		await activateCalibrate(first);
 
 		click(first, { x: 0, y: 0 });
 		click(first, { x: 100, y: 0 });

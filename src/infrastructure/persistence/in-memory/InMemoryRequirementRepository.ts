@@ -1,10 +1,11 @@
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { PersistenceError, ValidationError } from '../../../core/errors/AppError';
 import type { AssetId } from '../../../domain/asset/AssetId';
+import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
-import type { RequirementRepository } from '../../../application/ports/RequirementRepository';
+import type { RequirementListing, RequirementRepository } from '../../../application/ports/RequirementRepository';
 import type {
 	EntityVersion,
 	Expected,
@@ -57,6 +58,22 @@ export class InMemoryRequirementRepository implements RequirementRepository {
 
 	listByAsset(assetId: AssetId): Promise<Result<Loaded<Requirement>[], PersistenceError>> {
 		return Promise.resolve(ok(this.store.values().filter((r) => r.entity.assetId === assetId)));
+	}
+
+	/**
+	 * Tolerant by contract, trivially so here: this store holds nothing but `Requirement`
+	 * objects it has itself validated on `save`, so there is no unreadable note to skip and
+	 * `refused` is always 0. Filtering the in-memory values directly rather than through an
+	 * index needs no type intersection either — there is no mixed axis to intersect,
+	 * because nothing but a Requirement is ever in `store`.
+	 */
+	listByProject(projectId: ProjectId): Promise<Result<RequirementListing, PersistenceError>> {
+		return Promise.resolve(
+			ok({
+				loaded: this.store.values().filter((r) => r.entity.projectId === projectId),
+				refused: 0,
+			}),
+		);
 	}
 
 	markStale(id: RequirementId): Promise<Result<void, PersistenceError>> {

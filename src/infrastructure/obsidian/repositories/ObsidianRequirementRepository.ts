@@ -1,10 +1,11 @@
 import type { RepositoryError } from '../../../application/ports/repositoryErrors';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { AssetId } from '../../../domain/asset/AssetId';
+import type { ProjectId } from '../../../domain/project/ProjectId';
 import type { ZoneId } from '../../../domain/zone/ZoneId';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
-import type { RequirementRepository } from '../../../application/ports/RequirementRepository';
+import type { RequirementListing, RequirementRepository } from '../../../application/ports/RequirementRepository';
 import type { EntityVersion, Expected, Loaded } from '../../../application/ports/versioning';
 import {
 	cacheReading,
@@ -107,6 +108,22 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 		return this.filterLoaded(ids, (r) => r.assetId === assetId);
 	}
 
+	/**
+	 * Skip-and-count, not `listByZone`'s propagate-on-first-fault — see both docblocks in
+	 * the port. `getIdsByProject` is a MIXED axis (plans and zones carry a `projectId` too),
+	 * so the ids are intersected with the requirement TYPE before `listTolerantly` ever
+	 * tries to read one, or a foreign kind's note would count as a refused requirement.
+	 */
+	listByProject(projectId: ProjectId): Promise<Result<RequirementListing, RepositoryError>> {
+		const requirements = new Set<string>(
+			this.deps.index.getIdsByType('renovation-requirement').map(String),
+		);
+		const ids = this.deps.index
+			.getIdsByProject(projectId)
+			.filter((id) => requirements.has(String(id))) as RequirementId[];
+		return this.listTolerantly(ids);
+	}
+
 	markStale(id: RequirementId): Promise<Result<void, RepositoryError>> {
 		return this.queues.run(`requirement:${id}`, async () => {
 			const loaded: Result<Loaded<Requirement> | null, RepositoryError> = await this.getById(id);
@@ -163,5 +180,29 @@ export class ObsidianRequirementRepository implements RequirementRepository {
 			if (found.value !== null && predicate(found.value.entity)) loaded.push(found.value);
 		}
 		return ok(loaded);
+	}
+
+	/**
+	 * `listByZone`'s opposite: every id is read, and a read that fails is SKIPPED and
+	 * COUNTED rather than returned. Requirement notes carry no shared document the way a
+	 * zone's geometry sidecar does — every failure `getById` can produce here is already
+	 * note-local (a note-id mismatch, a malformed or unsupported schema version, a
+	 * frontmatter the mapper refuses) — so there is no shared-failure case to propagate and
+	 * nothing to filter by code, unlike the zone listings' skippable sets.
+	 */
+	private async listTolerantly(
+		ids: readonly RequirementId[],
+	): Promise<Result<RequirementListing, RepositoryError>> {
+		const loaded: Loaded<Requirement>[] = [];
+		let refused = 0;
+		for (const id of ids) {
+			const found = await this.getById(id);
+			if (isErr(found)) {
+				refused += 1;
+				continue;
+			}
+			if (found.value !== null) loaded.push(found.value);
+		}
+		return ok({ loaded, refused });
 	}
 }

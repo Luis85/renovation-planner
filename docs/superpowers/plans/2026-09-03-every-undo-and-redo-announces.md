@@ -478,6 +478,8 @@ MSG
 
 ## Task 3: The create-zone adapter's redo announces, both halves
 
+> **DONE** — commit `40405c3`, review clean, no fix round. Start at Task 4.
+
 **Files:**
 - Modify: `src/application/commands/zone/reversible-create-zone-command.ts`
 - Modify: `src/presentation/editor/runtime.ts:137`
@@ -538,7 +540,7 @@ operation nor stay silent. It records the refusal and publishes `ProjectIndexReb
 payload-less *cannot say which entities changed, refresh anyway* signal — which is truthful
 here for exactly the reason it exists.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `tests/application/commands/zone/reversibleCreateZone.test.ts`:
 
@@ -630,13 +632,13 @@ to the rig in this same commit. **A fake must not be thinner than the real thing
 refusal arm is the one this task exists to handle, and a rig that cannot produce it makes the
 guard untestable.
 
-- [ ] **Step 2: Run them and watch them fail**
+- [x] **Step 2: Run them and watch them fail**
 
 Run: `npx vitest run tests/application/commands/zone/reversibleCreateZone.test.ts`
 Expected: FAIL — the first on `['created','deleted','deleted']` (the redo is silent), the second
 and third on the constructor arity.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `src/application/commands/zone/reversible-create-zone-command.ts`:
 
@@ -775,7 +777,7 @@ paragraph is now false. Replace it with what is true — the redo announces, and
 the over-claim named in `announceRestore`. A docblock describing a fixed defect reads as a live
 one.
 
-- [ ] **Step 4: Run the tests and watch them pass**
+- [x] **Step 4: Run the tests and watch them pass**
 
 Run: `npx vitest run tests/application/commands/zone/reversibleCreateZone.test.ts`
 Expected: PASS.
@@ -784,7 +786,7 @@ Then **watch the fallback bite**: temporarily replace the `isErr(referents)` bod
 `return;` and re-run. Expected: the third case fails at its `expect(seen).toEqual(['rebuilt'])`
 assertion — not at a setup error. Restore.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

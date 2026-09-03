@@ -12,7 +12,7 @@
 -->
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ASSETS, markPath, type CatalogueAsset } from './assetLibraryFixture';
+import { ASSETS, markPath, type CatalogueAsset, type ShapeState } from './assetLibraryFixture';
 
 /**
  * Defaulted like every region in this tree, so the mark draws as a specimen on the harness
@@ -33,6 +33,28 @@ const props = withDefaults(defineProps<{
 
 const path = computed((): string =>
 	props.asset.outline === null ? '' : markPath(props.asset.outline, 20, 2));
+
+/**
+ * The mark's state IN WORDS, for the reader who cannot see the mark.
+ *
+ * The SVG stays `aria-hidden` — a drawn outline announces nothing useful — and this component's
+ * own docblock justified that by saying the state "is written in words in the inspector". True,
+ * and it is written there only AFTER the row is selected: while BROWSING, which is what this
+ * surface exists for, a screen-reader user had no access to the state at all. §3.4's whole
+ * argument is that the mark carries a fact no colour could; a fact carried only in pixels is the
+ * same failure in the other direction. Reported by a review bot against a justification that had
+ * been argued rather than walked.
+ *
+ * Visually hidden rather than a `title` or an `aria-label` on the row: the row's accessible name
+ * is its asset name, and appending a state to it would make every row's name a sentence.
+ */
+const STATE_WORDS: Readonly<Record<ShapeState, string>> = {
+	measured: 'Measured footprint',
+	unscaled: 'Footprint traced before a scale existed',
+	none: 'No footprint',
+	pending: 'Shape not read yet',
+	unreadable: 'Shape file could not be read',
+};
 </script>
 
 <template>
@@ -64,9 +86,27 @@ const path = computed((): string =>
 			<path d="M5.5 5.5 L14.5 14.5 M14.5 5.5 L5.5 14.5" />
 		</template>
 	</svg>
+	<span class="rp-al-mark__state">{{ STATE_WORDS[asset.shape] }}</span>
 </template>
 
 <style scoped>
+/*
+ * Visually hidden and still announced — the standard clip rectangle rather than `display: none`
+ * or `visibility: hidden`, both of which remove the text from the accessibility tree along with
+ * the pixels, which would leave this exactly where it started.
+ */
+.rp-al-mark__state {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	margin: -1px;
+	padding: 0;
+	overflow: hidden;
+	clip-path: inset(50%);
+	white-space: nowrap;
+	border: 0;
+}
+
 /*
  * FIVE STATES THAT DIFFER IN KIND, and getting there took a capture and two reviews.
  *

@@ -298,6 +298,14 @@ a rule this section always held — see §12:
 | Footprint, **unscaled** | the **same outline, dashed**. The proportions are real and the scale is not, which is exactly what a provisional stroke over true geometry says |
 | Not yet read | **three dots**, centred. Not a shape at all, so no footprint can collide with it, and it is already the printed mark for *still coming* |
 | No shape yet | **nothing**. An empty slot is the one thing no other state can be mistaken for, and a drawn box for *there is no shape* is scaffolding pretending to be data |
+**Every mark carries its state in words, visually hidden beside it.** The drawing is
+`aria-hidden` — an outline announces nothing — and the first version justified that by saying the
+state is written out in the inspector. It is, and only AFTER the row is selected: while BROWSING,
+which is what this surface is for, a screen-reader user had no access to the state at all. §3.4's
+own argument is that the mark carries a fact no colour could; a fact carried only in pixels is
+that same failure through the other eye. The text sits in the mark rather than in the row's
+accessible name, which is the asset's name and should not become a sentence.
+
 | **Unreadable** | a **struck box** — the only state that draws a box at all, so nothing can confuse it with a square footprint. The box says a shape *was asked for and could not be had*; the cross says the row will not get one without repair |
 
 The third state is not a skeleton animation; it is what the row draws before its shape arrives,
@@ -663,6 +671,10 @@ the panel they were working in gone.
 **A deletion is a `back()` that cannot return to its row.** The inspector withdraws to its resting
 state and focus goes to the **next row in the shelf the asset was in**, falling back in order to:
 
+- **the row that now occupies the deleted row's index**, and where the deleted row was the shelf's
+  LAST, **the previous surviving row** — "next" alone drops a keyboard user to the search field
+  for the most ordinary deletion there is, tidying up the end of a shelf, with a neighbour sitting
+  directly above them;
 - **the next result row**, when a search is running — §6.1 replaces every shelf with the flat
   Results list, so the shelf row this rule names is not mounted at all and the chain would drop
   straight past it to the search field, losing a keyboard user's position while a perfectly good
@@ -2259,6 +2271,25 @@ selected, because nothing can name it, but it can be counted and opened.
 reasoning about the surface and writing down what it should show, without following the value
 back to something that produces it.** Every one of these was findable by opening the file the
 spec names, which is the check I keep not doing.
+
+A thirty-fifth round found two, and the first is the one accessibility defect on this surface
+that no axe scan could have reported.
+
+**The geometry mark was inaccessible, under a docblock arguing it need not be.** The SVG is
+`aria-hidden`, correctly — an outline announces nothing — and the justification was that the state
+"is written in words in the inspector". It is, and only once the row is SELECTED. While
+**browsing**, which is the entire job of this surface, a screen-reader user had no access to
+measured / unscaled / not-read / absent / unreadable at all. §3.4's own argument is that the mark
+carries a fact no colour could carry; a fact carried only in pixels is that same failure through
+the other eye. Each mark now holds its state in visually-hidden words — in the mark rather than in
+the row's accessible name, which is the asset's name and should not become a sentence.
+
+**And the post-delete chain still dropped a user to the search field for the most ordinary
+deletion there is.** Deleting the LAST row of a shelf that still holds earlier rows leaves no
+"next row", so the chain fell past a neighbour sitting directly above. The destination is the row
+now occupying the deleted index, and the previous surviving row where the deleted one was last.
+**Fourth correction to this chain**, and the third where the rule named the case its author
+pictured — here, deleting from the middle.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

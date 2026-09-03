@@ -293,44 +293,52 @@ const importUrlsOf = (filename: string, code: Buffer): string[] => {
  * permitted style block carries only stylesheets.
  */
 /**
- * Every stylesheet a CSS-MODULE block composes from — `composes: base from './theme.css'`, which
- * Vite loads and which neither of this file's other CSS instruments can see.
+ * Whether a CSS-MODULE block depends on another file — `composes: base from './theme.css'`, and
+ * `@value brand from './theme.css'`, both of which Vite loads and neither of which the
+ * `Rule.import` visitor can see, because both are DECLARATIONS rather than `@import` rules.
  *
  * **A REGRESSION the parser rewrite introduced, and the counter-example to its own argument.**
  * That rewrite replaced a source regex with real parsers on the grounds that a parser strictly
- * dominates a pattern. It does for the grammar it is asked about — and `composes` is a
- * DECLARATION, not an `@import` rule, so the `Rule.import` visitor never sees it. The regex
- * caught it by accident, matching `from './theme.css'` because that text happens to look like a
- * JS import; measured both ways rather than argued. So the honest form of the earlier claim is
- * narrower: a parser beats a pattern at the question you point it at, and pointing it at a
+ * dominates a pattern. It does for the grammar it is asked about — and the regex caught both of
+ * these by accident, matching `from './theme.css'` because that text happens to look like a JS
+ * import. Measured both ways rather than argued. The honest form of the earlier claim is
+ * narrower: a parser beats a pattern at the question you point it AT, and pointing it at a
  * different question than the pattern was accidentally answering loses coverage.
  *
- * `analyzeDependencies` does not report these either (measured: `[]`). What does is
- * `cssModules: true`, which puts them on `exports` as `{ type: 'dependency', specifier }`.
+ * The two forms need two instruments, which is the part that took a second round. `composes`
+ * lands on `exports[…].composes` as `{ type: 'dependency', specifier }` once `cssModules` is on.
+ * `@value` does NOT: measured, its exports are empty, `analyzeDependencies` answers null, and the
+ * import visitor sees nothing — lightningcss parses the rule and deprecates it without ever
+ * exposing what it points at. What it does emit is a `DeprecatedCssModulesValueRule` warning, so
+ * the block can be proven to CONTAIN a value rule and never proven free of a dependency.
  *
- * Enabled for every style block rather than only `<style module>` ones. A `composes` in a plain
- * block is not processed by Vite and loads nothing, so counting it over-refuses — the direction
- * this file takes everywhere, and free here, since no block in the tree composes at all.
+ * So a value rule COUNTS, whether or not it names a file. `@value x: 10px` imports nothing and is
+ * reported anyway — over-refusing, the direction this whole check takes, and free here because no
+ * block in the tree uses one at all. Proving absence and counting everything else is the same
+ * shape `mayMatchStylesheet` uses for globs.
+ *
+ * That warning type is a lightningcss API detail rather than a rule of CSS, so it is PINNED by
+ * the case below driving a real `@value … from`: a renamed warning turns this silently permissive
+ * otherwise, which is the `rule-custom-message` hazard this repository already records.
  */
-const composesFrom = (filename: string, css: string): string[] => {
-	const { exports } = transform({
+const cssModuleDependsOnFile = (filename: string, css: string): boolean => {
+	const { exports, warnings } = transform({
 		filename,
 		code: Buffer.from(css),
 		minify: false,
 		errorRecovery: true,
 		cssModules: true,
 	});
-	return Object.values(exports ?? {}).flatMap((entry) =>
-		entry.composes.flatMap((reference) =>
-			reference.type === 'dependency' ? [reference.specifier] : [],
-		),
+	const composes = Object.values(exports ?? {}).some((entry) =>
+		entry.composes.some((reference) => reference.type === 'dependency'),
 	);
+	return composes || warnings.some((w) => w.type === 'DeprecatedCssModulesValueRule');
 };
 
 const styleImportsStylesheet = (file: string, block: StyleBlock): boolean =>
 	block.src !== undefined
 	|| importUrlsOf(file, Buffer.from(block.content)).length > 0
-	|| composesFrom(file, block.content).length > 0;
+	|| cssModuleDependsOnFile(file, block.content);
 
 /**
  * A relative specifier, and whether it is a GLOB PATTERN or a module path.
@@ -914,6 +922,20 @@ describe('the browser harness', () => {
 	 * Watched failing against that version: with the roots compared using `path.sep`, the two
 	 * backslash rows below report an escape for a sibling import that never leaves the tree.
 	 */
+	/**
+	 * Both CSS-module dependency forms, pinned as BEHAVIOUR rather than left to the probe file
+	 * that found them — and the `@value` row doubles as the lock on lightningcss's warning type,
+	 * which is the only signal that form exposes. A renamed warning turns the check silently
+	 * permissive, which is the `rule-custom-message` hazard this repository already records.
+	 */
+	it('sees both CSS-module dependency forms and neither plain block', () => {
+		expect({
+			composes: cssModuleDependsOnFile('x.css', ".a { composes: base from './theme.css'; }"),
+			value: cssModuleDependsOnFile('x.css', "@value brand from './theme.css';\n.a { color: brand }"),
+			plain: cssModuleDependsOnFile('x.css', '.a { color: var(--text-normal); }'),
+		}).toEqual({ composes: true, value: true, plain: false });
+	});
+
 	it('resolves the root closure by separator and by specifier kind', () => {
 		const inside: Specifier = { text: './sibling', isGlob: false };
 		const outside: Specifier = { text: '../../scripts/helper.ts', isGlob: false };

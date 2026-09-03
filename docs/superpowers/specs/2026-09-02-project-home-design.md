@@ -1148,16 +1148,36 @@ no payload is fabricated. It publishes nothing when the figures match, which is 
 than a gap, and it costs one extra read per restored entry on a startup path over interrupted
 markers.
 
-**One residue, named because it follows from that truthfulness.** A restore that moves only
-`recalculationStatus` — the `delete-anyway` path marks referents stale, and restoring the
-pre-state marks them current again — changes no figure, so the helper correctly publishes nothing
-and the summary's `stale` count lags until the leaf is remounted. Closing it means an event
-meaning "this row was written back", which none of `RequirementCreated`,
-`RequirementRecalculated`, `RequirementInvalidated` or `RequirementDeleted` says: `Invalidated` is
-the nearest and claims a recalculation is OWED, which is the opposite of what a restore to a
-`current` pre-state means. Minting a second event inside a fix for a payload mistake is how the
-vocabulary grows without anyone deciding, so it is written down here instead, with its trigger:
-the increment that gives the strip a live stale count people act on.
+**A restore that moves only `recalculationStatus` needed its own event, and this increment is
+the one that has to mint it.** The `delete-anyway` path marks referents stale; restoring the
+pre-state marks them current again, changing no figure — so `publishIfEffectiveCostChanged`
+correctly publishes nothing and the summary's `stale` and `recalculable` counts stay wrong for
+the life of the leaf.
+
+The previous draft named this as a residue and deferred it, with the trigger written out: *"the
+increment that gives the strip a live stale count people act on."* Reported one round later, and
+the report is right in the way that matters — **that increment is THIS one.** A trigger recorded
+in prose is a trigger nothing fires; this document has the rule and still walked past its own
+condition being met, which is the third time tonight a deferral has been met by its own author
+without being noticed.
+
+So the vocabulary gains **`RequirementRestored`** — `{ requirementId, projectId }`, both of which
+`recoverOne` holds on the snapshot it is writing back. Recovery publishes it for EVERY `written`
+restore, unconditionally, because "this row was written back" is true whatever the figures did.
+`CostEstimateChanged` still follows it when the effective cost actually moved, which is what
+`publishIfEffectiveCostChanged` already decides — the two say different things and a subscriber
+that wants the delta still gets it. Nothing is fabricated: the neutral event needs no figures at
+all, and the live pre-read stays only to serve the cost one.
+
+**Minting is now a decision rather than a drift**, which is why the earlier round declined it. It
+had one caller and arrived inside a fix for a payload mistake; it has a forced caller now, and
+the alternative — leaving the one surface this increment builds knowingly stale after a crash
+recovery — is worse than a fifth member in a five-member vocabulary.
+
+**The zone-restore over-claim is NOT folded into it**, and that distinction is the point of a
+truthful vocabulary rather than a general one: there the requirement was never written, the ZONE
+was, so `RequirementRestored` would be as false as `RequirementInvalidated` is over-strong. That
+residue stays named where it is.
 
 **Awaiting recovery before announcing the rebuild was the reported alternative and is declined.**
 It is the smaller diff and it puts vault reads on the path that gates every view's hydration:
@@ -1526,6 +1546,7 @@ mistake, per this repository's rule.
 | Zone restore reaches dependents | a redone zone creation publishes a requirement-level event per referent, including one whose own `projectId` differs from the zone's | nothing subscribes to `ZoneCreated`, so a restore runs no cascade, and the event names the zone's project — a dependent in another project keeps a `missingTarget` badge that a fresh read would already have cleared |
 | Summary | a stale row blocked by a precondition other than a referent's state is counted in `blocked` and carries its own badge | narrowing `recalculable` took those rows out of "needs recalculating" and left them qualified by nothing while their cost stayed in the total — the `missingTargets` lesson, repeated one field over |
 | View state | `getState` round-trips the section: set Design, serialize, parse, and land on Design | the serializer was the one member of the pair the plan did not name, and without it every saved layout reopens on Overview |
+| Recovery publishes | a `written` restore that changes NO figure still raises `RequirementRestored`, so a status-only restore reaches an open Overview | `publishIfEffectiveCostChanged` correctly says nothing when the cost is unchanged, and `delete-anyway`'s stale marking is undone by exactly such a restore — the counts this increment makes live would otherwise stay wrong for the life of the leaf |
 | Recovery publishes | a restored requirement raises `RequirementCreated` for an `'absent'` entry, and for a `'written'` one goes through `publishIfEffectiveCostChanged` with `previous` READ LIVE before the save — including the case where the figures match and nothing is published | recovery writes after `projectIndexRebuilt()` has already fired and its writes suppress their own vault echo, so an Overview mounted at startup is stale for the life of the leaf with nothing able to correct it |
 | Recovery is composed | `RecoveryDeps.events` is REQUIRED and the plugin's call site passes it | an optional collaborator makes a composition that forgets it compile, pass and say nothing — the `CascadeDeps.notify` shape this document already records |
 | Price overrides | a refused `overrides.listByProject` leaves every row in that project IN, summed, `stale`, and counted in `unreadableReferents` | `hydrate` refuses on the first unreadable override, so this is the one referent read whose failure is project-wide rather than per-row; wiring it per-row qualifies one row and silently vouches for the rest |
@@ -1558,7 +1579,7 @@ navigation case.
 
 **New:** `src/application/queries/GetProjectSummary.ts`;
 `src/application/events/projectSummaryChangeSource.ts` (Decision 7);
-a `RequirementDeleted` domain event (Decision 7); `RequirementRepository.listByProject`
+a `RequirementDeleted` domain event and a neutral `RequirementRestored` (Decision 7); `RequirementRepository.listByProject`
 with a `{ loaded, refused }` result over the `getIdsByProject` axis the index already has, plus
 the extraction of `GetRequirementsForZone`'s per-row builder so both callers agree on a row;
 `src/presentation/views/sections.ts`

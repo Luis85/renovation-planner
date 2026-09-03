@@ -852,6 +852,8 @@ git add -A && git commit -m "feat: the asset library's copy, in both locales, an
 **Files:**
 - Create: `src/presentation/read-models/assetLibraryQueries.ts`
 - Modify: `src/plugin/guardedServices.ts` — guard `ListCatalogueEntries` and `ListAssetOutlines`
+- Modify: `src/application/queries/ListRequirementsReferencing.ts` and its composition — **widen `ProjectFolderLookup` to the NOTE path**
+- Test: `tests/application/queries/listRequirementsReferencing.test.ts` — two same-named projects in ONE folder
 - Modify: `src/plugin/composition-root.ts` — `assetLibraryDeps(...)`
 - Test: `tests/presentation/read-models/assetLibraryQueries.test.ts`, `tests/plugin/guardCategory.test.ts` (existing — it walks what the root hands out)
 
@@ -890,6 +892,8 @@ export interface AssetLibraryDeps {
 	vault: BackgroundVault;
 }
 ```
+
+**The `ProjectFolderLookup` widening is part of THIS task, with files and a test — not a sentence in the self-review.** The self-review said it was "folded into Task 9" and Task 9's file list did not name `ListRequirementsReferencing.ts`, so an implementer following the checklist would leave the folder-only collaborator intact and two same-named projects in ONE folder would still draw indistinguishable *Used in* rows. That is the case §3.5 needs `projectPath` for, and it is the case a folder lookup cannot answer: `projectFolderOf` is `parentOf(path)`, so both projects share a folder and differ only in filename. Widen the lookup to the note path, and test it with two projects that share BOTH a display name and a directory. A declared fold with no files behind it is a fold that did not happen. Reported by a review bot.
 
 **`refuseUnrecovered` reuses the exact code string `settings.unrecovered`** — several call sites branch on it, and `viewHydrationOrigin` decides "no retry" from it. A new code here would silently give the bootstrap failure a retry button that cannot work.
 
@@ -1565,9 +1569,16 @@ Either way the surviving note stays unindexed until a full rebuild. **Every prom
 
 **What the residue costs while it stands, stated so it is not read as covered.** A user resolving an id collision by deleting the visible asset through the plugin does not see the survivor appear until a reload. Out-of-band resolution — editing the loser's id, or deleting either note in the file explorer — works today, and those are the routes a user reaching two colliding notes most often takes, because a duplicate-id loser is not in the index and cannot be selected in the app at all. Bounded by a reload, which is the bound every other index fact already lives under.
 
-- [ ] **Step 1: Write the failing test** — delete a duplicate winner through `DeleteAssetCommand` and assert the loser is promoted, comparing against what a full `rebuildIndex()` produces rather than against a hard-coded path.
-- [ ] **Step 2: Run it and watch it fail at the assertion.**
-- [ ] **Step 3: Decide the owner and implement it.** Both shapes are legitimate and the choice is the task: an index observer the pipeline registers, or a promotion service both `trashNoteBackedEntity` and `processPath` call. Whichever is chosen, write down at the code why the other was not.
+**First, decide what a duplicate delete MEANS — index promotion is not the question.** A review bot found that the proposed test could pass while doing real harm, and it is right. `DeleteAssetCommand` does not merely remove a note: `runDeleteResolution` resolves or reassigns **every requirement** that referenced the asset, `ObsidianAssetRepository.delete` takes the geometry sidecar with it through `alsoRemove`, and `deleteOverridesOf` clears **every price override** — all before `AssetDeleted` is published (`DeleteAsset.ts:82-136`). Every one of those is keyed by the ID, and **the duplicate loser shares that id.**
+
+So promoting the loser after a command delete resurrects a catalogue entry whose geometry is gone, whose requirements were deliberately reassigned away, and whose price overrides were deleted — and it does that to a user who has just been walked through a reference-resolution dialog to confirm the deletion. A test asserting "the loser is promoted" passes over exactly that.
+
+**The likely answer, and it is Task 18's to confirm rather than mine to impose:** promotion is right for an OUT-OF-BAND delete, where nothing cascaded and the surviving note is simply the remaining claimant, and probably WRONG for a command delete, where the id's resources are gone by the user's own instruction. If so, the two doors want different behaviour rather than the same behaviour wired twice — which is a stronger reason for this to be its own task than the wiring argument that opened it.
+
+- [ ] **Step 1: Decide and write down the semantics** — what a duplicate-id delete means for each door, with the cascade above as the input. Record why the rejected reading was rejected.
+- [ ] **Step 2: Write the failing test for the semantics you chose** — and if promotion is right for a door, assert against what a full `rebuildIndex()` produces rather than a hard-coded path. If promotion is WRONG for the command door, the test asserts the loser stays excluded and says why.
+- [ ] **Step 3: Run it and watch it fail at the assertion.**
+- [ ] **Step 4: Decide the owner and implement it.** Both shapes are legitimate and the choice is the task: an index observer the pipeline registers, or a promotion service both `trashNoteBackedEntity` and `processPath` call. Whichever is chosen, write down at the code why the other was not.
 - [ ] **Step 3b: Cover the rollback door too** — a winner whose `alsoRemove` refuses, restored, with the displaced promoted loser asserted back in `listExclusions()` as `duplicate-id`. Watch it fail against today's raw `index.upsert`.
 - [ ] **Step 4: Prove BOTH doors still promote** — the out-of-band one Task 2 already covers, and the command one this task adds. A fix that moves promotion to the repository and loses the vault-event path is the partial fix this repository keeps paying for.
 - [ ] **Step 5: `npm run check`, then commit.**

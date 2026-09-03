@@ -23,12 +23,35 @@ import { applyWantedScheme, drawSchemeToggle } from '../harness/theme';
 import { isPlantedProbe } from '../helpers/plantedProbe';
 
 /**
- * JavaScript's own line-continuation removal, applied before any source pattern is matched.
+ * Source normalised the way the ENGINE reads it, before any pattern is matched: line
+ * continuations removed (the parser drops them) and `${...}` substitutions emptied (a template
+ * literal's value is its quasis, and a substitution cannot contribute an extension).
+ *
  * Module scope because it captures nothing (oxlint `consistent-function-scoping`), and named
- * rather than inlined because the stylesheet walk below is not the only question that would
- * be wrong to ask of un-normalised source.
+ * rather than inlined because the stylesheet walk below is not the only question that would be
+ * wrong to ask of un-normalised source.
+ *
+ * **The name is narrower than the function and is kept deliberately**: it says what the first
+ * transformation does, and the second arrived a round later for a case the first could not
+ * reach — a bare newline is legal inside `${ }` because it is expression syntax rather than
+ * part of the specifier, so `` import(`./styles/${\n name \n}.css`) `` evaluated to a real
+ * stylesheet path and matched nothing.
+ *
+ * **What this file claimed and did not deliver**: the previous revision said normalising
+ * "closes the class", and it closed the CONTINUATION class only. Template syntax is a second
+ * class and there may be a third — an identifier holding the specifier, a specifier assembled
+ * by concatenation — which no amount of normalising reaches, because at that point the value
+ * is not in the source text at all. Written down rather than implied, per this repository's
+ * rule that a guarantee is written to the check and never ahead of it.
+ *
+ * **The remedy if a third case arrives is a PARSER, not a fifth transformation.** It has been
+ * offered twice by review and declined twice for proportion; the reason to keep declining is
+ * shrinking, and the reason it is not free is `.vue` — the walk covers SFCs, so a parser needs
+ * the script block extracted first, and an extraction that silently missed one would return
+ * this instrument to the silent-pass failure it was fixed for.
  */
-const withoutContinuations = (text: string): string => text.replace(/\\\r?\n/g, '');
+const withoutContinuations = (text: string): string =>
+	text.replace(/\\\r?\n/g, '').replace(/\$\{[^}]*\}/gs, '');
 
 /**
  * Pulled from the real file rather than retyped, so this test agrees with `chrome.css`

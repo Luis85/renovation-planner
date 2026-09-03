@@ -86,15 +86,24 @@ const props = withDefaults(
 		 */
 		rooms?: number | null;
 		/**
-		 * Figures whose inputs have moved. They ARE in the amount, and the badge says so.
+		 * Figures whose inputs have moved — a STATE, and no claim about the amount.
+		 *
+		 * `unsummable` is the only thing that excludes a row from the amount, so a row counted
+		 * here contributes unless it is counted there too. This said "They ARE in the amount"
+		 * flat, which is the same defect the spec's `ProjectSummary` carried in four places; the
+		 * rule lives once, above those counts, and the props here name states and stop.
 		 *
 		 * **Includes `unreadableReferents`**, which is why the badge below subtracts rather than
 		 * printing this number: the two counts overlap by design.
 		 */
 		stale?: number;
 		/**
-		 * Rows built from a referent note that could not be READ — in the amount and in `stale`,
-		 * and separated here because recalculating them cannot succeed.
+		 * Rows built from a referent note that could not be READ — a subset of `stale`, since a
+		 * figure whose inputs cannot be re-read is never reported current. A STATE, like every
+		 * count here: whether such a row reached the amount is `unsummable`'s question, not this
+		 * one's, and a row that is both is excluded like any other currency mismatch.
+		 *
+		 * Separated from `stale` because recalculating them cannot succeed.
 		 */
 		unreadableReferents?: number;
 		/** Figures the total cannot take, because their currency is not the project's. */

@@ -23,6 +23,7 @@ import { isCompleted, nameCollator, orderProjects } from './projectOrder';
 import { matchesQuery } from './projectFilter';
 import { currentLanguage, tr } from '../i18n/strings';
 import { useRovingFocus, type RovingFocus } from './useRovingFocus';
+import { modifierLabel } from './platformModifier';
 
 /**
  * `unreadable` is REQUIRED rather than optional, and the reason is the one
@@ -56,6 +57,14 @@ defineEmits<{
  * next open — the same bound every other `tr` call on this surface has.
  */
 const collator = nameCollator(currentLanguage());
+
+/**
+ * THE FOOT LINE's key legend (design spec §5, region 7), resolved once per mount like the
+ * collator: the platform does not change under a running app, and `{mod}` is a fact about the
+ * machine rather than about the language, which is why it is a hole in the locale string rather
+ * than a baked-in `⌘`/`Ctrl`.
+ */
+const keyLegend = tr('view.project.keys', { mod: modifierLabel() });
 
 /**
  * The per-mount sort keys — see `orderProjects`. A plain `Map` rather than a `ref`: it is read
@@ -262,20 +271,6 @@ watch(
 		>
 			{{ tr('view.project.create') }}
 		</button>
-		<!--
-			Design slice A10's entry point. It sits on the LIST header rather than inside a
-			project, because an Asset is vault-wide since design slice 19 — a catalogue entry
-			carries no project id at all — so a per-project button would promise a scoping the
-			domain does not have. It leaves with Epic 6's catalogue surface, which is where a
-			creation action for a catalogue entry properly belongs.
-		-->
-		<button
-			type="button"
-			class="rp-project-list__create-asset"
-			@click="$emit('createAsset')"
-		>
-			{{ tr('view.asset.create') }}
-		</button>
 	</div>
 	<!--
 		REGION 2, guarded on "at least one project loaded" — the spec's own condition, and
@@ -424,4 +419,27 @@ watch(
 			{{ tr('view.project.create-named', { query: query.trim() }) }}
 		</button>
 	</div>
+	<!--
+		THE FOOT LINE (design spec §5, region 7). Present in BOTH the empty state and the
+		populated one, which is what removes today's duplication: the list header's own
+		`New asset` button and `ViewRoot`'s `.rp-view-aside` were two independently-decided
+		homes for one action and are now one.
+
+		BELOW the no-match block, deliberately: Task 7's review established that block as the
+		last thing in the list region, and the foot has to respect that rather than reopen it.
+
+		Its EXIT CONDITION, recorded so it is not rediscovered: this action leaves the
+		surface when Epic 6's catalogue surface exists, which is where a creation action for
+		a vault-wide catalogue entry belongs. Until then it is here, quiet, at the foot.
+	-->
+	<p class="rp-project-list__foot rp-view-aside">
+		<span class="rp-project-list__keys">{{ keyLegend }}</span>
+		<button
+			type="button"
+			class="rp-view-aside__create-asset"
+			@click="$emit('createAsset')"
+		>
+			{{ tr('view.asset.create') }}
+		</button>
+	</p>
 </template>

@@ -1,9 +1,10 @@
 /**
  * @vitest-environment jsdom
  *
- * Design slice A10's entry point, end to end: the project list header's second button opens
- * the New asset form, and the form is handed the two REAL command doors rather than one the
- * view invented.
+ * Design slice A10's entry point, end to end: the foot line's `New asset` button (Task 9 moved
+ * it there from the list header, giving it the one home `.rp-view-aside__create-asset` shares
+ * with the empty state's own) opens the New asset form, and the form is handed the two REAL
+ * command doors rather than one the view invented.
  *
  * The second and third cases are the ones that earn their place. "A dialog opened" is equally
  * true of a caller that wired the wrong command — every existing case in this directory says
@@ -81,7 +82,7 @@ async function openTheForm(context: unknown) {
 		global: { provide: { [RENOVATION_PROJECT_CONTEXT as symbol]: context } },
 	});
 	await flushPromises();
-	await wrapper.get('.rp-project-list__create-asset').trigger('click');
+	await wrapper.get('.rp-view-aside__create-asset').trigger('click');
 	await flushPromises();
 	return wrapper;
 }
@@ -266,9 +267,9 @@ describe('ViewRoot, creating an asset', () => {
 		await flushPromises();
 		const openDialog = vi.spyOn(useDialogStore(), 'openDialog');
 
-		await wrapper.get('.rp-project-list__create-asset').trigger('click');
+		await wrapper.get('.rp-view-aside__create-asset').trigger('click');
 		await flushPromises();
-		await wrapper.get('.rp-project-list__create-asset').trigger('click');
+		await wrapper.get('.rp-view-aside__create-asset').trigger('click');
 		await flushPromises();
 
 		expect(openDialog).toHaveBeenCalledTimes(1);

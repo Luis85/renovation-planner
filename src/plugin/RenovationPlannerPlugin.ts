@@ -281,6 +281,29 @@ export default class RenovationPlannerPlugin extends Plugin {
 			},
 		});
 
+		/**
+		 * `New project` as a REAL command rather than a pane-local key handler — the Home
+		 * design spec's §14 decision, taken.
+		 *
+		 * Obsidian binds hotkeys to command IDs, so a pane-local handler cannot be rebound and
+		 * may silently collide with one the user already has. Registering also puts the action
+		 * in the palette, which is where a stranger to this plugin looks — and it is why the
+		 * pane's key legend names the modifier rather than claiming a binding the user may have
+		 * changed.
+		 *
+		 * No default hotkey is declared. `hotkeys: []` would claim `Mod+N` for this plugin on
+		 * every install, over whatever the user already had there.
+		 *
+		 * The id is DATA: a user's hotkey is bound to it, so it does not get renamed.
+		 */
+		this.addCommand({
+			id: 'new-project',
+			name: tr('command.new-project'),
+			callback: () => {
+				runDetached(this.newProject(), this.root.logger, 'view.project.create-failed');
+			},
+		});
+
 		// The Plan Editor's two commands. Their BEHAVIOUR and their `addCommand` calls both
 		// live in one module beside this one — the sentence here used to claim the calls
 		// "still happen here", and they never did. What this file keeps is the ORDER: every
@@ -730,6 +753,18 @@ export default class RenovationPlannerPlugin extends Plugin {
 	}
 
 	/**
+	 * The one `reportFault` every activation door into this view hands `revealView` or
+	 * `navigateToProject` — `openProject`, `newProject` and `openProjectDetail` each used to
+	 * carry an identical inline closure, and Task 9's `newProject` is the copy that made three
+	 * worth naming as one. A bound class field rather than a method, so a call site can hand it
+	 * over directly (`reportFault: this.reportRevealFault`) with no wrapping arrow that would
+	 * just be a fourth copy of the same shape.
+	 */
+	private reportRevealFault = (cause: unknown): void => {
+		notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
+	};
+
+	/**
 	 * Both ways into the project view, and the place their fault door is COMPOSED — no longer
 	 * the place it is called.
 	 *
@@ -746,9 +781,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		void revealView(
 			{
 				workspace: this.app.workspace,
-				reportFault: (cause: unknown): void => {
-					notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
-				},
+				reportFault: this.reportRevealFault,
 			},
 			RENOVATION_PROJECT_VIEW,
 		);
@@ -766,6 +799,40 @@ export default class RenovationPlannerPlugin extends Plugin {
 	 */
 	openDiagnosticsReport(): void {
 		runDetached(showDiagnosticsReport(this), this.root.logger, 'diagnostics.report.failed');
+	}
+
+	/**
+	 * `new-project`'s whole behaviour: reveal the pane through the same `revealView` door every
+	 * other input uses — ONE action, every input — and then ask it to open the creation form.
+	 *
+	 * `await`ed rather than `void`ed at ITS call site, because `view.openNewProjectDialog()` can
+	 * reject (a rejecting dispatch, a fault inside the Vue tree it forwards to) and `addCommand`'s
+	 * callback returns nothing — so the caller wraps this whole method in `runDetached`, the same
+	 * treatment `openDiagnosticsReport` gives its own awaited chain and for the identical reason:
+	 * `revealView` answers every fault itself and cannot reject, so there is nothing left to catch
+	 * on that half alone.
+	 *
+	 * `leaf` can be `undefined` — a failed reveal answers its own fault through `reportFault` and
+	 * resolves nothing to write into — and `RENOVATION_PROJECT_VIEW`'s registered factory is what
+	 * makes `leaf.view` a real `RenovationProjectView` on every reachable path, so the `instanceof`
+	 * guard is defensive against a foreign view under this plugin's own type rather than a case
+	 * expected to fail in production.
+	 */
+	private async newProject(): Promise<void> {
+		const leaf = await revealView(
+			{
+				workspace: this.app.workspace,
+				reportFault: this.reportRevealFault,
+			},
+			RENOVATION_PROJECT_VIEW,
+		);
+		const view = leaf?.view;
+		if (!(view instanceof RenovationProjectView)) return;
+		// ANNOTATED rather than left to the narrowing, for the reason `rebindOpenViews` already
+		// carries: `fallow` resolves a class member through an explicit type, never through a
+		// property access, so a member reached only via `instanceof` is reported as unused.
+		const projectView: RenovationProjectView = view;
+		await projectView.openNewProjectDialog();
 	}
 
 	/**
@@ -789,9 +856,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 		const projects = entriesOfType(this.root.persistence?.index, 'renovation-project');
 		const deps = {
 			workspace: this.app.workspace,
-			reportFault: (cause: unknown): void => {
-				notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
-			},
+			reportFault: this.reportRevealFault,
 		};
 		if (projects.length === 0) {
 			// The list, not a picker: see the command's own docblock.

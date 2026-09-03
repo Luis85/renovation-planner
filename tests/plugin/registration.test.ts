@@ -8,6 +8,7 @@
  * silently — so it is driven here against the module mock rather than trusted.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Command } from 'obsidian';
 import { installObsidianDom } from '../helpers/dom';
 
 import {
@@ -24,6 +25,9 @@ import { loadedPlugin, type LoadedPlugin } from '../helpers/plugin';
 import { FakeLeaf, type FakeWorkspace } from '../helpers/workspace';
 import { levelChanges, levels, lines, recorder, resetRecorder } from '../helpers/logger';
 import { settle } from '../helpers/async';
+import { makeView } from '../helpers/makeRenovationProjectView';
+import { useDialogStore } from '../../src/presentation/dialogs/dialog-store';
+import { createPinia, setActivePinia } from 'pinia';
 
 
 // Hoisted above the imports by vitest, which is why the factory imports the helper itself
@@ -105,6 +109,9 @@ describe('what onload registers', () => {
 			// and both reach `openDiagnosticsReport`. Pinned here as an id like the rest,
 			// because a user's hotkey binds to this string.
 			'show-diagnostics-report',
+			// Task 9, §5's region 7 and the locked `Mod+N` decision: a real command rather than
+			// a pane-local key, so Obsidian owns the binding and the palette can find it.
+			'new-project',
 			'open-plan-editor',
 			'set-plan-background',
 			// Task B9: what makes ADR-0015's Asset Designer reachable at all — a picker over
@@ -229,6 +236,58 @@ describe('the composition root', () => {
 	 */
 	it('emits nothing above debug on a successful load', () => {
 		expect(lines.filter((line) => line.level !== 'debug')).toEqual([]);
+	});
+});
+
+/**
+ * Task 9's `new-project` command, and the two things worth proving about it: that it carries
+ * no default binding (a metadata claim any build satisfies, including one that reveals the pane
+ * and stops), and that the dialog — its entire purpose — actually opens.
+ */
+describe('new-project', () => {
+	/**
+	 * `plugin.commands` resolves through the MOCK's own minimal `Command` type
+	 * (`{ id, name, callback?, checkCallback? }`), which declares no `hotkeys` — so reading it
+	 * needs the real package's type, exactly as `openProjectDetail.test.ts`'s own precedent
+	 * does. One cast for the field's shape, named for what it is, rather than widening the
+	 * fake's own recording type for one assertion.
+	 */
+	it('registers New project as a command, so a user can bind and rebind it', () => {
+		const registered = (plugin as unknown as { commands: Command[] }).commands;
+		const command = registered.find((one) => one.id === 'new-project');
+
+		expect(command?.name).toBe(t('en', 'command.new-project'));
+		// No default binding: `hotkeys: []` would claim `Mod+N` for this plugin on every
+		// install, over whatever the user already had there.
+		expect(command?.hotkeys).toBeUndefined();
+	});
+
+	/**
+	 * The metadata case above passes against a build that reveals the pane and stops — the
+	 * dialog is the whole point of the command, and nothing above proves it opens. **NOTHING IS
+	 * STUBBED ON THE VIEW**: `view.openNewProjectDialog` is the real bridge
+	 * (`defineExpose`/`app.mount`), and this asserts on the DIALOG STORE, which is the far end
+	 * of the whole chain — a recorder standing in for the view's own method would pass whether
+	 * or not that bridge exists at all, which is the exact thing this case exists to prove.
+	 *
+	 * The leaf is built by hand rather than through `revealView`'s own leaf-creation path,
+	 * which `FakeWorkspace.getLeaf` cannot complete: nothing in this fake plays the role of
+	 * Obsidian invoking a registered factory when `setViewState` runs, so a leaf `revealView`
+	 * created here would carry no `.view` at all. `workspace.withOpen` plus a real view built
+	 * through `makeView` is what gives `revealView`'s EXISTING-leaf path — the ordinary one for
+	 * a singleton view — a real `RenovationProjectView` to find.
+	 */
+	it('opens the creation dialog, not merely the view', async () => {
+		setActivePinia(createPinia());
+		const view = makeView();
+		await view.onOpen();
+		const leaf = workspace.withOpen(RENOVATION_PROJECT_VIEW);
+		leaf.view = view;
+
+		plugin.commands.find((c) => c.id === 'new-project')?.callback?.();
+		await settle();
+
+		expect(useDialogStore().current?.kind).toBe('form');
 	});
 });
 

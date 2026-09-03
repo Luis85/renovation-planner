@@ -341,3 +341,45 @@
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 2px;
 }
+
+/*
+ * THE FOOT LINE (design spec §5, region 7). The legend at the LEADING edge and the action at
+ * the TRAILING one, both quiet. `space-between` because it has two children to push apart; when
+ * the empty state draws only the action, that one child sits at the leading edge, which is what
+ * `flex-start` would have given anyway.
+ *
+ * `.rp-view-aside`'s own muted colour and smaller size come from `forms.css` and are not
+ * restated — that block is imported first and this class is added beside it, so both apply.
+ */
+.rp-project-list__foot {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--size-4-2);
+	/* `forms.css` centres `.rp-view-aside` for the empty state's sake; the foot is a row across
+	   the pane, so the alignment is stated here rather than inherited. */
+	text-align: left;
+	padding: var(--size-4-4) var(--size-4-2) var(--size-2-2);
+}
+
+/*
+ * THE TRAILING EDGE, and `space-between` alone does not give it. In the EMPTY state the foot
+ * omits the key legend — there is no list to have shortcuts for — so `New asset` is the only
+ * flex item, and `space-between` puts a single item at the LEADING edge. A fresh vault, the
+ * one state where this action is the pane's only secondary affordance, would have drawn it on
+ * the wrong side of §5's foot line.
+ *
+ * An auto leading margin rather than a second rule for the empty state: with the legend present
+ * it changes nothing (`space-between` has already pushed the two apart), and with the legend
+ * absent it is what carries the action across. One declaration, both states, no branch.
+ */
+.rp-project-list__foot .rp-view-aside__create-asset {
+	margin-inline-start: auto;
+}
+
+.rp-project-list__keys {
+	/* A legend, never a control: it is not focusable and it names keys rather than offering
+	   them. Middle-click and modifier-click are undiscoverable on their own, and this is where
+	   they are discovered. */
+	color: var(--text-faint);
+}

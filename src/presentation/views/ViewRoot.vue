@@ -290,6 +290,16 @@ if (openProjectId === null) {
 		}),
 	);
 }
+
+/**
+ * The ONE member `RenovationProjectView` may call in through — Task 9's `new-project` command,
+ * reaching the same `onCreateProject` the pane's own header button and empty-state action
+ * already dispatch through. `<script setup>` exposes NOTHING by default, so without this line
+ * the view had no route to this handler at all; `RenovationProjectView.mount` casts what
+ * `app.mount(...)` returns to the shape this one line puts on it, which is why a second exposed
+ * member belongs here rather than at that cast.
+ */
+defineExpose({ openNewProjectDialog: onCreateProject });
 </script>
 
 <template>
@@ -302,21 +312,18 @@ if (openProjectId === null) {
 						@action="onCreateProject"
 					/>
 					<!--
-						**A fresh vault must still be able to build a catalogue.** The asset
-						action lives in `ProjectList`'s header, and the list is the `v-else`
-						below — so with no projects it was not mounted at all, and the only
-						thing a new vault offered was creating a project. An Asset is
-						VAULT-WIDE since design slice 19: it carries no project id and needs
-						none.
+						THE SAME FOOT LINE the populated state draws (design spec §5, region 7),
+						so a fresh vault can still build a catalogue and the two states are one
+						composition rather than two that happen to agree.
 
-						A SIBLING of the empty state rather than a second action ON it. The
-						empty state's message is "create your first project" and its button is
-						that sentence's verb; `EMPTY_STATE_CONTENT` is a typed registry whose
-						entries carry one action each, so a second one would be a widening
-						every entry inherits for the sake of one. This is an unrelated
-						affordance and is drawn as one.
+						A SIBLING of the empty state rather than a second action ON it, which is
+						unchanged: `EMPTY_STATE_CONTENT` is a typed registry whose entries carry
+						one action each, so a second one would be a widening every entry inherits
+						for the sake of one. The key legend is omitted here — there is no list to
+						navigate and no note to open, so a legend would advertise keys that do
+						nothing.
 					-->
-					<p class="rp-view-aside">
+					<p class="rp-project-list__foot rp-view-aside">
 						<button
 							type="button"
 							class="rp-view-aside__create-asset"

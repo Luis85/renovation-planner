@@ -982,6 +982,7 @@ view.asset-library.search           view.asset-library.search.results   (interpo
 view.asset-library.assets           (interpolated: {count})
 view.asset-library.used-in          view.asset-library.used-in.none
 view.asset-library.used-in.project  (interpolated: {name}, {count})
+view.asset-library.used-in.vault-root
 view.asset-library.open-designer    view.asset-library.open-note
 view.asset-library.back             view.asset-library.delete
 view.asset-library.shape            view.asset-library.footprint
@@ -1000,6 +1001,14 @@ view.asset-library.used-in.loading  view.asset-library.used-in.failed
 empty.asset-library.no-assets.headline / .body / .action
 empty.asset-library.no-matches.headline / .body / .action
 ```
+
+`view.asset-library.used-in.vault-root` is the label a *Used in* row draws where the query
+supplies `''` — a project whose `Project.md` sits at the vault root, so its derived folder is the
+empty string. It arrived three rounds after the rendering rule it belongs to, which is the same
+neighbour-section drift this document keeps recording: §3.5 gained "renders a root label rather
+than nothing" and §8, two sections away and calling itself exhaustive, did not gain the key. A
+list that claims to be exhaustive is a claim about every OTHER section of the document, and it
+goes stale the moment one of them grows a string. Reported by a review bot.
 
 Category and unit labels are **not** new: `ASSET_CATEGORY_LABELS` and `MEASUREMENT_UNIT_LABELS`
 already map every member of both unions to a key, and a member added to either union fails to
@@ -1606,6 +1615,19 @@ from the start rather than as a single named target.
 **This one is specified and unphotographed**, and the reason is structural rather than an
 oversight: nothing in the prototype commits an edit, because every write on this surface belongs
 to a real command. It is named here so it does not read as covered.
+
+An eighteenth round found one, and it is the neighbour-section drift again, at the one section
+that calls itself exhaustive.
+
+Round fifteen gave §3.5 a **root label** for a *Used in* row whose project sits at the vault root,
+and §8 — the key inventory, two sections away — did not gain a key for it. A builder following the
+document would have hard-coded English into the German surface, which is the exact failure §8's own
+header says the inventory exists to prevent. `view.asset-library.used-in.vault-root` is there now.
+
+**A list that claims to be exhaustive is a claim about every other section of the document**, and
+it goes stale the moment one of them grows a string — so it is the section most exposed to the
+drift, not the least. That is the fifth round in seven to find one section left describing a state
+another had already changed, and this one had three rounds to be noticed in.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

@@ -132,3 +132,12 @@ Remains:
 - **Extension 1a — Add is not blocked in a stale or failed state.** `stale` feeds the warning strip
   and nothing else, so Add stays live over content the last read-back could not confirm; the same
   residue [[Inspect a selected room]] records for Delete.
+
+- [[A Cancel button with a drafted room leaves the creation task active]]
+- [[The Add menu sends wheel gestures to the canvas]]
+- [[The Add menu survives the canvas that anchored it]]
+- [[Escape closes Add only while focus remains inside the menu]]
+- [[An Add choice activates before the menu closes]]
+- [[The exact-once Add test never counts activations]]
+- [[The Add-menu pointer tests omit pointerup]]
+- [[The manual keymap claim points to a step that never invokes the keymap]]

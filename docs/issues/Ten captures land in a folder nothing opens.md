@@ -72,6 +72,10 @@ is no baseline to diff against". Nothing here asks for that to change.
   those came from one review of the harness index. Every one was found by a person opening a PNG
   and looking at it. The ergonomics of that step are the whole cost of using the tool.
 
+**2026-09-03:** The dedicated review measured **TWENTY fixed captures** at head in
+`scripts/harness-shot.mjs`, reviewed at commit `16757d6d`. The note's ten-count and title are
+therefore historical, while the contact-sheet issue it records has doubled.
+
 ## The alternatives
 
 - **Leave it.** Ten files is not many, and a designer who wants two of them side by side has an

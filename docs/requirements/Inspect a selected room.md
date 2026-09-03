@@ -126,3 +126,5 @@ Remains:
   that strip alone, so Delete stays live over data the last read-back could not confirm. Recorded
   at [[Preserve room inspection across layout and read changes]].
 - **The resize-driven drawer close leaves focus on `<body>`**, the same residue Layers records.
+- [[The cross-surface identity test starts after selection]]
+- [[The Inspector's two unavailable lists are separate navigation models]]

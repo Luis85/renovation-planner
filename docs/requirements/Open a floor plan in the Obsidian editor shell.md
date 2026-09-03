@@ -139,3 +139,13 @@ Remains, and each is recorded at the Task that owns it:
 - **No manual case for Undo and Redo beyond one clause.** The context bar carries both controls
   and step 1 of [[Open a floor and select a room]] asserts only that they are present and
   disabled with an empty history; the Undo and redo PBI is not advanced here.
+- [[Unsupported layout can preserve an interrupted canvas gesture]]
+- [[A missing hydration can keep a stale flag set]]
+- [[The status bar reports an unset scale before any plan has loaded]]
+- [[The warning model cannot carry its contract's severity]]
+- [[The warning live-region contract and implementation describe different semantics]]
+- [[The toolbar-key retirement contract conflicts with the Asset Designer]]
+- [[Unsupported width has no horizontal-overflow check]]
+- [[The two full-panel toggle actions have no production caller]]
+- [[The unsupported-width copy pluralizes one room as rooms]]
+- [[The constrained-overlay contract both requires and refuses a focus trap]]

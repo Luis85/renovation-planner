@@ -127,3 +127,7 @@ Remains:
   The empty, partial-unreadable, failed and unsupported states have no picture in either scheme.
   Recorded at [[Distinguish empty unreadable and unavailable floor data]], which stays **Active**
   for it.
+
+- [[The unsupported-width summary presents a partial room count as complete]]
+- [[The partial-summary test never checks the area count]]
+- [[The completed floor-summary task promises a stale aggregate no model can represent]]

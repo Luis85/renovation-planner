@@ -147,10 +147,17 @@ describe('DeleteRequirementCommand error propagation', () => {
 		const requirements = overridePort(w.requirements, {
 			delete: () => Promise.resolve(err(injectedPersistenceError())),
 		});
+		// This is the case that actually reaches the write: `loadRequirement` succeeds and
+		// `delete` is what refuses, so a build that published right after the load — before
+		// checking whether the delete itself succeeded — would still pass every case in
+		// deleteRequirement.test.ts, which never gets this far. Clearing first drops the
+		// events wiredWithLink's own assign already published.
+		w.events.clear();
 		const error = expectErr(
 			await new DeleteRequirementCommand(requirements, w.events).execute({ requirementId: w.requirementId }),
 		);
 		expect(error.code).toBe('test.injected-failure');
+		expect(w.events.published).toEqual([]);
 	});
 });
 

@@ -810,7 +810,8 @@ const NO_MODIFIERS: ModifierSource = {
  *
  * What it deliberately does NOT do is either of the two things its callers disagree about: the
  * re-issued pointer move (`onBlur` alone, and FIRST — see below) and what becomes of the
- * remembered position. Both are stated at each door, because each door answers differently.
+ * remembered position. Both are stated at each door, because each door answers differently —
+ * `onBlur`, above, and `onBeforeUnmount`, below.
  */
 function releaseInterruptedInputs(): void {
 	swallowedPointers.clear();
@@ -1216,6 +1217,16 @@ onBeforeUnmount(() => {
 	// can leave with the pointer still resting over the plan, and blanking the status bar then
 	// would be a visible falsehood — but the canvas itself is about to be gone, so a coordinate
 	// readout would be a claim about a pointer over nothing.
+	//
+	// **The other two things `releaseInterruptedInputs`'s own docblock defers to this door, and
+	// both differ from `onBlur`'s.** No pointer move is re-issued here: `reissuePointerMove`
+	// hands its synthetic event to the ACTIVE TOOL, and by the time this handler runs the whole
+	// surface is unmounting, so there is no tool left mounted to hear it — re-issuing would be a
+	// call into a component already gone. And `lastStagePoint` — the component-local ref, a
+	// different value from the `editor.setPointer` readout above — is not forgotten the way
+	// `onBlur` forgets it: the ref dies with this component, so a fresh surface mounted later
+	// starts with its own `lastStagePoint`, `null` by declaration, and there is nothing stale
+	// left for a replay to read.
 	releaseInterruptedInputs();
 	editor.setPointer(null);
 	// A window listener outlives its element unless something removes it, and a closed leaf

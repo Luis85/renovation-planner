@@ -506,6 +506,70 @@ describe('the queued gate', () => {
 	}, 15_000);
 
 	/**
+	 * The lock outlives a cancelled command's descendants, not just the process we spawned.
+	 *
+	 * Signalling the group reaches them; it does not wait for them. A descendant that shuts
+	 * down GRACEFULLY — which is what `vitest` does, flushing coverage as it goes — outlives
+	 * the `npm` process the wrapper awaits, so the `exit` listener resolved and the lock was
+	 * released while it was still writing. Reproduced before fixing: the wrapper exited with
+	 * the lock already gone and the descendant finished 1.5 seconds later.
+	 *
+	 * The assertion is the ORDER, which is the only thing that separates the two worlds: both
+	 * release the lock and both let the descendant finish eventually, and only one of them
+	 * still holds the lock while it does. So this asserts the marker is already there AT THE
+	 * MOMENT the wrapper exits.
+	 *
+	 * POSIX only, as its two siblings above: the drain asks `process.kill(-pgid, 0)`, and
+	 * Windows has neither that nor the group it interrogates.
+	 */
+	it.skipIf(process.platform === 'win32')('holds the lock until a cancelled descendant has finished', async () => {
+		lock = path.join(workspace, 'drain.lock');
+		const started = path.join(workspace, 'drain.started');
+		const flushed = path.join(workspace, 'drain.flushed');
+
+		rmSync(started, { force: true });
+		rmSync(flushed, { force: true });
+
+		// A descendant that takes its time on the way out, the way a test runner writing
+		// coverage does. Paths through the environment, per `marker` above.
+		const script = path.join(workspace, 'drain.sh');
+
+		writeFileSync(
+			script,
+			`node -e 'const f = require("fs");` +
+				` f.writeFileSync(process.env.RP_STARTED, "up");` +
+				` process.on("SIGTERM", () => setTimeout(() => {` +
+				` f.writeFileSync(process.env.RP_FLUSHED, "flushed"); process.exit(0); }, 1000));` +
+				` setInterval(() => {}, 1000);' &\nwait $!\n`,
+		);
+
+		const wrapper = spawn(process.execPath, [SCRIPT, 'sh', script], {
+			env: { ...process.env, RP_GATE_LOCK: lock, RP_STARTED: started, RP_FLUSHED: flushed },
+			stdio: 'ignore',
+		});
+
+		for (let waited = 0; !existsSync(started) && waited < 5000; waited += 25) {
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 25);
+			});
+		}
+
+		// Without this the absence below is true of a world where nothing ever ran, which is
+		// exactly how the process-tree case above first passed against its own defect.
+		expect(existsSync(started), 'the descendant never started, so this case proves nothing').toBe(true);
+
+		wrapper.kill('SIGTERM');
+
+		await new Promise<void>((resolve) => {
+			wrapper.on('exit', () => {
+				resolve();
+			});
+		});
+
+		expect(existsSync(flushed), 'the lock was released while a descendant was still shutting down').toBe(true);
+	}, 20_000);
+
+	/**
 	 * Both halves of one defect, and it was a real one: `process.exit()` does not run a
 	 * pending `finally`, so the first version of this script released nothing and every
 	 * later gate on the machine waited `STALE_MS` for a holder that had already finished.

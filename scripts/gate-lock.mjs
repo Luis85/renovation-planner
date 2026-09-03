@@ -54,6 +54,14 @@ const STALE_MS = 20 * 60 * 1000;
 
 const POLL_MS = 2000;
 
+// How long a cancelled command's process group may take to drain before the lock is released
+// anyway. Generous against a graceful shutdown (vitest flushing coverage) and far short of
+// STALE_MS, because a wrapper that waited forever for one stuck descendant would be the wedge
+// this file's own bound exists to prevent.
+const DRAIN_MS = 10_000;
+
+const DRAIN_POLL_MS = 50;
+
 /**
  * Who holds the lock, and the file that says so.
  *
@@ -147,6 +155,43 @@ const occupy = () => {
 	} catch {
 		return false;
 	}
+};
+
+/** Whether the command's process GROUP still holds a member. Signal 0 only asks. */
+const groupIsAlive = (pgid) => {
+	try {
+		process.kill(-pgid, 0);
+
+		return true;
+	} catch {
+		// ESRCH: nothing left in the group. A spawn that never started lands here too.
+		return false;
+	}
+};
+
+/**
+ * Wait for a CANCELLED command's descendants to actually finish before the lock is released.
+ *
+ * Signalling the group reaches them; it does not wait for them. A descendant that shuts down
+ * gracefully — which is what `vitest` does, flushing coverage as it goes — outlives the `npm`
+ * process we awaited, so the `exit` listener resolved and the lock was released while it was
+ * still writing. Reproduced: the wrapper exited with the lock gone and the descendant finished
+ * 1.5 seconds later, which is the overlap this file exists to prevent, one step further along
+ * than the round that fixed the signalling itself.
+ *
+ * Bounded, and the bound is a decision: a descendant that never dies must not wedge the gate
+ * forever, so the lock goes after DRAIN_MS with a line saying so. Only after a CANCELLATION —
+ * on the ordinary path the command exited because it finished, and making every gate wait for
+ * a stray background process would slow the common case for a hazard that is not there.
+ */
+const drainGroup = async (pgid) => {
+	for (let waited = 0; waited < DRAIN_MS; waited += DRAIN_POLL_MS) {
+		if (!groupIsAlive(pgid)) return;
+
+		await sleep(DRAIN_POLL_MS);
+	}
+
+	console.error(`A descendant outlived the cancellation. Releasing ${LOCK} after ${DRAIN_MS}ms.`);
 };
 
 /**
@@ -297,6 +342,10 @@ if (command.length === 0) {
 
 let waited = false;
 
+// Whether a signal reached us while the command was running. Read below to decide whether the
+// command's descendants have to be waited for, which is only a question after a cancellation.
+let signalled = false;
+
 // The child, once there is one. Held here because the signal handlers below are installed
 // BEFORE the lock is claimed and have to behave differently on each side of that line.
 let child = null;
@@ -354,6 +403,7 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
 		// command ran on, which is the overlap this file exists to prevent arriving through the
 		// one door that looks like cleanup — the child's own exit is what releases, below.
 		if (child !== null) {
+			signalled = true;
 			killTree(child, signal);
 
 			return;
@@ -414,6 +464,10 @@ try {
 			resolve(signal === null ? (code ?? 1) : 1);
 		});
 	});
+
+	// The lock covers the whole command, so it may not be dropped while a descendant the
+	// cancellation reached is still shutting down and still writing.
+	if (signalled && GROUPS) await drainGroup(child.pid);
 } finally {
 	release();
 }

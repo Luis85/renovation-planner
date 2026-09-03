@@ -55,3 +55,1365 @@ The spec's §11 names nine decisions a builder must not invent silently. They ar
 | 11.9 | Does a Bases view ship beside this? | **No code.** §2a's commitment is discharged by the negative rule — no fact about an asset exists only in this view — which every task below is bound by. The epic's Definition of Done item stays open and is not claimed. | The epic item remains unticked. Claiming it would be the worse error. |
 
 ---
+
+## File structure
+
+**Application — ports and events**
+- Modify `src/application/ports/ProjectIndex.ts` — the excluded-note collection and its descriptor.
+- Modify `src/application/ports/AssetRepository.ts` — `listAll()` answers a listing, not a bare array.
+- Modify `src/application/ports/AssetGeometrySidecar.ts` — a refusal carries `sidecarPath`.
+- Create `src/application/events/assetLibraryChangeSource.ts` — the fourth change source (§11.7 ruling).
+- Modify `src/application/events/projectIndexEvents.ts` (wherever `ProjectIndexEntryChanged` is declared) — add `ProjectIndexExclusionChanged`.
+
+**Application — queries**
+- Create `src/application/queries/ListCatalogueEntries.ts` — the catalogue read model.
+- Create `src/application/queries/ListAssetOutlines.ts` — the batched, per-entry-settling mark read.
+- Modify `src/application/queries/GetAssetDesign.ts` — clearance extent through `dimensionsOf`, `sidecarPath` passthrough.
+
+**Infrastructure**
+- Modify `src/infrastructure/persistence/index/buildProjectIndexEntries.ts` — `EntityRef`'s `no-id` arm carries `type`; the scan collects excluded descriptors.
+- Modify `src/infrastructure/persistence/index/VaultChangeAdapter.ts` — the incremental door announces exclusions, and promotes/demotes duplicate-id contenders atomically.
+- Modify `src/infrastructure/persistence/index/InMemoryProjectIndex.ts` (or wherever the index implementation lives) — the excluded collection.
+- Modify `src/infrastructure/obsidian/repositories/ObsidianAssetRepository.ts` and the in-memory sibling — the widened listing.
+- Modify `src/infrastructure/obsidian/repositories/AssetGeometryStore.ts` — `sidecarPath` on refusal.
+
+**Presentation**
+- Create `src/presentation/library/AssetLibraryView.ts`, `AssetLibraryContext.ts`.
+- Create `src/presentation/library/AssetLibraryRoot.vue`, `AssetShelves.vue`, `AssetShelf.vue`, `AssetRow.vue`, `AssetMark.vue`, `AssetInspector.vue`, `AssetInspectorShape.vue`, `AssetInspectorUsedIn.vue`, `shelfFocus.ts`, `viewportMarks.ts`.
+- Create `src/presentation/read-models/assetLibraryQueries.ts`.
+- Create `src/presentation/stores/AssetLibraryStore.ts`, `src/presentation/stores/AssetSelectionStore.ts`.
+- Modify `src/presentation/emptyStates/content.ts`, `selectors.ts`.
+- Modify `src/presentation/i18n/locales/en.ts`, `de.ts`.
+- Modify `src/presentation/views/ViewRoot.vue` and `ProjectList.vue` — the two in-app doors (§2).
+
+**Plugin**
+- Modify `src/plugin/RenovationPlannerPlugin.ts` — `registerView`, the command, `assetLibraryViewDeps()`, the fourth `rebindOpenViews` loop.
+- Modify `src/plugin/composition-root.ts` — `assetLibraryDeps(...)`.
+- Modify `src/plugin/guardedServices.ts` — guard the two new queries.
+
+**Styles**
+- Create `styles/asset-library.css`, `styles/asset-library-inspector.css`; modify `styles/index.css` and `styles/list-row.css`.
+
+---
+
+## Preflight scan
+
+Run before Task 1. Every pair of tasks that share a file or an interface, and every task's own self-agreement.
+
+| Pair | Shared surface | Found |
+| --- | --- | --- |
+| 1 → 2 | `EntityRef.no-id` gains `type`; Task 2 reads it | Clean — Task 1 lands the field, Task 2 is its only new consumer |
+| 2 → 5 | `ProjectIndex` excluded descriptors → `UnreadableEntry` | Clean — Task 5 maps, never re-derives |
+| 3 → 5 | `AssetRepository.listAll()` listing → `CatalogueListing` | Clean — Task 3 supplies `read-failed` only; Task 5 merges the index's two other sources |
+| 4 → 6, 4 → 14 | `sidecarPath` on refusal | Clean — Task 6 carries it per entry, Task 14 renders it |
+| 7 → 10, 7 → 14 | change source → store invalidation | Clean |
+| 11 → 12/13/14 | view mounts the components | Task 11 lands a minimal root; 12–14 fill it. Ordered so the view is testable before the components exist |
+| 9 → every UI task | `StringKey`s | Task 9 lands the whole key inventory first, so no later task adds copy piecemeal |
+| 15 → 12/13/14 | class names | Task 15 follows the components, so it styles names that exist |
+| 2 (self) | scan and incremental door | **Finding:** the promotion/demotion rule is the one place the incremental door may not stay path-local. Ruled: it is in scope for Task 2, and Task 2's brief carries §5.1a lines 1000–1010 verbatim |
+| 6 (self) | batch vs. per-entry | **Finding:** the batch must settle per entry; a `Result` over the whole batch is the defect. Task 6's tests assert one damaged sidecar beside three good ones |
+| 16 (self) | keyboard vs. `v-show` | **Finding:** jsdom cannot report layout, so the "skip a collapsed shelf's rows" filter is unassertable here. Ruled: the filter is written against `v-show`'s own attribute rather than layout, and the residual is recorded in the manual case |
+
+**Ruling (preflight):** Tasks 12–14 promote `src/prototypes/AssetLibrary.vue`, `AssetShelf.vue`, `AssetInspector.vue` and `AssetMark.vue`. `tests/build/prototype-promotion.test.ts` holds templates byte-identical for exactly one file pair (`ZoneSummary.vue`) and does not cover these — so promotion here is a *port*, not a move, and each task states what changed and why. Cost if wrong: the prototypes and the shipped components drift, which is the gap that test exists to close for one pair and does not close for these.
+
+**Ruling (preflight):** the codebase survey claimed `AssetGeometryStore.pathFor` derives from `libraryFolder` without consulting the index. Measured false — `pathFor` is index-first at `AssetGeometryStore.ts:283`, exactly as the spec's §5.3 says, with `usableAsFilename` refusing above it. Task 6's brief carries the measurement, because a batch that derives for itself reintroduces the moved-sidecar defect that method's own docblock records. Cost if wrong: a moved `.rpgeo` reads as shapeless on the one surface built to show shapes.
+
+---
+
+### Task 1: `EntityRef`'s `no-id` arm carries the entity type
+
+**Spec:** §5.1a, lines 1013–1030 ("the descriptor carries `EntityType`, which the index cannot supply from its key").
+
+**Files:**
+- Modify: `src/infrastructure/persistence/index/buildProjectIndexEntries.ts:34-46`
+- Test: `tests/infrastructure/persistence/index/entityRef.test.ts`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: `EntityRef` gains `{ kind: 'no-id'; type: EntityType }`. Task 2 is its only new consumer.
+
+**Why it is free here and nowhere else:** `entityRefOf` validates `type` against `ENTITY_TYPES` on the line ABOVE the id check, so the `no-id` arm has already proved a valid `EntityType` before it returns. Capturing it costs no parsing and no second read. The alternative — re-reading the note when the repair strip is drawn — is a vault read per excluded note per render.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+it('carries the entity type on a note of ours with no usable id', () => {
+    const ref = entityRefOf({ type: 'renovation-asset' });
+    expect(ref).toEqual({ kind: 'no-id', type: 'renovation-asset' });
+});
+
+it('still refuses a note whose type is not ours, before asking about the id', () => {
+    expect(entityRefOf({ type: 'something-else' })).toEqual({ kind: 'not-ours' });
+    expect(entityRefOf({})).toEqual({ kind: 'not-ours' });
+});
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `npx vitest run tests/infrastructure/persistence/index/entityRef.test.ts`
+Expected: FAIL — the first case reports `{ kind: 'no-id' }` received against `{ kind: 'no-id', type: 'renovation-asset' }` expected. Watch it fail at the assertion, not at an import.
+
+- [ ] **Step 3: Widen the union and the return**
+
+```ts
+export type EntityRef =
+	| { kind: 'ours'; type: EntityType; id: string }
+	| { kind: 'no-id'; type: EntityType }
+	| { kind: 'not-ours' };
+
+export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef {
+	const type = frontmatter['type'];
+	if (typeof type !== 'string' || !ENTITY_TYPES.includes(type as EntityType)) {
+		return { kind: 'not-ours' };
+	}
+	const id = stringField(frontmatter['id']);
+	// The type is validated above, so the `no-id` arm carries it for free. Recorded here
+	// because this is the ONLY point at which an excluded note's type is known without a
+	// second read: `ProjectIndex` is keyed by id globally and has no type in its key.
+	return id === undefined
+		? { kind: 'no-id', type: type as EntityType }
+		: { kind: 'ours', type: type as EntityType, id };
+}
+```
+
+- [ ] **Step 4: Run the whole index suite**
+
+Run: `npx vitest run tests/infrastructure/persistence/index/`
+Expected: PASS. The two existing `entityRefOf` callers (`collectNotes` and `VaultChangeAdapter.processNote`) both discriminate on `kind` and ignore the new field, so nothing else moves. If either fails to compile, that is the compiler naming a caller this step must update — do not cast around it.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: entityRefOf carries the entity type of a note it cannot index"
+```
+
+---
+
+### Task 2: The index holds excluded notes, and the incremental door announces them
+
+**Spec:** §5.1a in full, lines 893–1049. Read it before writing anything — particularly lines 990–1010, which carry the promotion and demotion rules, and lines 1011–1022, which say why the descriptor carries a reason and a code.
+
+**Files:**
+- Modify: `src/application/ports/ProjectIndex.ts` — the descriptor type and the read/write members.
+- Modify: `src/infrastructure/persistence/index/buildProjectIndexEntries.ts` — the scan collects descriptors.
+- Modify: `src/infrastructure/persistence/index/VaultChangeAdapter.ts` — the incremental door.
+- Modify: wherever `ProjectIndexEntryChanged` is declared — add `ProjectIndexExclusionChanged`.
+- Test: `tests/infrastructure/persistence/index/excludedNotes.test.ts` (new), and the existing `announcements.test.ts`.
+
+**Interfaces:**
+- Consumes: Task 1's `EntityRef.no-id.type`.
+- Produces:
+
+```ts
+// application/ports/ProjectIndex.ts
+export type ExclusionReason = 'no-id' | 'duplicate-id';
+export interface ExcludedNote {
+	readonly path: string;
+	readonly entityType: EntityType;
+	readonly reason: ExclusionReason;
+}
+// read side
+listExclusions(): readonly ExcludedNote[];
+// write side
+addExclusion(note: ExcludedNote): void;
+removeExclusion(path: string): void;
+```
+
+```ts
+// the new event
+export interface ProjectIndexExclusionChangedPayload {
+	readonly path: string;
+	readonly entityType: EntityType;
+}
+```
+
+**Four rules this task exists to keep.** Each gets a test that fails without it.
+
+1. **The reason is carried, never reconstructed.** Open a duplicate-id loser and its frontmatter looks entirely valid — the defect is a collision with another file, invisible from inside the note. The three sources are distinct where they are collected and nowhere afterwards.
+2. **The entity type is the LOSER's own, never the winner's.** `ProjectIndex` is one global id namespace and `collectNotes` keys its map by `ref.id` with no type in the key, so an asset note and a project note can collide. Assigning the winner's type files the excluded asset under whatever displaced it. The loser's type is free at both sides: `ref.type` for an arriving note that loses, and the displaced entry's own `type` for one already in the map.
+3. **Promotion.** Removing or re-identifying an entry re-evaluates the excluded contenders for that id: if exactly one remains, it becomes an index entry and its descriptor is dropped. Without this, a user resolves the collision exactly as instructed and the asset does not come back until a full rebuild.
+4. **Demotion, in the same atomic step.** `applyUpsert` is keyed by id, so a second note declaring an id the index already holds REPLACES the entry — and without this the displaced path is in neither `entries` nor `unreadable`. It is simply gone from the surface. Demotion and promotion are one change, not two.
+
+- [ ] **Step 1: Write the failing tests — the scan**
+
+```ts
+it('records a note of ours with no id as an exclusion carrying its own type', async () => {
+    const stack = createRepositoryStack();
+    await stack.vault.create('Renovation/Library/broken.md', '---\ntype: renovation-asset\n---\n');
+    await stack.rebuildIndex();
+    expect(stack.index.listExclusions()).toEqual([
+        { path: 'Renovation/Library/broken.md', entityType: 'renovation-asset', reason: 'no-id' },
+    ]);
+});
+
+it('gives a duplicate-id loser its OWN type, never the winner is', async () => {
+    // A project note and an asset note declaring one id: the index is a single
+    // global namespace, so they collide and one is excluded.
+    const stack = createRepositoryStack();
+    await stack.vault.create('a/Project.md', '---\ntype: renovation-project\nid: shared-01\n---\n');
+    await stack.vault.create('Renovation/Library/tile.md', '---\ntype: renovation-asset\nid: shared-01\n---\n');
+    await stack.rebuildIndex();
+    const excluded = stack.index.listExclusions();
+    expect(excluded).toHaveLength(1);
+    // Whichever lost, its descriptor names ITS type — not the type of the note that won.
+    const winner = stack.index.get('shared-01' as EntityId<string>);
+    expect(excluded[0]?.entityType).not.toBe(winner?.type);
+    expect(excluded[0]?.reason).toBe('duplicate-id');
+});
+```
+
+- [ ] **Step 2: Write the failing tests — the incremental door**
+
+```ts
+it('promotes the sole surviving contender when the winner is deleted', async () => {
+    const stack = createRepositoryStack();
+    await stack.vault.create('Renovation/Library/one.md', '---\ntype: renovation-asset\nid: tile-01\n---\n');
+    await stack.vault.create('Renovation/Library/two.md', '---\ntype: renovation-asset\nid: tile-01\n---\n');
+    await stack.rebuildIndex();
+    const loser = stack.index.listExclusions()[0]?.path;
+    const winner = stack.index.get('tile-01' as EntityId<string>)?.path;
+    expect(loser).toBeDefined();
+
+    await stack.vault.delete(stack.vault.file(winner!));
+    await stack.adapter.processPath(winner!);
+
+    // The loser is now the only claimant of that id, so it IS the asset.
+    expect(stack.index.get('tile-01' as EntityId<string>)?.path).toBe(loser);
+    expect(stack.index.listExclusions()).toEqual([]);
+});
+
+it('demotes the displaced winner in the same step as the arrival takes its id', async () => {
+    const stack = createRepositoryStack();
+    await stack.vault.create('Renovation/Library/one.md', '---\ntype: renovation-asset\nid: tile-01\n---\n');
+    await stack.rebuildIndex();
+
+    await stack.vault.create('Renovation/Library/two.md', '---\ntype: renovation-asset\nid: tile-01\n---\n');
+    await stack.adapter.processPath('Renovation/Library/two.md');
+
+    expect(stack.index.get('tile-01' as EntityId<string>)?.path).toBe('Renovation/Library/two.md');
+    // The displaced note is REPORTED, not silently gone from the surface.
+    expect(stack.index.listExclusions()).toEqual([
+        { path: 'Renovation/Library/one.md', entityType: 'renovation-asset', reason: 'duplicate-id' },
+    ]);
+});
+
+it('announces an exclusion change through its own event', async () => {
+    const stack = createRepositoryStack();
+    const heard: ProjectIndexExclusionChangedPayload[] = [];
+    stack.events.subscribe('projectIndexExclusionChanged', (e) => { heard.push(e.payload); });
+    await stack.vault.create('Renovation/Library/broken.md', '---\ntype: renovation-asset\n---\n');
+    await stack.adapter.processPath('Renovation/Library/broken.md');
+    expect(heard).toEqual([{ path: 'Renovation/Library/broken.md', entityType: 'renovation-asset' }]);
+});
+```
+
+- [ ] **Step 3: Run them and watch every one fail**
+
+Run: `npx vitest run tests/infrastructure/persistence/index/excludedNotes.test.ts`
+Expected: FAIL — `listExclusions is not a function` on the first two, then assertion failures. Each must fail at its own assertion once the members exist; a case that fails at an import proves nothing.
+
+- [ ] **Step 4: Implement, in this order**
+
+The port first (`ExcludedNote`, `ExclusionReason`, the three members), then the index implementation, then `collectNotes`'s two exclusion arms, then the event, then `VaultChangeAdapter`. `collectNotes`'s duplicate arm reads the displaced entry BEFORE `entries.set` overwrites it:
+
+```ts
+// inside collectNotes, replacing the bare warnOnDuplicate call at line 100
+const displaced = entries.get(ref.id);
+warnOnDuplicate(input.logger, displaced, ref.id, file.path);
+if (displaced !== undefined) {
+	// Last-writer-wins is deliberate (changing it would make which note wins depend on
+	// scan order). What is NOT deliberate is losing the displaced note's own type: the
+	// map is keyed by id with no type in the key, so this descriptor takes `displaced.type`
+	// and never `ref.type`.
+	input.exclusions.push({ path: displaced.path, entityType: displaced.type, reason: 'duplicate-id' });
+}
+```
+
+and the `no-id` arm gains its descriptor beside the warn it already logs, using Task 1's `ref.type`.
+
+- [ ] **Step 5: Run the tests, then the whole index suite**
+
+Run: `npx vitest run tests/infrastructure/persistence/index/`
+Expected: PASS.
+
+- [ ] **Step 6: Mutation-check the two rules a green suite would not notice**
+
+Replace `displaced.type` with `ref.type` and run the cross-type case: it must go red. Delete the demotion push and run the demotion case: it must go red. Restore both. Record in the report that you watched each fail.
+
+- [ ] **Step 7: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the project index holds the notes it could not index, and announces them"
+```
+
+---
+
+### Task 3: `AssetRepository.listAll()` reports the notes it skipped
+
+**Spec:** §5.1a lines 893–920 — the port change the spec's own "nothing else in the application layer changes" sentence denied.
+
+**Files:**
+- Modify: `src/application/ports/AssetRepository.ts:26`
+- Modify: `src/infrastructure/obsidian/repositories/ObsidianAssetRepository.ts` (`list`)
+- Modify: the in-memory `AssetRepository` used by `tests/helpers/`
+- Modify: `src/application/queries/ListAssets.ts` — unchanged behaviour, new call shape
+- Test: `tests/infrastructure/obsidian/repositories/assetRepositoryListing.test.ts`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces:
+
+```ts
+export interface SkippedAsset {
+	readonly assetId: AssetId;
+	/** The refusal's own code, so the surface can tell a future-schema note from a bad field. */
+	readonly code: string;
+	readonly path: string;
+}
+export interface AssetListing {
+	readonly loaded: readonly Loaded<Asset>[];
+	readonly skipped: readonly SkippedAsset[];
+}
+// listAll(): Promise<Result<AssetListing, RepositoryError>>;
+```
+
+**Why:** `ObsidianAssetRepository.list` skips a note it could not read, records it to the diagnostics ledger and continues. There is no count to return, so a catalogue whose every note is unreadable arrives as an empty list and draws *no assets yet* over a library full of them. The ids are already in hand at the point of the skip — this is a wider return, not new bookkeeping. The adapter's own docblock names the project repository's `refused` count as the precedent to copy and says the assign picker had no such distinction to draw; this surface is the first caller that does.
+
+**`code` and `path` beyond the precedent:** §4's repair strip resolves guidance from the pair. A `MigrationError` means the note was written by a newer build and the remedy is to upgrade the plugin — `Open note` is the wrong advice there; a schema failure over an unknown category really is a frontmatter edit. And the path is what `Open note` needs.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+it('reports a note it could not read, with its id, its path and the refusal code', async () => {
+    const stack = createRepositoryStack();
+    await stack.vault.create('Renovation/Library/good.md', validAssetFrontmatter('tile-01'));
+    await stack.vault.create('Renovation/Library/bad.md', '---\ntype: renovation-asset\nid: tile-02\nschema-version: 99\n---\n');
+    await stack.rebuildIndex();
+
+    const listed = await stack.assets.listAll();
+    const listing = expectOk(listed);
+    expect(listing.loaded.map((l) => l.entity.id)).toEqual(['tile-01']);
+    expect(listing.skipped).toEqual([
+        { assetId: 'tile-02', code: expect.stringContaining('schema'), path: 'Renovation/Library/bad.md' },
+    ]);
+});
+
+it('answers an empty listing with no skips for an empty library', async () => {
+    const stack = createRepositoryStack();
+    await stack.rebuildIndex();
+    expect(expectOk(await stack.assets.listAll())).toEqual({ loaded: [], skipped: [] });
+});
+```
+
+The second case is what tells an all-unreadable library from an empty one — it is the contrast case, and without it the first passes against a build that reports every note as skipped.
+
+- [ ] **Step 2: Run it and watch it fail at the assertion**
+
+Run: `npx vitest run tests/infrastructure/obsidian/repositories/assetRepositoryListing.test.ts`
+
+- [ ] **Step 3: Widen the port, both implementations, and `ListAssets`**
+
+`ListAssets.execute` keeps answering `Result<Asset[], RepositoryError>` — it maps `listing.loaded` and drops `skipped`, which is correct for the assign picker and is the reason the two queries stay separate.
+
+- [ ] **Step 4: Run the tests, then the suites that touch the asset repository**
+
+Run: `npx vitest run tests/infrastructure tests/application/queries`
+Expected: PASS. Every compile error the widening produces is a call site the compiler is naming; fix each rather than casting.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the asset listing reports the notes it skipped"
+```
+
+---
+
+### Task 4: A sidecar refusal names its file, and the clearance's extent is guarded
+
+**Spec:** §3.5 lines 470–560 (the refusal table and "naming the sidecar"), and lines 424–436 (both extents through `dimensionsOf`).
+
+**Files:**
+- Modify: `src/application/ports/AssetGeometrySidecar.ts` — refusal carries `sidecarPath`
+- Modify: `src/infrastructure/obsidian/repositories/AssetGeometryStore.ts` — populate it
+- Modify: `src/application/queries/GetAssetDesign.ts` — clearance extent, `sidecarPath` passthrough
+- Test: `tests/application/queries/getAssetDesign.test.ts`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: `AssetDesignDto` gains `clearanceExtent: Extent | null` and the refusal path rides on the error the query returns. Tasks 6 and 14 read both.
+
+**Two independent defects, one task because they are one read:**
+
+1. **`sidecarPath` on the refusal.** §3.5's table says a damaged-sidecar message names the file. `BaseError.message` is developer English by slice 11's rule and has no structured path field, so `toUserMessage` cannot interpolate one. The path has to ride on the read model. It is **absent for `asset-geometry.unusable-id`**, and that is a fact rather than a gap: `pathFor` refuses that id before it derives any path, so there is no file to name — which is exactly why that row's action is `Open note` and not `Open designer`.
+2. **The clearance's extent.** `GetAssetDesign` calls `dimensionsOf` for the footprint alone. `validateAssetShape` does not close the gap: `enclosesArea` tests `Number.isFinite` on the AREA, and a very long, very thin clearance has a finite shoelace sum and an infinite SPAN — coordinates from `-1e308` to `1e308` with a hair's height. Nothing then stops the inspector printing `Infinity mm` as a measurement. The footprint got that guard when `polygon-area-overflow` was written and the clearance beside it did not.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('names the sidecar on a damaged-sidecar refusal', async () => {
+    const stack = createRepositoryStack();
+    await seedAsset(stack, 'tile-01');
+    await stack.vault.create('Renovation/Library/Geometry/tile-01.rpgeo', 'not json at all');
+    const refused = await new GetAssetDesign(stack.assets, stack.geometry).execute({ assetId: 'tile-01' as AssetId });
+    const error = expectErr(refused);
+    expect(error.sidecarPath).toBe('Renovation/Library/Geometry/tile-01.rpgeo');
+});
+
+it('carries no sidecar path for an id that cannot name a file', async () => {
+    // `pathFor` refuses before deriving, so there is no file to name — and that absence is
+    // what makes this row's action `Open note` rather than `Open designer`.
+    const refused = await getDesignFor('has/slash');
+    expect(expectErr(refused).sidecarPath).toBeUndefined();
+});
+
+it('refuses a clearance whose span overflows rather than reporting Infinity', async () => {
+    const shape = shapeWithClearance([
+        { x: -1e308, y: 0 }, { x: 1e308, y: 0 }, { x: 1e308, y: 1 }, { x: -1e308, y: 1 },
+    ]);
+    const answered = await getDesignForShape(shape);
+    expect(expectErr(answered).code).toBe('polygon-extent-overflow');
+});
+
+it('derives the clearance extent beside the footprint on an ordinary shape', async () => {
+    const answered = await getDesignForShape(shapeWithClearance(rectangle(1400, 400)));
+    expect(expectOk(answered).clearanceExtent).toEqual({ width: 1400, depth: 400 });
+});
+```
+
+- [ ] **Step 2: Run them and watch all four fail at their assertions**
+
+Run: `npx vitest run tests/application/queries/getAssetDesign.test.ts`
+
+- [ ] **Step 3: Implement**
+
+The clearance's extent goes through the SAME guarded `dimensionsOf` call the footprint takes, and a failure routes as the `GeometryError` it is rather than reaching the row. Do not add a second derivation.
+
+- [ ] **Step 4: Run the tests and the designer's own suite**
+
+Run: `npx vitest run tests/application tests/presentation/designer`
+Expected: PASS — the designer reads this same DTO, so a break there is this change reaching further than intended.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: a sidecar refusal names its file and the clearance extent is guarded"
+```
+
+---
+
+### Task 5: `ListCatalogueEntries`
+
+**Spec:** §5.1 lines 839–892 for the DTO (verbatim — do not retype it from memory), §5.1a for where `unreadable`'s three sources come from, §4 lines 806–826 for the index-scan gate.
+
+**Files:**
+- Create: `src/application/queries/ListCatalogueEntries.ts`
+- Test: `tests/application/queries/listCatalogueEntries.test.ts`
+
+**Interfaces:**
+- Consumes: Task 2's `index.listExclusions()`, Task 3's `AssetListing`.
+- Produces: exactly the block in spec §5.1 lines 849–866. `category` is a `string`, never `AssetCategory`; `unreadable` is a list, never a count; `notes` and the whole `background` reference are present.
+
+**Three sources feed `unreadable`, and each was found one at a time:**
+
+| Source | Where it comes from | `assetId` | `code` |
+| --- | --- | --- | --- |
+| `read-failed` | Task 3's `AssetListing.skipped` | the id | the refusal's own code |
+| `no-id` | Task 2's exclusions, `reason: 'no-id'`, filtered to `renovation-asset` | `null` | `null` |
+| `duplicate-id` | Task 2's exclusions, `reason: 'duplicate-id'`, same filter | `null` | `null` |
+
+`code` is `null` for the last two because both are decided by the index scan, which raises no `AppError` — the note is excluded, not refused. A row whose `code` is null takes its guidance from `reason` alone.
+
+**At most one entry in `unreadable` carries any given id.** A duplicate-id loser carries `assetId: null` by construction — it is unreachable by id, which is what losing means — so an id-keyed lookup cannot find two descriptors. That is the property a selection resolves against.
+
+**The filter is `entityType === 'renovation-asset'`.** `ENTITY_TYPES` declares the persisted discriminators and `EntityType` derives from that array; `'asset'` is not a member of the union at all, and a filter written to the short spelling matches nothing silently.
+
+- [ ] **Step 1: Write the failing tests**
+
+One per source, one merging all three, one asserting an empty library answers `{ entries: [], unreadable: [] }`, and one asserting a project note with no id does NOT appear:
+
+```ts
+it('leaves a project note with no id out of the asset catalogue', async () => {
+    // The index is one global namespace; without the type filter this note would inflate
+    // the library's unreadable count and appear in its repair strip.
+    const stack = await stackWith({ 'a/Project.md': '---\ntype: renovation-project\n---\n' });
+    expect(expectOk(await listCatalogue(stack)).unreadable).toEqual([]);
+});
+```
+
+- [ ] **Step 2: Run them and watch each fail at its assertion**
+
+- [ ] **Step 3: Implement the query**
+
+- [ ] **Step 4: Mutation-check the filter**
+
+Change `'renovation-asset'` to `'asset'` and run the suite: the two exclusion cases must go red. This is the check that the spelling is load-bearing rather than decorative. Restore, and record that you watched it.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: ListCatalogueEntries reads the catalogue and the notes it could not"
+```
+
+---
+
+### Task 6: `ListAssetOutlines` — the batched mark read that settles per entry
+
+**Spec:** §5.3 lines 1062–1136, and §3.4 lines 293–392 for the five states the answer has to distinguish.
+
+**Files:**
+- Create: `src/application/queries/ListAssetOutlines.ts`
+- Test: `tests/application/queries/listAssetOutlines.test.ts`
+
+**Interfaces:**
+- Consumes: `AssetGeometrySidecar` (Task 4's widened refusal).
+- Produces:
+
+```ts
+export type AssetOutline =
+	| { readonly kind: 'measured'; readonly points: readonly Point[]; readonly extent: Extent }
+	| { readonly kind: 'unscaled'; readonly points: readonly Point[]; readonly extent: Extent }
+	| { readonly kind: 'none' }
+	| { readonly kind: 'refused'; readonly code: string; readonly sidecarPath: string | undefined };
+// execute(input: { assetIds: readonly AssetId[] }): Promise<ReadonlyMap<AssetId, AssetOutline>>
+```
+
+**It answers a MAP, not a `Result`.** The batch settles per entry, never as a whole. One damaged sidecar must not fail the shelf it is in, and it must not leave the other rows loading either. Both alternatives are reachable and both are wrong: a `Result` over the whole batch poisons a shelf for one bad file, and dropping the failed entry silently degrades it into *no shape yet*, which is the false absence §3.4's fifth state exists to refuse.
+
+**Path resolution is the store's, and the store's is index-first.** `AssetGeometryStore.pathFor` is `usableAsFilename` check, then `index.getGeometrySidecarPath(assetId) ?? assetSidecarPathFor(libraryFolder, assetId)` — measured at `AssetGeometryStore.ts:283`. A batch that derives for itself reintroduces exactly what that method's docblock records: a `.rpgeo` moved in the file explorer, or arriving elsewhere through sync, leaves the asset reading as shapeless, and the next design write mints a second sidecar beside the orphan. **This query reads through the sidecar port and never derives a path itself.**
+
+**`unscaled` is a distinct answer, not a flag on `measured`.** The proportions are real and the scale is not, which is what §3.4's dashed stroke says. It comes from the shape's `footprintPending`.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('settles one damaged sidecar without disturbing the three beside it', async () => {
+    const stack = await stackWithAssets(['a', 'b', 'broken', 'd']);
+    await damageSidecar(stack, 'broken');
+    const answered = await new ListAssetOutlines(stack.geometry).execute({
+        assetIds: ['a', 'b', 'broken', 'd'] as AssetId[],
+    });
+    expect(answered.get('broken' as AssetId)?.kind).toBe('refused');
+    expect(answered.get('a' as AssetId)?.kind).toBe('measured');
+    expect(answered.get('d' as AssetId)?.kind).toBe('measured');
+    expect(answered.size).toBe(4);   // never dropped, which is the false-absence rule
+});
+
+it('answers none for an asset with no sidecar, which is the ordinary state', async () => { /* ... */ });
+it('answers unscaled for a footprint traced before a scale existed', async () => { /* ... */ });
+it('carries the sidecar path on a refusal so the inspector can name the file', async () => { /* ... */ });
+```
+
+- [ ] **Step 2: Run them and watch each fail**
+
+- [ ] **Step 3: Implement**
+
+- [ ] **Step 4: Mutation-check the per-entry rule**
+
+Make the query return early on the first refusal and run the four-asset case: it must go red at `answered.size`. Then make it drop the failed entry instead: it must go red at the `refused` assertion. Both mutations, both watched, both restored.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: ListAssetOutlines reads footprints in batches that settle per asset"
+```
+
+---
+
+### Task 7: `createAssetLibraryChangeSource`
+
+**Spec:** §5.4 lines 1138–1222 in full — it is the contract, written so a builder does not invent one.
+
+**Files:**
+- Create: `src/application/events/assetLibraryChangeSource.ts`
+- Test: `tests/application/events/assetLibraryChangeSource.test.ts`
+
+**Interfaces:**
+- Consumes: Task 2's `ProjectIndexExclusionChanged`.
+- Produces:
+
+```ts
+export interface AssetLibraryChange {
+	/** Re-read the whole catalogue listing. */
+	readonly catalogue: boolean;
+	/** Drop the cached mark for these ids; the viewport decides when they are re-read. */
+	readonly marks: readonly AssetId[];
+}
+export function createAssetLibraryChangeSource(
+	events: EventBus,
+): (listener: (change: AssetLibraryChange) => void) => () => void;
+```
+
+**A fourth source, not a widening — ruling §11.7.** The assign picker shares `createAssetCatalogueChangeSource` and would pay for any widening of it: re-reading every asset note on a design event it has no use for. The cheap edit is the one with a cost on a surface this plan does not own.
+
+**The subscriptions, each with the reason it is not covered by its neighbour:**
+
+| Event | Filter | Does |
+| --- | --- | --- |
+| `AssetCreated`, `AssetUpdated` | none | catalogue |
+| `AssetDeleted` | none | catalogue AND the named mark — certain and prompt where a listing diff is inferential |
+| `AssetDesignChanged` | none | the named mark AND that asset's catalogue entry — `SetAssetHeight` and `SetAssetBackground` write the NOTE and publish only this event |
+| `GeometrySidecarChanged` | none | the named mark |
+| `ProjectIndexEntryChanged` | `entityType === 'renovation-asset'` | catalogue AND the named mark — covers a note deleted or arriving through sync, which raises this and never `AssetDeleted` |
+| `ProjectIndexRebuilt` | none | catalogue |
+| `ProjectIndexExclusionChanged` | `entityType === 'renovation-asset'` | catalogue — the repair strip is part of the listing |
+
+**Unfiltered on the two design events and filtered on the two index events, deliberately.** A design event names one asset and is always about geometry this surface draws. An index event does not: unfiltered, a burst of synced zone notes would clear every mark on screen.
+
+**`AssetDesignChanged` refreshing the catalogue is the arm that is easy to miss**, because the event's name says *design*. Two of the five design commands write the note — `SetAssetHeight` writes `height`, which the Definition section draws, and `SetAssetBackground` writes the keys behind the Spec sheet row. Both are `CatalogueEntryDto` fields, both publish this event and nothing else, and `VaultChangeAdapter` checks the echo window before announcing so no compensating vault signal arrives. Without this arm a peer leaf's height edit leaves the number stale for the life of the view.
+
+- [ ] **Step 1: Write one failing test per row of that table, plus two negatives**
+
+```ts
+it('ignores a zone note arriving through the index', () => {
+    const heard = collect(source);
+    events.publish(projectIndexEntryChanged({ entityType: 'renovation-zone', entityId: 'zone-1' }));
+    expect(heard).toEqual([]);
+});
+
+it('refreshes the catalogue on a design change, not only the mark', () => {
+    const heard = collect(source);
+    events.publish(assetDesignChanged({ assetId: 'tile-01' }));
+    expect(heard).toEqual([{ catalogue: true, marks: ['tile-01'] }]);
+});
+```
+
+- [ ] **Step 2: Run them and watch each fail**
+
+- [ ] **Step 3: Implement**
+
+- [ ] **Step 4: Mutation-check the two arms a green suite would not notice**
+
+Drop `catalogue: true` from the `AssetDesignChanged` arm — the design case must go red. Remove the `renovation-asset` filter from `ProjectIndexEntryChanged` — the zone negative must go red. Both watched, both restored.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the asset library has its own change source"
+```
+
+---
+
+### Task 8: The whole copy inventory, and both empty states
+
+**Spec:** §8 lines 1435–1523 — the key list is exhaustive for visible copy and is reproduced there. Copy it key by key; do not invent, rename or omit one.
+
+**Files:**
+- Modify: `src/presentation/i18n/locales/en.ts`, `src/presentation/i18n/locales/de.ts`
+- Modify: `src/presentation/emptyStates/content.ts`, `src/presentation/emptyStates/selectors.ts`
+- Test: `tests/presentation/i18n/strings.test.ts` (existing, will exercise the new keys), `tests/presentation/emptyStates/content.test.ts`
+
+**Interfaces:**
+- Consumes: nothing.
+- Produces: every `StringKey` under `view.asset-library.*` and `empty.asset-library.*`, plus `command.open-asset-library`. `EMPTY_STATE_CONTENT.assetLibrary` with `noAssets` and `noMatches`, and `selectAssetLibraryEmptyState(entries, searching): StringKey | null`.
+
+**This task lands the whole inventory before any component exists**, deliberately. A key list assembled a string at a time as each component needs one is how the German reader gets hard-coded English in exactly the places they look first — which is the defect §8 records being reported against its own first version.
+
+**Both empty states carry an action, and they differ in kind:** `noAssets`'s action creates something (`New asset`); `noMatches`'s action **restores the previous view** by clearing the search field. An action that creates something from a no-matches state is the wrong gesture.
+
+**The selector is pure and takes both inputs.** "Is the user searching" is not derivable from an entry list — an empty list with a query is `noMatches` and an empty list without one is `noAssets`, and those want opposite copy and opposite actions.
+
+**German:** `strings.test.ts` requires `de.ts` to translate every key `en.ts` declares AND to name the same interpolation holes. It also pins two terms — no `Material` where the UI says `Objekt`, and `Vault` kept untranslated. Spelling and every other term are unread by any gate, so read the German you write.
+
+- [ ] **Step 1: Write the failing selector test**
+
+```ts
+it('answers noAssets for an empty library and noMatches for an empty search', () => {
+    expect(selectAssetLibraryEmptyState([], false)).toBe('empty.asset-library.no-assets.headline');
+    expect(selectAssetLibraryEmptyState([], true)).toBe('empty.asset-library.no-matches.headline');
+    expect(selectAssetLibraryEmptyState([anEntry()], true)).toBeNull();
+});
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+- [ ] **Step 3: Add every key from spec §8 to `en.ts`, then translate every one in `de.ts`**
+
+- [ ] **Step 4: Add the `assetLibrary` empty-state section and the selector**
+
+- [ ] **Step 5: Run the i18n and empty-state suites**
+
+Run: `npx vitest run tests/presentation/i18n tests/presentation/emptyStates`
+Expected: PASS. A missing German key fails here; that is the gate working.
+
+- [ ] **Step 6: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the asset library's copy, in both locales, and its two empty states"
+```
+
+---
+
+### Task 9: The read-model bundle, the guards, and the composition root
+
+**Spec:** §2's table (the deps factory spelled once), §4's *Failed, unrecoverable* row.
+
+**Files:**
+- Create: `src/presentation/read-models/assetLibraryQueries.ts`
+- Modify: `src/plugin/guardedServices.ts` — guard `ListCatalogueEntries` and `ListAssetOutlines`
+- Modify: `src/plugin/composition-root.ts` — `assetLibraryDeps(...)`
+- Test: `tests/presentation/read-models/assetLibraryQueries.test.ts`, `tests/plugin/guardCategory.test.ts` (existing — it walks what the root hands out)
+
+**Interfaces:**
+- Consumes: Tasks 5, 6, 7.
+- Produces:
+
+```ts
+export interface AssetLibraryQueryServices {
+	listCatalogue(): Promise<Result<CatalogueListing, RepositoryError>>;
+	listOutlines(assetIds: readonly AssetId[]): Promise<ReadonlyMap<AssetId, AssetOutline>>;
+	getDesign(assetId: AssetId): Promise<Result<AssetDesignDto, AssetDesignError>>;
+	listReferencing(assetId: AssetId): Promise<Result<readonly ReferencingGroup[], RepositoryError>>;
+}
+export function unavailableAssetLibraryQueries(): AssetLibraryQueryServices;
+export function createAssetLibraryQueries(...): AssetLibraryQueryServices;
+
+export interface AssetLibraryCommandServices {
+	updateAsset: Command<UpdateAssetInput, Result<Asset, UpdateAssetErrors>>;
+	setAssetHeight: GuardedDesignCommand<SetAssetHeightInput>;
+	deleteAsset: Command<DeleteAssetInput, Result<ResolvedSequence, DeleteAssetErrors>>;
+}
+
+export interface AssetLibraryDeps {
+	queries: AssetLibraryQueryServices;
+	commands: AssetLibraryCommandServices;
+	logger: Logger;
+	onLibraryChanged: (listener: (change: AssetLibraryChange) => void) => () => void;
+	indexScanCompleted: () => boolean;
+	openNote: (path: string) => Promise<ProjectNoteOpenOutcome>;
+	openDesigner: (assetId: AssetId) => Promise<void>;
+	vault: BackgroundVault;
+}
+```
+
+**`refuseUnrecovered` reuses the exact code string `settings.unrecovered`** — several call sites branch on it, and `viewHydrationOrigin` decides "no retry" from it. A new code here would silently give the bootstrap failure a retry button that cannot work.
+
+**`unavailableAssetLibraryQueries` is TOTAL.** `root.persistence` is `null` exactly when settings could not be read, and every member must refuse rather than any member being nullable.
+
+**`listOutlines` refuses differently from its siblings**, and that is not an oversight: it answers a map rather than a `Result`, so its unavailable form answers a map of `refused` entries, one per requested id. A `Promise.resolve(new Map())` would degrade every row into *no shape yet*, which is the false absence again.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+it('refuses every door when settings are unrecovered, including the outline map', async () => {
+    const queries = unavailableAssetLibraryQueries();
+    expect(expectErr(await queries.listCatalogue()).code).toBe('settings.unrecovered');
+    const outlines = await queries.listOutlines(['a', 'b'] as AssetId[]);
+    expect([...outlines.values()].map((o) => o.kind)).toEqual(['refused', 'refused']);
+});
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+- [ ] **Step 3: Implement the bundle, the two guards and `assetLibraryDeps`**
+
+Each guard call is a local `const` first (never assigned straight into a typed field — the inference reason is in `guardedServices.ts`'s header), typed structurally as `Query<...>`, wrapped with the shared `VAULT_EXCEPTION_MAPPER`.
+
+- [ ] **Step 4: Run the guard category walk**
+
+Run: `npx vitest run tests/plugin/guardCategory.test.ts tests/presentation/read-models`
+Expected: PASS. That walk detonates every door the root hands out and requires the mapped `vault.unexpected-failure` back; a new unguarded door fails there.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the asset library's query bundle, guarded and composed"
+```
+
+---
+
+### Task 10: The stores, and every ticket in them
+
+**Spec:** §5.5 lines 1224–1310 in full. It is a rule over a category, not a list of reads — implement it that way.
+
+**Files:**
+- Create: `src/presentation/stores/AssetLibraryStore.ts`, `src/presentation/stores/AssetSelectionStore.ts`, `src/presentation/library/viewportMarks.ts`
+- Test: `tests/presentation/stores/assetLibraryStore.test.ts`, `assetSelectionStore.test.ts`
+
+**Interfaces:**
+- Consumes: Task 9's `AssetLibraryQueryServices`, Task 7's `AssetLibraryChange`.
+- Produces: `useAssetLibraryStore()` (`entries`, `unreadable`, `status`, `error`, `hydrate`, `invalidateMarks`, `markFor`, `requestMarks`, `reset`) and `useAssetSelectionStore()` (`selectedId`, `design`, `designStatus`, `usedIn`, `usedInStatus`, `select`, `refreshDesign`, `refreshUsedIn`).
+
+**Three ticket seams, and what makes two requests the same request differs at each:**
+
+1. **The catalogue listing** — one counter on the store, latest wins, exactly `RenovationProjectStore.hydrate`'s `latestHydration`. It is refreshed by events rather than by a gesture, so two arriving close together is the ordinary case.
+2. **Selection reads** — one generation **per read kind**, not per read start and not per selection cycle. A selection CHANGE bumps both `getDesign` and `listReferencing` together; a §5.4 refresh bumps only the read it invalidates. Per read start causes a permanent loading state (the second read invalidates the first and nobody delivers to the first's ticket); per selection cycle over-restarts, re-running the vault-wide referencing scan for a geometry-only edit. **The unit of invalidation is the read; the unit of restart is the gesture.**
+3. **Mark reads** — a generation **per asset**, bumped by invalidation, so a late answer cannot overwrite a fresh cache. A dropped generation drops its failures too.
+
+**A result whose ticket is no longer current is dropped — successes AND failures alike.** A failure delivered against a stale ticket paints an error over a selection the user has left.
+
+**The index-scan gate.** `hydrate` holds `status` at `'loading'` while `indexScanCompleted()` is false, and re-reads on the catalogue change the rebuild raises. The question is whether the scan **ran**, never whether it **found** anything — asking "is the index populated" hangs a restored pane for ever in a vault whose last asset note was deleted while Obsidian was closed. Without this, `listAll()` answers a legitimate `ok([])` before the rebuild and the view draws *no assets yet* over a full catalogue, with a `New asset` button under it.
+
+**`AssetDeleted` and the selected asset's own `ProjectIndexEntryChanged` bump BOTH selection generations immediately**, and an applied listing that removes or replaces the selected entry bumps them again. The ticket follows the ENTRY, not only the id: a delete-and-recreate under the same id leaves both listings identical, so the event is load-bearing and the listing diff is the backstop, not the other way round.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('holds loading until the index scan has run, whatever the read answers', async () => {
+    let scanned = false;
+    const store = useAssetLibraryStore();
+    await store.hydrate(queriesAnswering({ entries: [], unreadable: [] }), () => scanned);
+    expect(store.status).toBe('loading');       // never 'ready' with an empty list
+    expect(store.emptyStateKey).toBeNull();     // and never the no-assets invitation
+    scanned = true;
+    await store.hydrate(queriesAnswering({ entries: [], unreadable: [] }), () => scanned);
+    expect(store.status).toBe('ready');
+});
+
+it('drops a slower earlier listing, and drops its failures too', async () => { /* ... */ });
+
+it('bumps only the invalidated read on a geometry refresh, and both on a selection change', async () => {
+    // A geometry-only edit must not re-run the vault-wide referencing scan.
+});
+
+it('drops a late mark answer for an asset whose mark was invalidated meanwhile', async () => { /* ... */ });
+```
+
+The first case's second assertion is the one that matters: a build that reaches `'ready'` with an empty list and no scan draws the exact duplicate-inviting empty state this feature exists to prevent.
+
+- [ ] **Step 2: Run them and watch each fail at its assertion**
+
+- [ ] **Step 3: Implement both stores and the viewport request queue**
+
+`viewportMarks.ts` owns rule 3 of §5.3: a mark is requested when its row enters the viewport, in batches; a row never waits; nothing in flight is cancelled when a row leaves, and nothing further is requested for it. Invalidation drops the cached value and the viewport decides when it is re-read — a row on screen re-requests immediately, a row that is not re-requests when it next enters the viewport and never before.
+
+- [ ] **Step 4: Mutation-check the scan gate and the per-read generations**
+
+Remove the `indexScanCompleted` guard: the first case must go red at `status`. Collapse the two selection generations into one: the geometry-refresh case must go red. Both watched, both restored.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the asset library's stores, and a ticket on every read"
+```
+
+---
+
+### Task 11: The view, its registration, its rebind, and the two in-app doors
+
+**Spec:** §2 lines 88–144 (the placement table and both doors), §6.3 lines 1378–1408 (view state and the history rule).
+
+**Files:**
+- Create: `src/presentation/library/AssetLibraryView.ts`, `AssetLibraryContext.ts`, and a minimal `AssetLibraryRoot.vue` (Tasks 12–14 fill it)
+- Modify: `src/plugin/RenovationPlannerPlugin.ts`
+- Modify: `src/presentation/views/ViewRoot.vue` (the no-projects aside) and `ProjectList.vue` (the header)
+- Modify: `tests/build/registration-locality.test.ts` if the command lands in its own module
+- Create: `tests/helpers/makeAssetLibraryView.ts`
+- Test: `tests/presentation/library/assetLibraryView.test.ts`, `tests/plugin/registration.test.ts`
+
+**Interfaces:**
+- Consumes: Tasks 9 and 10.
+- Produces: `ASSET_LIBRARY_VIEW = 'renovation-asset-library'`, `ASSET_LIBRARY_ICON`, `class AssetLibraryView extends ItemView` with `rebind(deps: AssetLibraryDeps): void`, and `ASSET_LIBRARY_CONTEXT`/`useAssetLibraryContext()`.
+
+**No second ribbon icon.** The ribbon is shared real estate across every installed plugin and this surface is reached often but not constantly. A command plus two in-app doors is the whole of it. (The codebase survey suggested copying `openProject`'s ribbon+command pair; the spec refuses the ribbon half, and the spec is the authority.)
+
+**The command is a plain callback, never a `checkCallback`.** `open-plan-editor` already paid for that lesson: a command gated on the active note is a command absent from the palette in every vault that has none of the thing.
+
+**Two doors, because `ProjectList` is not always mounted.** `ViewRoot` draws the project empty state instead of the list when a vault has no projects — so a door placed only in that header disappears in exactly the state where a user has fewest other routes. And the catalogue is vault-wide: a vault with no projects can hold a full library, which is why the aside beside that empty state already offers `New asset`. The **Assets** control joins it there as a SIBLING of the empty state, never a second action on it — `EMPTY_STATE_CONTENT` carries one action per entry and this is an unrelated affordance.
+
+**The deps factory is spelled ONCE** and used by both the `registerView` factory and `rebindOpenViews`, so a rebind cannot hand the view something its factory would not have built.
+
+**The fourth `rebindOpenViews` loop is the point of this task, not a footnote.** A registered view that is not rebound holds the retired composition root for as long as it stays open — attached to the previous root's index, repositories and event bus, with nothing failing anywhere. This surface is where that matters most: §83's library-folder migration MOVES every catalogue note and then swaps the root, so an un-rebound library goes on resolving asset notes at the folder they have just left. Every other view would show stale data; this one shows an empty or wrong library immediately after the single gesture most likely to be performed from it. The loop body **annotates** the narrowed view (`const view: AssetLibraryView = leaf.view;`) rather than calling through the `instanceof` narrowing, because fallow resolves a class member through an explicit type and reports a `rebind` reached only by property access as an unused class member.
+
+**View state carries `assetId` and the expanded set, and neither is a navigation.** `projectIdFrom`'s three-way parse is the shape to copy for `assetId`: a non-object refuses, a non-string refuses, and `''` is ACCEPTED and means nothing selected. A validator that refuses `''` discards exactly the value a restore needs.
+
+> `AssetLibraryView.setState` leaves `result.history` false for every change to `assetId` and to the expanded set.
+
+Stated as an obligation on the view because there is no `history: false` field on `setViewState` — Obsidian passes a `ViewStateResult` into `setState` and the view writes `result.history` itself. `RenovationProjectView.setState` sets it true on an accepted, changed `projectId`; a build that copied that shape would put a history entry behind every row the user clicks. **Write the difference where the code is**: one plugin now has two answers to "what does a view do when its own state changes", and a reader who finds only one of them will assume it is the rule.
+
+**Selection does not remount the Vue tree.** `RenovationProjectView` remounts per navigation because a navigation replaces the whole subject and a remount makes staleness unrepresentable. Here a selection changes an adjacent panel, and remounting per row click throws away the shelves' scroll position — the thing the user is browsing. The tree updates in place, which is why Task 14 keys the inspector's fields region by `assetId`.
+
+**Mount directly onto `contentEl`, with no wrapper div** — a `contentEl.createDiv(...)` host has `height: auto` and collapses the pane to a sliver. jsdom cannot see it; only the browser harness catches it. And name the field `vueApp`, never `app`: `View.app` is Obsidian's own member.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('accepts an empty assetId as the unselected state and refuses a non-string', async () => {
+    const { view } = makeAssetLibraryView();
+    const result = {} as ViewStateResult;
+    await view.setState({ assetId: '' }, result);
+    expect(view.getState()).toEqual({ assetId: '', expanded: [] });
+    await view.setState({ assetId: 42 }, result);
+    expect(view.getState().assetId).toBe('');
+});
+
+it('never records a selection or an expansion as a navigation', async () => {
+    const { view } = makeAssetLibraryView();
+    const result = {} as ViewStateResult;
+    await view.setState({ assetId: 'tile-01', expanded: ['material'] }, result);
+    expect(result.history).toBeFalsy();
+});
+
+it('rebinds an open library against the new root', () => { /* mirrors rootSwapRebind.test.ts */ });
+```
+
+- [ ] **Step 2: Run them and watch each fail**
+
+- [ ] **Step 3: Implement the view, the context, the registration, the command and the fourth rebind loop**
+
+- [ ] **Step 4: Add both in-app doors**
+
+- [ ] **Step 5: Mutation-check the rebind loop**
+
+Delete the fourth loop and run `tests/plugin/`: the rebind case must go red. Restore it.
+
+- [ ] **Step 6: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: register the asset library view, its command and its two doors"
+```
+
+---
+
+### Task 12: The mark, the row and the shelf
+
+**Spec:** §3.2 lines 212–256 (shelves), §3.3 lines 257–292 (the row), §3.4 lines 293–392 (the mark). Read all three; they constrain each other.
+
+**Files:**
+- Create: `src/presentation/library/AssetMark.vue`, `AssetRow.vue`, `AssetShelf.vue`
+- Port from: `src/prototypes/AssetMark.vue`, `AssetShelf.vue`
+- Test: `tests/presentation/library/assetMark.test.ts`, `assetRow.test.ts`, `assetShelf.test.ts`
+
+**Interfaces:**
+- Consumes: Task 6's `AssetOutline`, Task 5's `CatalogueEntryDto`.
+- Produces: `<AssetMark :outline :ordinal>`, `<AssetRow :entry :outline :selected :ordinal @select>`, `<AssetShelf :label :entries :expanded :collapsible @toggle @select>`.
+
+**The shelf list is DERIVED, never enumerated.** Two groups: every category the build declares, in `ASSET_CATEGORY_LABELS`'s order — all of them, empty ones included — then every category the vault names that the build does not, ordered by `localeCompare` and **kept as written**: not case-normalized, not retitled, not folded into `custom`. A configured eighth category joins group 1 the day the vocabulary declares it, with no edit here. A literal seven is the one arrangement that could answer neither.
+
+**A declared shelf can be empty and an undeclared one cannot**, and it looks like an inconsistency until it is said out loud: the only evidence an undeclared category exists is an asset sitting in it.
+
+**An empty declared shelf draws its header, greyed and non-interactive, with the count `0`** — and it is therefore **not a tab stop and has no Enter/Space behaviour**. "Collapsible" is load-bearing in §6.2's table for exactly this reason; written as *every shelf header*, the two sections ask for something impossible.
+
+**Five mark states, each differing in KIND rather than in weight:**
+
+| State | Drawn as |
+| --- | --- |
+| Footprint, measured | the outline, solid hairline stroke, fitted with a 2px inset |
+| Footprint, unscaled | the same outline, **dashed** |
+| Not yet read | **three dots**, centred |
+| No shape yet | **nothing** |
+| Unreadable | a **struck box** — the only state that draws a box at all |
+
+The prototype's own finding was that three of four states were the same picture — a measured tile, an unscaled cabinet and a not-yet-read cabinet were each *a square with a line through it*, separated in one case by stroke pattern and in the other **by colour alone**: the failure the mark exists to avoid, shipped by the spec that forbade it. Only visible once one capture held all four at once. **Draw all five side by side and look at them before claiming this task is done.**
+
+**The 20px `<svg>` column renders in every state, including the empty one**, or the grid shifts left on the rows that have no shape.
+
+**The mark's drawing is `aria-hidden` and its MEANING is not.** The state and the extent are carried in words in a visually hidden span that is a **sibling of the row button, never a descendant** — inside, it joins the row's accessible name and a screen reader announces "Measured footprint, 1200 × 190 mm Oak plank floor". The button references it with `aria-describedby`.
+
+**The `aria-describedby` reference is minted from the row's ORDINAL, never from the asset's id.** An asset id is `z.string().min(1)` in the note's own frontmatter, so it may contain whitespace, and `aria-describedby` is a whitespace-separated IDREF list: an id like `wall tile` breaks into two references that resolve to nothing. An id a user can author may not be interpolated into a syntax that gives its characters meaning.
+
+**Selection is a printed mark, not a tint** — a 2px filled rule at the leading edge drawn with an inset `box-shadow` (so it costs no layout and cannot shift the grid against unselected rows beside it), plus `aria-current="true"`. Not `aria-selected`, which is invalid on a `<button>` and which the promised axe scan would report.
+
+**The row's slots and where they drop:** mark (never), name with `min-width: 0` (never), unit cost `€34.95 / m²` `tabular-nums` right-aligned (never), waste `+8%` or nothing when the default is zero (< 520px), supplier muted and ellipsing (< 640px). `min-width: 0` on the name is load-bearing — `.rp-project-detail__name` already paid for its absence at 460px, where a long name refuses to ellipse and pushes its neighbours off the row.
+
+**The currency comes from the entry, never from a literal.** The prototype shipped a hard-coded euro sign, which reported the wrong currency for any non-EUR asset — a lie about a number rather than a cosmetic slip.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('draws five visibly distinct marks', () => {
+    // Distinctness is settled by an eye in Task 17's capture. What this asserts is that the
+    // five render different ELEMENT SHAPES, so a build collapsing two into one stroke
+    // variation fails here rather than in a photograph nobody takes.
+    const drawn = FIVE_STATES.map((o) => shallowMount(AssetMark, { props: { outline: o, ordinal: 1 } }).html());
+    expect(new Set(drawn).size).toBe(5);
+});
+
+it('renders the mark column even when there is no shape', () => { /* the grid-shift rule */ });
+
+it('describes the row from an ordinal, never from an id that may hold whitespace', () => {
+    const row = mount(AssetRow, { props: { entry: entryWithId('wall tile'), ordinal: 3, /* ... */ } });
+    const describedBy = row.get('button').attributes('aria-describedby');
+    expect(describedBy).not.toContain(' ');
+    expect(row.find(`#${describedBy}`).exists()).toBe(true);
+});
+
+it('keeps the description outside the button so it does not join the accessible name', () => {
+    const row = mount(AssetRow, { props: { entry: anEntry({ name: 'Oak plank floor' }), /* ... */ } });
+    expect(row.get('button').text()).not.toContain('mm');
+});
+
+it('marks a selected row with aria-current, never aria-selected', () => { /* ... */ });
+
+it('draws an empty declared shelf as a non-interactive heading with a zero count', () => {
+    const shelf = mount(AssetShelf, { props: { label: 'Plant', entries: [], collapsible: false } });
+    expect(shelf.find('button').exists()).toBe(false);
+    expect(shelf.text()).toContain('0');
+});
+
+it('prints each asset in its own currency', () => { /* GBP entry renders £, not € */ });
+```
+
+- [ ] **Step 2: Run them and watch each fail at its assertion**
+
+- [ ] **Step 3: Port the three components from `src/prototypes/`**
+
+This is a PORT, not a move: the prototypes read a fixture and these read DTOs, and `tests/build/prototype-promotion.test.ts` does not cover this file set. State in the report what changed from each prototype and why.
+
+- [ ] **Step 4: Run the component suite**
+
+Run: `npx vitest run tests/presentation/library`
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the asset mark, the asset row and the category shelf"
+```
+
+---
+
+### Task 13: The root — toolbar, shelves, search, status bar and every state
+
+**Spec:** §3 lines 180–212 (the composition and the four regions), §3.1, §3.6, §4 lines 786–834, §6.1 lines 1315–1329.
+
+**Files:**
+- Modify: `src/presentation/library/AssetLibraryRoot.vue` (Task 11's minimal version)
+- Create: `src/presentation/library/AssetShelves.vue`
+- Port from: `src/prototypes/AssetLibrary.vue`
+- Test: `tests/presentation/library/assetLibraryRoot.test.ts`
+
+**Interfaces:**
+- Consumes: Tasks 8, 10, 12.
+- Produces: the mounted surface Task 16 attaches its focus manager to and Task 17 captures.
+
+**Four shell regions**, which is the Asset designer's count rather than the Plan editor's five — a library has nothing to layer.
+
+**The toolbar is one search field and one `New asset` button. Nothing else** — no sort control, no view switcher, no filter menu. The shelves *are* the filter, which is the whole argument for this structure. `New asset` opens the existing `NewAssetForm` through the existing `DialogHost`, unchanged.
+
+**Search collapses every shelf into one flat result list**, ordered by name across categories, each row carrying its category as a muted slot. Clearing the field restores the shelves **and their prior expansion state** — a search must not cost a user the arrangement they had. Matching is on **name, supplier and SKU only**, never notes: a free-text field produces matches a row cannot explain.
+
+**The result count is announced** — `12 matching assets` in a `role="status"` live region, so a keyboard or screen-reader user hears the effect of typing rather than inferring it from a list they cannot see.
+
+**Every state from §4's table**, and the two that are easiest to get wrong:
+
+- **Loading is held until the index scan has run** (Task 10 supplies the gate). Never a spinner over an empty pane.
+- **Some unreadable** is the ADDITIVE `.rp-view-notice` strip above the shelves — the shelves still draw. It names **each path with its reason** and offers `Open note` **per row rather than for every row**: a `read-failed` whose code names a future-schema refusal draws the sentence and no action, because there is nothing in that file to change. An action that cannot work is worse than no action.
+
+A count alone strands exactly the notes that need a human: two of the three sources carry no usable id, so neither can be selected, and the selection-level state that offers `Open note` is unreachable for them by construction.
+
+- [ ] **Step 1: Write one failing test per state, plus search**
+
+```ts
+it('draws the shelves beside the unreadable strip, never instead of them', async () => {
+    const root = await mountRoot({ entries: [anEntry()], unreadable: [aNoIdNote()] });
+    expect(root.find('.rp-view-notice').exists()).toBe(true);
+    expect(root.find('.rp-asset-shelf').exists()).toBe(true);
+});
+
+it('offers Open note per row, and withholds it for a future-schema refusal', async () => {
+    const root = await mountRoot({ unreadable: [
+        { assetId: 'a', path: 'x.md', reason: 'read-failed', code: 'migration.future-schema' },
+        { assetId: null, path: 'y.md', reason: 'no-id', code: null },
+    ] });
+    const rows = root.findAll('.rp-view-notice li');
+    expect(rows[0]!.find('button').exists()).toBe(false);
+    expect(rows[1]!.find('button').exists()).toBe(true);
+});
+
+it('never draws the no-assets invitation before the index scan has run', async () => { /* ... */ });
+it('announces the match count in a live region', async () => { /* role="status" */ });
+it('restores the prior expansion state when the search is cleared', async () => { /* ... */ });
+it('matches on name, supplier and SKU, and never on notes', async () => { /* ... */ });
+```
+
+- [ ] **Step 2: Run them and watch each fail**
+
+- [ ] **Step 3: Port the root from `src/prototypes/AssetLibrary.vue` and wire it to the stores**
+
+- [ ] **Step 4: Run the suite**
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the asset library shell, its search and all six of its states"
+```
+
+---
+
+### Task 14: The inspector
+
+**Spec:** §3.5 lines 393–777 in full. It is the longest section in the document and every one of its four sections has its own rules; do not work from this summary alone.
+
+**Files:**
+- Create: `src/presentation/library/AssetInspector.vue`, `AssetInspectorShape.vue`, `AssetInspectorUsedIn.vue`
+- Port from: `src/prototypes/AssetInspector.vue`
+- Test: `tests/presentation/library/assetInspector.test.ts`, `assetInspectorShape.test.ts`, `assetInspectorUsedIn.test.ts`
+
+**Interfaces:**
+- Consumes: Tasks 4, 9, 10.
+- Produces: the panel Task 16's narrow composition swaps to.
+
+**The `<dl>` is the two-column grid `.rp-designer-inspector-fields` and `.rp-editor-inspector-fields` already are.** A user moving between the Plan editor, the Asset designer and this surface must not be able to tell that three people wrote them.
+
+**Four sections, in this order: Definition, Shape, Used in, Actions.**
+
+**1. Definition** — name, category, unit, unit cost, waste factor, supplier, SKU, notes, height. Editable in place through `useFieldCommit`, dispatching the existing `UpdateAsset` / `SetAssetHeight`. A rejected commit **keeps what the user typed** and shows a persistent inline error under the field it is about — never reverts. `routeError` maps the codes to fields; `asset.unit-kind-referenced` routes to the **unit** field, because that is the field that is wrong.
+
+**Every field's commit state is keyed by `assetId`, and both halves are required.** `useFieldCommit` holds `drafted` and `error` as refs with no notion of a subject — it is per FIELD, and the field it belongs to is a fact about the template. The Plan editor never had to think about this because `RequirementRow` is `v-for`-keyed per requirement, so changing subject remounts the row. Here the tree stays alive on purpose (Task 11), so the same instance survives a selection change and an edit to A still in flight when the user clicks B lands afterwards: **A's rejection renders A's inline error, over A's retained draft, under B's name.** So: a `:key` on the fields region discards the stale draft, AND an outcome whose subject is no longer selected updates nothing. Keying alone leaves the resolved promise pointing at a retired instance, which is harmless for the DOM and still runs `notify` for a refusal about an asset the user has left.
+
+**Height is in Definition, not in Shape.** *Shape lists what the sidecar derives; Definition lists what the note stores and a field edits.* A height is on `Asset`, in millimetres, changed by `SetAssetHeight` — and it fails Shape's own admission test, which is that those rows are there because they are mush at 20px.
+
+**2. Shape** — Footprint (`1200 × 190 mm`, omitted when absent), Clearance (its own extent, `None` when absent), Spec sheet (the file's name, omitted when absent), plus a pending warning per coordinate group and `Open designer`. **Anchor and facing are NOT here** — the Asset designer draws them.
+
+The section has **its own three states**, because `GetAssetDesign` returns the sidecar's error rather than a DTO, and §4's whole-catalogue failure row does not cover it: a fine name, price and supplier must not be hidden behind a shape failure.
+
+- **In flight** — a loading line in this section only; the Definition fields stay usable.
+- **Refused** — the table at spec lines 535–540, **keyed on the CODE, never on the union arm**. `Open designer` is **withdrawn** for every `asset-geometry.*` refusal, because `GetAssetDesign.execute` returns early on a sidecar refusal, so the designer hydrates through the same read and reaches the same failed state with only a Retry. `asset-geometry.unusable-id` is the one row that offers `Open note` instead — the id is in the note's frontmatter and editing it is the whole repair — and it is split out because `pathFor` refuses it before deriving any path, so there is no sidecar to name.
+- **Answered** — the rows above.
+
+**Neither the in-flight state nor the refused one may state an ABSENCE.** `None` is only valid once a read has actually answered.
+
+**3. Used in** — per-project groups, loaded on selection. Each row: project name, requirement count, and the project's path **wherever the query supplies one**. "Supplied" is tested against `undefined`, never truthiness: `''` is a supplied answer — a project whose `Project.md` sits at the vault root — and it renders `view.asset-library.used-in.vault-root`, a root label rather than nothing. **The row's key is `projectId`, never the name-and-path pair**: two projects can share both.
+
+It has its own three states too. On a refusal, **`Delete` is unavailable while the usage read has not succeeded**, with the reason shown on the control; Edit stays available.
+
+**It is a SNAPSHOT taken at selection and does not subscribe**, and that is a decision rather than an omission: the requirement event payload cannot filter to the selected asset, undoing an assignment publishes nothing at all, and an unfiltered re-run is O(every requirement in the vault) with a note read each. Reselecting is the refresh, and the copy says so rather than pretending to be live.
+
+**4. Actions** — `Open designer` · `Open note` · `Delete`. `Delete` reuses slice 15's `DeleteReferenceDialog` / `EntityPickerDialog` and slice 10's resolution through `deleteZoneFlow.ts`'s shape — the *Used in* read IS that flow's read. **After a successful deletion** the inspector withdraws to its resting state and focus goes to the next row in the shelf the asset was in: the row now occupying the deleted row's index, or the previous surviving row if the deleted one was last; the same rule inside the flat Results list when a search is running; and the search field otherwise, which is the most common case. **The shelf's heading is not a fallback** — it can never receive focus in the one case that would reach it, because an empty shelf's heading is non-interactive.
+
+**A panel-level failure is one level up from the Shape section's**, and has its own two rows: a selected id in `unreadable` says the note could not be read, names it, and offers **`Open note` alone**; a selected id in neither says the asset is gone, with a way back, and offers nothing.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('does not render A\'s rejection under B\'s name', async () => {
+    const panel = await mountInspector({ assetId: 'a' });
+    const pending = panel.rejectFieldCommitLater('unitCost');
+    await panel.select('b');
+    await pending.reject({ code: 'asset.invalid-cost' });
+    expect(panel.find('.rp-field-error').exists()).toBe(false);
+});
+
+it('states no absence while the shape read is in flight', async () => {
+    const panel = await mountInspector({ designPending: true });
+    expect(panel.text()).not.toContain('None');
+});
+
+it('withdraws Open designer for a damaged sidecar and offers Open note for an unusable id', async () => { /* both rows */ });
+it('renders a root label for a project whose path is the empty string', async () => { /* '' is supplied */ });
+it('keys used-in rows by projectId, so two identically named projects both draw', async () => { /* ... */ });
+it('withholds Delete while the usage read has not succeeded', async () => { /* ... */ });
+it('offers Open note alone for a selected id that is in unreadable', async () => { /* ... */ });
+```
+
+The first is the one this task exists for; watch it fail before the `:key` and the subject test are in.
+
+- [ ] **Step 2: Run them and watch each fail at its assertion**
+
+- [ ] **Step 3: Port and implement the three components**
+
+- [ ] **Step 4: Mutation-check the two halves of the keying rule**
+
+Remove the `:key` — the first case must go red. Restore it and remove the subject test on the outcome instead: assert that `notify` is not called for a refusal about an unselected asset, and watch that go red too. Both are needed; either alone leaves a real defect.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the asset library inspector, its four sections and their own states"
+```
+
+---
+
+### Task 15: The stylesheet
+
+**Spec:** §3.3 (the row's slots and where they drop), §7 lines 1411–1431 (the container-query ladder), §9 lines 1527–1554 (targets and focus).
+
+**Files:**
+- Create: `styles/asset-library.css`, `styles/asset-library-inspector.css`
+- Modify: `styles/index.css` (one `@import` each, after `list-row.css`), `styles/list-row.css` (add the asset row to the shared selector list)
+- Test: `tests/build/buttonSpecificity.test.ts` and `buttonFocusRing.test.ts` (existing category checks — they read every shipping sheet, so this partial is in scope the day it exists)
+
+**Interfaces:**
+- Consumes: the class names Tasks 12–14 emit.
+- Produces: nothing any other task imports.
+
+**Container queries, never media queries.** The editor's own width is its pane's — the window minus both Obsidian sidebars minus whatever is split beside it — so a media query measures the wrong box. This is measured, not preferred: fixed rails gave the plan canvas 67% of a 1440px pane and 29% of a 680px one.
+
+| Container width | Composition |
+| --- | --- |
+| ≥ 720px | shelves + inspector rail, rail 280px |
+| 560–720px | rail narrows to 240px; the row drops its supplier slot, then its waste slot |
+| < 560px | the rail stops being a rail — selecting a row replaces the shelves with the inspector in full |
+
+**The row is a flattened `<button>` selected UNDER its block class** (`.rp-asset-shelf .rp-asset-row`). Obsidian's own `button:not(.clickable-icon)` is (0,1,1) and a bare class is (0,1,0) and loses silently. `buttonSpecificity.test.ts` has caught this exact defect four times already.
+
+**Every focus stop opts its ring back in** — Obsidian's global `:focus { outline: none }` reaches buttons. `2px solid var(--interactive-accent)`, offset **negative** for the edge-to-edge rows (an outside ring would be clipped) and **positive** for the inset toolbar and inspector controls.
+
+**Rows and shelf headers at `--size-4-6` minimum** — WCAG 2.5.8's 24px floor. The harness index shipped 19.5px rows once, found by photographing the page rather than by any gate.
+
+**No colour literal, a bare `red` included** — SDD §84, checked on lightningcss's parsed tree over the assembled sheet. **400 lines per partial**, which is why the inspector gets its own from the start rather than after a split.
+
+**Precedence is decided in TypeScript, not in the cascade** wherever two rules could compete — a computed class, never source order under a comment claiming source order wins. That comment has been false here before.
+
+- [ ] **Step 1: Write the failing test**
+
+```ts
+it('declares a rule the asset row's emitted class can match, under its block', () => {
+    const sheet = assembledStylesheet();
+    expect(sheet).toContain('.rp-asset-shelf .rp-asset-row');
+});
+
+it('declares the three container-query steps', () => {
+    const sheet = assembledStylesheet();
+    expect(sheet).toMatch(/@container[^{]*\(max-width:\s*720px\)/);
+    expect(sheet).toMatch(/@container[^{]*\(max-width:\s*560px\)/);
+});
+```
+
+Built from the same expressions the templates interpolate, because jsdom resolves no CSS and a state whose rule is one word off renders the base style with every test green — a defect this repository has shipped once already (`rp-save-state-error` against an emitted `rp-save-state-save-error`).
+
+- [ ] **Step 2: Run it and watch it fail**
+
+- [ ] **Step 3: Write both partials and add the imports**
+
+- [ ] **Step 4: Run the style gates**
+
+Run: `npm run build && npx vitest run tests/build/buttonSpecificity.test.ts tests/build/buttonFocusRing.test.ts`
+Expected: PASS. A colour literal fails the build; a losing selector fails the specificity check.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: the asset library stylesheet and its container-query ladder"
+```
+
+---
+
+### Task 16: The keyboard, and the narrow composition
+
+**Spec:** §6.2 lines 1330–1377 in full, §6.1's narrow-search rule, §7's last row.
+
+**Files:**
+- Create: `src/presentation/library/shelfFocus.ts`
+- Modify: `src/presentation/library/AssetLibraryRoot.vue`, `AssetInspector.vue`
+- Test: `tests/presentation/library/shelfFocus.test.ts`, `assetLibraryKeyboard.test.ts`
+
+**Interfaces:**
+- Consumes: Tasks 12–15.
+- Produces: nothing any other task imports.
+
+**One focus manager over the shelves region, never a handler per shelf.** Headers and rows already alternate in DOM order, so *the next focusable thing in this region* IS *the next row, or the next shelf's header when the rows run out* — the wrap falls out rather than being written. A per-shelf handler would have to be told about its siblings, which is a list, and a list goes stale where a rule does not.
+
+**A collapsed shelf's rows are `v-show`n rather than removed**, so the manager filters on what is actually laid out. jsdom cannot report layout, so that filter is written against the attribute `v-show` sets and the residual is checked by an eye in the harness — recorded in the manual case rather than claimed here.
+
+**Empty shelves are skipped, having no header to focus.** This is §3.2's non-interactive heading arriving in the section that promises the gestures.
+
+**Below 35rem, selecting a row MOVES focus, and `Back to library` returns it.** The narrow composition hides the shelves outright, so the button the user just activated is inside a `display: none` subtree — focus lands on a hidden element or resets to the document, the pane change is announced to nobody, and the next Tab starts from the top.
+
+**Whether the swap happened is asked of the DOM, never of a breakpoint.** `matchMedia` is the wrong instrument: §7's ladder is a CONTAINER query, so it answers about the pane's width and the viewport's may differ — a split leaf is exactly that case. The honest test is whether the shelves region is actually laid out after the change, which is what the browser already knows.
+
+**Searching returns the narrow composition to the shelves.** With the pane given to a selected asset, a user typing into the search field filtered a list they could not see and the surface appeared to ignore them. Found in the 460px capture, which is the width that composition exists for at all.
+
+**`Escape` means two different things at two scopes** — in the search field it clears the field; in an inspector field it resyncs that ONE field through `useFieldCommit.onCancel`, exactly as the Plan editor's Inspector already behaves.
+
+- [ ] **Step 1: Write the failing tests**
+
+```ts
+it('wraps from the last row of a shelf into the next focusable header', () => { /* ... */ });
+it('skips an empty shelf, which has no header to focus', () => { /* ... */ });
+it('moves focus to the back control when the narrow composition swaps', async () => { /* ... */ });
+it('returns focus to the row it came from', async () => { /* ... */ });
+it('returns the narrow composition to the shelves when the user types', async () => { /* ... */ });
+it('clears the search on Escape and resyncs one inspector field on Escape', async () => { /* ... */ });
+```
+
+- [ ] **Step 2: Run them and watch each fail**
+
+- [ ] **Step 3: Implement the focus manager and the narrow swap**
+
+- [ ] **Step 4: Mutation-check the wrap and the swap**
+
+Make the manager per-shelf: the wrap case must go red. Ask `matchMedia` instead of the DOM: the swap case must go red under a container narrower than the viewport. Both watched, both restored.
+
+- [ ] **Step 5: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: one focus manager over the shelves, and the narrow composition's focus handoff"
+```
+
+---
+
+### Task 17: The harness, the axe scan, and the captures
+
+**Spec:** §4's last paragraph (both empty states scanned on the day they ship), §7 (460px is a required capture width), §9's closing paragraph (what no gate here can settle), §12 (what the prototype found and what it could not).
+
+**Files:**
+- Create: `tests/harness/assetLibrary.ts`
+- Modify: `tests/harness/page.ts` (a `?view=asset-library` branch), `tests/harness/entries.ts`, `tests/harness/accessibility.test.ts`, `scripts/harness-shot.mjs` (two more fixed shots)
+- Create: `docs/tests/cases/Browse the asset library.md`
+- Test: `tests/harness/harness.test.ts`
+
+**Interfaces:**
+- Consumes: everything.
+- Produces: the captures and the manual case.
+
+**The axe cases are scoped by their FIXTURE, and that is what decides which state is graded.** `planEditor.noZones` went seven slices unscanned because the case's fixture resolved to a different entry. So: one case per empty state, each asserting `.rp-empty-state` AND `.rp-empty-state__action` are in the scanned DOM — otherwise a fixture drift silently grades a different state, or nothing.
+
+**`await flushPromises()` before scanning.** `mountHarness` is synchronous and `void`s `onOpen`, so a scan run before the store's hydrate resolves finds zero elements under any rule bucket and passes vacuously — indistinguishable from a pass on a compliant tree.
+
+**What the scan does NOT reach, stated so it is not read as covered:** it runs over `contentEl` in jsdom, so it grades roles, names, labels, heading order and ARIA validity, and it grades **no** contrast, **no** focus-indicator visibility and **no** hit-target size. Those three are settled by a capture and by a live vault.
+
+**Capture at 1280 and at 460**, both schemes. 460px is an Obsidian sidebar leaf's real width and is where the project row's name defect was found; this row has four more slots to lose.
+
+**Capture the five marks side by side.** The prototype's own finding was that three of four states drew the same picture, visible only once one capture held them all at once. A capture per state would have shown four correct-looking pictures.
+
+**The pinned Chromium may not be on this machine.** `RP_CHROMIUM_EXECUTABLE` is the one door out, and the script prints that the build is not the pinned one so the caveat travels with the picture. Never hunt a build on disk.
+
+- [ ] **Step 1: Write the failing harness test**
+
+```ts
+it('opens the asset library on ?view=asset-library', async () => { /* mirrors the asset-designer branch */ });
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+- [ ] **Step 3: Wire the harness mount, the page branch and the index entries**
+
+- [ ] **Step 4: Add the axe cases — populated, no-assets, no-matches, some-unreadable, failed**
+
+- [ ] **Step 5: Capture and LOOK at every capture**
+
+```bash
+npm run harness-shot -- --width=460
+npm run harness-shot asset-library
+```
+
+Read them. The five marks must be five pictures. The row must not push its neighbours off at 460px. The empty shelves must read as room rather than as clutter.
+
+- [ ] **Step 6: Write the manual case**
+
+`docs/tests/cases/Browse the asset library.md`, carrying what no gate here can settle: contrast, focus-ring visibility, hit-target size, whether a collapsed shelf's rows are really skipped by the arrow keys, and whether Obsidian honours the view state across a reload. Its Runs table records that it has not been run in a vault — an unrun manual case is a plan to find out, not a finding.
+
+- [ ] **Step 7: Run the gate and commit**
+
+```bash
+npm run check
+git add -A && git commit -m "feat: harness, axe cases and captures for the asset library"
+```
+
+---
+
+## Self-review
+
+**Spec coverage.** §1 and §1a are context. §2 → Task 11. §2a → the §11.9 ruling plus the negative rule bound into every task. §3.1/§3.6/§4/§6.1 → Task 13. §3.2/§3.3/§3.4 → Task 12. §3.5 → Task 14. §5.1 → Task 5. §5.1a → Tasks 1, 2, 3. §5.2 → Task 14's snapshot rule. §5.3 → Task 6. §5.4 → Task 7. §5.5 → Task 10. §6.2/§6.3 → Tasks 11 and 16. §7 → Tasks 15 and 16. §8 → Task 8. §9 → Tasks 12, 15, 17. §10 is anti-goals — nothing to build, and each is a thing no task may add. §11 → the rulings table. §12 → Task 17.
+
+**One gap, ruled rather than left open:** §3.5's *Used in* needs `ListRequirementsReferencing` to widen its `ProjectFolderLookup` to the note path so a vault-root project answers `''` rather than `undefined`. It is a two-line change inside Task 14's dependency and is folded into **Task 9**, whose brief carries spec lines 640–660. Cost if wrong: two identically named projects are indistinguishable in the one panel where the price edit that reaches both is about to happen.
+
+**Placeholder scan:** no "TBD", no "add appropriate error handling", no "similar to Task N". Where a test body is elided it is because the spec's own line range carries the exact values, and the brief names that range.
+
+**Type consistency:** `CatalogueEntryDto`, `UnreadableEntry`, `CatalogueListing`, `AssetListing`, `SkippedAsset`, `ExcludedNote`, `AssetOutline`, `AssetLibraryChange`, `AssetLibraryQueryServices`, `AssetLibraryCommandServices`, `AssetLibraryDeps` are each declared in exactly one task and consumed by name afterwards. `listAll` answers `AssetListing` from Task 3 onward everywhere. The exclusion filter is `'renovation-asset'` at all three sites.

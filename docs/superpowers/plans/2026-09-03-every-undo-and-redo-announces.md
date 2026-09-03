@@ -1184,7 +1184,7 @@ actually deleted. **`undo` on a `'found'` outcome writes nothing and must announ
 that is the `DispatchOutcome` distinction this repository already makes, and publishing there
 would tell a subscriber a row is gone that was never this gesture's to remove.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 it('announces the re-created requirement on redo', async () => {
@@ -1229,12 +1229,12 @@ it('announces nothing when its execute found an existing link', async () => {
 });
 ```
 
-- [ ] **Step 2: Run and watch fail**
+- [x] **Step 2: Run and watch fail**
 
 Run: `npx vitest run tests/application/commands/requirement/reversibleAssign.test.ts`
 Expected: FAIL on all three (constructor arity, then missing events).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Add `readonly events: EventBus` to `ReversibleAssignDeps`. In `redoCreate`, after the save
 succeeds, publish `requirementCreated({ requirementId, projectId })` from the snapshot the
@@ -1254,12 +1254,12 @@ cycle that is silent for a *correct* reason, which is the worst of both.
 four-operation cycle — execute, undo, redo, undo — asserting the second undo SUCCEEDS and
 publishes. A two-operation case passes against the stale version and proves nothing about it.
 
-- [ ] **Step 4: Run and watch pass**
+- [x] **Step 4: Run and watch pass**
 
 Run: `npx vitest run tests/application/commands/requirement/reversibleAssign.test.ts`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check
@@ -1328,7 +1328,7 @@ the place a test quietly stops discriminating:
   `publishIfEffectiveCostChanged` and confirm that case goes red. If it stays green, the fixture
   is not producing equal figures and the case is asserting nothing.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it.each(['quantity', 'cost'] as const)(
@@ -1358,24 +1358,24 @@ it('announces nothing when an undo restores the identical figure', async () => {
 });
 ```
 
-- [ ] **Step 2: Run and watch fail**
+- [x] **Step 2: Run and watch fail**
 
 Run: `npx vitest run tests/application/commands/requirement/reversibleOverrides.test.ts`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Each adapter's `undo` already holds the post-write `Snapshot` (`{ entity, postVersion }`). Read
 the live requirement's effective cost BEFORE the restore write — that is where `previous`
 lives — then call `publishIfEffectiveCostChanged(this.events, restored, previous)` after the
 save succeeds.
 
-- [ ] **Step 4: Run and watch pass**
+- [x] **Step 4: Run and watch pass**
 
 Run: `npx vitest run tests/application/commands/requirement/reversibleOverrides.test.ts`
 Expected: PASS, 3 tests.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check
@@ -1405,10 +1405,15 @@ MSG
 
 ## Task 8: The delete resolution announces per referent it touched
 
-> **DONE** — commit `54e7770`, gate green on the combined tree (5312 passed,
+> **IMPLEMENTED, NOT DONE** — commit `54e7770`, gate green on the combined tree (5312 passed,
 > 99.36/99.09/99.55/98.27). Line-budget overflow cleared by extracting
-> `requirementResolutionSteps.test.ts` along a step-builder/engine seam. Review pending.
-> Start at Task 9.
+> `requirementResolutionSteps.test.ts` along a step-builder/engine seam. **Review returned
+> CHANGES REQUESTED: four blocking findings, a fix round is pending.** Two invariants this
+> code asserts in comments survive their own mutation — the publish-after-`deleteEntity`
+> ordering and the announce-only-on-successful-restore guard — plus a false publisher list in
+> `RequirementRestored`'s docblock and a `compensate` arm that publishes `RequirementRestored`
+> where an `'absent'` outcome calls for `RequirementCreated`. Boxes stay unticked until the
+> fix round lands.
 
 **The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
 contract rather than a call to something already there.** Grep-verified across `src/` and

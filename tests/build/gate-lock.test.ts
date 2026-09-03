@@ -422,6 +422,90 @@ describe('the queued gate', () => {
 	});
 
 	/**
+	 * Cancelling reaches the command's whole process TREE, not just the process we spawned.
+	 *
+	 * `child.kill()` signals one pid, and the thing this wraps is `npm run check` — npm spawns
+	 * a shell, the shell spawns `vitest`. Signalling npm alone killed npm, left its descendants
+	 * running, and then npm's `exit` released the lock: a second gate could start while the
+	 * first was still writing `coverage/`, which is the exact overlap this file exists to
+	 * prevent, arriving through the cancellation path rather than the lock protocol.
+	 *
+	 * Reproduced before it was fixed, outside the suite: a grandchild wrote its marker three
+	 * seconds after the wrapper had exited and the lock was already gone. That is what this
+	 * case drives — the marker is the whole assertion, because the wrapper exits and the lock
+	 * is released in BOTH worlds, and only the survival of the grandchild tells them apart.
+	 *
+	 * POSIX only, for the same reason as its sibling above, plus one of its own: Windows has no
+	 * process group of this kind and `process.kill(-pid)` is unsupported there, so the fix is
+	 * `detached` + a negative pid on POSIX and a single-pid kill on Windows. That gap is named
+	 * in `killTree` rather than papered over.
+	 */
+	it.skipIf(process.platform === 'win32')('cancels the whole process tree, not just the process it spawned', async () => {
+		lock = path.join(workspace, 'tree.lock');
+		const survived = path.join(workspace, 'tree.survived');
+		const started = path.join(workspace, 'tree.started');
+
+		rmSync(survived, { force: true });
+		rmSync(started, { force: true });
+
+		// A stand-in for `npm run check`: a parent that dies on the signal while the process it
+		// started works on. `wait` is what makes the shell hold until its own child is done.
+		const script = path.join(workspace, 'tree.sh');
+
+		// The paths arrive through the ENVIRONMENT rather than baked into the `-e` source, which
+		// is the lesson `marker` above already records: the first draft interpolated them and
+		// its inner double quotes closed the shell string, so the grandchild never ran at all
+		// and the case passed against the very defect it was written to catch.
+		writeFileSync(
+			script,
+			`node -e 'const f = require("fs");` +
+				` f.writeFileSync(process.env.RP_STARTED, "up");` +
+				` setTimeout(() => f.writeFileSync(process.env.RP_SURVIVED, "still working"), 3000);' &\nwait $!\n`,
+		);
+
+
+		const wrapper = spawn(process.execPath, [SCRIPT, 'sh', script], {
+			env: { ...process.env, RP_GATE_LOCK: lock, RP_STARTED: started, RP_SURVIVED: survived },
+			stdio: 'ignore',
+		});
+
+		for (let waited = 0; !existsSync(lock) && waited < 5000; waited += 25) {
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 25);
+			});
+		}
+
+		expect(existsSync(lock), 'the gate never claimed the lock').toBe(true);
+
+		// The grandchild must be RUNNING before the signal, or the absence asserted at the end
+		// is true of a world where it never started — which is how the first draft of this case
+		// passed against the single-pid kill it was written to catch.
+		for (let waited = 0; !existsSync(started) && waited < 5000; waited += 25) {
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 25);
+			});
+		}
+
+		expect(existsSync(started), 'the grandchild never started, so this case proves nothing').toBe(true);
+
+		wrapper.kill('SIGTERM');
+
+		await new Promise<void>((resolve) => {
+			wrapper.on('exit', () => {
+				resolve();
+			});
+		});
+
+		// Past the grandchild's own deadline, so this asks whether it was killed rather than
+		// whether it has got round to writing yet.
+		await new Promise<void>((resolve) => {
+			setTimeout(resolve, 3500);
+		});
+
+		expect(existsSync(survived), 'a descendant outlived the lock that was covering it').toBe(false);
+	}, 15_000);
+
+	/**
 	 * Both halves of one defect, and it was a real one: `process.exit()` does not run a
 	 * pending `finally`, so the first version of this script released nothing and every
 	 * later gate on the machine waited `STALE_MS` for a holder that had already finished.

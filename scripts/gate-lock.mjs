@@ -284,6 +284,8 @@ const release = () => {
  * Windows may be a `.cmd` or a `.bat` and gets one. On any other platform there is no shell
  * at all and arguments are passed as written.
  */
+const GROUPS = process.platform !== "win32";
+
 const needsShell = (bin) => process.platform === "win32" && !bin.toLowerCase().endsWith(".exe");
 
 const command = process.argv.slice(2);
@@ -298,6 +300,40 @@ let waited = false;
 // The child, once there is one. Held here because the signal handlers below are installed
 // BEFORE the lock is claimed and have to behave differently on each side of that line.
 let child = null;
+
+/**
+ * Signal the command's whole process TREE, not just the process we spawned.
+ *
+ * `child.kill()` reaches one pid, and the thing this wraps is `npm run check` — npm spawns a
+ * shell, the shell spawns `vitest`. Signalling npm alone killed npm, left the shell and vitest
+ * running, and then npm's `exit` released the lock: another gate could start while the first
+ * one was still writing `coverage/`, which is the precise overlap this file exists to prevent,
+ * arriving through the cancellation path. Reproduced before fixing — a grandchild wrote its
+ * marker three seconds after the wrapper had exited and the lock was gone.
+ *
+ * `detached` puts the command in its own process GROUP, and a negative pid signals that group.
+ * The two go together: without `detached` the negative pid would name OUR group and we would
+ * signal ourselves and the test runner above us.
+ *
+ * Windows gets the single-pid kill, and that gap is real rather than hidden: it has no process
+ * groups of this kind and `process.kill(-pid)` is not supported there. It already has no signal
+ * delivery at all, which the regression case records by skipping.
+ */
+const killTree = (target, signal) => {
+	try {
+		if (GROUPS) {
+			// A spawn that never started has no pid, so this is NaN and throws into the catch —
+			// which is the right answer, since there is no tree to signal.
+			process.kill(-target.pid, signal);
+
+			return;
+		}
+
+		target.kill(signal);
+	} catch {
+		// Already gone. A cancellation that races the command's own exit is not a failure.
+	}
+};
 
 // Installed BEFORE the claim loop, and that ordering is the whole point.
 //
@@ -318,7 +354,7 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
 		// command ran on, which is the overlap this file exists to prevent arriving through the
 		// one door that looks like cleanup — the child's own exit is what releases, below.
 		if (child !== null) {
-			child.kill(signal);
+			killTree(child, signal);
 
 			return;
 		}
@@ -355,7 +391,7 @@ while (!claim()) {
 // what it started.
 const [bin, ...args] = command;
 
-child = spawn(bin, args, { stdio: "inherit", shell: needsShell(bin) });
+child = spawn(bin, args, { stdio: "inherit", shell: needsShell(bin), detached: GROUPS });
 
 // The exit is OUTSIDE the `try`, and that is the whole of why this is three statements
 // rather than one: `process.exit()` terminates immediately and does NOT run a pending

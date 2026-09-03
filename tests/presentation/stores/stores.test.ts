@@ -501,10 +501,10 @@ describe('EditorStore, the ephemeral half', () => {
 });
 
 describe('WorkspaceStore, the editor chrome', () => {
-	it('opens with both panels open and every layer visible', () => {
+	it('opens in full layout, with no overlay and every layer visible', () => {
 		const store = useWorkspaceStore();
 
-		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([true, true]);
+		expect([store.layoutMode, store.overlay]).toEqual(['full', 'none']);
 		expect(Object.keys(store.layerVisibility)).toEqual([...KONVA_LAYER_IDS]);
 		expect(Object.values(store.layerVisibility).every(Boolean)).toBe(true);
 	});
@@ -532,18 +532,13 @@ describe('WorkspaceStore, the editor chrome', () => {
 		expect(store.layerVisibility).not.toBe(before);
 	});
 
-	it('toggles each panel independently', () => {
-		const store = useWorkspaceStore();
-
-		store.toggleLayersPanel();
-
-		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([false, true]);
-
-		store.toggleInspectorPanel();
-
-		expect([store.layersPanelOpen, store.inspectorPanelOpen]).toEqual([false, false]);
-	});
-
+	/**
+	 * 'toggles each panel independently' stood here, and it was the ONLY caller of
+	 * `toggleLayersPanel`/`toggleInspectorPanel` outside their own definitions — direct store
+	 * calls standing in for a control §5.6 never built. Both actions and both booleans are
+	 * deleted (2026-09-04, R11); the shell renders both full-mode panels unconditionally, and
+	 * `shell.test.ts`'s five-regions case is what proves they still compose.
+	 */
 	it('opens one overlay at a time and closes it when the layout leaves constrained', () => {
 		const workspace = useWorkspaceStore();
 		workspace.setLayoutMode('constrained');

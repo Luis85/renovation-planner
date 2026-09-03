@@ -114,6 +114,21 @@ control beside the Requirements panel keeping its own empty state; criterion 5 i
 criterion 7 is that same scan plus the room name being an `<h3>` under the frame's `<h2>`, a
 heading-order decision stated in `RoomInspector.vue`'s docblock rather than left to chance.
 
+**2026-09-04** — criteria 6 and 7 completed by the review-findings increment.
+
+Met: the resize-driven drawer close no longer strands focus (R10) —
+`tests/presentation/editor/shell/responsiveShell.test.ts`'s 'growing back to full while %s is
+open moves focus to the persistent region it stood in for' asserts `document.activeElement` is
+`[data-rp-region="inspector"]`, the persistent Inspector aside the drawer stood in for, rather
+than `<body>`. And criterion 7's "does not trap focus" half is PINNED rather than merely
+implemented (R3): the same file's '%s does not trap focus: focus can leave it for the canvas'
+opens each constrained panel, moves focus to the canvas, and asserts the panel neither pulls it
+back nor closes — so the modal reading M16 once carried fails there rather than at review. What
+that pin cannot ask is what a browser's own Tab key does with the ORDER, because jsdom performs
+no traversal: step 9 of [[Open a floor and select a room]] is the one place this overlay is
+opened under a real keyboard, and it watches Escape's focus return rather than a Tab out — so
+the traversal itself is measured by nothing today.
+
 Remains:
 
 - **`TransformationSummary` and every available route.**
@@ -125,6 +140,5 @@ Remains:
   additive warning strip; `stale` reaches exactly one computed in `PlanEditorRoot.vue` and feeds
   that strip alone, so Delete stays live over data the last read-back could not confirm. Recorded
   at [[Preserve room inspection across layout and read changes]].
-- **The resize-driven drawer close leaves focus on `<body>`**, the same residue Layers records.
 - [[The cross-surface identity test starts after selection]]
 - [[The Inspector's two unavailable lists are separate navigation models]]

@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 80
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -71,6 +71,33 @@ The discriminating check is a production-caller assertion: if the actions remain
 test must click the real controls and prove each panel changes independently. If no controls are
 approved, the compiler and shell render tests should instead prove the simplified store and both
 full panels still compose; direct store calls are not evidence of reachability.
+
+## What closed it
+
+**2026-09-04.** No production affordance was approved, so the residue went rather than the
+question (ruling R11). `WorkspaceStore` lost `layersPanelOpen`, `inspectorPanelOpen`,
+`toggleLayersPanel` and `toggleInspectorPanel`, their two `reset()` lines and their four return
+entries; `ResponsiveEditorShell`'s two `v-if="layoutMode === 'full' && …Open"` became
+`v-if="layoutMode === 'full'"`, and the two refs left `storeToRefs`. The store's header now says
+why the state is absent, so the next author re-adds two refs and two actions deliberately, with a
+control that reaches them.
+
+Both test-only callers went with them: `describe('collapsing a panel')` in
+`tests/presentation/editor/shell.test.ts` and 'toggles each panel independently' in
+`tests/presentation/stores/stores.test.ts`. A third reader was found by grep and updated rather
+than deleted — that file's 'opens with both panels open and every layer visible' asserted the two
+booleans, and is now 'opens in full layout, with no overlay and every layer visible'. A
+docblock in `FloorInspector.vue` that explained its own mounting in terms of `inspectorPanelOpen`
+was reworded for the same reason. Each deletion site carries a comment saying what stood there
+and why it is gone, so the absence reads as a decision rather than an oversight.
+
+Holding evidence is a RENDER assertion, per this note's own last paragraph: `shell.test.ts` ›
+the five regions › 'stands up the context bar, both panels, the canvas, the floating actions and
+the status bar' asserts both panels present against a store that now has no way to say otherwise,
+and `vue-tsc` over `src/**` and `tests/**` is what refuses any surviving reader. `npm run
+analyze` reports the same five unused store members and seven clone groups as before the change,
+so nothing new was left behind. Commit "fix(shell): focus survives a growth that closes an
+overlay, an unmounted canvas abandons its gesture, and the dead panel toggles are gone".
 
 ## References
 

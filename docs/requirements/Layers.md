@@ -112,13 +112,19 @@ background, beside lock and opacity not being rendered at all because the sideca
 neither; criterion 6 is every row carrying a text label rather than a colour; criterion 7 is
 `editorRoundTrip.test.ts` — no persisted layer contract moved.
 
+**2026-09-04** — criterion 5's focus half met by the review-findings increment.
+
+Met: the resize-driven close no longer strands focus (R10).
+`tests/presentation/editor/shell/responsiveShell.test.ts`'s 'growing back to full while %s is
+open moves focus to the persistent region it stood in for' drives both overlays and asserts
+`document.activeElement` is the persistent aside the overlay stood in for — here
+`[data-rp-region="layers"]` — rather than `<body>`. The rail button `closeOverlay` returns focus
+to is removed by that same transition, which is why the target is the region and not a button;
+`ResponsiveEditorShell.regionInheritingFocus` decides which one before `setLayoutMode` clears
+the overlay. The Escape half was already held by the same file's close cases.
+
 Remains:
 
-- **A resize-driven overlay close leaves focus on `<body>`.** Escape returns focus to the rail
-  button that opened the overlay, asserted in
-  `tests/presentation/editor/shell/responsiveShell.test.ts`; growing the pane back to `full`
-  closes the overlay through the store and strands focus. Spec §5.5 required only the Escape half,
-  which is why it shipped. Recorded at [[Keep layer controls usable in constrained leaves]].
 - **A hidden selected record's coherence is asserted by nothing.** Hiding the rooms layer leaves
   the Room Inspector drawing a selection whose shape is no longer visible, and no case says
   whether that is the intended behaviour. Recorded at
@@ -126,5 +132,3 @@ Remains:
 - **Criterion 5's "layer values survive a layout change" half** is true by construction —
   visibility lives in Pinia — and asserted by no case; the same test asserts selection and
   viewport only.
-
-- [[A resize-driven overlay close strands focus on body]]

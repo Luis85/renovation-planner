@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 100
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -76,6 +76,35 @@ demonstrate wrapping. Testing only initial focus cannot distinguish them.
 ## Decision
 
 **2026-09-04.** **R3** Ruling: the constrained Layers overlay and Inspector drawer do NOT trap focus; M16's "trap focus only while open" sentence is amended to "restore focus on close and do not trap it — the canvas stays reachable by Tab", and §5.5 stops attributing a trap to M16 — because the Inspector PBI criterion 7 ("does not trap focus"), both components and the canvas-stays-reachable design already agree, and a modal trap would need inertness and cycling nobody designed — cost if wrong: a keyboard user can Tab out of an open overlay onto the canvas, which is the intended modeless behaviour; a later modal decision is a redesign of both panels.
+
+## What closed it
+
+**2026-09-04.** The DECISION above (R3) is the substance; this increment supplied the test half
+the note asks for, and Task 0 supplied the two document corrections. M16 line 58's "trap focus
+only while open" is amended to "restore focus on close and do not trap it — the canvas stays
+reachable by Tab", and design spec §5.5 no longer attributes a trap to M16, so the requirements
+no longer hold both decisions at once. No production code changed: `OverlayPanel.vue` and
+`InspectorDrawer.vue` already implemented the ruling, which is why the ruling is theirs.
+
+Holding tests: `tests/presentation/editor/shell/responsiveShell.test.ts` › the responsive shell ›
+'%s does not trap focus: focus can leave it for the canvas (R3)', over both containers. Each
+opens its constrained panel, moves focus to the canvas — the element R3 names as the one that
+must stay reachable, and a real Tab stop (`tabindex="0"`) in the same shell — and then asks the
+two questions a trap would answer differently: a `focusout` trap pulls focus back inside, and a
+dismiss-on-blur panel closes. Both are asserted, together with the canvas being outside the panel
+and a Tab stop at all.
+
+These are POLICY PINS rather than regression tests: they were green before this increment and
+exist so that a later modal trap fails here instead of passing review. What they cannot ask is
+what a browser's own Tab key does with the ORDER, because jsdom performs no traversal at all —
+the cases move focus directly, which is stated in their docblock. Watched red by inverting their
+own expectation (`contains(activeElement)` to `true`), so they discriminate rather than
+tautologise. The Electron instrument is step 9 of `docs/tests/cases/Open a floor and select a
+room.md`, which is the one place this overlay is opened under a real keyboard — and it watches
+Escape's focus return rather than a Tab out, so the traversal itself is measured by nothing
+today; that case has also never been run in a vault. Commit "fix(shell): focus survives a growth
+that closes an overlay, an unmounted canvas abandons its gesture, and the dead panel toggles are
+gone".
 
 ## References
 

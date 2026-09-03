@@ -28,17 +28,17 @@
  * would be enough in a browser; the first is what makes the mode a fact about a REAL width in
  * hosts that do not, rather than about the 0 an unlaid-out element reports.
  */
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useWorkspaceStore } from '../../stores/WorkspaceStore';
-import { layoutModeFor } from './layoutMode';
+import { layoutModeFor, type LayoutMode } from './layoutMode';
 import InspectorDrawer from './InspectorDrawer.vue';
 import OverlayPanel from './OverlayPanel.vue';
 import PanelRail from './PanelRail.vue';
 import UnsupportedWidthNotice from './UnsupportedWidthNotice.vue';
 
 const workspace = useWorkspaceStore();
-const { layoutMode, overlay, layersPanelOpen, inspectorPanelOpen } = storeToRefs(workspace);
+const { layoutMode, overlay } = storeToRefs(workspace);
 
 const root = ref<HTMLElement | null>(null);
 /**
@@ -49,12 +49,40 @@ const root = ref<HTMLElement | null>(null);
 let observer!: ResizeObserver;
 
 /**
+ * Which persistent region inherits focus when a GROWTH closes an overlay (R10), or `null` when
+ * this measurement closes nothing — which is every ordinary resize.
+ *
+ * Asked BEFORE `setLayoutMode`, because that call clears `overlay` in the same statement, so
+ * afterwards there is nothing left to say which of the two the user was operating.
+ *
+ * The target is the persistent ASIDE the overlay stood in for, and not its first control: the
+ * aside is what the overlay was standing in for, while a control is a guess about which one
+ * mattered. `closeOverlay` cannot serve here either — the rail button it focuses is removed by
+ * this very transition, which is how a keyboard user used to land on `<body>`.
+ */
+function regionInheritingFocus(next: LayoutMode): 'layers' | 'inspector' | null {
+	if (layoutMode.value !== 'constrained' || next !== 'full' || overlay.value === 'none') return null;
+	return overlay.value;
+}
+
+/**
  * `root` is cast rather than optional-chained at both call sites: it names this component's own
  * outermost element, which is bound before `onMounted` runs and stays bound for as long as the
  * observer can fire, so a null branch here would be one nothing could ever take.
+ *
+ * The focus move waits for `nextTick` because the region it targets does not exist yet: the
+ * persistent panels are what the `full` branch renders, and Vue's re-render is asynchronous, so
+ * at the moment `setLayoutMode` returns the DOM still holds the overlay this call just closed.
  */
 function measure(): void {
-	workspace.setLayoutMode(layoutModeFor((root.value as HTMLElement).clientWidth));
+	const next = layoutModeFor((root.value as HTMLElement).clientWidth);
+	const region = regionInheritingFocus(next);
+	workspace.setLayoutMode(next);
+	if (region === null) return;
+	void nextTick(() => {
+		const aside = (root.value as HTMLElement).querySelector(`[data-rp-region="${region}"]`);
+		(aside as HTMLElement).focus();
+	});
 }
 
 /**
@@ -103,7 +131,7 @@ onBeforeUnmount(() => observer.disconnect());
 		<slot name="context-bar" />
 		<div class="rp-editor-body">
 			<slot
-				v-if="layoutMode === 'full' && layersPanelOpen"
+				v-if="layoutMode === 'full'"
 				name="panel"
 			/>
 			<PanelRail v-if="layoutMode === 'constrained'" />
@@ -112,7 +140,7 @@ onBeforeUnmount(() => observer.disconnect());
 				name="canvas"
 			/>
 			<slot
-				v-if="layoutMode === 'full' && inspectorPanelOpen"
+				v-if="layoutMode === 'full'"
 				name="inspector"
 			/>
 			<OverlayPanel

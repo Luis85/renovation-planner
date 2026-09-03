@@ -19,7 +19,6 @@ import {
 	STAGE_PIXELS,
 } from '../../../src/presentation/editor/viewport/Viewport';
 import { useProjectStore } from '../../../src/presentation/stores/ProjectStore';
-import { useWorkspaceStore } from '../../../src/presentation/stores/WorkspaceStore';
 import {
 	fakeQueries,
 	mountPlanEditor,
@@ -576,28 +575,13 @@ describe('what the shell shows when there is no plan to draw', () => {
 });
 
 /**
- * The panels are collapsible chrome, not content: hiding one is a `WorkspaceStore` toggle
- * with nothing persisted behind it. Driven through the store because there is no toggle
- * CONTROL yet — the context bar (Task 13) is where that button goes, and the state it will
- * drive is stood up now so the button is all that has to arrive.
+ * Both full-mode panels compose unconditionally (2026-09-04, spec §5.6, R11). `collapsing a
+ * panel` used to sit here, driving `WorkspaceStore.toggleLayersPanel`/`toggleInspectorPanel`
+ * from the store because there was no CONTROL to click — and there never was one: §5.6 builds
+ * no View menu, because nothing would be in it. The two actions and the two booleans are
+ * deleted, so the states those cases certified are unreachable rather than merely unreached,
+ * and what is left to prove is that the simplified shell still draws both regions. That is the
+ * five regions' case at the top of this file ('stands up the context bar, both panels, the
+ * canvas, the floating actions and the status bar'), which asserts each of them present
+ * against a store that no longer has a way to say otherwise.
  */
-describe('collapsing a panel', () => {
-	it('removes the layers panel and leaves the canvas', async () => {
-		const harness = await mountCanvas();
-		useWorkspaceStore().toggleLayersPanel();
-		await settle();
-
-		expect(harness.wrapper.find('.rp-editor-layers').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-plan-canvas').exists()).toBe(true);
-		expect(harness.wrapper.find('.rp-editor-inspector').exists()).toBe(true);
-	});
-
-	it('removes the inspector independently', async () => {
-		const harness = await mountCanvas();
-		useWorkspaceStore().toggleInspectorPanel();
-		await settle();
-
-		expect(harness.wrapper.find('.rp-editor-inspector').exists()).toBe(false);
-		expect(harness.wrapper.find('.rp-editor-layers').exists()).toBe(true);
-	});
-});

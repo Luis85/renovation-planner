@@ -13,6 +13,14 @@
  * It also owns the one `role="status"` region that announces "select something" exactly
  * once when a selection clears to nothing (design spec §6.6) — cleared shortly after so a
  * refresh or an idle pointer move over the canvas never re-announces it.
+ *
+ * **`tabindex="-1"` and `data-rp-region="inspector"` make this aside PROGRAMMATICALLY focusable
+ * and nothing else** (R10). A pane growing from `constrained` back to `full` closes the drawer
+ * that stood in for this region — the drawer draws this very component inside itself — and the
+ * rail button a close would normally return focus to is removed by the same transition, so
+ * `ResponsiveEditorShell.measure` focuses this region instead of leaving the keyboard user on
+ * `<body>`. `-1` rather than `0` because that is the whole of it: this is a surviving TARGET,
+ * not a new Tab stop, and the Inspector's own controls are what a user tabs to.
  */
 import { nextTick, ref, watch } from 'vue';
 import { storeToRefs } from 'pinia';
@@ -51,6 +59,8 @@ watch(selectedIds, async (ids, previous) => {
 <template>
 	<aside
 		class="rp-editor-inspector"
+		tabindex="-1"
+		data-rp-region="inspector"
 		:aria-label="tr('editor.inspector')"
 	>
 		<h2 class="rp-editor-panel-title">

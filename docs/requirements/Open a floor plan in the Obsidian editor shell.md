@@ -117,6 +117,23 @@ the `plan-editor-dark` and `plan-editor-light` captures read by eye — the only
 schemes; `plan-editor-selected`, `-add-menu` and `-narrow` are light only. Criterion 1 is
 unchanged from before this increment.
 
+**2026-09-04** — criterion 6 strengthened, and the shell's dead panel state removed, by the
+review-findings increment.
+
+Met: criterion 6's "does not reset an active temporary task" half now covers the UNSUPPORTED
+width too, which is the one layout change that really does destroy the canvas.
+`EditorSurface.onBeforeUnmount` releases the interrupted press through the same
+`releaseInterruptedInputs` door focus loss takes — so the leaf-scoped `ToolManager` no longer
+carries `gestureInFlight` into the remount, where it locked the camera for the session and made
+the next press look like a foreign pointer's — and it abandons rather than cancels, so a
+multi-click draft crosses the unmount intact.
+`tests/presentation/editor/shell/responsiveShell.test.ts` holds both halves: 'an interrupted
+Select drag is abandoned when the canvas unmounts below the floor, and the next click selects
+normally', and 'a drawing tool keeps its placed vertices across the unmount'. The shell also
+lost `layersPanelOpen`/`inspectorPanelOpen` and their two toggles (R11, spec §5.6): both
+full-mode panels render unconditionally, and `shell.test.ts`'s five-regions case is what proves
+they still compose.
+
 Remains, and each is recorded at the Task that owns it:
 
 - **The compact status bar's View menu.** Spec §5.6 built no View menu, because nothing would be
@@ -140,9 +157,6 @@ Remains, and each is recorded at the Task that owns it:
 - **No manual case for Undo and Redo beyond one clause.** The context bar carries both controls
   and step 1 of [[Open a floor and select a room]] asserts only that they are present and
   disabled with an empty history; the Undo and redo PBI is not advanced here.
-- [[Unsupported layout can preserve an interrupted canvas gesture]]
 - [[The toolbar-key retirement contract conflicts with the Asset Designer]]
 - [[Unsupported width has no horizontal-overflow check]]
-- [[The two full-panel toggle actions have no production caller]]
 - [[The unsupported-width copy pluralizes one room as rooms]]
-- [[The constrained-overlay contract both requires and refuses a focus trap]]

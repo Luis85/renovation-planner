@@ -795,6 +795,32 @@ const NO_MODIFIERS: ModifierSource = {
 };
 
 /**
+ * Everything a gesture in flight owns, released — the swallowed pointers, the camera's claim
+ * on this canvas, and the tool's interrupted press.
+ *
+ * TWO callers, and they are the same question asked at two doors: `onBlur`, where the user
+ * released the button in another application, and `onBeforeUnmount`, where the element the
+ * press was made on is about to stop existing. A function rather than two spellings, because
+ * the moment this is written out longhand the count of doors that are missing a line of it is
+ * unknowable — which is the lesson four rounds of `isGestureOwner` already bought.
+ *
+ * `cancelInterruptedGesture` and never `cancelGesture`: a multi-click tool sits BETWEEN clicks
+ * with nothing in flight, and neither an alt-tab nor a narrowing split says anything about a
+ * buffer the user is still filling.
+ *
+ * What it deliberately does NOT do is either of the two things its callers disagree about: the
+ * re-issued pointer move (`onBlur` alone, and FIRST — see below) and what becomes of the
+ * remembered position. Both are stated at each door, because each door answers differently.
+ */
+function releaseInterruptedInputs(): void {
+	swallowedPointers.clear();
+	panOverride.cancel();
+	syncPanPhase();
+	editor.abandonPan();
+	toolManager.cancelInterruptedGesture();
+}
+
+/**
  * Focus left the canvas, and TWO independent things follow from it — both kept, because they
  * answer different questions about a keyboard this element can no longer hear.
  *
@@ -844,11 +870,7 @@ const NO_MODIFIERS: ModifierSource = {
  */
 function onBlur(): void {
 	reissuePointerMove(NO_MODIFIERS);
-	swallowedPointers.clear();
-	panOverride.cancel();
-	syncPanPhase();
-	editor.abandonPan();
-	toolManager.cancelInterruptedGesture();
+	releaseInterruptedInputs();
 	// **And the remembered point goes, which is what makes this handler the idempotent thing
 	// `swallowedPointers`' docblock already called it.** Chromium can deactivate a window
 	// while leaving the focused element focused, so the element's `blur` and the window's are
@@ -1181,6 +1203,21 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+	// **This surface can be unmounted MID-GESTURE, and the manager it was driving is not.**
+	// The responsive shell removes the canvas below its floor width, so a user dragging a
+	// split narrower is a press whose release is never coming — and `ToolManager` is
+	// leaf-scoped, so `gestureInFlight` stayed true into the remount: `cameraIsLocked()`
+	// refused every wheel and both fit shortcuts for the rest of the session, and the fresh
+	// surface's own `toolGesturePointer` was `null`, so the next real press was declined as a
+	// foreign pointer's. The same door as focus loss, and the same answer — `abandonGesture`
+	// and not `cancel`, so a multi-click draft crosses the unmount intact.
+	//
+	// The pointer readout goes with it, which is where this door differs from `onBlur`: focus
+	// can leave with the pointer still resting over the plan, and blanking the status bar then
+	// would be a visible falsehood — but the canvas itself is about to be gone, so a coordinate
+	// readout would be a claim about a pointer over nothing.
+	releaseInterruptedInputs();
+	editor.setPointer(null);
 	// A window listener outlives its element unless something removes it, and a closed leaf
 	// still reacting to every window blur would reach into a disposed Pinia store.
 	window.removeEventListener('blur', onBlur);

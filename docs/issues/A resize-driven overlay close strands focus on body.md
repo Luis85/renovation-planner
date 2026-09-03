@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Layers]]"
 order: 10
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -77,6 +77,32 @@ Calling the existing `closeOverlay` is not sufficient: it focuses a rail button 
 transition removes, returning focus to `<body>`. Leaving focus to browser fallback preserves
 the defect, while keeping a constrained overlay open in full mode contradicts the store's
 one-layout-state rule.
+
+## What closed it
+
+**2026-09-04.** `ResponsiveEditorShell.measure` retains the decision long enough to act on it
+(ruling R10): `regionInheritingFocus(next)` is asked BEFORE `workspace.setLayoutMode`, which
+clears `overlay` in the same statement, and answers `'layers'`, `'inspector'` or `null` — `null`
+for every resize that closes nothing, which is nearly all of them. The focus move then waits for
+`nextTick`, because the target does not exist until the `full` branch has rendered:
+`[data-rp-region="layers"]` on `PropertyLayerPanel`'s aside and `[data-rp-region="inspector"]`
+on `EntityInspector`'s, each `tabindex="-1"` so it is a programmatic TARGET rather than a new Tab
+stop.
+
+The target is the persistent REGION and not its first control, which is what the note's own last
+paragraph asked for: the aside is what the overlay stood in for, while a control is a guess about
+which one mattered. That `closeOverlay` could not serve is measured rather than argued —
+replacing the focus call with `closeOverlay(region)` reddens both new cases with
+`document.activeElement` reading `<body>`, because the rail button it focuses is removed by this
+very transition.
+
+Holding test: `tests/presentation/editor/shell/responsiveShell.test.ts` › the responsive shell ›
+'growing back to full while %s is open moves focus to the persistent region it stood in for',
+driven over BOTH containers — the layers overlay and the inspector drawer, since the store's
+`inspector` and the rail's `details` are two vocabularies and a mapping can be right for one
+entry. It asserts the panel is gone, that `document.activeElement` IS the designated region, and
+that it is not `<body>`. Commit "fix(shell): focus survives a growth that closes an overlay, an
+unmounted canvas abandons its gesture, and the dead panel toggles are gone".
 
 ## References
 

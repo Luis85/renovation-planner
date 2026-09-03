@@ -66,3 +66,15 @@ Criteria 2 and 3 are the pre-existing §59 Edit-to-Command choke point
 Criterion 1 ('the shell owns layout only') is a REVIEW obligation and is written down as one:
 `ResponsiveEditorShell` owns its `ResizeObserver` and writes `layoutMode`, and nothing in any
 gate would notice it growing a second responsibility.
+
+**2026-09-04**, the review-findings increment. Criterion 4's evidence is narrower and therefore
+truer: `WorkspaceStore` carries `layerVisibility`, `layoutMode` and `overlay` and nothing with no
+production caller — the two panel toggles and the two booleans they mutated were deleted
+2026-09-04 (spec §5.6, R11), together with their only callers, which were direct store calls in
+`tests/presentation/editor/shell.test.ts` and `tests/presentation/stores/stores.test.ts`. §5.6
+builds no View menu because nothing would be in it, so those actions had no control to reach them
+and the two panel states they produced were unreachable in the product. The shell renders both
+full-mode panels unconditionally now, and `shell.test.ts`'s 'stands up the context bar, both
+panels, the canvas, the floating actions and the status bar' is what proves the simplified store
+still composes them. Direct store calls were never evidence of reachability, which is why the
+replacement is a render assertion rather than a smaller set of store calls.

@@ -13,8 +13,16 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { t } from '../../../../src/presentation/i18n/strings';
 import { useSelectionStore } from '../../../../src/presentation/editor/selection/selection-store';
 import { useEditorStore } from '../../../../src/presentation/stores/EditorStore';
-import { mountPlanEditor, mountPlanEditorCanvas, settle, type EditorHarness } from '../../../helpers/editor';
+import { STAGE_PIXELS, worldToScreen } from '../../../../src/presentation/editor/viewport/Viewport';
+import {
+	mountPlanEditor,
+	mountPlanEditorCanvas,
+	runtimeOf,
+	settle,
+	type EditorHarness,
+} from '../../../helpers/editor';
 import { connectedObservers, resizeTo } from '../../../helpers/layout';
+import { click, pointer } from '../../../helpers/planEditorRig';
 
 let open: EditorHarness | null = null;
 
@@ -142,6 +150,81 @@ describe('the responsive shell', () => {
 		expect(harness.wrapper.find('.rp-editor-inspector').exists()).toBe(true);
 	});
 
+	/**
+	 * The case above proves the overlay GOES; this one proves the keyboard user goes somewhere
+	 * (R10). A growth closes the overlay through `WorkspaceStore.setLayoutMode` rather than
+	 * through `closeOverlay`, and `closeOverlay` could not have served here anyway: the rail
+	 * button it focuses is removed by this very transition, so focus landed on `<body>` and the
+	 * user had no predictable next Tab position. The surviving target is the PERSISTENT region
+	 * the overlay stood in for — the aside itself, not its first control, because the aside is
+	 * what the overlay was standing in for and a control is a guess about which one mattered.
+	 *
+	 * Both regions, because the store's `inspector` and the rail's `details` are two
+	 * vocabularies and a mapping is exactly the thing that can be right for one entry.
+	 */
+	it.each([
+		['the layers overlay', 'layers', '.rp-overlay-panel', 'layers'],
+		['the inspector drawer', 'details', '.rp-inspector-drawer', 'inspector'],
+	])('growing back to full while %s is open moves focus to the persistent region it stood in for', async (_name, rail, panel, region) => {
+		const harness = await mountPlanEditorCanvas();
+		open = harness;
+		resizeTo(harness.rootEl, 460, 800);
+		await settle();
+		await harness.wrapper.find(`button[data-rp-rail="${rail}"]`).trigger('click');
+		await settle();
+		expect(harness.wrapper.find(panel).element.contains(document.activeElement)).toBe(true);
+
+		resizeTo(harness.rootEl, 1280, 800);
+		await settle();
+
+		expect(harness.wrapper.find(panel).exists()).toBe(false);
+		expect(document.activeElement).toBe(harness.wrapper.find(`[data-rp-region="${region}"]`).element);
+		expect(document.activeElement).not.toBe(document.body);
+	});
+
+	/**
+	 * R3, pinned: these panels are MODELESS and do not trap focus — the canvas stays reachable
+	 * while one is open. A POLICY PIN rather than a regression test: it is green against the
+	 * components as they stand, and it exists so that adding a trap to satisfy M16's retired
+	 * sentence fails here rather than passing review.
+	 *
+	 * jsdom performs no Tab traversal, so this MOVES focus to the canvas — the element R3 names
+	 * as the one that must stay reachable, and a real Tab stop (`tabindex="0"`) in the same
+	 * shell — and then asks the two questions a trap would answer differently: a `focusout`
+	 * trap pulls focus back inside, and a dismiss-on-blur panel closes. What no gate here can
+	 * ask is what a browser's own Tab does with the order; `docs/tests/cases/Open a floor and
+	 * select a room.md` step 9 is that instrument.
+	 */
+	it.each([
+		['the layers overlay', 'layers', '.rp-overlay-panel'],
+		['the inspector drawer', 'details', '.rp-inspector-drawer'],
+	])('%s does not trap focus: focus can leave it for the canvas (R3)', async (_name, rail, panel) => {
+		const harness = await mountPlanEditorCanvas();
+		open = harness;
+		resizeTo(harness.rootEl, 460, 800);
+		await settle();
+		await harness.wrapper.find(`button[data-rp-rail="${rail}"]`).trigger('click');
+		await settle();
+
+		const inside = [...harness.wrapper.find(panel).element.querySelectorAll<HTMLElement>('button, input, [tabindex="0"]')];
+		expect(inside.length).toBeGreaterThan(0);
+		const canvas = harness.wrapper.find('.rp-plan-canvas').element as HTMLElement;
+		// The canvas is a Tab stop of the same shell and outside the panel: what the browser
+		// would walk onto is reachable at all, which a trap is what would take away.
+		expect(canvas.tabIndex).toBe(0);
+		expect(harness.wrapper.find(panel).element.contains(canvas)).toBe(false);
+
+		(inside.at(-1) as HTMLElement).focus();
+		canvas.focus();
+		await settle();
+
+		expect(harness.wrapper.find(panel).element.contains(document.activeElement)).toBe(false);
+		expect(document.activeElement).toBe(canvas);
+		// Leaving does not close it: a panel that dismissed on blur would be a trap's opposite
+		// and just as wrong — the user has moved to the canvas, not finished with the panel.
+		expect(harness.wrapper.find(panel).exists()).toBe(true);
+	});
+
 	it('below the floor width replaces the canvas with a summary and a Focus this tab action that asks the leaf', async () => {
 		const harness = await mountPlanEditorCanvas();
 		open = harness;
@@ -185,6 +268,70 @@ describe('the responsive shell', () => {
 		expect(notice.find('.rp-unsupported-width__body').exists()).toBe(false);
 		await notice.find('button').trigger('click');
 		expect(harness.focusedLeaf()).toBe(1);
+	});
+
+	/**
+	 * Below the floor the canvas is UNMOUNTED, and the `ToolManager` is not: it is leaf-scoped,
+	 * so a press whose release never comes — the user drags, the split narrows under them —
+	 * left `gestureInFlight` true into the remount. `cameraIsLocked()` then refused every wheel
+	 * and both fit shortcuts for the rest of the session, and the fresh surface's own pointer
+	 * owner was `null`, so the next real press was refused as a foreign pointer's.
+	 *
+	 * Asserted at the manager's flag AND at the next complete gesture, because the flag alone
+	 * is equally true of a build that cancelled the whole tool.
+	 */
+	it('an interrupted Select drag is abandoned when the canvas unmounts below the floor, and the next click selects normally', async () => {
+		const harness = await mountPlanEditorCanvas();
+		open = harness;
+		const runtime = runtimeOf(harness);
+		// The kitchen's centre, projected through the camera the editor opened at — the same
+		// transform `EditorSurface` inverts on every press, with the same third argument.
+		const inKitchen = worldToScreen({ x: 2000, y: 1500 }, useEditorStore().viewport, STAGE_PIXELS);
+		pointer(harness.canvasEl, 'pointerdown', inKitchen.x, inKitchen.y);
+		// 40 screen pixels at this zoom is 400 world units, ten times `SelectTool`'s
+		// click-versus-drag epsilon: a real drag rather than a click that has not landed yet.
+		pointer(harness.canvasEl, 'pointermove', inKitchen.x + 40, inKitchen.y + 40);
+		expect(runtime.toolManager.gestureInFlight).toBe(true);
+
+		resizeTo(harness.rootEl, 320, 800);
+		await settle();
+		expect(runtime.toolManager.gestureInFlight).toBe(false);
+		resizeTo(harness.rootEl, 1280, 800);
+		await settle();
+
+		const canvas = harness.wrapper.find('.rp-plan-canvas').element as HTMLElement;
+		useSelectionStore().clear();
+		click(canvas, inKitchen.x, inKitchen.y);
+		await settle();
+		expect(useSelectionStore().selectedIds.map(String)).toEqual(['zone-kitchen']);
+	});
+
+	/**
+	 * The other half of the distinction, and the reason the door is `cancelInterruptedGesture`
+	 * rather than `cancelGesture`: a multi-click draft is not an interrupted gesture. A vertex
+	 * the user really placed survives the unmount; only the press with no release goes.
+	 */
+	it('a drawing tool keeps its placed vertices across the unmount; only the interrupted press is abandoned', async () => {
+		const harness = await mountPlanEditorCanvas();
+		open = harness;
+		const runtime = runtimeOf(harness);
+		runtime.setTool('draw-polygon');
+		click(harness.canvasEl, 600, 500);
+		pointer(harness.canvasEl, 'pointerdown', 700, 500); // a press whose release never comes
+		expect(runtime.toolManager.gestureInFlight).toBe(true);
+
+		resizeTo(harness.rootEl, 320, 800);
+		await settle();
+		resizeTo(harness.rootEl, 1280, 800);
+		await settle();
+
+		expect(runtime.toolManager.gestureInFlight).toBe(false);
+		expect(runtime.activeToolId.value).toBe('draw-polygon');
+		// TWO, and the number is the discrimination: this tool places its vertex on the PRESS,
+		// so both the completed click and the interrupted press left one, and its
+		// `abandonGesture` is a documented no-op because there is nothing a missing release
+		// would have completed. A `cancelGesture()` at this door would leave none.
+		expect(runtime.renderState.polygonSketch?.vertices).toHaveLength(2);
 	});
 
 	it('an open Add menu does not survive the canvas being unmounted below the floor width', async () => {

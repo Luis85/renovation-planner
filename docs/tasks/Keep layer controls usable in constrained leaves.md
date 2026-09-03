@@ -52,3 +52,24 @@ Criterion 3 holds for the ESCAPE close and NOT for the resize-driven one: growin
 required otherwise, which is why it shipped, and it is a real gap against this criterion rather
 than a decision. Criterion 4's 'preserves layer values' half is true by construction — visibility
 lives in Pinia, which no layout change touches — and is asserted by no case.
+
+**2026-09-04** — criterion 3 met for BOTH closes (R10), by the review-findings increment.
+
+The resize-driven close now moves focus to the persistent region the overlay stood in for, which
+is an explicit surviving target rather than a browser fallback:
+`ResponsiveEditorShell.regionInheritingFocus` reads which overlay was open BEFORE
+`setLayoutMode` clears it, and focuses `[data-rp-region="layers"|"inspector"]` — a `tabindex="-1"`
+aside on `PropertyLayerPanel` and `EntityInspector` — once the `full` layout has rendered.
+`closeOverlay` could not have served: the rail button it focuses is removed by the same
+transition, which is measured rather than argued — replacing the focus call with `closeOverlay`
+reddens both new cases with `activeElement` reading `<body>`.
+
+So the two halves are: the ESCAPE close is
+`tests/presentation/editor/shell/responsiveShell.test.ts`'s 'closes %s from Escape and from its
+close button, returning focus to its rail button', and the RESIZE close is that same file's
+'growing back to full while %s is open moves focus to the persistent region it stood in for'.
+Both drive both containers.
+
+Criterion 3 says nothing about trapping, and R3 decided it does not: the same file's '%s does not
+trap focus: focus can leave it for the canvas' pins the modeless policy. Criterion 4's 'preserves
+layer values' half is still asserted by no case.

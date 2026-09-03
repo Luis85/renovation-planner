@@ -8,6 +8,14 @@
  * The class stays `rp-editor-layers` (not renamed to match the new content) so
  * `shell.test.ts`'s region assertions and this panel's CSS width survive Task 13's shell
  * split unchanged; only what is INSIDE it changed.
+ *
+ * **`tabindex="-1"` and `data-rp-region="layers"` make this aside PROGRAMMATICALLY focusable
+ * and nothing else** (R10). A pane growing from `constrained` back to `full` closes the
+ * overlay that stood in for this region — the overlay draws this very component inside itself
+ * — and the rail button a close would normally return focus to is removed by the same
+ * transition, so `ResponsiveEditorShell.measure` focuses this region instead of leaving the
+ * keyboard user on `<body>`. `-1` rather than `0` because that is the whole of it: this is a
+ * surviving TARGET, not a new Tab stop, and the panel's own controls are what a user tabs to.
  */
 import { computed } from 'vue';
 import { tr } from '../../i18n/strings';
@@ -28,6 +36,8 @@ const heading = computed(() => (props.plan === null ? tr('editor.floor') : `${tr
 <template>
 	<aside
 		class="rp-editor-layers"
+		tabindex="-1"
+		data-rp-region="layers"
 		:aria-label="tr('editor.property-panel')"
 	>
 		<h2 class="rp-editor-panel-title">

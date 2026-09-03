@@ -154,7 +154,10 @@ Rules:
 
 - `WorkspaceStore` gains `layoutMode: 'full' | 'constrained' | 'unsupported'` (default `full`),
   `overlay: 'none' | 'layers' | 'inspector'` (default `none`), `setLayoutMode`, `openOverlay`,
-  `closeOverlay`. `layersPanelOpen`/`inspectorPanelOpen` keep their meaning for the FULL mode.
+  `closeOverlay`. `layersPanelOpen`/`inspectorPanelOpen` were to keep their meaning for the FULL
+  mode; they were DELETED on 2026-09-04 (R11) with their two toggle actions, because §5.6 builds
+  no View menu and nothing in the product ever called them — the shell renders both full-mode
+  panels unconditionally instead.
 - `EditorStore.activeToolId` stays `ToolId | null`; `null` (camera mode) is no longer a state
   any control puts the user into. The runtime activates `'select'` when `ProjectStore.status`
   becomes `'ready'` for the first time, and re-activates it after `DrawPolygonTool` completes or
@@ -245,8 +248,10 @@ closes it and returns focus to the rail button that opened it. Neither traps foc
 behind them stays reachable by Tab. M16's accessibility list
 used to read "overlay panels trap focus only while open"; the Inspector PBI's criterion 7
 requires the opposite ("does not trap focus"), both components implement no trap, and M16 was
-amended on 2026-09-04 to match. `responsiveShell.test.ts` presses Tab out of each open panel
-onto the canvas; whether Electron honours the focus return is the manual case's step 9.
+amended on 2026-09-04 to match. `responsiveShell.test.ts` pins that policy over both panels —
+it MOVES focus to the canvas rather than pressing Tab, because jsdom performs no traversal, and
+then asserts the panel neither pulls focus back nor closes. What a browser's own Tab key does
+with the order, and whether Electron honours the focus return, is the manual case's step 9.
 
 ### 5.6 What the shell deliberately does not show
 

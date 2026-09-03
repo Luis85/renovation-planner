@@ -21,9 +21,9 @@ import RoomSummaryList from './RoomSummaryList.vue';
 
 /**
  * `null` before the first successful hydrate — and this component may well be mounted
- * before one lands: the frame mounts unconditionally on `inspectorPanelOpen`
- * (the shell's own sibling `v-if`, matched exactly from `RoomInspector`'s Task 14
- * placement), never gated on `ProjectStore.status`. There is nothing yet to summarise, so
+ * before one lands: the frame mounts with the shell's inspector region itself, gated on
+ * nothing but the layout mode (matched exactly from `RoomInspector`'s Task 14 placement)
+ * and never on `ProjectStore.status`. There is nothing yet to summarise, so
  * the template renders nothing rather than a summary built from a `plan`/`project` that are
  * not there — the same "no live control that does nothing" rule slice 14's own empty-state
  * amendment states elsewhere.

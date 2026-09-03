@@ -2,9 +2,9 @@
 type: Issue
 parent: "[[Open a floor plan in the Obsidian editor shell]]"
 order: 10
-status: New
-started: ""
-finished: ""
+status: Done
+started: 2026-09-04
+finished: 2026-09-04
 horizon: Now
 start: ""
 due: ""
@@ -71,6 +71,48 @@ Add a responsive-shell test that starts a real tool gesture, resizes to 320px, r
 supported width, and proves both that `gestureInFlight` is false and that the next complete
 pointer gesture commits normally. A drawing-tool variant must also prove that vertices completed
 before the interrupted press survive, discriminating abandonment from a full cancel.
+
+## What closed it
+
+**2026-09-04.** The lifecycle decision stayed at the surface boundary, as this note asks, and the
+shell was taught no tool details at all. `EditorSurface.onBeforeUnmount` now calls
+`releaseInterruptedInputs()` before disconnecting its observer, followed by
+`editor.setPointer(null)`.
+
+`releaseInterruptedInputs` is an EXTRACTION rather than a second copy: the four statements
+`onBlur` already ran — `swallowedPointers.clear()`, `panOverride.cancel()`, `syncPanPhase()`,
+`editor.abandonPan()`, `toolManager.cancelInterruptedGesture()` — are now one function with two
+callers, because the moment that sequence is spelled out longhand the count of doors missing a
+line of it is unknowable. `onBlur`'s ordering is unchanged: the pointer move is re-issued FIRST,
+then the release, then `lastStagePoint` is forgotten. The pointer readout is cleared HERE and not
+there, which is the one difference between the two doors and is stated where it is paid: focus
+can leave with the pointer still resting over the plan, but this canvas is about to stop
+existing, so a coordinate readout would be a claim about a pointer over nothing.
+
+`cancelInterruptedGesture` and never `cancelGesture`, which is the "abandon only the interrupted
+press" half: a multi-click tool sits between clicks with nothing in flight, and a narrowing split
+says nothing about a buffer the user is still filling. Two caller-list docblocks that this made
+stale were corrected in the same edit — `ToolManager.cancelInterruptedGesture`'s and
+`PanOverride.cancel`'s.
+
+Holding tests, both in `tests/presentation/editor/shell/responsiveShell.test.ts` › the responsive
+shell:
+
+- 'an interrupted Select drag is abandoned when the canvas unmounts below the floor, and the next
+  click selects normally' — a real drag on the Kitchen (its centre projected through the camera
+  with `worldToScreen`, moved 40 screen pixels, ten times `SelectTool`'s click epsilon), then
+  320px, then 1280px; it asserts `gestureInFlight` is false AND that the next complete click
+  selects `zone-kitchen`, because the flag alone is equally true of a build that cancelled the
+  whole tool.
+- 'a drawing tool keeps its placed vertices across the unmount; only the interrupted press is
+  abandoned' — one completed click plus a press with no release, and TWO vertices afterwards,
+  which is the discrimination: this tool places its vertex on the PRESS and its `abandonGesture`
+  is a documented no-op, so a `cancelGesture()` at this door would leave none.
+
+Both were watched red at `gestureInFlight` before the fix and red again with
+`releaseInterruptedInputs()` removed from the unmount hook. Commit "fix(shell): focus survives a
+growth that closes an overlay, an unmounted canvas abandons its gesture, and the dead panel
+toggles are gone".
 
 ## References
 

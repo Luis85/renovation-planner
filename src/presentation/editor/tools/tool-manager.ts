@@ -181,7 +181,10 @@ export class ToolManager {
 	 * left the element or the tool was switched out from under it. A no-op when nothing is in
 	 * flight, and that guard is the entire difference from `cancelGesture` above.
 	 *
-	 * TWO callers, both in `EditorSurface.vue`: `onBlur` and `onPointerCancel`. This sentence
+	 * TWO callers, both in `EditorSurface.vue`: `onPointerCancel`, and
+	 * `releaseInterruptedInputs`, which is itself reached from `onBlur` and from
+	 * `onBeforeUnmount` — the shell unmounts this surface below its floor width, so a press
+	 * whose release is never coming is a THIRD way in. This sentence
 	 * said "`PlanCanvas`'s `onBlur` is its one caller" through the round that gave it a second
 	 * one and through the extraction that moved both, which is the caller-list defect twice
 	 * over. `onBlur` had no cleanup at all for two slices: an Alt+Tab mid-drag delivers no

@@ -1750,11 +1750,14 @@ MSG
 
 ## Task 9: `DeleteAsset`'s resolution paths announce at requirement level
 
-> **IMPLEMENTED, NOT REVIEWED** — commit `7459eef`, gate exit 0 (5313 passed,
-> 99.36/99.09/99.55/98.27). Its Step 3 was already satisfied by Task 8's threading, which the
-> brief anticipated in writing; the case passed on first run and the value is the mutation
-> check, which reddened with a `TypeError` rather than a failed expectation — weaker evidence,
-> stated rather than dressed up. **Boxes stay unticked until its review clears.**
+> **DONE** — commit `7459eef`, gate exit 0 (5313 passed, 99.36/99.09/99.55/98.27), review
+> APPROVED. Its Step 3 was already satisfied by Task 8's threading, which the brief anticipated
+> in writing, so the case passing on first run is the finding rather than a shortcut. The
+> implementer's mutation reddened with a `TypeError` and it said so rather than dressing that
+> up; the reviewer then ran a SECOND mutation nobody had asked for — a real but DISCONNECTED
+> bus — which reddens by clean assertion (`expected [] to have a length of 2 but got +0`). So
+> the case catches "bus present but not reaching the engine" too, and the caveat was
+> overcautious rather than wrong.
 
 **The rig in the snippet below DOES NOT EXIST — you are writing it, and the snippet is its
 contract rather than a call to something already there.** Grep-verified across `src/` and
@@ -1782,7 +1785,7 @@ project id**, so it cannot stand for the requirements its resolution touched. Wi
 place the resolution announces them itself; this task's job is to confirm the bus reaches it and
 to assert the pair.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```ts
 it('reaches the requirements its resolution touched, which assetDeleted cannot name', async () => {
@@ -1818,7 +1821,7 @@ rather than quietly: it asserts the command SUCCEEDED, so an input refusal redde
 the `expectOk` rather than at the event count. Reported by Codex against the plan and verified
 at the source before being written in.
 
-- [ ] **Step 2: Run and watch fail**
+- [x] **Step 2: Run and watch fail**
 
 Run: `npx vitest run tests/application/reference/deleteAssetRefusals.test.ts`
 Expected: FAIL — 0 events, unless Task 8's threading already reaches this caller, in which case
@@ -1827,16 +1830,16 @@ mutation (remove `events` from the ops bundle `DeleteAsset` hands the resolution
 go red), then keep the case as the pair-assertion it is and note in the commit that Task 8
 covered the write and this covers the reach.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Pass `events: this.ops.events` into the resolution ops bundle `DeleteAsset` builds.
 
-- [ ] **Step 4: Run and watch pass**
+- [x] **Step 4: Run and watch pass**
 
 Run: `npx vitest run tests/application/`
 Expected: PASS.
 
-- [ ] **Step 5: Full gate, then commit**
+- [x] **Step 5: Full gate, then commit**
 
 ```bash
 npm run check

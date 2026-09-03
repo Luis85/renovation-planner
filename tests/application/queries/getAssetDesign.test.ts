@@ -245,6 +245,13 @@ describe('GetAssetDesign', () => {
 	 * a wrong answer: the surface would offer to draw a first outline over a file that
 	 * already holds one, and the unscaled warning that damaged shape may be owed would be
 	 * unreachable.
+	 *
+	 * **And it names the file, per §3.5's fifth row.** The sidecar's own JSON parsed fine —
+	 * `snapshot.value.path` is in scope at `ObsidianAssetGeometrySidecar.read` the moment
+	 * `shapeFromPersistence` refuses — so this is a damaged-sidecar state exactly like
+	 * `asset-geometry.corrupt`, and re-reading the same unchanged bytes cannot fix a typed
+	 * footprint marked pending. Without the path this state cannot say which file to repair,
+	 * which is the one thing it exists for.
 	 */
 	it('surfaces a sidecar the domain refuses rather than reporting a shapeless asset', async () => {
 		const { query, assetId, sidecarPath, stack } = await seeded();
@@ -269,7 +276,10 @@ describe('GetAssetDesign', () => {
 			}),
 		);
 
-		expect(expectErr(await query.execute(assetId)).code).toBe('asset.typed-footprint-cannot-be-pending');
+		const error = expectErr(await query.execute(assetId));
+
+		expect(error.code).toBe('asset.typed-footprint-cannot-be-pending');
+		expect(error.sidecarPath).toBe(sidecarPath);
 	});
 
 	/**

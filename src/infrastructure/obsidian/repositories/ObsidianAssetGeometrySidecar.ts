@@ -129,17 +129,22 @@ export class ObsidianAssetGeometrySidecar implements AssetGeometrySidecar {
 		const snapshot = await this.store.read(assetId);
 		if (!snapshot.ok) return snapshot;
 
+		// The store's own read has already SUCCEEDED here, so `snapshot.value.path` is the
+		// file these two validators are refusing — a sidecar that is well-formed JSON with a
+		// nonsense shape or calibration (§3.5's "a domain `asset.*` or `calibration.*` code"
+		// row) is still a damaged sidecar to name, not merely a retryable vault fault.
+		const path = snapshot.value.path;
 		const dto = snapshot.value.dto;
 		let shape: AssetShape | null = null;
 		if (dto.shape !== null) {
 			const validated = shapeFromPersistence(dto.shape);
-			if (!validated.ok) return err(validated.error);
+			if (!validated.ok) return err({ ...validated.error, sidecarPath: path });
 			shape = validated.value;
 		}
 		let calibration: Calibration | null = null;
 		if (dto.calibration) {
 			const validated = calibrationFromStored(dto.calibration);
-			if (!validated.ok) return err(validated.error);
+			if (!validated.ok) return err({ ...validated.error, sidecarPath: path });
 			calibration = validated.value;
 		}
 

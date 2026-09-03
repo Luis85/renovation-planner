@@ -28,6 +28,13 @@
  * exactly that moment; the name (still read off `dto`, never off `overview`) and the Delete
  * button do not depend on it and stay.
  *
+ * **The room's own name is an `<h3>`, not an `<h2>`.** The frame (`EntityInspector.vue`)
+ * already owns the region's one permanent `<h2>` ("Inspector"), and this body is a SECTION
+ * of that region rather than a second one beside it — the same relationship
+ * `FloorInspector`'s `RoomSummaryList` already states for its own "Rooms"/"Areas" `<h3>`s, so
+ * both Inspector states read alike. The Requirements heading nests one level further again,
+ * as an `<h4>`.
+ *
  * The selection's DTO (SDD §59) carries the zone's name and area, plus slice 8's delete
  * affordance and design slice 10's Requirements panel. Assigning an asset dispatches through
  * `runtime.commitEdit`, the Inspector store's ONE commit path (§59); the two override
@@ -136,9 +143,9 @@ function assignSelected(zoneId: string): void {
 		class="rp-room-inspector"
 		:data-rp-id="dto.id"
 	>
-		<h2 class="rp-editor-panel-title">
+		<h3 class="rp-editor-panel-title">
 			{{ dto.name }}
-		</h2>
+		</h3>
 
 		<dl
 			v-if="overview !== null"
@@ -156,9 +163,9 @@ function assignSelected(zoneId: string): void {
 			class="rp-editor-inspector-requirements"
 			:aria-label="tr('editor.inspector.requirements')"
 		>
-			<h3 class="rp-editor-panel-subtitle">
+			<h4 class="rp-editor-panel-subtitle">
 				{{ tr('editor.inspector.requirements') }}
-			</h3>
+			</h4>
 			<p
 				v-if="requirements.length === 0"
 				class="rp-editor-inspector-empty"

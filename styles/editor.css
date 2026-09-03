@@ -57,12 +57,18 @@
 	border-right: 1px solid var(--background-modifier-border);
 }
 
+/*
+ * Shared by the frame's own `<h2>` ("Inspector") and the Room Inspector's `<h3>` room name
+ * (Task 16 review round 1: the room name is a SECTION heading, one level under the frame's,
+ * not a second `<h2>`) — every property below is set explicitly, so the rule reads the same
+ * regardless of which heading level it is applied to. Obsidian's own per-level heading rules
+ * would otherwise give either one document proportions.
+ */
 .rp-editor-panel-title {
 	margin: 0 0 var(--size-4-2);
 	font-size: var(--font-ui-small);
 	font-weight: var(--font-medium);
 	color: var(--text-muted);
-	/* Obsidian's own h2 rules would otherwise give a panel heading document proportions. */
 	line-height: var(--line-height-tight);
 }
 

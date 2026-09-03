@@ -65,7 +65,7 @@ describe('the Room Inspector, through the real mounted editor', () => {
 		await settle();
 		const room = harness.wrapper.find('.rp-room-inspector');
 		expect(room.attributes('data-rp-id')).toBe('zone-kitchen');
-		expect(room.find('h2').text()).toBe('Kitchen');
+		expect(room.find('h3').text()).toBe('Kitchen');
 		expect(room.text()).toContain(t('en', 'editor.zone-type.Room'));
 		expect(room.text()).toContain('Ground floor');
 	});
@@ -139,7 +139,7 @@ describe('the Room Inspector, through the real mounted editor', () => {
 		useSelectionStore().select(['zone-kitchen' as never]);
 		await settle();
 		const room = harness.wrapper.find('.rp-room-inspector');
-		expect(room.find('h2').text()).toBe('Kitchen');
+		expect(room.find('h3').text()).toBe('Kitchen');
 		expect(room.find('dl').exists()).toBe(false);
 		expect(harness.wrapper.find('.rp-question-nav').exists()).toBe(false);
 		expect(harness.wrapper.find('.rp-linked-content').exists()).toBe(false);
@@ -180,7 +180,7 @@ describe('the Room Inspector, mounted standalone', () => {
 		const wrapper = mountStandalone({ kind: 'zone', id: 'zone-kitchen' as never, name: 'Kitchen', areaMm2: 12_000_000 });
 
 		const room = wrapper.find('.rp-room-inspector');
-		expect(room.find('h2').text()).toBe('Kitchen');
+		expect(room.find('h3').text()).toBe('Kitchen');
 		expect(room.find('dl').exists()).toBe(false);
 		expect(wrapper.find('.rp-question-nav').exists()).toBe(false);
 		expect(wrapper.find('.rp-linked-content').exists()).toBe(false);

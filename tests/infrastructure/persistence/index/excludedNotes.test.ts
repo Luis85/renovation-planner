@@ -166,6 +166,32 @@ describe('the incremental door maintains the exclusions', () => {
 		expect(exclusions).toEqual([{ path: 'Library/broken.md', entityType: 'renovation-asset' }]);
 	});
 
+	/**
+	 * The other way a `no-id` note stops being one: not by gaining an id, but by ceasing to be
+	 * ours at all — a `type` corrected away, retyped by hand, or overwritten by sync. It reaches
+	 * the door through the `!== 'ours'` arm, where there is no entry to remove and the ONLY
+	 * thing to do is forget the descriptor. Without that, a repair surface goes on naming a file
+	 * this plugin has no further claim on, until the next full rebuild.
+	 */
+	it('drops the descriptor when the note stops being one of ours', async () => {
+		const stack = createRepositoryStack();
+		plant(stack, 'Library/broken.md', 'type: renovation-asset');
+		stack.rebuildIndex();
+		expect(stack.index.listExclusions()).toHaveLength(1);
+		const { adapter, exclusions, announced } = wired(stack);
+
+		plant(stack, 'Library/broken.md', 'type: something-else\nid: tile-01');
+		adapter.onModify({ path: 'Library/broken.md' } as never);
+		await settled();
+
+		expect(stack.index.listExclusions()).toEqual([]);
+		expect(exclusions).toEqual([{ path: 'Library/broken.md', entityType: 'renovation-asset' }]);
+		// Nothing joined the index either — the note is not ours, so it is neither an entry nor
+		// an exclusion, which is the one state a foreign note is supposed to be in.
+		expect(stack.index.entries()).toEqual([]);
+		expect(announced).toEqual([]);
+	});
+
 	it('drops the descriptor when the note gains the id it was missing', async () => {
 		const stack = createRepositoryStack();
 		plant(stack, 'Library/broken.md', 'type: renovation-asset');
@@ -180,6 +206,86 @@ describe('the incremental door maintains the exclusions', () => {
 		expect(stack.index.getPath(asId('tile-01'))).toBe('Library/broken.md');
 		expect(exclusions).toEqual([{ path: 'Library/broken.md', entityType: 'renovation-asset' }]);
 		expect(announced).toEqual([{ id: 'tile-01', type: 'renovation-asset' }]);
+	});
+
+	/**
+	 * **The echo record a deleted EXCLUDED note leaves behind.** `collectNotes` marks the echo of
+	 * every note it reads and a `duplicate-id` loser is marked on the way in, then displaced — so
+	 * it leaves a record with no index entry to carry it out on deletion. Restore the file with
+	 * the same bytes and `echo.matches` answers TRUE, so the door returns before re-excluding it
+	 * and the collision is absent from the repair list until a full rebuild, suppressed as this
+	 * plugin's own write.
+	 *
+	 * The recreated note WINS, which is last-writer-wins doing what it always does: what the
+	 * assertion is about is that the collision is visible at all.
+	 */
+	it('re-excludes a deleted duplicate that comes back with the same bytes', async () => {
+		const stack = stackWithDuplicates('tile-01', ['one.md', 'two.md']);
+		const loser = 'Library/one.md';
+		const text = stack.vault.entries.get(loser) ?? '';
+		expect(stack.index.listExclusions()).toHaveLength(1);
+		const { adapter } = wired(stack);
+
+		stack.vault.entries.delete(loser);
+		adapter.onDelete({ path: loser } as never);
+		await settled();
+		expect(stack.index.listExclusions()).toEqual([]);
+
+		stack.vault.entries.set(loser, text);
+		stack.metadataCache.catchUp();
+		adapter.onCreate({ path: loser } as never);
+		await settled();
+
+		// The collision is REPORTED again rather than silently absent. The returning note takes
+		// the id, so it is the note it displaced that now carries the descriptor.
+		expect(stack.index.getPath(asId('tile-01'))).toBe(loser);
+		expect(stack.index.listExclusions()).toEqual([
+			{ path: 'Library/two.md', entityType: 'renovation-asset', reason: 'duplicate-id' },
+		]);
+	});
+
+	/**
+	 * A descriptor is keyed by path, so a no-id note whose TYPE is edited replaces it — and a
+	 * subscriber filtering `ProjectIndexExclusionChanged` on `entityType` hears only the arriving
+	 * type. The asset library never learns that its broken note left, and keeps a repair row for
+	 * a note that has become somebody else's problem. This is `applyUpsert`'s retype rule on the
+	 * exclusion collection.
+	 */
+	it('announces both types when a retyped exclusion replaces one of another type', async () => {
+		const stack = createRepositoryStack();
+		plant(stack, 'Library/broken.md', 'type: renovation-asset');
+		stack.rebuildIndex();
+		const { adapter, exclusions } = wired(stack);
+
+		plant(stack, 'Library/broken.md', 'type: renovation-project');
+		adapter.onModify({ path: 'Library/broken.md' } as never);
+		await settled();
+
+		expect(exclusions).toEqual([
+			{ path: 'Library/broken.md', entityType: 'renovation-asset' },
+			{ path: 'Library/broken.md', entityType: 'renovation-project' },
+		]);
+		expect(stack.index.listExclusions()).toEqual([
+			{ path: 'Library/broken.md', entityType: 'renovation-project', reason: 'no-id' },
+		]);
+	});
+
+	/**
+	 * The other half of that pair, and the one that says the fix is a comparison rather than an
+	 * unconditional second announcement: an ordinary edit to a broken note re-states the same
+	 * descriptor, and a subscriber must hear about that once.
+	 */
+	it("announces once when an edit leaves the excluded note's type alone", async () => {
+		const stack = createRepositoryStack();
+		plant(stack, 'Library/broken.md', 'type: renovation-asset');
+		stack.rebuildIndex();
+		const { adapter, exclusions } = wired(stack);
+
+		plant(stack, 'Library/broken.md', 'type: renovation-asset\nname: Renamed by hand');
+		adapter.onModify({ path: 'Library/broken.md' } as never);
+		await settled();
+
+		expect(exclusions).toEqual([{ path: 'Library/broken.md', entityType: 'renovation-asset' }]);
 	});
 
 	/**
@@ -338,6 +444,75 @@ describe('the incremental door maintains the exclusions', () => {
 	});
 
 	/**
+	 * **The promoted entry's sidecar is RESOLVED, never inherited from what it replaces.**
+	 * `joinSidecars` joins by BASENAME to whatever entry holds the id, so a rebuild gives the
+	 * promoted plan its `.rpgeo` whatever the vacated entry carried — and the vacated entry here
+	 * is a REQUIREMENT, which has no sidecar at all. Inheriting its `undefined` left every zone
+	 * read on that plan answering `plan-geometry.path-unresolved` until the next full rebuild.
+	 *
+	 * Asserted against `rebuildIndex()` rather than against the literal path, because
+	 * agreement-with-the-rebuild is the property, not the string.
+	 */
+	it("resolves the promoted entry's sidecar rather than inheriting the vacated one", async () => {
+		const stack = createRepositoryStack();
+		plant(stack, 'Renovation/Kitchen/Project.md', 'type: renovation-project\nid: proj-01');
+		plant(stack, 'Renovation/Kitchen/Plans/Ground.md', 'type: renovation-plan\nid: pl-01\nproject: proj-01');
+		// A requirement note colliding with the plan's id, planted LAST so last-writer-wins hands
+		// it the entry and excludes the plan.
+		plant(stack, 'Renovation/Kitchen/Requirements/Tiles.md', 'type: renovation-requirement\nid: pl-01\nproject: proj-01');
+		stack.vault.entries.set('Renovation/Kitchen/Geometry/pl-01.rpgeo', '{}');
+		// A second sidecar naming something else, so the join has a file to decline as well as one
+		// to accept.
+		stack.vault.entries.set('Renovation/Kitchen/Geometry/pl-99.rpgeo', '{}');
+		stack.rebuildIndex();
+		const vacated = stack.index.getPath(asId('pl-01'));
+		expect(vacated).toBe('Renovation/Kitchen/Requirements/Tiles.md');
+		expect(stack.index.getGeometrySidecarPath(asId('pl-01'))).toBeUndefined();
+		const { adapter } = wired(stack);
+
+		stack.vault.entries.delete(vacated ?? '');
+		adapter.onDelete({ path: vacated ?? '' } as never);
+		await settled();
+
+		expect(stack.index.getPath(asId('pl-01'))).toBe('Renovation/Kitchen/Plans/Ground.md');
+		const promoted = stack.index.getGeometrySidecarPath(asId('pl-01'));
+		expect(promoted).toBe('Renovation/Kitchen/Geometry/pl-01.rpgeo');
+
+		stack.rebuildIndex();
+
+		expect(stack.index.getGeometrySidecarPath(asId('pl-01'))).toBe(promoted);
+	});
+
+	/**
+	 * The mirror image, and the quieter of the two: promoting a note that has NO sidecar out from
+	 * behind one that had. Inheriting handed a requirement entry a `.rpgeo` mapping that a rebuild
+	 * refuses to give it — `joinSidecars` skips any entry that is not a plan or an asset, with a
+	 * `sidecar-skipped` diagnostic — so the index held a fact its own rebuild would erase.
+	 */
+	it('gives a promoted entry no sidecar when its kind has none', async () => {
+		const stack = createRepositoryStack();
+		plant(stack, 'Renovation/Kitchen/Project.md', 'type: renovation-project\nid: proj-01');
+		plant(stack, 'Renovation/Kitchen/Requirements/Tiles.md', 'type: renovation-requirement\nid: pl-01\nproject: proj-01');
+		// The plan is planted LAST this time, so it holds the entry and the requirement is excluded.
+		plant(stack, 'Renovation/Kitchen/Plans/Ground.md', 'type: renovation-plan\nid: pl-01\nproject: proj-01');
+		stack.vault.entries.set('Renovation/Kitchen/Geometry/pl-01.rpgeo', '{}');
+		stack.rebuildIndex();
+		expect(stack.index.getGeometrySidecarPath(asId('pl-01'))).toBe('Renovation/Kitchen/Geometry/pl-01.rpgeo');
+		const { adapter } = wired(stack);
+
+		stack.vault.entries.delete('Renovation/Kitchen/Plans/Ground.md');
+		adapter.onDelete({ path: 'Renovation/Kitchen/Plans/Ground.md' } as never);
+		await settled();
+
+		expect(stack.index.getPath(asId('pl-01'))).toBe('Renovation/Kitchen/Requirements/Tiles.md');
+		expect(stack.index.getGeometrySidecarPath(asId('pl-01'))).toBeUndefined();
+
+		stack.rebuildIndex();
+
+		expect(stack.index.getGeometrySidecarPath(asId('pl-01'))).toBeUndefined();
+	});
+
+	/**
 	 * A descriptor records what was true when it was made, and a vault edited while Obsidian
 	 * was closed can have left the loser declaring nothing of ours at all — no event names it,
 	 * so the promotion walk is the first thing to look. Trusting the descriptor would index a
@@ -354,5 +529,13 @@ describe('the incremental door maintains the exclusions', () => {
 		await settled();
 
 		expect(stack.index.getPath(asId('tile-01'))).toBeUndefined();
+		// And the descriptor SURVIVES, which is a residue pinned rather than described: the walk
+		// only inspects, so nothing here drops a descriptor whose note has stopped being a
+		// contender, and no event will ever name that file again. The next full rebuild clears
+		// it — the same bound every other index fact lives under. A build that starts cleaning
+		// up during the walk fails here rather than leaving this paragraph quietly stale.
+		expect(stack.index.listExclusions()).toEqual([
+			{ path: 'Library/one.md', entityType: 'renovation-asset', reason: 'duplicate-id' },
+		]);
 	});
 });

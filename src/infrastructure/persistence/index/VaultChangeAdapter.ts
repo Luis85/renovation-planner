@@ -7,7 +7,14 @@ import {
 	projectIndexEntryChanged,
 	projectIndexExclusionChanged,
 } from '../../../application/events/projectIndex.events';
-import { derivedPlanSidecarPath, entityRefOf, sidecarMappingFor, stringField } from './buildProjectIndexEntries';
+import {
+	acceptsSidecar,
+	derivedPlanSidecarPath,
+	entityRefOf,
+	sidecarMappingFor,
+	sidecarsNaming,
+	stringField,
+} from './buildProjectIndexEntries';
 import type { EchoWindow } from './EchoWindow';
 import { observeFrontmatter } from '../../obsidian/repositories/digest';
 import { fileStatToken, frontmatterOf } from '../../obsidian/repositories/noteIo';
@@ -121,10 +128,17 @@ export class VaultChangeAdapter {
 			// no entry to remove and still has a descriptor naming it, so a repair surface would
 			// go on listing a file the user has already dealt with by deleting it.
 			this.dropExclusion(path);
-			if (existing) {
-				this.applyRemove(existing);
-				this.deps.echo.forget(path);
-			}
+			// **Forgotten for every deleted path, not only for one that had an ENTRY**, which is
+			// where this line used to sit. The full scan marks the echo of every note it reads
+			// (`collectNotes` → `markFrontmatter`), a duplicate-id LOSER included — it is marked
+			// on the way in and displaced afterwards — so an excluded note leaves a record here
+			// with no entry to carry it out. Delete that note and restore it with the same bytes
+			// and `echo.matches` answered TRUE, so `processNote` returned before re-excluding it:
+			// the collision was gone from the repair list until the next full rebuild, having
+			// been suppressed as this plugin's own write. The file is gone; nothing about it can
+			// be our echo.
+			this.deps.echo.forget(path);
+			if (existing) this.applyRemove(existing);
 			return;
 		}
 		this.processNote(abstractFile, existing);
@@ -165,11 +179,12 @@ export class VaultChangeAdapter {
 				// that is no longer one of our notes.
 				this.dropExclusion(path);
 			}
-			// Not ours — but if it USED to be, it changed into something we cannot index.
-			if (existing) {
-				this.applyRemove(existing);
-				this.deps.echo.forget(path);
-			}
+			// Not ours — but if it USED to be, it changed into something we cannot index. The
+			// echo goes for the same reason the deleted arm above forgets unconditionally: this
+			// path has stopped being one whose bytes we could have written, and an excluded note
+			// reaching here has a record and no entry to carry it out.
+			this.deps.echo.forget(path);
+			if (existing) this.applyRemove(existing);
 			return;
 		}
 
@@ -310,7 +325,7 @@ export class VaultChangeAdapter {
 		// that path comes from the `libraryFolder` SETTING and this pipeline is not given it.
 		// `derivedPath: undefined` is that answer, and `sidecarMappingFor` then keeps the
 		// mapping it holds and says so, rather than guessing.
-		if (!entry || (entry.type !== 'renovation-plan' && entry.type !== 'renovation-asset')) {
+		if (!entry || !acceptsSidecar(entry)) {
 			this.deps.logger.warn('persistence.pipeline.sidecar-skipped', {
 				path,
 				reason: 'no indexed plan or asset carries this id',
@@ -324,19 +339,63 @@ export class VaultChangeAdapter {
 		// which is how an in-vault backup of a project folder silently sent the live plan's
 		// geometry writes into the copy: `sidecarMappingFor` carries the whole argument, and
 		// carries it for the full scan too, so the two doors cannot answer differently.
-		this.applyUpsert({
-			...entry,
-			geometrySidecarPath: sidecarMappingFor({
-				logger: this.deps.logger,
-				event: 'persistence.pipeline.sidecar-duplicate',
-				entry,
-				incoming: path,
-				derivedPath:
-					entry.type === 'renovation-plan'
-						? derivedPlanSidecarPath(entry, (projectId) => this.deps.index.getPath(projectId))
-						: undefined,
-			}),
+		this.applyUpsert({ ...entry, geometrySidecarPath: this.sidecarMappingOf(entry, path) });
+	}
+
+	/**
+	 * Which sidecar an entry's mapping keeps when this file is offered to it — `sidecarMappingFor`
+	 * with this door's own event name and this door's answer to "where would it sit".
+	 *
+	 * One spelling rather than two: the sidecar door above and `promotedSidecarMapping` below ask
+	 * the identical question, and the derived-path arm is the part that would drift — an asset
+	 * answers `undefined` because its home comes from the `libraryFolder` SETTING and this
+	 * pipeline is not given it (ADR-0014), which is a sentence one of the two copies would
+	 * eventually stop carrying.
+	 */
+	private sidecarMappingOf(entry: ProjectIndexEntry, incoming: string): string {
+		return sidecarMappingFor({
+			logger: this.deps.logger,
+			event: 'persistence.pipeline.sidecar-duplicate',
+			entry,
+			incoming,
+			derivedPath:
+				entry.type === 'renovation-plan'
+					? derivedPlanSidecarPath(entry, (projectId) => this.deps.index.getPath(projectId))
+					: undefined,
 		});
+	}
+
+	/**
+	 * The sidecar mapping a full rebuild would give a note just promoted into the index —
+	 * RESOLVED from the vault, never inherited from the entry it replaces.
+	 *
+	 * Inheriting was the first version and it disagreed with the rebuild in both directions, for
+	 * one reason: `joinSidecars` joins by BASENAME to whatever entry holds the id, so the vacated
+	 * entry's own value says nothing about the promoted one. A requirement note colliding with a
+	 * plan id carries no mapping, so promoting the displaced plan behind it inherited `undefined`
+	 * and every zone read on that plan answered `plan-geometry.path-unresolved` until the next
+	 * rebuild — which would have joined the `.rpgeo` perfectly well. The mirror image is worse
+	 * for being quieter: promote a REQUIREMENT out from behind a plan and it inherited the plan's
+	 * `.rpgeo`, an entry holding a mapping a rebuild refuses to give it (`sidecar-skipped`).
+	 *
+	 * That is rule 3's own disagreement arriving in the sidecar dimension rather than the
+	 * identity one, three lines under a docblock saying a door which can reach a state its own
+	 * rebuild cannot is a door that disagrees with what it is an increment of — this repository's
+	 * oldest recurring shape, and the comment naming the invariant was again the best available
+	 * description of the bug.
+	 */
+	private promotedSidecarMapping(entry: ProjectIndexEntry): string | undefined {
+		if (!acceptsSidecar(entry)) return undefined;
+
+		let mapping: string | undefined;
+		// Folded rather than taken from the first match, because two `.rpgeo` files CAN name one
+		// id — a copied project folder — and `sidecarMappingFor` is what adjudicates that. Offered
+		// them in the vault's own order, which is the order the scan offers them in, so the two
+		// doors cannot pick differently.
+		for (const file of sidecarsNaming(this.deps.vault, entry.id)) {
+			mapping = this.sidecarMappingOf({ ...entry, geometrySidecarPath: mapping }, file.path);
+		}
+		return mapping;
 	}
 
 	/**
@@ -438,15 +497,16 @@ export class VaultChangeAdapter {
 	 * the promotion an event makes and the one the next reload makes name the same file. Any
 	 * other pick is a note that silently stops being the asset when Obsidian restarts.
 	 *
-	 * The vacated entry's sidecar mapping is carried across, because a rebuild's `joinSidecars`
-	 * would join that `.rpgeo` to whichever entry ends up holding the id.
+	 * The promoted entry's sidecar mapping is RESOLVED from the vault rather than carried across
+	 * from the entry it replaces — `promotedSidecarMapping` carries why, and it is this same
+	 * disagreement-with-the-rebuild rule in a second dimension.
 	 */
 	private promoteContender(vacated: ProjectIndexEntry): void {
 		const promoted = this.contendersFor(vacated.id).at(-1);
 		if (promoted === undefined) return;
 
 		this.dropExclusion(promoted.path);
-		this.applyUpsert({ ...promoted, geometrySidecarPath: vacated.geometrySidecarPath });
+		this.applyUpsert({ ...promoted, geometrySidecarPath: this.promotedSidecarMapping(promoted) });
 	}
 
 	/**
@@ -521,7 +581,18 @@ export class VaultChangeAdapter {
 	 * would fire an exclusion event for every note edit in the vault.
 	 */
 	private addExclusion(note: ExcludedNote): void {
+		const previous = this.deps.index.listExclusions().find((excluded) => excluded.path === note.path);
 		this.deps.index.addExclusion(note);
+		// **A retype announces TWICE, one event per type, and that is `applyUpsert`'s own shape
+		// rather than a second one.** A descriptor is keyed by path, so a no-id `renovation-asset`
+		// edited into a no-id `renovation-project` REPLACES it — and consumers of this event
+		// filter on `entityType`, which is the whole reason the payload carries one. Announcing
+		// only what it became tells every subscriber except the one that needed telling: the
+		// asset library never hears that its broken note left, and keeps a repair row for a note
+		// that is now somebody else's problem. Two facts, and each source filters on one.
+		if (previous !== undefined && previous.entityType !== note.entityType) {
+			this.announceExclusion(previous);
+		}
 		this.announceExclusion(note);
 	}
 

@@ -13,6 +13,34 @@ function listSidecars(vault: Vault): TFile[] {
 }
 
 /**
+ * Every `.rpgeo` naming this entity, in the vault's own enumeration order.
+ *
+ * The same files `joinSidecars` below would offer that entry, in the same order — that pass
+ * walks every sidecar once and touches an entry only when the basename matches its id, so the
+ * subsequence it feeds any one entry is exactly this list. Which is what lets a caller that has
+ * ONE entry in hand reach the mapping a full scan would give it without walking the whole vault
+ * per entry, and reach the same answer when two files collide, since `sidecarMappingFor`
+ * adjudicates in the order it is offered them.
+ */
+export function sidecarsNaming(vault: Vault, entityId: string): TFile[] {
+	return listSidecars(vault).filter((file) => file.basename === entityId);
+}
+
+/**
+ * Whether this kind of entity has a geometry sidecar at all — a Plan's (ADR-011) or an Asset's
+ * (ADR-0014), and nothing else.
+ *
+ * One function rather than the three hand-spelled copies of `type !== 'renovation-plan' &&
+ * type !== 'renovation-asset'` this rule had grown: the scan's join, the pipeline's sidecar
+ * door, and the pipeline's promotion. A sixth entity kind with geometry would otherwise have to
+ * be remembered at each of them, and the one that forgot would disagree with the other two
+ * about whether an entry may hold a mapping.
+ */
+export function acceptsSidecar(entry: ProjectIndexEntry): boolean {
+	return entry.type === 'renovation-plan' || entry.type === 'renovation-asset';
+}
+
+/**
  * A frontmatter value usable as an id reference: a non-empty string, or nothing.
  * Exported because the vault-change pipeline asks the same question of the same keys —
  * one answer, so the full scan and the incremental run cannot disagree about a note.
@@ -269,7 +297,7 @@ function joinSidecars(input: ScanInput, entries: Map<string, ProjectIndexEntry>)
 		// it did, `AssetGeometryStore` derived the path on every read — so a `.rpgeo` a user had
 		// moved left the asset reading as SHAPELESS and the next write minted a second file
 		// beside the orphan. The join is the same one: a sidecar's basename is its entity id.
-		if (!entry || (entry.type !== 'renovation-plan' && entry.type !== 'renovation-asset')) {
+		if (!entry || !acceptsSidecar(entry)) {
 			input.logger.warn('persistence.index.sidecar-skipped', {
 				path: file.path,
 				reason: 'no indexed plan or asset carries this id',

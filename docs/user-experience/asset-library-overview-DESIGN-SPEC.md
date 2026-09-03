@@ -732,7 +732,7 @@ A user who has just moved their library needs one place that says where it lande
 | **Loading** | The shell, with a loading line in the shelves region. Never a spinner over an empty pane. **Held until the index scan has run** — see below |
 | **Empty** — no assets at all | `EmptyState` with a new registry entry `assetLibrary.noAssets`, headline, body, and an action button wired to `New asset`. Replaces the shelves region, not the shell: the toolbar and status bar stay |
 | **No matches** — search returns nothing | `assetLibrary.noMatches`, with an action that **clears the search field**. An action that restores the previous view, not one that creates something |
-| **Some unreadable** | The additive `.rp-view-notice` strip above the shelves, and the strip **lists the paths** with an `Open note` beside each. The shelves still draw |
+| **Some unreadable** | The additive `.rp-view-notice` strip above the shelves, listing each path **with its reason** and an `Open note` beside it. The shelves still draw |
 | **Failed** — the whole read refused | `ViewFailure`, with a retry, except where `viewHydrationOrigin` says otherwise |
 | **Failed, unrecoverable** — `settings.unrecovered` | `ViewFailure` with **no retry button**: nothing was composed to re-run, so a retry is a live control that does nothing, which is the failure mode slice 14's own amendment refuses |
 
@@ -796,7 +796,8 @@ interface CatalogueEntryDto {
   height: number | null; notes: string | null;
   background: AssetBackgroundRef | null;
 }
-interface UnreadableEntry { assetId: AssetId | null; path: string; }
+type UnreadableReason = 'read-failed' | 'no-id' | 'duplicate-id';
+interface UnreadableEntry { assetId: AssetId | null; path: string; reason: UnreadableReason; }
 interface CatalogueListing { entries: readonly CatalogueEntryDto[]; unreadable: readonly UnreadableEntry[]; }
 ```
 
@@ -886,6 +887,14 @@ descriptors with the same add/remove treatment its entries already get, and the 
 announces them like any other change. The null arm is not a gap: a note with no usable id cannot
 be SELECTED, because nothing can name it — it can only be counted and listed, and its path is what
 `Open note` needs regardless.
+
+**Each descriptor carries WHY, and a path alone cannot say it.** Open a duplicate-id loser and
+its frontmatter looks entirely valid — the defect is the collision with another file, which is
+invisible from inside the note. `no-id` is diagnosable by eye; `read-failed` and `duplicate-id`
+are not, and the second is the likeliest of the three in a real vault. A repair list that names
+the file and cannot say what is wrong with it is a list that sends a user to stare at a correct-
+looking note. The three sources are already distinct at the point they are collected, so the
+reason costs nothing to carry and everything to reconstruct later.
 
 **A duplicate-id LOSER carries `assetId: null` for that same reason**, and stating it avoids the
 ambiguity the third source otherwise creates: the loser and the index winner share an id, so if
@@ -1092,7 +1101,14 @@ What differs per seam is only what makes two requests **the same request**:
   with every geometry, height or background edit a designer leaf makes, flapping *Used in* back
   into loading and disabling `Delete` while somebody works next door. A geometry change cannot
   alter usage. **The unit of invalidation is the read, and the unit of restart is the gesture**,
-  which are different questions and were being answered with one counter. A selection starts TWO independent reads (`GetAssetDesign` and
+  which are different questions and were being answered with one counter.
+- **Both selection generations bump when an applied listing removes or replaces the selected
+  entry**, and restart if that id reappears. The id is not enough on its own: an asset deleted in
+  another leaf and recreated under the SAME id leaves the selection unchanged, so neither counter
+  moves and a pre-deletion answer still in flight lands as current — populating the replacement
+  with the deleted asset's geometry or its obsolete referents. §5.4's immediate `AssetDeleted`
+  invalidation covers the MARK cache and says nothing about these reads, which is the same gap
+  one door over: *the ticket has to follow the ENTRY, not only the id naming it.* A selection starts TWO independent reads (`GetAssetDesign` and
   `ListRequirementsReferencing`, §3.5), and a counter bumped per read start makes the second
   invalidate the first: both answers are required, so the section holding the older ticket waits
   for a result that will now be discarded — **loading for ever, on the ordinary path**. That was
@@ -1283,6 +1299,8 @@ view.asset-library.shape.gone       view.asset-library.shape.read-failed  (inter
 view.asset-library.clearance.unscaled
 view.asset-library.loading          view.asset-library.some-unreadable  (interpolated: {count})
 view.asset-library.some-unreadable.open-note
+view.asset-library.unreadable.read-failed   view.asset-library.unreadable.no-id
+view.asset-library.unreadable.duplicate-id
 view.asset-library.note-unreadable  (interpolated: {path})
 view.asset-library.asset-gone
 view.asset-library.shape.unusable-id
@@ -2489,6 +2507,25 @@ which happens at layout-ready and on a settings save and nowhere else. This is *
 this repository's own library-overlap marker**, whose limitation is that the index follows
 rebuilds rather than folder moves: a fact derived from the index is only as prompt as the door
 that maintains it, and I checked the scan without checking the incremental one.
+
+A forty-second round found two, and both are a fix of mine covering one door and not the one
+beside it.
+
+**A path cannot say what is wrong with the file it names.** The repair strip listed each
+unreadable note's path with an `Open note` — and a duplicate-id loser opened that way shows
+frontmatter that looks *entirely valid*, because the defect is its collision with another file
+and is invisible from inside the note. Of the three sources only `no-id` is diagnosable by eye,
+and `duplicate-id` is the likeliest of the three in a real vault. A repair list that names a file
+and cannot say what to change sends the user to stare at a correct-looking note. The reason is
+carried per descriptor now — it is already distinct where the three sources are collected, so it
+costs nothing there and cannot be reconstructed later.
+
+**And the selection tickets do not follow the ENTRY, only the id naming it.** An asset deleted in
+another leaf and recreated under the same id leaves the selection unchanged, so neither generation
+moves and a pre-deletion read still in flight lands as current — populating the replacement with
+the deleted asset's geometry or its obsolete referents. Round thirty-three added exactly this
+invalidation for the MARK cache and this is the same gap one door over. Both generations bump when
+an applied listing removes or replaces the selected entry, and restart if the id reappears.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

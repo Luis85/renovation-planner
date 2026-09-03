@@ -33,11 +33,24 @@ specification closes.
    exist; the other two are what a person does once they have found the thing.
 2. **Maintain the definitions.** Correct a stale price, a waste factor, a supplier, a SKU. Every
    one of these is already a command (`UpdateAsset` takes eight fields, `SetAssetHeight` takes the
-   ninth, `DeleteAsset` exists) — so this job needs a read model and a surface, and no new
-   application-layer work at all.
+   ninth, `DeleteAsset` exists) — so this job needs **no new WRITE**: not a command, not a field on
+   one, not a new dispatch path.
+
+   **It is not "no new application-layer work at all", which is what this sentence used to say**,
+   and the correction matters because this is the paragraph somebody scopes the increment from.
+   The READ side is where the work is, and §5 specifies four pieces of it: a new
+   `ListCatalogueEntries` query and its read model (§5.1), a widened `AssetRepository` listing so
+   an unreadable note can be told from an absent one (§5.1a), a widened `AssetGeometrySidecar`
+   refusal carrying `sidecarPath` (§3.5), and an index that stores and announces the notes it
+   could not index at all (§5.1a). §3.5 widens the project-path collaborator besides. A claim of
+   *no work* three sections above four sections of work is the neighbour-drift §12 records, in the
+   one place where its cost is a plan that omits the work. Reported by a review bot.
 3. **See where an asset is used.** Which projects lean on this definition, before its price is
-   edited or it is deleted. `ListRequirementsReferencing` already answers exactly this, grouped by
-   project, and it is the same read slice 15's delete-confirmation flow performs.
+   edited or it is deleted. `ListRequirementsReferencing` already answers this, grouped by
+   project, and it is the same read slice 15's delete-confirmation flow performs — with one
+   widening §3.5 specifies rather than "exactly this": its `ProjectFolderLookup` answers a folder,
+   and a *Used in* row wants the note path, so a project whose `Project.md` sits at the vault root
+   answers `''` rather than `undefined` and renders a root label instead of nothing.
 
 **Deliberately not a job: the library as money.** Assets carry their own currency and projects
 carry theirs (§72), so a catalogue-wide total is not summable and any figure claiming to be one

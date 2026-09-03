@@ -26,9 +26,19 @@ describe('entityRefOf', () => {
 	});
 
 	it('distinguishes ours-but-idless from not-ours, because only one is a diagnostic', () => {
-		expect(entityRefOf({ type: 'renovation-plan' })).toEqual({ kind: 'no-id' });
-		expect(entityRefOf({ type: 'renovation-plan', id: '' })).toEqual({ kind: 'no-id' });
-		expect(entityRefOf({ type: 'renovation-plan', id: 42 })).toEqual({ kind: 'no-id' });
+		expect(entityRefOf({ type: 'renovation-plan' })).toEqual({ kind: 'no-id', type: 'renovation-plan' });
+		expect(entityRefOf({ type: 'renovation-plan', id: '' })).toEqual({ kind: 'no-id', type: 'renovation-plan' });
+		expect(entityRefOf({ type: 'renovation-plan', id: 42 })).toEqual({ kind: 'no-id', type: 'renovation-plan' });
+	});
+
+	it('carries the entity type on a note of ours with no usable id', () => {
+		const ref = entityRefOf({ type: 'renovation-asset' });
+		expect(ref).toEqual({ kind: 'no-id', type: 'renovation-asset' });
+	});
+
+	it('still refuses a note whose type is not ours, before asking about the id', () => {
+		expect(entityRefOf({ type: 'something-else' })).toEqual({ kind: 'not-ours' });
+		expect(entityRefOf({})).toEqual({ kind: 'not-ours' });
 	});
 
 	/**

@@ -33,7 +33,7 @@ export function stringField(value: unknown): string | undefined {
  */
 export type EntityRef =
 	| { kind: 'ours'; type: EntityType; id: string }
-	| { kind: 'no-id' }
+	| { kind: 'no-id'; type: EntityType }
 	| { kind: 'not-ours' };
 
 export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef {
@@ -42,7 +42,12 @@ export function entityRefOf(frontmatter: Record<string, unknown>): EntityRef {
 		return { kind: 'not-ours' };
 	}
 	const id = stringField(frontmatter['id']);
-	return id === undefined ? { kind: 'no-id' } : { kind: 'ours', type: type as EntityType, id };
+	// The type is validated above, so the `no-id` arm carries it for free. Recorded here
+	// because this is the ONLY point at which an excluded note's type is known without a
+	// second read: `ProjectIndex` is keyed by id globally and has no type in its key.
+	return id === undefined
+		? { kind: 'no-id', type: type as EntityType }
+		: { kind: 'ours', type: type as EntityType, id };
 }
 
 

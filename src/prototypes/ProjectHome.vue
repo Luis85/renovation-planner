@@ -242,7 +242,7 @@ const summedCount = 23;
 			<ProjectEstimate
 				amount="€42,300.00"
 				:requirements="counts[2]?.value ?? 0"
-				:rooms="counts[1]?.value ?? 0"
+				:rooms="counts[1]?.value ?? null"
 				:summed="summedCount"
 				:stale="staleCount"
 				:unsummable="unsummableCount"
@@ -254,10 +254,20 @@ const summedCount = 23;
 				<p class="rp-warning__heading">
 					One plan note could not be read
 				</p>
+				<!--
+					The reassurance is CONDITIONAL, and the condition is the room count existing.
+					Found by capturing the withheld-count state: the strip said "Its rooms are
+					still counted" beside a Rooms cell showing an em dash, which is two claims
+					contradicting each other on one screen. The conditions are independent — an
+					unreadable PLAN note raises this strip, a refused ZONE walk withholds the
+					count — so both hold together whenever a vault manages both, and a sentence
+					true in the common case is still false there.
+				-->
 				<p class="rp-warning__body">
-					It is missing from the plan count above. Its rooms are still counted, because
-					they are read from the project rather than through its plans. The note may be
-					from a newer version of this plugin.
+					It is missing from the plan count above.<span v-if="counts[1]?.value !== null">
+						Its rooms are still counted, because they are read from the project rather
+						than through its plans.</span> The note may be from a newer version of
+					this plugin.
 				</p>
 				<button
 					type="button"

@@ -101,20 +101,23 @@
 }
 
 /*
- * THE BASE THE FOOT LINE BUILDS ON (design spec §5, region 7) — muted, and centred by default
- * for the ONE caller that draws it bare: the empty state's own aside, beside `ViewRoot`'s
- * comment on why a fresh vault must still be able to build a catalogue with no project in it.
- * `ProjectList`'s populated foot carries `.rp-project-list__foot` alongside this class, whose
- * own rule (`project-list.css`, imported after this one) restates the alignment and the padding
- * for a row across the pane rather than a single centred line — the cascade order is what makes
- * that an override rather than a second, disagreeing declaration.
+ * THE BASE THE FOOT LINE BUILDS ON (design spec §5, region 7) — muted and smaller text, which
+ * is what BOTH of this class's callers still take from it. NEITHER draws it bare any more:
+ * `ViewRoot`'s empty-state aside and `ProjectList`'s populated foot each carry
+ * `.rp-project-list__foot` alongside this class now (`grep -rn 'rp-view-aside"' src/` finds
+ * exactly those two elements), and that rule (`project-list.css`, imported after this one, same
+ * specificity) is what decides the padding and the alignment for both — it wins the cascade
+ * outright rather than merging with anything stated here. There is therefore no live caller for
+ * a centred default any more: an earlier draft of this comment claimed `.rp-view-aside` "centres
+ * it by default for the one caller that draws it bare", which stopped being true the moment the
+ * foot line gained this class too, and the `text-align: center` that claim was describing is
+ * gone rather than left to be found unreachable a second time.
  *
  * It is not `.rp-empty-state__action`'s twin and must not read as one.
  */
 .rp-view-aside {
 	margin: 0;
 	padding-block-start: var(--size-4-2);
-	text-align: center;
 	color: var(--text-muted);
 	font-size: var(--font-ui-smaller);
 }

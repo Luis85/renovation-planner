@@ -564,9 +564,7 @@ export default class RenovationPlannerPlugin extends Plugin {
 				void navigateToProject(
 					{
 						workspace: this.app.workspace,
-						reportFault: (cause: unknown): void => {
-							notifyFault(cause, this.root.logger, 'view.project.reveal-failed');
-						},
+						reportFault: this.reportRevealFault,
 					},
 					RENOVATION_PROJECT_VIEW,
 					next,
@@ -754,11 +752,14 @@ export default class RenovationPlannerPlugin extends Plugin {
 
 	/**
 	 * The one `reportFault` every activation door into this view hands `revealView` or
-	 * `navigateToProject` — `openProject`, `newProject` and `openProjectDetail` each used to
-	 * carry an identical inline closure, and Task 9's `newProject` is the copy that made three
-	 * worth naming as one. A bound class field rather than a method, so a call site can hand it
-	 * over directly (`reportFault: this.reportRevealFault`) with no wrapping arrow that would
-	 * just be a fourth copy of the same shape.
+	 * `navigateToProject` — `openProject`, `openProjectDetail` and `projectViewDeps`'s own
+	 * `navigate` each carried an identical inline closure before this field existed, and Task
+	 * 9's `newProject` was the copy that made four worth naming as one rather than a new fifth.
+	 * `grep -n "notifyFault(cause" src/plugin/RenovationPlannerPlugin.ts` prints ONE line — this
+	 * field's own body — which is what keeps this a fact about the file rather than a count
+	 * somebody has to re-verify by reading every call site. A bound class field rather than a
+	 * method, so a call site can hand it over directly (`reportFault: this.reportRevealFault`)
+	 * with no wrapping arrow that would just be a fifth copy of the same shape.
 	 */
 	private reportRevealFault = (cause: unknown): void => {
 		notifyFault(cause, this.root.logger, 'view.project.reveal-failed');

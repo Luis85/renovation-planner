@@ -1,13 +1,16 @@
 import type { DispatchResult } from '../DispatchOutcome';
 import { err, isErr, ok, type Result } from '../../../core/result/Result';
 import type { AppError } from '../../../core/errors/AppError';
+import { effectiveValue } from '../../../core/derived/DerivedValue';
+import type { EventBus } from '../../../core/events/EventBus';
 import type { Requirement } from '../../../domain/requirement/Requirement';
 import type { RequirementId } from '../../../domain/requirement/RequirementId';
 import type { RequirementRepository } from '../../ports/RequirementRepository';
 import type { EntityVersion } from '../../ports/versioning';
-import type {
-	SetRequirementQuantityOverrideDoor,
-	SetRequirementQuantityOverrideInput,
+import {
+	publishIfEffectiveCostChanged,
+	type SetRequirementQuantityOverrideDoor,
+	type SetRequirementQuantityOverrideInput,
 } from './SetRequirementQuantityOverride';
 import type {
 	SetRequirementCostOverrideDoor,
@@ -39,6 +42,14 @@ type Snapshot = { readonly entity: Requirement; readonly postVersion: EntityVers
  * Redo re-applies the recorded INPUT through the same command instance rather than
  * re-reading what undo just wrote — a snapshot-on-every-execute adapter drifts on the
  * second undo/redo round while looking right on the first.
+ *
+ * `undo()` restores through the repository port, past the command whose `execute()`
+ * already announces its own write — so it was silent on the one figure the read model
+ * cares about most: the effective cost. It reads the live requirement's effective cost
+ * BEFORE the restore write, then hands both figures to `publishIfEffectiveCostChanged`
+ * after the write succeeds — the same helper `SetRequirementQuantityOverrideCommand.write`
+ * calls for its own forward write, so an unmoved figure (a cost override undone back to a
+ * value equal to what was already calculated) is truthfully silent rather than a gap.
  */
 // Internal by construction: the two exported adapters below are its only subclasses, and
 // `export`ing it to clear the leak traded those two findings for an `unused-exports` one —
@@ -50,6 +61,13 @@ abstract class ReversibleOverrideBase<TInput> {
 
 	constructor(
 		private readonly requirements: RequirementRepository,
+		/**
+		 * Both `run()` calls above dispatch through the plain `SetRequirement*OverrideCommand`
+		 * instance, which already announces its OWN write — this bus is for the restore
+		 * `undo()` performs straight through the repository port, past that command, exactly
+		 * the way `ReversibleAssignAssetCommand.events` exists for its own two silent halves.
+		 */
+		private readonly events: EventBus,
 	) {}
 
 	protected abstract run(input: TInput): Promise<
@@ -84,11 +102,23 @@ abstract class ReversibleOverrideBase<TInput> {
 		if (!captured) {
 			return err({ category: 'Domain', code: 'undo.before-execute', message: 'Nothing to undo yet.' });
 		}
+		// `previous` lives in the LIVE requirement, read before the restore write moves
+		// it — the snapshot's own `entity` is the value the restore is about to WRITE, not
+		// the one undo is moving away from. Falling back to the snapshot's own figure when
+		// the live read comes back empty costs nothing real: the restore below re-presents
+		// `captured.postVersion` against a repository that no longer holds this id, which
+		// `isErr(saved)` catches before this fallback value is ever published.
+		const live = await this.requirements.getById(captured.entity.id);
+		if (isErr(live)) return err(live.error);
+		const previous = live.value === null
+			? effectiveValue(captured.entity.estimatedCost)
+			: effectiveValue(live.value.entity.estimatedCost);
 		// Whole-entity conditional restore; `null` overrides are VALUES inside the
 		// snapshot, so "reset to calculated" undoes back to the typed figure.
 		const saved = await this.requirements.save(captured.entity, captured.postVersion);
 		if (isErr(saved)) return err(saved.error);
 		this.snapshot = { ...captured, postVersion: saved.value.version };
+		await publishIfEffectiveCostChanged(this.events, saved.value.entity, previous);
 		return ok('wrote');
 	}
 
@@ -100,8 +130,9 @@ export class ReversibleSetRequirementQuantityOverrideCommand extends ReversibleO
 	constructor(
 		private readonly setCommand: SetRequirementQuantityOverrideDoor,
 		requirements: RequirementRepository,
+		events: EventBus,
 	) {
-		super(requirements);
+		super(requirements, events);
 	}
 
 	protected run(
@@ -120,8 +151,9 @@ export class ReversibleSetRequirementCostOverrideCommand extends ReversibleOverr
 	constructor(
 		private readonly setCommand: SetRequirementCostOverrideDoor,
 		requirements: RequirementRepository,
+		events: EventBus,
 	) {
-		super(requirements);
+		super(requirements, events);
 	}
 
 	protected run(

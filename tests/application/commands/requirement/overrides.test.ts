@@ -105,7 +105,7 @@ describe('reversible override adapters', () => {
 			}
 			// ONE adapter per user intent, exactly as CommandHistory.run() holds them: each
 			// entry on the undo stack is its own instance capturing ITS pre-edit state.
-			const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements);
+			const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements, w.events);
 			const before = expectOk(await w.requirements.getById(w.requirementId));
 
 			expectOk(await adapter.execute({ requirementId: w.requirementId, ...input }));
@@ -127,11 +127,11 @@ describe('reversible override adapters', () => {
 	it('the cost adapter undoing a reset restores the number the user had typed', async () => {
 		const w = await withRequirement();
 		const plain = new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks);
-		const setter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements);
+		const setter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements, w.events);
 		expectOk(await setter.execute({ requirementId: w.requirementId, cost: moneyOf('550.00', 'EUR') }));
 
 		// Reset-to-calculated is its own intent, its own adapter instance.
-	 const resetter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements);
+	 const resetter = new ReversibleSetRequirementCostOverrideCommand(plain, w.requirements, w.events);
 		expectOk(await resetter.execute({ requirementId: w.requirementId, cost: null }));
 		const cleared = expectOk(await w.requirements.getById(w.requirementId));
 		expect(cleared?.entity.estimatedCost.override ?? null).toBeNull();
@@ -144,7 +144,7 @@ describe('reversible override adapters', () => {
 	it('undo/redo rounds do not drift — redo re-applies the recorded value', async () => {
 		const w = await withRequirement();
 		const plain = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
-		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements);
+		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(plain, w.requirements, w.events);
 
 		expectOk(await adapter.execute({ requirementId: w.requirementId, quantity: 12 }));
 		for (let round = 0; round < 2; round += 1) {
@@ -164,7 +164,7 @@ describe('reversible override adapters', () => {
 	it('an edit landed by another writer between execute and undo refuses instead of clobbering', async () => {
 		const w = await withRequirement();
 		const quantity = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
-		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(quantity, w.requirements);
+		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(quantity, w.requirements, w.events);
 		expectOk(await adapter.execute({ requirementId: w.requirementId, quantity: 12 }));
 
 		// Another writer (a concurrent recalculation or a second tab's override) moves it.

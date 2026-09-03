@@ -151,6 +151,7 @@ describe('Reversible override adapters', () => {
 		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(
 			new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks),
 			w.requirements,
+			w.events,
 		);
 		const error = expectErr(await adapter.undo());
 		expect(error.code).toBe('undo.before-execute');
@@ -161,6 +162,7 @@ describe('Reversible override adapters', () => {
 		const adapter = new ReversibleSetRequirementCostOverrideCommand(
 			new SetRequirementCostOverrideCommand(w.requirements, w.events, w.locks),
 			w.requirements,
+			w.events,
 		);
 		const error = expectErr(
 			await adapter.execute({ requirementId: 'requirement-none' as never, cost: null }),
@@ -176,6 +178,7 @@ describe('Reversible override adapters', () => {
 		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(
 			new SetRequirementQuantityOverrideCommand(requirements, w.events, w.locks),
 			requirements,
+			w.events,
 		);
 		const error = expectErr(
 			await adapter.execute({ requirementId: 'requirement-none' as never, quantity: 2 }),
@@ -188,6 +191,7 @@ describe('Reversible override adapters', () => {
 		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(
 			new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks),
 			w.requirements,
+			w.events,
 		);
 		const error = expectErr(await adapter.execute({ requirementId: w.requirementId, quantity: -3 }));
 		expect((error as { code: string }).code).toBe('requirement.negative-quantity');
@@ -198,7 +202,7 @@ describe('Reversible override adapters', () => {
 	it('a run that fails on a REDO propagates while keeping the snapshot', async () => {
 		const w = await wiredWithLink();
 		const setCommand = new SetRequirementQuantityOverrideCommand(w.requirements, w.events, w.locks);
-		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(setCommand, w.requirements);
+		const adapter = new ReversibleSetRequirementQuantityOverrideCommand(setCommand, w.requirements, w.events);
 
 		expectOk(await adapter.execute({ requirementId: w.requirementId, quantity: 5 }));
 		expectOk(await adapter.undo());

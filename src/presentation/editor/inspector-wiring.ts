@@ -136,6 +136,7 @@ export function createInspector(
 					const adapter = new ReversibleSetRequirementQuantityOverrideCommand(
 						context.commands.requirementEdits.setQuantityOverride,
 						context.commands.requirementEdits.requirements,
+						context.commands.events,
 					);
 					return asDispatchCommand(
 						adapter,
@@ -147,6 +148,7 @@ export function createInspector(
 					const adapter = new ReversibleSetRequirementCostOverrideCommand(
 						context.commands.requirementEdits.setCostOverride,
 						context.commands.requirementEdits.requirements,
+						context.commands.events,
 					);
 					return asDispatchCommand(
 						adapter,

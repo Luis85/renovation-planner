@@ -17,6 +17,11 @@ the selection.
 
 Run [[Editor Walkthrough]] first, or at least its steps 1–2, so a plan is open with zones on
 it. Preconditions: `npm run test-build`, this folder open as a vault, the plugin enabled.
+**Panning is Space or the middle button, and nothing else** — the plan editor foundation
+increment retired the toolbar's Pan button (design spec §5.2) and made Select the tool a plan
+opens into, so there is no user-reachable door into camera mode (`activeToolId === null`) here
+any more; it remains the state a plan is in before it is ready, and the asset designer's own
+default.
 
 ## Why a human is the only instrument for four of these
 
@@ -78,8 +83,9 @@ the five values and what they do not claim.
    still zoom rather than drifting sideways as your fingers wobble.
 8a. `desktop` **On a touch device, if you have one:** with the plan panning under one finger, put a
    second finger down and move it, then lift it. Expected: neither disturbs the first
-   finger's pan. Try it in camera mode (no tool selected), which is where a second finger
-   most plausibly lands.
+   finger's pan. Try it with the Select tool active, holding Space (or the middle button) to
+   pan — the plan editor has no other door into this gesture, since camera mode itself is not
+   user-reachable here (see above).
 9. `obsidian` **`Shift+1`.** Expected: the camera reframes so every zone is visible at once, centred,
    with a margin. Then zoom in hard on one corner and press it again.
    *Record whether Obsidian's own keymap took `Shift+1` first.*

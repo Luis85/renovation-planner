@@ -22,6 +22,13 @@
 	reads as a system with room in it; six headings silently omitted reads as a system that has
 	decided what you are allowed to own, and the seven categories are the thing this structure
 	asks a renovator to learn.
+
+	No `<style>` block, since Task 12 (`src/presentation/library/AssetShelf.vue`,
+	`AssetRow.vue`): this mock's classes are declared in `styles/asset-shelf.css` now, which the
+	harness's assembled sheet loads the same as a shipped component's — a scoped block here would
+	be a second, unreachable copy of those same rules, and `tests/build/prototype-styles.test.ts`
+	refuses a mock declaring a class a real component uses. `ZoneSummary.vue`, this tree's other
+	fully-promoted mock, carries no `<style>` for the identical reason.
 -->
 <script setup lang="ts">
 import { useId } from 'vue';
@@ -154,10 +161,7 @@ const markId = useId();
 					:aria-describedby="`${markId}-${row}`"
 					@click="$emit('select', asset.id)"
 				>
-					<AssetMark
-						:asset="asset"
-						:selected="asset.id === selectedId"
-					/>
+					<AssetMark :asset="asset" />
 					<span class="rp-al-row__name">{{ asset.name }}</span>
 					<span
 						v-if="showCategory"
@@ -180,299 +184,41 @@ const markId = useId();
 </template>
 
 <style scoped>
-.rp-al-shelf__heading,
-.rp-al-shelf__static {
-	margin: 0;
-	font-size: var(--font-ui-small);
-	font-weight: var(--font-medium);
-}
-
 /*
- * The whole header row is the target, at `--size-4-6` — WCAG 2.5.8 asks 24px, and the harness
- * index shipped 19.5px rows once, found by photographing the page rather than by any gate.
- * Obsidian's own `button:not(.clickable-icon)` is (0,1,1) and sets a background and a colour,
- * so this is selected under `.rp-al-shelf` to outrank it — the loss `buttonSpecificity.test.ts`
- * refuses as a category for every shipping row in this plugin.
- */
-.rp-al-shelf .rp-al-shelf__head {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-	width: 100%;
-	min-height: var(--size-4-6);
-	padding: var(--size-2-2) var(--size-4-3);
-	border: none;
-	border-radius: 0;
-	background-color: transparent;
-	color: var(--text-normal);
-	font-size: inherit;
-	font-weight: inherit;
-	text-align: left;
-	cursor: pointer;
-}
-
-.rp-al-shelf .rp-al-shelf__head:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-/* Obsidian's global `:focus { outline: none }` reaches buttons and the vendored reduction puts
-   nothing back that clears WCAG 1.4.11's 3:1 floor, so every interactive class here states its
-   own ring. Negative offset: these rows run edge to edge and an outside ring would be clipped. */
-.rp-al-shelf .rp-al-shelf__head:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: -2px;
-}
-
-/*
- * The two headings with NO control, and they carry a class of their own rather than the button's.
+ * The one demonstrated state Task 12's real `AssetShelf.vue`/`AssetRow.vue` does not build yet:
+ * §6.1's flattened search-result row, which carries the category the shelf would otherwise have
+ * said. Every OTHER class this file's template writes now lives in `styles/asset-shelf.css`
+ * (`tests/build/prototype-styles.test.ts` refuses a mock declaring one of those a second time),
+ * so this block is deliberately narrow rather than the file's original one restored.
  *
- * They used to share `rp-al-shelf__head`, which sets `cursor: pointer` and takes a hover
- * background — so an empty shelf and the fixed Results heading presented exactly the disclosure
- * affordance of a real one while clicking them did nothing. The whole point of rendering them as
- * plain headings was to remove that affordance, and the shared class put it straight back.
- * Reported by a review bot; no capture could have shown it, because a cursor and a hover state
- * are not in a resting screenshot.
- *
- * Every other rule is deliberately identical to the button's, so all three headings sit on one
- * left edge and one baseline. The empty one is faint because it holds nothing; a result list is
- * the thing the user is looking at.
+ * Neither selector below names `.rp-al-shelf` or `.rp-al-row`, on purpose: doing so would put
+ * those two shared classes back in THIS block's own declarations and reopen the very check this
+ * block exists to satisfy. `scoped` already appends this component's own attribute selector to
+ * every rule here, which is what gives a bare `.rp-al-row--categorised` the same two-selector
+ * specificity the assembled sheet's `.rp-al-shelf .rp-al-row` carries, without spelling either
+ * shared class again.
  */
-.rp-al-shelf__static {
-	display: flex;
-	align-items: center;
-	gap: var(--size-4-2);
-	min-height: var(--size-4-6);
-	/* The chevron's own width plus its gap, so an empty shelf's label sits on the same left
-	   edge as a full one's rather than shifting into the space the control vacated. */
-	padding: var(--size-2-2) var(--size-4-3) var(--size-2-2) calc(var(--size-4-3) + 12px + var(--size-4-2));
-}
-
-.rp-al-shelf__static--empty {
-	color: var(--text-faint);
-}
-
-.rp-al-shelf__chevron {
-	flex: 0 0 auto;
-	width: 12px;
-	height: 12px;
-	fill: none;
-	stroke: currentColor;
-	stroke-width: 1.5;
-	stroke-linecap: round;
-	stroke-linejoin: round;
-	color: var(--text-muted);
-	transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.rp-al-shelf__chevron--open {
-	transform: rotate(90deg);
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.rp-al-shelf__chevron {
-		transition: none;
-	}
-}
-
-.rp-al-shelf__name {
-	flex: 1 1 auto;
-	min-width: 0;
+.rp-al-row__category {
 	overflow: hidden;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
 	white-space: nowrap;
 	text-overflow: ellipsis;
 }
 
-.rp-al-shelf__count {
-	flex: 0 0 auto;
-	color: var(--text-faint);
-	font-variant-numeric: tabular-nums;
-	font-weight: var(--font-normal);
-}
-
-.rp-al-rows {
-	margin: 0 0 var(--size-4-2);
-	padding: 0;
-	list-style: none;
-}
-
-/* The row item positions its own hidden description, which is absolute and outside the button. */
-.rp-al-rows__item {
-	position: relative;
-}
-
-/*
- * The row. A GRID rather than a flex row, for the reason `project-detail.css` records paying
- * for twice: with a flexible name beside two or three `auto` items, the slack lands wherever
- * each name's length leaves it and the right-hand facts stop forming columns. Fixed tracks
- * after the flexible one keep the cost, the waste and the supplier each in their own column
- * down the whole shelf, which is the entire argument for a dense row over a flat one.
- *
- * **What "a column" means here, precisely: the cost strings END in a column, and their decimal
- * points do not line up.** The unit suffix is part of the cost cell and its width varies — `m²`
- * against `m` against `piece` — so with the right edge fixed the amounts sit ragged inside it,
- * and tabular numerals cannot correct a difference that comes from the letters after them.
- * Aligning the decimals means giving the amount and the unit separate tracks: a markup change
- * plus all five grid variants, for a refinement over a treatment — right-aligned complete
- * prices — that is ordinary and readable. Not taken, and written here rather than left for the
- * next reader to discover the promise is looser than it sounds. Reported by a review bot.
- *
- * **The waste track is a FIXED width, and that is what makes the sentence above true.** Every row
- * is its own grid — no subgrid, no shared sizing — so an `auto` track sizes to ITS row's content:
- * zero on the rows with no waste factor, wider on the rest. The cost cell beside it shifts by
- * that difference and the prices stop forming the column this comment promises, tabular numerals
- * notwithstanding. It asserted exactly what the `auto` beside it prevented, for the whole life of
- * this file, and was found by a review bot rather than by any gate: jsdom lays nothing out, and
- * the misalignment is a few pixels in captures nobody was measuring. `5ch` fits `+12%`; a
- * three-digit factor would overflow it, which is a bound worth knowing rather than a case worth
- * widening for.
- */
-/*
- * Visually hidden and still announced — the standard clip rectangle rather than `display: none`
- * or `visibility: hidden`, both of which take the text out of the accessibility tree with the
- * pixels.
- *
- * It sits OUTSIDE the row button, and that is the second half of a fix whose first half read as
- * the whole of one. `aria-describedby` was added because a text node inside the button JOINS its
- * accessible name, and this one precedes the asset's name in DOM order, so rows announced
- * "Measured footprint, 1200 × 190 mm Oak plank floor". But a description does not EXCLUDE a
- * descendant from name-from-content: with the span still inside, the row kept the mangled name
- * and gained the same sentence again as its description. Only moving the element out of the
- * button separates the two. **A relationship added is not a relationship subtracted**, and the
- * first fix was measured against the sentence it added rather than against the one it left.
- * Reported by a review bot, twice, one round apart.
- */
-.rp-al-row__mark-words {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	margin: -1px;
-	padding: 0;
-	overflow: hidden;
-	clip-path: inset(50%);
-	white-space: nowrap;
-	border: 0;
-}
-
-.rp-al-shelf .rp-al-row {
-	display: grid;
-	grid-template-columns: 20px minmax(0, 1fr) auto 5ch minmax(0, 16ch);
-	align-items: center;
-	gap: var(--size-4-2);
-	width: 100%;
-	min-height: var(--size-4-6);
-	padding: var(--size-2-1) var(--size-4-3) var(--size-2-1) var(--size-4-4);
-	border: none;
-	border-radius: 0;
-	background-color: transparent;
-	color: var(--text-normal);
-	font-size: var(--font-ui-small);
-	text-align: left;
-	cursor: pointer;
-}
-
-/*
- * A SIXTH slot, and it needs its own template rather than an implicit track. In a search result
- * list the row carries the category the shelf would otherwise have said, so the child count goes
- * from five to six; grid then invents an implicit column and every value after the name lands one
- * track out of place. Reported by a review bot against a state no capture had photographed —
- * the mock opens unsearched, so nothing had ever drawn this row.
- */
-.rp-al-shelf .rp-al-row--categorised {
+.rp-al-row--categorised {
 	grid-template-columns: 20px minmax(0, 1fr) minmax(0, 10ch) auto 5ch minmax(0, 16ch);
 }
 
-.rp-al-shelf .rp-al-row:hover {
-	background-color: var(--background-modifier-hover);
-}
-
-.rp-al-shelf .rp-al-row:focus-visible {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: -2px;
-}
-
-/*
- * Selection is a PRINTED MARK before it is a colour: a filled rule at the row's leading edge,
- * plus `aria-current` in the markup, with the tint riding along as a third channel and never as
- * the only one. PRODUCT.md forbids state carried by colour alone, and a list row is where that
- * is easiest to lose. The rule is drawn with `box-shadow` rather than a border so it costs no
- * layout and cannot shift the grid by 2px against every unselected row beside it.
- */
-.rp-al-shelf .rp-al-row--on {
-	background-color: var(--background-modifier-active-hover);
-	box-shadow: inset 2px 0 0 0 var(--interactive-accent);
-	font-weight: var(--font-medium);
-}
-
-.rp-al-row__name {
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
-}
-
-.rp-al-row__category,
-.rp-al-row__supplier {
-	overflow: hidden;
-	color: var(--text-faint);
-	font-size: var(--font-ui-smaller);
-	white-space: nowrap;
-	text-overflow: ellipsis;
-}
-
-/* Tabular numerals so the decimal points line up down the shelf. A price column that does not
-   align is a price column a reader has to parse one row at a time. */
-.rp-al-row__cost {
-	white-space: nowrap;
-}
-
-/* Tabular numerals on the amount alone: it is the column a reader runs an eye down, and the
-   unit beside it is a word. A price column whose decimal points do not line up is one that has
-   to be parsed a row at a time. */
-.rp-al-row__amount {
-	font-variant-numeric: tabular-nums;
-}
-
-.rp-al-row__unit {
-	color: var(--text-muted);
-}
-
-.rp-al-row__waste {
-	color: var(--text-muted);
-	font-size: var(--font-ui-smaller);
-	font-variant-numeric: tabular-nums;
-}
-
-/*
- * The two droppable slots. A CONTAINER query and never a media query: this surface's width is
- * its PANE's — the window minus both Obsidian sidebars minus whatever is split beside it — and
- * `docs/user-experience/concepts/README.md` records what measuring the wrong box costs, a canvas
- * given 67% of a 1440px pane and 29% of a 680px one. The container is declared on the shelves
- * region in `AssetLibrary.vue`.
- */
 @container rp-al-shelves (width < 40rem) {
-	.rp-al-shelf .rp-al-row {
-		grid-template-columns: 20px minmax(0, 1fr) auto 5ch;
-	}
-
-	.rp-al-shelf .rp-al-row--categorised {
+	.rp-al-row--categorised {
 		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) auto 5ch;
-	}
-
-	.rp-al-row__supplier {
-		display: none;
 	}
 }
 
 @container rp-al-shelves (width < 32.5rem) {
-	.rp-al-shelf .rp-al-row {
-		grid-template-columns: 20px minmax(0, 1fr) auto;
-	}
-
-	.rp-al-shelf .rp-al-row--categorised {
+	.rp-al-row--categorised {
 		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) auto;
-	}
-
-	.rp-al-row__waste {
-		display: none;
 	}
 }
 </style>

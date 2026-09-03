@@ -9,6 +9,19 @@
 
 	`aria-hidden`, always. The shape's state is written in words in the inspector, because a drawn
 	outline that is the only statement of a fact is the colour-alone failure in a different medium.
+
+	No `<style>` block, since Task 12 (`src/presentation/library/AssetMark.vue`): this mock's
+	classes are declared in `styles/asset-mark.css` now, which the harness's assembled sheet loads
+	the same as a shipped component's — a scoped block here would be a second, unreachable copy of
+	those same rules, and `tests/build/prototype-styles.test.ts` refuses a mock declaring a class a
+	real component uses. `ZoneSummary.vue`, this tree's other fully-promoted mock, carries no
+	`<style>` for the identical reason.
+
+	`selected` is gone with it, for the same reason rather than a second one: Task 12's own
+	contract for the real component carries no such prop, because §3.3 makes selection a fact of
+	the ROW alone — a leading box-shadow rule plus `aria-current` — never of the mark, which
+	already carries five states of its own. Keeping this mock recolouring on selection would be
+	demonstrating a visual claim the shipped design deliberately dropped.
 -->
 <script setup lang="ts">
 import { computed } from 'vue';
@@ -18,17 +31,11 @@ import { ASSETS, markPath, type CatalogueAsset } from './assetLibraryFixture';
  * Defaulted like every region in this tree, so the mark draws as a specimen on the harness
  * index too — the index mounts an entry bare, and a component that needs a parent to exist is
  * one nobody looks at.
- *
- * `selected` rather than a rule reaching up into the row: a scoped block may not style a
- * composed component from outside, so the row tells the mark what it is instead of restyling
- * it. `prototype-styles.test.ts`'s rule, and also just how Vue's scoping works.
  */
 const props = withDefaults(defineProps<{
 	asset?: CatalogueAsset;
-	selected?: boolean;
 }>(), {
 	asset: () => ASSETS[0] as CatalogueAsset,
-	selected: false,
 });
 
 const path = computed((): string =>
@@ -39,7 +46,7 @@ const path = computed((): string =>
 <template>
 	<svg
 		class="rp-al-mark"
-		:class="[`rp-al-mark--${asset.shape}`, { 'rp-al-mark--on': selected }]"
+		:class="`rp-al-mark--${asset.shape}`"
 		viewBox="0 0 20 20"
 		aria-hidden="true"
 	>
@@ -66,76 +73,3 @@ const path = computed((): string =>
 		</template>
 	</svg>
 </template>
-
-<style scoped>
-
-/*
- * FIVE STATES THAT DIFFER IN KIND, and getting there took a capture and two reviews.
- *
- * The first version drew an empty box for both absence states, told apart by a diagonal, and
- * put a slash across an unscaled outline. Photographed with all four on screen at once, three
- * of them were a square with a line through it: a measured 600 × 600 tile, an unscaled cabinet
- * and a not-yet-read cabinet were separated by stroke pattern in one case and by COLOUR alone
- * in the other — the exact failure this mark exists to avoid, shipped by the mark. Nothing in
- * jsdom could have said so, and reasoning about it did not either; the two collisions are
- * obvious the moment the shelf holding them is the one that happens to be open.
- *
- * So each state now differs from every other in KIND, never in weight:
- *
- * - `measured` — the outline, solid.
- * - `unscaled` — the SAME outline, dashed. The proportions are real and the scale is not, which
- *   is exactly what a provisional stroke over true geometry says.
- * - `pending` — three dots. Not a shape at all, so no footprint can collide with it, and it is
- *   already the printed mark for "still coming".
- * - `none` — nothing. An empty slot is the one thing no other state can be mistaken for, and a
- *   drawn box for "there is no shape" was only ever scaffolding pretending to be data.
- * - `unreadable` — a struck box. The sidecar is there and refused to parse, which is the one
- *   outcome the first four could not carry: `none` reports an absence that is false and
- *   `pending` loads forever. A box says something IS there and the cross says it is spent. It is
- *   the ONLY state that draws a box, so nothing can confuse it with a square footprint.
- * - `unreadable` — a struck box. The sidecar is there and refused to parse, which is the one
- *   outcome the first four could not carry: `none` would report an absence that is false and
- *   `pending` would load forever. A box says something IS there and the cross says it is spent,
- *   which is the printed vocabulary the rest of these marks are drawn in. It is the only state
- *   that draws a box at all, so nothing can be confused with a square footprint.
- *
- * The 20px column is held by the `<svg>` itself, which always renders. Removing the element for
- * `none` would let the grid pull every later slot one column left.
- */
-.rp-al-mark {
-	width: 20px;
-	height: 20px;
-	overflow: visible;
-	fill: none;
-	stroke: currentColor;
-	stroke-width: 1;
-	stroke-linejoin: round;
-	color: var(--text-muted);
-}
-
-.rp-al-mark--unscaled {
-	stroke-dasharray: 2 2;
-}
-
-/* The two quiet absences. Neither is told from the other by this weight — the dots are what say
-   `pending` and their absence is what says `none`. */
-.rp-al-mark--pending {
-	color: var(--text-faint);
-}
-
-/* Not `--text-error`: the state is carried by the cross, and a colour on top of it would be a
-   second channel rather than the only one. But a damaged file is worth an eye finding, so it
-   keeps full-strength foreground where the two absences are faint. */
-.rp-al-mark--unreadable {
-	color: var(--text-normal);
-}
-
-.rp-al-mark--on {
-	color: var(--text-normal);
-}
-
-.rp-al-mark__dot {
-	fill: currentColor;
-	stroke: none;
-}
-</style>

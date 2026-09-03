@@ -862,6 +862,9 @@ interface UnreadableEntry {
   /** The refusal's own `AppError.code`, for `read-failed` alone; the scan sources have none. */
   code: string | null;
 }
+// The index-level descriptor this is built from, which must carry the entity type:
+// ProjectIndex is keyed by id GLOBALLY, so nothing else can say an excluded note was an asset.
+// interface ExcludedNote { path: string; entityType: EntityType; reason: UnreadableReason; }
 interface CatalogueListing { entries: readonly CatalogueEntryDto[]; unreadable: readonly UnreadableEntry[]; }
 ```
 
@@ -948,7 +951,31 @@ library's count or its repair list until a full rebuild — which happens at lay
 settings save, and nowhere else. *"The scan carries it"* was true of the scan and said nothing
 about the door every later change comes through. The index gains a collection of excluded
 descriptors with the same add/remove treatment its entries already get, and the incremental door
-announces them like any other change. The null arm is not a gap: a note with no usable id cannot
+announces them — **through an event of their own, because the existing one cannot carry them**.
+`ProjectIndexEntryChangedPayload` declares `entityId: EntityId<string>`, required, and a `no-id`
+descriptor has no id by definition; the asset domain events require an `AssetId` for the same
+reason. So *"announces them like any other change"* named a mechanism that cannot represent the
+mutation, and the repair strip would have gone on being stale exactly as before.
+
+**`ProjectIndexExclusionChanged { path: string; entityType: EntityType }`** is the addition —
+keyed by PATH, which is the only stable identifier a note with no id has, and carrying the type so
+a subscriber can filter. Added to `createAssetCatalogueChangeSource` under a
+`entityType === 'asset'` filter, per the filter argument §5.4 already makes.
+
+**And the descriptor carries `EntityType`, which the index cannot supply from its key.**
+`ProjectIndex` is keyed by id GLOBALLY — one namespace across projects, plans, zones, requirements,
+assets — so an excluded-descriptor collection beside it has no type to select on, and every
+entity kind reaches the same `entityRefOf(...).kind === 'no-id'` arm. Without a discriminator
+`ListCatalogueEntries` cannot pick out the asset notes: a project note with no id would inflate
+the library's unreadable count and appear in its repair strip, or every excluded note would have
+to be dropped and the count would be wrong the other way.
+
+The type is **free at the point of exclusion and nowhere else**, which is what decides where it is
+captured: `entityRefOf` validates `type` against `ENTITY_TYPES` on the line ABOVE the id check and
+returns `{ kind: 'no-id' }` having already proved it. That union member gains `type: EntityType` —
+no new parsing, no second read of the frontmatter, and the alternative (re-reading the note when
+the strip is drawn) is a vault read per excluded note per render. A duplicate-id loser has its
+winner's type for the same reason. The null arm is not a gap: a note with no usable id cannot
 be SELECTED, because nothing can name it — it can only be counted and listed, and its path is what
 `Open note` needs regardless.
 
@@ -2785,6 +2812,31 @@ and promotion are one atomic change now.
 The shape both share: **a rule written while looking at one direction of a transition reads as
 complete**, and the question that finds the gap is what the same mechanism does when run
 backwards. Two rounds running.
+
+A forty-eighth round found two, both in the excluded-descriptor collection §5.1a added, and
+together they say that **a collection is not specified until the thing that reads it can find its
+own rows and the thing that changes it can say so.**
+
+**The descriptor could not be filtered to assets.** `ProjectIndex` is keyed by id GLOBALLY — one
+namespace across every entity kind — and every kind reaches the same
+`entityRefOf(...).kind === 'no-id'` arm, which carries no type at all. So `ListCatalogueEntries`
+had no way to select the asset notes out of that collection: a project note with no id would have
+inflated the library's unreadable count and appeared in its repair strip, or every excluded note
+would have had to be dropped and the count would have been wrong the other way. The type is free
+at the point of exclusion and nowhere else — `entityRefOf` validates `type` against `ENTITY_TYPES`
+on the line ABOVE the id check and returns `no-id` having already proved it — so that union member
+carries it, and the alternative would have been a vault read per excluded note per render.
+
+**And no existing event can announce a change to it.** `ProjectIndexEntryChangedPayload` declares
+`entityId` as required, and a `no-id` descriptor has none by definition; the asset domain events
+want an `AssetId` for the same reason. *"Announces them like any other change"* named a mechanism
+that cannot represent the mutation, so the repair strip would have stayed stale until a rebuild —
+which is the exact defect §5.1a was written to close, surviving inside the sentence that closed
+it. `ProjectIndexExclusionChanged { path, entityType }` is the addition, keyed by PATH because
+that is the only stable identifier such a note has.
+
+The shape: **"like any other change" is a claim about a payload**, and this document made it twice
+in one paragraph without opening either type.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

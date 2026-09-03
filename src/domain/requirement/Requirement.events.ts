@@ -84,16 +84,16 @@ export interface RequirementDeleted extends DomainEvent<'RequirementDeleted'> {
  * otherwise reach nobody. `RequirementInvalidated` is not the substitute — it claims a
  * recalculation is OWED, which is the opposite of a restore to a `current` pre-state.
  *
- * Two publishers TODAY, both computing the same split — `entry.outcome === 'written'` raises
+ * Three publishers, all computing the same split — `entry.outcome === 'written'` raises
  * this, `'absent'` raises `RequirementCreated`, because an entry removed forward and put back
  * is a re-creation and not a restore of a row that was merely edited: `undoDeleteResolution`
- * (a user's undo, `created ? requirementCreated : requirementRestored`) and the delete
+ * (a user's undo, `created ? requirementCreated : requirementRestored`), the delete
  * resolutions' own `compensate` (a mid-sequence rollback, the identical ternary on the same
- * `outcome` field). `recoverInterruptedSequences` (a crash recovery at load) computes the
- * IDENTICAL split for its own `save`'s `expected` parameter and publishes NEITHER event —
- * `RecoveryDeps` carries no `EventBus` at all, so a requirement a crash left mid-resolution is
- * restored silently. A later task giving it one is expected to make it a third publisher of
- * this same split, not a reason to have already called it one.
+ * `outcome` field), and `recoverInterruptedSequences` (a crash recovery at load, the identical
+ * ternary on `expected === 'absent'`, its own `save`'s `expected` parameter). That third one
+ * used to compute the split and publish NEITHER event — `RecoveryDeps` carried no `EventBus`
+ * at all, so a requirement a crash left mid-resolution was restored silently. `RecoveryDeps.events`
+ * is REQUIRED now, per the same `CascadeDeps.notify` precedent slice 17's silent writers follow.
  */
 export interface RequirementRestored extends DomainEvent<'RequirementRestored'> {
 	readonly payload: RequirementEventPayload;

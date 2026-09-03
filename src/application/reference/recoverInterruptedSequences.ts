@@ -1,14 +1,31 @@
-import { isErr } from '../../core/result/Result';
+import { err, isErr, isOk } from '../../core/result/Result';
+import { persistenceError } from '../errors';
+import { effectiveValue } from '../../core/derived/DerivedValue';
+import type { EventBus } from '../../core/events/EventBus';
 import type { Logger } from '../ports/Logger';
 import type { SequenceMarkerStore } from '../ports/SequenceMarkerStore';
 import type { RequirementRepository } from '../ports/RequirementRepository';
 import type { Loaded } from '../ports/versioning';
 import type { Requirement } from '../../domain/requirement/Requirement';
+import { requirementCreated, requirementRestored } from '../../domain/requirement/Requirement.events';
+import { publishIfEffectiveCostChanged } from '../commands/requirement/SetRequirementQuantityOverride';
 import type { SequenceMarker, SequenceProgress } from './deleteResolution';
 
 export interface RecoveryDeps {
 	readonly markers: SequenceMarkerStore;
 	readonly requirements: RequirementRepository;
+	/**
+	 * REQUIRED rather than optional, per the `CascadeDeps.notify` precedent: an optional
+	 * collaborator makes a composition that forgets it compile, pass, and say nothing.
+	 *
+	 * Recovery is the silent writer whose ORDERING makes it the worst of them.
+	 * `startPersistence` publishes `projectIndexRebuilt()` and only then launches this
+	 * fire-and-forget, so the one blanket signal a summary subscribes to has already fired;
+	 * and these writes are plugin-owned, so the index updates synchronously and `EchoWindow`
+	 * suppresses the vault event, leaving `ProjectIndexEntryChanged` unable to stand in.
+	 * Nothing downstream can compensate.
+	 */
+	readonly events: EventBus;
 	readonly logger: Logger;
 }
 
@@ -17,9 +34,73 @@ function findSnapshot(marker: SequenceMarker, requirementId: string): Loaded<Req
 }
 
 /**
- * One marker: restore every `progress` entry from the pre-state, presenting the version
- * the forward write recorded (`'absent'` for a removed referent). A refused restore is
- * surfaced, never forced; the marker clears once every entry is restored or surfaced.
+ * One `progress` entry: restore it from the pre-state, presenting the version the forward
+ * write recorded (`'absent'` for a removed referent), and announce what landed. A refused
+ * restore is surfaced, never forced — logged and left for the next load rather than making
+ * this entry's failure this marker's failure, since a sibling entry may still recover
+ * cleanly. Split out of `recoverOne` so the per-entry branching (the best-effort pre-read,
+ * the refusal, the written/'absent' split, the conditional cost announcement) is one
+ * function's complexity rather than folded into the per-marker loop around it.
+ */
+async function restoreEntry(
+	deps: RecoveryDeps,
+	marker: SequenceMarker,
+	entry: SequenceProgress,
+): Promise<void> {
+	const snapshot = findSnapshot(marker, entry.id);
+	if (!snapshot) return;
+	const expected = entry.outcome === 'written' ? entry.version : 'absent';
+
+	// Best-effort, never a gate. A malformed live note is what this refuses AND what
+	// the save below can still overwrite, so failing here would abandon the row that
+	// most needs recovering — and the throw would take every later marker with it.
+	// `.catch` as well as `isErr`, because this port is raw at this boundary and a vault
+	// fault arrives as a REJECTION. Without it the direct `await` exits before the save
+	// and the outer catch abandons every later marker — which is the exact defect the
+	// best-effort rule was written to fix, reintroduced by the fix for it.
+	const live = expected === 'absent'
+		? null
+		: await deps.requirements
+				.getById(snapshot.entity.id)
+				.catch((cause: unknown) =>
+					err(persistenceError('sequence.recovery.cost-baseline-faulted', 'The cost baseline could not be read.', cause)));
+	const previous = live !== null && isOk(live) && live.value !== null
+		? effectiveValue(live.value.entity.estimatedCost)
+		: null;
+	if (live !== null && isErr(live)) {
+		deps.logger.warn('sequence.recovery.cost-baseline-unreadable', {
+			requirementId: snapshot.entity.id,
+			cause: live.error,
+		});
+	}
+
+	const saved = await deps.requirements.save(snapshot.entity, expected);
+	if (isErr(saved)) {
+		deps.logger.error('sequence.recovery.restore-refused', {
+			requirementId: entry.id,
+			entityId: marker.entityId,
+			cause: saved.error,
+		});
+		return;
+	}
+	const payload = {
+		requirementId: snapshot.entity.id,
+		projectId: snapshot.entity.projectId,
+	};
+	// Unconditional for a written restore: "this row was written back" is true
+	// whatever the figures did, and the delete-anyway case moves no figure at all —
+	// which is exactly the case that used to reach nobody.
+	await deps.events.publish(
+		expected === 'absent' ? requirementCreated(payload) : requirementRestored(payload),
+	);
+	if (previous !== null) {
+		await publishIfEffectiveCostChanged(deps.events, saved.value.entity, previous);
+	}
+}
+
+/**
+ * One marker: restore every `progress` entry from the pre-state (see `restoreEntry`); the
+ * marker clears once every entry is restored or surfaced.
  *
  * **A marker saying `entityDeleted` is a COMPLETED sequence, and rolling one back destroys
  * correct work.** `runDeleteResolution` writes that flag only after `deleteEntity` has
@@ -45,17 +126,7 @@ function findSnapshot(marker: SequenceMarker, requirementId: string): Loaded<Req
 async function recoverOne(deps: RecoveryDeps, marker: SequenceMarker): Promise<void> {
 	if (!marker.entityDeleted) {
 		for (const entry of marker.progress as readonly SequenceProgress[]) {
-			const snapshot = findSnapshot(marker, entry.id);
-			if (!snapshot) continue;
-			const expected = entry.outcome === 'written' ? entry.version : 'absent';
-			const saved = await deps.requirements.save(snapshot.entity, expected);
-			if (isErr(saved)) {
-				deps.logger.error('sequence.recovery.restore-refused', {
-					requirementId: entry.id,
-					entityId: marker.entityId,
-					cause: saved.error,
-				});
-			}
+			await restoreEntry(deps, marker, entry);
 		}
 	} else {
 		// Loud rather than silent: reaching this means a marker outlived the sequence it

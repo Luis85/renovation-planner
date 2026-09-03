@@ -126,6 +126,7 @@ describe('recoverInterruptedSequences', () => {
 		await recoverInterruptedSequences({
 			markers,
 			requirements: w.requirements,
+			events: w.events,
 			logger,
 		});
 
@@ -141,6 +142,7 @@ describe('recoverInterruptedSequences', () => {
 		const deps = {
 			markers: w.markers,
 			requirements: w.requirements,
+			events: w.events,
 			logger,
 		};
 		await recoverInterruptedSequences(deps);
@@ -163,6 +165,7 @@ describe('recoverInterruptedSequences', () => {
 		await recoverInterruptedSequences({
 			markers: w.markers,
 			requirements: w.requirements,
+			events: w.events,
 			logger,
 		});
 
@@ -194,6 +197,7 @@ describe('recoverInterruptedSequences', () => {
 		await recoverInterruptedSequences({
 			markers,
 			requirements: w.requirements,
+			events: w.events,
 			logger,
 		});
 
@@ -237,6 +241,7 @@ describe('recoverInterruptedSequences', () => {
 		await recoverInterruptedSequences({
 			markers,
 			requirements: w.requirements,
+			events: w.events,
 			logger,
 		});
 
@@ -269,6 +274,7 @@ describe('recoverInterruptedSequences', () => {
 		await recoverInterruptedSequences({
 			markers,
 			requirements: w.requirements,
+			events: w.events,
 			logger,
 		});
 
@@ -299,7 +305,7 @@ describe('recoverInterruptedSequences', () => {
 		});
 
 		await expect(
-			recoverInterruptedSequences({ markers, requirements: w.requirements, logger }),
+			recoverInterruptedSequences({ markers, requirements: w.requirements, events: w.events, logger }),
 		).resolves.toBeUndefined();
 
 		const failed = lines.filter((line) => line.event === 'sequence.recovery.failed');
@@ -328,7 +334,7 @@ describe('recoverInterruptedSequences', () => {
 		});
 
 		await expect(
-			recoverInterruptedSequences({ markers, requirements, logger }),
+			recoverInterruptedSequences({ markers, requirements, events: w.events, logger }),
 		).resolves.toBeUndefined();
 
 		expect(lines.filter((line) => line.event === 'sequence.recovery.failed')).toHaveLength(1);

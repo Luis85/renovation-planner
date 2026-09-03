@@ -46,6 +46,7 @@ import { unavailableRenovationProjectCommands } from '../presentation/views/reno
 import type { RenovationProjectDeps } from '../presentation/views/RenovationProjectContext';
 import {
 	renovationProjectOpenAsset,
+	renovationProjectOpenAssetLibrary,
 	renovationProjectOpenPlan,
 	renovationProjectOpenProject,
 } from './renovationProjectOpenSeams';
@@ -618,6 +619,10 @@ export function renovationProjectDeps(
 		indexScanCompleted: options.indexScanCompleted,
 		openPlan: persistence ? renovationProjectOpenPlan(workspace, root.logger) : () => Promise.resolve(),
 		openAsset: persistence ? renovationProjectOpenAsset(workspace, root.logger) : () => Promise.resolve(),
+		// UNCONDITIONAL, persistence or not — `onProjectsChanged`'s own reason two screens down:
+		// revealing the library needs no repository at all, and a refusing bundle underneath it
+		// simply draws its own failure state (§4) the way `unavailableAssetLibraryQueries` does.
+		openAssetLibrary: renovationProjectOpenAssetLibrary(workspace, root.logger),
 		// Wired from the bus UNCONDITIONALLY, persistence or not, for the reason
 		// `onProjectsChanged` states three lines down: the bus is the root's own and exists
 		// either way, and a refusal bundle re-reading simply refuses again.

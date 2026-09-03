@@ -59,6 +59,15 @@ vi.mock('../../src/infrastructure/obsidian/workspace/revealAssetDesigner', () =>
 import { revealAssetDesigner as revealAssetDesignerSpy } from '../../src/infrastructure/obsidian/workspace/revealAssetDesigner';
 import { ASSET_DESIGNER_VIEW } from '../../src/presentation/designer/AssetDesignerView';
 
+// Task 11's sibling mock, for the identical reason: `renovationProjectOpenAssetLibrary`
+// imports the binding directly, so a spy on the export a caller already holds a reference to
+// would never be seen by that caller.
+vi.mock('../../src/infrastructure/obsidian/workspace/revealView', () => ({
+	revealView: vi.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue(undefined),
+}));
+import { revealView as revealViewSpy } from '../../src/infrastructure/obsidian/workspace/revealView';
+import { ASSET_LIBRARY_VIEW } from '../../src/presentation/library/AssetLibraryView';
+
 installObsidianDom();
 
 // A notice is INERT until something activates the queue — `onload` is what does that in
@@ -529,6 +538,30 @@ describe('the renovation project dependencies', () => {
 			ASSET_DESIGNER_VIEW,
 			'asset-01JXXX',
 		);
+	});
+
+	/**
+	 * `openAssetLibrary`'s own case: bound to the REAL `revealView`, the same plain-callback
+	 * activation `RenovationPlannerPlugin.openProject` already takes into this very view, and
+	 * ONE binding rather than two, since both of §2's in-app doors reach this single member —
+	 * see `ProjectList`'s header and this view's own no-projects aside.
+	 *
+	 * Wired UNCONDITIONALLY of `persistence`, unlike `openPlan`/`openAsset` above: revealing a
+	 * singleton view needs no repository, and a session with none composed simply draws the
+	 * library's own failure state once the leaf opens.
+	 */
+	it('binds openAssetLibrary to the real revealView', async () => {
+		const { root, workspace, vault } = composedRoot();
+		const deps = renovationProjectDeps(root, workspace as never, vault, {
+			projectId: null,
+			navigate: () => undefined,
+			indexScanCompleted: () => true,
+		});
+
+		deps.openAssetLibrary();
+		await settle();
+
+		expect(revealViewSpy).toHaveBeenCalledWith(expect.objectContaining({ workspace }), ASSET_LIBRARY_VIEW);
 	});
 });
 

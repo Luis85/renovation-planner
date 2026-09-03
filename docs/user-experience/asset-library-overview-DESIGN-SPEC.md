@@ -1707,6 +1707,25 @@ the arm, a peer's height edit leaves a stale number for the life of the view, an
 corrupt sidecar, where the design read refuses and the catalogue half was the only one that could
 have been refreshed.
 
+**And the focus chain finally has an instrument** (`tests/harness/assetLibraryFocus.test.ts`),
+which is the response to the round above rather than to any single finding in it. Five rounds
+each found one more direction of one gesture and each fix shipped under a paragraph arguing it
+was general; the sixth found that the chain's last link had never been reachable at all. Every
+one of those paragraphs was an argument about a mechanism rather than a test of it.
+
+**jsdom is the right instrument here for the reason it is usually the wrong one.** It lays
+nothing out, so `offsetParent` is `null` for every element — which is exactly the state the
+fallback exists for, and exactly the half that was broken. It cannot say which of two targets a
+laid-out browser would choose; it can say, every time, that the fallback resolves to something
+rather than to nothing.
+
+All three cases were watched failing against their own mutations, and the third had to be
+rewritten to earn that: its first version asserted `CSS.escape` in isolation, passed with the
+escape removed from the component, and pinned nothing — this repository's own *a test that passes
+in both worlds* defect, committed inside the file written to stop exactly that. It drives the real
+`back()` against a planted hostile id now, and the mutation reports the `SyntaxError` the code
+really throws.
+
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's
 shapes rather than a fixture's — and nothing in it commits an edit, because the inspector's

@@ -1980,12 +1980,39 @@ adding an adapter class to an already-disposed module leaves the file-key set un
 assertion passes without a behavioural row. The inversion was right and I applied it at the
 wrong grain, which is this plan's own recurring shape one more time.
 
-So: every `class <Name>` DECLARED in any file under `src/**` that mentions an `undo` member.
-Textual, so it needs no inheritance graph — a class inheriting `execute`/`undo` from a base
-still appears as its own declaration — no layer list, and no export filter. None of the six axes
-can hide from it, because it models none of them. It over-collects non-adapter classes that
-happen to sit in such a file, and those take a `not an adapter:` disposition, which is the
-over-refusing direction this file takes everywhere.
+So: every `class <Name>` declared in any file under `src/**` that mentions an `undo` member,
+**plus the transitive `extends` closure of that set** — repeatedly add any class whose
+`extends <Name>` names a class already in it, until it stops growing.
+
+The closure is what the seventh round of this finding forced, and the hole it closes is exact: a
+standalone file holding only `class NewAdapter extends ReversibleBase {}` declares a class and
+mentions no `undo` anywhere, so a file-mentions-`undo` filter never scans it and the exact-key
+assertion passes with no behavioural row. The claim that inherited adapters were covered was
+true only when a base or sibling happened to put the word in the same file. The closure is cheap
+— measured, `src/**` holds 111 class declarations and only **20** of them extend anything at all
+— and it is still textual: no type resolution, no layer list, no export filter.
+
+Dispositioning all 111 classes was the alternative and is refused: it taxes every future
+unrelated class in the codebase with a census entry, which is a cost paid by people who are not
+touching adapters.
+
+**And here is the sentence this task has been missing for seven rounds, which matters more than
+the closure.** The behavioural rows in Part A are the GUARANTEE. This discovery is a TRIPWIRE
+with stated limits, not a proof of completeness — and every previous version of this section
+claimed completeness and was wrong within one round, on an axis the previous fix had not
+modelled. Six of those claims are in this file's own git history. So, stated rather than
+claimed away, what the tripwire does NOT catch:
+
+- an adapter that is not a `class` at all — an object literal or a factory return satisfying
+  `UndoableCommand` structurally;
+- a class reaching `undo` neither by the word appearing in its file nor by an `extends` chain
+  rooted in such a file;
+- a direction added to a class that already has a disposition, if that disposition's `rows:`
+  list is not updated — which the table cross-check catches only for directions it names.
+
+Each of those is a real way a silent adapter could enter the tree, and the answer to all three
+is the same: **the census table is maintained by people, and the tripwire only lowers the odds
+of forgetting.** A reader who needs the guarantee reads Part A.
 
 Every discovered CLASS must carry an explicit entry in a `DISPOSITIONS` map:
 
@@ -2041,9 +2068,10 @@ Then watch it fail the two ways that matter, which is what the first draft could
    module-granular check and a file-keyed dispositions map pass this mutation; those were
    findings four and six, and this is the red neither could produce.
 2. Add a fake adapter in `src/presentation/**` that INHERITS `execute`/`undo` from a base and
-   declares neither, and confirm the file is still reported as undisposed. That is finding five,
-   both of its halves at once — wrong layer and inherited members — and it is the mutation the
-   declaration-based draft could not survive.
+   declares neither, IN ITS OWN FILE mentioning `undo` nowhere, and confirm it is still reported
+   as an undisposed class. That is findings five and seven together — wrong layer, inherited
+   members, and a file the word never appears in — and it is the mutation both the
+   declaration-based draft and the file-mentions-undo draft passed.
 3. Delete a `DISPOSITIONS` entry whose file still exists, and confirm the exact-key-set
    assertion fails; then add one for a file that does not exist, and confirm it fails the other
    way.

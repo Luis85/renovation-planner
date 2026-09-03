@@ -346,6 +346,72 @@ describe('the queued gate', () => {
 	});
 
 	/**
+	 * A cancelled gate is actually cancelled, and lets go of the lock.
+	 *
+	 * The first version ran the command through `spawnSync`, which blocks the event loop — so
+	 * libuv queued a signal and the JS handler did not run until the child had finished.
+	 * Measured before it was fixed: a SIGTERM to the wrapper alone, one second into a
+	 * three-second child, ran the handler never and let the child run its full duration. A
+	 * cancelled gate therefore held its lock for the whole command, and a supervisor escalating
+	 * to SIGKILL left the lock standing for `STALE_MS`. The comment above it claimed "every exit
+	 * path releases", which held only for a signal sent to the whole process GROUP — an
+	 * interactive Ctrl+C — and not for the PID-targeted one a programmatic cancellation sends.
+	 *
+	 * `ChildProcess.kill` signals that one pid, so this drives exactly the case that was broken.
+	 * Both halves are asserted: the command is stopped (its marker is never written) and the
+	 * lock is gone. The marker is what discriminates — under the old build the wrapper exits
+	 * too, just four seconds later with the command run to completion.
+	 *
+	 * POSIX only, and the skip is a finding rather than an omission: Windows has no signal
+	 * delivery, so `kill` terminates the wrapper outright, no handler forwards anything, and the
+	 * lock is left for `STALE_MS`. That is a real platform gap, named here because nothing else
+	 * would say it.
+	 */
+	it.skipIf(process.platform === 'win32')('stops the command and releases the lock when it is signalled', async () => {
+		lock = path.join(workspace, 'signal.lock');
+		const completed = path.join(workspace, 'signal.marker');
+
+		rmSync(completed, { force: true });
+
+		const wrapper = spawn(
+			process.execPath,
+			[
+				SCRIPT,
+				process.execPath,
+				'-e',
+				`Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 4000);` +
+					`require('fs').writeFileSync(${JSON.stringify(completed)}, 'ran to completion');`,
+			],
+			{ env: { ...process.env, RP_GATE_LOCK: lock }, stdio: 'ignore' },
+		);
+
+		// Signal only once the gate demonstrably holds the lock — signalling before the claim
+		// would assert nothing about releasing it. A local poll rather than `settleUntil`,
+		// which lives in the editor helpers and would drag that tree into a build test.
+		for (let waited = 0; !existsSync(lock) && waited < 5000; waited += 25) {
+			await new Promise<void>((resolve) => {
+				setTimeout(resolve, 25);
+			});
+		}
+
+		expect(existsSync(lock), 'the gate never claimed the lock').toBe(true);
+
+		const signalledAt = Date.now();
+
+		wrapper.kill('SIGTERM');
+
+		await new Promise<void>((resolve) => {
+			wrapper.on('exit', () => {
+				resolve();
+			});
+		});
+
+		expect(Date.now() - signalledAt, 'the wrapper waited for the command it was told to cancel').toBeLessThan(2000);
+		expect(existsSync(completed), 'the cancelled command ran to completion anyway').toBe(false);
+		expect(existsSync(lock), 'a cancelled gate kept its lock').toBe(false);
+	});
+
+	/**
 	 * Both halves of one defect, and it was a real one: `process.exit()` does not run a
 	 * pending `finally`, so the first version of this script released nothing and every
 	 * later gate on the machine waited `STALE_MS` for a holder that had already finished.

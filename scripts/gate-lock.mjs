@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -171,7 +171,13 @@ const occupy = () => {
  * than by luck. And a holder that genuinely runs longer than `STALE_MS` is stale by this
  * definition and can be reclaimed while alive; the bound is twenty minutes against a gate
  * measured at three, and the obvious remedy — a holder touching its own lock on a timer —
- * cannot work here, because `spawnSync` blocks the event loop for the whole run it times.
+ * is newly POSSIBLE and deliberately not built: this ran the child through `spawnSync` until
+ * the signal fix below, so the event loop was blocked for the whole run it was timing and a
+ * timer could not fire. That argument is gone now, and a heartbeat would make staleness mean
+ * "the holder is dead" rather than "the holder is quiet" — which would drain most of the
+ * reachability above, since a dead holder never releases and so cannot release inside anyone's
+ * window. It is a design change on a mechanism already under review, so it is named here
+ * rather than taken.
  */
 const reclaimIfStale = () => {
 	if (!isStale(LOCK)) return false;
@@ -291,13 +297,31 @@ while (!claim()) {
 	sleep(POLL_MS);
 }
 
-// Every exit path releases, including the signals a person actually uses. Without this an
-// interrupted gate leaves a lock that the next one waits STALE_MS for, which is the
-// wedged-gate failure this file's own bound exists to bound rather than to permit.
+// The child runs ASYNCHRONOUSLY, and that is a correctness requirement rather than a style.
+//
+// `spawnSync` blocks the event loop, so libuv queues a signal and the JS handler does not run
+// until the child has finished. Measured rather than reasoned: with a SIGTERM sent to the
+// wrapper alone one second into a three-second child, the handler never ran and the child ran
+// its full duration. So a cancelled gate was not cancelled — it held the lock for the whole
+// command, and a supervisor escalating to SIGKILL then left the lock standing for STALE_MS.
+// The old comment here claimed "every exit path releases", which was true only for a signal
+// delivered to the whole process GROUP, as an interactive Ctrl+C is: there the child dies too,
+// so the block ends and the `finally` runs. A PID-targeted signal, which is what a programmatic
+// cancellation sends, released nothing and stopped nothing.
+const [bin, ...args] = command;
+const child = spawn(bin, args, { stdio: "inherit", shell: needsShell(bin) });
+
+// FORWARD rather than release-and-exit. Releasing here would drop the lock while the command
+// is still running, which is the overlap this file exists to prevent, arriving through the one
+// door that looks like cleanup. The child's own exit is what releases, below.
+//
+// Two things this does not cover, and neither is closable here: a child that ignores the
+// signal (the supervisor's own escalation is the answer, and a SIGKILL to us is what STALE_MS
+// is for), and a `shell: true` grandchild on Windows, where killing the shell need not kill
+// what it started.
 for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
 	process.on(signal, () => {
-		release();
-		process.exit(1);
+		child.kill(signal);
 	});
 }
 
@@ -310,8 +334,18 @@ for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) {
 let status = 1;
 
 try {
-	const [bin, ...args] = command;
-	status = spawnSync(bin, args, { stdio: "inherit", shell: needsShell(bin) }).status ?? 1;
+	status = await new Promise((resolve) => {
+		// A spawn that never started (a missing binary) reports here and nowhere else, and it
+		// is a failure of the gate rather than of the command.
+		child.once("error", () => {
+			resolve(1);
+		});
+
+		// A child killed by a signal carries no code. It did not succeed, so it is not a 0.
+		child.once("exit", (code, signal) => {
+			resolve(signal === null ? (code ?? 1) : 1);
+		});
+	});
 } finally {
 	release();
 }

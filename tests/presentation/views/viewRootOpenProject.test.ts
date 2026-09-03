@@ -15,11 +15,18 @@
  * `ProjectIndexEntryChanged` reaches this pane through `onProjectsChanged`. What that refresh
  * cannot do is answer the CLICK the user just made, which is what the `'missing'` arm is for.
  *
- * What DID change is which read corrects it. The list state has no caller for this handler any
- * more, so the re-read is `ProjectDetailState`'s own: it answers `ok(null)`, settles `'gone'`,
- * and returns the user to the list. Re-reading the list from the detail state would refresh
- * something nobody is looking at — an earlier draft of this slice's plan specified exactly
- * that.
+ * What DID change is which read corrects it. Slice 21 left the list state with no caller for
+ * this handler at all, so the re-read for the DETAIL state's own copy of the action is
+ * `ProjectDetailState`'s: it answers `ok(null)`, settles `'gone'`, and returns the user to the
+ * list. Re-reading the list from the detail state would refresh something nobody is looking at
+ * — an earlier draft of this slice's plan specified exactly that.
+ *
+ * **Task 8 gives the LIST state a caller again, through a different door.** A row no longer
+ * opens a note on a plain click — that stays `context.navigate(id)` — but it does on the
+ * `Mod+↵`/middle-click/modifier-click accelerators design spec §7 gives it, and those go
+ * through `ViewRoot`'s own `onOpenNote`, re-reading the PROJECT LIST rather than one project's
+ * detail: the surface that asked is the one that gets corrected, same rule as the detail
+ * state's, applied to its sibling. The block below this comment is that caller's cases.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { mount, flushPromises } from '@vue/test-utils';
@@ -128,5 +135,84 @@ describe('ViewRoot, opening a project’s note', () => {
 
 		expect(getProject).toHaveBeenCalledTimes(1);
 		expect(navigate).not.toHaveBeenCalled();
+	});
+});
+
+/**
+ * Mounts the view in the LIST state with one project, and hands back the row-level accelerator
+ * spies. `listProjects` is the spy that discriminates here, not `getProject`: the count of LIST
+ * reads is what says whether the stale surface — the list a row was drawn from — was corrected.
+ */
+async function mountOnListState(outcome: ProjectOpenOutcome) {
+	setActivePinia(createPinia());
+	let exists = true;
+	const listProjects = vi.fn<() => Promise<unknown>>(() =>
+		Promise.resolve(ok({ projects: exists ? [KITCHEN] : [], unreadable: 0 })),
+	);
+	const openProject = vi.fn<(id: string) => Promise<ProjectOpenOutcome>>(() => Promise.resolve(outcome));
+	const wrapper = mount(ViewRoot, {
+		global: {
+			provide: {
+				[RENOVATION_PROJECT_CONTEXT as symbol]: {
+					queries: {
+						listProjects,
+						getProject: () => Promise.resolve(ok(null)),
+						listPlansByProject: () => Promise.resolve(ok({ plans: [], unreadable: 0 })),
+					},
+					commands: unavailableRenovationProjectCommands(),
+					openProject,
+					// The LIST state — `null`, not `KITCHEN.id` — which is the surface Task 8's
+					// row-level accelerators reach `onOpenNote` from.
+					projectId: null,
+					navigate: () => undefined,
+					openPlan: () => Promise.resolve(),
+					openAsset: () => Promise.resolve(),
+					onProjectsChanged: () => () => undefined,
+					onPlansChanged: () => () => undefined,
+					indexScanCompleted: () => true,
+				},
+			},
+		},
+	});
+	await flushPromises();
+	const deleteIt = (): void => {
+		exists = false;
+	};
+	return { wrapper, listProjects, openProject, deleteIt };
+}
+
+describe('ViewRoot, a row’s open-note accelerator', () => {
+	it('re-reads the project LIST when the row turns out to point at nothing', async () => {
+		const { wrapper, listProjects, openProject, deleteIt } = await mountOnListState('missing');
+		deleteIt();
+
+		// A middle click is platform-independent — unlike `Mod+↵`, it carries no modifier for
+		// `Platform.isMacOS` to disagree about.
+		await wrapper.get('.rp-project-list__row').trigger('auxclick', { button: 1 });
+		await flushPromises();
+
+		expect(openProject).toHaveBeenCalledWith(KITCHEN.id);
+		expect(listProjects).toHaveBeenCalledTimes(2);
+	});
+
+	it('does not re-read the list when the note opened', async () => {
+		const { wrapper, listProjects, openProject } = await mountOnListState('opened');
+
+		await wrapper.get('.rp-project-list__row').trigger('auxclick', { button: 1 });
+		await flushPromises();
+
+		expect(openProject).toHaveBeenCalledTimes(1);
+		expect(listProjects).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not re-read the list when the open faulted', async () => {
+		// `'failed'` has already reached the user as a notice; the list behind the action is not
+		// stale, so a re-read would answer a question nobody asked.
+		const { wrapper, listProjects } = await mountOnListState('failed');
+
+		await wrapper.get('.rp-project-list__row').trigger('auxclick', { button: 1 });
+		await flushPromises();
+
+		expect(listProjects).toHaveBeenCalledTimes(1);
 	});
 });

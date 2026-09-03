@@ -41,6 +41,21 @@ export function getLanguage(): string {
 export const apiVersion = '1.13.0';
 
 /**
+ * Obsidian's static platform flags. The real export carries a dozen members; `isMacOS` is the
+ * only one anything in `src/` reads (`platformModifier.ts`'s `opensNote`/`modifierLabel`), so
+ * per this file's own policy it is the only one modelled — a member nothing exercises cannot
+ * be caught drifting from the real API.
+ *
+ * A plain mutable object, matching the real declaration's `boolean` (not `readonly boolean`):
+ * a test drives the non-default platform by assigning `Platform.isMacOS` directly before
+ * mounting, and defaults to `false` because that is the platform every other fixture here
+ * already assumes (`getLanguage` answers `'en'`, not a German locale, for the same reason).
+ */
+export const Platform = {
+	isMacOS: false,
+};
+
+/**
  * The real `normalizePath`, and no kinder: it is what a path handed to the vault adapter
  * has to pass through, and a fake that returned its input unchanged would pass every
  * caller while the real call answered about a DIFFERENT path.

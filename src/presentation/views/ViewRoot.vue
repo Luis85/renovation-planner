@@ -264,6 +264,21 @@ const failure = computed(() => {
  * `PlanEditorRoot`'s `onPlanChanged`: Obsidian reuses a view, so a listener outliving its Vue
  * app would re-hydrate a store nothing renders and stack another on the next open.
  */
+/**
+ * The project's own NOTE (Task 8, design spec §7) — the middle-click and modifier-click
+ * accelerators on a row. `RenovationProjectDeps.openProject` is what makes this possible from
+ * here: `presentation/` may not reach Obsidian's vault and a `ProjectSummaryDto` carries no
+ * path, so the composition root already resolves an id to a note.
+ *
+ * `'missing'` means the row pointed at a project the vault no longer holds, so the list it was
+ * drawn from is stale and gets re-read — `ProjectDetailState.onOpenNote` states the identical
+ * rule for its own copy of this action. `'failed'` buys no re-read: the fault door has already
+ * reported it and nothing about the LIST is known to be wrong.
+ */
+async function onOpenNote(id: string): Promise<void> {
+	if ((await context.openProject(id)) === 'missing') await hydrate();
+}
+
 if (openProjectId === null) {
 	onMounted(() => {
 		void hydrate();
@@ -331,6 +346,7 @@ if (openProjectId === null) {
 					:projects="projects"
 					:unreadable="unreadable"
 					@open="(id) => context.navigate(id)"
+					@open-note="onOpenNote"
 					@create="onCreateProject"
 					@create-asset="onCreateAsset"
 				/>

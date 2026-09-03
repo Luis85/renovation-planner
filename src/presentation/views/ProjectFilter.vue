@@ -20,7 +20,7 @@ import { computed, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { tr } from '../i18n/strings';
 
 const props = defineProps<{ query: string; shown: number; total: number }>();
-defineEmits<{ 'update:query': [value: string]; cancel: [] }>();
+const emit = defineEmits<{ 'update:query': [value: string]; cancel: []; keydown: [event: KeyboardEvent] }>();
 
 /**
  * `useId` rather than a hard-coded id, and `app.config.idPrefix` is set at BOTH `createApp`
@@ -91,6 +91,34 @@ watch(countText, (text) => {
 onBeforeUnmount(() => {
 	clearTimeout(pending);
 });
+
+/** The input element, so `ProjectList` can move focus into it (Task 8's keyboard entry). */
+const input = ref<HTMLInputElement | null>(null);
+
+/**
+ * Re-emits every keydown, and — on `Escape` — ALSO fires `cancel`. §7's table has the arrows
+ * work from "filter or list", so `ProjectList` needs the keys this field does not consume
+ * itself; Escape's own two meanings (clear a query, or hand focus to the first row) can only be
+ * resolved by the list, which is why this component still does not decide either one — it only
+ * widened from "Escape alone" to "every key".
+ *
+ * `stopPropagation` on Escape is what the single `.esc.stop` binding this replaces already
+ * carried: it keeps an unclaimed Escape from also reaching whatever Obsidian's own keymap does
+ * with it while this pane has focus.
+ */
+function onInputKeydown(event: KeyboardEvent): void {
+	if (event.key === 'Escape') {
+		event.stopPropagation();
+		emit('cancel');
+	}
+	emit('keydown', event);
+}
+
+/**
+ * The smaller surface: a caller that needs to move focus into this field asks for THAT, not for
+ * the element itself — which is what lets this component keep owning its own input.
+ */
+defineExpose({ focus: (): void => input.value?.focus() });
 </script>
 
 <template>
@@ -104,11 +132,12 @@ onBeforeUnmount(() => {
 		>{{ tr('view.project.filter.label') }}</label>
 		<input
 			:id="inputId"
+			ref="input"
 			class="rp-project-filter__input"
 			type="text"
 			:value="query"
 			@input="$emit('update:query', ($event.target as HTMLInputElement).value)"
-			@keydown.esc.stop="$emit('cancel')"
+			@keydown="onInputKeydown"
 		>
 		<!--
 			THE VISIBLE COUNT, immediate. `aria-hidden` because the live region below carries the

@@ -145,4 +145,76 @@ describe('ProjectRow', () => {
 
 		expect(wrapper.emitted('open')).toEqual([['p1']]);
 	});
+
+	/**
+	 * §7's second destination — the project's own note — and its three accelerators (Task 8).
+	 * `Platform.isMacOS` is `false` in the mock throughout this block, so `Ctrl` is the
+	 * modifier `opensNote` answers to; `platformModifier.test.ts` covers the macOS mirror.
+	 */
+	it('opens the note on Mod+Enter, and navigates on a bare Enter', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('keydown', { key: 'Enter', ctrlKey: true });
+
+		expect(wrapper.emitted('openNote')).toEqual([['p1']]);
+		// A bare Enter is the button's own native activation — reaching `click`, not this
+		// handler — so nothing here must emit for it.
+		expect(wrapper.emitted('open')).toBeUndefined();
+	});
+
+	it('opens the note on a middle click, which fires auxclick and never click', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('auxclick', { button: 1 });
+
+		expect(wrapper.emitted('openNote')).toEqual([['p1']]);
+	});
+
+	it('ignores the secondary button, which belongs to the context menu', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('auxclick', { button: 2 });
+
+		expect(wrapper.emitted('openNote')).toBeUndefined();
+	});
+
+	it('opens the note on a modifier click and navigates on a plain one', async () => {
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('click', { ctrlKey: true });
+		await wrapper.find('.rp-project-list__row').trigger('click');
+
+		expect(wrapper.emitted('openNote')).toEqual([['p1']]);
+		expect(wrapper.emitted('open')).toEqual([['p1']]);
+	});
+
+	it('does NEITHER for a modifier this door does not claim', async () => {
+		// `Platform.isMacOS` is false in the mock, so `Meta` is the key `opensNote` rejects here.
+		// The gesture that matters is its mirror image: on macOS `Ctrl+click` is the secondary
+		// click, and falling through to `open` would move the user into a project they were
+		// asking a context menu about. `Alt` and `Shift` are refused for the same reason —
+		// this surface claims neither.
+		const wrapper = row();
+
+		await wrapper.find('.rp-project-list__row').trigger('click', { metaKey: true });
+		await wrapper.find('.rp-project-list__row').trigger('click', { altKey: true });
+		await wrapper.find('.rp-project-list__row').trigger('click', { shiftKey: true });
+
+		expect(wrapper.emitted('openNote')).toBeUndefined();
+		expect(wrapper.emitted('open')).toBeUndefined();
+	});
+
+	describe('tabbable', () => {
+		it('is the roving group’s one tab stop by default', () => {
+			expect(row().find('.rp-project-list__row').attributes('tabindex')).toBe('0');
+		});
+
+		it('drops out of the tab sequence when `tabbable` is false', () => {
+			const wrapper = mount(ProjectRow, {
+				props: { project: PROJECT, collator, tabbable: false },
+			});
+
+			expect(wrapper.find('.rp-project-list__row').attributes('tabindex')).toBe('-1');
+		});
+	});
 });

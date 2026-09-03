@@ -254,17 +254,21 @@ describe('the filter line inside ProjectList', () => {
 		expect(list().find('.rp-view-notice').exists()).toBe(false);
 	});
 
-	it('leaves Escape to a later task rather than clearing the query itself', async () => {
-		// Task 8 is where Escape's two meanings are built. Until then the list hears `cancel`
-		// and does nothing with it — asserted so that a build which quietly wires half of it
-		// fails here rather than shipping one of the two meanings.
+	/**
+	 * **Superseded by Task 8, which is where Escape's two meanings are built.** This case used
+	 * to pin the PLACEHOLDER half — the list heard `cancel` and did nothing with it — so that a
+	 * build which quietly wired only one of the two meanings would fail here. `ProjectList`
+	 * wires both now (`onFilterCancel`), and `projectListKeyboard.test.ts` is the file that owns
+	 * both halves; this one is rewritten to the real behaviour rather than deleted, so the
+	 * `ProjectList` + `ProjectFilter` seam this describe block is about keeps a case for Escape
+	 * at all.
+	 */
+	it('clears the query on Escape, with a query present', async () => {
 		const wrapper = list();
 		await wrapper.find('.rp-project-filter__input').setValue('kitchen');
 
 		await wrapper.find('.rp-project-filter__input').trigger('keydown', { key: 'Escape' });
 
-		expect((wrapper.find('.rp-project-filter__input').element as HTMLInputElement).value).toBe(
-			'kitchen',
-		);
+		expect((wrapper.find('.rp-project-filter__input').element as HTMLInputElement).value).toBe('');
 	});
 });

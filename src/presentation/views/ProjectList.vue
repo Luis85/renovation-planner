@@ -15,13 +15,14 @@
  * this same change: a sentence about another commit's behaviour needs re-reading by whoever
  * lands that commit, and the component the sentence is ABOUT is the one nobody re-read.
  */
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import type { ProjectSummaryDto } from '../read-models/PlanDto';
 import ProjectRow from './ProjectRow.vue';
 import ProjectFilter from './ProjectFilter.vue';
 import { isCompleted, nameCollator, orderProjects } from './projectOrder';
 import { matchesQuery } from './projectFilter';
 import { currentLanguage, tr } from '../i18n/strings';
+import { useRovingFocus, type RovingFocus } from './useRovingFocus';
 
 /**
  * `unreadable` is REQUIRED rather than optional, and the reason is the one
@@ -37,7 +38,13 @@ const props = defineProps<{ projects: readonly ProjectSummaryDto[]; unreadable: 
  * whatever the user had typed, so a query that matched nothing becomes the fastest path to
  * the project that did not exist yet.
  */
-defineEmits<{ open: [projectId: string]; create: [initialName: string]; createAsset: [] }>();
+defineEmits<{
+	open: [projectId: string];
+	/** The project's own NOTE (Task 8, design spec §7) — re-emitted from a row unchanged. */
+	openNote: [projectId: string];
+	create: [initialName: string];
+	createAsset: [];
+}>();
 
 /**
  * ONE collator for this mount, built once rather than per comparison: `Intl.Collator`'s
@@ -85,6 +92,121 @@ const completed = computed(() => matching.value.filter(isCompleted));
  * exactly like the filter's own query (Task 6).
  */
 const completedOpen = ref(false);
+
+/**
+ * ONE ROVING CONTROLLER PER ROW LIST (Task 8, design spec §7), because the tab sequence names
+ * both `Projects` and the expanded `Completed` group as ONE stop each. `Completed` having its
+ * own is not symmetry for its own sake: without it every completed project keeps `ProjectRow`'s
+ * default `tabindex="0"`, so a vault with twenty finished projects costs twenty tabs to walk
+ * past — the exact cost roving exists to remove, reintroduced in the group most likely to be
+ * long.
+ */
+const activeList = ref<HTMLElement | null>(null);
+const completedList = ref<HTMLElement | null>(null);
+const activeRoving = useRovingFocus(activeList, '.rp-project-list__row');
+const completedRoving = useRovingFocus(completedList, '.rp-project-list__row');
+
+/**
+ * EACH GROUP CLAMPS AGAINST ITS OWN ROWS, never against the filter's total match count.
+ *
+ * The two differ the moment a query matches a completed project and not an active one: with one
+ * active row and two completed matches, a cursor at index 2 clamped against `matching.length`
+ * (3) would not move, leaving the sole active row at `tabindex="-1"` — so Tab would skip the
+ * `Projects` group for the rest of the mount, silently.
+ *
+ * The same watcher also clears `completedOpen` when the group empties: the disclosure is
+ * recreated COLLAPSED (it sits under a `v-if` on `completed.length > 0`), so a query that
+ * removes the last completed project and a later one that brings one back would otherwise mount
+ * a fresh, closed element while this ref still said `true` — and `focusFirstRow` would then
+ * treat rows inside a collapsed disclosure as reachable.
+ */
+watch(active, (rows) => activeRoving.reconcile(rows.map((row) => row.id)));
+watch(completed, (rows) => {
+	completedRoving.reconcile(rows.map((row) => row.id));
+	if (rows.length === 0) completedOpen.value = false;
+});
+
+/** The filter's own input, so a printable character typed at a list can move focus into it. */
+const filterInput = ref<InstanceType<typeof ProjectFilter> | null>(null);
+
+/**
+ * The launcher's keyboard ENTRY, and the reason no autofocus is needed: a printable character
+ * typed at the list moves focus to the filter and SEEDS it with that character. Bound to both
+ * lists' `@keydown`, alongside `roving.onKeydown` for the arrows.
+ *
+ * Seeds rather than only focusing — a user typing `cellar` must not lose the `c`.
+ *
+ * `Space` is CARVED OUT: `' '.length === 1`, so a bare printable-character test would admit it,
+ * and a row is a `<button>` whose native activation is Enter AND Space — seeding from it would
+ * either suppress that activation or do both at once. Nothing is lost, because a query never
+ * usefully begins with a space.
+ *
+ * A modified keystroke is left alone too: `Ctrl+P` is Obsidian's command palette, and seeding
+ * from it would swallow every host shortcut a user presses while a row has focus.
+ */
+function onListKeydown(event: KeyboardEvent, roving: RovingFocus): void {
+	if (roving.onKeydown(event)) {
+		event.preventDefault();
+		return;
+	}
+	if (event.key === ' ') return;
+	if (event.key.length !== 1 || event.altKey || event.ctrlKey || event.metaKey) return;
+	event.preventDefault();
+	query.value = event.key;
+	void nextTick(() => {
+		filterInput.value?.focus();
+	});
+}
+
+/**
+ * Move focus to the first row the user can actually reach, and say whether there was one.
+ *
+ * `Projects` first, then `Completed` only while it is EXPANDED — arrowing into rows the user
+ * cannot see would move focus somewhere invisible, which is worse than not moving. Falling
+ * through to `Completed` is not symmetry: it is the only way into a vault whose projects are
+ * all finished, or into a query that matches only completed ones. `false` means there is
+ * nowhere to go — an empty vault, or a query filtered to nothing.
+ *
+ * A FUNCTION rather than the same two branches written twice: both `onFilterKeydown` and
+ * `onFilterCancel` ask this identical question, and a second hand-written copy is exactly how
+ * one of them ends up asking a narrower one by accident.
+ */
+function focusFirstRow(): boolean {
+	if (active.value.length > 0) {
+		activeRoving.focusFirst();
+		return true;
+	}
+	if (completedOpen.value && completed.value.length > 0) {
+		completedRoving.focusFirst();
+		return true;
+	}
+	return false;
+}
+
+/**
+ * The arrows work from the FILTER as well as from a list — §7's table says `filter or list`,
+ * and bound to the lists alone a keyboard user reaches the field and cannot get out of it into
+ * the results.
+ */
+function onFilterKeydown(event: KeyboardEvent): void {
+	if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+	if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+	if (focusFirstRow()) event.preventDefault();
+}
+
+/**
+ * Escape's TWO meanings, which is why `ProjectFilter` emits rather than deciding: with a query
+ * it clears and the caret stays; with none it hands focus to the first row — and when there is
+ * no row to hand it to (filtered to nothing, or an empty vault) it does nothing at all rather
+ * than dropping focus to `<body>`.
+ */
+function onFilterCancel(): void {
+	if (query.value.length > 0) {
+		query.value = '';
+		return;
+	}
+	focusFirstRow();
+}
 </script>
 
 <template>
@@ -122,15 +244,18 @@ const completedOpen = ref(false);
 		`0 projects` about a vault that demonstrably holds projects this build could not read —
 		the notice below it contradicted by the line above it.
 
-		`@cancel` is deliberately unhandled until Task 8, which is where Escape's two meanings
-		(clear a query, or hand focus to the first row when there is none) are built.
+		`@cancel` and `@keydown` are Task 8's: Escape's two meanings, and the arrows working
+		from the field as well as from a list (§7's table says "filter or list").
 	-->
 	<ProjectFilter
 		v-if="projects.length > 0"
+		ref="filterInput"
 		:query="query"
 		:shown="matching.length"
 		:total="projects.length"
 		@update:query="query = $event"
+		@cancel="onFilterCancel"
+		@keydown="onFilterKeydown"
 	/>
 	<!--
 		REGION 6, and it lives HERE rather than in `ViewRoot` because that is where §5 puts it.
@@ -153,9 +278,14 @@ const completedOpen = ref(false);
 		<h3 class="rp-project-list__group-title">
 			{{ tr('view.project.group.projects') }}
 		</h3>
-		<ul class="rp-project-list">
+		<ul
+			ref="activeList"
+			class="rp-project-list"
+			@keydown="(e) => onListKeydown(e, activeRoving)"
+			@focusin="activeRoving.syncFromFocus"
+		>
 			<li
-				v-for="project in active"
+				v-for="(project, index) in active"
 				:key="project.id"
 			>
 				<!--
@@ -170,7 +300,9 @@ const completedOpen = ref(false);
 					:project="project"
 					:collator="collator"
 					:query="query"
+					:tabbable="index === activeRoving.activeIndex.value"
 					@open="(id) => $emit('open', id)"
+					@open-note="(id) => $emit('openNote', id)"
 				/>
 			</li>
 		</ul>
@@ -199,16 +331,23 @@ const completedOpen = ref(false);
 				{{ tr('view.project.group.completed', { count: String(completed.length) }) }}
 			</h3>
 		</summary>
-		<ul class="rp-project-list">
+		<ul
+			ref="completedList"
+			class="rp-project-list"
+			@keydown="(e) => onListKeydown(e, completedRoving)"
+			@focusin="completedRoving.syncFromFocus"
+		>
 			<li
-				v-for="project in completed"
+				v-for="(project, index) in completed"
 				:key="project.id"
 			>
 				<ProjectRow
 					:project="project"
 					:collator="collator"
 					:query="query"
+					:tabbable="index === completedRoving.activeIndex.value"
 					@open="(id) => $emit('open', id)"
+					@open-note="(id) => $emit('openNote', id)"
 				/>
 			</li>
 		</ul>

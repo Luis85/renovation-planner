@@ -21,6 +21,7 @@ import { statusLabel } from './statusLabel';
 import { PROJECT_STATUS_STAGE_COUNT, projectStatusStage } from './projectStatusStage';
 import { splitMatch } from './projectFilter';
 import { tr } from '../i18n/strings';
+import { opensNote } from './platformModifier';
 
 /**
  * TWO NEW PROPS AND ONLY ONE OF THEM IS REQUIRED, which is this file arguing both sides of one
@@ -48,19 +49,41 @@ import { tr } from '../i18n/strings';
  * instead). A reason that names a caller is a reason a grep can check, and that one was never
  * run.
  */
-const props = defineProps<{
-	project: ProjectSummaryDto;
-	collator: Intl.Collator;
-	query?: string;
-}>();
-defineEmits<{ open: [projectId: string] }>();
+/**
+ * `withDefaults` rather than `tabbable ?? true` at the point of use: a TS type of `boolean`
+ * compiles to a runtime `type: Boolean` declaration, and Vue's own prop system casts an ABSENT
+ * boolean prop to `false` rather than `undefined` unless a `default` says otherwise — so
+ * `??`, which falls back only on `null`/`undefined`, silently never fires and every row drawn
+ * without the prop read as `tabbable: false`. Measured, not assumed: the very first case
+ * written against `?? true` failed with `tabindex="-1"` on a mount that passed no prop at all.
+ */
+const props = withDefaults(
+	defineProps<{
+		project: ProjectSummaryDto;
+		collator: Intl.Collator;
+		query?: string;
+		/**
+		 * Whether this row is the roving group's one tab stop (Task 8, design spec §7). `true`
+		 * by default so a row drawn OUTSIDE a roving group — the Continue row, a harness
+		 * prototype — is an ordinary control, which is what §7 requires of it. `ProjectList` is
+		 * the one caller that ever passes `false`.
+		 */
+		tabbable?: boolean;
+	}>(),
+	// `query` gains a default here too, and not merely to silence a lint rule that only
+	// activates once ANY prop is defaulted through `withDefaults`: a concrete `''` is exactly
+	// what `splitMatch` already treated an absent query as, so the fallback below simplifies to
+	// reading the prop directly rather than needing its own `?? ''`.
+	{ tabbable: true, query: '' },
+);
+const emit = defineEmits<{ open: [projectId: string]; openNote: [projectId: string] }>();
 
 /**
  * The name, split around the matched run. The runs carry the NAME's own characters — a `Küche`
  * found by typing `kuche` still renders with its umlaut — because a highlight says WHERE the
  * match is and never replaces the text.
  */
-const runs = computed(() => splitMatch(props.project.name, props.query ?? '', props.collator));
+const runs = computed(() => splitMatch(props.project.name, props.query, props.collator));
 
 /**
  * The facts slot's content, in the order §8 specifies, with EMPTY ENTRIES ABSENT rather than
@@ -106,6 +129,55 @@ const ticks = computed(() => {
 	if (stage === null) return null;
 	return Array.from({ length: PROJECT_STATUS_STAGE_COUNT }, (_, cell) => cell <= stage);
 });
+
+/**
+ * A modifier-click opens the NOTE, a PLAIN click navigates, and a click carrying any OTHER
+ * modifier does NEITHER — design spec §7's Pointer section.
+ *
+ * That third arm is load-bearing: `opensNote` answers only for the platform's own key, so
+ * without it a Ctrl-click on macOS — the platform's OWN secondary-click gesture — would fall
+ * straight through to plain navigation, moving a user reaching for a context menu into the
+ * project instead. The same refusal covers `Alt` and `Shift`, neither of which this surface
+ * claims either.
+ *
+ * `Enter` reaches this handler too, as the button's own native activation, so a `Ctrl+Enter`
+ * on macOS is refused here for the same reason rather than needing a second guard in
+ * `onKeydown`.
+ */
+function onClick(event: MouseEvent): void {
+	if (opensNote(event)) {
+		event.preventDefault();
+		emit('openNote', props.project.id);
+		return;
+	}
+	if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+	emit('open', props.project.id);
+}
+
+/**
+ * The MIDDLE button, which fires `auxclick` rather than `click` — a `click` handler testing
+ * `event.button === 1` would never run, because the middle button never produces one.
+ *
+ * `event.button === 1` is still tested here, because `auxclick` fires for the secondary
+ * button too and the right button belongs to the context menu.
+ */
+function onAuxClick(event: MouseEvent): void {
+	if (event.button !== 1) return;
+	// Chrome opens its autoscroll widget on a middle press otherwise — the same rule the plan
+	// editor's canvas states for its own middle button.
+	event.preventDefault();
+	emit('openNote', props.project.id);
+}
+
+/**
+ * `Mod+↵` opens the note; a bare `↵` is the button's own native activation and is deliberately
+ * NOT handled here — intercepting it would reimplement what the element already does.
+ */
+function onKeydown(event: KeyboardEvent): void {
+	if (event.key !== 'Enter' || !opensNote(event)) return;
+	event.preventDefault();
+	emit('openNote', props.project.id);
+}
 </script>
 
 <template>
@@ -113,7 +185,10 @@ const ticks = computed(() => {
 		type="button"
 		class="rp-project-list__row rp-project-row"
 		:data-project-id="project.id"
-		@click="$emit('open', project.id)"
+		:tabindex="tabbable ? 0 : -1"
+		@click="onClick"
+		@auxclick="onAuxClick"
+		@keydown="onKeydown"
 	>
 		<!-- The half that gives way. `title` is what makes a truncated name readable at all,
 		     and it is the shipped rule `forms.css` records finding at 460px. -->

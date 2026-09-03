@@ -295,10 +295,20 @@ const price = (asset: CatalogueAsset): string => {
  * each name's length leaves it and the right-hand facts stop forming columns. Fixed tracks
  * after the flexible one keep the cost, the waste and the supplier each in their own column
  * down the whole shelf, which is the entire argument for a dense row over a flat one.
+ *
+ * **The waste track is a FIXED width, and that is what makes the sentence above true.** Every row
+ * is its own grid — no subgrid, no shared sizing — so an `auto` track sizes to ITS row's content:
+ * zero on the rows with no waste factor, wider on the rest. The cost cell beside it shifts by
+ * that difference and the prices stop forming the column this comment promises, tabular numerals
+ * notwithstanding. It asserted exactly what the `auto` beside it prevented, for the whole life of
+ * this file, and was found by a review bot rather than by any gate: jsdom lays nothing out, and
+ * the misalignment is a few pixels in captures nobody was measuring. `5ch` fits `+12%`; a
+ * three-digit factor would overflow it, which is a bound worth knowing rather than a case worth
+ * widening for.
  */
 .rp-al-shelf .rp-al-row {
 	display: grid;
-	grid-template-columns: 20px minmax(0, 1fr) auto auto minmax(0, 16ch);
+	grid-template-columns: 20px minmax(0, 1fr) auto 5ch minmax(0, 16ch);
 	align-items: center;
 	gap: var(--size-4-2);
 	width: 100%;
@@ -321,7 +331,7 @@ const price = (asset: CatalogueAsset): string => {
  * the mock opens unsearched, so nothing had ever drawn this row.
  */
 .rp-al-shelf .rp-al-row--categorised {
-	grid-template-columns: 20px minmax(0, 1fr) minmax(0, 10ch) auto auto minmax(0, 16ch);
+	grid-template-columns: 20px minmax(0, 1fr) minmax(0, 10ch) auto 5ch minmax(0, 16ch);
 }
 
 .rp-al-shelf .rp-al-row:hover {
@@ -393,11 +403,11 @@ const price = (asset: CatalogueAsset): string => {
  */
 @container rp-al-shelves (width < 40rem) {
 	.rp-al-shelf .rp-al-row {
-		grid-template-columns: 20px minmax(0, 1fr) auto auto;
+		grid-template-columns: 20px minmax(0, 1fr) auto 5ch;
 	}
 
 	.rp-al-shelf .rp-al-row--categorised {
-		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) auto auto;
+		grid-template-columns: 20px minmax(0, 1fr) minmax(0, 8ch) auto 5ch;
 	}
 
 	.rp-al-row__supplier {

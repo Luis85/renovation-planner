@@ -298,7 +298,7 @@ a rule this section always held — see §12:
 | Footprint, **unscaled** | the **same outline, dashed**. The proportions are real and the scale is not, which is exactly what a provisional stroke over true geometry says |
 | Not yet read | **three dots**, centred. Not a shape at all, so no footprint can collide with it, and it is already the printed mark for *still coming* |
 | No shape yet | **nothing**. An empty slot is the one thing no other state can be mistaken for, and a drawn box for *there is no shape* is scaffolding pretending to be data |
-| **Unreadable** | a **struck box** — the only state that draws a box at all, so nothing can confuse it with a square footprint. A box says something *is* there; the cross says it is spent |
+| **Unreadable** | a **struck box** — the only state that draws a box at all, so nothing can confuse it with a square footprint. The box says a shape *was asked for and could not be had*; the cross says the row will not get one without repair |
 
 The third state is not a skeleton animation; it is what the row draws before its shape arrives,
 and it has to be distinct from *no shape yet* or the surface asserts an absence it has not
@@ -320,6 +320,17 @@ reach.
 
 The mark is `aria-hidden`; the shape's state is written in words in the inspector, so nothing is
 carried by the drawing alone.
+
+**The struck box covers TWO causes and deliberately does not distinguish them.** A damaged
+sidecar and an id that cannot name a file (`asset-geometry.unusable-id`, refused before the disk
+is touched at all) both mean *no shape, and not because there is none to have*. An earlier
+wording said "a box says something **is** there; the cross says it is spent", which is a claim
+about a FILE — true of four codes and false of the fifth, and §3.5 had already split that fifth
+out of its own table while this one still grouped it. A fifth mark is the alternative and it is
+the wrong trade: the four states are distinguished by KIND because each is a different thing to
+do next, and these two share theirs — *this row needs repairing before it can have a shape.*
+Which repair differs, and that is what one click into the inspector says. Reported by a review
+bot, in the round that split the inspector's own table.
 
 ### 3.5 Inspector
 
@@ -445,7 +456,8 @@ Four sections, in this order:
      | --- | --- | --- |
      | `asset.not-found` | the asset is gone, with a way back to the list | **withdrawn** — there is nothing to open |
      | `asset-geometry.unusable-id` | the asset's **id** cannot name a file, so no shape can be stored for it at all — never that a shape file could not be read | **`Open note`** — the id is in the note's frontmatter and editing it is the whole repair |
-     | any other `asset-geometry.*` — `unreadable`, `corrupt`, `schema-invalid`, `asset-id-mismatch` | §3.4's `unreadable` wording, naming the sidecar where the error carries its path | **withdrawn** — see below |
+     | any other `asset-geometry.*` — `unreadable`, `corrupt`, `schema-invalid`, `asset-id-mismatch` | §3.4's `unreadable` wording, **naming the sidecar from the read model's own `sidecarPath`** | **withdrawn** — see below |
+     | a `GeometryError` from `dimensionsOf` | the shape's extent is too large to state as a measurement — the sidecar READ succeeded | withdrawn; **no retry**, because nothing about re-reading the same bytes can change the arithmetic |
      | anything else | the vault read failed, retryable | withdrawn until a read succeeds |
 
      **Those three rows are about the SHAPE. A selection can also fail one level up, and that
@@ -466,6 +478,19 @@ Four sections, in this order:
      `Open note` too was the alternative and it is the dead-end §3.5 already refused once — the
      one action that would actually fix the thing, withheld because the state was not
      representable.
+
+     **"Naming the sidecar" needed somewhere for the path to come FROM, and the first version of
+     that promise had none.** The stores put the path only inside `BaseError.message` — developer
+     English like ``Sidecar ${path} is not valid JSON.`` — and `BaseError` carries no structured
+     path field, so a builder could satisfy §8's *every visible string resolves through `t(...)`*
+     or this row's promise to name the file, and not both. Adding a field to `BaseError` is a
+     change to every error in the plugin for one row's benefit; printing the developer message is
+     the raw-`Error.message`-in-a-notice defect `NOTICE_TEXT_BAN` exists to refuse. So the path
+     rides on **this surface's own read model** instead: the query already derives it — that is
+     what `AssetGeometryStore.pathFor` does — and hands back `sidecarPath` beside the refusal,
+     which an interpolated key then names. It is absent for `unusable-id` by construction, since
+     no path could be derived, and that row does not promise one. Reported by a review bot against
+     a promise this document made one round earlier.
 
      **`unusable-id` had to be split out of that group, and its own fixture is what exposed it.**
      The hostile id planted in `tests/harness/assetLibraryFocus.test.ts` to prove the focus
@@ -1082,12 +1107,13 @@ view.asset-library.back             view.asset-library.delete
 view.asset-library.shape            view.asset-library.footprint
 view.asset-library.clearance        view.asset-library.spec-sheet
 view.asset-library.none             view.asset-library.shape.loading
-view.asset-library.shape.gone       view.asset-library.shape.read-failed
+view.asset-library.shape.gone       view.asset-library.shape.read-failed  (interpolated: {path})
 view.asset-library.clearance.unscaled
 view.asset-library.loading          view.asset-library.some-unreadable  (interpolated: {count})
 view.asset-library.note-unreadable  (interpolated: {name})
 view.asset-library.asset-gone
 view.asset-library.shape.unusable-id
+view.asset-library.shape.extent-overflow
 view.asset-library.failed.headline
 view.asset-library.new-asset        view.asset-library.results
 view.asset-library.category         view.asset-library.unit
@@ -1887,6 +1913,40 @@ shelf is doing, so expanding did nothing visible then and revealed an opened cat
 the search was cleared. §6.1 says that state is the user's. Narrowed to the non-searching case.
 **The pattern is the one this branch keeps paying for from the other direction**: a fix written for
 the case in front of its author, applied unconditionally.
+
+A twenty-fourth round found four, and three of them are the previous round's own fixes not
+carried far enough.
+
+**The struck box's semantics claimed a file exists**, and §3.5 had split `unusable-id` out of its
+own table one round earlier while §3.4 still grouped it. The wording was *"a box says something is
+there; the cross says it is spent"* — a claim about a FILE, true of four codes and false of the
+fifth, which is refused before the disk is touched. Broadened rather than given a fifth mark: the
+four states are distinguished by KIND because each is a different thing to do next, and these two
+share theirs — *this row needs repairing before it can have a shape* — with the inspector, one
+click away, saying which repair.
+
+**A `GeometryError` from `dimensionsOf` was landing in the retryable-vault-failure row.** The
+sidecar read SUCCEEDED there; what failed is arithmetic on its contents, and re-reading the same
+bytes cannot change it. A retry offered against unchanged data is the live-control-that-does-
+nothing this document has now refused three times. Its own row, with no retry.
+
+**And "naming the sidecar" had nowhere for the path to come from.** The stores carry it only
+inside `BaseError.message` — developer English — and `BaseError` has no structured path field, so
+a builder could satisfy §8's *every visible string resolves through `t(...)`* or that promise, and
+not both. Adding a field to `BaseError` changes every error in the plugin for one row; printing
+the developer message is the defect `NOTICE_TEXT_BAN` exists to refuse. The path rides on this
+surface's own read model instead — the query derives it already — and is absent for `unusable-id`
+by construction, where no path exists to name.
+
+**The fourth is a comment that asserted what the declaration beside it prevented.** The row grid's
+own header says *"fixed tracks after the flexible one keep the cost, the waste and the supplier
+each in their own column down the whole shelf"* — and the waste track was `auto`. Every row is its
+own grid, with no subgrid and no shared sizing, so that track collapsed to zero on the rows with
+no waste factor and expanded on the rest, shifting the cost cell beside it. The prices never
+formed the column the comment promises, in any capture ever taken here, tabular numerals
+notwithstanding. **Reported by a review bot reading the CSS against its own comment** — jsdom lays
+nothing out and the shift is a few pixels nobody was measuring, which is the same blind spot the
+harness index's `ZonePanelprototype` defect lived in.
 
 **What the prototype does not answer.** It draws no loading, failure, unreadable or
 `settings.unrecovered` state — §4 tabulates all six and drawing them needs the real query's

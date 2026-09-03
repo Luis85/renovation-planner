@@ -213,18 +213,36 @@
 	text-transform: uppercase;
 }
 
+/*
+ * `height: auto` overrides Obsidian's own `button` rule, which sets a fixed
+ * `height: var(--input-height)` (30px) at (0,0,1) — lower than this selector's (0,1,0), but
+ * this rule never declared `height` at all, so the cascade served the fixed one anyway. Every
+ * item here carries a label, a description and — for the nine unsupported entries — a reason
+ * line, and clamped to one input's height the second and third lines spilled out of the box
+ * with nothing to reserve room for them: the next item's own box started immediately below
+ * the clamped one and drew over the spillover. `gap` gives the three lines the same spacing
+ * `.rp-add-menu`'s own children (the search box and the menu) already carry.
+ */
 .rp-add-menu__item {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-start;
+	gap: var(--size-4-1);
 	width: 100%;
-	padding: var(--size-4-1) var(--size-4-2);
+	height: auto;
+	padding: var(--size-4-2);
 	text-align: left;
 	color: var(--text-normal);
 	background-color: transparent;
 	border: none;
 	border-radius: var(--radius-s);
 	cursor: pointer;
+}
+
+/* Items are plain block siblings inside `.rp-add-menu__group` (a div with no `display` of its
+   own), so nothing separated them vertically until now — each item's box touched the next's. */
+.rp-add-menu__item + .rp-add-menu__item {
+	margin-top: var(--size-4-1);
 }
 
 .rp-add-menu__item:hover,

@@ -161,7 +161,18 @@
 	list-style: none;
 }
 
+/*
+ * `display: block` is load-bearing, not tidying — CLAUDE.md records the identical defect for
+ * the project detail's plan list (`.rp-plan-list__create`, slice 21: "`text-align: left` is
+ * inert on a flex item, and Obsidian's own `button` rule centres it"). Obsidian's own `button`
+ * selector sets `display: inline-flex; justify-content: center;` at (0,0,1), lower than this
+ * rule's (0,2,0) — but `text-align` never overrode it, because the two properties are unrelated:
+ * with the button still a flex container, `justify-content: center` centred the label text on
+ * the main axis and `text-align: left` had nothing left to align. Falling back to `display:
+ * block` restores ordinary inline layout, where `text-align: left` is exactly what decides it.
+ */
 .rp-room-list .rp-room-list__row {
+	display: block;
 	width: 100%;
 	padding: var(--size-4-1) var(--size-4-2);
 	font-size: var(--font-ui-small);

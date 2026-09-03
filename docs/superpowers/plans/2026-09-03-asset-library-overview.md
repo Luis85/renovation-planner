@@ -1184,6 +1184,8 @@ git add -A && git commit -m "feat: the asset mark, the asset row and the categor
 **Files:**
 - Modify: `src/presentation/library/AssetLibraryRoot.vue` (Task 11's minimal version)
 - Create: `src/presentation/library/AssetShelves.vue`
+- Reuse: `src/presentation/components/EmptyState.vue` and Task 8's
+  `selectAssetLibraryEmptyState` — mounted here and nowhere earlier
 - Port from: `src/prototypes/AssetLibrary.vue`
 - Test: `tests/presentation/library/assetLibraryRoot.test.ts`
 
@@ -1199,8 +1201,26 @@ git add -A && git commit -m "feat: the asset mark, the asset row and the categor
 
 **The result count is announced** — `12 matching assets` in a `role="status"` live region, so a keyboard or screen-reader user hears the effect of typing rather than inferring it from a list they cannot see.
 
-**Every state from §4's table**, and the two that are easiest to get wrong:
+**Every state from §4's table**, and the three that are easiest to get wrong:
 
+- **BOTH empty states are rendered HERE**, and nothing before this task draws either of them.
+  Task 8 built `selectAssetLibraryEmptyState`, the two `EMPTY_STATE_CONTENT.assetLibrary`
+  entries and their copy; the plan then named no task that mounts them, which is the same shape
+  as the `ProjectFolderLookup` fold Task 9 had to be corrected for — a declared piece with no
+  file behind it is a piece nobody builds. So: mount the existing `EmptyState.vue` with the
+  selector's answer, pass the search term as its second argument (an empty list WITH a query is
+  `noMatches`, without one it is `noAssets` — opposite copy, opposite actions), wire
+  `noAssets`'s action to the same `New asset` door the toolbar uses and `noMatches`'s action to
+  clearing the search field, and note that **`selectAssetLibraryEmptyState` returns
+  `'noAssets' | 'noMatches' | null`** — a registry KEY, matching every sibling selector in this
+  repository, not the `StringKey` the Task 8 snippet's pseudocode returned. Where this text and
+  the shipped `selectors.ts` disagree, the shipped file wins.
+  Each one **replaces the SHELVES REGION and never the shell** (spec §4, lines 852–853): the
+  toolbar and the status bar stay drawn, so the search field a user must reach to leave
+  `noMatches` is still there — which is also why `noMatches`'s own action button is the
+  destroyed control the focus manager has to move away from (spec line 2306).
+  The two empty states are what Task 17's axe cases grade, one case each, so a state that draws
+  no `.rp-empty-state__action` fails there rather than quietly.
 - **Loading is held until the index scan has run** (Task 10 supplies the gate). Never a spinner over an empty pane.
 - **Some unreadable** is the ADDITIVE `.rp-view-notice` strip above the shelves — the shelves still draw. It names **each path with its reason** and offers `Open note` **per row rather than for every row**: a `read-failed` whose code names a future-schema refusal draws the sentence and no action, because there is nothing in that file to change. An action that cannot work is worse than no action.
 

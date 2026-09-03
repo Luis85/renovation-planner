@@ -460,19 +460,25 @@ path, and the COMMAND that calls it does check. *Reachability is a property of t
 of the type*, and the only way to establish it is to read every guard between the input and the
 bytes on disk.
 
-**The `main` merge added a SECOND reachable door, and it is the broader of the two.**
-`AssetPriceOverride`'s constructor says so itself: *"The project's currency is deliberately NOT
-checked here"* — the entity would have to be told the project's currency and the constructor is
-not given it. So a project's own price for a shared asset can be denominated in anything, and
-`resolveEffectiveUnitCost` feeds it into the derivation as an **input**, where the override this
-paragraph already cites replaces the **output**. An input-level mismatch reaches
-`estimatedCost.calculated` for every requirement in that project on that asset rather than one
-row at a time.
+**A paragraph here used to claim the `main` merge had added a SECOND reachable door, and it was
+the source of the mistake corrected above.** It read the entity's constructor — *"The project's
+currency is deliberately NOT checked here"* — as meaning a project's price for a shared asset
+could be denominated in anything, and concluded that `unsummable` was *more* necessary than the
+section argued.
 
-`unsummable` is therefore more necessary than this section argued, not less — which is worth
-recording as the direction of the surprise. A dependency landing under a spec usually invalidates
-a justification; this one strengthened it, and the strengthening would have gone unnoticed just
-as easily as a contradiction would.
+It is struck rather than deleted, because it was quoted approvingly for two rounds and the next
+reader deserves to meet the refutation rather than a gap. Both ends are guarded:
+`SetAssetPriceOverride.ts:144` refuses a price whose currency differs from the project's, and an
+out-of-band note cannot get into a persisted figure either — `deriveRequirementFigures` passes
+`expectedCurrency` to `computeEstimatedCost` and returns its refusal, so the derivation fails
+before anything is saved.
+
+**Three rounds, three statements of one wrong claim, and each correction landed on the passage I
+was reading.** The claim outlived two of its own retractions because it was phrased differently
+every time — "a foreign-currency override", "an `AssetPriceOverride` in another currency", "a
+SECOND reachable door" — so no grep for the previous wording could reach the next one. The
+remedy that would have worked is not a better search: it is that **a reachability claim names
+the guards it passed**, which is checkable, where "the constructor does not check" is not.
 
 **This is not a licence to leave that residue open.** It is the read side declining to hide
 it.

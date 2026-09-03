@@ -219,11 +219,25 @@ const importsStylesheet = (file: string, text: string): boolean =>
 				found = true;
 				return;
 			}
-			const dynamic =
-				ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword;
-			if (dynamic && node.arguments[0] !== undefined && namesStylesheet(node.arguments[0])) {
-				found = true;
-				return;
+			if (ts.isCallExpression(node) && node.arguments[0] !== undefined) {
+				const callee = node.expression;
+				// `import('…')` — the callee IS the keyword, not an identifier.
+				const isDynamicImport = callee.kind === ts.SyntaxKind.ImportKeyword;
+				// `import.meta.glob('./themes/*.css')` — Vite turns each match into a dynamic
+				// import, so a glob naming stylesheets loads them. The callee is a property
+				// access ending in `glob` over an `import.meta` meta-property, which the
+				// dynamic-import test above cannot see: its `.kind` is `PropertyAccessExpression`.
+				// `entries.ts` already uses this primitive, so it is house vocabulary rather than
+				// an exotic input — the walk simply could not see the one shape the harness itself
+				// is built on.
+				const isGlob =
+					ts.isPropertyAccessExpression(callee)
+					&& callee.name.text === 'glob'
+					&& callee.expression.getText(source).startsWith('import.meta');
+				if ((isDynamicImport || isGlob) && namesStylesheet(node.arguments[0])) {
+					found = true;
+					return;
+				}
 			}
 			ts.forEachChild(node, visit);
 		};

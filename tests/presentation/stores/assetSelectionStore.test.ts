@@ -409,6 +409,27 @@ describe('AssetSelectionStore invalidation', () => {
 	});
 
 	/**
+	 * The SECOND arm of the transition, which the case above cannot reach: with only one listing
+	 * applied the previous set is empty, so the predicate short-circuits on *was it there before*
+	 * and never asks *is it there now*. Two listings is what makes the entry present in both, and
+	 * a build missing `|| listed.has(assetId)` restarts all three reads on every catalogue
+	 * refresh for an entry that never went anywhere — Minor b's over-restart through the other
+	 * door.
+	 */
+	it('leaves both reads alone however often a listing keeps the selected entry', async () => {
+		const doors = counted();
+		const store = useAssetSelectionStore();
+		await store.select(ASSET, doors);
+		await store.applyListing([entryFor(ASSET)], doors);
+
+		await store.applyListing([entryFor(ASSET)], doors);
+		await store.applyListing([entryFor(ASSET), entryFor(OTHER)], doors);
+
+		expect(doors.getDesign).toHaveBeenCalledTimes(1);
+		expect(doors.listReferencing).toHaveBeenCalledTimes(1);
+	});
+
+	/**
 	 * The backstop is a TRANSITION. Eight event types feed the `catalogue` arm, so a selection
 	 * whose asset is genuinely gone would otherwise re-run the vault-wide referencing scan once
 	 * per synced note, for as long as the user left it selected.

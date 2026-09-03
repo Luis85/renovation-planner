@@ -6,6 +6,7 @@ import type { AssetLibraryChange } from '../../application/events/assetLibraryCh
 import type { CatalogueEntryDto, UnreadableEntry } from '../../application/queries/ListCatalogueEntries';
 import type { AssetId } from '../../domain/asset/AssetId';
 import { selectAssetLibraryEmptyState } from '../emptyStates/selectors';
+import { currentLanguage } from '../i18n/strings';
 import { createViewportMarks } from '../library/viewportMarks';
 import type { AssetLibraryQueryServices } from '../read-models/assetLibraryQueries';
 import { useAssetSelectionStore } from './AssetSelectionStore';
@@ -26,22 +27,34 @@ type AssetLibraryStatus = 'idle' | 'loading' | 'ready' | 'failed';
  * Case-folded on both sides, and `null` fields simply do not match rather than being coerced to
  * a string, which would let a search for `null` find every asset that has no supplier.
  */
-/**
- * §6.1's *ordered by name across categories*, through the same `Intl.Collator` the prototype
- * this surface is ported from already uses rather than a bare `localeCompare` — one collator
- * constructed once, which is what makes ordering a full catalogue on every keystroke cheap.
- *
- * The locale is not read from Obsidian here: `getLanguage()` is `presentation/`'s to resolve at
- * a component, and a store reaching for it would be this module's first Obsidian dependency for
- * a sort order. The default collator follows the runtime's locale, which is the honest answer
- * until something asks for a different one.
- */
-const BY_NAME = new Intl.Collator();
-
 function matches(entry: CatalogueEntryDto, needle: string): boolean {
 	return [entry.name, entry.supplier, entry.sku].some(
 		(field) => field !== null && field.toLowerCase().includes(needle),
 	);
+}
+
+/**
+ * The collator §3.2 and §6.1 ask for: *locale-aware, under the RESOLVED language*.
+ *
+ * **The bare `new Intl.Collator()` is the defect this replaces, and it is one this feature has
+ * already been caught at once** — §12 records a review bot finding two collators in one view,
+ * the rows under the resolved language and the shelves under the environment's, and names the
+ * case: a German UI on a Swedish system, where `Ä` sorts past `Z` for this one list and nothing
+ * else in the app. `de` and `en` collation agree on `ä ö ü ß`, so the bare constructor looks
+ * right for almost every user, by luck rather than by rule.
+ *
+ * Resolving costs no Obsidian dependency: `currentLanguage()` is `presentation/i18n/strings`'s
+ * own door, already the way `toUserMessage` and `tr` resolve theirs, and it answers PER CALL so
+ * a surface stays correct after the app language changes. A collator is expensive to construct
+ * and this list is re-ordered on every keystroke, so the last one is kept — keyed by the
+ * language, never assumed to outlive it.
+ */
+let cached: { readonly language: string; readonly collator: Intl.Collator } | null = null;
+
+function byName(): Intl.Collator {
+	const language = currentLanguage();
+	if (cached?.language !== language) cached = { language, collator: new Intl.Collator(language) };
+	return cached.collator;
 }
 
 /**
@@ -199,7 +212,8 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 	const visibleEntries = computed(() => {
 		const needle = query.value.trim().toLowerCase();
 		const matched = needle === '' ? entries.value : entries.value.filter((entry) => matches(entry, needle));
-		return matched.toSorted((one, other) => BY_NAME.compare(one.name, other.name));
+		const collator = byName();
+		return matched.toSorted((one, other) => collator.compare(one.name, other.name));
 	});
 
 	/**
@@ -254,8 +268,15 @@ export const useAssetLibraryStore = defineStore('asset-library', () => {
 
 	return {
 		visibleEntries,
-		/** §3.6's `54 assets` — the whole catalogue's size, which is the one fact about the
-		 *  unfiltered listing anything outside this store needs. */
+		/**
+		 * §3.6's `54 assets` — the whole catalogue's size, which is the one fact about the
+		 * unfiltered listing anything outside this store needs.
+		 *
+		 * READABLE entries only, deliberately: §3.6 says how large the LIBRARY is, and a note this
+		 * build cannot parse is not an asset yet. Its count is already surfaced, separately and
+		 * with each path and reason, by §5.1a's repair strip — adding it in here would state one
+		 * number about two different things and quietly disagree with the strip beside it.
+		 */
 		total: computed(() => entries.value.length),
 		unreadable,
 		status,

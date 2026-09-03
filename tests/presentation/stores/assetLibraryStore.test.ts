@@ -9,7 +9,7 @@
  * ticket and its index-scan gate, the search field the empty state is decided over, and the
  * per-asset mark generations the viewport queue holds behind `setVisibleMarks`.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { err, ok } from '../../../src/core/result/Result';
 import { useAssetLibraryStore } from '../../../src/presentation/stores/AssetLibraryStore';
@@ -27,6 +27,20 @@ import { assetDesign } from '../../helpers/assetDesign';
 import { defer } from '../../helpers/async';
 
 type CatalogueAnswer = Awaited<ReturnType<AssetLibraryQueryServices['listCatalogue']>>;
+
+/**
+ * The one place in this suite that varies the app language. `tests/helpers/obsidian-mock.ts`
+ * answers a fixed `'en'` — right for every other file, and it makes *which* locale the collator
+ * was built from unobservable, since a runner whose own locale is `en-US` orders identically to
+ * a bare `new Intl.Collator()`. Hoisted state, because `vi.mock`'s factory is hoisted above every
+ * declaration in the file.
+ */
+const host = vi.hoisted(() => ({ language: 'en' }));
+
+vi.mock('obsidian', async (importOriginal) => ({
+	...(await importOriginal<Record<string, unknown>>()),
+	getLanguage: () => host.language,
+}));
 
 const READ_FAILED = { category: 'Persistence', code: 'vault.unexpected-failure', message: 'boom' } as const;
 
@@ -126,6 +140,10 @@ const scanned = (): boolean => true;
 
 beforeEach(() => {
 	setActivePinia(createPinia());
+});
+
+afterEach(() => {
+	host.language = 'en';
 });
 
 describe('AssetLibraryStore hydration', () => {
@@ -335,6 +353,30 @@ describe('AssetLibraryStore search', () => {
 		store.query = 'metalux';
 
 		expect(store.visibleEntries.map((entry) => entry.name)).toEqual(['Acrylic sealant', 'Zinc trim']);
+	});
+
+	/**
+	 * §3.2's *locale-aware (`localeCompare` under the RESOLVED language)*, which a bare
+	 * `new Intl.Collator()` does not satisfy — it orders by the environment's locale, and §12
+	 * records a review bot catching exactly that on this feature once already.
+	 *
+	 * Swedish is what makes the difference observable at all: `sv` sorts `Ä` past `Z`, while `en`
+	 * and `de` both sort it with `A` — so the German UI this plugin ships a `de.ts` for loses
+	 * nothing to the environment's locale by luck, and only a locale that disagrees can tell a
+	 * resolved collator from an ambient one.
+	 */
+	it('orders under the resolved app language, not the environment locale', async () => {
+		const zink = anEntry({ name: 'Zink' });
+		const arlig = anEntry({ name: 'Ärlig' });
+		const store = useAssetLibraryStore();
+		await store.hydrate(queriesAnswering({ entries: [zink, arlig] }), scanned);
+
+		expect(store.visibleEntries.map((entry) => entry.name)).toEqual(['Ärlig', 'Zink']);
+
+		host.language = 'sv';
+		store.query = ' '; // any recompute; the field holds no query
+
+		expect(store.visibleEntries.map((entry) => entry.name)).toEqual(['Zink', 'Ärlig']);
 	});
 
 	/** §3.6 prints how large the LIBRARY is, which a search must not shrink. */

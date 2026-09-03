@@ -4542,7 +4542,9 @@ Not oversights; each has a trigger.
   60 KB to **488 KB** at design slice 5's close; that is what ADR-003 and §54 cost, and it
   is worth knowing before the next dependency. **488 KB is that slice's own figure, not
   today's** — `dist/main.js` measured 670.06 kB (gzip 211.08 kB) at design slice 16's close and
-  **703.39 kB (gzip 221.71 kB) at design slice 19's**, each verified by running `npm run build`
+  **703.39 kB (gzip 221.71 kB) at design slice 19's**, and **825.68 kB (gzip 252.79 kB) at the
+  close of the plan editor foundation's first increment** (2026-09-03, after the asset-designer
+  merge — the two arrivals are not separated here), each verified by running `npm run build`
   rather than carried forward from an earlier entry here. Read every bundle figure in this file the
   same way: as the size AT THE SLICE NAMED, not as a standing total nothing re-measures.
 
